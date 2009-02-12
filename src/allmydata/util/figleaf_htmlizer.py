@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 import sys
+import pickle
 import figleaf
 import os
 import re
@@ -11,6 +12,7 @@ class RenderOptions(usage.Options):
         ("exclude-patterns", "x", None, "file containing regexp patterns to exclude"),
         ("output-directory", "d", "html", "Directory for HTML output"),
         ("root", "r", None, "only pay attention to modules under this directory"),
+        ("old-coverage", "o", None, "figleaf pickle from previous build"),
         ]
 
     def opt_root(self, value):
@@ -38,6 +40,14 @@ class Renderer:
 
         if not coverage:
             sys.exit(-1)
+
+        self.old_coverage = None
+        if opts["old-coverage"]:
+            try:
+                f = open(opts["old-coverage"], "rb")
+                self.old_coverage = pickle.load(f)
+            except EnvironmentError:
+                pass
 
         self.load_exclude_patterns(opts["exclude-patterns"])
         ### make directory
@@ -100,23 +110,34 @@ class Renderer:
         info_dict_items = info_dict.items()
 
         def sort_by_pcnt(a, b):
-            a = a[1][2]
-            b = b[1][2]
-            return -cmp(a,b)
+            a_cmp = (-a[1][4], a[1][5])
+            b_cmp = (-b[1][4], b[1][5])
+            return cmp(a_cmp,b_cmp)
 
         def sort_by_uncovered(a, b):
-            a_uncovered = a[1][0] - a[1][1]
-            b_uncovered = b[1][0] - b[1][1]
-            return -cmp(a_uncovered, b_uncovered)
+            a_cmp = ( -(a[1][0] - a[1][1]), a[1][5])
+            b_cmp = ( -(b[1][0] - b[1][1]), b[1][5])
+            return cmp(a_cmp, b_cmp)
+
+        def sort_by_delta(a, b):
+            # files which lost coverage line should appear first, followed by
+            # files which gained coverage
+            a_cmp = (-a[1][3], -a[1][2], a[1][5])
+            b_cmp = (-b[1][3], -b[1][2], b[1][5])
+            return cmp(a_cmp, b_cmp)
 
         info_dict_items.sort(sort_by_uncovered)
 
         summary_lines = sum([ v[0] for (k, v) in info_dict_items])
         summary_cover = sum([ v[1] for (k, v) in info_dict_items])
-
+        summary_added = sum([ v[2] for (k, v) in info_dict_items])
+        summary_removed = sum([ v[3] for (k, v) in info_dict_items])
         summary_pcnt = 0
         if summary_lines:
             summary_pcnt = float(summary_cover) * 100. / float(summary_lines)
+        self.summary = (summary_lines, summary_cover,
+                        summary_added, summary_removed,
+                        summary_pcnt)
 
 
         pcnts = [ float(v[1]) * 100. / float(v[0]) for (k, v) in info_dict_items if v[0] ]
@@ -130,6 +151,9 @@ class Renderer:
         stats_fp.write("total covered lines: %d\n" % summary_cover)
         stats_fp.write("total uncovered lines: %d\n" %
                        (summary_lines - summary_cover))
+        if self.old_coverage is not None:
+            stats_fp.write("lines added: %d\n" % summary_added)
+            stats_fp.write("lines removed: %d\n" % summary_removed)
         stats_fp.write("total coverage percentage: %.1f\n" % summary_pcnt)
         stats_fp.close()
 
@@ -144,14 +168,17 @@ class Renderer:
 
         # sorted by number of lines that aren't covered
         index_fp.write('<h3>Sorted by Lines Uncovered</h3>\n')
-        self.emit_table(index_fp, info_dict_items, True,
-                        summary_lines, summary_cover, summary_pcnt)
+        self.emit_table(index_fp, info_dict_items, show_totals=True)
+
+        if self.old_coverage is not None:
+            index_fp.write('<h3>Sorted by Coverage Added/Lost</h3>\n')
+            info_dict_items.sort(sort_by_delta)
+            self.emit_table(index_fp, info_dict_items, show_totals=False)
 
         # sorted by module name
         index_fp.write('<h3>Sorted by Module Name (alphabetical)</h3>\n')
         info_dict_items.sort()
-        self.emit_table(index_fp, info_dict_items, False,
-                        summary_lines, summary_cover, summary_pcnt)
+        self.emit_table(index_fp, info_dict_items, show_totals=False)
 
         index_fp.close()
 
@@ -164,39 +191,46 @@ class Renderer:
         except IOError:
             return
 
-        lines = figleaf.get_lines(pyfile)
+        source_lines = figleaf.get_lines(pyfile)
+
+        have_old_coverage = False
+        if self.old_coverage and k in self.old_coverage:
+            have_old_coverage = True
+            old_coverage = self.old_coverage[k]
 
         # ok, got all the info.  now annotate file ==> html.
 
         covered = coverage[k]
         n_covered = n_lines = 0
+        n_added = n_removed = 0
 
         pyfile = open(k)
         output = []
         for i, line in enumerate(pyfile):
-            is_covered = False
-            is_line = False
-
-            i += 1
+            i += 1 # coverage info is 1-based
 
             if i in covered:
-                is_covered = True
-
+                color = "green"
                 n_covered += 1
                 n_lines += 1
-            elif i in lines:
-                is_line = True
-
+            elif i in source_lines:
+                color = "red"
                 n_lines += 1
+            else:
+                color = "black"
 
-            color = 'black'
-            if is_covered:
-                color = 'green'
-            elif is_line:
-                color = 'red'
+            delta = " "
+            if have_old_coverage:
+                if i in covered and i not in old_coverage:
+                    delta = "+"
+                    n_added += 1
+                elif i in old_coverage and i not in covered:
+                    delta = "-"
+                    n_removed += 1
 
             line = self.escape_html(line.rstrip())
-            output.append('<font color="%s">%4d. %s</font>' % (color, i, line.rstrip()))
+            output.append('<font color="%s">%s%4d. %s</font>' %
+                          (color, delta, i, line.rstrip()))
 
         try:
             pcnt = n_covered * 100. / n_lines
@@ -207,44 +241,95 @@ class Renderer:
         directory = self.opts["output-directory"]
         html_outfp = open(os.path.join(directory, html_outfile), 'w')
         html_outfp.write('source file: <b>%s</b><br>\n' % (k,))
-        html_outfp.write('file stats: <b>%d lines, %d executed: %.1f%% covered</b>\n' % (n_lines, n_covered, pcnt))
+        html_outfp.write('file stats: <b>%d lines, %d executed: %.1f%% covered</b><br>\n' % (n_lines, n_covered, pcnt))
+        if have_old_coverage:
+            html_outfp.write('coverage versus previous test: <b>%d lines added, %d lines removed</b><br>\n'
+                             % (n_added, n_removed))
 
         html_outfp.write('<pre>\n')
-        html_outfp.write("\n".join(output))
+        for line in output:
+            html_outfp.write(line + "\n")
+        html_outfp.write('</pre>\n')
         html_outfp.close()
 
-        return (n_lines, n_covered, pcnt, display_filename)
+        return (n_lines, n_covered, n_added, n_removed, pcnt, display_filename)
 
-    def emit_table(self, index_fp, items, show_totals,
-                   summary_lines, summary_cover, summary_pcnt):
-        index_fp.write('<table border=1><tr><th>Filename</th>'
-                       '<th># lines</th><th># covered</th>'
-                       '<th># uncovered</th>'
-                       '<th>% covered</th></tr>\n')
+    def emit_table(self, index_fp, items, show_totals):
+        have_old_coverage = self.old_coverage is not None
+        if have_old_coverage:
+            index_fp.write('<table border=1><tr><th>Filename</th>'
+                           '<th># lines</th><th># covered</th>'
+                           '<th># uncovered</th>'
+                           '<th># added</th>'
+                           '<th># removed</th>'
+                           '<th>% covered</th></tr>\n')
+        else:
+            index_fp.write('<table border=1><tr><th>Filename</th>'
+                           '<th># lines</th><th># covered</th>'
+                           '<th># uncovered</th>'
+                           '<th>% covered</th></tr>\n')
         if show_totals:
-            index_fp.write('<tr><td><b>totals:</b></td>'
-                           '<td><b>%d</b></td>'
-                           '<td><b>%d</b></td>'
-                           '<td><b>%d</b></td>'
-                           '<td><b>%.1f%%</b></td>'
-                           '</tr>'
-                           '<tr></tr>\n'
-                           % (summary_lines, summary_cover,
-                              (summary_lines - summary_cover),
-                              summary_pcnt,))
+            (summary_lines, summary_cover, summary_pcnt,
+             summary_added, summary_removed) = self.summary
+            if have_old_coverage:
+                index_fp.write('<tr><td><b>totals:</b></td>'
+                               '<td><b>%d</b></td>' # lines
+                               '<td><b>%d</b></td>' # cover
+                               '<td><b>%d</b></td>' # uncover
+                               '<td><b>%d</b></td>' # added
+                               '<td><b>%d</b></td>' # removed
+                               '<td><b>%.1f%%</b></td>'
+                               '</tr>'
+                               '<tr></tr>\n'
+                               % (summary_lines, summary_cover,
+                                  (summary_lines - summary_cover),
+                                  summary_added, summary_removed,
+                                  summary_pcnt,))
+            else:
+                index_fp.write('<tr><td><b>totals:</b></td>'
+                               '<td><b>%d</b></td>'
+                               '<td><b>%d</b></td>'
+                               '<td><b>%d</b></td>'
+                               '<td><b>%.1f%%</b></td>'
+                               '</tr>'
+                               '<tr></tr>\n'
+                               % (summary_lines, summary_cover,
+                                  (summary_lines - summary_cover),
+                                  summary_pcnt,))
 
         for filename, stuff in items:
-            (n_lines, n_covered, percent_covered, display_filename) = stuff
-            html_outfile = self.make_html_filename(display_filename)
+            self.emit_table_row(index_fp, stuff)
 
+        index_fp.write('</table>\n')
+
+    def emit_table_row(self, index_fp, info):
+        (n_lines, n_covered, n_added, n_removed,
+         percent_covered, display_filename) = info
+        html_outfile = self.make_html_filename(display_filename)
+
+        if self.old_coverage is not None:
             index_fp.write('<tr><td><a href="./%s">%s</a></td>'
-                           '<td>%d</td><td>%d</td><td>%d</td><td>%.1f</td>'
+                           '<td>%d</td>' # lines
+                           '<td>%d</td>' # covered
+                           '<td>%d</td>' # uncovered
+                           '<td>%d</td>' # added
+                           '<td>%d</td>' # removed
+                           '<td>%.1f</td>'
+                           '</tr>\n'
+                           % (html_outfile, display_filename, n_lines,
+                              n_covered, (n_lines - n_covered),
+                              n_added, n_removed,
+                              percent_covered,))
+        else:
+            index_fp.write('<tr><td><a href="./%s">%s</a></td>'
+                           '<td>%d</td>'
+                           '<td>%d</td>'
+                           '<td>%d</td>'
+                           '<td>%.1f</td>'
                            '</tr>\n'
                            % (html_outfile, display_filename, n_lines,
                               n_covered, (n_lines - n_covered),
                               percent_covered,))
-
-        index_fp.write('</table>\n')
 
     def make_html_filename(self, orig):
         return orig + ".html"
