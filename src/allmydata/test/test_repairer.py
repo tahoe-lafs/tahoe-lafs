@@ -367,18 +367,68 @@ class DownUpConnector(unittest.TestCase):
         duc.write('\x02\0x03')
         return d
 
-    def test_premature_close(self):
+    def test_short_reads_1(self):
+        # You don't get fewer bytes than you requested -- instead you get no callback at all.
         duc = repairer.DownUpConnector()
         duc.registerProducer(None, True) # just because you have to call registerProducer first
+
+        d = duc.read_encrypted(2, False)
+        duc.write('\x04')
+
+        def _callb(res):
+            self.fail("Shouldn't have gotten this callback res: %s" % (res,))
+        d.addCallback(_callb)
+
+        # Also in the other order of read-vs-write:
+        duc2 = repairer.DownUpConnector()
+        duc2.registerProducer(None, True) # just because you have to call registerProducer first
+        duc2.write('\x04')
+        d = duc2.read_encrypted(2, False)
+
+        def _callb(res):
+            self.fail("Shouldn't have gotten this callback res: %s" % (res,))
+        d.addCallback(_callb)
+
+        # But once the DUC is closed then you *do* get short reads.
+        duc3 = repairer.DownUpConnector()
+        duc3.registerProducer(None, True) # just because you have to call registerProducer first
+
+        d = duc3.read_encrypted(2, False)
+        duc3.write('\x04')
+        duc3.close()
+        def _callb(res):
+            self.failUnlessEqual(len(res), 1)
+            self.failUnlessEqual(res[0], '\x04')
+        d.addCallback(_callb)
+        return d
+
+    def test_short_reads_2(self):
+        # Also in the other order of read-vs-write.
+        duc = repairer.DownUpConnector()
+        duc.registerProducer(None, True) # just because you have to call registerProducer first
+
+        duc.write('\x04')
         d = duc.read_encrypted(2, False)
         duc.close()
-        def _callb(f):
-            self.fail("Should have errbacked.")
-        def _errb(f):
-            f.trap(repairer.PrematureClose)
-            self.failUnlessEqual(f.value.requested, 2)
-            # Okay, you pass the test.
-        d.addCallbacks(_callb, _errb)
+
+        def _callb(res):
+            self.failUnlessEqual(len(res), 1)
+            self.failUnlessEqual(res[0], '\x04')
+        d.addCallback(_callb)
+        return d
+
+    def test_short_reads_3(self):
+        # Also if it is closed before the read.
+        duc = repairer.DownUpConnector()
+        duc.registerProducer(None, True) # just because you have to call registerProducer first
+
+        duc.write('\x04')
+        duc.close()
+        d = duc.read_encrypted(2, False)
+        def _callb(res):
+            self.failUnlessEqual(len(res), 1)
+            self.failUnlessEqual(res[0], '\x04')
+        d.addCallback(_callb)
         return d
 
 class Repairer(common.ShareManglingMixin, unittest.TestCase):
