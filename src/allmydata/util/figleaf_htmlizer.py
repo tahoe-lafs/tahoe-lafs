@@ -146,15 +146,16 @@ class Renderer:
         pcnt_50 = [ x for x in pcnts if x >= 50 ]
 
         stats_fp = open('%s/stats.out' % (directory,), 'w')
-        stats_fp.write("total files: %d\n" % len(pcnts))
-        stats_fp.write("total source lines: %d\n" % summary_lines)
-        stats_fp.write("total covered lines: %d\n" % summary_cover)
-        stats_fp.write("total uncovered lines: %d\n" %
-                       (summary_lines - summary_cover))
+        self.write_stats(stats_fp, "total files: %d" % len(pcnts))
+        self.write_stats(stats_fp, "total source lines: %d" % summary_lines)
+        self.write_stats(stats_fp, "total covered lines: %d" % summary_cover)
+        self.write_stats(stats_fp,
+                         "total uncovered lines: %d" % (summary_lines - summary_cover))
         if self.old_coverage is not None:
-            stats_fp.write("lines added: %d\n" % summary_added)
-            stats_fp.write("lines removed: %d\n" % summary_removed)
-        stats_fp.write("total coverage percentage: %.1f\n" % summary_pcnt)
+            self.write_stats(stats_fp, "lines added: %d" % summary_added)
+            self.write_stats(stats_fp, "lines removed: %d" % summary_removed)
+        self.write_stats(stats_fp,
+                         "total coverage percentage: %.1f" % summary_pcnt)
         stats_fp.close()
 
         ## index.html
@@ -340,6 +341,10 @@ class Renderer:
         s = s.replace(">", "&gt;")
         s = s.replace('"', "&quot;")
         return s
+
+    def write_stats(self, stats_fp, line):
+        stats_fp.write(line + "\n")
+        print line
 
 def main():
     r = Renderer()
