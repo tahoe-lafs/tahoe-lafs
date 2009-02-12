@@ -146,6 +146,7 @@ $(error COVERAGEDIR must be set when using UPLOAD_TARGET)
 endif
 
 upload-figleaf:
+	cp .figleaf coverage-html/figleaf.pickle
 	rsync -a coverage-html/ $(UPLOAD_TARGET)
 	ssh $(UPLOAD_HOST) make update-tahoe-figleaf COVERAGEDIR=$(COVERAGEDIR)
 else
