@@ -2,7 +2,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from allmydata import storage
 from allmydata.util import log, observer
-from allmydata.util.assertutil import precondition
+from allmydata.util.assertutil import precondition, _assert
 from allmydata.uri import CHKFileVerifierURI
 from allmydata.interfaces import IEncryptedUploadable, IDownloadTarget
 from twisted.internet.interfaces import IConsumer
@@ -152,6 +152,8 @@ class DownUpConnector(log.PrefixingLogMixin):
                     extra = ressize - nrl
                     self.bufs.appendleft(nextbuf[:-extra])
                     res[-1] = nextbuf[:-extra]
+            assert _assert(sum(len(x) for x in res) <= nrl, [len(x) for x in res], nrl)
+            assert _assert(sum(len(x) for x in res) == nrl or self._closed_to_pusher, [len(x) for x in res], nrl)
             self.bufsiz -= nrl
             if self.bufsiz < self.buflim and self.producer:
                 self.producer.resumeProducing()
