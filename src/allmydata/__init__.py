@@ -15,6 +15,18 @@ except ImportError:
     # not happen very often.
     pass
 
+__appname__ = "unknown"
+try:
+    from _appname import __appname__
+except ImportError:
+    # We're running in a tree that hasn't run "./setup.py".  This shouldn't happen.
+    pass
+
+# __full_version__ is the one that you ought to use when identifying yourself in the
+# "application" part of the Tahoe versioning scheme:
+# http://allmydata.org/trac/tahoe/wiki/Versioning
+__full_version__ = __appname__ + '-' + str(__version__)
+
 hush_pyflakes = __version__
 del hush_pyflakes
 

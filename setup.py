@@ -302,7 +302,20 @@ class MySdist(sdist.sdist):
 # _auto_deps.install_requires list, which is used in the call to setup() below.
 from _auto_deps import install_requires
 
-setup(name='allmydata-tahoe',
+APPNAME='allmydata-tahoe'
+APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')
+APPNAMEFILESTR = "__appname__ = '%s'" % (APPNAME,)
+try:
+    curappnamefilestr = open(APPNAMEFILE, 'rU').read()
+except EnvironmentError:
+    # No file, or unreadable or something, okay then let's try to write one.
+    open(APPNAMEFILE, "w").write(APPNAMEFILESTR)
+else:
+    if curappnamefilestr.strip() != APPNAMEFILESTR:
+        print "Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR)
+        sys.exit(-1)
+
+setup(name=APPNAME,
       description='secure, decentralized, fault-tolerant filesystem',
       long_description=LONG_DESCRIPTION,
       author='the allmydata.org Tahoe project',

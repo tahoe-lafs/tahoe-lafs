@@ -174,12 +174,12 @@ class Basic(unittest.TestCase):
         ss = c.getServiceNamed("storage")
         verdict = ss.remote_get_version()
         self.failUnlessEqual(verdict["application-version"],
-                             str(allmydata.__version__))
+                             str(allmydata.__full_version__))
         self.failIfEqual(str(allmydata.__version__), "unknown")
-        self.failUnless("." in str(allmydata.__version__),
+        self.failUnless("." in str(allmydata.__full_version__),
                         "non-numeric version in '%s'" % allmydata.__version__)
         all_versions = allmydata.get_package_versions_string()
-        self.failUnless("allmydata" in all_versions)
+        self.failUnless("allmydata-tahoe" in all_versions)
         log.msg("tahoe versions: %s" % all_versions)
         # also test stats
         stats = c.get_stats()

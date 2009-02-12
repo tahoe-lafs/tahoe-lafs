@@ -7,7 +7,7 @@ from twisted.python import log
 from twisted.internet import defer
 from foolscap import eventual
 
-import allmydata
+import allmydata # for __full_version__
 from allmydata import uri, monitor
 from allmydata.immutable import upload
 from allmydata.interfaces import IFileURI, FileTooLargeError, NotEnoughSharesError
@@ -84,12 +84,12 @@ class FakeStorageServer:
         self.queries = 0
         self.version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
                          { "maximum-immutable-share-size": 2**32 },
-                         "application-version": str(allmydata.__version__),
+                         "application-version": str(allmydata.__full_version__),
                          }
         if mode == "small":
             self.version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
                              { "maximum-immutable-share-size": 10 },
-                             "application-version": str(allmydata.__version__),
+                             "application-version": str(allmydata.__full_version__),
                              }
 
 

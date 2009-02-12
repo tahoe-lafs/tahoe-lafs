@@ -5,7 +5,7 @@ from twisted.application import service
 from twisted.internet import defer
 from foolscap import Referenceable, DeadReferenceError
 from foolscap.eventual import eventually
-import allmydata
+import allmydata # for __full_version__
 from allmydata import interfaces, storage, uri
 from allmydata.immutable import upload
 from allmydata.immutable.layout import ReadBucketProxy
@@ -132,7 +132,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     implements(interfaces.RICHKUploadHelper)
     VERSION = { "http://allmydata.org/tahoe/protocols/helper/chk-upload/v1" :
                  { },
-                "application-version": str(allmydata.__version__),
+                "application-version": str(allmydata.__full_version__),
                 }
 
     def __init__(self, storage_index, helper,
@@ -492,7 +492,7 @@ class Helper(Referenceable, service.MultiService):
     name = "helper"
     VERSION = { "http://allmydata.org/tahoe/protocols/helper/v1" :
                  { },
-                "application-version": str(allmydata.__version__),
+                "application-version": str(allmydata.__full_version__),
                 }
     chk_upload_helper_class = CHKUploadHelper
     MAX_UPLOAD_STATUSES = 10

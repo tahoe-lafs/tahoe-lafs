@@ -8,7 +8,7 @@ from allmydata.interfaces import RIStorageServer, RIBucketWriter, \
      RIBucketReader, BadWriteEnablerError, IStatsProducer
 from allmydata.util import base32, fileutil, idlib, log, time_format
 from allmydata.util.assertutil import precondition
-import allmydata # for __version__
+import allmydata # for __full_version__
 
 class DataTooLargeError(Exception):
     pass
@@ -968,7 +968,7 @@ class StorageServer(service.MultiService, Referenceable):
                       "tolerates-immutable-read-overrun": True,
                       "delete-mutable-shares-with-zero-length-writev": True,
                       },
-                    "application-version": str(allmydata.__version__),
+                    "application-version": str(allmydata.__full_version__),
                     }
         return version
 

@@ -115,7 +115,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.introducer_furl = self.get_config("client", "introducer.furl")
         ic = IntroducerClient(self.tub, self.introducer_furl,
                               self.nickname,
-                              str(allmydata.__version__),
+                              str(allmydata.__full_version__),
                               str(self.OLDEST_SUPPORTED_VERSION))
         self.introducer_client = ic
         # hold off on starting the IntroducerClient until our tub has been

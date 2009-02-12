@@ -49,7 +49,7 @@ class IntroducerService(service.MultiService, Referenceable):
     name = "introducer"
     VERSION = { "http://allmydata.org/tahoe/protocols/introducer/v1":
                  { },
-                "application-version": str(allmydata.__version__),
+                "application-version": str(allmydata.__full_version__),
                 }
 
     def __init__(self, basedir="."):
