@@ -4,12 +4,24 @@ import figleaf
 import os
 import re
 
-from optparse import OptionParser
+from twisted.python import usage
 
-import logging
-logging.basicConfig(level=logging.DEBUG)
+class RenderOptions(usage.Options):
+    optParameters = [
+        ("exclude-patterns", "x", None, "file containing regexp patterns to exclude"),
+        ("output-directory", "d", "html", "Directory for HTML output"),
+        ("root", "r", None, "only pay attention to modules under this directory"),
+        ]
 
-logger = logging.getLogger('figleaf.htmlizer')
+    def opt_root(self, value):
+        self["root"] = os.path.abspath(value)
+        if not self["root"].endswith("/"):
+            self["root"] += "/"
+
+    def parseArgs(self, *filenames):
+        self.filenames = [".figleaf"]
+        if filenames:
+            self.filenames = list(filenames)
 
 def read_exclude_patterns(f):
     if not f:
@@ -34,7 +46,6 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
         skip = False
         for pattern in exclude_patterns:
             if pattern.search(k):
-                logger.debug('SKIPPING %s -- matches exclusion pattern' % k)
                 skip = True
                 break
 
@@ -61,7 +72,6 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
             pyfile = open(k)
             #print 'opened', k
         except IOError:
-            logger.warning('CANNOT OPEN: %s' % k)
             continue
 
         try:
@@ -70,7 +80,6 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
             raise
         except Exception, e:
             pyfile.close()
-            logger.warning('ERROR: %s %s' % (k, str(e)))
             continue
 
         # ok, got all the info.  now annotate file ==> html.
@@ -208,7 +217,6 @@ def report_as_html(coverage, directory, exclude_patterns=[], root=None):
 
     index_fp.close()
 
-    logger.info('reported on %d file(s) total\n' % len(info_dict))
     return len(info_dict)
 
 def prepare_reportdir(dirname='html'):
@@ -228,54 +236,21 @@ def escape_html(s):
     return s
 
 def main():
-    ###
-
-    option_parser = OptionParser()
-
-    option_parser.add_option('-x', '--exclude-patterns', action="store",
-                             dest="exclude_patterns_file",
-                             help="file containing regexp patterns to exclude")
-
-    option_parser.add_option('-d', '--output-directory', action='store',
-                             dest="output_dir",
-                             default = "html",
-                             help="directory for HTML output")
-    option_parser.add_option('-r', '--root', action="store",
-                             dest="root",
-                             default=None,
-                             help="only pay attention to modules under this directory")
-
-    option_parser.add_option('-q', '--quiet', action='store_true',
-                             dest='quiet',
-                             help='Suppress all but error messages')
-
-    (options, args) = option_parser.parse_args()
-
-    if options.quiet:
-        logging.disable(logging.DEBUG)
-
-    if options.root:
-        options.root = os.path.abspath(options.root)
-        if options.root[-1] != "/":
-            options.root = options.root + "/"
+    opts = RenderOptions()
+    opts.parseOptions()
 
     ### load
 
-    if not args:
-        args = ['.figleaf']
-
     coverage = {}
-    for filename in args:
-        logger.debug("loading coverage info from '%s'\n" % (filename,))
+    for filename in opts.filenames:
         d = figleaf.read_coverage(filename)
         coverage = figleaf.combine_coverage(coverage, d)
 
     if not coverage:
-        logger.warning('EXITING -- no coverage info!\n')
         sys.exit(-1)
 
     ### make directory
-    prepare_reportdir(options.output_dir)
-    report_as_html(coverage, options.output_dir,
-                       read_exclude_patterns(options.exclude_patterns_file),
-                       options.root)
+    prepare_reportdir(opts["output-directory"])
+    report_as_html(coverage, opts["output-directory"],
+                   read_exclude_patterns(opts["exclude-patterns"]),
+                   opts["root"])
