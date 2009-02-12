@@ -23,234 +23,234 @@ class RenderOptions(usage.Options):
         if filenames:
             self.filenames = list(filenames)
 
-def read_exclude_patterns(f):
-    if not f:
-        return []
-    exclude_patterns = []
+class Renderer:
 
-    fp = open(f)
-    for line in fp:
-        line = line.rstrip()
-        if line and not line.startswith('#'):
-            pattern = re.compile(line)
-        exclude_patterns.append(pattern)
+    def run(self):
+        opts = RenderOptions()
+        opts.parseOptions()
 
-    return exclude_patterns
+        ### load
 
-def report_as_html(coverage, directory, exclude_patterns=[], root=None):
-    ### now, output.
+        coverage = {}
+        for filename in opts.filenames:
+            d = figleaf.read_coverage(filename)
+            coverage = figleaf.combine_coverage(coverage, d)
 
-    keys = coverage.keys()
-    info_dict = {}
-    for k in keys:
-        skip = False
-        for pattern in exclude_patterns:
-            if pattern.search(k):
-                skip = True
-                break
+        if not coverage:
+            sys.exit(-1)
 
-        if skip:
-            continue
+        self.load_exclude_patterns(opts["exclude-patterns"])
+        ### make directory
+        self.prepare_reportdir(opts["output-directory"])
+        self.report_as_html(coverage, opts["output-directory"], opts["root"])
 
-        if k.endswith('figleaf.py'):
-            continue
+    def load_exclude_patterns(self, f):
+        self.exclude_patterns = []
+        if not f:
+            return
+        for line in open(f, "r").readlines():
+            line = line.rstrip()
+            if line and not line.startswith('#'):
+                self.exclude_patterns.append(re.compile(line))
 
-        display_filename = k
-        if root:
-            if not k.startswith(root):
+    def prepare_reportdir(self, dirname='html'):
+        try:
+            os.mkdir(dirname)
+        except OSError:                         # already exists
+            pass
+
+    def report_as_html(self, coverage, directory, root=None):
+        ### now, output.
+
+        keys = coverage.keys()
+        info_dict = {}
+        for k in keys:
+            skip = False
+            for pattern in self.exclude_patterns:
+                if pattern.search(k):
+                    skip = True
+                    break
+
+            if skip:
                 continue
-            display_filename = k[len(root):]
-            assert not display_filename.startswith("/")
-            assert display_filename.endswith(".py")
-            display_filename = display_filename[:-3] # trim .py
-            display_filename = display_filename.replace("/", ".")
 
-        if not k.startswith("/"):
-            continue
+            if k.endswith('figleaf.py'):
+                continue
 
-        try:
+            display_filename = k
+            if root:
+                if not k.startswith(root):
+                    continue
+                display_filename = k[len(root):]
+                assert not display_filename.startswith("/")
+                assert display_filename.endswith(".py")
+                display_filename = display_filename[:-3] # trim .py
+                display_filename = display_filename.replace("/", ".")
+
+            if not k.startswith("/"):
+                continue
+
+            try:
+                pyfile = open(k)
+                #print 'opened', k
+            except IOError:
+                continue
+
+            try:
+                lines = figleaf.get_lines(pyfile)
+            except KeyboardInterrupt:
+                raise
+            except Exception, e:
+                pyfile.close()
+                continue
+
+            # ok, got all the info.  now annotate file ==> html.
+
+            covered = coverage[k]
+            n_covered = n_lines = 0
+
             pyfile = open(k)
-            #print 'opened', k
-        except IOError:
-            continue
+            output = []
+            for i, line in enumerate(pyfile):
+                is_covered = False
+                is_line = False
 
-        try:
-            lines = figleaf.get_lines(pyfile)
-        except KeyboardInterrupt:
-            raise
-        except Exception, e:
-            pyfile.close()
-            continue
+                i += 1
 
-        # ok, got all the info.  now annotate file ==> html.
+                if i in covered:
+                    is_covered = True
 
-        covered = coverage[k]
-        n_covered = n_lines = 0
+                    n_covered += 1
+                    n_lines += 1
+                elif i in lines:
+                    is_line = True
 
-        pyfile = open(k)
-        output = []
-        for i, line in enumerate(pyfile):
-            is_covered = False
-            is_line = False
+                    n_lines += 1
 
-            i += 1
+                color = 'black'
+                if is_covered:
+                    color = 'green'
+                elif is_line:
+                    color = 'red'
 
-            if i in covered:
-                is_covered = True
+                line = self.escape_html(line.rstrip())
+                output.append('<font color="%s">%4d. %s</font>' % (color, i, line.rstrip()))
 
-                n_covered += 1
-                n_lines += 1
-            elif i in lines:
-                is_line = True
+            try:
+                pcnt = n_covered * 100. / n_lines
+            except ZeroDivisionError:
+                pcnt = 0
+            info_dict[k] = (n_lines, n_covered, pcnt, display_filename)
 
-                n_lines += 1
+            html_outfile = self.make_html_filename(display_filename)
+            html_outfp = open(os.path.join(directory, html_outfile), 'w')
+            html_outfp.write('source file: <b>%s</b><br>\n' % (k,))
+            html_outfp.write('file stats: <b>%d lines, %d executed: %.1f%% covered</b>\n' % (n_lines, n_covered, pcnt))
 
-            color = 'black'
-            if is_covered:
-                color = 'green'
-            elif is_line:
-                color = 'red'
+            html_outfp.write('<pre>\n')
+            html_outfp.write("\n".join(output))
+            html_outfp.close()
 
-            line = escape_html(line.rstrip())
-            output.append('<font color="%s">%4d. %s</font>' % (color, i, line.rstrip()))
+        ### print a summary, too.
 
-        try:
-            pcnt = n_covered * 100. / n_lines
-        except ZeroDivisionError:
-            pcnt = 0
-        info_dict[k] = (n_lines, n_covered, pcnt, display_filename)
+        info_dict_items = info_dict.items()
 
-        html_outfile = make_html_filename(display_filename)
-        html_outfp = open(os.path.join(directory, html_outfile), 'w')
-        html_outfp.write('source file: <b>%s</b><br>\n' % (k,))
-        html_outfp.write('file stats: <b>%d lines, %d executed: %.1f%% covered</b>\n' % (n_lines, n_covered, pcnt))
+        def sort_by_pcnt(a, b):
+            a = a[1][2]
+            b = b[1][2]
+            return -cmp(a,b)
 
-        html_outfp.write('<pre>\n')
-        html_outfp.write("\n".join(output))
-        html_outfp.close()
+        def sort_by_uncovered(a, b):
+            a_uncovered = a[1][0] - a[1][1]
+            b_uncovered = b[1][0] - b[1][1]
+            return -cmp(a_uncovered, b_uncovered)
 
-    ### print a summary, too.
+        info_dict_items.sort(sort_by_uncovered)
 
-    info_dict_items = info_dict.items()
+        summary_lines = sum([ v[0] for (k, v) in info_dict_items])
+        summary_cover = sum([ v[1] for (k, v) in info_dict_items])
 
-    def sort_by_pcnt(a, b):
-        a = a[1][2]
-        b = b[1][2]
-        return -cmp(a,b)
-
-    def sort_by_uncovered(a, b):
-        a_uncovered = a[1][0] - a[1][1]
-        b_uncovered = b[1][0] - b[1][1]
-        return -cmp(a_uncovered, b_uncovered)
-
-    info_dict_items.sort(sort_by_uncovered)
-
-    summary_lines = sum([ v[0] for (k, v) in info_dict_items])
-    summary_cover = sum([ v[1] for (k, v) in info_dict_items])
-
-    summary_pcnt = 0
-    if summary_lines:
-        summary_pcnt = float(summary_cover) * 100. / float(summary_lines)
+        summary_pcnt = 0
+        if summary_lines:
+            summary_pcnt = float(summary_cover) * 100. / float(summary_lines)
 
 
-    pcnts = [ float(v[1]) * 100. / float(v[0]) for (k, v) in info_dict_items if v[0] ]
-    pcnt_90 = [ x for x in pcnts if x >= 90 ]
-    pcnt_75 = [ x for x in pcnts if x >= 75 ]
-    pcnt_50 = [ x for x in pcnts if x >= 50 ]
+        pcnts = [ float(v[1]) * 100. / float(v[0]) for (k, v) in info_dict_items if v[0] ]
+        pcnt_90 = [ x for x in pcnts if x >= 90 ]
+        pcnt_75 = [ x for x in pcnts if x >= 75 ]
+        pcnt_50 = [ x for x in pcnts if x >= 50 ]
 
-    stats_fp = open('%s/stats.out' % (directory,), 'w')
-    stats_fp.write("total files: %d\n" % len(pcnts))
-    stats_fp.write("total source lines: %d\n" % summary_lines)
-    stats_fp.write("total covered lines: %d\n" % summary_cover)
-    stats_fp.write("total uncovered lines: %d\n" %
-                   (summary_lines - summary_cover))
-    stats_fp.write("total coverage percentage: %.1f\n" % summary_pcnt)
-    stats_fp.close()
+        stats_fp = open('%s/stats.out' % (directory,), 'w')
+        stats_fp.write("total files: %d\n" % len(pcnts))
+        stats_fp.write("total source lines: %d\n" % summary_lines)
+        stats_fp.write("total covered lines: %d\n" % summary_cover)
+        stats_fp.write("total uncovered lines: %d\n" %
+                       (summary_lines - summary_cover))
+        stats_fp.write("total coverage percentage: %.1f\n" % summary_pcnt)
+        stats_fp.close()
 
-    ## index.html
-    index_fp = open('%s/index.html' % (directory,), 'w')
-    # summary info
-    index_fp.write('<title>figleaf code coverage report</title>\n')
-    index_fp.write('<h2>Summary</h2> %d files total: %d files &gt; '
-                   '90%%, %d files &gt; 75%%, %d files &gt; 50%%<p>'
-                   % (len(pcnts), len(pcnt_90),
-                      len(pcnt_75), len(pcnt_50)))
+        ## index.html
+        index_fp = open('%s/index.html' % (directory,), 'w')
+        # summary info
+        index_fp.write('<title>figleaf code coverage report</title>\n')
+        index_fp.write('<h2>Summary</h2> %d files total: %d files &gt; '
+                       '90%%, %d files &gt; 75%%, %d files &gt; 50%%<p>'
+                       % (len(pcnts), len(pcnt_90),
+                          len(pcnt_75), len(pcnt_50)))
 
-    def emit_table(items, show_totals):
-        index_fp.write('<table border=1><tr><th>Filename</th>'
-                       '<th># lines</th><th># covered</th>'
-                       '<th># uncovered</th>'
-                       '<th>% covered</th></tr>\n')
-        if show_totals:
-            index_fp.write('<tr><td><b>totals:</b></td>'
-                           '<td><b>%d</b></td>'
-                           '<td><b>%d</b></td>'
-                           '<td><b>%d</b></td>'
-                           '<td><b>%.1f%%</b></td>'
-                           '</tr>'
-                           '<tr></tr>\n'
-                           % (summary_lines, summary_cover,
-                              (summary_lines - summary_cover),
-                              summary_pcnt,))
+        def emit_table(items, show_totals):
+            index_fp.write('<table border=1><tr><th>Filename</th>'
+                           '<th># lines</th><th># covered</th>'
+                           '<th># uncovered</th>'
+                           '<th>% covered</th></tr>\n')
+            if show_totals:
+                index_fp.write('<tr><td><b>totals:</b></td>'
+                               '<td><b>%d</b></td>'
+                               '<td><b>%d</b></td>'
+                               '<td><b>%d</b></td>'
+                               '<td><b>%.1f%%</b></td>'
+                               '</tr>'
+                               '<tr></tr>\n'
+                               % (summary_lines, summary_cover,
+                                  (summary_lines - summary_cover),
+                                  summary_pcnt,))
 
-        for filename, stuff in items:
-            (n_lines, n_covered, percent_covered, display_filename) = stuff
-            html_outfile = make_html_filename(display_filename)
+            for filename, stuff in items:
+                (n_lines, n_covered, percent_covered, display_filename) = stuff
+                html_outfile = self.make_html_filename(display_filename)
 
-            index_fp.write('<tr><td><a href="./%s">%s</a></td>'
-                           '<td>%d</td><td>%d</td><td>%d</td><td>%.1f</td>'
-                           '</tr>\n'
-                           % (html_outfile, display_filename, n_lines,
-                              n_covered, (n_lines - n_covered),
-                              percent_covered,))
+                index_fp.write('<tr><td><a href="./%s">%s</a></td>'
+                               '<td>%d</td><td>%d</td><td>%d</td><td>%.1f</td>'
+                               '</tr>\n'
+                               % (html_outfile, display_filename, n_lines,
+                                  n_covered, (n_lines - n_covered),
+                                  percent_covered,))
 
-    index_fp.write('</table>\n')
+        index_fp.write('</table>\n')
 
-    # sorted by number of lines that aren't covered
-    index_fp.write('<h3>Sorted by Lines Uncovered</h3>\n')
-    emit_table(info_dict_items, True)
+        # sorted by number of lines that aren't covered
+        index_fp.write('<h3>Sorted by Lines Uncovered</h3>\n')
+        emit_table(info_dict_items, True)
 
-    # sorted by module name
-    index_fp.write('<h3>Sorted by Module Name (alphabetical)</h3>\n')
-    info_dict_items.sort()
-    emit_table(info_dict_items, False)
+        # sorted by module name
+        index_fp.write('<h3>Sorted by Module Name (alphabetical)</h3>\n')
+        info_dict_items.sort()
+        emit_table(info_dict_items, False)
 
-    index_fp.close()
+        index_fp.close()
 
-    return len(info_dict)
+        return len(info_dict)
 
-def prepare_reportdir(dirname='html'):
-    try:
-        os.mkdir(dirname)
-    except OSError:                         # already exists
-        pass
+    def make_html_filename(self, orig):
+        return orig + ".html"
 
-def make_html_filename(orig):
-    return orig + ".html"
-
-def escape_html(s):
-    s = s.replace("&", "&amp;")
-    s = s.replace("<", "&lt;")
-    s = s.replace(">", "&gt;")
-    s = s.replace('"', "&quot;")
-    return s
+    def escape_html(self, s):
+        s = s.replace("&", "&amp;")
+        s = s.replace("<", "&lt;")
+        s = s.replace(">", "&gt;")
+        s = s.replace('"', "&quot;")
+        return s
 
 def main():
-    opts = RenderOptions()
-    opts.parseOptions()
-
-    ### load
-
-    coverage = {}
-    for filename in opts.filenames:
-        d = figleaf.read_coverage(filename)
-        coverage = figleaf.combine_coverage(coverage, d)
-
-    if not coverage:
-        sys.exit(-1)
-
-    ### make directory
-    prepare_reportdir(opts["output-directory"])
-    report_as_html(coverage, opts["output-directory"],
-                   read_exclude_patterns(opts["exclude-patterns"]),
-                   opts["root"])
+    r = Renderer()
+    r.run()
