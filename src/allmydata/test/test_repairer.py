@@ -353,7 +353,7 @@ class DownUpConnector(unittest.TestCase):
         duc.write('\x02')
         return d
 
-    def test_leftovers(self):
+    def test_extra(self):
         duc = repairer.DownUpConnector()
         duc.registerProducer(None, True) # just because you have to call registerProducer first
         # case 1: total data in buf is < requested data at time of request
@@ -365,6 +365,20 @@ class DownUpConnector(unittest.TestCase):
             self.failUnlessEqual(data[1], '\x02')
         d.addCallback(_then)
         duc.write('\x02\0x03')
+        return d
+
+    def test_premature_close(self):
+        duc = repairer.DownUpConnector()
+        duc.registerProducer(None, True) # just because you have to call registerProducer first
+        d = duc.read_encrypted(2, False)
+        duc.close()
+        def _callb(f):
+            self.fail("Should have errbacked.")
+        def _errb(f):
+            f.trap(repairer.PrematureClose)
+            self.failUnlessEqual(f.value.requested, 2)
+            # Okay, you pass the test.
+        d.addCallbacks(_callb, _errb)
         return d
 
 class Repairer(common.ShareManglingMixin, unittest.TestCase):

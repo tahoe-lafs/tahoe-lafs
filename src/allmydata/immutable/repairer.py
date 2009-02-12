@@ -73,6 +73,16 @@ class Repairer(log.PrefixingLogMixin):
 
         return d
 
+class PrematureClose(Exception):
+    # Uploader asked DUC to read a certain number of bytes, and
+    # Downloader closed DUC before writing enough bytes to satisfy the
+    # read.
+    def __init__(self, requested, avail):
+        self.requested = requested
+        self.avail = avail
+    def __repr__(self):
+        return "<%s requested: %d, avail: %d>" % (self.__class__.__name__, self.requested, self.avail)
+
 class DownUpConnector(log.PrefixingLogMixin):
     implements(IEncryptedUploadable, IDownloadTarget, IConsumer)
     """ I act like an "encrypted uploadable" -- something that a local uploader can read
@@ -174,6 +184,10 @@ class DownUpConnector(log.PrefixingLogMixin):
         pass
     def close(self):
         self._closed_to_pusher = True
+        # Any reads which haven't been satisfied by now are not going to be satisfied.
+        while self.next_read_ds:
+            self.next_read_ds.popleft().errback(
+                PrematureClose(self.next_read_lens.popleft(), self.bufsiz))
 
     # methods to satisfy the IEncryptedUploader interface
     # (From the perspective of an uploader I am an IEncryptedUploadable.)
