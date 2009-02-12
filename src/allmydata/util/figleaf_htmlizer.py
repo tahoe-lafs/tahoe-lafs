@@ -26,7 +26,7 @@ class RenderOptions(usage.Options):
 class Renderer:
 
     def run(self):
-        opts = RenderOptions()
+        self.opts = opts = RenderOptions()
         opts.parseOptions()
 
         ### load
@@ -59,99 +59,43 @@ class Renderer:
         except OSError:                         # already exists
             pass
 
+    def check_excludes(self, fn):
+        for pattern in self.exclude_patterns:
+            if pattern.search(fn):
+                return True
+        return False
+
+    def make_display_filename(self, fn):
+        root = self.opts["root"]
+        if not root:
+            return fn
+        display_filename = fn[len(root):]
+        assert not display_filename.startswith("/")
+        assert display_filename.endswith(".py")
+        display_filename = display_filename[:-3] # trim .py
+        display_filename = display_filename.replace("/", ".")
+        return display_filename
+
     def report_as_html(self, coverage, directory, root=None):
         ### now, output.
 
         keys = coverage.keys()
         info_dict = {}
         for k in keys:
-            skip = False
-            for pattern in self.exclude_patterns:
-                if pattern.search(k):
-                    skip = True
-                    break
-
-            if skip:
+            if self.check_excludes(k):
                 continue
-
             if k.endswith('figleaf.py'):
                 continue
-
-            display_filename = k
-            if root:
-                if not k.startswith(root):
-                    continue
-                display_filename = k[len(root):]
-                assert not display_filename.startswith("/")
-                assert display_filename.endswith(".py")
-                display_filename = display_filename[:-3] # trim .py
-                display_filename = display_filename.replace("/", ".")
-
             if not k.startswith("/"):
                 continue
 
-            try:
-                pyfile = open(k)
-                #print 'opened', k
-            except IOError:
-                continue
-
-            try:
-                lines = figleaf.get_lines(pyfile)
-            except KeyboardInterrupt:
-                raise
-            except Exception, e:
-                pyfile.close()
-                continue
-
-            # ok, got all the info.  now annotate file ==> html.
-
-            covered = coverage[k]
-            n_covered = n_lines = 0
-
-            pyfile = open(k)
-            output = []
-            for i, line in enumerate(pyfile):
-                is_covered = False
-                is_line = False
-
-                i += 1
-
-                if i in covered:
-                    is_covered = True
-
-                    n_covered += 1
-                    n_lines += 1
-                elif i in lines:
-                    is_line = True
-
-                    n_lines += 1
-
-                color = 'black'
-                if is_covered:
-                    color = 'green'
-                elif is_line:
-                    color = 'red'
-
-                line = self.escape_html(line.rstrip())
-                output.append('<font color="%s">%4d. %s</font>' % (color, i, line.rstrip()))
-
-            try:
-                pcnt = n_covered * 100. / n_lines
-            except ZeroDivisionError:
-                pcnt = 0
-            info_dict[k] = (n_lines, n_covered, pcnt, display_filename)
-
-            html_outfile = self.make_html_filename(display_filename)
-            html_outfp = open(os.path.join(directory, html_outfile), 'w')
-            html_outfp.write('source file: <b>%s</b><br>\n' % (k,))
-            html_outfp.write('file stats: <b>%d lines, %d executed: %.1f%% covered</b>\n' % (n_lines, n_covered, pcnt))
-
-            html_outfp.write('<pre>\n')
-            html_outfp.write("\n".join(output))
-            html_outfp.close()
+            display_filename = self.make_display_filename(k)
+            info = self.process_file(k, display_filename, coverage)
+            if info:
+                info_dict[k] = info
 
         ### print a summary, too.
+            #print info_dict
 
         info_dict_items = info_dict.items()
 
@@ -240,6 +184,64 @@ class Renderer:
         index_fp.close()
 
         return len(info_dict)
+
+    def process_file(self, k, display_filename, coverage):
+
+        try:
+            pyfile = open(k)
+        except IOError:
+            return
+
+        lines = figleaf.get_lines(pyfile)
+
+        # ok, got all the info.  now annotate file ==> html.
+
+        covered = coverage[k]
+        n_covered = n_lines = 0
+
+        pyfile = open(k)
+        output = []
+        for i, line in enumerate(pyfile):
+            is_covered = False
+            is_line = False
+
+            i += 1
+
+            if i in covered:
+                is_covered = True
+
+                n_covered += 1
+                n_lines += 1
+            elif i in lines:
+                is_line = True
+
+                n_lines += 1
+
+            color = 'black'
+            if is_covered:
+                color = 'green'
+            elif is_line:
+                color = 'red'
+
+            line = self.escape_html(line.rstrip())
+            output.append('<font color="%s">%4d. %s</font>' % (color, i, line.rstrip()))
+
+        try:
+            pcnt = n_covered * 100. / n_lines
+        except ZeroDivisionError:
+            pcnt = 0
+
+        html_outfile = self.make_html_filename(display_filename)
+        directory = self.opts["output-directory"]
+        html_outfp = open(os.path.join(directory, html_outfile), 'w')
+        html_outfp.write('source file: <b>%s</b><br>\n' % (k,))
+        html_outfp.write('file stats: <b>%d lines, %d executed: %.1f%% covered</b>\n' % (n_lines, n_covered, pcnt))
+
+        html_outfp.write('<pre>\n')
+        html_outfp.write("\n".join(output))
+        html_outfp.close()
+
+        return (n_lines, n_covered, pcnt, display_filename)
 
     def make_html_filename(self, orig):
         return orig + ".html"
