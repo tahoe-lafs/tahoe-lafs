@@ -58,6 +58,8 @@
 
 # _version.py is generated at build time, and never checked in
 ^src/allmydata/_version\.py$
+# _appname.py is generated at build time, and never checked in
+^src/allmydata/_appname\.py$
 # src/allmydata/_auto_deps.py is copied into place at build time, and never checked in
 ^src/allmydata/_auto_deps\.py$
 
