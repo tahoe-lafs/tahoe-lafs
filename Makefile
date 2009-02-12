@@ -82,7 +82,8 @@ endif
 
 # TESTING
 
-.PHONY: signal-error-deps test test-figleaf figleaf-output
+.PHONY: signal-error-deps test test-figleaf quicktest quicktest-figleaf
+.PHONY: figleaf-output get-old-figleaf-coverage figleaf-delta-output
 
 
 signal-error-deps:
@@ -127,6 +128,18 @@ quicktest-figleaf: src/allmydata/_version.py
 
 figleaf-output:
 	$(RUNPP) -p -c "misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes"
+	cp .figleaf coverage-html/figleaf.pickle
+	@echo "now point your browser at coverage-html/index.html"
+
+# use these two targets to compare this coverage against the previous run.
+# The deltas only work if the old test was run in the same directory, since
+# it compares absolute filenames.
+get-old-figleaf-coverage:
+	wget --progress=dot -O old.figleaf http://allmydata.org/tahoe-figleaf/current/figleaf.pickle
+
+figleaf-delta-output:
+	$(RUNPP) -p -c "misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes -o old.figleaf"
+	cp .figleaf coverage-html/figleaf.pickle
 	@echo "now point your browser at coverage-html/index.html"
 
 # after doing test-figleaf and figleaf-output, point your browser at
@@ -146,7 +159,6 @@ $(error COVERAGEDIR must be set when using UPLOAD_TARGET)
 endif
 
 upload-figleaf:
-	cp .figleaf coverage-html/figleaf.pickle
 	rsync -a coverage-html/ $(UPLOAD_TARGET)
 	ssh $(UPLOAD_HOST) make update-tahoe-figleaf COVERAGEDIR=$(COVERAGEDIR)
 else
