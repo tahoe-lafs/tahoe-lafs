@@ -219,17 +219,17 @@ test-darcs-boringfile:
 	$(PYTHON) misc/test-darcs-boringfile.py
 
 test-clean:
-	find . |grep -vEe"allfiles.tmp|src/allmydata/_(version|auto_deps).py|src/allmydata_tahoe.egg-info" |sort >allfiles.tmp.old
+	find . |grep -vEe "allfiles.tmp|src/allmydata/_(version|auto_deps|appname).py" |sort >allfiles.tmp.old
 	$(MAKE)
 	$(MAKE) clean
-	find . |grep -vEe"allfiles.tmp|src/allmydata/_(version|auto_deps).py|src/allmydata_tahoe.egg-info" |sort >allfiles.tmp.new
+	find . |grep -vEe "allfiles.tmp|src/allmydata/_(version|auto_deps|appname).py" |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
 clean:
 	rm -rf build _trial_temp _test_memory .checked-deps .built
 	rm -f debian
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
-	rm -rf tahoe_deps.egg-info allmydata_tahoe.egg-info
+	rm -rf src/allmydata_tahoe.egg-info
 	rm -rf support dist
 	rm -rf setuptools*.egg *.pyc darcsver*.egg pyutil*.egg
 	rm -rf misc/dependencies/build misc/dependencies/temp
