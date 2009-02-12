@@ -142,44 +142,16 @@ class Renderer:
                        % (len(pcnts), len(pcnt_90),
                           len(pcnt_75), len(pcnt_50)))
 
-        def emit_table(items, show_totals):
-            index_fp.write('<table border=1><tr><th>Filename</th>'
-                           '<th># lines</th><th># covered</th>'
-                           '<th># uncovered</th>'
-                           '<th>% covered</th></tr>\n')
-            if show_totals:
-                index_fp.write('<tr><td><b>totals:</b></td>'
-                               '<td><b>%d</b></td>'
-                               '<td><b>%d</b></td>'
-                               '<td><b>%d</b></td>'
-                               '<td><b>%.1f%%</b></td>'
-                               '</tr>'
-                               '<tr></tr>\n'
-                               % (summary_lines, summary_cover,
-                                  (summary_lines - summary_cover),
-                                  summary_pcnt,))
-
-            for filename, stuff in items:
-                (n_lines, n_covered, percent_covered, display_filename) = stuff
-                html_outfile = self.make_html_filename(display_filename)
-
-                index_fp.write('<tr><td><a href="./%s">%s</a></td>'
-                               '<td>%d</td><td>%d</td><td>%d</td><td>%.1f</td>'
-                               '</tr>\n'
-                               % (html_outfile, display_filename, n_lines,
-                                  n_covered, (n_lines - n_covered),
-                                  percent_covered,))
-
-        index_fp.write('</table>\n')
-
         # sorted by number of lines that aren't covered
         index_fp.write('<h3>Sorted by Lines Uncovered</h3>\n')
-        emit_table(info_dict_items, True)
+        self.emit_table(index_fp, info_dict_items, True,
+                        summary_lines, summary_cover, summary_pcnt)
 
         # sorted by module name
         index_fp.write('<h3>Sorted by Module Name (alphabetical)</h3>\n')
         info_dict_items.sort()
-        emit_table(info_dict_items, False)
+        self.emit_table(index_fp, info_dict_items, False,
+                        summary_lines, summary_cover, summary_pcnt)
 
         index_fp.close()
 
@@ -242,6 +214,37 @@ class Renderer:
         html_outfp.close()
 
         return (n_lines, n_covered, pcnt, display_filename)
+
+    def emit_table(self, index_fp, items, show_totals,
+                   summary_lines, summary_cover, summary_pcnt):
+        index_fp.write('<table border=1><tr><th>Filename</th>'
+                       '<th># lines</th><th># covered</th>'
+                       '<th># uncovered</th>'
+                       '<th>% covered</th></tr>\n')
+        if show_totals:
+            index_fp.write('<tr><td><b>totals:</b></td>'
+                           '<td><b>%d</b></td>'
+                           '<td><b>%d</b></td>'
+                           '<td><b>%d</b></td>'
+                           '<td><b>%.1f%%</b></td>'
+                           '</tr>'
+                           '<tr></tr>\n'
+                           % (summary_lines, summary_cover,
+                              (summary_lines - summary_cover),
+                              summary_pcnt,))
+
+        for filename, stuff in items:
+            (n_lines, n_covered, percent_covered, display_filename) = stuff
+            html_outfile = self.make_html_filename(display_filename)
+
+            index_fp.write('<tr><td><a href="./%s">%s</a></td>'
+                           '<td>%d</td><td>%d</td><td>%d</td><td>%.1f</td>'
+                           '</tr>\n'
+                           % (html_outfile, display_filename, n_lines,
+                              n_covered, (n_lines - n_covered),
+                              percent_covered,))
+
+        index_fp.write('</table>\n')
 
     def make_html_filename(self, orig):
         return orig + ".html"
