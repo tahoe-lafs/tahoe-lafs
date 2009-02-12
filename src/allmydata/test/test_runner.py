@@ -405,7 +405,7 @@ class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin,
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
-            # By writing this file, we get forty seconds before the client will exit. This insures
+            # By writing this file, we get sixty seconds before the client will exit. This insures
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
             open(HOTLINE_FILE, "w").write("")

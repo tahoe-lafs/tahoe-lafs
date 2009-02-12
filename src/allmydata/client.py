@@ -295,7 +295,7 @@ class Client(node.Node, pollmixin.PollMixin):
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):
             mtime = os.stat(hotline_file)[stat.ST_MTIME]
-            if mtime > time.time() - 40.0:
+            if mtime > time.time() - 60.0:
                 return
             else:
                 self.log("hotline file too old, shutting down")
