@@ -62,3 +62,15 @@ D: make cp -r ignore dangling symlinks
 N: Toby Murray
 E: toby.murray@comlab.ox.ac.uk
 D: add web.ambient_upload_authority option, remove it
+
+N: Shawn Willden
+E: shawn-tahoe@willden.org
+D: statistical and cryptographic analysis, code review, encouragement
+
+N: Nils Durner
+E: ndurner@googlemail.com
+D: security bug report (cleartext credentials to allmydata.com), darcsver bugfix
+
+N: Kevin Reid
+E: kpreid@mac.com
+D: security bug report (process table command line arguments), W3 standards
