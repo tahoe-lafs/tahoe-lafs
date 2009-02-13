@@ -98,6 +98,8 @@ class Renderer:
                 continue
             if not k.startswith("/"):
                 continue
+            if root and not k.startswith(root):
+                continue
 
             display_filename = self.make_display_filename(k)
             info = self.process_file(k, display_filename, coverage)
