@@ -146,7 +146,8 @@ figleaf-delta-output:
 # coverage-html/index.html
 
 .PHONY: upload-figleaf .figleaf.el pyflakes count-lines
-.PHONY: check-memory check-memory-once clean
+.PHONY: check-memory check-memory-once check-speed check-grid
+.PHONY: repl test-darcs-boringfile test-clean clean find-trailing-spaces
 
 # 'upload-figleaf' is meant to be run with an UPLOAD_TARGET=host:/dir setting
 ifdef UPLOAD_TARGET
