@@ -27,8 +27,8 @@ In addition to the many new features of Tahoe itself, a handful of
 related projects have sprung up, including Tahoe frontends for Windows
 and Macintosh, two front-ends written in JavaScript, a Tahoe plugin for
 duplicity, a Tahoe plugin for TiddlyWiki, a project to create a new
-backup tool, and three incomplete Tahoe frontends for FUSE. See Related
-Projects on the wiki: [4].
+backup tool, CIFS/SMB integration, an iPhone app, and three incomplete
+Tahoe frontends for FUSE. See Related Projects on the wiki: [4].
 
 
 COMPATIBILITY
