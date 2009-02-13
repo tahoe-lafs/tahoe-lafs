@@ -44,7 +44,7 @@ def do_http(method, url, body=""):
         raise ValueError("unknown scheme '%s', need http or https" % scheme)
     c.putrequest(method, path)
     c.putheader("Hostname", host)
-    c.putheader("User-Agent", "tahoe_cli/%s" % allmydata.__full_version__)
+    c.putheader("User-Agent", allmydata.__full_version__ + " (tahoe-client)")
     c.putheader("Connection", "close")
 
     old = body.tell()
