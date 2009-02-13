@@ -32,6 +32,10 @@ limitations are:
    delete immutable shares. If corruption is detected, the repairer will
    upload replacement shares to other servers, but the corrupted shares will
    be left in place.
+ * read-only directories and read-only mutable files must be repaired by
+   someone who holds the write-cap: the read-cap is insufficient. Moreover,
+   the deep-check-and-repair operation will halt with an error if it attempts
+   to repair one of these read-only objects.
  * Some forms of corruption can cause both download and repair operations to
    fail. A future release will fix this, since download should be tolerant of
    any corruption as long as there are at least 'k' valid shares, and repair
