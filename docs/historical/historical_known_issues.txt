@@ -10,11 +10,114 @@ Tahoe-LAFS can be found at:
 
 http://allmydata.org/source/tahoe/trunk/docs/known_issues.txt
 
+== issues in Tahoe v1.1.0, released 2008-06-11 ==
+
+(Tahoe v1.1.0 was superceded by v1.2.0 which was released 2008-07-21,
+and then by v1.3.0 which was released 2009-02-13.)
+
+=== more than one file can match an immutable file cap ===
+
+In Tahoe v1.0 and v1.1, a flaw in the cryptographic integrity check
+makes it possible for the original uploader of an immutable file to
+produce more than one immutable file matching the same capability, so
+that different downloads using the same capability could result in
+different files.  This flaw can be exploited only by the original
+uploader of an immutable file, which means that it is not a severe
+vulnerability: you can still rely on the integrity check to make sure
+that the file you download with a given capability is a file that the
+original uploader intended.  The only issue is that you can't assume
+that every time you use the same capability to download a file you'll
+get the same file.
+
+==== how to manage it ====
+
+This was fixed in Tahoe v1.2.0, released 2008-07-21, under ticket
+#491.  Upgrade to that release of Tahoe and then you can rely on the
+property that there is only one file that you can download using a
+given capability.  If you are still using Tahoe v1.0 or v1.1, then
+remember that the original uploader could produce multiple files that
+match the same capability, so for example if someone gives you a
+capability, and you use it to download a file, and you give that
+capability to your friend, and he uses it to download a file, you and
+your friend could get different files.
+
+
+=== server out of space when writing mutable file ===
+
+If a v1.0 or v1.1 storage server runs out of disk space or is
+otherwise unable to write to its local filesystem, then problems can
+ensue.  For immutable files, this will not lead to any problem (the
+attempt to upload that share to that server will fail, the partially
+uploaded share will be deleted from the storage server's "incoming
+shares" directory, and the client will move on to using another
+storage server instead).
+
+If the write was an attempt to modify an existing mutable file,
+however, a problem will result: when the attempt to write the new
+share fails (e.g. due to insufficient disk space), then it will be
+aborted and the old share will be left in place.  If enough such old
+shares are left, then a subsequent read may get those old shares and
+see the file in its earlier state, which is a "rollback" failure.
+With the default parameters (3-of-10), six old shares will be enough
+to potentially lead to a rollback failure.
+
+==== how to manage it ====
+
+Make sure your Tahoe storage servers don't run out of disk space.
+This means refusing storage requests before the disk fills up. There
+are a couple of ways to do that with v1.1.
+
+First, there is a configuration option named "sizelimit" which will
+cause the storage server to do a "du" style recursive examination of
+its directories at startup, and then if the sum of the size of files
+found therein is greater than the "sizelimit" number, it will reject
+requests by clients to write new immutable shares.
+
+However, that can take a long time (something on the order of a minute
+of examination of the filesystem for each 10 GB of data stored in the
+Tahoe server), and the Tahoe server will be unavailable to clients
+during that time.
+
+Another option is to set the "readonly_storage" configuration option
+on the storage server before startup.  This will cause the storage
+server to reject all requests to upload new immutable shares.
+
+Note that neither of these configurations affect mutable shares: even
+if sizelimit is configured and the storage server currently has
+greater space used than allowed, or even if readonly_storage is
+configured, servers will continue to accept new mutable shares and
+will continue to accept requests to overwrite existing mutable shares.
+
+Mutable files are typically used only for directories, and are usually
+much smaller than immutable files, so if you use one of these
+configurations to stop the influx of immutable files while there is
+still sufficient disk space to receive an influx of (much smaller)
+mutable files, you may be able to avoid the potential for "rollback"
+failure.
+
+A future version of Tahoe will include a fix for this issue.  Here is
+[http://allmydata.org/pipermail/tahoe-dev/2008-May/000630.html the
+mailing list discussion] about how that future version will work.
+
+
+=== pyOpenSSL/Twisted defect causes false alarms in tests ===
+
+The combination of Twisted v8.0 or Twisted v8.1 with pyOpenSSL v0.7
+causes the Tahoe v1.1 unit tests to fail, even though the behavior of
+Tahoe itself which is being tested is correct.
+
+==== how to manage it ====
+
+If you are using Twisted v8.0 or Twisted v8.1 and pyOpenSSL v0.7, then
+please ignore ERROR "Reactor was unclean" in test_system and
+test_introducer. Upgrading to a newer version of Twisted or pyOpenSSL
+will cause those false alarms to stop happening (as will downgrading
+to an older version of either of those packages).
 == issues in Tahoe v1.0.0, released 2008-03-25 ==
 
 (Tahoe v1.0 was superceded by v1.1 which was released 2008-06-11.)
 
-=== issue 6: server out of space when writing mutable file ===
+=== server out of space when writing mutable file ===
 
 In addition to the problems caused by insufficient disk space
 described above, v1.0 clients which are writing mutable files when the
@@ -28,7 +131,7 @@ write to their local filesystem (including that there is space
 available) as described in "issue 1" above.
 
 
-=== issue 5: server out of space when writing immutable file ===
+=== server out of space when writing immutable file ===
 
 Tahoe v1.0 clients are using v1.0 servers which are unable to write to
 their filesystem during an immutable upload will correctly detect the
@@ -45,7 +148,7 @@ always able to write to their local filesystem (including that there
 is space available) as described in "issue 1" above.
 
 
-=== issue 4: large directories or mutable files of certain sizes ===
+=== large directories or mutable files of certain sizes ===
 
 If a client attempts to upload a large mutable file with a size
 greater than about 3,139,000 and less than or equal to 3,500,000 bytes
@@ -72,7 +175,7 @@ to v1.1 but the client is still v1.0 then the client will still suffer
 this failure.)
 
 
-=== issue 3: uploading files greater than 12 GiB ===
+=== uploading files greater than 12 GiB ===
 
 If a Tahoe v1.0 client uploads a file greater than 12 GiB in size, the file will
 be silently corrupted so that it is not retrievable, but the client will think
@@ -87,7 +190,7 @@ Tahoe storage grid.  Tahoe v1.1 clients will refuse to upload files larger than
 limitation so that larger files can be uploaded.
 
 
-=== issue 2: pycryptopp defect resulting in data corruption ===
+=== pycryptopp defect resulting in data corruption ===
 
 Versions of pycryptopp earlier than pycryptopp-0.5.0 had a defect
 which, when compiled with some compilers, would cause AES-256
@@ -104,33 +207,3 @@ Tahoe v1.0 {{{misc/dependencies}}} directory, cd into the resulting
 {{{pycryptopp-0.3.0}}} directory, and execute {{{python ./setup.py
 test}}}.  If the tests pass, then your compiler does not trigger this
 failure.
-
-
-=== issue 1: potential disclosure of a file through embedded
-hyperlinks or JavaScript in that file ===
-
-If there is a file stored on a Tahoe storage grid, and that file gets
-downloaded and displayed in a web browser, then JavaScript or
-hyperlinks within that file can leak the capability to that file to a
-third party, which means that third party gets access to the file.
-
-If there is JavaScript in the file, then it could deliberately leak
-the capability to the file out to some remote listener.
-
-If there are hyperlinks in the file, and they get followed, then
-whichever server they point to receives the capability to the
-file. Note that IMG tags are typically followed automatically by web
-browsers, so being careful which hyperlinks you click on is not
-sufficient to prevent this from happening.
-
-==== how to manage it ====
-
-For future versions of Tahoe, we are considering ways to close off
-this leakage of authority while preserving ease of use -- the
-discussion of this issue is ticket #127.
-
-For the present, a good work-around is that if you want to store and
-view a file on Tahoe and you want that file to remain private, then
-remove from that file any hyperlinks pointing to other people's
-servers and remove any JavaScript unless you are sure that the
-JavaScript is not written to maliciously leak access.
