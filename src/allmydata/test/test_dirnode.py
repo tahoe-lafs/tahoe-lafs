@@ -149,6 +149,7 @@ class Dirnode(unittest.TestCase,
         #  root/subdir/
         #  root/subdir/file1
         #  root/subdir/link -> root
+        #  root/rodir
         d = self.client.create_empty_dirnode()
         def _created_root(rootnode):
             self._rootnode = rootnode
@@ -158,6 +159,10 @@ class Dirnode(unittest.TestCase,
             self._subdir = subdir
             d = subdir.add_file(u"file1", upload.Data("data", None))
             d.addCallback(lambda res: subdir.set_node(u"link", self._rootnode))
+            d.addCallback(lambda res: self.client.create_empty_dirnode())
+            d.addCallback(lambda dn:
+                          self._rootnode.set_uri(u"rodir",
+                                                 dn.get_readonly_uri()))
             return d
         d.addCallback(_created_subdir)
         def _done(res):
@@ -172,14 +177,14 @@ class Dirnode(unittest.TestCase,
             self.failUnless(IDeepCheckResults.providedBy(r))
             c = r.get_counters()
             self.failUnlessEqual(c,
-                                 {"count-objects-checked": 3,
-                                  "count-objects-healthy": 3,
+                                 {"count-objects-checked": 4,
+                                  "count-objects-healthy": 4,
                                   "count-objects-unhealthy": 0,
                                   "count-objects-unrecoverable": 0,
                                   "count-corrupt-shares": 0,
                                   })
             self.failIf(r.get_corrupt_shares())
-            self.failUnlessEqual(len(r.get_all_results()), 3)
+            self.failUnlessEqual(len(r.get_all_results()), 4)
         d.addCallback(_check_results)
         return d
 
@@ -191,12 +196,12 @@ class Dirnode(unittest.TestCase,
             self.failUnless(IDeepCheckAndRepairResults.providedBy(r))
             c = r.get_counters()
             self.failUnlessEqual(c,
-                                 {"count-objects-checked": 3,
-                                  "count-objects-healthy-pre-repair": 3,
+                                 {"count-objects-checked": 4,
+                                  "count-objects-healthy-pre-repair": 4,
                                   "count-objects-unhealthy-pre-repair": 0,
                                   "count-objects-unrecoverable-pre-repair": 0,
                                   "count-corrupt-shares-pre-repair": 0,
-                                  "count-objects-healthy-post-repair": 3,
+                                  "count-objects-healthy-post-repair": 4,
                                   "count-objects-unhealthy-post-repair": 0,
                                   "count-objects-unrecoverable-post-repair": 0,
                                   "count-corrupt-shares-post-repair": 0,
@@ -206,7 +211,7 @@ class Dirnode(unittest.TestCase,
                                   })
             self.failIf(r.get_corrupt_shares())
             self.failIf(r.get_remaining_corrupt_shares())
-            self.failUnlessEqual(len(r.get_all_results()), 3)
+            self.failUnlessEqual(len(r.get_all_results()), 4)
         d.addCallback(_check_results)
         return d
 
@@ -222,8 +227,8 @@ class Dirnode(unittest.TestCase,
         def _check_results(r):
             c = r.get_counters()
             self.failUnlessEqual(c,
-                                 {"count-objects-checked": 3,
-                                  "count-objects-healthy": 2,
+                                 {"count-objects-checked": 4,
+                                  "count-objects-healthy": 3,
                                   "count-objects-unhealthy": 1,
                                   "count-objects-unrecoverable": 0,
                                   "count-corrupt-shares": 0,
