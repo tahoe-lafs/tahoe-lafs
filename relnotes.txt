@@ -1,4 +1,4 @@
-still-not-actually-ANNOUNCING-yet Allmydata.org "Tahoe", the Least-Authority Filesystem, v1.3
+ANNOUNCING allmydata.org "Tahoe", the Least-Authority Filesystem, v1.3
 
 We are pleased to announce the release of version 1.3.0 of "Tahoe", the
 Least Authority Filesystem.
@@ -36,10 +36,11 @@ COMPATIBILITY
 The version 1 branch of Tahoe is the basis of the consumer backup
 product from Allmydata, Inc. -- http://allmydata.com .
 
-Tahoe v1.3 is fully compatible with Tahoe v1 branch.  v1.3 clients
-produce files which can be read by clients of all versions back to v1.0
-(unless the file is too large -- greater than 12 GiB with default
-configuration).  v1.3 clients can read files produced by clients of all
+Tahoe v1.3 is fully compatible with the version 1 branch of Tahoe.
+Files written by v1.3 clients can be read by clients of all versions
+back to v1.0 (unless the file is too large -- with the default
+configuration, files greater than 12 GiB can't be read by older
+clients).  v1.3 clients can read files produced by clients of all
 versions since v1.0.  v1.3 servers can serve clients of all versions
 back to v1.0 and v1.3 clients can use servers of all versions back to
 v1.0 (but can't upload large files to them).
@@ -56,7 +57,7 @@ WHAT IS IT GOOD FOR?
 
 With Tahoe, you can distribute your filesystem across a set of
 computers, such that if some of the computers fail or turn out to be
-malicious, the entire filesystem continues to be available, provided by
+malicious, the entire filesystem continues to be available, thanks to
 the remaining computers.  You can also share your files with other
 users, using a simple and flexible access control scheme.
 
@@ -99,8 +100,7 @@ at your option.)
 INSTALLATION
 
 Tahoe works on Linux, Mac OS X, Windows, Cygwin, and Solaris, and
-probably most other systems which have a Python interpreter and a C/C++
-compiler.  Start with "docs/install.html" [9].
+probably most other systems.  Start with "docs/install.html" [9].
 
 
 HACKING AND COMMUNITY
@@ -115,24 +115,24 @@ names of people who've contributed to the project.  The wiki Dev page
 SPONSORSHIP
 
 Tahoe is sponsored by Allmydata, Inc. [14], a provider of commercial
-backup services.  Allmydata, Inc. contributes hardware, software,
-ideas, bug reports, suggestions, demands, and money (employing several
-allmydata.org Tahoe hackers and instructing them to spend part of their
-work time on this Free Software project).  Also they award customized
-t-shirts to hackers who find security flaws in Tahoe (see
-http://hacktahoe.org ).  Thank you to Allmydata, Inc. for their
-generous and public-spirited support.
+backup services.  Allmydata, Inc. created the Tahoe project, and
+contributes hardware, software, ideas, bug reports, suggestions,
+demands, and money (employing several Tahoe hackers and instructing
+them to spend part of their work time on this Free Software project).
+Also they award customized t-shirts to hackers who find security flaws
+in Tahoe (see http://hacktahoe.org ).  Thank you to Allmydata, Inc. for
+their generous and public-spirited support.
 
 
 Zooko Wilcox-O'Hearn
 on behalf of the allmydata.org team
 
-with special acknowledgment of Brian Warner, whose superb engineering
+Special acknowledgment goes to Brian Warner, whose superb engineering
 skills and dedication are primarily responsible for the Tahoe
 implementation, and largely responsible for the Tahoe design as well,
-not to mention most of the docs and many other things besides
+not to mention most of the docs and many other things besides.
 
-February 11, 2009 (XXX HOPEFULLY)
+February 13, 2009
 Boulder, Colorado, USA
 
 [1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=2789
