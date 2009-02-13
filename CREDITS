@@ -48,11 +48,11 @@ N: Justin Boreta
 D: user testing and docs
 
 N: Chris Galvan
-D: packaging
+D: packaging, buildbot
 E: cgalvan@enthought.com
 
 N: François Deppierraz
-D: bug fix, testing
+D: unicode bug fix, testing, duplicity plugin
 E: francois@ctrlaltdel.ch
 
 N: Larry Hosken
@@ -61,4 +61,4 @@ D: make cp -r ignore dangling symlinks
 
 N: Toby Murray
 E: toby.murray@comlab.ox.ac.uk
-D: add web.ambient_upload_authority option
+D: add web.ambient_upload_authority option, remove it
