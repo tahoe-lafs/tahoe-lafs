@@ -272,8 +272,9 @@ class Renderer:
                            '<th># uncovered</th>'
                            '<th>% covered</th></tr>\n')
         if show_totals:
-            (summary_lines, summary_cover, summary_pcnt,
-             summary_added, summary_removed) = self.summary
+            (summary_lines, summary_cover,
+             summary_added, summary_removed,
+             summary_pcnt) = self.summary
             if have_old_coverage:
                 index_fp.write('<tr><td><b>totals:</b></td>'
                                '<td><b>%d</b></td>' # lines
