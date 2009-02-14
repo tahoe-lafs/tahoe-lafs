@@ -23,9 +23,9 @@ command, support for large files, an (S)FTP server, and much more.
 See the NEWS file [2] and the known_issues.txt file [3] for more
 information.
 
-In addition to the many new features of Tahoe itself, a handful of
-related projects have sprung up, including Tahoe frontends for Windows
-and Macintosh, two front-ends written in JavaScript, a Tahoe plugin for
+In addition to the many new features of Tahoe itself, a crop of related
+projects have sprung up, including Tahoe frontends for Windows and
+Macintosh, two front-ends written in JavaScript, a Tahoe plugin for
 duplicity, a Tahoe plugin for TiddlyWiki, a project to create a new
 backup tool, CIFS/SMB integration, an iPhone app, and three incomplete
 Tahoe frontends for FUSE. See Related Projects on the wiki: [4].
@@ -38,12 +38,12 @@ product from Allmydata, Inc. -- http://allmydata.com .
 
 Tahoe v1.3 is fully compatible with the version 1 branch of Tahoe.
 Files written by v1.3 clients can be read by clients of all versions
-back to v1.0 (unless the file is too large -- with the default
-configuration, files greater than 12 GiB can't be read by older
-clients).  v1.3 clients can read files produced by clients of all
-versions since v1.0.  v1.3 servers can serve clients of all versions
-back to v1.0 and v1.3 clients can use servers of all versions back to
-v1.0 (but can't upload large files to them).
+back to v1.0 unless the file is too large -- files greater than about
+12 GiB (depending on the configuration) can't be read by older clients.
+v1.3 clients can read files produced by clients of all versions since
+v1.0.  v1.3 servers can serve clients of all versions back to v1.0 and
+v1.3 clients can use servers of all versions back to v1.0 (but can't
+upload large files to them).
 
 This is the fourth release in the version 1 series.  We believe that
 this version of Tahoe is stable enough to rely on as a permanent store
@@ -61,13 +61,12 @@ malicious, the entire filesystem continues to be available, thanks to
 the remaining computers.  You can also share your files with other
 users, using a simple and flexible access control scheme.
 
-Because this software is the product of less than three years of active
-development, we do not categorically recommend it as the sole
-repository of data which is extremely confidential or precious.
-However, we believe that erasure coding, strong encryption, Free/Open
-Source Software and careful engineering make Tahoe safer than common
-alternatives, such as RAID, removable drive, tape, or "on-line storage"
-or "Cloud storage" systems.
+Because this software is new, we do not categorically recommend it as
+the sole repository of data which is extremely confidential or
+precious.  However, we believe that erasure coding, strong encryption,
+Free/Open Source Software and careful engineering make Tahoe safer than
+common alternatives, such as RAID, removable drive, tape, or "on-line
+storage" or "Cloud storage" systems.
 
 This software comes with extensive unit tests [5], and there are no
 known security flaws which would compromise confidentiality or data
