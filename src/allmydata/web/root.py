@@ -2,7 +2,7 @@ import time
 
 from twisted.internet import address
 from twisted.web import http
-from nevow import rend, url, tags as T
+from nevow import rend, url, loaders, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
@@ -11,6 +11,11 @@ from formless import webform
 import allmydata # to display import path
 from allmydata import get_package_versions_string
 from allmydata import provisioning
+reliability = None
+try:
+    from allmydata.web import reliability # requires Numeric and PIL
+except ImportError:
+    pass # might not be usable
 from allmydata.util import idlib, log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
@@ -111,6 +116,20 @@ class IncidentReporter(RenderMixin, rend.Page):
         req.setHeader("content-type", "text/plain")
         return "Thank you for your report!"
 
+class NoReliability(rend.Page):
+    docFactory = loaders.xmlstr('''\
+<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+  <head>
+    <title>AllMyData - Tahoe</title>
+    <link href="/webform_css" rel="stylesheet" type="text/css"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  </head>
+  <body>
+  <h2>"Reliability" page not available</h2>
+  <p>Please install the python "Numeric" module to enable this page.</p>
+  </body>
+</html>
+''')
 
 class Root(rend.Page):
 
@@ -130,6 +149,10 @@ class Root(rend.Page):
     child_tahoe_css = nevow_File(resource_filename('allmydata.web', 'tahoe.css'))
 
     child_provisioning = provisioning.ProvisioningTool()
+    if reliability:
+        child_reliability = reliability.ReliabilityTool()
+    else:
+        child_reliability = NoReliability()
     child_status = status.Status()
     child_helper_status = status.HelperStatus()
     child_statistics = status.Statistics()

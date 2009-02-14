@@ -1,0 +1,64 @@
+<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+  <head>
+    <title>AllMyData - Tahoe - Provisioning Tool</title>
+    <!-- <link href="http://www.allmydata.com/common/css/styles.css"
+          rel="stylesheet" type="text/css"/> -->
+    <link href="/webform_css" rel="stylesheet" type="text/css"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  </head>
+  <body>
+
+<h1>Tahoe Reliability Tool</h1>
+
+<p>Given certain assumptions, this page calculates probability of share loss
+over time, to help make informed decisions about how much redundancy and
+repair bandwidth to configure on a Tahoe grid.</p>
+
+<div n:render="forms" />
+
+<h2>Simulation Results</h2>
+
+<p>At the end of the report span (elapsed time <span n:render="report_span"
+/>), the simulated file had the following properties:</p>
+
+<ul>
+    <li>Probability of loss (no maintenance):
+        <span n:render="P_loss_unmaintained"/></li>
+    <li>Probability of loss (with maintenance):
+        <span n:render="P_loss_maintained"/></li>
+    <li>Average repair frequency:
+        once every <span n:render="P_repair_rate"/> secs</li>
+    <li>Average shares generated per repair:
+        <span n:render="P_repair_shares"/></li>
+</ul>
+
+<p>This table shows how the following properties change over time:</p>
+<ul>
+  <li>P_repair: the chance that a repair was performed in the most recent
+  check period.</li>
+  <li>P_dead (unmaintained): the chance that the file will be unrecoverable
+  without periodic check+repair</li>
+  <li>P_dead (maintained): the chance that the file will be recoverable even
+  with periodic check+repair</li>
+</ul>
+
+<div>
+<table n:render="sequence" n:data="simulation_table" border="1">
+  <tr n:pattern="header">
+    <td>t</td>
+    <td>P_repair</td>
+    <td>P_dead (unmaintained)</td>
+    <td>P_dead (maintained)</td>
+  </tr>
+  <tr n:pattern="item" n:render="simulation_row">
+    <td><n:slot name="t"/></td>
+    <td><n:slot name="P_repair"/></td>
+    <td><n:slot name="P_dead_unmaintained"/></td>
+    <td><n:slot name="P_dead_maintained"/></td>
+  </tr>
+  <tr n:pattern="empty"><td>no simulation data!</td></tr>
+</table>
+</div>
+
+  </body>
+</html>

@@ -707,6 +707,12 @@ class ProvisioningTool(rend.Page):
               all_sections,
               ]
 
+        try:
+            from allmydata import reliability
+            f = [T.div[T.href(a="reliability.html")["Reliability Math"]], f]
+        except ImportError:
+            pass
+
         return f
 
     def file_availability(self, k, n, server_dBA):
