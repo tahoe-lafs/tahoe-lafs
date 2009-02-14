@@ -19,18 +19,22 @@ install_requires=[
                   "foolscap[secure_connections] >= 0.3.1",
                   "Nevow >= 0.6.0",
                   ]
-import platform
-if platform.system() == "Windows":
-    # Twisted requires pywin32 if it is going to offer process management functionality, or if
-    # it is going to offer iocp reactor.  We currently require process management.  It would be
-    # better if Twisted would declare that it requires pywin32 if it is going to offer process
-    # management.  Then the specification and the evolution of Twisted's reliance on pywin32 can
-    # be confined to the Twisted setup data, and Tahoe can remain blissfully ignorant about such
-    # things as if a future version of Twisted requires a different version of pywin32, or if a
-    # future version of Twisted implements process management without using pywin32 at all,
-    # etc..  That is twisted ticket #3238 -- http://twistedmatrix.com/trac/ticket/3238 .  But
-    # until Twisted does that, Tahoe needs to be non-ignorant of the following requirement:
-    install_requires.append('pywin32')
+
+## The following block is commented-out because there is not currently a pywin32 package which
+## can be easy_install'ed and also which actually makes "import win32api" succeed.  Users have
+## to manually install pywin32 on Windows before installing Tahoe.
+##import platform
+##if platform.system() == "Windows":
+##    # Twisted requires pywin32 if it is going to offer process management functionality, or if
+##    # it is going to offer iocp reactor.  We currently require process management.  It would be
+##    # better if Twisted would declare that it requires pywin32 if it is going to offer process
+##    # management.  Then the specification and the evolution of Twisted's reliance on pywin32 can
+##    # be confined to the Twisted setup data, and Tahoe can remain blissfully ignorant about such
+##    # things as if a future version of Twisted requires a different version of pywin32, or if a
+##    # future version of Twisted implements process management without using pywin32 at all,
+##    # etc..  That is twisted ticket #3238 -- http://twistedmatrix.com/trac/ticket/3238 .  But
+##    # until Twisted does that, Tahoe needs to be non-ignorant of the following requirement:
+##    install_requires.append('pywin32')
 
 import sys
 if hasattr(sys, 'frozen'): # for py2exe
