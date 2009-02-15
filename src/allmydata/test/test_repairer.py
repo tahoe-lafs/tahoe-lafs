@@ -385,9 +385,9 @@ class DownUpConnector(unittest.TestCase):
         duc2.write('\x04')
         d = duc2.read_encrypted(2, False)
 
-        def _callb(res):
+        def _callb2(res):
             self.fail("Shouldn't have gotten this callback res: %s" % (res,))
-        d.addCallback(_callb)
+        d.addCallback(_callb2)
 
         # But once the DUC is closed then you *do* get short reads.
         duc3 = repairer.DownUpConnector()
@@ -396,10 +396,10 @@ class DownUpConnector(unittest.TestCase):
         d = duc3.read_encrypted(2, False)
         duc3.write('\x04')
         duc3.close()
-        def _callb(res):
+        def _callb3(res):
             self.failUnlessEqual(len(res), 1)
             self.failUnlessEqual(res[0], '\x04')
-        d.addCallback(_callb)
+        d.addCallback(_callb3)
         return d
 
     def test_short_reads_2(self):
