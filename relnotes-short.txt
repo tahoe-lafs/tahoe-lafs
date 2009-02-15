@@ -1,0 +1,16 @@
+We are pleased to announce the release of version 1.3.0 of Tahoe-LAFS.
+
+Tahoe-LAFS is a secure, decentralized, fault-tolerant filesystem.  All of the source code is available under a choice of two Free Software, Open Source licences.
+
+This filesystem is encrypted and distributed over multiple peers in such a way it continues to function even when some of the peers are unavailable, malfunctioning, or malicious. Users can share files with other users using a simple and flexible access control scheme.
+
+http://allmydata.org/source/tahoe/trunk/docs/about.html
+
+This is the successor to v1.2, which was released July 21, 2008. This is a major new release, adding a repairer, an efficient backup command, support for large files, an (S)FTP server, and much more.
+
+In addition to the many new features of Tahoe itself, a crop of related projects have sprung up, including frontends for Windows and Macintosh, two front-ends written in JavaScript, a Tahoe plugin for duplicity, a Tahoe plugin for TiddlyWiki, a project to create a new backup tool, CIFS/SMB integration, an iPhone app, and three incomplete Tahoe frontends for FUSE. See Related Projects on the wiki.
+
+Tahoe is the basis of the consumer backup product from Allmydata, Inc. -- http://allmydata.com .
+
+We believe that erasure coding, strong encryption, Free/Open Source Software and careful engineering make Tahoe safer than common alternatives, such as RAID, removable drive, tape, or "on-line storage" or "Cloud storage" systems.
+
