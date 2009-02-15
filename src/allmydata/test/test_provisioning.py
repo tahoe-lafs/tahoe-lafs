@@ -1,7 +1,12 @@
 
 from twisted.trial import unittest
-from allmydata.provisioning import ProvisioningTool
-#from nevow.context import PageContext, RequestContext
+from allmydata import provisioning
+ReliabilityModel = None
+try:
+    from allmydata.reliability import ReliabilityModel
+except ImportError:
+    pass # might not be importable, since it needs Numeric
+
 from nevow import inevow
 from zope.interface import implements
 
@@ -16,7 +21,7 @@ class Provisioning(unittest.TestCase):
         return None
 
     def test_load(self):
-        pt = ProvisioningTool()
+        pt = provisioning.ProvisioningTool()
         self.fields = {}
         #r = MyRequest()
         #r.fields = self.fields
@@ -50,3 +55,23 @@ class Provisioning(unittest.TestCase):
         more_stan = pt.do_forms(self.getarg)
         self.fields["ownership_mode"] = "E"
         more_stan = pt.do_forms(self.getarg)
+
+    def test_provisioning_math(self):
+        self.failUnlessEqual(provisioning.binomial(10, 0), 1)
+        self.failUnlessEqual(provisioning.binomial(10, 1), 10)
+        self.failUnlessEqual(provisioning.binomial(10, 2), 45)
+        self.failUnlessEqual(provisioning.binomial(10, 9), 10)
+        self.failUnlessEqual(provisioning.binomial(10, 10), 1)
+
+DAY=24*60*60
+MONTH=31*DAY
+YEAR=365*DAY
+
+class Reliability(unittest.TestCase):
+    def test_basic(self):
+        if ReliabilityModel is None:
+            raise unittest.SkipTest("reliability model requires Numeric")
+        r = ReliabilityModel.run(delta=100000,
+                                 report_period=3*MONTH,
+                                 report_span=5*YEAR)
+        self.failUnlessEqual(len(r.samples), 20)

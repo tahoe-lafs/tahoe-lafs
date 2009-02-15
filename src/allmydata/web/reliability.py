@@ -57,12 +57,8 @@ class ReliabilityTool(rend.Page):
         return parameters
 
     def renderHTTP(self, ctx):
-        print "renderHTTP"
-        print "two"
         self.parameters = self.get_parameters(ctx)
-        print "parms", self.parameters
         self.results = reliability.ReliabilityModel.run(**self.parameters)
-        print "got results"
         return rend.Page.renderHTTP(self, ctx)
 
     def make_input(self, name, old_value):

@@ -5,7 +5,7 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.web import client, error, http
 from twisted.python import failure, log
-from allmydata import interfaces, provisioning, uri, webish
+from allmydata import interfaces, uri, webish
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
 from allmydata.util import fileutil, base32
@@ -415,13 +415,6 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def test_provisioning_math(self):
-        self.failUnlessEqual(provisioning.binomial(10, 0), 1)
-        self.failUnlessEqual(provisioning.binomial(10, 1), 10)
-        self.failUnlessEqual(provisioning.binomial(10, 2), 45)
-        self.failUnlessEqual(provisioning.binomial(10, 9), 10)
-        self.failUnlessEqual(provisioning.binomial(10, 10), 1)
-
     def test_provisioning(self):
         d = self.GET("/provisioning/")
         def _check(res):
@@ -471,6 +464,35 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         def _check4(res):
             self.failUnless("Share space consumed:" in res)
         d.addCallback(_check4)
+        return d
+
+    def test_reliability_tool(self):
+        try:
+            from allmydata import reliability
+            _hush_pyflakes = reliability
+        except:
+            raise unittest.SkipTest("reliability tool requires Numeric")
+
+        d = self.GET("/reliability/")
+        def _check(res):
+            self.failUnless('Tahoe Reliability Tool' in res)
+            fields = {'drive_lifetime': "8Y",
+                      "k": "3",
+                      "R": "7",
+                      "N": "10",
+                      "delta": "100000",
+                      "check_period": "1M",
+                      "report_period": "3M",
+                      "report_span": "5Y",
+                      }
+            return self.POST("/reliability/", **fields)
+
+        d.addCallback(_check)
+        def _check2(res):
+            self.failUnless('Tahoe Reliability Tool' in res)
+            r = r'Probability of loss \(no maintenance\):\s+<span>0.033591'
+            self.failUnless(re.search(r, res), res)
+        d.addCallback(_check2)
         return d
 
     def test_status(self):

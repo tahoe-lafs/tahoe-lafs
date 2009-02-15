@@ -19,9 +19,6 @@ def my_dot(v1, v2):
     #for i in range(v1.shape[1]):
     return Numeric.sum(Numeric.sum(v1*v2))
 
-def yandm(seconds):
-    return "%dy.%dm" % (int(seconds/YEAR), int( (seconds%YEAR)/MONTH))
-
 class ReliabilityModel:
     """Generate a model of system-wide reliability, given several input
     parameters.
@@ -152,6 +149,8 @@ class ReliabilityModel:
                           cumulative_number_of_new_shares,
                           P_dead_unmaintained, P_dead_maintained)
 
+        #def yandm(seconds):
+        #    return "%dy.%dm" % (int(seconds/YEAR), int( (seconds%YEAR)/MONTH))
         #needed_repairs_total = sum(needed_repairs)
         #needed_new_shares_total = sum(needed_new_shares)
         #print "at 2y:"
