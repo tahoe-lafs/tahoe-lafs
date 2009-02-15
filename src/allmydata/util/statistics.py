@@ -4,7 +4,7 @@
 from __future__ import division
 from mathutil import round_sigfigs
 import math
-import array
+import sys
 
 def pr_file_loss(p_list, k):
     """
@@ -87,13 +87,13 @@ def survival_pmf_via_conv(p_list):
     pmf_list = [ [1 - p, p] for p in p_list ];
     return reduce(convolve, pmf_list)
 
-def print_pmf(pmf, n=4):
+def print_pmf(pmf, n=4, out=sys.stdout):
     """
     Print a PMF in a readable form, with values rounded to n
     significant digits. 
     """
     for k, p in enumerate(pmf):
-        print "i=" + str(k) + ":", round_sigfigs(p, n)
+        print >>out, "i=" + str(k) + ":", round_sigfigs(p, n)
 
 def pr_backup_file_loss(p_list, backup_p, k):
     """
@@ -136,6 +136,7 @@ def find_k_from_pmf(pmf, target_loss_prob):
         if loss_prob > target_loss_prob:
             return k
 
+    # we shouldn't be able to get here, since sum(pmf)==1.0
     k = len(pmf) - 1
     return k
 
@@ -166,23 +167,27 @@ def repair_count_pmf(survival_pmf, k):
 def bandwidth_cost_function(file_size, shares, k, ul_dl_ratio):
     return file_size + float(file_size) / k * shares * ul_dl_ratio
 
-def mean_repair_cost(cost_function, file_size, survival_pmf, k):
+def mean_repair_cost(cost_function, file_size, survival_pmf, k, ul_dl_ratio):
     """
     Return the expected cost for a repair run on a file with the given
-    survival_pmf and requiring k shares.
+    survival_pmf and requiring k shares, in which upload cost is
+    'ul_dl_ratio' times download cost.
     """
     repair_pmf = repair_count_pmf(survival_pmf, k)
-    exp_cnt = sum([d * repair_pmf[d] for d in range(1, len(repair_pmf))])
-    return cost_function(file_size, exp_cnt, k)
+    expected_cost = sum([cost_function(file_size, new_shares, k, ul_dl_ratio)
+                         * repair_pmf[new_shares]
+                         for new_shares in range(1, len(repair_pmf))])
+    return expected_cost
 
-def eternal_repair_cost(cost_function, file_size, survival_pmf, k, discount_rate=0):
+def eternal_repair_cost(cost_function, file_size, survival_pmf, k,
+                        discount_rate=0, ul_dl_ratio=1.0):
     """
     Calculate the eternal repair cost for a file that is aggressively
-    repaired.
+    repaired, i.e. the sum of repair costs until the file is dead.
     """
-    c = mean_repair_cost(cost_function, file_size, survival_pmf, k)
+    c = mean_repair_cost(cost_function, file_size, survival_pmf, k, ul_dl_ratio)
     f = 1 - sum(survival_pmf[0:k])
-    r = discount_rate
+    r = float(discount_rate)
 
     return (c * (1-r)) / (1 - (1-r) * f)
 
@@ -258,9 +263,6 @@ def binomial_coeff(n, k):
     of n.
     """
     assert n >= k
-
-    if k > n:
-        return 0
 
     if k > n/2:
         k = n - k

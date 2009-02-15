@@ -1,7 +1,8 @@
 
 def foo(): pass # keep the line number constant
 
-import os, time, random
+import os, time
+from StringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import failure
@@ -206,6 +207,13 @@ class Statistics(unittest.TestCase):
         self.should_assert("Should assert if not 0<=p<=1", f, 1, -1)
         self.should_assert("Should assert if n < 1", f, 0, .1)
 
+        out = StringIO()
+        statistics.print_pmf(pmf_comp, out=out)
+        lines = out.getvalue().splitlines()
+        self.failUnlessEqual(lines[0], "i=0: 0.81")
+        self.failUnlessEqual(lines[1], "i=1: 0.18")
+        self.failUnlessEqual(lines[2], "i=2: 0.01")
+
     def test_survival_pmf(self):
         f = statistics.survival_pmf
         # Cross-check binomial-distribution method against convolution
@@ -217,7 +225,39 @@ class Statistics(unittest.TestCase):
         self.failUnlessTrue(statistics.valid_pmf(pmf1))
         self.should_assert("Should assert if p_i > 1", f, [1.1]);
         self.should_assert("Should assert if p_i < 0", f, [-.1]);
-        
+
+    def test_repair_count_pmf(self):
+        survival_pmf = statistics.binomial_distribution_pmf(5, .9)
+        repair_pmf = statistics.repair_count_pmf(survival_pmf, 3)
+        # repair_pmf[0] == sum(survival_pmf[0,1,2,5])
+        # repair_pmf[1] == survival_pmf[4]
+        # repair_pmf[2] = survival_pmf[3]
+        self.failUnlessListAlmostEqual(repair_pmf,
+                                       [0.00001 + 0.00045 + 0.0081 + 0.59049,
+                                        .32805,
+                                        .0729,
+                                        0, 0, 0])
+
+    def test_repair_cost(self):
+        survival_pmf = statistics.binomial_distribution_pmf(5, .9)
+        bwcost = statistics.bandwidth_cost_function
+        cost = statistics.mean_repair_cost(bwcost, 1000,
+                                           survival_pmf, 3, ul_dl_ratio=1.0)
+        self.failUnlessAlmostEqual(cost, 558.90)
+        cost = statistics.mean_repair_cost(bwcost, 1000,
+                                           survival_pmf, 3, ul_dl_ratio=8.0)
+        self.failUnlessAlmostEqual(cost, 1664.55)
+
+        # I haven't manually checked the math beyond here -warner
+        cost = statistics.eternal_repair_cost(bwcost, 1000,
+                                              survival_pmf, 3,
+                                              discount_rate=0, ul_dl_ratio=1.0)
+        self.failUnlessAlmostEqual(cost, 65292.056074766246)
+        cost = statistics.eternal_repair_cost(bwcost, 1000,
+                                              survival_pmf, 3,
+                                              discount_rate=0.05,
+                                              ul_dl_ratio=1.0)
+        self.failUnlessAlmostEqual(cost, 9133.6097158191551)
 
     def test_convolve(self):
         f = statistics.convolve
@@ -250,7 +290,7 @@ class Statistics(unittest.TestCase):
     def test_find_k(self):
         f = statistics.find_k
         g = statistics.pr_file_loss
-        plist = [.9] * 10 + [.8] * 10
+        plist = [.9] * 10 + [.8] * 10 # N=20
         t = .0001
         k = f(plist, t)
         self.failUnlessEqual(k, 10)
