@@ -19,7 +19,7 @@ from foolscap.logging import log
 import sha
 
 from allmydata.mutable.filenode import MutableFileNode, BackoffAgent
-from allmydata.mutable.common import DictOfSets, ResponseCache, \
+from allmydata.mutable.common import ResponseCache, \
      MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
      NeedMoreDataError, UnrecoverableFileError, UncoordinatedWriteError, \
      NotEnoughServersError, CorruptShareError
@@ -1696,20 +1696,6 @@ class MultipleVersions(unittest.TestCase, PublishMixin, CheckerMixin):
 
 
 class Utils(unittest.TestCase):
-    def test_dict_of_sets(self):
-        ds = DictOfSets()
-        ds.add(1, "a")
-        ds.add(2, "b")
-        ds.add(2, "b")
-        ds.add(2, "c")
-        self.failUnlessEqual(ds[1], set(["a"]))
-        self.failUnlessEqual(ds[2], set(["b", "c"]))
-        ds.discard(3, "d") # should not raise an exception
-        ds.discard(2, "b")
-        self.failUnlessEqual(ds[2], set(["c"]))
-        ds.discard(2, "c")
-        self.failIf(2 in ds)
-
     def _do_inside(self, c, x_start, x_length, y_start, y_length):
         # we compare this against sets of integers
         x = set(range(x_start, x_start+x_length))

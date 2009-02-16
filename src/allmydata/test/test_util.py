@@ -10,7 +10,7 @@ from twisted.python import failure
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin, cachedir
-from allmydata.util import statistics
+from allmydata.util import statistics, dictutil
 
 class Base32(unittest.TestCase):
     def test_b2a_matches_Pythons(self):
@@ -840,3 +840,358 @@ class CacheDir(unittest.TestCase):
         _failIfExists("a")
         _failUnlessExists("b")
         _failUnlessExists("c")
+
+ctr = [0]
+class EqButNotIs:
+    def __init__(self, x):
+        self.x = x
+        self.hash = ctr[0]
+        ctr[0] += 1
+    def __repr__(self):
+        return "<%s %s>" % (self.__class__.__name__, self.x,)
+    def __hash__(self):
+        return self.hash
+    def __le__(self, other):
+        return self.x <= other
+    def __lt__(self, other):
+        return self.x < other
+    def __ge__(self, other):
+        return self.x >= other
+    def __gt__(self, other):
+        return self.x > other
+    def __ne__(self, other):
+        return self.x != other
+    def __eq__(self, other):
+        return self.x == other
+
+class DictUtil(unittest.TestCase):
+    def _help_test_empty_dict(self, klass):
+        d1 = klass()
+        d2 = klass({})
+
+        self.failUnless(d1 == d2, "d1: %r, d2: %r" % (d1, d2,))
+        self.failUnless(len(d1) == 0)
+        self.failUnless(len(d2) == 0)
+
+    def _help_test_nonempty_dict(self, klass):
+        d1 = klass({'a': 1, 'b': "eggs", 3: "spam",})
+        d2 = klass({'a': 1, 'b': "eggs", 3: "spam",})
+
+        self.failUnless(d1 == d2)
+        self.failUnless(len(d1) == 3, "%s, %s" % (len(d1), d1,))
+        self.failUnless(len(d2) == 3)
+
+    def _help_test_eq_but_notis(self, klass):
+        d = klass({'a': 3, 'b': EqButNotIs(3), 'c': 3})
+        d.pop('b')
+
+        d.clear()
+        d['a'] = 3
+        d['b'] = EqButNotIs(3)
+        d['c'] = 3
+        d.pop('b')
+
+        d.clear()
+        d['b'] = EqButNotIs(3)
+        d['a'] = 3
+        d['c'] = 3
+        d.pop('b')
+
+        d.clear()
+        d['a'] = EqButNotIs(3)
+        d['c'] = 3
+        d['a'] = 3
+
+        d.clear()
+        fake3 = EqButNotIs(3)
+        fake7 = EqButNotIs(7)
+        d[fake3] = fake7
+        d[3] = 7
+        d[3] = 8
+        self.failUnless(filter(lambda x: x is 8,  d.itervalues()))
+        self.failUnless(filter(lambda x: x is fake7,  d.itervalues()))
+        # The real 7 should have been ejected by the d[3] = 8.
+        self.failUnless(not filter(lambda x: x is 7,  d.itervalues()))
+        self.failUnless(filter(lambda x: x is fake3,  d.iterkeys()))
+        self.failUnless(filter(lambda x: x is 3,  d.iterkeys()))
+        d[fake3] = 8
+
+        d.clear()
+        d[3] = 7
+        fake3 = EqButNotIs(3)
+        fake7 = EqButNotIs(7)
+        d[fake3] = fake7
+        d[3] = 8
+        self.failUnless(filter(lambda x: x is 8,  d.itervalues()))
+        self.failUnless(filter(lambda x: x is fake7,  d.itervalues()))
+        # The real 7 should have been ejected by the d[3] = 8.
+        self.failUnless(not filter(lambda x: x is 7,  d.itervalues()))
+        self.failUnless(filter(lambda x: x is fake3,  d.iterkeys()))
+        self.failUnless(filter(lambda x: x is 3,  d.iterkeys()))
+        d[fake3] = 8
+
+    def test_all(self):
+        self._help_test_eq_but_notis(dictutil.UtilDict)
+        self._help_test_eq_but_notis(dictutil.NumDict)
+        self._help_test_eq_but_notis(dictutil.ValueOrderedDict)
+        self._help_test_nonempty_dict(dictutil.UtilDict)
+        self._help_test_nonempty_dict(dictutil.NumDict)
+        self._help_test_nonempty_dict(dictutil.ValueOrderedDict)
+        self._help_test_eq_but_notis(dictutil.UtilDict)
+        self._help_test_eq_but_notis(dictutil.NumDict)
+        self._help_test_eq_but_notis(dictutil.ValueOrderedDict)
+
+    def test_dict_of_sets(self):
+        ds = dictutil.DictOfSets()
+        ds.add(1, "a")
+        ds.add(2, "b")
+        ds.add(2, "b")
+        ds.add(2, "c")
+        self.failUnlessEqual(ds[1], set(["a"]))
+        self.failUnlessEqual(ds[2], set(["b", "c"]))
+        ds.discard(3, "d") # should not raise an exception
+        ds.discard(2, "b")
+        self.failUnlessEqual(ds[2], set(["c"]))
+        ds.discard(2, "c")
+        self.failIf(2 in ds)
+
+        ds.union(1, ["a", "e"])
+        ds.union(3, ["f"])
+        self.failUnlessEqual(ds[1], set(["a","e"]))
+        self.failUnlessEqual(ds[3], set(["f"]))
+        ds2 = dictutil.DictOfSets()
+        ds2.add(3, "f")
+        ds2.add(3, "g")
+        ds2.add(4, "h")
+        ds.update(ds2)
+        self.failUnlessEqual(ds[1], set(["a","e"]))
+        self.failUnlessEqual(ds[3], set(["f", "g"]))
+        self.failUnlessEqual(ds[4], set(["h"]))
+
+    def test_move(self):
+        d1 = {1: "a", 2: "b"}
+        d2 = {2: "c", 3: "d"}
+        dictutil.move(1, d1, d2)
+        self.failUnlessEqual(d1, {2: "b"})
+        self.failUnlessEqual(d2, {1: "a", 2: "c", 3: "d"})
+
+        d1 = {1: "a", 2: "b"}
+        d2 = {2: "c", 3: "d"}
+        dictutil.move(2, d1, d2)
+        self.failUnlessEqual(d1, {1: "a"})
+        self.failUnlessEqual(d2, {2: "b", 3: "d"})
+
+        d1 = {1: "a", 2: "b"}
+        d2 = {2: "c", 3: "d"}
+        self.failUnlessRaises(KeyError, dictutil.move, 5, d1, d2, strict=True)
+
+    def test_subtract(self):
+        d1 = {1: "a", 2: "b"}
+        d2 = {2: "c", 3: "d"}
+        d3 = dictutil.subtract(d1, d2)
+        self.failUnlessEqual(d3, {1: "a"})
+
+        d1 = {1: "a", 2: "b"}
+        d2 = {2: "c"}
+        d3 = dictutil.subtract(d1, d2)
+        self.failUnlessEqual(d3, {1: "a"})
+
+    def test_utildict(self):
+        d = dictutil.UtilDict({1: "a", 2: "b"})
+        d.del_if_present(1)
+        d.del_if_present(3)
+        self.failUnlessEqual(d, {2: "b"})
+        def eq(a, b):
+            return a == b
+        self.failUnlessRaises(TypeError, eq, d, "not a dict")
+
+        d = dictutil.UtilDict({1: "b", 2: "a"})
+        self.failUnlessEqual(d.items_sorted_by_value(),
+                             [(2, "a"), (1, "b")])
+        self.failUnlessEqual(d.items_sorted_by_key(),
+                             [(1, "b"), (2, "a")])
+        self.failUnlessEqual(repr(d), "{1: 'b', 2: 'a'}")
+        self.failUnless(1 in d)
+
+        d2 = dictutil.UtilDict({3: "c", 4: "d"})
+        self.failUnless(d != d2)
+        self.failUnless(d2 > d)
+        self.failUnless(d2 >= d)
+        self.failUnless(d <= d2)
+        self.failUnless(d < d2)
+        self.failUnlessEqual(d[1], "b")
+        self.failUnlessEqual(sorted(list([k for k in d])), [1,2])
+
+        d3 = d.copy()
+        self.failUnlessEqual(d, d3)
+        self.failUnless(isinstance(d3, dictutil.UtilDict))
+
+        d4 = d.fromkeys([3,4], "e")
+        self.failUnlessEqual(d4, {3: "e", 4: "e"})
+
+        self.failUnlessEqual(d.get(1), "b")
+        self.failUnlessEqual(d.get(3), None)
+        self.failUnlessEqual(d.get(3, "default"), "default")
+        self.failUnlessEqual(sorted(list(d.items())),
+                             [(1, "b"), (2, "a")])
+        self.failUnlessEqual(sorted(list(d.iteritems())),
+                             [(1, "b"), (2, "a")])
+        self.failUnlessEqual(sorted(d.keys()), [1, 2])
+        self.failUnlessEqual(sorted(d.values()), ["a", "b"])
+        x = d.setdefault(1, "new")
+        self.failUnlessEqual(x, "b")
+        self.failUnlessEqual(d[1], "b")
+        x = d.setdefault(3, "new")
+        self.failUnlessEqual(x, "new")
+        self.failUnlessEqual(d[3], "new")
+        del d[3]
+
+        x = d.popitem()
+        self.failUnless(x in [(1, "b"), (2, "a")])
+        x = d.popitem()
+        self.failUnless(x in [(1, "b"), (2, "a")])
+        self.failUnlessRaises(KeyError, d.popitem)
+
+    def test_numdict(self):
+        d = dictutil.NumDict({"a": 1, "b": 2})
+
+        d.add_num("a", 10, 5)
+        d.add_num("c", 20, 5)
+        d.add_num("d", 30)
+        self.failUnlessEqual(d, {"a": 11, "b": 2, "c": 25, "d": 30})
+
+        d.subtract_num("a", 10)
+        d.subtract_num("e", 10)
+        d.subtract_num("f", 10, 15)
+        self.failUnlessEqual(d, {"a": 1, "b": 2, "c": 25, "d": 30,
+                                 "e": -10, "f": 5})
+
+        self.failUnlessEqual(d.sum(), sum([1, 2, 25, 30, -10, 5]))
+
+        d = dictutil.NumDict()
+        d.inc("a")
+        d.inc("a")
+        d.inc("b", 5)
+        self.failUnlessEqual(d, {"a": 2, "b": 6})
+        d.dec("a")
+        d.dec("c")
+        d.dec("d", 5)
+        self.failUnlessEqual(d, {"a": 1, "b": 6, "c": -1, "d": 4})
+        self.failUnlessEqual(d.items_sorted_by_key(),
+                             [("a", 1), ("b", 6), ("c", -1), ("d", 4)])
+        self.failUnlessEqual(d.items_sorted_by_value(),
+                             [("c", -1), ("a", 1), ("d", 4), ("b", 6)])
+        self.failUnlessEqual(d.item_with_largest_value(), ("b", 6))
+
+        d = dictutil.NumDict({"a": 1, "b": 2})
+        self.failUnlessEqual(repr(d), "{'a': 1, 'b': 2}")
+        self.failUnless("a" in d)
+
+        d2 = dictutil.NumDict({"c": 3, "d": 4})
+        self.failUnless(d != d2)
+        self.failUnless(d2 > d)
+        self.failUnless(d2 >= d)
+        self.failUnless(d <= d2)
+        self.failUnless(d < d2)
+        self.failUnlessEqual(d["a"], 1)
+        self.failUnlessEqual(sorted(list([k for k in d])), ["a","b"])
+        def eq(a, b):
+            return a == b
+        self.failUnlessRaises(TypeError, eq, d, "not a dict")
+
+        d3 = d.copy()
+        self.failUnlessEqual(d, d3)
+        self.failUnless(isinstance(d3, dictutil.NumDict))
+
+        d4 = d.fromkeys(["a","b"], 5)
+        self.failUnlessEqual(d4, {"a": 5, "b": 5})
+
+        self.failUnlessEqual(d.get("a"), 1)
+        self.failUnlessEqual(d.get("c"), 0)
+        self.failUnlessEqual(d.get("c", 5), 5)
+        self.failUnlessEqual(sorted(list(d.items())),
+                             [("a", 1), ("b", 2)])
+        self.failUnlessEqual(sorted(list(d.iteritems())),
+                             [("a", 1), ("b", 2)])
+        self.failUnlessEqual(sorted(d.keys()), ["a", "b"])
+        self.failUnlessEqual(sorted(d.values()), [1, 2])
+        self.failUnless(d.has_key("a"))
+        self.failIf(d.has_key("c"))
+
+        x = d.setdefault("c", 3)
+        self.failUnlessEqual(x, 3)
+        self.failUnlessEqual(d["c"], 3)
+        x = d.setdefault("c", 5)
+        self.failUnlessEqual(x, 3)
+        self.failUnlessEqual(d["c"], 3)
+        del d["c"]
+
+        x = d.popitem()
+        self.failUnless(x in [("a", 1), ("b", 2)])
+        x = d.popitem()
+        self.failUnless(x in [("a", 1), ("b", 2)])
+        self.failUnlessRaises(KeyError, d.popitem)
+
+        d.update({"c": 3})
+        d.update({"c": 4, "d": 5})
+        self.failUnlessEqual(d, {"c": 4, "d": 5})
+
+    def test_del_if_present(self):
+        d = {1: "a", 2: "b"}
+        dictutil.del_if_present(d, 1)
+        dictutil.del_if_present(d, 3)
+        self.failUnlessEqual(d, {2: "b"})
+
+    def test_valueordereddict(self):
+        d = dictutil.ValueOrderedDict()
+        d["a"] = 3
+        d["b"] = 2
+        d["c"] = 1
+
+        self.failUnlessEqual(d, {"a": 3, "b": 2, "c": 1})
+        self.failUnlessEqual(d.items(), [("c", 1), ("b", 2), ("a", 3)])
+        self.failUnlessEqual(d.values(), [1, 2, 3])
+        self.failUnlessEqual(d.keys(), ["c", "b", "a"])
+        self.failUnlessEqual(repr(d), "<ValueOrderedDict {c: 1, b: 2, a: 3}>")
+        def eq(a, b):
+            return a == b
+        self.failIf(d == {"a": 4})
+        self.failUnless(d != {"a": 4})
+
+        x = d.setdefault("d", 0)
+        self.failUnlessEqual(x, 0)
+        self.failUnlessEqual(d["d"], 0)
+        x = d.setdefault("d", -1)
+        self.failUnlessEqual(x, 0)
+        self.failUnlessEqual(d["d"], 0)
+
+        x = d.remove("e", "default", False)
+        self.failUnlessEqual(x, "default")
+        self.failUnlessRaises(KeyError, d.remove, "e", "default", True)
+        x = d.remove("d", 5)
+        self.failUnlessEqual(x, 0)
+
+        x = d.__getitem__("c")
+        self.failUnlessEqual(x, 1)
+        x = d.__getitem__("e", "default", False)
+        self.failUnlessEqual(x, "default")
+        self.failUnlessRaises(KeyError, d.__getitem__, "e", "default", True)
+
+        self.failUnlessEqual(d.popitem(), ("c", 1))
+        self.failUnlessEqual(d.popitem(), ("b", 2))
+        self.failUnlessEqual(d.popitem(), ("a", 3))
+        self.failUnlessRaises(KeyError, d.popitem)
+
+        d = dictutil.ValueOrderedDict({"a": 3, "b": 2, "c": 1})
+        x = d.pop("d", "default", False)
+        self.failUnlessEqual(x, "default")
+        self.failUnlessRaises(KeyError, d.pop, "d", "default", True)
+        x = d.pop("b")
+        self.failUnlessEqual(x, 2)
+        self.failUnlessEqual(d.items(), [("c", 1), ("a", 3)])
+
+        d = dictutil.ValueOrderedDict({"a": 3, "b": 2, "c": 1})
+        x = d.pop_from_list(1) # pop the second item, b/2
+        self.failUnlessEqual(x, "b")
+        self.failUnlessEqual(d.items(), [("c", 1), ("a", 3)])
+
