@@ -20,6 +20,7 @@ from allmydata.scripts import cli, debug, runner, backupdb
 from allmydata.test.common import SystemTestMixin
 from allmydata.test.common_util import StallMixin
 from twisted.internet import threads # CLI tests use deferToThread
+from twisted.python import usage
 
 class CLI(unittest.TestCase):
     # this test case only looks at argument-processing and simple stuff.
@@ -68,6 +69,17 @@ class CLI(unittest.TestCase):
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
         self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
         self.failUnlessEqual(o.where, "subdir")
+
+        o = cli.ListOptions()
+        self.failUnlessRaises(usage.UsageError,
+                              o.parseOptions,
+                              ["--node-directory", "cli/test_options",
+                               "--node-url", "NOT-A-URL"])
+
+        o = cli.ListOptions()
+        o.parseOptions(["--node-directory", "cli/test_options",
+                        "--node-url", "http://localhost:8080"])
+        self.failUnlessEqual(o["node-url"], "http://localhost:8080/")
 
     def _dump_cap(self, *args):
         config = debug.DumpCapOptions()
@@ -575,6 +587,11 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
 class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
+    def test_not_enough_args(self):
+        o = cli.CpOptions()
+        self.failUnlessRaises(usage.UsageError,
+                              o.parseOptions, ["onearg"])
+
     def test_unicode_filename(self):
         self.basedir = os.path.dirname(self.mktemp())
 
