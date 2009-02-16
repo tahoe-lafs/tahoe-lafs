@@ -195,6 +195,9 @@ class Client(node.Node, pollmixin.PollMixin):
         self.download_cache = cachedir.CacheDirectoryManager(download_cachedir)
         self.download_cache.setServiceParent(self)
         self.add_service(Downloader(self.stats_provider))
+        self.init_stub_client()
+
+    def init_stub_client(self):
         def _publish(res):
             # we publish an empty object so that the introducer can count how
             # many clients are connected and see what versions they're
