@@ -272,6 +272,54 @@ class CLI(unittest.TestCase):
                         "didn't see 'mqfblse6m5a6dh45isu2cg7oji' in '%s'" % err)
 
 
+class Help(unittest.TestCase):
+
+    def test_get(self):
+        help = str(cli.GetOptions())
+        self.failUnless("get VDRIVE_FILE LOCAL_FILE" in help, help)
+        self.failUnless("% tahoe get FOO |less" in help, help)
+
+    def test_put(self):
+        help = str(cli.PutOptions())
+        self.failUnless("put LOCAL_FILE VDRIVE_FILE" in help, help)
+        self.failUnless("% cat FILE | tahoe put" in help, help)
+
+    def test_rm(self):
+        help = str(cli.RmOptions())
+        self.failUnless("rm VDRIVE_FILE" in help, help)
+
+    def test_mv(self):
+        help = str(cli.MvOptions())
+        self.failUnless("mv FROM TO" in help, help)
+
+    def test_ln(self):
+        help = str(cli.LnOptions())
+        self.failUnless("ln FROM TO" in help, help)
+
+    def test_backup(self):
+        help = str(cli.BackupOptions())
+        self.failUnless("backup FROM ALIAS:TO" in help, help)
+
+    def test_webopen(self):
+        help = str(cli.WebopenOptions())
+        self.failUnless("webopen [ALIAS:PATH]" in help, help)
+
+    def test_manifest(self):
+        help = str(cli.ManifestOptions())
+        self.failUnless("manifest [ALIAS:PATH]" in help, help)
+
+    def test_stats(self):
+        help = str(cli.StatsOptions())
+        self.failUnless("stats [ALIAS:PATH]" in help, help)
+
+    def test_check(self):
+        help = str(cli.CheckOptions())
+        self.failUnless("check [ALIAS:PATH]" in help, help)
+
+    def test_deep_check(self):
+        help = str(cli.DeepCheckOptions())
+        self.failUnless("deep-check [ALIAS:PATH]" in help, help)
+
 class CLITestMixin:
     def do_cli(self, verb, *args, **kwargs):
         nodeargs = [

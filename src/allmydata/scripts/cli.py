@@ -172,7 +172,7 @@ class RmOptions(VDriveOptions):
         self.where = where
 
     def getSynopsis(self):
-        return "%s rm VE_FILE" % (os.path.basename(sys.argv[0]),)
+        return "%s rm VDRIVE_FILE" % (os.path.basename(sys.argv[0]),)
 
 class MvOptions(VDriveOptions):
     def parseArgs(self, frompath, topath):
