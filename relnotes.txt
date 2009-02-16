@@ -9,7 +9,8 @@ Open Source licences.
 
 This filesystem is encrypted and distributed over multiple peers in
 such a way it continues to function even when some of the peers are
-unavailable, malfunctioning, or malicious.
+unavailable, malfunctioning, or malicious. Users can easily share files
+with each other, using a simple and flexible access control scheme.
 
 Here is the one-page explanation of the security and fault-tolerance
 properties that it offers:
