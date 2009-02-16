@@ -111,8 +111,8 @@ class RIStorageServer(RemoteInterface):
         @param canary: If the canary is lost before close(), the bucket is
                        deleted.
         @return: tuple of (alreadygot, allocated), where alreadygot is what we
-                 already have and is what we hereby agree to accept. New
-                 leases are added for shares in both lists.
+                 already have and allocated is what we hereby agree to accept.
+                 New leases are added for shares in both lists.
         """
         return TupleOf(SetOf(int, maxLength=MAX_BUCKETS),
                        DictOf(int, RIBucketWriter, maxKeys=MAX_BUCKETS))
