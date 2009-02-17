@@ -8,7 +8,7 @@ from twisted.trial import unittest
 from allmydata import uri, storage
 from allmydata.util import base32, fileutil
 from allmydata.immutable import upload
-from allmydata.test.common import SystemTestMixin
+from allmydata.test.no_network import GridTestMixin
 
 plaintext = "This is a moderate-sized file.\n" * 10
 mutable_plaintext = "This is a moderate-sized mutable file.\n" * 10
@@ -66,23 +66,23 @@ mutable_shares = {
 }
 #--------- END stored_shares.py ----------------
 
-class DownloadTest(SystemTestMixin, unittest.TestCase):
+class DownloadTest(GridTestMixin, unittest.TestCase):
     def test_download(self):
         self.basedir = self.mktemp()
-        d = self.set_up_nodes()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
 
         # do this to create the shares
-        #d.addCallback(self.create_shares)
-        #return d
+        #return self.create_shares()
 
-        d.addCallback(self.load_shares)
-        d.addCallback(self.download_immutable)
+        self.load_shares()
+        d = self.download_immutable()
         d.addCallback(self.download_mutable)
         return d
 
     def create_shares(self, ignored=None):
         u = upload.Data(plaintext, None)
-        d = self.clients[0].upload(u)
+        d = self.c0.upload(u)
         f = open("stored_shares.py", "w")
         def _created_immutable(ur):
             # write the generated shares and URI to a file, which can then be
@@ -91,9 +91,8 @@ class DownloadTest(SystemTestMixin, unittest.TestCase):
             f.write('immutable_shares = {\n')
             si = uri.from_string(ur.uri).get_storage_index()
             si_dir = storage.storage_index_to_dir(si)
-            for i,c in enumerate(self.clients):
-                sharedir = os.path.join(self.getdir("client%d" % i),
-                                        "storage", "shares", si_dir)
+            for (i,ss,ssdir) in self.iterate_servers():
+                sharedir = os.path.join(ssdir, "shares", si_dir)
                 shares = {}
                 for fn in os.listdir(sharedir):
                     shnum = int(fn)
@@ -112,15 +111,14 @@ class DownloadTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(_created_immutable)
 
         d.addCallback(lambda ignored:
-                      self.clients[0].create_mutable_file(mutable_plaintext))
+                      self.c0.create_mutable_file(mutable_plaintext))
         def _created_mutable(n):
             f.write('mutable_uri = "%s"\n' % n.get_uri())
             f.write('mutable_shares = {\n')
             si = uri.from_string(n.get_uri()).get_storage_index()
             si_dir = storage.storage_index_to_dir(si)
-            for i,c in enumerate(self.clients):
-                sharedir = os.path.join(self.getdir("client%d" % i),
-                                        "storage", "shares", si_dir)
+            for (i,ss,ssdir) in self.iterate_servers():
+                sharedir = os.path.join(ssdir, "shares", si_dir)
                 shares = {}
                 for fn in os.listdir(sharedir):
                     shnum = int(fn)
@@ -149,11 +147,10 @@ class DownloadTest(SystemTestMixin, unittest.TestCase):
         # storage servers with pre-generated shares
         si = uri.from_string(immutable_uri).get_storage_index()
         si_dir = storage.storage_index_to_dir(si)
-        for clientnum in immutable_shares:
-            shares = immutable_shares[clientnum]
+        for i in immutable_shares:
+            shares = immutable_shares[i]
             for shnum in shares:
-                dn = os.path.join(self.getdir("client%d" % clientnum),
-                                  "storage", "shares", si_dir)
+                dn = os.path.join(self.get_serverdir(i), "shares", si_dir)
                 fileutil.make_dirs(dn)
                 fn = os.path.join(dn, str(shnum))
                 f = open(fn, "wb")
@@ -162,11 +159,10 @@ class DownloadTest(SystemTestMixin, unittest.TestCase):
 
         si = uri.from_string(mutable_uri).get_storage_index()
         si_dir = storage.storage_index_to_dir(si)
-        for clientnum in mutable_shares:
-            shares = mutable_shares[clientnum]
+        for i in mutable_shares:
+            shares = mutable_shares[i]
             for shnum in shares:
-                dn = os.path.join(self.getdir("client%d" % clientnum),
-                                  "storage", "shares", si_dir)
+                dn = os.path.join(self.get_serverdir(i), "shares", si_dir)
                 fileutil.make_dirs(dn)
                 fn = os.path.join(dn, str(shnum))
                 f = open(fn, "wb")
@@ -174,7 +170,7 @@ class DownloadTest(SystemTestMixin, unittest.TestCase):
                 f.close()
 
     def download_immutable(self, ignored=None):
-        n = self.clients[0].create_node_from_uri(immutable_uri)
+        n = self.c0.create_node_from_uri(immutable_uri)
         d = n.download_to_data()
         def _got_data(data):
             self.failUnlessEqual(data, plaintext)
@@ -182,7 +178,7 @@ class DownloadTest(SystemTestMixin, unittest.TestCase):
         return d
 
     def download_mutable(self, ignored=None):
-        n = self.clients[0].create_node_from_uri(mutable_uri)
+        n = self.c0.create_node_from_uri(mutable_uri)
         d = n.download_best_version()
         def _got_data(data):
             self.failUnlessEqual(data, mutable_plaintext)

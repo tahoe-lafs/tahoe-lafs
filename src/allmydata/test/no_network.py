@@ -136,7 +136,8 @@ class NoNetworkGrid(service.MultiService):
         self.basedir = basedir
         fileutil.make_dirs(basedir)
 
-        self.servers = {}
+        self.servers_by_number = {}
+        self.servers_by_id = {}
         self.clients = []
 
         for i in range(num_servers):
@@ -145,7 +146,7 @@ class NoNetworkGrid(service.MultiService):
                                      idlib.shortnodeid_b2a(serverid))
             fileutil.make_dirs(serverdir)
             ss = StorageServer(serverdir)
-            self.add_server(serverid, ss)
+            self.add_server(i, serverid, ss)
 
         for i in range(num_clients):
             clientid = hashutil.tagged_hash("clientid", str(i))[:20]
@@ -166,14 +167,15 @@ class NoNetworkGrid(service.MultiService):
             c.setServiceParent(self)
             self.clients.append(c)
 
-    def add_server(self, serverid, ss):
+    def add_server(self, i, serverid, ss):
         # TODO: ss.setServiceParent(self), but first remove the goofy
         # self.parent.nodeid from Storage.startService . At the moment,
         # Storage doesn't really need to be startService'd, but it will in
         # the future.
         ss.setNodeID(serverid)
-        self.servers[serverid] = wrap(ss, "storage")
-        self.all_servers = frozenset(self.servers.items())
+        self.servers_by_number[i] = ss
+        self.servers_by_id[serverid] = wrap(ss, "storage")
+        self.all_servers = frozenset(self.servers_by_id.items())
         for c in self.clients:
             c._servers = self.all_servers
 
@@ -192,3 +194,11 @@ class GridTestMixin:
 
     def get_clientdir(self, i=0):
         return self.g.clients[i].basedir
+
+    def get_serverdir(self, i):
+        return self.g.servers_by_number[i].storedir
+
+    def iterate_servers(self):
+        for i in sorted(self.g.servers_by_number.keys()):
+            ss = self.g.servers_by_number[i]
+            yield (i, ss, ss.storedir)
