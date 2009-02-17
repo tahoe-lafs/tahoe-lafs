@@ -122,14 +122,22 @@ class RIStorageServer(RemoteInterface):
                   cancel_secret=LeaseCancelSecret):
         """
         Add a new lease on the given bucket. If the renew_secret matches an
-        existing lease, that lease will be renewed instead.
+        existing lease, that lease will be renewed instead. If there is no
+        bucket for the given storage_index, IndexError will be raised.
         """
         return None
 
     def renew_lease(storage_index=StorageIndex, renew_secret=LeaseRenewSecret):
         """
-        Renew the lease on a given bucket. Some networks will use this, some
-        will not.
+        Renew the lease on a given bucket, resetting the timer to 31 days.
+        Some networks will use this, some will not. If there is no bucket for
+        the given storage_index, IndexError will be raised.
+
+        For mutable shares, if the given renew_secret does not match an
+        existing lease, IndexError will be raised with a note listing the
+        server-nodeids on the existing leases, so leases on migrated shares
+        can be renewed or cancelled. For immutable shares, IndexError
+        (without the note) will be raised.
         """
         return None
 
@@ -137,7 +145,14 @@ class RIStorageServer(RemoteInterface):
                      cancel_secret=LeaseCancelSecret):
         """
         Cancel the lease on a given bucket. If this was the last lease on the
-        bucket, the bucket will be deleted.
+        bucket, the bucket will be deleted. If there is no bucket for the
+        given storage_index, IndexError will be raised.
+
+        For mutable shares, if the given cancel_secret does not match an
+        existing lease, IndexError will be raised with a note listing the
+        server-nodeids on the existing leases, so leases on migrated shares
+        can be renewed or cancelled. For immutable shares, IndexError
+        (without the note) will be raised.
         """
         return None
 
