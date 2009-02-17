@@ -30,6 +30,8 @@ from allmydata.web.check_results import CheckResults, \
      CheckAndRepairResults, DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.web.info import MoreInfo
 from allmydata.web.operations import ReloadMixin
+from allmydata.web.check_results import json_check_results, \
+     json_check_and_repair_results
 
 class BlockingFileError(Exception):
     # TODO: catch and transform
@@ -189,6 +191,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d = self._POST_check(req)
         elif t == "start-deep-check":
             d = self._POST_start_deep_check(ctx)
+        elif t == "stream-deep-check":
+            d = self._POST_stream_deep_check(ctx)
         elif t == "start-manifest":
             d = self._POST_start_manifest(ctx)
         elif t == "start-deep-size":
@@ -377,6 +381,25 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             monitor = self.node.start_deep_check(verify)
             renderer = DeepCheckResults(monitor)
         return self._start_operation(monitor, renderer, ctx)
+
+    def _POST_stream_deep_check(self, ctx):
+        verify = boolean_of_arg(get_arg(ctx, "verify", "false"))
+        repair = boolean_of_arg(get_arg(ctx, "repair", "false"))
+        walker = DeepCheckStreamer(ctx, self.node, verify, repair)
+        monitor = self.node.deep_traverse(walker)
+        walker.setMonitor(monitor)
+        # register to hear stopProducing. The walker ignores pauseProducing.
+        IRequest(ctx).registerProducer(walker, True)
+        d = monitor.when_done()
+        def _done(res):
+            IRequest(ctx).unregisterProducer()
+            return res
+        d.addBoth(_done)
+        def _cancelled(f):
+            f.trap(OperationCancelledError)
+            return "Operation Cancelled"
+        d.addErrback(_cancelled)
+        return d
 
     def _POST_start_manifest(self, ctx):
         if not get_arg(ctx, "ophandle"):
@@ -891,6 +914,81 @@ class ManifestStreamer(dirnode.DeepStats):
         d["storage-index"] = si
 
         j = simplejson.dumps(d, ensure_ascii=True)
+        assert "\n" not in j
+        self.req.write(j+"\n")
+
+    def finish(self):
+        stats = dirnode.DeepStats.get_results(self)
+        d = {"type": "stats",
+             "stats": stats,
+             }
+        j = simplejson.dumps(d, ensure_ascii=True)
+        assert "\n" not in j
+        self.req.write(j+"\n")
+        return ""
+
+class DeepCheckStreamer(dirnode.DeepStats):
+    implements(IPushProducer)
+
+    def __init__(self, ctx, origin, verify, repair):
+        dirnode.DeepStats.__init__(self, origin)
+        self.req = IRequest(ctx)
+        self.verify = verify
+        self.repair = repair
+
+    def setMonitor(self, monitor):
+        self.monitor = monitor
+    def pauseProducing(self):
+        pass
+    def resumeProducing(self):
+        pass
+    def stopProducing(self):
+        self.monitor.cancel()
+
+    def add_node(self, node, path):
+        dirnode.DeepStats.add_node(self, node, path)
+        data = {"path": path,
+                "cap": node.get_uri()}
+
+        if IDirectoryNode.providedBy(node):
+            data["type"] = "directory"
+        else:
+            data["type"] = "file"
+
+        v = node.get_verify_cap()
+        if v:
+            v = v.to_string()
+        data["verifycap"] = v
+
+        r = node.get_repair_cap()
+        if r:
+            r = r.to_string()
+        data["repaircap"] = r
+
+        si = node.get_storage_index()
+        if si:
+            si = base32.b2a(si)
+        data["storage-index"] = si
+
+        if self.repair:
+            d = node.check_and_repair(self.monitor, self.verify)
+            d.addCallback(self.add_check_and_repair, data)
+        else:
+            d = node.check(self.monitor, self.verify)
+            d.addCallback(self.add_check, data)
+        d.addCallback(self.write_line)
+        return d
+
+    def add_check_and_repair(self, crr, data):
+        data["check-and-repair-results"] = json_check_and_repair_results(crr)
+        return data
+
+    def add_check(self, cr, data):
+        data["check-results"] = json_check_results(cr)
+        return data
+
+    def write_line(self, data):
+        j = simplejson.dumps(data, ensure_ascii=True)
         assert "\n" not in j
         self.req.write(j+"\n")
 

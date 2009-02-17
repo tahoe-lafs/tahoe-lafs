@@ -885,6 +885,45 @@ POST $URL?t=start-deep-check    (must add &ophandle=XYZ)
    stats: a dictionary with the same keys as the t=start-deep-stats command
           (described below)
 
+POST $URL?t=stream-deep-check
+
+ This initiates a recursive walk of all files and directories reachable from
+ the target, performing a check on each one just like t=check. For each
+ unique object (duplicates are skipped), a single line of JSON is emitted to
+ the HTTP response channel. When the walk is complete, a final line of JSON
+ is emitted which contains the accumulated file-size/count "deep-stats" data.
+
+ This command takes the same arguments as t=start-deep-check.
+
+ A CLI tool can split the response stream on newlines into "response units",
+ and parse each response unit as JSON. Each such parsed unit will be a
+ dictionary, and will contain at least the "type" key: a string, one of
+ "file", "directory", or "stats".
+
+ For all units that have a type of "file" or "directory", the dictionary will
+ contain the following keys:
+
+  "path": a list of strings, with the path that is traversed to reach the
+          object
+  "cap": a writecap for the file or directory, if available, else a readcap
+  "verifycap": a verifycap for the file or directory
+  "repaircap": the weakest cap which can still be used to repair the object
+  "storage-index": a base32 storage index for the object
+  "check-results": a copy of the dictionary which would be returned by
+                   t=check&output=json, with three top-level keys:
+                   "storage-index", "summary", and "results", and a variety
+                   of counts and sharemaps in the "results" value.
+
+ Note that non-distributed files (i.e. LIT files) will have values of None
+ for verifycap, repaircap, and storage-index, since these files can neither
+ be verified nor repaired, and are not stored on the storage servers.
+ Likewise the check-results dictionary will be limited: an empty string for
+ storage-index, and a results dictionary with only the "healthy" key.
+
+ The last unit in the stream will have a type of "stats", and will contain
+ the keys described in the "start-deep-stats" operation, below.
+
+
 POST $URL?t=check&repair=true
 
   This performs a health check of the given file or directory, and if the

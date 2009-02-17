@@ -9,6 +9,64 @@ from allmydata.web.operations import ReloadMixin
 from allmydata.interfaces import ICheckAndRepairResults, ICheckResults
 from allmydata.util import base32, idlib
 
+def json_check_counts(d):
+    r = {}
+    r["count-shares-good"] = d["count-shares-good"]
+    r["count-shares-needed"] = d["count-shares-needed"]
+    r["count-shares-expected"] = d["count-shares-expected"]
+    r["count-good-share-hosts"] = d["count-good-share-hosts"]
+    r["count-corrupt-shares"] = d["count-corrupt-shares"]
+    r["list-corrupt-shares"] = [ (idlib.nodeid_b2a(serverid),
+                                  base32.b2a(si), shnum)
+                                 for (serverid, si, shnum)
+                                 in d["list-corrupt-shares"] ]
+    r["servers-responding"] = [idlib.nodeid_b2a(serverid)
+                               for serverid in d["servers-responding"]]
+    sharemap = {}
+    for (shareid, serverids) in d["sharemap"].items():
+        sharemap[shareid] = [idlib.nodeid_b2a(serverid)
+                             for serverid in serverids]
+    r["sharemap"] = sharemap
+
+    r["count-wrong-shares"] = d["count-wrong-shares"]
+    r["count-recoverable-versions"] = d["count-recoverable-versions"]
+    r["count-unrecoverable-versions"] = d["count-unrecoverable-versions"]
+
+    return r
+
+def json_check_results(r):
+    if r is None:
+        # LIT file
+        data = {"storage-index": "",
+                "results": {"healthy": True},
+                }
+        return data
+    data = {}
+    data["storage-index"] = r.get_storage_index_string()
+    data["summary"] = r.get_summary()
+    data["results"] = json_check_counts(r.get_data())
+    data["results"]["needs-rebalancing"] = r.needs_rebalancing()
+    data["results"]["healthy"] = r.is_healthy()
+    data["results"]["recoverable"] = r.is_recoverable()
+    return data
+
+def json_check_and_repair_results(r):
+    if r is None:
+        # LIT file
+        data = {"storage-index": "",
+                "repair-attempted": False,
+                }
+        return data
+    data = {}
+    data["storage-index"] = r.get_storage_index_string()
+    data["repair-attempted"] = r.get_repair_attempted()
+    data["repair-successful"] = r.get_repair_successful()
+    pre = r.get_pre_repair_results()
+    data["pre-repair-results"] = json_check_results(pre)
+    post = r.get_post_repair_results()
+    data["post-repair-results"] = json_check_results(post)
+    return data
+
 class ResultsBase:
     def _join_pathstring(self, path):
         if path:
@@ -94,52 +152,6 @@ class ResultsBase:
 
         return T.ul[r]
 
-    def _json_check_and_repair_results(self, r):
-        data = {}
-        data["storage-index"] = r.get_storage_index_string()
-        data["repair-attempted"] = r.get_repair_attempted()
-        data["repair-successful"] = r.get_repair_successful()
-        pre = r.get_pre_repair_results()
-        data["pre-repair-results"] = self._json_check_results(pre)
-        post = r.get_post_repair_results()
-        data["post-repair-results"] = self._json_check_results(post)
-        return data
-
-    def _json_check_results(self, r):
-        data = {}
-        data["storage-index"] = r.get_storage_index_string()
-        data["summary"] = r.get_summary()
-        data["results"] = self._json_check_counts(r.get_data())
-        data["results"]["needs-rebalancing"] = r.needs_rebalancing()
-        data["results"]["healthy"] = r.is_healthy()
-        data["results"]["recoverable"] = r.is_recoverable()
-        return data
-
-    def _json_check_counts(self, d):
-        r = {}
-        r["count-shares-good"] = d["count-shares-good"]
-        r["count-shares-needed"] = d["count-shares-needed"]
-        r["count-shares-expected"] = d["count-shares-expected"]
-        r["count-good-share-hosts"] = d["count-good-share-hosts"]
-        r["count-corrupt-shares"] = d["count-corrupt-shares"]
-        r["list-corrupt-shares"] = [ (idlib.nodeid_b2a(serverid),
-                                      base32.b2a(si), shnum)
-                                     for (serverid, si, shnum)
-                                     in d["list-corrupt-shares"] ]
-        r["servers-responding"] = [idlib.nodeid_b2a(serverid)
-                                   for serverid in d["servers-responding"]]
-        sharemap = {}
-        for (shareid, serverids) in d["sharemap"].items():
-            sharemap[shareid] = [idlib.nodeid_b2a(serverid)
-                                 for serverid in serverids]
-        r["sharemap"] = sharemap
-
-        r["count-wrong-shares"] = d["count-wrong-shares"]
-        r["count-recoverable-versions"] = d["count-recoverable-versions"]
-        r["count-unrecoverable-versions"] = d["count-unrecoverable-versions"]
-
-        return r
-
     def _html(self, s):
         if isinstance(s, (str, unicode)):
             return html.escape(s)
@@ -210,7 +222,7 @@ class CheckResults(CheckerBase, rend.Page, ResultsBase):
 
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        data = self._json_check_results(self.r)
+        data = json_check_results(self.r)
         return simplejson.dumps(data, indent=1) + "\n"
 
     def render_summary(self, ctx, data):
@@ -249,7 +261,7 @@ class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
 
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        data = self._json_check_and_repair_results(self.r)
+        data = json_check_and_repair_results(self.r)
         return simplejson.dumps(data, indent=1) + "\n"
 
     def render_summary(self, ctx, data):
@@ -324,7 +336,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
                                          shnum)
                                         for (serverid, storage_index, shnum)
                                         in res.get_corrupt_shares() ]
-        data["list-unhealthy-files"] = [ (path_t, self._json_check_results(r))
+        data["list-unhealthy-files"] = [ (path_t, json_check_results(r))
                                          for (path_t, r)
                                          in res.get_all_results().items()
                                          if not r.is_healthy() ]
@@ -496,7 +508,7 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
         data["list-remaining-corrupt-shares"] = remaining_corrupt
 
         unhealthy = [ (path_t,
-                       self._json_check_results(crr.get_pre_repair_results()))
+                       json_check_results(crr.get_pre_repair_results()))
                       for (path_t, crr)
                       in res.get_all_results().items()
                       if not crr.get_pre_repair_results().is_healthy() ]

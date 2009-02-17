@@ -2793,3 +2793,150 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
 
         d.addErrback(self.explain_web_error)
         return d
+
+    def test_deep_check(self):
+        self.basedir = "web/Grid/deep_check"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        self.uris = {}
+        self.fileurls = {}
+        DATA = "data" * 100
+        d = c0.create_empty_dirnode()
+        def _stash_root_and_create_file(n):
+            self.rootnode = n
+            self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri()) + "/"
+            return n.add_file(u"good", upload.Data(DATA, convergence=""))
+        d.addCallback(_stash_root_and_create_file)
+        def _stash_uri(fn, which):
+            self.uris[which] = fn.get_uri()
+        d.addCallback(_stash_uri, "good")
+        d.addCallback(lambda ign:
+                      self.rootnode.add_file(u"small",
+                                             upload.Data("literal",
+                                                        convergence="")))
+        d.addCallback(_stash_uri, "small")
+
+        d.addCallback(self.CHECK, "root", "t=stream-deep-check")
+        def _done(res):
+            units = [simplejson.loads(line)
+                     for line in res.splitlines()
+                     if line]
+            self.failUnlessEqual(len(units), 3+1)
+            # should be parent-first
+            u0 = units[0]
+            self.failUnlessEqual(u0["path"], [])
+            self.failUnlessEqual(u0["type"], "directory")
+            self.failUnlessEqual(u0["cap"], self.rootnode.get_uri())
+            u0cr = u0["check-results"]
+            self.failUnlessEqual(u0cr["results"]["count-shares-good"], 10)
+
+            ugood = [u for u in units
+                     if u["type"] == "file" and u["path"] == [u"good"]][0]
+            self.failUnlessEqual(ugood["cap"], self.uris["good"])
+            ugoodcr = ugood["check-results"]
+            self.failUnlessEqual(ugoodcr["results"]["count-shares-good"], 10)
+
+            stats = units[-1]
+            self.failUnlessEqual(stats["type"], "stats")
+            s = stats["stats"]
+            self.failUnlessEqual(s["count-immutable-files"], 1)
+            self.failUnlessEqual(s["count-literal-files"], 1)
+            self.failUnlessEqual(s["count-directories"], 1)
+        d.addCallback(_done)
+
+        d.addErrback(self.explain_web_error)
+        return d
+
+    def test_deep_check_and_repair(self):
+        self.basedir = "web/Grid/deep_check_and_repair"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        self.uris = {}
+        self.fileurls = {}
+        DATA = "data" * 100
+        d = c0.create_empty_dirnode()
+        def _stash_root_and_create_file(n):
+            self.rootnode = n
+            self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri()) + "/"
+            return n.add_file(u"good", upload.Data(DATA, convergence=""))
+        d.addCallback(_stash_root_and_create_file)
+        def _stash_uri(fn, which):
+            self.uris[which] = fn.get_uri()
+        d.addCallback(_stash_uri, "good")
+        d.addCallback(lambda ign:
+                      self.rootnode.add_file(u"small",
+                                             upload.Data("literal",
+                                                        convergence="")))
+        d.addCallback(_stash_uri, "small")
+        d.addCallback(lambda ign:
+                      self.rootnode.add_file(u"sick",
+                                             upload.Data(DATA+"1",
+                                                        convergence="")))
+        d.addCallback(_stash_uri, "sick")
+        #d.addCallback(lambda ign:
+        #              self.rootnode.add_file(u"dead",
+        #                                     upload.Data(DATA+"2",
+        #                                                convergence="")))
+        #d.addCallback(_stash_uri, "dead")
+
+        #d.addCallback(lambda ign: c0.create_mutable_file("mutable"))
+        #d.addCallback(lambda fn: self.rootnode.set_node(u"corrupt", fn))
+        #d.addCallback(_stash_uri, "corrupt")
+
+        def _clobber_shares(ignored):
+            good_shares = self.find_shares(self.uris["good"])
+            self.failUnlessEqual(len(good_shares), 10)
+            sick_shares = self.find_shares(self.uris["sick"])
+            os.unlink(sick_shares[0][2])
+            #dead_shares = self.find_shares(self.uris["dead"])
+            #for i in range(1, 10):
+            #    os.unlink(dead_shares[i][2])
+
+            #c_shares = self.find_shares(self.uris["corrupt"])
+            #cso = CorruptShareOptions()
+            #cso.stdout = StringIO()
+            #cso.parseOptions([c_shares[0][2]])
+            #corrupt_share(cso)
+        d.addCallback(_clobber_shares)
+
+        d.addCallback(self.CHECK, "root", "t=stream-deep-check&repair=true")
+        def _done(res):
+            units = [simplejson.loads(line)
+                     for line in res.splitlines()
+                     if line]
+            self.failUnlessEqual(len(units), 4+1)
+            # should be parent-first
+            u0 = units[0]
+            self.failUnlessEqual(u0["path"], [])
+            self.failUnlessEqual(u0["type"], "directory")
+            self.failUnlessEqual(u0["cap"], self.rootnode.get_uri())
+            u0crr = u0["check-and-repair-results"]
+            self.failUnlessEqual(u0crr["repair-attempted"], False)
+            self.failUnlessEqual(u0crr["pre-repair-results"]["results"]["count-shares-good"], 10)
+
+            ugood = [u for u in units
+                     if u["type"] == "file" and u["path"] == [u"good"]][0]
+            self.failUnlessEqual(ugood["cap"], self.uris["good"])
+            ugoodcrr = ugood["check-and-repair-results"]
+            self.failUnlessEqual(u0crr["repair-attempted"], False)
+            self.failUnlessEqual(u0crr["pre-repair-results"]["results"]["count-shares-good"], 10)
+
+            usick = [u for u in units
+                     if u["type"] == "file" and u["path"] == [u"sick"]][0]
+            self.failUnlessEqual(usick["cap"], self.uris["sick"])
+            usickcrr = usick["check-and-repair-results"]
+            self.failUnlessEqual(usickcrr["repair-attempted"], True)
+            self.failUnlessEqual(usickcrr["repair-successful"], True)
+            self.failUnlessEqual(usickcrr["pre-repair-results"]["results"]["count-shares-good"], 9)
+            self.failUnlessEqual(usickcrr["post-repair-results"]["results"]["count-shares-good"], 10)
+
+            stats = units[-1]
+            self.failUnlessEqual(stats["type"], "stats")
+            s = stats["stats"]
+            self.failUnlessEqual(s["count-immutable-files"], 2)
+            self.failUnlessEqual(s["count-literal-files"], 1)
+            self.failUnlessEqual(s["count-directories"], 1)
+        d.addCallback(_done)
+
+        d.addErrback(self.explain_web_error)
+        return d
