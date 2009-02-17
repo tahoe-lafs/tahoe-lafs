@@ -5,10 +5,13 @@
 # server puts real shares on disk, but is accessed through loopback
 # RemoteReferences instead of over serialized SSL. It is not as complete as
 # the common.SystemTestMixin framework (which does use the network), but
-# should be considerably faster. It should be useful for tests which want to
-# examine and/or manipulate the uploaded shares, checker/verifier/repairer
-# tests, etc. The clients have no Tubs, so it is not useful for tests that
-# involve a Helper, a KeyGenerator, or the control.furl .
+# should be considerably faster: on my laptop, it takes 50-80ms to start up,
+# whereas SystemTestMixin takes close to 2s.
+
+# This should be useful for tests which want to examine and/or manipulate the
+# uploaded shares, checker/verifier/repairer tests, etc. The clients have no
+# Tubs, so it is not useful for tests that involve a Helper, a KeyGenerator,
+# or the control.furl .
 
 import os.path
 import sha
