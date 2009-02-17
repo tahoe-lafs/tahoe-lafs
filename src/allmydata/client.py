@@ -258,7 +258,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self._key_generator = None
 
     def get_servers(self, service_name):
-        """ Return set of (peerid, versioned-rref) """
+        """ Return frozenset of (peerid, versioned-rref) """
         assert isinstance(service_name, str)
         return self.introducer_client.get_peers(service_name)
 
