@@ -17,8 +17,8 @@ _hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp]
 from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases
 
 from allmydata.scripts import cli, debug, runner, backupdb
-from allmydata.test.common import SystemTestMixin
 from allmydata.test.common_util import StallMixin
+from allmydata.test.no_network import GridTestMixin
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.python import usage
 
@@ -323,7 +323,7 @@ class Help(unittest.TestCase):
 class CLITestMixin:
     def do_cli(self, verb, *args, **kwargs):
         nodeargs = [
-            "--node-directory", self.getdir("client0"),
+            "--node-directory", self.get_clientdir(),
             ]
         argv = [verb] + nodeargs + list(args)
         stdin = kwargs.get("stdin", "")
@@ -336,11 +336,11 @@ class CLITestMixin:
         d.addCallback(_done)
         return d
 
-class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
+class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def _test_webopen(self, args, expected_url):
         woo = cli.WebopenOptions()
-        all_args = ["--node-directory", self.getdir("client0")] + list(args)
+        all_args = ["--node-directory", self.get_clientdir()] + list(args)
         woo.parseOptions(all_args)
         urls = []
         rc = cli.webopen(woo, urls.append)
@@ -350,20 +350,21 @@ class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_create(self):
         self.basedir = os.path.dirname(self.mktemp())
-        d = self.set_up_nodes()
-        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        self.set_up_grid()
+
+        d = self.do_cli("create-alias", "tahoe")
         def _done((rc,stdout,stderr)):
             self.failUnless("Alias 'tahoe' created" in stdout)
             self.failIf(stderr)
-            aliases = get_aliases(self.getdir("client0"))
+            aliases = get_aliases(self.get_clientdir())
             self.failUnless("tahoe" in aliases)
             self.failUnless(aliases["tahoe"].startswith("URI:DIR2:"))
         d.addCallback(_done)
         d.addCallback(lambda res: self.do_cli("create-alias", "two"))
 
         def _stash_urls(res):
-            aliases = get_aliases(self.getdir("client0"))
-            node_url_file = os.path.join(self.getdir("client0"), "node.url")
+            aliases = get_aliases(self.get_clientdir())
+            node_url_file = os.path.join(self.get_clientdir(), "node.url")
             nodeurl = open(node_url_file, "r").read().strip()
             uribase = nodeurl + "uri/"
             self.tahoe_url = uribase + urllib.quote(aliases["tahoe"])
@@ -376,7 +377,7 @@ class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
         def _check_create_duplicate((rc,stdout,stderr)):
             self.failIfEqual(rc, 0)
             self.failUnless("Alias 'two' already exists!" in stderr)
-            aliases = get_aliases(self.getdir("client0"))
+            aliases = get_aliases(self.get_clientdir())
             self.failUnlessEqual(aliases["two"], self.two_uri)
         d.addCallback(_check_create_duplicate)
 
@@ -391,7 +392,7 @@ class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
         def _check_add_duplicate((rc,stdout,stderr)):
             self.failIfEqual(rc, 0)
             self.failUnless("Alias 'two' already exists!" in stderr)
-            aliases = get_aliases(self.getdir("client0"))
+            aliases = get_aliases(self.get_clientdir())
             self.failUnlessEqual(aliases["two"], self.two_uri)
         d.addCallback(_check_add_duplicate)
 
@@ -413,7 +414,7 @@ class CreateAlias(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
         return d
 
-class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
+class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_unlinked_immutable_stdin(self):
         # tahoe get `echo DATA | tahoe put`
@@ -421,8 +422,8 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
         self.basedir = self.mktemp()
         DATA = "data" * 100
-        d = self.set_up_nodes()
-        d.addCallback(lambda res: self.do_cli("put", stdin=DATA))
+        self.set_up_grid()
+        d = self.do_cli("put", stdin=DATA)
         def _uploaded(res):
             (rc, stdout, stderr) = res
             self.failUnless("waiting for file data on stdin.." in stderr)
@@ -449,6 +450,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = os.path.dirname(self.mktemp())
         # this will be "allmydata.test.test_cli/Put/test_put_from_file/RANDOM"
         # and the RANDOM directory will exist. Raw mktemp returns a filename.
+        self.set_up_grid()
 
         rel_fn = os.path.join(self.basedir, "DATAFILE")
         abs_fn = os.path.abspath(rel_fn)
@@ -456,8 +458,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         f = open(rel_fn, "w")
         f.write("short file")
         f.close()
-        d = self.set_up_nodes()
-        d.addCallback(lambda res: self.do_cli("put", rel_fn))
+        d = self.do_cli("put", rel_fn)
         def _uploaded((rc,stdout,stderr)):
             readcap = stdout
             self.failUnless(readcap.startswith("URI:LIT:"))
@@ -481,6 +482,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe put file.txt DIRCAP:./uploaded.txt
         # tahoe put file.txt DIRCAP:./subdir/uploaded.txt
         self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
 
         rel_fn = os.path.join(self.basedir, "DATAFILE")
         abs_fn = os.path.abspath(rel_fn)
@@ -491,8 +493,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         f.write(DATA)
         f.close()
 
-        d = self.set_up_nodes()
-        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        d = self.do_cli("create-alias", "tahoe")
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "uploaded.txt"))
@@ -535,7 +536,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
                       self.failUnlessEqual(stdout, DATA))
 
         def _get_dircap(res):
-            self.dircap = get_aliases(self.getdir("client0"))["tahoe"]
+            self.dircap = get_aliases(self.get_clientdir())["tahoe"]
         d.addCallback(_get_dircap)
 
         d.addCallback(lambda res:
@@ -563,6 +564,8 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe get FILECAP, compare against DATA2
         # tahoe put file.txt FILECAP
         self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+
         DATA = "data" * 100
         DATA2 = "two" * 100
         rel_fn = os.path.join(self.basedir, "DATAFILE")
@@ -572,9 +575,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         f.write(DATA3)
         f.close()
 
-        d = self.set_up_nodes()
-
-        d.addCallback(lambda res: self.do_cli("put", "--mutable", stdin=DATA))
+        d = self.do_cli("put", "--mutable", stdin=DATA)
         def _created(res):
             (rc, stdout, stderr) = res
             self.failUnless("waiting for file data on stdin.." in stderr)
@@ -612,6 +613,8 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe get uploaded.txt, compare against DATA2
 
         self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+
         DATA1 = "data" * 100
         fn1 = os.path.join(self.basedir, "DATA1")
         f = open(fn1, "w")
@@ -623,8 +626,7 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         f.write(DATA2)
         f.close()
 
-        d = self.set_up_nodes()
-        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res:
                       self.do_cli("put", "--mutable", fn1, "tahoe:uploaded.txt"))
         d.addCallback(lambda res:
@@ -634,7 +636,8 @@ class Put(SystemTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
         return d
 
-class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
+class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
+
     def test_not_enough_args(self):
         o = cli.CpOptions()
         self.failUnlessRaises(usage.UsageError,
@@ -642,6 +645,7 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_unicode_filename(self):
         self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
 
         fn1 = os.path.join(self.basedir, "Ärtonwall")
         DATA1 = "unicode file content"
@@ -654,8 +658,7 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
         # Bug #534
         # Assure that uploading a file whose name contains unicode character doesn't
         # prevent further uploads in the same directory
-        d = self.set_up_nodes()
-        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("cp", fn1, "tahoe:"))
         d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
 
@@ -673,19 +676,20 @@ class Cp(SystemTestMixin, CLITestMixin, unittest.TestCase):
             raise unittest.SkipTest("There is no symlink on this platform.")
         # cp -r on a directory containing a dangling symlink shouldn't assert
         self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
         dn = os.path.join(self.basedir, "dir")
         os.mkdir(dn)
         fn = os.path.join(dn, "Fakebandica")
         ln = os.path.join(dn, "link")
         os.symlink(fn, ln)
 
-        d = self.set_up_nodes()
-        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("cp", "--recursive",
                                               dn, "tahoe:"))
         return d
 
-class Backup(SystemTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
+class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
+
     def writeto(self, path, data):
         d = os.path.dirname(os.path.join(self.basedir, "home", path))
         fileutil.make_dirs(d)
@@ -703,6 +707,7 @@ class Backup(SystemTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
     def test_backup(self):
         self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
 
         # is the backupdb available? If so, we test that a second backup does
         # not create new directories.
@@ -727,8 +732,7 @@ class Backup(SystemTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             cmd.append("tahoe:backups")
             return self.do_cli(*cmd)
 
-        d = self.set_up_nodes()
-        d.addCallback(lambda res: self.do_cli("create-alias", "tahoe"))
+        d = self.do_cli("create-alias", "tahoe")
 
         if not have_bdb:
             d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:backups"))
@@ -804,8 +808,8 @@ class Backup(SystemTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             # sneak into the backupdb, crank back the "last checked"
             # timestamp to force a check on all files
             def _reset_last_checked(res):
-                dbfile = os.path.join(self.basedir,
-                                      "client0", "private", "backupdb.sqlite")
+                dbfile = os.path.join(self.get_clientdir(),
+                                      "private", "backupdb.sqlite")
                 self.failUnless(os.path.exists(dbfile), dbfile)
                 bdb = backupdb.get_backupdb(dbfile)
                 bdb.cursor.execute("UPDATE last_upload SET last_checked=0")
