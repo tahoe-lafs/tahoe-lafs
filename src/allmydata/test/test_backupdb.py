@@ -37,8 +37,9 @@ class BackupDB(unittest.TestCase):
         if "I was unable to import a python sqlite library" in stderr:
             pass
         else:
-            self.failUnless("backupdb file is unusable" in stderr)
-            self.failUnless("file is encrypted or is not a database" in stderr)
+            self.failUnless("backupdb file is unusable" in stderr, stderr)
+            self.failUnless("file is encrypted or is not a database" in stderr,
+                            stderr)
 
         # put a directory in the way, to exercise a different error path
         where = os.path.join(basedir, "roadblock-dir")
@@ -51,8 +52,8 @@ class BackupDB(unittest.TestCase):
             pass
         else:
             self.failUnless(("Unable to create/open backupdb file %s" % where)
-                            in stderr)
-            self.failUnless("unable to open database file" in stderr)
+                            in stderr, stderr)
+            self.failUnless("unable to open database file" in stderr, stderr)
 
 
     def writeto(self, filename, data):
