@@ -1,5 +1,6 @@
 import os.path, re, urllib
 import simplejson
+from StringIO import StringIO
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
@@ -8,14 +9,16 @@ from twisted.python import failure, log
 from allmydata import interfaces, uri, webish
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
+from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.util import fileutil, base32
 from allmydata.util.assertutil import precondition
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
-     FakeMutableFileNode, create_chk_filenode
+     FakeMutableFileNode, create_chk_filenode, WebErrorMixin
 from allmydata.interfaces import IURI, INewDirectoryURI, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
 from allmydata.mutable import servermap, publish, retrieve
 import common_util as testutil
+from allmydata.test.no_network import GridTestMixin
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -2519,3 +2522,278 @@ class Util(unittest.TestCase):
         self.failUnlessEqual(common.abbreviate_size(1230), "1.2kB")
         self.failUnlessEqual(common.abbreviate_size(123), "123B")
 
+
+class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
+
+    def GET(self, urlpath, followRedirect=False, return_response=False,
+            method="GET", **kwargs):
+        # if return_response=True, this fires with (data, statuscode,
+        # respheaders) instead of just data.
+        assert not isinstance(urlpath, unicode)
+        url = self.client_baseurls[0] + urlpath
+        factory = HTTPClientGETFactory(url, method=method,
+                                       followRedirect=followRedirect, **kwargs)
+        reactor.connectTCP("localhost", self.client_webports[0], factory)
+        d = factory.deferred
+        def _got_data(data):
+            return (data, factory.status, factory.response_headers)
+        if return_response:
+            d.addCallback(_got_data)
+        return factory.deferred
+
+    def CHECK(self, ign, which, **kwargs):
+        fileurl = self.fileurls[which]
+        url = fileurl + "?" + "&".join(["%s=%s" % (k,v)
+                                        for (k,v) in kwargs.items()])
+        return self.GET(url, method="POST")
+
+    def test_filecheck(self):
+        self.basedir = "web/Grid/filecheck"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        self.uris = {}
+        DATA = "data" * 100
+        d = c0.upload(upload.Data(DATA, convergence=""))
+        def _stash_uri(ur, which):
+            self.uris[which] = ur.uri
+        d.addCallback(_stash_uri, "good")
+        d.addCallback(lambda ign:
+                      c0.upload(upload.Data(DATA+"1", convergence="")))
+        d.addCallback(_stash_uri, "sick")
+        d.addCallback(lambda ign:
+                      c0.upload(upload.Data(DATA+"2", convergence="")))
+        d.addCallback(_stash_uri, "dead")
+        def _stash_mutable_uri(n, which):
+            self.uris[which] = n.get_uri()
+            assert isinstance(self.uris[which], str)
+        d.addCallback(lambda ign: c0.create_mutable_file(DATA+"3"))
+        d.addCallback(_stash_mutable_uri, "corrupt")
+        d.addCallback(lambda ign:
+                      c0.upload(upload.Data("literal", convergence="")))
+        d.addCallback(_stash_uri, "small")
+
+        def _compute_fileurls(ignored):
+            self.fileurls = {}
+            for which in self.uris:
+                self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
+        d.addCallback(_compute_fileurls)
+
+        def _clobber_shares(ignored):
+            good_shares = self.find_shares(self.uris["good"])
+            self.failUnlessEqual(len(good_shares), 10)
+            sick_shares = self.find_shares(self.uris["sick"])
+            os.unlink(sick_shares[0][2])
+            dead_shares = self.find_shares(self.uris["dead"])
+            for i in range(1, 10):
+                os.unlink(dead_shares[i][2])
+            c_shares = self.find_shares(self.uris["corrupt"])
+            cso = CorruptShareOptions()
+            cso.stdout = StringIO()
+            cso.parseOptions([c_shares[0][2]])
+            corrupt_share(cso)
+        d.addCallback(_clobber_shares)
+
+        d.addCallback(self.CHECK, "good", t="check")
+        def _got_html_good(res):
+            self.failUnless("Healthy" in res, res)
+            self.failIf("Not Healthy" in res, res)
+        d.addCallback(_got_html_good)
+        d.addCallback(self.CHECK, "good", t="check", return_to="somewhere")
+        def _got_html_good_return_to(res):
+            self.failUnless("Healthy" in res, res)
+            self.failIf("Not Healthy" in res, res)
+            self.failUnless('<a href="somewhere">Return to parent directory'
+                            in res, res)
+        d.addCallback(_got_html_good_return_to)
+        d.addCallback(self.CHECK, "good", t="check", output="json")
+        def _got_json_good(res):
+            r = simplejson.loads(res)
+            self.failUnlessEqual(r["summary"], "Healthy")
+            self.failUnless(r["results"]["healthy"])
+            self.failIf(r["results"]["needs-rebalancing"])
+            self.failUnless(r["results"]["recoverable"])
+        d.addCallback(_got_json_good)
+
+        d.addCallback(self.CHECK, "small", t="check")
+        def _got_html_small(res):
+            self.failUnless("Literal files are always healthy" in res, res)
+            self.failIf("Not Healthy" in res, res)
+        d.addCallback(_got_html_small)
+        d.addCallback(self.CHECK, "small", t="check", return_to="somewhere")
+        def _got_html_small_return_to(res):
+            self.failUnless("Literal files are always healthy" in res, res)
+            self.failIf("Not Healthy" in res, res)
+            self.failUnless('<a href="somewhere">Return to parent directory'
+                            in res, res)
+        d.addCallback(_got_html_small_return_to)
+        d.addCallback(self.CHECK, "small", t="check", output="json")
+        def _got_json_small(res):
+            r = simplejson.loads(res)
+            self.failUnlessEqual(r["storage-index"], "")
+            self.failUnless(r["results"]["healthy"])
+        d.addCallback(_got_json_small)
+
+        d.addCallback(self.CHECK, "sick", t="check")
+        def _got_html_sick(res):
+            self.failUnless("Not Healthy" in res, res)
+        d.addCallback(_got_html_sick)
+        d.addCallback(self.CHECK, "sick", t="check", output="json")
+        def _got_json_sick(res):
+            r = simplejson.loads(res)
+            self.failUnlessEqual(r["summary"],
+                                 "Not Healthy: 9 shares (enc 3-of-10)")
+            self.failIf(r["results"]["healthy"])
+            self.failIf(r["results"]["needs-rebalancing"])
+            self.failUnless(r["results"]["recoverable"])
+        d.addCallback(_got_json_sick)
+
+        d.addCallback(self.CHECK, "dead", t="check")
+        def _got_html_dead(res):
+            self.failUnless("Not Healthy" in res, res)
+        d.addCallback(_got_html_dead)
+        d.addCallback(self.CHECK, "dead", t="check", output="json")
+        def _got_json_dead(res):
+            r = simplejson.loads(res)
+            self.failUnlessEqual(r["summary"],
+                                 "Not Healthy: 1 shares (enc 3-of-10)")
+            self.failIf(r["results"]["healthy"])
+            self.failIf(r["results"]["needs-rebalancing"])
+            self.failIf(r["results"]["recoverable"])
+        d.addCallback(_got_json_dead)
+
+        d.addCallback(self.CHECK, "corrupt", t="check", verify="true")
+        def _got_html_corrupt(res):
+            self.failUnless("Not Healthy! : Unhealthy" in res, res)
+        d.addCallback(_got_html_corrupt)
+        d.addCallback(self.CHECK, "corrupt",
+                      t="check", verify="true", output="json")
+        def _got_json_corrupt(res):
+            r = simplejson.loads(res)
+            self.failUnless("Unhealthy: 9 shares (enc 3-of-10)" in r["summary"],
+                            r["summary"])
+            self.failIf(r["results"]["healthy"])
+            self.failUnless(r["results"]["recoverable"])
+            self.failUnlessEqual(r["results"]["count-shares-good"], 9)
+            self.failUnlessEqual(r["results"]["count-corrupt-shares"], 1)
+        d.addCallback(_got_json_corrupt)
+
+        d.addErrback(self.explain_web_error)
+        return d
+
+    def test_repair_html(self):
+        self.basedir = "web/Grid/repair_html"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        self.uris = {}
+        DATA = "data" * 100
+        d = c0.upload(upload.Data(DATA, convergence=""))
+        def _stash_uri(ur, which):
+            self.uris[which] = ur.uri
+        d.addCallback(_stash_uri, "good")
+        d.addCallback(lambda ign:
+                      c0.upload(upload.Data(DATA+"1", convergence="")))
+        d.addCallback(_stash_uri, "sick")
+        d.addCallback(lambda ign:
+                      c0.upload(upload.Data(DATA+"2", convergence="")))
+        d.addCallback(_stash_uri, "dead")
+        def _stash_mutable_uri(n, which):
+            self.uris[which] = n.get_uri()
+            assert isinstance(self.uris[which], str)
+        d.addCallback(lambda ign: c0.create_mutable_file(DATA+"3"))
+        d.addCallback(_stash_mutable_uri, "corrupt")
+
+        def _compute_fileurls(ignored):
+            self.fileurls = {}
+            for which in self.uris:
+                self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
+        d.addCallback(_compute_fileurls)
+
+        def _clobber_shares(ignored):
+            good_shares = self.find_shares(self.uris["good"])
+            self.failUnlessEqual(len(good_shares), 10)
+            sick_shares = self.find_shares(self.uris["sick"])
+            os.unlink(sick_shares[0][2])
+            dead_shares = self.find_shares(self.uris["dead"])
+            for i in range(1, 10):
+                os.unlink(dead_shares[i][2])
+            c_shares = self.find_shares(self.uris["corrupt"])
+            cso = CorruptShareOptions()
+            cso.stdout = StringIO()
+            cso.parseOptions([c_shares[0][2]])
+            corrupt_share(cso)
+        d.addCallback(_clobber_shares)
+
+        d.addCallback(self.CHECK, "good", t="check", repair="true")
+        def _got_html_good(res):
+            self.failUnless("Healthy" in res, res)
+            self.failIf("Not Healthy" in res, res)
+            self.failUnless("No repair necessary" in res, res)
+        d.addCallback(_got_html_good)
+
+        d.addCallback(self.CHECK, "sick", t="check", repair="true")
+        def _got_html_sick(res):
+            self.failUnless("Healthy : healthy" in res, res)
+            self.failIf("Not Healthy" in res, res)
+            self.failUnless("Repair successful" in res, res)
+        d.addCallback(_got_html_sick)
+
+        # repair of a dead file will fail, of course, but it isn't yet
+        # clear how this should be reported. Right now it shows up as
+        # a "410 Gone".
+        #
+        #d.addCallback(self.CHECK, "dead", t="check", repair="true")
+        #def _got_html_dead(res):
+        #    print res
+        #    self.failUnless("Healthy : healthy" in res, res)
+        #    self.failIf("Not Healthy" in res, res)
+        #    self.failUnless("No repair necessary" in res, res)
+        #d.addCallback(_got_html_dead)
+
+        d.addCallback(self.CHECK, "corrupt",
+                      t="check", verify="true", repair="true")
+        def _got_html_corrupt(res):
+            self.failUnless("Healthy : Healthy" in res, res)
+            self.failIf("Not Healthy" in res, res)
+            self.failUnless("Repair successful" in res, res)
+        d.addCallback(_got_html_corrupt)
+
+        d.addErrback(self.explain_web_error)
+        return d
+
+    def test_repair_json(self):
+        self.basedir = "web/Grid/repair_json"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        self.uris = {}
+        DATA = "data" * 100
+        d = c0.upload(upload.Data(DATA+"1", convergence=""))
+        def _stash_uri(ur, which):
+            self.uris[which] = ur.uri
+        d.addCallback(_stash_uri, "sick")
+
+        def _compute_fileurls(ignored):
+            self.fileurls = {}
+            for which in self.uris:
+                self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
+        d.addCallback(_compute_fileurls)
+
+        def _clobber_shares(ignored):
+            sick_shares = self.find_shares(self.uris["sick"])
+            os.unlink(sick_shares[0][2])
+        d.addCallback(_clobber_shares)
+
+        d.addCallback(self.CHECK, "sick",
+                      t="check", repair="true", output="json")
+        def _got_json_sick(res):
+            r = simplejson.loads(res)
+            self.failUnlessEqual(r["repair-attempted"], True)
+            self.failUnlessEqual(r["repair-successful"], True)
+            self.failUnlessEqual(r["pre-repair-results"]["summary"],
+                                 "Not Healthy: 9 shares (enc 3-of-10)")
+            self.failIf(r["pre-repair-results"]["results"]["healthy"])
+            self.failUnlessEqual(r["post-repair-results"]["summary"], "healthy")
+            self.failUnless(r["post-repair-results"]["results"]["healthy"])
+        d.addCallback(_got_json_sick)
+
+        d.addErrback(self.explain_web_error)
+        return d

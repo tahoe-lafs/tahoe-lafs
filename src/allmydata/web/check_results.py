@@ -178,6 +178,13 @@ class LiteralCheckResults(rend.Page, ResultsBase):
                 }
         return simplejson.dumps(data, indent=1) + "\n"
 
+    def render_return(self, ctx, data):
+        req = inevow.IRequest(ctx)
+        return_to = get_arg(req, "return_to", None)
+        if return_to:
+            return T.div[T.a(href=return_to)["Return to parent directory"]]
+        return ""
+
 class CheckerBase:
 
     def renderHTTP(self, ctx):
@@ -229,11 +236,6 @@ class CheckResults(CheckerBase, rend.Page, ResultsBase):
             T.input(type="submit", value="Repair"),
             ]]
         return ctx.tag[repair]
-
-    def render_rebalance(self, ctx, data):
-        if self.r.needs_rebalancing():
-            return ctx.tag["(needs rebalancing)"]
-        return ctx.tag["(does not need rebalancing)"]
 
     def render_results(self, ctx, data):
         cr = self._render_results(ctx, self.r)

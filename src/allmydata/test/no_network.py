@@ -19,8 +19,9 @@ from twisted.application import service
 from foolscap import Referenceable
 from foolscap.eventual import fireEventually
 from base64 import b32encode
+from allmydata import uri as tahoe_uri
 from allmydata.client import Client
-from allmydata.storage import StorageServer
+from allmydata.storage import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil, rrefutil
 from allmydata.introducer.client import RemoteServiceConnector
 
@@ -131,6 +132,8 @@ class NoNetworkClient(Client):
 
     def get_permuted_peers(self, service_name, key):
         return sorted(self._servers, key=lambda x: sha.new(key+x[0]).digest())
+    def get_nickname_for_peerid(self, peerid):
+        return None
 
 
 class NoNetworkGrid(service.MultiService):
@@ -202,6 +205,10 @@ class GridTestMixin:
         self.g = NoNetworkGrid(self.basedir,
                                client_config_hooks=client_config_hooks)
         self.g.setServiceParent(self.s)
+        self.client_webports = [c.getServiceNamed("webish").listener._port.getHost().port
+                                for c in self.g.clients]
+        self.client_baseurls = ["http://localhost:%d/" % p
+                                for p in self.client_webports]
 
     def get_clientdir(self, i=0):
         return self.g.clients[i].basedir
@@ -213,3 +220,21 @@ class GridTestMixin:
         for i in sorted(self.g.servers_by_number.keys()):
             ss = self.g.servers_by_number[i]
             yield (i, ss, ss.storedir)
+
+    def find_shares(self, uri):
+        si = tahoe_uri.from_string(uri).get_storage_index()
+        prefixdir = storage_index_to_dir(si)
+        shares = []
+        for i,ss in self.g.servers_by_number.items():
+            serverid = ss.my_nodeid
+            basedir = os.path.join(ss.storedir, "shares", prefixdir)
+            if not os.path.exists(basedir):
+                continue
+            for f in os.listdir(basedir):
+                try:
+                    shnum = int(f)
+                    shares.append((shnum, serverid, os.path.join(basedir, f)))
+                except ValueError:
+                    pass
+        return sorted(shares)
+
