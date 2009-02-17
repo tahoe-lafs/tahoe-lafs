@@ -11,14 +11,10 @@ from formless import webform
 import allmydata # to display import path
 from allmydata import get_package_versions_string
 from allmydata import provisioning
-reliability = None
-try:
-    from allmydata.web import reliability # requires Numeric and PIL
-except ImportError:
-    pass # might not be usable
 from allmydata.util import idlib, log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
+from allmydata.web import reliability
 from allmydata.web.common import abbreviate_size, IClient, \
      getxmlfile, WebError, get_arg, RenderMixin
 
@@ -149,7 +145,7 @@ class Root(rend.Page):
     child_tahoe_css = nevow_File(resource_filename('allmydata.web', 'tahoe.css'))
 
     child_provisioning = provisioning.ProvisioningTool()
-    if reliability:
+    if reliability.is_available():
         child_reliability = reliability.ReliabilityTool()
     else:
         child_reliability = NoReliability()

@@ -12,6 +12,11 @@ DAY=24*60*60
 MONTH=31*DAY
 YEAR=365*DAY
 
+def is_available():
+    if reliability:
+        return True
+    return False
+
 def yandm(seconds):
     return "%dy.%dm" % (int(seconds/YEAR), int( (seconds%YEAR)/MONTH))
 
