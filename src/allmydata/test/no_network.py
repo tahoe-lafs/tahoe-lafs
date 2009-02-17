@@ -131,7 +131,8 @@ class NoNetworkClient(Client):
 
 
 class NoNetworkGrid(service.MultiService):
-    def __init__(self, basedir, num_clients=1, num_servers=10):
+    def __init__(self, basedir, num_clients=1, num_servers=10,
+                 client_config_hooks={}):
         service.MultiService.__init__(self)
         self.basedir = basedir
         fileutil.make_dirs(basedir)
@@ -160,7 +161,13 @@ class NoNetworkGrid(service.MultiService):
             f.write("[storage]\n")
             f.write("enabled = false\n")
             f.close()
-            c = NoNetworkClient(clientdir)
+            c = None
+            if i in client_config_hooks:
+                # this hook can either modify tahoe.cfg, or return an
+                # entirely new Client instance
+                c = client_config_hooks[i](clientdir)
+            if not c:
+                c = NoNetworkClient(clientdir)
             c.nodeid = clientid
             c.short_nodeid = b32encode(clientid).lower()[:8]
             c._servers = self.all_servers # can be updated later
@@ -187,9 +194,10 @@ class GridTestMixin:
     def tearDown(self):
         return self.s.stopService()
 
-    def set_up_grid(self):
+    def set_up_grid(self, client_config_hooks={}):
         # self.basedir must be set
-        self.g = NoNetworkGrid(self.basedir)
+        self.g = NoNetworkGrid(self.basedir,
+                               client_config_hooks=client_config_hooks)
         self.g.setServiceParent(self.s)
 
     def get_clientdir(self, i=0):

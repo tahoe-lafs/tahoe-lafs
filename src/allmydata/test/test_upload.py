@@ -13,7 +13,7 @@ from allmydata.immutable import upload
 from allmydata.interfaces import IFileURI, FileTooLargeError, NotEnoughSharesError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
-from common import SystemTestMixin
+from no_network import GridTestMixin
 from common_util import ShouldFailMixin
 
 MiB = 1024*1024
@@ -593,14 +593,17 @@ class StorageIndex(unittest.TestCase):
         d.addCallback(_done)
         return d
 
-class EncodingParameters(SystemTestMixin, unittest.TestCase):
+class EncodingParameters(GridTestMixin, unittest.TestCase):
     def test_configure_parameters(self):
         self.basedir = self.mktemp()
+        hooks = {0: self._set_up_nodes_extra_config}
+        self.set_up_grid(client_config_hooks=hooks)
+        c0 = self.g.clients[0]
+
         DATA = "data" * 100
         u = upload.Data(DATA, convergence="")
-        d = self.set_up_nodes()
-        d.addCallback(lambda res: self.clients[0].upload(u))
-        d.addCallback(lambda ur: self.clients[0].create_node_from_uri(ur.uri))
+        d = c0.upload(u)
+        d.addCallback(lambda ur: c0.create_node_from_uri(ur.uri))
         m = monitor.Monitor()
         d.addCallback(lambda fn: fn.check(m))
         def _check(cr):
@@ -610,14 +613,18 @@ class EncodingParameters(SystemTestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def _set_up_nodes_extra_config(self):
-        f = open(os.path.join(self.getdir("client0"), "tahoe.cfg"), "wt")
+    def _set_up_nodes_extra_config(self, clientdir):
+        cfgfn = os.path.join(clientdir, "tahoe.cfg")
+        oldcfg = open(cfgfn, "r").read()
+        f = open(cfgfn, "wt")
+        f.write(oldcfg)
         f.write("\n")
         f.write("[client]\n")
         f.write("shares.needed = 7\n")
         f.write("shares.total = 12\n")
         f.write("\n")
         f.close()
+        return None
 
 # TODO:
 #  upload with exactly 75 peers (shares_of_happiness)
