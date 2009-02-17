@@ -2541,10 +2541,9 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             d.addCallback(_got_data)
         return factory.deferred
 
-    def CHECK(self, ign, which, **kwargs):
+    def CHECK(self, ign, which, args):
         fileurl = self.fileurls[which]
-        url = fileurl + "?" + "&".join(["%s=%s" % (k,v)
-                                        for (k,v) in kwargs.items()])
+        url = fileurl + "?" + args
         return self.GET(url, method="POST")
 
     def test_filecheck(self):
@@ -2593,19 +2592,19 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             corrupt_share(cso)
         d.addCallback(_clobber_shares)
 
-        d.addCallback(self.CHECK, "good", t="check")
+        d.addCallback(self.CHECK, "good", "t=check")
         def _got_html_good(res):
             self.failUnless("Healthy" in res, res)
             self.failIf("Not Healthy" in res, res)
         d.addCallback(_got_html_good)
-        d.addCallback(self.CHECK, "good", t="check", return_to="somewhere")
+        d.addCallback(self.CHECK, "good", "t=check&return_to=somewhere")
         def _got_html_good_return_to(res):
             self.failUnless("Healthy" in res, res)
             self.failIf("Not Healthy" in res, res)
             self.failUnless('<a href="somewhere">Return to parent directory'
                             in res, res)
         d.addCallback(_got_html_good_return_to)
-        d.addCallback(self.CHECK, "good", t="check", output="json")
+        d.addCallback(self.CHECK, "good", "t=check&output=json")
         def _got_json_good(res):
             r = simplejson.loads(res)
             self.failUnlessEqual(r["summary"], "Healthy")
@@ -2614,30 +2613,30 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             self.failUnless(r["results"]["recoverable"])
         d.addCallback(_got_json_good)
 
-        d.addCallback(self.CHECK, "small", t="check")
+        d.addCallback(self.CHECK, "small", "t=check")
         def _got_html_small(res):
             self.failUnless("Literal files are always healthy" in res, res)
             self.failIf("Not Healthy" in res, res)
         d.addCallback(_got_html_small)
-        d.addCallback(self.CHECK, "small", t="check", return_to="somewhere")
+        d.addCallback(self.CHECK, "small", "t=check&return_to=somewhere")
         def _got_html_small_return_to(res):
             self.failUnless("Literal files are always healthy" in res, res)
             self.failIf("Not Healthy" in res, res)
             self.failUnless('<a href="somewhere">Return to parent directory'
                             in res, res)
         d.addCallback(_got_html_small_return_to)
-        d.addCallback(self.CHECK, "small", t="check", output="json")
+        d.addCallback(self.CHECK, "small", "t=check&output=json")
         def _got_json_small(res):
             r = simplejson.loads(res)
             self.failUnlessEqual(r["storage-index"], "")
             self.failUnless(r["results"]["healthy"])
         d.addCallback(_got_json_small)
 
-        d.addCallback(self.CHECK, "sick", t="check")
+        d.addCallback(self.CHECK, "sick", "t=check")
         def _got_html_sick(res):
             self.failUnless("Not Healthy" in res, res)
         d.addCallback(_got_html_sick)
-        d.addCallback(self.CHECK, "sick", t="check", output="json")
+        d.addCallback(self.CHECK, "sick", "t=check&output=json")
         def _got_json_sick(res):
             r = simplejson.loads(res)
             self.failUnlessEqual(r["summary"],
@@ -2647,11 +2646,11 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             self.failUnless(r["results"]["recoverable"])
         d.addCallback(_got_json_sick)
 
-        d.addCallback(self.CHECK, "dead", t="check")
+        d.addCallback(self.CHECK, "dead", "t=check")
         def _got_html_dead(res):
             self.failUnless("Not Healthy" in res, res)
         d.addCallback(_got_html_dead)
-        d.addCallback(self.CHECK, "dead", t="check", output="json")
+        d.addCallback(self.CHECK, "dead", "t=check&output=json")
         def _got_json_dead(res):
             r = simplejson.loads(res)
             self.failUnlessEqual(r["summary"],
@@ -2661,12 +2660,11 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             self.failIf(r["results"]["recoverable"])
         d.addCallback(_got_json_dead)
 
-        d.addCallback(self.CHECK, "corrupt", t="check", verify="true")
+        d.addCallback(self.CHECK, "corrupt", "t=check&verify=true")
         def _got_html_corrupt(res):
             self.failUnless("Not Healthy! : Unhealthy" in res, res)
         d.addCallback(_got_html_corrupt)
-        d.addCallback(self.CHECK, "corrupt",
-                      t="check", verify="true", output="json")
+        d.addCallback(self.CHECK, "corrupt", "t=check&verify=true&output=json")
         def _got_json_corrupt(res):
             r = simplejson.loads(res)
             self.failUnless("Unhealthy: 9 shares (enc 3-of-10)" in r["summary"],
@@ -2723,14 +2721,14 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             corrupt_share(cso)
         d.addCallback(_clobber_shares)
 
-        d.addCallback(self.CHECK, "good", t="check", repair="true")
+        d.addCallback(self.CHECK, "good", "t=check&repair=true")
         def _got_html_good(res):
             self.failUnless("Healthy" in res, res)
             self.failIf("Not Healthy" in res, res)
             self.failUnless("No repair necessary" in res, res)
         d.addCallback(_got_html_good)
 
-        d.addCallback(self.CHECK, "sick", t="check", repair="true")
+        d.addCallback(self.CHECK, "sick", "t=check&repair=true")
         def _got_html_sick(res):
             self.failUnless("Healthy : healthy" in res, res)
             self.failIf("Not Healthy" in res, res)
@@ -2741,7 +2739,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
         # clear how this should be reported. Right now it shows up as
         # a "410 Gone".
         #
-        #d.addCallback(self.CHECK, "dead", t="check", repair="true")
+        #d.addCallback(self.CHECK, "dead", "t=check&repair=true")
         #def _got_html_dead(res):
         #    print res
         #    self.failUnless("Healthy : healthy" in res, res)
@@ -2749,8 +2747,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
         #    self.failUnless("No repair necessary" in res, res)
         #d.addCallback(_got_html_dead)
 
-        d.addCallback(self.CHECK, "corrupt",
-                      t="check", verify="true", repair="true")
+        d.addCallback(self.CHECK, "corrupt", "t=check&verify=true&repair=true")
         def _got_html_corrupt(res):
             self.failUnless("Healthy : Healthy" in res, res)
             self.failIf("Not Healthy" in res, res)
@@ -2782,8 +2779,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             os.unlink(sick_shares[0][2])
         d.addCallback(_clobber_shares)
 
-        d.addCallback(self.CHECK, "sick",
-                      t="check", repair="true", output="json")
+        d.addCallback(self.CHECK, "sick", "t=check&repair=true&output=json")
         def _got_json_sick(res):
             r = simplejson.loads(res)
             self.failUnlessEqual(r["repair-attempted"], True)
