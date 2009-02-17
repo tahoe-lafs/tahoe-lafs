@@ -33,6 +33,9 @@ class WrappedRemoteReference(object):
     def notifyOnDisconnect(self, *args, **kwargs):
         return self.rref.notifyOnDisconnect(*args, **kwargs)
 
+    def dontNotifyOnDisconnect(self, *args, **kwargs):
+        return self.rref.dontNotifyOnDisconnect(*args, **kwargs)
+
 class VersionedRemoteReference(WrappedRemoteReference):
     """I wrap a RemoteReference, and add a .version attribute. I also intercept any errback from
     the server and wrap it in a ServerFailure."""

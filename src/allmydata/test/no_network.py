@@ -18,7 +18,7 @@ from foolscap.eventual import fireEventually
 from base64 import b32encode
 from allmydata.client import Client
 from allmydata.storage import StorageServer
-from allmydata.util import fileutil, idlib, hashutil
+from allmydata.util import fileutil, idlib, hashutil, rrefutil
 from allmydata.introducer.client import RemoteServiceConnector
 
 class IntentionalError(Exception):
@@ -34,8 +34,14 @@ class LocalWrapper:
         self.post_call_notifier = None
         self.disconnectors = {}
 
+    def callRemoteOnly(self, methname, *args, **kwargs):
+        d = self.callRemote(methname, *args, **kwargs)
+        return None
+
     def callRemote(self, methname, *args, **kwargs):
-        # this is ideally a Membrane, but that's too hard
+        # this is ideally a Membrane, but that's too hard. We do a shallow
+        # wrapping of inbound arguments, and per-methodname wrapping of
+        # selected return values.
         def wrap(a):
             if isinstance(a, Referenceable):
                 return LocalWrapper(a)
@@ -76,14 +82,21 @@ class LocalWrapper:
     def dontNotifyOnDisconnect(self, marker):
         del self.disconnectors[marker]
 
-class VersionedLocalWrapper(LocalWrapper):
-    def __init__(self, original, service_name):
-        LocalWrapper.__init__(self, original)
-        try:
-            version = original.remote_get_version()
-        except AttributeError:
-            version = RemoteServiceConnector.VERSION_DEFAULTS[service_name]
-        self.version = version
+def wrap(original, service_name):
+    # The code in immutable.checker insists upon asserting the truth of
+    # isinstance(rref, rrefutil.WrappedRemoteReference). Much of the
+    # upload/download code uses rref.version (which normally comes from
+    # rrefutil.VersionedRemoteReference). To avoid using a network, we want a
+    # LocalWrapper here. Try to satisfy all these constraints at the same
+    # time.
+    local = LocalWrapper(original)
+    wrapped = rrefutil.WrappedRemoteReference(local)
+    try:
+        version = original.remote_get_version()
+    except AttributeError:
+        version = RemoteServiceConnector.VERSION_DEFAULTS[service_name]
+    wrapped.version = version
+    return wrapped
 
 class NoNetworkClient(Client):
 
@@ -124,7 +137,8 @@ class NoNetworkGrid(service.MultiService):
         fileutil.make_dirs(basedir)
 
         self.servers = {}
-        self.all_servers = []
+        self.clients = []
+
         for i in range(num_servers):
             serverid = hashutil.tagged_hash("serverid", str(i))[:20]
             serverdir = os.path.join(basedir, "servers",
@@ -133,12 +147,18 @@ class NoNetworkGrid(service.MultiService):
             ss = StorageServer(serverdir)
             self.add_server(serverid, ss)
 
-        self.clients = []
         for i in range(num_clients):
             clientid = hashutil.tagged_hash("clientid", str(i))[:20]
             clientdir = os.path.join(basedir, "clients",
                                      idlib.shortnodeid_b2a(clientid))
             fileutil.make_dirs(clientdir)
+            f = open(os.path.join(clientdir, "tahoe.cfg"), "w")
+            f.write("[node]\n")
+            f.write("nickname = client-%d\n" % i)
+            f.write("web.port = tcp:0:interface=127.0.0.1\n")
+            f.write("[storage]\n")
+            f.write("enabled = false\n")
+            f.close()
             c = NoNetworkClient(clientdir)
             c.nodeid = clientid
             c.short_nodeid = b32encode(clientid).lower()[:8]
@@ -149,9 +169,26 @@ class NoNetworkGrid(service.MultiService):
     def add_server(self, serverid, ss):
         # TODO: ss.setServiceParent(self), but first remove the goofy
         # self.parent.nodeid from Storage.startService . At the moment,
-        # Storage doesn't really need to be startServiced, but it will in
+        # Storage doesn't really need to be startService'd, but it will in
         # the future.
         ss.setNodeID(serverid)
-        lw = VersionedLocalWrapper(ss, "storage")
-        self.servers[serverid] = lw
-        self.all_servers.append( (serverid, lw) )
+        self.servers[serverid] = wrap(ss, "storage")
+        self.all_servers = frozenset(self.servers.items())
+        for c in self.clients:
+            c._servers = self.all_servers
+
+class GridTestMixin:
+    def setUp(self):
+        self.s = service.MultiService()
+        self.s.startService()
+
+    def tearDown(self):
+        return self.s.stopService()
+
+    def set_up_grid(self):
+        # self.basedir must be set
+        self.g = NoNetworkGrid(self.basedir)
+        self.g.setServiceParent(self.s)
+
+    def get_clientdir(self, i=0):
+        return self.g.clients[i].basedir
