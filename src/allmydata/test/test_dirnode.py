@@ -14,7 +14,8 @@ from allmydata.mutable.common import UncoordinatedWriteError
 from allmydata.util import hashutil, base32
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
-     FakeDirectoryNode, create_chk_filenode, ErrorMixin, SystemTestMixin
+     FakeDirectoryNode, create_chk_filenode, ErrorMixin
+from allmydata.test.no_network import GridTestMixin
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 import common_util as testutil
 
@@ -786,7 +787,7 @@ class UCWEingNewDirectoryNode(dirnode.NewDirectoryNode):
     filenode_class = UCWEingMutableFileNode
 
 
-class Deleter(SystemTestMixin, unittest.TestCase):
+class Deleter(GridTestMixin, unittest.TestCase):
     def test_retry(self):
         # ticket #550, a dirnode.delete which experiences an
         # UncoordinatedWriteError will fail with an incorrect "you're
@@ -799,8 +800,9 @@ class Deleter(SystemTestMixin, unittest.TestCase):
         # succeed.
 
         self.basedir = self.mktemp()
-        d = self.set_up_nodes()
-        d.addCallback(lambda ignored: self.clients[0].create_empty_dirnode())
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        d = c0.create_empty_dirnode()
         small = upload.Data("Small enough for a LIT", None)
         def _created_dir(dn):
             self.root = dn
@@ -808,7 +810,7 @@ class Deleter(SystemTestMixin, unittest.TestCase):
             return dn.add_file(u"file", small)
         d.addCallback(_created_dir)
         def _do_delete(ignored):
-            n = UCWEingNewDirectoryNode(self.clients[0]).init_from_uri(self.root_uri)
+            n = UCWEingNewDirectoryNode(c0).init_from_uri(self.root_uri)
             assert n._node.please_ucwe_after_next_upload == False
             n._node.please_ucwe_after_next_upload = True
             # This should succeed, not raise an exception
