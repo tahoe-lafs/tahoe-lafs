@@ -123,7 +123,9 @@ class RIStorageServer(RemoteInterface):
         """
         Add a new lease on the given bucket. If the renew_secret matches an
         existing lease, that lease will be renewed instead. If there is no
-        bucket for the given storage_index, IndexError will be raised.
+        bucket for the given storage_index, return silently. (note that in
+        tahoe-1.3.0 and earlier, IndexError was raised if there was no
+        bucket)
         """
         return None
 

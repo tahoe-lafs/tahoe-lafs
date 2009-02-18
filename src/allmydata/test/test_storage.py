@@ -502,8 +502,8 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(leases), 3)
         self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2, rs2a]))
 
-        # add-lease on a missing storage index is an error
-        self.failUnlessRaises(IndexError, ss.remote_add_lease, "si18", "", "")
+        # add-lease on a missing storage index is silently ignored
+        self.failUnlessEqual(ss.remote_add_lease("si18", "", ""), None)
 
         # check that si0 is readable
         readers = ss.remote_get_buckets("si0")
@@ -1062,8 +1062,8 @@ class MutableServer(unittest.TestCase):
         s0 = MutableShareFile(os.path.join(bucket_dir, "0"))
         self.failUnlessEqual(len(s0.debug_get_leases()), 1)
 
-        # add-lease on a missing storage index is an error
-        self.failUnlessRaises(IndexError, ss.remote_add_lease, "si18", "", "")
+        # add-lease on a missing storage index is silently ignored
+        self.failUnlessEqual(ss.remote_add_lease("si18", "", ""), None)
 
         # re-allocate the slots and use the same secrets, that should update
         # the lease

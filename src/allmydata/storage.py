@@ -1074,17 +1074,10 @@ class StorageServer(service.MultiService, Referenceable):
         lease_info = LeaseInfo(owner_num,
                                renew_secret, cancel_secret,
                                new_expire_time, self.my_nodeid)
-        found_buckets = False
         for sf in self._iter_share_files(storage_index):
-            found_buckets = True
-            # note: if the share has been migrated, the renew_lease()
-            # call will throw an exception, with information to help the
-            # client update the lease.
             sf.add_or_renew_lease(lease_info)
         self.add_latency("add-lease", time.time() - start)
-        if not found_buckets:
-            raise IndexError("no such storage index to do add-lease")
-
+        return None
 
     def remote_renew_lease(self, storage_index, renew_secret):
         start = time.time()
