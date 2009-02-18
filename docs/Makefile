@@ -1,5 +1,7 @@
 
-SOURCES = CHK-hashes.svg file-encoding1.svg file-encoding2.svg file-encoding3.svg file-encoding4.svg file-encoding5.svg file-encoding6.svg subtree1.svg
+SOURCES = CHK-hashes.svg file-encoding1.svg file-encoding2.svg \
+	file-encoding3.svg file-encoding4.svg file-encoding5.svg \
+	file-encoding6.svg subtree1.svg lease-tradeoffs.svg
 
 PNGS = $(patsubst %.svg,%.png,$(SOURCES))
 EPSS = $(patsubst %.svg,%.eps,$(SOURCES))
@@ -10,7 +12,7 @@ images-png: $(PNGS)
 images-eps: $(EPSS)
 
 %.png: %.svg
-	inkscape -b white -d 90 --export-png $@ $<
+	inkscape -b white -d 90 -D --export-png $@ $<
 %.eps: %.svg
 	inkscape --export-eps $@ $<
 
