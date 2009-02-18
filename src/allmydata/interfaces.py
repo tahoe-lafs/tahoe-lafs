@@ -1551,7 +1551,7 @@ class IUploader(Interface):
         """TODO: how should this work?"""
 
 class ICheckable(Interface):
-    def check(monitor, verify=False):
+    def check(monitor, verify=False, add_lease=False):
         """Check upon my health, optionally repairing any problems.
 
         This returns a Deferred that fires with an instance that provides
@@ -1585,13 +1585,21 @@ class ICheckable(Interface):
         failures during retrieval, or is malicious or buggy, then
         verification will detect the problem, but checking will not.
 
+        If add_lease=True, I will ensure that an up-to-date lease is present
+        on each share. The lease secrets will be derived from by node secret
+        (in BASEDIR/private/secret), so either I will add a new lease to the
+        share, or I will merely renew the lease that I already had. In a
+        future version of the storage-server protocol (once Accounting has
+        been implemented), there may be additional options here to define the
+        kind of lease that is obtained (which account number to claim, etc).
+
         TODO: any problems seen during checking will be reported to the
         health-manager.furl, a centralized object which is responsible for
         figuring out why files are unhealthy so corrective action can be
         taken.
         """
 
-    def check_and_repair(monitor, verify=False):
+    def check_and_repair(monitor, verify=False, add_lease=False):
         """Like check(), but if the file/directory is not healthy, attempt to
         repair the damage.
 
@@ -1605,7 +1613,7 @@ class ICheckable(Interface):
         ICheckAndRepairResults."""
 
 class IDeepCheckable(Interface):
-    def start_deep_check(verify=False):
+    def start_deep_check(verify=False, add_lease=False):
         """Check upon the health of me and everything I can reach.
 
         This is a recursive form of check(), useable only on dirnodes.
@@ -1614,7 +1622,7 @@ class IDeepCheckable(Interface):
         object.
         """
 
-    def start_deep_check_and_repair(verify=False):
+    def start_deep_check_and_repair(verify=False, add_lease=False):
         """Check upon the health of me and everything I can reach. Repair
         anything that isn't healthy.
 

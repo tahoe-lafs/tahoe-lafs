@@ -338,7 +338,8 @@ class ServerMap:
 
 
 class ServermapUpdater:
-    def __init__(self, filenode, monitor, servermap, mode=MODE_READ):
+    def __init__(self, filenode, monitor, servermap, mode=MODE_READ,
+                 add_lease=False):
         """I update a servermap, locating a sufficient number of useful
         shares and remembering where they are located.
 
@@ -348,6 +349,7 @@ class ServermapUpdater:
         self._monitor = monitor
         self._servermap = servermap
         self.mode = mode
+        self._add_lease = add_lease
         self._running = True
 
         self._storage_index = filenode.get_storage_index()
@@ -536,6 +538,24 @@ class ServermapUpdater:
 
     def _do_read(self, ss, peerid, storage_index, shnums, readv):
         d = ss.callRemote("slot_readv", storage_index, shnums, readv)
+        if self._add_lease:
+            renew_secret = self._node.get_renewal_secret(peerid)
+            cancel_secret = self._node.get_cancel_secret(peerid)
+            d2 = ss.callRemote("add_lease", storage_index,
+                               renew_secret, cancel_secret)
+            dl = defer.DeferredList([d, d2])
+            def _done(res):
+                [(readv_success, readv_result),
+                 (addlease_success, addlease_result)] = res
+                if (not addlease_success and
+                    not addlease_result.check(IndexError)):
+                    # tahoe 1.3.0 raised IndexError on non-existant buckets,
+                    # which we ignore. Unfortunately tahoe <1.3.0 had a bug
+                    # and raised KeyError, which we report.
+                    return addlease_result # propagate error
+                return readv_result
+            dl.addCallback(_done)
+            return dl
         return d
 
     def _got_results(self, datavs, peerid, readsize, stuff, started):

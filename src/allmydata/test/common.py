@@ -53,7 +53,7 @@ class FakeCHKFileNode:
     def get_storage_index(self):
         return self.storage_index
 
-    def check(self, monitor, verify=False):
+    def check(self, monitor, verify=False, add_lease=False):
         r = CheckResults(self.my_uri, self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
@@ -81,7 +81,7 @@ class FakeCHKFileNode:
         r.set_data(data)
         r.set_needs_rebalancing(False)
         return defer.succeed(r)
-    def check_and_repair(self, monitor, verify=False):
+    def check_and_repair(self, monitor, verify=False, add_lease=False):
         d = self.check(verify)
         def _got(cr):
             r = CheckAndRepairResults(self.storage_index)
@@ -189,7 +189,7 @@ class FakeMutableFileNode:
     def get_storage_index(self):
         return self.storage_index
 
-    def check(self, monitor, verify=False):
+    def check(self, monitor, verify=False, add_lease=False):
         r = CheckResults(self.my_uri, self.storage_index)
         is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
@@ -219,7 +219,7 @@ class FakeMutableFileNode:
         r.set_needs_rebalancing(False)
         return defer.succeed(r)
 
-    def check_and_repair(self, monitor, verify=False):
+    def check_and_repair(self, monitor, verify=False, add_lease=False):
         d = self.check(verify)
         def _got(cr):
             r = CheckAndRepairResults(self.storage_index)
@@ -228,7 +228,7 @@ class FakeMutableFileNode:
         d.addCallback(_got)
         return d
 
-    def deep_check(self, verify=False):
+    def deep_check(self, verify=False, add_lease=False):
         d = self.check(verify)
         def _done(r):
             dr = DeepCheckResults(self.storage_index)
@@ -237,7 +237,7 @@ class FakeMutableFileNode:
         d.addCallback(_done)
         return d
 
-    def deep_check_and_repair(self, verify=False):
+    def deep_check_and_repair(self, verify=False, add_lease=False):
         d = self.check_and_repair(verify)
         def _done(r):
             dr = DeepCheckAndRepairResults(self.storage_index)

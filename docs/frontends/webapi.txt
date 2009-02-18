@@ -767,6 +767,12 @@ POST $URL?t=check
   If a verify=true argument is provided, the node will perform a more
   intensive check, downloading and verifying every single bit of every share.
 
+  If an add-lease=true argument is provided, the node will also add (or
+  renew) a lease to every share it encounters. Each lease will keep the share
+  alive for a certain period of time (one month by default). Once the last
+  lease expires or is explicitly cancelled, the storage server is allowed to
+  delete the share.
+
   If an output=JSON argument is provided, the response will be
   machine-readable JSON instead of human-oriented HTML. The data is a
   dictionary with the following keys:
@@ -837,7 +843,7 @@ POST $URL?t=start-deep-check    (must add &ophandle=XYZ)
   BAD_REQUEST) will be signalled if it is invoked on a file. The recursive
   walker will deal with loops safely.
 
-  This accepts the same verify= argument as t=check.
+  This accepts the same verify= and add-lease= arguments as t=check.
 
   Since this operation can take a long time (perhaps a second per object),
   the ophandle= argument is required (see "Slow Operations, Progress, and
@@ -931,9 +937,9 @@ POST $URL?t=check&repair=true
   or corrupted), it will perform a "repair". During repair, any missing
   shares will be regenerated and uploaded to new servers.
 
-  This accepts the same verify=true argument as t=check. When an output=JSON
-  argument is provided, the machine-readable JSON response will contain the
-  following keys:
+  This accepts the same verify=true and add-lease= arguments as t=check. When
+  an output=JSON argument is provided, the machine-readable JSON response
+  will contain the following keys:
 
    storage-index: a base32-encoded string with the objects's storage index,
                   or an empty string for LIT files
@@ -961,9 +967,10 @@ POST $URL?t=start-deep-check&repair=true    (must add &ophandle=XYZ)
   invoked on a directory. An error (400 BAD_REQUEST) will be signalled if it
   is invoked on a file. The recursive walker will deal with loops safely.
 
-  This accepts the same verify=true argument as t=start-deep-check. It uses
-  the same ophandle= mechanism as start-deep-check. When an output=JSON
-  argument is provided, the response will contain the following keys:
+  This accepts the same verify= and add-lease= arguments as
+  t=start-deep-check. It uses the same ophandle= mechanism as
+  start-deep-check. When an output=JSON argument is provided, the response
+  will contain the following keys:
 
    finished: (bool) True if the operation has completed, else False
    root-storage-index: a base32-encoded string with the storage index of the

@@ -355,11 +355,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         # check this directory
         verify = boolean_of_arg(get_arg(req, "verify", "false"))
         repair = boolean_of_arg(get_arg(req, "repair", "false"))
+        add_lease = boolean_of_arg(get_arg(req, "add-lease", "false"))
         if repair:
-            d = self.node.check_and_repair(Monitor(), verify)
+            d = self.node.check_and_repair(Monitor(), verify, add_lease)
             d.addCallback(lambda res: CheckAndRepairResults(res))
         else:
-            d = self.node.check(Monitor(), verify)
+            d = self.node.check(Monitor(), verify, add_lease)
             d.addCallback(lambda res: CheckResults(res))
         return d
 
@@ -374,18 +375,20 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             raise NeedOperationHandleError("slow operation requires ophandle=")
         verify = boolean_of_arg(get_arg(ctx, "verify", "false"))
         repair = boolean_of_arg(get_arg(ctx, "repair", "false"))
+        add_lease = boolean_of_arg(get_arg(ctx, "add-lease", "false"))
         if repair:
-            monitor = self.node.start_deep_check_and_repair(verify)
+            monitor = self.node.start_deep_check_and_repair(verify, add_lease)
             renderer = DeepCheckAndRepairResults(monitor)
         else:
-            monitor = self.node.start_deep_check(verify)
+            monitor = self.node.start_deep_check(verify, add_lease)
             renderer = DeepCheckResults(monitor)
         return self._start_operation(monitor, renderer, ctx)
 
     def _POST_stream_deep_check(self, ctx):
         verify = boolean_of_arg(get_arg(ctx, "verify", "false"))
         repair = boolean_of_arg(get_arg(ctx, "repair", "false"))
-        walker = DeepCheckStreamer(ctx, self.node, verify, repair)
+        add_lease = boolean_of_arg(get_arg(ctx, "add-lease", "false"))
+        walker = DeepCheckStreamer(ctx, self.node, verify, repair, add_lease)
         monitor = self.node.deep_traverse(walker)
         walker.setMonitor(monitor)
         # register to hear stopProducing. The walker ignores pauseProducing.
@@ -930,11 +933,12 @@ class ManifestStreamer(dirnode.DeepStats):
 class DeepCheckStreamer(dirnode.DeepStats):
     implements(IPushProducer)
 
-    def __init__(self, ctx, origin, verify, repair):
+    def __init__(self, ctx, origin, verify, repair, add_lease):
         dirnode.DeepStats.__init__(self, origin)
         self.req = IRequest(ctx)
         self.verify = verify
         self.repair = repair
+        self.add_lease = add_lease
 
     def setMonitor(self, monitor):
         self.monitor = monitor
@@ -971,10 +975,10 @@ class DeepCheckStreamer(dirnode.DeepStats):
         data["storage-index"] = si
 
         if self.repair:
-            d = node.check_and_repair(self.monitor, self.verify)
+            d = node.check_and_repair(self.monitor, self.verify, self.add_lease)
             d.addCallback(self.add_check_and_repair, data)
         else:
-            d = node.check(self.monitor, self.verify)
+            d = node.check(self.monitor, self.verify, self.add_lease)
             d.addCallback(self.add_check, data)
         d.addCallback(self.write_line)
         return d

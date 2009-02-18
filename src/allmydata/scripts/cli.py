@@ -247,6 +247,7 @@ class CheckOptions(VDriveOptions):
         ("raw", None, "Display raw JSON data instead of parsed"),
         ("verify", None, "Verify all hashes, instead of merely querying share presence"),
         ("repair", None, "Automatically repair any problems found"),
+        ("add-lease", None, "Add/renew lease on all shares"),
         ]
     def parseArgs(self, where=''):
         self.where = where
@@ -261,6 +262,7 @@ class DeepCheckOptions(VDriveOptions):
         ("raw", None, "Display raw JSON data instead of parsed"),
         ("verify", None, "Verify all hashes, instead of merely querying share presence"),
         ("repair", None, "Automatically repair any problems found"),
+        ("add-lease", None, "Add/renew lease on all shares"),
         ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, where=''):

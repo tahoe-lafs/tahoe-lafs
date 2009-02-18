@@ -234,11 +234,11 @@ class NewDirectoryNode:
     def get_storage_index(self):
         return self._uri._filenode_uri.storage_index
 
-    def check(self, monitor, verify=False):
+    def check(self, monitor, verify=False, add_lease=False):
         """Perform a file check. See IChecker.check for details."""
-        return self._node.check(monitor, verify)
-    def check_and_repair(self, monitor, verify=False):
-        return self._node.check_and_repair(monitor, verify)
+        return self._node.check(monitor, verify, add_lease)
+    def check_and_repair(self, monitor, verify=False, add_lease=False):
+        return self._node.check_and_repair(monitor, verify, add_lease)
 
     def list(self):
         """I return a Deferred that fires with a dictionary mapping child
@@ -560,11 +560,11 @@ class NewDirectoryNode:
         # children for which we've got both a write-cap and a read-cap
         return self.deep_traverse(DeepStats(self))
 
-    def start_deep_check(self, verify=False):
-        return self.deep_traverse(DeepChecker(self, verify, repair=False))
+    def start_deep_check(self, verify=False, add_lease=False):
+        return self.deep_traverse(DeepChecker(self, verify, repair=False, add_lease=add_lease))
 
-    def start_deep_check_and_repair(self, verify=False):
-        return self.deep_traverse(DeepChecker(self, verify, repair=True))
+    def start_deep_check_and_repair(self, verify=False, add_lease=False):
+        return self.deep_traverse(DeepChecker(self, verify, repair=True, add_lease=add_lease))
 
 
 
@@ -695,13 +695,14 @@ class ManifestWalker(DeepStats):
 
 
 class DeepChecker:
-    def __init__(self, root, verify, repair):
+    def __init__(self, root, verify, repair, add_lease):
         root_si = root.get_storage_index()
         self._lp = log.msg(format="deep-check starting (%(si)s),"
                            " verify=%(verify)s, repair=%(repair)s",
                            si=base32.b2a(root_si), verify=verify, repair=repair)
         self._verify = verify
         self._repair = repair
+        self._add_lease = add_lease
         if repair:
             self._results = DeepCheckAndRepairResults(root_si)
         else:
@@ -714,10 +715,10 @@ class DeepChecker:
 
     def add_node(self, node, childpath):
         if self._repair:
-            d = node.check_and_repair(self.monitor, self._verify)
+            d = node.check_and_repair(self.monitor, self._verify, self._add_lease)
             d.addCallback(self._results.add_check_and_repair, childpath)
         else:
-            d = node.check(self.monitor, self._verify)
+            d = node.check(self.monitor, self._verify, self._add_lease)
             d.addCallback(self._results.add_check, childpath)
         d.addCallback(lambda ignored: self._stats.add_node(node, childpath))
         return d

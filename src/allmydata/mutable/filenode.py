@@ -246,13 +246,13 @@ class MutableFileNode:
     #################################
     # ICheckable
 
-    def check(self, monitor, verify=False):
+    def check(self, monitor, verify=False, add_lease=False):
         checker = self.checker_class(self, monitor)
-        return checker.check(verify)
+        return checker.check(verify, add_lease)
 
-    def check_and_repair(self, monitor, verify=False):
+    def check_and_repair(self, monitor, verify=False, add_lease=False):
         checker = self.check_and_repairer_class(self, monitor)
-        return checker.check(verify)
+        return checker.check(verify, add_lease)
 
     #################################
     # IRepairable

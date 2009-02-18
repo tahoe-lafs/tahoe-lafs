@@ -21,9 +21,10 @@ class MutableChecker:
         self.need_repair = False
         self.responded = set() # set of (binary) nodeids
 
-    def check(self, verify=False):
+    def check(self, verify=False, add_lease=False):
         servermap = ServerMap()
-        u = ServermapUpdater(self._node, self._monitor, servermap, MODE_CHECK)
+        u = ServermapUpdater(self._node, self._monitor, servermap, MODE_CHECK,
+                             add_lease=add_lease)
         history = self._node._client.get_history()
         if history:
             history.notify_mapupdate(u.get_status())
@@ -285,8 +286,8 @@ class MutableCheckAndRepairer(MutableChecker):
         self.cr_results.pre_repair_results = self.results
         self.need_repair = False
 
-    def check(self, verify=False):
-        d = MutableChecker.check(self, verify)
+    def check(self, verify=False, add_lease=False):
+        d = MutableChecker.check(self, verify, add_lease)
         d.addCallback(self._maybe_repair)
         d.addCallback(lambda res: self.cr_results)
         return d

@@ -199,11 +199,12 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
     def get_storage_index(self):
         return self.u.storage_index
 
-    def check_and_repair(self, monitor, verify=False):
+    def check_and_repair(self, monitor, verify=False, add_lease=False):
         verifycap = self.get_verify_cap()
         servers = self._client.get_servers("storage")
 
-        c = Checker(client=self._client, verifycap=verifycap, servers=servers, verify=verify, monitor=monitor)
+        c = Checker(client=self._client, verifycap=verifycap, servers=servers,
+                    verify=verify, add_lease=add_lease, monitor=monitor)
         d = c.start()
         def _maybe_repair(cr):
             crr = CheckAndRepairResults(self.u.storage_index)
@@ -251,8 +252,10 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
         d.addCallback(_maybe_repair)
         return d
 
-    def check(self, monitor, verify=False):
-        v = Checker(client=self._client, verifycap=self.get_verify_cap(), servers=self._client.get_servers("storage"), verify=verify, monitor=monitor)
+    def check(self, monitor, verify=False, add_lease=False):
+        v = Checker(client=self._client, verifycap=self.get_verify_cap(),
+                    servers=self._client.get_servers("storage"),
+                    verify=verify, add_lease=add_lease, monitor=monitor)
         return v.start()
 
     def read(self, consumer, offset=0, size=None):
@@ -310,10 +313,10 @@ class LiteralFileNode(_ImmutableFileNodeBase):
     def get_storage_index(self):
         return None
 
-    def check(self, monitor, verify=False):
+    def check(self, monitor, verify=False, add_lease=False):
         return defer.succeed(None)
 
-    def check_and_repair(self, monitor, verify=False):
+    def check_and_repair(self, monitor, verify=False, add_lease=False):
         return defer.succeed(None)
 
     def read(self, consumer, offset=0, size=None):

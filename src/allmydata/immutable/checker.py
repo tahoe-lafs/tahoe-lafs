@@ -1,10 +1,14 @@
 from foolscap import DeadReferenceError
+from twisted.internet import defer
 from allmydata import hashtree
 from allmydata.check_results import CheckResults
 from allmydata.immutable import download
 from allmydata.uri import CHKFileVerifierURI
 from allmydata.util.assertutil import precondition
 from allmydata.util import base32, deferredutil, dictutil, log, rrefutil
+from allmydata.util.hashutil import file_renewal_secret_hash, \
+     file_cancel_secret_hash, bucket_renewal_secret_hash, \
+     bucket_cancel_secret_hash
 
 from allmydata.immutable import layout
 
@@ -29,7 +33,7 @@ class Checker(log.PrefixingLogMixin):
     object that was passed into my constructor whether this task has been
     cancelled (by invoking its raise_if_cancelled() method).
     """
-    def __init__(self, client, verifycap, servers, verify, monitor):
+    def __init__(self, client, verifycap, servers, verify, add_lease, monitor):
         assert precondition(isinstance(verifycap, CHKFileVerifierURI), verifycap, type(verifycap))
         assert precondition(isinstance(servers, (set, frozenset)), servers)
         for (serverid, serverrref) in servers:
@@ -45,8 +49,21 @@ class Checker(log.PrefixingLogMixin):
         self._monitor = monitor
         self._servers = servers
         self._verify = verify # bool: verify what the servers claim, or not?
+        self._add_lease = add_lease
 
         self._share_hash_tree = None
+
+        frs = file_renewal_secret_hash(client.get_renewal_secret(),
+                                       self._verifycap.storage_index)
+        self.file_renewal_secret = frs
+        fcs = file_cancel_secret_hash(client.get_cancel_secret(),
+                                      self._verifycap.storage_index)
+        self.file_cancel_secret = fcs
+
+    def _get_renewal_secret(self, peerid):
+        return bucket_renewal_secret_hash(self.file_renewal_secret, peerid)
+    def _get_cancel_secret(self, peerid):
+        return bucket_cancel_secret_hash(self.file_cancel_secret, peerid)
 
     def _get_buckets(self, server, storageindex, serverid):
         """Return a deferred that eventually fires with ({sharenum: bucket},
@@ -58,6 +75,24 @@ class Checker(log.PrefixingLogMixin):
         responded.)"""
 
         d = server.callRemote("get_buckets", storageindex)
+        if self._add_lease:
+            renew_secret = self._get_renewal_secret(serverid)
+            cancel_secret = self._get_cancel_secret(serverid)
+            d2 = server.callRemote("add_lease", storageindex,
+                                   renew_secret, cancel_secret)
+            dl = defer.DeferredList([d, d2])
+            def _done(res):
+                [(get_success, get_result),
+                 (addlease_success, addlease_result)] = res
+                if (not addlease_success and
+                    not addlease_result.check(IndexError)):
+                    # tahoe=1.3.0 raised IndexError on non-existant buckets,
+                    # which we ignore. But report others, including the
+                    # unfortunate internal KeyError bug that <1.3.0 had.
+                    return addlease_result # propagate error
+                return get_result
+            dl.addCallback(_done)
+            d = dl
 
         def _wrap_results(res):
             for k in res:

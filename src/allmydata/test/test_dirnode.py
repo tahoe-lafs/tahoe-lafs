@@ -42,13 +42,13 @@ class Marker:
     def get_storage_index(self):
         return self.storage_index
 
-    def check(self, monitor, verify=False):
+    def check(self, monitor, verify=False, add_lease=False):
         r = CheckResults(uri.from_string(self.nodeuri), None)
         r.set_healthy(True)
         r.set_recoverable(True)
         return defer.succeed(r)
 
-    def check_and_repair(self, monitor, verify=False):
+    def check_and_repair(self, monitor, verify=False, add_lease=False):
         d = self.check(verify)
         def _got(cr):
             r = CheckAndRepairResults(None)

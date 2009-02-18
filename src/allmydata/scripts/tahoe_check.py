@@ -27,6 +27,8 @@ def check(options):
         url += "&verify=true"
     if options["repair"]:
         url += "&repair=true"
+    if options["add-lease"]:
+        url += "&add-lease=true"
 
     resp = do_http("POST", url)
     if resp.status != 200:
@@ -248,6 +250,8 @@ class DeepCheckStreamer(LineOnlyReceiver):
             output = DeepCheckAndRepairOutput(options)
         else:
             output = DeepCheckOutput(options)
+        if options["add-lease"]:
+            url += "&add-lease=true"
         resp = do_http("POST", url)
         if resp.status not in (200, 302):
             print >>stderr, "ERROR", resp.status, resp.reason, resp.read()

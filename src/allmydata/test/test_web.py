@@ -6,7 +6,7 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.web import client, error, http
 from twisted.python import failure, log
-from allmydata import interfaces, uri, webish
+from allmydata import interfaces, uri, webish, storage
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
@@ -2526,14 +2526,14 @@ class Util(unittest.TestCase):
 class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
 
     def GET(self, urlpath, followRedirect=False, return_response=False,
-            method="GET", **kwargs):
+            method="GET", clientnum=0, **kwargs):
         # if return_response=True, this fires with (data, statuscode,
         # respheaders) instead of just data.
         assert not isinstance(urlpath, unicode)
-        url = self.client_baseurls[0] + urlpath
+        url = self.client_baseurls[clientnum] + urlpath
         factory = HTTPClientGETFactory(url, method=method,
                                        followRedirect=followRedirect, **kwargs)
-        reactor.connectTCP("localhost", self.client_webports[0], factory)
+        reactor.connectTCP("localhost", self.client_webports[clientnum],factory)
         d = factory.deferred
         def _got_data(data):
             return (data, factory.status, factory.response_headers)
@@ -2541,10 +2541,10 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             d.addCallback(_got_data)
         return factory.deferred
 
-    def CHECK(self, ign, which, args):
+    def CHECK(self, ign, which, args, clientnum=0):
         fileurl = self.fileurls[which]
         url = fileurl + "?" + args
-        return self.GET(url, method="POST")
+        return self.GET(url, method="POST", clientnum=clientnum)
 
     def test_filecheck(self):
         self.basedir = "web/Grid/filecheck"
@@ -2937,6 +2937,187 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             self.failUnlessEqual(s["count-literal-files"], 1)
             self.failUnlessEqual(s["count-directories"], 1)
         d.addCallback(_done)
+
+        d.addErrback(self.explain_web_error)
+        return d
+
+    def _count_leases(self, ignored, which):
+        u = self.uris[which]
+        shares = self.find_shares(u)
+        lease_counts = []
+        for shnum, serverid, fn in shares:
+            if u.startswith("URI:SSK") or u.startswith("URI:DIR2"):
+                sf = storage.MutableShareFile(fn)
+                num_leases = len(sf.debug_get_leases())
+            elif u.startswith("URI:CHK"):
+                sf = storage.ShareFile(fn)
+                num_leases = len(list(sf.iter_leases()))
+            else:
+                raise RuntimeError("can't get leases on %s" % u)
+        lease_counts.append( (fn, num_leases) )
+        return lease_counts
+
+    def _assert_leasecount(self, lease_counts, expected):
+        for (fn, num_leases) in lease_counts:
+            if num_leases != expected:
+                self.fail("expected %d leases, have %d, on %s" %
+                          (expected, num_leases, fn))
+
+    def test_add_lease(self):
+        self.basedir = "web/Grid/add_lease"
+        self.set_up_grid(num_clients=2)
+        c0 = self.g.clients[0]
+        self.uris = {}
+        DATA = "data" * 100
+        d = c0.upload(upload.Data(DATA, convergence=""))
+        def _stash_uri(ur, which):
+            self.uris[which] = ur.uri
+        d.addCallback(_stash_uri, "one")
+        d.addCallback(lambda ign:
+                      c0.upload(upload.Data(DATA+"1", convergence="")))
+        d.addCallback(_stash_uri, "two")
+        def _stash_mutable_uri(n, which):
+            self.uris[which] = n.get_uri()
+            assert isinstance(self.uris[which], str)
+        d.addCallback(lambda ign: c0.create_mutable_file(DATA+"2"))
+        d.addCallback(_stash_mutable_uri, "mutable")
+
+        def _compute_fileurls(ignored):
+            self.fileurls = {}
+            for which in self.uris:
+                self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
+        d.addCallback(_compute_fileurls)
+
+        d.addCallback(self._count_leases, "one")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "two")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "mutable")
+        d.addCallback(self._assert_leasecount, 1)
+
+        d.addCallback(self.CHECK, "one", "t=check") # no add-lease
+        def _got_html_good(res):
+            self.failUnless("Healthy" in res, res)
+            self.failIf("Not Healthy" in res, res)
+        d.addCallback(_got_html_good)
+
+        d.addCallback(self._count_leases, "one")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "two")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "mutable")
+        d.addCallback(self._assert_leasecount, 1)
+
+        # this CHECK uses the original client, which uses the same
+        # lease-secrets, so it will just renew the original lease
+        d.addCallback(self.CHECK, "one", "t=check&add-lease=true")
+        d.addCallback(_got_html_good)
+
+        d.addCallback(self._count_leases, "one")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "two")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "mutable")
+        d.addCallback(self._assert_leasecount, 1)
+
+        # this CHECK uses an alternate client, which adds a second lease
+        d.addCallback(self.CHECK, "one", "t=check&add-lease=true", clientnum=1)
+        d.addCallback(_got_html_good)
+
+        d.addCallback(self._count_leases, "one")
+        d.addCallback(self._assert_leasecount, 2)
+        d.addCallback(self._count_leases, "two")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "mutable")
+        d.addCallback(self._assert_leasecount, 1)
+
+        d.addCallback(self.CHECK, "mutable", "t=check&add-lease=true")
+        d.addCallback(_got_html_good)
+
+        d.addCallback(self._count_leases, "one")
+        d.addCallback(self._assert_leasecount, 2)
+        d.addCallback(self._count_leases, "two")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "mutable")
+        d.addCallback(self._assert_leasecount, 1)
+
+        d.addCallback(self.CHECK, "mutable", "t=check&add-lease=true",
+                      clientnum=1)
+        d.addCallback(_got_html_good)
+
+        d.addCallback(self._count_leases, "one")
+        d.addCallback(self._assert_leasecount, 2)
+        d.addCallback(self._count_leases, "two")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "mutable")
+        d.addCallback(self._assert_leasecount, 2)
+
+        d.addErrback(self.explain_web_error)
+        return d
+
+    def test_deep_add_lease(self):
+        self.basedir = "web/Grid/deep_add_lease"
+        self.set_up_grid(num_clients=2)
+        c0 = self.g.clients[0]
+        self.uris = {}
+        self.fileurls = {}
+        DATA = "data" * 100
+        d = c0.create_empty_dirnode()
+        def _stash_root_and_create_file(n):
+            self.rootnode = n
+            self.uris["root"] = n.get_uri()
+            self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri()) + "/"
+            return n.add_file(u"one", upload.Data(DATA, convergence=""))
+        d.addCallback(_stash_root_and_create_file)
+        def _stash_uri(fn, which):
+            self.uris[which] = fn.get_uri()
+        d.addCallback(_stash_uri, "one")
+        d.addCallback(lambda ign:
+                      self.rootnode.add_file(u"small",
+                                             upload.Data("literal",
+                                                        convergence="")))
+        d.addCallback(_stash_uri, "small")
+
+        d.addCallback(lambda ign: c0.create_mutable_file("mutable"))
+        d.addCallback(lambda fn: self.rootnode.set_node(u"mutable", fn))
+        d.addCallback(_stash_uri, "mutable")
+
+        d.addCallback(self.CHECK, "root", "t=stream-deep-check") # no add-lease
+        def _done(res):
+            units = [simplejson.loads(line)
+                     for line in res.splitlines()
+                     if line]
+            # root, one, small, mutable,   stats
+            self.failUnlessEqual(len(units), 4+1)
+        d.addCallback(_done)
+
+        d.addCallback(self._count_leases, "root")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "one")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "mutable")
+        d.addCallback(self._assert_leasecount, 1)
+
+        d.addCallback(self.CHECK, "root", "t=stream-deep-check&add-lease=true")
+        d.addCallback(_done)
+
+        d.addCallback(self._count_leases, "root")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "one")
+        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._count_leases, "mutable")
+        d.addCallback(self._assert_leasecount, 1)
+
+        d.addCallback(self.CHECK, "root", "t=stream-deep-check&add-lease=true",
+                      clientnum=1)
+        d.addCallback(_done)
+
+        d.addCallback(self._count_leases, "root")
+        d.addCallback(self._assert_leasecount, 2)
+        d.addCallback(self._count_leases, "one")
+        d.addCallback(self._assert_leasecount, 2)
+        d.addCallback(self._count_leases, "mutable")
+        d.addCallback(self._assert_leasecount, 2)
 
         d.addErrback(self.explain_web_error)
         return d

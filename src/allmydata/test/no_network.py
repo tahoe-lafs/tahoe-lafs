@@ -200,9 +200,9 @@ class GridTestMixin:
     def tearDown(self):
         return self.s.stopService()
 
-    def set_up_grid(self, client_config_hooks={}):
+    def set_up_grid(self, num_clients=1, client_config_hooks={}):
         # self.basedir must be set
-        self.g = NoNetworkGrid(self.basedir,
+        self.g = NoNetworkGrid(self.basedir, num_clients=num_clients,
                                client_config_hooks=client_config_hooks)
         self.g.setServiceParent(self.s)
         self.client_webports = [c.getServiceNamed("webish").listener._port.getHost().port

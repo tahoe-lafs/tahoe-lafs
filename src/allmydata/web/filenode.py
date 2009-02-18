@@ -256,13 +256,14 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def _POST_check(self, req):
         verify = boolean_of_arg(get_arg(req, "verify", "false"))
         repair = boolean_of_arg(get_arg(req, "repair", "false"))
+        add_lease = boolean_of_arg(get_arg(req, "add-lease", "false"))
         if isinstance(self.node, LiteralFileNode):
             return defer.succeed(LiteralCheckResults())
         if repair:
-            d = self.node.check_and_repair(Monitor(), verify)
+            d = self.node.check_and_repair(Monitor(), verify, add_lease)
             d.addCallback(lambda res: CheckAndRepairResults(res))
         else:
-            d = self.node.check(Monitor(), verify)
+            d = self.node.check(Monitor(), verify, add_lease)
             d.addCallback(lambda res: CheckResults(res))
         return d
 
