@@ -8,7 +8,8 @@ from foolscap import DeadReferenceError
 from foolscap.eventual import eventually, fireEventually
 from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError
 from allmydata.util import hashutil, idlib, log
-from allmydata import hashtree, codec, storage
+from allmydata import hashtree, codec
+from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
 from pycryptopp.publickey import rsa
 
@@ -87,7 +88,7 @@ class Retrieve:
         self._storage_index = filenode.get_storage_index()
         assert self._node._readkey
         self._last_failure = None
-        prefix = storage.si_b2a(self._storage_index)[:5]
+        prefix = si_b2a(self._storage_index)[:5]
         self._log_number = log.msg("Retrieve(%s): starting" % prefix)
         self._outstanding_queries = {} # maps (peerid,shnum) to start_time
         self._running = True

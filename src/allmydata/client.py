@@ -10,7 +10,7 @@ from foolscap.logging import log
 from pycryptopp.publickey import rsa
 
 import allmydata
-from allmydata.storage import StorageServer
+from allmydata.storage.server import StorageServer
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.download import Downloader
 from allmydata.immutable.filenode import FileNode, LiteralFileNode

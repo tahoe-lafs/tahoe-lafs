@@ -13,7 +13,7 @@ from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
-from allmydata.storage import storage_index_to_dir
+from allmydata.storage.server import storage_index_to_dir
 from allmydata.util import hashutil, log, fileutil, pollmixin
 from allmydata.util.assertutil import precondition
 from allmydata.stats import StatsGathererService

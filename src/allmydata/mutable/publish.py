@@ -7,7 +7,8 @@ from twisted.internet import defer
 from twisted.python import failure
 from allmydata.interfaces import IPublishStatus, FileTooLargeError
 from allmydata.util import base32, hashutil, mathutil, idlib, log
-from allmydata import hashtree, codec, storage
+from allmydata import hashtree, codec
+from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
 from foolscap.eventual import eventually
 
@@ -100,7 +101,7 @@ class Publish:
         self._node = filenode
         self._servermap = servermap
         self._storage_index = self._node.get_storage_index()
-        self._log_prefix = prefix = storage.si_b2a(self._storage_index)[:5]
+        self._log_prefix = prefix = si_b2a(self._storage_index)[:5]
         num = self._node._client.log("Publish(%s): starting" % prefix)
         self._log_number = num
         self._running = True

@@ -2,7 +2,7 @@
 import re, urllib
 from zope.interface import implements
 from twisted.python.components import registerAdapter
-from allmydata import storage
+from allmydata.storage.server import si_a2b, si_b2a
 from allmydata.util import base32, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IImmutableFileURI, \
     IVerifierURI, IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
@@ -136,7 +136,7 @@ class CHKFileVerifierURI(_BaseURI):
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         assert mo, (uri, cls, cls.STRING_RE)
-        return cls(storage.si_a2b(mo.group(1)), base32.a2b(mo.group(2)),
+        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     def to_string(self):
@@ -145,7 +145,7 @@ class CHKFileVerifierURI(_BaseURI):
         assert isinstance(self.size, (int,long))
 
         return ('URI:CHK-Verifier:%s:%s:%d:%d:%d' %
-                (storage.si_b2a(self.storage_index),
+                (si_b2a(self.storage_index),
                  base32.b2a(self.uri_extension_hash),
                  self.needed_shares,
                  self.total_shares,
@@ -308,18 +308,18 @@ class SSKVerifierURI(_BaseURI):
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         assert mo, uri
-        return cls(storage.si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
+        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         assert mo, (uri, cls)
-        return cls(storage.si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
+        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
         assert isinstance(self.storage_index, str)
         assert isinstance(self.fingerprint, str)
-        return 'URI:SSK-Verifier:%s:%s' % (storage.si_b2a(self.storage_index),
+        return 'URI:SSK-Verifier:%s:%s' % (si_b2a(self.storage_index),
                                            base32.b2a(self.fingerprint))
 
 class _NewDirectoryBaseURI(_BaseURI):

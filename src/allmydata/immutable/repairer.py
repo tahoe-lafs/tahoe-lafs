@@ -1,6 +1,6 @@
 from zope.interface import implements
 from twisted.internet import defer
-from allmydata import storage
+from allmydata.storage.server import si_b2a
 from allmydata.util import log, observer
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.uri import CHKFileVerifierURI
@@ -40,7 +40,7 @@ class Repairer(log.PrefixingLogMixin):
     def __init__(self, client, verifycap, monitor):
         assert precondition(isinstance(verifycap, CHKFileVerifierURI))
 
-        logprefix = storage.si_b2a(verifycap.storage_index)[:5]
+        logprefix = si_b2a(verifycap.storage_index)[:5]
         log.PrefixingLogMixin.__init__(self, "allmydata.immutable.repairer", prefix=logprefix)
 
         self._client = client

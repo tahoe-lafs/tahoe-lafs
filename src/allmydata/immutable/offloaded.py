@@ -6,7 +6,8 @@ from twisted.internet import defer
 from foolscap import Referenceable, DeadReferenceError
 from foolscap.eventual import eventually
 import allmydata # for __full_version__
-from allmydata import interfaces, storage, uri
+from allmydata import interfaces, uri
+from allmydata.storage.server import si_b2a
 from allmydata.immutable import upload
 from allmydata.immutable.layout import ReadBucketProxy
 from allmydata.util.assertutil import precondition
@@ -86,7 +87,7 @@ class CHKCheckerAndUEBFetcher:
             self.log("no readers, so no UEB", level=log.NOISY)
             return
         b,peerid = self._readers.pop()
-        rbp = ReadBucketProxy(b, peerid, storage.si_b2a(self._storage_index))
+        rbp = ReadBucketProxy(b, peerid, si_b2a(self._storage_index))
         d = rbp.get_uri_extension()
         d.addCallback(self._got_uri_extension)
         d.addErrback(self._ueb_error)
@@ -142,7 +143,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._helper = helper
         self._incoming_file = incoming_file
         self._encoding_file = encoding_file
-        self._upload_id = storage.si_b2a(storage_index)[:5]
+        self._upload_id = si_b2a(storage_index)[:5]
         self._log_number = log_number
         self._results = results
         self._upload_status = upload.UploadStatus()
@@ -222,7 +223,7 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
 
     def _failed(self, f):
         self.log(format="CHKUploadHelper(%(si)s) failed",
-                 si=storage.si_b2a(self._storage_index)[:5],
+                 si=si_b2a(self._storage_index)[:5],
                  failure=f,
                  level=log.UNUSUAL)
         self._finished_observers.fire(f)
@@ -573,7 +574,7 @@ class Helper(Referenceable, service.MultiService):
         self.count("chk_upload_helper.upload_requests")
         r = upload.UploadResults()
         started = time.time()
-        si_s = storage.si_b2a(storage_index)
+        si_s = si_b2a(storage_index)
         lp = self.log(format="helper: upload_chk query for SI %(si)s", si=si_s)
         incoming_file = os.path.join(self._chk_incoming, si_s)
         encoding_file = os.path.join(self._chk_encoding, si_s)

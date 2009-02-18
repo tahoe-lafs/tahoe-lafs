@@ -7,7 +7,7 @@ from twisted.python import failure
 from foolscap import DeadReferenceError
 from foolscap.eventual import eventually
 from allmydata.util import base32, hashutil, idlib, log
-from allmydata import storage
+from allmydata.storage.server import si_b2a
 from allmydata.interfaces import IServermapUpdaterStatus
 from pycryptopp.publickey import rsa
 
@@ -385,7 +385,7 @@ class ServermapUpdater:
         # to ask for it during the check, we'll have problems doing the
         # publish.
 
-        prefix = storage.si_b2a(self._storage_index)[:5]
+        prefix = si_b2a(self._storage_index)[:5]
         self._log_number = log.msg(format="SharemapUpdater(%(si)s): starting (%(mode)s)",
                                    si=prefix, mode=mode)
 

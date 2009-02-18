@@ -6,7 +6,9 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.web import client, error, http
 from twisted.python import failure, log
-from allmydata import interfaces, uri, webish, storage
+from allmydata import interfaces, uri, webish
+from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.immutable import ShareFile
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
@@ -2947,10 +2949,10 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
         lease_counts = []
         for shnum, serverid, fn in shares:
             if u.startswith("URI:SSK") or u.startswith("URI:DIR2"):
-                sf = storage.MutableShareFile(fn)
+                sf = MutableShareFile(fn)
                 num_leases = len(sf.debug_get_leases())
             elif u.startswith("URI:CHK"):
-                sf = storage.ShareFile(fn)
+                sf = ShareFile(fn)
                 num_leases = len(list(sf.iter_leases()))
             else:
                 raise RuntimeError("can't get leases on %s" % u)

@@ -30,7 +30,7 @@ verify-cap for the file that uses the share.
         self['filename'] = filename
 
 def dump_share(options):
-    from allmydata import storage
+    from allmydata.storage.mutable import MutableShareFile
 
     out = options.stdout
 
@@ -40,18 +40,19 @@ def dump_share(options):
     f = open(options['filename'], "rb")
     prefix = f.read(32)
     f.close()
-    if prefix == storage.MutableShareFile.MAGIC:
+    if prefix == MutableShareFile.MAGIC:
         return dump_mutable_share(options)
     # otherwise assume it's immutable
     return dump_immutable_share(options)
 
 def dump_immutable_share(options):
-    from allmydata import uri, storage
+    from allmydata import uri
+    from allmydata.storage.immutable import ShareFile
     from allmydata.util import base32
     from allmydata.immutable.layout import ReadBucketProxy
 
     out = options.stdout
-    f = storage.ShareFile(options['filename'])
+    f = ShareFile(options['filename'])
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = ReadBucketProxy(None, '', '')
     offsets = bp._parse_offsets(f.read_share_data(0, 0x44))
@@ -153,10 +154,10 @@ def format_expiration_time(expiration_time):
 
 
 def dump_mutable_share(options):
-    from allmydata import storage
+    from allmydata.storage.mutable import MutableShareFile
     from allmydata.util import base32, idlib
     out = options.stdout
-    m = storage.MutableShareFile(options['filename'])
+    m = MutableShareFile(options['filename'])
     f = open(options['filename'], "rb")
     WE, nodeid = m._read_write_enabler_and_nodeid(f)
     num_extra_leases = m._read_num_extra_leases(f)
@@ -371,7 +372,8 @@ def _dump_secrets(storage_index, secret, nodeid, out):
             print >>out, " lease cancel secret:", base32.b2a(cancel)
 
 def dump_uri_instance(u, nodeid, secret, out, show_header=True):
-    from allmydata import storage, uri
+    from allmydata import uri
+    from allmydata.storage.server import si_b2a
     from allmydata.util import base32, hashutil
 
     if isinstance(u, uri.CHKFileURI):
@@ -381,7 +383,7 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
         print >>out, " UEB hash:", base32.b2a(u.uri_extension_hash)
         print >>out, " size:", u.size
         print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
-        print >>out, " storage index:", storage.si_b2a(u.storage_index)
+        print >>out, " storage index:", si_b2a(u.storage_index)
         _dump_secrets(u.storage_index, secret, nodeid, out)
     elif isinstance(u, uri.CHKFileVerifierURI):
         if show_header:
@@ -389,7 +391,7 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
         print >>out, " UEB hash:", base32.b2a(u.uri_extension_hash)
         print >>out, " size:", u.size
         print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
-        print >>out, " storage index:", storage.si_b2a(u.storage_index)
+        print >>out, " storage index:", si_b2a(u.storage_index)
 
     elif isinstance(u, uri.LiteralFileURI):
         if show_header:
@@ -401,7 +403,7 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
             print >>out, "SSK Writeable URI:"
         print >>out, " writekey:", base32.b2a(u.writekey)
         print >>out, " readkey:", base32.b2a(u.readkey)
-        print >>out, " storage index:", storage.si_b2a(u.storage_index)
+        print >>out, " storage index:", si_b2a(u.storage_index)
         print >>out, " fingerprint:", base32.b2a(u.fingerprint)
         print >>out
         if nodeid:
@@ -414,12 +416,12 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
         if show_header:
             print >>out, "SSK Read-only URI:"
         print >>out, " readkey:", base32.b2a(u.readkey)
-        print >>out, " storage index:", storage.si_b2a(u.storage_index)
+        print >>out, " storage index:", si_b2a(u.storage_index)
         print >>out, " fingerprint:", base32.b2a(u.fingerprint)
     elif isinstance(u, uri.SSKVerifierURI):
         if show_header:
             print >>out, "SSK Verifier URI:"
-        print >>out, " storage index:", storage.si_b2a(u.storage_index)
+        print >>out, " storage index:", si_b2a(u.storage_index)
         print >>out, " fingerprint:", base32.b2a(u.fingerprint)
 
     elif isinstance(u, uri.NewDirectoryURI):
@@ -470,10 +472,10 @@ def find_shares(options):
     /home/warner/testnet/node-1/storage/shares/44k/44kai1tui348689nrw8fjegc8c/9
     /home/warner/testnet/node-2/storage/shares/44k/44kai1tui348689nrw8fjegc8c/2
     """
-    from allmydata import storage
+    from allmydata.storage.server import si_a2b, storage_index_to_dir
 
     out = options.stdout
-    sharedir = storage.storage_index_to_dir(storage.si_a2b(options.si_s))
+    sharedir = storage_index_to_dir(si_a2b(options.si_s))
     for d in options.nodedirs:
         d = os.path.join(os.path.expanduser(d), "storage/shares", sharedir)
         if os.path.exists(d):
@@ -529,7 +531,9 @@ def call(c, *args, **kwargs):
     return results[0]
 
 def describe_share(abs_sharefile, si_s, shnum_s, now, out):
-    from allmydata import uri, storage
+    from allmydata import uri
+    from allmydata.storage.mutable import MutableShareFile
+    from allmydata.storage.immutable import ShareFile
     from allmydata.mutable.layout import unpack_share
     from allmydata.mutable.common import NeedMoreDataError
     from allmydata.immutable.layout import ReadBucketProxy
@@ -539,9 +543,9 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
     f = open(abs_sharefile, "rb")
     prefix = f.read(32)
 
-    if prefix == storage.MutableShareFile.MAGIC:
+    if prefix == MutableShareFile.MAGIC:
         # mutable share
-        m = storage.MutableShareFile(abs_sharefile)
+        m = MutableShareFile(abs_sharefile)
         WE, nodeid = m._read_write_enabler_and_nodeid(f)
         num_extra_leases = m._read_num_extra_leases(f)
         data_length = m._read_data_length(f)
@@ -594,7 +598,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
                 return defer.succeed(sf.read_share_data(offset, size))
 
         # use a ReadBucketProxy to parse the bucket and find the uri extension
-        sf = storage.ShareFile(abs_sharefile)
+        sf = ShareFile(abs_sharefile)
         bp = ImmediateReadBucketProxy(sf)
 
         expiration_time = min( [lease.expiration_time
@@ -692,7 +696,8 @@ Obviously, this command should not be used in normal operation.
 
 def corrupt_share(options):
     import random
-    from allmydata import storage
+    from allmydata.storage.mutable import MutableShareFile
+    from allmydata.storage.immutable import ShareFile
     from allmydata.mutable.layout import unpack_header
     from allmydata.immutable.layout import ReadBucketProxy
     out = options.stdout
@@ -715,9 +720,9 @@ def corrupt_share(options):
     f = open(fn, "rb")
     prefix = f.read(32)
     f.close()
-    if prefix == storage.MutableShareFile.MAGIC:
+    if prefix == MutableShareFile.MAGIC:
         # mutable
-        m = storage.MutableShareFile(fn)
+        m = MutableShareFile(fn)
         f = open(fn, "rb")
         f.seek(m.DATA_OFFSET)
         data = f.read(2000)
@@ -734,7 +739,7 @@ def corrupt_share(options):
         flip_bit(start, end)
     else:
         # otherwise assume it's immutable
-        f = storage.ShareFile(fn)
+        f = ShareFile(fn)
         bp = ReadBucketProxy(None, '', '')
         offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
         start = f._data_offset + offsets["data"]

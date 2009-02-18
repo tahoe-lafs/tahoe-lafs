@@ -4,7 +4,8 @@ from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python import failure
-from allmydata import uri, storage
+from allmydata import uri
+from allmydata.storage.server import StorageServer
 from allmydata.immutable import download
 from allmydata.util import base32, idlib
 from allmydata.util.idlib import shortnodeid_b2a
@@ -1803,7 +1804,7 @@ class LessFakeClient(FakeClient):
         for peerid in self._peerids:
             peerdir = os.path.join(basedir, idlib.shortnodeid_b2a(peerid))
             make_dirs(peerdir)
-            ss = storage.StorageServer(peerdir)
+            ss = StorageServer(peerdir)
             ss.setNodeID(peerid)
             lw = LocalWrapper(ss)
             self._connections[peerid] = lw

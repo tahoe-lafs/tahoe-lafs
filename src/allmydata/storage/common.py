@@ -1,0 +1,4 @@
+
+class DataTooLargeError(Exception):
+    pass
+

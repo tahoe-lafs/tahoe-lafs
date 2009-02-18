@@ -8,7 +8,9 @@ from twisted.internet import threads # CLI tests use deferToThread
 from twisted.internet.error import ConnectionDone, ConnectionLost
 from twisted.internet.interfaces import IConsumer, IPushProducer
 import allmydata
-from allmydata import uri, storage
+from allmydata import uri
+from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.server import si_a2b
 from allmydata.immutable import download, filenode, offloaded, upload
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
@@ -442,7 +444,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 assert pieces[-5].startswith("client")
                 client_num = int(pieces[-5][-1])
                 storage_index_s = pieces[-1]
-                storage_index = storage.si_a2b(storage_index_s)
+                storage_index = si_a2b(storage_index_s)
                 for sharename in filenames:
                     shnum = int(sharename)
                     filename = os.path.join(dirpath, sharename)
@@ -453,7 +455,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         return shares
 
     def _corrupt_mutable_share(self, filename, which):
-        msf = storage.MutableShareFile(filename)
+        msf = MutableShareFile(filename)
         datav = msf.readv([ (0, 1000000) ])
         final_share = datav[0]
         assert len(final_share) < 1000000 # ought to be truncated

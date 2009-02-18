@@ -5,7 +5,7 @@ from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
 from allmydata.util import mathutil, idlib, observer
 from allmydata.util.assertutil import precondition
-from allmydata import storage
+from allmydata.storage.server import si_b2a
 
 class LayoutInvalid(Exception):
     """ There is something wrong with these bytes so they can't be interpreted as the kind of
@@ -274,7 +274,7 @@ class ReadBucketProxy:
         self._rref = rref
         self._peerid = peerid
         peer_id_s = idlib.shortnodeid_b2a(peerid)
-        storage_index_s = storage.si_b2a(storage_index)
+        storage_index_s = si_b2a(storage_index)
         self._reprstr = "<ReadBucketProxy %s to peer [%s] SI %s>" % (id(self), peer_id_s, storage_index_s)
         self._started = False # sent request to server
         self._ready = observer.OneShotObserverList() # got response from server

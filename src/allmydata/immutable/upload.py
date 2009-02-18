@@ -10,7 +10,8 @@ from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, plaintext_hasher, \
      storage_index_hash, plaintext_segment_hasher, convergence_hasher
-from allmydata import storage, hashtree, uri
+from allmydata import hashtree, uri
+from allmydata.storage.server import si_b2a
 from allmydata.immutable import encode
 from allmydata.util import base32, dictutil, idlib, log, mathutil
 from allmydata.util.assertutil import precondition
@@ -100,7 +101,7 @@ class PeerTracker:
     def __repr__(self):
         return ("<PeerTracker for peer %s and SI %s>"
                 % (idlib.shortnodeid_b2a(self.peerid),
-                   storage.si_b2a(self.storage_index)[:5]))
+                   si_b2a(self.storage_index)[:5]))
 
     def query(self, sharenums):
         d = self._storageserver.callRemote("allocate_buckets",
@@ -718,7 +719,7 @@ class CHKUploader:
         self._storage_index_elapsed = now - started
         storage_index = encoder.get_param("storage_index")
         self._storage_index = storage_index
-        upload_id = storage.si_b2a(storage_index)[:5]
+        upload_id = si_b2a(storage_index)[:5]
         self.log("using storage index %s" % upload_id)
         peer_selector = self.peer_selector_class(upload_id, self._log_number,
                                                  self._upload_status)
@@ -971,7 +972,7 @@ class AssistedUploader:
         now = self._time_contacting_helper_start = time.time()
         self._storage_index_elapsed = now - self._started
         self.log(format="contacting helper for SI %(si)s..",
-                 si=storage.si_b2a(self._storage_index))
+                 si=si_b2a(self._storage_index))
         self._upload_status.set_status("Contacting Helper")
         d = self._helper.callRemote("upload_chk", self._storage_index)
         d.addCallback(self._contacted_helper)

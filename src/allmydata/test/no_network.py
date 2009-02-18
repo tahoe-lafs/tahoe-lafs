@@ -21,7 +21,7 @@ from foolscap.eventual import fireEventually
 from base64 import b32encode
 from allmydata import uri as tahoe_uri
 from allmydata.client import Client
-from allmydata.storage import StorageServer, storage_index_to_dir
+from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil, rrefutil
 from allmydata.introducer.client import RemoteServiceConnector
 

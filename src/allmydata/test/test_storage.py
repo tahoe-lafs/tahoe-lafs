@@ -5,9 +5,11 @@ import time, os.path, stat
 import itertools
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil, base32
-from allmydata.storage import BucketWriter, BucketReader, \
-     StorageServer, MutableShareFile, \
-     storage_index_to_dir, DataTooLargeError, LeaseInfo
+from allmydata.storage.server import StorageServer, storage_index_to_dir
+from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.immutable import BucketWriter, BucketReader
+from allmydata.storage.common import DataTooLargeError
+from allmydata.storage.lease import LeaseInfo
 from allmydata.immutable.layout import WriteBucketProxy, WriteBucketProxy_v2, \
      ReadBucketProxy
 from allmydata.interfaces import BadWriteEnablerError
