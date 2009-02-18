@@ -1804,8 +1804,7 @@ class LessFakeClient(FakeClient):
         for peerid in self._peerids:
             peerdir = os.path.join(basedir, idlib.shortnodeid_b2a(peerid))
             make_dirs(peerdir)
-            ss = StorageServer(peerdir)
-            ss.setNodeID(peerid)
+            ss = StorageServer(peerdir, peerid)
             lw = LocalWrapper(ss)
             self._connections[peerid] = lw
         self.nodeid = "fakenodeid"

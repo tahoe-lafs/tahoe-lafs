@@ -152,7 +152,7 @@ class NoNetworkGrid(service.MultiService):
             serverdir = os.path.join(basedir, "servers",
                                      idlib.shortnodeid_b2a(serverid))
             fileutil.make_dirs(serverdir)
-            ss = StorageServer(serverdir)
+            ss = StorageServer(serverdir, serverid)
             self.add_server(i, serverid, ss)
 
         for i in range(num_clients):
@@ -181,11 +181,11 @@ class NoNetworkGrid(service.MultiService):
             self.clients.append(c)
 
     def add_server(self, i, serverid, ss):
-        # TODO: ss.setServiceParent(self), but first remove the goofy
-        # self.parent.nodeid from Storage.startService . At the moment,
-        # Storage doesn't really need to be startService'd, but it will in
-        # the future.
-        ss.setNodeID(serverid)
+        # TODO: ss.setServiceParent(self), but first deal with the fact that
+        # all StorageServers are named 'storage'. At the moment, Storage
+        # doesn't really need to be startService'd, but it will in the
+        # future.
+        #ss.setServiceParent(self)
         self.servers_by_number[i] = ss
         self.servers_by_id[serverid] = wrap(ss, "storage")
         self.all_servers = frozenset(self.servers_by_id.items())

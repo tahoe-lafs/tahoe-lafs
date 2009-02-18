@@ -236,9 +236,8 @@ class Server(unittest.TestCase):
 
     def create(self, name, reserved_space=0, klass=StorageServer):
         workdir = self.workdir(name)
-        ss = klass(workdir, reserved_space=reserved_space,
+        ss = klass(workdir, "\x00" * 20, reserved_space=reserved_space,
                    stats_provider=FakeStatsProvider())
-        ss.setNodeID("\x00" * 20)
         ss.setServiceParent(self.sparent)
         return ss
 
@@ -586,8 +585,7 @@ class Server(unittest.TestCase):
 
     def test_readonly(self):
         workdir = self.workdir("test_readonly")
-        ss = StorageServer(workdir, readonly_storage=True)
-        ss.setNodeID("\x00" * 20)
+        ss = StorageServer(workdir, "\x00" * 20, readonly_storage=True)
         ss.setServiceParent(self.sparent)
 
         already,writers = self.allocate(ss, "vid", [0,1,2], 75)
@@ -606,8 +604,7 @@ class Server(unittest.TestCase):
     def test_discard(self):
         # discard is really only used for other tests, but we test it anyways
         workdir = self.workdir("test_discard")
-        ss = StorageServer(workdir, discard_storage=True)
-        ss.setNodeID("\x00" * 20)
+        ss = StorageServer(workdir, "\x00" * 20, discard_storage=True)
         ss.setServiceParent(self.sparent)
 
         canary = FakeCanary()
@@ -626,8 +623,7 @@ class Server(unittest.TestCase):
 
     def test_advise_corruption(self):
         workdir = self.workdir("test_advise_corruption")
-        ss = StorageServer(workdir, discard_storage=True)
-        ss.setNodeID("\x00" * 20)
+        ss = StorageServer(workdir, "\x00" * 20, discard_storage=True)
         ss.setServiceParent(self.sparent)
 
         si0_s = base32.b2a("si0")
@@ -685,9 +681,8 @@ class MutableServer(unittest.TestCase):
 
     def create(self, name):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir)
+        ss = StorageServer(workdir, "\x00" * 20)
         ss.setServiceParent(self.sparent)
-        ss.setNodeID("\x00" * 20)
         return ss
 
     def test_create(self):
@@ -1235,8 +1230,7 @@ class Stats(unittest.TestCase):
 
     def create(self, name):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir)
-        ss.setNodeID("\x00" * 20)
+        ss = StorageServer(workdir, "\x00" * 20)
         ss.setServiceParent(self.sparent)
         return ss
 

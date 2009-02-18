@@ -42,10 +42,13 @@ class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer, IStatsProducer)
     name = 'storage'
 
-    def __init__(self, storedir, reserved_space=0,
+    def __init__(self, storedir, nodeid, reserved_space=0,
                  discard_storage=False, readonly_storage=False,
                  stats_provider=None):
         service.MultiService.__init__(self)
+        assert isinstance(nodeid, str)
+        assert len(nodeid) == 20
+        self.my_nodeid = nodeid
         self.storedir = storedir
         sharedir = os.path.join(storedir, "shares")
         fileutil.make_dirs(sharedir)
@@ -124,18 +127,6 @@ class StorageServer(service.MultiService, Referenceable):
         if "facility" not in kwargs:
             kwargs["facility"] = "tahoe.storage"
         return log.msg(*args, **kwargs)
-
-    def setNodeID(self, nodeid):
-        # somebody must set this before any slots can be created or leases
-        # added
-        self.my_nodeid = nodeid
-
-    def startService(self):
-        service.MultiService.startService(self)
-        if self.parent:
-            nodeid = self.parent.nodeid # 20 bytes, binary
-            assert len(nodeid) == 20
-            self.setNodeID(nodeid)
 
     def _clean_incomplete(self):
         fileutil.rm_dir(self.incomingdir)

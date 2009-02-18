@@ -162,7 +162,7 @@ class Client(node.Node, pollmixin.PollMixin):
             reserved = 0
         discard = self.get_config("storage", "debug_discard", False,
                                   boolean=True)
-        ss = StorageServer(storedir,
+        ss = StorageServer(storedir, self.nodeid,
                            reserved_space=reserved,
                            discard_storage=discard,
                            readonly_storage=readonly,
