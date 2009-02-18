@@ -228,8 +228,10 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
                     prr.data['servers-responding'] = list(servers_responding)
                     prr.data['count-shares-good'] = len(sm)
                     prr.data['count-good-share-hosts'] = len(sm)
-                    is_healthy = len(sm) >= self.u.total_shares
+                    is_healthy = bool(len(sm) >= self.u.total_shares)
+                    is_recoverable = bool(len(sm) >= self.u.needed_shares)
                     prr.set_healthy(is_healthy)
+                    prr.set_recoverable(is_recoverable)
                     crr.repair_successful = is_healthy
                     prr.set_needs_rebalancing(len(sm) >= self.u.total_shares)
 

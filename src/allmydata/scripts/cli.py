@@ -244,9 +244,9 @@ class StatsOptions(VDriveOptions):
 
 class CheckOptions(VDriveOptions):
     optFlags = [
-        ("raw", "r", "Display raw JSON data instead of parsed"),
-        ("verify", "v", "Verify all hashes, instead of merely querying share presence"),
-        ("repair", "r", "Automatically repair any problems found"),
+        ("raw", None, "Display raw JSON data instead of parsed"),
+        ("verify", None, "Verify all hashes, instead of merely querying share presence"),
+        ("repair", None, "Automatically repair any problems found"),
         ]
     def parseArgs(self, where=''):
         self.where = where
@@ -258,9 +258,10 @@ class CheckOptions(VDriveOptions):
 
 class DeepCheckOptions(VDriveOptions):
     optFlags = [
-        ("raw", "r", "Display raw JSON data instead of parsed"),
-        ("verify", "v", "Verify all hashes, instead of merely querying share presence"),
-        ("repair", "r", "Automatically repair any problems found"),
+        ("raw", None, "Display raw JSON data instead of parsed"),
+        ("verify", None, "Verify all hashes, instead of merely querying share presence"),
+        ("repair", None, "Automatically repair any problems found"),
+        ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, where=''):
         self.where = where

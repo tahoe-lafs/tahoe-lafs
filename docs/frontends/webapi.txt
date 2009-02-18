@@ -1006,6 +1006,24 @@ POST $URL?t=start-deep-check&repair=true    (must add &ophandle=XYZ)
    stats: a dictionary with the same keys as the t=start-deep-stats command
           (described below)
 
+POST $URL?t=stream-deep-check&repair=true
+
+ This triggers a recursive walk of all files and directories, performing a
+ t=check&repair=true on each one. For each unique object (duplicates are
+ skipped), a single line of JSON is emitted to the HTTP response channel.
+ When the walk is complete, a final line of JSON is emitted which contains
+ the accumulated file-size/count "deep-stats" data.
+
+ This emits the same data as t=stream-deep-check (without the repair=true),
+ except that the "check-results" field is replaced with a
+ "check-and-repair-results" field, which contains the keys returned by
+ t=check&repair=true&output=json (i.e. repair-attempted, repair-successful,
+ pre-repair-results, and post-repair-results). The output does not contain
+ the summary dictionary that is provied by t=start-deep-check&repair=true
+ (the one with count-objects-checked and list-unhealthy-files), since the
+ receiving client is expected to calculate those values itself from the
+ stream of per-object check-and-repair-results.
+
 POST $DIRURL?t=start-manifest    (must add &ophandle=XYZ)
 
   This operation generates a "manfest" of the given directory tree, mostly

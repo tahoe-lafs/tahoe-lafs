@@ -5,9 +5,11 @@ from twisted.trial import unittest
 from cStringIO import StringIO
 import urllib
 import re
+import simplejson
 
-from allmydata.util import fileutil, hashutil
+from allmydata.util import fileutil, hashutil, base32
 from allmydata import uri
+from allmydata.immutable import upload
 
 # Test that the scripts can be imported -- although the actual tests of their functionality are
 # done by invoking them in a subprocess.
@@ -928,3 +930,222 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     # dirnodes being created (RSA key generation). The backup between check4
     # and check4a takes 6s, as does the backup before check4b.
     test_backup.timeout = 300
+
+class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
+
+    def test_check(self):
+        self.basedir = "cli/Check/check"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        DATA = "data" * 100
+        d = c0.create_mutable_file(DATA)
+        def _stash_uri(n):
+            self.uri = n.get_uri()
+        d.addCallback(_stash_uri)
+
+        d.addCallback(lambda ign: self.do_cli("check", self.uri))
+        def _check1((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnless("Summary: Healthy" in lines, out)
+            self.failUnless(" good-shares: 10 (encoding is 3-of-10)" in lines, out)
+        d.addCallback(_check1)
+
+        d.addCallback(lambda ign: self.do_cli("check", "--raw", self.uri))
+        def _check2((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            data = simplejson.loads(out)
+            self.failUnlessEqual(data["summary"], "Healthy")
+        d.addCallback(_check2)
+
+        def _clobber_shares(ignored):
+            # delete one, corrupt a second
+            shares = self.find_shares(self.uri)
+            self.failUnlessEqual(len(shares), 10)
+            os.unlink(shares[0][2])
+            cso = debug.CorruptShareOptions()
+            cso.stdout = StringIO()
+            cso.parseOptions([shares[1][2]])
+            storage_index = uri.from_string(self.uri).get_storage_index()
+            self._corrupt_share_line = "  server %s, SI %s, shnum %d" % \
+                                       (base32.b2a(shares[1][1]),
+                                        base32.b2a(storage_index),
+                                        shares[1][0])
+            debug.corrupt_share(cso)
+        d.addCallback(_clobber_shares)
+
+        d.addCallback(lambda ign: self.do_cli("check", "--verify", self.uri))
+        def _check3((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            summary = [l for l in lines if l.startswith("Summary")][0]
+            self.failUnless("Summary: Unhealthy: 8 shares (enc 3-of-10)"
+                            in summary, summary)
+            self.failUnless(" good-shares: 8 (encoding is 3-of-10)" in lines, out)
+            self.failUnless(" corrupt shares:" in lines, out)
+            self.failUnless(self._corrupt_share_line in lines, out)
+        d.addCallback(_check3)
+
+        d.addCallback(lambda ign:
+                      self.do_cli("check", "--verify", "--repair", self.uri))
+        def _check4((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnless("Summary: not healthy" in lines, out)
+            self.failUnless(" good-shares: 8 (encoding is 3-of-10)" in lines, out)
+            self.failUnless(" corrupt shares:" in lines, out)
+            self.failUnless(self._corrupt_share_line in lines, out)
+            self.failUnless(" repair successful" in lines, out)
+        d.addCallback(_check4)
+
+        d.addCallback(lambda ign:
+                      self.do_cli("check", "--verify", "--repair", self.uri))
+        def _check5((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnless("Summary: healthy" in lines, out)
+            self.failUnless(" good-shares: 10 (encoding is 3-of-10)" in lines, out)
+            self.failIf(" corrupt shares:" in lines, out)
+        d.addCallback(_check5)
+
+        return d
+
+    def test_deep_check(self):
+        self.basedir = "cli/Check/deep_check"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        self.uris = {}
+        self.fileurls = {}
+        DATA = "data" * 100
+        d = c0.create_empty_dirnode()
+        def _stash_root_and_create_file(n):
+            self.rootnode = n
+            self.rooturi = n.get_uri()
+            return n.add_file(u"good", upload.Data(DATA, convergence=""))
+        d.addCallback(_stash_root_and_create_file)
+        def _stash_uri(fn, which):
+            self.uris[which] = fn.get_uri()
+        d.addCallback(_stash_uri, "good")
+        d.addCallback(lambda ign:
+                      self.rootnode.add_file(u"small",
+                                             upload.Data("literal",
+                                                        convergence="")))
+        d.addCallback(_stash_uri, "small")
+        d.addCallback(lambda ign: c0.create_mutable_file(DATA+"1"))
+        d.addCallback(lambda fn: self.rootnode.set_node(u"mutable", fn))
+        d.addCallback(_stash_uri, "mutable")
+
+        d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
+        def _check1((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnless("done: 4 objects checked, 4 healthy, 0 unhealthy"
+                            in lines, out)
+        d.addCallback(_check1)
+
+        d.addCallback(lambda ign: self.do_cli("deep-check", "--verbose",
+                                              self.rooturi))
+        def _check2((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnless("<root>: Healthy" in lines, out)
+            self.failUnless("small: Healthy (LIT)" in lines, out)
+            self.failUnless("good: Healthy" in lines, out)
+            self.failUnless("mutable: Healthy" in lines, out)
+            self.failUnless("done: 4 objects checked, 4 healthy, 0 unhealthy"
+                            in lines, out)
+        d.addCallback(_check2)
+
+        def _clobber_shares(ignored):
+            shares = self.find_shares(self.uris["good"])
+            self.failUnlessEqual(len(shares), 10)
+            os.unlink(shares[0][2])
+
+            shares = self.find_shares(self.uris["mutable"])
+            cso = debug.CorruptShareOptions()
+            cso.stdout = StringIO()
+            cso.parseOptions([shares[1][2]])
+            storage_index = uri.from_string(self.uris["mutable"]).get_storage_index()
+            self._corrupt_share_line = " corrupt: server %s, SI %s, shnum %d" % \
+                                       (base32.b2a(shares[1][1]),
+                                        base32.b2a(storage_index),
+                                        shares[1][0])
+            debug.corrupt_share(cso)
+        d.addCallback(_clobber_shares)
+
+        d.addCallback(lambda ign:
+                      self.do_cli("deep-check", "--verbose", self.rooturi))
+        def _check3((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnless("<root>: Healthy" in lines, out)
+            self.failUnless("small: Healthy (LIT)" in lines, out)
+            self.failUnless("mutable: Healthy" in lines, out) # needs verifier
+            self.failUnless("good: Not Healthy: 9 shares (enc 3-of-10)"
+                            in lines, out)
+            self.failIf(self._corrupt_share_line in lines, out)
+            self.failUnless("done: 4 objects checked, 3 healthy, 1 unhealthy"
+                            in lines, out)
+        d.addCallback(_check3)
+
+        d.addCallback(lambda ign:
+                      self.do_cli("deep-check", "--verbose", "--verify",
+                                  self.rooturi))
+        def _check4((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnless("<root>: Healthy" in lines, out)
+            self.failUnless("small: Healthy (LIT)" in lines, out)
+            mutable = [l for l in lines if l.startswith("mutable")][0]
+            self.failUnless(mutable.startswith("mutable: Unhealthy: 9 shares (enc 3-of-10)"),
+                            mutable)
+            self.failUnless(self._corrupt_share_line in lines, out)
+            self.failUnless("good: Not Healthy: 9 shares (enc 3-of-10)"
+                            in lines, out)
+            self.failUnless("done: 4 objects checked, 2 healthy, 2 unhealthy"
+                            in lines, out)
+        d.addCallback(_check4)
+
+        d.addCallback(lambda ign:
+                      self.do_cli("deep-check", "--raw",
+                                  self.rooturi))
+        def _check5((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            units = [simplejson.loads(line) for line in lines]
+            # root, small, good, mutable,  stats
+            self.failUnlessEqual(len(units), 4+1)
+        d.addCallback(_check5)
+
+        d.addCallback(lambda ign:
+                      self.do_cli("deep-check",
+                                  "--verbose", "--verify", "--repair",
+                                  self.rooturi))
+        def _check6((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnless("<root>: healthy" in lines, out)
+            self.failUnless("small: healthy" in lines, out)
+            self.failUnless("mutable: not healthy" in lines, out)
+            self.failUnless(self._corrupt_share_line in lines, out)
+            self.failUnless("good: not healthy" in lines, out)
+            self.failUnless("done: 4 objects checked" in lines, out)
+            self.failUnless(" pre-repair: 2 healthy, 2 unhealthy" in lines, out)
+            self.failUnless(" 2 repairs attempted, 2 successful, 0 failed"
+                            in lines, out)
+            self.failUnless(" post-repair: 4 healthy, 0 unhealthy" in lines,out)
+        d.addCallback(_check6)
+
+        return d
+
