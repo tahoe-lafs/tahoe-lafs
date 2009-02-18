@@ -153,7 +153,7 @@ class WriteBucketProxy:
             nodeid_s = idlib.nodeid_b2a(self._nodeid)
         else:
             nodeid_s = "[None]"
-        return "<allmydata.storage.WriteBucketProxy for node %s>" % nodeid_s
+        return "<WriteBucketProxy for node %s>" % nodeid_s
 
     def put_header(self):
         return self._write(0, self._offset_data)
