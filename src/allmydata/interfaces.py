@@ -127,7 +127,7 @@ class RIStorageServer(RemoteInterface):
         tahoe-1.3.0 and earlier, IndexError was raised if there was no
         bucket)
         """
-        return None
+        return Any() # returns None now, but future versions might change
 
     def renew_lease(storage_index=StorageIndex, renew_secret=LeaseRenewSecret):
         """
@@ -141,7 +141,7 @@ class RIStorageServer(RemoteInterface):
         can be renewed or cancelled. For immutable shares, IndexError
         (without the note) will be raised.
         """
-        return None
+        return Any()
 
     def cancel_lease(storage_index=StorageIndex,
                      cancel_secret=LeaseCancelSecret):
@@ -156,7 +156,7 @@ class RIStorageServer(RemoteInterface):
         can be renewed or cancelled. For immutable shares, IndexError
         (without the note) will be raised.
         """
-        return None
+        return Any()
 
     def get_buckets(storage_index=StorageIndex):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
