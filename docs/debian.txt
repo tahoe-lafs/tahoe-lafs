@@ -25,7 +25,7 @@ tools installed. The canonical list of these packages is in the
  python-dev
  python-twisted-core
 
-In addition, to use the "deb-PLATFORM-head" target, you will also need the
+In addition, to use the "deb-$PLATFORM-head" target, you will also need the
 "debchange" utility from the "devscripts" package, and the "fakeroot" package.
 
 Some recent platforms can be handled by using the targets for the previous
