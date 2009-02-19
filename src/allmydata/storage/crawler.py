@@ -1,8 +1,9 @@
 
-import sys, os, time, struct, pickle
+import os, time, struct, pickle
 from twisted.internet import reactor
 from twisted.application import service
 from allmydata.storage.server import si_b2a
+from allmydata.util import fileutil
 
 class TimeSliceExceeded(Exception):
     pass
@@ -89,10 +90,7 @@ class ShareCrawler(service.MultiService):
         f = open(tmpfile, "wb")
         pickle.dump(state, f)
         f.close()
-        if "win32" in sys.platform.lower():
-            # sigh, stupid windows can't use this technique
-            os.unlink(self.statefile)
-        os.rename(tmpfile, self.statefile)
+        fileutil.move_into_place(tmpfile, self.statefile)
 
     def startService(self):
         self.load_state()
