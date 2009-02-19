@@ -1,6 +1,5 @@
 
 import time
-import sys
 import os.path
 from twisted.trial import unittest
 from twisted.application import service
