@@ -304,33 +304,6 @@ class MySdist(sdist.sdist):
 
         return sdist.sdist.make_distribution(self)
 
-class ToolVersions(Command):
-    user_options = []
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        print "python:", sys.version.replace("\n", " ")
-
-        try:
-            out = subprocess.Popen(["buildbot", "--version"],
-                                   stdout=subprocess.PIPE).communicate()[0]
-            print "buildbot:", out.replace("\n", " ")
-        except OSError:
-            pass
-
-        try:
-            out = subprocess.Popen(["darcs", "--version"],
-                                   stdout=subprocess.PIPE).communicate()[0]
-            full = subprocess.Popen(["darcs", "--exact-version"],
-                                    stdout=subprocess.PIPE).communicate()[0]
-            print
-            print "darcs:", out.replace("\n", " ")
-            print full.rstrip()
-        except OSError:
-            pass
-
 # Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
 # the _auto_deps.install_requires list, which is used in the call to setup()
 # below.
@@ -361,7 +334,6 @@ setup(name=APPNAME,
                 "run_with_pythonpath": RunWithPythonPath,
                 "check_auto_deps": CheckAutoDeps,
                 "make_executable": MakeExecutable,
-                "show_tool_versions": ToolVersions,
                 "sdist": MySdist,
                 },
       package_dir = {'':'src'},
