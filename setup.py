@@ -27,11 +27,12 @@ try:
 except ImportError:
     pass
 else:
-    # This invokes our own customized version of ez_setup.py to make sure that setuptools
-    # v0.6c12dev (which is our own toothpick of setuptools) is used to build.  Note that we can
-    # use any version of setuptools >= 0.6c6 to *run* -- see _auto_deps.py for run-time
-    # dependencies (a.k.a. "install_requires") -- this is only for build-time dependencies
-    # (a.k.a. "setup_requires").
+    # This invokes our own customized version of ez_setup.py to make sure
+    # that setuptools v0.6c12dev (which is our own toothpick of setuptools)
+    # is used to build. Note that we can use any version of setuptools >=
+    # 0.6c6 to *run* -- see _auto_deps.py for run-time dependencies (a.k.a.
+    # "install_requires") -- this is only for build-time dependencies (a.k.a.
+    # "setup_requires").
     use_setuptools(download_delay=0, min_version="0.6c12dev")
 
 from setuptools import find_packages, setup
@@ -42,7 +43,8 @@ from pkg_resources import require
 # Make the dependency-version-requirement, which is used by the Makefile at
 # build-time, also available to the app at runtime:
 import shutil
-shutil.copyfile("_auto_deps.py", os.path.join("src", "allmydata", "_auto_deps.py"))
+shutil.copyfile("_auto_deps.py",
+                os.path.join("src", "allmydata", "_auto_deps.py"))
 
 trove_classifiers=[
     "Development Status :: 5 - Production/Stable",
@@ -93,35 +95,37 @@ malfunctioning, or malicious."""
 
 setup_requires = []
 
-# The darcsver command from the darcsver plugin is needed to initialize the distribution's
-# .version attribute correctly.  (It does this either by examining darcs history, or if that
-# fails by reading the setuptools_trial/_version.py file).  darcsver will also write a new
-# version stamp in setuptools_trial/_version.py, with a version number derived from darcs
-# history.  Note that the setup.cfg file has an "[aliases]" section which enumerates commands
-# that you might run and specifies that it will run darcsver before each one.  If you add
-# different commands (or if I forgot some that are already in use), you may need to add it to
-# setup.cfg and configure it to run darcsver before your command, if you want the version number
-# to be correct when that command runs.
+# The darcsver command from the darcsver plugin is needed to initialize the
+# distribution's .version attribute correctly. (It does this either by
+# examining darcs history, or if that fails by reading the
+# setuptools_trial/_version.py file). darcsver will also write a new version
+# stamp in setuptools_trial/_version.py, with a version number derived from
+# darcs history. Note that the setup.cfg file has an "[aliases]" section
+# which enumerates commands that you might run and specifies that it will run
+# darcsver before each one. If you add different commands (or if I forgot
+# some that are already in use), you may need to add it to setup.cfg and
+# configure it to run darcsver before your command, if you want the version
+# number to be correct when that command runs.
 # http://pypi.python.org/pypi/darcsver
 setup_requires.append('darcsver >= 1.2.0')
 
-# Nevow requires Twisted to setup, but doesn't declare that requirement in a way that enables
-# setuptools to satisfy that requirement before Nevow's setup.py tried to "import twisted".
-# Fortunately we require setuptools_trial to setup and setuptools_trial requires Twisted to
-# install, so hopefully everything will work out until the Nevow issue is fixed:
-# http://divmod.org/trac/ticket/2629
-# setuptools_trial is needed if you want "./setup.py trial" or "./setup.py test" to execute the
-# tests (and in order to make sure Twisted is installed early enough -- see the paragraph
-# above).
+# Nevow requires Twisted to setup, but doesn't declare that requirement in a
+# way that enables setuptools to satisfy that requirement before Nevow's
+# setup.py tried to "import twisted". Fortunately we require setuptools_trial
+# to setup and setuptools_trial requires Twisted to install, so hopefully
+# everything will work out until the Nevow issue is fixed:
+# http://divmod.org/trac/ticket/2629 setuptools_trial is needed if you want
+# "./setup.py trial" or "./setup.py test" to execute the tests (and in order
+# to make sure Twisted is installed early enough -- see the paragraph above).
 # http://pypi.python.org/pypi/setuptools_trial
 setup_requires.extend(['setuptools_trial >= 0.5'])
 
-# setuptools_darcs is required to produce complete distributions (such as with "sdist" or
-# "bdist_egg") (unless there is a PKG-INFO file present which shows that this is itself a source
-# distribution).  For simplicity, and because there is some unknown error with setuptools_darcs
-# when building and testing tahoe all in one python command on some platforms, we always add it
-# to setup_requires.
-# http://pypi.python.org/pypi/setuptools_darcs
+# setuptools_darcs is required to produce complete distributions (such as
+# with "sdist" or "bdist_egg") (unless there is a PKG-INFO file present which
+# shows that this is itself a source distribution). For simplicity, and
+# because there is some unknown error with setuptools_darcs when building and
+# testing tahoe all in one python command on some platforms, we always add it
+# to setup_requires. http://pypi.python.org/pypi/setuptools_darcs
 setup_requires.append('setuptools_darcs >= 1.1.0')
 
 class ShowSupportLib(Command):
@@ -207,12 +211,14 @@ class MakeExecutable(Command):
     def run(self):
         bin_tahoe_template = os.path.join("bin", "tahoe-script.template")
 
-        # Create the 'tahoe-script.py' file under the 'bin' directory. The 'tahoe-script.py'
-        # file is exactly the same as the 'tahoe-script.template' script except that the shebang
-        # line is rewritten to use our sys.executable for the interpreter. On Windows, create a
-        # tahoe.exe will execute it.  On non-Windows, make a symlink to it from 'tahoe'.  The
-        # tahoe.exe will be copied from the setuptools egg's cli.exe and this will work from a
-        # zip-safe and non-zip-safe setuptools egg.
+        # Create the 'tahoe-script.py' file under the 'bin' directory. The
+        # 'tahoe-script.py' file is exactly the same as the
+        # 'tahoe-script.template' script except that the shebang line is
+        # rewritten to use our sys.executable for the interpreter. On
+        # Windows, create a tahoe.exe will execute it. On non-Windows, make a
+        # symlink to it from 'tahoe'. The tahoe.exe will be copied from the
+        # setuptools egg's cli.exe and this will work from a zip-safe and
+        # non-zip-safe setuptools egg.
         f = open(bin_tahoe_template, "rU")
         script_lines = f.readlines()
         f.close()
@@ -298,8 +304,9 @@ class MySdist(sdist.sdist):
 
         return sdist.sdist.make_distribution(self)
 
-# Tahoe's dependencies are managed by the find_links= entry in setup.cfg and the
-# _auto_deps.install_requires list, which is used in the call to setup() below.
+# Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
+# the _auto_deps.install_requires list, which is used in the call to setup()
+# below.
 from _auto_deps import install_requires
 
 APPNAME='allmydata-tahoe'
