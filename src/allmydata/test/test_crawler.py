@@ -291,8 +291,10 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         # On windows I'll extend the allowable range.
 
         min_ok = 20
+        min_cycles = 1
         if "cygwin" in sys.platform.lower() or "win32" in sys.platform.lower():
             min_ok = 3
+            min_cycles = 0
 
         start = time.time()
         d = self.stall(delay=4.0)
@@ -300,7 +302,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
             elapsed = time.time() - start
             percent = 100.0 * c.accumulated / elapsed
             self.failUnless(min_ok < percent < 70, "crawler got %d%%" % percent)
-            self.failUnless(c.cycles >= 1, c.cycles)
+            self.failUnless(c.cycles >= min_cycles, c.cycles)
         d.addCallback(_done)
         return d
 
