@@ -8,7 +8,7 @@
 #
 # See the docs/about.html file for licensing information.
 
-import os, re, shutil, stat, subprocess, sys, zipfile
+import os, shutil, stat, subprocess, sys, zipfile
 
 ##### sys.path management
 
@@ -42,7 +42,6 @@ from pkg_resources import require
 
 # Make the dependency-version-requirement, which is used by the Makefile at
 # build-time, also available to the app at runtime:
-import shutil
 shutil.copyfile("_auto_deps.py",
                 os.path.join("src", "allmydata", "_auto_deps.py"))
 
