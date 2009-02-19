@@ -2,22 +2,11 @@
 
 import math
 from allmydata.util import statistics
-import Numeric
-from Numeric import array, matrixmultiply as mm
+from numpy import array
 
 DAY=24*60*60
 MONTH=31*DAY
 YEAR=365*DAY
-
-def my_dot(v1, v2):
-    #print v1.shape, v2.shape
-    #assert len(v1.shape) == 2
-    #assert v1.shape[0] == 1
-    #assert len(v2.shape) == 2
-    #assert v2.shape[0] == 1
-    #assert v1.shape[1] == v2.shape[1]
-    #for i in range(v1.shape[1]):
-    return Numeric.sum(Numeric.sum(v1*v2))
 
 class ReliabilityModel:
     """Generate a model of system-wide reliability, given several input
@@ -85,9 +74,9 @@ class ReliabilityModel:
 
         #print "DECAY:", decay
         #print "OLD-POST-REPAIR:", old_post_repair
-        #print "NEW-POST-REPAIR:", mm(decay, repair)
+        #print "NEW-POST-REPAIR:", decay * repair
         #print "REPAIR:", repair
-        #print "DIFF:", (old_post_repair - mm(decay, repair))
+        #print "DIFF:", (old_post_repair - decay * repair)
 
         START = array([[0]*N + [1]])
         ALIVE = array([[0]*k + [1]*(1+N-k)])
@@ -112,24 +101,24 @@ class ReliabilityModel:
         report = ReliabilityReport()
 
         for t in range(0, report_span+delta, delta):
-            unmaintained_state = mm(unmaintained_state, decay)
-            maintained_state = mm(maintained_state, decay)
+            unmaintained_state = unmaintained_state * decay
+            maintained_state = maintained_state * decay
             if (t-last_check) > check_period:
                 last_check = t
                 # we do a check-and-repair this frequently
-                need_repair = my_dot(maintained_state, REPAIRp)
+                need_repair = (maintained_state * REPAIRp).sum()
 
                 P_repaired_last_check_period = need_repair
-                new_shares = my_dot(maintained_state, REPAIR_newshares)
+                new_shares = (maintained_state * REPAIR_newshares).sum()
                 needed_repairs.append(need_repair)
                 needed_new_shares.append(new_shares)
 
-                maintained_state = mm(maintained_state, repair)
+                maintained_state = maintained_state * repair
 
             if (t-last_report) > report_period:
                 last_report = t
-                P_dead_unmaintained = my_dot(unmaintained_state, DEAD)
-                P_dead_maintained = my_dot(maintained_state, DEAD)
+                P_dead_unmaintained = (unmaintained_state * DEAD).sum()
+                P_dead_maintained = (maintained_state * DEAD).sum()
                 cumulative_number_of_repairs = sum(needed_repairs)
                 cumulative_number_of_new_shares = sum(needed_new_shares)
                 report.add_sample(t, unmaintained_state, maintained_state,
@@ -139,8 +128,8 @@ class ReliabilityModel:
                                   P_dead_unmaintained, P_dead_maintained)
 
         # record one more sample at the end of the run
-        P_dead_unmaintained = my_dot(unmaintained_state, DEAD)
-        P_dead_maintained = my_dot(maintained_state, DEAD)
+        P_dead_unmaintained = (unmaintained_state * DEAD).sum()
+        P_dead_maintained = (maintained_state * DEAD).sum()
         cumulative_number_of_repairs = sum(needed_repairs)
         cumulative_number_of_new_shares = sum(needed_new_shares)
         report.add_sample(t, unmaintained_state, maintained_state,

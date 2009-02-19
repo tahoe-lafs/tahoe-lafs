@@ -476,7 +476,7 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             from allmydata import reliability
             _hush_pyflakes = reliability
         except:
-            raise unittest.SkipTest("reliability tool requires Numeric")
+            raise unittest.SkipTest("reliability tool requires NumPy")
 
         d = self.GET("/reliability/")
         def _check(res):

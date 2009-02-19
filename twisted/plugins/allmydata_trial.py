@@ -10,7 +10,7 @@ from twisted.plugin import IPlugin
 # note that this .py file is *not* in a package: there is no __init__.py in
 # our parent directory. This is important, because otherwise ours would fight
 # with Twisted's. When trial looks for plugins, it merely executes all the
-# *.py files it finds in and twisted/plugins/ subdirectories of anything on
+# *.py files it finds in any twisted/plugins/ subdirectories of anything on
 # sys.path . The namespace that results from executing these .py files is
 # examined for instances which provide both IPlugin and the target interface
 # (in this case, trial is looking for IReporter instances). Each such

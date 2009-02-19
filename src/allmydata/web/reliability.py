@@ -2,7 +2,7 @@
 from nevow import rend, inevow, tags as T
 reliability = None # might not be usable
 try:
-    from allmydata import reliability # requires Numeric and PIL
+    from allmydata import reliability # requires NumPy
 except ImportError:
     pass
 from allmydata.web.common import getxmlfile, get_arg

@@ -5,7 +5,7 @@ ReliabilityModel = None
 try:
     from allmydata.reliability import ReliabilityModel
 except ImportError:
-    pass # might not be importable, since it needs Numeric
+    pass # might not be importable, since it needs NumPy
 
 from nevow import inevow
 from zope.interface import implements
@@ -70,7 +70,7 @@ YEAR=365*DAY
 class Reliability(unittest.TestCase):
     def test_basic(self):
         if ReliabilityModel is None:
-            raise unittest.SkipTest("reliability model requires Numeric")
+            raise unittest.SkipTest("reliability model requires NumPy")
         r = ReliabilityModel.run(delta=100000,
                                  report_period=3*MONTH,
                                  report_span=5*YEAR)

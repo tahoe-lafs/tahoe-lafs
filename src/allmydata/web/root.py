@@ -122,7 +122,7 @@ class NoReliability(rend.Page):
   </head>
   <body>
   <h2>"Reliability" page not available</h2>
-  <p>Please install the python "Numeric" module to enable this page.</p>
+  <p>Please install the python "NumPy" module to enable this page.</p>
   </body>
 </html>
 ''')
