@@ -25,14 +25,22 @@ class ReliabilityTool(rend.Page):
     docFactory = getxmlfile("reliability.xhtml")
 
     DEFAULT_PARAMETERS = [
-        ("drive_lifetime", "8Y", "time"),
-        ("k", 3, "int"),
-        ("R", 7, "int"),
-        ("N", 10, "int"),
-        ("delta", "1M", "time"),
-        ("check_period", "1M", "time"),
-        ("report_period", "3M", "time"),
-        ("report_span", "5Y", "time"),
+        ("drive_lifetime", "8Y", "time",
+         "Average drive lifetime"),
+        ("k", 3, "int",
+         "Minimum number of shares needed to recover the file"),
+        ("R", 7, "int",
+         "Repair threshold: repair will not occur until fewer than R shares "
+         "are left"),
+        ("N", 10, "int",
+         "Total number of shares of the file generated"),
+        ("delta", "1M", "time", "Amount of time between each simulation step"),
+        ("check_period", "1M", "time",
+         "How often to run the checker and repair if fewer than R shares"),
+        ("report_period", "3M", "time",
+         "Amount of time between result rows in this report"),
+        ("report_span", "5Y", "time",
+         "Total amount of time covered by this report"),
         ]
 
     def parse_time(self, s):
@@ -52,7 +60,7 @@ class ReliabilityTool(rend.Page):
     def get_parameters(self, ctx):
         req = inevow.IRequest(ctx)
         parameters = {}
-        for name,default,argtype in self.DEFAULT_PARAMETERS:
+        for (name,default,argtype,description) in self.DEFAULT_PARAMETERS:
             v = get_arg(ctx, name, default)
             if argtype == "time":
                 value = self.parse_time(v)
@@ -67,16 +75,16 @@ class ReliabilityTool(rend.Page):
         return rend.Page.renderHTTP(self, ctx)
 
     def make_input(self, name, old_value):
-        return T.input(name=name, type="text",
+        return T.input(name=name, type="text", size="5",
                        value=self.format_time(old_value))
 
     def render_forms(self, ctx, data):
         f = T.form(action=".", method="get")
         table = []
-        for name, default_value, argtype in self.DEFAULT_PARAMETERS:
+        for (name,default_value,argtype,description) in self.DEFAULT_PARAMETERS:
             old_value = self.parameters[name]
             i = self.make_input(name, old_value)
-            table.append(T.tr[T.td[name+":"], T.td[i]])
+            table.append(T.tr[T.td[name+":"], T.td[i], T.td[description]])
         go = T.input(type="submit", value="Recompute")
         return [T.h2["Simulation Parameters:"],
                 f[T.table[table], go],
