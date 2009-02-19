@@ -1,5 +1,6 @@
 
 import time
+import sys
 import os.path
 from twisted.trial import unittest
 from twisted.application import service
@@ -285,15 +286,20 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         # seconds), the overhead is enough to make a nominal 50% usage more
         # like 30%. Forcing sleep_time to 0 only gets us 67% usage.
 
-        # who knows what will happen on our slower buildslaves. I'll ditch
-        # the cycles>1 test first.
+        # the windows/cygwin buildslaves, which are slow (even by windows
+        # standards) and have low-resolution timers, get more like 7% usage.
+        # On windows I'll extend the allowable range.
+
+        min_ok = 20
+        if "cygwin" in sys.platform.lower() or "win32" in sys.platform.lower():
+            min_ok = 3
 
         start = time.time()
         d = self.stall(delay=4.0)
         def _done(res):
             elapsed = time.time() - start
             percent = 100.0 * c.accumulated / elapsed
-            self.failUnless(20 < percent < 70, "crawler got %d%%" % percent)
+            self.failUnless(min_ok < percent < 70, "crawler got %d%%" % percent)
             self.failUnless(c.cycles >= 1, c.cycles)
         d.addCallback(_done)
         return d
@@ -318,3 +324,4 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
             return c.first_cycle_finished
         d = self.poll(_check)
         return d
+
