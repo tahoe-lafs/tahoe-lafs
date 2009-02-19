@@ -10,7 +10,7 @@
 Futz with files like a pro.
 """
 
-import exceptions, os, stat, tempfile, time
+import sys, exceptions, os, stat, tempfile, time
 
 from twisted.python import log
 
@@ -195,3 +195,10 @@ def du(basedir):
             size += os.path.getsize(fn)
 
     return size
+
+def move_into_place(source, dest):
+    """Atomically replace a file, or as near to it as the platform allows.
+    The dest file may or may not exist."""
+    if "win32" in sys.platform.lower():
+        remove_if_possible(dest)
+    os.rename(source, dest)
