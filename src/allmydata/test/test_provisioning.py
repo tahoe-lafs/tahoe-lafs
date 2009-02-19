@@ -71,7 +71,41 @@ class Reliability(unittest.TestCase):
     def test_basic(self):
         if ReliabilityModel is None:
             raise unittest.SkipTest("reliability model requires NumPy")
+
+        # test that numpy math works the way I think it does
+        import numpy
+        decay = numpy.matrix([[1,0,0],
+                             [.1,.9,0],
+                             [.01,.09,.9],
+                             ])
+        start = numpy.array([0,0,1])
+        g2 = (start * decay).A[0]
+        self.failUnlessEqual(repr(g2), repr(numpy.array([.01,.09,.9])))
+        g3 = (g2 * decay).A[0]
+        self.failUnlessEqual(repr(g3), repr(numpy.array([.028,.162,.81])))
+
+        # and the dot product
+        recoverable = numpy.array([0,1,1])
+        P_recoverable_g2 = numpy.dot(g2, recoverable)
+        self.failUnlessAlmostEqual(P_recoverable_g2, .9 + .09)
+        P_recoverable_g3 = numpy.dot(g3, recoverable)
+        self.failUnlessAlmostEqual(P_recoverable_g3, .81 + .162)
+
         r = ReliabilityModel.run(delta=100000,
                                  report_period=3*MONTH,
                                  report_span=5*YEAR)
         self.failUnlessEqual(len(r.samples), 20)
+
+        last_row = r.samples[-1]
+        #print last_row
+        (when, unmaintained_shareprobs, maintained_shareprobs,
+         P_repaired_last_check_period,
+         cumulative_number_of_repairs,
+         cumulative_number_of_new_shares,
+         P_dead_unmaintained, P_dead_maintained) = last_row
+        self.failUnless(isinstance(P_repaired_last_check_period, float))
+        self.failUnless(isinstance(P_dead_unmaintained, float))
+        self.failUnless(isinstance(P_dead_maintained, float))
+        self.failUnlessAlmostEqual(P_dead_unmaintained, 0.033591004555395272)
+        self.failUnlessAlmostEqual(P_dead_maintained, 3.2983995819177542e-08)
+

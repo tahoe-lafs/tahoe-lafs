@@ -2,7 +2,7 @@
 
 import math
 from allmydata.util import statistics
-from numpy import array
+from numpy import array, matrix, dot
 
 DAY=24*60*60
 MONTH=31*DAY
@@ -78,14 +78,14 @@ class ReliabilityModel:
         #print "REPAIR:", repair
         #print "DIFF:", (old_post_repair - decay * repair)
 
-        START = array([[0]*N + [1]])
-        ALIVE = array([[0]*k + [1]*(1+N-k)])
-        DEAD = array([[1]*k + [0]*(1+N-k)])
-        REPAIRp = array([[0]*k + [1]*(R-k) + [0]*(1+N-R)])
-        REPAIR_newshares = array([[0]*k +
-                                  [N-i for i in range(k, R)] +
-                                  [0]*(1+N-R)])
-        assert REPAIR_newshares.shape[1] == N+1
+        START = array([0]*N + [1])
+        ALIVE = array([0]*k + [1]*(1+N-k))
+        DEAD = array([1]*k + [0]*(1+N-k))
+        REPAIRp = array([0]*k + [1]*(R-k) + [0]*(1+N-R))
+        REPAIR_newshares = array([0]*k +
+                                 [N-i for i in range(k, R)] +
+                                 [0]*(1+N-R))
+        assert REPAIR_newshares.shape[0] == N+1
         #print "START", START
         #print "ALIVE", ALIVE
         #print "REPAIRp", REPAIRp
@@ -101,24 +101,25 @@ class ReliabilityModel:
         report = ReliabilityReport()
 
         for t in range(0, report_span+delta, delta):
-            unmaintained_state = unmaintained_state * decay
-            maintained_state = maintained_state * decay
+            # the .A[0] turns the one-row matrix back into an array
+            unmaintained_state = (unmaintained_state * decay).A[0]
+            maintained_state = (maintained_state * decay).A[0]
             if (t-last_check) > check_period:
                 last_check = t
                 # we do a check-and-repair this frequently
-                need_repair = (maintained_state * REPAIRp).sum()
+                need_repair = dot(maintained_state, REPAIRp)
 
                 P_repaired_last_check_period = need_repair
-                new_shares = (maintained_state * REPAIR_newshares).sum()
+                new_shares = dot(maintained_state, REPAIR_newshares)
                 needed_repairs.append(need_repair)
                 needed_new_shares.append(new_shares)
 
-                maintained_state = maintained_state * repair
+                maintained_state = (maintained_state * repair).A[0]
 
             if (t-last_report) > report_period:
                 last_report = t
-                P_dead_unmaintained = (unmaintained_state * DEAD).sum()
-                P_dead_maintained = (maintained_state * DEAD).sum()
+                P_dead_unmaintained = dot(unmaintained_state, DEAD)
+                P_dead_maintained = dot(maintained_state, DEAD)
                 cumulative_number_of_repairs = sum(needed_repairs)
                 cumulative_number_of_new_shares = sum(needed_new_shares)
                 report.add_sample(t, unmaintained_state, maintained_state,
@@ -128,8 +129,8 @@ class ReliabilityModel:
                                   P_dead_unmaintained, P_dead_maintained)
 
         # record one more sample at the end of the run
-        P_dead_unmaintained = (unmaintained_state * DEAD).sum()
-        P_dead_maintained = (maintained_state * DEAD).sum()
+        P_dead_unmaintained = dot(unmaintained_state, DEAD)
+        P_dead_maintained = dot(maintained_state, DEAD)
         cumulative_number_of_repairs = sum(needed_repairs)
         cumulative_number_of_new_shares = sum(needed_new_shares)
         report.add_sample(t, unmaintained_state, maintained_state,
@@ -174,7 +175,7 @@ class ReliabilityModel:
             assert len(decay_row) == (N+1), len(decay_row)
             decay_rows.append(decay_row)
 
-        decay = array(decay_rows)
+        decay = matrix(decay_rows)
         return decay
 
     def build_decay_row(self, start_shares, P):
@@ -205,7 +206,7 @@ class ReliabilityModel:
                 new_repair_row[start_shares] = 1
             new_repair_rows.append(new_repair_row)
 
-        repair = array(new_repair_rows)
+        repair = matrix(new_repair_rows)
         return repair
 
 class ReliabilityReport:
