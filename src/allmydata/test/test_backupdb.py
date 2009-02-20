@@ -28,7 +28,9 @@ class BackupDB(unittest.TestCase):
         fileutil.make_dirs(basedir)
 
         # put a non-DB file in the way
-        self.writeto("not-a-database", "I do not look like a sqlite database")
+        not_a_db = ("I do not look like a sqlite database\n" +
+                    "I'M NOT" * 1000) # OS-X sqlite-2.3.2 takes some convincing
+        self.writeto("not-a-database", not_a_db)
         stderr_f = StringIO()
         bdb = backupdb.get_backupdb(os.path.join(basedir, "not-a-database"),
                                     stderr_f)
