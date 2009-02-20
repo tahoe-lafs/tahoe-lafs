@@ -1,7 +1,7 @@
 from twisted.trial import unittest
 
 from twisted.internet import defer
-import time, os.path, stat
+import time, os.path, stat, re
 import itertools
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil, base32
@@ -14,6 +14,8 @@ from allmydata.immutable.layout import WriteBucketProxy, WriteBucketProxy_v2, \
      ReadBucketProxy
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent
+from allmydata.web.storage import StorageStatus, abbreviate_if_known, \
+     remove_prefix
 
 class Marker:
     pass
@@ -1287,3 +1289,55 @@ class Stats(unittest.TestCase):
         self.failUnless(abs(output["get"]["95_0_percentile"] - 5) < 1)
         self.failUnless(abs(output["get"]["99_0_percentile"] - 5) < 1)
         self.failUnless(abs(output["get"]["99_9_percentile"] - 5) < 1)
+
+
+class WebStatus(unittest.TestCase):
+
+    def test_no_server(self):
+        w = StorageStatus(None)
+        html = w.renderSynchronously()
+        self.failUnless("<h1>No Storage Server Running</h1>" in html, html)
+
+
+    def remove_tags(self, s):
+        s = re.sub(r'<[^>]*>', ' ', s)
+        s = re.sub(r'\s+', ' ', s)
+        return s
+
+    def test_status(self):
+        basedir = "storage/WebStatus/status"
+        fileutil.make_dirs(basedir)
+        ss = StorageServer(basedir, "\x00" * 20)
+        w = StorageStatus(ss)
+        html = w.renderSynchronously()
+        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        s = self.remove_tags(html)
+        self.failUnless("Accepting new shares: Yes" in s, s)
+        self.failUnless("Reserved space: - 0B" in s, s)
+
+    def test_readonly(self):
+        basedir = "storage/WebStatus/readonly"
+        fileutil.make_dirs(basedir)
+        ss = StorageServer(basedir, "\x00" * 20, readonly_storage=True)
+        w = StorageStatus(ss)
+        html = w.renderSynchronously()
+        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        s = self.remove_tags(html)
+        self.failUnless("Accepting new shares: No" in s, s)
+
+    def test_reserved(self):
+        basedir = "storage/WebStatus/reserved"
+        fileutil.make_dirs(basedir)
+        ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
+        w = StorageStatus(ss)
+        html = w.renderSynchronously()
+        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        s = self.remove_tags(html)
+        self.failUnless("Reserved space: - 10.00MB" in s, s)
+
+    def test_util(self):
+        self.failUnlessEqual(abbreviate_if_known(None), "?")
+        self.failUnlessEqual(abbreviate_if_known(10e6), "10.00MB")
+        self.failUnlessEqual(remove_prefix("foo.bar", "foo."), "bar")
+        self.failUnlessEqual(remove_prefix("foo.bar", "baz."), None)
+

@@ -142,6 +142,11 @@ class Root(rend.Page):
         rend.Page.__init__(self, client)
         self.client = client
         self.child_operations = operations.OphandleTable()
+        try:
+            s = client.getServiceNamed("storage")
+        except KeyError:
+            s = None
+        self.child_storage = storage.StorageStatus(s)
 
         self.child_uri = URIHandler(client)
         self.child_cap = URIHandler(client)
@@ -170,6 +175,7 @@ class Root(rend.Page):
         child_reliability = NoReliability()
 
     child_report_incident = IncidentReporter()
+    #child_server # let's reserve this for storage-server-over-HTTP
 
     def data_version(self, ctx, data):
         return get_package_versions_string()
@@ -184,10 +190,15 @@ class Root(rend.Page):
         ul = T.ul()
         try:
             ss = self.client.getServiceNamed("storage")
-            allocated_s = abbreviate_size(ss.allocated_size())
-            allocated = "about %s allocated" % allocated_s
-            reserved = "%s reserved" % abbreviate_size(ss.reserved_space)
-            ul[T.li["Storage Server: %s, %s" % (allocated, reserved)]]
+            stats = ss.get_stats()
+            if stats["storage_server.accepting_immutable_shares"]:
+                msg = "accepting new shares"
+            else:
+                msg = "not accepting new shares (read-only)"
+            available = stats.get("storage_server.disk_avail")
+            if available is not None:
+                msg += ", %s available" % abbreviate_size(available)
+            ul[T.li[T.a(href="storage")["Storage Server"], ": ", msg]]
         except KeyError:
             ul[T.li["Not running storage server"]]
 
