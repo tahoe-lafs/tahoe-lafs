@@ -7,8 +7,6 @@ from nevow.util import resource_filename
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      FileTooLargeError, NotEnoughSharesError
 
-class IClient(Interface):
-    pass
 class IOpHandleTable(Interface):
     pass
 

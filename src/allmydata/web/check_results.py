@@ -3,8 +3,7 @@ import time
 import simplejson
 from nevow import rend, inevow, tags as T
 from twisted.web import http, html
-from allmydata.web.common import getxmlfile, get_arg, get_root, \
-     IClient, WebError
+from allmydata.web.common import getxmlfile, get_arg, get_root, WebError
 from allmydata.web.operations import ReloadMixin
 from allmydata.interfaces import ICheckAndRepairResults, ICheckResults
 from allmydata.util import base32, idlib
@@ -68,6 +67,9 @@ def json_check_and_repair_results(r):
     return data
 
 class ResultsBase:
+    # self.client must point to the Client, so we can get nicknames and
+    # determine the permuted peer order
+
     def _join_pathstring(self, path):
         if path:
             pathstring = "/".join(self._html(path))
@@ -77,7 +79,7 @@ class ResultsBase:
 
     def _render_results(self, ctx, cr):
         assert ICheckResults(cr)
-        c = IClient(ctx)
+        c = self.client
         data = cr.get_data()
         r = []
         def add(name, value):
@@ -178,6 +180,10 @@ class ResultsBase:
 class LiteralCheckResults(rend.Page, ResultsBase):
     docFactory = getxmlfile("literal-check-results.xhtml")
 
+    def __init__(self, client):
+        self.client = client
+        rend.Page.__init__(self, client)
+
     def renderHTTP(self, ctx):
         if self.want_json(ctx):
             return self.json(ctx)
@@ -217,8 +223,10 @@ class CheckerBase:
 class CheckResults(CheckerBase, rend.Page, ResultsBase):
     docFactory = getxmlfile("check-results.xhtml")
 
-    def __init__(self, results):
+    def __init__(self, client, results):
+        self.client = client
         self.r = ICheckResults(results)
+        rend.Page.__init__(self, results)
 
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
@@ -227,18 +235,18 @@ class CheckResults(CheckerBase, rend.Page, ResultsBase):
 
     def render_summary(self, ctx, data):
         results = []
-        if self.r.is_healthy():
+        if data.is_healthy():
             results.append("Healthy")
-        elif self.r.is_recoverable():
+        elif data.is_recoverable():
             results.append("Not Healthy!")
         else:
             results.append("Not Recoverable!")
         results.append(" : ")
-        results.append(self._html(self.r.get_summary()))
+        results.append(self._html(data.get_summary()))
         return ctx.tag[results]
 
     def render_repair(self, ctx, data):
-        if self.r.is_healthy():
+        if data.is_healthy():
             return ""
         repair = T.form(action=".", method="post",
                         enctype="multipart/form-data")[
@@ -250,14 +258,16 @@ class CheckResults(CheckerBase, rend.Page, ResultsBase):
         return ctx.tag[repair]
 
     def render_results(self, ctx, data):
-        cr = self._render_results(ctx, self.r)
+        cr = self._render_results(ctx, data)
         return ctx.tag[cr]
 
 class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
     docFactory = getxmlfile("check-and-repair-results.xhtml")
 
-    def __init__(self, results):
+    def __init__(self, client, results):
+        self.client = client
         self.r = ICheckAndRepairResults(results)
+        rend.Page.__init__(self, results)
 
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
@@ -265,7 +275,7 @@ class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
         return simplejson.dumps(data, indent=1) + "\n"
 
     def render_summary(self, ctx, data):
-        cr = self.r.get_post_repair_results()
+        cr = data.get_post_repair_results()
         results = []
         if cr.is_healthy():
             results.append("Healthy")
@@ -278,20 +288,20 @@ class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
         return ctx.tag[results]
 
     def render_repair_results(self, ctx, data):
-        if self.r.get_repair_attempted():
-            if self.r.get_repair_successful():
+        if data.get_repair_attempted():
+            if data.get_repair_successful():
                 return ctx.tag["Repair successful"]
             else:
                 return ctx.tag["Repair unsuccessful"]
         return ctx.tag["No repair necessary"]
 
     def render_post_repair_results(self, ctx, data):
-        cr = self._render_results(ctx, self.r.get_post_repair_results())
+        cr = self._render_results(ctx, data.get_post_repair_results())
         return ctx.tag[T.div["Post-Repair Checker Results:"], cr]
 
     def render_maybe_pre_repair_results(self, ctx, data):
-        if self.r.get_repair_attempted():
-            cr = self._render_results(ctx, self.r.get_pre_repair_results())
+        if data.get_repair_attempted():
+            cr = self._render_results(ctx, data.get_pre_repair_results())
             return ctx.tag[T.div["Pre-Repair Checker Results:"], cr]
         return ""
 
@@ -299,7 +309,8 @@ class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
 class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
     docFactory = getxmlfile("deep-check-results.xhtml")
 
-    def __init__(self, monitor):
+    def __init__(self, client, monitor):
+        self.client = client
         self.monitor = monitor
 
     def childFactory(self, ctx, name):
@@ -310,7 +321,8 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         si = base32.a2b(name)
         r = self.monitor.get_status()
         try:
-            return CheckResults(r.get_results_for_storage_index(si))
+            return CheckResults(self.client,
+                                r.get_results_for_storage_index(si))
         except KeyError:
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)
@@ -397,8 +409,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
     def render_server_problem(self, ctx, data):
         serverid = data
         data = [idlib.shortnodeid_b2a(serverid)]
-        c = IClient(ctx)
-        nickname = c.get_nickname_for_peerid(serverid)
+        nickname = self.client.get_nickname_for_peerid(serverid)
         if nickname:
             data.append(" (%s)" % self._html(nickname))
         return ctx.tag[data]
@@ -412,7 +423,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         return self.monitor.get_status().get_corrupt_shares()
     def render_share_problem(self, ctx, data):
         serverid, storage_index, sharenum = data
-        nickname = IClient(ctx).get_nickname_for_peerid(serverid)
+        nickname = self.client.get_nickname_for_peerid(serverid)
         ctx.fillSlots("serverid", idlib.shortnodeid_b2a(serverid))
         if nickname:
             ctx.fillSlots("nickname", self._html(nickname))
@@ -450,9 +461,8 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
 class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
     docFactory = getxmlfile("deep-check-and-repair-results.xhtml")
 
-    def __init__(self, monitor):
-        #assert IDeepCheckAndRepairResults(results)
-        #self.r = results
+    def __init__(self, client, monitor):
+        self.client = client
         self.monitor = monitor
 
     def childFactory(self, ctx, name):
@@ -463,7 +473,8 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
         si = base32.a2b(name)
         r = self.monitor.get_status()
         try:
-            return CheckAndRepairResults(r.get_results_for_storage_index(si))
+            return CheckAndRepairResults(self.client,
+                                         r.get_results_for_storage_index(si))
         except KeyError:
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)

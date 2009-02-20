@@ -33,6 +33,11 @@ class FakeIntroducerClient:
     def get_all_peerids(self):
         return frozenset()
 
+class FakeStatsProvider:
+    def get_stats(self):
+        stats = {'stats': {}, 'counters': {}}
+        return stats
+
 class FakeClient(service.MultiService):
     nodeid = "fake_nodeid"
     nickname = "fake_nickname"
@@ -51,6 +56,7 @@ class FakeClient(service.MultiService):
     _all_publish_statuses = [publish.PublishStatus()]
     _all_retrieve_statuses = [retrieve.RetrieveStatus()]
     convergence = "some random string"
+    stats_provider = FakeStatsProvider()
 
     def connected_to_introducer(self):
         return False
@@ -134,7 +140,7 @@ class WebMixin(object):
         self.s = FakeClient()
         self.s.startService()
         self.staticdir = self.mktemp()
-        self.ws = s = webish.WebishServer("0", staticdir=self.staticdir)
+        self.ws = s = webish.WebishServer(self.s, "0", staticdir=self.staticdir)
         s.setServiceParent(self.s)
         self.webish_port = port = s.listener._port.getHost().port
         self.webish_url = "http://localhost:%d" % port

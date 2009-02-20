@@ -20,7 +20,7 @@ from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata import dirnode
 from allmydata.web.common import text_plain, WebError, \
-     IClient, IOpHandleTable, NeedOperationHandleError, \
+     IOpHandleTable, NeedOperationHandleError, \
      boolean_of_arg, get_arg, get_root, \
      should_create_intermediate_directories, \
      getxmlfile, RenderMixin
@@ -38,22 +38,23 @@ class BlockingFileError(Exception):
     """We cannot auto-create a parent directory, because there is a file in
     the way"""
 
-def make_handler_for(node, parentnode=None, name=None):
+def make_handler_for(node, client, parentnode=None, name=None):
     if parentnode:
         assert IDirectoryNode.providedBy(parentnode)
     if IMutableFileNode.providedBy(node):
-        return FileNodeHandler(node, parentnode, name)
+        return FileNodeHandler(client, node, parentnode, name)
     if IFileNode.providedBy(node):
-        return FileNodeHandler(node, parentnode, name)
+        return FileNodeHandler(client, node, parentnode, name)
     if IDirectoryNode.providedBy(node):
-        return DirectoryNodeHandler(node, parentnode, name)
+        return DirectoryNodeHandler(client, node, parentnode, name)
     raise WebError("Cannot provide handler for '%s'" % node)
 
 class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     addSlash = True
 
-    def __init__(self, node, parentnode=None, name=None):
+    def __init__(self, client, node, parentnode=None, name=None):
         rend.Page.__init__(self)
+        self.client = client
         assert node
         self.node = node
         self.parentnode = parentnode
@@ -87,7 +88,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                     # create intermediate directories
                     if DEBUG: print " making intermediate directory"
                     d = self.node.create_empty_directory(name)
-                    d.addCallback(make_handler_for, self.node, name)
+                    d.addCallback(make_handler_for,
+                                  self.client, self.node, name)
                     return d
             else:
                 if DEBUG: print " terminal"
@@ -96,7 +98,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                     if DEBUG: print " making final directory"
                     # final directory
                     d = self.node.create_empty_directory(name)
-                    d.addCallback(make_handler_for, self.node, name)
+                    d.addCallback(make_handler_for,
+                                  self.client, self.node, name)
                     return d
                 if (method,t) in ( ("PUT",""), ("PUT","uri"), ):
                     if DEBUG: print " PUT, making leaf placeholder"
@@ -105,7 +108,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                     # since that's the leaf node that we're about to create.
                     # We make a dummy one, which will respond to the PUT
                     # request by replacing itself.
-                    return PlaceHolderNodeHandler(self.node, name)
+                    return PlaceHolderNodeHandler(self.client, self.node, name)
             if DEBUG: print " 404"
             # otherwise, we just return a no-such-child error
             return rend.FourOhFour()
@@ -120,7 +123,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                                "a file was in the way" % name,
                                http.CONFLICT)
         if DEBUG: print "good child"
-        return make_handler_for(node, self.node, name)
+        return make_handler_for(node, self.client, self.node, name)
 
     def render_DELETE(self, ctx):
         assert self.parentnode and self.name
@@ -129,7 +132,6 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         return d
 
     def render_GET(self, ctx):
-        client = IClient(ctx)
         req = IRequest(ctx)
         # This is where all of the directory-related ?t=* code goes.
         t = get_arg(req, "t", "").strip()
@@ -164,7 +166,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                 # they're trying to set_uri and that name is already occupied
                 # (by us).
                 raise ExistingChildError()
-            d = self.replace_me_with_a_childcap(ctx, replace)
+            d = self.replace_me_with_a_childcap(req, self.client, replace)
             # TODO: results
             return d
 
@@ -279,10 +281,10 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                 f = node_or_failure
                 f.trap(NoSuchChildError)
                 # create a placeholder which will see POST t=upload
-                return PlaceHolderNodeHandler(self.node, name)
+                return PlaceHolderNodeHandler(self.client, self.node, name)
             else:
                 node = node_or_failure
-                return make_handler_for(node, self.node, name)
+                return make_handler_for(node, self.client, self.node, name)
         d.addBoth(_maybe_got_node)
         # now we have a placeholder or a filenodehandler, and we can just
         # delegate to it. We could return the resource back out of
@@ -358,10 +360,10 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         add_lease = boolean_of_arg(get_arg(req, "add-lease", "false"))
         if repair:
             d = self.node.check_and_repair(Monitor(), verify, add_lease)
-            d.addCallback(lambda res: CheckAndRepairResults(res))
+            d.addCallback(lambda res: CheckAndRepairResults(self.client, res))
         else:
             d = self.node.check(Monitor(), verify, add_lease)
-            d.addCallback(lambda res: CheckResults(res))
+            d.addCallback(lambda res: CheckResults(self.client, res))
         return d
 
     def _start_operation(self, monitor, renderer, ctx):
@@ -378,10 +380,10 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         add_lease = boolean_of_arg(get_arg(ctx, "add-lease", "false"))
         if repair:
             monitor = self.node.start_deep_check_and_repair(verify, add_lease)
-            renderer = DeepCheckAndRepairResults(monitor)
+            renderer = DeepCheckAndRepairResults(self.client, monitor)
         else:
             monitor = self.node.start_deep_check(verify, add_lease)
-            renderer = DeepCheckResults(monitor)
+            renderer = DeepCheckResults(self.client, monitor)
         return self._start_operation(monitor, renderer, ctx)
 
     def _POST_stream_deep_check(self, ctx):
@@ -408,21 +410,21 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         if not get_arg(ctx, "ophandle"):
             raise NeedOperationHandleError("slow operation requires ophandle=")
         monitor = self.node.build_manifest()
-        renderer = ManifestResults(monitor)
+        renderer = ManifestResults(self.client, monitor)
         return self._start_operation(monitor, renderer, ctx)
 
     def _POST_start_deep_size(self, ctx):
         if not get_arg(ctx, "ophandle"):
             raise NeedOperationHandleError("slow operation requires ophandle=")
         monitor = self.node.start_deep_stats()
-        renderer = DeepSizeResults(monitor)
+        renderer = DeepSizeResults(self.client, monitor)
         return self._start_operation(monitor, renderer, ctx)
 
     def _POST_start_deep_stats(self, ctx):
         if not get_arg(ctx, "ophandle"):
             raise NeedOperationHandleError("slow operation requires ophandle=")
         monitor = self.node.start_deep_stats()
-        renderer = DeepStatsResults(monitor)
+        renderer = DeepStatsResults(self.client, monitor)
         return self._start_operation(monitor, renderer, ctx)
 
     def _POST_stream_manifest(self, ctx):
@@ -761,15 +763,17 @@ class RenameForm(rend.Page):
 class ManifestResults(rend.Page, ReloadMixin):
     docFactory = getxmlfile("manifest.xhtml")
 
-    def __init__(self, monitor):
+    def __init__(self, client, monitor):
+        self.client = client
         self.monitor = monitor
 
     def renderHTTP(self, ctx):
-        output = get_arg(inevow.IRequest(ctx), "output", "html").lower()
+        req = inevow.IRequest(ctx)
+        output = get_arg(req, "output", "html").lower()
         if output == "text":
-            return self.text(ctx)
+            return self.text(req)
         if output == "json":
-            return self.json(ctx)
+            return self.json(req)
         return rend.Page.renderHTTP(self, ctx)
 
     def slashify_path(self, path):
@@ -777,8 +781,8 @@ class ManifestResults(rend.Page, ReloadMixin):
             return ""
         return "/".join([p.encode("utf-8") for p in path])
 
-    def text(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+    def text(self, req):
+        req.setHeader("content-type", "text/plain")
         lines = []
         is_finished = self.monitor.is_finished()
         lines.append("finished: " + {True: "yes", False: "no"}[is_finished])
@@ -786,8 +790,8 @@ class ManifestResults(rend.Page, ReloadMixin):
             lines.append(self.slashify_path(path) + " " + cap)
         return "\n".join(lines) + "\n"
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+    def json(self, req):
+        req.setHeader("content-type", "text/plain")
         m = self.monitor
         s = m.get_status()
 
@@ -839,14 +843,16 @@ class ManifestResults(rend.Page, ReloadMixin):
         return ctx.tag
 
 class DeepSizeResults(rend.Page):
-    def __init__(self, monitor):
+    def __init__(self, client, monitor):
+        self.client = client
         self.monitor = monitor
 
     def renderHTTP(self, ctx):
-        output = get_arg(inevow.IRequest(ctx), "output", "html").lower()
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+        req = inevow.IRequest(ctx)
+        output = get_arg(req, "output", "html").lower()
+        req.setHeader("content-type", "text/plain")
         if output == "json":
-            return self.json(ctx)
+            return self.json(req)
         # plain text
         is_finished = self.monitor.is_finished()
         output = "finished: " + {True: "yes", False: "no"}[is_finished] + "\n"
@@ -858,14 +864,15 @@ class DeepSizeResults(rend.Page):
             output += "size: %d\n" % total
         return output
 
-    def json(self, ctx):
+    def json(self, req):
         status = {"finished": self.monitor.is_finished(),
                   "size": self.monitor.get_status(),
                   }
         return simplejson.dumps(status)
 
 class DeepStatsResults(rend.Page):
-    def __init__(self, monitor):
+    def __init__(self, client, monitor):
+        self.client = client
         self.monitor = monitor
 
     def renderHTTP(self, ctx):

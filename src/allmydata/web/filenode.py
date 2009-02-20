@@ -12,7 +12,7 @@ from allmydata.immutable.upload import FileHandle
 from allmydata.immutable.filenode import LiteralFileNode
 from allmydata.util import log, base32
 
-from allmydata.web.common import text_plain, WebError, IClient, RenderMixin, \
+from allmydata.web.common import text_plain, WebError, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories
 from allmydata.web.check_results import CheckResults, \
      CheckAndRepairResults, LiteralCheckResults
@@ -20,10 +20,8 @@ from allmydata.web.info import MoreInfo
 
 class ReplaceMeMixin:
 
-    def replace_me_with_a_child(self, ctx, replace):
+    def replace_me_with_a_child(self, req, client, replace):
         # a new file is being uploaded in our place.
-        req = IRequest(ctx)
-        client = IClient(ctx)
         mutable = boolean_of_arg(get_arg(req, "mutable", "false"))
         if mutable:
             req.content.seek(0)
@@ -53,11 +51,9 @@ class ReplaceMeMixin:
         d.addCallback(_done)
         return d
 
-    def replace_me_with_a_childcap(self, ctx, replace):
-        req = IRequest(ctx)
+    def replace_me_with_a_childcap(self, req, client, replace):
         req.content.seek(0)
         childcap = req.content.read()
-        client = IClient(ctx)
         childnode = client.create_node_from_uri(childcap)
         d = self.parentnode.set_node(self.name, childnode, overwrite=replace)
         d.addCallback(lambda res: childnode.get_uri())
@@ -71,10 +67,8 @@ class ReplaceMeMixin:
         data = contents.file.read()
         return data
 
-    def replace_me_with_a_formpost(self, ctx, replace):
+    def replace_me_with_a_formpost(self, req, client, replace):
         # create a new file, maybe mutable, maybe immutable
-        req = IRequest(ctx)
-        client = IClient(ctx)
         mutable = boolean_of_arg(get_arg(req, "mutable", "false"))
 
         if mutable:
@@ -95,8 +89,9 @@ class ReplaceMeMixin:
         return d
 
 class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
-    def __init__(self, parentnode, name):
+    def __init__(self, client, parentnode, name):
         rend.Page.__init__(self)
+        self.client = client
         assert parentnode
         self.parentnode = parentnode
         self.name = name
@@ -111,9 +106,9 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             raise WebError("Content-Range in PUT not yet supported",
                            http.NOT_IMPLEMENTED)
         if not t:
-            return self.replace_me_with_a_child(ctx, replace)
+            return self.replace_me_with_a_child(req, self.client, replace)
         if t == "uri":
-            return self.replace_me_with_a_childcap(ctx, replace)
+            return self.replace_me_with_a_childcap(req, self.client, replace)
 
         raise WebError("PUT to a file: bad t=%s" % t)
 
@@ -127,7 +122,7 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             # or POST /uri/path/file?t=upload, or
             # POST /uri/path/dir?t=upload&name=foo . All have the same
             # behavior, we just ignore any name= argument
-            d = self.replace_me_with_a_formpost(ctx, replace)
+            d = self.replace_me_with_a_formpost(req, self.client, replace)
         else:
             # t=mkdir is handled in DirectoryNodeHandler._POST_mkdir, so
             # there are no other t= values left to be handled by the
@@ -141,8 +136,9 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
 
 class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
-    def __init__(self, node, parentnode=None, name=None):
+    def __init__(self, client, node, parentnode=None, name=None):
         rend.Page.__init__(self)
+        self.client = client
         assert node
         self.node = node
         self.parentnode = parentnode
@@ -210,19 +206,19 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
         if not t:
             if self.node.is_mutable():
-                return self.replace_my_contents(ctx)
+                return self.replace_my_contents(req)
             if not replace:
                 # this is the early trap: if someone else modifies the
                 # directory while we're uploading, the add_file(overwrite=)
                 # call in replace_me_with_a_child will do the late trap.
                 raise ExistingChildError()
             assert self.parentnode and self.name
-            return self.replace_me_with_a_child(ctx, replace)
+            return self.replace_me_with_a_child(req, self.client, replace)
         if t == "uri":
             if not replace:
                 raise ExistingChildError()
             assert self.parentnode and self.name
-            return self.replace_me_with_a_childcap(ctx, replace)
+            return self.replace_me_with_a_childcap(req, self.client, replace)
 
         raise WebError("PUT to a file: bad t=%s" % t)
 
@@ -239,12 +235,12 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             # POST /uri/path/dir?t=upload&name=foo . All have the same
             # behavior, we just ignore any name= argument
             if self.node.is_mutable():
-                d = self.replace_my_contents_with_a_formpost(ctx)
+                d = self.replace_my_contents_with_a_formpost(req)
             else:
                 if not replace:
                     raise ExistingChildError()
                 assert self.parentnode and self.name
-                d = self.replace_me_with_a_formpost(ctx, replace)
+                d = self.replace_me_with_a_formpost(req, self.client, replace)
         else:
             raise WebError("POST to file: bad t=%s" % t)
 
@@ -258,13 +254,13 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         repair = boolean_of_arg(get_arg(req, "repair", "false"))
         add_lease = boolean_of_arg(get_arg(req, "add-lease", "false"))
         if isinstance(self.node, LiteralFileNode):
-            return defer.succeed(LiteralCheckResults())
+            return defer.succeed(LiteralCheckResults(self.client))
         if repair:
             d = self.node.check_and_repair(Monitor(), verify, add_lease)
-            d.addCallback(lambda res: CheckAndRepairResults(res))
+            d.addCallback(lambda res: CheckAndRepairResults(self.client, res))
         else:
             d = self.node.check(Monitor(), verify, add_lease)
-            d.addCallback(lambda res: CheckResults(res))
+            d.addCallback(lambda res: CheckResults(self.client, res))
         return d
 
     def render_DELETE(self, ctx):
@@ -273,18 +269,16 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d.addCallback(lambda res: self.node.get_uri())
         return d
 
-    def replace_my_contents(self, ctx):
-        req = IRequest(ctx)
+    def replace_my_contents(self, req):
         req.content.seek(0)
         new_contents = req.content.read()
         d = self.node.overwrite(new_contents)
         d.addCallback(lambda res: self.node.get_uri())
         return d
 
-    def replace_my_contents_with_a_formpost(self, ctx):
+    def replace_my_contents_with_a_formpost(self, req):
         # we have a mutable file. Get the data from the formpost, and replace
         # the mutable file's contents with it.
-        req = IRequest(ctx)
         new_contents = self._read_data_from_formpost(req)
         d = self.node.overwrite(new_contents)
         d.addCallback(lambda res: self.node.get_uri())
@@ -449,4 +443,4 @@ def FileReadOnlyURI(ctx, filenode):
 
 class FileNodeDownloadHandler(FileNodeHandler):
     def childFactory(self, ctx, name):
-        return FileNodeDownloadHandler(self.node, name=name)
+        return FileNodeDownloadHandler(self.client, self.node, name=name)

@@ -4,8 +4,8 @@ import simplejson
 from twisted.internet import defer
 from nevow import rend, inevow, tags as T
 from allmydata.util import base32, idlib
-from allmydata.web.common import IClient, getxmlfile, abbreviate_time, \
-     abbreviate_rate, abbreviate_size, get_arg
+from allmydata.web.common import getxmlfile, get_arg, \
+     abbreviate_time, abbreviate_rate, abbreviate_size
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus, IServermapUpdaterStatus
 
@@ -773,18 +773,22 @@ class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")
     addSlash = True
 
+    def __init__(self, client):
+        rend.Page.__init__(self, client)
+        self.client = client
+
     def renderHTTP(self, ctx):
-        t = get_arg(inevow.IRequest(ctx), "t")
+        req = inevow.IRequest(ctx)
+        t = get_arg(req, "t")
         if t == "json":
-            return self.json(ctx)
+            return self.json(req)
         return rend.Page.renderHTTP(self, ctx)
 
-    def json(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        client = IClient(ctx)
+    def json(self, req):
+        req.setHeader("content-type", "text/plain")
         data = {}
         data["active"] = active = []
-        for s in self.data_active_operations(ctx, None):
+        for s in self._get_active_operations():
             si_s = base32.b2a_or_none(s.get_storage_index())
             size = s.get_size()
             status = s.get_status()
@@ -808,26 +812,31 @@ class Status(rend.Page):
 
         return simplejson.dumps(data, indent=1) + "\n"
 
-    def _get_all_statuses(self, client):
-        return itertools.chain(client.list_all_upload_statuses(),
-                               client.list_all_download_statuses(),
-                               client.list_all_mapupdate_statuses(),
-                               client.list_all_publish_statuses(),
-                               client.list_all_retrieve_statuses(),
-                               client.list_all_helper_statuses(),
+    def _get_all_statuses(self):
+        c = self.client
+        return itertools.chain(c.list_all_upload_statuses(),
+                               c.list_all_download_statuses(),
+                               c.list_all_mapupdate_statuses(),
+                               c.list_all_publish_statuses(),
+                               c.list_all_retrieve_statuses(),
+                               c.list_all_helper_statuses(),
                                )
 
     def data_active_operations(self, ctx, data):
-        client = IClient(ctx)
+        return self._get_active_operations()
+
+    def _get_active_operations(self):
         active = [s
-                  for s in self._get_all_statuses(client)
+                  for s in self._get_all_statuses()
                   if s.get_active()]
         return active
 
     def data_recent_operations(self, ctx, data):
-        client = IClient(ctx)
+        return self._get_recent_operations()
+
+    def _get_recent_operations(self):
         recent = [s
-                  for s in self._get_all_statuses(client)
+                  for s in self._get_all_statuses()
                   if not s.get_active()]
         recent.sort(lambda a,b: cmp(a.get_started(), b.get_started()))
         recent.reverse()
@@ -887,7 +896,7 @@ class Status(rend.Page):
         return ctx.tag
 
     def childFactory(self, ctx, name):
-        client = IClient(ctx)
+        client = self.client
         stype,count_s = name.split("-")
         count = int(count_s)
         if stype == "up":
@@ -918,24 +927,26 @@ class Status(rend.Page):
 class HelperStatus(rend.Page):
     docFactory = getxmlfile("helper.xhtml")
 
+    def __init__(self, helper):
+        rend.Page.__init__(self, helper)
+        self.helper = helper
+
     def renderHTTP(self, ctx):
-        t = get_arg(inevow.IRequest(ctx), "t")
+        req = inevow.IRequest(ctx)
+        t = get_arg(req, "t")
         if t == "json":
-            return self.render_JSON(ctx)
-        # is there a better way to provide 'data' to all rendering methods?
-        helper = IClient(ctx).getServiceNamed("helper")
-        self.original = helper.get_stats()
+            return self.render_JSON(req)
         return rend.Page.renderHTTP(self, ctx)
 
-    def render_JSON(self, ctx):
-        inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        try:
-            h = IClient(ctx).getServiceNamed("helper")
-        except KeyError:
-            return simplejson.dumps({}) + "\n"
+    def data_helper_stats(self, ctx, data):
+        return self.helper.get_stats()
 
-        stats = h.get_stats()
-        return simplejson.dumps(stats, indent=1) + "\n"
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
+        if self.helper:
+            stats = self.helper.get_stats()
+            return simplejson.dumps(stats, indent=1) + "\n"
+        return simplejson.dumps({}) + "\n"
 
     def render_active_uploads(self, ctx, data):
         return data["chk_upload_helper.active_uploads"]
@@ -967,18 +978,21 @@ class HelperStatus(rend.Page):
 class Statistics(rend.Page):
     docFactory = getxmlfile("statistics.xhtml")
 
+    def __init__(self, provider):
+        rend.Page.__init__(self, provider)
+        self.provider = provider
+
     def renderHTTP(self, ctx):
-        provider = IClient(ctx).stats_provider
-        stats = {'stats': {}, 'counters': {}}
-        if provider:
-            stats = provider.get_stats()
-        t = get_arg(inevow.IRequest(ctx), "t")
+        req = inevow.IRequest(ctx)
+        t = get_arg(req, "t")
         if t == "json":
-            inevow.IRequest(ctx).setHeader("content-type", "text/plain")
+            stats = self.provider.get_stats()
+            req.setHeader("content-type", "text/plain")
             return simplejson.dumps(stats, indent=1) + "\n"
-        # is there a better way to provide 'data' to all rendering methods?
-        self.original = stats
         return rend.Page.renderHTTP(self, ctx)
+
+    def data_get_stats(self, ctx, data):
+        return self.provider.get_stats()
 
     def render_load_average(self, ctx, data):
         return str(data["stats"].get("load_monitor.avg_load"))

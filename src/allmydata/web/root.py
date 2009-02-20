@@ -14,14 +14,18 @@ from allmydata import provisioning
 from allmydata.util import idlib, log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
-from allmydata.web import reliability
-from allmydata.web.common import abbreviate_size, IClient, \
-     getxmlfile, WebError, get_arg, RenderMixin
+from allmydata.web import reliability, storage
+from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
+     get_arg, RenderMixin
 
 
 class URIHandler(RenderMixin, rend.Page):
     # I live at /uri . There are several operations defined on /uri itself,
     # mostly involved with creation of unlinked files and directories.
+
+    def __init__(self, client):
+        rend.Page.__init__(self, client)
+        self.client = client
 
     def render_GET(self, ctx):
         req = IRequest(ctx)
@@ -43,11 +47,11 @@ class URIHandler(RenderMixin, rend.Page):
         if t == "":
             mutable = bool(get_arg(req, "mutable", "").strip())
             if mutable:
-                return unlinked.PUTUnlinkedSSK(ctx)
+                return unlinked.PUTUnlinkedSSK(req, self.client)
             else:
-                return unlinked.PUTUnlinkedCHK(ctx)
+                return unlinked.PUTUnlinkedCHK(req, self.client)
         if t == "mkdir":
-            return unlinked.PUTUnlinkedCreateDirectory(ctx)
+            return unlinked.PUTUnlinkedCreateDirectory(req, self.client)
         errmsg = ("/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, "
                   "and POST?t=mkdir")
         raise WebError(errmsg, http.BAD_REQUEST)
@@ -61,21 +65,20 @@ class URIHandler(RenderMixin, rend.Page):
         if t in ("", "upload"):
             mutable = bool(get_arg(req, "mutable", "").strip())
             if mutable:
-                return unlinked.POSTUnlinkedSSK(ctx)
+                return unlinked.POSTUnlinkedSSK(req, self.client)
             else:
-                return unlinked.POSTUnlinkedCHK(ctx)
+                return unlinked.POSTUnlinkedCHK(req, self.client)
         if t == "mkdir":
-            return unlinked.POSTUnlinkedCreateDirectory(ctx)
+            return unlinked.POSTUnlinkedCreateDirectory(req, self.client)
         errmsg = ("/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, "
                   "and POST?t=mkdir")
         raise WebError(errmsg, http.BAD_REQUEST)
 
     def childFactory(self, ctx, name):
         # 'name' is expected to be a URI
-        client = IClient(ctx)
         try:
-            node = client.create_node_from_uri(name)
-            return directory.make_handler_for(node)
+            node = self.client.create_node_from_uri(name)
+            return directory.make_handler_for(node, self.client)
         except (TypeError, AssertionError):
             raise WebError("'%s' is not a valid file- or directory- cap"
                            % name)
@@ -84,20 +87,23 @@ class FileHandler(rend.Page):
     # I handle /file/$FILECAP[/IGNORED] , which provides a URL from which a
     # file can be downloaded correctly by tools like "wget".
 
+    def __init__(self, client):
+        rend.Page.__init__(self, client)
+        self.client = client
+
     def childFactory(self, ctx, name):
         req = IRequest(ctx)
         if req.method not in ("GET", "HEAD"):
             raise WebError("/file can only be used with GET or HEAD")
         # 'name' must be a file URI
-        client = IClient(ctx)
         try:
-            node = client.create_node_from_uri(name)
+            node = self.client.create_node_from_uri(name)
         except (TypeError, AssertionError):
             raise WebError("'%s' is not a valid file- or directory- cap"
                            % name)
         if not IFileNode.providedBy(node):
             raise WebError("'%s' is not a file-cap" % name)
-        return filenode.FileNodeDownloadHandler(node)
+        return filenode.FileNodeDownloadHandler(self.client, node)
 
     def renderHTTP(self, ctx):
         raise WebError("/file must be followed by a file-cap and a name",
@@ -132,14 +138,27 @@ class Root(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
-    def __init__(self, original=None):
-        rend.Page.__init__(self, original)
+    def __init__(self, client):
+        rend.Page.__init__(self, client)
+        self.client = client
         self.child_operations = operations.OphandleTable()
 
-    child_uri = URIHandler()
-    child_cap = URIHandler()
-    child_file = FileHandler()
-    child_named = FileHandler()
+        self.child_uri = URIHandler(client)
+        self.child_cap = URIHandler(client)
+
+        self.child_file = FileHandler(client)
+        self.child_named = FileHandler(client)
+        self.child_status = status.Status(client) # TODO: use client.history
+        self.child_statistics = status.Statistics(client.stats_provider)
+
+    def child_helper_status(self, ctx):
+        # the Helper isn't attached until after the Tub starts, so this child
+        # needs to created on each request
+        try:
+            helper = self.client.getServiceNamed("helper")
+        except KeyError:
+            helper = None
+        return status.HelperStatus(helper)
 
     child_webform_css = webform.defaultCSS
     child_tahoe_css = nevow_File(resource_filename('allmydata.web', 'tahoe.css'))
@@ -149,9 +168,6 @@ class Root(rend.Page):
         child_reliability = reliability.ReliabilityTool()
     else:
         child_reliability = NoReliability()
-    child_status = status.Status()
-    child_helper_status = status.HelperStatus()
-    child_statistics = status.Statistics()
 
     child_report_incident = IncidentReporter()
 
@@ -160,15 +176,14 @@ class Root(rend.Page):
     def data_import_path(self, ctx, data):
         return str(allmydata)
     def data_my_nodeid(self, ctx, data):
-        return idlib.nodeid_b2a(IClient(ctx).nodeid)
+        return idlib.nodeid_b2a(self.client.nodeid)
     def data_my_nickname(self, ctx, data):
-        return IClient(ctx).nickname
+        return self.client.nickname
 
     def render_services(self, ctx, data):
         ul = T.ul()
-        client = IClient(ctx)
         try:
-            ss = client.getServiceNamed("storage")
+            ss = self.client.getServiceNamed("storage")
             allocated_s = abbreviate_size(ss.allocated_size())
             allocated = "about %s allocated" % allocated_s
             reserved = "%s reserved" % abbreviate_size(ss.reserved_space)
@@ -177,7 +192,7 @@ class Root(rend.Page):
             ul[T.li["Not running storage server"]]
 
         try:
-            h = client.getServiceNamed("helper")
+            h = self.client.getServiceNamed("helper")
             stats = h.get_stats()
             active_uploads = stats["chk_upload_helper.active_uploads"]
             ul[T.li["Helper: %d active uploads" % (active_uploads,)]]
@@ -187,22 +202,22 @@ class Root(rend.Page):
         return ctx.tag[ul]
 
     def data_introducer_furl(self, ctx, data):
-        return IClient(ctx).introducer_furl
+        return self.client.introducer_furl
     def data_connected_to_introducer(self, ctx, data):
-        if IClient(ctx).connected_to_introducer():
+        if self.client.connected_to_introducer():
             return "yes"
         return "no"
 
     def data_helper_furl(self, ctx, data):
         try:
-            uploader = IClient(ctx).getServiceNamed("uploader")
+            uploader = self.client.getServiceNamed("uploader")
         except KeyError:
             return None
         furl, connected = uploader.get_helper_info()
         return furl
     def data_connected_to_helper(self, ctx, data):
         try:
-            uploader = IClient(ctx).getServiceNamed("uploader")
+            uploader = self.client.getServiceNamed("uploader")
         except KeyError:
             return "no" # we don't even have an Uploader
         furl, connected = uploader.get_helper_info()
@@ -211,18 +226,18 @@ class Root(rend.Page):
         return "no"
 
     def data_known_storage_servers(self, ctx, data):
-        ic = IClient(ctx).introducer_client
+        ic = self.client.introducer_client
         servers = [c
                    for c in ic.get_all_connectors().values()
                    if c.service_name == "storage"]
         return len(servers)
 
     def data_connected_storage_servers(self, ctx, data):
-        ic = IClient(ctx).introducer_client
+        ic = self.client.introducer_client
         return len(ic.get_all_connections_for("storage"))
 
     def data_services(self, ctx, data):
-        ic = IClient(ctx).introducer_client
+        ic = self.client.introducer_client
         c = [ (service_name, nodeid, rsc)
               for (nodeid, service_name), rsc
               in ic.get_all_connectors().items() ]
@@ -235,7 +250,7 @@ class Root(rend.Page):
         ctx.fillSlots("nickname", rsc.nickname)
         if rsc.rref:
             rhost = rsc.remote_host
-            if nodeid == IClient(ctx).nodeid:
+            if nodeid == self.client.nodeid:
                 rhost_s = "(loopback)"
             elif isinstance(rhost, address.IPv4Address):
                 rhost_s = "%s:%d" % (rhost.host, rhost.port)

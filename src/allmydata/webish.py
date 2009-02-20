@@ -6,7 +6,7 @@ from nevow import appserver, inevow, static
 from allmydata.util import log
 
 from allmydata.web import introweb, root
-from allmydata.web.common import IClient, IOpHandleTable, MyExceptionHandler
+from allmydata.web.common import IOpHandleTable, MyExceptionHandler
 
 # we must override twisted.web.http.Request.requestReceived with a version
 # that doesn't use cgi.parse_multipart() . Since we actually use Nevow, we
@@ -120,17 +120,21 @@ class MyRequest(appserver.NevowRequest):
 
 class WebishServer(service.MultiService):
     name = "webish"
-    root_class = root.Root
 
-    def __init__(self, webport, nodeurl_path=None, staticdir=None):
+    def __init__(self, client, webport, nodeurl_path=None, staticdir=None):
         service.MultiService.__init__(self)
-        self.webport = webport
-        self.root = self.root_class()
-        self.site = site = appserver.NevowSite(self.root)
-        self.site.requestFactory = MyRequest
+        # the 'data' argument to all render() methods default to the Client
+        self.root = root.Root(client)
+        self.buildServer(webport, nodeurl_path, staticdir)
         if self.root.child_operations:
             self.site.remember(self.root.child_operations, IOpHandleTable)
             self.root.child_operations.setServiceParent(self)
+
+    def buildServer(self, webport, nodeurl_path, staticdir):
+        self.webport = webport
+        self.site = site = appserver.NevowSite(self.root)
+        self.site.requestFactory = MyRequest
+        self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
         if staticdir:
             self.root.putChild("static", static.File(staticdir))
         s = strports.service(webport, site)
@@ -142,15 +146,6 @@ class WebishServer(service.MultiService):
 
     def startService(self):
         service.MultiService.startService(self)
-        # to make various services available to render_* methods, we stash a
-        # reference to the client on the NevowSite. This will be available by
-        # adapting the 'context' argument to a special marker interface named
-        # IClient.
-        self.site.remember(self.parent, IClient)
-        # I thought you could do the same with an existing interface, but
-        # apparently 'ISite' does not exist
-        #self.site._client = self.parent
-        self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
         self._started.callback(None)
 
     def _write_nodeurl_file(self, junk, nodeurl_path):
@@ -169,4 +164,8 @@ class WebishServer(service.MultiService):
             f.close()
 
 class IntroducerWebishServer(WebishServer):
-    root_class = introweb.IntroducerRoot
+    def __init__(self, introducer, webport, nodeurl_path=None, staticdir=None):
+        service.MultiService.__init__(self)
+        self.root = introweb.IntroducerRoot(introducer)
+        self.buildServer(webport, nodeurl_path, staticdir)
+

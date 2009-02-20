@@ -91,6 +91,8 @@ class Client(node.Node, pollmixin.PollMixin):
             hotline = TimerService(1.0, self._check_hotline, hotline_file)
             hotline.setServiceParent(self)
 
+        # this needs to happen last, so it can use getServiceNamed() to
+        # acquire references to StorageServer and other web-statusable things
         webport = self.get_config("node", "web.port", None)
         if webport:
             self.init_web(webport) # strports string
@@ -269,7 +271,7 @@ class Client(node.Node, pollmixin.PollMixin):
         nodeurl_path = os.path.join(self.basedir, "node.url")
         staticdir = self.get_config("node", "web.static", "public_html")
         staticdir = os.path.expanduser(staticdir)
-        ws = WebishServer(webport, nodeurl_path, staticdir)
+        ws = WebishServer(self, webport, nodeurl_path, staticdir)
         self.add_service(ws)
 
     def init_ftp_server(self):

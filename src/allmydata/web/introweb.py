@@ -7,7 +7,7 @@ import allmydata
 import simplejson
 from allmydata import get_package_versions_string
 from allmydata.util import idlib
-from common import getxmlfile, get_arg, IClient
+from common import getxmlfile, get_arg
 
 class IntroducerRoot(rend.Page):
 
@@ -16,6 +16,11 @@ class IntroducerRoot(rend.Page):
 
     child_operations = None
 
+    def __init__(self, introducer_node):
+        self.introducer_node = introducer_node
+        self.introducer_service = introducer_node.getServiceNamed("introducer")
+        rend.Page.__init__(self, introducer_node)
+
     def renderHTTP(self, ctx):
         t = get_arg(inevow.IRequest(ctx), "t")
         if t == "json":
@@ -23,16 +28,15 @@ class IntroducerRoot(rend.Page):
         return rend.Page.renderHTTP(self, ctx)
 
     def render_JSON(self, ctx):
-        i = IClient(ctx).getServiceNamed("introducer")
         res = {}
-        clients = i.get_subscribers()
+        clients = self.introducer_service.get_subscribers()
         subscription_summary = dict([ (name, len(clients[name]))
                                       for name in clients ])
         res["subscription_summary"] = subscription_summary
 
         announcement_summary = {}
         service_hosts = {}
-        for (ann,when) in i.get_announcements().values():
+        for (ann,when) in self.introducer_service.get_announcements().values():
             (furl, service_name, ri_name, nickname, ver, oldest) = ann
             if service_name not in announcement_summary:
                 announcement_summary[service_name] = 0
@@ -65,12 +69,11 @@ class IntroducerRoot(rend.Page):
     def data_import_path(self, ctx, data):
         return str(allmydata)
     def data_my_nodeid(self, ctx, data):
-        return idlib.nodeid_b2a(IClient(ctx).nodeid)
+        return idlib.nodeid_b2a(self.introducer_node.nodeid)
 
     def render_announcement_summary(self, ctx, data):
-        i = IClient(ctx).getServiceNamed("introducer")
         services = {}
-        for (ann,when) in i.get_announcements().values():
+        for (ann,when) in self.introducer_service.get_announcements().values():
             (furl, service_name, ri_name, nickname, ver, oldest) = ann
             if service_name not in services:
                 services[service_name] = 0
@@ -81,17 +84,16 @@ class IntroducerRoot(rend.Page):
                           for service_name in service_names])
 
     def render_client_summary(self, ctx, data):
-        i = IClient(ctx).getServiceNamed("introducer")
-        clients = i.get_subscribers()
+        clients = self.introducer_service.get_subscribers()
         service_names = clients.keys()
         service_names.sort()
         return ", ".join(["%s: %d" % (service_name, len(clients[service_name]))
                           for service_name in service_names])
 
     def data_services(self, ctx, data):
-        i = IClient(ctx).getServiceNamed("introducer")
+        introsvc = self.introducer_service
         ann = [(since,a)
-               for (a,since) in i.get_announcements().values()
+               for (a,since) in introsvc.get_announcements().values()
                if a[1] != "stub_client"]
         ann.sort(lambda a,b: cmp( (a[1][1], a), (b[1][1], b) ) )
         return ann
@@ -112,10 +114,9 @@ class IntroducerRoot(rend.Page):
         return ctx.tag
 
     def data_subscribers(self, ctx, data):
-        i = IClient(ctx).getServiceNamed("introducer")
         # use the "stub_client" announcements to get information per nodeid
         clients = {}
-        for (ann,when) in i.get_announcements().values():
+        for (ann,when) in self.introducer_service.get_announcements().values():
             if ann[1] != "stub_client":
                 continue
             (furl, service_name, ri_name, nickname, ver, oldest) = ann
@@ -125,7 +126,8 @@ class IntroducerRoot(rend.Page):
 
         # then we actually provide information per subscriber
         s = []
-        for service_name, subscribers in i.get_subscribers().items():
+        introsvc = self.introducer_service
+        for service_name, subscribers in introsvc.get_subscribers().items():
             for (rref, timestamp) in subscribers.items():
                 sr = rref.getSturdyRef()
                 nodeid = sr.tubID
