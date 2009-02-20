@@ -131,6 +131,9 @@ class StorageServer(service.MultiService, Referenceable):
     def _clean_incomplete(self):
         fileutil.rm_dir(self.incomingdir)
 
+    def do_statvfs(self):
+        return os.statvfs(self.storedir)
+
     def get_stats(self):
         # remember: RIStatsProvider requires that our return dict
         # contains numeric values.
@@ -143,7 +146,7 @@ class StorageServer(service.MultiService, Referenceable):
         if self.readonly_storage:
             writeable = False
         try:
-            s = os.statvfs(self.storedir)
+            s = self.do_statvfs()
             disk_total = s.f_bsize * s.f_blocks
             disk_used = s.f_bsize * (s.f_blocks - s.f_bfree)
             # spacetime predictors should look at the slope of disk_used.

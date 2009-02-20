@@ -37,11 +37,27 @@ class StorageStatus(rend.Page):
         # object in self.original that gets passed to render_* methods. I
         # still don't understand Nevow.
 
-        # all xhtml tags that are children of a tag with n:render="stats"
-        # will be processed with this dictionary, so something like:
+        # Nevow has nevow.accessors.DictionaryContainer: Any data= directive
+        # that appears in a context in which the current data is a dictionary
+        # will be looked up as keys in that dictionary. So if data_stats()
+        # returns a dictionary, then we can use something like this:
+        #
         #  <ul n:data="stats">
-        #   <li>disk_total: <span n:data="disk_total" /></li>
+        #   <li>disk_total: <span n:render="abbrev" n:data="disk_total" /></li>
         #  </ul>
-        # will use get_stats()["storage_server.disk_total"]
-        return dict([ (remove_prefix(k, "storage_server."), v)
-                      for k,v in self.storage.get_stats().items() ])
+
+        # to use get_stats()["storage_server.disk_total"] . However,
+        # DictionaryContainer does a raw d[] instead of d.get(), so any
+        # missing keys will cause an error, even if the renderer can tolerate
+        # None values. To overcome this, we either need a dict-like object
+        # that always returns None for unknown keys, or we must pre-populate
+        # our dict with those missing keys (or find some way to override
+        # Nevow's handling of dictionaries).
+
+        d = dict([ (remove_prefix(k, "storage_server."), v)
+                   for k,v in self.storage.get_stats().items() ])
+        d.setdefault("disk_total", None)
+        d.setdefault("disk_used", None)
+        d.setdefault("reserved_space", None)
+        d.setdefault("disk_avail", None)
+        return d

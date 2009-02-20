@@ -1290,6 +1290,9 @@ class Stats(unittest.TestCase):
         self.failUnless(abs(output["get"]["99_0_percentile"] - 5) < 1)
         self.failUnless(abs(output["get"]["99_9_percentile"] - 5) < 1)
 
+class NoStatvfsServer(StorageServer):
+    def do_statvfs(self):
+        raise AttributeError
 
 class WebStatus(unittest.TestCase):
 
@@ -1314,6 +1317,19 @@ class WebStatus(unittest.TestCase):
         s = self.remove_tags(html)
         self.failUnless("Accepting new shares: Yes" in s, s)
         self.failUnless("Reserved space: - 0B" in s, s)
+
+    def test_status_no_statvfs(self):
+        # windows has no os.statvfs . Make sure the code handles that even on
+        # unix.
+        basedir = "storage/WebStatus/status_no_statvfs"
+        fileutil.make_dirs(basedir)
+        ss = NoStatvfsServer(basedir, "\x00" * 20)
+        w = StorageStatus(ss)
+        html = w.renderSynchronously()
+        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        s = self.remove_tags(html)
+        self.failUnless("Accepting new shares: Yes" in s, s)
+        self.failUnless("Total disk space: ?" in s, s)
 
     def test_readonly(self):
         basedir = "storage/WebStatus/readonly"
