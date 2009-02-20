@@ -135,6 +135,7 @@ class StorageServer(service.MultiService, Referenceable):
         # remember: RIStatsProvider requires that our return dict
         # contains numeric values.
         stats = { 'storage_server.allocated': self.allocated_size(), }
+        stats["storage_server.reserved_space"] = self.reserved_space
         for category,ld in self.get_latencies().items():
             for name,v in ld.items():
                 stats['storage_server.latencies.%s.%s' % (category, name)] = v
