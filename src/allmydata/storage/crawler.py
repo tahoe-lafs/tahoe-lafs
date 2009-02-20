@@ -16,20 +16,33 @@ class ShareCrawler(service.MultiService):
     since large servers will have several million shares, which can take
     hours or days to read.
 
+    Once the crawler starts a cycle, it will proceed at a rate limited by the
+    allowed_cpu_percentage= and cpu_slice= parameters: yielding the reactor
+    after it has worked for 'cpu_slice' seconds, and not resuming right away,
+    always trying to use less than 'allowed_cpu_percentage'.
+
+    Once the crawler finishes a cycle, it will put off starting the next one
+    long enough to ensure that 'minimum_cycle_time' elapses between the start
+    of two consecutive cycles.
+
     We assume that the normal upload/download/get_buckets traffic of a tahoe
     grid will cause the prefixdir contents to be mostly cached, or that the
     number of buckets in each prefixdir will be small enough to load quickly.
     A 1TB allmydata.com server was measured to have 2.56M buckets, spread
-    into the 1040 prefixdirs, with about 2460 buckets per prefix. On this
+    into the 1024 prefixdirs, with about 2500 buckets per prefix. On this
     server, each prefixdir took 130ms-200ms to list the first time, and 17ms
     to list the second time.
 
-    To use this, create a subclass which implements the process_bucket()
+    To use a crawler, create a subclass which implements the process_bucket()
     method. It will be called with a prefixdir and a base32 storage index
-    string. process_bucket() should run synchronously. Any keys added to
+    string. process_bucket() must run synchronously. Any keys added to
     self.state will be preserved. Override add_initial_state() to set up
     initial state keys. Override finished_cycle() to perform additional
-    processing when the cycle is complete.
+    processing when the cycle is complete. Any status that the crawler
+    produces should be put in the self.state dictionary. Status renderers
+    (like a web page which describes the accomplishments of your crawler)
+    will use crawler.get_state() to retrieve this dictionary; they can
+    present the contents as they see fit.
 
     Then create an instance, with a reference to a StorageServer and a
     filename where it can store persistent state. The statefile is used to
@@ -39,8 +52,7 @@ class ShareCrawler(service.MultiService):
     processed.
 
     The crawler instance must be started with startService() before it will
-    do any work. To make it stop doing work, call stopService() and wait for
-    the Deferred that it returns.
+    do any work. To make it stop doing work, call stopService().
     """
 
     # all three of these can be changed at any time
@@ -162,6 +174,9 @@ class ShareCrawler(service.MultiService):
             finished_cycle = True
         except TimeSliceExceeded:
             finished_cycle = False
+        if not self.running:
+            # someone might have used stopService() to shut us down
+            return
         # either we finished a whole cycle, or we ran out of time
         now = time.time()
         this_slice = now - start_slice
@@ -253,6 +268,13 @@ class ShareCrawler(service.MultiService):
         prefixdirs) has just finished. 'cycle' is the number of the cycle
         that just finished. This method should perform summary work and
         update self.state to publish information to status displays.
+
+        One-shot crawlers, such as those used to upgrade shares to a new
+        format or populate a database for the first time, can call
+        self.stopService() (or more likely self.disownServiceParent()) to
+        prevent it from running a second time. Don't forget to set some
+        persistent state so that the upgrader won't be run again the next
+        time the node is started.
 
         This method for subclasses to override. No upcall is necessary.
         """

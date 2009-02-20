@@ -4,7 +4,7 @@ import os.path
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import defer
-from foolscap.eventual import eventually
+from foolscap import eventual
 
 from allmydata.util import fileutil, hashutil, pollmixin
 from allmydata.storage.server import StorageServer, si_b2a
@@ -22,7 +22,7 @@ class BucketEnumeratingCrawler(ShareCrawler):
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
         self.all_buckets.append(storage_index_b32)
     def finished_cycle(self, cycle):
-        eventually(self.finished_d.callback, None)
+        eventual.eventually(self.finished_d.callback, None)
 
 class PacedCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice
@@ -40,7 +40,7 @@ class PacedCrawler(ShareCrawler):
     def yielding(self, sleep_time):
         self.cpu_slice = 500
     def finished_cycle(self, cycle):
-        eventually(self.finished_d.callback, None)
+        eventual.eventually(self.finished_d.callback, None)
 
 class ConsumingCrawler(ShareCrawler):
     cpu_slice = 0.5
@@ -62,6 +62,18 @@ class ConsumingCrawler(ShareCrawler):
         self.cycles += 1
     def yielding(self, sleep_time):
         self.last_yield = 0.0
+
+class OneShotCrawler(ShareCrawler):
+    cpu_slice = 500 # make sure it can complete in a single slice
+    def __init__(self, *args, **kwargs):
+        ShareCrawler.__init__(self, *args, **kwargs)
+        self.counter = 0
+        self.finished_d = defer.Deferred()
+    def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
+        self.counter += 1
+    def finished_cycle(self, cycle):
+        self.finished_d.callback(None)
+        self.disownServiceParent()
 
 class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
     def setUp(self):
@@ -328,5 +340,32 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
             state = c.get_state()
             self.failUnless(state["last-cycle-finished"] is not None)
         d.addCallback(_done)
+        return d
+
+
+    def test_oneshot(self):
+        self.basedir = "crawler/Basic/oneshot"
+        fileutil.make_dirs(self.basedir)
+        serverid = "\x00" * 20
+        ss = StorageServer(self.basedir, serverid)
+        ss.setServiceParent(self.s)
+
+        sis = [self.write(i, ss, serverid) for i in range(30)]
+
+        statefile = os.path.join(self.basedir, "statefile")
+        c = OneShotCrawler(ss, statefile)
+        c.setServiceParent(self.s)
+
+        d = c.finished_d
+        def _finished_first_cycle(ignored):
+            return eventual.fireEventually(c.counter)
+        d.addCallback(_finished_first_cycle)
+        def _check(old_counter):
+            # the crawler should do any work after it's been stopped
+            self.failUnlessEqual(old_counter, c.counter)
+            self.failIf(c.running)
+            self.failIf(c.timer)
+            self.failIf(c.current_sleep_time)
+        d.addCallback(_check)
         return d
 
