@@ -148,12 +148,8 @@ class NoNetworkGrid(service.MultiService):
         self.clients = []
 
         for i in range(num_servers):
-            serverid = hashutil.tagged_hash("serverid", str(i))[:20]
-            serverdir = os.path.join(basedir, "servers",
-                                     idlib.shortnodeid_b2a(serverid))
-            fileutil.make_dirs(serverdir)
-            ss = StorageServer(serverdir, serverid)
-            self.add_server(i, serverid, ss)
+            ss = self.make_server(i)
+            self.add_server(i, ss)
 
         for i in range(num_clients):
             clientid = hashutil.tagged_hash("clientid", str(i))[:20]
@@ -180,12 +176,21 @@ class NoNetworkGrid(service.MultiService):
             c.setServiceParent(self)
             self.clients.append(c)
 
-    def add_server(self, i, serverid, ss):
-        # TODO: ss.setServiceParent(self), but first deal with the fact that
-        # all StorageServers are named 'storage'. At the moment, Storage
-        # doesn't really need to be startService'd, but it will in the
-        # future.
-        #ss.setServiceParent(self)
+    def make_server(self, i):
+        serverid = hashutil.tagged_hash("serverid", str(i))[:20]
+        serverdir = os.path.join(self.basedir, "servers",
+                                 idlib.shortnodeid_b2a(serverid))
+        fileutil.make_dirs(serverdir)
+        ss = StorageServer(serverdir, serverid)
+        return ss
+
+    def add_server(self, i, ss):
+        # to deal with the fact that all StorageServers are named 'storage',
+        # we interpose a middleman
+        middleman = service.MultiService()
+        middleman.setServiceParent(self)
+        ss.setServiceParent(middleman)
+        serverid = ss.my_nodeid
         self.servers_by_number[i] = ss
         self.servers_by_id[serverid] = wrap(ss, "storage")
         self.all_servers = frozenset(self.servers_by_id.items())
@@ -200,9 +205,12 @@ class GridTestMixin:
     def tearDown(self):
         return self.s.stopService()
 
-    def set_up_grid(self, num_clients=1, client_config_hooks={}):
+    def set_up_grid(self, num_clients=1, num_servers=10,
+                    client_config_hooks={}):
         # self.basedir must be set
-        self.g = NoNetworkGrid(self.basedir, num_clients=num_clients,
+        self.g = NoNetworkGrid(self.basedir,
+                               num_clients=num_clients,
+                               num_servers=num_servers,
                                client_config_hooks=client_config_hooks)
         self.g.setServiceParent(self.s)
         self.client_webports = [c.getServiceNamed("webish").listener._port.getHost().port
