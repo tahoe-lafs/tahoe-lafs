@@ -15,23 +15,23 @@ from common_util import StallMixin
 
 class BucketEnumeratingCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice
-    def __init__(self, server, statefile):
-        ShareCrawler.__init__(self, server, statefile)
+    def __init__(self, *args, **kwargs):
+        ShareCrawler.__init__(self, *args, **kwargs)
         self.all_buckets = []
         self.finished_d = defer.Deferred()
-    def process_bucket(self, prefixdir, storage_index_b32):
+    def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
         self.all_buckets.append(storage_index_b32)
-    def finished_cycle(self):
+    def finished_cycle(self, cycle):
         eventually(self.finished_d.callback, None)
 
 class PacedCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice
-    def __init__(self, server, statefile):
-        ShareCrawler.__init__(self, server, statefile)
+    def __init__(self, *args, **kwargs):
+        ShareCrawler.__init__(self, *args, **kwargs)
         self.countdown = 6
         self.all_buckets = []
         self.finished_d = defer.Deferred()
-    def process_bucket(self, prefixdir, storage_index_b32):
+    def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
         self.all_buckets.append(storage_index_b32)
         self.countdown -= 1
         if self.countdown == 0:
@@ -39,7 +39,7 @@ class PacedCrawler(ShareCrawler):
             self.cpu_slice = -1.0
     def yielding(self, sleep_time):
         self.cpu_slice = 500
-    def finished_cycle(self):
+    def finished_cycle(self, cycle):
         eventually(self.finished_d.callback, None)
 
 class ConsumingCrawler(ShareCrawler):
@@ -47,18 +47,18 @@ class ConsumingCrawler(ShareCrawler):
     allowed_cpu_percentage = 0.5
     minimum_cycle_time = 0
 
-    def __init__(self, server, statefile):
-        ShareCrawler.__init__(self, server, statefile)
+    def __init__(self, *args, **kwargs):
+        ShareCrawler.__init__(self, *args, **kwargs)
         self.accumulated = 0.0
         self.cycles = 0
         self.last_yield = 0.0
-    def process_bucket(self, prefixdir, storage_index_b32):
+    def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
         start = time.time()
         time.sleep(0.05)
         elapsed = time.time() - start
         self.accumulated += elapsed
         self.last_yield += elapsed
-    def finished_cycle(self):
+    def finished_cycle(self, cycle):
         self.cycles += 1
     def yielding(self, sleep_time):
         self.last_yield = 0.0
@@ -99,7 +99,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         sis = [self.write(i, ss, serverid) for i in range(10)]
         statefile = os.path.join(self.basedir, "statefile")
 
-        c = BucketEnumeratingCrawler(ss, statefile)
+        c = BucketEnumeratingCrawler(ss, statefile, allowed_cpu_percentage=.1)
         c.load_state()
 
         c.start_current_prefix(time.time())
@@ -322,7 +322,11 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         # empty methods in the base class
 
         def _check():
-            return c.first_cycle_finished
+            return bool(c.state["last-cycle-finished"] is not None)
         d = self.poll(_check)
+        def _done(ignored):
+            state = c.get_state()
+            self.failUnless(state["last-cycle-finished"] is not None)
+        d.addCallback(_done)
         return d
 
