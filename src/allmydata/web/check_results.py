@@ -142,7 +142,7 @@ class ResultsBase:
             nickname = c.get_nickname_for_peerid(serverid)
             shareids = servers.get(serverid, [])
             shareids.reverse()
-            shareids_s = [ T.tt[shareid, " "] for shareid in shareids ]
+            shareids_s = [ T.tt[shareid, " "] for shareid in sorted(shareids) ]
             servermap.append(T.tr[T.td[T.tt[base32.b2a(serverid)],
                                        " (", nickname, ")"],
                                   T.td[shareids_s] ])
