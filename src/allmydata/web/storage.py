@@ -57,6 +57,8 @@ class StorageStatus(rend.Page):
                    for k,v in self.storage.get_stats().items() ])
         d.setdefault("disk_total", None)
         d.setdefault("disk_used", None)
+        d.setdefault("disk_free_for_root", None)
+        d.setdefault("disk_free_for_nonroot", None)
         d.setdefault("reserved_space", None)
         d.setdefault("disk_avail", None)
         return d

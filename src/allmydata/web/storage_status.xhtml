@@ -15,6 +15,14 @@
         <td><span n:render="space" n:data="disk_total" /></td></tr>
     <tr><td>Disk space used:</td>
         <td>- <span n:render="space" n:data="disk_used" /></td></tr>
+    <tr><td />
+        <td>======</td></tr>
+    <tr><td>Disk space free (root):</td>
+        <td><span n:render="space" n:data="disk_free_for_root"/>
+          [see 1]</td></tr>
+    <tr><td>Disk space free (non-root):</td>
+        <td><span n:render="space" n:data="disk_free_for_nonroot" />
+          [see 2]</td></tr>
     <tr><td>Reserved space:</td>
         <td>- <span n:render="space" n:data="reserved_space" /></td></tr>
     <tr><td />
@@ -38,6 +46,10 @@
       </ul>
     </li>
   </ul>
+
+  <p>[1]: Some of this space may be reserved for the superuser.</p>
+  <p>[2]: This reports the space available to non-root users, including the
+  Tahoe node.</p>
 
 </div>
 

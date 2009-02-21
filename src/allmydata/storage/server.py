@@ -147,11 +147,13 @@ class StorageServer(service.MultiService, Referenceable):
             disk_total = s.f_bsize * s.f_blocks
             disk_used = s.f_bsize * (s.f_blocks - s.f_bfree)
             # spacetime predictors should look at the slope of disk_used.
-            disk_avail = s.f_bsize * s.f_bavail # available to non-root users
+            disk_free_for_root = s.f_bsize * s.f_bfree
+            disk_free_for_nonroot = s.f_bsize * s.f_bavail
+
             # include our local policy here: if we stop accepting shares when
             # the available space drops below 1GB, then include that fact in
             # disk_avail.
-            disk_avail -= self.reserved_space
+            disk_avail = disk_free_for_nonroot - self.reserved_space
             disk_avail = max(disk_avail, 0)
             if self.readonly_storage:
                 disk_avail = 0
@@ -161,6 +163,8 @@ class StorageServer(service.MultiService, Referenceable):
             # spacetime predictors should use disk_avail / (d(disk_used)/dt)
             stats["storage_server.disk_total"] = disk_total
             stats["storage_server.disk_used"] = disk_used
+            stats["storage_server.disk_free_for_root"] = disk_free_for_root
+            stats["storage_server.disk_free_for_nonroot"] = disk_free_for_nonroot
             stats["storage_server.disk_avail"] = disk_avail
         except AttributeError:
             # os.statvfs is available only on unix
