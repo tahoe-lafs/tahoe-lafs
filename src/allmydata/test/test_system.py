@@ -437,7 +437,9 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             if not filenames:
                 continue
             pieces = dirpath.split(os.sep)
-            if pieces[-4] == "storage" and pieces[-3] == "shares":
+            if (len(pieces) >= 5
+                and pieces[-4] == "storage"
+                and pieces[-3] == "shares"):
                 # we're sitting in .../storage/shares/$START/$SINDEX , and there
                 # are sharefiles here
                 assert pieces[-5].startswith("client")
@@ -1311,7 +1313,9 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             if not filenames:
                 continue
             pieces = dirpath.split(os.sep)
-            if pieces[-4] == "storage" and pieces[-3] == "shares":
+            if (len(pieces) >= 4
+                and pieces[-4] == "storage"
+                and pieces[-3] == "shares"):
                 # we're sitting in .../storage/shares/$START/$SINDEX , and there
                 # are sharefiles here
                 filename = os.path.join(dirpath, filenames[0])
