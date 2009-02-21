@@ -1,11 +1,7 @@
 
 from nevow import rend, tags as T
-from allmydata.web.common import getxmlfile, abbreviate_size
-
-def abbreviate_if_known(size):
-    if size is None:
-        return "?"
-    return abbreviate_size(size)
+from allmydata.web.common import getxmlfile, abbreviate_time
+from allmydata.util.abbreviate import abbreviate_space
 
 def remove_prefix(s, prefix):
     if not s.startswith(prefix):
@@ -29,8 +25,10 @@ class StorageStatus(rend.Page):
     def render_bool(self, ctx, data):
         return {True: "Yes", False: "No"}[bool(data)]
 
-    def render_space(self, ctx, data):
-        return abbreviate_if_known(data)
+    def render_space(self, ctx, size):
+        if size is None:
+            return "?"
+        return "%s (%d)" % (abbreviate_space(size), size)
 
     def data_stats(self, ctx, data):
         # FYI: 'data' appears to be self, rather than the StorageServer
@@ -51,8 +49,9 @@ class StorageStatus(rend.Page):
         # missing keys will cause an error, even if the renderer can tolerate
         # None values. To overcome this, we either need a dict-like object
         # that always returns None for unknown keys, or we must pre-populate
-        # our dict with those missing keys (or find some way to override
-        # Nevow's handling of dictionaries).
+        # our dict with those missing keys, or we should get rid of data_
+        # methods that return dicts (or find some way to override Nevow's
+        # handling of dictionaries).
 
         d = dict([ (remove_prefix(k, "storage_server."), v)
                    for k,v in self.storage.get_stats().items() ])
@@ -61,3 +60,22 @@ class StorageStatus(rend.Page):
         d.setdefault("reserved_space", None)
         d.setdefault("disk_avail", None)
         return d
+
+    def data_last_complete_share_count(self, ctx, data):
+        s = self.storage.bucket_counter.get_state()
+        lcsc = s.get("last-complete-share-count")
+        if lcsc is None:
+            return "Not computed yet"
+        cycle, count = lcsc
+        return count
+
+    def render_count_crawler_status(self, ctx, storage):
+        s = self.storage.bucket_counter.get_progress()
+        if s["cycle-in-progress"]:
+            pct = s["cycle-complete-percentage"]
+            soon = s["remaining-sleep-time"]
+            return ctx.tag["Current crawl %.1f%% complete" % pct,
+                           " (next work in %s)" % abbreviate_time(soon)]
+        else:
+            soon = s["remaining-wait-time"]
+            return ctx.tag["Next crawl in %s" % abbreviate_time(soon)]

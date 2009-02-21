@@ -10,11 +10,6 @@
 
   <h1>Storage Server Status</h1>
 
-  <ul n:data="stats">
-    <li>Accepting new shares:
-       <span n:render="bool" n:data="accepting_immutable_shares" /></li>
-  </ul>
-
   <table n:data="stats">
     <tr><td>Total disk space:</td>
         <td><span n:render="space" n:data="disk_total" /></td></tr>
@@ -24,9 +19,25 @@
         <td>- <span n:render="space" n:data="reserved_space" /></td></tr>
     <tr><td />
         <td>======</td></tr>
-    <tr><td>Space Available:</td>
-        <td>&lt; <span n:render="space" n:data="disk_avail" /></td></tr>
+    <tr><td>Space Available to Tahoe:</td>
+        <td><span n:render="space" n:data="disk_avail" /></td></tr>
   </table>
+
+  <ul n:data="stats">
+    <li>Accepting new shares:
+       <span n:render="bool" n:data="accepting_immutable_shares" /></li>
+  </ul>
+
+  <ul>
+    <li>Total buckets:
+       <span n:render="string" n:data="last_complete_share_count" />
+       (the number of files and directories for which this server is holding
+        a share)
+      <ul>
+        <li n:render="count_crawler_status" />
+      </ul>
+    </li>
+  </ul>
 
 </div>
 

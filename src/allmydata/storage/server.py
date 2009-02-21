@@ -14,6 +14,7 @@ from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.mutable import MutableShareFile, EmptyShare, \
      create_mutable_sharefile
 from allmydata.storage.immutable import ShareFile, BucketWriter, BucketReader
+from allmydata.storage.crawler import BucketCountingCrawler
 
 # storage/
 # storage/shares/incoming
@@ -76,6 +77,10 @@ class StorageServer(service.MultiService, Referenceable):
                           "renew": [],
                           "cancel": [],
                           }
+
+        statefile = os.path.join(storedir, "bucket_counter.state")
+        self.bucket_counter = BucketCountingCrawler(self, statefile)
+        self.bucket_counter.setServiceParent(self)
 
     def count(self, name, delta=1):
         if self.stats_provider:

@@ -98,7 +98,6 @@ class ShareCrawler(service.MultiService):
 
         d = {}
         if self.state["current-cycle"] is None:
-            assert self.sleeping_between_cycles
             d["cycle-in-progress"] = False
             d["next-crawl-time"] = self.next_wake_time
             d["remaining-wait-time"] = self.next_wake_time - time.time()
@@ -145,7 +144,7 @@ class ShareCrawler(service.MultiService):
         except EnvironmentError:
             state = {"version": 1,
                      "last-cycle-finished": None,
-                     "current-cycle": 0,
+                     "current-cycle": None,
                      "last-complete-prefix": None,
                      "last-complete-bucket": None,
                      }
@@ -184,6 +183,11 @@ class ShareCrawler(service.MultiService):
 
     def startService(self):
         self.load_state()
+        # arrange things to look like we were just sleeping, so
+        # status/progress values work correctly
+        self.sleeping_between_cycles = True
+        self.current_sleep_time = 0
+        self.next_wake_time = time.time()
         self.timer = reactor.callLater(0, self.start_slice)
         service.MultiService.startService(self)
 
@@ -195,10 +199,12 @@ class ShareCrawler(service.MultiService):
 
     def start_slice(self):
         self.timer = None
+        self.sleeping_between_cycles = False
         self.current_sleep_time = None
         self.next_wake_time = None
         start_slice = time.time()
         try:
+            s = self.last_complete_prefix_index
             self.start_current_prefix(start_slice)
             finished_cycle = True
         except TimeSliceExceeded:
@@ -229,14 +235,15 @@ class ShareCrawler(service.MultiService):
         self.timer = reactor.callLater(sleep_time, self.start_slice)
 
     def start_current_prefix(self, start_slice):
-        if self.state["current-cycle"] is None:
-            assert self.state["last-cycle-finished"] is not None
-            self.state["current-cycle"] = self.state["last-cycle-finished"] + 1
-        cycle = self.state["current-cycle"]
+        state = self.state
+        if state["current-cycle"] is None:
+            if state["last-cycle-finished"] is None:
+                state["current-cycle"] = 0
+            else:
+                state["current-cycle"] = state["last-cycle-finished"] + 1
+        cycle = state["current-cycle"]
 
         for i in range(self.last_complete_prefix_index+1, len(self.prefixes)):
-            if time.time() > start_slice + self.cpu_slice:
-                raise TimeSliceExceeded()
             # if we want to yield earlier, just raise TimeSliceExceeded()
             prefix = self.prefixes[i]
             prefixdir = os.path.join(self.sharedir, prefix)
@@ -253,11 +260,13 @@ class ShareCrawler(service.MultiService):
                                    buckets, start_slice)
             self.last_complete_prefix_index = i
             self.save_state()
+            if time.time() > start_slice + self.cpu_slice:
+                raise TimeSliceExceeded()
         # yay! we finished the whole cycle
         self.last_complete_prefix_index = -1
-        self.state["last-complete-bucket"] = None
-        self.state["last-cycle-finished"] = cycle
-        self.state["current-cycle"] = None
+        state["last-complete-bucket"] = None
+        state["last-cycle-finished"] = cycle
+        state["current-cycle"] = None
         self.finished_cycle(cycle)
         self.save_state()
 
@@ -272,11 +281,14 @@ class ShareCrawler(service.MultiService):
         for bucket in buckets:
             if bucket <= self.state["last-complete-bucket"]:
                 continue
-            if time.time() > start_slice + self.cpu_slice:
-                raise TimeSliceExceeded()
             self.process_bucket(cycle, prefix, prefixdir, bucket)
             self.state["last-complete-bucket"] = bucket
+            # note: saving the state after every bucket is somewhat
+            # time-consuming, but lets us avoid losing more than one bucket's
+            # worth of progress.
             self.save_state()
+            if time.time() > start_slice + self.cpu_slice:
+                raise TimeSliceExceeded()
 
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
         """Examine a single bucket. Subclasses should do whatever they want
@@ -316,4 +328,57 @@ class ShareCrawler(service.MultiService):
         This method for subclasses to override. No upcall is necessary.
         """
         pass
+
+
+class BucketCountingCrawler(ShareCrawler):
+    """I keep track of how many buckets are being managed by this server.
+    This is equivalent to the number of distributed files and directories for
+    which I am providing storage. The actual number of files+directories in
+    the full grid is probably higher (especially when there are more servers
+    than 'N', the number of generated shares), because some files+directories
+    will have shares on other servers instead of me.
+    """
+
+    minimum_cycle_time = 60*60 # we don't need this more than once an hour
+
+    def __init__(self, server, statefile, num_sample_prefixes=1):
+        ShareCrawler.__init__(self, server, statefile)
+        self.num_sample_prefixes = num_sample_prefixes
+
+    def add_initial_state(self):
+        # ["share-counts"][cyclenum][prefix] = number
+        # ["last-complete-cycle"] = cyclenum # maintained by base class
+        # ["last-complete-share-count"] = number
+        # ["storage-index-samples"][prefix] = (cyclenum,
+        #                                      list of SI strings (base32))
+        self.state.setdefault("share-counts", {})
+        self.state.setdefault("last-complete-share-count", None)
+        self.state.setdefault("storage-index-samples", {})
+
+    def process_prefixdir(self, cycle, prefix, prefixdir, buckets, start_slice):
+        # we override process_prefixdir() because we don't want to look at
+        # the individual buckets. We'll save state after each one. On my
+        # laptop, a mostly-empty storage server can process about 70
+        # prefixdirs in a 1.0s slice.
+        if cycle not in self.state["share-counts"]:
+            self.state["share-counts"][cycle] = {}
+        self.state["share-counts"][cycle][prefix] = len(buckets)
+        if prefix in self.prefixes[:self.num_sample_prefixes]:
+            self.state["storage-index-samples"][prefix] = (cycle, buckets)
+
+    def finished_cycle(self, cycle):
+        last_counts = self.state["share-counts"].get(cycle, [])
+        if len(last_counts) == len(self.prefixes):
+            # great, we have a whole cycle.
+            num_buckets = sum(last_counts.values())
+            self.state["last-complete-share-count"] = (cycle, num_buckets)
+            # get rid of old counts
+            for old_cycle in list(self.state["share-counts"].keys()):
+                if old_cycle != cycle:
+                    del self.state["share-counts"][old_cycle]
+        # get rid of old samples too
+        for prefix in list(self.state["storage-index-samples"].keys()):
+            old_cycle,buckets = self.state["storage-index-samples"][prefix]
+            if old_cycle != cycle:
+                del self.state["storage-index-samples"][prefix]
 

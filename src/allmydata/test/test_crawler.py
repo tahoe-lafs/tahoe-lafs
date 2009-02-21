@@ -146,6 +146,15 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         c = BucketEnumeratingCrawler(ss, statefile)
         c.setServiceParent(self.s)
 
+        # it should be legal to call get_state() and get_progress() right
+        # away, even before the first tick is performed. No work should have
+        # been done yet.
+        s = c.get_state()
+        p = c.get_progress()
+        self.failUnlessEqual(s["last-complete-prefix"], None)
+        self.failUnlessEqual(s["current-cycle"], None)
+        self.failUnlessEqual(p["cycle-in-progress"], False)
+
         d = c.finished_d
         def _check(ignored):
             self.failUnlessEqual(sorted(sis), sorted(c.all_buckets))
@@ -405,6 +414,9 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
             self.failIf(c.running)
             self.failIf(c.timer)
             self.failIf(c.current_sleep_time)
+            s = c.get_state()
+            self.failUnlessEqual(s["last-cycle-finished"], 0)
+            self.failUnlessEqual(s["current-cycle"], None)
         d.addCallback(_check)
         return d
 

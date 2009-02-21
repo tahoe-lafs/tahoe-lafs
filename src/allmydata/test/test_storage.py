@@ -1,10 +1,14 @@
+
+import time, os.path, stat, re
+
 from twisted.trial import unittest
 
 from twisted.internet import defer
-import time, os.path, stat, re
+from twisted.application import service
+from foolscap import eventual
 import itertools
 from allmydata import interfaces
-from allmydata.util import fileutil, hashutil, base32
+from allmydata.util import fileutil, hashutil, base32, pollmixin
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.immutable import BucketWriter, BucketReader
@@ -14,8 +18,7 @@ from allmydata.immutable.layout import WriteBucketProxy, WriteBucketProxy_v2, \
      ReadBucketProxy
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent
-from allmydata.web.storage import StorageStatus, abbreviate_if_known, \
-     remove_prefix
+from allmydata.web.storage import StorageStatus, remove_prefix
 
 class Marker:
     pass
@@ -1290,33 +1293,135 @@ class Stats(unittest.TestCase):
         self.failUnless(abs(output["get"]["99_0_percentile"] - 5) < 1)
         self.failUnless(abs(output["get"]["99_9_percentile"] - 5) < 1)
 
+def remove_tags(s):
+    s = re.sub(r'<[^>]*>', ' ', s)
+    s = re.sub(r'\s+', ' ', s)
+    return s
+
+class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
+
+    def setUp(self):
+        self.s = service.MultiService()
+        self.s.startService()
+    def tearDown(self):
+        return self.s.stopService()
+
+    def test_bucket_counter(self):
+        basedir = "storage/BucketCounter/bucket_counter"
+        fileutil.make_dirs(basedir)
+        ss = StorageServer(basedir, "\x00" * 20)
+        # to make sure we capture the bucket-counting-crawler in the middle
+        # of a cycle, we reach in and reduce its maximum slice time to 0.
+        orig_cpu_slice = ss.bucket_counter.cpu_slice
+        ss.bucket_counter.cpu_slice = 0
+        ss.setServiceParent(self.s)
+
+        w = StorageStatus(ss)
+
+        # this sample is before the crawler has started doing anything
+        html = w.renderSynchronously()
+        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        s = remove_tags(html)
+        self.failUnless("Accepting new shares: Yes" in s, s)
+        self.failUnless("Reserved space: - 0 B (0)" in s, s)
+        self.failUnless("Total buckets: Not computed yet" in s, s)
+        self.failUnless("Next crawl in" in s, s)
+
+        # give the bucket-counting-crawler one tick to get started. The
+        # cpu_slice=0 will force it to yield right after it processes the
+        # first prefix
+
+        d = eventual.fireEventually()
+        def _check(ignored):
+            # are we really right after the first prefix?
+            state = ss.bucket_counter.get_state()
+            self.failUnlessEqual(state["last-complete-prefix"],
+                                 ss.bucket_counter.prefixes[0])
+            ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
+            html = w.renderSynchronously()
+            s = remove_tags(html)
+            self.failUnless(" Current crawl " in s, s)
+            self.failUnless(" (next work in " in s, s)
+        d.addCallback(_check)
+
+        # now give it enough time to complete a full cycle
+        def _watch():
+            return not ss.bucket_counter.get_progress()["cycle-in-progress"]
+        d.addCallback(lambda ignored: self.poll(_watch))
+        def _check2(ignored):
+            ss.bucket_counter.cpu_slice = orig_cpu_slice
+            html = w.renderSynchronously()
+            s = remove_tags(html)
+            self.failUnless("Total buckets: 0 (the number of" in s, s)
+            self.failUnless("Next crawl in 359" in s, s) # about 3600-1 seconds
+        d.addCallback(_check2)
+        return d
+
+    def test_bucket_counter_cleanup(self):
+        basedir = "storage/BucketCounter/bucket_counter_cleanup"
+        fileutil.make_dirs(basedir)
+        ss = StorageServer(basedir, "\x00" * 20)
+        # to make sure we capture the bucket-counting-crawler in the middle
+        # of a cycle, we reach in and reduce its maximum slice time to 0.
+        orig_cpu_slice = ss.bucket_counter.cpu_slice
+        ss.bucket_counter.cpu_slice = 0
+        ss.setServiceParent(self.s)
+
+        d = eventual.fireEventually()
+
+        def _after_first_prefix(ignored):
+            ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
+            # now sneak in and mess with its state, to make sure it cleans up
+            # properly at the end of the cycle
+            state = ss.bucket_counter.state
+            self.failUnlessEqual(state["last-complete-prefix"],
+                                 ss.bucket_counter.prefixes[0])
+            state["share-counts"][-12] = {}
+            state["storage-index-samples"]["bogusprefix!"] = (-12, [])
+            ss.bucket_counter.save_state()
+        d.addCallback(_after_first_prefix)
+
+        # now give it enough time to complete a cycle
+        def _watch():
+            return not ss.bucket_counter.get_progress()["cycle-in-progress"]
+        d.addCallback(lambda ignored: self.poll(_watch))
+        def _check2(ignored):
+            ss.bucket_counter.cpu_slice = orig_cpu_slice
+            s = ss.bucket_counter.get_state()
+            self.failIf(-12 in s["share-counts"], s["share-counts"].keys())
+            self.failIf("bogusprefix!" in s["storage-index-samples"],
+                        s["storage-index-samples"].keys())
+        d.addCallback(_check2)
+        return d
+
 class NoStatvfsServer(StorageServer):
     def do_statvfs(self):
         raise AttributeError
 
-class WebStatus(unittest.TestCase):
+class WebStatus(unittest.TestCase, pollmixin.PollMixin):
+
+    def setUp(self):
+        self.s = service.MultiService()
+        self.s.startService()
+    def tearDown(self):
+        return self.s.stopService()
 
     def test_no_server(self):
         w = StorageStatus(None)
         html = w.renderSynchronously()
         self.failUnless("<h1>No Storage Server Running</h1>" in html, html)
 
-
-    def remove_tags(self, s):
-        s = re.sub(r'<[^>]*>', ' ', s)
-        s = re.sub(r'\s+', ' ', s)
-        return s
-
     def test_status(self):
         basedir = "storage/WebStatus/status"
         fileutil.make_dirs(basedir)
         ss = StorageServer(basedir, "\x00" * 20)
+        ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
         self.failUnless("<h1>Storage Server Status</h1>" in html, html)
-        s = self.remove_tags(html)
+        s = remove_tags(html)
         self.failUnless("Accepting new shares: Yes" in s, s)
-        self.failUnless("Reserved space: - 0B" in s, s)
+        self.failUnless("Reserved space: - 0 B (0)" in s, s)
 
     def test_status_no_statvfs(self):
         # windows has no os.statvfs . Make sure the code handles that even on
@@ -1324,10 +1429,11 @@ class WebStatus(unittest.TestCase):
         basedir = "storage/WebStatus/status_no_statvfs"
         fileutil.make_dirs(basedir)
         ss = NoStatvfsServer(basedir, "\x00" * 20)
+        ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
         self.failUnless("<h1>Storage Server Status</h1>" in html, html)
-        s = self.remove_tags(html)
+        s = remove_tags(html)
         self.failUnless("Accepting new shares: Yes" in s, s)
         self.failUnless("Total disk space: ?" in s, s)
 
@@ -1335,25 +1441,39 @@ class WebStatus(unittest.TestCase):
         basedir = "storage/WebStatus/readonly"
         fileutil.make_dirs(basedir)
         ss = StorageServer(basedir, "\x00" * 20, readonly_storage=True)
+        ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
         self.failUnless("<h1>Storage Server Status</h1>" in html, html)
-        s = self.remove_tags(html)
+        s = remove_tags(html)
         self.failUnless("Accepting new shares: No" in s, s)
 
     def test_reserved(self):
         basedir = "storage/WebStatus/reserved"
         fileutil.make_dirs(basedir)
         ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
+        ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
         self.failUnless("<h1>Storage Server Status</h1>" in html, html)
-        s = self.remove_tags(html)
-        self.failUnless("Reserved space: - 10.00MB" in s, s)
+        s = remove_tags(html)
+        self.failUnless("Reserved space: - 10.00 MB (10000000)" in s, s)
+
+    def test_huge_reserved(self):
+        basedir = "storage/WebStatus/reserved"
+        fileutil.make_dirs(basedir)
+        ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
+        ss.setServiceParent(self.s)
+        w = StorageStatus(ss)
+        html = w.renderSynchronously()
+        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        s = remove_tags(html)
+        self.failUnless("Reserved space: - 10.00 MB (10000000)" in s, s)
 
     def test_util(self):
-        self.failUnlessEqual(abbreviate_if_known(None), "?")
-        self.failUnlessEqual(abbreviate_if_known(10e6), "10.00MB")
+        w = StorageStatus(None)
+        self.failUnlessEqual(w.render_space(None, None), "?")
+        self.failUnlessEqual(w.render_space(None, 10e6), "10.00 MB (10000000)")
         self.failUnlessEqual(remove_prefix("foo.bar", "foo."), "bar")
         self.failUnlessEqual(remove_prefix("foo.bar", "baz."), None)
 
