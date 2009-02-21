@@ -8,6 +8,8 @@ from allmydata.interfaces import RIStorageServer, IStatsProducer
 from allmydata.util import base32, fileutil, log, time_format
 import allmydata # for __full_version__
 
+from allmydata.storage.common import si_b2a, si_a2b, storage_index_to_dir
+_pyflakes_hush = [si_b2a, si_a2b, storage_index_to_dir] # re-exported
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.mutable import MutableShareFile, EmptyShare, \
      create_mutable_sharefile
@@ -25,16 +27,6 @@ from allmydata.storage.immutable import ShareFile, BucketWriter, BucketReader
 
 # $SHARENUM matches this regex:
 NUM_RE=re.compile("^[0-9]+$")
-
-def si_b2a(storageindex):
-    return base32.b2a(storageindex)
-
-def si_a2b(ascii_storageindex):
-    return base32.a2b(ascii_storageindex)
-
-def storage_index_to_dir(storageindex):
-    sia = si_b2a(storageindex)
-    return os.path.join(sia[:2], sia)
 
 
 

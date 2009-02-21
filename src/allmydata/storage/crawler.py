@@ -3,7 +3,7 @@ import os, time, struct
 import cPickle as pickle
 from twisted.internet import reactor
 from twisted.application import service
-from allmydata.storage.server import si_b2a
+from allmydata.storage.common import si_b2a
 from allmydata.util import fileutil
 
 class TimeSliceExceeded(Exception):
