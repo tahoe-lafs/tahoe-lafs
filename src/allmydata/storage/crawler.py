@@ -373,7 +373,7 @@ class BucketCountingCrawler(ShareCrawler):
         if len(last_counts) == len(self.prefixes):
             # great, we have a whole cycle.
             num_buckets = sum(last_counts.values())
-            self.state["last-complete-bucket-count"] = (cycle, num_buckets)
+            self.state["last-complete-bucket-count"] = num_buckets
             # get rid of old counts
             for old_cycle in list(self.state["bucket-counts"].keys()):
                 if old_cycle != cycle:

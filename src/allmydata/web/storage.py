@@ -65,10 +65,9 @@ class StorageStatus(rend.Page):
 
     def data_last_complete_bucket_count(self, ctx, data):
         s = self.storage.bucket_counter.get_state()
-        lcbc = s.get("last-complete-bucket-count")
-        if lcbc is None:
+        count = s.get("last-complete-bucket-count")
+        if count is None:
             return "Not computed yet"
-        cycle, count = lcbc
         return count
 
     def render_count_crawler_status(self, ctx, storage):

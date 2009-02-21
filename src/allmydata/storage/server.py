@@ -173,8 +173,7 @@ class StorageServer(service.MultiService, Referenceable):
         s = self.bucket_counter.get_state()
         bucket_count = s.get("last-complete-bucket-count")
         if bucket_count:
-            cycle, count = bucket_count
-            stats["storage_server.total_bucket_count"] = count
+            stats["storage_server.total_bucket_count"] = bucket_count
         return stats
 
 
