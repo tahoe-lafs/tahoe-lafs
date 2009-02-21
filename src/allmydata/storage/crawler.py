@@ -75,12 +75,43 @@ class ShareCrawler(service.MultiService):
         self.current_sleep_time = None
         self.next_wake_time = None
 
+    def get_progress(self):
+        """I return information about how much progress the crawler is
+        making. My return value is a dictionary. The primary key is
+        'cycle-in-progress': True if the crawler is currently traversing the
+        shares, False if it is idle between cycles.
+
+        If cycle-in-progress is True, the following keys will be present::
+
+         cycle-complete-percentage': float, from 0.0 to 100.0, indicating how
+                                     far the crawler has progressed through
+                                     the current cycle
+         remaining-sleep-time: float, seconds from now when we do more work
+
+
+        If cycle-in-progress is False, the following keys are available::
+
+           next-crawl-time: float, seconds-since-epoch when next crawl starts
+
+           remaining-wait-time: float, seconds from now when next crawl starts
+        """
+
+        d = {}
+        if self.state["current-cycle"] is None:
+            assert self.sleeping_between_cycles
+            d["cycle-in-progress"] = False
+            d["next-crawl-time"] = self.next_wake_time
+            d["remaining-wait-time"] = self.next_wake_time - time.time()
+        else:
+            d["cycle-in-progress"] = True
+            pct = 100.0 * self.last_complete_prefix_index / len(self.prefixes)
+            d["cycle-complete-percentage"] = pct
+            d["remaining-sleep-time"] = self.next_wake_time - time.time()
+        return d
+
     def get_state(self):
         """I return the current state of the crawler. This is a copy of my
-        state dictionary, plus the following keys::
-
-         current-sleep-time: float, duration of our current sleep
-         next-wake-time: float, seconds-since-epoch of when we will next wake
+        state dictionary.
 
         If we are not currently sleeping (i.e. get_state() was called from
         inside the process_prefixdir, process_bucket, or finished_cycle()
@@ -88,8 +119,6 @@ class ShareCrawler(service.MultiService):
         these two keys will be None.
         """
         state = self.state.copy() # it isn't a deepcopy, so don't go crazy
-        state["current-sleep-time"] = self.current_sleep_time
-        state["next-wake-time"] = self.next_wake_time
         return state
 
     def load_state(self):

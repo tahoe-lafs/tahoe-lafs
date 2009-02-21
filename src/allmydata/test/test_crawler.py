@@ -31,6 +31,7 @@ class PacedCrawler(ShareCrawler):
         self.countdown = 6
         self.all_buckets = []
         self.finished_d = defer.Deferred()
+        self.yield_cb = None
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
         self.all_buckets.append(storage_index_b32)
         self.countdown -= 1
@@ -39,6 +40,8 @@ class PacedCrawler(ShareCrawler):
             self.cpu_slice = -1.0
     def yielding(self, sleep_time):
         self.cpu_slice = 500
+        if self.yield_cb:
+            self.yield_cb()
     def finished_cycle(self, cycle):
         eventual.eventually(self.finished_d.callback, None)
 
@@ -173,6 +176,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         # that should stop in the middle of one of the buckets.
         c.cpu_slice = PacedCrawler.cpu_slice
         self.failUnlessEqual(len(c.all_buckets), 6)
+
         c.start_current_prefix(time.time()) # finish it
         self.failUnlessEqual(len(sis), len(c.all_buckets))
         self.failUnlessEqual(sorted(sis), sorted(c.all_buckets))
@@ -252,18 +256,53 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
 
         statefile = os.path.join(self.basedir, "statefile")
         c = PacedCrawler(ss, statefile)
+
+        did_check_progress = [False]
+        def check_progress():
+            c.yield_cb = None
+            try:
+                p = c.get_progress()
+                self.failUnlessEqual(p["cycle-in-progress"], True)
+                pct = p["cycle-complete-percentage"]
+                # after 6 buckets, we happen to be at 76.17% complete. As
+                # long as we create shares in deterministic order, this will
+                # continue to be true.
+                self.failUnlessEqual(int(pct), 76)
+                left = p["remaining-sleep-time"]
+                self.failUnless(isinstance(left, float), left)
+                self.failUnless(left > 0.0, left)
+            except Exception, e:
+                did_check_progress[0] = e
+            else:
+                did_check_progress[0] = True
+        c.yield_cb = check_progress
+
         c.setServiceParent(self.s)
-        # that should get through 6 buckets, pause for a little while, then
-        # resume
+        # that should get through 6 buckets, pause for a little while (and
+        # run check_progress()), then resume
 
         d = c.finished_d
         def _check(ignored):
+            if did_check_progress[0] is not True:
+                raise did_check_progress[0]
+            self.failUnless(did_check_progress[0])
             self.failUnlessEqual(sorted(sis), sorted(c.all_buckets))
             # at this point, the crawler should be sitting in the inter-cycle
             # timer, which should be pegged at the minumum cycle time
             self.failUnless(c.timer)
             self.failUnless(c.sleeping_between_cycles)
             self.failUnlessEqual(c.current_sleep_time, c.minimum_cycle_time)
+
+            p = c.get_progress()
+            self.failUnlessEqual(p["cycle-in-progress"], False)
+            naptime = p["remaining-wait-time"]
+            self.failUnless(isinstance(naptime, float), naptime)
+            # min-cycle-time is 300, so this is basically testing that it took
+            # less than 290s to crawl
+            self.failUnless(naptime > 10.0, naptime)
+            soon = p["next-crawl-time"] - time.time()
+            self.failUnless(soon > 10.0, soon)
+
         d.addCallback(_check)
         return d
 
