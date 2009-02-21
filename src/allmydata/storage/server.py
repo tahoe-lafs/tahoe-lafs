@@ -170,6 +170,11 @@ class StorageServer(service.MultiService, Referenceable):
             # os.statvfs is available only on unix
             pass
         stats["storage_server.accepting_immutable_shares"] = int(writeable)
+        s = self.bucket_counter.get_state()
+        bucket_count = s.get("last-complete-bucket-count")
+        if bucket_count:
+            cycle, count = bucket_count
+            stats["storage_server.total_bucket_count"] = count
         return stats
 
 

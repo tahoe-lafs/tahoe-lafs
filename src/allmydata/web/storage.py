@@ -63,12 +63,12 @@ class StorageStatus(rend.Page):
         d.setdefault("disk_avail", None)
         return d
 
-    def data_last_complete_share_count(self, ctx, data):
+    def data_last_complete_bucket_count(self, ctx, data):
         s = self.storage.bucket_counter.get_state()
-        lcsc = s.get("last-complete-share-count")
-        if lcsc is None:
+        lcbc = s.get("last-complete-bucket-count")
+        if lcbc is None:
             return "Not computed yet"
-        cycle, count = lcsc
+        cycle, count = lcbc
         return count
 
     def render_count_crawler_status(self, ctx, storage):

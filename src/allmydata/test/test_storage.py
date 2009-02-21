@@ -1376,7 +1376,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             state = ss.bucket_counter.state
             self.failUnlessEqual(state["last-complete-prefix"],
                                  ss.bucket_counter.prefixes[0])
-            state["share-counts"][-12] = {}
+            state["bucket-counts"][-12] = {}
             state["storage-index-samples"]["bogusprefix!"] = (-12, [])
             ss.bucket_counter.save_state()
         d.addCallback(_after_first_prefix)
@@ -1388,7 +1388,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         def _check2(ignored):
             ss.bucket_counter.cpu_slice = orig_cpu_slice
             s = ss.bucket_counter.get_state()
-            self.failIf(-12 in s["share-counts"], s["share-counts"].keys())
+            self.failIf(-12 in s["bucket-counts"], s["bucket-counts"].keys())
             self.failIf("bogusprefix!" in s["storage-index-samples"],
                         s["storage-index-samples"].keys())
         d.addCallback(_check2)
