@@ -15,6 +15,7 @@ from common_util import StallMixin
 
 class BucketEnumeratingCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice
+    slow_start = 0
     def __init__(self, *args, **kwargs):
         ShareCrawler.__init__(self, *args, **kwargs)
         self.all_buckets = []
@@ -26,6 +27,7 @@ class BucketEnumeratingCrawler(ShareCrawler):
 
 class PacedCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice
+    slow_start = 0
     def __init__(self, *args, **kwargs):
         ShareCrawler.__init__(self, *args, **kwargs)
         self.countdown = 6
@@ -49,6 +51,7 @@ class ConsumingCrawler(ShareCrawler):
     cpu_slice = 0.5
     allowed_cpu_percentage = 0.5
     minimum_cycle_time = 0
+    slow_start = 0
 
     def __init__(self, *args, **kwargs):
         ShareCrawler.__init__(self, *args, **kwargs)
@@ -68,6 +71,7 @@ class ConsumingCrawler(ShareCrawler):
 
 class OneShotCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice
+    slow_start = 0
     def __init__(self, *args, **kwargs):
         ShareCrawler.__init__(self, *args, **kwargs)
         self.counter = 0
@@ -182,7 +186,10 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
             c.start_current_prefix(time.time())
         except TimeSliceExceeded:
             pass
-        # that should stop in the middle of one of the buckets.
+        # that should stop in the middle of one of the buckets. Since we
+        # aren't using its normal scheduler, we have to save its state
+        # manually.
+        c.save_state()
         c.cpu_slice = PacedCrawler.cpu_slice
         self.failUnlessEqual(len(c.all_buckets), 6)
 
@@ -204,7 +211,10 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
             c.start_current_prefix(time.time())
         except TimeSliceExceeded:
             pass
-        # that should stop in the middle of one of the buckets
+        # that should stop in the middle of one of the buckets. Since we
+        # aren't using its normal scheduler, we have to save its state
+        # manually.
+        c.save_state()
         c.cpu_slice = PacedCrawler.cpu_slice
 
         # a third crawler should pick up from where it left off
@@ -226,7 +236,9 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
             c.start_current_prefix(time.time())
         except TimeSliceExceeded:
             pass
-        # that should stop at the end of one of the buckets.
+        # that should stop at the end of one of the buckets. Again we must
+        # save state manually.
+        c.save_state()
         c.cpu_slice = PacedCrawler.cpu_slice
         self.failUnlessEqual(len(c.all_buckets), 4)
         c.start_current_prefix(time.time()) # finish it
@@ -244,6 +256,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         except TimeSliceExceeded:
             pass
         # that should stop at the end of one of the buckets.
+        c.save_state()
 
         c2 = PacedCrawler(ss, statefile)
         c2.all_buckets = c.all_buckets[:]
@@ -376,6 +389,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
 
         statefile = os.path.join(self.basedir, "statefile")
         c = ShareCrawler(ss, statefile)
+        c.slow_start = 0
         c.setServiceParent(self.s)
 
         # we just let it run for a while, to get figleaf coverage of the

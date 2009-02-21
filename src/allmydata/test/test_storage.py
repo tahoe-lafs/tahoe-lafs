@@ -1312,7 +1312,9 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         fileutil.make_dirs(basedir)
         ss = StorageServer(basedir, "\x00" * 20)
         # to make sure we capture the bucket-counting-crawler in the middle
-        # of a cycle, we reach in and reduce its maximum slice time to 0.
+        # of a cycle, we reach in and reduce its maximum slice time to 0. We
+        # also make it start sooner than usual.
+        ss.bucket_counter.slow_start = 0
         orig_cpu_slice = ss.bucket_counter.cpu_slice
         ss.bucket_counter.cpu_slice = 0
         ss.setServiceParent(self.s)
@@ -1364,6 +1366,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         ss = StorageServer(basedir, "\x00" * 20)
         # to make sure we capture the bucket-counting-crawler in the middle
         # of a cycle, we reach in and reduce its maximum slice time to 0.
+        ss.bucket_counter.slow_start = 0
         orig_cpu_slice = ss.bucket_counter.cpu_slice
         ss.bucket_counter.cpu_slice = 0
         ss.setServiceParent(self.s)
