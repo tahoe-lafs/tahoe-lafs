@@ -74,6 +74,7 @@ class ShareCrawler(service.MultiService):
         self.bucket_cache = (None, [])
         self.current_sleep_time = None
         self.next_wake_time = None
+        self.load_state()
 
     def get_progress(self):
         """I return information about how much progress the crawler is
@@ -182,7 +183,6 @@ class ShareCrawler(service.MultiService):
         fileutil.move_into_place(tmpfile, self.statefile)
 
     def startService(self):
-        self.load_state()
         # arrange things to look like we were just sleeping, so
         # status/progress values work correctly
         self.sleeping_between_cycles = True
