@@ -231,6 +231,7 @@ class Server(unittest.TestCase):
 
     def setUp(self):
         self.sparent = LoggingServiceParent()
+        self.sparent.startService()
         self._lease_secret = itertools.count()
     def tearDown(self):
         return self.sparent.stopService()
