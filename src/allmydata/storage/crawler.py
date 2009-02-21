@@ -260,7 +260,7 @@ class ShareCrawler(service.MultiService):
                                    buckets, start_slice)
             self.last_complete_prefix_index = i
             self.save_state()
-            if time.time() > start_slice + self.cpu_slice:
+            if time.time() >= start_slice + self.cpu_slice:
                 raise TimeSliceExceeded()
         # yay! we finished the whole cycle
         self.last_complete_prefix_index = -1
@@ -287,7 +287,7 @@ class ShareCrawler(service.MultiService):
             # time-consuming, but lets us avoid losing more than one bucket's
             # worth of progress.
             self.save_state()
-            if time.time() > start_slice + self.cpu_slice:
+            if time.time() >= start_slice + self.cpu_slice:
                 raise TimeSliceExceeded()
 
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
