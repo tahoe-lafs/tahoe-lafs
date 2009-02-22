@@ -210,10 +210,9 @@ class BackupOptions(VDriveOptions):
         ("ignore-timestamps", None, "Do not use backupdb timestamps to decide if a local file is unchanged."),
         ]
 
-    vcs_patterns = ('CVS', 'RCS', 'SCCS', '.git', '.gitignore', '.cvsignore','.svn',
+    vcs_patterns = ('CVS', 'RCS', 'SCCS', '.git', '.gitignore', '.cvsignore', '.svn',
                    '.arch-ids','{arch}', '=RELEASE-ID', '=meta-update', '=update',
-                   '.bzr', '.bzrignore', '.bzrtags', '.hg', '.hgignore', '.hgrags',
-                   '_darcs')
+                   '.bzr', '.bzrignore', '.bzrtags', '.hg', '.hgignore', '_darcs')
 
     def __init__(self):
         super(BackupOptions, self).__init__()
