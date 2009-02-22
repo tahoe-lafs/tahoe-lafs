@@ -948,8 +948,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             all = set(all)
             included = set(included)
             excluded = set(excluded)
-            self.failUnless(filtered == included)
-            self.failUnless(all.difference(filtered) == excluded)
+            self.failUnlessEqual(filtered, included)
+            self.failUnlessEqual(all.difference(filtered), excluded)
 
         # test simple exclude
         backup_options = cli.BackupOptions()

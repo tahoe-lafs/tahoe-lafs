@@ -1,4 +1,3 @@
-
 import os.path, re, sys, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import BaseOptions, get_aliases
@@ -466,4 +465,3 @@ dispatch = {
     "check": check,
     "deep-check": deepcheck,
     }
-
