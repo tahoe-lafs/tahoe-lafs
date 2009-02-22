@@ -1,5 +1,5 @@
 
-import os.path, re, sys
+import os.path, re, sys, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import BaseOptions, get_aliases
 
@@ -200,6 +200,9 @@ class LnOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s ln FROM TO" % (os.path.basename(sys.argv[0]),)
 
+class BackupConfigurationError(Exception):
+    pass
+
 class BackupOptions(VDriveOptions):
     optFlags = [
         ("verbose", "v", "Be noisy about what is happening."),
@@ -207,12 +210,63 @@ class BackupOptions(VDriveOptions):
         ("ignore-timestamps", None, "Do not use backupdb timestamps to decide if a local file is unchanged."),
         ]
 
+    vcs_patterns = ('CVS', 'RCS', 'SCCS', '.git', '.gitignore', '.cvsignore','.svn',
+                   '.arch-ids','{arch}', '=RELEASE-ID', '=meta-update', '=update',
+                   '.bzr', '.bzrignore', '.bzrtags', '.hg', '.hgignore', '.hgrags',
+                   '_darcs')
+
+    def __init__(self):
+        super(BackupOptions, self).__init__()
+        self['exclude'] = []
+
     def parseArgs(self, localdir, topath):
         self.from_dir = localdir
         self.to_dir = topath
 
     def getSynopsis(Self):
         return "%s backup FROM ALIAS:TO" % os.path.basename(sys.argv[0])
+
+    def opt_exclude(self, pattern):
+        """Ignore files matching a glob pattern. You may give multiple
+        '--exclude' options."""
+        g = pattern.strip()
+        if g:
+            exclude = self['exclude']
+            if g not in exclude:
+                exclude.append(g)
+
+    def opt_exclude_from(self, filepath):
+        """Ignore file matching glob patterns listed in file, one per
+        line."""
+        try:
+            exclude_file = file(filepath)
+        except:
+            raise BackupConfigurationError('Error opening exclude file %r.' % filepath)
+        try:
+            for line in exclude_file:
+                self.opt_exclude(line)
+        finally:
+            exclude_file.close()
+
+    def opt_exclude_vcs(self):
+        """Exclude files and directories used by following version
+        control systems: 'CVS', 'RCS', 'SCCS', 'SVN', 'Arch',
+        'Bazaar', 'Mercurial', and 'Darcs'."""
+        for pattern in self.vcs_patterns:
+            self.opt_exclude(pattern)
+
+    def filter_listdir(self, listdir):
+        """Yields non-excluded childpaths in path."""
+        exclude = self['exclude']
+        excluded_dirmembers = []
+        if listdir and exclude:
+            # expand patterns with a reduce taste
+            for pattern in exclude:
+                excluded_dirmembers += fnmatch.filter(listdir, pattern)
+        # do subtraction
+        for filename in listdir:
+            if filename not in excluded_dirmembers:
+                yield filename
 
     longdesc = """Add a versioned backup of the local FROM directory to a timestamped subdir of the (tahoe) TO/Archives directory, sharing as many files and directories as possible with the previous backup. Creates TO/Latest as a reference to the latest backup. Behaves somewhat like 'rsync -a --link-dest=TO/Archives/(previous) FROM TO/Archives/(new); ln -sf TO/Archives/(new) TO/Latest'."""
 

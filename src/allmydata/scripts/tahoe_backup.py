@@ -237,7 +237,7 @@ class BackerUpper:
             olddircontents = self.readdir(olddircap)
 
         newdircontents = {} # childname -> (type, rocap, metadata)
-        for child in os.listdir(localpath):
+        for child in self.options.filter_listdir(os.listdir(localpath)):
             childpath = os.path.join(localpath, child)
             if os.path.isdir(childpath):
                 metadata = get_local_metadata(childpath)
