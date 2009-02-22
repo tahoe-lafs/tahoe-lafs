@@ -322,6 +322,14 @@ class Help(unittest.TestCase):
         help = str(cli.DeepCheckOptions())
         self.failUnless("deep-check [ALIAS:PATH]" in help, help)
 
+    def test_create_alias(self):
+        help = str(cli.CreateAliasOptions())
+        self.failUnless("create-alias ALIAS" in help, help)
+
+    def test_add_aliases(self):
+        help = str(cli.AddAliasOptions())
+        self.failUnless("add-alias ALIAS DIRCAP" in help, help)
+
 class CLITestMixin:
     def do_cli(self, verb, *args, **kwargs):
         nodeargs = [
