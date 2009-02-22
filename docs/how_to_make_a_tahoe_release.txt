@@ -1,16 +1,18 @@
-* update doc files: relnotes.txt, CREDITS, docs/known_issues.txt, NEWS
-* change docs/install.html to point to just the tahoe-1.3.0.zip source code file, or else to point to a directory which contains only tahoe-1.3.0.* source code files
-* make tag
-* make sure buildbot is green
-* make sure other people aren't committing at that moment
-* push tag along with some other patch to trigger buildslaves
-* make sure buildbot is green
-* make sure debs got built and uploaded properly
-* make sure a sumo sdist tarball got built and uploaded properly
-* send out relnotes.txt
- x  + tahoe-announce@lists.allmydata.org, tahoe-dev@lists.allmydata.org, p2p-hackers@lists.zooko.com, lwn@lwn.net, cap-talk@mail.eros-os.org, cryptography@metzdown.com, twisted-python@twistedmatrix.com, fuse-devel@lists.sourceforge.net, duplicity-talk@nongnu.org, news@phoronix.com, python-list@python.org
-* update Wiki: front page news, news, old news, parade of release notes
-* update "current version" information and make an "announcement of new release" on freshmeat
-* upload to pypi with "make make-version && python ./setup.py sdist upload register"
-* update "current version" information and make an "announcement of new release" on launchpad
-* symlink the release tarball on allmydata.org: /var/www/source/tahoe/releases/
+1 update doc files: relnotes.txt, CREDITS, docs/known_issues.txt, NEWS
+2 change docs/install.html to point to just the tahoe-1.3.0.zip source code file, or else to point to a directory which contains only tahoe-1.3.0.* source code files
+3 make tag
+4 make sure buildbot is green
+5 make sure other people aren't committing at that moment
+6 push tag along with some other patch to trigger buildslaves
+7 make sure buildbot is green
+7 make sure debs got built and uploaded properly
+8 make sure a sumo sdist tarball got built and uploaded properly
+9 send out relnotes.txt
+  tahoe-announce@lists.allmydata.org, tahoe-dev@lists.allmydata.org, p2p-hackers@lists.zooko.com, lwn@lwn.net, cap-talk@mail.eros-os.org, cryptography@metzdown.com, twisted-python@twistedmatrix.com, fuse-devel@lists.sourceforge.net, duplicity-talk@nongnu.org, news@phoronix.com, python-list@python.org, cygwin@cygwin.com, linked in cloud storage group, The Boulder Linux Users' Group, cryptopp-users@googlegroups.com
+10 update Wiki: x front page news, x news, old news, x parade of release notes
+11 update hacktahoe.org
+12 update "current version" information and make an "announcement of new release" on freshmeat
+13 upload to pypi with "make make-version && python ./setup.py sdist upload register"
+14 update "current version" information and make an "announcement of new release" on launchpad
+15 symlink the release tarball on allmydata.org: /var/www/source/tahoe/releases/
+16 close the Milestone on the trac Roadmap
