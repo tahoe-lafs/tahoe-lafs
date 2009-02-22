@@ -939,6 +939,54 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     # and check4a takes 6s, as does the backup before check4b.
     test_backup.timeout = 300
 
+    def test_exclude_options(self):
+        root_listdir = ('lib.a', '_darcs', 'subdir', 'nice_doc.lyx')
+        subdir_listdir = ('another_doc.lyx', 'run_snake_run.py', 'CVS', '.svn', '_darcs')
+
+        def _check_filtering(filtered, all, included, excluded):
+            filtered = set(filtered)
+            all = set(all)
+            included = set(included)
+            excluded = set(excluded)
+            self.failUnless(filtered == included)
+            self.failUnless(all.difference(filtered) == excluded)
+
+        # test simple exclude
+        backup_options = cli.BackupOptions()
+        backup_options.parseOptions(['--exclude', '*lyx', 'from', 'to'])
+        filtered = list(backup_options.filter_listdir(root_listdir))
+        _check_filtering(filtered, root_listdir, ('lib.a', '_darcs', 'subdir'),
+                         ('nice_doc.lyx',))
+        # multiple exclude
+        backup_options = cli.BackupOptions()
+        backup_options.parseOptions(['--exclude', '*lyx', '--exclude', 'lib.?', 'from', 'to'])
+        filtered = list(backup_options.filter_listdir(root_listdir))
+        _check_filtering(filtered, root_listdir, ('_darcs', 'subdir'),
+                         ('nice_doc.lyx', 'lib.a'))
+        # vcs metadata exclusion
+        backup_options = cli.BackupOptions()
+        backup_options.parseOptions(['--exclude-vcs', 'from', 'to'])
+        filtered = list(backup_options.filter_listdir(subdir_listdir))
+        _check_filtering(filtered, subdir_listdir, ('another_doc.lyx', 'run_snake_run.py',),
+                         ('CVS', '.svn', '_darcs'))
+        # read exclude patterns from file
+        basedir = os.path.dirname(self.mktemp())
+        exclusion_string = "_darcs\n*py\n.svn"
+        excl_filepath = os.path.join(basedir, 'exclusion')
+        excl_file = file(excl_filepath, 'w')
+        excl_file.write(exclusion_string)
+        excl_file.close()
+        backup_options = cli.BackupOptions()
+        backup_options.parseOptions(['--exclude-from', excl_filepath, 'from', 'to'])
+        filtered = list(backup_options.filter_listdir(subdir_listdir))
+        _check_filtering(filtered, subdir_listdir, ('another_doc.lyx', 'CVS'),
+                         ('.svn', '_darcs', 'run_snake_run.py'))
+        # text BackupConfigurationError
+        self.failUnlessRaises(cli.BackupConfigurationError,
+                              backup_options.parseOptions,
+                              ['--exclude-from', excl_filepath + '.no', 'from', 'to'])
+
+
 class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_check(self):
