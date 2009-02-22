@@ -953,19 +953,22 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         # test simple exclude
         backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', '*lyx', 'from', 'to'])
+        backup_options.parseOptions(['--exclude', '*lyx', '--node-url',
+                                     'http://ignore.it:2357', 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         _check_filtering(filtered, root_listdir, ('lib.a', '_darcs', 'subdir'),
                          ('nice_doc.lyx',))
         # multiple exclude
         backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', '*lyx', '--exclude', 'lib.?', 'from', 'to'])
+        backup_options.parseOptions(['--exclude', '*lyx', '--exclude', 'lib.?', '--node-url',
+                                     'http://ignore.it:2357', 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         _check_filtering(filtered, root_listdir, ('_darcs', 'subdir'),
                          ('nice_doc.lyx', 'lib.a'))
         # vcs metadata exclusion
         backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude-vcs', 'from', 'to'])
+        backup_options.parseOptions(['--exclude-vcs', '--node-url',
+                                     'http://ignore.it:2357', 'from', 'to'])
         filtered = list(backup_options.filter_listdir(subdir_listdir))
         _check_filtering(filtered, subdir_listdir, ('another_doc.lyx', 'run_snake_run.py',),
                          ('CVS', '.svn', '_darcs'))
@@ -977,14 +980,16 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         excl_file.write(exclusion_string)
         excl_file.close()
         backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude-from', excl_filepath, 'from', 'to'])
+        backup_options.parseOptions(['--exclude-from', excl_filepath, '--node-url',
+                                     'http://ignore.it:2357', 'from', 'to'])
         filtered = list(backup_options.filter_listdir(subdir_listdir))
         _check_filtering(filtered, subdir_listdir, ('another_doc.lyx', 'CVS'),
                          ('.svn', '_darcs', 'run_snake_run.py'))
         # text BackupConfigurationError
         self.failUnlessRaises(cli.BackupConfigurationError,
                               backup_options.parseOptions,
-                              ['--exclude-from', excl_filepath + '.no', 'from', 'to'])
+                              ['--exclude-from', excl_filepath + '.no', '--node-url',
+                               'http://ignore.it:2357', 'from', 'to'])
 
 
 class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
