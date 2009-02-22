@@ -991,6 +991,13 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
                               ['--exclude-from', excl_filepath + '.no', '--node-url',
                                'http://ignore.it:2357', 'from', 'to'])
 
+        # test that an iterator works too
+        backup_options = cli.BackupOptions()
+        backup_options.parseOptions(['--exclude', '*lyx', '--node-url',
+                                     'http://ignore.it:2357', 'from', 'to'])
+        filtered = list(backup_options.filter_listdir(iter(root_listdir)))
+        _check_filtering(filtered, root_listdir, ('lib.a', '_darcs', 'subdir'),
+                         ('nice_doc.lyx',))
 
 class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
