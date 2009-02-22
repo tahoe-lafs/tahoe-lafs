@@ -74,3 +74,9 @@ D: security bug report (cleartext credentials to allmydata.com), darcsver bugfix
 N: Kevin Reid
 E: kpreid@mac.com
 D: security bug report (process table command line arguments), W3 standards
+
+N: Alberto Berti
+E: alberto@metapensiero.it
+W: http://www.metapensiero.it
+S: via Filatoi, 1 38068 Rovereto (TN), Italy
+D: improvements to the CLI: exclude patterns, usage text
