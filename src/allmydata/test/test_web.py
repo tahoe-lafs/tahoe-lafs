@@ -2530,6 +2530,18 @@ class Util(unittest.TestCase):
         self.failUnlessEqual(common.abbreviate_size(1230), "1.2kB")
         self.failUnlessEqual(common.abbreviate_size(123), "123B")
 
+    def test_plural(self):
+        def convert(s):
+            return "%d second%s" % (s, status.plural(s))
+        self.failUnlessEqual(convert(0), "0 seconds")
+        self.failUnlessEqual(convert(1), "1 second")
+        self.failUnlessEqual(convert(2), "2 seconds")
+        def convert2(s):
+            return "has share%s: %s" % (status.plural(s), ",".join(s))
+        self.failUnlessEqual(convert2([]), "has shares: ")
+        self.failUnlessEqual(convert2(["1"]), "has share: 1")
+        self.failUnlessEqual(convert2(["1","2"]), "has shares: 1,2")
+
 
 class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
 
