@@ -113,6 +113,9 @@ def directory_is_changed(a, b):
                 return True
     return False
 
+class BackupProcessingError(Exception):
+    pass
+
 class BackerUpper:
     def __init__(self, options):
         self.options = options
@@ -248,7 +251,7 @@ class BackerUpper:
                 newfilecap, metadata = self.upload(childpath)
                 newdircontents[child] = ("filenode", newfilecap, metadata)
             else:
-                raise RuntimeError("how do I back this up?")
+                raise BackupProcessingError("Cannot backup this file %r" % childpath)
 
         if (olddircap
             and olddircontents is not None
