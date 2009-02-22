@@ -537,7 +537,7 @@ class StorageServer(service.MultiService, Referenceable):
                                     reason):
         fileutil.make_dirs(self.corruption_advisory_dir)
         now = time_format.iso_utc(sep="T")
-        si_s = base32.b2a(storage_index)
+        si_s = si_b2a(storage_index)
         # windows can't handle colons in the filename
         fn = os.path.join(self.corruption_advisory_dir,
                           "%s--%s-%d" % (now, si_s, shnum)).replace(":","")
