@@ -216,7 +216,7 @@ class BackupOptions(VDriveOptions):
 
     def __init__(self):
         super(BackupOptions, self).__init__()
-        self['exclude'] = []
+        self['exclude'] = set()
 
     def parseArgs(self, localdir, topath):
         self.from_dir = localdir
@@ -231,8 +231,7 @@ class BackupOptions(VDriveOptions):
         g = pattern.strip()
         if g:
             exclude = self['exclude']
-            if g not in exclude:
-                exclude.append(g)
+            exclude.add(g)
 
     def opt_exclude_from(self, filepath):
         """Ignore file matching glob patterns listed in file, one per
@@ -257,14 +256,12 @@ class BackupOptions(VDriveOptions):
     def filter_listdir(self, listdir):
         """Yields non-excluded childpaths in path."""
         exclude = self['exclude']
-        excluded_dirmembers = []
-        if listdir and exclude:
-            # expand patterns with a reduce taste
-            for pattern in exclude:
-                excluded_dirmembers += fnmatch.filter(listdir, pattern)
-        # do subtraction
+        exclude_regexps = [re.compile(fnmatch.translate(pat)) for pat in exclude]
         for filename in listdir:
-            if filename not in excluded_dirmembers:
+            for regexp in exclude_regexps:
+                if regexp.match(filename):
+                    break
+            else:
                 yield filename
 
     longdesc = """Add a versioned backup of the local FROM directory to a timestamped subdir of the (tahoe) TO/Archives directory, sharing as many files and directories as possible with the previous backup. Creates TO/Latest as a reference to the latest backup. Behaves somewhat like 'rsync -a --link-dest=TO/Archives/(previous) FROM TO/Archives/(new); ln -sf TO/Archives/(new) TO/Latest'."""
