@@ -191,9 +191,7 @@ class LiteralCheckResults(rend.Page, ResultsBase):
 
     def json(self, ctx):
         inevow.IRequest(ctx).setHeader("content-type", "text/plain")
-        data = {"storage-index": "",
-                "results": {"healthy": True},
-                }
+        data = json_check_results(None)
         return simplejson.dumps(data, indent=1) + "\n"
 
     def render_return(self, ctx, data):
@@ -266,7 +264,9 @@ class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
 
     def __init__(self, client, results):
         self.client = client
-        self.r = ICheckAndRepairResults(results)
+        self.r = None
+        if results:
+            self.r = ICheckAndRepairResults(results)
         rend.Page.__init__(self, results)
 
     def json(self, ctx):
