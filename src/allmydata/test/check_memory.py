@@ -57,6 +57,9 @@ def discardPage(url, stall=False, *args, **kwargs):
     reactor.connectTCP(host, port, factory)
     return factory.deferred
 
+class ChildDidNotStartError(Exception):
+    pass
+
 class SystemFramework(pollmixin.PollMixin):
     numnodes = 5
 
@@ -274,7 +277,7 @@ this file are ignored.
                 # the twistd process ends normally (with rc=0) if the child
                 # is successfully launched. It ends abnormally (with rc!=0)
                 # if the child cannot be launched.
-                raise RuntimeError("process ended while waiting for startup")
+                raise ChildDidNotStartError("process ended while waiting for startup")
             return os.path.exists(furl_file)
         d = self.poll(_check, 0.1)
         # once it exists, wait a moment before we read from it, just in case
@@ -399,7 +402,7 @@ this file are ignored.
             d.addCallback(lambda res: u.upload(upload.FileName(files[name], convergence="check-memory convergence string")))
             d.addCallback(lambda results: results.uri)
         else:
-            raise RuntimeError("unknown mode=%s" % self.mode)
+            raise ValueError("unknown mode=%s" % self.mode)
         def _complete(uri):
             uris[name] = uri
             print "uploaded %s" % name

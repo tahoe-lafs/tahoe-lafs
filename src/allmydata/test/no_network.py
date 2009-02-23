@@ -115,7 +115,7 @@ class NoNetworkClient(Client):
     def stopService(self):
         service.MultiService.stopService(self)
     def when_tub_ready(self):
-        raise RuntimeError("NoNetworkClient has no Tub")
+        raise NotImplementedError("NoNetworkClient has no Tub")
     def init_control(self):
         pass
     def init_helper(self):
