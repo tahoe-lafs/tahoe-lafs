@@ -19,7 +19,7 @@ class SkipOnCygwinMixin:
         if "cygwin" in sys.platform.lower():
             raise unittest.SkipTest("We don't know how to make this test work on cygwin: spawnProcess seems to hang forever. We don't know if 'bin/tahoe start' can be run on cygwin.")
 
-class TheRightCode(unittest.TestCase, common_util.SignalMixin,
+class TheRightCode(common_util.SignalMixin, unittest.TestCase,
                    SkipOnCygwinMixin):
     def test_path(self):
         self.skip_on_cygwin()
@@ -207,7 +207,7 @@ class CreateNode(unittest.TestCase):
                               run_by_human=False)
 
 
-class RunNode(unittest.TestCase, pollmixin.PollMixin, common_util.SignalMixin,
+class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
               SkipOnCygwinMixin):
     # exercise "tahoe start", for both introducer, client node, and
     # key-generator, by spawning "tahoe start" as a subprocess. This doesn't

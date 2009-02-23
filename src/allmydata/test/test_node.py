@@ -18,12 +18,14 @@ class TestNode(Node):
     CERTFILE='DEFAULT_CERTFILE_BLANK'
     PORTNUMFILE='DEFAULT_PORTNUMFILE_BLANK'
 
-class TestCase(unittest.TestCase, testutil.SignalMixin):
+class TestCase(testutil.SignalMixin, unittest.TestCase):
     def setUp(self):
+        testutil.SignalMixin.setUp(self)
         self.parent = LoggingMultiService()
         self.parent.startService()
     def tearDown(self):
         log.msg("%s.tearDown" % self.__class__.__name__)
+        testutil.SignalMixin.tearDown(self)
         d = defer.succeed(None)
         d.addCallback(lambda res: self.parent.stopService())
         d.addCallback(flushEventualQueue)

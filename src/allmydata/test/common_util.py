@@ -28,10 +28,11 @@ def flip_one_bit(s, offset=0, size=None):
 class SignalMixin:
     # This class is necessary for any code which wants to use Processes
     # outside the usual reactor.run() environment. It is copied from
-    # Twisted's twisted.test.test_process
+    # Twisted's twisted.test.test_process . Note that Twisted-8.2.0 uses
+    # something rather different.
     sigchldHandler = None
 
-    def setUpClass(self):
+    def setUp(self):
         # make sure SIGCHLD handler is installed, as it should be on
         # reactor.run(). problem is reactor may not have been run when this
         # test runs.
@@ -39,7 +40,7 @@ class SignalMixin:
             self.sigchldHandler = signal.signal(signal.SIGCHLD,
                                                 reactor._handleSigchld)
 
-    def tearDownClass(self):
+    def tearDown(self):
         if self.sigchldHandler:
             signal.signal(signal.SIGCHLD, self.sigchldHandler)
 
@@ -79,6 +80,7 @@ class TestMixin(SignalMixin):
             to without access to real randomness and real time.time from the
             code under test
         """
+        SignalMixin.setUp(self)
         self.repeatable = repeatable
         if self.repeatable:
             import repeatable_random
@@ -89,6 +91,7 @@ class TestMixin(SignalMixin):
             self.teststarttime = time.time()
 
     def tearDown(self):
+        SignalMixin.tearDown(self)
         if self.repeatable:
             import repeatable_random
             repeatable_random.restore_non_repeatability()
