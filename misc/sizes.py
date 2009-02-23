@@ -114,7 +114,7 @@ class Sizes:
             
 
         else:
-            raise RuntimeError("unknown mode '%s" % mode)
+            raise ValueError("unknown mode '%s" % mode)
 
         self.storage_overhead = self.share_storage_overhead * num_shares
         self.storage_overhead_percentage = 100.0 * self.storage_overhead / file_size

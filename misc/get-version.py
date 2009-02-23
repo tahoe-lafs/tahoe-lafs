@@ -28,7 +28,7 @@ def get_version():
         if mo:
             verstr = mo.group(1)
         else:
-            raise RuntimeError("if version.py exists, it must be well-formed")
+            raise ValueError("if version.py exists, it must be well-formed")
 
     return verstr
 

@@ -31,7 +31,7 @@ class Options(usage.Options):
                 fn = os.path.join(target, "logport.furl")
                 self.target_furl = open(fn, "r").read().strip()
             else:
-                raise RuntimeError("Can't use tail target: %s" % target)
+                raise ValueError("Can't use tail target: %s" % target)
         elif mode == "dump":
             self.dumpfile = args[0]
 
