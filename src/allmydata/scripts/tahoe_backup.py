@@ -9,9 +9,12 @@ from allmydata import uri
 from allmydata.util import time_format
 from allmydata.scripts import backupdb
 
+class HTTPError(Exception):
+    pass
+
 def raiseHTTPError(msg, resp):
     msg = msg + ": %s %s %s" % (resp.status, resp.reason, resp.read())
-    raise RuntimeError(msg)
+    raise HTTPError(msg)
 
 def readonly(writedircap):
     return uri.from_string_dirnode(writedircap).get_readonly().to_string()
