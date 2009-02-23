@@ -51,17 +51,17 @@ class HumanReadable(unittest.TestCase):
         self.failUnlessEqual(hr([1,2]), "[1, 2]")
         self.failUnlessEqual(hr({1:2}), "{1:2}")
         try:
-            raise RuntimeError
+            raise ValueError
         except Exception, e:
             self.failUnless(
-                hr(e) == "<RuntimeError: ()>" # python-2.4
-                or hr(e) == "RuntimeError()") # python-2.5
+                hr(e) == "<ValueError: ()>" # python-2.4
+                or hr(e) == "ValueError()") # python-2.5
         try:
-            raise RuntimeError("oops")
+            raise ValueError("oops")
         except Exception, e:
             self.failUnless(
-                hr(e) == "<RuntimeError: 'oops'>" # python-2.4
-                or hr(e) == "RuntimeError('oops',)") # python-2.5
+                hr(e) == "<ValueError: 'oops'>" # python-2.4
+                or hr(e) == "ValueError('oops',)") # python-2.5
         try:
             raise NoArgumentException
         except Exception, e:
@@ -531,12 +531,12 @@ class DeferredUtilTests(unittest.TestCase):
         d1.addErrback(lambda _ignore: None)
         d2.addErrback(lambda _ignore: None)
         d1.callback(1)
-        d2.errback(RuntimeError())
+        d2.errback(ValueError())
         self.failUnlessEqual(good, [])
         self.failUnlessEqual(len(bad), 1)
         f = bad[0]
         self.failUnless(isinstance(f, failure.Failure))
-        self.failUnless(f.check(RuntimeError))
+        self.failUnless(f.check(ValueError))
 
 class HashUtilTests(unittest.TestCase):
 
@@ -694,7 +694,7 @@ class Limiter(unittest.TestCase):
         return d
 
     def bad_job(self, i, foo):
-        raise RuntimeError("bad_job %d" % i)
+        raise ValueError("bad_job %d" % i)
 
     def test_limiter(self):
         self.calls = []
@@ -740,7 +740,7 @@ class Limiter(unittest.TestCase):
             def _good(res):
                 self.fail("should have failed, not got %s" % (res,))
             def _err(f):
-                f.trap(RuntimeError)
+                f.trap(ValueError)
                 self.failUnless("bad_job 21" in str(f))
             d2.addCallbacks(_good, _err)
             return d2

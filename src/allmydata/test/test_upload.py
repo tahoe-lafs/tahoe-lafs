@@ -182,6 +182,9 @@ class FakeClient:
     def get_cancel_secret(self):
         return ""
 
+class GotTooFarError(Exception):
+    pass
+
 class GiganticUploadable(upload.FileHandle):
     def __init__(self, size):
         self._size = size
@@ -197,7 +200,7 @@ class GiganticUploadable(upload.FileHandle):
         self._fp += length
         if self._fp > 1000000:
             # terminate the test early.
-            raise RuntimeError("we shouldn't be allowed to get this far")
+            raise GotTooFarError("we shouldn't be allowed to get this far")
         return defer.succeed(["\x00" * length])
     def close(self):
         pass

@@ -2973,7 +2973,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
                 sf = ShareFile(fn)
                 num_leases = len(list(sf.iter_leases()))
             else:
-                raise RuntimeError("can't get leases on %s" % u)
+                raise ValueError("can't count leases on %s" % u)
         lease_counts.append( (fn, num_leases) )
         return lease_counts
 
