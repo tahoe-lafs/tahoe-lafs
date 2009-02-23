@@ -942,6 +942,11 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     def test_exclude_options(self):
         root_listdir = ('lib.a', '_darcs', 'subdir', 'nice_doc.lyx')
         subdir_listdir = ('another_doc.lyx', 'run_snake_run.py', 'CVS', '.svn', '_darcs')
+        basedir = os.path.dirname(self.mktemp())
+        nodeurl_path = os.path.join(basedir, 'node.url')
+        nodeurl = file(nodeurl_path, 'w')
+        nodeurl.write('http://example.net:2357/')
+        nodeurl.close()
 
         def _check_filtering(filtered, all, included, excluded):
             filtered = set(filtered)
@@ -953,48 +958,47 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         # test simple exclude
         backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', '*lyx', '--node-url',
-                                     'http://ignore.it:2357', 'from', 'to'])
+        backup_options.parseOptions(['--exclude', '*lyx', '--node-directory',
+                                     basedir, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         _check_filtering(filtered, root_listdir, ('lib.a', '_darcs', 'subdir'),
                          ('nice_doc.lyx',))
         # multiple exclude
         backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', '*lyx', '--exclude', 'lib.?', '--node-url',
-                                     'http://ignore.it:2357', 'from', 'to'])
+        backup_options.parseOptions(['--exclude', '*lyx', '--exclude', 'lib.?', '--node-directory',
+                                     basedir, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         _check_filtering(filtered, root_listdir, ('_darcs', 'subdir'),
                          ('nice_doc.lyx', 'lib.a'))
         # vcs metadata exclusion
         backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude-vcs', '--node-url',
-                                     'http://ignore.it:2357', 'from', 'to'])
+        backup_options.parseOptions(['--exclude-vcs', '--node-directory',
+                                     basedir, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(subdir_listdir))
         _check_filtering(filtered, subdir_listdir, ('another_doc.lyx', 'run_snake_run.py',),
                          ('CVS', '.svn', '_darcs'))
         # read exclude patterns from file
-        basedir = os.path.dirname(self.mktemp())
         exclusion_string = "_darcs\n*py\n.svn"
         excl_filepath = os.path.join(basedir, 'exclusion')
         excl_file = file(excl_filepath, 'w')
         excl_file.write(exclusion_string)
         excl_file.close()
         backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude-from', excl_filepath, '--node-url',
-                                     'http://ignore.it:2357', 'from', 'to'])
+        backup_options.parseOptions(['--exclude-from', excl_filepath, '--node-directory',
+                                     basedir, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(subdir_listdir))
         _check_filtering(filtered, subdir_listdir, ('another_doc.lyx', 'CVS'),
                          ('.svn', '_darcs', 'run_snake_run.py'))
         # text BackupConfigurationError
         self.failUnlessRaises(cli.BackupConfigurationError,
                               backup_options.parseOptions,
-                              ['--exclude-from', excl_filepath + '.no', '--node-url',
-                               'http://ignore.it:2357', 'from', 'to'])
+                              ['--exclude-from', excl_filepath + '.no', '--node-directory',
+                               basedir, 'from', 'to'])
 
         # test that an iterator works too
         backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', '*lyx', '--node-url',
-                                     'http://ignore.it:2357', 'from', 'to'])
+        backup_options.parseOptions(['--exclude', '*lyx', '--node-directory',
+                                     basedir, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(iter(root_listdir)))
         _check_filtering(filtered, root_listdir, ('lib.a', '_darcs', 'subdir'),
                          ('nice_doc.lyx',))
