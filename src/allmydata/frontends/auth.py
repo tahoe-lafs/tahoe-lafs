@@ -5,6 +5,11 @@ from twisted.internet import defer
 from twisted.cred import error, checkers, credentials
 from allmydata.util import base32
 
+class NeedRootcapLookupScheme(Exception):
+    """Accountname+Password-based access schemes require some kind of
+    mechanism to translate name+passwd pairs into a rootcap, either a file of
+    name/passwd/rootcap tuples, or a server to do the translation."""
+
 class FTPAvatarID:
     def __init__(self, username, rootcap):
         self.username = username

@@ -116,6 +116,9 @@ class StoppableList:
 class FakeStat:
     pass
 
+class BadRemoveRequest(Exception):
+    pass
+
 class SFTPHandler:
     implements(ISFTPServer)
     def __init__(self, user):
@@ -259,9 +262,9 @@ class SFTPHandler:
             d = parent.get(childname)
             def _got_child(child):
                 if must_be_directory and not IDirectoryNode.providedBy(child):
-                    raise RuntimeError("rmdir called on a file")
+                    raise BadRemoveRequest("rmdir called on a file")
                 if must_be_file and IDirectoryNode.providedBy(child):
-                    raise RuntimeError("rmfile called on a directory")
+                    raise BadRemoveRequest("rmfile called on a directory")
                 return parent.delete(childname)
             d.addCallback(_got_child)
             d.addErrback(self._convert_error)
@@ -421,7 +424,7 @@ class SFTPHandler:
 # then you get SFTPHandler(user)
 components.registerAdapter(SFTPHandler, SFTPUser, ISFTPServer)
 
-from auth import AccountURLChecker, AccountFileChecker
+from auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
 
 class Dispatcher:
     implements(portal.IRealm)
@@ -452,7 +455,7 @@ class SFTPServer(service.MultiService):
             p.registerChecker(c)
         if not accountfile and not accounturl:
             # we could leave this anonymous, with just the /uri/CAP form
-            raise RuntimeError("must provide some translation")
+            raise NeedRootcapLookupScheme("must provide some translation")
 
         pubkey = keys.Key.fromFile(pubkey_file)
         privkey = keys.Key.fromFile(privkey_file)

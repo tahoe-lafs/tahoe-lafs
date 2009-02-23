@@ -267,7 +267,7 @@ class Handler:
         d.addCallback(_got_parent)
         return d
 
-from auth import AccountURLChecker, AccountFileChecker
+from auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
 
 
 class Dispatcher:
@@ -303,7 +303,7 @@ class FTPServer(service.MultiService):
             p.registerChecker(c)
         if not accountfile and not accounturl:
             # we could leave this anonymous, with just the /uri/CAP form
-            raise RuntimeError("must provide some translation")
+            raise NeedRootcapLookupScheme("must provide some translation")
 
         f = ftp.FTPFactory(p)
         s = strports.service(ftp_portstr, f)
