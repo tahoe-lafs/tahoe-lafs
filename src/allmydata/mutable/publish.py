@@ -79,6 +79,9 @@ class PublishStatus:
     def set_active(self, value):
         self.active = value
 
+class LoopLimitExceededError(Exception):
+    pass
+
 class Publish:
     """I represent a single act of publishing the mutable file to the grid. I
     will only publish my data if the servermap I am using still represents
@@ -290,7 +293,7 @@ class Publish:
 
         self.looplimit -= 1
         if self.looplimit <= 0:
-            raise RuntimeError("loop limit exceeded")
+            raise LoopLimitExceededError("loop limit exceeded")
 
         if self.surprised:
             # don't send out any new shares, just wait for the outstanding
