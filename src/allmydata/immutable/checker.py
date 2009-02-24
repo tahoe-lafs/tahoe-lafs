@@ -141,14 +141,15 @@ class Checker(log.PrefixingLogMixin):
                               rrefutil.ServerFailure,
                               layout.LayoutInvalid,
                               layout.RidiculouslyLargeURIExtensionBlock,
+                              layout.ShareVersionIncompatible,
                               download.BadOrMissingHash,
                               download.BadURIExtensionHashValue)
 
-            if failtype is DeadReferenceError:
+            if f.check(DeadReferenceError):
                 return (False, sharenum, 'disconnect')
-            elif failtype is rrefutil.ServerFailure:
+            elif f.check(rrefutil.ServerFailure):
                 return (False, sharenum, 'failure')
-            elif failtype is layout.ShareVersionIncompatible:
+            elif f.check(layout.ShareVersionIncompatible):
                 return (False, sharenum, 'incompatible')
             else:
                 return (False, sharenum, 'corrupt')
