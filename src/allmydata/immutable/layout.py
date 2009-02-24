@@ -8,25 +8,26 @@ from allmydata.util.assertutil import precondition
 from allmydata.storage.server import si_b2a
 
 class LayoutInvalid(Exception):
-    """ There is something wrong with these bytes so they can't be interpreted as the kind of
-    immutable file that I know how to download. """
+    """ There is something wrong with these bytes so they can't be
+    interpreted as the kind of immutable file that I know how to download."""
     pass
 
 class RidiculouslyLargeURIExtensionBlock(LayoutInvalid):
-    """ When downloading a file, the length of the URI Extension Block was given as >= 2**32.
-    This means the share data must have been corrupted, or else the original uploader of the
-    file wrote a ridiculous value into the URI Extension Block length. """
+    """ When downloading a file, the length of the URI Extension Block was
+    given as >= 2**32. This means the share data must have been corrupted, or
+    else the original uploader of the file wrote a ridiculous value into the
+    URI Extension Block length."""
     pass
 
 class ShareVersionIncompatible(LayoutInvalid):
-    """ When downloading a share, its format was not one of the formats we know how to
-    parse. """
+    """ When downloading a share, its format was not one of the formats we
+    know how to parse."""
     pass
 
 """
-Share data is written in a file. At the start of the file, there is a series of four-byte
-big-endian offset values, which indicate where each section starts. Each offset is measured from
-the beginning of the share data.
+Share data is written in a file. At the start of the file, there is a series
+of four-byte big-endian offset values, which indicate where each section
+starts. Each offset is measured from the beginning of the share data.
 
 0x00: version number (=00 00 00 01)
 0x04: block size # See Footnote 1 below.
@@ -286,8 +287,9 @@ class ReadBucketProxy:
         return self._reprstr
 
     def _start_if_needed(self):
-        """ Returns a deferred that will be fired when I'm ready to return data, or errbacks if
-        the starting (header reading and parsing) process fails."""
+        """ Returns a deferred that will be fired when I'm ready to return
+        data, or errbacks if the starting (header reading and parsing)
+        process fails."""
         if not self._started:
             self._start()
         return self._ready.when_fired()
@@ -297,8 +299,9 @@ class ReadBucketProxy:
         # TODO: for small shares, read the whole bucket in _start()
         d = self._fetch_header()
         d.addCallback(self._parse_offsets)
-        # XXX The following two callbacks implement a slightly faster/nicer way to get the ueb
-        # and sharehashtree, but it requires that the storage server be >= v1.3.0.
+        # XXX The following two callbacks implement a slightly faster/nicer
+        # way to get the ueb and sharehashtree, but it requires that the
+        # storage server be >= v1.3.0.
         # d.addCallback(self._fetch_sharehashtree_and_ueb)
         # d.addCallback(self._parse_sharehashtree_and_ueb)
         def _fail_waiters(f):
@@ -347,7 +350,8 @@ class ReadBucketProxy:
 
     def _fetch_sharehashtree_and_ueb(self, offsets):
         sharehashtree_size = offsets['uri_extension'] - offsets['share_hashes']
-        return self._read(offsets['share_hashes'], self.MAX_UEB_SIZE+sharehashtree_size)
+        return self._read(offsets['share_hashes'],
+                          self.MAX_UEB_SIZE+sharehashtree_size)
 
     def _parse_sharehashtree_and_ueb(self, data):
         sharehashtree_size = self._offsets['uri_extension'] - self._offsets['share_hashes']
@@ -422,8 +426,9 @@ class ReadBucketProxy:
         return d
 
     def _get_share_hashes_the_old_way(self):
-        """ Tahoe storage servers < v1.3.0 would return an error if you tried to read past the
-        end of the share, so we need to use the offset and read just that much."""
+        """ Tahoe storage servers < v1.3.0 would return an error if you tried
+        to read past the end of the share, so we need to use the offset and
+        read just that much."""
         offset = self._offsets['share_hashes']
         size = self._offsets['uri_extension'] - offset
         if size % (2+HASH_SIZE) != 0:
@@ -442,8 +447,9 @@ class ReadBucketProxy:
         return d
 
     def _get_uri_extension_the_old_way(self, unused=None):
-        """ Tahoe storage servers < v1.3.0 would return an error if you tried to read past the
-        end of the share, so we need to fetch the UEB size and then read just that much."""
+        """ Tahoe storage servers < v1.3.0 would return an error if you tried
+        to read past the end of the share, so we need to fetch the UEB size
+        and then read just that much."""
         offset = self._offsets['uri_extension']
         d = self._read(offset, self._fieldsize)
         def _got_length(data):
@@ -451,9 +457,9 @@ class ReadBucketProxy:
                 raise LayoutInvalid("not enough bytes to encode URI length -- should be %d bytes long, not %d " % (self._fieldsize, len(data),))
             length = struct.unpack(self._fieldstruct, data)[0]
             if length >= 2**31:
-                # URI extension blocks are around 419 bytes long, so this must be corrupted.
-                # Anyway, the foolscap interface schema for "read" will not allow >= 2**31 bytes
-                # length.
+                # URI extension blocks are around 419 bytes long, so this
+                # must be corrupted. Anyway, the foolscap interface schema
+                # for "read" will not allow >= 2**31 bytes length.
                 raise RidiculouslyLargeURIExtensionBlock(length)
 
             return self._read(offset+self._fieldsize, length)
