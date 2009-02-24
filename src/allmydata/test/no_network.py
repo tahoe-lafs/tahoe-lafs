@@ -135,6 +135,24 @@ class NoNetworkClient(Client):
     def get_nickname_for_peerid(self, peerid):
         return None
 
+class SimpleStats:
+    def __init__(self):
+        self.counters = {}
+        self.stats_producers = []
+
+    def count(self, name, delta=1):
+        val = self.counters.setdefault(name, 0)
+        self.counters[name] = val + delta
+
+    def register_producer(self, stats_producer):
+        self.stats_producers.append(stats_producer)
+
+    def get_stats(self):
+        stats = {}
+        for sp in self.stats_producers:
+            stats.update(sp.get_stats())
+        ret = { 'counters': self.counters, 'stats': stats }
+        return ret
 
 class NoNetworkGrid(service.MultiService):
     def __init__(self, basedir, num_clients=1, num_servers=10,
@@ -181,7 +199,7 @@ class NoNetworkGrid(service.MultiService):
         serverdir = os.path.join(self.basedir, "servers",
                                  idlib.shortnodeid_b2a(serverid))
         fileutil.make_dirs(serverdir)
-        ss = StorageServer(serverdir, serverid)
+        ss = StorageServer(serverdir, serverid, stats_provider=SimpleStats())
         return ss
 
     def add_server(self, i, ss):
