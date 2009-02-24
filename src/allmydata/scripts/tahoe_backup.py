@@ -191,7 +191,7 @@ class BackerUpper:
 
         # we have various time formats. The allmydata.com windows backup tool
         # appears to create things like "2008-11-16 10.34 PM". This script
-        # creates things like "2009-11-16--17.34Z".
+        # creates things like "2008-11-16--17.34Z".
         for archive_name in archives_dir.keys():
             if archives_dir[archive_name][0] != "dirnode":
                 continue

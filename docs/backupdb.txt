@@ -36,7 +36,7 @@ CREATE TABLE version
  version integer  # contains one row, set to 1
 );
 
-CREATE TABLE last_upload
+CREATE TABLE local_files
 (
  path  varchar(1024),  PRIMARY KEY -- index, this is os.path.abspath(fn)
  size  integer,         -- os.stat(fn)[stat.ST_SIZE]
