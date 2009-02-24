@@ -347,6 +347,45 @@ tahoe backup ~ work:backups
  directories with the previous backup when nothing has changed, to run faster
  and to reduce the number of directories created.
 
+tahoe backup --exclude=*~ ~ work:backups
+
+ Same as above, but this time the backup process will ignore any
+ filename that will end with '~'. '--exclude' will accept any standard
+ unix shell-style wildcards, have a look at
+ http://docs.python.org/library/fnmatch.html for a more detailed
+ reference.  You may give multiple '--exclude' options.  Please pay
+ attention that the pattern will be matched against any level of the
+ directory tree, it's still impossible to specify absolute path exclusions.
+
+tahoe backup --exclude-from=/path/to/filename ~ work:backups
+
+ '--exclude-from' is similar to '--exclude', but reads exclusion
+ patterns from '/path/to/filename', one per line.
+
+tahoe backup --exclude-vcs ~ work:backups
+
+ This command will ignore any known file or directory that's used by
+ version control systems to store metadata. The list of the exluded
+ names is:
+
+  * CVS
+  * RCS
+  * SCCS
+  * .git
+  * .gitignore
+  * .cvsignore
+  * .svn
+  * .arch-ids
+  * {arch}
+  * =RELEASE-ID
+  * =meta-update
+  * =update
+  * .bzr
+  * .bzrignore
+  * .bzrtags
+  * .hg
+  * .hgignore
+  * _darcs
 
 == Virtual Drive Maintenance ==
 
