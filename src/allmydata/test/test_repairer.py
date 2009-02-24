@@ -13,328 +13,288 @@ from no_network import GridTestMixin
 READ_LEEWAY = 18
 MAX_DELTA_READS = 10 * READ_LEEWAY # N = 10
 
-class Verifier(common.ShareManglingMixin, unittest.TestCase):
+
+class RepairTestMixin:
+    def failUnlessIsInstance(self, x, xtype):
+        self.failUnless(isinstance(x, xtype), x)
+
+    def _count_reads(self):
+        sum_of_read_counts = 0
+        for (i, ss, storedir) in self.iterate_servers():
+            counters = ss.stats_provider.get_stats()['counters']
+            sum_of_read_counts += counters.get('storage_server.read', 0)
+        return sum_of_read_counts
+
+    def _count_allocates(self):
+        sum_of_allocate_counts = 0
+        for (i, ss, storedir) in self.iterate_servers():
+            counters = ss.stats_provider.get_stats()['counters']
+            sum_of_allocate_counts += counters.get('storage_server.allocate', 0)
+        return sum_of_allocate_counts
+
+    def _count_writes(self):
+        sum_of_write_counts = 0
+        for (i, ss, storedir) in self.iterate_servers():
+            counters = ss.stats_provider.get_stats()['counters']
+            sum_of_write_counts += counters.get('storage_server.write', 0)
+        return sum_of_write_counts
+
+    def _stash_counts(self):
+        self.before_repair_reads = self._count_reads()
+        self.before_repair_allocates = self._count_allocates()
+        self.before_repair_writes = self._count_writes()
+
+    def _get_delta_counts(self):
+        delta_reads = self._count_reads() - self.before_repair_reads
+        delta_allocates = self._count_allocates() - self.before_repair_allocates
+        delta_writes = self._count_writes() - self.before_repair_writes
+        return (delta_reads, delta_allocates, delta_writes)
+
+    def failIfBigger(self, x, y):
+        self.failIf(x > y, "%s > %s" % (x, y))
+
+    def upload_and_stash(self):
+        c0 = self.g.clients[0]
+        c1 = self.g.clients[1]
+        c0.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
+        d = c0.upload(upload.Data(common.TEST_DATA, convergence=""))
+        def _stash_uri(ur):
+            self.uri = ur.uri
+            self.c0_filenode = c0.create_node_from_uri(ur.uri)
+            self.c1_filenode = c1.create_node_from_uri(ur.uri)
+        d.addCallback(_stash_uri)
+        return d
+
+class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
     def test_check_without_verify(self):
         """Check says the file is healthy when none of the shares have been
         touched. It says that the file is unhealthy when all of them have
         been removed. It doesn't use any reads.
         """
-        d = defer.succeed(self.filenode)
-        def _check1(filenode):
-            before_check_reads = self._count_reads()
+        self.basedir = "repairer/Verifier/check_without_verify"
+        self.set_up_grid(num_clients=2)
+        d = self.upload_and_stash()
+        d.addCallback(lambda ignored: self._stash_counts())
+        d.addCallback(lambda ignored:
+                      self.c0_filenode.check(Monitor(), verify=False))
+        def _check(cr):
+            self.failUnless(cr.is_healthy())
+            delta_reads, delta_allocates, delta_writes = self._get_delta_counts()
+            self.failIfBigger(delta_reads, 0)
+        d.addCallback(_check)
 
-            d2 = filenode.check(Monitor(), verify=False)
-            def _after_check(checkresults):
-                after_check_reads = self._count_reads()
-                self.failIf(after_check_reads - before_check_reads > 0, after_check_reads - before_check_reads)
-                self.failUnless(checkresults.is_healthy())
+        def _remove_all(ignored):
+            for sh in self.find_shares(self.uri):
+                self.delete_share(sh)
+        d.addCallback(_remove_all)
 
-            d2.addCallback(_after_check)
-            return d2
-        d.addCallback(_check1)
-
-        d.addCallback(lambda ignore: self.replace_shares({}, storage_index=self.uri.storage_index))
-        def _check2(ignored):
-            before_check_reads = self._count_reads()
-            d2 = self.filenode.check(Monitor(), verify=False)
-
-            def _after_check(checkresults):
-                after_check_reads = self._count_reads()
-                self.failIf(after_check_reads - before_check_reads > 0, after_check_reads - before_check_reads)
-                self.failIf(checkresults.is_healthy())
-
-            d2.addCallback(_after_check)
-            return d2
+        d.addCallback(lambda ignored: self._stash_counts())
+        d.addCallback(lambda ignored:
+                      self.c0_filenode.check(Monitor(), verify=False))
+        def _check2(cr):
+            self.failIf(cr.is_healthy())
+            delta_reads, delta_allocates, delta_writes = self._get_delta_counts()
+            self.failIfBigger(delta_reads, 0)
         d.addCallback(_check2)
-
         return d
 
-    def _help_test_verify(self, corruptor_funcs, judgement_func):
-        d = defer.succeed(None)
+    def _help_test_verify(self, corruptor, judgement, shnum=0):
+        self.set_up_grid(num_clients=2)
+        d = self.upload_and_stash()
+        d.addCallback(lambda ignored: self._stash_counts())
 
-        d.addCallback(self.find_shares)
-        stash = [None]
-        def _stash_it(res):
-            stash[0] = res
-            return res
-        d.addCallback(_stash_it)
-        def _put_it_all_back(ignored):
-            self.replace_shares(stash[0], storage_index=self.uri.storage_index)
-            return ignored
-
-        def _verify_after_corruption(shnum, corruptor_func):
-            before_check_reads = self._count_reads()
-            d2 = self.filenode.check(Monitor(), verify=True)
-            def _after_check(checkresults):
-                after_check_reads = self._count_reads()
-                self.failIf(after_check_reads - before_check_reads > MAX_DELTA_READS, (after_check_reads, before_check_reads))
-                try:
-                    return judgement_func(checkresults)
-                except Exception, le:
-                    le.args = tuple(le.args + ("corruptor_func: " + corruptor_func.__name__,))
-                    raise
-
-            d2.addCallback(_after_check)
-            return d2
-
-        for corruptor_func in corruptor_funcs:
-            d.addCallback(self._corrupt_a_random_share, corruptor_func)
-            d.addCallback(_verify_after_corruption, corruptor_func)
-            d.addCallback(_put_it_all_back)
-
+        d.addCallback(lambda ignored:
+                      self.corrupt_shares_numbered(self.uri, [shnum],corruptor))
+        d.addCallback(lambda ignored:
+                      self.c1_filenode.check(Monitor(), verify=True))
+        def _check(vr):
+            delta_reads, delta_allocates, delta_writes = self._get_delta_counts()
+            self.failIfBigger(delta_reads, MAX_DELTA_READS)
+            try:
+                judgement(vr)
+            except unittest.FailTest, e:
+                # FailTest just uses e.args[0] == str
+                new_arg = str(e.args[0]) + "\nvr.data is: " + str(vr.get_data())
+                e.args = (new_arg,)
+                raise
+        d.addCallback(_check)
         return d
 
-    def test_verify_no_problem(self):
+    def judge_no_problem(self, vr):
         """ Verify says the file is healthy when none of the shares have been
         touched in a way that matters. It doesn't use more than seven times
         as many reads as it needs."""
-        def judge(checkresults):
-            self.failUnless(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 10, data)
-            self.failUnless(len(data['sharemap']) == 10, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['list-corrupt-shares']) == 0, data)
-        return self._help_test_verify([
-            common._corrupt_nothing,
-            common._corrupt_size_of_file_data,
-            common._corrupt_size_of_sharedata,
-            common._corrupt_segment_size, ], judge)
+        self.failUnless(vr.is_healthy(), (vr, vr.is_healthy(), vr.get_data()))
+        data = vr.get_data()
+        self.failUnless(data['count-shares-good'] == 10, data)
+        self.failUnless(len(data['sharemap']) == 10, data)
+        self.failUnless(data['count-shares-needed'] == 3, data)
+        self.failUnless(data['count-shares-expected'] == 10, data)
+        self.failUnless(data['count-good-share-hosts'] == 10, data)
+        self.failUnless(len(data['servers-responding']) == 10, data)
+        self.failUnless(len(data['list-corrupt-shares']) == 0, data)
 
-    def test_verify_server_visible_corruption(self):
+    def test_verify_no_problem_1(self):
+        self.basedir = "repairer/Verify/verify_no_problem_1"
+        return self._help_test_verify(common._corrupt_nothing,
+                                      self.judge_no_problem)
+
+    def test_verify_no_problem_2(self):
+        self.basedir = "repairer/Verify/verify_no_problem_2"
+        return self._help_test_verify(common._corrupt_size_of_file_data,
+                                      self.judge_no_problem)
+
+    def test_verify_no_problem_3(self):
+        self.basedir = "repairer/Verify/verify_no_problem_3"
+        return self._help_test_verify(common._corrupt_size_of_sharedata,
+                                      self.judge_no_problem)
+
+    def test_verify_no_problem_4(self):
+        self.basedir = "repairer/Verify/verify_no_problem_4"
+        return self._help_test_verify(common._corrupt_segment_size,
+                                      self.judge_no_problem)
+
+    def judge_visible_corruption(self, vr):
         """Corruption which is detected by the server means that the server
         will send you back a Failure in response to get_bucket instead of
         giving you the share data. Test that verifier handles these answers
         correctly. It doesn't use more than seven times as many reads as it
         needs."""
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            # The server might fail to serve up its other share as well as
-            # the corrupted one, so count-shares-good could be 8 or 9.
-            self.failUnless(data['count-shares-good'] in (8, 9), data)
-            self.failUnless(len(data['sharemap']) in (8, 9,), data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            # The server may have served up the non-corrupted share, or it
-            # may not have, so the checker could have detected either 4 or 5
-            # good servers.
-            self.failUnless(data['count-good-share-hosts'] in (4, 5), data)
-            self.failUnless(len(data['servers-responding']) in (4, 5), data)
-            # If the server served up the other share, then the checker
-            # should consider it good, else it should not.
-            self.failUnless((data['count-shares-good'] == 9) == (data['count-good-share-hosts'] == 5), data)
-            self.failUnless(len(data['list-corrupt-shares']) == 0, data)
-        return self._help_test_verify([
-            common._corrupt_file_version_number,
-            ], judge)
+        self.failIf(vr.is_healthy(), (vr, vr.is_healthy(), vr.get_data()))
+        data = vr.get_data()
+        self.failUnless(data['count-shares-good'] == 9, data)
+        self.failUnless(len(data['sharemap']) == 9, data)
+        self.failUnless(data['count-shares-needed'] == 3, data)
+        self.failUnless(data['count-shares-expected'] == 10, data)
+        self.failUnless(data['count-good-share-hosts'] == 9, data)
+        self.failUnless(len(data['servers-responding']) == 10, data)
+        self.failUnless(len(data['list-corrupt-shares']) == 0, data)
 
-    def test_verify_share_incompatibility(self):
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 9, data)
-            self.failUnless(len(data['sharemap']) == 9, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
-            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
-        return self._help_test_verify([
-            common._corrupt_sharedata_version_number,
-            ], judge)
+    def test_verify_server_visible_corruption(self):
+        self.basedir = "repairer/Verify/verify_server_visible_corruption"
+        return self._help_test_verify(common._corrupt_file_version_number,
+                                      self.judge_visible_corruption)
 
-    def test_verify_server_invisible_corruption(self):
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 9, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
-            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
-            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['sharemap']) == 9, data)
-        return self._help_test_verify([
-            common._corrupt_offset_of_sharedata,
-            common._corrupt_offset_of_uri_extension,
-            common._corrupt_offset_of_uri_extension_to_force_short_read,
-            common._corrupt_share_data,
-            common._corrupt_length_of_uri_extension,
-            common._corrupt_uri_extension,
-            ], judge)
+    def judge_share_version_incompatibility(self, vr):
+        # corruption of the share version (inside the container, the 1/2
+        # value that determines whether we've got 4-byte offsets or 8-byte
+        # offsets) to something larger than 2 will trigger a
+        # ShareVersionIncompatible exception, which should be counted in
+        # list-incompatible-shares, rather than list-corrupt-shares.
+        self.failIf(vr.is_healthy(), (vr, vr.is_healthy(), vr.get_data()))
+        data = vr.get_data()
+        self.failUnlessEqual(data['count-shares-good'], 9)
+        self.failUnlessEqual(len(data['sharemap']), 9)
+        self.failUnlessEqual(data['count-shares-needed'], 3)
+        self.failUnlessEqual(data['count-shares-expected'], 10)
+        self.failUnlessEqual(data['count-good-share-hosts'], 9)
+        self.failUnlessEqual(len(data['servers-responding']), 10)
+        self.failUnlessEqual(len(data['list-corrupt-shares']), 0)
+        self.failUnlessEqual(data['count-corrupt-shares'], 0)
+        self.failUnlessEqual(len(data['list-incompatible-shares']), 1)
+        self.failUnlessEqual(data['count-incompatible-shares'], 1)
+
+    def test_verify_share_version_incompatibility(self):
+        self.basedir = "repairer/Verify/verify_share_version_incompatibility"
+        return self._help_test_verify(common._corrupt_sharedata_version_number,
+                                      self.judge_share_version_incompatibility)
+
+    def judge_invisible_corruption(self, vr):
+        # corruption of fields that the server does not check (which is most
+        # of them), which will be detected by the client as it downloads
+        # those shares.
+        self.failIf(vr.is_healthy(), (vr, vr.is_healthy(), vr.get_data()))
+        data = vr.get_data()
+        self.failUnlessEqual(data['count-shares-good'], 9)
+        self.failUnlessEqual(data['count-shares-needed'], 3)
+        self.failUnlessEqual(data['count-shares-expected'], 10)
+        self.failUnlessEqual(data['count-good-share-hosts'], 9)
+        self.failUnlessEqual(data['count-corrupt-shares'], 1)
+        self.failUnlessEqual(len(data['list-corrupt-shares']), 1)
+        self.failUnlessEqual(data['count-incompatible-shares'], 0)
+        self.failUnlessEqual(len(data['list-incompatible-shares']), 0)
+        self.failUnlessEqual(len(data['servers-responding']), 10)
+        self.failUnlessEqual(len(data['sharemap']), 9)
+
+    def test_verify_server_invisible_corruption_1(self):
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_1"
+        return self._help_test_verify(common._corrupt_offset_of_sharedata,
+                                      self.judge_invisible_corruption)
+
+    def test_verify_server_invisible_corruption_2(self):
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_2"
+        return self._help_test_verify(common._corrupt_offset_of_uri_extension,
+                                      self.judge_invisible_corruption)
+
+    def test_verify_server_invisible_corruption_3(self):
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_3"
+        return self._help_test_verify(common._corrupt_offset_of_uri_extension_to_force_short_read,
+                                      self.judge_invisible_corruption)
+
+    def test_verify_server_invisible_corruption_4(self):
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_4"
+        return self._help_test_verify(common._corrupt_share_data,
+                                      self.judge_invisible_corruption)
+
+    def test_verify_server_invisible_corruption_5(self):
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_5"
+        return self._help_test_verify(common._corrupt_length_of_uri_extension,
+                                      self.judge_invisible_corruption)
+
+    def test_verify_server_invisible_corruption_6(self):
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_6"
+        return self._help_test_verify(common._corrupt_uri_extension,
+                                      self.judge_invisible_corruption)
 
     def test_verify_server_invisible_corruption_offset_of_block_hashtree_to_truncate_crypttext_hashtree_TODO(self):
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 9, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
-            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
-            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['sharemap']) == 9, data)
-        return self._help_test_verify([
-            common._corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes,
-            ], judge)
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_offset_of_block_hashtree_to_truncate_crypttext_hashtree"
+        return self._help_test_verify(common._corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes,
+                                      self.judge_invisible_corruption)
     test_verify_server_invisible_corruption_offset_of_block_hashtree_to_truncate_crypttext_hashtree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_verify_server_invisible_corruption_offset_of_block_hashtree_TODO(self):
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 9, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
-            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
-            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['sharemap']) == 9, data)
-        return self._help_test_verify([
-            common._corrupt_offset_of_block_hashes,
-            ], judge)
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_offset_of_block_hashtree"
+        return self._help_test_verify(common._corrupt_offset_of_block_hashes,
+                                      self.judge_invisible_corruption)
     test_verify_server_invisible_corruption_offset_of_block_hashtree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_verify_server_invisible_corruption_sharedata_plausible_version(self):
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 9, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
-            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
-            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['sharemap']) == 9, data)
-        return self._help_test_verify([
-            common._corrupt_sharedata_version_number_to_plausible_version,
-            ], judge)
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_sharedata_plausible_version"
+        return self._help_test_verify(common._corrupt_sharedata_version_number_to_plausible_version,
+                                      self.judge_invisible_corruption)
 
     def test_verify_server_invisible_corruption_offset_of_share_hashtree_TODO(self):
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 9, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
-            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
-            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['sharemap']) == 9, data)
-        return self._help_test_verify([
-            common._corrupt_offset_of_share_hashes,
-            ], judge)
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_offset_of_share_hashtree"
+        return self._help_test_verify(common._corrupt_offset_of_share_hashes,
+                                      self.judge_invisible_corruption)
     test_verify_server_invisible_corruption_offset_of_share_hashtree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_verify_server_invisible_corruption_offset_of_ciphertext_hashtree_TODO(self):
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 9, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
-            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
-            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['sharemap']) == 9, data)
-        return self._help_test_verify([
-            common._corrupt_offset_of_ciphertext_hash_tree,
-            ], judge)
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_offset_of_ciphertext_hashtree"
+        return self._help_test_verify(common._corrupt_offset_of_ciphertext_hash_tree,
+                                      self.judge_invisible_corruption)
     test_verify_server_invisible_corruption_offset_of_ciphertext_hashtree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_verify_server_invisible_corruption_cryptext_hash_tree_TODO(self):
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 9, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
-            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
-            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['sharemap']) == 9, data)
-        return self._help_test_verify([
-            common._corrupt_crypttext_hash_tree,
-            ], judge)
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_cryptext_hash_tree"
+        return self._help_test_verify(common._corrupt_crypttext_hash_tree,
+                                      self.judge_invisible_corruption)
     test_verify_server_invisible_corruption_cryptext_hash_tree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_verify_server_invisible_corruption_block_hash_tree_TODO(self):
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 9, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
-            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
-            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['sharemap']) == 9, data)
-        return self._help_test_verify([
-            common._corrupt_block_hashes,
-            ], judge)
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_block_hash_tree"
+        return self._help_test_verify(common._corrupt_block_hashes,
+                                      self.judge_invisible_corruption)
     test_verify_server_invisible_corruption_block_hash_tree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_verify_server_invisible_corruption_share_hash_tree_TODO(self):
-        def judge(checkresults):
-            self.failIf(checkresults.is_healthy(), (checkresults, checkresults.is_healthy(), checkresults.get_data()))
-            data = checkresults.get_data()
-            self.failUnless(data['count-shares-good'] == 9, data)
-            self.failUnless(data['count-shares-needed'] == 3, data)
-            self.failUnless(data['count-shares-expected'] == 10, data)
-            self.failUnless(data['count-good-share-hosts'] == 5, data)
-            self.failUnless(data['count-corrupt-shares'] == 1, (data,))
-            self.failUnless(len(data['list-corrupt-shares']) == 1, data)
-            self.failUnless(len(data['list-corrupt-shares']) == data['count-corrupt-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == data['count-incompatible-shares'], data)
-            self.failUnless(len(data['list-incompatible-shares']) == 0, data)
-            self.failUnless(len(data['servers-responding']) == 5, data)
-            self.failUnless(len(data['sharemap']) == 9, data)
-        return self._help_test_verify([
-            common._corrupt_share_hashes,
-            ], judge)
+        self.basedir = "repairer/Verify/verify_server_invisible_corruption_share_hash_tree"
+        return self._help_test_verify(common._corrupt_share_hashes,
+                                      self.judge_invisible_corruption)
     test_verify_server_invisible_corruption_share_hash_tree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
-# We'll allow you to pass this test even if you trigger thirty-five times as many block sends
-# and disk writes as would be optimal.
+# We'll allow you to pass this test even if you trigger thirty-five times as
+# many block sends and disk writes as would be optimal.
 WRITE_LEEWAY = 35
 # Optimally, you could repair one of these (small) files in a single write.
 DELTA_WRITES_PER_SHARE = 1 * WRITE_LEEWAY
@@ -432,21 +392,10 @@ class DownUpConnector(unittest.TestCase):
         d.addCallback(_callb)
         return d
 
-class Repairer(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
+class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
+               common.ShouldFailMixin):
 
-    def upload_and_stash(self):
-        c0 = self.g.clients[0]
-        c1 = self.g.clients[1]
-        c0.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
-        d = c0.upload(upload.Data(common.TEST_DATA, convergence=""))
-        def _stash_uri(ur):
-            self.uri = ur.uri
-            self.c0_filenode = c0.create_node_from_uri(ur.uri)
-            self.c1_filenode = c1.create_node_from_uri(ur.uri)
-        d.addCallback(_stash_uri)
-        return d
-
-    def test_test_code(self):
+    def test_harness(self):
         # This test is actually to make sure our test harness works, rather
         # than testing anything about Tahoe code itself.
 
@@ -477,12 +426,11 @@ class Repairer(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
                                       None,
                                       self.c1_filenode.download_to_data))
 
-        repair_monitor = Monitor()
         d.addCallback(lambda ignored:
                       self.shouldFail(NotEnoughSharesError, "then_repair",
                                       None,
                                       self.c1_filenode.check_and_repair,
-                                      repair_monitor, verify=False))
+                                      Monitor(), verify=False))
 
         # test share corruption
         def _test_corrupt(ignored):
@@ -497,7 +445,7 @@ class Repairer(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
                 self.failIfEqual(olddata[ (shnum, serverid) ], newdata)
         d.addCallback(_test_corrupt)
 
-        def _remove_all(shares):
+        def _remove_all(ignored):
             for sh in self.find_shares(self.uri):
                 self.delete_share(sh)
         d.addCallback(_remove_all)
@@ -505,44 +453,6 @@ class Repairer(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         d.addCallback(lambda shares: self.failUnlessEqual(shares, []))
 
         return d
-
-    def failUnlessIsInstance(self, x, xtype):
-        self.failUnless(isinstance(x, xtype), x)
-
-    def _count_reads(self):
-        sum_of_read_counts = 0
-        for (i, ss, storedir) in self.iterate_servers():
-            counters = ss.stats_provider.get_stats()['counters']
-            sum_of_read_counts += counters.get('storage_server.read', 0)
-        return sum_of_read_counts
-
-    def _count_allocates(self):
-        sum_of_allocate_counts = 0
-        for (i, ss, storedir) in self.iterate_servers():
-            counters = ss.stats_provider.get_stats()['counters']
-            sum_of_allocate_counts += counters.get('storage_server.allocate', 0)
-        return sum_of_allocate_counts
-
-    def _count_writes(self):
-        sum_of_write_counts = 0
-        for (i, ss, storedir) in self.iterate_servers():
-            counters = ss.stats_provider.get_stats()['counters']
-            sum_of_write_counts += counters.get('storage_server.write', 0)
-        return sum_of_write_counts
-
-    def _stash_counts(self):
-        self.before_repair_reads = self._count_reads()
-        self.before_repair_allocates = self._count_allocates()
-        self.before_repair_writes = self._count_writes()
-
-    def _get_delta_counts(self):
-        delta_reads = self._count_reads() - self.before_repair_reads
-        delta_allocates = self._count_allocates() - self.before_repair_allocates
-        delta_writes = self._count_writes() - self.before_repair_writes
-        return (delta_reads, delta_allocates, delta_writes)
-
-    def failIfBigger(self, x, y):
-        self.failIf(x > y, "%s > %s" % (x, y))
 
     def test_repair_from_deletion_of_1(self):
         """ Repair replaces a share that got deleted. """

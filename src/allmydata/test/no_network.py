@@ -276,3 +276,10 @@ class GridTestMixin:
         sharedata = open(sharefile, "rb").read()
         corruptdata = corruptor_function(sharedata)
         open(sharefile, "wb").write(corruptdata)
+
+    def corrupt_shares_numbered(self, uri, shnums, corruptor):
+        for (i_shnum, i_serverid, i_sharefile) in self.find_shares(uri):
+            if i_shnum in shnums:
+                sharedata = open(i_sharefile, "rb").read()
+                corruptdata = corruptor(sharedata)
+                open(i_sharefile, "wb").write(corruptdata)
