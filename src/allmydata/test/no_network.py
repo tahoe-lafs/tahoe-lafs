@@ -264,3 +264,15 @@ class GridTestMixin:
                     pass
         return sorted(shares)
 
+    def delete_share(self, (shnum, serverid, sharefile)):
+        os.unlink(sharefile)
+
+    def delete_shares_numbered(self, uri, shnums):
+        for (i_shnum, i_serverid, i_sharefile) in self.find_shares(uri):
+            if i_shnum in shnums:
+                os.unlink(i_sharefile)
+
+    def corrupt_share(self, (shnum, serverid, sharefile), corruptor_function):
+        sharedata = open(sharefile, "rb").read()
+        corruptdata = corruptor_function(sharedata)
+        open(sharefile, "wb").write(corruptdata)
