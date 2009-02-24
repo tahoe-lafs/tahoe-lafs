@@ -15,10 +15,11 @@ from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.util import fileutil, base32
 from allmydata.util.assertutil import precondition
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
-     FakeMutableFileNode, create_chk_filenode, WebErrorMixin
+     FakeMutableFileNode, create_chk_filenode, WebErrorMixin, ShouldFailMixin
 from allmydata.interfaces import IURI, INewDirectoryURI, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
 from allmydata.mutable import servermap, publish, retrieve
+from allmydata.mutable.common import UnrecoverableFileError
 import common_util as testutil
 from allmydata.test.no_network import GridTestMixin
 
@@ -2543,7 +2544,7 @@ class Util(unittest.TestCase):
         self.failUnlessEqual(convert2(["1","2"]), "has shares: 1,2")
 
 
-class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
+class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
 
     def GET(self, urlpath, followRedirect=False, return_response=False,
             method="GET", clientnum=0, **kwargs):
@@ -2829,19 +2830,34 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
             self.uris[which] = fn.get_uri()
+            return fn
         d.addCallback(_stash_uri, "good")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
                                              upload.Data("literal",
                                                         convergence="")))
         d.addCallback(_stash_uri, "small")
+        d.addCallback(lambda ign:
+                      self.rootnode.add_file(u"sick",
+                                             upload.Data(DATA+"1",
+                                                        convergence="")))
+        d.addCallback(_stash_uri, "sick")
+
+        def _clobber_shares(ignored):
+            self.delete_shares_numbered(self.uris["sick"], [0,1])
+        d.addCallback(_clobber_shares)
+
+        # root
+        # root/good
+        # root/small
+        # root/sick
 
         d.addCallback(self.CHECK, "root", "t=stream-deep-check")
         def _done(res):
             units = [simplejson.loads(line)
                      for line in res.splitlines()
                      if line]
-            self.failUnlessEqual(len(units), 3+1)
+            self.failUnlessEqual(len(units), 4+1)
             # should be parent-first
             u0 = units[0]
             self.failUnlessEqual(u0["path"], [])
@@ -2859,10 +2875,34 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             stats = units[-1]
             self.failUnlessEqual(stats["type"], "stats")
             s = stats["stats"]
-            self.failUnlessEqual(s["count-immutable-files"], 1)
+            self.failUnlessEqual(s["count-immutable-files"], 2)
             self.failUnlessEqual(s["count-literal-files"], 1)
             self.failUnlessEqual(s["count-directories"], 1)
         d.addCallback(_done)
+
+        # now add root/subdir and root/subdir/grandchild, then make subdir
+        # unrecoverable, then see what happens
+
+        d.addCallback(lambda ign:
+                      self.rootnode.create_empty_directory(u"subdir"))
+        d.addCallback(_stash_uri, "subdir")
+        d.addCallback(lambda subdir_node:
+                      subdir_node.add_file(u"grandchild",
+                                           upload.Data(DATA+"2",
+                                                       convergence="")))
+        d.addCallback(_stash_uri, "grandchild")
+
+        d.addCallback(lambda ign:
+                      self.delete_shares_numbered(self.uris["subdir"],
+                                                  range(10)))
+
+        ## argh! how should a streaming-JSON API indicate fatal error?
+        ## answer: emit ERROR: instead of a JSON string
+        #d.addCallback(lambda ign:
+        #              self.shouldFail(UnrecoverableFileError, 'check-subdir',
+        #                              "no recoverable versions",
+        #                              self.CHECK, "ignored",
+        #                              "root", "t=stream-deep-check"))
 
         d.addErrback(self.explain_web_error)
         return d
@@ -2918,6 +2958,11 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase):
             #cso.parseOptions([c_shares[0][2]])
             #corrupt_share(cso)
         d.addCallback(_clobber_shares)
+
+        # root
+        # root/good   CHK, 10 shares
+        # root/small  LIT
+        # root/sick   CHK, 9 shares
 
         d.addCallback(self.CHECK, "root", "t=stream-deep-check&repair=true")
         def _done(res):

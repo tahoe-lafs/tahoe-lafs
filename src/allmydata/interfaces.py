@@ -1620,6 +1620,12 @@ class IDeepCheckable(Interface):
 
         I return a Monitor, with results that are an IDeepCheckResults
         object.
+
+        TODO: If any of the directories I traverse are unrecoverable, the
+        Monitor will report failure. If any of the files I check upon are
+        unrecoverable, those problems will be reported in the
+        IDeepCheckResults as usual, and the Monitor will not report a
+        failure.
         """
 
     def start_deep_check_and_repair(verify=False, add_lease=False):
@@ -1631,6 +1637,12 @@ class IDeepCheckable(Interface):
 
         I return a Monitor, with results that are an
         IDeepCheckAndRepairResults object.
+
+        TODO: If any of the directories I traverse are unrecoverable, the
+        Monitor will report failure. If any of the files I check upon are
+        unrecoverable, those problems will be reported in the
+        IDeepCheckResults as usual, and the Monitor will not report a
+        failure.
         """
 
 class ICheckResults(Interface):
