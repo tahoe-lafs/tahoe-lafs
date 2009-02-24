@@ -3,6 +3,7 @@ import os.path
 import time
 import urllib
 import simplejson
+import datetime
 from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS
 from allmydata.scripts.common_http import do_http
 from allmydata import uri
@@ -144,6 +145,7 @@ class BackerUpper:
         stdout = options.stdout
         stderr = options.stderr
 
+        start_timestamp = datetime.datetime.now()
         self.backupdb = None
         use_backupdb = not options["no-backupdb"]
         if use_backupdb:
@@ -209,6 +211,9 @@ class BackerUpper:
 
         put_child(archives_url, now, new_readonly_backup_dircap)
         put_child(to_url, "Latest", new_readonly_backup_dircap)
+        end_timestamp = datetime.datetime.now()
+        # calc elapsed time, omitting microseconds
+        elapsed_time = str(end_timestamp - start_timestamp).split('.')[0]
 
         if self.verbosity >= 1:
             print >>stdout, (" %d files uploaded (%d reused), "
@@ -223,7 +228,7 @@ class BackerUpper:
                                  % (self.files_checked,
                                     self.directories_checked,
                                     self.directories_read))
-            print >>stdout, " backup done"
+            print >>stdout, " backup done, elapsed time: %s" % elapsed_time
         # done!
         return 0
 
