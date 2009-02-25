@@ -16,6 +16,7 @@ class ManifestStreamer(LineOnlyReceiver):
         self.transport = FakeTransport()
 
     def run(self, options):
+        self.rc = 0
         stdout = options.stdout
         stderr = options.stderr
         self.options = options
@@ -38,6 +39,7 @@ class ManifestStreamer(LineOnlyReceiver):
             return 1
         #print "RESP", dir(resp)
         # use Twisted to split this into lines
+        self.in_error = False
         while True:
             chunk = resp.read(100)
             if not chunk:
@@ -46,11 +48,21 @@ class ManifestStreamer(LineOnlyReceiver):
                 stdout.write(chunk)
             else:
                 self.dataReceived(chunk)
-        return 0
+        return self.rc
 
     def lineReceived(self, line):
-        d = simplejson.loads(line)
         stdout = self.options.stdout
+        stderr = self.options.stderr
+        if self.in_error:
+            print >>stderr, line
+            return
+        if line.startswith("ERROR:"):
+            self.in_error = True
+            self.rc = 1
+            print >>stderr, line
+            return
+
+        d = simplejson.loads(line)
         if d["type"] in ("file", "directory"):
             if self.options["storage-index"]:
                 si = d["storage-index"]

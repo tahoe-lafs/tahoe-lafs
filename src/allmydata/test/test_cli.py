@@ -1198,6 +1198,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
             self.uris[which] = fn.get_uri()
+            return fn
         d.addCallback(_stash_uri, "good")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
@@ -1216,6 +1217,11 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless("done: 4 objects checked, 4 healthy, 0 unhealthy"
                             in lines, out)
         d.addCallback(_check1)
+
+        # root
+        # root/good
+        # root/small
+        # root/mutable
 
         d.addCallback(lambda ign: self.do_cli("deep-check", "--verbose",
                                               self.rooturi))
@@ -1247,6 +1253,11 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                                         shares[1][0])
             debug.corrupt_share(cso)
         d.addCallback(_clobber_shares)
+
+        # root
+        # root/good  [9 shares]
+        # root/small
+        # root/mutable [1 corrupt share]
 
         d.addCallback(lambda ign:
                       self.do_cli("deep-check", "--verbose", self.rooturi))
@@ -1314,6 +1325,56 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                             in lines, out)
             self.failUnless(" post-repair: 4 healthy, 0 unhealthy" in lines,out)
         d.addCallback(_check6)
+
+        # now add a subdir, and a file below that, then make the subdir
+        # unrecoverable
+
+        d.addCallback(lambda ign:
+                      self.rootnode.create_empty_directory(u"subdir"))
+        d.addCallback(_stash_uri, "subdir")
+        d.addCallback(lambda fn:
+                      fn.add_file(u"subfile", upload.Data(DATA+"2", "")))
+        d.addCallback(lambda ign:
+                      self.delete_shares_numbered(self.uris["subdir"],
+                                                  range(10)))
+
+        # root
+        # root/good
+        # root/small
+        # root/mutable
+        # root/subdir [unrecoverable: 0 shares]
+        # root/subfile
+
+        d.addCallback(lambda ign: self.do_cli("manifest", self.rooturi))
+        def _manifest_failed((rc, out, err)):
+            self.failIfEqual(rc, 0)
+            self.failUnlessIn("ERROR: UnrecoverableFileError", err)
+            # the fatal directory should still show up, as the last line
+            self.failUnlessIn(" subdir\n", out)
+        d.addCallback(_manifest_failed)
+
+        d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
+        def _deep_check_failed((rc, out, err)):
+            self.failIfEqual(rc, 0)
+            self.failUnlessIn("ERROR: UnrecoverableFileError", err)
+            # we want to make sure that the error indication is the last
+            # thing that gets emitted
+            self.failIf("done:" in out, out)
+        d.addCallback(_deep_check_failed)
+
+        # this test is disabled until the deep-repair response to an
+        # unrepairable directory is fixed. The failure-to-repair should not
+        # throw an exception, but the failure-to-traverse that follows
+        # should throw UnrecoverableFileError.
+
+        #d.addCallback(lambda ign:
+        #              self.do_cli("deep-check", "--repair", self.rooturi))
+        #def _deep_check_repair_failed((rc, out, err)):
+        #    self.failIfEqual(rc, 0)
+        #    print err
+        #    self.failUnlessIn("ERROR: UnrecoverableFileError", err)
+        #    self.failIf("done:" in out, out)
+        #d.addCallback(_deep_check_repair_failed)
 
         return d
 

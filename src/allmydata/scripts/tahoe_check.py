@@ -89,16 +89,28 @@ class FakeTransport:
 
 class DeepCheckOutput(LineOnlyReceiver):
     delimiter = "\n"
-    def __init__(self, options):
+    def __init__(self, streamer, options):
+        self.streamer = streamer
         self.transport = FakeTransport()
 
         self.verbose = bool(options["verbose"])
         self.stdout = options.stdout
+        self.stderr = options.stderr
         self.num_objects = 0
         self.files_healthy = 0
         self.files_unhealthy = 0
+        self.in_error = False
 
     def lineReceived(self, line):
+        if self.in_error:
+            print >>self.stderr, line
+            return
+        if line.startswith("ERROR:"):
+            self.in_error = True
+            self.streamer.rc = 1
+            print >>self.stderr, line
+            return
+
         d = simplejson.loads(line)
         stdout = self.stdout
         if d["type"] not in ("file", "directory"):
@@ -131,17 +143,21 @@ class DeepCheckOutput(LineOnlyReceiver):
                   (serverid, storage_index, sharenum)
 
     def done(self):
+        if self.in_error:
+            return
         stdout = self.stdout
         print >>stdout, "done: %d objects checked, %d healthy, %d unhealthy" \
               % (self.num_objects, self.files_healthy, self.files_unhealthy)
 
 class DeepCheckAndRepairOutput(LineOnlyReceiver):
     delimiter = "\n"
-    def __init__(self, options):
+    def __init__(self, streamer, options):
+        self.streamer = streamer
         self.transport = FakeTransport()
 
         self.verbose = bool(options["verbose"])
         self.stdout = options.stdout
+        self.stderr = options.stderr
         self.num_objects = 0
         self.pre_repair_files_healthy = 0
         self.pre_repair_files_unhealthy = 0
@@ -149,8 +165,18 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
         self.repairs_successful = 0
         self.post_repair_files_healthy = 0
         self.post_repair_files_unhealthy = 0
+        self.in_error = False
 
     def lineReceived(self, line):
+        if self.in_error:
+            print >>self.stderr, line
+            return
+        if line.startswith("ERROR:"):
+            self.in_error = True
+            self.streamer.rc = 1
+            print >>self.stderr, line
+            return
+
         d = simplejson.loads(line)
         stdout = self.stdout
         if d["type"] not in ("file", "directory"):
@@ -211,6 +237,8 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
                 print >>stdout, " repair failed"
 
     def done(self):
+        if self.in_error:
+            return
         stdout = self.stdout
         print >>stdout, "done: %d objects checked" % self.num_objects
         print >>stdout, " pre-repair: %d healthy, %d unhealthy" \
@@ -229,6 +257,7 @@ class DeepCheckStreamer(LineOnlyReceiver):
     def run(self, options):
         stdout = options.stdout
         stderr = options.stderr
+        self.rc = 0
         self.options = options
         nodeurl = options['node-url']
         if not nodeurl.endswith("/"):
@@ -247,9 +276,9 @@ class DeepCheckStreamer(LineOnlyReceiver):
             url += "&verify=true"
         if options["repair"]:
             url += "&repair=true"
-            output = DeepCheckAndRepairOutput(options)
+            output = DeepCheckAndRepairOutput(self, options)
         else:
-            output = DeepCheckOutput(options)
+            output = DeepCheckOutput(self, options)
         if options["add-lease"]:
             url += "&add-lease=true"
         resp = do_http("POST", url)
@@ -268,7 +297,7 @@ class DeepCheckStreamer(LineOnlyReceiver):
                 output.dataReceived(chunk)
         if not self.options["raw"]:
             output.done()
-        return 0
+        return self.rc
 
 def deepcheck(options):
     return DeepCheckStreamer().run(options)
