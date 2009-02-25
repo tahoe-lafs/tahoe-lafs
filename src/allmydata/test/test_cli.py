@@ -16,7 +16,9 @@ from allmydata.immutable import upload
 from allmydata.scripts import tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp
 _hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp]
 
-from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases
+from allmydata.scripts import common
+from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
+     DefaultAliasMarker
 
 from allmydata.scripts import cli, debug, runner, backupdb
 from allmydata.test.common_util import StallMixin
@@ -272,6 +274,79 @@ class CLI(unittest.TestCase):
                         "didn't see 'node1' in '%s'" % err)
         self.failUnless("mqfblse6m5a6dh45isu2cg7oji" in err,
                         "didn't see 'mqfblse6m5a6dh45isu2cg7oji' in '%s'" % err)
+
+    def test_alias(self):
+        aliases = {"tahoe": "TA",
+                   "work": "WA",
+                   "c": "CA"}
+        def ga1(path):
+            return get_alias(aliases, path, "tahoe")
+        self.failUnlessEqual(ga1("bare"), ("TA", "bare"))
+        self.failUnlessEqual(ga1("baredir/file"), ("TA", "baredir/file"))
+        self.failUnlessEqual(ga1("baredir/file:7"), ("TA", "baredir/file:7"))
+        self.failUnlessEqual(ga1("tahoe:"), ("TA", ""))
+        self.failUnlessEqual(ga1("tahoe:file"), ("TA", "file"))
+        self.failUnlessEqual(ga1("tahoe:dir/file"), ("TA", "dir/file"))
+        self.failUnlessEqual(ga1("work:"), ("WA", ""))
+        self.failUnlessEqual(ga1("work:file"), ("WA", "file"))
+        self.failUnlessEqual(ga1("work:dir/file"), ("WA", "dir/file"))
+        self.failUnlessEqual(ga1("c:"), ("CA", ""))
+        self.failUnlessEqual(ga1("c:file"), ("CA", "file"))
+        self.failUnlessEqual(ga1("c:dir/file"), ("CA", "dir/file"))
+        self.failUnlessEqual(ga1("URI:stuff"), ("URI:stuff", ""))
+        self.failUnlessEqual(ga1("URI:stuff:./file"), ("URI:stuff", "file"))
+        self.failUnlessEqual(ga1("URI:stuff:./dir/file"),
+                             ("URI:stuff", "dir/file"))
+        def ga2(path):
+            return get_alias(aliases, path, None)
+        self.failUnlessEqual(ga2("bare"), (DefaultAliasMarker, "bare"))
+        self.failUnlessEqual(ga2("baredir/file"),
+                             (DefaultAliasMarker, "baredir/file"))
+        self.failUnlessEqual(ga2("baredir/file:7"),
+                             (DefaultAliasMarker, "baredir/file:7"))
+        self.failUnlessEqual(ga2("baredir/sub:1/file:7"),
+                             (DefaultAliasMarker, "baredir/sub:1/file:7"))
+        self.failUnlessEqual(ga2("tahoe:"), ("TA", ""))
+        self.failUnlessEqual(ga2("tahoe:file"), ("TA", "file"))
+        self.failUnlessEqual(ga2("tahoe:dir/file"), ("TA", "dir/file"))
+        self.failUnlessEqual(ga1("c:"), ("CA", ""))
+        self.failUnlessEqual(ga1("c:file"), ("CA", "file"))
+        self.failUnlessEqual(ga1("c:dir/file"), ("CA", "dir/file"))
+        self.failUnlessEqual(ga2("work:"), ("WA", ""))
+        self.failUnlessEqual(ga2("work:file"), ("WA", "file"))
+        self.failUnlessEqual(ga2("work:dir/file"), ("WA", "dir/file"))
+        self.failUnlessEqual(ga2("URI:stuff"), ("URI:stuff", ""))
+        self.failUnlessEqual(ga2("URI:stuff:./file"), ("URI:stuff", "file"))
+        self.failUnlessEqual(ga2("URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+
+        def ga3(path):
+            old = common.pretend_platform_uses_lettercolon
+            try:
+                common.pretend_platform_uses_lettercolon = True
+                retval = get_alias(aliases, path, None)
+            finally:
+                common.pretend_platform_uses_lettercolon = old
+            return retval
+        self.failUnlessEqual(ga3("bare"), (DefaultAliasMarker, "bare"))
+        self.failUnlessEqual(ga3("baredir/file"),
+                             (DefaultAliasMarker, "baredir/file"))
+        self.failUnlessEqual(ga3("baredir/file:7"),
+                             (DefaultAliasMarker, "baredir/file:7"))
+        self.failUnlessEqual(ga3("baredir/sub:1/file:7"),
+                             (DefaultAliasMarker, "baredir/sub:1/file:7"))
+        self.failUnlessEqual(ga3("tahoe:"), ("TA", ""))
+        self.failUnlessEqual(ga3("tahoe:file"), ("TA", "file"))
+        self.failUnlessEqual(ga3("tahoe:dir/file"), ("TA", "dir/file"))
+        self.failUnlessEqual(ga3("c:"), (DefaultAliasMarker, "c:"))
+        self.failUnlessEqual(ga3("c:file"), (DefaultAliasMarker, "c:file"))
+        self.failUnlessEqual(ga3("c:dir/file"),
+                             (DefaultAliasMarker, "c:dir/file"))
+        self.failUnlessEqual(ga3("work:"), ("WA", ""))
+        self.failUnlessEqual(ga3("work:file"), ("WA", "file"))
+        self.failUnlessEqual(ga3("work:dir/file"), ("WA", "dir/file"))
+        self.failUnlessEqual(ga3("URI:stuff"), ("URI:stuff", ""))
+        self.failUnlessEqual(ga3("URI:stuff:./file"), ("URI:stuff", "file"))
+        self.failUnlessEqual(ga3("URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
 
 
 class Help(unittest.TestCase):
