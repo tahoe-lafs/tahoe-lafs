@@ -13,9 +13,11 @@ from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
 from allmydata.monitor import Monitor, OperationCancelledError
 from twisted.web.client import getPage
 
-from allmydata.test.common import SystemTestMixin, ErrorMixin
+from allmydata.test.common import SystemTestMixin, ErrorMixin, \
+     _corrupt_mutable_share_data
+from allmydata.test.no_network import GridTestMixin
 
-class MutableChecker(SystemTestMixin, unittest.TestCase, ErrorMixin):
+class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
 
     def _run_cli(self, argv):
         stdout, stderr = StringIO(), StringIO()
@@ -25,21 +27,18 @@ class MutableChecker(SystemTestMixin, unittest.TestCase, ErrorMixin):
         return stdout.getvalue()
 
     def test_good(self):
-        self.basedir = self.mktemp()
-        d = self.set_up_nodes()
+        self.basedir = "deepcheck/MutableChecker/good"
+        self.set_up_grid()
         CONTENTS = "a little bit of data"
-        d.addCallback(lambda res: self.clients[0].create_mutable_file(CONTENTS))
+        d = self.g.clients[0].create_mutable_file(CONTENTS)
         def _created(node):
             self.node = node
+            self.fileurl = "uri/" + urllib.quote(node.get_uri())
             si = self.node.get_storage_index()
         d.addCallback(_created)
         # now make sure the webapi verifier sees no problems
-        def _do_check(res):
-            url = (self.webish_url +
-                   "uri/%s" % urllib.quote(self.node.get_uri()) +
-                   "?t=check&verify=true")
-            return getPage(url, method="POST")
-        d.addCallback(_do_check)
+        d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=true",
+                                           method="POST"))
         def _got_results(out):
             self.failUnless("<span>Healthy : Healthy</span>" in out, out)
             self.failUnless("Recoverable Versions: 10*seq1-" in out, out)
@@ -51,31 +50,19 @@ class MutableChecker(SystemTestMixin, unittest.TestCase, ErrorMixin):
         return d
 
     def test_corrupt(self):
-        self.basedir = self.mktemp()
-        d = self.set_up_nodes()
+        self.basedir = "deepcheck/MutableChecker/corrupt"
+        self.set_up_grid()
         CONTENTS = "a little bit of data"
-        d.addCallback(lambda res: self.clients[0].create_mutable_file(CONTENTS))
-        def _created(node):
+        d = self.g.clients[0].create_mutable_file(CONTENTS)
+        def _stash_and_corrupt(node):
             self.node = node
-            si = self.node.get_storage_index()
-            out = self._run_cli(["debug", "find-shares", base32.b2a(si),
-                                self.clients[1].basedir])
-            files = out.split("\n")
-            # corrupt one of them, using the CLI debug command
-            f = files[0]
-            shnum = os.path.basename(f)
-            nodeid = self.clients[1].nodeid
-            nodeid_prefix = idlib.shortnodeid_b2a(nodeid)
-            self.corrupt_shareid = "%s-sh%s" % (nodeid_prefix, shnum)
-            out = self._run_cli(["debug", "corrupt-share", files[0]])
-        d.addCallback(_created)
+            self.fileurl = "uri/" + urllib.quote(node.get_uri())
+            self.corrupt_shares_numbered(node.get_uri(), [0],
+                                         _corrupt_mutable_share_data)
+        d.addCallback(_stash_and_corrupt)
         # now make sure the webapi verifier notices it
-        def _do_check(res):
-            url = (self.webish_url +
-                   "uri/%s" % urllib.quote(self.node.get_uri()) +
-                   "?t=check&verify=true")
-            return getPage(url, method="POST")
-        d.addCallback(_do_check)
+        d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=true",
+                                           method="POST"))
         def _got_results(out):
             self.failUnless("Not Healthy!" in out, out)
             self.failUnless("Unhealthy: best version has only 9 shares (encoding is 3-of-10)" in out, out)
@@ -83,16 +70,14 @@ class MutableChecker(SystemTestMixin, unittest.TestCase, ErrorMixin):
         d.addCallback(_got_results)
 
         # now make sure the webapi repairer can fix it
-        def _do_repair(res):
-            url = (self.webish_url +
-                   "uri/%s" % urllib.quote(self.node.get_uri()) +
-                   "?t=check&verify=true&repair=true")
-            return getPage(url, method="POST")
-        d.addCallback(_do_repair)
+        d.addCallback(lambda ign:
+                      self.GET(self.fileurl+"?t=check&verify=true&repair=true",
+                               method="POST"))
         def _got_repair_results(out):
             self.failUnless("<div>Repair successful</div>" in out, out)
         d.addCallback(_got_repair_results)
-        d.addCallback(_do_check)
+        d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=true",
+                                           method="POST"))
         def _got_postrepair_results(out):
             self.failIf("Not Healthy!" in out, out)
             self.failUnless("Recoverable Versions: 10*seq" in out, out)
@@ -102,31 +87,18 @@ class MutableChecker(SystemTestMixin, unittest.TestCase, ErrorMixin):
         return d
 
     def test_delete_share(self):
-        self.basedir = self.mktemp()
-        d = self.set_up_nodes()
+        self.basedir = "deepcheck/MutableChecker/delete_share"
+        self.set_up_grid()
         CONTENTS = "a little bit of data"
-        d.addCallback(lambda res: self.clients[0].create_mutable_file(CONTENTS))
-        def _created(node):
+        d = self.g.clients[0].create_mutable_file(CONTENTS)
+        def _stash_and_delete(node):
             self.node = node
-            si = self.node.get_storage_index()
-            out = self._run_cli(["debug", "find-shares", base32.b2a(si),
-                                self.clients[1].basedir])
-            files = out.split("\n")
-            # corrupt one of them, using the CLI debug command
-            f = files[0]
-            shnum = os.path.basename(f)
-            nodeid = self.clients[1].nodeid
-            nodeid_prefix = idlib.shortnodeid_b2a(nodeid)
-            self.corrupt_shareid = "%s-sh%s" % (nodeid_prefix, shnum)
-            os.unlink(files[0])
-        d.addCallback(_created)
+            self.fileurl = "uri/" + urllib.quote(node.get_uri())
+            self.delete_shares_numbered(node.get_uri(), [0])
+        d.addCallback(_stash_and_delete)
         # now make sure the webapi checker notices it
-        def _do_check(res):
-            url = (self.webish_url +
-                   "uri/%s" % urllib.quote(self.node.get_uri()) +
-                   "?t=check&verify=false")
-            return getPage(url, method="POST")
-        d.addCallback(_do_check)
+        d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=false",
+                                           method="POST"))
         def _got_results(out):
             self.failUnless("Not Healthy!" in out, out)
             self.failUnless("Unhealthy: best version has only 9 shares (encoding is 3-of-10)" in out, out)
@@ -134,16 +106,14 @@ class MutableChecker(SystemTestMixin, unittest.TestCase, ErrorMixin):
         d.addCallback(_got_results)
 
         # now make sure the webapi repairer can fix it
-        def _do_repair(res):
-            url = (self.webish_url +
-                   "uri/%s" % urllib.quote(self.node.get_uri()) +
-                   "?t=check&verify=false&repair=true")
-            return getPage(url, method="POST")
-        d.addCallback(_do_repair)
+        d.addCallback(lambda ign:
+                      self.GET(self.fileurl+"?t=check&verify=false&repair=true",
+                               method="POST"))
         def _got_repair_results(out):
             self.failUnless("Repair successful" in out)
         d.addCallback(_got_repair_results)
-        d.addCallback(_do_check)
+        d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=false",
+                                           method="POST"))
         def _got_postrepair_results(out):
             self.failIf("Not Healthy!" in out, out)
             self.failUnless("Recoverable Versions: 10*seq" in out)

@@ -13,7 +13,9 @@ from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
+from allmydata.mutable.layout import unpack_header
 from allmydata.storage.server import storage_index_to_dir
+from allmydata.storage.mutable import MutableShareFile
 from allmydata.util import hashutil, log, fileutil, pollmixin
 from allmydata.util.assertutil import precondition
 from allmydata.stats import StatsGathererService
@@ -1255,11 +1257,24 @@ def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
             log.msg("testing: corrupting offset %d, size %d, changing %d to %d (len(data) == %d)" % (0x48, 8, struct.unpack(">Q", data[0x48:0x48+8])[0], len(data)-0x0c-3, len(data)))
         return data[:0x48] + struct.pack(">Q", len(data)-0x0c-3) + data[0x48+8:]
 
+def _corrupt_mutable_share_data(data):
+    prefix = data[:32]
+    assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
+    data_offset = MutableShareFile.DATA_OFFSET
+    sharetype = data[data_offset:data_offset+1]
+    assert sharetype == "\x00", "non-SDMF mutable shares not supported"
+    (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
+     ig_datalen, offsets) = unpack_header(data[data_offset:])
+    assert version == 0, "this function only handles v0 SDMF files"
+    start = data_offset + offsets["share_data"]
+    length = data_offset + offsets["enc_privkey"] - start
+    return corrupt_field(data, start, length)
+
 def _corrupt_share_data(data):
     """ Scramble the file data -- the field containing the share data itself will have one
     bit flipped or else will be changed to a random value. """
     sharevernum = struct.unpack(">L", data[0x0c:0x0c+4])[0]
-    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways, not v%d." % sharevernum
     if sharevernum == 1:
         sharedatasize = struct.unpack(">L", data[0x0c+0x08:0x0c+0x08+4])[0]
 
