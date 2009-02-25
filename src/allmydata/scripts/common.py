@@ -124,6 +124,9 @@ def platform_uses_lettercolon_drivename():
         return True
     return False
 
+class UnknownAliasError(Exception):
+    pass
+
 def get_alias(aliases, path, default):
     # transform "work:path/filename" into (aliases["work"], "path/filename").
     # If default=None, then an empty alias is indicated by returning
@@ -143,7 +146,7 @@ def get_alias(aliases, path, default):
         if default == None:
             return DefaultAliasMarker, path
         return aliases[default], path
-    if colon == 1 and platform_uses_lettercolon_drivename():
+    if colon == 1 and default == None and platform_uses_lettercolon_drivename():
         # treat C:\why\must\windows\be\so\weird as a local path, not a tahoe
         # file in the "C:" alias
         return DefaultAliasMarker, path
@@ -154,6 +157,8 @@ def get_alias(aliases, path, default):
         if default == None:
             return DefaultAliasMarker, path
         return aliases[default], path
+    if alias not in aliases:
+        raise UnknownAliasError("Unknown alias '%s', please create it with 'tahoe add-alias' or 'tahoe create-alias'." % alias)
     return aliases[alias], path[colon+1:]
 
 def escape_path(path):

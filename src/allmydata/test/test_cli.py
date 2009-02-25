@@ -281,6 +281,7 @@ class CLI(unittest.TestCase):
                    "c": "CA"}
         def ga1(path):
             return get_alias(aliases, path, "tahoe")
+        uses_lettercolon = common.platform_uses_lettercolon_drivename()
         self.failUnlessEqual(ga1("bare"), ("TA", "bare"))
         self.failUnlessEqual(ga1("baredir/file"), ("TA", "baredir/file"))
         self.failUnlessEqual(ga1("baredir/file:7"), ("TA", "baredir/file:7"))
@@ -290,6 +291,8 @@ class CLI(unittest.TestCase):
         self.failUnlessEqual(ga1("work:"), ("WA", ""))
         self.failUnlessEqual(ga1("work:file"), ("WA", "file"))
         self.failUnlessEqual(ga1("work:dir/file"), ("WA", "dir/file"))
+        # default != None means we really expect a tahoe path, regardless of
+        # whether we're on windows or not. This is what 'tahoe get' uses.
         self.failUnlessEqual(ga1("c:"), ("CA", ""))
         self.failUnlessEqual(ga1("c:file"), ("CA", "file"))
         self.failUnlessEqual(ga1("c:dir/file"), ("CA", "dir/file"))
@@ -297,6 +300,10 @@ class CLI(unittest.TestCase):
         self.failUnlessEqual(ga1("URI:stuff:./file"), ("URI:stuff", "file"))
         self.failUnlessEqual(ga1("URI:stuff:./dir/file"),
                              ("URI:stuff", "dir/file"))
+        self.failUnlessRaises(common.UnknownAliasError, ga1, "missing:")
+        self.failUnlessRaises(common.UnknownAliasError, ga1, "missing:dir")
+        self.failUnlessRaises(common.UnknownAliasError, ga1, "missing:dir/file")
+
         def ga2(path):
             return get_alias(aliases, path, None)
         self.failUnlessEqual(ga2("bare"), (DefaultAliasMarker, "bare"))
@@ -309,15 +316,26 @@ class CLI(unittest.TestCase):
         self.failUnlessEqual(ga2("tahoe:"), ("TA", ""))
         self.failUnlessEqual(ga2("tahoe:file"), ("TA", "file"))
         self.failUnlessEqual(ga2("tahoe:dir/file"), ("TA", "dir/file"))
-        self.failUnlessEqual(ga1("c:"), ("CA", ""))
-        self.failUnlessEqual(ga1("c:file"), ("CA", "file"))
-        self.failUnlessEqual(ga1("c:dir/file"), ("CA", "dir/file"))
+        # on windows, we really want c:foo to indicate a local file.
+        # default==None is what 'tahoe cp' uses.
+        if uses_lettercolon:
+            self.failUnlessEqual(ga2("c:"), (DefaultAliasMarker, "c:"))
+            self.failUnlessEqual(ga2("c:file"), (DefaultAliasMarker, "c:file"))
+            self.failUnlessEqual(ga2("c:dir/file"),
+                                 (DefaultAliasMarker, "c:dir/file"))
+        else:
+            self.failUnlessEqual(ga2("c:"), ("CA", ""))
+            self.failUnlessEqual(ga2("c:file"), ("CA", "file"))
+            self.failUnlessEqual(ga2("c:dir/file"), ("CA", "dir/file"))
         self.failUnlessEqual(ga2("work:"), ("WA", ""))
         self.failUnlessEqual(ga2("work:file"), ("WA", "file"))
         self.failUnlessEqual(ga2("work:dir/file"), ("WA", "dir/file"))
         self.failUnlessEqual(ga2("URI:stuff"), ("URI:stuff", ""))
         self.failUnlessEqual(ga2("URI:stuff:./file"), ("URI:stuff", "file"))
         self.failUnlessEqual(ga2("URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+        self.failUnlessRaises(common.UnknownAliasError, ga2, "missing:")
+        self.failUnlessRaises(common.UnknownAliasError, ga2, "missing:dir")
+        self.failUnlessRaises(common.UnknownAliasError, ga2, "missing:dir/file")
 
         def ga3(path):
             old = common.pretend_platform_uses_lettercolon
@@ -347,6 +365,9 @@ class CLI(unittest.TestCase):
         self.failUnlessEqual(ga3("URI:stuff"), ("URI:stuff", ""))
         self.failUnlessEqual(ga3("URI:stuff:./file"), ("URI:stuff", "file"))
         self.failUnlessEqual(ga3("URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+        self.failUnlessRaises(common.UnknownAliasError, ga3, "missing:")
+        self.failUnlessRaises(common.UnknownAliasError, ga3, "missing:dir")
+        self.failUnlessRaises(common.UnknownAliasError, ga3, "missing:dir/file")
 
 
 class Help(unittest.TestCase):
