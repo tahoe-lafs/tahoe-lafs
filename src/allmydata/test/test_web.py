@@ -2883,13 +2883,8 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
             error_line = lines[first_error]
             error_msg = lines[first_error+1:]
             error_msg_s = "\n".join(error_msg) + "\n"
-            # different pythons repr the exception differently, so sometimes
-            # we get "ERROR: UnrecoverableFileError", and sometimes we get
-            # "ERROR: <allmydata.mutable.common.UnrecoverableFileError
-            # instance at 0x...>".
-            self.failUnlessIn("ERROR: ", error_line)
-            self.failUnlessIn("UnrecoverableFileError", error_line)
-            self.failUnlessIn("no recoverable versions", error_line)
+            self.failUnlessIn("ERROR: UnrecoverableFileError(no recoverable versions)",
+                              error_line)
             self.failUnless(len(error_msg) > 2, error_msg_s) # some traceback
             units = [simplejson.loads(line) for line in lines[:first_error]]
             self.failUnlessEqual(len(units), 5) # includes subdir
@@ -2909,9 +2904,8 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
             error_line = lines[first_error]
             error_msg = lines[first_error+1:]
             error_msg_s = "\n".join(error_msg) + "\n"
-            self.failUnlessIn("ERROR: ", error_line)
-            self.failUnlessIn("UnrecoverableFileError", error_line)
-            self.failUnlessIn("no recoverable versions", error_line)
+            self.failUnlessIn("ERROR: UnrecoverableFileError(no recoverable versions)",
+                              error_line)
             self.failUnless(len(error_msg) > 2, error_msg_s) # some traceback
             units = [simplejson.loads(line) for line in lines[:first_error]]
             self.failUnlessEqual(len(units), 5) # includes subdir

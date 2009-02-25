@@ -1348,8 +1348,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("manifest", self.rooturi))
         def _manifest_failed((rc, out, err)):
             self.failIfEqual(rc, 0)
-            self.failUnlessIn("ERROR: ", err)
-            self.failUnlessIn("UnrecoverableFileError", err)
+            self.failUnlessIn("ERROR: UnrecoverableFileError", err)
             # the fatal directory should still show up, as the last line
             self.failUnlessIn(" subdir\n", out)
         d.addCallback(_manifest_failed)
@@ -1357,8 +1356,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
         def _deep_check_failed((rc, out, err)):
             self.failIfEqual(rc, 0)
-            self.failUnlessIn("ERROR: ", err)
-            self.failUnlessIn("UnrecoverableFileError", err)
+            self.failUnlessIn("ERROR: UnrecoverableFileError", err)
             # we want to make sure that the error indication is the last
             # thing that gets emitted
             self.failIf("done:" in out, out)
@@ -1374,8 +1372,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         #def _deep_check_repair_failed((rc, out, err)):
         #    self.failIfEqual(rc, 0)
         #    print err
-        #    self.failUnlessIn("ERROR: ", err)
-        #    self.failUnlessIn("UnrecoverableFileError", err)
+        #    self.failUnlessIn("ERROR: UnrecoverableFileError", err)
         #    self.failIf("done:" in out, out)
         #d.addCallback(_deep_check_repair_failed)
 

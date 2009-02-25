@@ -406,7 +406,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d.addErrback(_cancelled)
         def _error(f):
             # signal the error as a non-JSON "ERROR:" line, plus exception
-            msg = "ERROR: %s\n" % repr(f.value)
+            msg = "ERROR: %s(%s)\n" % (f.value.__class__.__name__,
+                                       ", ".join([str(a) for a in f.value.args]))
             msg += str(f)
             return msg
         d.addErrback(_error)
@@ -450,7 +451,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d.addErrback(_cancelled)
         def _error(f):
             # signal the error as a non-JSON "ERROR:" line, plus exception
-            msg = "ERROR: %s\n" % repr(f.value)
+            msg = "ERROR: %s(%s)\n" % (f.value.__class__.__name__,
+                                       ", ".join([str(a) for a in f.value.args]))
             msg += str(f)
             return msg
         d.addErrback(_error)
