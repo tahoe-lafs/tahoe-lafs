@@ -46,6 +46,7 @@ class WebRenderingMixin:
         # Deferred, this will throw an exception. (note that
         # page.renderString is the Deferred-returning equivalent)
         req = FakeRequest(**kwargs)
+        req.fields = None
         ctx = self.make_context(req)
         return page.renderSynchronously(ctx)
 
