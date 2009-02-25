@@ -13,8 +13,8 @@ from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
 from allmydata.monitor import Monitor, OperationCancelledError
 from twisted.web.client import getPage
 
-from allmydata.test.common import SystemTestMixin, ErrorMixin, \
-     _corrupt_mutable_share_data
+from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data
+from allmydata.test.common_util import StallMixin
 from allmydata.test.no_network import GridTestMixin
 
 class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
@@ -123,7 +123,7 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
         return d
 
 
-class DeepCheckBase(SystemTestMixin, ErrorMixin):
+class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin):
 
     def web_json(self, n, **kwargs):
         kwargs["output"] = "json"
@@ -147,14 +147,14 @@ class DeepCheckBase(SystemTestMixin, ErrorMixin):
 
     def web(self, n, method="GET", **kwargs):
         # returns (data, url)
-        url = (self.webish_url + "uri/%s" % urllib.quote(n.get_uri())
+        url = (self.client_baseurls[0] + "uri/%s" % urllib.quote(n.get_uri())
                + "?" + "&".join(["%s=%s" % (k,v) for (k,v) in kwargs.items()]))
         d = getPage(url, method=method)
         d.addCallback(lambda data: (data,url))
         return d
 
     def wait_for_operation(self, ignored, ophandle):
-        url = self.webish_url + "operations/" + ophandle
+        url = self.client_baseurls[0] + "operations/" + ophandle
         url += "?t=status&output=JSON"
         d = getPage(url)
         def _got(res):
@@ -171,7 +171,7 @@ class DeepCheckBase(SystemTestMixin, ErrorMixin):
         return d
 
     def get_operation_results(self, ignored, ophandle, output=None):
-        url = self.webish_url + "operations/" + ophandle
+        url = self.client_baseurls[0] + "operations/" + ophandle
         url += "?t=status"
         if output:
             url += "&output=" + output
@@ -200,7 +200,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
     # mutable file, one LIT file, and a loop), and then check/examine it in
     # various ways.
 
-    def set_up_tree(self, ignored):
+    def set_up_tree(self):
         # 2.9s
 
         # root
@@ -209,7 +209,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         #   small
         #   small2
         #   loop -> root
-        c0 = self.clients[0]
+        c0 = self.g.clients[0]
         d = c0.create_empty_dirnode()
         def _created_root(n):
             self.root = n
@@ -253,27 +253,30 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                              where)
         self.failUnlessEqual(cr.get_storage_index_string(),
                              base32.b2a(n.get_storage_index()), where)
-        needs_rebalancing = bool( len(self.clients) < 10 )
+        num_servers = len(self.g.all_servers)
+        needs_rebalancing = bool( num_servers < 10 )
         if not incomplete:
-            self.failUnlessEqual(cr.needs_rebalancing(), needs_rebalancing, str((where, cr, cr.get_data())))
+            self.failUnlessEqual(cr.needs_rebalancing(), needs_rebalancing,
+                                 str((where, cr, cr.get_data())))
         d = cr.get_data()
         self.failUnlessEqual(d["count-shares-good"], 10, where)
         self.failUnlessEqual(d["count-shares-needed"], 3, where)
         self.failUnlessEqual(d["count-shares-expected"], 10, where)
         if not incomplete:
-            self.failUnlessEqual(d["count-good-share-hosts"], len(self.clients), where)
+            self.failUnlessEqual(d["count-good-share-hosts"], num_servers,
+                                 where)
         self.failUnlessEqual(d["count-corrupt-shares"], 0, where)
         self.failUnlessEqual(d["list-corrupt-shares"], [], where)
         if not incomplete:
             self.failUnlessEqual(sorted(d["servers-responding"]),
-                                 sorted([c.nodeid for c in self.clients]),
+                                 sorted(self.g.servers_by_id.keys()),
                                  where)
             self.failUnless("sharemap" in d, str((where, d)))
             all_serverids = set()
             for (shareid, serverids) in d["sharemap"].items():
                 all_serverids.update(serverids)
             self.failUnlessEqual(sorted(all_serverids),
-                                 sorted([c.nodeid for c in self.clients]),
+                                 sorted(self.g.servers_by_id.keys()),
                                  where)
 
         self.failUnlessEqual(d["count-wrong-shares"], 0, where)
@@ -304,9 +307,9 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         self.failUnlessEqual(c["count-repairs-attempted"], 0, where)
 
     def test_good(self):
-        self.basedir = self.mktemp()
-        d = self.set_up_nodes()
-        d.addCallback(self.set_up_tree)
+        self.basedir = "deepcheck/DeepCheckWebGood/good"
+        self.set_up_grid()
+        d = self.set_up_tree()
         d.addCallback(self.do_stats)
         d.addCallback(self.do_web_stream_manifest)
         d.addCallback(self.do_web_stream_check)
@@ -493,27 +496,32 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                              "%s: '%s'" % (where, data["summary"]))
         r = data["results"]
         self.failUnlessEqual(r["healthy"], True, where)
-        needs_rebalancing = bool( len(self.clients) < 10 )
+        num_servers = len(self.g.all_servers)
+        needs_rebalancing = bool( num_servers < 10 )
         if not incomplete:
-            self.failUnlessEqual(r["needs-rebalancing"], needs_rebalancing, where)
+            self.failUnlessEqual(r["needs-rebalancing"], needs_rebalancing,
+                                 where)
         self.failUnlessEqual(r["count-shares-good"], 10, where)
         self.failUnlessEqual(r["count-shares-needed"], 3, where)
         self.failUnlessEqual(r["count-shares-expected"], 10, where)
         if not incomplete:
-            self.failUnlessEqual(r["count-good-share-hosts"], len(self.clients), where)
+            self.failUnlessEqual(r["count-good-share-hosts"], num_servers,
+                                 where)
         self.failUnlessEqual(r["count-corrupt-shares"], 0, where)
         self.failUnlessEqual(r["list-corrupt-shares"], [], where)
         if not incomplete:
             self.failUnlessEqual(sorted(r["servers-responding"]),
-                                 sorted([idlib.nodeid_b2a(c.nodeid)
-                                         for c in self.clients]), where)
+                                 sorted([idlib.nodeid_b2a(sid)
+                                         for sid in self.g.servers_by_id]),
+                                 where)
             self.failUnless("sharemap" in r, where)
             all_serverids = set()
             for (shareid, serverids_s) in r["sharemap"].items():
                 all_serverids.update(serverids_s)
             self.failUnlessEqual(sorted(all_serverids),
-                                 sorted([idlib.nodeid_b2a(c.nodeid)
-                                         for c in self.clients]), where)
+                                 sorted([idlib.nodeid_b2a(sid)
+                                         for sid in self.g.servers_by_id]),
+                                 where)
         self.failUnlessEqual(r["count-wrong-shares"], 0, where)
         self.failUnlessEqual(r["count-recoverable-versions"], 1, where)
         self.failUnlessEqual(r["count-unrecoverable-versions"], 0, where)
@@ -696,7 +704,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         self.failUnless(base32.b2a(self.large.get_storage_index()) in lines)
 
     def do_cli_manifest_stream1(self):
-        basedir = self.getdir("client0")
+        basedir = self.get_clientdir(0)
         d = self._run_cli(["manifest",
                            "--node-directory", basedir,
                            self.root_uri])
@@ -722,7 +730,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_manifest_stream2(self):
-        basedir = self.getdir("client0")
+        basedir = self.get_clientdir(0)
         d = self._run_cli(["manifest",
                            "--node-directory", basedir,
                            "--raw",
@@ -735,7 +743,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_manifest_stream3(self):
-        basedir = self.getdir("client0")
+        basedir = self.get_clientdir(0)
         d = self._run_cli(["manifest",
                            "--node-directory", basedir,
                            "--storage-index",
@@ -747,7 +755,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_manifest_stream4(self):
-        basedir = self.getdir("client0")
+        basedir = self.get_clientdir(0)
         d = self._run_cli(["manifest",
                            "--node-directory", basedir,
                            "--verify-cap",
@@ -763,7 +771,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_manifest_stream5(self):
-        basedir = self.getdir("client0")
+        basedir = self.get_clientdir(0)
         d = self._run_cli(["manifest",
                            "--node-directory", basedir,
                            "--repair-cap",
@@ -779,7 +787,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_stats1(self):
-        basedir = self.getdir("client0")
+        basedir = self.get_clientdir(0)
         d = self._run_cli(["stats",
                            "--node-directory", basedir,
                            self.root_uri])
@@ -798,7 +806,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         return d
 
     def do_cli_stats2(self):
-        basedir = self.getdir("client0")
+        basedir = self.get_clientdir(0)
         d = self._run_cli(["stats",
                            "--node-directory", basedir,
                            "--raw",
@@ -822,9 +830,9 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
 
     def test_bad(self):
-        self.basedir = self.mktemp()
-        d = self.set_up_nodes()
-        d.addCallback(self.set_up_damaged_tree)
+        self.basedir = "deepcheck/DeepCheckWebBad/bad"
+        self.set_up_grid()
+        d = self.set_up_damaged_tree()
         d.addCallback(self.do_check)
         d.addCallback(self.do_deepcheck)
         d.addCallback(self.do_test_web_bad)
@@ -834,7 +842,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
 
 
 
-    def set_up_damaged_tree(self, ignored):
+    def set_up_damaged_tree(self):
         # 6.4s
 
         # root
@@ -849,7 +857,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
 
         self.nodes = {}
 
-        c0 = self.clients[0]
+        c0 = self.g.clients[0]
         d = c0.create_empty_dirnode()
         def _created_root(n):
             self.root = n
@@ -870,7 +878,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
     def create_mangled(self, ignored, name):
         nodetype, mangletype = name.split("-", 1)
         if nodetype == "mutable":
-            d = self.clients[0].create_mutable_file("mutable file contents")
+            d = self.g.clients[0].create_mutable_file("mutable file contents")
             d.addCallback(lambda n: self.root.set_node(unicode(name), n))
         elif nodetype == "large":
             large = upload.Data("Lots of data\n" * 1000 + name + "\n", None)
@@ -903,27 +911,16 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         runner.runner(argv, run_by_human=False, stdout=stdout, stderr=stderr)
         return stdout.getvalue()
 
-    def _find_shares(self, node):
-        si = node.get_storage_index()
-        out = self._run_cli(["debug", "find-shares", base32.b2a(si)] +
-                            [c.basedir for c in self.clients])
-        files = out.split("\n")
-        return [f for f in files if f]
-
     def _delete_some_shares(self, node):
-        shares = self._find_shares(node)
-        os.unlink(shares[0])
-        os.unlink(shares[1])
+        self.delete_shares_numbered(node.get_uri(), [0,1])
 
     def _corrupt_some_shares(self, node):
-        shares = self._find_shares(node)
-        self._run_cli(["debug", "corrupt-share", shares[0]])
-        self._run_cli(["debug", "corrupt-share", shares[1]])
+        for (shnum, serverid, sharefile) in self.find_shares(node.get_uri()):
+            if shnum in (0,1):
+                self._run_cli(["debug", "corrupt-share", sharefile])
 
     def _delete_most_shares(self, node):
-        shares = self._find_shares(node)
-        for share in shares[1:]:
-            os.unlink(share)
+        self.delete_shares_numbered(node.get_uri(), range(1,10))
 
 
     def check_is_healthy(self, cr, where):
