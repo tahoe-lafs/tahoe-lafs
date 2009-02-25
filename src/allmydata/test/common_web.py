@@ -30,6 +30,7 @@ class WebRenderingMixin:
         # use this to exercise an overridden renderHTTP, usually for
         # output=json or render_GET. It always returns a Deferred.
         req = FakeRequest(**kwargs)
+        req.fields = None
         ctx = self.make_context(req)
         d = defer.maybeDeferred(page.renderHTTP, ctx)
         def _done(res):
