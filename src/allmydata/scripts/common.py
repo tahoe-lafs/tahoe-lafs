@@ -116,6 +116,14 @@ def get_aliases(nodedir):
 class DefaultAliasMarker:
     pass
 
+pretend_platform_uses_lettercolon = False # for tests
+def platform_uses_lettercolon_drivename():
+    if ("win32" in sys.platform.lower()
+        or "cygwin" in sys.platform.lower()
+        or pretend_platform_uses_lettercolon):
+        return True
+    return False
+
 def get_alias(aliases, path, default):
     # transform "work:path/filename" into (aliases["work"], "path/filename").
     # If default=None, then an empty alias is indicated by returning
@@ -135,6 +143,10 @@ def get_alias(aliases, path, default):
         if default == None:
             return DefaultAliasMarker, path
         return aliases[default], path
+    if colon == 1 and platform_uses_lettercolon_drivename():
+        # treat C:\why\must\windows\be\so\weird as a local path, not a tahoe
+        # file in the "C:" alias
+        return DefaultAliasMarker, path
     alias = path[:colon]
     if "/" in alias:
         # no alias, but there's a colon in a dirname/filename, like
