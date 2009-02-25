@@ -16,6 +16,7 @@
 import os.path
 import sha
 from twisted.application import service
+from twisted.internet import reactor
 from foolscap import Referenceable
 from foolscap.eventual import fireEventually
 from base64 import b32encode
@@ -24,6 +25,7 @@ from allmydata.client import Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil, rrefutil
 from allmydata.introducer.client import RemoteServiceConnector
+from allmydata.test.common_web import HTTPClientGETFactory
 
 class IntentionalError(Exception):
     pass
@@ -283,3 +285,19 @@ class GridTestMixin:
                 sharedata = open(i_sharefile, "rb").read()
                 corruptdata = corruptor(sharedata)
                 open(i_sharefile, "wb").write(corruptdata)
+
+    def GET(self, urlpath, followRedirect=False, return_response=False,
+            method="GET", clientnum=0, **kwargs):
+        # if return_response=True, this fires with (data, statuscode,
+        # respheaders) instead of just data.
+        assert not isinstance(urlpath, unicode)
+        url = self.client_baseurls[clientnum] + urlpath
+        factory = HTTPClientGETFactory(url, method=method,
+                                       followRedirect=followRedirect, **kwargs)
+        reactor.connectTCP("localhost", self.client_webports[clientnum],factory)
+        d = factory.deferred
+        def _got_data(data):
+            return (data, factory.status, factory.response_headers)
+        if return_response:
+            d.addCallback(_got_data)
+        return factory.deferred

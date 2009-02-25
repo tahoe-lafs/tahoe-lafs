@@ -23,6 +23,9 @@ from allmydata.mutable.common import UnrecoverableFileError
 import common_util as testutil
 from allmydata.test.no_network import GridTestMixin
 
+from allmydata.test.common_web import HTTPClientGETFactory, \
+     HTTPClientHEADFactory
+
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
@@ -114,27 +117,6 @@ class FakeClient(service.MultiService):
         return self._all_retrieve_statuses
     def list_all_helper_statuses(self):
         return []
-
-class MyGetter(client.HTTPPageGetter):
-    handleStatus_206 = lambda self: self.handleStatus_200()
-
-class HTTPClientHEADFactory(client.HTTPClientFactory):
-    protocol = MyGetter
-
-    def noPage(self, reason):
-        # Twisted-2.5.0 and earlier had a bug, in which they would raise an
-        # exception when the response to a HEAD request had no body (when in
-        # fact they are defined to never have a body). This was fixed in
-        # Twisted-8.0 . To work around this, we catch the
-        # PartialDownloadError and make it disappear.
-        if (reason.check(client.PartialDownloadError)
-            and self.method.upper() == "HEAD"):
-            self.page("")
-            return
-        return client.HTTPClientFactory.noPage(self, reason)
-
-class HTTPClientGETFactory(client.HTTPClientFactory):
-    protocol = MyGetter
 
 class WebMixin(object):
     def setUp(self):
@@ -2545,22 +2527,6 @@ class Util(unittest.TestCase):
 
 
 class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
-
-    def GET(self, urlpath, followRedirect=False, return_response=False,
-            method="GET", clientnum=0, **kwargs):
-        # if return_response=True, this fires with (data, statuscode,
-        # respheaders) instead of just data.
-        assert not isinstance(urlpath, unicode)
-        url = self.client_baseurls[clientnum] + urlpath
-        factory = HTTPClientGETFactory(url, method=method,
-                                       followRedirect=followRedirect, **kwargs)
-        reactor.connectTCP("localhost", self.client_webports[clientnum],factory)
-        d = factory.deferred
-        def _got_data(data):
-            return (data, factory.status, factory.response_headers)
-        if return_response:
-            d.addCallback(_got_data)
-        return factory.deferred
 
     def CHECK(self, ign, which, args, clientnum=0):
         fileurl = self.fileurls[which]
