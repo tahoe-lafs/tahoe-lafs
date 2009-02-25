@@ -896,8 +896,9 @@ POST $URL?t=stream-deep-check
  This initiates a recursive walk of all files and directories reachable from
  the target, performing a check on each one just like t=check. For each
  unique object (duplicates are skipped), a single line of JSON is emitted to
- the HTTP response channel. When the walk is complete, a final line of JSON
- is emitted which contains the accumulated file-size/count "deep-stats" data.
+ the HTTP response channel (or an error indication, see below). When the walk
+ is complete, a final line of JSON is emitted which contains the accumulated
+ file-size/count "deep-stats" data.
 
  This command takes the same arguments as t=start-deep-check.
 
@@ -928,6 +929,18 @@ POST $URL?t=stream-deep-check
 
  The last unit in the stream will have a type of "stats", and will contain
  the keys described in the "start-deep-stats" operation, below.
+
+ If any errors occur during the traversal (specifically if a directory is
+ unrecoverable, such that further traversal is not possible), an error
+ indication is written to the response body, instead of the usual line of
+ JSON. This error indication line will begin with the string "ERROR:" (in all
+ caps), and contain a summary of the error on the rest of the line. The
+ remaining lines of the response body will be a python exception. The client
+ application should look for the ERROR: and stop processing JSON as soon as
+ it is seen. Note that neither a file being unrecoverable nor a directory
+ merely being unhealthy will cause traversal to stop. The line just before
+ the ERROR: will describe the directory that was untraversable, since the
+ unit is emitted to the HTTP response body before the child is traversed.
 
 
 POST $URL?t=check&repair=true
@@ -1017,9 +1030,9 @@ POST $URL?t=stream-deep-check&repair=true
 
  This triggers a recursive walk of all files and directories, performing a
  t=check&repair=true on each one. For each unique object (duplicates are
- skipped), a single line of JSON is emitted to the HTTP response channel.
- When the walk is complete, a final line of JSON is emitted which contains
- the accumulated file-size/count "deep-stats" data.
+ skipped), a single line of JSON is emitted to the HTTP response channel (or
+ an error indication). When the walk is complete, a final line of JSON is
+ emitted which contains the accumulated file-size/count "deep-stats" data.
 
  This emits the same data as t=stream-deep-check (without the repair=true),
  except that the "check-results" field is replaced with a
@@ -1030,6 +1043,11 @@ POST $URL?t=stream-deep-check&repair=true
  (the one with count-objects-checked and list-unhealthy-files), since the
  receiving client is expected to calculate those values itself from the
  stream of per-object check-and-repair-results.
+
+ Note that the "ERROR:" indication will only be emitted if traversal stops,
+ which will only occur if an unrecoverable directory is encountered. If a
+ file or directory repair fails, the traversal will continue, and the repair
+ failure will be indicated in the JSON data (in the "repair-successful" key).
 
 POST $DIRURL?t=start-manifest    (must add &ophandle=XYZ)
 
@@ -1123,8 +1141,9 @@ POST $URL?t=stream-manifest
  This operation performs a recursive walk of all files and directories
  reachable from the given starting point. For each such unique object
  (duplicates are skipped), a single line of JSON is emitted to the HTTP
- response channel. When the walk is complete, a final line of JSON is emitted
- which contains the accumulated file-size/count "deep-stats" data.
+ response channel (or an error indication, see below). When the walk is
+ complete, a final line of JSON is emitted which contains the accumulated
+ file-size/count "deep-stats" data.
 
  A CLI tool can split the response stream on newlines into "response units",
  and parse each response unit as JSON. Each such parsed unit will be a
@@ -1148,6 +1167,16 @@ POST $URL?t=stream-manifest
  The last unit in the stream will have a type of "stats", and will contain
  the keys described in the "start-deep-stats" operation, below.
 
+ If any errors occur during the traversal (specifically if a directory is
+ unrecoverable, such that further traversal is not possible), an error
+ indication is written to the response body, instead of the usual line of
+ JSON. This error indication line will begin with the string "ERROR:" (in all
+ caps), and contain a summary of the error on the rest of the line. The
+ remaining lines of the response body will be a python exception. The client
+ application should look for the ERROR: and stop processing JSON as soon as
+ it is seen. The line just before the ERROR: will describe the directory that
+ was untraversable, since the manifest entry is emitted to the HTTP response
+ body before the child is traversed.
 
 == Other Useful Pages ==
 

@@ -19,7 +19,6 @@ from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
 from allmydata.interfaces import IURI, INewDirectoryURI, \
      IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
 from allmydata.mutable import servermap, publish, retrieve
-from allmydata.mutable.common import UnrecoverableFileError
 import common_util as testutil
 from allmydata.test.no_network import GridTestMixin
 
@@ -2860,15 +2859,63 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
 
         d.addCallback(lambda ign:
                       self.delete_shares_numbered(self.uris["subdir"],
-                                                  range(10)))
+                                                  range(1, 10)))
 
-        ## argh! how should a streaming-JSON API indicate fatal error?
-        ## answer: emit ERROR: instead of a JSON string
-        #d.addCallback(lambda ign:
-        #              self.shouldFail(UnrecoverableFileError, 'check-subdir',
-        #                              "no recoverable versions",
-        #                              self.CHECK, "ignored",
-        #                              "root", "t=stream-deep-check"))
+        # root
+        # root/good
+        # root/small
+        # root/sick
+        # root/subdir [unrecoverable]
+        # root/subdir/grandchild
+
+        # how should a streaming-JSON API indicate fatal error?
+        # answer: emit ERROR: instead of a JSON string
+
+        d.addCallback(self.CHECK, "root", "t=stream-manifest")
+        def _check_broken_manifest(res):
+            lines = res.splitlines()
+            error_lines = [i
+                           for (i,line) in enumerate(lines)
+                           if line.startswith("ERROR:")]
+            if not error_lines:
+                self.fail("no ERROR: in output: %s" % (res,))
+            first_error = error_lines[0]
+            error_line = lines[first_error]
+            error_msg = lines[first_error+1:]
+            error_msg_s = "\n".join(error_msg) + "\n"
+            self.failUnlessIn("ERROR: UnrecoverableFileError", error_line)
+            self.failUnlessIn("no recoverable versions", error_line)
+            self.failUnless(len(error_msg) > 2, error_msg_s) # some traceback
+            units = [simplejson.loads(line) for line in lines[:first_error]]
+            self.failUnlessEqual(len(units), 5) # includes subdir
+            last_unit = units[-1]
+            self.failUnlessEqual(last_unit["path"], ["subdir"])
+        d.addCallback(_check_broken_manifest)
+
+        d.addCallback(self.CHECK, "root", "t=stream-deep-check")
+        def _check_broken_deepcheck(res):
+            lines = res.splitlines()
+            error_lines = [i
+                           for (i,line) in enumerate(lines)
+                           if line.startswith("ERROR:")]
+            if not error_lines:
+                self.fail("no ERROR: in output: %s" % (res,))
+            first_error = error_lines[0]
+            error_line = lines[first_error]
+            error_msg = lines[first_error+1:]
+            error_msg_s = "\n".join(error_msg) + "\n"
+            self.failUnlessIn("ERROR: UnrecoverableFileError", error_line)
+            self.failUnlessIn("no recoverable versions", error_line)
+            self.failUnless(len(error_msg) > 2, error_msg_s) # some traceback
+            units = [simplejson.loads(line) for line in lines[:first_error]]
+            self.failUnlessEqual(len(units), 5) # includes subdir
+            last_unit = units[-1]
+            self.failUnlessEqual(last_unit["path"], ["subdir"])
+            r = last_unit["check-results"]["results"]
+            self.failUnlessEqual(r["count-recoverable-versions"], 0)
+            self.failUnlessEqual(r["count-shares-good"], 1)
+            self.failUnlessEqual(r["recoverable"], False)
+        d.addCallback(_check_broken_deepcheck)
 
         d.addErrback(self.explain_web_error)
         return d

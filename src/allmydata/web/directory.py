@@ -404,6 +404,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             f.trap(OperationCancelledError)
             return "Operation Cancelled"
         d.addErrback(_cancelled)
+        def _error(f):
+            # signal the error as a non-JSON "ERROR:" line, plus exception
+            msg = "ERROR: %s\n" % repr(f.value)
+            msg += str(f)
+            return msg
+        d.addErrback(_error)
         return d
 
     def _POST_start_manifest(self, ctx):
@@ -442,6 +448,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             f.trap(OperationCancelledError)
             return "Operation Cancelled"
         d.addErrback(_cancelled)
+        def _error(f):
+            # signal the error as a non-JSON "ERROR:" line, plus exception
+            msg = "ERROR: %s\n" % repr(f.value)
+            msg += str(f)
+            return msg
+        d.addErrback(_error)
         return d
 
     def _POST_set_children(self, req):

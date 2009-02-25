@@ -5,6 +5,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet import threads # CLI tests use deferToThread
 from allmydata.immutable import upload
+from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import idlib
 from allmydata.util import base32
 from allmydata.scripts import runner
@@ -13,7 +14,8 @@ from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
 from allmydata.monitor import Monitor, OperationCancelledError
 from twisted.web.client import getPage
 
-from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data
+from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data, \
+     ShouldFailMixin
 from allmydata.test.common_util import StallMixin
 from allmydata.test.no_network import GridTestMixin
 
@@ -123,7 +125,7 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
         return d
 
 
-class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin):
+class DeepCheckBase(GridTestMixin, ErrorMixin, StallMixin, ShouldFailMixin):
 
     def web_json(self, n, **kwargs):
         kwargs["output"] = "json"
@@ -835,6 +837,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         d = self.set_up_damaged_tree()
         d.addCallback(self.do_check)
         d.addCallback(self.do_deepcheck)
+        d.addCallback(self.do_deepcheck_broken)
         d.addCallback(self.do_test_web_bad)
         d.addErrback(self.explain_web_error)
         d.addErrback(self.explain_error)
@@ -854,6 +857,12 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         #   large-missing-shares
         #   large-corrupt-shares
         #   large-unrecoverable
+        # broken
+        #   large1-good
+        #   subdir-good
+        #     large2-good
+        #   subdir-unrecoverable
+        #     large3-good
 
         self.nodes = {}
 
@@ -871,9 +880,27 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         d.addCallback(self.create_mangled, "large-missing-shares")
         d.addCallback(self.create_mangled, "large-corrupt-shares")
         d.addCallback(self.create_mangled, "large-unrecoverable")
-
+        d.addCallback(lambda ignored: c0.create_empty_dirnode())
+        d.addCallback(self._stash_node, "broken")
+        large1 = upload.Data("Lots of data\n" * 1000 + "large1" + "\n", None)
+        d.addCallback(lambda ignored:
+                      self.nodes["broken"].add_file(u"large1", large1))
+        d.addCallback(lambda ignored:
+                      self.nodes["broken"].create_empty_directory(u"subdir-good"))
+        large2 = upload.Data("Lots of data\n" * 1000 + "large2" + "\n", None)
+        d.addCallback(lambda subdir: subdir.add_file(u"large2-good", large2))
+        d.addCallback(lambda ignored:
+                      self.nodes["broken"].create_empty_directory(u"subdir-unrecoverable"))
+        d.addCallback(self._stash_node, "subdir-unrecoverable")
+        large3 = upload.Data("Lots of data\n" * 1000 + "large3" + "\n", None)
+        d.addCallback(lambda subdir: subdir.add_file(u"large3-good", large3))
+        d.addCallback(lambda ignored:
+                      self._delete_most_shares(self.nodes["broken"]))
         return d
 
+    def _stash_node(self, node, name):
+        self.nodes[name] = node
+        return node
 
     def create_mangled(self, ignored, name):
         nodetype, mangletype = name.split("-", 1)
@@ -887,10 +914,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
             small = upload.Data("Small enough for a LIT", None)
             d = self.root.add_file(unicode(name), small)
 
-        def _stash_node(node):
-            self.nodes[name] = node
-            return node
-        d.addCallback(_stash_node)
+        d.addCallback(self._stash_node, name)
 
         if mangletype == "good":
             pass
@@ -1040,6 +1064,16 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
             self.failUnlessEqual(c["count-objects-unrecoverable"], 2) # mutable unrecoverable, large unrecoverable
         d.addCallback(_check2)
 
+        return d
+
+    def do_deepcheck_broken(self, ignored):
+        # deep-check on the broken directory should fail, because of the
+        # untraversable subdir
+        def _do_deep_check():
+            return self.nodes["broken"].start_deep_check().when_done()
+        d = self.shouldFail(UnrecoverableFileError, "do_deep_check",
+                            "no recoverable versions",
+                            _do_deep_check)
         return d
 
     def json_is_healthy(self, data, where):
