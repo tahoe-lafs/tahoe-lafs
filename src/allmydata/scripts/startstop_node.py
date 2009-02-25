@@ -23,9 +23,6 @@ class RestartOptions(BasedirMixin, usage.Options):
         ["basedir", "C", None, "which directory to restart the node in"],
         ]
     optFlags = [
-        ["force", "f", "if the node is not already running, start it "
-         "instead of complaining that you should have used 'start' instead "
-         "of 'restart'"],
         ["profile", "p", "whether to run under the Python profiler, putting results in \"profiling_results.prof\""],
         ["syslog", None, "tell the node to log to syslog, not a file"],
         ]
@@ -178,7 +175,7 @@ def restart(config, stdout, stderr):
     rc = 0
     for basedir in config['basedirs']:
         rc = do_stop(basedir, stdout, stderr) or rc
-    if rc == 2 and config['force']:
+    if rc == 2:
         print >>stderr, "ignoring couldn't-stop"
         rc = 0
     if rc:
