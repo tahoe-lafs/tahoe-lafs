@@ -111,6 +111,8 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
     pidfile = os.path.join(basedir, "twistd.pid")
     if not os.path.exists(pidfile):
         print >>err, "%s does not look like a running node directory (no twistd.pid)" % basedir
+        # we define rc=2 to mean "nothing is running, but it wasn't me who
+        # stopped it"
         return 2
     pid = open(pidfile, "r").read()
     pid = int(pid)
@@ -125,7 +127,7 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
             print oserr.strerror
             # the process didn't exist, so wipe the pid file
             os.remove(pidfile)
-            return 1
+            return 2
         else:
             raise
     try:
@@ -157,6 +159,7 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
                       (pid, (time.time() - start))
                 wait = 10
         time.sleep(1)
+    # we define rc=1 to mean "I think something is still running, sorry"
     return 1
 
 def start(config, stdout, stderr):
