@@ -314,9 +314,8 @@ class SFTPHandler:
         return d
 
     def _convert_sftp_path(self, pathstring):
-        assert pathstring[0] == "/"
         pathstring = pathstring.strip("/")
-        if pathstring == "":
+        if pathstring == "" or  ".":
             path = []
         else:
             path = pathstring.split("/")
