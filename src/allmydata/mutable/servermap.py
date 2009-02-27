@@ -6,7 +6,7 @@ from twisted.internet import defer
 from twisted.python import failure
 from foolscap import DeadReferenceError
 from foolscap.eventual import eventually
-from allmydata.util import base32, hashutil, idlib, log
+from allmydata.util import base32, hashutil, idlib, log, rrefutil
 from allmydata.storage.server import si_b2a
 from allmydata.interfaces import IServermapUpdaterStatus
 from pycryptopp.publickey import rsa
@@ -543,12 +543,12 @@ class ServermapUpdater:
             cancel_secret = self._node.get_cancel_secret(peerid)
             d2 = ss.callRemote("add_lease", storage_index,
                                renew_secret, cancel_secret)
-            dl = defer.DeferredList([d, d2])
+            dl = defer.DeferredList([d, d2], consumeErrors=True)
             def _done(res):
                 [(readv_success, readv_result),
                  (addlease_success, addlease_result)] = res
                 if (not addlease_success and
-                    not addlease_result.check(IndexError)):
+                    not rrefutil.check_remote(addlease_result, IndexError)):
                     # tahoe 1.3.0 raised IndexError on non-existant buckets,
                     # which we ignore. Unfortunately tahoe <1.3.0 had a bug
                     # and raised KeyError, which we report.
