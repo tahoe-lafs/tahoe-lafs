@@ -25,10 +25,15 @@ class StorageStatus(rend.Page):
     def render_bool(self, ctx, data):
         return {True: "Yes", False: "No"}[bool(data)]
 
+    def render_abbrev_space(self, ctx, size):
+        if size is None:
+            return "?"
+        return abbreviate_space(size)
+
     def render_space(self, ctx, size):
         if size is None:
             return "?"
-        return "%s (%d)" % (abbreviate_space(size), size)
+        return "%d" % size
 
     def data_stats(self, ctx, data):
         # FYI: 'data' appears to be self, rather than the StorageServer

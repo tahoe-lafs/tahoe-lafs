@@ -12,23 +12,45 @@
 
   <table n:data="stats">
     <tr><td>Total disk space:</td>
-        <td><span n:render="space" n:data="disk_total" /></td></tr>
+        <td><span n:render="abbrev_space" n:data="disk_total" /></td>
+        <td>(<span n:render="space" n:data="disk_total" />)</td>
+        <td />
+      </tr>
     <tr><td>Disk space used:</td>
-        <td>- <span n:render="space" n:data="disk_used" /></td></tr>
+        <td>- <span n:render="abbrev_space" n:data="disk_used" /></td>
+        <td>(<span n:render="space" n:data="disk_used" />)</td>
+        <td />
+      </tr>
     <tr><td />
-        <td>======</td></tr>
+        <td>======</td>
+        <td />
+        <td />
+      </tr>
     <tr><td>Disk space free (root):</td>
-        <td><span n:render="space" n:data="disk_free_for_root"/>
-          [see 1]</td></tr>
+        <td><span n:render="abbrev_space" n:data="disk_free_for_root"/></td>
+        <td>(<span n:render="space" n:data="disk_free_for_root"/>)</td>
+        <td>[see 1]</td>
+        </tr>
     <tr><td>Disk space free (non-root):</td>
-        <td><span n:render="space" n:data="disk_free_for_nonroot" />
-          [see 2]</td></tr>
+        <td><span n:render="abbrev_space" n:data="disk_free_for_nonroot" /></td>
+        <td>(<span n:render="space" n:data="disk_free_for_nonroot" />)</td>
+        <td>[see 2]</td>
+        </tr>
     <tr><td>Reserved space:</td>
-        <td>- <span n:render="space" n:data="reserved_space" /></td></tr>
+        <td>- <span n:render="abbrev_space" n:data="reserved_space" /></td>
+        <td>(<span n:render="space" n:data="reserved_space" />)</td>
+        <td />
+      </tr>
     <tr><td />
-        <td>======</td></tr>
+        <td>======</td>
+        <td />
+        <td />
+      </tr>
     <tr><td>Space Available to Tahoe:</td>
-        <td><span n:render="space" n:data="disk_avail" /></td></tr>
+        <td><span n:render="abbrev_space" n:data="disk_avail" /></td>
+        <td>(<span n:render="space" n:data="disk_avail" />)</td>
+        <td />
+      </tr>
   </table>
 
   <ul n:data="stats">
