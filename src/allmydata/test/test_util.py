@@ -1204,13 +1204,21 @@ class FakeRemoteReference:
 
 class RemoteFailures(unittest.TestCase):
     def test_check(self):
+        check_local = rrefutil.check_local
+        check_remote = rrefutil.check_remote
         try:
             raise IndexError("local missing key")
         except IndexError:
             localf = Failure()
+
         self.failUnlessEqual(localf.check(IndexError, KeyError), IndexError)
         self.failUnlessEqual(localf.check(ValueError, KeyError), None)
         self.failUnlessEqual(localf.check(ServerFailure), None)
+        self.failUnlessEqual(check_local(localf, IndexError, KeyError),
+                             IndexError)
+        self.failUnlessEqual(check_local(localf, ValueError, KeyError), None)
+        self.failUnlessEqual(check_remote(localf, IndexError, KeyError), None)
+        self.failUnlessEqual(check_remote(localf, ValueError, KeyError), None)
 
         frr = FakeRemoteReference()
         wrr = rrefutil.WrappedRemoteReference(frr)
@@ -1219,6 +1227,11 @@ class RemoteFailures(unittest.TestCase):
             self.failUnlessEqual(f.check(IndexError, KeyError), None)
             self.failUnlessEqual(f.check(ServerFailure, KeyError),
                                  ServerFailure)
+            self.failUnlessEqual(check_remote(f, IndexError, KeyError),
+                                 IndexError)
+            self.failUnlessEqual(check_remote(f, ValueError, KeyError), None)
+            self.failUnlessEqual(check_local(f, IndexError, KeyError), None)
+            self.failUnlessEqual(check_local(f, ValueError, KeyError), None)
         d.addErrback(_check)
         return d
 

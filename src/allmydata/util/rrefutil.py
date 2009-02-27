@@ -21,6 +21,16 @@ def is_remote(f):
 def is_local(f):
     return not is_remote(f)
 
+def check_remote(f, *errorTypes):
+    if is_remote(f):
+        return f.value.remote_failure.check(*errorTypes)
+    return None
+
+def check_local(f, *errorTypes):
+    if is_local(f):
+        return f.check(*errorTypes)
+    return None
+
 def trap_remote(f, *errorTypes):
     if is_remote(f):
         return f.value.remote_failure.trap(*errorTypes)
