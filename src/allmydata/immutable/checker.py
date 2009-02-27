@@ -80,12 +80,12 @@ class Checker(log.PrefixingLogMixin):
             cancel_secret = self._get_cancel_secret(serverid)
             d2 = server.callRemote("add_lease", storageindex,
                                    renew_secret, cancel_secret)
-            dl = defer.DeferredList([d, d2])
+            dl = defer.DeferredList([d, d2], consumeErrors=True)
             def _done(res):
                 [(get_success, get_result),
                  (addlease_success, addlease_result)] = res
                 if (not addlease_success and
-                    not addlease_result.check(IndexError)):
+                    not rrefutil.check_remote(addlease_result, IndexError)):
                     # tahoe=1.3.0 raised IndexError on non-existant buckets,
                     # which we ignore. But report others, including the
                     # unfortunate internal KeyError bug that <1.3.0 had.
