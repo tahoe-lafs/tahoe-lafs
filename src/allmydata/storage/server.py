@@ -77,8 +77,10 @@ class StorageServer(service.MultiService, Referenceable):
                           "renew": [],
                           "cancel": [],
                           }
+        self.add_bucket_counter()
 
-        statefile = os.path.join(storedir, "bucket_counter.state")
+    def add_bucket_counter(self):
+        statefile = os.path.join(self.storedir, "bucket_counter.state")
         self.bucket_counter = BucketCountingCrawler(self, statefile)
         self.bucket_counter.setServiceParent(self)
 

@@ -79,7 +79,16 @@ class ShareCrawler(service.MultiService):
         self.bucket_cache = (None, [])
         self.current_sleep_time = None
         self.next_wake_time = None
+        self.last_prefix_finished_time = None
+        self.last_prefix_elapsed_time = None
+        self.last_cycle_started_time = None
+        self.last_cycle_elapsed_time = None
         self.load_state()
+
+    def minus_or_none(self, a, b):
+        if a is None:
+            return None
+        return a-b
 
     def get_progress(self):
         """I return information about how much progress the crawler is
@@ -87,31 +96,63 @@ class ShareCrawler(service.MultiService):
         'cycle-in-progress': True if the crawler is currently traversing the
         shares, False if it is idle between cycles.
 
+        Note that any of these 'time' keys could be None if I am called at
+        certain moments, so application code must be prepared to tolerate
+        this case. The estimates will also be None if insufficient data has
+        been gatherered to form an estimate.
+
         If cycle-in-progress is True, the following keys will be present::
 
          cycle-complete-percentage': float, from 0.0 to 100.0, indicating how
                                      far the crawler has progressed through
                                      the current cycle
          remaining-sleep-time: float, seconds from now when we do more work
-
+         estimated-cycle-complete-time-left:
+                float, seconds remaining until the current cycle is finished.
+                TODO: this does not yet include the remaining time left in
+                the current prefixdir, and it will be very inaccurate on fast
+                crawlers (which can process a whole prefix in a single tick)
+         estimated-time-per-cycle: float, seconds required to do a complete
+                                   cycle
 
         If cycle-in-progress is False, the following keys are available::
 
-           next-crawl-time: float, seconds-since-epoch when next crawl starts
-
-           remaining-wait-time: float, seconds from now when next crawl starts
+         next-crawl-time: float, seconds-since-epoch when next crawl starts
+         remaining-wait-time: float, seconds from now when next crawl starts
+         estimated-time-per-cycle: float, seconds required to do a complete
+                                   cycle
         """
 
         d = {}
+
         if self.state["current-cycle"] is None:
             d["cycle-in-progress"] = False
             d["next-crawl-time"] = self.next_wake_time
-            d["remaining-wait-time"] = self.next_wake_time - time.time()
+            d["remaining-wait-time"] = self.minus_or_none(self.next_wake_time,
+                                                          time.time())
         else:
             d["cycle-in-progress"] = True
             pct = 100.0 * self.last_complete_prefix_index / len(self.prefixes)
             d["cycle-complete-percentage"] = pct
-            d["remaining-sleep-time"] = self.next_wake_time - time.time()
+            remaining = None
+            if self.last_prefix_elapsed_time is not None:
+                left = len(self.prefixes) - self.last_complete_prefix_index
+                remaining = left * self.last_prefix_elapsed_time
+                # TODO: remainder of this prefix: we need to estimate the
+                # per-bucket time, probably by measuring the time spent on
+                # this prefix so far, divided by the number of buckets we've
+                # processed.
+            d["estimated-cycle-complete-time-left"] = remaining
+            # it's possible to call get_progress() from inside a crawler's
+            # finished_prefix() function
+            d["remaining-sleep-time"] = self.minus_or_none(self.next_wake_time,
+                                                           time.time())
+        per_cycle = None
+        if self.last_cycle_elapsed_time is not None:
+            per_cycle = self.last_cycle_elapsed_time
+        elif self.last_prefix_elapsed_time is not None:
+            per_cycle = len(self.prefixes) * self.last_prefix_elapsed_time
+        d["estimated-time-per-cycle"] = per_cycle
         return d
 
     def get_state(self):
@@ -247,6 +288,7 @@ class ShareCrawler(service.MultiService):
     def start_current_prefix(self, start_slice):
         state = self.state
         if state["current-cycle"] is None:
+            self.last_cycle_started_time = time.time()
             if state["last-cycle-finished"] is None:
                 state["current-cycle"] = 0
             else:
@@ -269,11 +311,23 @@ class ShareCrawler(service.MultiService):
             self.process_prefixdir(cycle, prefix, prefixdir,
                                    buckets, start_slice)
             self.last_complete_prefix_index = i
+
+            now = time.time()
+            if self.last_prefix_finished_time is not None:
+                elapsed = now - self.last_prefix_finished_time
+                self.last_prefix_elapsed_time = elapsed
+            self.last_prefix_finished_time = now
+
             self.finished_prefix(cycle, prefix)
             if time.time() >= start_slice + self.cpu_slice:
                 raise TimeSliceExceeded()
+
         # yay! we finished the whole cycle
         self.last_complete_prefix_index = -1
+        self.last_prefix_finished_time = None # don't include the sleep
+        now = time.time()
+        if self.last_cycle_started_time is not None:
+            self.last_cycle_elapsed_time = now - self.last_cycle_started_time
         state["last-complete-bucket"] = None
         state["last-cycle-finished"] = cycle
         state["current-cycle"] = None

@@ -14,6 +14,7 @@ from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.immutable import BucketWriter, BucketReader
 from allmydata.storage.common import DataTooLargeError
 from allmydata.storage.lease import LeaseInfo
+from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.immutable.layout import WriteBucketProxy, WriteBucketProxy_v2, \
      ReadBucketProxy
 from allmydata.interfaces import BadWriteEnablerError
@@ -1299,6 +1300,19 @@ def remove_tags(s):
     s = re.sub(r'\s+', ' ', s)
     return s
 
+class MyBucketCountingCrawler(BucketCountingCrawler):
+    def finished_prefix(self, cycle, prefix):
+        BucketCountingCrawler.finished_prefix(self, cycle, prefix)
+        if self.hook_ds:
+            d = self.hook_ds.pop(0)
+            d.callback(None)
+
+class MyStorageServer(StorageServer):
+    def add_bucket_counter(self):
+        statefile = os.path.join(self.storedir, "bucket_counter.state")
+        self.bucket_counter = MyBucketCountingCrawler(self, statefile)
+        self.bucket_counter.setServiceParent(self)
+
 class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
 
     def setUp(self):
@@ -1397,6 +1411,45 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
                         s["storage-index-samples"].keys())
         d.addCallback(_check2)
         return d
+
+    def test_bucket_counter_eta(self):
+        basedir = "storage/BucketCounter/bucket_counter_eta"
+        fileutil.make_dirs(basedir)
+        ss = MyStorageServer(basedir, "\x00" * 20)
+        ss.bucket_counter.slow_start = 0
+        # these will be fired inside finished_prefix()
+        hooks = ss.bucket_counter.hook_ds = [defer.Deferred() for i in range(3)]
+        w = StorageStatus(ss)
+
+        d = defer.Deferred()
+
+        def _check_1(ignored):
+            # no ETA is available yet
+            html = w.renderSynchronously()
+            s = remove_tags(html)
+            self.failUnlessIn("complete (next work", s)
+
+        def _check_2(ignored):
+            # one prefix has finished, so an ETA based upon that elapsed time
+            # should be available.
+            html = w.renderSynchronously()
+            s = remove_tags(html)
+            self.failUnlessIn("complete (ETA ", s)
+
+        def _check_3(ignored):
+            # two prefixes have finished
+            html = w.renderSynchronously()
+            s = remove_tags(html)
+            self.failUnlessIn("complete (ETA ", s)
+            d.callback("done")
+
+        hooks[0].addCallback(_check_1).addErrback(d.errback)
+        hooks[1].addCallback(_check_2).addErrback(d.errback)
+        hooks[2].addCallback(_check_3).addErrback(d.errback)
+
+        ss.setServiceParent(self.s)
+        return d
+
 
 class NoStatvfsServer(StorageServer):
     def do_statvfs(self):

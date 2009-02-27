@@ -72,11 +72,27 @@ class StorageStatus(rend.Page):
 
     def render_count_crawler_status(self, ctx, storage):
         s = self.storage.bucket_counter.get_progress()
+
+        cycletime = s["estimated-time-per-cycle"]
+        cycletime_s = ""
+        if cycletime is not None:
+            cycletime_s = " (estimated cycle time %ds)" % cycletime
+
         if s["cycle-in-progress"]:
             pct = s["cycle-complete-percentage"]
             soon = s["remaining-sleep-time"]
+
+            eta = s["estimated-cycle-complete-time-left"]
+            eta_s = ""
+            if eta is not None:
+                eta_s = " (ETA %ds)" % eta
+
             return ctx.tag["Current crawl %.1f%% complete" % pct,
-                           " (next work in %s)" % abbreviate_time(soon)]
+                           eta_s,
+                           " (next work in %s)" % abbreviate_time(soon),
+                           cycletime_s,
+                           ]
         else:
             soon = s["remaining-wait-time"]
-            return ctx.tag["Next crawl in %s" % abbreviate_time(soon)]
+            return ctx.tag["Next crawl in %s" % abbreviate_time(soon),
+                           cycletime_s]
