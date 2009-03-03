@@ -1074,6 +1074,35 @@ class WebErrorMixin:
         f.trap(WebError)
         print "Web Error:", f.value, ":", f.value.response
         return f
+
+    def _shouldHTTPError(self, res, which, code=None, substring=None,
+                        response_substring=None):
+        if isinstance(res, failure.Failure):
+            res.trap(WebError)
+            if code is not None:
+                self.failUnlessEqual(res.value.status, str(code))
+            if substring:
+                self.failUnless(substring in str(res),
+                                "substring '%s' not in '%s'"
+                                % (substring, str(res)))
+            if response_substring:
+                self.failUnless(response_substring in res.value.response,
+                                "response substring '%s' not in '%s'"
+                                % (response_substring, res.value.response))
+        else:
+            self.fail("%s was supposed to Error(%s), not get '%s'" %
+                      (which, code, res))
+
+    def shouldHTTPError(self, which,
+                        code=None, substring=None, response_substring=None,
+                        callable=None, *args, **kwargs):
+        assert substring is None or isinstance(substring, str)
+        assert callable
+        d = defer.maybeDeferred(callable, *args, **kwargs)
+        d.addBoth(self._shouldHTTPError, which,
+                  code, substring, response_substring)
+        return d
+
 class ErrorMixin(WebErrorMixin):
     def explain_error(self, f):
         if f.check(defer.FirstError):
