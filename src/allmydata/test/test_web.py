@@ -362,7 +362,7 @@ class WebMixin(object):
             self.fail("%s was supposed to Error(404), not get '%s'" %
                       (which, res))
 
-    def shouldHTTPError(self, res, which, code=None, substring=None,
+    def _shouldHTTPError(self, res, which, code=None, substring=None,
                         response_substring=None):
         if isinstance(res, failure.Failure):
             res.trap(error.Error)
@@ -380,13 +380,13 @@ class WebMixin(object):
             self.fail("%s was supposed to Error(%s), not get '%s'" %
                       (which, code, res))
 
-    def shouldHTTPError2(self, which,
-                         code=None, substring=None, response_substring=None,
-                         callable=None, *args, **kwargs):
+    def shouldHTTPError(self, which,
+                        code=None, substring=None, response_substring=None,
+                        callable=None, *args, **kwargs):
         assert substring is None or isinstance(substring, str)
         assert callable
         d = defer.maybeDeferred(callable, *args, **kwargs)
-        d.addBoth(self.shouldHTTPError, which,
+        d.addBoth(self._shouldHTTPError, which,
                   code, substring, response_substring)
         return d
 
@@ -874,10 +874,10 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_GET_FILEURL_badtype(self):
-        d = self.shouldHTTPError2("GET t=bogus", 400, "Bad Request",
-                                  "bad t=bogus",
-                                  self.GET,
-                                  self.public_url + "/foo/bar.txt?t=bogus")
+        d = self.shouldHTTPError("GET t=bogus", 400, "Bad Request",
+                                 "bad t=bogus",
+                                 self.GET,
+                                 self.public_url + "/foo/bar.txt?t=bogus")
         return d
 
     def test_GET_FILEURL_uri_missing(self):
@@ -945,11 +945,11 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_GET_DIRURL_badtype(self):
-        d = self.shouldHTTPError2("test_GET_DIRURL_badtype",
-                                  400, "Bad Request",
-                                  "bad t=bogus",
-                                  self.GET,
-                                  self.public_url + "/foo?t=bogus")
+        d = self.shouldHTTPError("test_GET_DIRURL_badtype",
+                                 400, "Bad Request",
+                                 "bad t=bogus",
+                                 self.GET,
+                                 self.public_url + "/foo?t=bogus")
         return d
 
     def test_GET_DIRURL_json(self):
@@ -1894,10 +1894,10 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_POST_noparent_bad(self):
-        d = self.shouldHTTPError2("POST /uri?t=bogus", 400, "Bad Request",
-                                  "/uri accepts only PUT, PUT?t=mkdir, "
-                                  "POST?t=upload, and POST?t=mkdir",
-                                  self.POST, "/uri?t=bogus")
+        d = self.shouldHTTPError("POST /uri?t=bogus", 400, "Bad Request",
+                                 "/uri accepts only PUT, PUT?t=mkdir, "
+                                 "POST?t=upload, and POST?t=mkdir",
+                                 self.POST, "/uri?t=bogus")
         return d
 
     def test_welcome_page_mkdir_button(self):
@@ -2233,9 +2233,9 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
 
     def test_GET_URI_URL_missing(self):
         base = "/uri/%s" % self._bad_file_uri
-        d = self.GET(base)
-        d.addBoth(self.shouldHTTPError, "test_GET_URI_URL_missing",
-                  http.GONE, response_substring="NotEnoughSharesError")
+        d = self.shouldHTTPError("test_GET_URI_URL_missing",
+                                 http.GONE, None, "NotEnoughSharesError",
+                                 self.GET, base)
         # TODO: how can we exercise both sides of WebDownloadTarget.fail
         # here? we must arrange for a download to fail after target.open()
         # has been called, and then inspect the response to see that it is
@@ -2390,24 +2390,24 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
 
     def test_bad_method(self):
         url = self.webish_url + self.public_url + "/foo/bar.txt"
-        d = self.shouldHTTPError2("test_bad_method",
-                                  501, "Not Implemented",
-                                  "I don't know how to treat a BOGUS request.",
-                                  client.getPage, url, method="BOGUS")
+        d = self.shouldHTTPError("test_bad_method",
+                                 501, "Not Implemented",
+                                 "I don't know how to treat a BOGUS request.",
+                                 client.getPage, url, method="BOGUS")
         return d
 
     def test_short_url(self):
         url = self.webish_url + "/uri"
-        d = self.shouldHTTPError2("test_short_url", 501, "Not Implemented",
-                                  "I don't know how to treat a DELETE request.",
-                                  client.getPage, url, method="DELETE")
+        d = self.shouldHTTPError("test_short_url", 501, "Not Implemented",
+                                 "I don't know how to treat a DELETE request.",
+                                 client.getPage, url, method="DELETE")
         return d
 
     def test_ophandle_bad(self):
         url = self.webish_url + "/operations/bogus?t=status"
-        d = self.shouldHTTPError2("test_ophandle_bad", 404, "404 Not Found",
-                                  "unknown/expired handle 'bogus'",
-                                  client.getPage, url)
+        d = self.shouldHTTPError("test_ophandle_bad", 404, "404 Not Found",
+                                 "unknown/expired handle 'bogus'",
+                                 client.getPage, url)
         return d
 
     def test_ophandle_cancel(self):
@@ -2429,11 +2429,11 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
             return d
         d.addCallback(_check1)
         d.addCallback(lambda ignored:
-                      self.shouldHTTPError2("test_ophandle_cancel",
-                                            404, "404 Not Found",
-                                            "unknown/expired handle '128'",
-                                            self.GET,
-                                            "/operations/128?t=status&output=JSON"))
+                      self.shouldHTTPError("test_ophandle_cancel",
+                                           404, "404 Not Found",
+                                           "unknown/expired handle '128'",
+                                           self.GET,
+                                           "/operations/128?t=status&output=JSON"))
         return d
 
     def test_ophandle_retainfor(self):
@@ -2448,11 +2448,11 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
         # the retain-for=0 will cause the handle to be expired very soon
         d.addCallback(self.stall, 2.0)
         d.addCallback(lambda ignored:
-                      self.shouldHTTPError2("test_ophandle_retainfor",
-                                            404, "404 Not Found",
-                                            "unknown/expired handle '129'",
-                                            self.GET,
-                                            "/operations/129?t=status&output=JSON"))
+                      self.shouldHTTPError("test_ophandle_retainfor",
+                                           404, "404 Not Found",
+                                           "unknown/expired handle '129'",
+                                           self.GET,
+                                           "/operations/129?t=status&output=JSON"))
         return d
 
     def test_ophandle_release_after_complete(self):
@@ -2463,11 +2463,11 @@ class Web(WebMixin, testutil.StallMixin, unittest.TestCase):
                       self.GET("/operations/130?t=status&output=JSON&release-after-complete=true"))
         # the release-after-complete=true will cause the handle to be expired
         d.addCallback(lambda ignored:
-                      self.shouldHTTPError2("test_ophandle_release_after_complete",
-                                            404, "404 Not Found",
-                                            "unknown/expired handle '130'",
-                                            self.GET,
-                                            "/operations/130?t=status&output=JSON"))
+                      self.shouldHTTPError("test_ophandle_release_after_complete",
+                                           404, "404 Not Found",
+                                           "unknown/expired handle '130'",
+                                           self.GET,
+                                           "/operations/130?t=status&output=JSON"))
         return d
 
     def test_incident(self):
