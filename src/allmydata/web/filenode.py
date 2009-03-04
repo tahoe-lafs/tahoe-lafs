@@ -13,7 +13,8 @@ from allmydata.immutable.filenode import LiteralFileNode
 from allmydata.util import log, base32
 
 from allmydata.web.common import text_plain, WebError, RenderMixin, \
-     boolean_of_arg, get_arg, should_create_intermediate_directories
+     boolean_of_arg, get_arg, should_create_intermediate_directories, \
+     MyExceptionHandler
 from allmydata.web.check_results import CheckResults, \
      CheckAndRepairResults, LiteralCheckResults
 from allmydata.web.info import MoreInfo
@@ -398,19 +399,13 @@ class FileDownloader(rend.Page):
                 #
                 # We don't have a lot of options, unfortunately.
                 req.write("problem during download\n")
+                req.finish()
             else:
                 # We haven't written anything yet, so we can provide a
                 # sensible error message.
-                msg = str(f.type)
-                msg.replace("\n", "|")
-                req.setResponseCode(http.GONE, msg)
-                req.setHeader("content-type", "text/plain")
-                req.responseHeaders.setRawHeaders("content-encoding", [])
-                req.responseHeaders.setRawHeaders("content-disposition", [])
-                # TODO: HTML-formatted exception?
-                req.write(str(f))
-        d.addErrback(_error)
-        d.addBoth(lambda ign: req.finish())
+                eh = MyExceptionHandler()
+                eh.renderHTTP_exception(ctx, f)
+        d.addCallbacks(lambda ign: req.finish(), _error)
         return req.deferred
 
 

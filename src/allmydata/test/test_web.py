@@ -6,6 +6,7 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.web import client, error, http
 from twisted.python import failure, log
+from nevow import rend
 from allmydata import interfaces, uri, webish
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.immutable import ShareFile
@@ -3171,3 +3172,113 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
 
         d.addErrback(self.explain_web_error)
         return d
+
+
+    def test_exceptions(self):
+        self.basedir = "web/Grid/exceptions"
+        self.set_up_grid(num_clients=1, num_servers=2)
+        c0 = self.g.clients[0]
+        self.fileurls = {}
+        DATA = "data" * 100
+        d = c0.create_empty_dirnode()
+        def _stash_root(n):
+            self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri()) + "/"
+            self.fileurls["imaginary"] = self.fileurls["root"] + "imaginary"
+            return n
+        d.addCallback(_stash_root)
+        d.addCallback(lambda ign: c0.upload(upload.Data(DATA, convergence="")))
+        def _stash_bad(ur):
+            self.fileurls["1share"] = "uri/" + urllib.quote(ur.uri)
+            self.delete_shares_numbered(ur.uri, range(1,10))
+
+            u = uri.from_string(ur.uri)
+            u.key = testutil.flip_bit(u.key, 0)
+            baduri = u.to_string()
+            self.fileurls["0shares"] = "uri/" + urllib.quote(baduri)
+        d.addCallback(_stash_bad)
+
+        # NotEnoughSharesError should be reported sensibly, with a
+        # text/plain explanation of the problem, and perhaps some
+        # information on which shares *could* be found.
+
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError("GET unrecoverable",
+                                           410, "Gone", "NotEnoughSharesError",
+                                           self.GET, self.fileurls["0shares"]))
+        def _check_zero_shares(body):
+            self.failIf("<html>" in body, body)
+            body = " ".join(body.strip().split())
+            exp = ("NotEnoughSharesError: no shares could be found. "
+                   "Zero shares usually indicates a corrupt URI, or that "
+                   "no servers were connected, but it might also indicate "
+                   "severe corruption. You should perform a filecheck on "
+                   "this object to learn more.")
+            self.failUnlessEqual(exp, body)
+        d.addCallback(_check_zero_shares)
+
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError("GET 1share",
+                                           410, "Gone", "NotEnoughSharesError",
+                                           self.GET, self.fileurls["1share"]))
+        def _check_one_share(body):
+            self.failIf("<html>" in body, body)
+            body = " ".join(body.strip().split())
+            exp = ("NotEnoughSharesError: 1 share found, but we need "
+                   "3 to recover the file. This indicates that some "
+                   "servers were unavailable, or that shares have been "
+                   "lost to server departure, hard drive failure, or disk "
+                   "corruption. You should perform a filecheck on "
+                   "this object to learn more.")
+            self.failUnlessEqual(exp, body)
+        d.addCallback(_check_one_share)
+
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError("GET imaginary",
+                                           404, "Not Found", None,
+                                           self.GET, self.fileurls["imaginary"]))
+        def _missing_child(body):
+            self.failUnless("No such child: imaginary" in body, body)
+        d.addCallback(_missing_child)
+
+        # attach a webapi child that throws a random error, to test how it
+        # gets rendered.
+        w = c0.getServiceNamed("webish")
+        w.root.putChild("ERRORBOOM", ErrorBoom())
+
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError("GET errorboom_html",
+                                           500, "Internal Server Error", None,
+                                           self.GET, "ERRORBOOM"))
+        def _internal_error_html(body):
+            # test that a weird exception during a webapi operation with
+            # Accept:*/* results in a text/html stack trace, while one
+            # without that Accept: line gets us a text/plain stack trace
+            self.failUnless("<html>" in body, "expected HTML, not '%s'" % body)
+        d.addCallback(_internal_error_html)
+
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError("GET errorboom_text",
+                                           500, "Internal Server Error", None,
+                                           self.GET, "ERRORBOOM",
+                                           headers={"accept": ["text/plain"]}))
+        def _internal_error_text(body):
+            # test that a weird exception during a webapi operation with
+            # Accept:*/* results in a text/html stack trace, while one
+            # without that Accept: line gets us a text/plain stack trace
+            self.failIf("<html>" in body, body)
+            self.failUnless(body.startswith("Traceback "), body)
+        d.addCallback(_internal_error_text)
+
+        def _flush_errors(res):
+            # Trial: please ignore the CompletelyUnhandledError in the logs
+            self.flushLoggedErrors(CompletelyUnhandledError)
+            return res
+        d.addBoth(_flush_errors)
+
+        return d
+
+class CompletelyUnhandledError(Exception):
+    pass
+class ErrorBoom(rend.Page):
+    def beforeRender(self, ctx):
+        raise CompletelyUnhandledError("whoops")

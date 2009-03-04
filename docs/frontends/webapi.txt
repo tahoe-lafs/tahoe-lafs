@@ -77,6 +77,19 @@ using a standard web browser to work with the filesystem. This user is given
 a series of HTML pages with links to download files, and forms that use POST
 actions to upload, rename, and delete files.
 
+When an error occurs, the HTTP response code will be set to an appropriate
+400-series code (like 404 for an unknown childname, or 400 Gone when a file
+is unrecoverable due to insufficient shares), and the HTTP response body will
+usually contain a few lines of explanation as to the cause of the error and
+possible responses. Unusual exceptions may result in a 500 Internal Server
+Error as a catch-all, with a default response body will contain a
+Nevow-generated HTML-ized representation of the Python exception stack trace
+that caused the problem. CLI programs which want to copy the response body to
+stderr should provide an "Accept: text/plain" header to their requests to get
+a plain text stack trace instead. If the Accept header contains */*, or
+text/*, or text/html (or if there is no Accept header), HTML tracebacks will
+be generated.
+
 == URLs ==
 
 Tahoe uses a variety of read- and write- caps to identify files and

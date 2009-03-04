@@ -140,7 +140,22 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
                                "No such child: %s" % name.encode("utf-8"),
                                http.NOT_FOUND)
         elif f.check(NotEnoughSharesError):
-            return self.simple(ctx, str(f), http.GONE)
+            got = f.value.got
+            needed = f.value.needed
+            if got == 0:
+                t = ("NotEnoughSharesError: no shares could be found. "
+                     "Zero shares usually indicates a corrupt URI, or that "
+                     "no servers were connected, but it might also indicate "
+                     "severe corruption. You should perform a filecheck on "
+                     "this object to learn more.")
+            else:
+                t = ("NotEnoughSharesError: %d share%s found, but we need "
+                     "%d to recover the file. This indicates that some "
+                     "servers were unavailable, or that shares have been "
+                     "lost to server departure, hard drive failure, or disk "
+                     "corruption. You should perform a filecheck on "
+                     "this object to learn more.") % (got, plural(got), needed)
+            return self.simple(ctx, t, http.GONE)
         elif f.check(WebError):
             return self.simple(ctx, f.value.text, f.value.code)
         elif f.check(FileTooLargeError):

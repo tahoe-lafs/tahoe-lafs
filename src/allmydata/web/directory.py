@@ -111,7 +111,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                     return PlaceHolderNodeHandler(self.client, self.node, name)
             if DEBUG: print " 404"
             # otherwise, we just return a no-such-child error
-            return rend.FourOhFour()
+            return f
 
         node = node_or_failure
         if nonterminal and should_create_intermediate_directories(req):
