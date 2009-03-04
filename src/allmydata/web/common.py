@@ -81,6 +81,15 @@ def abbreviate_size(data):
         return "%.1fkB" % (r/1000)
     return "%dB" % r
 
+def plural(sequence_or_length):
+    if isinstance(sequence_or_length, int):
+        length = sequence_or_length
+    else:
+        length = len(sequence_or_length)
+    if length == 1:
+        return ""
+    return "s"
+
 def text_plain(text, ctx):
     req = IRequest(ctx)
     req.setHeader("content-type", "text/plain")

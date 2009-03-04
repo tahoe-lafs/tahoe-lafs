@@ -5,18 +5,9 @@ from twisted.internet import defer
 from nevow import rend, inevow, tags as T
 from allmydata.util import base32, idlib
 from allmydata.web.common import getxmlfile, get_arg, \
-     abbreviate_time, abbreviate_rate, abbreviate_size
+     abbreviate_time, abbreviate_rate, abbreviate_size, plural
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus, IServermapUpdaterStatus
-
-def plural(sequence_or_length):
-    if isinstance(sequence_or_length, int):
-        length = sequence_or_length
-    else:
-        length = len(sequence_or_length)
-    if length == 1:
-        return ""
-    return "s"
 
 class RateAndTimeMixin:
 
