@@ -1378,3 +1378,25 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         return d
 
+class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_check(self):
+        self.basedir = "cli/Check/check"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        self.fileurls = {}
+        DATA = "data" * 100
+        d = c0.upload(upload.Data(DATA, convergence=""))
+        def _stash_bad(ur):
+            self.uri_1share = ur.uri
+            self.delete_shares_numbered(ur.uri, range(1,10))
+        d.addCallback(_stash_bad)
+
+        d.addCallback(lambda ign: self.do_cli("get", self.uri_1share))
+        def _check1((rc, out, err)):
+            self.failIfEqual(rc, 0)
+            self.failUnless("410 Gone" in err, err)
+            self.failUnless("NotEnoughSharesError: 1 share found, but we need 3" in err,
+                            err)
+        d.addCallback(_check1)
+
+        return d
