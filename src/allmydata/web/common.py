@@ -116,14 +116,18 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
     def simple(self, ctx, text, code=http.BAD_REQUEST):
         req = IRequest(ctx)
         req.setResponseCode(code)
+        #req.responseHeaders.setRawHeaders("content-encoding", [])
+        #req.responseHeaders.setRawHeaders("content-disposition", [])
         req.setHeader("content-type", "text/plain;charset=utf-8")
         if isinstance(text, unicode):
             text = text.encode("utf-8")
+        req.setHeader("content-length", str(len(text)))
         req.write(text)
         # TODO: consider putting the requested URL here
         req.finishRequest(False)
 
     def renderHTTP_exception(self, ctx, f):
+        traceback = f.getTraceback()
         if f.check(ExistingChildError):
             return self.simple(ctx,
                                "There was already a child by that "
@@ -150,8 +154,15 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
             return self.simple(ctx,
                                "I don't know how to treat a %s request." % method,
                                http.NOT_IMPLEMENTED)
-        super = appserver.DefaultExceptionHandler
-        return super.renderHTTP_exception(self, ctx, f)
+        req = IRequest(ctx)
+        accept = req.getHeader("accept")
+        if not accept:
+            accept = "*/*"
+        if "*/*" in accept or "text/*" in accept or "text/html" in accept:
+            super = appserver.DefaultExceptionHandler
+            return super.renderHTTP_exception(self, ctx, f)
+        # use plain text
+        return self.simple(ctx, traceback, http.INTERNAL_SERVER_ERROR)
 
 class NeedOperationHandleError(WebError):
     pass
