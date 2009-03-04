@@ -715,7 +715,19 @@ class IMutableFileNode(IFileNode, IMutableFilesystemNode):
         """
 
 class NotEnoughSharesError(Exception):
-    servermap = None
+    def __init__(self, msg, got, needed):
+        Exception.__init__(self, msg)
+        self.got = got
+        self.needed = needed
+        self.servermap = None
+
+class UnableToFetchCriticalDownloadDataError(Exception):
+    """I was unable to fetch some piece of critical data which is supposed to
+    be identically present in all shares."""
+
+class NoServersError(Exception):
+    """Upload wasn't given any servers to work with, usually indicating a
+    network or Introducer problem."""
 
 class ExistingChildError(Exception):
     """A directory node was asked to add or replace a child that already

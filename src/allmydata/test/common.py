@@ -99,7 +99,7 @@ class FakeCHKFileNode:
 
     def download(self, target):
         if self.my_uri.to_string() not in self.all_contents:
-            f = failure.Failure(NotEnoughSharesError())
+            f = failure.Failure(NotEnoughSharesError(None, 0, 3))
             target.fail(f)
             return defer.fail(f)
         data = self.all_contents[self.my_uri.to_string()]
@@ -109,14 +109,14 @@ class FakeCHKFileNode:
         return defer.maybeDeferred(target.finish)
     def download_to_data(self):
         if self.my_uri.to_string() not in self.all_contents:
-            return defer.fail(NotEnoughSharesError())
+            return defer.fail(NotEnoughSharesError(None, 0, 3))
         data = self.all_contents[self.my_uri.to_string()]
         return defer.succeed(data)
     def get_size(self):
         try:
             data = self.all_contents[self.my_uri.to_string()]
         except KeyError, le:
-            raise NotEnoughSharesError(le)
+            raise NotEnoughSharesError(le, 0, 3)
         return len(data)
     def read(self, consumer, offset=0, size=None):
         d = self.download_to_data()
@@ -269,7 +269,7 @@ class FakeMutableFileNode:
 
     def download(self, target):
         if self.storage_index not in self.all_contents:
-            f = failure.Failure(NotEnoughSharesError())
+            f = failure.Failure(NotEnoughSharesError(None, 0, 3))
             target.fail(f)
             return defer.fail(f)
         data = self.all_contents[self.storage_index]
@@ -279,7 +279,7 @@ class FakeMutableFileNode:
         return defer.maybeDeferred(target.finish)
     def download_to_data(self):
         if self.storage_index not in self.all_contents:
-            return defer.fail(NotEnoughSharesError())
+            return defer.fail(NotEnoughSharesError(None, 0, 3))
         data = self.all_contents[self.storage_index]
         return defer.succeed(data)
 

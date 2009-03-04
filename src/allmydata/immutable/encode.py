@@ -488,7 +488,8 @@ class Encoder(object):
                      level=log.WEIRD, umid="TQGFRw")
         if len(self.landlords) < self.shares_of_happiness:
             msg = "lost too many shareholders during upload: %s" % why
-            raise NotEnoughSharesError(msg)
+            raise NotEnoughSharesError(msg, len(self.landlords),
+                                       self.shares_of_happiness)
         self.log("but we can still continue with %s shares, we'll be happy "
                  "with at least %s" % (len(self.landlords),
                                        self.shares_of_happiness),

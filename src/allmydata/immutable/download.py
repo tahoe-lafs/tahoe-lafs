@@ -11,7 +11,8 @@ from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.rrefutil import ServerFailure
 from allmydata import codec, hashtree, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, IVerifierURI, \
-     IDownloadStatus, IDownloadResults, IValidatedThingProxy, NotEnoughSharesError
+     IDownloadStatus, IDownloadResults, IValidatedThingProxy, NotEnoughSharesError, \
+     UnableToFetchCriticalDownloadDataError
 from allmydata.immutable import layout
 from allmydata.monitor import Monitor
 from pycryptopp.cipher.aes import AES
@@ -95,7 +96,7 @@ class ValidatedThingObtainer:
                 op=self._debugname, validatedthingproxy=str(validatedthingproxy),
                 failure=f, level=level, umid="JGXxBA")
         if not self._validatedthingproxies:
-            raise NotEnoughSharesError("ran out of peers, last error was %s" % (f,))
+            raise UnableToFetchCriticalDownloadDataError("ran out of peers, last error was %s" % (f,))
         # try again with a different one
         d = self._try_the_next_one()
         return d
@@ -801,7 +802,9 @@ class CiphertextDownloader(log.PrefixingLogMixin):
             self._results.timings["peer_selection"] = now - self._started
 
         if len(self._share_buckets) < self._verifycap.needed_shares:
-            raise NotEnoughSharesError(len(self._share_buckets), self._verifycap.needed_shares)
+            raise NotEnoughSharesError("Failed to get enough shareholders",
+                                       len(self._share_buckets),
+                                       self._verifycap.needed_shares)
 
         #for s in self._share_vbuckets.values():
         #    for vb in s:
@@ -886,7 +889,9 @@ class CiphertextDownloader(log.PrefixingLogMixin):
             available_shnums = set(self._share_vbuckets.keys())
             potential_shnums = list(available_shnums - handled_shnums)
             if len(potential_shnums) < (self._verifycap.needed_shares - len(self.active_buckets)):
-                raise NotEnoughSharesError
+                have = len(potential_shnums) + len(self.active_buckets)
+                raise NotEnoughSharesError("Unable to activate enough shares",
+                                           have, self._verifycap.needed_shares)
             # For the next share, choose a primary share if available, else a randomly chosen
             # secondary share.
             potential_shnums.sort()

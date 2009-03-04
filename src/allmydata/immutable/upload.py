@@ -18,7 +18,7 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.rrefutil import get_versioned_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
-     NotEnoughSharesError, InsufficientVersionError
+     NotEnoughSharesError, InsufficientVersionError, NoServersError
 from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
@@ -169,7 +169,7 @@ class Tahoe2PeerSelector:
 
         peers = client.get_permuted_peers("storage", storage_index)
         if not peers:
-            raise NotEnoughSharesError("client gave us zero peers")
+            raise NoServersError("client gave us zero peers")
 
         # this needed_hashes computation should mirror
         # Encoder.send_all_share_hash_trees. We use an IncompleteHashTree
@@ -195,7 +195,7 @@ class Tahoe2PeerSelector:
         peers = [peer for peer in peers
                  if _get_maxsize(peer) >= allocated_size]
         if not peers:
-            raise NotEnoughSharesError("no peers could accept an allocated_size of %d" % allocated_size)
+            raise NoServersError("no peers could accept an allocated_size of %d" % allocated_size)
 
         # decide upon the renewal/cancel secrets, to include them in the
         # allocat_buckets query.
@@ -298,7 +298,8 @@ class Tahoe2PeerSelector:
                 if self.last_failure_msg:
                     msg += " (%s)" % (self.last_failure_msg,)
                 log.msg(msg, level=log.UNUSUAL, parent=self._log_parent)
-                raise NotEnoughSharesError(msg)
+                raise NotEnoughSharesError(msg, placed_shares,
+                                           self.shares_of_happiness)
             else:
                 # we placed enough to be happy, so we're done
                 if self._status:
