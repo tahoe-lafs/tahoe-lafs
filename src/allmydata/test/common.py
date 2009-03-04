@@ -1075,32 +1075,35 @@ class WebErrorMixin:
         print "Web Error:", f.value, ":", f.value.response
         return f
 
-    def _shouldHTTPError(self, res, which, code=None, substring=None,
-                        response_substring=None):
+    def _shouldHTTPError(self, res, which, validator):
         if isinstance(res, failure.Failure):
             res.trap(WebError)
-            if code is not None:
-                self.failUnlessEqual(res.value.status, str(code))
-            if substring:
-                self.failUnless(substring in str(res),
-                                "substring '%s' not in '%s'"
-                                % (substring, str(res)))
-            if response_substring:
-                self.failUnless(response_substring in res.value.response,
-                                "response substring '%s' not in '%s'"
-                                % (response_substring, res.value.response))
+            return validator(res)
         else:
-            self.fail("%s was supposed to Error(%s), not get '%s'" %
-                      (which, code, res))
+            self.fail("%s was supposed to Error, not get '%s'" % (which, res))
 
     def shouldHTTPError(self, which,
                         code=None, substring=None, response_substring=None,
                         callable=None, *args, **kwargs):
+        # returns a Deferred with the response body
         assert substring is None or isinstance(substring, str)
         assert callable
+        def _validate(f):
+            if code is not None:
+                self.failUnlessEqual(f.value.status, str(code))
+            if substring:
+                code_string = str(f)
+                self.failUnless(substring in code_string,
+                                "substring '%s' not in '%s'"
+                                % (substring, code_string))
+            response_body = f.value.response
+            if response_substring:
+                self.failUnless(response_substring in response_body,
+                                "response substring '%s' not in '%s'"
+                                % (response_substring, response_body))
+            return response_body
         d = defer.maybeDeferred(callable, *args, **kwargs)
-        d.addBoth(self._shouldHTTPError, which,
-                  code, substring, response_substring)
+        d.addBoth(self._shouldHTTPError, which, _validate)
         return d
 
 class ErrorMixin(WebErrorMixin):
