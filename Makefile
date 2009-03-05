@@ -337,7 +337,7 @@ setup-deb: is-known-debian-arch
 	ln -s misc/$(TAHOE_ARCH)/debian debian
 	chmod +x debian/rules
 
-# etch (current debian stable) has python-simplejson-1.3, which doesn't 
+# etch (current debian stable) has python-simplejson-1.3, which doesn't
 #  support indent=
 # sid (debian unstable) currently has python-simplejson 1.7.1
 # edgy has 1.3, which doesn't support indent=

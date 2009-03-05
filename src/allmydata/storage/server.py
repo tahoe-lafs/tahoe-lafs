@@ -5,7 +5,7 @@ from twisted.application import service
 
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, IStatsProducer
-from allmydata.util import base32, fileutil, log, time_format
+from allmydata.util import fileutil, log, time_format
 import allmydata # for __full_version__
 
 from allmydata.storage.common import si_b2a, si_a2b, storage_index_to_dir
