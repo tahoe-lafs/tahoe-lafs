@@ -80,3 +80,6 @@ E: alberto@metapensiero.it
 W: http://www.metapensiero.it
 S: via Filatoi, 1 38068 Rovereto (TN), Italy
 D: improvements to the CLI: exclude patterns, usage text
+
+N: DarKnesS_WOlF
+D: patch Makefile to build .debs for Ubuntu Intrepid
