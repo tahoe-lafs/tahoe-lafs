@@ -293,7 +293,7 @@ show-pp:
 
 .PHONY: setup-deb deb-ARCH is-known-debian-arch
 .PHONY: deb-etch deb-sid
-.PHONY: deb-edgy deb-feisty deb-gutsy deb-hardy deb-intrepid
+.PHONY: deb-edgy deb-feisty deb-gutsy deb-hardy deb-intrepid deb-lenny
 
 deb-sid:
 	$(MAKE) deb-ARCH ARCH=sid
@@ -312,11 +312,13 @@ deb-hardy:
 	$(MAKE) deb-ARCH ARCH=hardy TAHOE_ARCH=feisty
 deb-intrepid:
 	$(MAKE) deb-ARCH ARCH=intrepid TAHOE_ARCH=feisty
+deb-lenny:
+	$(MAKE) deb-ARCH ARCH=lenny TAHOE_ARCH=feisty
 
 
 
 # we know how to handle the following debian architectures
-KNOWN_DEBIAN_ARCHES := etch sid  edgy feisty gutsy hardy intrepid
+KNOWN_DEBIAN_ARCHES := etch sid  edgy feisty gutsy hardy intrepid lenny
 
 ifeq ($(findstring x-$(ARCH)-x,$(foreach arch,$(KNOWN_DEBIAN_ARCHES),"x-$(arch)-x")),)
 is-known-debian-arch:
@@ -352,7 +354,7 @@ deb-ARCH: is-known-debian-arch setup-deb
 	@echo "The newly built .deb packages are in the parent directory from here."
 
 .PHONY: increment-deb-version
-.PHONY: deb-edgy-head deb-feisty-head deb-gutsy-head deb-hardy-head deb-intrepid-head
+.PHONY: deb-edgy-head deb-feisty-head deb-gutsy-head deb-hardy-head deb-intrepid-head deb-lenny-head
 .PHONY: deb-etch-head deb-sid-head
 
 # The buildbot runs the following targets after each change, to produce
@@ -386,6 +388,10 @@ deb-hardy-head:
 	fakeroot debian/rules binary
 deb-intrepid-head:
 	$(MAKE) setup-deb ARCH=intrepid TAHOE_ARCH=feisty
+	$(MAKE) increment-deb-version
+	fakeroot debian/rules binary
+deb-lenny-head:
+	$(MAKE) setup-deb ARCH=lenny TAHOE_ARCH=feisty
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 
