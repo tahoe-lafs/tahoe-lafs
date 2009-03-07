@@ -2,6 +2,7 @@
 import os.path
 import urllib
 import simplejson
+from twisted.python.failure import Failure
 from allmydata.scripts.common import get_alias, escape_path, DefaultAliasMarker
 from allmydata.scripts.common_http import do_http
 from allmydata import uri
@@ -11,10 +12,17 @@ def ascii_or_none(s):
         return s
     return str(s)
 
-class WriteError(Exception):
-    pass
-class ReadError(Exception):
-    pass
+class TahoeError(Exception):
+    def __init__(self, msg, resp):
+        self.msg = msg
+        self.status = resp.status
+        self.reason = resp.reason
+        self.body = resp.read()
+
+    def display(self, err):
+        print >>err, "%s: %s %s" % (self.msg, self.status, self.reason)
+        print >>err, self.body
+
 class MissingSourceError(Exception):
     pass
 
@@ -22,9 +30,8 @@ def GET_to_file(url):
     resp = do_http("GET", url)
     if resp.status == 200:
         return resp
-    raise ReadError("Error during GET: %s %s %s" % (resp.status,
-                                                    resp.reason,
-                                                    resp.read()))
+    raise TahoeError("Error during GET", resp)
+
 def GET_to_string(url):
     f = GET_to_file(url)
     return f.read()
@@ -33,23 +40,20 @@ def PUT(url, data):
     resp = do_http("PUT", url, data)
     if resp.status in (200, 201):
         return resp.read()
-    raise WriteError("Error during PUT: %s %s %s" % (resp.status, resp.reason,
-                                                     resp.read()))
+    raise TahoeError("Error during PUT", resp)
 
 def POST(url, data):
     resp = do_http("POST", url, data)
     if resp.status in (200, 201):
         return resp.read()
-    raise WriteError("Error during POST: %s %s %s" % (resp.status, resp.reason,
-                                                      resp.read()))
+    raise TahoeError("Error during POST", resp)
 
 def mkdir(targeturl):
     url = targeturl + "?t=mkdir"
     resp = do_http("POST", url)
     if resp.status in (200, 201):
         return resp.read().strip()
-    raise WriteError("Error during mkdir: %s %s %s" % (resp.status, resp.reason,
-                                                       resp.read()))
+    raise TahoeError("Error during mkdir", resp)
 
 def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
     url = nodeurl + "/".join(["uri",
@@ -59,8 +63,7 @@ def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
     resp = do_http("POST", url)
     if resp.status in (200, 201):
         return resp.read().strip()
-    raise WriteError("Error during mkdir: %s %s %s" % (resp.status, resp.reason,
-                                                       resp.read()))
+    raise TahoeError("Error during mkdir", resp)
 
 
 class LocalFileSource:
@@ -219,7 +222,8 @@ class TahoeDirectorySource:
         bestcap = writecap or readcap
         url = self.nodeurl + "uri/%s" % urllib.quote(bestcap)
         resp = do_http("GET", url + "?t=json")
-        assert resp.status == 200
+        if resp.status != 200:
+            raise TahoeError("Error examining source directory", resp)
         parsed = simplejson.loads(resp.read())
         nodetype, d = parsed
         assert nodetype == "dirnode"
@@ -311,7 +315,8 @@ class TahoeDirectoryTarget:
         bestcap = writecap or readcap
         url = self.nodeurl + "uri/%s" % urllib.quote(bestcap)
         resp = do_http("GET", url + "?t=json")
-        assert resp.status == 200
+        if resp.status != 200:
+            raise TahoeError("Error examining target directory", resp)
         parsed = simplejson.loads(resp.read())
         nodetype, d = parsed
         assert nodetype == "dirnode"
@@ -431,8 +436,17 @@ class Copier:
                 print >>self.stderr, message
             self.progressfunc = progress
         self.cache = {}
-        source_specs = options.sources
-        destination_spec = options.destination
+        try:
+            self.try_copy()
+        except TahoeError, te:
+            Failure().printTraceback(self.stderr)
+            print >>self.stderr
+            te.display(self.stderr)
+            return 1
+
+    def try_copy(self):
+        source_specs = self.options.sources
+        destination_spec = self.options.destination
         recursive = self.options["recursive"]
 
         target = self.get_target_info(destination_spec)
@@ -510,7 +524,7 @@ class Copier:
             if resp.status == 404:
                 # doesn't exist yet
                 t = TahoeMissingTarget(url)
-            else:
+            elif resp.status == 200:
                 parsed = simplejson.loads(resp.read())
                 nodetype, d = parsed
                 if nodetype == "dirnode":
@@ -523,6 +537,9 @@ class Copier:
                     mutable = d.get("mutable", False)
                     t = TahoeFileTarget(self.nodeurl, mutable,
                                         writecap, readcap, url)
+            else:
+                raise TahoeError("Error examining target '%s'"
+                                 % destination_spec, resp)
         return t
 
     def get_source_info(self, source_spec):
@@ -552,6 +569,9 @@ class Copier:
             resp = do_http("GET", url + "?t=json")
             if resp.status == 404:
                 raise MissingSourceError(source_spec)
+            elif resp.status != 200:
+                raise TahoeError("Error examining source '%s'" % source_spec,
+                                 resp)
             parsed = simplejson.loads(resp.read())
             nodetype, d = parsed
             if nodetype == "dirnode":
