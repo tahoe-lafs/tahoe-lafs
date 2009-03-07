@@ -1,5 +1,4 @@
-
-import struct
+import struct, time
 
 class LeaseInfo:
     def __init__(self, owner_num=None, renew_secret=None, cancel_secret=None,
@@ -12,6 +11,14 @@ class LeaseInfo:
             assert isinstance(nodeid, str)
             assert len(nodeid) == 20
         self.nodeid = nodeid
+
+    def get_expiration_time(self):
+        return self.expiration_time
+    def get_grant_renew_time_time(self):
+        # hack, based upon fixed 31day expiration period
+        return self.expiration_time - 31*24*60*60
+    def get_age(self):
+        return time.time() - self.get_grant_renew_time_time()
 
     def from_immutable_data(self, data):
         (self.owner_num,
@@ -38,4 +45,3 @@ class LeaseInfo:
          self.renew_secret, self.cancel_secret,
          self.nodeid) = struct.unpack(">LL32s32s20s", data)
         return self
-

@@ -163,6 +163,9 @@ class ShareCrawler(service.MultiService):
         inside the process_prefixdir, process_bucket, or finished_cycle()
         methods, or if startService has not yet been called on this crawler),
         these two keys will be None.
+
+        Subclasses can override this to add computed keys to the return value,
+        but don't forget to start with the upcall.
         """
         state = self.state.copy() # it isn't a deepcopy, so don't go crazy
         return state
@@ -176,6 +179,9 @@ class ShareCrawler(service.MultiService):
         #  ["last-cycle-finished"]: int, or None if we have not yet finished
         #                           any cycle
         #  ["current-cycle"]: int, or None if we are sleeping between cycles
+        #  ["current-cycle-start-time"]: int, seconds-since-epoch of when this
+        #                                cycle was started, possibly by an earlier
+        #                                process
         #  ["last-complete-prefix"]: str, two-letter name of the last prefixdir
         #                            that was fully processed, or None if we
         #                            are sleeping between cycles, or if we
@@ -195,6 +201,7 @@ class ShareCrawler(service.MultiService):
                      "last-complete-prefix": None,
                      "last-complete-bucket": None,
                      }
+        state.setdefault("current-cycle-start-time", time.time()) # approximate
         self.state = state
         lcp = state["last-complete-prefix"]
         if lcp == None:
@@ -289,10 +296,12 @@ class ShareCrawler(service.MultiService):
         state = self.state
         if state["current-cycle"] is None:
             self.last_cycle_started_time = time.time()
+            state["current-cycle-start-time"] = self.last_cycle_started_time
             if state["last-cycle-finished"] is None:
                 state["current-cycle"] = 0
             else:
                 state["current-cycle"] = state["last-cycle-finished"] + 1
+            self.started_cycle(state["current-cycle"])
         cycle = state["current-cycle"]
 
         for i in range(self.last_complete_prefix_index+1, len(self.prefixes)):
@@ -356,6 +365,13 @@ class ShareCrawler(service.MultiService):
 
     # the remaining methods are explictly for subclasses to implement.
 
+    def started_cycle(self, cycle):
+        """Notify a subclass that the crawler is about to start a cycle.
+
+        This method is for subclasses to override. No upcall is necessary.
+        """
+        pass
+
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
         """Examine a single bucket. Subclasses should do whatever they want
         to do to the shares therein, then update self.state as necessary.
@@ -375,7 +391,7 @@ class ShareCrawler(service.MultiService):
         allowed_cpu_percentage, and which may be considerable if
         process_bucket() runs quickly.
 
-        This method for subclasses to override. No upcall is necessary.
+        This method is for subclasses to override. No upcall is necessary.
         """
         pass
 
@@ -387,7 +403,7 @@ class ShareCrawler(service.MultiService):
         self.save_state() here, but be aware that it may represent a
         significant performance hit.
 
-        This method for subclasses to override. No upcall is necessary.
+        This method is for subclasses to override. No upcall is necessary.
         """
         pass
 
@@ -404,7 +420,7 @@ class ShareCrawler(service.MultiService):
         persistent state so that the upgrader won't be run again the next
         time the node is started.
 
-        This method for subclasses to override. No upcall is necessary.
+        This method is for subclasses to override. No upcall is necessary.
         """
         pass
 
@@ -412,7 +428,7 @@ class ShareCrawler(service.MultiService):
         """The crawler is about to sleep for 'sleep_time' seconds. This
         method is mostly for the convenience of unit tests.
 
-        This method for subclasses to override. No upcall is necessary.
+        This method is for subclasses to override. No upcall is necessary.
         """
         pass
 

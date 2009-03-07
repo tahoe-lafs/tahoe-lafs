@@ -8,8 +8,7 @@ from twisted.web import client, error, http
 from twisted.python import failure, log
 from nevow import rend
 from allmydata import interfaces, uri, webish
-from allmydata.storage.mutable import MutableShareFile
-from allmydata.storage.immutable import ShareFile
+from allmydata.storage.shares import get_share_file
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
@@ -2997,14 +2996,8 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         shares = self.find_shares(u)
         lease_counts = []
         for shnum, serverid, fn in shares:
-            if u.startswith("URI:SSK") or u.startswith("URI:DIR2"):
-                sf = MutableShareFile(fn)
-                num_leases = len(sf.debug_get_leases())
-            elif u.startswith("URI:CHK"):
-                sf = ShareFile(fn)
-                num_leases = len(list(sf.iter_leases()))
-            else:
-                raise ValueError("can't count leases on %s" % u)
+            sf = get_share_file(fn)
+            num_leases = len(list(sf.get_leases()))
         lease_counts.append( (fn, num_leases) )
         return lease_counts
 

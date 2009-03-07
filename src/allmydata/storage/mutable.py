@@ -230,22 +230,21 @@ class MutableShareFile:
                 return i
         return None
 
+    def get_leases(self):
+        """Yields a LeaseInfo instance for all leases."""
+        f = open(self.home, 'rb')
+        for i, lease in self._enumerate_leases(f):
+            yield lease
+        f.close()
+
     def _enumerate_leases(self, f):
-        """Yields (leasenum, (ownerid, expiration_time, renew_secret,
-        cancel_secret, accepting_nodeid)) for all leases."""
         for i in range(self._get_num_lease_slots(f)):
             try:
                 data = self._read_lease_record(f, i)
                 if data is not None:
-                    yield (i,data)
+                    yield i,data
             except IndexError:
                 return
-
-    def debug_get_leases(self):
-        f = open(self.home, 'rb')
-        leases = list(self._enumerate_leases(f))
-        f.close()
-        return leases
 
     def add_lease(self, lease_info):
         precondition(lease_info.owner_num != 0) # 0 means "no lease here"

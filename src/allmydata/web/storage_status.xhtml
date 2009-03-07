@@ -69,10 +69,22 @@
     </li>
   </ul>
 
+  <h2>Lease Expiration Crawler</h2>
+
+  <ul>
+    <li>Expiration <span n:render="lease_expiration_enabled" /></li>
+    <li n:render="lease_expiration_age_limit" />
+    <li n:render="lease_current_cycle_progress" />
+    <li n:render="lease_current_cycle_results" />
+    <li n:render="lease_last_cycle_results" />
+  </ul>
+
+  <hr />
   <p>[1]: Some of this space may be reserved for the superuser.</p>
   <p>[2]: This reports the space available to non-root users, including the
   Tahoe node.</p>
 
+  <p>See this page <a href="?t=json">in JSON</a></p>
 </div>
 
 </body>

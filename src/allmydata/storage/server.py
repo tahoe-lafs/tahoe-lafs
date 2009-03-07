@@ -15,6 +15,7 @@ from allmydata.storage.mutable import MutableShareFile, EmptyShare, \
      create_mutable_sharefile
 from allmydata.storage.immutable import ShareFile, BucketWriter, BucketReader
 from allmydata.storage.crawler import BucketCountingCrawler
+from allmydata.storage.expirer import LeaseCheckingCrawler
 
 # storage/
 # storage/shares/incoming
@@ -34,10 +35,12 @@ NUM_RE=re.compile("^[0-9]+$")
 class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer, IStatsProducer)
     name = 'storage'
+    LeaseCheckerClass = LeaseCheckingCrawler
 
     def __init__(self, storedir, nodeid, reserved_space=0,
                  discard_storage=False, readonly_storage=False,
-                 stats_provider=None):
+                 stats_provider=None,
+                 expire_leases=False, expiration_time=31*24*60*60):
         service.MultiService.__init__(self)
         assert isinstance(nodeid, str)
         assert len(nodeid) == 20
@@ -78,11 +81,21 @@ class StorageServer(service.MultiService, Referenceable):
                           "cancel": [],
                           }
         self.add_bucket_counter()
+        self.add_lease_checker(expire_leases, expiration_time)
 
     def add_bucket_counter(self):
         statefile = os.path.join(self.storedir, "bucket_counter.state")
         self.bucket_counter = BucketCountingCrawler(self, statefile)
         self.bucket_counter.setServiceParent(self)
+
+    def add_lease_checker(self, expire_leases, expiration_time):
+        statefile = os.path.join(self.storedir, "lease_checker.state")
+        historyfile = os.path.join(self.storedir, "lease_checker.history")
+        klass = self.LeaseCheckerClass
+        self.lease_checker = klass(self, statefile, historyfile,
+                                   expire_leases=expire_leases,
+                                   expiration_time=expiration_time)
+        self.lease_checker.setServiceParent(self)
 
     def count(self, name, delta=1):
         if self.stats_provider:
@@ -146,11 +159,21 @@ class StorageServer(service.MultiService, Referenceable):
             writeable = False
         try:
             s = self.do_statvfs()
-            disk_total = s.f_bsize * s.f_blocks
-            disk_used = s.f_bsize * (s.f_blocks - s.f_bfree)
+            # on my mac laptop:
+            #  statvfs(2) is a wrapper around statfs(2).
+            #    statvfs.f_frsize = statfs.f_bsize :
+            #     "minimum unit of allocation" (statvfs)
+            #     "fundamental file system block size" (statfs)
+            #    statvfs.f_bsize = statfs.f_iosize = stat.st_blocks : preferred IO size
+            # on an encrypted home directory ("FileVault"), it gets f_blocks
+            # wrong, and s.f_blocks*s.f_frsize is twice the size of my disk,
+            # but s.f_bavail*s.f_frsize is correct
+
+            disk_total = s.f_frsize * s.f_blocks
+            disk_used = s.f_frsize * (s.f_blocks - s.f_bfree)
             # spacetime predictors should look at the slope of disk_used.
-            disk_free_for_root = s.f_bsize * s.f_bfree
-            disk_free_for_nonroot = s.f_bsize * s.f_bavail
+            disk_free_for_root = s.f_frsize * s.f_bfree
+            disk_free_for_nonroot = s.f_frsize * s.f_bavail
 
             # include our local policy here: if we stop accepting shares when
             # the available space drops below 1GB, then include that fact in
@@ -182,7 +205,7 @@ class StorageServer(service.MultiService, Referenceable):
     def stat_disk(self, d):
         s = os.statvfs(d)
         # s.f_bavail: available to non-root users
-        disk_avail = s.f_bsize * s.f_bavail
+        disk_avail = s.f_frsize * s.f_bavail
         return disk_avail
 
     def get_available_space(self):
@@ -397,8 +420,7 @@ class StorageServer(service.MultiService, Referenceable):
 
     def get_leases(self, storage_index):
         """Provide an iterator that yields all of the leases attached to this
-        bucket. Each lease is returned as a tuple of (owner_num,
-        renew_secret, cancel_secret, expiration_time).
+        bucket. Each lease is returned as a LeaseInfo instance.
 
         This method is not for client use.
         """
@@ -408,7 +430,7 @@ class StorageServer(service.MultiService, Referenceable):
         try:
             shnum, filename = self._get_bucket_shares(storage_index).next()
             sf = ShareFile(filename)
-            return sf.iter_leases()
+            return sf.get_leases()
         except StopIteration:
             return iter([])
 

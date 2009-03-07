@@ -1,6 +1,7 @@
 
-from nevow import rend, tags as T
-from allmydata.web.common import getxmlfile, abbreviate_time
+import time, simplejson
+from nevow import rend, tags as T, inevow
+from allmydata.web.common import getxmlfile, abbreviate_time, get_arg
 from allmydata.util.abbreviate import abbreviate_space
 
 def remove_prefix(s, prefix):
@@ -15,6 +16,21 @@ class StorageStatus(rend.Page):
     def __init__(self, storage):
         rend.Page.__init__(self, storage)
         self.storage = storage
+
+    def renderHTTP(self, ctx):
+        req = inevow.IRequest(ctx)
+        t = get_arg(req, "t")
+        if t == "json":
+            return self.render_JSON(req)
+        return rend.Page.renderHTTP(self, ctx)
+
+    def render_JSON(self, req):
+        req.setHeader("content-type", "text/plain")
+        d = {"stats": self.storage.get_stats(),
+             "bucket-counter": self.storage.bucket_counter.get_state(),
+             "lease-checker": self.storage.lease_checker.get_state(),
+             }
+        return simplejson.dumps(d, indent=1) + "\n"
 
     def render_storage_running(self, ctx, storage):
         if storage:
@@ -76,28 +92,124 @@ class StorageStatus(rend.Page):
         return count
 
     def render_count_crawler_status(self, ctx, storage):
-        s = self.storage.bucket_counter.get_progress()
+        p = self.storage.bucket_counter.get_progress()
+        return ctx.tag[self.format_crawler_progress(p)]
 
-        cycletime = s["estimated-time-per-cycle"]
+    def format_crawler_progress(self, p):
+        cycletime = p["estimated-time-per-cycle"]
         cycletime_s = ""
         if cycletime is not None:
-            cycletime_s = " (estimated cycle time %ds)" % cycletime
+            cycletime_s = " (estimated cycle time %s)" % abbreviate_time(cycletime)
 
-        if s["cycle-in-progress"]:
-            pct = s["cycle-complete-percentage"]
-            soon = s["remaining-sleep-time"]
+        if p["cycle-in-progress"]:
+            pct = p["cycle-complete-percentage"]
+            soon = p["remaining-sleep-time"]
 
-            eta = s["estimated-cycle-complete-time-left"]
+            eta = p["estimated-cycle-complete-time-left"]
             eta_s = ""
             if eta is not None:
                 eta_s = " (ETA %ds)" % eta
 
-            return ctx.tag["Current crawl %.1f%% complete" % pct,
-                           eta_s,
-                           " (next work in %s)" % abbreviate_time(soon),
-                           cycletime_s,
-                           ]
+            return ["Current crawl %.1f%% complete" % pct,
+                    eta_s,
+                    " (next work in %s)" % abbreviate_time(soon),
+                    cycletime_s,
+                    ]
         else:
-            soon = s["remaining-wait-time"]
-            return ctx.tag["Next crawl in %s" % abbreviate_time(soon),
-                           cycletime_s]
+            soon = p["remaining-wait-time"]
+            return ["Next crawl in %s" % abbreviate_time(soon),
+                    cycletime_s]
+
+    def render_lease_expiration_enabled(self, ctx, data):
+        lc = self.storage.lease_checker
+        if lc.expire_leases:
+            return ctx.tag["Enabled: expired leases will be removed"]
+        else:
+            return ctx.tag["Disabled: scan-only mode, no leases will be removed"]
+
+    def render_lease_expiration_age_limit(self, ctx, data):
+        lc = self.storage.lease_checker
+        return ctx.tag["leases created or last renewed more than %s ago "
+                       "will be considered expired"
+                       % abbreviate_time(lc.age_limit)]
+
+    def format_recovered(self, sr, a):
+        space = abbreviate_space(sr["%s-diskbytes" % a])
+        return "%d buckets, %d shares, %s" % (sr["%s-numbuckets" % a],
+                                              sr["%s-numshares" % a],
+                                              space)
+
+    def render_lease_current_cycle_progress(self, ctx, data):
+        lc = self.storage.lease_checker
+        p = lc.get_progress()
+        return ctx.tag[self.format_crawler_progress(p)]
+
+    def render_lease_current_cycle_results(self, ctx, data):
+        lc = self.storage.lease_checker
+        p = lc.get_progress()
+        if not p["cycle-in-progress"]:
+            return ""
+        pieces = []
+        s = lc.get_state()
+        so_far = s["cycle-to-date"]
+        sr = so_far["space-recovered"]
+        er = s["estimated-remaining-cycle"]
+        esr = er["space-recovered"]
+        ec = s["estimated-current-cycle"]
+        ecr = ec["space-recovered"]
+
+        p = T.ul()
+        def add(*pieces):
+            p[T.li[pieces]]
+
+        add("So far, this cycle has examined %d shares in %d buckets"
+            % (so_far["shares-examined"], so_far["buckets-examined"]))
+        add("and has recovered: ", self.format_recovered(sr, "actual"))
+        if so_far["expiration-enabled"]:
+            add("The remainder of this cycle is expected to recover: ",
+                self.format_recovered(esr, "actual"))
+            add("The whole cycle is expected to examine %d shares in %d buckets"
+                % (ec["shares-examined"], ec["buckets-examined"]))
+            add("and to recover: ", self.format_recovered(ecr, "actual"))
+
+        else:
+            add("If expiration were enabled, we would have recovered: ",
+                self.format_recovered(sr, "configured-leasetimer"), " by now")
+            add("and the remainder of this cycle would probably recover: ",
+                self.format_recovered(esr, "configured-leasetimer"))
+            add("and the whole cycle would probably recover: ",
+                self.format_recovered(ecr, "configured-leasetimer"))
+
+        add("if we were using each lease's default 31-day lease lifetime "
+            "(instead of our configured %s lifetime), "
+            "this cycle would be expected to recover: "
+            % abbreviate_time(so_far["configured-expiration-time"]),
+            self.format_recovered(ecr, "original-leasetimer"))
+
+        return ctx.tag["Current cycle:", p]
+
+    def render_lease_last_cycle_results(self, ctx, data):
+        lc = self.storage.lease_checker
+        h = lc.get_state()["history"]
+        if not h:
+            return ""
+        last = h[max(h.keys())]
+        pieces = []
+        start, end = last["cycle-start-finish-times"]
+        ctx.tag["Last complete cycle "
+                "(which took %s and finished %s ago)"
+                " recovered: "
+                % (abbreviate_time(end-start),
+                   abbreviate_time(time.time() - end)),
+                self.format_recovered(last["space-recovered"],
+                                      "actual")]
+        if not last["expiration-enabled"]:
+            rec = self.format_recovered(last["space-recovered"],
+                                        "configured-leasetimer")
+            pieces.append(T.li["but expiration was not enabled. If it "
+                               "had been, it would have recovered: ",
+                               rec])
+        if pieces:
+            ctx.tag[T.ul[pieces]]
+        return ctx.tag
+

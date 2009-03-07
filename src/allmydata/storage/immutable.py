@@ -116,9 +116,8 @@ class ShareFile:
     def _truncate_leases(self, f, num_leases):
         f.truncate(self._lease_offset + num_leases * self.LEASE_SIZE)
 
-    def iter_leases(self):
-        """Yields (ownernum, renew_secret, cancel_secret, expiration_time)
-        for all leases."""
+    def get_leases(self):
+        """Yields a LeaseInfo instance for all leases."""
         f = open(self.home, 'rb')
         (version, unused, num_leases) = struct.unpack(">LLL", f.read(0xc))
         f.seek(self._lease_offset)
@@ -135,7 +134,7 @@ class ShareFile:
         f.close()
 
     def renew_lease(self, renew_secret, new_expire_time):
-        for i,lease in enumerate(self.iter_leases()):
+        for i,lease in enumerate(self.get_leases()):
             if lease.renew_secret == renew_secret:
                 # yup. See if we need to update the owner time.
                 if new_expire_time > lease.expiration_time:
@@ -163,10 +162,9 @@ class ShareFile:
         given cancel_secret.
         """
 
-        leases = list(self.iter_leases())
-        num_leases = len(leases)
+        leases = list(self.get_leases())
         num_leases_removed = 0
-        for i,lease in enumerate(leases[:]):
+        for i,lease in enumerate(leases):
             if lease.cancel_secret == cancel_secret:
                 leases[i] = None
                 num_leases_removed += 1

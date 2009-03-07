@@ -11,6 +11,7 @@ class DumpOptions(usage.Options):
 
     optFlags = [
         ["offsets", None, "Display a table of section offsets"],
+        ["leases-only", None, "Dump leases but not CHK contents"],
         ]
 
     def getUsage(self, width=None):
@@ -46,13 +47,20 @@ def dump_share(options):
     return dump_immutable_share(options)
 
 def dump_immutable_share(options):
-    from allmydata import uri
     from allmydata.storage.immutable import ShareFile
-    from allmydata.util import base32
-    from allmydata.immutable.layout import ReadBucketProxy
 
     out = options.stdout
     f = ShareFile(options['filename'])
+    if not options["leases-only"]:
+        dump_immutable_chk_share(f, out, options)
+    dump_immutable_lease_info(f, out)
+    print >>out
+    return 0
+
+def dump_immutable_chk_share(f, out, options):
+    from allmydata import uri
+    from allmydata.util import base32
+    from allmydata.immutable.layout import ReadBucketProxy
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = ReadBucketProxy(None, '', '')
     offsets = bp._parse_offsets(f.read_share_data(0, 0x44))
@@ -127,10 +135,10 @@ def dump_immutable_share(options):
             print >>out, "  %20s: %s   (0x%x)" % (name, offset, offset)
         print >>out, "%20s: %s" % ("leases", f._lease_offset)
 
-
+def dump_immutable_lease_info(f, out):
     # display lease information too
     print >>out
-    leases = list(f.iter_leases())
+    leases = list(f.get_leases())
     if leases:
         for i,lease in enumerate(leases):
             when = format_expiration_time(lease.expiration_time)
@@ -138,9 +146,6 @@ def dump_immutable_share(options):
                   % (i, lease.owner_num, when)
     else:
         print >>out, " No leases."
-
-    print >>out
-    return 0
 
 def format_expiration_time(expiration_time):
     now = time.time()
@@ -551,9 +556,8 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         data_length = m._read_data_length(f)
         extra_lease_offset = m._read_extra_lease_offset(f)
         container_size = extra_lease_offset - m.DATA_OFFSET
-        leases = list(m._enumerate_leases(f))
-        expiration_time = min( [lease[1].expiration_time
-                                for lease in leases] )
+        expiration_time = min( [lease.expiration_time
+                                for (i,lease) in m._enumerate_leases(f)] )
         expiration = max(0, expiration_time - now)
 
         share_type = "unknown"
@@ -602,7 +606,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         bp = ImmediateReadBucketProxy(sf)
 
         expiration_time = min( [lease.expiration_time
-                                for lease in sf.iter_leases()] )
+                                for lease in sf.get_leases()] )
         expiration = max(0, expiration_time - now)
 
         UEB_data = call(bp.get_uri_extension)

@@ -6,6 +6,7 @@ from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      FileTooLargeError, NotEnoughSharesError
+from allmydata.util import abbreviate # TODO: consolidate
 
 class IOpHandleTable(Interface):
     pass
@@ -49,6 +50,8 @@ def abbreviate_time(data):
     if data is None:
         return ""
     s = float(data)
+    if s >= 10:
+        return abbreviate.abbreviate_time(data)
     if s >= 1.0:
         return "%.2fs" % s
     if s >= 0.01:
