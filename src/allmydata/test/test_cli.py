@@ -455,7 +455,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.failUnlessEqual(urls[0], expected_url)
 
     def test_create(self):
-        self.basedir = os.path.dirname(self.mktemp())
+        self.basedir = "cli/CreateAlias/create"
         self.set_up_grid()
 
         d = self.do_cli("create-alias", "tahoe")
@@ -525,8 +525,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_unlinked_immutable_stdin(self):
         # tahoe get `echo DATA | tahoe put`
         # tahoe get `echo DATA | tahoe put -`
-
-        self.basedir = self.mktemp()
+        self.basedir = "cli/Put/unlinked_immutable_stdin"
         DATA = "data" * 100
         self.set_up_grid()
         d = self.do_cli("put", stdin=DATA)
@@ -553,9 +552,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe put ./file.txt
         # tahoe put /tmp/file.txt
         # tahoe put ~/file.txt
-        self.basedir = os.path.dirname(self.mktemp())
-        # this will be "allmydata.test.test_cli/Put/test_put_from_file/RANDOM"
-        # and the RANDOM directory will exist. Raw mktemp returns a filename.
+        self.basedir = "cli/Put/unlinked_immutable_from_file"
         self.set_up_grid()
 
         rel_fn = os.path.join(self.basedir, "DATAFILE")
@@ -587,7 +584,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe put file.txt tahoe:subdir/uploaded.txt
         # tahoe put file.txt DIRCAP:./uploaded.txt
         # tahoe put file.txt DIRCAP:./subdir/uploaded.txt
-        self.basedir = os.path.dirname(self.mktemp())
+        self.basedir = "cli/Put/immutable_from_file"
         self.set_up_grid()
 
         rel_fn = os.path.join(self.basedir, "DATAFILE")
@@ -669,7 +666,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # echo DATA2 | tahoe put - FILECAP
         # tahoe get FILECAP, compare against DATA2
         # tahoe put file.txt FILECAP
-        self.basedir = os.path.dirname(self.mktemp())
+        self.basedir = "cli/Put/mutable_unlinked"
         self.set_up_grid()
 
         DATA = "data" * 100
@@ -718,7 +715,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # echo DATA2 | tahoe put - uploaded.txt # should modify-in-place
         # tahoe get uploaded.txt, compare against DATA2
 
-        self.basedir = os.path.dirname(self.mktemp())
+        self.basedir = "cli/Put/mutable"
         self.set_up_grid()
 
         DATA1 = "data" * 100
@@ -750,7 +747,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                               o.parseOptions, ["onearg"])
 
     def test_unicode_filename(self):
-        self.basedir = os.path.dirname(self.mktemp())
+        self.basedir = "cli/Cp/unicode_filename"
         self.set_up_grid()
 
         fn1 = os.path.join(self.basedir, "Ärtonwall")
@@ -781,7 +778,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         if not hasattr(os, 'symlink'):
             raise unittest.SkipTest("There is no symlink on this platform.")
         # cp -r on a directory containing a dangling symlink shouldn't assert
-        self.basedir = os.path.dirname(self.mktemp())
+        self.basedir = "cli/Cp/dangling_symlink_vs_recursion"
         self.set_up_grid()
         dn = os.path.join(self.basedir, "dir")
         os.mkdir(dn)
@@ -812,7 +809,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         return [int(s) for s in mo.groups()]
 
     def test_backup(self):
-        self.basedir = os.path.dirname(self.mktemp())
+        self.basedir = "cli/Backup/backup"
         self.set_up_grid()
 
         # is the backupdb available? If so, we test that a second backup does
@@ -1038,7 +1035,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     def test_exclude_options(self):
         root_listdir = ('lib.a', '_darcs', 'subdir', 'nice_doc.lyx')
         subdir_listdir = ('another_doc.lyx', 'run_snake_run.py', 'CVS', '.svn', '_darcs')
-        basedir = os.path.dirname(self.mktemp())
+        basedir = "cli/Backup/exclude_options"
+        fileutil.make_dirs(basedir)
         nodeurl_path = os.path.join(basedir, 'node.url')
         nodeurl = file(nodeurl_path, 'w')
         nodeurl.write('http://example.net:2357/')
