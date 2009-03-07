@@ -411,8 +411,10 @@ class Copier:
     def do_copy(self, options, progressfunc=None):
         if options['quiet']:
             verbosity = 0
-        else:
+        elif options['verbose']:
             verbosity = 2
+        else:
+            verbosity = 1
 
         nodeurl = options['node-url']
         if nodeurl[-1] != "/":
@@ -424,7 +426,7 @@ class Copier:
         self.verbosity = verbosity
         self.stdout = options.stdout
         self.stderr = options.stderr
-        if options["verbose"] and not self.progressfunc:
+        if verbosity >= 2 and not self.progressfunc:
             def progress(message):
                 print >>self.stderr, message
             self.progressfunc = progress
@@ -636,6 +638,8 @@ class Copier:
             self.progress("%d/%d directories" %
                           (self.targets_finished, len(self.targetmap)))
 
+        return self.announce_success("files copied")
+
     def attach_to_target(self, source, name, target):
         if target not in self.targetmap:
             self.targetmap[target] = {}
@@ -675,6 +679,11 @@ class Copier:
             return True
         return False
 
+    def announce_success(self, msg):
+        if self.verbosity >= 1:
+            print >>self.stdout, "Success: %s" % msg
+        return 0
+
     def copy_file(self, source, target):
         assert isinstance(source, (LocalFileSource, TahoeFileSource))
         assert isinstance(target, (LocalFileTarget, TahoeFileTarget,
@@ -685,11 +694,12 @@ class Copier:
             # data, and stash the new filecap for a later set_children call.
             f = source.open()
             target.put_file(f)
-            return
+            return self.announce_success("file copied")
         # otherwise we're copying tahoe to tahoe, and using immutable files,
         # so we can just make a link. TODO: this probably won't always work:
         # need to enumerate the cases and analyze them.
         target.put_uri(source.bestcap())
+        return self.announce_success("file linked")
 
     def copy_file_into(self, source, name, target):
         assert isinstance(source, (LocalFileSource, TahoeFileSource))
