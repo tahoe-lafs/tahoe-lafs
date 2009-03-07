@@ -739,6 +739,52 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
         return d
 
+class List(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_list(self):
+        self.basedir = "cli/List/list"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        d = c0.create_empty_dirnode()
+        def _stash_root_and_create_file(n):
+            self.rootnode = n
+            self.rooturi = n.get_uri()
+            return n.add_file(u"good", upload.Data("small", convergence=""))
+        d.addCallback(_stash_root_and_create_file)
+        d.addCallback(lambda ign:
+                      self.rootnode.create_empty_directory(u"1share"))
+        d.addCallback(lambda n:
+                      self.delete_shares_numbered(n.get_uri(), range(1,10)))
+        d.addCallback(lambda ign:
+                      self.rootnode.create_empty_directory(u"0share"))
+        d.addCallback(lambda n:
+                      self.delete_shares_numbered(n.get_uri(), range(0,10)))
+        d.addCallback(lambda ign:
+                      self.do_cli("add-alias", "tahoe", self.rooturi))
+        d.addCallback(lambda ign: self.do_cli("ls"))
+        def _check1((rc,out,err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out.splitlines(), ["0share", "1share", "good"])
+        d.addCallback(_check1)
+        d.addCallback(lambda ign: self.do_cli("ls", "missing"))
+        def _check2((rc,out,err)):
+            self.failIfEqual(rc, 0)
+            self.failUnlessEqual(err.strip(), "No such file or directory")
+            self.failUnlessEqual(out, "")
+        d.addCallback(_check2)
+        d.addCallback(lambda ign: self.do_cli("ls", "1share"))
+        def _check3((rc,out,err)):
+            self.failIfEqual(rc, 0)
+            self.failUnlessIn("Error during GET: 410 Gone ", err)
+            self.failUnlessIn("UnrecoverableFileError:", err)
+            self.failUnlessIn("could not be retrieved, because there were "
+                              "insufficient good shares.", err)
+            self.failUnlessEqual(out, "")
+        d.addCallback(_check3)
+        d.addCallback(lambda ign: self.do_cli("ls", "0share"))
+        d.addCallback(_check3)
+        return d
+
 class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_not_enough_args(self):
