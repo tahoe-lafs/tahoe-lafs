@@ -3189,6 +3189,20 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
             baduri = u.to_string()
             self.fileurls["0shares"] = "uri/" + urllib.quote(baduri)
         d.addCallback(_stash_bad)
+        d.addCallback(lambda ign: c0.create_empty_dirnode())
+        def _mangle_dirnode_1share(n):
+            u = n.get_uri()
+            url = self.fileurls["dir-1share"] = "uri/" + urllib.quote(u) + "/"
+            self.fileurls["dir-1share-json"] = url + "?t=json"
+            self.delete_shares_numbered(u, range(1,10))
+        d.addCallback(_mangle_dirnode_1share)
+        d.addCallback(lambda ign: c0.create_empty_dirnode())
+        def _mangle_dirnode_0share(n):
+            u = n.get_uri()
+            url = self.fileurls["dir-0share"] = "uri/" + urllib.quote(u) + "/"
+            self.fileurls["dir-0share-json"] = url + "?t=json"
+            self.delete_shares_numbered(u, range(0,10))
+        d.addCallback(_mangle_dirnode_0share)
 
         # NotEnoughSharesError should be reported sensibly, with a
         # text/plain explanation of the problem, and perhaps some
@@ -3208,6 +3222,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
                    "this object to learn more.")
             self.failUnlessEqual(exp, body)
         d.addCallback(_check_zero_shares)
+
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET 1share",
@@ -3232,6 +3247,76 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         def _missing_child(body):
             self.failUnless("No such child: imaginary" in body, body)
         d.addCallback(_missing_child)
+
+        d.addCallback(lambda ignored: self.GET(self.fileurls["dir-0share"]))
+        def _check_0shares_dir_html(body):
+            self.failUnless("<html>" in body, body)
+            # we should see the regular page, but without the child table or
+            # the dirops forms
+            body = " ".join(body.strip().split())
+            self.failUnlessIn('href="?t=info">More info on this directory',
+                              body)
+            exp = ("UnrecoverableFileError: the directory (or mutable file) "
+                   "could not be retrieved, because there were insufficient "
+                   "good shares. This might indicate that no servers were "
+                   "connected, insufficient servers were connected, the URI "
+                   "was corrupt, or that shares have been lost due to server "
+                   "departure, hard drive failure, or disk corruption. You "
+                   "should perform a filecheck on this object to learn more.")
+            self.failUnlessIn(exp, body)
+            self.failUnlessIn("No upload forms: directory is unreadable", body)
+        d.addCallback(_check_0shares_dir_html)
+
+        d.addCallback(lambda ignored: self.GET(self.fileurls["dir-1share"]))
+        def _check_1shares_dir_html(body):
+            # at some point, we'll split UnrecoverableFileError into 0-shares
+            # and some-shares like we did for immutable files (since there
+            # are different sorts of advice to offer in each case). For now,
+            # they present the same way.
+            self.failUnless("<html>" in body, body)
+            body = " ".join(body.strip().split())
+            self.failUnlessIn('href="?t=info">More info on this directory',
+                              body)
+            exp = ("UnrecoverableFileError: the directory (or mutable file) "
+                   "could not be retrieved, because there were insufficient "
+                   "good shares. This might indicate that no servers were "
+                   "connected, insufficient servers were connected, the URI "
+                   "was corrupt, or that shares have been lost due to server "
+                   "departure, hard drive failure, or disk corruption. You "
+                   "should perform a filecheck on this object to learn more.")
+            self.failUnlessIn(exp, body)
+            self.failUnlessIn("No upload forms: directory is unreadable", body)
+        d.addCallback(_check_1shares_dir_html)
+
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError("GET dir-0share-json",
+                                           410, "Gone", "UnrecoverableFileError",
+                                           self.GET,
+                                           self.fileurls["dir-0share-json"]))
+        def _check_unrecoverable_file(body):
+            self.failIf("<html>" in body, body)
+            body = " ".join(body.strip().split())
+            exp = ("UnrecoverableFileError: the directory (or mutable file) "
+                   "could not be retrieved, because there were insufficient "
+                   "good shares. This might indicate that no servers were "
+                   "connected, insufficient servers were connected, the URI "
+                   "was corrupt, or that shares have been lost due to server "
+                   "departure, hard drive failure, or disk corruption. You "
+                   "should perform a filecheck on this object to learn more.")
+            self.failUnlessEqual(exp, body)
+        d.addCallback(_check_unrecoverable_file)
+
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError("GET dir-1share-json",
+                                           410, "Gone", "UnrecoverableFileError",
+                                           self.GET,
+                                           self.fileurls["dir-1share-json"]))
+        d.addCallback(_check_unrecoverable_file)
+
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError("GET imaginary",
+                                           404, "Not Found", None,
+                                           self.GET, self.fileurls["imaginary"]))
 
         # attach a webapi child that throws a random error, to test how it
         # gets rendered.
