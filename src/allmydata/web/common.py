@@ -6,6 +6,7 @@ from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      FileTooLargeError, NotEnoughSharesError
+from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate # TODO: consolidate
 
 class IOpHandleTable(Interface):
@@ -114,6 +115,45 @@ def should_create_intermediate_directories(req):
     return bool(req.method in ("PUT", "POST") and
                 t not in ("delete", "rename", "rename-form", "check"))
 
+def humanize_failure(f):
+    # return text, responsecode
+    if f.check(ExistingChildError):
+        return ("There was already a child by that name, and you asked me "
+                "to not replace it.", http.CONFLICT)
+    if f.check(NoSuchChildError):
+        name = f.value.args[0]
+        return ("No such child: %s" % name.encode("utf-8"), http.NOT_FOUND)
+    if f.check(NotEnoughSharesError):
+        got = f.value.got
+        needed = f.value.needed
+        if got == 0:
+            t = ("NotEnoughSharesError: no shares could be found. "
+                 "Zero shares usually indicates a corrupt URI, or that "
+                 "no servers were connected, but it might also indicate "
+                 "severe corruption. You should perform a filecheck on "
+                 "this object to learn more.")
+        else:
+            t = ("NotEnoughSharesError: %d share%s found, but we need "
+                 "%d to recover the file. This indicates that some "
+                 "servers were unavailable, or that shares have been "
+                 "lost to server departure, hard drive failure, or disk "
+                 "corruption. You should perform a filecheck on "
+                 "this object to learn more.") % (got, plural(got), needed)
+        return (t, http.GONE)
+    if f.check(UnrecoverableFileError):
+        t = ("UnrecoverableFileError: the directory (or mutable file) could "
+             "not be retrieved, because there were insufficient good shares. "
+             "This might indicate that no servers were connected, "
+             "insufficient servers were connected, the URI was corrupt, or "
+             "that shares have been lost due to server departure, hard drive "
+             "failure, or disk corruption. You should perform a filecheck on "
+             "this object to learn more.")
+        return (t, http.GONE)
+    if f.check(WebError):
+        return (f.value.text, f.value.code)
+    if f.check(FileTooLargeError):
+        return (f.getTraceback(), http.REQUEST_ENTITY_TOO_LARGE)
+    return (str(f), None)
 
 class MyExceptionHandler(appserver.DefaultExceptionHandler):
     def simple(self, ctx, text, code=http.BAD_REQUEST):
@@ -130,40 +170,10 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
         req.finishRequest(False)
 
     def renderHTTP_exception(self, ctx, f):
-        traceback = f.getTraceback()
-        if f.check(ExistingChildError):
-            return self.simple(ctx,
-                               "There was already a child by that "
-                               "name, and you asked me to not "
-                               "replace it.",
-                               http.CONFLICT)
-        elif f.check(NoSuchChildError):
-            name = f.value.args[0]
-            return self.simple(ctx,
-                               "No such child: %s" % name.encode("utf-8"),
-                               http.NOT_FOUND)
-        elif f.check(NotEnoughSharesError):
-            got = f.value.got
-            needed = f.value.needed
-            if got == 0:
-                t = ("NotEnoughSharesError: no shares could be found. "
-                     "Zero shares usually indicates a corrupt URI, or that "
-                     "no servers were connected, but it might also indicate "
-                     "severe corruption. You should perform a filecheck on "
-                     "this object to learn more.")
-            else:
-                t = ("NotEnoughSharesError: %d share%s found, but we need "
-                     "%d to recover the file. This indicates that some "
-                     "servers were unavailable, or that shares have been "
-                     "lost to server departure, hard drive failure, or disk "
-                     "corruption. You should perform a filecheck on "
-                     "this object to learn more.") % (got, plural(got), needed)
-            return self.simple(ctx, t, http.GONE)
-        elif f.check(WebError):
-            return self.simple(ctx, f.value.text, f.value.code)
-        elif f.check(FileTooLargeError):
-            return self.simple(ctx, str(f.value), http.REQUEST_ENTITY_TOO_LARGE)
-        elif f.check(server.UnsupportedMethod):
+        text, code = humanize_failure(f)
+        if code is not None:
+            return self.simple(ctx, text, code)
+        if f.check(server.UnsupportedMethod):
             # twisted.web.server.Request.render() has support for transforming
             # this into an appropriate 501 NOT_IMPLEMENTED or 405 NOT_ALLOWED
             # return code, but nevow does not.
@@ -180,6 +190,7 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
             super = appserver.DefaultExceptionHandler
             return super.renderHTTP_exception(self, ctx, f)
         # use plain text
+        traceback = f.getTraceback()
         return self.simple(ctx, traceback, http.INTERNAL_SERVER_ERROR)
 
 class NeedOperationHandleError(WebError):
