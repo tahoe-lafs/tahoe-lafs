@@ -23,7 +23,7 @@ from allmydata.web.common import text_plain, WebError, \
      IOpHandleTable, NeedOperationHandleError, \
      boolean_of_arg, get_arg, get_root, \
      should_create_intermediate_directories, \
-     getxmlfile, RenderMixin
+     getxmlfile, RenderMixin, humanize_failure
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.check_results import CheckResults, \
@@ -492,6 +492,37 @@ class DirectoryAsHTML(rend.Page):
         rend.Page.__init__(self)
         self.node = node
 
+    def beforeRender(self, ctx):
+        # attempt to get the dirnode's children, stashing them (or the
+        # failure that results) for later use
+        d = self.node.list()
+        def _good(children):
+            # Deferreds don't optimize out tail recursion, and the way
+            # Nevow's flattener handles Deferreds doesn't take this into
+            # account. As a result, large lists of Deferreds that fire in the
+            # same turn (i.e. the output of defer.succeed) will cause a stack
+            # overflow. To work around this, we insert a turn break after
+            # every 100 items, using foolscap's fireEventually(). This gives
+            # the stack a chance to be popped. It would also work to put
+            # every item in its own turn, but that'd be a lot more
+            # inefficient. This addresses ticket #237, for which I was never
+            # able to create a failing unit test.
+            output = []
+            for i,item in enumerate(sorted(children.items())):
+                if i % 100 == 0:
+                    output.append(fireEventually(item))
+                else:
+                    output.append(item)
+            self.dirnode_children = output
+            return ctx
+        def _bad(f):
+            text, code = humanize_failure(f)
+            self.dirnode_children = None
+            self.dirnode_children_error = text
+            return ctx
+        d.addCallbacks(_good, _bad)
+        return d
+
     def render_title(self, ctx, data):
         si_s = abbreviated_dirnode(self.node)
         header = ["Directory SI=%s" % si_s]
@@ -516,29 +547,17 @@ class DirectoryAsHTML(rend.Page):
         uri_link = "%s/uri/%s/" % (root, urllib.quote(rocap))
         return ctx.tag[T.a(href=uri_link)["Read-Only Version"]]
 
+    def render_try_children(self, ctx, data):
+        # if the dirnode can be retrived, render a table of children.
+        # Otherwise, render an apologetic error message.
+        if self.dirnode_children:
+            return ctx.tag
+        else:
+            return T.div[T.p["Error reading directory:"],
+                         T.p[self.dirnode_children_error]]
+
     def data_children(self, ctx, data):
-        d = self.node.list()
-        d.addCallback(lambda dict: sorted(dict.items()))
-        def _stall_some(items):
-            # Deferreds don't optimize out tail recursion, and the way
-            # Nevow's flattener handles Deferreds doesn't take this into
-            # account. As a result, large lists of Deferreds that fire in the
-            # same turn (i.e. the output of defer.succeed) will cause a stack
-            # overflow. To work around this, we insert a turn break after
-            # every 100 items, using foolscap's fireEventually(). This gives
-            # the stack a chance to be popped. It would also work to put
-            # every item in its own turn, but that'd be a lot more
-            # inefficient. This addresses ticket #237, for which I was never
-            # able to create a failing unit test.
-            output = []
-            for i,item in enumerate(items):
-                if i % 100 == 0:
-                    output.append(fireEventually(item))
-                else:
-                    output.append(item)
-            return output
-        d.addCallback(_stall_some)
-        return d
+        return self.dirnode_children
 
     def render_row(self, ctx, data):
         name, (target, metadata) = data
@@ -638,8 +657,9 @@ class DirectoryAsHTML(rend.Page):
         forms = []
 
         if self.node.is_readonly():
-            forms.append(T.div["No upload forms: directory is read-only"])
-            return forms
+            return T.div["No upload forms: directory is read-only"]
+        if not self.dirnode_children:
+            return T.div["No upload forms: directory is unreadable"]
 
         mkdir = T.form(action=".", method="post",
                        enctype="multipart/form-data")[
