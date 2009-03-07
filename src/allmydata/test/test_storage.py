@@ -1820,11 +1820,13 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(rec["actual-sharebytes"], size)
             self.failUnlessEqual(rec["original-leasetimer-sharebytes"], size)
             self.failUnlessEqual(rec["configured-leasetimer-sharebytes"], size)
-            self.failUnless(rec["actual-diskbytes"] >= size,
+            # different platforms have different notions of "blocks used by
+            # this file", so merely assert that it's a number
+            self.failUnless(rec["actual-diskbytes"] >= 0,
                             rec["actual-diskbytes"])
-            self.failUnless(rec["original-leasetimer-diskbytes"] >= size,
+            self.failUnless(rec["original-leasetimer-diskbytes"] >= 0,
                             rec["original-leasetimer-diskbytes"])
-            self.failUnless(rec["configured-leasetimer-diskbytes"] >= size,
+            self.failUnless(rec["configured-leasetimer-diskbytes"] >= 0,
                             rec["configured-leasetimer-diskbytes"])
         d.addCallback(_after_first_cycle)
         d.addCallback(lambda ign: self.render1(webstatus))
