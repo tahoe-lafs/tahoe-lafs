@@ -149,6 +149,8 @@ class LeaseCheckingCrawler(ShareCrawler):
         so_far = self.state["cycle-to-date"]
         self.increment(so_far["leases-per-share-histogram"], num_leases, 1)
         so_far["shares-examined"] += 1
+        # TODO: accumulate share-sizes too, so we can display "the whole
+        # cycle would probably recover x GB out of y GB total"
 
         would_keep_share = [1, 1, 1]
 

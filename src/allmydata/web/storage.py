@@ -139,8 +139,8 @@ class StorageStatus(rend.Page):
                 return "?"
             return "%d" % d
         space = abbreviate_space(sr["%s-diskbytes" % a])
-        return "%s buckets, %s shares, %s" % (maybe(sr["%s-numbuckets" % a]),
-                                              maybe(sr["%s-numshares" % a]),
+        return "%s shares, %s buckets, %s" % (maybe(sr["%s-numshares" % a]),
+                                              maybe(sr["%s-numbuckets" % a]),
                                               space)
 
     def render_lease_current_cycle_progress(self, ctx, data):

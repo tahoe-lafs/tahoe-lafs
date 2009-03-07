@@ -1618,15 +1618,15 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessIn("So far, this cycle has examined "
                               "1 shares in 1 buckets "
                               "and has recovered: "
-                              "0 buckets, 0 shares, 0 B ", s)
+                              "0 shares, 0 buckets, 0 B ", s)
             self.failUnlessIn("If expiration were enabled, "
                               "we would have recovered: "
-                              "0 buckets, 0 shares, 0 B by now", s)
+                              "0 shares, 0 buckets, 0 B by now", s)
             self.failUnlessIn("and the remainder of this cycle "
                               "would probably recover: "
-                              "0 buckets, 0 shares, 0 B ", s)
+                              "0 shares, 0 buckets, 0 B ", s)
             self.failUnlessIn("and the whole cycle would probably recover: "
-                              "0 buckets, 0 shares, 0 B ", s)
+                              "0 shares, 0 buckets, 0 B ", s)
             self.failUnlessIn("if we were using each lease's default "
                               "31-day lease lifetime", s)
             self.failUnlessIn("this cycle would be expected to recover: ", s)
@@ -1686,7 +1686,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html(html):
             s = remove_tags(html)
-            self.failUnlessIn("recovered: 0 buckets, 0 shares, 0 B "
+            self.failUnlessIn("recovered: 0 shares, 0 buckets, 0 B "
                               "but expiration was not enabled", s)
         d.addCallback(_check_html)
         return d
@@ -1779,10 +1779,10 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             # all. This part of the test depends upon the SIs landing right
             # where they do now.
             self.failUnlessIn("The remainder of this cycle is expected to "
-                              "recover: 5 buckets, 5 shares", s)
+                              "recover: 5 shares, 5 buckets", s)
             self.failUnlessIn("The whole cycle is expected to examine "
                               "6 shares in 6 buckets and to recover: "
-                              "6 buckets, 6 shares", s)
+                              "6 shares, 6 buckets", s)
         d.addCallback(_check_html_in_cycle)
 
         # wait for the crawler to finish the first cycle. Two shares should
@@ -1833,7 +1833,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("Expiration Enabled: expired leases will be removed", s)
-            self.failUnlessIn(" recovered: 2 buckets, 2 shares, ", s)
+            self.failUnlessIn(" recovered: 2 shares, 2 buckets, ", s)
         d.addCallback(_check_html)
         return d
 
