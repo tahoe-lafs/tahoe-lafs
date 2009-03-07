@@ -134,9 +134,13 @@ class StorageStatus(rend.Page):
                        % abbreviate_time(lc.age_limit)]
 
     def format_recovered(self, sr, a):
+        def maybe(d):
+            if d is None:
+                return "?"
+            return "%d" % d
         space = abbreviate_space(sr["%s-diskbytes" % a])
-        return "%d buckets, %d shares, %s" % (sr["%s-numbuckets" % a],
-                                              sr["%s-numshares" % a],
+        return "%s buckets, %s shares, %s" % (maybe(sr["%s-numbuckets" % a]),
+                                              maybe(sr["%s-numshares" % a]),
                                               space)
 
     def render_lease_current_cycle_progress(self, ctx, data):
@@ -162,14 +166,18 @@ class StorageStatus(rend.Page):
         def add(*pieces):
             p[T.li[pieces]]
 
+        def maybe(d):
+            if d is None:
+                return "?"
+            return "%d" % d
         add("So far, this cycle has examined %d shares in %d buckets"
             % (so_far["shares-examined"], so_far["buckets-examined"]))
         add("and has recovered: ", self.format_recovered(sr, "actual"))
         if so_far["expiration-enabled"]:
             add("The remainder of this cycle is expected to recover: ",
                 self.format_recovered(esr, "actual"))
-            add("The whole cycle is expected to examine %d shares in %d buckets"
-                % (ec["shares-examined"], ec["buckets-examined"]))
+            add("The whole cycle is expected to examine %s shares in %s buckets"
+                % (maybe(ec["shares-examined"]), maybe(ec["buckets-examined"])))
             add("and to recover: ", self.format_recovered(ecr, "actual"))
 
         else:
