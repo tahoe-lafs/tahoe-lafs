@@ -1695,6 +1695,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
                                  {1: 2, 2: 2})
             self.failUnlessEqual(last["buckets-examined"], 4)
             self.failUnlessEqual(last["shares-examined"], 4)
+            self.failUnlessEqual(last["corrupt-shares"], [])
 
             rec = last["space-recovered"]
             self.failUnlessEqual(rec["actual-numbuckets"], 0)
@@ -1996,6 +1997,64 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(rec["configured-leasetimer-sharebytes"],
                                  rec["configured-leasetimer-diskbytes"])
         d.addCallback(_check)
+        return d
+
+    def test_bad_share(self):
+        basedir = "storage/LeaseCrawler/bad_share"
+        fileutil.make_dirs(basedir)
+        ss = StorageServer(basedir, "\x00" * 20)
+        w = StorageStatus(ss)
+        # make it start sooner than usual.
+        lc = ss.lease_checker
+        lc.slow_start = 0
+        lc.cpu_slice = 500
+
+        # create a few shares, with some leases on them
+        self.make_shares(ss)
+
+        # now corrupt one, and make sure the lease-checker keeps going
+        [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3] = self.sis
+        first_mutable = min(mutable_si_2, mutable_si_3)
+        fn = os.path.join(ss.sharedir, storage_index_to_dir(first_mutable), "0")
+        f = open(fn, "rb+")
+        f.seek(0)
+        f.write("BAD MAGIC")
+        f.close()
+        # get_share_file() doesn't see the correct mutable magic, so it
+        # assumes the file is an immutable share, and then
+        # immutable.ShareFile sees a bad version. So this actually triggers
+        # UnknownImmutableContainerVersionError.
+
+        ss.setServiceParent(self.s)
+
+        def _wait():
+            return bool(lc.get_state()["last-cycle-finished"] is not None)
+        d = self.poll(_wait)
+
+        def _after_first_cycle(ignored):
+            s = lc.get_state()
+            last = s["history"][0]
+            self.failUnlessEqual(last["buckets-examined"], 4)
+            self.failUnlessEqual(last["shares-examined"], 3)
+            self.failUnlessEqual(last["corrupt-shares"],
+                                 [(base32.b2a(first_mutable), 0)])
+            self.flushLoggedErrors(UnknownMutableContainerVersionError,
+                                   UnknownImmutableContainerVersionError)
+        d.addCallback(_after_first_cycle)
+        d.addCallback(lambda ign: self.render_json(w))
+        def _check_json(json):
+            data = simplejson.loads(json)
+            # grr. json turns all dict keys into strings.
+            last = data["lease-checker"]["history"]["0"]
+            corrupt_shares = last["corrupt-shares"]
+            # it also turns all tuples into lists
+            self.failUnlessEqual(corrupt_shares,
+                                 [[base32.b2a(first_mutable), 0]])
+        d.addCallback(_check_json)
+        return d
+
+    def render_json(self, page):
+        d = self.render1(page, args={"t": ["json"]})
         return d
 
 class NoStatvfsServer(StorageServer):

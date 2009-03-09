@@ -1,6 +1,9 @@
-import time, os, pickle
+import time, os, pickle, struct
 from crawler import ShareCrawler
 from shares import get_share_file
+from common import UnknownMutableContainerVersionError, \
+     UnknownImmutableContainerVersionError
+from twisted.python import log as twlog
 
 class LeaseCheckingCrawler(ShareCrawler):
     """I examine the leases on all shares, determining which are still valid
@@ -70,6 +73,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         recovered = self.create_empty_recovered_dict()
         so_far = {"buckets-examined": 0,
                   "shares-examined": 0,
+                  "corrupt-shares": [],
                   "space-recovered": recovered,
                   "lease-age-histogram": {}, # (minage,maxage)->count
                   "leases-per-share-histogram": {}, # leasecount->numshares
@@ -99,10 +103,20 @@ class LeaseCheckingCrawler(ShareCrawler):
         for fn in os.listdir(bucketdir):
             try:
                 shnum = int(fn)
-                wks = self.process_share(os.path.join(bucketdir, fn))
-                would_keep_shares.append(wks)
             except ValueError:
-                pass # non-numeric means not a sharefile
+                continue # non-numeric means not a sharefile
+            sharefile = os.path.join(bucketdir, fn)
+            try:
+                wks = self.process_share(sharefile)
+            except (UnknownMutableContainerVersionError,
+                    UnknownImmutableContainerVersionError,
+                    struct.error):
+                twlog.msg("lease-checker error processing %s" % sharefile)
+                twlog.err()
+                which = (storage_index_b32, shnum)
+                self.state["cycle-to-date"]["corrupt-shares"].append(which)
+                wks = (1, 1, 1)
+            would_keep_shares.append(wks)
         recovered = self.state["cycle-to-date"]["space-recovered"]
         if sum([wks[0] for wks in would_keep_shares]) == 0:
             self.increment(recovered,
@@ -233,6 +247,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         h["leases-per-share-histogram"] = s["leases-per-share-histogram"].copy()
         h["buckets-examined"] = s["buckets-examined"]
         h["shares-examined"] = s["shares-examined"]
+        h["corrupt-shares"] = s["corrupt-shares"][:]
         # note: if ["shares-recovered"] ever acquires an internal dict, this
         # copy() needs to become a deepcopy
         h["space-recovered"] = s["space-recovered"].copy()
@@ -261,6 +276,7 @@ class LeaseCheckingCrawler(ShareCrawler):
           configured-expiration-time
           lease-age-histogram (list of (minage,maxage,sharecount) tuples)
           leases-per-share-histogram
+          corrupt-shares (list of (si_b32,shnum) tuples, minimal verification)
           buckets-examined
           shares-examined
           space-recovered
@@ -285,6 +301,7 @@ class LeaseCheckingCrawler(ShareCrawler):
           configured-expiration-time
           lease-age-histogram
           leases-per-share-histogram
+          corrupt-shares
           buckets-examined
           shares-examined
           space-recovered
