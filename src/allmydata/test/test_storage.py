@@ -1812,15 +1812,15 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         def _check_html_in_cycle(html):
             s = remove_tags(html)
             # the first bucket encountered gets deleted, and its prefix
-            # happens to be about 1/6th of the way through the ring, so the
-            # predictor thinks we'll have 6 shares and that we'll delete them
+            # happens to be about 1/5th of the way through the ring, so the
+            # predictor thinks we'll have 5 shares and that we'll delete them
             # all. This part of the test depends upon the SIs landing right
             # where they do now.
             self.failUnlessIn("The remainder of this cycle is expected to "
-                              "recover: 5 shares, 5 buckets", s)
+                              "recover: 4 shares, 4 buckets", s)
             self.failUnlessIn("The whole cycle is expected to examine "
-                              "6 shares in 6 buckets and to recover: "
-                              "6 shares, 6 buckets", s)
+                              "5 shares in 5 buckets and to recover: "
+                              "5 shares, 5 buckets", s)
         d.addCallback(_check_html_in_cycle)
 
         # wait for the crawler to finish the first cycle. Two shares should

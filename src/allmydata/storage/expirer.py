@@ -354,7 +354,8 @@ class LeaseCheckingCrawler(ShareCrawler):
         cycle = {"space-recovered": cycle_sr}
 
         if progress["cycle-complete-percentage"] > 0.0:
-            m = 100.0 / progress["cycle-complete-percentage"]
+            pc = progress["cycle-complete-percentage"] / 100.0
+            m = (1-pc)/pc
             for a in ("actual", "original-leasetimer", "configured-leasetimer"):
                 for b in ("numbuckets", "numshares", "sharebytes", "diskbytes"):
                     k = a+"-"+b
