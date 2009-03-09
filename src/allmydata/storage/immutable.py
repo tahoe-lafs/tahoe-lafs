@@ -7,7 +7,8 @@ from allmydata.interfaces import RIBucketWriter, RIBucketReader
 from allmydata.util import base32, fileutil, log
 from allmydata.util.assertutil import precondition
 from allmydata.storage.lease import LeaseInfo
-from allmydata.storage.common import DataTooLargeError
+from allmydata.storage.common import UnknownImmutableContainerVersionError, \
+     DataTooLargeError
 
 # each share file (in storage/shares/$SI/$SHNUM) contains lease information
 # and share data. The share data is accessed by RIBucketWriter.write and
@@ -26,11 +27,13 @@ from allmydata.storage.common import DataTooLargeError
 #   B+0x44: expiration time, 4 bytes big-endian seconds-since-epoch
 #   B+0x48: next lease, or end of record
 
-# Footnote 1: as of Tahoe v1.3.0 this field is not used by storage servers, but it is still
-# filled in by storage servers in case the storage server software gets downgraded from >= Tahoe
-# v1.3.0 to < Tahoe v1.3.0, or the share file is moved from one storage server to another.  The
-# value stored in this field is truncated, so If the actual share data length is >= 2**32, then
-# the value stored in this field will be the actual share data length modulo 2**32.
+# Footnote 1: as of Tahoe v1.3.0 this field is not used by storage servers,
+# but it is still filled in by storage servers in case the storage server
+# software gets downgraded from >= Tahoe v1.3.0 to < Tahoe v1.3.0, or the
+# share file is moved from one storage server to another. The value stored in
+# this field is truncated, so if the actual share data length is >= 2**32,
+# then the value stored in this field will be the actual share data length
+# modulo 2**32.
 
 class ShareFile:
     LEASE_SIZE = struct.calcsize(">L32s32sL")
@@ -41,8 +44,8 @@ class ShareFile:
         self.home = filename
         self._max_size = max_size
         if create:
-            # touch the file, so later callers will see that we're working on it.
-            # Also construct the metadata.
+            # touch the file, so later callers will see that we're working on
+            # it. Also construct the metadata.
             assert not os.path.exists(self.home)
             fileutil.make_dirs(os.path.dirname(self.home))
             f = open(self.home, 'wb')
@@ -64,7 +67,10 @@ class ShareFile:
             filesize = os.path.getsize(self.home)
             (version, unused, num_leases) = struct.unpack(">LLL", f.read(0xc))
             f.close()
-            assert version == 1, version
+            if version != 1:
+                msg = "sharefile %s had version %d but we wanted 1" % \
+                      (filename, version)
+                raise UnknownImmutableContainerVersionError(msg)
             self._num_leases = num_leases
             self._lease_offset = filesize - (num_leases * self.LEASE_SIZE)
         self._data_offset = 0xc
@@ -74,9 +80,9 @@ class ShareFile:
 
     def read_share_data(self, offset, length):
         precondition(offset >= 0)
-        # reads beyond the end of the data are truncated. Reads that start beyond the end of the
-        # data return an empty string.
-        # I wonder why Python doesn't do the following computation for me?
+        # reads beyond the end of the data are truncated. Reads that start
+        # beyond the end of the data return an empty string. I wonder why
+        # Python doesn't do the following computation for me?
         seekpos = self._data_offset+offset
         fsize = os.path.getsize(self.home)
         actuallength = max(0, min(length, fsize-seekpos))
@@ -290,7 +296,9 @@ class BucketReader(Referenceable):
         self.shnum = shnum
 
     def __repr__(self):
-        return "<%s %s %s>" % (self.__class__.__name__, base32.b2a_l(self.storage_index[:8], 60), self.shnum)
+        return "<%s %s %s>" % (self.__class__.__name__,
+                               base32.b2a_l(self.storage_index[:8], 60),
+                               self.shnum)
 
     def remote_read(self, offset, length):
         start = time.time()

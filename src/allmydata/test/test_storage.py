@@ -1,5 +1,5 @@
 
-import time, os.path, stat, re, simplejson
+import time, os.path, stat, re, simplejson, struct
 
 from twisted.trial import unittest
 
@@ -13,7 +13,7 @@ from allmydata.storage.server import StorageServer
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.immutable import BucketWriter, BucketReader
 from allmydata.storage.common import DataTooLargeError, storage_index_to_dir, \
-     UnknownMutableContainerVersionError
+     UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.storage.expirer import LeaseCheckingCrawler
@@ -373,6 +373,24 @@ class Server(unittest.TestCase):
             wb.remote_abort()
         for i,wb in writers.items():
             wb.remote_abort()
+
+    def test_bad_container_version(self):
+        ss = self.create("test_bad_container_version")
+        a,w = self.allocate(ss, "si1", [0], 10)
+        w[0].remote_write(0, "\xff"*10)
+        w[0].remote_close()
+
+        fn = os.path.join(ss.sharedir, storage_index_to_dir("si1"), "0")
+        f = open(fn, "rb+")
+        f.seek(0)
+        f.write(struct.pack(">L", 0)) # this is invalid: minimum used is v1
+        f.close()
+
+        b = ss.remote_get_buckets("allocate")
+
+        e = self.failUnlessRaises(UnknownImmutableContainerVersionError,
+                                  ss.remote_get_buckets, "si1")
+        self.failUnless(" had version 0 but we wanted 1" in str(e), e)
 
     def test_disconnect(self):
         # simulate a disconnection

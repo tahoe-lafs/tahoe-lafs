@@ -6,6 +6,8 @@ class DataTooLargeError(Exception):
     pass
 class UnknownMutableContainerVersionError(Exception):
     pass
+class UnknownImmutableContainerVersionError(Exception):
+    pass
 
 
 def si_b2a(storageindex):
