@@ -344,6 +344,9 @@ class Server(unittest.TestCase):
         b = ss.remote_get_buckets("allocate")
         self.failUnlessEqual(set(b.keys()), set([0,1,2]))
         self.failUnlessEqual(b[0].remote_read(0, 25), "%25d" % 0)
+        b_str = str(b[0])
+        self.failUnless("BucketReader" in b_str, b_str)
+        self.failUnless("mfwgy33dmf2g 0" in b_str, b_str)
 
         # now if we ask about writing again, the server should offer those
         # three buckets as already present. It should offer them even if we
