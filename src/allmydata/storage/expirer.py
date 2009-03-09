@@ -61,6 +61,10 @@ class LeaseCheckingCrawler(ShareCrawler):
         # get started: unit tests do this
         so_far = self.create_empty_cycle_dict()
         self.state.setdefault("cycle-to-date", so_far)
+        # in case we upgrade the code while a cycle is in progress, update
+        # the keys individually
+        for k in self.state["cycle-to-date"]:
+            self.state["cycle-to-date"].setdefault(k, so_far[k])
 
         # initialize history
         if not os.path.exists(self.historyfile):
