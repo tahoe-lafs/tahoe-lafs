@@ -63,7 +63,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         self.state.setdefault("cycle-to-date", so_far)
         # in case we upgrade the code while a cycle is in progress, update
         # the keys individually
-        for k in self.state["cycle-to-date"]:
+        for k in so_far:
             self.state["cycle-to-date"].setdefault(k, so_far[k])
 
         # initialize history
