@@ -153,7 +153,6 @@ class StorageStatus(rend.Page):
         p = lc.get_progress()
         if not p["cycle-in-progress"]:
             return ""
-        pieces = []
         s = lc.get_state()
         so_far = s["cycle-to-date"]
         sr = so_far["space-recovered"]
@@ -163,6 +162,7 @@ class StorageStatus(rend.Page):
         ecr = ec["space-recovered"]
 
         p = T.ul()
+        pieces = []
         def add(*pieces):
             p[T.li[pieces]]
 
@@ -194,6 +194,12 @@ class StorageStatus(rend.Page):
             % abbreviate_time(so_far["configured-expiration-time"]),
             self.format_recovered(ecr, "original-leasetimer"))
 
+        if so_far["corrupt-shares"]:
+            add("Corrupt shares:",
+                T.ul[ [T.li[ ["SI %s shnum %d" % corrupt_share
+                              for corrupt_share in so_far["corrupt-shares"] ]
+                             ]]])
+
         return ctx.tag["Current cycle:", p]
 
     def render_lease_last_cycle_results(self, ctx, data):
@@ -202,22 +208,30 @@ class StorageStatus(rend.Page):
         if not h:
             return ""
         last = h[max(h.keys())]
-        pieces = []
+
         start, end = last["cycle-start-finish-times"]
-        ctx.tag["Last complete cycle "
-                "(which took %s and finished %s ago)"
-                " recovered: "
-                % (abbreviate_time(end-start),
-                   abbreviate_time(time.time() - end)),
-                self.format_recovered(last["space-recovered"],
-                                      "actual")]
+        ctx.tag["Last complete cycle (which took %s and finished %s ago)"
+                " recovered: " % (abbreviate_time(end-start),
+                                  abbreviate_time(time.time() - end)),
+                self.format_recovered(last["space-recovered"], "actual")
+                ]
+
+        p = T.ul()
+        pieces = []
+        def add(*pieces):
+            p[T.li[pieces]]
+
         if not last["expiration-enabled"]:
             rec = self.format_recovered(last["space-recovered"],
                                         "configured-leasetimer")
-            pieces.append(T.li["but expiration was not enabled. If it "
-                               "had been, it would have recovered: ",
-                               rec])
-        if pieces:
-            ctx.tag[T.ul[pieces]]
-        return ctx.tag
+            add("but expiration was not enabled. If it had been, "
+                "it would have recovered: ", rec)
+
+        if last["corrupt-shares"]:
+            add("Corrupt shares:",
+                T.ul[ [T.li[ ["SI %s shnum %d" % corrupt_share
+                              for corrupt_share in last["corrupt-shares"] ]
+                             ]]])
+
+        return ctx.tag[p]
 
