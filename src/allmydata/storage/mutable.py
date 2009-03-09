@@ -4,7 +4,8 @@ from allmydata.interfaces import BadWriteEnablerError
 from allmydata.util import idlib, log
 from allmydata.util.assertutil import precondition
 from allmydata.storage.lease import LeaseInfo
-from allmydata.storage.common import DataTooLargeError
+from allmydata.storage.common import UnknownMutableContainerVersionError, \
+     DataTooLargeError
 
 # the MutableShareFile is like the ShareFile, but used for mutable data. It
 # has a different layout. See docs/mutable.txt for more details.
@@ -56,7 +57,10 @@ class MutableShareFile:
              write_enabler_nodeid, write_enabler,
              data_length, extra_least_offset) = \
              struct.unpack(">32s20s32sQQ", data)
-            assert magic == self.MAGIC
+            if magic != self.MAGIC:
+                msg = "sharefile %s had magic '%r' but we wanted '%r'" % \
+                      (filename, magic, self.MAGIC)
+                raise UnknownMutableContainerVersionError(msg)
         self.parent = parent # for logging
 
     def log(self, *args, **kwargs):

@@ -12,7 +12,8 @@ from allmydata.util import fileutil, hashutil, base32, pollmixin
 from allmydata.storage.server import StorageServer
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.immutable import BucketWriter, BucketReader
-from allmydata.storage.common import DataTooLargeError, storage_index_to_dir
+from allmydata.storage.common import DataTooLargeError, storage_index_to_dir, \
+     UnknownMutableContainerVersionError
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.storage.expirer import LeaseCheckingCrawler
@@ -722,6 +723,20 @@ class MutableServer(unittest.TestCase):
         self.failUnless(did_write)
         self.failUnless(isinstance(readv_data, dict))
         self.failUnlessEqual(len(readv_data), 0)
+
+    def test_bad_magic(self):
+        ss = self.create("test_bad_magic")
+        self.allocate(ss, "si1", "we1", self._lease_secret.next(), set([0]), 10)
+        fn = os.path.join(ss.sharedir, storage_index_to_dir("si1"), "0")
+        f = open(fn, "rb+")
+        f.seek(0)
+        f.write("BAD MAGIC")
+        f.close()
+        read = ss.remote_slot_readv
+        e = self.failUnlessRaises(UnknownMutableContainerVersionError,
+                                  read, "si1", [0], [(0,10)])
+        self.failUnless(" had magic " in str(e), e)
+        self.failUnless(" but we wanted " in str(e), e)
 
     def test_container_size(self):
         ss = self.create("test_container_size")

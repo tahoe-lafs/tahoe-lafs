@@ -4,6 +4,8 @@ from allmydata.util import base32
 
 class DataTooLargeError(Exception):
     pass
+class UnknownMutableContainerVersionError(Exception):
+    pass
 
 
 def si_b2a(storageindex):
