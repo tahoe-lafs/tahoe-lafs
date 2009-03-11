@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Brian Warner <warner@allmydata.com>
 Build-Depends: debhelper (>= 5.0.37.1), cdbs (>= 0.4.41), python-central (>= 0.4.10), python-setuptools, python, python-all-dev
 Build-Depends-Indep: python-twisted
-XS-Python-Version: 2.4,2.5
+XS-Python-Version: 2.4,2.5,2.6
 Standards-Version: 3.7.2
 
 Package: allmydata-tahoe
