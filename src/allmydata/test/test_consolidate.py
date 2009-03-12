@@ -179,7 +179,7 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
                                  "7 dirs created, 2 used as-is, 13 reused")
             self.failUnless(os.path.exists(dbfile))
             self.failUnless(os.path.exists(backupfile))
-            backup = pickle.load(open(backupfile, "rb"))
+            self.first_backup = backup = pickle.load(open(backupfile, "rb"))
             self.failUnless(u"fluxx" in backup["systems"])
             self.failUnless(u"fluxx" in backup["archives"])
             adata = backup["archives"]["fluxx"]
@@ -198,6 +198,9 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(last.strip(),
                                  "system done, "
                                  "0 dirs created, 0 used as-is, 0 reused")
+            backup = pickle.load(open(backupfile, "rb"))
+            self.failUnlessEqual(backup, self.first_backup)
+            self.failUnless(os.path.exists(backupfile + ".0"))
         d.addCallback(_check_consolidate_output2)
 
         d.addCallback(lambda ignored: self.build_manifest(self.nodes["Archives"]))

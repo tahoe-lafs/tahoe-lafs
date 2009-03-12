@@ -89,10 +89,14 @@ class Consolidator:
         if not systems:
             self.msg("No systems under /Backups, nothing to consolidate")
             return 0
-        if not os.path.exists(self.backupfile):
-            f = open(self.backupfile, "wb")
-            pickle.dump(backup_data, f)
-            f.close()
+        backupfile = self.backupfile
+        counter = 0
+        while os.path.exists(backupfile):
+            backupfile = self.backupfile + "." + str(counter)
+            counter += 1
+        f = open(backupfile, "wb")
+        pickle.dump(backup_data, f)
+        f.close()
 
         for name, archives_dircap in sorted(systems.items()):
             self.do_system(name, archives_dircap)
