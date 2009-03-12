@@ -4,6 +4,7 @@
 import struct, time, os
 from twisted.python import usage, failure
 from twisted.internet import defer
+from allmydata.scripts.cli import VDriveOptions
 
 class DumpOptions(usage.Options):
     def getSynopsis(self):
@@ -760,6 +761,21 @@ def repl(options):
     return code.interact()
 
 
+class ConsolidateOptions(VDriveOptions):
+    optParameters = [
+        ("dbfile", None, None, "persistent file for reusable dirhashes"),
+        ("backupfile", "b", None, "file to store backup of Archives/ contents"),
+        ]
+    optFlags = [
+        ("really", None, "Really remove old snapshot directories"),
+        ]
+    def parseArgs(self, where):
+        self.where = where
+
+def consolidate(options):
+    from consolidate import main; return main(options)
+
+
 class DebugCommand(usage.Options):
     subCommands = [
         ["dump-share", None, DumpOptions,
@@ -769,6 +785,7 @@ class DebugCommand(usage.Options):
         ["catalog-shares", None, CatalogSharesOptions, "Describe shares in node dirs"],
         ["corrupt-share", None, CorruptShareOptions, "Corrupt a share"],
         ["repl", None, ReplOptions, "Open a python interpreter"],
+        ["consolidate", None, ConsolidateOptions, "Consolidate non-shared backups"],
         ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
@@ -784,6 +801,7 @@ Subcommands:
     tahoe debug find-shares     Locate sharefiles in node directories
     tahoe debug catalog-shares  Describe all shares in node dirs
     tahoe debug corrupt-share   Corrupt a share by flipping a bit.
+    tahoe debug consolidate     Consolidate old non-shared backups into shared ones.
 
 Please run e.g. 'tahoe debug dump-share --help' for more details on each
 subcommand.
@@ -797,6 +815,7 @@ subDispatch = {
     "catalog-shares": catalog_shares,
     "corrupt-share": corrupt_share,
     "repl": repl,
+    "consolidate": consolidate,
     }
 
 
