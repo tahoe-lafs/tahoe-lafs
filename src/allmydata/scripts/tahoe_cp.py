@@ -443,6 +443,7 @@ class Copier:
             print >>self.stderr
             te.display(self.stderr)
             return 1
+        return 0
 
     def try_copy(self):
         source_specs = self.options.sources
