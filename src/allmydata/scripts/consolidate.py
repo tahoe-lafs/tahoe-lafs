@@ -222,7 +222,7 @@ class Consolidator:
                 # readonly directory (which shares common subdirs with previous
                 # backups)
                 self.msg(" %s: processing" % rwname)
-                readcap = self.process_directory(readonly(writecap))
+                readcap = self.process_directory(readonly(writecap), (rwname,))
             if self.options["really"]:
                 self.msg("  replaced %s" % rwname)
                 self.put_child(archives_dircap, rwname, readcap)
@@ -241,7 +241,7 @@ class Consolidator:
                  % (self.directories_created, self.directories_used_as_is,
                     self.directories_reused))
 
-    def process_directory(self, readcap):
+    def process_directory(self, readcap, path):
         # I walk all my children (recursing over any subdirectories), build
         # up a table of my contents, then see if I can re-use an old
         # directory with the same contents. If not, I create a new directory
@@ -257,7 +257,9 @@ class Consolidator:
         for (childname, (childtype, childdata)) in sorted(data["children"].items()):
             if childtype == "dirnode":
                 num_dirs += 1
-                childcap = self.process_directory(str(childdata["ro_uri"]))
+                childpath = path + (childname,)
+                childcap = self.process_directory(str(childdata["ro_uri"]),
+                                                  childpath)
                 contents[childname] = ("dirnode", childcap, None)
             else:
                 childcap = str(childdata["ro_uri"])
@@ -267,17 +269,23 @@ class Consolidator:
         dirhash = self.hash_directory_contents(hashkids)
         old_dircap = self.get_old_dirhash(dirhash)
         if old_dircap:
+            if self.options["verbose"]:
+                self.msg("   %s: reused" % "/".join(path))
             assert isinstance(old_dircap, str)
             self.directories_reused += 1
             return old_dircap
         if num_dirs == 0:
-            # we're allowed to re-use this directory
+            # we're allowed to use this directory as-is
+            if self.options["verbose"]:
+                self.msg("   %s: used as-is" % "/".join(path))
             new_dircap = readonly(readcap)
             assert isinstance(new_dircap, str)
             self.store_dirhash(dirhash, new_dircap)
             self.directories_used_as_is += 1
             return new_dircap
         # otherwise, we need to create a new directory
+        if self.options["verbose"]:
+            self.msg("   %s: created" % "/".join(path))
         new_dircap = readonly(self.mkdir(contents))
         assert isinstance(new_dircap, str)
         self.store_dirhash(dirhash, new_dircap)

@@ -768,6 +768,7 @@ class ConsolidateOptions(VDriveOptions):
         ]
     optFlags = [
         ("really", None, "Really remove old snapshot directories"),
+        ("verbose", "v", "Emit a line for every directory examined"),
         ]
     def parseArgs(self, where):
         self.where = where

@@ -170,6 +170,7 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli_good("debug", "consolidate",
                                        "--dbfile", dbfile,
                                        "--backupfile", backupfile,
+                                       "--verbose",
                                        "tahoe:"))
         def _check_consolidate_output1(out):
             lines = out.splitlines()
