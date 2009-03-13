@@ -42,7 +42,6 @@ class Consolidator:
         except sqlite.OperationalError, e:
             if "table dirhashes already exists" not in str(e):
                 raise
-        self.visited = set()
 
     def read_directory_json(self, dircap):
         url = self.nodeurl + "uri/%s?t=json" % urllib.quote(dircap)
@@ -180,7 +179,7 @@ class Consolidator:
         snapshots = snapshots[:-1]
 
         first_snapshot = True
-        for (timestamp, rwname, writecap, roname, readcap) in snapshots:
+        for i,(timestamp, rwname, writecap, roname, readcap) in enumerate(snapshots):
             start_created = self.directories_created
             start_used_as_is = self.directories_used_as_is
             start_reused = self.directories_reused
@@ -224,7 +223,7 @@ class Consolidator:
                 # for the others, we must scan their contents and build up a new
                 # readonly directory (which shares common subdirs with previous
                 # backups)
-                self.msg(" %s: processing" % rwname)
+                self.msg(" %s: processing (%d/%d)" % (rwname, i+1, len(snapshots)))
                 readcap = self.process_directory(readonly(writecap), (rwname,))
             if self.options["really"]:
                 self.msg("  replaced %s" % rwname)
@@ -335,14 +334,17 @@ class Consolidator:
             raiseHTTPError("error during set_children", resp)
         return dircap
 
-    def scan_old_directory(self, dircap):
+    def scan_old_directory(self, dircap, ancestors=()):
         # scan this directory (recursively) and stash a hash of its contents
         # in the DB. This assumes that all subdirs can be used as-is (i.e.
         # they've already been declared immutable)
         dircap = readonly(dircap)
-        if dircap in self.visited:
+        if dircap in ancestors:
             raise CycleDetected
-        self.visited.add(dircap)
+        ancestors = ancestors + (dircap,)
+        #self.visited.add(dircap)
+        # TODO: we could use self.visited as a mapping from dircap to dirhash,
+        # to avoid re-scanning old shared directories multiple times
         self.directories_seen.add(dircap)
         self.directories_used.add(dircap)
         data = self.read_directory_json(dircap)
@@ -350,7 +352,7 @@ class Consolidator:
         for (childname, (childtype, childdata)) in data["children"].items():
             childcap = str(childdata["ro_uri"])
             if childtype == "dirnode":
-                self.scan_old_directory(childcap)
+                self.scan_old_directory(childcap, ancestors)
             kids.append( (childname, childcap) )
         dirhash = self.hash_directory_contents(kids)
         self.store_dirhash(dirhash, dircap)
