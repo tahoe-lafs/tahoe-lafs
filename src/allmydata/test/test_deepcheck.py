@@ -12,6 +12,7 @@ from allmydata.scripts import runner
 from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
      IDeepCheckResults, IDeepCheckAndRepairResults
 from allmydata.monitor import Monitor, OperationCancelledError
+from allmydata.uri import LiteralFileURI
 from twisted.web.client import getPage
 
 from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data, \
@@ -1156,3 +1157,49 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
                                          self.json_is_unrecoverable))
 
         return d
+
+class Large(DeepCheckBase, unittest.TestCase):
+    def test_lots_of_lits(self):
+        self.basedir = "deepcheck/Large/lots_of_lits"
+        self.set_up_grid()
+        # create the following directory structure:
+        #  root/
+        #   subdir/
+        #    000-large (CHK)
+        #    001-small (LIT)
+        #    002-small
+        #    ...
+        #    399-small
+        # then do a deepcheck and make sure it doesn't cause a
+        # Deferred-tail-recursion stack overflow
+
+        COUNT = 400
+        c0 = self.g.clients[0]
+        d = c0.create_empty_dirnode()
+        self.stash = {}
+        def _created_root(n):
+            self.root = n
+            return n
+        d.addCallback(_created_root)
+        d.addCallback(lambda root: root.create_empty_directory(u"subdir"))
+        def _add_children(subdir_node):
+            self.subdir_node = subdir_node
+            kids = []
+            for i in range(1, COUNT):
+                litnode = LiteralFileURI("%03d-data" % i)
+                kids.append( (u"%03d-small" % i, litnode) )
+            return subdir_node.set_children(kids)
+        d.addCallback(_add_children)
+        up = upload.Data("large enough for CHK" * 100, "")
+        d.addCallback(lambda ign: self.subdir_node.add_file(u"0000-large", up))
+
+        def _start_deepcheck(ignored):
+            return self.web(self.root, method="POST", t="stream-deep-check")
+        d.addCallback(_start_deepcheck)
+        def _check( (output, url) ):
+            units = list(self.parse_streamed_json(output))
+            self.failUnlessEqual(len(units), 2+COUNT+1)
+        d.addCallback(_check)
+
+        return d
+    test_lots_of_lits.timeout = 10

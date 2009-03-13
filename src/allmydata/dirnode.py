@@ -3,6 +3,7 @@ import os, time, math
 
 from zope.interface import implements
 from twisted.internet import defer
+from foolscap.eventual import fireEventually
 import simplejson
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.filenode import MutableFileNode
@@ -537,9 +538,17 @@ class NewDirectoryNode:
                 dirkids.append( (child, childpath) )
             else:
                 filekids.append( (child, childpath) )
-        for (child, childpath) in filekids:
+        for i, (child, childpath) in enumerate(filekids):
             d.addCallback(lambda ignored, child=child, childpath=childpath:
                           walker.add_node(child, childpath))
+            # to work around the Deferred tail-recursion problem
+            # (specifically the defer.succeed flavor) requires us to avoid
+            # doing more than 158 LIT files in a row. We insert a turn break
+            # once every 100 files (LIT or CHK) to preserve some stack space
+            # for other code. This is a different expression of the same
+            # Twisted problem as in #237.
+            if i % 100 == 99:
+                d.addCallback(lambda ignored: fireEventually())
         for (child, childpath) in dirkids:
             d.addCallback(lambda ignored, child=child, childpath=childpath:
                           self._deep_traverse_dirnode(child, childpath,
