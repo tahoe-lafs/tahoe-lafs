@@ -144,7 +144,8 @@ class Consolidator:
         data = self.read_directory_json(archives_dircap)
         snapshots = {}
 
-        for (childname, (childtype, childdata)) in data["children"].items():
+        children = sorted(data["children"].items())
+        for i, (childname, (childtype, childdata)) in enumerate(children):
             if childtype != "dirnode":
                 self.msg("non-dirnode %s in Archives/" % childname)
                 continue
@@ -160,6 +161,8 @@ class Consolidator:
             if is_readonly:
                 readcap = str(childdata["ro_uri"])
                 if self.must_rescan_readonly_snapshots:
+                    self.msg(" scanning old %s (%d/%d)" %
+                             (childname, i+1, len(children)))
                     self.scan_old_directory(str(childdata["ro_uri"]))
                 snapshots[timestamp][2] = childname
                 snapshots[timestamp][3] = readcap
