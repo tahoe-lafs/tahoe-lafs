@@ -45,6 +45,17 @@ def parse_old_timestamp(s, options):
         pass
 
     try:
+        # "2008-11-16 10.34.56 PM" (localtime)
+        if s[-3:] in (" AM", " PM"):
+            # this might raise ValueError
+            when = time.strptime(s[:-3], "%Y-%m-%d %I.%M.%S")
+            if s[-3:] == "PM":
+                when += 12*60*60
+            return when
+    except ValueError:
+        pass
+
+    try:
         # "2008-12-31 18.21.43"
         when = time.strptime(s, "%Y-%m-%d %H.%M.%S")
         return when
