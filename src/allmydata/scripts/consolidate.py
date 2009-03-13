@@ -280,7 +280,7 @@ class Consolidator:
         old_dircap = self.get_old_dirhash(dirhash)
         if old_dircap:
             if self.options["verbose"]:
-                self.msg("   %s: reused" % "/".join(path))
+                self.msg("   %r: reused" % "/".join(path))
             assert isinstance(old_dircap, str)
             self.directories_reused += 1
             self.directories_used.add(old_dircap)
@@ -288,7 +288,7 @@ class Consolidator:
         if not children_modified:
             # we're allowed to use this directory as-is
             if self.options["verbose"]:
-                self.msg("   %s: used as-is" % "/".join(path))
+                self.msg("   %r: used as-is" % "/".join(path))
             new_dircap = readonly(readcap)
             assert isinstance(new_dircap, str)
             self.store_dirhash(dirhash, new_dircap)
@@ -297,7 +297,7 @@ class Consolidator:
             return new_dircap
         # otherwise, we need to create a new directory
         if self.options["verbose"]:
-            self.msg("   %s: created" % "/".join(path))
+            self.msg("   %r: created" % "/".join(path))
         new_dircap = readonly(self.mkdir(contents))
         assert isinstance(new_dircap, str)
         self.store_dirhash(dirhash, new_dircap)
