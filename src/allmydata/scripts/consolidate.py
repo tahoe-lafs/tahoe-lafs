@@ -172,8 +172,6 @@ class Consolidator:
                 writecap = str(childdata["rw_uri"])
                 snapshots[timestamp][0] = childname
                 snapshots[timestamp][1] = writecap
-        else:
-            self.msg(" No snapshots in Backups/Archives")
         snapshots = [ [timestamp] + values
                       for (timestamp, values) in snapshots.items() ]
         # now 'snapshots' is [timestamp, rwname, writecap, roname, readcap],
