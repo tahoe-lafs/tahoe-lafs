@@ -526,7 +526,7 @@ class NewDirectoryNode:
         # in the nodecache) seem to consume about 2000 bytes.
         dirkids = []
         filekids = []
-        for name, (child, metadata) in children.iteritems():
+        for name, (child, metadata) in sorted(children.iteritems()):
             verifier = child.get_verify_cap()
             # allow LIT files (for which verifier==None) to be processed
             if (verifier is not None) and (verifier in found):
