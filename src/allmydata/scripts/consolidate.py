@@ -139,6 +139,9 @@ class Consolidator:
         self.directories_reused = 0
         self.directories_used_as_is = 0
         self.directories_created = 0
+        self.directories_seen = set()
+        self.directories_used = set()
+
         data = self.read_directory_json(archives_dircap)
         snapshots = {}
 
@@ -237,8 +240,9 @@ class Consolidator:
                      % (rwname,
                         snapshot_created, snapshot_used_as_is, snapshot_reused))
         # done!
-        self.msg(" system done, %d dirs created, %d used as-is, %d reused" \
-                 % (self.directories_created, self.directories_used_as_is,
+        self.msg(" system done, dircounts: %d/%d seen/used, %d created, %d as-is, %d reused" \
+                 % (len(self.directories_seen), len(self.directories_used),
+                    self.directories_created, self.directories_used_as_is,
                     self.directories_reused))
 
     def process_directory(self, readcap, path):
@@ -248,18 +252,22 @@ class Consolidator:
         # for my contents. In all cases I return a directory readcap that
         # points to my contents.
 
+        assert isinstance(readcap, str)
+        self.directories_seen.add(readcap)
+
         # build up contents to pass to mkdir() (which uses t=set_children)
         contents = {} # childname -> (type, rocap, metadata)
         data = self.read_directory_json(readcap)
         assert data is not None
         hashkids = []
-        num_dirs = 0
+        children_modified = False
         for (childname, (childtype, childdata)) in sorted(data["children"].items()):
             if childtype == "dirnode":
-                num_dirs += 1
                 childpath = path + (childname,)
-                childcap = self.process_directory(str(childdata["ro_uri"]),
-                                                  childpath)
+                old_childcap = str(childdata["ro_uri"])
+                childcap = self.process_directory(old_childcap, childpath)
+                if childcap != old_childcap:
+                    children_modified = True
                 contents[childname] = ("dirnode", childcap, None)
             else:
                 childcap = str(childdata["ro_uri"])
@@ -273,8 +281,9 @@ class Consolidator:
                 self.msg("   %s: reused" % "/".join(path))
             assert isinstance(old_dircap, str)
             self.directories_reused += 1
+            self.directories_used.add(old_dircap)
             return old_dircap
-        if num_dirs == 0:
+        if not children_modified:
             # we're allowed to use this directory as-is
             if self.options["verbose"]:
                 self.msg("   %s: used as-is" % "/".join(path))
@@ -282,6 +291,7 @@ class Consolidator:
             assert isinstance(new_dircap, str)
             self.store_dirhash(dirhash, new_dircap)
             self.directories_used_as_is += 1
+            self.directories_used.add(new_dircap)
             return new_dircap
         # otherwise, we need to create a new directory
         if self.options["verbose"]:
@@ -290,6 +300,7 @@ class Consolidator:
         assert isinstance(new_dircap, str)
         self.store_dirhash(dirhash, new_dircap)
         self.directories_created += 1
+        self.directories_used.add(new_dircap)
         return new_dircap
 
     def put_child(self, dircap, childname, childcap):
@@ -332,6 +343,8 @@ class Consolidator:
         if dircap in self.visited:
             raise CycleDetected
         self.visited.add(dircap)
+        self.directories_seen.add(dircap)
+        self.directories_used.add(dircap)
         data = self.read_directory_json(dircap)
         kids = []
         for (childname, (childtype, childdata)) in data["children"].items():

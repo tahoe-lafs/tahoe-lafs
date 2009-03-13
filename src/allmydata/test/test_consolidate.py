@@ -176,8 +176,8 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
             lines = out.splitlines()
             last = lines[-1]
             self.failUnlessEqual(last.strip(),
-                                 "system done, "
-                                 "7 dirs created, 2 used as-is, 13 reused")
+                                 "system done, dircounts: "
+                                 "25/12 seen/used, 7 created, 2 as-is, 13 reused")
             self.failUnless(os.path.exists(dbfile))
             self.failUnless(os.path.exists(backupfile))
             self.first_backup = backup = pickle.load(open(backupfile, "rb"))
@@ -197,8 +197,8 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
             lines = out.splitlines()
             last = lines[-1]
             self.failUnlessEqual(last.strip(),
-                                 "system done, "
-                                 "0 dirs created, 0 used as-is, 0 reused")
+                                 "system done, dircounts: "
+                                 "0/0 seen/used, 0 created, 0 as-is, 0 reused")
             backup = pickle.load(open(backupfile, "rb"))
             self.failUnlessEqual(backup, self.first_backup)
             self.failUnless(os.path.exists(backupfile + ".0"))
