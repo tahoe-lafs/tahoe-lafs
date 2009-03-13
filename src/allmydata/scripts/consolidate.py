@@ -1,5 +1,5 @@
 
-import os, pickle
+import os, pickle, time
 import sqlite3 as sqlite
 
 import urllib
@@ -56,8 +56,10 @@ class Consolidator:
 
     def msg(self, text):
         print >>self.options.stdout, text
+        self.options.stdout.flush()
     def err(self, text):
         print >>self.options.stderr, text
+        self.options.stderr.flush()
 
     def consolidate(self):
         try:
@@ -183,6 +185,7 @@ class Consolidator:
 
         first_snapshot = True
         for i,(timestamp, rwname, writecap, roname, readcap) in enumerate(snapshots):
+            eta = "?"
             start_created = self.directories_created
             start_used_as_is = self.directories_used_as_is
             start_reused = self.directories_reused
@@ -227,7 +230,10 @@ class Consolidator:
                 # readonly directory (which shares common subdirs with previous
                 # backups)
                 self.msg(" %s: processing (%d/%d)" % (rwname, i+1, len(snapshots)))
+                started = time.time()
                 readcap = self.process_directory(readonly(writecap), (rwname,))
+                elapsed = time.time() - started
+                eta = "%ds" % (elapsed * (len(snapshots) - i-1))
             if self.options["really"]:
                 self.msg("  replaced %s" % rwname)
                 self.put_child(archives_dircap, rwname, readcap)
@@ -238,9 +244,10 @@ class Consolidator:
             snapshot_created = self.directories_created - start_created
             snapshot_used_as_is = self.directories_used_as_is - start_used_as_is
             snapshot_reused = self.directories_reused - start_reused
-            self.msg("  %s: done: %d dirs created, %d used as-is, %d reused"
+            self.msg("  %s: done: %d dirs created, %d used as-is, %d reused, eta %s"
                      % (rwname,
-                        snapshot_created, snapshot_used_as_is, snapshot_reused))
+                        snapshot_created, snapshot_used_as_is, snapshot_reused,
+                        eta))
         # done!
         self.msg(" system done, dircounts: %d/%d seen/used, %d created, %d as-is, %d reused" \
                  % (len(self.directories_seen), len(self.directories_used),
