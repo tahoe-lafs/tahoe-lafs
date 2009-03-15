@@ -169,6 +169,9 @@ class CpOptions(VDriveOptions):
     optFlags = [
         ("recursive", "r", "Copy source directory recursively."),
         ("verbose", "v", "Be noisy about what is happening."),
+        ("caps-only", None,
+         "When copying to local files, write out filecaps instead of actual "
+         "data. (only useful for debugging and tree-comparison purposes)"),
         ]
     def parseArgs(self, *args):
         if len(args) < 2:

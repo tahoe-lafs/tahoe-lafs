@@ -1711,6 +1711,16 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         # and copy it a second time, which ought to overwrite the same files
         d.addCallback(run, "cp", "-r", "tahoe:dir1", dn_copy)
 
+        # and again, only writing filecaps
+        dn_copy2 = os.path.join(self.basedir, "dir1-copy-capsonly")
+        d.addCallback(run, "cp", "-r", "--caps-only", "tahoe:dir1", dn_copy2)
+        def _check_capsonly((out,err)):
+            # these should all be LITs
+            x = open(os.path.join(dn_copy2, "subdir2", "rfile4")).read()
+            y = uri.from_string_filenode(x)
+            self.failUnlessEqual(y.data, "rfile4")
+        d.addCallback(_check_capsonly)
+
         # and tahoe-to-tahoe
         d.addCallback(run, "cp", "-r", "tahoe:dir1", "tahoe:dir1-copy")
         d.addCallback(run, "ls")

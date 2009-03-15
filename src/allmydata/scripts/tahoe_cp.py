@@ -2,6 +2,7 @@
 import os.path
 import urllib
 import simplejson
+from cStringIO import StringIO
 from twisted.python.failure import Failure
 from allmydata.scripts.common import get_alias, escape_path, DefaultAliasMarker
 from allmydata.scripts.common_http import do_http
@@ -73,7 +74,7 @@ class LocalFileSource:
     def need_to_copy_bytes(self):
         return True
 
-    def open(self):
+    def open(self, caps_only):
         return open(self.pathname, "rb")
 
 class LocalFileTarget:
@@ -183,7 +184,9 @@ class TahoeFileSource:
             return True
         return False
 
-    def open(self):
+    def open(self, caps_only):
+        if caps_only:
+            return StringIO(self.readcap)
         url = self.nodeurl + "uri/" + urllib.quote(self.readcap)
         return GET_to_file(url)
 
@@ -435,6 +438,7 @@ class Copier:
             def progress(message):
                 print >>self.stderr, message
             self.progressfunc = progress
+        self.caps_only = options["caps-only"]
         self.cache = {}
         try:
             self.try_copy()
@@ -713,7 +717,7 @@ class Copier:
             # if the target is a local directory, this will just write the
             # bytes to disk. If it is a tahoe directory, it will upload the
             # data, and stash the new filecap for a later set_children call.
-            f = source.open()
+            f = source.open(self.caps_only)
             target.put_file(f)
             return self.announce_success("file copied")
         # otherwise we're copying tahoe to tahoe, and using immutable files,
@@ -729,7 +733,7 @@ class Copier:
             # if the target is a local directory, this will just write the
             # bytes to disk. If it is a tahoe directory, it will upload the
             # data, and stash the new filecap for a later set_children call.
-            f = source.open()
+            f = source.open(self.caps_only)
             target.put_file(name, f)
             return
         # otherwise we're copying tahoe to tahoe, and using immutable files,
@@ -753,3 +757,22 @@ class Copier:
 
 def copy(options):
     return Copier().do_copy(options)
+
+# error cases that need improvement:
+#  local-file-in-the-way
+#   touch proposed
+#   tahoe cp -r my:docs/proposed/denver.txt proposed/denver.txt
+
+# things that maybe should be errors but aren't
+#  local-dir-in-the-way
+#   mkdir denver.txt
+#   tahoe cp -r my:docs/proposed/denver.txt denver.txt
+#   (creates denver.txt/denver.txt)
+
+# error cases that look good:
+#  tahoe cp -r my:docs/missing missing
+#  disconnect servers
+#   tahoe cp -r my:docs/missing missing  -> No JSON object could be decoded
+#  tahoe-file-in-the-way (when we want to make a directory)
+#   tahoe put README my:docs
+#   tahoe cp -r docs/proposed my:docs/proposed
