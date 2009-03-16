@@ -1202,4 +1202,3 @@ class Large(DeepCheckBase, unittest.TestCase):
         d.addCallback(_check)
 
         return d
-    test_lots_of_lits.timeout = 10
