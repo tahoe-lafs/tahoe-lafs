@@ -34,3 +34,27 @@ def iso_utc_time_to_localseconds(isotime, _conversion_re=re.compile(r"(?P<year>\
         localseconds += subsecfloat
     return localseconds
 
+def parse_duration(s):
+    orig = s
+    unit = None
+    DAY = 24*60*60
+    MONTH = 31*DAY
+    YEAR = 365*DAY
+    if s.endswith("s"):
+        s = s[:-1]
+    if s.endswith("day"):
+        unit = DAY
+        s = s[:-len("day")]
+    elif s.endswith("month"):
+        unit = MONTH
+        s = s[:-len("month")]
+    elif s.endswith("mo"):
+        unit = MONTH
+        s = s[:-len("mo")]
+    elif s.endswith("year"):
+        unit = YEAR
+        s = s[:-len("YEAR")]
+    else:
+        raise ValueError("no unit (like day, month, or year) in '%s'" % orig)
+    s = s.strip()
+    return int(s) * unit

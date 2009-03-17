@@ -8,7 +8,7 @@ from twisted.application import service
 from foolscap import eventual
 import itertools
 from allmydata import interfaces
-from allmydata.util import fileutil, hashutil, base32, pollmixin
+from allmydata.util import fileutil, hashutil, base32, pollmixin, time_format
 from allmydata.storage.server import StorageServer
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.immutable import BucketWriter, BucketReader
@@ -2143,6 +2143,21 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
                                   expiration_mode=("bogus", 0))
         self.failUnless("garbage-collection mode 'bogus'"
                         " must be 'age' or 'date-cutoff'" in str(e), str(e))
+
+    def test_parse_duration(self):
+        DAY = 24*60*60
+        MONTH = 31*DAY
+        YEAR = 365*DAY
+        p = time_format.parse_duration
+        self.failUnlessEqual(p("7days"), 7*DAY)
+        self.failUnlessEqual(p("31day"), 31*DAY)
+        self.failUnlessEqual(p("60 days"), 60*DAY)
+        self.failUnlessEqual(p("2mo"), 2*MONTH)
+        self.failUnlessEqual(p("3 month"), 3*MONTH)
+        self.failUnlessEqual(p("2years"), 2*YEAR)
+        e = self.failUnlessRaises(ValueError, p, "2kumquats")
+        self.failUnless("no unit (like day, month, or year) in '2kumquats'"
+                        in str(e), str(e))
 
     def test_limited_history(self):
         basedir = "storage/LeaseCrawler/limited_history"
