@@ -32,6 +32,7 @@ assert struct.calcsize("Q"), 8 # The struct module doc says that Q's are 8 bytes
 
 class MutableShareFile:
 
+    sharetype = "mutable"
     DATA_LENGTH_OFFSET = struct.calcsize(">32s20s32s")
     EXTRA_LEASE_OFFSET = DATA_LENGTH_OFFSET + 8
     HEADER_SIZE = struct.calcsize(">32s20s32sQQ") # doesn't include leases

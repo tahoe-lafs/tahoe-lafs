@@ -1741,7 +1741,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
                 f = open(sf.home, 'rb+')
                 sf._write_lease_record(f, i, lease)
                 f.close()
-            return
+                return
         raise IndexError("unable to renew non-existent lease")
 
     def test_expire_age(self):
@@ -2020,6 +2020,118 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessIn("leases created or last renewed before %s"
                               " will be considered expired" % date, s)
             self.failUnlessIn(" recovered: 2 shares, 2 buckets, ", s)
+        d.addCallback(_check_html)
+        return d
+
+    def test_only_immutable(self):
+        basedir = "storage/LeaseCrawler/only_immutable"
+        fileutil.make_dirs(basedir)
+        now = time.time()
+        then = int(now - 2000)
+        ss = StorageServer(basedir, "\x00" * 20,
+                           expiration_enabled=True,
+                           expiration_mode=("date-cutoff",
+                                            then, ("immutable",)))
+        lc = ss.lease_checker
+        lc.slow_start = 0
+        webstatus = StorageStatus(ss)
+
+        self.make_shares(ss)
+        [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3] = self.sis
+        # set all leases to be expirable
+        new_expiration_time = now - 3000 + 31*24*60*60
+
+        def count_shares(si):
+            return len(list(ss._iter_share_files(si)))
+        def _get_sharefile(si):
+            return list(ss._iter_share_files(si))[0]
+        def count_leases(si):
+            return len(list(_get_sharefile(si).get_leases()))
+
+        sf0 = _get_sharefile(immutable_si_0)
+        self.backdate_lease(sf0, self.renew_secrets[0], new_expiration_time)
+        sf1 = _get_sharefile(immutable_si_1)
+        self.backdate_lease(sf1, self.renew_secrets[1], new_expiration_time)
+        self.backdate_lease(sf1, self.renew_secrets[2], new_expiration_time)
+        sf2 = _get_sharefile(mutable_si_2)
+        self.backdate_lease(sf2, self.renew_secrets[3], new_expiration_time)
+        sf3 = _get_sharefile(mutable_si_3)
+        self.backdate_lease(sf3, self.renew_secrets[4], new_expiration_time)
+        self.backdate_lease(sf3, self.renew_secrets[5], new_expiration_time)
+
+        ss.setServiceParent(self.s)
+        def _wait():
+            return bool(lc.get_state()["last-cycle-finished"] is not None)
+        d = self.poll(_wait)
+
+        def _after_first_cycle(ignored):
+            self.failUnlessEqual(count_shares(immutable_si_0), 0)
+            self.failUnlessEqual(count_shares(immutable_si_1), 0)
+            self.failUnlessEqual(count_shares(mutable_si_2), 1)
+            self.failUnlessEqual(count_leases(mutable_si_2), 1)
+            self.failUnlessEqual(count_shares(mutable_si_3), 1)
+            self.failUnlessEqual(count_leases(mutable_si_3), 2)
+        d.addCallback(_after_first_cycle)
+        d.addCallback(lambda ign: self.render1(webstatus))
+        def _check_html(html):
+            s = remove_tags(html)
+            self.failUnlessIn("only the following sharetypes will be expired: immutable Next crawl", s)
+        d.addCallback(_check_html)
+        return d
+
+    def test_only_mutable(self):
+        basedir = "storage/LeaseCrawler/only_mutable"
+        fileutil.make_dirs(basedir)
+        now = time.time()
+        then = int(now - 2000)
+        ss = StorageServer(basedir, "\x00" * 20,
+                           expiration_enabled=True,
+                           expiration_mode=("date-cutoff",
+                                            then, ("mutable",)))
+        lc = ss.lease_checker
+        lc.slow_start = 0
+        webstatus = StorageStatus(ss)
+
+        self.make_shares(ss)
+        [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3] = self.sis
+        # set all leases to be expirable
+        new_expiration_time = now - 3000 + 31*24*60*60
+
+        def count_shares(si):
+            return len(list(ss._iter_share_files(si)))
+        def _get_sharefile(si):
+            return list(ss._iter_share_files(si))[0]
+        def count_leases(si):
+            return len(list(_get_sharefile(si).get_leases()))
+
+        sf0 = _get_sharefile(immutable_si_0)
+        self.backdate_lease(sf0, self.renew_secrets[0], new_expiration_time)
+        sf1 = _get_sharefile(immutable_si_1)
+        self.backdate_lease(sf1, self.renew_secrets[1], new_expiration_time)
+        self.backdate_lease(sf1, self.renew_secrets[2], new_expiration_time)
+        sf2 = _get_sharefile(mutable_si_2)
+        self.backdate_lease(sf2, self.renew_secrets[3], new_expiration_time)
+        sf3 = _get_sharefile(mutable_si_3)
+        self.backdate_lease(sf3, self.renew_secrets[4], new_expiration_time)
+        self.backdate_lease(sf3, self.renew_secrets[5], new_expiration_time)
+
+        ss.setServiceParent(self.s)
+        def _wait():
+            return bool(lc.get_state()["last-cycle-finished"] is not None)
+        d = self.poll(_wait)
+
+        def _after_first_cycle(ignored):
+            self.failUnlessEqual(count_shares(immutable_si_0), 1)
+            self.failUnlessEqual(count_leases(immutable_si_0), 1)
+            self.failUnlessEqual(count_shares(immutable_si_1), 1)
+            self.failUnlessEqual(count_leases(immutable_si_1), 2)
+            self.failUnlessEqual(count_shares(mutable_si_2), 0)
+            self.failUnlessEqual(count_shares(mutable_si_3), 0)
+        d.addCallback(_after_first_cycle)
+        d.addCallback(lambda ign: self.render1(webstatus))
+        def _check_html(html):
+            s = remove_tags(html)
+            self.failUnlessIn("only the following sharetypes will be expired: mutable Next crawl", s)
         d.addCallback(_check_html)
         return d
 

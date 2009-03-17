@@ -37,6 +37,7 @@ from allmydata.storage.common import UnknownImmutableContainerVersionError, \
 
 class ShareFile:
     LEASE_SIZE = struct.calcsize(">L32s32sL")
+    sharetype = "immutable"
 
     def __init__(self, filename, max_size=None, create=False):
         """ If max_size is not None then I won't allow more than max_size to be written to me. If create=True and max_size must not be None. """

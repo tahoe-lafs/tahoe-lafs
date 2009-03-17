@@ -59,6 +59,9 @@ class LeaseCheckingCrawler(ShareCrawler):
             assert isinstance(expiration_mode[1], int) # seconds
         elif self.mode[0] == "date-cutoff":
             assert isinstance(expiration_mode[1], int) # seconds-since-epoch
+        self.sharetypes_to_expire = ("mutable", "immutable")
+        if len(self.mode) > 2:
+            self.sharetypes_to_expire = self.mode[2]
         ShareCrawler.__init__(self, server, statefile)
 
     def add_initial_state(self):
@@ -145,6 +148,7 @@ class LeaseCheckingCrawler(ShareCrawler):
     def process_share(self, sharefilename):
         # first, find out what kind of a share it is
         sf = get_share_file(sharefilename)
+        sftype = sf.sharetype
         now = time.time()
         s = self.stat(sharefilename)
 
@@ -165,19 +169,23 @@ class LeaseCheckingCrawler(ShareCrawler):
                 num_valid_leases_original += 1
 
             #  expired-or-not according to our configured age limit
+            expired = False
             if self.mode[0] == "age":
                 age_limit = self.mode[1]
-                if age < age_limit:
-                    num_valid_leases_configured += 1
-                else:
-                    expired_leases_configured.append(li)
+                if age > age_limit:
+                    expired = True
             else:
                 assert self.mode[0] == "date-cutoff"
                 date_cutoff = self.mode[1]
-                if grant_renew_time > date_cutoff:
-                    num_valid_leases_configured += 1
-                else:
-                    expired_leases_configured.append(li)
+                if grant_renew_time < date_cutoff:
+                    expired = True
+            if sftype not in self.sharetypes_to_expire:
+                expired = False
+
+            if expired:
+                expired_leases_configured.append(li)
+            else:
+                num_valid_leases_configured += 1
 
         so_far = self.state["cycle-to-date"]
         self.increment(so_far["leases-per-share-histogram"], num_leases, 1)

@@ -130,14 +130,18 @@ class StorageStatus(rend.Page):
     def render_lease_expiration_mode(self, ctx, data):
         mode = self.storage.lease_checker.mode
         if mode[0] == "age":
-            return ctx.tag["leases created or last renewed more than %s ago "
-                           "will be considered expired"
-                           % abbreviate_time(mode[1])]
+            ctx.tag["leases created or last renewed more than %s ago "
+                    "will be considered expired"
+                    % abbreviate_time(mode[1])]
         else:
             assert mode[0] == "date-cutoff"
             date = time.strftime("%d-%b-%Y", time.gmtime(mode[1]))
-            return ctx.tag["leases created or last renewed before %s "
-                           "will be considered expired" % date]
+            ctx.tag["leases created or last renewed before %s "
+                    "will be considered expired" % date]
+        if len(mode) > 2:
+            ctx.tag[", and only the following sharetypes will be expired: ",
+                    sorted(mode[2])]
+        return ctx.tag
 
     def format_recovered(self, sr, a):
         def maybe(d):
