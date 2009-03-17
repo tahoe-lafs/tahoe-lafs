@@ -122,16 +122,22 @@ class StorageStatus(rend.Page):
 
     def render_lease_expiration_enabled(self, ctx, data):
         lc = self.storage.lease_checker
-        if lc.expire_leases:
+        if lc.expiration_enabled:
             return ctx.tag["Enabled: expired leases will be removed"]
         else:
             return ctx.tag["Disabled: scan-only mode, no leases will be removed"]
 
-    def render_lease_expiration_age_limit(self, ctx, data):
-        lc = self.storage.lease_checker
-        return ctx.tag["leases created or last renewed more than %s ago "
-                       "will be considered expired"
-                       % abbreviate_time(lc.age_limit)]
+    def render_lease_expiration_mode(self, ctx, data):
+        mode = self.storage.lease_checker.mode
+        if mode[0] == "age":
+            return ctx.tag["leases created or last renewed more than %s ago "
+                           "will be considered expired"
+                           % abbreviate_time(mode[1])]
+        else:
+            assert mode[0] == "date-cutoff"
+            date = time.strftime("%d-%b-%Y", time.gmtime(mode[1]))
+            return ctx.tag["leases created or last renewed before %s "
+                           "will be considered expired" % date]
 
     def format_recovered(self, sr, a):
         def maybe(d):
@@ -189,9 +195,8 @@ class StorageStatus(rend.Page):
                 self.format_recovered(ecr, "configured-leasetimer"))
 
         add("if we were using each lease's default 31-day lease lifetime "
-            "(instead of our configured %s lifetime), "
-            "this cycle would be expected to recover: "
-            % abbreviate_time(so_far["configured-expiration-time"]),
+            "(instead of our configured node), "
+            "this cycle would be expected to recover: ",
             self.format_recovered(ecr, "original-leasetimer"))
 
         if so_far["corrupt-shares"]:

@@ -15,7 +15,7 @@ class LeaseCheckingCrawler(ShareCrawler):
     status page, including::
 
     Space recovered during this cycle-so-far:
-     actual (only if expire_leases=True):
+     actual (only if expiration_enabled=True):
       num-buckets, num-shares, sum of share sizes, real disk usage
       ('real disk usage' means we use stat(fn).st_blocks*512 and include any
        space used by the directory)
@@ -37,7 +37,7 @@ class LeaseCheckingCrawler(ShareCrawler):
     Histogram of leases-per-share:
      this-cycle-to-date
      last 10 cycles <-- separate pickle
-    Histogram of lease ages, buckets = expiration_time/10
+    Histogram of lease ages, buckets = 1day
      cycle-to-date
      last 10 cycles <-- separate pickle
 
@@ -49,10 +49,16 @@ class LeaseCheckingCrawler(ShareCrawler):
     minimum_cycle_time = 12*60*60 # not more than twice per day
 
     def __init__(self, server, statefile, historyfile,
-                 expire_leases, expiration_time):
+                 expiration_enabled, expiration_mode):
         self.historyfile = historyfile
-        self.expire_leases = expire_leases
-        self.age_limit = expiration_time
+        self.expiration_enabled = expiration_enabled
+        self.mode = expiration_mode
+        if self.mode[0] not in ("age", "date-cutoff"):
+            raise ValueError("garbage-collection mode '%s' must be 'age' or 'date-cutoff'" % self.mode[0])
+        if self.mode[0] == "age":
+            assert isinstance(expiration_mode[1], int) # seconds
+        elif self.mode[0] == "date-cutoff":
+            assert isinstance(expiration_mode[1], int) # seconds-since-epoch
         ShareCrawler.__init__(self, server, statefile)
 
     def add_initial_state(self):
@@ -159,10 +165,19 @@ class LeaseCheckingCrawler(ShareCrawler):
                 num_valid_leases_original += 1
 
             #  expired-or-not according to our configured age limit
-            if age < self.age_limit:
-                num_valid_leases_configured += 1
+            if self.mode[0] == "age":
+                age_limit = self.mode[1]
+                if age < age_limit:
+                    num_valid_leases_configured += 1
+                else:
+                    expired_leases_configured.append(li)
             else:
-                expired_leases_configured.append(li)
+                assert self.mode[0] == "date-cutoff"
+                date_cutoff = self.mode[1]
+                if grant_renew_time > date_cutoff:
+                    num_valid_leases_configured += 1
+                else:
+                    expired_leases_configured.append(li)
 
         so_far = self.state["cycle-to-date"]
         self.increment(so_far["leases-per-share-histogram"], num_leases, 1)
@@ -172,7 +187,7 @@ class LeaseCheckingCrawler(ShareCrawler):
 
         would_keep_share = [1, 1, 1]
 
-        if self.expire_leases:
+        if self.expiration_enabled:
             for li in expired_leases_configured:
                 sf.cancel_lease(li.cancel_secret)
 
@@ -183,7 +198,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         if num_valid_leases_configured == 0:
             would_keep_share[1] = 0
             self.increment_space("configured-leasetimer", s)
-            if self.expire_leases:
+            if self.expiration_enabled:
                 would_keep_share[2] = 0
                 self.increment_space("actual", s)
 
@@ -211,7 +226,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         d[k] += delta
 
     def add_lease_age_to_histogram(self, age):
-        bucket_interval = self.age_limit / 10.0
+        bucket_interval = 24*60*60
         bucket_number = int(age/bucket_interval)
         bucket_start = bucket_number * bucket_interval
         bucket_end = bucket_start + bucket_interval
@@ -235,8 +250,8 @@ class LeaseCheckingCrawler(ShareCrawler):
         start = self.state["current-cycle-start-time"]
         now = time.time()
         h["cycle-start-finish-times"] = (start, now)
-        h["expiration-enabled"] = self.expire_leases
-        h["configured-expiration-time"] = self.age_limit
+        h["expiration-enabled"] = self.expiration_enabled
+        h["configured-expiration-mode"] = self.mode
 
         s = self.state["cycle-to-date"]
 
@@ -277,7 +292,7 @@ class LeaseCheckingCrawler(ShareCrawler):
 
          cycle-to-date:
           expiration-enabled
-          configured-expiration-time
+          configured-expiration-mode
           lease-age-histogram (list of (minage,maxage,sharecount) tuples)
           leases-per-share-histogram
           corrupt-shares (list of (si_b32,shnum) tuples, minimal verification)
@@ -302,7 +317,7 @@ class LeaseCheckingCrawler(ShareCrawler):
          history: maps cyclenum to a dict with the following keys:
           cycle-start-finish-times
           expiration-enabled
-          configured-expiration-time
+          configured-expiration-mode
           lease-age-histogram
           leases-per-share-histogram
           corrupt-shares
@@ -344,8 +359,8 @@ class LeaseCheckingCrawler(ShareCrawler):
 
         lah = so_far["lease-age-histogram"]
         so_far["lease-age-histogram"] = self.convert_lease_age_histogram(lah)
-        so_far["expiration-enabled"] = self.expire_leases
-        so_far["configured-expiration-time"] = self.age_limit
+        so_far["expiration-enabled"] = self.expiration_enabled
+        so_far["configured-expiration-mode"] = self.mode
 
         so_far_sr = so_far["space-recovered"]
         remaining_sr = {}

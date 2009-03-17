@@ -1611,6 +1611,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
         ss.setServiceParent(self.s)
 
+        DAY = 24*60*60
+
         d = eventual.fireEventually()
 
         # now examine the state right after the first bucket has been
@@ -1625,12 +1627,12 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
             so_far = initial_state["cycle-to-date"]
             self.failUnlessEqual(so_far["expiration-enabled"], False)
-            self.failUnless("configured-expiration-time" in so_far)
+            self.failUnless("configured-expiration-mode" in so_far)
             self.failUnless("lease-age-histogram" in so_far)
             lah = so_far["lease-age-histogram"]
             self.failUnlessEqual(type(lah), list)
             self.failUnlessEqual(len(lah), 1)
-            self.failUnlessEqual(lah, [ (0.0, lc.age_limit/10.0, 1) ] )
+            self.failUnlessEqual(lah, [ (0.0, DAY, 1) ] )
             self.failUnlessEqual(so_far["leases-per-share-histogram"], {1: 1})
             self.failUnlessEqual(so_far["buckets-examined"], 1)
             self.failUnlessEqual(so_far["shares-examined"], 1)
@@ -1684,13 +1686,13 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnless("cycle-start-finish-times" in last)
             self.failUnlessEqual(type(last["cycle-start-finish-times"]), tuple)
             self.failUnlessEqual(last["expiration-enabled"], False)
-            self.failUnless("configured-expiration-time" in last)
+            self.failUnless("configured-expiration-mode" in last)
 
             self.failUnless("lease-age-histogram" in last)
             lah = last["lease-age-histogram"]
             self.failUnlessEqual(type(lah), list)
             self.failUnlessEqual(len(lah), 1)
-            self.failUnlessEqual(lah, [ (0.0, lc.age_limit/10.0, 6) ] )
+            self.failUnlessEqual(lah, [ (0.0, DAY, 6) ] )
 
             self.failUnlessEqual(last["leases-per-share-histogram"],
                                  {1: 2, 2: 2})
@@ -1742,14 +1744,14 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             return
         raise IndexError("unable to renew non-existent lease")
 
-    def test_expire(self):
-        basedir = "storage/LeaseCrawler/expire"
+    def test_expire_age(self):
+        basedir = "storage/LeaseCrawler/expire_age"
         fileutil.make_dirs(basedir)
         # setting expiration_time to 2000 means that any lease which is more
         # than 2000s old will be expired.
         ss = InstrumentedStorageServer(basedir, "\x00" * 20,
-                                       expire_leases=True,
-                                       expiration_time=2000)
+                                       expiration_enabled=True,
+                                       expiration_mode=("age",2000))
         # make it start sooner than usual.
         lc = ss.lease_checker
         lc.slow_start = 0
@@ -1841,7 +1843,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             last = s["history"][0]
 
             self.failUnlessEqual(last["expiration-enabled"], True)
-            self.failUnlessEqual(last["configured-expiration-time"], 2000)
+            self.failUnlessEqual(last["configured-expiration-mode"],
+                                 ("age",2000))
             self.failUnlessEqual(last["buckets-examined"], 4)
             self.failUnlessEqual(last["shares-examined"], 4)
             self.failUnlessEqual(last["leases-per-share-histogram"],
@@ -1871,9 +1874,163 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("Expiration Enabled: expired leases will be removed", s)
+            self.failUnlessIn("leases created or last renewed more than 33 minutes ago will be considered expired", s)
             self.failUnlessIn(" recovered: 2 shares, 2 buckets, ", s)
         d.addCallback(_check_html)
         return d
+
+    def test_expire_date_cutoff(self):
+        basedir = "storage/LeaseCrawler/expire_date_cutoff"
+        fileutil.make_dirs(basedir)
+        # setting date-cutoff to 2000 seconds ago means that any lease which
+        # is more than 2000s old will be expired.
+        now = time.time()
+        then = int(now - 2000)
+        ss = InstrumentedStorageServer(basedir, "\x00" * 20,
+                                       expiration_enabled=True,
+                                       expiration_mode=("date-cutoff",then))
+        # make it start sooner than usual.
+        lc = ss.lease_checker
+        lc.slow_start = 0
+        lc.stop_after_first_bucket = True
+        webstatus = StorageStatus(ss)
+
+        # create a few shares, with some leases on them
+        self.make_shares(ss)
+        [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3] = self.sis
+
+        def count_shares(si):
+            return len(list(ss._iter_share_files(si)))
+        def _get_sharefile(si):
+            return list(ss._iter_share_files(si))[0]
+        def count_leases(si):
+            return len(list(_get_sharefile(si).get_leases()))
+
+        self.failUnlessEqual(count_shares(immutable_si_0), 1)
+        self.failUnlessEqual(count_leases(immutable_si_0), 1)
+        self.failUnlessEqual(count_shares(immutable_si_1), 1)
+        self.failUnlessEqual(count_leases(immutable_si_1), 2)
+        self.failUnlessEqual(count_shares(mutable_si_2), 1)
+        self.failUnlessEqual(count_leases(mutable_si_2), 1)
+        self.failUnlessEqual(count_shares(mutable_si_3), 1)
+        self.failUnlessEqual(count_leases(mutable_si_3), 2)
+
+        # artificially crank back the expiration time on the first lease of
+        # each share, to make it look like was renewed 3000s ago. To achieve
+        # this, we need to set the expiration time to now-3000+31days. This
+        # will change when the lease format is improved to contain both
+        # create/renew time and duration.
+        new_expiration_time = now - 3000 + 31*24*60*60
+
+        # Some shares have an extra lease which is set to expire at the
+        # default time in 31 days from now (age=31days). We then run the
+        # crawler, which will expire the first lease, making some shares get
+        # deleted and others stay alive (with one remaining lease)
+
+        sf0 = _get_sharefile(immutable_si_0)
+        self.backdate_lease(sf0, self.renew_secrets[0], new_expiration_time)
+        sf0_size = os.stat(sf0.home).st_size
+
+        # immutable_si_1 gets an extra lease
+        sf1 = _get_sharefile(immutable_si_1)
+        self.backdate_lease(sf1, self.renew_secrets[1], new_expiration_time)
+
+        sf2 = _get_sharefile(mutable_si_2)
+        self.backdate_lease(sf2, self.renew_secrets[3], new_expiration_time)
+        sf2_size = os.stat(sf2.home).st_size
+
+        # mutable_si_3 gets an extra lease
+        sf3 = _get_sharefile(mutable_si_3)
+        self.backdate_lease(sf3, self.renew_secrets[4], new_expiration_time)
+
+        ss.setServiceParent(self.s)
+
+        d = eventual.fireEventually()
+        # examine the state right after the first bucket has been processed
+        def _after_first_bucket(ignored):
+            p = lc.get_progress()
+            self.failUnless(p["cycle-in-progress"])
+        d.addCallback(_after_first_bucket)
+        d.addCallback(lambda ign: self.render1(webstatus))
+        def _check_html_in_cycle(html):
+            s = remove_tags(html)
+            # the first bucket encountered gets deleted, and its prefix
+            # happens to be about 1/5th of the way through the ring, so the
+            # predictor thinks we'll have 5 shares and that we'll delete them
+            # all. This part of the test depends upon the SIs landing right
+            # where they do now.
+            self.failUnlessIn("The remainder of this cycle is expected to "
+                              "recover: 4 shares, 4 buckets", s)
+            self.failUnlessIn("The whole cycle is expected to examine "
+                              "5 shares in 5 buckets and to recover: "
+                              "5 shares, 5 buckets", s)
+        d.addCallback(_check_html_in_cycle)
+
+        # wait for the crawler to finish the first cycle. Two shares should
+        # have been removed
+        def _wait():
+            return bool(lc.get_state()["last-cycle-finished"] is not None)
+        d.addCallback(lambda ign: self.poll(_wait))
+
+        def _after_first_cycle(ignored):
+            self.failUnlessEqual(count_shares(immutable_si_0), 0)
+            self.failUnlessEqual(count_shares(immutable_si_1), 1)
+            self.failUnlessEqual(count_leases(immutable_si_1), 1)
+            self.failUnlessEqual(count_shares(mutable_si_2), 0)
+            self.failUnlessEqual(count_shares(mutable_si_3), 1)
+            self.failUnlessEqual(count_leases(mutable_si_3), 1)
+
+            s = lc.get_state()
+            last = s["history"][0]
+
+            self.failUnlessEqual(last["expiration-enabled"], True)
+            self.failUnlessEqual(last["configured-expiration-mode"],
+                                 ("date-cutoff",then))
+            self.failUnlessEqual(last["buckets-examined"], 4)
+            self.failUnlessEqual(last["shares-examined"], 4)
+            self.failUnlessEqual(last["leases-per-share-histogram"],
+                                 {1: 2, 2: 2})
+
+            rec = last["space-recovered"]
+            self.failUnlessEqual(rec["actual-numbuckets"], 2)
+            self.failUnlessEqual(rec["original-leasetimer-numbuckets"], 0)
+            self.failUnlessEqual(rec["configured-leasetimer-numbuckets"], 2)
+            self.failUnlessEqual(rec["actual-numshares"], 2)
+            self.failUnlessEqual(rec["original-leasetimer-numshares"], 0)
+            self.failUnlessEqual(rec["configured-leasetimer-numshares"], 2)
+            size = sf0_size + sf2_size
+            self.failUnlessEqual(rec["actual-sharebytes"], size)
+            self.failUnlessEqual(rec["original-leasetimer-sharebytes"], 0)
+            self.failUnlessEqual(rec["configured-leasetimer-sharebytes"], size)
+            # different platforms have different notions of "blocks used by
+            # this file", so merely assert that it's a number
+            self.failUnless(rec["actual-diskbytes"] >= 0,
+                            rec["actual-diskbytes"])
+            self.failUnless(rec["original-leasetimer-diskbytes"] >= 0,
+                            rec["original-leasetimer-diskbytes"])
+            self.failUnless(rec["configured-leasetimer-diskbytes"] >= 0,
+                            rec["configured-leasetimer-diskbytes"])
+        d.addCallback(_after_first_cycle)
+        d.addCallback(lambda ign: self.render1(webstatus))
+        def _check_html(html):
+            s = remove_tags(html)
+            self.failUnlessIn("Expiration Enabled:"
+                              " expired leases will be removed", s)
+            date = time.strftime("%d-%b-%Y", time.gmtime(then))
+            self.failUnlessIn("leases created or last renewed before %s"
+                              " will be considered expired" % date, s)
+            self.failUnlessIn(" recovered: 2 shares, 2 buckets, ", s)
+        d.addCallback(_check_html)
+        return d
+
+    def test_bad_mode(self):
+        basedir = "storage/LeaseCrawler/bad_mode"
+        fileutil.make_dirs(basedir)
+        e = self.failUnlessRaises(ValueError,
+                                  StorageServer, basedir, "\x00" * 20,
+                                  expiration_mode=("bogus", 0))
+        self.failUnless("garbage-collection mode 'bogus'"
+                        " must be 'age' or 'date-cutoff'" in str(e), str(e))
 
     def test_limited_history(self):
         basedir = "storage/LeaseCrawler/limited_history"
@@ -1970,7 +2127,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         basedir = "storage/LeaseCrawler/no_st_blocks"
         fileutil.make_dirs(basedir)
         ss = No_ST_BLOCKS_StorageServer(basedir, "\x00" * 20,
-                                        expiration_time=-1000)
+                                        expiration_mode=("age",-1000))
         # a negative expiration_time= means the "configured-leasetimer-"
         # space-recovered counts will be non-zero, since all shares will have
         # expired by then

@@ -40,7 +40,8 @@ class StorageServer(service.MultiService, Referenceable):
     def __init__(self, storedir, nodeid, reserved_space=0,
                  discard_storage=False, readonly_storage=False,
                  stats_provider=None,
-                 expire_leases=False, expiration_time=31*24*60*60):
+                 expiration_enabled=False,
+                 expiration_mode=("age", 31*24*60*60)):
         service.MultiService.__init__(self)
         assert isinstance(nodeid, str)
         assert len(nodeid) == 20
@@ -81,20 +82,20 @@ class StorageServer(service.MultiService, Referenceable):
                           "cancel": [],
                           }
         self.add_bucket_counter()
-        self.add_lease_checker(expire_leases, expiration_time)
+        self.add_lease_checker(expiration_enabled, expiration_mode)
 
     def add_bucket_counter(self):
         statefile = os.path.join(self.storedir, "bucket_counter.state")
         self.bucket_counter = BucketCountingCrawler(self, statefile)
         self.bucket_counter.setServiceParent(self)
 
-    def add_lease_checker(self, expire_leases, expiration_time):
+    def add_lease_checker(self, expiration_enabled, expiration_mode):
         statefile = os.path.join(self.storedir, "lease_checker.state")
         historyfile = os.path.join(self.storedir, "lease_checker.history")
         klass = self.LeaseCheckerClass
         self.lease_checker = klass(self, statefile, historyfile,
-                                   expire_leases=expire_leases,
-                                   expiration_time=expiration_time)
+                                   expiration_enabled=expiration_enabled,
+                                   expiration_mode=expiration_mode)
         self.lease_checker.setServiceParent(self)
 
     def count(self, name, delta=1):
