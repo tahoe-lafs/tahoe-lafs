@@ -146,3 +146,6 @@ def list(options):
         print >>stdout, (fmt % tuple(row)).rstrip()
 
     return 0
+
+# error cases that need improvement:
+#  list-one-file: tahoe ls my:docs/Makefile
