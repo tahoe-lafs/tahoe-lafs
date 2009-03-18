@@ -1634,38 +1634,40 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(len(lah), 1)
             self.failUnlessEqual(lah, [ (0.0, DAY, 1) ] )
             self.failUnlessEqual(so_far["leases-per-share-histogram"], {1: 1})
-            self.failUnlessEqual(so_far["buckets-examined"], 1)
-            self.failUnlessEqual(so_far["shares-examined"], 1)
             self.failUnlessEqual(so_far["corrupt-shares"], [])
             sr1 = so_far["space-recovered"]
-            self.failUnlessEqual(sr1["actual-numshares"], 0)
-            self.failUnlessEqual(sr1["configured-leasetimer-diskbytes"], 0)
-            self.failUnlessEqual(sr1["original-leasetimer-sharebytes"], 0)
+            self.failUnlessEqual(sr1["examined-buckets"], 1)
+            self.failUnlessEqual(sr1["examined-shares"], 1)
+            self.failUnlessEqual(sr1["actual-shares"], 0)
+            self.failUnlessEqual(sr1["configured-diskbytes"], 0)
+            self.failUnlessEqual(sr1["original-sharebytes"], 0)
             left = initial_state["estimated-remaining-cycle"]
-            self.failUnless(left["buckets-examined"] > 0,
-                            left["buckets-examined"])
-            self.failUnless(left["shares-examined"] > 0,
-                            left["shares-examined"])
             sr2 = left["space-recovered"]
-            self.failIfEqual(sr2["actual-numshares"], None)
-            self.failIfEqual(sr2["configured-leasetimer-diskbytes"], None)
-            self.failIfEqual(sr2["original-leasetimer-sharebytes"], None)
+            self.failUnless(sr2["examined-buckets"] > 0, sr2["examined-buckets"])
+            self.failUnless(sr2["examined-shares"] > 0, sr2["examined-shares"])
+            self.failIfEqual(sr2["actual-shares"], None)
+            self.failIfEqual(sr2["configured-diskbytes"], None)
+            self.failIfEqual(sr2["original-sharebytes"], None)
         d.addCallback(_after_first_bucket)
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html_in_cycle(html):
             s = remove_tags(html)
             self.failUnlessIn("So far, this cycle has examined "
-                              "1 shares in 1 buckets "
-                              "and has recovered: "
-                              "0 shares, 0 buckets, 0 B ", s)
+                              "1 shares in 1 buckets (0 mutable / 1 immutable) ", s)
+            self.failUnlessIn("and has recovered: "
+                              "0 shares, 0 buckets (0 mutable / 0 immutable), "
+                              "0 B (0 B / 0 B)", s)
             self.failUnlessIn("If expiration were enabled, "
                               "we would have recovered: "
-                              "0 shares, 0 buckets, 0 B by now", s)
+                              "0 shares, 0 buckets (0 mutable / 0 immutable),"
+                              " 0 B (0 B / 0 B) by now", s)
             self.failUnlessIn("and the remainder of this cycle "
                               "would probably recover: "
-                              "0 shares, 0 buckets, 0 B ", s)
+                              "0 shares, 0 buckets (0 mutable / 0 immutable),"
+                              " 0 B (0 B / 0 B)", s)
             self.failUnlessIn("and the whole cycle would probably recover: "
-                              "0 shares, 0 buckets, 0 B ", s)
+                              "0 shares, 0 buckets (0 mutable / 0 immutable),"
+                              " 0 B (0 B / 0 B)", s)
             self.failUnlessIn("if we were using each lease's default "
                               "31-day lease lifetime", s)
             self.failUnlessIn("this cycle would be expected to recover: ", s)
@@ -1694,25 +1696,24 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(len(lah), 1)
             self.failUnlessEqual(lah, [ (0.0, DAY, 6) ] )
 
-            self.failUnlessEqual(last["leases-per-share-histogram"],
-                                 {1: 2, 2: 2})
-            self.failUnlessEqual(last["buckets-examined"], 4)
-            self.failUnlessEqual(last["shares-examined"], 4)
+            self.failUnlessEqual(last["leases-per-share-histogram"], {1: 2, 2: 2})
             self.failUnlessEqual(last["corrupt-shares"], [])
 
             rec = last["space-recovered"]
-            self.failUnlessEqual(rec["actual-numbuckets"], 0)
-            self.failUnlessEqual(rec["original-leasetimer-numbuckets"], 0)
-            self.failUnlessEqual(rec["configured-leasetimer-numbuckets"], 0)
-            self.failUnlessEqual(rec["actual-numshares"], 0)
-            self.failUnlessEqual(rec["original-leasetimer-numshares"], 0)
-            self.failUnlessEqual(rec["configured-leasetimer-numshares"], 0)
+            self.failUnlessEqual(rec["examined-buckets"], 4)
+            self.failUnlessEqual(rec["examined-shares"], 4)
+            self.failUnlessEqual(rec["actual-buckets"], 0)
+            self.failUnlessEqual(rec["original-buckets"], 0)
+            self.failUnlessEqual(rec["configured-buckets"], 0)
+            self.failUnlessEqual(rec["actual-shares"], 0)
+            self.failUnlessEqual(rec["original-shares"], 0)
+            self.failUnlessEqual(rec["configured-shares"], 0)
             self.failUnlessEqual(rec["actual-diskbytes"], 0)
-            self.failUnlessEqual(rec["original-leasetimer-diskbytes"], 0)
-            self.failUnlessEqual(rec["configured-leasetimer-diskbytes"], 0)
+            self.failUnlessEqual(rec["original-diskbytes"], 0)
+            self.failUnlessEqual(rec["configured-diskbytes"], 0)
             self.failUnlessEqual(rec["actual-sharebytes"], 0)
-            self.failUnlessEqual(rec["original-leasetimer-sharebytes"], 0)
-            self.failUnlessEqual(rec["configured-leasetimer-sharebytes"], 0)
+            self.failUnlessEqual(rec["original-sharebytes"], 0)
+            self.failUnlessEqual(rec["configured-sharebytes"], 0)
 
             def _get_sharefile(si):
                 return list(ss._iter_share_files(si))[0]
@@ -1726,7 +1727,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html(html):
             s = remove_tags(html)
-            self.failUnlessIn("recovered: 0 shares, 0 buckets, 0 B "
+            self.failUnlessIn("recovered: 0 shares, 0 buckets "
+                              "(0 mutable / 0 immutable), 0 B (0 B / 0 B) "
                               "but expiration was not enabled", s)
         d.addCallback(_check_html)
         return d
@@ -1843,39 +1845,37 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             last = s["history"][0]
 
             self.failUnlessEqual(last["expiration-enabled"], True)
-            self.failUnlessEqual(last["configured-expiration-mode"],
-                                 ("age",2000))
-            self.failUnlessEqual(last["buckets-examined"], 4)
-            self.failUnlessEqual(last["shares-examined"], 4)
-            self.failUnlessEqual(last["leases-per-share-histogram"],
-                                 {1: 2, 2: 2})
+            self.failUnlessEqual(last["configured-expiration-mode"], ("age",2000))
+            self.failUnlessEqual(last["leases-per-share-histogram"], {1: 2, 2: 2})
 
             rec = last["space-recovered"]
-            self.failUnlessEqual(rec["actual-numbuckets"], 2)
-            self.failUnlessEqual(rec["original-leasetimer-numbuckets"], 2)
-            self.failUnlessEqual(rec["configured-leasetimer-numbuckets"], 2)
-            self.failUnlessEqual(rec["actual-numshares"], 2)
-            self.failUnlessEqual(rec["original-leasetimer-numshares"], 2)
-            self.failUnlessEqual(rec["configured-leasetimer-numshares"], 2)
+            self.failUnlessEqual(rec["examined-buckets"], 4)
+            self.failUnlessEqual(rec["examined-shares"], 4)
+            self.failUnlessEqual(rec["actual-buckets"], 2)
+            self.failUnlessEqual(rec["original-buckets"], 2)
+            self.failUnlessEqual(rec["configured-buckets"], 2)
+            self.failUnlessEqual(rec["actual-shares"], 2)
+            self.failUnlessEqual(rec["original-shares"], 2)
+            self.failUnlessEqual(rec["configured-shares"], 2)
             size = sf0_size + sf2_size
             self.failUnlessEqual(rec["actual-sharebytes"], size)
-            self.failUnlessEqual(rec["original-leasetimer-sharebytes"], size)
-            self.failUnlessEqual(rec["configured-leasetimer-sharebytes"], size)
+            self.failUnlessEqual(rec["original-sharebytes"], size)
+            self.failUnlessEqual(rec["configured-sharebytes"], size)
             # different platforms have different notions of "blocks used by
             # this file", so merely assert that it's a number
             self.failUnless(rec["actual-diskbytes"] >= 0,
                             rec["actual-diskbytes"])
-            self.failUnless(rec["original-leasetimer-diskbytes"] >= 0,
-                            rec["original-leasetimer-diskbytes"])
-            self.failUnless(rec["configured-leasetimer-diskbytes"] >= 0,
-                            rec["configured-leasetimer-diskbytes"])
+            self.failUnless(rec["original-diskbytes"] >= 0,
+                            rec["original-diskbytes"])
+            self.failUnless(rec["configured-diskbytes"] >= 0,
+                            rec["configured-diskbytes"])
         d.addCallback(_after_first_cycle)
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("Expiration Enabled: expired leases will be removed", s)
             self.failUnlessIn("leases created or last renewed more than 33 minutes ago will be considered expired", s)
-            self.failUnlessIn(" recovered: 2 shares, 2 buckets, ", s)
+            self.failUnlessIn(" recovered: 2 shares, 2 buckets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html)
         return d
 
@@ -1986,30 +1986,30 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(last["expiration-enabled"], True)
             self.failUnlessEqual(last["configured-expiration-mode"],
                                  ("date-cutoff",then))
-            self.failUnlessEqual(last["buckets-examined"], 4)
-            self.failUnlessEqual(last["shares-examined"], 4)
             self.failUnlessEqual(last["leases-per-share-histogram"],
                                  {1: 2, 2: 2})
 
             rec = last["space-recovered"]
-            self.failUnlessEqual(rec["actual-numbuckets"], 2)
-            self.failUnlessEqual(rec["original-leasetimer-numbuckets"], 0)
-            self.failUnlessEqual(rec["configured-leasetimer-numbuckets"], 2)
-            self.failUnlessEqual(rec["actual-numshares"], 2)
-            self.failUnlessEqual(rec["original-leasetimer-numshares"], 0)
-            self.failUnlessEqual(rec["configured-leasetimer-numshares"], 2)
+            self.failUnlessEqual(rec["examined-buckets"], 4)
+            self.failUnlessEqual(rec["examined-shares"], 4)
+            self.failUnlessEqual(rec["actual-buckets"], 2)
+            self.failUnlessEqual(rec["original-buckets"], 0)
+            self.failUnlessEqual(rec["configured-buckets"], 2)
+            self.failUnlessEqual(rec["actual-shares"], 2)
+            self.failUnlessEqual(rec["original-shares"], 0)
+            self.failUnlessEqual(rec["configured-shares"], 2)
             size = sf0_size + sf2_size
             self.failUnlessEqual(rec["actual-sharebytes"], size)
-            self.failUnlessEqual(rec["original-leasetimer-sharebytes"], 0)
-            self.failUnlessEqual(rec["configured-leasetimer-sharebytes"], size)
+            self.failUnlessEqual(rec["original-sharebytes"], 0)
+            self.failUnlessEqual(rec["configured-sharebytes"], size)
             # different platforms have different notions of "blocks used by
             # this file", so merely assert that it's a number
             self.failUnless(rec["actual-diskbytes"] >= 0,
                             rec["actual-diskbytes"])
-            self.failUnless(rec["original-leasetimer-diskbytes"] >= 0,
-                            rec["original-leasetimer-diskbytes"])
-            self.failUnless(rec["configured-leasetimer-diskbytes"] >= 0,
-                            rec["configured-leasetimer-diskbytes"])
+            self.failUnless(rec["original-diskbytes"] >= 0,
+                            rec["original-diskbytes"])
+            self.failUnless(rec["configured-diskbytes"] >= 0,
+                            rec["configured-diskbytes"])
         d.addCallback(_after_first_cycle)
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html(html):
@@ -2019,7 +2019,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             date = time.strftime("%d-%b-%Y", time.gmtime(then))
             self.failUnlessIn("leases created or last renewed before %s"
                               " will be considered expired" % date, s)
-            self.failUnlessIn(" recovered: 2 shares, 2 buckets, ", s)
+            self.failUnlessIn(" recovered: 2 shares, 2 buckets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html)
         return d
 
@@ -2220,32 +2220,32 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnless("estimated-current-cycle" in s)
 
             left = s["estimated-remaining-cycle"]["space-recovered"]
-            self.failUnlessEqual(left["actual-numbuckets"], None)
-            self.failUnlessEqual(left["original-leasetimer-numbuckets"], None)
-            self.failUnlessEqual(left["configured-leasetimer-numbuckets"], None)
-            self.failUnlessEqual(left["actual-numshares"], None)
-            self.failUnlessEqual(left["original-leasetimer-numshares"], None)
-            self.failUnlessEqual(left["configured-leasetimer-numshares"], None)
+            self.failUnlessEqual(left["actual-buckets"], None)
+            self.failUnlessEqual(left["original-buckets"], None)
+            self.failUnlessEqual(left["configured-buckets"], None)
+            self.failUnlessEqual(left["actual-shares"], None)
+            self.failUnlessEqual(left["original-shares"], None)
+            self.failUnlessEqual(left["configured-shares"], None)
             self.failUnlessEqual(left["actual-diskbytes"], None)
-            self.failUnlessEqual(left["original-leasetimer-diskbytes"], None)
-            self.failUnlessEqual(left["configured-leasetimer-diskbytes"], None)
+            self.failUnlessEqual(left["original-diskbytes"], None)
+            self.failUnlessEqual(left["configured-diskbytes"], None)
             self.failUnlessEqual(left["actual-sharebytes"], None)
-            self.failUnlessEqual(left["original-leasetimer-sharebytes"], None)
-            self.failUnlessEqual(left["configured-leasetimer-sharebytes"], None)
+            self.failUnlessEqual(left["original-sharebytes"], None)
+            self.failUnlessEqual(left["configured-sharebytes"], None)
 
             full = s["estimated-remaining-cycle"]["space-recovered"]
-            self.failUnlessEqual(full["actual-numbuckets"], None)
-            self.failUnlessEqual(full["original-leasetimer-numbuckets"], None)
-            self.failUnlessEqual(full["configured-leasetimer-numbuckets"], None)
-            self.failUnlessEqual(full["actual-numshares"], None)
-            self.failUnlessEqual(full["original-leasetimer-numshares"], None)
-            self.failUnlessEqual(full["configured-leasetimer-numshares"], None)
+            self.failUnlessEqual(full["actual-buckets"], None)
+            self.failUnlessEqual(full["original-buckets"], None)
+            self.failUnlessEqual(full["configured-buckets"], None)
+            self.failUnlessEqual(full["actual-shares"], None)
+            self.failUnlessEqual(full["original-shares"], None)
+            self.failUnlessEqual(full["configured-shares"], None)
             self.failUnlessEqual(full["actual-diskbytes"], None)
-            self.failUnlessEqual(full["original-leasetimer-diskbytes"], None)
-            self.failUnlessEqual(full["configured-leasetimer-diskbytes"], None)
+            self.failUnlessEqual(full["original-diskbytes"], None)
+            self.failUnlessEqual(full["configured-diskbytes"], None)
             self.failUnlessEqual(full["actual-sharebytes"], None)
-            self.failUnlessEqual(full["original-leasetimer-sharebytes"], None)
-            self.failUnlessEqual(full["configured-leasetimer-sharebytes"], None)
+            self.failUnlessEqual(full["original-sharebytes"], None)
+            self.failUnlessEqual(full["configured-sharebytes"], None)
 
         d.addCallback(_check)
         return d
@@ -2255,7 +2255,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         fileutil.make_dirs(basedir)
         ss = No_ST_BLOCKS_StorageServer(basedir, "\x00" * 20,
                                         expiration_mode=("age",-1000))
-        # a negative expiration_time= means the "configured-leasetimer-"
+        # a negative expiration_time= means the "configured-"
         # space-recovered counts will be non-zero, since all shares will have
         # expired by then
 
@@ -2273,14 +2273,14 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             s = lc.get_state()
             last = s["history"][0]
             rec = last["space-recovered"]
-            self.failUnlessEqual(rec["configured-leasetimer-numbuckets"], 4)
-            self.failUnlessEqual(rec["configured-leasetimer-numshares"], 4)
-            self.failUnless(rec["configured-leasetimer-sharebytes"] > 0,
-                            rec["configured-leasetimer-sharebytes"])
+            self.failUnlessEqual(rec["configured-buckets"], 4)
+            self.failUnlessEqual(rec["configured-shares"], 4)
+            self.failUnless(rec["configured-sharebytes"] > 0,
+                            rec["configured-sharebytes"])
             # without the .st_blocks field in os.stat() results, we should be
             # reporting diskbytes==sharebytes
-            self.failUnlessEqual(rec["configured-leasetimer-sharebytes"],
-                                 rec["configured-leasetimer-diskbytes"])
+            self.failUnlessEqual(rec["configured-sharebytes"],
+                                 rec["configured-diskbytes"])
         d.addCallback(_check)
         return d
 
@@ -2321,8 +2321,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # processed.
         def _after_first_bucket(ignored):
             so_far = lc.get_state()["cycle-to-date"]
-            self.failUnlessEqual(so_far["buckets-examined"], 1)
-            self.failUnlessEqual(so_far["shares-examined"], 0)
+            rec = so_far["space-recovered"]
+            self.failUnlessEqual(rec["examined-buckets"], 1)
+            self.failUnlessEqual(rec["examined-shares"], 0)
             self.failUnlessEqual(so_far["corrupt-shares"], [(first_b32, 0)])
         d.addCallback(_after_first_bucket)
 
@@ -2348,8 +2349,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         def _after_first_cycle(ignored):
             s = lc.get_state()
             last = s["history"][0]
-            self.failUnlessEqual(last["buckets-examined"], 4)
-            self.failUnlessEqual(last["shares-examined"], 3)
+            rec = last["space-recovered"]
+            self.failUnlessEqual(rec["examined-buckets"], 4)
+            self.failUnlessEqual(rec["examined-shares"], 3)
             self.failUnlessEqual(last["corrupt-shares"], [(first_b32, 0)])
         d.addCallback(_after_first_cycle)
         d.addCallback(lambda ign: self.render_json(w))

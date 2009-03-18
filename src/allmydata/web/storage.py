@@ -148,10 +148,15 @@ class StorageStatus(rend.Page):
             if d is None:
                 return "?"
             return "%d" % d
-        space = abbreviate_space(sr["%s-diskbytes" % a])
-        return "%s shares, %s buckets, %s" % (maybe(sr["%s-numshares" % a]),
-                                              maybe(sr["%s-numbuckets" % a]),
-                                              space)
+        return "%s shares, %s buckets (%s mutable / %s immutable), %s (%s / %s)" % \
+               (maybe(sr["%s-shares" % a]),
+                maybe(sr["%s-buckets" % a]),
+                maybe(sr["%s-buckets-mutable" % a]),
+                maybe(sr["%s-buckets-immutable" % a]),
+                abbreviate_space(sr["%s-diskbytes" % a]),
+                abbreviate_space(sr["%s-diskbytes-mutable" % a]),
+                abbreviate_space(sr["%s-diskbytes-immutable" % a]),
+                )
 
     def render_lease_current_cycle_progress(self, ctx, data):
         lc = self.storage.lease_checker
@@ -181,27 +186,32 @@ class StorageStatus(rend.Page):
                 return "?"
             return "%d" % d
         add("So far, this cycle has examined %d shares in %d buckets"
-            % (so_far["shares-examined"], so_far["buckets-examined"]))
+            % (sr["examined-shares"], sr["examined-buckets"]),
+            " (%d mutable / %d immutable)"
+            % (sr["examined-buckets-mutable"], sr["examined-buckets-immutable"]),
+            " (%s / %s)" % (abbreviate_space(sr["examined-diskbytes-mutable"]),
+                            abbreviate_space(sr["examined-diskbytes-immutable"])),
+            )
         add("and has recovered: ", self.format_recovered(sr, "actual"))
         if so_far["expiration-enabled"]:
             add("The remainder of this cycle is expected to recover: ",
                 self.format_recovered(esr, "actual"))
             add("The whole cycle is expected to examine %s shares in %s buckets"
-                % (maybe(ec["shares-examined"]), maybe(ec["buckets-examined"])))
+                % (maybe(ecr["examined-shares"]), maybe(ecr["examined-buckets"])))
             add("and to recover: ", self.format_recovered(ecr, "actual"))
 
         else:
             add("If expiration were enabled, we would have recovered: ",
-                self.format_recovered(sr, "configured-leasetimer"), " by now")
+                self.format_recovered(sr, "configured"), " by now")
             add("and the remainder of this cycle would probably recover: ",
-                self.format_recovered(esr, "configured-leasetimer"))
+                self.format_recovered(esr, "configured"))
             add("and the whole cycle would probably recover: ",
-                self.format_recovered(ecr, "configured-leasetimer"))
+                self.format_recovered(ecr, "configured"))
 
         add("if we were using each lease's default 31-day lease lifetime "
             "(instead of our configured node), "
             "this cycle would be expected to recover: ",
-            self.format_recovered(ecr, "original-leasetimer"))
+            self.format_recovered(ecr, "original"))
 
         if so_far["corrupt-shares"]:
             add("Corrupt shares:",
@@ -231,8 +241,7 @@ class StorageStatus(rend.Page):
             p[T.li[pieces]]
 
         if not last["expiration-enabled"]:
-            rec = self.format_recovered(last["space-recovered"],
-                                        "configured-leasetimer")
+            rec = self.format_recovered(last["space-recovered"], "configured")
             add("but expiration was not enabled. If it had been, "
                 "it would have recovered: ", rec)
 

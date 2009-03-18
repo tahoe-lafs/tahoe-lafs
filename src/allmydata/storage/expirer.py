@@ -84,9 +84,7 @@ class LeaseCheckingCrawler(ShareCrawler):
 
     def create_empty_cycle_dict(self):
         recovered = self.create_empty_recovered_dict()
-        so_far = {"buckets-examined": 0,
-                  "shares-examined": 0,
-                  "corrupt-shares": [],
+        so_far = {"corrupt-shares": [],
                   "space-recovered": recovered,
                   "lease-age-histogram": {}, # (minage,maxage)->count
                   "leases-per-share-histogram": {}, # leasecount->numshares
@@ -95,9 +93,11 @@ class LeaseCheckingCrawler(ShareCrawler):
 
     def create_empty_recovered_dict(self):
         recovered = {}
-        for a in ("actual", "original-leasetimer", "configured-leasetimer"):
-            for b in ("numbuckets", "numshares", "sharebytes", "diskbytes"):
+        for a in ("actual", "original", "configured", "examined"):
+            for b in ("buckets", "shares", "sharebytes", "diskbytes"):
                 recovered[a+"-"+b] = 0
+                recovered[a+"-"+b+"-mutable"] = 0
+                recovered[a+"-"+b+"-immutable"] = 0
         return recovered
 
     def started_cycle(self, cycle):
@@ -128,27 +128,36 @@ class LeaseCheckingCrawler(ShareCrawler):
                 twlog.err()
                 which = (storage_index_b32, shnum)
                 self.state["cycle-to-date"]["corrupt-shares"].append(which)
-                wks = (1, 1, 1)
+                wks = (1, 1, 1, "unknown")
             would_keep_shares.append(wks)
-        recovered = self.state["cycle-to-date"]["space-recovered"]
+        sharetype = None
+        if wks:
+            sharetype = wks[3]
+        rec = self.state["cycle-to-date"]["space-recovered"]
+        self.increment(rec, "examined-buckets", 1)
+        if sharetype:
+            self.increment(rec, "examined-buckets-"+sharetype, 1)
+
         if sum([wks[0] for wks in would_keep_shares]) == 0:
-            self.increment(recovered,
-                           "original-leasetimer-diskbytes", bucket_diskbytes)
-            self.increment(recovered, "original-leasetimer-numbuckets", 1)
+            self.increment(rec, "original-diskbytes", bucket_diskbytes)
+            self.increment(rec, "original-diskbytes-"+sharetype, bucket_diskbytes)
+            self.increment(rec, "original-buckets", 1)
+            self.increment(rec, "original-buckets-"+sharetype, 1)
         if sum([wks[1] for wks in would_keep_shares]) == 0:
-            self.increment(recovered,
-                           "configured-leasetimer-diskbytes", bucket_diskbytes)
-            self.increment(recovered, "configured-leasetimer-numbuckets", 1)
+            self.increment(rec, "configured-diskbytes", bucket_diskbytes)
+            self.increment(rec, "configured-diskbytes-"+sharetype, bucket_diskbytes)
+            self.increment(rec, "configured-buckets", 1)
+            self.increment(rec, "configured-buckets-"+sharetype, 1)
         if sum([wks[2] for wks in would_keep_shares]) == 0:
-            self.increment(recovered,
-                           "actual-diskbytes", bucket_diskbytes)
-            self.increment(recovered, "actual-numbuckets", 1)
-        self.state["cycle-to-date"]["buckets-examined"] += 1
+            self.increment(rec, "actual-diskbytes", bucket_diskbytes)
+            self.increment(rec, "actual-diskbytes-"+sharetype, bucket_diskbytes)
+            self.increment(rec, "actual-buckets", 1)
+            self.increment(rec, "actual-buckets-"+sharetype, 1)
 
     def process_share(self, sharefilename):
         # first, find out what kind of a share it is
         sf = get_share_file(sharefilename)
-        sftype = sf.sharetype
+        sharetype = sf.sharetype
         now = time.time()
         s = self.stat(sharefilename)
 
@@ -179,7 +188,7 @@ class LeaseCheckingCrawler(ShareCrawler):
                 date_cutoff = self.mode[1]
                 if grant_renew_time < date_cutoff:
                     expired = True
-            if sftype not in self.sharetypes_to_expire:
+            if sharetype not in self.sharetypes_to_expire:
                 expired = False
 
             if expired:
@@ -189,11 +198,9 @@ class LeaseCheckingCrawler(ShareCrawler):
 
         so_far = self.state["cycle-to-date"]
         self.increment(so_far["leases-per-share-histogram"], num_leases, 1)
-        so_far["shares-examined"] += 1
-        # TODO: accumulate share-sizes too, so we can display "the whole
-        # cycle would probably recover x GB out of y GB total"
+        self.increment_space("examined", s, sharetype)
 
-        would_keep_share = [1, 1, 1]
+        would_keep_share = [1, 1, 1, sharetype]
 
         if self.expiration_enabled:
             for li in expired_leases_configured:
@@ -201,18 +208,18 @@ class LeaseCheckingCrawler(ShareCrawler):
 
         if num_valid_leases_original == 0:
             would_keep_share[0] = 0
-            self.increment_space("original-leasetimer", s)
+            self.increment_space("original", s, sharetype)
 
         if num_valid_leases_configured == 0:
             would_keep_share[1] = 0
-            self.increment_space("configured-leasetimer", s)
+            self.increment_space("configured", s, sharetype)
             if self.expiration_enabled:
                 would_keep_share[2] = 0
-                self.increment_space("actual", s)
+                self.increment_space("actual", s, sharetype)
 
         return would_keep_share
 
-    def increment_space(self, a, s):
+    def increment_space(self, a, s, sharetype):
         sharebytes = s.st_size
         try:
             # note that stat(2) says that st_blocks is 512 bytes, and that
@@ -224,9 +231,12 @@ class LeaseCheckingCrawler(ShareCrawler):
             # MacOS. But it isn't available on windows.
             diskbytes = sharebytes
         so_far_sr = self.state["cycle-to-date"]["space-recovered"]
-        self.increment(so_far_sr, a+"-numshares", 1)
+        self.increment(so_far_sr, a+"-shares", 1)
+        self.increment(so_far_sr, a+"-shares-"+sharetype, 1)
         self.increment(so_far_sr, a+"-sharebytes", sharebytes)
+        self.increment(so_far_sr, a+"-sharebytes-"+sharetype, sharebytes)
         self.increment(so_far_sr, a+"-diskbytes", diskbytes)
+        self.increment(so_far_sr, a+"-diskbytes-"+sharetype, diskbytes)
 
     def increment(self, d, k, delta=1):
         if k not in d:
@@ -272,8 +282,6 @@ class LeaseCheckingCrawler(ShareCrawler):
         lah = self.convert_lease_age_histogram(s["lease-age-histogram"])
         h["lease-age-histogram"] = lah
         h["leases-per-share-histogram"] = s["leases-per-share-histogram"].copy()
-        h["buckets-examined"] = s["buckets-examined"]
-        h["shares-examined"] = s["shares-examined"]
         h["corrupt-shares"] = s["corrupt-shares"][:]
         # note: if ["shares-recovered"] ever acquires an internal dict, this
         # copy() needs to become a deepcopy
@@ -304,22 +312,16 @@ class LeaseCheckingCrawler(ShareCrawler):
           lease-age-histogram (list of (minage,maxage,sharecount) tuples)
           leases-per-share-histogram
           corrupt-shares (list of (si_b32,shnum) tuples, minimal verification)
-          buckets-examined
-          shares-examined
           space-recovered
 
          estimated-remaining-cycle:
           # Values may be None if not enough data has been gathered to
           # produce an estimate.
-          buckets-examined
-          shares-examined
           space-recovered
 
          estimated-current-cycle:
           # cycle-to-date plus estimated-remaining. Values may be None if
           # not enough data has been gathered to produce an estimate.
-          buckets-examined
-          shares-examined
           space-recovered
 
          history: maps cyclenum to a dict with the following keys:
@@ -329,27 +331,33 @@ class LeaseCheckingCrawler(ShareCrawler):
           lease-age-histogram
           leases-per-share-histogram
           corrupt-shares
-          buckets-examined
-          shares-examined
           space-recovered
 
          The 'space-recovered' structure is a dictionary with the following
          keys:
+          # 'examined' is what was looked at
+          examined-buckets, examined-buckets-mutable, examined-buckets-immutable
+          examined-shares, -mutable, -immutable
+          examined-sharebytes, -mutable, -immutable
+          examined-diskbytes, -mutable, -immutable
+
           # 'actual' is what was actually deleted
-          actual-numbuckets
-          actual-numshares
-          actual-sharebytes
-          actual-diskbytes
+          actual-buckets, -mutable, -immutable
+          actual-shares, -mutable, -immutable
+          actual-sharebytes, -mutable, -immutable
+          actual-diskbytes, -mutable, -immutable
+
           # would have been deleted, if the original lease timer was used
-          original-leasetimer-numbuckets
-          original-leasetimer-numshares
-          original-leasetimer-sharebytes
-          original-leasetimer-diskbytes
+          original-buckets, -mutable, -immutable
+          original-shares, -mutable, -immutable
+          original-sharebytes, -mutable, -immutable
+          original-diskbytes, -mutable, -immutable
+
           # would have been deleted, if our configured max_age was used
-          configured-leasetimer-numbuckets
-          configured-leasetimer-numshares
-          configured-leasetimer-sharebytes
-          configured-leasetimer-diskbytes
+          configured-buckets, -mutable, -immutable
+          configured-shares, -mutable, -immutable
+          configured-sharebytes, -mutable, -immutable
+          configured-diskbytes, -mutable, -immutable
 
         """
         progress = self.get_progress()
@@ -379,27 +387,19 @@ class LeaseCheckingCrawler(ShareCrawler):
         if progress["cycle-complete-percentage"] > 0.0:
             pc = progress["cycle-complete-percentage"] / 100.0
             m = (1-pc)/pc
-            for a in ("actual", "original-leasetimer", "configured-leasetimer"):
-                for b in ("numbuckets", "numshares", "sharebytes", "diskbytes"):
-                    k = a+"-"+b
-                    remaining_sr[k] = m * so_far_sr[k]
-                    cycle_sr[k] = so_far_sr[k] + remaining_sr[k]
-            predshares = m * so_far["shares-examined"]
-            remaining["shares-examined"] = predshares
-            cycle["shares-examined"] = so_far["shares-examined"] + predshares
-            predbuckets = m * so_far["buckets-examined"]
-            remaining["buckets-examined"] = predbuckets
-            cycle["buckets-examined"] = so_far["buckets-examined"] + predbuckets
+            for a in ("actual", "original", "configured", "examined"):
+                for b in ("buckets", "shares", "sharebytes", "diskbytes"):
+                    for c in ("", "-mutable", "-immutable"):
+                        k = a+"-"+b+c
+                        remaining_sr[k] = m * so_far_sr[k]
+                        cycle_sr[k] = so_far_sr[k] + remaining_sr[k]
         else:
-            for a in ("actual", "original-leasetimer", "configured-leasetimer"):
-                for b in ("numbuckets", "numshares", "sharebytes", "diskbytes"):
-                    k = a+"-"+b
-                    remaining_sr[k] = None
-                    cycle_sr[k] = None
-            remaining["shares-examined"] = None
-            cycle["shares-examined"] = None
-            remaining["buckets-examined"] = None
-            cycle["buckets-examined"] = None
+            for a in ("actual", "original", "configured", "examined"):
+                for b in ("buckets", "shares", "sharebytes", "diskbytes"):
+                    for c in ("", "-mutable", "-immutable"):
+                        k = a+"-"+b+c
+                        remaining_sr[k] = None
+                        cycle_sr[k] = None
 
         state["estimated-remaining-cycle"] = remaining
         state["estimated-current-cycle"] = cycle
