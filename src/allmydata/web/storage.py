@@ -139,7 +139,7 @@ class StorageStatus(rend.Page):
                         % abbreviate_time(lc.override_lease_duration)]
         else:
             assert lc.mode == "cutoff-date"
-            date = time.strftime("%Y-%m-%d", time.gmtime(lc.cutoff_date))
+            date = time.strftime("%d-%b-%Y", time.gmtime(lc.cutoff_date))
             ctx.tag["Leases created or last renewed before %s "
                     "will be considered expired." % date]
         if len(lc.mode) > 2:
