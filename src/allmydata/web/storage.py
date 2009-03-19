@@ -212,8 +212,8 @@ class StorageStatus(rend.Page):
             add("and the whole cycle would probably recover: ",
                 self.format_recovered(ecr, "configured"))
 
-        add("if we were using each lease's default 31-day lease lifetime "
-            "(instead of our configured node), "
+        add("if we were strictly using each lease's default 31-day lease lifetime "
+            "(instead of our configured behavior), "
             "this cycle would be expected to recover: ",
             self.format_recovered(ecr, "original"))
 

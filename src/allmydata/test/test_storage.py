@@ -1668,7 +1668,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessIn("and the whole cycle would probably recover: "
                               "0 shares, 0 buckets (0 mutable / 0 immutable),"
                               " 0 B (0 B / 0 B)", s)
-            self.failUnlessIn("if we were using each lease's default "
+            self.failUnlessIn("if we were strictly using each lease's default "
                               "31-day lease lifetime", s)
             self.failUnlessIn("this cycle would be expected to recover: ", s)
         d.addCallback(_check_html_in_cycle)
