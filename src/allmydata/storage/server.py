@@ -41,7 +41,10 @@ class StorageServer(service.MultiService, Referenceable):
                  discard_storage=False, readonly_storage=False,
                  stats_provider=None,
                  expiration_enabled=False,
-                 expiration_mode=("age", 31*24*60*60)):
+                 expiration_mode="age",
+                 expiration_override_lease_duration=None,
+                 expiration_date_cutoff=None,
+                 expiration_sharetypes=("mutable", "immutable")):
         service.MultiService.__init__(self)
         assert isinstance(nodeid, str)
         assert len(nodeid) == 20
@@ -82,21 +85,21 @@ class StorageServer(service.MultiService, Referenceable):
                           "cancel": [],
                           }
         self.add_bucket_counter()
-        self.add_lease_checker(expiration_enabled, expiration_mode)
+
+        statefile = os.path.join(self.storedir, "lease_checker.state")
+        historyfile = os.path.join(self.storedir, "lease_checker.history")
+        klass = self.LeaseCheckerClass
+        self.lease_checker = klass(self, statefile, historyfile,
+                                   expiration_enabled, expiration_mode,
+                                   expiration_override_lease_duration,
+                                   expiration_date_cutoff,
+                                   expiration_sharetypes)
+        self.lease_checker.setServiceParent(self)
 
     def add_bucket_counter(self):
         statefile = os.path.join(self.storedir, "bucket_counter.state")
         self.bucket_counter = BucketCountingCrawler(self, statefile)
         self.bucket_counter.setServiceParent(self)
-
-    def add_lease_checker(self, expiration_enabled, expiration_mode):
-        statefile = os.path.join(self.storedir, "lease_checker.state")
-        historyfile = os.path.join(self.storedir, "lease_checker.history")
-        klass = self.LeaseCheckerClass
-        self.lease_checker = klass(self, statefile, historyfile,
-                                   expiration_enabled=expiration_enabled,
-                                   expiration_mode=expiration_mode)
-        self.lease_checker.setServiceParent(self)
 
     def count(self, name, delta=1):
         if self.stats_provider:

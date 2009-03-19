@@ -1753,7 +1753,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # than 2000s old will be expired.
         ss = InstrumentedStorageServer(basedir, "\x00" * 20,
                                        expiration_enabled=True,
-                                       expiration_mode=("age",2000))
+                                       expiration_mode="age",
+                                       expiration_override_lease_duration=2000)
         # make it start sooner than usual.
         lc = ss.lease_checker
         lc.slow_start = 0
@@ -1845,7 +1846,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             last = s["history"][0]
 
             self.failUnlessEqual(last["expiration-enabled"], True)
-            self.failUnlessEqual(last["configured-expiration-mode"], ("age",2000))
+            self.failUnlessEqual(last["configured-expiration-mode"],
+                                 ("age", 2000, None, ("mutable", "immutable")))
             self.failUnlessEqual(last["leases-per-share-histogram"], {1: 2, 2: 2})
 
             rec = last["space-recovered"]
@@ -1874,7 +1876,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("Expiration Enabled: expired leases will be removed", s)
-            self.failUnlessIn("leases created or last renewed more than 33 minutes ago will be considered expired", s)
+            self.failUnlessIn("Leases created or last renewed more than 33 minutes ago will be considered expired.", s)
             self.failUnlessIn(" recovered: 2 shares, 2 buckets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html)
         return d
@@ -1888,7 +1890,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         then = int(now - 2000)
         ss = InstrumentedStorageServer(basedir, "\x00" * 20,
                                        expiration_enabled=True,
-                                       expiration_mode=("date-cutoff",then))
+                                       expiration_mode="date-cutoff",
+                                       expiration_date_cutoff=then)
         # make it start sooner than usual.
         lc = ss.lease_checker
         lc.slow_start = 0
@@ -1985,7 +1988,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
             self.failUnlessEqual(last["expiration-enabled"], True)
             self.failUnlessEqual(last["configured-expiration-mode"],
-                                 ("date-cutoff",then))
+                                 ("date-cutoff", None, then,
+                                  ("mutable", "immutable")))
             self.failUnlessEqual(last["leases-per-share-histogram"],
                                  {1: 2, 2: 2})
 
@@ -2017,8 +2021,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessIn("Expiration Enabled:"
                               " expired leases will be removed", s)
             date = time.strftime("%d-%b-%Y", time.gmtime(then))
-            self.failUnlessIn("leases created or last renewed before %s"
-                              " will be considered expired" % date, s)
+            self.failUnlessIn("Leases created or last renewed before %s"
+                              " will be considered expired." % date, s)
             self.failUnlessIn(" recovered: 2 shares, 2 buckets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html)
         return d
@@ -2030,8 +2034,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         then = int(now - 2000)
         ss = StorageServer(basedir, "\x00" * 20,
                            expiration_enabled=True,
-                           expiration_mode=("date-cutoff",
-                                            then, ("immutable",)))
+                           expiration_mode="date-cutoff",
+                           expiration_date_cutoff=then,
+                           expiration_sharetypes=("immutable",))
         lc = ss.lease_checker
         lc.slow_start = 0
         webstatus = StorageStatus(ss)
@@ -2075,7 +2080,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html(html):
             s = remove_tags(html)
-            self.failUnlessIn("only the following sharetypes will be expired: immutable Next crawl", s)
+            self.failUnlessIn("The following sharetypes will be expired: immutable.", s)
         d.addCallback(_check_html)
         return d
 
@@ -2086,8 +2091,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         then = int(now - 2000)
         ss = StorageServer(basedir, "\x00" * 20,
                            expiration_enabled=True,
-                           expiration_mode=("date-cutoff",
-                                            then, ("mutable",)))
+                           expiration_mode="date-cutoff",
+                           expiration_date_cutoff=then,
+                           expiration_sharetypes=("mutable",))
         lc = ss.lease_checker
         lc.slow_start = 0
         webstatus = StorageStatus(ss)
@@ -2131,7 +2137,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html(html):
             s = remove_tags(html)
-            self.failUnlessIn("only the following sharetypes will be expired: mutable Next crawl", s)
+            self.failUnlessIn("The following sharetypes will be expired: mutable.", s)
         d.addCallback(_check_html)
         return d
 
@@ -2140,9 +2146,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         fileutil.make_dirs(basedir)
         e = self.failUnlessRaises(ValueError,
                                   StorageServer, basedir, "\x00" * 20,
-                                  expiration_mode=("bogus", 0))
-        self.failUnless("garbage-collection mode 'bogus'"
-                        " must be 'age' or 'date-cutoff'" in str(e), str(e))
+                                  expiration_mode="bogus")
+        self.failUnless("GC mode 'bogus' must be 'age' or 'date-cutoff'" in str(e), str(e))
 
     def test_parse_duration(self):
         DAY = 24*60*60
@@ -2254,7 +2259,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         basedir = "storage/LeaseCrawler/no_st_blocks"
         fileutil.make_dirs(basedir)
         ss = No_ST_BLOCKS_StorageServer(basedir, "\x00" * 20,
-                                        expiration_mode=("age",-1000))
+                                        expiration_mode="age",
+                                        expiration_override_lease_duration=-1000)
         # a negative expiration_time= means the "configured-"
         # space-recovered counts will be non-zero, since all shares will have
         # expired by then
