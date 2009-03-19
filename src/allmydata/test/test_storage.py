@@ -2020,7 +2020,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             s = remove_tags(html)
             self.failUnlessIn("Expiration Enabled:"
                               " expired leases will be removed", s)
-            date = time.strftime("%d-%b-%Y", time.gmtime(then))
+            date = time.strftime("%Y-%m-%d", time.gmtime(then))
             self.failUnlessIn("Leases created or last renewed before %s"
                               " will be considered expired." % date, s)
             self.failUnlessIn(" recovered: 2 shares, 2 buckets (1 mutable / 1 immutable), ", s)
@@ -2163,6 +2163,10 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         e = self.failUnlessRaises(ValueError, p, "2kumquats")
         self.failUnless("no unit (like day, month, or year) in '2kumquats'"
                         in str(e), str(e))
+
+    def test_parse_date(self):
+        p = time_format.parse_date
+        self.failUnlessEqual(p("2009-03-18"), 1237334400)
 
     def test_limited_history(self):
         basedir = "storage/LeaseCrawler/limited_history"

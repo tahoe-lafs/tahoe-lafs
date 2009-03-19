@@ -169,9 +169,9 @@ expire.cutoff_date = (date string, required if mode=date-cutoff)
  create/renew timestamp is older than the cutoff date. This string will be a
  date in the following format:
 
-  16-Jan-2009
-  02-Feb-2008
-  25-Dec-2007
+  2009-01-16   (January 16th, 2009)
+  2008-02-02
+  2007-12-25
 
  The actual cutoff time shall be midnight UTC at the beginning of the given
  day. Lease timers should naturally be generous enough to not depend upon

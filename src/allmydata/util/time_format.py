@@ -58,3 +58,9 @@ def parse_duration(s):
         raise ValueError("no unit (like day, month, or year) in '%s'" % orig)
     s = s.strip()
     return int(s) * unit
+
+def parse_date(s):
+    # return seconds-since-epoch for the UTC midnight that starts the given
+    # day
+    return iso_utc_time_to_localseconds(s + "T00:00:00")
+
