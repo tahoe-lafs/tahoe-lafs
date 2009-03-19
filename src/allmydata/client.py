@@ -19,6 +19,7 @@ from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, pollmixin, cachedir
 from allmydata.util.abbreviate import parse_abbreviated_size
+from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.uri import LiteralFileURI
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable.filenode import MutableFileNode
@@ -164,12 +165,41 @@ class Client(node.Node, pollmixin.PollMixin):
             reserved = 0
         discard = self.get_config("storage", "debug_discard", False,
                                   boolean=True)
+
+        expire = self.get_config("storage", "expire.enabled", False, boolean=True)
+        if expire:
+            mode = self.get_config("storage", "expire.mode") # require a mode
+        else:
+            mode = self.get_config("storage", "expire.mode", "age")
+
+        o_l_d = self.get_config("storage", "expire.override_lease_duration", None)
+        if o_l_d is not None:
+            o_l_d = parse_duration(o_l_d)
+
+        cutoff_date = None
+        if mode == "cutoff-date":
+            cutoff_date = self.get_config("storage", "expire.cutoff_date")
+            cutoff_date = parse_date(cutoff_date)
+
+        sharetypes = []
+        if self.get_config("storage", "expire.immutable", True, boolean=True):
+            sharetypes.append("immutable")
+        if self.get_config("storage", "expire.mutable", True, boolean=True):
+            sharetypes.append("mutable")
+        expiration_sharetypes = tuple(sharetypes)
+
         ss = StorageServer(storedir, self.nodeid,
                            reserved_space=reserved,
                            discard_storage=discard,
                            readonly_storage=readonly,
-                           stats_provider=self.stats_provider)
+                           stats_provider=self.stats_provider,
+                           expiration_enabled=expire,
+                           expiration_mode=mode,
+                           expiration_override_lease_duration=o_l_d,
+                           expiration_cutoff_date=cutoff_date,
+                           expiration_sharetypes=expiration_sharetypes)
         self.add_service(ss)
+
         d = self.when_tub_ready()
         # we can't do registerReference until the Tub is ready
         def _publish(res):

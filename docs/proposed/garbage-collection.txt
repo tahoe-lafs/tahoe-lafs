@@ -114,11 +114,11 @@ expire.enabled = (boolean, optional)
  have expired. Other controls dictate when leases are considered to have
  expired. The default is False.
 
-expire.mode = (string, "age" or "date-cutoff", required if expiration enabled)
+expire.mode = (string, "age" or "cutoff-date", required if expiration enabled)
 
  If this string is "age", the age-based expiration scheme is used, and the
  "expire.override_lease_duration" setting can be provided to influence the
- lease ages. If it is "date-cutoff", the absolute-date-cutoff mode is used,
+ lease ages. If it is "cutoff-date", the absolute-date-cutoff mode is used,
  and the "expire.cutoff_date" setting must be provided to specify the cutoff
  date. The mode setting currently has no default: you must provide a value.
 
@@ -160,12 +160,12 @@ expire.override_lease_duration = (duration string, optional)
  been passed.
 
  This key is only valid when age-based expiration is in use (i.e. when
- "expire.mode = age" is used). It will be rejected if date-cutoff expiration
+ "expire.mode = age" is used). It will be rejected if cutoff-date expiration
  is in use.
 
-expire.cutoff_date = (date string, required if mode=date-cutoff)
+expire.cutoff_date = (date string, required if mode=cutoff-date)
 
- When date-cutoff expiration is in use, a lease will be expired if its
+ When cutoff-date expiration is in use, a lease will be expired if its
  create/renew timestamp is older than the cutoff date. This string will be a
  date in the following format:
 
@@ -179,7 +179,7 @@ expire.cutoff_date = (date string, required if mode=date-cutoff)
  last renewal time and the cutoff date.
 
  This key is only valid when cutoff-based expiration is in use (i.e. when
- "expire.mode = date-cutoff"). It will be rejected if age-based expiration is
+ "expire.mode = cutoff-date"). It will be rejected if age-based expiration is
  in use.
 
 expire.immutable = (boolean, optional)

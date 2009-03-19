@@ -51,22 +51,22 @@ class LeaseCheckingCrawler(ShareCrawler):
     def __init__(self, server, statefile, historyfile,
                  expiration_enabled, mode,
                  override_lease_duration, # used if expiration_mode=="age"
-                 date_cutoff, # used if expiration_mode=="date-cutoff"
+                 cutoff_date, # used if expiration_mode=="cutoff-date"
                  sharetypes):
         self.historyfile = historyfile
         self.expiration_enabled = expiration_enabled
         self.mode = mode
         self.override_lease_duration = None
-        self.date_cutoff = None
+        self.cutoff_date = None
         if self.mode == "age":
             assert isinstance(override_lease_duration, (int, type(None)))
             self.override_lease_duration = override_lease_duration # seconds
-        elif self.mode == "date-cutoff":
-            assert isinstance(date_cutoff, int) # seconds-since-epoch
-            assert date_cutoff is not None
-            self.date_cutoff = date_cutoff
+        elif self.mode == "cutoff-date":
+            assert isinstance(cutoff_date, int) # seconds-since-epoch
+            assert cutoff_date is not None
+            self.cutoff_date = cutoff_date
         else:
-            raise ValueError("GC mode '%s' must be 'age' or 'date-cutoff'" % mode)
+            raise ValueError("GC mode '%s' must be 'age' or 'cutoff-date'" % mode)
         self.sharetypes_to_expire = sharetypes
         ShareCrawler.__init__(self, server, statefile)
 
@@ -192,8 +192,8 @@ class LeaseCheckingCrawler(ShareCrawler):
                 if age > age_limit:
                     expired = True
             else:
-                assert self.mode == "date-cutoff"
-                if grant_renew_time < self.date_cutoff:
+                assert self.mode == "cutoff-date"
+                if grant_renew_time < self.cutoff_date:
                     expired = True
             if sharetype not in self.sharetypes_to_expire:
                 expired = False
@@ -278,7 +278,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         h["expiration-enabled"] = self.expiration_enabled
         h["configured-expiration-mode"] = (self.mode,
                                            self.override_lease_duration,
-                                           self.date_cutoff,
+                                           self.cutoff_date,
                                            self.sharetypes_to_expire)
 
         s = self.state["cycle-to-date"]
@@ -388,7 +388,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         so_far["expiration-enabled"] = self.expiration_enabled
         so_far["configured-expiration-mode"] = (self.mode,
                                                 self.override_lease_duration,
-                                                self.date_cutoff,
+                                                self.cutoff_date,
                                                 self.sharetypes_to_expire)
 
         so_far_sr = so_far["space-recovered"]

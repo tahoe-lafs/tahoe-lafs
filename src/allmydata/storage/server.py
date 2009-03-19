@@ -43,7 +43,7 @@ class StorageServer(service.MultiService, Referenceable):
                  expiration_enabled=False,
                  expiration_mode="age",
                  expiration_override_lease_duration=None,
-                 expiration_date_cutoff=None,
+                 expiration_cutoff_date=None,
                  expiration_sharetypes=("mutable", "immutable")):
         service.MultiService.__init__(self)
         assert isinstance(nodeid, str)
@@ -92,7 +92,7 @@ class StorageServer(service.MultiService, Referenceable):
         self.lease_checker = klass(self, statefile, historyfile,
                                    expiration_enabled, expiration_mode,
                                    expiration_override_lease_duration,
-                                   expiration_date_cutoff,
+                                   expiration_cutoff_date,
                                    expiration_sharetypes)
         self.lease_checker.setServiceParent(self)
 

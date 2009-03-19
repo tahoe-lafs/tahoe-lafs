@@ -1881,17 +1881,17 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(_check_html)
         return d
 
-    def test_expire_date_cutoff(self):
-        basedir = "storage/LeaseCrawler/expire_date_cutoff"
+    def test_expire_cutoff_date(self):
+        basedir = "storage/LeaseCrawler/expire_cutoff_date"
         fileutil.make_dirs(basedir)
-        # setting date-cutoff to 2000 seconds ago means that any lease which
+        # setting cutoff-date to 2000 seconds ago means that any lease which
         # is more than 2000s old will be expired.
         now = time.time()
         then = int(now - 2000)
         ss = InstrumentedStorageServer(basedir, "\x00" * 20,
                                        expiration_enabled=True,
-                                       expiration_mode="date-cutoff",
-                                       expiration_date_cutoff=then)
+                                       expiration_mode="cutoff-date",
+                                       expiration_cutoff_date=then)
         # make it start sooner than usual.
         lc = ss.lease_checker
         lc.slow_start = 0
@@ -1988,7 +1988,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
             self.failUnlessEqual(last["expiration-enabled"], True)
             self.failUnlessEqual(last["configured-expiration-mode"],
-                                 ("date-cutoff", None, then,
+                                 ("cutoff-date", None, then,
                                   ("mutable", "immutable")))
             self.failUnlessEqual(last["leases-per-share-histogram"],
                                  {1: 2, 2: 2})
@@ -2034,8 +2034,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         then = int(now - 2000)
         ss = StorageServer(basedir, "\x00" * 20,
                            expiration_enabled=True,
-                           expiration_mode="date-cutoff",
-                           expiration_date_cutoff=then,
+                           expiration_mode="cutoff-date",
+                           expiration_cutoff_date=then,
                            expiration_sharetypes=("immutable",))
         lc = ss.lease_checker
         lc.slow_start = 0
@@ -2091,8 +2091,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         then = int(now - 2000)
         ss = StorageServer(basedir, "\x00" * 20,
                            expiration_enabled=True,
-                           expiration_mode="date-cutoff",
-                           expiration_date_cutoff=then,
+                           expiration_mode="cutoff-date",
+                           expiration_cutoff_date=then,
                            expiration_sharetypes=("mutable",))
         lc = ss.lease_checker
         lc.slow_start = 0
@@ -2147,7 +2147,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         e = self.failUnlessRaises(ValueError,
                                   StorageServer, basedir, "\x00" * 20,
                                   expiration_mode="bogus")
-        self.failUnless("GC mode 'bogus' must be 'age' or 'date-cutoff'" in str(e), str(e))
+        self.failUnless("GC mode 'bogus' must be 'age' or 'cutoff-date'" in str(e), str(e))
 
     def test_parse_duration(self):
         DAY = 24*60*60
