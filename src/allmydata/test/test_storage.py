@@ -2166,6 +2166,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
     def test_parse_date(self):
         p = time_format.parse_date
+        self.failUnless(isinstance(p("2009-03-18"), int))
         self.failUnlessEqual(p("2009-03-18"), 1237334400)
 
     def test_limited_history(self):

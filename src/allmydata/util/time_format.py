@@ -62,5 +62,5 @@ def parse_duration(s):
 def parse_date(s):
     # return seconds-since-epoch for the UTC midnight that starts the given
     # day
-    return iso_utc_time_to_localseconds(s + "T00:00:00")
+    return int(iso_utc_time_to_localseconds(s + "T00:00:00"))
 
