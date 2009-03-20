@@ -144,7 +144,7 @@ class StorageStatus(rend.Page):
                     "will be considered expired." % date]
         if len(lc.mode) > 2:
             ctx.tag[" The following sharetypes will be expired: ",
-                    sorted(lc.sharetypes_to_expire), "."]
+                    " ".join(sorted(lc.sharetypes_to_expire)), "."]
         return ctx.tag
 
     def format_recovered(self, sr, a):
