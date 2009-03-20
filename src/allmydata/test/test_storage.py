@@ -2324,6 +2324,12 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # of share we corrupted, this will trigger an
         # UnknownImmutableContainerVersionError.
 
+        # also create an empty bucket
+        empty_si = base32.b2a("\x04"*16)
+        empty_bucket_dir = os.path.join(ss.sharedir,
+                                        storage_index_to_dir(empty_si))
+        fileutil.make_dirs(empty_bucket_dir)
+
         ss.setServiceParent(self.s)
 
         d = eventual.fireEventually()
@@ -2361,7 +2367,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             s = lc.get_state()
             last = s["history"][0]
             rec = last["space-recovered"]
-            self.failUnlessEqual(rec["examined-buckets"], 4)
+            self.failUnlessEqual(rec["examined-buckets"], 5)
             self.failUnlessEqual(rec["examined-shares"], 3)
             self.failUnlessEqual(last["corrupt-shares"], [(first_b32, 0)])
         d.addCallback(_after_first_cycle)
