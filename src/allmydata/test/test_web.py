@@ -914,6 +914,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                       '</td>\s+<td>DIR-RO</td>', res))
         d.addCallback(_check3)
 
+        # and an empty directory
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty/"))
+        def _check4(res):
+            self.failUnless("directory is empty!" in res, res)
+        d.addCallback(_check4)
+
         return d
 
     def test_GET_DIRURL_badtype(self):

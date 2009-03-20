@@ -550,7 +550,7 @@ class DirectoryAsHTML(rend.Page):
     def render_try_children(self, ctx, data):
         # if the dirnode can be retrived, render a table of children.
         # Otherwise, render an apologetic error message.
-        if self.dirnode_children:
+        if self.dirnode_children is not None:
             return ctx.tag
         else:
             return T.div[T.p["Error reading directory:"],
