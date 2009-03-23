@@ -3,6 +3,7 @@ import os, stat, struct
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.util import idlib, log
 from allmydata.util.assertutil import precondition
+from allmydata.util.hashutil import constant_time_compare
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.common import UnknownMutableContainerVersionError, \
      DataTooLargeError
@@ -266,7 +267,7 @@ class MutableShareFile:
         accepting_nodeids = set()
         f = open(self.home, 'rb+')
         for (leasenum,lease) in self._enumerate_leases(f):
-            if lease.renew_secret == renew_secret:
+            if constant_time_compare(lease.renew_secret, renew_secret):
                 # yup. See if we need to update the owner time.
                 if new_expire_time > lease.expiration_time:
                     # yes
@@ -312,7 +313,7 @@ class MutableShareFile:
         f = open(self.home, 'rb+')
         for (leasenum,lease) in self._enumerate_leases(f):
             accepting_nodeids.add(lease.nodeid)
-            if lease.cancel_secret == cancel_secret:
+            if constant_time_compare(lease.cancel_secret, cancel_secret):
                 self._write_lease_record(f, leasenum, blank_lease)
                 modified += 1
             else:
@@ -365,7 +366,9 @@ class MutableShareFile:
         (real_write_enabler, write_enabler_nodeid) = \
                              self._read_write_enabler_and_nodeid(f)
         f.close()
-        if write_enabler != real_write_enabler:
+        # avoid a timing attack
+        #if write_enabler != real_write_enabler:
+        if not constant_time_compare(write_enabler, real_write_enabler):
             # accomodate share migration by reporting the nodeid used for the
             # old write enabler.
             self.log(format="bad write enabler on SI %(si)s,"
