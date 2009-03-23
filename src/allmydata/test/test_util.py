@@ -601,6 +601,12 @@ class HashUtilTests(unittest.TestCase):
         h2.update("foo")
         self.failUnlessEqual(h1, h2.digest())
 
+    def test_constant_time_compare(self):
+        self.failUnless(hashutil.constant_time_compare("a", "a"))
+        self.failUnless(hashutil.constant_time_compare("ab", "ab"))
+        self.failIf(hashutil.constant_time_compare("a", "b"))
+        self.failIf(hashutil.constant_time_compare("a", "aa"))
+
 class Abbreviate(unittest.TestCase):
     def test_time(self):
         a = abbreviate.abbreviate_time
