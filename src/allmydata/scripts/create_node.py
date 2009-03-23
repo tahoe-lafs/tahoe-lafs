@@ -115,6 +115,8 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
     c.write("enabled = %s\n" % boolstr[storage_enabled])
     c.write("#readonly =\n")
     c.write("#reserved_space =\n")
+    c.write("#expire.enabled =\n")
+    c.write("#expire.mode =\n")
     c.write("\n")
 
     c.write("[helper]\n")

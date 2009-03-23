@@ -310,6 +310,17 @@ reserved_space = (str, optional)
  "100MB", "100M", "100000000B", "100000000", and "100000kb" all mean the same
  thing. Likewise, "1MiB", "1024KiB", and "1048576B" all mean the same thing.
 
+expire.enabled =
+expire.mode =
+expire.override_lease_duration =
+expire.cutoff_date =
+expire.immutable =
+expire.mutable =
+
+ These settings control garbage-collection, in which the server will delete
+ shares that no longer have an up-to-date lease on them. Please see the
+ neighboring "garbage-collection.txt" document for full details.
+
 
 == Running A Helper ==
 
