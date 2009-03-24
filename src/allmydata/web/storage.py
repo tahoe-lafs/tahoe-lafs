@@ -29,6 +29,7 @@ class StorageStatus(rend.Page):
         d = {"stats": self.storage.get_stats(),
              "bucket-counter": self.storage.bucket_counter.get_state(),
              "lease-checker": self.storage.lease_checker.get_state(),
+             "lease-checker-progress": self.storage.lease_checker.get_progress(),
              }
         return simplejson.dumps(d, indent=1) + "\n"
 

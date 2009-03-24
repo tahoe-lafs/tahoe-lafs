@@ -1731,6 +1731,12 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
                               "(0 mutable / 0 immutable), 0 B (0 B / 0 B) "
                               "but expiration was not enabled", s)
         d.addCallback(_check_html)
+        d.addCallback(lambda ign: self.render_json(webstatus))
+        def _check_json(json):
+            data = simplejson.loads(json)
+            self.failUnless("lease-checker" in data)
+            self.failUnless("lease-checker-progress" in data)
+        d.addCallback(_check_json)
         return d
 
     def backdate_lease(self, sf, renew_secret, new_expire_time):
