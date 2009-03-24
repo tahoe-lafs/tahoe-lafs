@@ -1,0 +1,712 @@
+
+= Accounting =
+
+"Accounting" is the arena of the Tahoe system that concerns measuring,
+controlling, and enabling the ability to upload and download files, and to
+create new directories. In contrast with the capability-based access control
+model, which dictates how specific files and directories may or may not be
+manipulated, Accounting is concerned with resource consumption: how much disk
+space a given person/account/entity can use.
+
+The 1.3.0 and earlier releases have a nearly-unbounded resource usage model.
+Anybody who can talk to the Introducer gets to talk to all the Storage
+Servers, and anyone who can talk to a Storage Server gets to use as much disk
+space as they want (up to the reserved_space= limit imposed by the server,
+which affects all users equally). Not only is the per-user space usage
+unlimited, it is also unmeasured: the owner of the Storage Server has no way
+to find out how much space Alice or Bob is using.
+
+The goals of the Accounting system are thus:
+
+ * allow the owner of a storage server to control who gets to use disk space,
+   with separate limits per user
+ * allow both the server owner and the user to measure how much space the user
+   is consuming, in an efficient manner
+ * provide grid-wide aggregation tools, so a set of cooperating server
+   operators can easily measure how much a given user is consuming across all
+   servers. This information should also be available to the user in question.
+
+For the purposes of this document, the terms "Account" and "User" are mostly
+interchangeable. The fundamental unit of Accounting is the "Account", in that
+usage and quota enforcement is performed separately for each account. These
+accounts might correspond to individual human users, or they might be shared
+among a group, or a user might have an arbitrary number of accounts.
+
+Accounting interacts with Garbage Collection. To protect their shares from
+GC, clients maintain limited-duration leases on those shares: when the last
+lease expires, the share is deleted. Each lease has a "label", which
+indicates the account or user which wants to keep the share alive. A given
+account's "usage" (their per-server aggregate usage) is simply the sum of the
+sizes of all shares on which they hold a lease. The storage server may limit
+the user to a fixed "quota" (an upper bound on their usage). To keep a file
+alive, the user must be willing to use up some of their quota. A popular file
+might have leases from multiple users, in which case one user might take a
+chance and decline to add their own lease, saving some of their quota and
+hoping that the other leases continue to keep the file alive despite their
+personal unwillingness to contribute to the effort.
+
+== Authority Flow ==
+
+The authority to consume space on the storage server originates, of course,
+with the storage server operator. These operators start with complete control
+over their space, and delegate portions of it to others: either directly to
+clients who want to upload files, or to intermediaries who can then delegate
+attenuated authority onwards. The operators have various reasons for wanting
+to share their space: monetary consideration, expectations of in-kind
+exchange, or simple generosity. But the first and final authority rests with
+them.
+
+The server operator grants restricted authority over their space by
+configuring their server to accept requests that demonstrate knowledge of
+certain secrets. They then share those secrets with the client who intends to
+use this space, or an intermediary who will generate still more secrets and
+share those with the client. Eventually, an upload or create-directory
+operation will be performed that needs this authority. Part of the operation
+will involve proving knowledge of the secret to the storage server, and the
+server will require this proof before accepting the uploaded share or adding
+a new lease.
+
+The authority is expressed as a string, containing cryptographically-signed
+messages and keys. The string also contains "restrictions", which are
+annotations that explain the limits imposed upon this authority, either by
+the original grantor (the storage server operator) or by one of the
+intermediaries. Authority can be reduced but not increased. Any holder of a
+given authority can delegate some or all of it to another party.
+
+The authority string may be short enough to include as an argument to a CLI
+command (--with-authority ABCDE), or it may be long enough that it must be
+stashed in a file and referenced in some other fashion (--with-authority-file
+~/.my_authority). There are CLI tools to create brand new authority strings,
+to derive attenuated authorities from an existing one, and to explain the
+contents of an authority string. These authority strings can be shared with
+others just like filecaps and dircaps: knowledge of the authority string is
+both necessary and complete to wield the authority it represents.
+
+webapi requests will include the authority necessary to complete the
+operation. When used by a CLI tool, the authority is likely to come from
+~/.tahoe/private/authority (i.e. it is ambient to the user who has access to
+that node, just like aliases provide similar access to a specific "root
+directory"). When used by the browser-oriented WUI, the authority will [TODO]
+somehow be retained on each page in a way that minimizes the risk of CSRF
+attacks and allows safe sharing (cut-and-paste of a URL without sharing the
+storage authority too). The client node receiving the webapi request will
+extract the authority string from the request and use it to build the storage
+server messages that it uses to fulfill the request.
+
+== Definition Of Authority ==
+
+The term "authority" is used here somewhat casually: in the object-capability
+world, the word refers to the ability of some principal to cause some action
+to occur, whether because they can do it themselves, or because they can
+convince some other principal to do it for them. In Tahoe terms, "storage
+authority" is the ability to do one of the following actions:
+
+ * upload a new share, thus consuming storage space
+ * adding a new lease to a share, thus preventing space from being reclaimed
+ * modify an existing mutable share, potentially increasing the space consumed
+
+The Accounting effort may involve other kinds of authority that gets limited
+in a similar manner as storage authority, like the ability to download a
+share: things that may consume CPU time, disk bandwidth, or other limited
+resources. There is also the authority to renew or cancel a lease, which may
+be controlled in a similar fashion.
+
+Storage authority, as granted from a server operator to a client, is not
+simply a binary "use space or not" grant. Instead, it is parameterized by a
+number of "restrictions". The most important of these restrictions (with
+respect to the goals of Accounting) is the "Account Label".
+
+=== Account Labels ===
+
+A Tahoe "Account" is defined by a variable-length sequence of small integers.
+(they are not required to be small, the actual limit is 2**64, but neither
+are they required to be unguessable). These accounts are arranged in a
+hierarchy: the account identifier (1,4) is considered to be a "parent" of
+(1,4,2). There is no relationship between the values used by unrelated
+accounts: (1,4) is unrelated to (2,4), despite both coincidentally using a
+"4" in the second element.
+
+Each lease has a label, which contains the Account identifier. The storage
+server maintains an aggregate size count for each label prefix: when asked
+about account (1,4), it will report the amount of space used by shares
+labeled (1,4), (1,4,2), (1,4,7), (1,4,7,8), etc (but *not* (1) or (1,5)).
+
+The "Account Label" restriction allows a client to apply any label it wants,
+as long as that label begins with a specific prefix. If account (1) is
+associated with Alice, then Alice will receive a storage authority string
+that contains a "must start with (1)" restriction, enabling her to to use
+storage space but obligating her to lease her shares with a label that can be
+traced back to her. She can delegate part of her authority to others (perhaps
+with other non-label restrictions, such as a space restriction or time limit)
+with or without an additional label restriction. For example, she might
+delegate some of her authority to her friend Amy, with a (1,4) label
+restriction. Amy could then create labels with (1,4) or (1,4,7), but she
+could not create labels with the same (1) identifier that Alice can do, nor
+could she create labels with (1,5) (which Alice might have given to her other
+friend Annette). The storage server operator can ask about the usage of (1)
+to find out how much Alice is responsible for (which includes the space that
+she has delegated to Amy and Annette), and none of the A-users can avoid
+being counted in this total. But Alice can ask the storage server about the
+usage of (1,4) to find out how much Amy has taken advantage of her gift.
+Likewise, Alice has control over any lease with a label that begins with (1),
+so she can cancel Amy's leases and free the space they were consuming. If
+this seems surprising, consider that the storage server operator considerd
+Alice to be responsible for that space anyways: with great responsibility
+(for space consumed) comes great power (to stop consuming that space).
+
+=== Server Space Restriction ===
+
+The storage server's basic control over how space usage (apart from the
+binary use-it-or-not authority granted by handing out an authority string at
+all) is implemented by keeping track of the space used by any given account
+identifier. If account (1,4) sends a request to allocate a 1MB share, but
+that 1MB would bring the (1,4) usage over its quota, the request will be
+denied.
+
+For this to be useful, the storage server must give each usage-limited
+principal a separate account, and it needs to configure a size limit at the
+same time as the authority string is minted. For a friendnet, the CLI "add
+account" tool can do both at once:
+
+ tahoe server add-account --quota 5GB Alice
+ --> Please give the following authority string to "Alice", who should
+     provide it to the "tahoe add-authority" command
+     (authority string..)
+
+This command will allocate an account identifier, add Alice to the "pet name
+table" to associate it with the new account, and establish the 5GB sizelimit.
+Both the sizelimit and the petname can be changed later.
+
+Note that this restriction is independent for each server: some additional
+mechanism must be used to provide a grid-wide restriction.
+
+Also note that this restriction is not expressed in the authority string. It
+is purely local to the storage server.
+
+=== Attenuated Server Space Restriction ===
+
+TODO (or not)
+
+The server-side space restriction described above can only be applied by the
+storage server, and cannot be attenuated by other delegates. Alice might be
+allowed to use 5GB on this server, but she cannot use that restriction to
+delegate, say, just 1GB to Amy.
+
+Instead, Alice's sub-delegation should include a "server_size" restriction
+key, which contains a size limit. The storage server will only honor a
+request that uses this authority string if it does not cause the aggregate
+usage of this authority string's account prefix to rise above the given size
+limit.
+
+Note that this will not enforce the desired restriction if the size limits
+are not consistent across multiple delegated authorities for the same label.
+For example, if Amy ends up with two delagations, A1 (which gives her a size
+limit of 1GB) and A2 (which gives her 5GB), then she can consume 5GB despite
+the limit in A1.
+
+=== Other Restrictions ===
+
+Many storage authority restrictions are meant for internal use by tahoe tools
+as they delegate short-lived subauthorities to each other, and are not likely
+to be set by end users.
+
+ * "SI": a storage index string. The authority can only be used to upload
+   shares of a single file.
+ * "serverid": a server identifier. The authority can only be used when
+   talking to a specific server
+ * "UEB_hash": a binary hash. The authority can only be used to upload shares
+   of a single file, identified by its share's contents. (note: this
+   restricton would require the server to parse the share and validate the
+   hash)
+ * "before": a timestamp. The authority is only valid until a specific time.
+   Requires synchronized clocks or a better definition of "timestamp".
+ * "delegate_to_furl": a string, used to acquire a FURL for an object that
+   contains the attenuated authority. When it comes time to actually use the
+   authority string to do something, this is the first step.
+ * "delegate_to_key": an ECDSA pubkey, used to grant attenuated authority to
+   a separate private key.
+
+== User Experience ==
+
+The process starts with Bob the storage server operator, who has just created
+a new Storage Server:
+
+ tahoe create-client
+ --> creates ~/.tahoe
+ # edit ~/.tahoe/tahoe.cfg, add introducer.furl, configure storage, etc
+
+Now Bob decides that he wants to let his friend Alice use 5GB of space on his
+new server.
+
+ tahoe server add-account --quota=5GB Alice
+ --> Please give the following authority string to "Alice", who should
+     provide it to the "tahoe add-authority" command
+     (authority string XYZ..)
+
+Bob copies the new authority string into an email message and sends it to
+Alice. Meanwhile, Alice has created her own client, and attached it to the
+same Introducer as Bob. When she gets the email, she pastes the authority
+string into her local client:
+
+ tahoe client add-authority (authority string XYZ..)
+ --> new authority added: account (1)
+
+Now all CLI commands that Alice runs with her node will take advantage of
+Bob's space grant. Once Alice's node connects to Bob's, any upload which
+needs to send a share to Bob's server will search her list of authorities to
+find one that allows her to use Bob's server.
+
+When Alice uses her WUI, upload will be disabled until and unless she pastes
+one or more authority strings into a special "storage authority" box. TODO:
+Once pasted, we'll use some trick to keep the authority around in a
+convenient-yet-safe fashion.
+
+When Alice uses her javascript-based web drive, the javascript program will
+be launched with some trick to hand it the storage authorities, perhaps via a
+fragment identifier (http://server/path#fragment).
+
+If Alice decides that she wants Amy to have some space, she takes the
+authority string that Bob gave her and uses it to create one for Amy:
+
+ tahoe authority dump (authority string XYZ..)
+ --> explanation of what is in XYZ
+ tahoe authority delegate --account 4,1 --space 2GB (authority string XYZ..)
+ --> (new authority string ABC..)
+
+Alice sends the ABC string to Amy, who uses "tahoe client add-authority" to
+start using it.
+
+Later, Bob would like to find out how much space Alice is using. He brings up
+his node's Storage Server Web Status page. In addition to the overall usage
+numbers, the page will have a collapsible-treeview table with lines like:
+
+ AccountID  Usage  TotalUsage Petname
+ (1)        1.5GB  2.5GB      Alice
+ +(1,4)     1.0GB  1.0GB      ?
+
+This indicates that Alice, as a whole, is using 2.5GB. It also indicates that
+Alice has delegated some space to a (1,4) account, and that delegation has
+used 1.0GB. Alice has used 1.5GB on her own, but is responsible for the full
+2.5GB. If Alice tells Bob that the subaccount is for Amy, then Bob can assign
+a pet name for (1,4) with "tahoe server add-pet-name 1,4 Amy". Note that Bob
+is not aware of the 2GB limit that Alice has imposed upon Amy: the size
+restriction may have appeared on all the requests that have showed up thus
+far, but Bob has no way of being sure that a less-restrictive delgation
+hasn't been created, so his UI does not attempt to remember or present the
+restrictions it has seen before.
+
+=== Friendnet ===
+
+A "friendnet" is a set of nodes, each of which is both a storage server and a
+client, each operated by a separate person, all of which have granted storage
+rights to the others.
+
+The simplest way to get a friendnet started is to simply grant storage
+authority to everybody. "tahoe server enable-ambient-storage-authority" will
+configure the storage server to give space to anyone who asks. This behaves
+just like a 1.3.0 server, without accounting of any sort.
+
+The next step is to restrict server use to just the participants. "tahoe
+server disable-ambient-storage-authority" will undo the previous step, then
+there are two basic approaches:
+
+ * "full mesh": each node grants authority directory to all the others.
+   First, agree upon a userid number for each participant (the value doesn't
+   matter, as long as it is unique). Each user should then use "tahoe server
+   add-account" for all the accounts (including themselves, if they want some
+   of their shares to land on their own machine), including a quota if they
+   wish to restrict individuals:
+
+    tahoe server add-account --account 1 --quota 5GB Alice
+    --> authority string for Alice
+    tahoe server add-account --account 2 --quota 5GB Bob
+    --> authority string for Bob
+    tahoe server add-account --account 3 --quota 5GB Carol
+    --> authority string for Carol
+
+  Then email Alice's string to Alice, Bob's string to Bob, etc. Once all
+  users have used "tahoe client add-authority" on everything, each server
+  will accept N distinct authorities, and each client will hold N distinct
+  authorities.
+
+ * "account manager": the group designates somebody to be the "AM", or
+   "account manager". The AM generates a keypair and publishes the public key
+   to all the participants, who create a local authority which delgates full
+   storage rights to the corresponding private key. The AM then delegates
+   account-restricted authority to each user, sending them their personal
+   authority string:
+
+    AM:
+     tahoe authority create-authority --write-private-to=private.txt
+     --> public.txt
+     # email public.txt to all members
+    AM:
+     tahoe authority delegate --from-file=private.txt --account 1 --quota 5GB
+     --> alice_authority.txt # email this to Alice
+     tahoe authority delegate --from-file=private.txt --account 2 --quota 5GB
+     --> bob_authority.txt # email this to Bob
+     tahoe authority delegate --from-file=private.txt --account 3 --quota 5GB
+     --> carol_authority.txt # email this to Carol
+     ...
+    Alice:
+     # receives alice_authority.txt
+     tahoe client add-authority --from-file=alice_authority.txt
+     # receives public.txt
+     tahoe server add-authorization --from-file=public.txt
+    Bob:
+     # receives bob_authority.txt
+     tahoe client add-authority --from-file=bob_authority.txt
+     # receives public.txt
+     tahoe server add-authorization --from-file=public.txt
+    Carol:
+     # receives carol_authority.txt
+     tahoe client add-authority --from-file=carol_authority.txt
+     # receives public.txt
+     tahoe server add-authorization --from-file=public.txt
+
+   If the members want to see names next to their local usage totals, they
+   can set local petnames for the accounts:
+
+     tahoe server set-petname 1 Alice
+     tahoe server set-petname 2 Bob
+     tahoe server set-petname 3 Carol
+
+   Alternatively, the AM could provide a usage aggregator, which will collect
+   usage values from all the storage servers and show the totals in a single
+   place, and add the petnames to that display instead.
+
+   The AM gets more authority than anyone else (they can spoof everybody),
+   but each server has just a single authorization instead of N, and each
+   client has a single authority instead of N. When a new member joins the
+   group, the amount of work that must be done is significantly less, and
+   only two parties are involved instead of all N:
+
+    AM:
+     tahoe authority delegate --from-file=private.txt --account 4 --quota 5GB
+     --> dave_authority.txt # email this to Dave
+    Dave:
+     # receives dave_authority.txt
+     tahoe client add-authority --from-file=dave_authority.txt
+     # receives public.txt
+     tahoe server add-authorization --from-file=public.txt
+
+   Another approach is to let everybody be the AM: instead of keeping the
+   private.txt file secret, give it to all members of the group (but not to
+   outsiders). This lets current members bring new members into the group
+   without depending upon anybody else doing work. It also renders any notion
+   of enforced quotas meaningless, so it is only appropriate for actual
+   friends who are voluntarily refraining from spoofing each other.
+
+=== Commercial Grid ===
+
+A "commercial grid", like the one that allmydata.com manages as a for-profit
+service, is characterized by a large number of independent clients (who do
+not know each other), and by all of the storage servers being managed by a
+single entity. In this case, we use an Account Manager like above, to
+collapse the potential N*M explosion of authorities into something smaller.
+We also create a dummy "parent" account, and give all the real clients
+subaccounts under it, to give the operations personnel a convenient "total
+space used" number. Each time a new customer joins, the AM is directed to
+create a new authority for them, and the resulting string is provided to the
+customer's client node.
+
+ AM:
+  tahoe authority create-authority --account 1 \
+   --write-private-to=AM-private.txt --write-public-to=AM-public.txt
+
+Each time a new storage server is brought up:
+
+ SERVER:
+  tahoe server add-authorization --from-file=AM-public.txt
+
+Each time a new client joins:
+
+ AM:
+  N = next_account++
+  tahoe authority delegate --from-file=AM-private.txt --account 1,N
+  --> new_client_authority.txt # give this to new client
+
+== Programmatic Interfaces ==
+
+The storage authority can be passed as a string in a single serialized form,
+which is cut-and-pasteable and printable. It uses minimal punctuation, to
+make it possible to include it as a URL query argument or HTTP header field
+without requiring character-escaping.
+
+Before passing it over HTTP, however, note that revealing the authority
+string to someone is equivalent to irrevocably delegating all that authority
+to them. While this is appropriate when transferring authority from, say, a
+receptive storage server to your local agent, it is not appropriate when
+using a foreign tahoe node, or when asking a Helper to upload a specific
+file. Attenuations (see below) should be used to limit the delegated
+authority in these cases.
+
+In the programmatic webapi interface (colloquially known as the "WAPI"), any
+operation that consumes storage will accept a storage-authority= query
+argument, the value of which will be the printable form of an authority
+string. This includes all PUT operations, POST t=upload and t=mkdir, and
+anything which creates a new file, creates a directory (perhaps an
+intermediate one), or modifies a mutable file.
+
+Alternatively, the authority string can also be passed through an HTTP
+header. A single "X-Tahoe-Storage-Authority:" header can be used with the
+printable authority string. If the string is too large to fit in a single
+header, the application can provide a series of numbered
+"X-Tahoe-Storage-Authority-1:", "X-Tahoe-Storage-Authority-2:", etc, headers,
+and these will be sorted in alphabetical order (please use 08/09/10/11 rather
+than 8/9/10/11), stripped of leading and trailing whitespace, and
+concatenated. The HTTP header form can accomodate larger authority strings,
+since these strings can grow too large to pass as a query argument
+(especially when several delegations or attenuations are involved). However,
+depending upon the HTTP client library being used, passing extra HTTP headers
+may be more complicated than simply modifying the URL, and may be impossible
+in some cases (such as javascript running in a web browser).
+
+TODO: we may add a stored-token form of authority-passing to handle
+environments in which query-args won't work and headers are not available.
+This approach would use a special PUT which takes the authority string as the
+HTTP body, and remembers it on the server side in associated with a
+brief-but-unguessable token. Later operations would then use the authority by
+passing a --storage-authority-token=XYZ query argument. These authorities
+would expire after some period.
+
+== Quota Management, Aggregation, Reporting ==
+
+The storage server will maintain enough information to efficiently compute
+usage totals for each account referenced in all of their leases, as well as
+all their parent accounts. This information is used for several purposes:
+
+ * enforce server-space restrictions, by selectively rejecting storage
+   requests which would cause the account-usage-total to rise above the limit
+   specified in the enabling authorization string
+ * report individual account usage to the account-holder (if a client can
+   consume space under account A, they are also allowed to query usage for
+   account A or a subaccount).
+ * report individual account usage to the storage-server operator, possibly
+   associated with a pet name
+ * report usage for all accounts to the storage-server operator, possibly
+   associated with a pet name, in the form of a large table
+ * report usage for all accounts to an external aggregator
+
+The external aggregator would take usage information from all the storage
+servers in a single grid and sum them together, providing a grid-wide usage
+number for each account. This could be used by e.g. clients in a commercial
+grid to report overall-space-used to the end user.
+
+There will be webapi URLs available for all of these reports.
+
+TODO: storage servers might also have a mechanism to apply space-usage limits
+to specific account ids directly, rather than requiring that these be
+expressed only through authority-string limitation fields. This would let a
+storage server operator revoke their space-allocation after delivering the
+authority string.
+
+== Low-Level Formats ==
+
+This section describes the low-level formats used by the Accounting process,
+beginning with the storage-authority data structure and working upwards. This
+section is organized to follow the storage authority, starting from the point
+of grant. The discussion will thus begin at the storage server (where the
+authority is first created), work back to the client (which receives the
+authority as a webapi argument), then follow the authority back to the
+servers as it is used to enable specific storage operations. It will then
+detail the accounting tables that the storage server is obligated to
+maintain, and describe the interfaces through which these tables are accessed
+by other parties.
+
+=== Storage Authority ===
+
+==== Terminology ====
+
+Storage Authority is represented as a chain of certificates and a private
+key. Each certificate authorizes and restricts a specific private key. The
+initial certificate in the chain derives its authority by being placed in the
+storage server's tahoe.cfg file (i.e. by being authorized by the storage
+server operator). All subsequent certificates are signed by the authorized
+private key that was identified in the previous certificate: they derive
+their authority by delegation. Each certificate has restrictions which limit
+the authority being delegated.
+
+ authority: ([cert[0], cert[1], cert[2] ...], privatekey)
+
+The "restrictions dictionary" is a table which establishes an upper bound on
+how this authority (or any attenuations thereof) may be used. It is
+effectively a set of key-value pairs.
+
+A "signing key" is an EC-DSA192 private key string, as supplied to the
+pycryptopp SigningKey() constructor, and is 12 bytes long. A "verifying key"
+is an EC-DSA192 public key string, as produced by pycryptopp, and is 24 bytes
+long. A "key identifier" is a string which securely identifies a specific
+signing/verifying keypair: for long RSA keys it would be a secure hash of the
+public key, but since ECDSA192 keys are so short, we simply use the full
+verifying key verbatim. A "key hint" is a variable-length prefix of the key
+identifier, perhaps zero bytes long, used to help a recipient reduce the
+number of verifying keys that it must search to find one that matches a
+signed message.
+
+==== Authority Chains ====
+
+The authority chain consists of a list of certificates, each of which has a
+serialized restrictions dictionary. Each dictionary will have a
+"delegate-to-key" field, which delegates authority to a private key,
+referenced with a key identifier. In addition, the non-initial certs are
+signed, so they each contain a signature and a key hint:
+
+ cert[0]: serialized(restrictions_dictionary)
+ cert[1]: serialized(restrictions_dictionary), signature, keyhint
+ cert[2]: serialized(restrictions_dictionary), signature, keyhint
+
+In this example, suppose cert[0] contains a delegate-to-key field that
+identifies a keypair sign_A/verify_A. In this case, cert[1] will have a
+signature that was made with sign_A, and the keyhint in cert[1] will
+reference verify_A.
+
+ cert[0].restrictions[delegate-to-key] = A_keyid
+
+ cert[1].signature = SIGN(sign_A, serialized(cert[0].restrictions))
+ cert[1].keyhint = verify_A
+ cert[1].restrictions[delegate-to-key] = B_keyid
+
+ cert[2].signature = SIGN(sign_B, serialized(cert[1].restrictions))
+ cert[2].keyhint = verify_B
+ cert[2].restrictions[delete-to-key] = C_keyid
+
+In this example, the full storage authority consists of the cert[0,1,2] chain
+and the sign_C private key: anyone who is in possession of both will be able
+to exert this authority. To wield the authority, a client will present the
+cert[0,1,2] chain and an action message signed by sign_C; the server will
+validate the chain and the signature before performing the requested action.
+The only circumstances that might prompt the client to share the sign_C
+private key with another party (including the server) would be if it wanted
+to irrevocably share its full authority with that party.
+
+==== Restriction Dictionaries ====
+
+Within a restriction dictionary, the following keys are defined. Their full
+meanings are defined later.
+
+ 'accountid': an arbitrary-length sequence of integers >=0, restricting the
+              accounts which can be manipulated or used in leases
+ 'SI': a storage index (binary string), controlling which file may be
+       manipulated
+ 'serverid': binary string, limiting which server will accept requests
+ 'UEB-hash': binary string, limiting the content of the file being manipulated
+ 'before': timestamp (seconds since epoch), limits the lifetime of this
+           authority
+ 'server-size': integer >0, maximum aggregate storage (in bytes) per account
+ 'delegate-to-key': binary string (DSA pubkey identifier)
+ 'furl-to': printable FURL string
+
+==== Authority Serialization ====
+
+There is only one form of serialization: a somewhat-compact URL-safe
+cut-and-pasteable printable form. We are interested in minimizing the size of
+the resulting authority, so rather than using a general-purpose (perhaps
+JSON-based) serialization scheme, we use one that is specialized for this
+task.
+
+This URL-safe form will use minimal punctuation to avoid quoting issues when
+used in a URL query argument. It would be nice to avoid word-breaking
+characters that make cut-and-paste troublesome, however this is more
+difficult because most non-alphanumeric characters are word-breaking in at
+least one application.
+
+The serialized storage authority as a whole contains a single version
+identifier and magic number at the beginning. None of the internal components
+contain redundant version numbers: they are implied by the container. If
+components are serialized independently for other reasons, they may contain
+version identifers in that form.
+
+Signing keys (i.e. private keys) are URL-safe-serialized using Zooko's base62
+alphabet, which offers almost the same density as standard base64 but without
+any non-URL-safe or word-breaking characters. Since we used fixed-format keys
+(EC-DSA, 192bit, with SHA256), the private keys are fixed-length (96 bits or
+12 bytes), so there is no length indicator: all URL-safe-serialized signing
+keys are 17 base62 characters long. The 192-bit verifying keys (i.e. public
+keys) use the same approach: the URL-safe form is 33 characters long.
+
+An account-id sequence (a variable-length sequence of non-negative numbers)
+is serialized by representing each number in decimal ASCII, then joining the
+pieces with commas. The string is terminated by the first non-[0-9,]
+character encountered, which will either be the key-identifier letter of the
+next field, or the dictionary-terminating character at the end.
+
+Any single decimal number (such as the "before" timestamp field, or the
+"server-size" field) is serialized as a variable-length sequence of ASCII
+deciman digits, terminated by any non-digit.
+
+The restrictions dictionary is serialized as a concatenated series of
+key-identifier-letter / value string pairs, ending with the marker "E.". The
+URL-safe form uses a single printable letter to indicate the which key is
+being serialized. Each type of value string is serialized differently:
+
+ "A": accountid: variable-length sequence of comma-joned numbers
+ "I": storage index: fixed-length 22-character base62-encoded storage index
+ "P": server id (peer id): fixed-length 32-character *base32* encoded serverid
+      (matching the printable Tub.tubID string that Foolscap provides)
+ "U": UEB hash: fixed-length 43-character base62 encoded UEB hash
+ "B": before: variable-length sequence of decimal digits, seconds-since-epoch.
+ "S": server-size: variable-length sequence of decimal digits, max size in bytes
+ "D": delegate-to-key: ECDSA public key, 33 base62 characters.
+ "F": furl-to: variable-length FURL string, wrapped in a netstring:
+      "%d:%s," % (len(FURL), FURL). Note that this is rarely pasted.
+ "E.": end-of-dictionary marker
+
+The ECDSA signature is serialized as a variable number of base62 characters,
+terminated by a period. We expect the signature to be about 384 bits (48
+bytes) long, or 65 base62 characters. A missing signature (such as for the
+initial cert) is represented as a single period.
+
+The key hint is serialized with a base62-encoded serialized hint string (a
+byte-quantized prefix of the serialized public key), terminated by a period.
+An empty hint would thus be serialized as a single period. For the current
+design, we expect the key hint to be empty.
+
+The full storage authority string consists of a certificate chain and a
+delegate private key. Given the single-certificate serialization scheme
+described above, the full authority is serialized as follows:
+
+ * version prefix: depends upon the application, but for storage-authority
+                   chains this will be "sa0-", for storage-authority version
+                   0.
+ * serialized certificates, concatenated together
+ * serialized private key (to which the last certificate delegates authority)
+
+Note that this serialization form does not have an explicit terminator, so
+the environment must provide a length indicator or some other way to identify
+the end of the authority string. The benefit of this approach is that the
+full string will begin and end with alphanumeric characters, making
+cut-and-paste easier (increasing the size of the mouse target: anywhere
+within the final component will work).
+
+Also note that the period is a reserved delimiter: it cannot appear in the
+serialized restrictions dictionary. The parser can remove the version prefix,
+split the rest on periods, and expect to see 3*k+1 fields, consisting of k
+(restriction-dictionary,signature,keyhint) 3-tuples and a single private key
+at the end.
+
+Some examples:
+
+ cert[0] delegates account 1,4 to (pubkey ZlFA / privkey 1f2S):
+  sa0-A1,4D2lFA6LboL2xx0ldQH2K1TdSrwuqMMiME3E...1f2SI9UJPXvb7vdJ1
+
+ cert[0] delegates account 1,4 to ZlFA/1f2S
+ cert[1] subdelegates 5GB and subaccount 1,4,7 to pubkey 0BPo/06rt:
+  sa0-A1,4D2lFA6LboL2xx0ldQH2K1TdSrwuqMMiME3E...A1,4,7S5000000000D0BPoGxJ3M4KWrmdpLnknhJABrWip5e9kPE,7cyhQvv5axdeihmOzIHjs85TcUIYiWHdsxNz50GTerEOR5ucj2TITPXxyaCUli1oF...06rtcPQotR3q4f2cT
+
+
+
+
+
+
+
+== Problems ==
+
+Problems which have thus far been identified with this approach:
+
+ * allowing arbitrary subaccount generation will permit a DoS attack, in
+   which an authorized uploader consumes lots of DB space by creating an
+   unbounded number of randomly-generated subaccount identifiers. OTOH, they
+   can already attach an unbounded number of leases to any file they like,
+   consuming a lot of space.
+
