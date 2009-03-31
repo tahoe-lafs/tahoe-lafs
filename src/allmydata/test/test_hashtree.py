@@ -80,6 +80,46 @@ class Incomplete(unittest.TestCase):
         self.failUnlessEqual(ht.needed_hashes(5, False), set([11, 6, 1]))
         self.failUnlessEqual(ht.needed_hashes(5, True), set([12, 11, 6, 1]))
 
+    def test_depth_of(self):
+        ht = hashtree.IncompleteHashTree(8)
+        self.failUnlessEqual(ht.depth_of(0), 0)
+        for i in [1,2]:
+            self.failUnlessEqual(ht.depth_of(i), 1, "i=%d"%i)
+        for i in [3,4,5,6]:
+            self.failUnlessEqual(ht.depth_of(i), 2, "i=%d"%i)
+        for i in [7,8,9,10,11,12,13,14]:
+            self.failUnlessEqual(ht.depth_of(i), 3, "i=%d"%i)
+        self.failUnlessRaises(IndexError, ht.depth_of, 15)
+
+    def test_large(self):
+        # IncompleteHashTree.set_hashes() used to take O(N**2). This test is
+        # meant to show that it now takes O(N) or maybe O(N*ln(N)). I wish
+        # there were a good way to assert this (like counting VM operations
+        # or something): the problem was inside list.sort(), so there's no
+        # good way to instrument set_hashes() to count what we care about. On
+        # my laptop, 10k leaves takes 1.1s in this fixed version, and 11.6s
+        # in the old broken version. An 80k-leaf test (corresponding to a
+        # 10GB file with a 128KiB segsize) 10s in the fixed version, and
+        # several hours in the broken version, but 10s on my laptop (plus the
+        # 20s of setup code) probably means 200s on our dapper buildslave,
+        # which is painfully long for a unit test.
+        self.do_test_speed(10000)
+
+    def do_test_speed(self, SIZE):
+        # on my laptop, SIZE=80k (corresponding to a 10GB file with a 128KiB
+        # segsize) takes:
+        #  7s to build the (complete) HashTree
+        #  13s to set up the dictionary
+        #  10s to run set_hashes()
+        ht = make_tree(SIZE)
+        iht = hashtree.IncompleteHashTree(SIZE)
+
+        needed = set()
+        for i in range(SIZE):
+            needed.update(ht.needed_hashes(i, True))
+        all = dict([ (i, ht[i]) for i in needed])
+        iht.set_hashes(hashes=all)
+
     def test_check(self):
         # first create a complete hash tree
         ht = make_tree(6)
