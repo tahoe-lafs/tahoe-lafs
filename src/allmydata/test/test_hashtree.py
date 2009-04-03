@@ -82,14 +82,13 @@ class Incomplete(unittest.TestCase):
 
     def test_depth_of(self):
         ht = hashtree.IncompleteHashTree(8)
-        self.failUnlessEqual(ht.depth_of(0), 0)
+        self.failUnlessEqual(hashtree.depth_of(0), 0)
         for i in [1,2]:
-            self.failUnlessEqual(ht.depth_of(i), 1, "i=%d"%i)
+            self.failUnlessEqual(hashtree.depth_of(i), 1, "i=%d"%i)
         for i in [3,4,5,6]:
-            self.failUnlessEqual(ht.depth_of(i), 2, "i=%d"%i)
+            self.failUnlessEqual(hashtree.depth_of(i), 2, "i=%d"%i)
         for i in [7,8,9,10,11,12,13,14]:
-            self.failUnlessEqual(ht.depth_of(i), 3, "i=%d"%i)
-        self.failUnlessRaises(IndexError, ht.depth_of, 15)
+            self.failUnlessEqual(hashtree.depth_of(i), 3, "i=%d"%i)
 
     def test_large(self):
         # IncompleteHashTree.set_hashes() used to take O(N**2). This test is
