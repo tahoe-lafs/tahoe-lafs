@@ -202,7 +202,7 @@ class Statistics(unittest.TestCase):
         pmf_comp = f(2, .1)
         pmf_stat = [0.81, 0.18, 0.01]
         self.failUnlessListAlmostEqual(pmf_comp, pmf_stat)
-        
+
         # Summing across a PMF should give the total probability 1
         self.failUnlessAlmostEqual(sum(pmf_comp), 1)
         self.should_assert("Should assert if not 0<=p<=1", f, 1, -1)
@@ -773,6 +773,7 @@ class TimeFormat(unittest.TestCase):
         self.failUnlessEqual(time_format.iso_utc(1.0), "1970-01-01_00:00:01")
         self.failUnlessEqual(time_format.iso_utc(1.0, sep=" "),
                              "1970-01-01 00:00:01")
+
         now = time.time()
         isostr = time_format.iso_utc(now)
         timestamp = time_format.iso_utc_time_to_seconds(isostr)
