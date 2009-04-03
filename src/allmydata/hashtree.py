@@ -1,5 +1,7 @@
 # -*- test-case-name: allmydata.test.test_hashtree -*-
 
+from allmydata.util import mathutil # from the pyutil library
+
 """
 Read and write chunks from files.
 
@@ -162,14 +164,10 @@ class CompleteBinaryTreeMixin:
     def get_leaf(self, leafnum):
         return self[self.first_leaf_num + leafnum]
 
-    def depth_of(self, i):
-        """Return the depth or level of the given node. Level 0 contains node
-        Level 1 contains nodes 1 and 2. Level 2 contains nodes 3,4,5,6."""
-        depth = 0
-        while i != 0:
-            depth += 1
-            i = self.parent(i)
-        return depth
+def depth_of(i):
+    """Return the depth or level of the given node. Level 0 contains node 0
+    Level 1 contains nodes 1 and 2. Level 2 contains nodes 3,4,5,6."""
+    return mathutil.log_floor(i+1, 2)
 
 def empty_leaf_hash(i):
     return tagged_hash('Merkle tree empty leaf', "%d" % i)
@@ -411,7 +409,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
         #     to the root, discard every hash we've added.
 
         try:
-            num_levels = self.depth_of(len(self)-1)
+            num_levels = depth_of(len(self)-1)
             # hashes_to_check[level] is set(index). This holds the "red dots"
             # described above
             hashes_to_check = [set() for level in range(num_levels+1)]
@@ -419,8 +417,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
             # first we provisionally add all hashes to the tree, comparing
             # any duplicates
             for i,h in new_hashes.iteritems():
-                level = self.depth_of(i)
-                hashes_to_check[level].add(i)
+                level = depth_of(i)
 
                 if self[i]:
                     if self[i] != h:
@@ -430,6 +427,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
                                               base32.b2a(self[i]),
                                               self._name_hash(i)))
                 else:
+                    hashes_to_check[level].add(i)
                     self[i] = h
                     remove_upon_failure.add(i)
 
@@ -438,11 +436,11 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
                 while this_level:
                     i = this_level.pop()
                     if i == 0:
-                        # The root has no sibling. How lonely. TODO: consider
-                        # setting the root in our constructor, then throw
-                        # NotEnoughHashesError here, because if we've
-                        # generated the root from below, we don't have
-                        # anything to validate it against.
+                        # The root has no sibling. How lonely. You can't
+                        # really *check* the root; you either accept it
+                        # because the caller told you what it is by including
+                        # it in hashes, or you accept it because you
+                        # calculated it from its two children.
                         continue
                     siblingnum = self.sibling(i)
                     if self[siblingnum] is None:
@@ -460,7 +458,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
                     else:
                         self[parentnum] = new_parent_hash
                         remove_upon_failure.add(parentnum)
-                        parent_level = self.depth_of(parentnum)
+                        parent_level = depth_of(parentnum)
                         assert parent_level == level-1
                         hashes_to_check[parent_level].add(parentnum)
 
