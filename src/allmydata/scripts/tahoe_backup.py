@@ -28,7 +28,7 @@ def parse_old_timestamp(s, options):
         # misleading. This returns seconds-since-epoch for an
         # ISO-8601-ish-formatted UTC time string. This might raise
         # ValueError if the string is not in the right format.
-        when = time_format.iso_utc_time_to_localseconds(s[:-1])
+        when = time_format.iso_utc_time_to_seconds(s[:-1])
         return when
     except ValueError:
         pass

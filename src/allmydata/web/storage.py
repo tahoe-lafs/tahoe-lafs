@@ -3,6 +3,7 @@ import time, simplejson
 from nevow import rend, tags as T, inevow
 from allmydata.web.common import getxmlfile, abbreviate_time, get_arg
 from allmydata.util.abbreviate import abbreviate_space
+from allmydata.util import time_format
 
 def remove_prefix(s, prefix):
     if not s.startswith(prefix):
@@ -140,9 +141,10 @@ class StorageStatus(rend.Page):
                         % abbreviate_time(lc.override_lease_duration)]
         else:
             assert lc.mode == "cutoff-date"
-            date = time.strftime("%d-%b-%Y", time.gmtime(lc.cutoff_date))
-            ctx.tag["Leases created or last renewed before %s "
-                    "will be considered expired." % date]
+            localizedutcdate = time.strftime("%d-%b-%Y", time.gmtime(lc.cutoff_date))
+            isoutcdate = time_format.iso_utc_date(lc.cutoff_date)
+            ctx.tag["Leases created or last renewed before %s (%s) UTC "
+                    "will be considered expired." % (isoutcdate, localizedutcdate, )]
         if len(lc.mode) > 2:
             ctx.tag[" The following sharetypes will be expired: ",
                     " ".join(sorted(lc.sharetypes_to_expire)), "."]

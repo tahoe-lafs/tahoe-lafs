@@ -9,12 +9,17 @@
 
 import datetime, re, time
 
+def iso_utc_date(now=None, t=time.time):
+    if now is None:
+        now = t()
+    return datetime.datetime.utcfromtimestamp(now).isoformat()[:10]
+
 def iso_utc(now=None, sep='_', t=time.time):
     if now is None:
         now = t()
     return datetime.datetime.utcfromtimestamp(now).isoformat(sep)
 
-def iso_utc_time_to_localseconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})[T_ ](?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(?P<subsecond>\.\d+)?")):
+def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})[T_ ](?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(?P<subsecond>\.\d+)?")):
     """
     The inverse of iso_utc().
 
@@ -26,13 +31,16 @@ def iso_utc_time_to_localseconds(isotime, _conversion_re=re.compile(r"(?P<year>\
         raise ValueError, (isotime, "not a complete ISO8601 timestamp")
     year, month, day = int(m.group('year')), int(m.group('month')), int(m.group('day'))
     hour, minute, second = int(m.group('hour')), int(m.group('minute')), int(m.group('second'))
-    utcseconds = time.mktime( (year, month, day, hour, minute, second, 0, 1, 0) )
-    localseconds = utcseconds - time.timezone
     subsecstr = m.group('subsecond')
     if subsecstr:
         subsecfloat = float(subsecstr)
-        localseconds += subsecfloat
-    return localseconds
+    else:
+        subsecfloat = 0
+
+    localsecondsnodst = time.mktime( (year, month, day, hour, minute, second, 0, 1, 0) )
+    localsecondsnodst += subsecfloat
+    utcseconds = localsecondsnodst - time.timezone
+    return utcseconds
 
 def parse_duration(s):
     orig = s
@@ -62,5 +70,5 @@ def parse_duration(s):
 def parse_date(s):
     # return seconds-since-epoch for the UTC midnight that starts the given
     # day
-    return int(iso_utc_time_to_localseconds(s + "T00:00:00"))
+    return int(iso_utc_time_to_seconds(s + "T00:00:00"))
 

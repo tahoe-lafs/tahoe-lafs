@@ -763,27 +763,35 @@ class Limiter(unittest.TestCase):
 
 class TimeFormat(unittest.TestCase):
     def test_epoch(self):
-        s = time_format.iso_utc_time_to_localseconds("1970-01-01T00:00:01")
+        s = time_format.iso_utc_time_to_seconds("1970-01-01T00:00:01")
         self.failUnlessEqual(s, 1.0)
-        s = time_format.iso_utc_time_to_localseconds("1970-01-01_00:00:01")
+        s = time_format.iso_utc_time_to_seconds("1970-01-01_00:00:01")
         self.failUnlessEqual(s, 1.0)
-        s = time_format.iso_utc_time_to_localseconds("1970-01-01 00:00:01")
+        s = time_format.iso_utc_time_to_seconds("1970-01-01 00:00:01")
         self.failUnlessEqual(s, 1.0)
 
         self.failUnlessEqual(time_format.iso_utc(1.0), "1970-01-01_00:00:01")
         self.failUnlessEqual(time_format.iso_utc(1.0, sep=" "),
                              "1970-01-01 00:00:01")
         now = time.time()
+        isostr = time_format.iso_utc(now)
+        timestamp = time_format.iso_utc_time_to_seconds(isostr)
+        self.failUnlessEqual(int(timestamp), int(now))
+
         def my_time():
             return 1.0
         self.failUnlessEqual(time_format.iso_utc(t=my_time),
                              "1970-01-01_00:00:01")
         e = self.failUnlessRaises(ValueError,
-                                  time_format.iso_utc_time_to_localseconds,
+                                  time_format.iso_utc_time_to_seconds,
                                   "invalid timestring")
         self.failUnless("not a complete ISO8601 timestamp" in str(e))
-        s = time_format.iso_utc_time_to_localseconds("1970-01-01_00:00:01.500")
+        s = time_format.iso_utc_time_to_seconds("1970-01-01_00:00:01.500")
         self.failUnlessEqual(s, 1.5)
+
+        # Look for daylight-savings-related errors.
+        thatmomentinmarch = time_format.iso_utc_time_to_seconds("2009-03-20 21:49:02.226536")
+        self.failUnlessEqual(thatmomentinmarch, 1237585742.226536)
 
 class CacheDir(unittest.TestCase):
     def test_basic(self):

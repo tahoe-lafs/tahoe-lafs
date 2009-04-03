@@ -2026,9 +2026,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             s = remove_tags(html)
             self.failUnlessIn("Expiration Enabled:"
                               " expired leases will be removed", s)
-            date = time.strftime("%d-%b-%Y", time.gmtime(then))
-            self.failUnlessIn("Leases created or last renewed before %s"
-                              " will be considered expired." % date, s)
+            date = time.strftime("%Y-%m-%d (%d-%b-%Y) UTC", time.gmtime(then))
+            substr = "Leases created or last renewed before %s will be considered expired." % date
+            self.failUnlessIn(substr, s)
             self.failUnlessIn(" recovered: 2 shares, 2 buckets (1 mutable / 1 immutable), ", s)
         d.addCallback(_check_html)
         return d
