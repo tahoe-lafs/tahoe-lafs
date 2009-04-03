@@ -1,6 +1,8 @@
-# Copyright (c) 2005-2007 Bryce "Zooko" Wilcox-O'Hearn
+# Copyright (c) 2005-2009 Bryce "Zooko" Wilcox-O'Hearn
 # mailto:zooko@zooko.com
 # http://zooko.com/repos/pyutil
+# http://pypi.python.org/pypi/pyutil
+# http://allmydata.org/trac/pyutil
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this work to deal in this work without restriction (including the rights
 # to use, modify, distribute, sublicense, and/or sell copies).
