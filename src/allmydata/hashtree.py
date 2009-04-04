@@ -417,8 +417,6 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
             # first we provisionally add all hashes to the tree, comparing
             # any duplicates
             for i,h in new_hashes.iteritems():
-                level = depth_of(i)
-
                 if self[i]:
                     if self[i] != h:
                         raise BadHashError("new hash %s does not match "
@@ -427,6 +425,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
                                               base32.b2a(self[i]),
                                               self._name_hash(i)))
                 else:
+                    level = depth_of(i)
                     hashes_to_check[level].add(i)
                     self[i] = h
                     remove_upon_failure.add(i)
@@ -440,7 +439,9 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
                         # really *check* the root; you either accept it
                         # because the caller told you what it is by including
                         # it in hashes, or you accept it because you
-                        # calculated it from its two children.
+                        # calculated it from its two children. You probably
+                        # want to set the root (from a trusted source) before
+                        # adding any children from an untrusted source.
                         continue
                     siblingnum = self.sibling(i)
                     if self[siblingnum] is None:
