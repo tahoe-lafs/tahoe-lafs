@@ -1,4 +1,5 @@
-1 update doc files: relnotes.txt, CREDITS, docs/known_issues.txt, NEWS
+1 update doc files: relnotes.txt, CREDITS, docs/known_issues.txt, NEWS. Add
+  release name and date to top-most item in NEWS.
 2 change docs/install.html to point to just the tahoe-1.3.0.zip source code file, or else to point to a directory which contains only tahoe-1.3.0.* source code files
 3 make tag
 4 make sure buildbot is green
