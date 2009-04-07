@@ -658,7 +658,7 @@ class DirectoryAsHTML(rend.Page):
 
         if self.node.is_readonly():
             return T.div["No upload forms: directory is read-only"]
-        if not self.dirnode_children:
+        if self.dirnode_children is None:
             return T.div["No upload forms: directory is unreadable"]
 
         mkdir = T.form(action=".", method="post",
