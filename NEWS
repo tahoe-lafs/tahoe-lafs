@@ -3,34 +3,122 @@ User visible changes in Tahoe.  -*- outline -*-
 * Release ? (?)
 
 ** Garbage Collection
-1.3.0 servers return exception for unknown SI
- 1.3.0 clients emit Incident
+
+The big feature for this release is the implementation of garbage collection,
+allowing Tahoe storage servers to delete shares for old deleted files. When
+enabled, this uses a "mark and sweep" process: clients are responsible for
+updating the leases on their shares (generally by running "tahoe deep-check
+--add-lease"), and servers are allowed to delete any share which does not
+have an up-to-date lease. The process is described in detail in
+docs/garbage-collection.txt .
+
+The server must be configured to enable garbage-collection, by adding
+directives to the [storage] section that define an age limit for shares. The
+default configuration will not delete any shares.
+
+Both servers and clients should be upgraded to this release to make the
+garbage-collection as pleasant as possible. 1.2.0 servers do not have the
+code to perform the update-lease operation, while 1.3.0 servers have
+update-lease but will return an exception for unknown storage indices,
+causing clients to emit an Incident for each exception, slowing the add-lease
+process down to a crawl. 1.3.0 clients did not have the add-lease operation
+at all.
+
+** Security/Usability Problems Fixed
+
+The previous codebase permitted a small timing attack (due to our use of
+strcmp) against the write-enabler and lease-renewal/cancel secrets. An
+attacker who could measure response-time variations of approximatly 3ns
+against a very noisy background time of about 15ms might be able to guess
+these secrets. We do not believe this attack was actually feasible. This
+release closes the attack by first hashing the two strings to be compared
+with a random secret.
+
+A super-linear algorithm in the Merkle Tree code was fixed, which previously
+caused e.g. download of a 10GB file to take several hours before the first
+byte of plaintext could be produced. The new "alacrity" is about 2 minutes. A
+future release should reduce this to a few seconds by fixing ticket #442.
+
+** webapi changes
+
+In most cases, HTML tracebacks will only be sent if an "Accept: text/html"
+header was provided with the HTTP request. This will generally cause browsers
+to get an HTMLized traceback but send regular text/plain tracebacks to
+non-browsers (like the CLI clients). More errors have been mapped to useful
+HTTP error codes.
+
+The streaming webapi operations (deep-check and manifest) now have a way to
+indicate errors (an output line that starts with "ERROR" instead of being
+legal JSON). See docs/frontends/webapi.txt for details.
+
+The storage server now has its own status page (at /storage), linked from the
+Welcome page. This page shows progress and results of the two new
+share-crawlers: one which merely counts shares (to give an estimate of how
+many files/directories are being stored in the grid), the other examines
+leases and reports how much space would be freed if GC were enabled. The page
+also shows how much disk space is present, used, reserved, and available for
+the Tahoe server, and whether the server is currently running in "read-write"
+mode or "read-only" mode.
+
+** CLI changes
+
+"tahoe check" and "tahoe deep-check" now accept an "--add-lease" argument, to
+update a lease on all shares. This is the "mark" side of garbage collection.
+
+In many cases, CLI error messages have been improved: the ugly HTMLized
+traceback has been replaced by a normal python traceback.
+
+"tahoe deep-check" and "tahoe manifest" now have better error reporting.
+
+"tahoe backup" now accepts several "--exclude" arguments, to ignore certain
+files (like editor temporary files and version-control metadata) during
+backup.
+
+On windows, the CLI now accepts local paths like "c:\dir\file.txt", which
+previously was interpreted as a Tahoe path using a "c:" alias.
+
+The "tahoe restart" command now uses "--force" by default (meaning it will
+start a node even if it didn't look like there was one already running).
+
+"tahoe cp -r --caps-only tahoe:dir localdir" is a diagnostic tool which,
+instead of copying the full contents of files into the local directory,
+merely copies their filecaps. This can be used to verify the results of a
+"consolidation" operation.
+
+** other fixes
+
+The codebase no longer rauses RuntimeError as a kind of assert(). Specific
+exception classes were created for each previous instance of RuntimeError.
+
+Many unit tests were changed to use a non-network test harness, speeding them
+up considerably.
+
 
 ** misc
 lossmodel, /reliability page (needs numpy)
-no-network test harness, speed up tests
-streaming deep-check webapi, 'tahoe deep-check'. ERROR line.
-improve CLI error messages for "manifest" and "deep-check"
-remote_add_lease exits silently for unknown SI
-add --add-lease to 'tahoe check' and 'tahoe deep-check', webapi
-expand storage status page: show reserved_space, share-counting crawler,
- expiration crawler
-add --exclude, --exclude-from, --exclude-vcs to 'tahoe backup
-stop using RuntimeError
-windows: make CLI tolerate "c:\dir\file.txt", instead of thinking "c:" is an
- alias
-"tahoe restart": make --force the default
-#645 sftp path-handling logic
-use Accept: header to control HTML-vs-text/plain tracebacks
+#no-network test harness, speed up tests
+#streaming deep-check webapi, 'tahoe deep-check'. ERROR line.
+#improve CLI error messages for "manifest" and "deep-check"
+#remote_add_lease exits silently for unknown SI
+#add --add-lease to 'tahoe check' and 'tahoe deep-check', webapi
+#expand storage status page: show reserved_space, share-counting crawler,
+# expiration crawler
+#add --exclude, --exclude-from, --exclude-vcs to 'tahoe backup'
+#stop using RuntimeError
+#windows: make CLI tolerate "c:\dir\file.txt", instead of thinking "c:" is an
+# alias
+#"tahoe restart": make --force the default
+ #645 sftp path-handling logic
+#use Accept: header to control HTML-vs-text/plain tracebacks
 make "tahoe cp" less verbose by default
 when dirnode can't be read, emit minimal webapi page with more-info links
-improve CLI error messages: fewer HTML tracebacks
+#improve CLI error messages: fewer HTML tracebacks
 "tahoe debug consolidate" CLI command
 deep-traverse in alphabetical order
 turn break in deep-traverse to avoid stack overflow
-tahoe cp -r --caps-only
-fix timing attack against write-enabler, lease-renewal secrets
-fix superlinear hashtree code, reduce alacrity of 10GB file from hours to 2min
+#tahoe cp -r --caps-only
+#fix timing attack against write-enabler, lease-renewal secrets
+#fix superlinear hashtree code, reduce alacrity of 10GB file from hours to 2min
 
 * Release 1.3.0 (2009-02-13)
 
