@@ -1620,7 +1620,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                       self.POST(bar_url, t="check", return_to=redir_url))
         def _check3(res):
             self.failUnless("Healthy :" in res)
-            self.failUnless("Return to parent directory" in res)
+            self.failUnless("Return to file" in res)
             self.failUnless(redir_url in res)
         d.addCallback(_check3)
 
@@ -1654,7 +1654,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                       self.POST(bar_url, t="check", return_to=redir_url))
         def _check3(res):
             self.failUnless("Healthy :" in res)
-            self.failUnless("Return to parent directory" in res)
+            self.failUnless("Return to file" in res)
             self.failUnless(redir_url in res)
         d.addCallback(_check3)
         return d
@@ -1679,7 +1679,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                       self.POST(foo_url, t="check", return_to=redir_url))
         def _check3(res):
             self.failUnless("Healthy :" in res, res)
-            self.failUnless("Return to parent directory" in res)
+            self.failUnless("Return to file/directory" in res)
             self.failUnless(redir_url in res)
         d.addCallback(_check3)
 
@@ -1713,7 +1713,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                       self.POST(foo_url, t="check", return_to=redir_url))
         def _check3(res):
             self.failUnless("Healthy :" in res)
-            self.failUnless("Return to parent directory" in res)
+            self.failUnless("Return to file/directory" in res)
             self.failUnless(redir_url in res)
         d.addCallback(_check3)
         return d
@@ -1884,7 +1884,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         # Fetch the welcome page.
         d = self.GET("/")
         def _after_get_welcome_page(res):
-            MKDIR_BUTTON_RE=re.compile('<form action="([^"]*)" method="post".*<input type="hidden" name="t" value="([^"]*)" /><input type="hidden" name="([^"]*)" value="([^"]*)" /><input type="submit" value="Create Directory!" />', re.I)
+            MKDIR_BUTTON_RE=re.compile('<form action="([^"]*)" method="post".*<input type="hidden" name="t" value="([^"]*)" /><input type="hidden" name="([^"]*)" value="([^"]*)" /><input type="submit" value="create directory" />', re.I)
             mo = MKDIR_BUTTON_RE.search(res)
             formaction = mo.group(1)
             formt = mo.group(2)
@@ -2567,7 +2567,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         def _got_html_good_return_to(res):
             self.failUnless("Healthy" in res, res)
             self.failIf("Not Healthy" in res, res)
-            self.failUnless('<a href="somewhere">Return to parent directory'
+            self.failUnless('<a href="somewhere">Return to file'
                             in res, res)
         d.addCallback(_got_html_good_return_to)
         d.addCallback(self.CHECK, "good", "t=check&output=json")
@@ -2588,7 +2588,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         def _got_html_small_return_to(res):
             self.failUnless("Literal files are always healthy" in res, res)
             self.failIf("Not Healthy" in res, res)
-            self.failUnless('<a href="somewhere">Return to parent directory'
+            self.failUnless('<a href="somewhere">Return to file'
                             in res, res)
         d.addCallback(_got_html_small_return_to)
         d.addCallback(self.CHECK, "small", "t=check&output=json")

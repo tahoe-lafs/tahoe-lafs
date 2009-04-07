@@ -589,7 +589,7 @@ POST /uri?t=mkdir
  you'll be able to get back to the directory again in the future. This is the
  recommended way to start working with a Tahoe server: create a new unlinked
  directory (using redirect_to_result=true), then bookmark the resulting
- /uri/$DIRCAP page. There is a "Create Directory" button on the Welcome page
+ /uri/$DIRCAP page. There is a "create directory" button on the Welcome page
  to invoke this action.
 
  If "redirect_to_result=true" is not provided (or is given a value of

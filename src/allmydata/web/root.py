@@ -329,10 +329,10 @@ class Root(rend.Page):
         form = T.form(action="uri", method="post",
                       enctype="multipart/form-data")[
             T.fieldset[
-            T.legend(class_="freeform-form-label")["Create a directory"],
+            T.legend(class_="freeform-form-label")["Create a directory."],
             T.input(type="hidden", name="t", value="mkdir"),
             T.input(type="hidden", name="redirect_to_result", value="true"),
-            T.input(type="submit", value="Create Directory!"),
+            T.input(type="submit", value="create directory"),
             ]]
         return T.div[form]
 

@@ -198,7 +198,7 @@ class LiteralCheckResults(rend.Page, ResultsBase):
         req = inevow.IRequest(ctx)
         return_to = get_arg(req, "return_to", None)
         if return_to:
-            return T.div[T.a(href=return_to)["Return to parent directory"]]
+            return T.div[T.a(href=return_to)["Return to file."]]
         return ""
 
 class CheckerBase:
@@ -215,7 +215,7 @@ class CheckerBase:
         req = inevow.IRequest(ctx)
         return_to = get_arg(req, "return_to", None)
         if return_to:
-            return T.div[T.a(href=return_to)["Return to parent directory"]]
+            return T.div[T.a(href=return_to)["Return to file/directory."]]
         return ""
 
 class CheckResults(CheckerBase, rend.Page, ResultsBase):
@@ -435,7 +435,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         req = inevow.IRequest(ctx)
         return_to = get_arg(req, "return_to", None)
         if return_to:
-            return T.div[T.a(href=return_to)["Return to parent directory"]]
+            return T.div[T.a(href=return_to)["Return to file/directory."]]
         return ""
 
     def data_all_objects(self, ctx, data):
@@ -615,7 +615,7 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
         req = inevow.IRequest(ctx)
         return_to = get_arg(req, "return_to", None)
         if return_to:
-            return T.div[T.a(href=return_to)["Return to parent directory"]]
+            return T.div[T.a(href=return_to)["Return to file/directory."]]
         return ""
 
     def data_all_objects(self, ctx, data):

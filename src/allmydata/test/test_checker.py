@@ -41,7 +41,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         def _check_return_to(html):
             s = self.remove_tags(html)
             self.failUnlessIn("Literal files are always healthy", s)
-            self.failUnlessIn('<a href="FOOURL">Return to parent directory</a>',
+            self.failUnlessIn('<a href="FOOURL">Return to file.</a>',
                               html)
         d.addCallback(_check_return_to)
         d.addCallback(lambda ignored: self.render_json(lcr))
@@ -111,7 +111,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Not Recoverable! : rather dead", s)
 
         html = self.render2(w, args={"return_to": ["FOOURL"]})
-        self.failUnlessIn('<a href="FOOURL">Return to parent directory</a>',
+        self.failUnlessIn('<a href="FOOURL">Return to file/directory.</a>',
                           html)
 
         d = self.render_json(w)
