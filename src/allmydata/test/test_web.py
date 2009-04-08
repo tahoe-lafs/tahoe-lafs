@@ -717,6 +717,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                                       self.NEWFILE_CONTENTS))
         return d
 
+    def test_PUT_NEWFILEURL_not_mutable(self):
+        d = self.PUT(self.public_url + "/foo/new.txt?mutable=false",
+                     self.NEWFILE_CONTENTS)
+        # TODO: we lose the response code, so we can't check this
+        #self.failUnlessEqual(responsecode, 201)
+        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"new.txt")
+        d.addCallback(lambda res:
+                      self.failUnlessChildContentsAre(self._foo_node, u"new.txt",
+                                                      self.NEWFILE_CONTENTS))
+        return d
+
     def test_PUT_NEWFILEURL_range_bad(self):
         headers = {"content-range": "bytes 1-10/%d" % len(self.NEWFILE_CONTENTS)}
         target = self.public_url + "/foo/new.txt"
@@ -2297,6 +2308,21 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_PUT_NEWFILE_URI(self):
         file_contents = "New file contents here\n"
         d = self.PUT("/uri", file_contents)
+        def _check(uri):
+            assert isinstance(uri, str), uri
+            self.failUnless(uri in FakeCHKFileNode.all_contents)
+            self.failUnlessEqual(FakeCHKFileNode.all_contents[uri],
+                                 file_contents)
+            return self.GET("/uri/%s" % uri)
+        d.addCallback(_check)
+        def _check2(res):
+            self.failUnlessEqual(res, file_contents)
+        d.addCallback(_check2)
+        return d
+
+    def test_PUT_NEWFILE_URI_not_mutable(self):
+        file_contents = "New file contents here\n"
+        d = self.PUT("/uri?mutable=false", file_contents)
         def _check(uri):
             assert isinstance(uri, str), uri
             self.failUnless(uri in FakeCHKFileNode.all_contents)

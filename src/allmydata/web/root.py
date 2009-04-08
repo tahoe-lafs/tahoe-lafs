@@ -16,7 +16,7 @@ from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import reliability, storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
-     get_arg, RenderMixin
+     get_arg, RenderMixin, boolean_of_arg
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -45,7 +45,7 @@ class URIHandler(RenderMixin, rend.Page):
         # "PUT /uri?t=mkdir" to create an unlinked directory
         t = get_arg(req, "t", "").strip()
         if t == "":
-            mutable = bool(get_arg(req, "mutable", "").strip())
+            mutable = boolean_of_arg(get_arg(req, "mutable", "false").strip())
             if mutable:
                 return unlinked.PUTUnlinkedSSK(req, self.client)
             else:
