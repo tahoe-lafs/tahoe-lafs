@@ -253,6 +253,8 @@ class CheckResults(CheckerBase, rend.Page, ResultsBase):
             T.input(type="hidden", name="repair", value="true"),
             T.input(type="submit", value="Repair"),
             ]]
+        return "" # repair button disabled until we make it work correctly,
+                  # see #622 for details
         return ctx.tag[repair]
 
     def render_results(self, ctx, data):
