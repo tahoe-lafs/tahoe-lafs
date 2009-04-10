@@ -1,5 +1,6 @@
 install_requires=[
-                  # we require 0.6c8 to build, but can handle older versions to run
+                  # we require newer versions of setuptools (actually
+                  # zetuptoolz) to build, but can handle older versions to run
                   "setuptools >= 0.6c6",
 
                   # pycryptopp < 0.5 had a bug which, using a Microsoft
@@ -9,9 +10,7 @@ install_requires=[
                   "pycryptopp >= 0.5",
                   "zfec >= 1.1.0",
 
-                  # We had a unicode problem with simplejson 1.8.1 on dapper -- see ticket #543,
-                  # but we want to install using Gutsy or Hardy simplejson .deb's if possible --
-                  # see ticket #555.  Feisty has simplejson 1.4
+                  # Feisty has simplejson 1.4
                   "simplejson >= 1.4",
 
                   "zope.interface",
