@@ -60,6 +60,17 @@ also shows how much disk space is present, used, reserved, and available for
 the Tahoe server, and whether the server is currently running in "read-write"
 mode or "read-only" mode.
 
+When a directory node cannot be read (perhaps because of insufficent shares),
+a minimal webapi page is created so that the "more-info" links (including a
+Check/Repair operation) will still be accessible.
+
+A new "reliability" page was added, with the beginnings of work on a
+statistical loss model. You can tell this page how many servers you are using
+and their independent failure probabilities, and it will tell you the
+likelihood that an arbitrary file will survive each repair period. A partial
+paper, written by Shawn Willden, has been added to
+docs/proposed/lossmodel.lyx .
+
 ** CLI changes
 
 "tahoe check" and "tahoe deep-check" now accept an "--add-lease" argument, to
@@ -69,6 +80,7 @@ In many cases, CLI error messages have been improved: the ugly HTMLized
 traceback has been replaced by a normal python traceback.
 
 "tahoe deep-check" and "tahoe manifest" now have better error reporting.
+"tahoe cp" is now non-verbose by default.
 
 "tahoe backup" now accepts several "--exclude" arguments, to ignore certain
 files (like editor temporary files and version-control metadata) during
@@ -79,6 +91,18 @@ previously was interpreted as a Tahoe path using a "c:" alias.
 
 The "tahoe restart" command now uses "--force" by default (meaning it will
 start a node even if it didn't look like there was one already running).
+
+The "tahoe debug consolidate" command was added. This takes a series of
+independent timestamped snapshot directories (such as those created by the
+allmydata.com windows backup program, or a series of "tahoe cp -r" commands)
+and creates new snapshots that used shared read-only directories whenever
+possible (like the output of "tahoe backup"). In the most common case (when
+the snapshots are fairly similar), the result will use significantly fewer
+directories than the original, allowing "deep-check" and similar tools to run
+much faster. In some cases, the speedup can be an order of magnitude or more.
+This tool is still somewhat experimental, and only needs to be run on large
+backups produced by something other than "tahoe backup", so it was placed
+under the "debug" category.
 
 "tahoe cp -r --caps-only tahoe:dir localdir" is a diagnostic tool which,
 instead of copying the full contents of files into the local directory,
@@ -93,32 +117,14 @@ exception classes were created for each previous instance of RuntimeError.
 Many unit tests were changed to use a non-network test harness, speeding them
 up considerably.
 
+Deep-traversal operations (manifest and deep-check) now walk individual
+directories in alphabetical order. Occasional turn breaks are inserted to
+prevent a stack overflow when traversing directories with hundreds of
+entries.
 
-** misc
-lossmodel, /reliability page (needs numpy)
-#no-network test harness, speed up tests
-#streaming deep-check webapi, 'tahoe deep-check'. ERROR line.
-#improve CLI error messages for "manifest" and "deep-check"
-#remote_add_lease exits silently for unknown SI
-#add --add-lease to 'tahoe check' and 'tahoe deep-check', webapi
-#expand storage status page: show reserved_space, share-counting crawler,
-# expiration crawler
-#add --exclude, --exclude-from, --exclude-vcs to 'tahoe backup'
-#stop using RuntimeError
-#windows: make CLI tolerate "c:\dir\file.txt", instead of thinking "c:" is an
-# alias
-#"tahoe restart": make --force the default
- #645 sftp path-handling logic
-#use Accept: header to control HTML-vs-text/plain tracebacks
-make "tahoe cp" less verbose by default
-when dirnode can't be read, emit minimal webapi page with more-info links
-#improve CLI error messages: fewer HTML tracebacks
-"tahoe debug consolidate" CLI command
-deep-traverse in alphabetical order
-turn break in deep-traverse to avoid stack overflow
-#tahoe cp -r --caps-only
-#fix timing attack against write-enabler, lease-renewal secrets
-#fix superlinear hashtree code, reduce alacrity of 10GB file from hours to 2min
+The experimental SFTP server had its path-handling logic changed slightly, to
+accomodate more SFTP clients, although there are still issues (#645).
+
 
 * Release 1.3.0 (2009-02-13)
 
