@@ -381,12 +381,24 @@ GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=json
 GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
 
   This returns a machine-parseable JSON-encoded description of the given
-  object. The JSON always contains a list, and the first element of the list
-  is always a flag that indicates whether the referenced object is a file or a
-  directory. If it is a file, then the information includes file size and URI,
-  like this:
+  object. The JSON always contains a list, and the first element of the list is
+  always a flag that indicates whether the referenced object is a file or a
+  directory. If it is a capability to a file, then the information includes
+  file size and URI, like this:
 
    GET /uri/$FILECAP?t=json :
+
+    [ "filenode", {
+      "ro_uri": file_uri,
+      "verify_uri": verify_uri,
+      "size": bytes,
+      "mutable": false,
+      } ]
+
+  If it is a capability to a directory followed by a path from that directory
+  to a file, then the information also includes metadata from the link to the
+  file in the parent directory, like this:
+
    GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json :
 
     [ "filenode", { "ro_uri": file_uri,
@@ -446,26 +458,26 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
 
 PUT /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri
 
- This attaches a child object (either a file or directory) to a specified
- location in the virtual filesystem. The child object is referenced by its
- read- or write- cap, as provided in the HTTP request body. This will create
- intermediate directories as necessary.
+  This attaches a child object (either a file or directory) to a specified
+  location in the virtual filesystem. The child object is referenced by its
+  read- or write- cap, as provided in the HTTP request body. This will create
+  intermediate directories as necessary.
 
- This is similar to a UNIX hardlink: by referencing a previously-uploaded
- file (or previously-created directory) instead of uploading/creating a new
- one, you can create two references to the same object.
+  This is similar to a UNIX hardlink: by referencing a previously-uploaded file
+  (or previously-created directory) instead of uploading/creating a new one,
+  you can create two references to the same object.
 
- The read- or write- cap of the child is provided in the body of the HTTP
- request, and this same cap is returned in the response body.
+  The read- or write- cap of the child is provided in the body of the HTTP
+  request, and this same cap is returned in the response body.
 
- The default behavior is to overwrite any existing object at the same
- location. To prevent this (and make the operation return an error instead of
- overwriting), add a "replace=false" argument, as "?t=uri&replace=false".
- With replace=false, this operation will return an HTTP 409 "Conflict" error
- if there is already an object at the given location, rather than overwriting
- the existing object. Note that "true", "t", and "1" are all synonyms for
- "True", and "false", "f", and "0" are synonyms for "False". the parameter is
- case-insensitive.
+  The default behavior is to overwrite any existing object at the same
+  location. To prevent this (and make the operation return an error instead of
+  overwriting), add a "replace=false" argument, as "?t=uri&replace=false". With
+  replace=false, this operation will return an HTTP 409 "Conflict" error if
+  there is already an object at the given location, rather than overwriting the
+  existing object. Note that "true", "t", and "1" are all synonyms for "True",
+  and "false", "f", and "0" are synonyms for "False". the parameter is
+  case-insensitive.
 
 === Deleting a File or Directory ===
 
@@ -1364,24 +1376,23 @@ prettier front-end to the rest of the Tahoe wapi.
 == safety and security issues -- names vs. URIs ==
 
 Summary: use explicit file- and dir- caps whenever possible, to reduce the
-potential for surprises when the virtual drive is changed while you aren't
-looking.
+potential for surprises when the filesystem structure is changed.
 
-The vdrive provides a mutable filesystem, but the ways that the filesystem
-can change are limited. The only thing that can change is that the mapping
-from child names to child objects that each directory contains can be changed
-by adding a new child name pointing to an object, removing an existing child
-name, or changing an existing child name to point to a different object.
+Tahoe provides a mutable filesystem, but the ways that the filesystem can
+change are limited. The only thing that can change is that the mapping from
+child names to child objects that each directory contains can be changed by
+adding a new child name pointing to an object, removing an existing child name,
+or changing an existing child name to point to a different object.
 
-Obviously if you query tahoe for information about the filesystem and then
-act upon the filesystem (such as by getting a listing of the contents of a
+Obviously if you query Tahoe for information about the filesystem and then act
+to change the filesystem (such as by getting a listing of the contents of a
 directory and then adding a file to the directory), then the filesystem might
-have been changed after you queried it and before you acted upon it.
-However, if you use the URI instead of the pathname of an object when you act
-upon the object, then the only change that can happen is when the object is a
-directory then the set of child names it has might be different. If, on the
-other hand, you act upon the object using its pathname, then a different
-object might be in that place, which can result in more kinds of surprises.
+have been changed after you queried it and before you acted upon it.  However,
+if you use the URI instead of the pathname of an object when you act upon the
+object, then the only change that can happen is if the object is a directory
+then the set of child names it has might be different. If, on the other hand,
+you act upon the object using its pathname, then a different object might be in
+that place, which can result in more kinds of surprises.
 
 For example, suppose you are writing code which recursively downloads the
 contents of a directory. The first thing your code does is fetch the listing
