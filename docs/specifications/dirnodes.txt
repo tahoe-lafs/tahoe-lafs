@@ -176,30 +176,29 @@ various pieces of a dirnode?
  netstring(cap) = 4+len(cap)
  encrypted(cap) = 16+cap+32
  JSON({}) = 2
- JSON({ctime=float,mtime=float}): 57
- netstring(metadata) = 4+57 = 61
+ JSON({ctime=float,mtime=float,'tahoe':{linkcrtime=float,linkmotime=float}}): 137
+ netstring(metadata) = 4+137 = 141
 
 so a CHK entry is:
- 5+ 4+len(name) + 4+97 + 5+16+97+32 + 4+57
-And a 15-byte filename gives a 336-byte entry. When the entry points at a
+ 5+ 4+len(name) + 4+97 + 5+16+97+32 + 4+137
+And a 15-byte filename gives a 416-byte entry. When the entry points at a
 subdirectory instead of a file, the entry is a little bit smaller. So an
-empty directory uses 0 bytes, a directory with one child uses about 336
-bytes, a directory with two children uses about 672, etc.
+empty directory uses 0 bytes, a directory with one child uses about 416
+bytes, a directory with two children uses about 832, etc.
 
 When the dirnode data is encoding using our default 3-of-10, that means we
-get 112ish bytes of data in each share per child.
+get 139ish bytes of data in each share per child.
 
 The pubkey, signature, and hashes form the first 935ish bytes of the
 container, then comes our data, then about 1216 bytes of encprivkey. So if we
 read the first:
 
  1kB: we get 65bytes of dirnode data : only empty directories
- 1kiB: 89bytes of dirnode data : maybe one short-named subdir
- 2kB: 1065bytes: about 9 entries
- 3kB: 2065bytes: about 18 entries, or 7.5 entries plus the encprivkey
- 4kB: 3065bytes: about 27 entries, or about 16.5 plus the encprivkey
+ 2kB: 1065bytes: about 8
+ 3kB: 2065bytes: about 15 entries, or 6 entries plus the encprivkey
+ 4kB: 3065bytes: about 22 entries, or about 13 plus the encprivkey
 
-So we've written the code to do an initial read of 2kB from each share when
+So we've written the code to do an initial read of 4kB from each share when
 we read the mutable file, which should give good performance (one RTT) for
 small directories.
 

@@ -374,7 +374,7 @@ class ServermapUpdater:
         # fixed-size slots so we can retrieve less data. For now, we'll just
         # read 2000 bytes, which also happens to read enough actual data to
         # pre-fetch a 9-entry dirnode.
-        self._read_size = 2000
+        self._read_size = 4000
         if mode == MODE_CHECK:
             # we use unpack_prefix_and_signature, so we need 1k
             self._read_size = 1000

@@ -415,8 +415,8 @@ class Dirnode(unittest.TestCase,
 
             d.addCallback(lambda res: n.get_metadata_for(u"child"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(sorted(metadata.keys()),
-                                               ["ctime", "mtime"]))
+                          self.failUnlessEqual(set(metadata.keys()),
+                                               set(["tahoe", "ctime", "mtime"])))
 
             d.addCallback(lambda res:
                           self.shouldFail(NoSuchChildError, "gcamap-no",
@@ -438,8 +438,8 @@ class Dirnode(unittest.TestCase,
                 child, metadata = res
                 self.failUnlessEqual(child.get_uri(),
                                      fake_file_uri.to_string())
-                self.failUnlessEqual(sorted(metadata.keys()),
-                                     ["ctime", "mtime"])
+                self.failUnlessEqual(set(metadata.keys()),
+                                     set(["tahoe", "ctime", "mtime"]))
             d.addCallback(_check_child_and_metadata2)
 
             d.addCallback(lambda res:
@@ -447,22 +447,31 @@ class Dirnode(unittest.TestCase,
             def _check_child_and_metadata3(res):
                 child, metadata = res
                 self.failUnless(isinstance(child, FakeDirectoryNode))
-                self.failUnlessEqual(sorted(metadata.keys()),
-                                     ["ctime", "mtime"])
+                self.failUnlessEqual(set(metadata.keys()),
+                                     set(["tahoe", "ctime", "mtime"]))
             d.addCallback(_check_child_and_metadata3)
 
             # set_uri + metadata
             # it should be possible to add a child without any metadata
             d.addCallback(lambda res: n.set_uri(u"c2", fake_file_uri.to_string(), {}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
-            d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
+            d.addCallback(lambda metadata: self.failUnlessEqual(metadata.keys(), ['tahoe']))
+
+            # You can't override the link timestamps.
+            d.addCallback(lambda res: n.set_uri(u"c2", fake_file_uri.to_string(), { 'tahoe': {'linkcrtime': "bogus"}}))
+            d.addCallback(lambda res: n.get_metadata_for(u"c2"))
+            def _has_good_linkcrtime(metadata):
+                self.failUnless(metadata.has_key('tahoe'))
+                self.failUnless(metadata['tahoe'].has_key('linkcrtime'))
+                self.failIfEqual(metadata['tahoe']['linkcrtime'], 'bogus')
+            d.addCallback(_has_good_linkcrtime)
 
             # if we don't set any defaults, the child should get timestamps
             d.addCallback(lambda res: n.set_uri(u"c3", fake_file_uri.to_string()))
             d.addCallback(lambda res: n.get_metadata_for(u"c3"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(sorted(metadata.keys()),
-                                               ["ctime", "mtime"]))
+                          self.failUnlessEqual(set(metadata.keys()),
+                                               set(["tahoe", "ctime", "mtime"])))
 
             # or we can add specific metadata at set_uri() time, which
             # overrides the timestamps
@@ -470,7 +479,8 @@ class Dirnode(unittest.TestCase,
                                                 {"key": "value"}))
             d.addCallback(lambda res: n.get_metadata_for(u"c4"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(metadata, {"key": "value"}))
+                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and 
+                                              (metadata['key'] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"c2"))
             d.addCallback(lambda res: n.delete(u"c3"))
@@ -486,14 +496,14 @@ class Dirnode(unittest.TestCase,
                                           n.set_node, u"d2", n2,
                                           overwrite=False))
             d.addCallback(lambda res: n.get_metadata_for(u"d2"))
-            d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
+            d.addCallback(lambda metadata: self.failUnlessEqual(metadata.keys(), ['tahoe']))
 
             # if we don't set any defaults, the child should get timestamps
             d.addCallback(lambda res: n.set_node(u"d3", n))
             d.addCallback(lambda res: n.get_metadata_for(u"d3"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(sorted(metadata.keys()),
-                                               ["ctime", "mtime"]))
+                          self.failUnlessEqual(set(metadata.keys()),
+                                               set(["tahoe", "ctime", "mtime"])))
 
             # or we can add specific metadata at set_node() time, which
             # overrides the timestamps
@@ -501,7 +511,8 @@ class Dirnode(unittest.TestCase,
                                                 {"key": "value"}))
             d.addCallback(lambda res: n.get_metadata_for(u"d4"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(metadata, {"key": "value"}))
+                          self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and 
+                                          (metadata['key'] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"d2"))
             d.addCallback(lambda res: n.delete(u"d3"))
@@ -525,13 +536,15 @@ class Dirnode(unittest.TestCase,
             d.addCallback(lambda children: self.failIf(u"new" in children))
             d.addCallback(lambda res: n.get_metadata_for(u"e1"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(sorted(metadata.keys()),
-                                               ["ctime", "mtime"]))
+                          self.failUnlessEqual(set(metadata.keys()),
+                                               set(["tahoe", "ctime", "mtime"])))
             d.addCallback(lambda res: n.get_metadata_for(u"e2"))
-            d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
+            d.addCallback(lambda metadata: 
+                          self.failUnlessEqual(set(metadata.keys()), set(['tahoe'])))
             d.addCallback(lambda res: n.get_metadata_for(u"e3"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(metadata, {"key": "value"}))
+                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) 
+                                              and (metadata['key'] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"e1"))
             d.addCallback(lambda res: n.delete(u"e2"))
@@ -555,13 +568,15 @@ class Dirnode(unittest.TestCase,
             d.addCallback(lambda children: self.failIf(u"new" in children))
             d.addCallback(lambda res: n.get_metadata_for(u"f1"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(sorted(metadata.keys()),
-                                               ["ctime", "mtime"]))
+                          self.failUnlessEqual(set(metadata.keys()),
+                                               set(["tahoe", "ctime", "mtime"])))
             d.addCallback(lambda res: n.get_metadata_for(u"f2"))
-            d.addCallback(lambda metadata: self.failUnlessEqual(metadata, {}))
+            d.addCallback(
+                lambda metadata: self.failUnlessEqual(set(metadata.keys()), set(['tahoe'])))
             d.addCallback(lambda res: n.get_metadata_for(u"f3"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(metadata, {"key": "value"}))
+                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and 
+                                              (metadata['key'] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"f1"))
             d.addCallback(lambda res: n.delete(u"f2"))
@@ -627,8 +642,8 @@ class Dirnode(unittest.TestCase,
             d.addCallback(lambda res: n.set_node(u"no_timestamps", n))
             d.addCallback(lambda res: n.get_metadata_for(u"no_timestamps"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(sorted(metadata.keys()),
-                                               ["ctime", "mtime"]))
+                          self.failUnlessEqual(set(metadata.keys()),
+                                               set(["tahoe", "ctime", "mtime"])))
             d.addCallback(lambda res: n.delete(u"no_timestamps"))
 
             d.addCallback(lambda res: n.delete(u"subdir"))
@@ -658,8 +673,8 @@ class Dirnode(unittest.TestCase,
                                                sorted([u"child", u"newfile"])))
             d.addCallback(lambda res: n.get_metadata_for(u"newfile"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(sorted(metadata.keys()),
-                                               ["ctime", "mtime"]))
+                          self.failUnlessEqual(set(metadata.keys()),
+                                               set(["tahoe", "ctime", "mtime"])))
 
             d.addCallback(lambda res: n.add_file(u"newfile-metadata",
                                                  uploadable,
@@ -668,7 +683,8 @@ class Dirnode(unittest.TestCase,
                           self.failUnless(IFileNode.providedBy(newnode)))
             d.addCallback(lambda res: n.get_metadata_for(u"newfile-metadata"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(metadata, {"key": "value"}))
+                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and 
+                                              (metadata['key'] == "value"), metadata))
             d.addCallback(lambda res: n.delete(u"newfile-metadata"))
 
             d.addCallback(lambda res: n.create_empty_directory(u"subdir2"))

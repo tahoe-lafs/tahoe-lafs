@@ -401,45 +401,55 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
 
    GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json :
 
-    [ "filenode", { "ro_uri": file_uri,
-                    "verify_uri": verify_uri,
-                    "size": bytes,
-                    "mutable": false,
-                    "metadata": {"ctime": 1202777696.7564139,
-                                 "mtime": 1202777696.7564139
-                                 }
-                    } ]
+    [ "filenode", {
+      "ro_uri": file_uri,
+      "verify_uri": verify_uri,
+      "size": bytes,
+      "mutable": false,
+      "metadata": {
+        "ctime": 1202777696.7564139,
+        "mtime": 1202777696.7564139,
+        "tahoe": {
+          "linkcrtime": 1202777696.7564139,
+          "linkmotime": 1202777696.7564139,
+          } } } ]
 
   If it is a directory, then it includes information about the children of
   this directory, as a mapping from child name to a set of data about the
   child (the same data that would appear in a corresponding GET?t=json of the
   child itself). The child entries also include metadata about each child,
-  including creation- and modification- timestamps. The output looks like
+  including link-creation- and link-change- timestamps. The output looks like
   this:
 
    GET /uri/$DIRCAP?t=json :
    GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=json :
 
-    [ "dirnode", { "rw_uri": read_write_uri,
-                   "ro_uri": read_only_uri,
-                   "verify_uri": verify_uri,
-                   "mutable": true,
-                   "children": {
-                     "foo.txt": [ "filenode", { "ro_uri": uri,
-                                                "size": bytes,
-                                                "metadata": {
-                                                  "ctime": 1202777696.7564139,
-                                                  "mtime": 1202777696.7564139
-                                                 }
-                                               } ],
-                     "subdir":  [ "dirnode", { "rw_uri": rwuri,
-                                               "ro_uri": rouri,
-                                                "metadata": {
-                                                  "ctime": 1202778102.7589991,
-                                                  "mtime": 1202778111.2160511,
-                                                 }
-                                              } ]
-                    } } ]
+    [ "dirnode", {
+      "rw_uri": read_write_uri,
+      "ro_uri": read_only_uri,
+      "verify_uri": verify_uri,
+      "mutable": true,
+      "children": {
+        "foo.txt": [ "filenode", {
+            "ro_uri": uri,
+            "size": bytes,
+            "metadata": {
+              "ctime": 1202777696.7564139,
+              "mtime": 1202777696.7564139,
+              "tahoe": {
+                "linkcrtime": 1202777696.7564139,
+                "linkmotime": 1202777696.7564139,
+                } } } ],
+      "subdir":  [ "dirnode", {
+          "rw_uri": rwuri,
+          "ro_uri": rouri,
+          "metadata": {
+            "ctime": 1202778102.7589991,
+            "mtime": 1202778111.2160511,
+            "tahoe": {
+              "linkcrtime": 1202777696.7564139,
+              "linkmotime": 1202777696.7564139,
+              } } } ] } } ]
 
   In the above example, note how 'children' is a dictionary in which the keys
   are child names and the values depend upon whether the child is a file or a
@@ -452,6 +462,91 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
   if and only if you have read-write access to that directory. The verify_uri
   field will be presend if and only if the object has a verify-cap
   (non-distributed LIT files do not have verify-caps).
+
+==== About the metadata ====
+
+  The value of the 'mtime' key and of the 'tahoe':'linkmotime' is updated
+  whenever a link to a child is set. The value of the 'ctime' key and of the
+  'tahoe':'linkcrtime' key is updated whenever a link to a child is created --
+  i.e. when there was not previously a link under that name.
+
+  In Tahoe earlier than v1.4.0, only the 'mtime'/'ctime' keys were populated.
+  Starting in Tahoe v1.4.0, the 'linkmotime'/'linkcrtime' keys in the 'tahoe'
+  sub-dict are also populated.
+
+  The reason we added the new values in Tahoe v1.4.0 is that there is an
+  undocumented API (search the source code for 'set_children') which you can
+  use to overwrite the values of the 'mtime'/'ctime' pair, and this
+  set_children API is used by the "tahoe backup" command (both in Tahoe v1.3.0
+  and in Tahoe v1.4.0) to set the 'mtime' and 'ctime' values when backing up
+  files from a local filesystem into the Tahoe filesystem. As of Tahoe v1.4.0,
+  the set_children API cannot be used to set anything under the 'tahoe' key of
+  the metadata dict -- if you include 'tahoe' keys in your 'metadata' arguments
+  then it will silently ignore those keys.
+
+  Therefore, if the 'tahoe' sub-dict is present, you can rely on the
+  'linkcrtime' and 'linkmotime' values therein to have the semantics described
+  above. (This is assuming that only official Tahoe clients have been used to
+  write those links, and that their system clocks were set to what you expected
+  -- there is nothing preventing someone from editing their Tahoe client or
+  writing their own Tahoe client which would overwrite those values however
+  they like, and there is nothing to constrain their system clock from taking
+  any value.)
+
+  The meaning of the 'ctime'/'mtime' fields are slightly more complex.
+
+  The meaning of the 'mtime' field is: whenever the edge is updated (by an HTTP
+  PUT or POST, as is done by the "tahoe cp" command), then the mtime is set to
+  the current time on the clock of the updating client. Whenever the edge is
+  updated by "tahoe backup" then the mtime is instead set to the value which
+  the updating client read from its local filesystem for the "mtime" of the
+  local file in question, which means the last time the contents of that file
+  were changed. Note however, that if the edge in the Tahoe filesystem points
+  to a mutable file and the contents of that mutable file is changed then the
+  "mtime" value on that edge will *not* be updated, since the edge itself
+  wasn't updated -- only the mutable file was.
+
+  The meaning of the 'ctime' field is even more complex. Whenever a new edge is
+  created (by an HTTP PUT or POST, as is done by "tahoe cp") then the ctime is
+  set to the current time on the clock of the updating client. Whenever the
+  edge is created *or updated* by "tahoe backup" then the ctime is instead set
+  to the value which the updating client read from its local filesystem. On
+  Windows, it reads the timestamp of when the local file was created and puts
+  that into the "ctime", and on other platforms it reads the timestamp of the
+  most recent time that either the contents or the metadata of the local file
+  was changed and puts that into the ctime. Again, if the edge points to a
+  mutable file and the content of that mutable file is changed then the ctime
+  will not be updated in any case.
+
+  Therefore there are several ways that the 'ctime' field could be confusing: 
+
+  1. You might be confused about whether it reflects the time of the creation
+  of a link in the Tahoe filesystem or a timestamp copied in from a local
+  filesystem.
+
+  2. You might be confused about whether it is a copy of the file creation time
+  (if "tahoe backup" was run on a Windows system) or of the last
+  contents-or-metadata change (if "tahoe backup" was run on a different
+  operating system).
+
+  3. You might be confused by the fact that changing the contents of a mutable
+  file in Tahoe don't have any effect on any links pointing at that file in any
+  directories, although "tahoe backup" sets the link 'ctime'/'mtime' to reflect
+  timestamps about the local file corresponding to the Tahoe file to which the
+  link points.
+
+  4. Also, quite apart from Tahoe, you might be confused about the meaning of
+  the 'ctime' in unix local filesystems, which people sometimes think means
+  file creation time, but which actually means, in unix local filesystems, the
+  most recent time that the file contents or the file metadata (such as owner,
+  permission bits, extended attributes, etc.) has changed. Note that although
+  'ctime' does not mean file creation time in Unix, it does mean link creation
+  time in Tahoe, unless the "tahoe backup" command has been used on that link,
+  in which case it means something about the local filesystem file which
+  corresponds to the Tahoe file which is pointed at by the link. It means
+  either file creation time of the local file (if "tahoe backup" was run on
+  Windows) or file-contents-or-metadata-update-time of the local file (if
+  "tahoe backup" was run on a different operating system).
 
 
 === Attaching an existing File or Directory by its read- or write- cap ===

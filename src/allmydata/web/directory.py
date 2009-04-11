@@ -13,7 +13,7 @@ from nevow.inevow import IRequest
 
 from foolscap.eventual import fireEventually
 
-from allmydata.util import base32
+from allmydata.util import base32, time_format
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError
@@ -592,16 +592,25 @@ class DirectoryAsHTML(rend.Page):
         ctx.fillSlots("rename", rename)
 
         times = []
-        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
-        if "ctime" in metadata:
-            ctime = time.strftime(TIME_FORMAT,
-                                  time.localtime(metadata["ctime"]))
-            times.append("c: " + ctime)
-        if "mtime" in metadata:
-            mtime = time.strftime(TIME_FORMAT,
-                                  time.localtime(metadata["mtime"]))
+        linkcrtime = metadata.get('tahoe', {}).get("linkcrtime")
+        if linkcrtime is not None:
+            times.append("lcr: " + time_format.iso_local(linkcrtime))
+        else:
+            # For backwards-compatibility with links last modified by Tahoe < 1.4.0:
+            if "ctime" in metadata:
+                ctime = time_format.iso_local(metadata["ctime"])
+                times.append("c: " + ctime)
+        linkmotime = metadata.get('tahoe', {}).get("linkmotime")
+        if linkmotime is not None:
             if times:
                 times.append(T.br())
+            times.append("lmo: " + time_format.iso_local(linkmotime))
+        else:
+            # For backwards-compatibility with links last modified by Tahoe < 1.4.0:
+            if "mtime" in metadata:
+                mtime = time_format.iso_local(metadata["mtime"])
+                if times:
+                    times.append(T.br())
                 times.append("m: " + mtime)
         ctx.fillSlots("times", times)
 

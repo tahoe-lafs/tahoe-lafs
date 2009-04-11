@@ -83,15 +83,41 @@ class Adder:
                 metadata = children[name][1].copy()
             else:
                 metadata = {"ctime": now,
-                            "mtime": now}
-            if new_metadata is None:
-                # update timestamps
+                            "mtime": now,
+                            "tahoe": {
+                                "linkcrtime": now,
+                                "linkmotime": now,
+                                }
+                            }
+
+            if new_metadata is not None:
+                # Overwrite all metadata.
+                newmd = new_metadata.copy()
+
+                # Except 'tahoe'.
+                if newmd.has_key('tahoe'):
+                    del newmd['tahoe']
+                if metadata.has_key('tahoe'):
+                    newmd['tahoe'] = metadata['tahoe']
+
+                metadata = newmd
+            else:
+                # For backwards compatibility with Tahoe < 1.4.0:
                 if "ctime" not in metadata:
                     metadata["ctime"] = now
                 metadata["mtime"] = now
-            else:
-                # just replace it
-                metadata = new_metadata.copy()
+
+            # update timestamps
+            sysmd = metadata.get('tahoe', {})
+            if not 'linkcrtime' in sysmd:
+                if "ctime" in metadata:
+                    # In Tahoe < 1.4.0 we used the word "ctime" to mean what Tahoe >= 1.4.0
+                    # calls "linkcrtime".
+                    sysmd["linkcrtime"] = metadata["ctime"]
+                else:
+                    sysmd["linkcrtime"] = now
+            sysmd["linkmotime"] = now
+
             children[name] = (child, metadata)
         new_contents = self.node._pack_contents(children)
         return new_contents

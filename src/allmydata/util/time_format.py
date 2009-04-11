@@ -19,6 +19,11 @@ def iso_utc(now=None, sep='_', t=time.time):
         now = t()
     return datetime.datetime.utcfromtimestamp(now).isoformat(sep)
 
+def iso_local(now=None, sep='_', t=time.time):
+    if now is None:
+        now = t()
+    return datetime.datetime.fromtimestamp(now).isoformat(sep)
+
 def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})[T_ ](?P<hour>\d{2}):(?P<minute>\d{2}):(?P<second>\d{2})(?P<subsecond>\.\d+)?")):
     """
     The inverse of iso_utc().

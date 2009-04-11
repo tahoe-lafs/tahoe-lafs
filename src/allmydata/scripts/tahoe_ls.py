@@ -65,8 +65,17 @@ def list(options):
         name = unicode(name)
         child = children[name]
         childtype = child[0]
-        ctime = child[1]["metadata"].get("ctime")
-        mtime = child[1]["metadata"].get("mtime")
+
+        # See webapi.txt for a discussion of the meanings of unix local
+        # filesystem mtime and ctime, Tahoe mtime and ctime, and Tahoe
+        # linkmotime and linkcrtime.
+        ctime = child[1].get("metadata", {}).get('tahoe', {}).get("linkcrtime")
+        if not ctime:
+            ctime = child[1]["metadata"].get("ctime")
+
+        mtime = child[1].get("metadata", {}).get('tahoe', {}).get("linkmotime")
+        if not mtime:
+            mtime = child[1]["metadata"].get("mtime")
         rw_uri = child[1].get("rw_uri")
         ro_uri = child[1].get("ro_uri")
         if ctime:
