@@ -1,7 +1,6 @@
 
 import simplejson
 import urllib
-import time
 
 from zope.interface import implements
 from twisted.internet import defer

@@ -479,7 +479,7 @@ class Dirnode(unittest.TestCase,
                                                 {"key": "value"}))
             d.addCallback(lambda res: n.get_metadata_for(u"c4"))
             d.addCallback(lambda metadata:
-                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and 
+                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
                                               (metadata['key'] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"c2"))
@@ -511,7 +511,7 @@ class Dirnode(unittest.TestCase,
                                                 {"key": "value"}))
             d.addCallback(lambda res: n.get_metadata_for(u"d4"))
             d.addCallback(lambda metadata:
-                          self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and 
+                          self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
                                           (metadata['key'] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"d2"))
@@ -539,11 +539,11 @@ class Dirnode(unittest.TestCase,
                           self.failUnlessEqual(set(metadata.keys()),
                                                set(["tahoe", "ctime", "mtime"])))
             d.addCallback(lambda res: n.get_metadata_for(u"e2"))
-            d.addCallback(lambda metadata: 
+            d.addCallback(lambda metadata:
                           self.failUnlessEqual(set(metadata.keys()), set(['tahoe'])))
             d.addCallback(lambda res: n.get_metadata_for(u"e3"))
             d.addCallback(lambda metadata:
-                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) 
+                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"]))
                                               and (metadata['key'] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"e1"))
@@ -575,7 +575,7 @@ class Dirnode(unittest.TestCase,
                 lambda metadata: self.failUnlessEqual(set(metadata.keys()), set(['tahoe'])))
             d.addCallback(lambda res: n.get_metadata_for(u"f3"))
             d.addCallback(lambda metadata:
-                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and 
+                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
                                               (metadata['key'] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"f1"))
@@ -683,7 +683,7 @@ class Dirnode(unittest.TestCase,
                           self.failUnless(IFileNode.providedBy(newnode)))
             d.addCallback(lambda res: n.get_metadata_for(u"newfile-metadata"))
             d.addCallback(lambda metadata:
-                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and 
+                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
                                               (metadata['key'] == "value"), metadata))
             d.addCallback(lambda res: n.delete(u"newfile-metadata"))
 
