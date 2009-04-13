@@ -67,9 +67,9 @@ Check/Repair operation) will still be accessible.
 A new "reliability" page was added, with the beginnings of work on a
 statistical loss model. You can tell this page how many servers you are using
 and their independent failure probabilities, and it will tell you the
-likelihood that an arbitrary file will survive each repair period. A partial
-paper, written by Shawn Willden, has been added to
-docs/proposed/lossmodel.lyx .
+likelihood that an arbitrary file will survive each repair period. The
+"numpy" package must be installed to access this page. A partial paper,
+written by Shawn Willden, has been added to docs/proposed/lossmodel.lyx .
 
 ** CLI changes
 
