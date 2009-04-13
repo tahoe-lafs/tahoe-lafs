@@ -238,7 +238,7 @@ How well does this design meet the goals?
      
 
 
-=== Confidentiality leaks in the vdrive server ===
+=== Confidentiality leaks in the storage servers ===
 
 Dirnode (and the mutable files upon which they are based) are very private
 against other clients: traffic between the client and the storage servers is
@@ -259,7 +259,7 @@ attacker may be able to build up a graph with the same shape as the plaintext
 filesystem, but with unlabeled edges and unknown file contents.
 
 
-=== Integrity failures in the vdrive server ===
+=== Integrity failures in the storage servers ===
 
 The mutable file's integrity mechanism (RSA signature on the hash of the file
 contents) prevents the storage server from modifying the dirnode's contents
@@ -268,8 +268,8 @@ unavailable, but not corrupt it.
 
 A sufficient number of colluding storage servers can perform a rollback
 attack: replace all shares of the whole mutable file with an earlier version.
-TODO: To prevent this, when retrieving the contents of a mutable file, the
-client should query more servers than necessary and use the highest available
+To prevent this, when retrieving the contents of a mutable file, the
+client queries more servers than necessary and uses the highest available
 version number. This insures that one or two misbehaving storage servers
 cannot cause this rollback on their own.
 
