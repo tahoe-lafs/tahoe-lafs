@@ -104,38 +104,6 @@ class Dirnode(unittest.TestCase,
         d.addCallback(_done)
         return d
 
-    def test_corrupt(self):
-        d = self.client.create_empty_dirnode()
-        def _created(dn):
-            u = make_mutable_file_uri()
-            d = dn.set_uri(u"child", u.to_string(), {})
-            d.addCallback(lambda res: dn.list())
-            def _check1(children):
-                self.failUnless(u"child" in children)
-            d.addCallback(_check1)
-            d.addCallback(lambda res:
-                          self.shouldFail(NoSuchChildError, "get bogus", None,
-                                          dn.get, u"bogus"))
-            def _corrupt(res):
-                filenode = dn._node
-                si = IURI(filenode.get_uri()).storage_index
-                old_contents = filenode.all_contents[si]
-                # We happen to know that the writecap MAC is near the end of the string. Flip
-                # one of its bits and make sure we ignore the corruption.
-                new_contents = testutil.flip_bit(old_contents, -10)
-                # TODO: also test flipping bits in the other portions
-                filenode.all_contents[si] = new_contents
-            d.addCallback(_corrupt)
-            def _check2(res):
-                d = dn.list()
-                def _c3(res):
-                    self.failUnless(res.has_key('child'))
-                d.addCallback(_c3)
-            d.addCallback(_check2)
-            return d
-        d.addCallback(_created)
-        return d
-
     def test_check(self):
         d = self.client.create_empty_dirnode()
         d.addCallback(lambda dn: dn.check(Monitor()))
