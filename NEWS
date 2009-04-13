@@ -1,6 +1,6 @@
 User visible changes in Tahoe.  -*- outline -*-
 
-* Release ? (?)
+* Release 1.4.0 (2009-04-13)
 
 ** Garbage Collection
 
@@ -26,18 +26,18 @@ at all.
 
 ** Security/Usability Problems Fixed
 
-The previous codebase permitted a small timing attack (due to our use of
+A super-linear algorithm in the Merkle Tree code was fixed, which previously
+caused e.g. download of a 10GB file to take several hours before the first
+byte of plaintext could be produced. The new "alacrity" is about 2 minutes. A
+future release should reduce this to a few seconds by fixing ticket #442.
+
+The previous version permitted a small timing attack (due to our use of
 strcmp) against the write-enabler and lease-renewal/cancel secrets. An
 attacker who could measure response-time variations of approximatly 3ns
 against a very noisy background time of about 15ms might be able to guess
 these secrets. We do not believe this attack was actually feasible. This
 release closes the attack by first hashing the two strings to be compared
 with a random secret.
-
-A super-linear algorithm in the Merkle Tree code was fixed, which previously
-caused e.g. download of a 10GB file to take several hours before the first
-byte of plaintext could be produced. The new "alacrity" is about 2 minutes. A
-future release should reduce this to a few seconds by fixing ticket #442.
 
 ** webapi changes
 
