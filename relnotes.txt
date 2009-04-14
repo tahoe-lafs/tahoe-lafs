@@ -1,30 +1,26 @@
-ANNOUNCING allmydata.org "Tahoe", the Least-Authority Filesystem, v1.4
+ANNOUNCING Tahoe, the Least-Authority Filesystem, v1.4
 
 The allmydata.org team is pleased to announce the release of version
 1.4.0 of "Tahoe", the Lightweight-Authorization Filesystem. This is the
-first release of Tahoe which was created solely as a labor of love by
-volunteers -- it is no longer funded by allmydata.com (see [1] for
+first release of Tahoe-LAFS which was created solely as a labor of love
+by volunteers -- it is no longer funded by allmydata.com (see [1] for
 details).
 
-Tahoe-LAFS is a secure, decentralized, fault-tolerant filesystem.  All
-of the source code is publicly available under Free Software, Open
-Source licences.
+Tahoe-LAFS is a secure, decentralized, fault-tolerant cloud storage
+system.  All of the source code is publicly available under Free
+Software, Open Source licences.
 
-This filesystem is distributed over multiple peers in such a way the
-filesystem continues to operate correctly even when some of the peers
-are unavailable, malfunctioning, or malicious. Users can easily share
-files with each other, using a simple and flexible access control
-scheme.
-
-Here is the one-page explanation of Tahoe's unique security and
-fault-tolerance properties:
+This filesystem is distributed over multiple servers in such a way the
+filesystem continues to operate correctly even when some of the servers
+are unavailable, malfunctioning, or malicious. Here is the one-page
+explanation of Tahoe's unique security and fault-tolerance properties:
 
 http://allmydata.org/source/tahoe/trunk/docs/about.html
 
 This is the successor to Tahoe-LAFS v1.3, which was released February
 13, 2009 [2].  This is a major new release, adding garbage collection,
-improved diagnostics and error-reporting, and fixing a major performance
-problem when downloading large (many GB) files.
+improved diagnostics and error-reporting, and fixing a critical
+performance problem when downloading large (many GB) files.
 
 See the NEWS file [3] and the known_issues.txt file [4] for more
 information.
@@ -45,12 +41,10 @@ v1.0. v1.4 clients can read files produced by clients of all versions since
 v1.0.  v1.4 servers can serve clients of all versions back to v1.0 and v1.4
 clients can use servers of all versions back to v1.0.
 
-This is the fifth release in the version 1 series.  We believe that
-this version of Tahoe is stable enough to use as a permanent store of
-valuable data.  The version 1 series of Tahoe will be actively
-supported and maintained for the forseeable future, and future versions
-of Tahoe will retain the ability to read files and directories produced
-by Tahoe v1 for the forseeable future.
+This is the fifth release in the version 1 series. The version 1 series
+of Tahoe will be actively supported and maintained for the forseeable
+future, and future versions of Tahoe will retain the ability to read
+files and directories produced by Tahoe v1 for the forseeable future.
 
 The version 1 branch of Tahoe is the basis of the consumer backup
 product from Allmydata, Inc. -- http://allmydata.com .
@@ -58,11 +52,10 @@ product from Allmydata, Inc. -- http://allmydata.com .
 
 WHAT IS IT GOOD FOR?
 
-With Tahoe, you can distribute your filesystem across a set of
-computers, such that if some of the computers fail or turn out to be
-malicious, the entire filesystem continues to be available, thanks to
-the remaining computers.  You can also share your files with other
-users, using a simple and flexible access control scheme.
+With Tahoe, you can distribute your filesystem across a set of servers,
+such that if some of them fail or even turn out to be malicious, the
+entire filesystem continues to be available. You can share your files
+with other users, using a simple and flexible access control scheme.
 
 Because this software is new, we do not categorically recommend it as
 the sole repository of data which is extremely confidential or
