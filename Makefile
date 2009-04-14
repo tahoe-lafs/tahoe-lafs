@@ -112,9 +112,6 @@ TEST=allmydata
 test: build src/allmydata/_version.py
 	$(PYTHON) setup.py test $(TRIALARGS) -s $(TEST)
 
-quicktest: .built .checked-deps
-	$(PYTHON) setup.py test $(TRIALARGS) -s $(TEST)
-
 fuse-test: .built .checked-deps
 	$(RUNPP) -d contrib/fuse -p -c runtests.py
 
@@ -122,9 +119,12 @@ test-figleaf: build src/allmydata/_version.py
 	rm -f .figleaf
 	$(PYTHON) setup.py trial --reporter=bwverbose-figleaf -s $(TEST)
 
-quicktest-figleaf: src/allmydata/_version.py
+quicktest:
+	$(PYTHON) misc/run-with-pythonpath.py trial $(TRIALARGS) $(TEST)
+
+quicktest-figleaf:
 	rm -f .figleaf
-	$(PYTHON) setup.py trial --reporter=bwverbose-figleaf -s $(TEST)
+	$(PYTHON) misc/run-with-pythonpath.py trial --reporter=bwverbose-figleaf $(TEST)
 
 figleaf-output:
 	$(RUNPP) -p -c "misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes"
