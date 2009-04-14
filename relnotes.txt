@@ -1,7 +1,7 @@
 ANNOUNCING Tahoe, the Least-Authority Filesystem, v1.4
 
 The allmydata.org team is pleased to announce the release of version
-1.4.0 of "Tahoe", the Lightweight-Authorization Filesystem. This is the
+1.4.1 of "Tahoe", the Lightweight-Authorization Filesystem. This is the
 first release of Tahoe-LAFS which was created solely as a labor of love
 by volunteers -- it is no longer funded by allmydata.com (see [1] for
 details).
