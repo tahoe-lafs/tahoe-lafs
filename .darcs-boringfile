@@ -28,6 +28,7 @@
 (^|/)BitKeeper($|/)
 (^|/)ChangeSet($|/)
 (^|/)\.svn($|/)
+(^|/)\.git($|/)
 \.py[co]$
 \#
 \.cvsignore$
