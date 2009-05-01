@@ -711,7 +711,7 @@ class ProvisioningTool(rend.Page):
             from allmydata import reliability
             # we import this just to test to see if the page is available
             _hush_pyflakes = reliability
-            f = [T.div[T.a(href="reliability.html")["Reliability Math"]], f]
+            f = [T.div[T.a(href="../reliability")["Reliability Math"]], f]
         except ImportError:
             pass
 
