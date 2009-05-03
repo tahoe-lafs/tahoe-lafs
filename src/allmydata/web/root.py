@@ -177,6 +177,7 @@ class Root(rend.Page):
     child_report_incident = IncidentReporter()
     #child_server # let's reserve this for storage-server-over-HTTP
 
+    # FIXME: This code is duplicated in root.py and introweb.py.
     def data_version(self, ctx, data):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):

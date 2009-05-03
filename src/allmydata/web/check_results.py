@@ -109,6 +109,8 @@ class ResultsBase:
         sharemap = []
         servers = {}
 
+        # FIXME: The two tables below contain nickname-and-nodeid table column markup which is duplicated with each other, introducer.xhtml, and deep-check-results.xhtml. All of these (and any other presentations of nickname-and-nodeid) should be combined.
+
         for shareid in sorted(data["sharemap"].keys()):
             serverids = data["sharemap"][shareid]
             for i,serverid in enumerate(serverids):
