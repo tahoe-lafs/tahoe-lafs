@@ -327,6 +327,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             return res
         d.addBoth(_remove_hotline)
         return d
+    test_introducer.timeout = 240 # This hit the 120-second timeout on "François Lenny-armv5tel"
 
     def test_client_no_noise(self):
         self.skip_on_cygwin()
