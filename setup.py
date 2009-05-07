@@ -97,8 +97,8 @@ setup_requires = []
 # The darcsver command from the darcsver plugin is needed to initialize the
 # distribution's .version attribute correctly. (It does this either by
 # examining darcs history, or if that fails by reading the
-# setuptools_trial/_version.py file). darcsver will also write a new version
-# stamp in setuptools_trial/_version.py, with a version number derived from
+# src/allmydata/_version.py file). darcsver will also write a new version
+# stamp in src/allmydata/_version.py, with a version number derived from
 # darcs history. Note that the setup.cfg file has an "[aliases]" section
 # which enumerates commands that you might run and specifies that it will run
 # darcsver before each one. If you add different commands (or if I forgot
