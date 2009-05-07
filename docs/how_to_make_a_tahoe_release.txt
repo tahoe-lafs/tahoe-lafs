@@ -1,5 +1,4 @@
-1 update doc files: relnotes.txt, CREDITS, docs/known_issues.txt, NEWS. Add
-  release name and date to top-most item in NEWS.
+1 update doc files: relnotes.txt, CREDITS, docs/known_issues.txt, NEWS. Add release name and date to top-most item in NEWS.
 2 change docs/install.html to point to just the current tahoe-X.Y.Z.zip source code file, or else to point to a directory which contains only tahoe-X.Y.Z.* source code files
 3 darcs pull
 4 make tag
@@ -9,8 +8,7 @@
 8 make sure buildbot is green
 9 make sure debs got built and uploaded properly
 10 make sure a sumo sdist tarball got built and uploaded properly
-11 send out relnotes.txt
-  tahoe-announce@lists.allmydata.org, tahoe-dev@lists.allmydata.org, p2p-hackers@lists.zooko.com, lwn@lwn.net, cap-talk@mail.eros-os.org, cryptography@metzdown.com, twisted-python@twistedmatrix.com, fuse-devel@lists.sourceforge.net, duplicity-talk@nongnu.org, news@phoronix.com, python-list@python.org, cygwin@cygwin.com, linked in cloud storage group, The Boulder Linux Users' Group, cryptopp-users@googlegroups.com
+11 send out relnotes.txt: tahoe-announce@lists.allmydata.org, tahoe-dev@lists.allmydata.org, p2p-hackers@lists.zooko.com, lwn@lwn.net, cap-talk@mail.eros-os.org, cryptography@metzdown.com, twisted-python@twistedmatrix.com, fuse-devel@lists.sourceforge.net, duplicity-talk@nongnu.org, news@phoronix.com, python-list@python.org, cygwin@cygwin.com, linked in cloud storage group, The Boulder Linux Users' Group, cryptopp-users@googlegroups.com, the "decentralization" group on groups.yahoo.com
 12 update Wiki: x front page news, x news, old news, x parade of release notes
 13 update hacktahoe.org
 14 update "current version" information and make an "announcement of new release" on freshmeat
