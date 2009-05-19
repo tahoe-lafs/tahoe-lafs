@@ -12,6 +12,7 @@ from twisted.application import service
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.client import IntroducerClient
 from allmydata.introducer.server import IntroducerService
+from allmydata.introducer.common import make_index
 # test compatibility with old introducer .tac files
 from allmydata.introducer import IntroducerNode
 from allmydata.introducer import old
@@ -271,4 +272,15 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
             self.failUnless(c._introducer_error.check(InsufficientVersionError))
         d.addCallback(_done)
         return d
+
+class Index(unittest.TestCase):
+    def test_make_index(self):
+        # make sure we have a working base64.b32decode. The one in
+        # python2.4.[01] was broken.
+        ann = ('pb://t5g7egomnnktbpydbuijt6zgtmw4oqi5@127.0.0.1:51857/hfzv36i',
+               'storage', 'RIStorageServer.tahoe.allmydata.com',
+               'plancha', 'allmydata-tahoe/1.4.1', '1.0.0')
+        (nodeid, service_name) = make_index(ann)
+        self.failUnlessEqual(nodeid, "\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d")
+        self.failUnlessEqual(service_name, "storage")
 
