@@ -48,7 +48,7 @@ def require_python_2_with_working_base64():
     # python2.4.[01] was broken.
     nodeid_b32 = 't5g7egomnnktbpydbuijt6zgtmw4oqi5'
     from base64 import b32decode
-    nodeid = b32decode(nodeid_b32)
+    nodeid = b32decode(nodeid_b32.upper())
     if nodeid != "\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d":
         raise NotImplementedError("There is a bug in this base64 module: %r.  This was a known issue in Python v2.4.0 and v2.4.1 (http://bugs.python.org/issue1171487 ).  Tahoe-LAFS current requires Python v2.4.2 or greater (but less than v3).  The current Python version is %r" % (base64, sys.version_info,))
 
