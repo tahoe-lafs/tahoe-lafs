@@ -423,7 +423,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb2(res):
             out, err, rc_or_sig = res
             open(HOTLINE_FILE, "w").write("")
-            errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
+            errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
             # self.failUnlessEqual(err, "", errstr) # See test_client_no_noise -- for now we ignore noise.
