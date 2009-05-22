@@ -285,7 +285,7 @@ class Encoder(object):
         self.log("starting shareholders", level=log.NOISY)
         self.set_status("Starting shareholders")
         dl = []
-        for shareid in self.landlords:
+        for shareid in list(self.landlords):
             d = self.landlords[shareid].put_header()
             d.addErrback(self._remove_shareholder, shareid, "start")
             dl.append(d)
@@ -526,7 +526,7 @@ class Encoder(object):
         all_hashes = list(t)
         self.uri_extension_data["crypttext_root_hash"] = t[0]
         dl = []
-        for shareid in self.landlords.keys():
+        for shareid in list(self.landlords):
             dl.append(self.send_crypttext_hash_tree(shareid, all_hashes))
         return self._gather_responses(dl)
 
@@ -611,7 +611,7 @@ class Encoder(object):
         self.log("uri_extension_data is %s" % (ed,), level=log.NOISY, parent=lp)
         self.uri_extension_hash = hashutil.uri_extension_hash(uri_extension)
         dl = []
-        for shareid in self.landlords.keys():
+        for shareid in list(self.landlords):
             dl.append(self.send_uri_extension(shareid, uri_extension))
         return self._gather_responses(dl)
 
@@ -626,7 +626,7 @@ class Encoder(object):
         self.set_status("Closing Shareholders")
         self.set_encode_and_push_progress(extra=0.9)
         dl = []
-        for shareid in self.landlords:
+        for shareid in list(self.landlords):
             d = self.landlords[shareid].close()
             d.addErrback(self._remove_shareholder, shareid, "close")
             dl.append(d)
@@ -653,7 +653,7 @@ class Encoder(object):
         # we need to abort any remaining shareholders, so they'll delete the
         # partial share, allowing someone else to upload it again.
         self.log("aborting shareholders", level=log.UNUSUAL)
-        for shareid in list(self.landlords.keys()):
+        for shareid in list(self.landlords):
             self.landlords[shareid].abort()
         if f.check(defer.FirstError):
             return f.value.subFailure
