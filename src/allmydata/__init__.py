@@ -136,12 +136,12 @@ def get_package_versions_and_locations():
     # because there are a few dependencies that are outside setuptools's ken (Python and
     # platform), and because setuptools might fail to find something even though import finds
     # it:
-    import OpenSSL, allmydata, foolscap, nevow, platform, pycryptopp, setuptools, simplejson, twisted, zfec, zope.interface
+    import OpenSSL, allmydata, foolscap.api, nevow, platform, pycryptopp, setuptools, simplejson, twisted, zfec, zope.interface
 
     d1 = {
         'pyOpenSSL': (OpenSSL.__version__, os.path.dirname(OpenSSL.__file__)),
         'allmydata-tahoe': (allmydata.__version__, os.path.dirname(allmydata.__file__)),
-        'foolscap': (foolscap.__version__, os.path.dirname(foolscap.__file__)),
+        'foolscap': (foolscap.api.__version__, os.path.dirname(foolscap.__file__)),
         'Nevow': (nevow.__version__, os.path.dirname(nevow.__file__)),
         'pycryptopp': (pycryptopp.__version__, os.path.dirname(pycryptopp.__file__)),
         'setuptools': (setuptools.__version__, os.path.dirname(setuptools.__file__)),

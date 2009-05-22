@@ -1,7 +1,7 @@
 
 from zope.interface import Interface
-from foolscap.schema import StringConstraint, TupleOf, SetOf, DictOf, Any
-from foolscap import RemoteInterface
+from foolscap.api import StringConstraint, TupleOf, SetOf, DictOf, Any, \
+    RemoteInterface
 FURL = StringConstraint(1000)
 
 # Announcements are (FURL, service_name, remoteinterface_name,

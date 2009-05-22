@@ -1,6 +1,6 @@
 import exceptions
 
-from foolscap.tokens import Violation
+from foolscap.api import Violation
 
 class ServerFailure(exceptions.Exception):
     # If the server returns a Failure instead of the normal response to a

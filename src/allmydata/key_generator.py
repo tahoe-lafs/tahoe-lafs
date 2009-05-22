@@ -2,7 +2,7 @@
 import os
 import time
 
-import foolscap
+from foolscap.api import Referenceable, Tub
 from zope.interface import implements
 from twisted.internet import reactor
 from twisted.application import service
@@ -11,7 +11,7 @@ from allmydata.util import log
 from pycryptopp.publickey import rsa
 from allmydata.interfaces import RIKeyGenerator
 
-class KeyGenerator(service.MultiService, foolscap.Referenceable):
+class KeyGenerator(service.MultiService, Referenceable):
     implements(RIKeyGenerator)
 
     pool_size = 16 # no. keys to keep on hand in the pool
@@ -79,7 +79,7 @@ class KeyGeneratorService(service.MultiService):
     def __init__(self, basedir='.', display_furl=True, default_key_size=2048):
         service.MultiService.__init__(self)
         self.basedir = basedir
-        self.tub = foolscap.Tub(certFile=os.path.join(self.basedir, 'key_generator.pem'))
+        self.tub = Tub(certFile=os.path.join(self.basedir, 'key_generator.pem'))
         self.tub.setServiceParent(self)
         self.key_generator = KeyGenerator(default_key_size=default_key_size)
         self.key_generator.setServiceParent(self)

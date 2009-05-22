@@ -3,7 +3,7 @@ import os, time, math
 
 from zope.interface import implements
 from twisted.internet import defer
-from foolscap.eventual import fireEventually
+from foolscap.api import fireEventually
 import simplejson
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.filenode import MutableFileNode

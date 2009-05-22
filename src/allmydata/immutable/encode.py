@@ -3,7 +3,7 @@
 import time
 from zope.interface import implements
 from twisted.internet import defer
-from foolscap import eventual
+from foolscap.api import fireEventually
 from allmydata import uri
 from allmydata.storage.server import si_b2a
 from allmydata.hashtree import HashTree
@@ -220,7 +220,7 @@ class Encoder(object):
             }
         self._start_total_timestamp = time.time()
 
-        d = eventual.fireEventually()
+        d = fireEventually()
 
         d.addCallback(lambda res: self.start_all_shareholders())
 
@@ -278,7 +278,7 @@ class Encoder(object):
         # consistency will cause objects to live for longer than you might
         # normally expect.
 
-        return eventual.fireEventually(res)
+        return fireEventually(res)
 
 
     def start_all_shareholders(self):

@@ -28,7 +28,7 @@ import allmydata
 #import amdicon
 import amdlogo
 
-import foolscap
+from foolscap.api import Tub
 from twisted.python import usage
 
 class AuthError(Exception):
@@ -124,7 +124,7 @@ def write_root_cap(root_cap):
 def get_nodeid():
     CERTFILE = "node.pem"
     certfile = os.path.join(get_basedir(), "private", CERTFILE)
-    tub = foolscap.Tub(certFile=certfile)
+    tub = Tub(certFile=certfile)
     return tub.getTubID()
 
 def get_nickname():

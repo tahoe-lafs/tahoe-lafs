@@ -17,8 +17,7 @@ import os.path
 import sha
 from twisted.application import service
 from twisted.internet import reactor
-from foolscap import Referenceable
-from foolscap.eventual import fireEventually
+from foolscap.api import Referenceable, fireEventually
 from base64 import b32encode
 from allmydata import uri as tahoe_uri
 from allmydata.client import Client

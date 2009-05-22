@@ -4,8 +4,7 @@ from zope.interface import implements
 from itertools import count
 from twisted.internet import defer
 from twisted.python import failure
-from foolscap import DeadReferenceError
-from foolscap.eventual import eventually
+from foolscap.api import DeadReferenceError, eventually
 from allmydata.util import base32, hashutil, idlib, log, rrefutil
 from allmydata.storage.server import si_b2a
 from allmydata.interfaces import IServermapUpdaterStatus

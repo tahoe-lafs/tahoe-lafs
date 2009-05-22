@@ -4,7 +4,7 @@ import os, sys
 from twisted.internet import reactor, defer
 from twisted.python import log
 from twisted.application import service
-from foolscap import Tub, eventual
+from foolscap.api import Tub, fireEventually
 
 MB = 1000000
 
@@ -26,7 +26,7 @@ class SpeedTest:
 
     def run(self):
         print "STARTING"
-        d = eventual.fireEventually()
+        d = fireEventually()
         d.addCallback(lambda res: self.setUp())
         d.addCallback(lambda res: self.do_test())
         d.addBoth(self.tearDown)

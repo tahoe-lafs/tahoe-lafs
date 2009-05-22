@@ -3,8 +3,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.application import service
-from foolscap import DeadReferenceError
-from foolscap.eventual import eventually
+from foolscap.api import DeadReferenceError, eventually
 
 from allmydata.util import base32, deferredutil, hashutil, log, mathutil
 from allmydata.util.assertutil import _assert, precondition

@@ -5,7 +5,7 @@ from twisted.internet.interfaces import IConsumer
 from twisted.python import failure
 from twisted.application import service
 from twisted.web.error import Error as WebError
-from foolscap.eventual import flushEventualQueue, fireEventually
+from foolscap.api import flushEventualQueue, fireEventually
 from allmydata import uri, dirnode, client
 from allmydata.introducer.server import IntroducerNode
 from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \

@@ -4,7 +4,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import log
 
-from foolscap.eventual import flushEventualQueue
+from foolscap.api import flushEventualQueue
 from twisted.application import service
 from allmydata.node import Node, formatTimeTahoeStyle
 from allmydata.util import fileutil

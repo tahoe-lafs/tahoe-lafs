@@ -3,8 +3,7 @@ from zope.interface import implements
 from twisted.python import failure
 from twisted.internet import defer
 from twisted.application import service
-from foolscap import Referenceable, Copyable, RemoteCopy
-from foolscap import eventual
+from foolscap.api import Referenceable, Copyable, RemoteCopy, fireEventually
 
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
@@ -529,7 +528,7 @@ class EncryptAnUploadable:
         # actually synchronous too, we'd blow the stack unless we stall for a
         # tick. Once you accept a Deferred from IUploadable.read(), you must
         # be prepared to have it fire immediately too.
-        d.addCallback(eventual.fireEventually)
+        d.addCallback(fireEventually)
         def _good(plaintext):
             # and encrypt it..
             # o/' over the fields we go, hashing all the way, sHA! sHA! sHA! o/'

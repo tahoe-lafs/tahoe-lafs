@@ -1,7 +1,7 @@
 
 import time
 from nevow import rend, inevow
-from foolscap.referenceable import SturdyRef
+from foolscap.api import SturdyRef
 from twisted.internet import address
 import allmydata
 import simplejson

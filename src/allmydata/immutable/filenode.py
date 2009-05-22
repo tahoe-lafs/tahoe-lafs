@@ -4,7 +4,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.protocols import basic
-from foolscap.eventual import eventually
+from foolscap.api import eventually
 from allmydata.interfaces import IFileNode, IFileURI, ICheckable, \
      IDownloadTarget, IUploadResults
 from allmydata.util import dictutil, log, base32

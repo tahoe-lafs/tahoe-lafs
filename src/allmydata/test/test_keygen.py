@@ -3,14 +3,14 @@ import os
 from twisted.trial import unittest
 from twisted.application import service
 
-from foolscap import Tub, eventual
+from foolscap.api import Tub, fireEventually, flushEventualQueue
 
 from allmydata import key_generator
 from allmydata.util import pollmixin
 from pycryptopp.publickey import rsa
 
 def flush_but_dont_ignore(res):
-    d = eventual.flushEventualQueue()
+    d = flushEventualQueue()
     def _done(ignored):
         return res
     d.addCallback(_done)
@@ -25,11 +25,11 @@ class KeyGenService(unittest.TestCase, pollmixin.PollMixin):
         t.setServiceParent(self.parent)
         t.listenOn("tcp:0")
         t.setLocationAutomatically()
-        return eventual.fireEventually()
+        return fireEventually()
 
     def tearDown(self):
         d = self.parent.stopService()
-        d.addCallback(eventual.fireEventually)
+        d.addCallback(fireEventually)
         d.addBoth(flush_but_dont_ignore)
         return d
 
@@ -50,7 +50,7 @@ class KeyGenService(unittest.TestCase, pollmixin.PollMixin):
             return len(kgs.key_generator.keypool) == kgs.key_generator.pool_size
 
         # first wait for key gen pool to fill up
-        d = eventual.fireEventually()
+        d = fireEventually()
         d.addCallback(p, 'waiting for pool to fill up')
         d.addCallback(lambda junk: self.poll(keypool_full))
 

@@ -5,14 +5,12 @@ from base64 import b32decode, b32encode
 from twisted.python import log as twlog
 from twisted.application import service
 from twisted.internet import defer, reactor
-from foolscap import Tub, eventual
+from foolscap.api import Tub, eventually, app_versions
 import foolscap.logging.log
 from allmydata import get_package_versions, get_package_versions_string
 from allmydata.util import log
 from allmydata.util import fileutil, iputil, observer
 from allmydata.util.assertutil import precondition, _assert
-
-from foolscap.logging import app_versions
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
@@ -243,7 +241,7 @@ class Node(service.MultiService):
         except EnvironmentError:
             pass
         # Delay until the reactor is running.
-        eventual.eventually(self._startService)
+        eventually(self._startService)
 
     def _startService(self):
         precondition(reactor.running)

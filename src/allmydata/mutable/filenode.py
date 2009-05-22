@@ -3,7 +3,7 @@ import random
 
 from zope.interface import implements
 from twisted.internet import defer, reactor
-from foolscap.eventual import eventually
+from foolscap.api import eventually
 from allmydata.interfaces import IMutableFileNode, IMutableFileURI, \
      ICheckable, ICheckResults, NotEnoughSharesError
 from allmydata.util import hashutil, log

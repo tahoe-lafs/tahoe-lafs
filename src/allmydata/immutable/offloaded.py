@@ -3,8 +3,7 @@ import os, stat, time, weakref
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
-from foolscap import Referenceable, DeadReferenceError
-from foolscap.eventual import eventually
+from foolscap.api import Referenceable, DeadReferenceError, eventually
 import allmydata # for __full_version__
 from allmydata import interfaces, uri
 from allmydata.storage.server import si_b2a

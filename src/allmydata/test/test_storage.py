@@ -5,7 +5,7 @@ from twisted.trial import unittest
 
 from twisted.internet import defer
 from twisted.application import service
-from foolscap import eventual
+from foolscap.api import fireEventually
 import itertools
 from allmydata import interfaces
 from allmydata.util import fileutil, hashutil, base32, pollmixin, time_format
@@ -1391,7 +1391,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         # cpu_slice=0 will force it to yield right after it processes the
         # first prefix
 
-        d = eventual.fireEventually()
+        d = fireEventually()
         def _check(ignored):
             # are we really right after the first prefix?
             state = ss.bucket_counter.get_state()
@@ -1428,7 +1428,7 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
         ss.bucket_counter.cpu_slice = 0
         ss.setServiceParent(self.s)
 
-        d = eventual.fireEventually()
+        d = fireEventually()
 
         def _after_first_prefix(ignored):
             ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
@@ -1613,7 +1613,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
         DAY = 24*60*60
 
-        d = eventual.fireEventually()
+        d = fireEventually()
 
         # now examine the state right after the first bucket has been
         # processed.
@@ -1813,7 +1813,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
         ss.setServiceParent(self.s)
 
-        d = eventual.fireEventually()
+        d = fireEventually()
         # examine the state right after the first bucket has been processed
         def _after_first_bucket(ignored):
             p = lc.get_progress()
@@ -1954,7 +1954,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
         ss.setServiceParent(self.s)
 
-        d = eventual.fireEventually()
+        d = fireEventually()
         # examine the state right after the first bucket has been processed
         def _after_first_bucket(ignored):
             p = lc.get_progress()
@@ -2220,7 +2220,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
         ss.setServiceParent(self.s)
 
-        d = eventual.fireEventually()
+        d = fireEventually()
         def _check(ignored):
             # this should fire after the first bucket is complete, but before
             # the first prefix is complete, so the progress-measurer won't
@@ -2338,7 +2338,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
         ss.setServiceParent(self.s)
 
-        d = eventual.fireEventually()
+        d = fireEventually()
 
         # now examine the state right after the first bucket has been
         # processed.

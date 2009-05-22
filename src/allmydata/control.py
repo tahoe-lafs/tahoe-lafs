@@ -3,7 +3,7 @@ import os, time
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
-from foolscap import Referenceable
+from foolscap.api import Referenceable
 from allmydata.interfaces import RIControlClient
 from allmydata.util import fileutil, mathutil
 from allmydata.immutable import upload, download

@@ -6,8 +6,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python import log
 
-from foolscap import Tub, Referenceable
-from foolscap.eventual import fireEventually, flushEventualQueue
+from foolscap.api import Tub, Referenceable, fireEventually, flushEventualQueue
 from twisted.application import service
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.client import IntroducerClient

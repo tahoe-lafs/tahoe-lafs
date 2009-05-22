@@ -20,7 +20,7 @@ from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable import layout as mutable_layout
-from foolscap import DeadReferenceError
+from foolscap.api import DeadReferenceError
 from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error

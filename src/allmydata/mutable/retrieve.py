@@ -4,8 +4,7 @@ from itertools import count
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
-from foolscap import DeadReferenceError
-from foolscap.eventual import eventually, fireEventually
+from foolscap.api import DeadReferenceError, eventually, fireEventually
 from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError
 from allmydata.util import hashutil, idlib, log
 from allmydata import hashtree, codec

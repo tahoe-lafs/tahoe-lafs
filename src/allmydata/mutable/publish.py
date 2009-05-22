@@ -10,7 +10,7 @@ from allmydata.util import base32, hashutil, mathutil, idlib, log
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
-from foolscap.eventual import eventually
+from foolscap.api import eventually
 
 from common import MODE_WRITE, MODE_CHECK, DictOfSets, \
      UncoordinatedWriteError, NotEnoughServersError

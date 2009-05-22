@@ -9,8 +9,7 @@ from allmydata import client, introducer
 from allmydata.immutable import upload
 from allmydata.scripts import create_node
 from allmydata.util import fileutil, pollmixin
-import foolscap
-from foolscap import eventual
+from foolscap.api import Tub, fireEventually, flushEventualQueue
 from twisted.python import log
 
 class StallableHTTPGetterDiscarder(tw_client.HTTPPageGetter):
@@ -74,7 +73,7 @@ class SystemFramework(pollmixin.PollMixin):
         self.sparent = service.MultiService()
         self.sparent.startService()
         self.proc = None
-        self.tub = foolscap.Tub()
+        self.tub = Tub()
         self.tub.setServiceParent(self.sparent)
         self.mode = mode
         self.failed = False
@@ -87,7 +86,7 @@ class SystemFramework(pollmixin.PollMixin):
         #logfile = open(os.path.join(self.testdir, "log"), "w")
         #flo = log.FileLogObserver(logfile)
         #log.startLoggingWithObserver(flo.emit, setStdout=False)
-        d = eventual.fireEventually()
+        d = fireEventually()
         d.addCallback(lambda res: self.setUp())
         d.addCallback(lambda res: self.record_initial_memusage())
         d.addCallback(lambda res: self.make_nodes())
@@ -154,7 +153,7 @@ class SystemFramework(pollmixin.PollMixin):
         if self.proc:
             d.addCallback(lambda res: self.kill_client())
         d.addCallback(lambda res: self.sparent.stopService())
-        d.addCallback(lambda res: eventual.flushEventualQueue())
+        d.addCallback(lambda res: flushEventualQueue())
         def _close_statsfile(res):
             self.statsfile.close()
         d.addCallback(_close_statsfile)

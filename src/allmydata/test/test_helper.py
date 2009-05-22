@@ -2,7 +2,7 @@ import os
 from twisted.trial import unittest
 from twisted.application import service
 
-from foolscap import Tub, eventual
+from foolscap.api import Tub, fireEventually, flushEventualQueue
 from foolscap.logging import log
 
 from allmydata.storage.server import si_b2a
@@ -70,19 +70,19 @@ class FakeClient(service.MultiService):
         return []
 
 def flush_but_dont_ignore(res):
-    d = eventual.flushEventualQueue()
+    d = flushEventualQueue()
     def _done(ignored):
         return res
     d.addCallback(_done)
     return d
 
 def wait_a_few_turns(ignored=None):
-    d = eventual.fireEventually()
-    d.addCallback(eventual.fireEventually)
-    d.addCallback(eventual.fireEventually)
-    d.addCallback(eventual.fireEventually)
-    d.addCallback(eventual.fireEventually)
-    d.addCallback(eventual.fireEventually)
+    d = fireEventually()
+    d.addCallback(fireEventually)
+    d.addCallback(fireEventually)
+    d.addCallback(fireEventually)
+    d.addCallback(fireEventually)
+    d.addCallback(fireEventually)
     return d
 
 def upload_data(uploader, data, convergence):
@@ -110,7 +110,7 @@ class AssistedUpload(unittest.TestCase):
 
     def tearDown(self):
         d = self.s.stopService()
-        d.addCallback(eventual.fireEventually)
+        d.addCallback(fireEventually)
         d.addBoth(flush_but_dont_ignore)
         return d
 

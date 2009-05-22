@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.internet.interfaces import IConsumer
 from twisted.python.failure import Failure
-from foolscap import eventual
+from foolscap.api import fireEventually
 from allmydata import hashtree, uri
 from allmydata.immutable import encode, upload, download
 from allmydata.util import hashutil
@@ -40,7 +40,7 @@ class FakeBucketReaderWriterProxy:
     def _start(self):
         if self.mode == "lost-early":
             f = Failure(LostPeerError("I went away early"))
-            return eventual.fireEventually(f)
+            return fireEventually(f)
         return defer.succeed(self)
 
     def put_header(self):
@@ -49,7 +49,7 @@ class FakeBucketReaderWriterProxy:
     def put_block(self, segmentnum, data):
         if self.mode == "lost-early":
             f = Failure(LostPeerError("I went away early"))
-            return eventual.fireEventually(f)
+            return fireEventually(f)
         def _try():
             assert not self.closed
             assert segmentnum not in self.blocks

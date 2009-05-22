@@ -1,7 +1,7 @@
 # -*- test-case-name: allmydata.test.test_observer -*-
 
 from twisted.internet import defer
-from foolscap.eventual import eventually
+from foolscap.api import eventually
 
 """The idiom we use is for the observed object to offer a method named
 'when_something', which returns a deferred.  That deferred will be fired when

@@ -1,4 +1,4 @@
-from foolscap import DeadReferenceError
+from foolscap.api import DeadReferenceError
 from twisted.internet import defer
 from allmydata import hashtree
 from allmydata.check_results import CheckResults

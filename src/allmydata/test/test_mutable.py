@@ -15,7 +15,7 @@ from allmydata.interfaces import IURI, IMutableFileURI, IUploadable, \
      FileTooLargeError, NotEnoughSharesError, IRepairResults
 from allmydata.monitor import Monitor
 from allmydata.test.common import ShouldFailMixin
-from foolscap.eventual import eventually, fireEventually
+from foolscap.api import eventually, fireEventually
 from foolscap.logging import log
 import sha
 

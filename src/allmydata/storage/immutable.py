@@ -1,6 +1,6 @@
 import os, stat, struct, time
 
-from foolscap import Referenceable
+from foolscap.api import Referenceable
 
 from zope.interface import implements
 from allmydata.interfaces import RIBucketWriter, RIBucketReader

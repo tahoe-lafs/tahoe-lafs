@@ -10,7 +10,7 @@ from twisted.web import http, html
 from nevow import url, rend, inevow, tags as T
 from nevow.inevow import IRequest
 
-from foolscap.eventual import fireEventually
+from foolscap.api import fireEventually
 
 from allmydata.util import base32, time_format
 from allmydata.uri import from_string_dirnode

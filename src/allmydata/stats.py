@@ -9,10 +9,8 @@ from twisted.internet import reactor
 from twisted.application import service
 from twisted.application.internet import TimerService
 from zope.interface import implements
-import foolscap
-from foolscap.eventual import eventually
+from foolscap.api import eventually, DeadReferenceError, Referenceable, Tub
 from twisted.internet.error import ConnectionDone, ConnectionLost
-from foolscap import DeadReferenceError
 
 from allmydata.util import log
 from allmydata.interfaces import RIStatsProvider, RIStatsGatherer, IStatsProducer
@@ -124,7 +122,7 @@ class CPUUsageMonitor(service.MultiService):
         return s
 
 
-class StatsProvider(foolscap.Referenceable, service.MultiService):
+class StatsProvider(Referenceable, service.MultiService):
     implements(RIStatsProvider)
 
     def __init__(self, node, gatherer_furl):
@@ -180,7 +178,7 @@ class StatsProvider(foolscap.Referenceable, service.MultiService):
         gatherer.callRemoteOnly('provide', self, nickname or '')
 
 
-class StatsGatherer(foolscap.Referenceable, service.MultiService):
+class StatsGatherer(Referenceable, service.MultiService):
     implements(RIStatsGatherer)
 
     poll_interval = 60
@@ -196,7 +194,7 @@ class StatsGatherer(foolscap.Referenceable, service.MultiService):
         self.timer.setServiceParent(self)
 
     def get_tubid(self, rref):
-        return foolscap.SturdyRef(rref.tracker.getURL()).getTubRef().getTubID()
+        return rref.getRemoteTubID()
 
     def remote_provide(self, provider, nickname):
         tubid = self.get_tubid(provider)
@@ -282,8 +280,8 @@ class StatsGathererService(service.MultiService):
     def __init__(self, basedir=".", verbose=False):
         service.MultiService.__init__(self)
         self.basedir = basedir
-        self.tub = foolscap.Tub(certFile=os.path.join(self.basedir,
-                                                      "stats_gatherer.pem"))
+        self.tub = Tub(certFile=os.path.join(self.basedir,
+                                             "stats_gatherer.pem"))
         self.tub.setServiceParent(self)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)

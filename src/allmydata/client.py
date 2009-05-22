@@ -5,7 +5,7 @@ from allmydata import node
 from zope.interface import implements
 from twisted.internet import reactor
 from twisted.application.internet import TimerService
-from foolscap import Referenceable
+from foolscap.api import Referenceable
 from foolscap.logging import log
 from pycryptopp.publickey import rsa
 

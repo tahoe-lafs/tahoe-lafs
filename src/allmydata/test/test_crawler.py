@@ -4,7 +4,7 @@ import os.path
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import defer
-from foolscap import eventual
+from foolscap.api import eventually, fireEventually
 
 from allmydata.util import fileutil, hashutil, pollmixin
 from allmydata.storage.server import StorageServer, si_b2a
@@ -23,7 +23,7 @@ class BucketEnumeratingCrawler(ShareCrawler):
     def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
         self.all_buckets.append(storage_index_b32)
     def finished_cycle(self, cycle):
-        eventual.eventually(self.finished_d.callback, None)
+        eventually(self.finished_d.callback, None)
 
 class PacedCrawler(ShareCrawler):
     cpu_slice = 500 # make sure it can complete in a single slice
@@ -45,7 +45,7 @@ class PacedCrawler(ShareCrawler):
         if self.yield_cb:
             self.yield_cb()
     def finished_cycle(self, cycle):
-        eventual.eventually(self.finished_d.callback, None)
+        eventually(self.finished_d.callback, None)
 
 class ConsumingCrawler(ShareCrawler):
     cpu_slice = 0.5
@@ -420,7 +420,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
 
         d = c.finished_d
         def _finished_first_cycle(ignored):
-            return eventual.fireEventually(c.counter)
+            return fireEventually(c.counter)
         d.addCallback(_finished_first_cycle)
         def _check(old_counter):
             # the crawler should do any work after it's been stopped

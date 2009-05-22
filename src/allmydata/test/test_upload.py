@@ -5,7 +5,7 @@ from twisted.trial import unittest
 from twisted.python.failure import Failure
 from twisted.python import log
 from twisted.internet import defer
-from foolscap import eventual
+from foolscap.api import fireEventually
 
 import allmydata # for __full_version__
 from allmydata import uri, monitor
@@ -97,7 +97,7 @@ class FakeStorageServer:
         def _call():
             meth = getattr(self, methname)
             return meth(*args, **kwargs)
-        d = eventual.fireEventually()
+        d = fireEventually()
         d.addCallback(lambda res: _call())
         return d
 
@@ -128,7 +128,7 @@ class FakeBucketWriter:
         def _call():
             meth = getattr(self, "remote_" + methname)
             return meth(*args, **kwargs)
-        d = eventual.fireEventually()
+        d = fireEventually()
         d.addCallback(lambda res: _call())
         return d
 

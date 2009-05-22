@@ -3,7 +3,7 @@ import re, time, sha
 from base64 import b32decode
 from zope.interface import implements
 from twisted.application import service
-from foolscap import Referenceable
+from foolscap.api import Referenceable
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import RIIntroducerSubscriberClient, \
      IIntroducerClient

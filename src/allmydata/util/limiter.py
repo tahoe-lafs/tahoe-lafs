@@ -1,6 +1,6 @@
 
 from twisted.internet import defer
-from foolscap.eventual import eventually
+from foolscap.api import eventually
 
 class ConcurrencyLimiter:
     """I implement a basic concurrency limiter. Add work to it in the form of

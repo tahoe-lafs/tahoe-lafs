@@ -1,6 +1,6 @@
 import os, re, weakref, struct, time
 
-from foolscap import Referenceable
+from foolscap.api import Referenceable
 from twisted.application import service
 
 from zope.interface import implements

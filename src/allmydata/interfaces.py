@@ -1,8 +1,7 @@
 
 from zope.interface import Interface
-from foolscap.schema import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
-     ChoiceOf, IntegerConstraint, Any
-from foolscap import RemoteInterface, Referenceable
+from foolscap.api import StringConstraint, ListOf, TupleOf, SetOf, DictOf, \
+     ChoiceOf, IntegerConstraint, Any, RemoteInterface, Referenceable
 
 HASH_SIZE=32
 

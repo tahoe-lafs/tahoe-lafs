@@ -2,7 +2,7 @@
 import time, os.path
 from zope.interface import implements
 from twisted.application import service
-from foolscap import Referenceable
+from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
 from allmydata.util import log
