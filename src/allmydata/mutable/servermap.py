@@ -4,8 +4,8 @@ from zope.interface import implements
 from itertools import count
 from twisted.internet import defer
 from twisted.python import failure
-from foolscap.api import DeadReferenceError, eventually
-from allmydata.util import base32, hashutil, idlib, log, rrefutil
+from foolscap.api import DeadReferenceError, RemoteException, eventually
+from allmydata.util import base32, hashutil, idlib, log
 from allmydata.storage.server import si_b2a
 from allmydata.interfaces import IServermapUpdaterStatus
 from pycryptopp.publickey import rsa
@@ -546,13 +546,20 @@ class ServermapUpdater:
             def _done(res):
                 [(readv_success, readv_result),
                  (addlease_success, addlease_result)] = res
-                if (not addlease_success and
-                    not rrefutil.check_remote(addlease_result, IndexError)):
-                    # tahoe 1.3.0 raised IndexError on non-existant buckets,
-                    # which we ignore. Unfortunately tahoe <1.3.0 had a bug
-                    # and raised KeyError, which we report.
-                    return addlease_result # propagate error
-                return readv_result
+                # ignore remote IndexError on the add_lease call. Propagate
+                # local errors and remote non-IndexErrors
+                if addlease_success:
+                    return readv_result
+                if not addlease_result.check(RemoteException):
+                    # Propagate local errors
+                    return addlease_result
+                if addlease_result.value.failure.check(IndexError):
+                    # tahoe=1.3.0 raised IndexError on non-existant
+                    # buckets, which we ignore
+                    return readv_result
+                # propagate remote errors that aren't IndexError, including
+                # the unfortunate internal KeyError bug that <1.3.0 had.
+                return addlease_result
             dl.addCallback(_done)
             return dl
         return d

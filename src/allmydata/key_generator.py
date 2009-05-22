@@ -80,6 +80,7 @@ class KeyGeneratorService(service.MultiService):
         service.MultiService.__init__(self)
         self.basedir = basedir
         self.tub = Tub(certFile=os.path.join(self.basedir, 'key_generator.pem'))
+        self.tub.setOption("expose-remote-exception-types", False)
         self.tub.setServiceParent(self)
         self.key_generator = KeyGenerator(default_key_size=default_key_size)
         self.key_generator.setServiceParent(self)

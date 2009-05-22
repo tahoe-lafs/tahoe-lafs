@@ -74,6 +74,7 @@ class SystemFramework(pollmixin.PollMixin):
         self.sparent.startService()
         self.proc = None
         self.tub = Tub()
+        self.tub.setOption("expose-remote-exception-types", False)
         self.tub.setServiceParent(self.sparent)
         self.mode = mode
         self.failed = False

@@ -141,6 +141,7 @@ class Node(service.MultiService):
         self.tub = Tub(certFile=certfile)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
+        self.tub.setOption("expose-remote-exception-types", False)
 
         # see #521 for a discussion of how to pick these timeout values.
         keepalive_timeout_s = self.get_config("node", "timeout.keepalive", "")

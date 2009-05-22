@@ -95,6 +95,7 @@ class AssistedUpload(unittest.TestCase):
         self.s.startService()
 
         self.tub = t = Tub()
+        t.setOption("expose-remote-exception-types", False)
         t.setServiceParent(self.s)
         self.s.tub = t
         # we never actually use this for network traffic, so it can use a

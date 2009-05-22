@@ -3,11 +3,10 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.application import service
-from foolscap.api import DeadReferenceError, eventually
+from foolscap.api import DeadReferenceError, RemoteException, eventually
 
 from allmydata.util import base32, deferredutil, hashutil, log, mathutil
 from allmydata.util.assertutil import _assert, precondition
-from allmydata.util.rrefutil import ServerFailure
 from allmydata import codec, hashtree, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, IVerifierURI, \
      IDownloadStatus, IDownloadResults, IValidatedThingProxy, NotEnoughSharesError, \
@@ -82,11 +81,13 @@ class ValidatedThingObtainer:
         self._log_id = log_id
 
     def _bad(self, f, validatedthingproxy):
-        failtype = f.trap(ServerFailure, IntegrityCheckReject, layout.LayoutInvalid, layout.ShareVersionIncompatible, DeadReferenceError)
+        failtype = f.trap(RemoteException, DeadReferenceError,
+                          IntegrityCheckReject, layout.LayoutInvalid,
+                          layout.ShareVersionIncompatible)
         level = log.WEIRD
         if f.check(DeadReferenceError):
             level = log.UNUSUAL
-        elif f.check(ServerFailure):
+        elif f.check(RemoteException):
             level = log.WEIRD
         else:
             level = log.SCARY
@@ -476,8 +477,10 @@ class BlockDownloader(log.PrefixingLogMixin):
         self.parent.hold_block(self.blocknum, data)
 
     def _got_block_error(self, f):
-        failtype = f.trap(ServerFailure, IntegrityCheckReject, layout.LayoutInvalid, layout.ShareVersionIncompatible)
-        if f.check(ServerFailure):
+        failtype = f.trap(RemoteException, DeadReferenceError,
+                          IntegrityCheckReject,
+                          layout.LayoutInvalid, layout.ShareVersionIncompatible)
+        if f.check(RemoteException, DeadReferenceError):
             level = log.UNUSUAL
         else:
             level = log.WEIRD

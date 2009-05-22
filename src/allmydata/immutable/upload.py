@@ -14,7 +14,7 @@ from allmydata.storage.server import si_b2a
 from allmydata.immutable import encode
 from allmydata.util import base32, dictutil, idlib, log, mathutil
 from allmydata.util.assertutil import precondition
-from allmydata.util.rrefutil import get_versioned_remote_reference
+from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
      NotEnoughSharesError, InsufficientVersionError, NoServersError
@@ -1227,7 +1227,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
                     { },
                     "application-version": "unknown: no get_version()",
                     }
-        d = get_versioned_remote_reference(helper, default)
+        d = add_version_to_remote_reference(helper, default)
         d.addCallback(self._got_versioned_helper)
 
     def _got_versioned_helper(self, helper):

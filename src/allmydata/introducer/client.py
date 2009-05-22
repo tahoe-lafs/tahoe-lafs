@@ -8,7 +8,7 @@ from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import RIIntroducerSubscriberClient, \
      IIntroducerClient
 from allmydata.util import log, idlib
-from allmydata.util.rrefutil import get_versioned_remote_reference
+from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.introducer.common import make_index
 
 
@@ -78,14 +78,14 @@ class RemoteServiceConnector:
         self.log("got connection to %s, getting versions" % self._nodeid_s)
 
         default = self.VERSION_DEFAULTS.get(self.service_name, {})
-        d = get_versioned_remote_reference(rref, default)
+        d = add_version_to_remote_reference(rref, default)
         d.addCallback(self._got_versioned_service)
 
     def _got_versioned_service(self, rref):
         self.log("connected to %s, version %s" % (self._nodeid_s, rref.version))
 
         self.last_connect_time = time.time()
-        self.remote_host = rref.rref.tracker.broker.transport.getPeer()
+        self.remote_host = rref.tracker.broker.transport.getPeer()
 
         self.rref = rref
 
@@ -156,7 +156,7 @@ class IntroducerClient(service.Service, Referenceable):
                     { },
                     "application-version": "unknown: no get_version()",
                     }
-        d = get_versioned_remote_reference(publisher, default)
+        d = add_version_to_remote_reference(publisher, default)
         d.addCallback(self._got_versioned_introducer)
         d.addErrback(self._got_error)
 

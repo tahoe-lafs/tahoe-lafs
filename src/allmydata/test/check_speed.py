@@ -48,6 +48,7 @@ class SpeedTest:
     def setUp(self):
         self.base_service.startService()
         self.tub = Tub()
+        self.tub.setOption("expose-remote-exception-types", False)
         self.tub.setServiceParent(self.base_service)
         d = self.tub.getReference(self.control_furl)
         def _gotref(rref):

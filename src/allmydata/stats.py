@@ -285,6 +285,7 @@ class StatsGathererService(service.MultiService):
         self.tub.setServiceParent(self)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
+        self.tub.setOption("expose-remote-exception-types", False)
 
         self.stats_gatherer = PickleStatsGatherer(self.basedir, verbose)
         self.stats_gatherer.setServiceParent(self)

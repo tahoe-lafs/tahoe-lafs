@@ -1,11 +1,11 @@
-from foolscap.api import DeadReferenceError
+from foolscap.api import DeadReferenceError, RemoteException
 from twisted.internet import defer
 from allmydata import hashtree
 from allmydata.check_results import CheckResults
 from allmydata.immutable import download
 from allmydata.uri import CHKFileVerifierURI
 from allmydata.util.assertutil import precondition
-from allmydata.util import base32, deferredutil, dictutil, log, rrefutil
+from allmydata.util import base32, deferredutil, dictutil, log
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash
@@ -38,7 +38,6 @@ class Checker(log.PrefixingLogMixin):
         assert precondition(isinstance(servers, (set, frozenset)), servers)
         for (serverid, serverrref) in servers:
             assert precondition(isinstance(serverid, str))
-            assert precondition(isinstance(serverrref, rrefutil.WrappedRemoteReference), serverrref)
 
         prefix = "%s" % base32.b2a_l(verifycap.storage_index[:8], 60)
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.checker", prefix=prefix)
@@ -84,19 +83,24 @@ class Checker(log.PrefixingLogMixin):
             def _done(res):
                 [(get_success, get_result),
                  (addlease_success, addlease_result)] = res
-                if (not addlease_success and
-                    not rrefutil.check_remote(addlease_result, IndexError)):
-                    # tahoe=1.3.0 raised IndexError on non-existant buckets,
-                    # which we ignore. But report others, including the
-                    # unfortunate internal KeyError bug that <1.3.0 had.
-                    return addlease_result # propagate error
-                return get_result
+                # ignore remote IndexError on the add_lease call. Propagate
+                # local errors and remote non-IndexErrors
+                if addlease_success:
+                    return get_result
+                if not addlease_result.check(RemoteException):
+                    # Propagate local errors
+                    return addlease_result
+                if addlease_result.value.failure.check(IndexError):
+                    # tahoe=1.3.0 raised IndexError on non-existant
+                    # buckets, which we ignore
+                    return get_result
+                # propagate remote errors that aren't IndexError, including
+                # the unfortunate internal KeyError bug that <1.3.0 had.
+                return addlease_result
             dl.addCallback(_done)
             d = dl
 
         def _wrap_results(res):
-            for k in res:
-                res[k] = rrefutil.WrappedRemoteReference(res[k])
             return (res, serverid, True)
 
         def _trap_errs(f):
@@ -133,26 +137,23 @@ class Checker(log.PrefixingLogMixin):
         d = veup.start()
 
         def _errb(f):
-            # Okay, we didn't succeed at fetching and verifying all the
-            # blocks of this share. Now we need to handle different reasons
-            # for failure differently. If the failure isn't one of the
-            # following four classes then it will get re-raised.
-            failtype = f.trap(DeadReferenceError,
-                              rrefutil.ServerFailure,
-                              layout.LayoutInvalid,
-                              layout.RidiculouslyLargeURIExtensionBlock,
-                              layout.ShareVersionIncompatible,
-                              download.BadOrMissingHash,
-                              download.BadURIExtensionHashValue)
+            # We didn't succeed at fetching and verifying all the blocks of
+            # this share. Handle each reason for failure differently.
 
             if f.check(DeadReferenceError):
                 return (False, sharenum, 'disconnect')
-            elif f.check(rrefutil.ServerFailure):
+            elif f.check(RemoteException):
                 return (False, sharenum, 'failure')
             elif f.check(layout.ShareVersionIncompatible):
                 return (False, sharenum, 'incompatible')
-            else:
+            elif f.check(layout.LayoutInvalid,
+                         layout.RidiculouslyLargeURIExtensionBlock,
+                         download.BadOrMissingHash,
+                         download.BadURIExtensionHashValue):
                 return (False, sharenum, 'corrupt')
+
+            # if it wasn't one of those reasons, re-raise the error
+            return f
 
         def _got_ueb(vup):
             self._share_hash_tree = hashtree.IncompleteHashTree(self._verifycap.total_shares)
@@ -238,7 +239,7 @@ class Checker(log.PrefixingLogMixin):
             return dl
 
         def _err(f):
-            f.trap(rrefutil.ServerFailure)
+            f.trap(RemoteException, DeadReferenceError)
             return (set(), serverid, set(), set(), False)
 
         d.addCallbacks(_got_buckets, _err)

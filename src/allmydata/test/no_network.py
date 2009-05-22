@@ -17,12 +17,13 @@ import os.path
 import sha
 from twisted.application import service
 from twisted.internet import reactor
-from foolscap.api import Referenceable, fireEventually
+from twisted.python.failure import Failure
+from foolscap.api import Referenceable, fireEventually, RemoteException
 from base64 import b32encode
 from allmydata import uri as tahoe_uri
 from allmydata.client import Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
-from allmydata.util import fileutil, idlib, hashutil, rrefutil
+from allmydata.util import fileutil, idlib, hashutil
 from allmydata.introducer.client import RemoteServiceConnector
 from allmydata.test.common_web import HTTPClientGETFactory
 
@@ -61,6 +62,9 @@ class LocalWrapper:
             return meth(*args, **kwargs)
         d = fireEventually()
         d.addCallback(lambda res: _call())
+        def _wrap_exception(f):
+            return Failure(RemoteException(f))
+        d.addErrback(_wrap_exception)
         def _return_membrane(res):
             # rather than complete the difficult task of building a
             # fully-general Membrane (which would locate all Referenceable
@@ -88,20 +92,17 @@ class LocalWrapper:
         del self.disconnectors[marker]
 
 def wrap(original, service_name):
-    # The code in immutable.checker insists upon asserting the truth of
-    # isinstance(rref, rrefutil.WrappedRemoteReference). Much of the
-    # upload/download code uses rref.version (which normally comes from
-    # rrefutil.VersionedRemoteReference). To avoid using a network, we want a
-    # LocalWrapper here. Try to satisfy all these constraints at the same
-    # time.
-    local = LocalWrapper(original)
-    wrapped = rrefutil.WrappedRemoteReference(local)
+    # Much of the upload/download code uses rref.version (which normally
+    # comes from rrefutil.add_version_to_remote_reference). To avoid using a
+    # network, we want a LocalWrapper here. Try to satisfy all these
+    # constraints at the same time.
+    wrapper = LocalWrapper(original)
     try:
         version = original.remote_get_version()
     except AttributeError:
         version = RemoteServiceConnector.VERSION_DEFAULTS[service_name]
-    wrapped.version = version
-    return wrapped
+    wrapper.version = version
+    return wrapper
 
 class NoNetworkClient(Client):
 

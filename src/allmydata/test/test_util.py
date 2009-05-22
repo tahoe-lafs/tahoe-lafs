@@ -11,8 +11,7 @@ from twisted.python import log
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin, cachedir
-from allmydata.util import statistics, dictutil, rrefutil, pipeline
-from allmydata.util.rrefutil import ServerFailure
+from allmydata.util import statistics, dictutil, pipeline
 
 class Base32(unittest.TestCase):
     def test_b2a_matches_Pythons(self):
@@ -1212,96 +1211,6 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(x, "b")
         self.failUnlessEqual(d.items(), [("c", 1), ("a", 3)])
 
-class FakeRemoteReference:
-    def callRemote(self, methname, *args, **kwargs):
-        return defer.maybeDeferred(self.oops)
-    def oops(self):
-        raise IndexError("remote missing key")
-
-class RemoteFailures(unittest.TestCase):
-    def test_check(self):
-        check_local = rrefutil.check_local
-        check_remote = rrefutil.check_remote
-        try:
-            raise IndexError("local missing key")
-        except IndexError:
-            localf = Failure()
-
-        self.failUnlessEqual(localf.check(IndexError, KeyError), IndexError)
-        self.failUnlessEqual(localf.check(ValueError, KeyError), None)
-        self.failUnlessEqual(localf.check(ServerFailure), None)
-        self.failUnlessEqual(check_local(localf, IndexError, KeyError),
-                             IndexError)
-        self.failUnlessEqual(check_local(localf, ValueError, KeyError), None)
-        self.failUnlessEqual(check_remote(localf, IndexError, KeyError), None)
-        self.failUnlessEqual(check_remote(localf, ValueError, KeyError), None)
-
-        frr = FakeRemoteReference()
-        wrr = rrefutil.WrappedRemoteReference(frr)
-        d = wrr.callRemote("oops")
-        def _check(f):
-            self.failUnlessEqual(f.check(IndexError, KeyError), None)
-            self.failUnlessEqual(f.check(ServerFailure, KeyError),
-                                 ServerFailure)
-            self.failUnlessEqual(check_remote(f, IndexError, KeyError),
-                                 IndexError)
-            self.failUnlessEqual(check_remote(f, ValueError, KeyError), None)
-            self.failUnlessEqual(check_local(f, IndexError, KeyError), None)
-            self.failUnlessEqual(check_local(f, ValueError, KeyError), None)
-        d.addErrback(_check)
-        return d
-
-    def test_is_remote(self):
-        try:
-            raise IndexError("local missing key")
-        except IndexError:
-            localf = Failure()
-        self.failIf(rrefutil.is_remote(localf))
-        self.failUnless(rrefutil.is_local(localf))
-
-        frr = FakeRemoteReference()
-        wrr = rrefutil.WrappedRemoteReference(frr)
-        d = wrr.callRemote("oops")
-        def _check(f):
-            self.failUnless(rrefutil.is_remote(f))
-            self.failIf(rrefutil.is_local(f))
-        d.addErrback(_check)
-        return d
-
-    def test_trap(self):
-        try:
-            raise IndexError("local missing key")
-        except IndexError:
-            localf = Failure()
-
-        self.failUnlessRaises(Failure, localf.trap, ValueError, KeyError)
-        self.failUnlessRaises(Failure, localf.trap, ServerFailure)
-        self.failUnlessEqual(localf.trap(IndexError, KeyError), IndexError)
-        self.failUnlessEqual(rrefutil.trap_local(localf, IndexError, KeyError),
-                             IndexError)
-        self.failUnlessRaises(Failure,
-                              rrefutil.trap_remote, localf, ValueError, KeyError)
-
-        frr = FakeRemoteReference()
-        wrr = rrefutil.WrappedRemoteReference(frr)
-        d = wrr.callRemote("oops")
-        def _check(f):
-            self.failUnlessRaises(Failure,
-                                  f.trap, ValueError, KeyError)
-            self.failUnlessRaises(Failure,
-                                  f.trap, IndexError)
-            self.failUnlessEqual(f.trap(ServerFailure), ServerFailure)
-            self.failUnlessRaises(Failure,
-                                  rrefutil.trap_remote, f, ValueError, KeyError)
-            self.failUnlessEqual(rrefutil.trap_remote(f, IndexError, KeyError),
-                                 IndexError)
-            self.failUnlessRaises(Failure,
-                                  rrefutil.trap_local, f, ValueError, KeyError)
-            self.failUnlessRaises(Failure,
-                                  rrefutil.trap_local, f, IndexError)
-        d.addErrback(_check)
-        return d
-
 class Pipeline(unittest.TestCase):
     def pause(self, *args, **kwargs):
         d = defer.Deferred()
@@ -1444,7 +1353,6 @@ class Pipeline(unittest.TestCase):
         self.failUnless(f.check(pipeline.PipelineError))
         f2 = f.value.error
         self.failUnless(f2.check(ValueError))
-        
 
     def test_errors2(self):
         self.calls = []

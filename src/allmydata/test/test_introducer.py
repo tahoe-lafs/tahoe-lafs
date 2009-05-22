@@ -84,6 +84,7 @@ class SystemTestMixin(ServiceMixin, pollmixin.PollMixin):
         self.central_tub = tub = Tub()
         #tub.setOption("logLocalFailures", True)
         #tub.setOption("logRemoteFailures", True)
+        tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
         l = tub.listenOn("tcp:0")
         portnum = l.getPortnum()
@@ -116,6 +117,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             tub = Tub()
             #tub.setOption("logLocalFailures", True)
             #tub.setOption("logRemoteFailures", True)
+            tub.setOption("expose-remote-exception-types", False)
             tub.setServiceParent(self.parent)
             l = tub.listenOn("tcp:0")
             portnum = l.getPortnum()
@@ -249,6 +251,7 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         self.introducer_furl = self.central_tub.registerReference(i)
 
         tub = Tub()
+        tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
         l = tub.listenOn("tcp:0")
         portnum = l.getPortnum()
