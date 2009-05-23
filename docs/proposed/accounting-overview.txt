@@ -8,13 +8,13 @@ model, which dictates how specific files and directories may or may not be
 manipulated, Accounting is concerned with resource consumption: how much disk
 space a given person/account/entity can use.
 
-The 1.3.0 and earlier releases have a nearly-unbounded resource usage model.
-Anybody who can talk to the Introducer gets to talk to all the Storage
-Servers, and anyone who can talk to a Storage Server gets to use as much disk
-space as they want (up to the reserved_space= limit imposed by the server,
-which affects all users equally). Not only is the per-user space usage
-unlimited, it is also unmeasured: the owner of the Storage Server has no way
-to find out how much space Alice or Bob is using.
+Tahoe releases up to and including 1.4.1 have a nearly-unbounded resource
+usage model. Anybody who can talk to the Introducer gets to talk to all the
+Storage Servers, and anyone who can talk to a Storage Server gets to use as
+much disk space as they want (up to the reserved_space= limit imposed by the
+server, which affects all users equally). Not only is the per-user space
+usage unlimited, it is also unmeasured: the owner of the Storage Server has
+no way to find out how much space Alice or Bob is using.
 
 The goals of the Accounting system are thus:
 
@@ -39,11 +39,17 @@ indicates the account or user which wants to keep the share alive. A given
 account's "usage" (their per-server aggregate usage) is simply the sum of the
 sizes of all shares on which they hold a lease. The storage server may limit
 the user to a fixed "quota" (an upper bound on their usage). To keep a file
-alive, the user must be willing to use up some of their quota. A popular file
-might have leases from multiple users, in which case one user might take a
-chance and decline to add their own lease, saving some of their quota and
-hoping that the other leases continue to keep the file alive despite their
-personal unwillingness to contribute to the effort.
+alive, the user must be willing to use up some of their quota.
+
+Note that a popular file might have leases from multiple users, in which case
+one user might take a chance and decline to add their own lease, saving some
+of their quota and hoping that the other leases continue to keep the file
+alive despite their personal unwillingness to contribute to the effort. One
+could imagine a "pro-rated quotas" scheme, in which a 10MB file with 5
+leaseholders would deduct 2MB from each leaseholder's quota. We have decided
+to not implement pro-rated quotas, because such a scheme would make usage
+values hard to predict: a given account might suddenly go over quota solely
+because of a third party's actions.
 
 == Authority Flow ==
 
@@ -53,13 +59,13 @@ over their space, and delegate portions of it to others: either directly to
 clients who want to upload files, or to intermediaries who can then delegate
 attenuated authority onwards. The operators have various reasons for wanting
 to share their space: monetary consideration, expectations of in-kind
-exchange, or simple generosity. But the first and final authority rests with
-them.
+exchange, or simple generosity. But the final authority always rests with the
+operator.
 
-The server operator grants restricted authority over their space by
-configuring their server to accept requests that demonstrate knowledge of
-certain secrets. They then share those secrets with the client who intends to
-use this space, or an intermediary who will generate still more secrets and
+The server operator grants limited authority over their space by configuring
+their server to accept requests that demonstrate knowledge of certain
+secrets. They then share those secrets with the client who intends to use
+this space, or with an intermediary who will generate still more secrets and
 share those with the client. Eventually, an upload or create-directory
 operation will be performed that needs this authority. Part of the operation
 will involve proving knowledge of the secret to the storage server, and the
@@ -631,9 +637,9 @@ pieces with commas. The string is terminated by the first non-[0-9,]
 character encountered, which will either be the key-identifier letter of the
 next field, or the dictionary-terminating character at the end.
 
-Any single decimal number (such as the "before" timestamp field, or the
-"server-size" field) is serialized as a variable-length sequence of ASCII
-deciman digits, terminated by any non-digit.
+Any single integral decimal number (such as the "before" timestamp field, or
+the "server-size" field) is serialized as a variable-length sequence of ASCII
+decimal digits, terminated by any non-digit.
 
 The restrictions dictionary is serialized as a concatenated series of
 key-identifier-letter / value string pairs, ending with the marker "E.". The
@@ -641,7 +647,7 @@ URL-safe form uses a single printable letter to indicate the which key is
 being serialized. Each type of value string is serialized differently:
 
  "A": accountid: variable-length sequence of comma-joned numbers
- "I": storage index: fixed-length 22-character base62-encoded storage index
+ "I": storage index: fixed-length 26-character *base32*-encoded storage index
  "P": server id (peer id): fixed-length 32-character *base32* encoded serverid
       (matching the printable Tub.tubID string that Foolscap provides)
  "U": UEB hash: fixed-length 43-character base62 encoded UEB hash
@@ -667,8 +673,7 @@ delegate private key. Given the single-certificate serialization scheme
 described above, the full authority is serialized as follows:
 
  * version prefix: depends upon the application, but for storage-authority
-                   chains this will be "sa0-", for storage-authority version
-                   0.
+                   chains this will be "sa0-", for Storage-Authority Version 0.
  * serialized certificates, concatenated together
  * serialized private key (to which the last certificate delegates authority)
 
@@ -687,11 +692,15 @@ at the end.
 
 Some examples:
 
+ (example A)
  cert[0] delegates account 1,4 to (pubkey ZlFA / privkey 1f2S):
+
   sa0-A1,4D2lFA6LboL2xx0ldQH2K1TdSrwuqMMiME3E...1f2SI9UJPXvb7vdJ1
 
+ (example B)
  cert[0] delegates account 1,4 to ZlFA/1f2S
  cert[1] subdelegates 5GB and subaccount 1,4,7 to pubkey 0BPo/06rt:
+
   sa0-A1,4D2lFA6LboL2xx0ldQH2K1TdSrwuqMMiME3E...A1,4,7S5000000000D0BPoGxJ3M4KWrmdpLnknhJABrWip5e9kPE,7cyhQvv5axdeihmOzIHjs85TcUIYiWHdsxNz50GTerEOR5ucj2TITPXxyaCUli1oF...06rtcPQotR3q4f2cT
 
 
