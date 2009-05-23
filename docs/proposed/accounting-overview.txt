@@ -97,25 +97,25 @@ somehow be retained on each page in a way that minimizes the risk of CSRF
 attacks and allows safe sharing (cut-and-paste of a URL without sharing the
 storage authority too). The client node receiving the webapi request will
 extract the authority string from the request and use it to build the storage
-server messages that it uses to fulfill the request.
+server messages that it sends to fulfill that request.
 
 == Definition Of Authority ==
 
-The term "authority" is used here somewhat casually: in the object-capability
-world, the word refers to the ability of some principal to cause some action
-to occur, whether because they can do it themselves, or because they can
-convince some other principal to do it for them. In Tahoe terms, "storage
-authority" is the ability to do one of the following actions:
+The term "authority" is used here in the object-capability sense: it refers
+to the ability of some principal to cause some action to occur, whether
+because they can do it themselves, or because they can convince some other
+principal to do it for them. In Tahoe terms, "storage authority" is the
+ability to do one of the following actions:
 
  * upload a new share, thus consuming storage space
  * adding a new lease to a share, thus preventing space from being reclaimed
  * modify an existing mutable share, potentially increasing the space consumed
 
-The Accounting effort may involve other kinds of authority that gets limited
+The Accounting effort may involve other kinds of authority that get limited
 in a similar manner as storage authority, like the ability to download a
-share: things that may consume CPU time, disk bandwidth, or other limited
-resources. There is also the authority to renew or cancel a lease, which may
-be controlled in a similar fashion.
+share or query whether a given share is present: anything that may consume
+CPU time, disk bandwidth, or other limited resources. The authority to renew
+or cancel a lease may be controlled in a similar fashion.
 
 Storage authority, as granted from a server operator to a client, is not
 simply a binary "use space or not" grant. Instead, it is parameterized by a
@@ -126,48 +126,50 @@ respect to the goals of Accounting) is the "Account Label".
 
 A Tahoe "Account" is defined by a variable-length sequence of small integers.
 (they are not required to be small, the actual limit is 2**64, but neither
-are they required to be unguessable). These accounts are arranged in a
-hierarchy: the account identifier (1,4) is considered to be a "parent" of
-(1,4,2). There is no relationship between the values used by unrelated
-accounts: (1,4) is unrelated to (2,4), despite both coincidentally using a
-"4" in the second element.
+are they required to be unguessable). For the purposes of discussion, these
+lists will be expressed as period-joined strings: the two-element list (1,4)
+will be displayed here as "1.4".
+
+These accounts are arranged in a hierarchy: the account identifier 1.4 is
+considered to be a "parent" of 1.4.2 . There is no relationship between the
+values used by unrelated accounts: 1.4 is unrelated to 2.4, despite both
+coincidentally using a "4" in the second element.
 
 Each lease has a label, which contains the Account identifier. The storage
 server maintains an aggregate size count for each label prefix: when asked
-about account (1,4), it will report the amount of space used by shares
-labeled (1,4), (1,4,2), (1,4,7), (1,4,7,8), etc (but *not* (1) or (1,5)).
+about account 1.4, it will report the amount of space used by shares labeled
+1.4, 1.4.2, 1.4.7, 1.4.7.8, etc (but *not* 1 or 1.5).
 
 The "Account Label" restriction allows a client to apply any label it wants,
-as long as that label begins with a specific prefix. If account (1) is
+as long as that label begins with a specific prefix. If account 1 is
 associated with Alice, then Alice will receive a storage authority string
-that contains a "must start with (1)" restriction, enabling her to to use
+that contains a "must start with 1" restriction, enabling her to to use
 storage space but obligating her to lease her shares with a label that can be
 traced back to her. She can delegate part of her authority to others (perhaps
 with other non-label restrictions, such as a space restriction or time limit)
 with or without an additional label restriction. For example, she might
-delegate some of her authority to her friend Amy, with a (1,4) label
-restriction. Amy could then create labels with (1,4) or (1,4,7), but she
-could not create labels with the same (1) identifier that Alice can do, nor
-could she create labels with (1,5) (which Alice might have given to her other
-friend Annette). The storage server operator can ask about the usage of (1)
-to find out how much Alice is responsible for (which includes the space that
-she has delegated to Amy and Annette), and none of the A-users can avoid
-being counted in this total. But Alice can ask the storage server about the
-usage of (1,4) to find out how much Amy has taken advantage of her gift.
-Likewise, Alice has control over any lease with a label that begins with (1),
-so she can cancel Amy's leases and free the space they were consuming. If
-this seems surprising, consider that the storage server operator considerd
-Alice to be responsible for that space anyways: with great responsibility
-(for space consumed) comes great power (to stop consuming that space).
+delegate some of her authority to her friend Amy, with a 1.4 label
+restriction. Amy could then create labels with 1.4 or 1.4.7, but she could
+not create labels with the same 1 identifier that Alice can do, nor could she
+create labels with 1.5 (which Alice might have given to her other friend
+Annette). The storage server operator can ask about the usage of 1 to find
+out how much Alice is responsible for (which includes the space that she has
+delegated to Amy and Annette), and none of the A-users can avoid being
+counted in this total. But Alice can ask the storage server about the usage
+of 1.4 to find out how much Amy has taken advantage of her gift. Likewise,
+Alice has control over any lease with a label that begins with 1, so she can
+cancel Amy's leases and free the space they were consuming. If this seems
+surprising, consider that the storage server operator considered Alice to be
+responsible for that space anyways: with great responsibility (for space
+consumed) comes great power (to stop consuming that space).
 
 === Server Space Restriction ===
 
 The storage server's basic control over how space usage (apart from the
 binary use-it-or-not authority granted by handing out an authority string at
 all) is implemented by keeping track of the space used by any given account
-identifier. If account (1,4) sends a request to allocate a 1MB share, but
-that 1MB would bring the (1,4) usage over its quota, the request will be
-denied.
+identifier. If account 1.4 sends a request to allocate a 1MB share, but that
+1MB would bring the 1.4 usage over its quota, the request will be denied.
 
 For this to be useful, the storage server must give each usage-limited
 principal a separate account, and it needs to configure a size limit at the
