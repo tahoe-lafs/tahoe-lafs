@@ -15,7 +15,7 @@ install_requires=[
 
                   "zope.interface",
                   "Twisted >= 2.4.0",
-                  "foolscap[secure_connections] >= 0.4.0",
+                  "foolscap[secure_connections] >= 0.4.1",
                   "Nevow >= 0.6.0",
                   ]
 
