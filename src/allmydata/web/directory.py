@@ -524,14 +524,18 @@ class DirectoryAsHTML(rend.Page):
 
     def render_title(self, ctx, data):
         si_s = abbreviated_dirnode(self.node)
-        header = ["Directory SI=%s" % si_s]
+        header = ["AllMyData - Tahoe - Directory SI=%s" % si_s]
+        if self.node.is_readonly():
+            header.append(" (read-only)")
+        else:
+            header.append(" (modifiable)")
         return ctx.tag[header]
 
     def render_header(self, ctx, data):
         si_s = abbreviated_dirnode(self.node)
         header = ["Directory SI=%s" % si_s]
         if self.node.is_readonly():
-            header.append(" (readonly)")
+            header.append(" (read-only)")
         return ctx.tag[header]
 
     def render_welcome(self, ctx, data):
@@ -674,7 +678,7 @@ class DirectoryAsHTML(rend.Page):
             T.fieldset[
             T.input(type="hidden", name="t", value="mkdir"),
             T.input(type="hidden", name="when_done", value="."),
-            T.legend(class_="freeform-form-label")["Create a new directory"],
+            T.legend(class_="freeform-form-label")["Create a new directory in this directory"],
             "New directory name: ",
             T.input(type="text", name="name"), " ",
             T.input(type="submit", value="Create"),

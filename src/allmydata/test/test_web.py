@@ -913,7 +913,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.GET(self.public_url + "/reedownlee", followRedirect=True))
         def _check2(res):
-            self.failUnless("(readonly)" in res, res)
+            self.failUnless("(read-only)" in res, res)
             self.failIf("Upload a file" in res, res)
         d.addCallback(_check2)
 
@@ -929,7 +929,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty/"))
         def _check4(res):
             self.failUnless("directory is empty" in res, res)
-            MKDIR_BUTTON_RE=re.compile('<input type="hidden" name="t" value="mkdir" />.*<legend class="freeform-form-label">Create a new directory</legend>.*<input type="submit" value="Create" />', re.I)
+            MKDIR_BUTTON_RE=re.compile('<input type="hidden" name="t" value="mkdir" />.*<legend class="freeform-form-label">Create a new directory in this directory</legend>.*<input type="submit" value="Create" />', re.I)
             self.failUnless(MKDIR_BUTTON_RE.search(res), res)
         d.addCallback(_check4)
 
