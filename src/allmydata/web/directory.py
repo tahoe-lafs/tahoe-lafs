@@ -533,7 +533,7 @@ class DirectoryAsHTML(rend.Page):
 
     def render_header(self, ctx, data):
         si_s = abbreviated_dirnode(self.node)
-        header = ["Directory SI=%s" % si_s]
+        header = ["Directory SI=", T.span(class_="data-chars")[si_s]]
         if self.node.is_readonly():
             header.append(" (read-only)")
         return ctx.tag[header]

@@ -6,40 +6,42 @@
   <link href="/tahoe_css" rel="stylesheet" type="text/css"/>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 
-<h2 n:render="header"></h2>
+</head><body>
+
+<h1 n:render="header"></h1>
 
 <ul>
   <li>Object Type: <span n:render="type" /></li>
   <li>Storage Index: <tt n:render="si" /></li>
   <li>Object Size: <span n:render="size" /></li>
-  <li>Access Caps (URIs):
-  <table border="1">
+  <li>Access Caps (Tahoe-URIs):
+  <table class="table-headings-left">
     <span n:render="is_directory">
     <tr>
-      <td>Directory writecap</td>
-      <td><tt n:render="directory_writecap" /></td>
+      <th>Directory writecap</th>
+      <td><tt class="data-chars" n:render="directory_writecap" /></td>
     </tr>
     <tr>
-      <td>Directory readcap</td>
-      <td><tt n:render="directory_readcap" /></td>
+      <th>Directory readcap</th>
+      <td><tt class="data-chars" n:render="directory_readcap" /></td>
     </tr>
     <tr>
-      <td>Directory verifycap</td>
-      <td><tt n:render="directory_verifycap" /></td>
+      <th>Directory verifycap</th>
+      <td><tt class="data-chars" n:render="directory_verifycap" /></td>
     </tr>
     </span>
 
     <tr>
-      <td>File writecap</td>
-      <td><tt n:render="file_writecap" /></td>
+      <th>File writecap</th>
+      <td><tt class="data-chars" n:render="file_writecap" /></td>
     </tr>
     <tr>
-      <td>File readcap</td>
-      <td><tt n:render="file_readcap" /></td>
+      <th>File readcap</th>
+      <td><tt class="data-chars" n:render="file_readcap" /></td>
     </tr>
     <tr>
-      <td>File verifycap</td>
-      <td><tt n:render="file_verifycap" /></td>
+      <th>File verifycap</th>
+      <td><tt class="data-chars" n:render="file_verifycap" /></td>
     </tr>
   </table></li>
   <li><a href="?t=json">JSON</a></li>
@@ -64,6 +66,4 @@
   <div n:render="manifest_form" />
 </div>
 
-
-  </body>
-</html>
+</body></html>

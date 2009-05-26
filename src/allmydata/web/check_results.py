@@ -97,10 +97,13 @@ class ResultsBase:
             for (serverid, si, shnum) in data["list-corrupt-shares"]:
                 nickname = c.get_nickname_for_peerid(serverid)
                 badsharemap.append(T.tr[T.td["sh#%d" % shnum],
-                                        T.td[T.tt[base32.b2a(serverid)],
-                                             " (", nickname, ")"],
+                                        T.td[T.div(class_="nickname")[nickname],
+                                              T.div(class_="nodeid")[T.tt[base32.b2a(serverid)]]],
                                         ])
-            add("Corrupt shares", T.table(border="1")[badsharemap])
+            add("Corrupt shares", T.table()[
+                T.tr[T.th["Share ID"],
+                     T.th(class_="nickname-and-peerid")[T.div["Nickname"], T.div(class_="nodeid")["Node ID"]]],
+                badsharemap])
         else:
             add("Corrupt shares", "none")
 
@@ -122,11 +125,12 @@ class ResultsBase:
                     shareid_s = shareid
                 nickname = c.get_nickname_for_peerid(serverid)
                 sharemap.append(T.tr[T.td[shareid_s],
-                                     T.td[T.tt[base32.b2a(serverid)],
-                                          " (", nickname, ")"],
+                                     T.td[T.div(class_="nickname")[nickname],
+                                          T.div(class_="nodeid")[T.tt[base32.b2a(serverid)]]]
                                      ])
         add("Good Shares (sorted in share order)",
-            T.table(border="1")[sharemap])
+            T.table()[T.tr[T.th["Share ID"], T.th(class_="nickname-and-peerid")[T.div["Nickname"], T.div(class_="nodeid")["Node ID"]]],
+                      sharemap])
 
 
         add("Recoverable Versions", data["count-recoverable-versions"])
@@ -145,14 +149,16 @@ class ResultsBase:
             shareids = servers.get(serverid, [])
             shareids.reverse()
             shareids_s = [ T.tt[shareid, " "] for shareid in sorted(shareids) ]
-            servermap.append(T.tr[T.td[T.tt[base32.b2a(serverid)],
-                                       " (", nickname, ")"],
-                                  T.td[shareids_s] ])
+            servermap.append(T.tr[T.td[T.div(class_="nickname")[nickname],
+                                       T.div(class_="nodeid")[T.tt[base32.b2a(serverid)]]],
+                                  T.td[shareids_s],
+                                  ])
             num_shares_left -= len(shareids)
             if not num_shares_left:
                 break
         add("Share Balancing (servers in permuted order)",
-            T.table(border="1")[servermap])
+            T.table()[T.tr[T.th(class_="nickname-and-peerid")[T.div["Nickname"], T.div(class_="nodeid")["Node ID"]], T.th["Share IDs"]],
+                      servermap])
 
         return T.ul[r]
 

@@ -43,7 +43,7 @@
 <div n:render="corrupt_shares_p">
 <h2>Corrupt Shares</h2>
 <p>If repair fails, these shares need to be manually inspected and removed.</p>
-<table n:render="sequence" n:data="corrupt_shares" border="1">
+<table n:render="sequence" n:data="corrupt_shares">
   <tr n:pattern="header">
     <td>Server</td>
     <td>Server Nickname</td>
@@ -63,7 +63,7 @@
 
 <div>
 <h2>All Results</h2>
-<table n:render="sequence" n:data="all_objects" border="1">
+<table n:render="sequence" n:data="all_objects">
   <tr n:pattern="header">
     <td>Relative Path</td>
     <td>Healthy</td>

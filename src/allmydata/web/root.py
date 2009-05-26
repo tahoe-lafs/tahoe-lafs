@@ -276,6 +276,7 @@ class Root(rend.Page):
 
         TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
         ctx.fillSlots("connected", connected)
+        ctx.fillSlots("connected-bool", not not rsc.rref)
         ctx.fillSlots("since", time.strftime(TIME_FORMAT, time.localtime(since)))
         ctx.fillSlots("announced", time.strftime(TIME_FORMAT,
                                                  time.localtime(rsc.announcement_time)))
@@ -290,10 +291,10 @@ class Root(rend.Page):
                       enctype="multipart/form-data")[
             T.fieldset[
             T.legend(class_="freeform-form-label")["Download a file"],
-            "URI to download: ",
-            T.input(type="text", name="uri"), " ",
-            "Filename to download as: ",
-            T.input(type="text", name="filename"), " ",
+            T.div["Tahoe-URI to download: ",
+                  T.input(type="text", name="uri")],
+            T.div["Filename to download as: ",
+                  T.input(type="text", name="filename")],
             T.input(type="submit", value="Download!"),
             ]]
         return T.div[form]
@@ -305,7 +306,7 @@ class Root(rend.Page):
                       enctype="multipart/form-data")[
             T.fieldset[
             T.legend(class_="freeform-form-label")["View a file or directory"],
-            "URI to view: ",
+            "Tahoe-URI to view: ",
             T.input(type="text", name="uri"), " ",
             T.input(type="submit", value="View!"),
             ]]
@@ -317,11 +318,11 @@ class Root(rend.Page):
                       enctype="multipart/form-data")[
             T.fieldset[
             T.legend(class_="freeform-form-label")["Upload a file"],
-            "Choose a file: ",
-            T.input(type="file", name="file", class_="freeform-input-file"),
+            T.div["Choose a file: ",
+                  T.input(type="file", name="file", class_="freeform-input-file")],
             T.input(type="hidden", name="t", value="upload"),
-            " Mutable?:", T.input(type="checkbox", name="mutable"),
-            T.input(type="submit", value="Upload!"),
+            T.div[T.input(type="checkbox", name="mutable"), T.label(for_="mutable")["Create mutable file"],
+                  " ", T.input(type="submit", value="Upload!")],
             ]]
         return T.div[form]
 
@@ -330,10 +331,10 @@ class Root(rend.Page):
         form = T.form(action="uri", method="post",
                       enctype="multipart/form-data")[
             T.fieldset[
-            T.legend(class_="freeform-form-label")["Create a directory."],
+            T.legend(class_="freeform-form-label")["Create a directory"],
             T.input(type="hidden", name="t", value="mkdir"),
             T.input(type="hidden", name="redirect_to_result", value="true"),
-            T.input(type="submit", value="create directory"),
+            T.input(type="submit", value="Create a directory"),
             ]]
         return T.div[form]
 

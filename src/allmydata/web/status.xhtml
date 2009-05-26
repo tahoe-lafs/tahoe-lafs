@@ -11,14 +11,14 @@
 
 
 <h2>Active Operations:</h2>
-<table n:render="sequence" n:data="active_operations" border="1">
+<table class="table-headings-top" n:render="sequence" n:data="active_operations">
   <tr n:pattern="header">
-    <td>Type</td>
-    <td>Storage Index</td>
-    <td>Helper?</td>
-    <td>Total Size</td>
-    <td>Progress</td>
-    <td>Status</td>
+    <th>Type</th>
+    <th>Storage Index</th>
+    <th>Helper?</th>
+    <th>Total Size</th>
+    <th>Progress</th>
+    <th>Status</th>
   </tr>
   <tr n:pattern="item" n:render="row">
     <td><n:slot name="type"/></td>
@@ -33,15 +33,15 @@
 
 
 <h2>Recent Operations:</h2>
-<table n:render="sequence" n:data="recent_operations" border="1">
+<table class="table-headings-top" n:render="sequence" n:data="recent_operations">
   <tr n:pattern="header">
-    <td>Started</td>
-    <td>Type</td>
-    <td>Storage Index</td>
-    <td>Helper?</td>
-    <td>Total Size</td>
-    <td>Progress</td>
-    <td>Status</td>
+    <th>Started</th>
+    <th>Type</th>
+    <th>Storage Index</th>
+    <th>Helper?</th>
+    <th>Total Size</th>
+    <th>Progress</th>
+    <th>Status</th>
   </tr>
   <tr n:pattern="item" n:render="row">
     <td><n:slot name="started"/></td>

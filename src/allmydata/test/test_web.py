@@ -879,10 +879,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             # the FILE reference points to a URI, but it should end in bar.txt
             bar_url = ("%s/file/%s/@@named=/bar.txt" %
                        (ROOT, urllib.quote(self._bar_txt_uri)))
-            get_bar = "".join([r'<td>',
+            get_bar = "".join([r'<td>FILE</td>',
+                               r'\s+<td>',
                                r'<a href="%s">bar.txt</a>' % bar_url,
                                r'</td>',
-                               r'\s+<td>FILE</td>',
                                r'\s+<td>%d</td>' % len(self.BAR_CONTENTS),
                                ])
             self.failUnless(re.search(get_bar, res), res)
@@ -904,8 +904,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
             # the DIR reference just points to a URI
             sub_url = ("%s/uri/%s/" % (ROOT, urllib.quote(self._sub_uri)))
-            get_sub = ((r'<td><a href="%s">sub</a></td>' % sub_url)
-                       + r'\s+<td>DIR</td>')
+            get_sub = ((r'<td>DIR</td>')
+                       +r'\s+<td><a href="%s">sub</a></td>' % sub_url)
             self.failUnless(re.search(get_sub, res), res)
         d.addCallback(_check)
 
@@ -921,8 +921,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.GET(self.public_url, followRedirect=True))
         def _check3(res):
-            self.failUnless(re.search(r'<td><a href="[\.\/]+/uri/URI%3ADIR2-RO%3A[^"]+">reedownlee</a>'
-                                      '</td>\s+<td>DIR-RO</td>', res))
+            self.failUnless(re.search('<td>DIR-RO</td>'
+                                      r'\s+<td><a href="[\.\/]+/uri/URI%3ADIR2-RO%3A[^"]+">reedownlee</a></td>', res), res)
         d.addCallback(_check3)
 
         # and an empty directory
@@ -1895,7 +1895,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         # Fetch the welcome page.
         d = self.GET("/")
         def _after_get_welcome_page(res):
-            MKDIR_BUTTON_RE=re.compile('<form action="([^"]*)" method="post".*<input type="hidden" name="t" value="([^"]*)" /><input type="hidden" name="([^"]*)" value="([^"]*)" /><input type="submit" value="create directory" />', re.I)
+            MKDIR_BUTTON_RE=re.compile('<form action="([^"]*)" method="post".*?<input type="hidden" name="t" value="([^"]*)" /><input type="hidden" name="([^"]*)" value="([^"]*)" /><input type="submit" value="Create a directory" />', re.I)
             mo = MKDIR_BUTTON_RE.search(res)
             formaction = mo.group(1)
             formt = mo.group(2)

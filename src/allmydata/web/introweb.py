@@ -68,7 +68,7 @@ class IntroducerRoot(rend.Page):
     def data_version(self, ctx, data):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):
-        return str(allmydata)
+        return str(allmydata).replace("/", "/ ") # XXX kludge for wrapping
     def data_my_nodeid(self, ctx, data):
         return idlib.nodeid_b2a(self.introducer_node.nodeid)
 

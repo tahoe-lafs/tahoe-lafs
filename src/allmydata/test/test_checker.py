@@ -103,7 +103,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Recoverable! : rather dead", s)
-        self.failUnlessIn("Corrupt shares: sh#2 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (peer-0)", s)
+        self.failUnlessIn("Corrupt shares: Share ID Nickname Node ID sh#2 peer-0 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", s)
 
         html = self.render2(w)
         s = self.remove_tags(html)

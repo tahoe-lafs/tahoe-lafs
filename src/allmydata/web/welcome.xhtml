@@ -7,75 +7,94 @@
 
 <h1>Welcome To AllMyData "Tahoe"!</h1>
 
-<h2>Status of this Client</h2>
+<div class="section" id="this-client">
+  <h2>This Client</h2>
 
-<div>My nodeid: <span n:render="string" n:data="my_nodeid" /></div>
-<div>My nickname: <span n:render="string" n:data="my_nickname" /></div>
-<div>My versions: <span n:render="string" n:data="version" /></div>
-<div>Tahoe code imported from: <span n:render="string" n:data="import_path" /></div>
-<div n:render="services">Services Running:</div>
+  <p>
+    <a href="status/">Recent Uploads and Downloads</a>,
+    <a href="statistics">Operational Statistics</a>
+  </p>
 
-<div>
-  <a href="status/">Recent Uploads and Downloads</a>,
-  <a href="statistics">Operational Statistics</a>
+  <table class="node-info table-headings-left">
+    <tr><th>My nickname:</th> <td class="nickname mine" n:render="string" n:data="my_nickname" /></tr>
+    <tr><th>My nodeid:</th> <td class="nodeid mine data-chars" n:render="string" n:data="my_nodeid" /></tr>
+    <tr><th>My versions:</th> <td n:render="string" n:data="version" /></tr>
+    <tr><th>Tahoe code imported from:</th> <td n:render="string" n:data="import_path" /></tr>
+    <tr><th>Services running:</th> <td n:render="services" /></tr>
+  </table>
+  
+
 </div>
 
-<h2>The Controls</h2>
+<div class="section" id="controls">
+<h2>Controls</h2>
 
-<div>There are also controls for each directory on that directory's page.</div>
+  <p>There are also controls for each directory on that directory's page.</p>
 
-<div n:render="mkdir_form" />
-<div n:render="view_form" />
-<div n:render="upload_form" />
-<div n:render="download_form" />
-
-
-<h2>Status of the Storage Grid</h2>
-
-<div>Introducer: <span n:render="string" n:data="introducer_furl" /></div>
-<div>Connected to introducer?: <span n:render="string" n:data="connected_to_introducer" /></div>
-
-<div>Helper: <span n:render="string" n:data="helper_furl" /></div>
-<div>Connected to helper?: <span n:render="string" n:data="connected_to_helper" /></div>
-
-<br />
-
-<div>Known Storage Servers: <span n:render="string" n:data="known_storage_servers" /></div>
-<div>Connected Storage Servers: <span n:render="string" n:data="connected_storage_servers" /></div>
-
-<div>
-<table n:render="sequence" n:data="services" border="1">
-  <tr n:pattern="header">
-    <td>PeerID</td>
-    <td>Nickname</td>
-    <td>Connected?</td>
-    <td>Since</td>
-    <td>Announced</td>
-    <td>Version</td>
-    <td>Service Name</td>
-  </tr>
-  <tr n:pattern="item" n:render="service_row">
-    <td><tt><n:slot name="peerid"/></tt></td>
-    <td><b><n:slot name="nickname"/></b></td>
-    <td><tt><n:slot name="connected"/></tt></td>
-    <td><tt><n:slot name="since"/></tt></td>
-    <td><tt><n:slot name="announced"/></tt></td>
-    <td><tt><n:slot name="version"/></tt></td>
-    <td><tt><n:slot name="service_name"/></tt></td>
-  </tr>
-  <tr n:pattern="empty"><td>no peers!</td></tr>
-</table>
+  <div n:render="mkdir_form" />
+  <div n:render="view_form" />
+  <div n:render="upload_form" />
+  <div n:render="download_form" />
 </div>
 
-<h2>Other Resources</h2>
+<div class="section" id="grid">
+  <h2>Status of the Storage Grid</h2>
 
-<div>Please visit the <a href="http://allmydata.org">Tahoe home page</a> for
-code updates and bug reporting.</div>
+  <div>
+    <n:attr name="class">connected-<n:invisible n:render="string" n:data="connected_to_introducer" /></n:attr>
+    <div>Introducer: <span class="data-chars" n:render="string" n:data="introducer_furl" /></div>
+    <div>Connected to introducer?: <span n:render="string" n:data="connected_to_introducer" /></div>
+  </div>
 
-<div>The <a href="provisioning">provisioning tool</a> and <a
-href="reliability">reliability calculator</a> may also be useful.</div>
+  <div>
+    <n:attr name="class">connected-<n:invisible n:render="string" n:data="connected_to_helper" /></n:attr>
+    <div>Helper: <span n:render="string" n:data="helper_furl" /></div>
+    <div>Connected to helper?: <span n:render="string" n:data="connected_to_helper" /></div>
+  </div>
 
-<div n:render="incident_button" />
+  <p>Connected to <span n:render="string" n:data="connected_storage_servers" />
+     of <span n:render="string" n:data="known_storage_servers" /> known storage servers:</p>
 
-  </body>
-</html>
+  <div>
+    <table class="services table-headings-top" n:render="sequence" n:data="services">
+      <tr n:pattern="header">
+        <th>Service Name</th>
+        <th class="nickname-and-peerid">
+            <div class="service-nickname">Nickname</div>
+            <div class="nodeid data-chars">PeerID</div></th>
+        <th>Connected?</th>
+        <th>since</th>
+        <th>First Announced</th>
+        <th>Version</th>
+      </tr>
+      <tr n:pattern="item" n:render="service_row">
+        <td class="service-service-name"><n:slot name="service_name"/></td>
+        <td class="nickname-and-peerid">
+          <div class="nickname"><n:slot name="nickname"/></div>
+          <div class="nodeid data-chars"><n:slot name="peerid"/></div></td>
+        <td>   
+          <n:attr name="class">service-connected connected-<n:slot name="connected-bool"/></n:attr>
+          <n:slot name="connected"/>
+        </td>
+        <td class="service-since">       <n:slot name="since"/></td>
+        <td class="service-announced">   <n:slot name="announced"/></td>
+        <td class="service-version">     <n:slot name="version"/></td>
+      </tr>
+      <tr n:pattern="empty"><td>no peers!</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="section" id="other-resources">
+  <h2>Other Resources</h2>
+
+  <div>Please visit the <a href="http://allmydata.org">Tahoe home page</a> for
+  code updates and bug reporting.</div>
+
+  <div>The <a href="provisioning">provisioning tool</a> and <a
+  href="reliability">reliability calculator</a> may also be useful.</div>
+
+  <div n:render="incident_button" />
+</div>
+
+</body></html>
