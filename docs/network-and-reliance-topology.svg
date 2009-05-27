@@ -9,16 +9,16 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="815"
-   height="660"
+   width="792.86096"
+   height="530.68115"
    id="svg2"
    sodipodi:version="0.32"
    inkscape:version="0.46"
    sodipodi:docname="network-and-reliance-topology.svg"
    inkscape:output_extension="org.inkscape.output.svg.inkscape"
    inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
-   inkscape:export-xdpi="151"
-   inkscape:export-ydpi="151"
+   inkscape:export-xdpi="90.862091"
+   inkscape:export-ydpi="90.862091"
    version="1.0">
   <defs
      id="defs4">
@@ -231,7 +231,7 @@
      inkscape:pageshadow="2"
      inkscape:zoom="1.4848971"
      inkscape:cx="403.50545"
-     inkscape:cy="328.94374"
+     inkscape:cy="287.96539"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -262,12 +262,12 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-19.65004,-153.16943)">
+     transform="translate(-29.895332,-159.56549)">
     <text
        xml:space="preserve"
        style="font-size:24px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
-       x="249.16103"
-       y="223.59428"
+       x="245.12035"
+       y="177.79987"
        id="text3269"
        sodipodi:linespacing="100%"
        inkscape:export-xdpi="151"
@@ -275,14 +275,14 @@
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"><tspan
          sodipodi:role="line"
          id="tspan3271"
-         x="249.16103"
-         y="223.59428"
+         x="245.12035"
+         y="177.79987"
          style="font-size:24px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">Tahoe-LAFS network topology</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:DejaVu Serif"
-       x="33.982891"
-       y="284.73438"
+       x="29.942207"
+       y="221.43034"
        id="text3273"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -290,8 +290,8 @@
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
          id="tspan3275"
-         x="33.982891"
-         y="284.73438"
+         x="29.942207"
+         y="221.43034"
          style="font-size:16px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">Tahoe-LAFS storage servers</tspan></text>
     <path
        sodipodi:type="arc"
@@ -302,23 +302,23 @@
        sodipodi:rx="48"
        sodipodi:ry="46.5"
        d="M 382,432.86218 A 48,46.5 0 1 1 286,432.86218 A 48,46.5 0 1 1 382,432.86218 z"
-       transform="translate(278.64961,-10.180235)"
+       transform="translate(275.28238,-84.93289)"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151" />
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:DejaVu Sans"
-       x="600.00378"
-       y="359.24945"
+       x="596.63654"
+       y="284.49683"
        id="text3279"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
-         x="600.00378"
-         y="359.24945"
+         x="596.63654"
+         y="284.49683"
          style="font-size:16px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
          id="tspan2753">Tahoe-LAFS client</tspan></text>
     <rect
@@ -326,16 +326,16 @@
        id="rect3283"
        width="62.804142"
        height="70.508224"
-       x="338.38593"
-       y="387.10129"
+       x="335.01871"
+       y="312.34866"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151" />
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:DejaVu Serif"
-       x="315.38602"
-       y="367.61618"
+       x="312.0188"
+       y="294.88391"
        id="text3285"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -343,12 +343,12 @@
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
          id="tspan3287"
-         x="315.38602"
-         y="367.61618"
+         x="312.0188"
+         y="294.88391"
          style="font-size:16px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">Tahoe-LAFS gateway</tspan></text>
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Mend);stroke-opacity:1;display:inline"
-       d="M 337.30253,410.09872 L 175.08234,348.89348"
+       d="M 333.93531,335.34609 L 171.71511,274.14082"
        id="path3289"
        inkscape:connector-type="polyline"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -357,7 +357,7 @@
        inkscape:connection-start="#rect3283" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Mend);stroke-opacity:1;display:inline"
-       d="M 337.30253,422.41059 L 175.14439,422.6861"
+       d="M 333.93531,347.65796 L 171.77716,347.93344"
        id="path4069"
        inkscape:connector-type="polyline"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -366,7 +366,7 @@
        inkscape:connection-start="#rect3283" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Mend);stroke-opacity:1;display:inline"
-       d="M 337.30253,435.71623 L 175.0719,502.43947"
+       d="M 333.93531,360.9636 L 171.70467,427.68681"
        id="path5618"
        inkscape:connector-type="polyline"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -375,7 +375,7 @@
        inkscape:connection-start="#rect3283" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Mend);stroke-opacity:1;display:inline"
-       d="M 337.30253,448.50554 L 174.92954,579.21247"
+       d="M 333.93531,373.7529 L 171.56231,504.45981"
        id="path6135"
        inkscape:connector-type="polyline"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -384,7 +384,7 @@
        inkscape:connection-start="#rect3283" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Mend);stroke-opacity:1;display:inline"
-       d="M 339.54654,458.69291 L 174.79173,656.65891"
+       d="M 336.17932,383.94028 L 171.4245,581.90625"
        id="path6652"
        inkscape:connector-type="polyline"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -393,7 +393,7 @@
        inkscape:connection-start="#rect3283" />
     <path
        style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1Mend);stroke-opacity:1;display:inline"
-       d="M 347.04656,458.69291 L 174.68265,734.10536"
+       d="M 343.67934,383.94028 L 171.31542,659.3527"
        id="path7169"
        inkscape:connector-type="polyline"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -403,26 +403,26 @@
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:DejaVu Serif"
-       x="215.80296"
-       y="426.10864"
+       x="212.43573"
+       y="351.35602"
        id="text7686"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
-         x="215.80296"
-         y="426.10864"
+         x="212.43573"
+         y="351.35602"
          id="tspan2799"
          style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans" /><tspan
          sodipodi:role="line"
-         x="215.80296"
-         y="436.10864"
+         x="212.43573"
+         y="361.35602"
          style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
          id="tspan5144">over TCP/SSL</tspan></text>
     <path
        style="fill:none;fill-rule:evenodd;stroke:#e90000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;marker-end:url(#Arrow1MendReddish);stroke-opacity:1;display:inline"
-       d="M 563.26563,422.17388 L 465.31341,422.31019"
+       d="M 559.8984,347.42122 L 461.94619,347.55756"
        id="path7690"
        inkscape:connector-type="polyline"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -431,29 +431,34 @@
        inkscape:connection-end="#rect2791" />
     <text
        xml:space="preserve"
-       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:DejaVu Serif"
-       x="484.1033"
-       y="425.36606"
+       style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:DejaVu Serif"
+       x="512.73608"
+       y="350.61343"
        id="text8207"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
-         x="484.1033"
-         y="425.36606"
-         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
+         x="512.73608"
+         y="350.61343"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
          id="tspan6123" /><tspan
          sodipodi:role="line"
-         x="484.1033"
-         y="435.36606"
-         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
-         id="tspan6127">over HTTP(S)</tspan></text>
+         x="512.73608"
+         y="360.61343"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
+         id="tspan6127">over HTTP(S)</tspan><tspan
+         sodipodi:role="line"
+         x="512.73608"
+         y="370.61343"
+         style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
+         id="tspan2831">or (S)FTP</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
-       x="430.33945"
-       y="418.8251"
+       x="428.97223"
+       y="344.07248"
        id="text8211"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -461,44 +466,44 @@
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
          id="tspan8213"
-         x="430.33945"
-         y="418.8251"
+         x="428.97223"
+         y="344.07248"
          style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">HTTP(S)</tspan><tspan
          sodipodi:role="line"
-         x="430.33945"
-         y="428.8251"
+         x="428.97223"
+         y="354.07248"
          id="tspan8215"
          style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">server</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
-       x="369.72025"
-       y="417.11523"
+       x="366.35303"
+       y="342.36261"
        id="text8217"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
-         x="369.72025"
-         y="417.11523"
+         x="366.35303"
+         y="342.36261"
          id="tspan2785"
          style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">Tahoe-LAFS</tspan><tspan
          sodipodi:role="line"
-         x="369.72025"
-         y="427.11523"
+         x="366.35303"
+         y="352.36261"
          id="tspan8221"
          style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">storage</tspan><tspan
          sodipodi:role="line"
-         x="369.72025"
-         y="437.11523"
+         x="366.35303"
+         y="362.36261"
          id="tspan2783"
          style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:100%;writing-mode:lr-tb;text-anchor:middle;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">client</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#e90000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:DejaVu Serif"
-       x="353.048"
-       y="597.42224"
+       x="349.68079"
+       y="522.66956"
        id="text8407"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -506,34 +511,34 @@
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
          id="tspan8409"
-         x="353.048"
-         y="597.42224"
+         x="349.68079"
+         y="522.66956"
          style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">Red</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#e90000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:DejaVu Serif"
-       x="380.59344"
-       y="597.42224"
+       x="377.22623"
+       y="522.66956"
        id="text8411"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
-         x="380.59344"
-         y="597.42224"
+         x="377.22623"
+         y="522.66956"
          id="tspan8417"
          style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">means that whoever controls that link or that machine can</tspan><tspan
          sodipodi:role="line"
-         x="380.59344"
-         y="609.42224"
+         x="377.22623"
+         y="534.66956"
          id="tspan8415"
          style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">see your files and change their contents.  In other words, you<tspan
    style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique"
    id="tspan5160" /></tspan><tspan
          sodipodi:role="line"
-         x="380.59344"
-         y="621.42224"
+         x="377.22623"
+         y="546.66956"
          style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
          id="tspan5180"><tspan
    style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique"
@@ -541,45 +546,45 @@
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:DejaVu Serif"
-       x="341.98135"
-       y="665.64783"
+       x="338.61414"
+       y="590.89514"
        id="text8455"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
-         x="341.98135"
-         y="665.64783"
+         x="338.61414"
+         y="590.89514"
          style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
          id="tspan2817">Black</tspan><tspan
          sodipodi:role="line"
-         x="341.98135"
-         y="677.64783"
+         x="338.61414"
+         y="602.89514"
          id="tspan6119" /></text>
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:DejaVu Serif"
-       x="378.76923"
-       y="665.64783"
+       x="375.40201"
+       y="590.89514"
        id="text8459"
        sodipodi:linespacing="100%"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"><tspan
          sodipodi:role="line"
-         x="378.76923"
-         y="665.64783"
+         x="375.40201"
+         y="590.89514"
          id="tspan8465"
          style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">means that whoever controls that link or that machine cannot</tspan><tspan
          sodipodi:role="line"
-         x="378.76923"
-         y="677.64783"
+         x="375.40201"
+         y="602.89514"
          id="tspan8469"
          style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans">see your files or change their contents.  In other words, you</tspan><tspan
          sodipodi:role="line"
-         x="378.76923"
-         y="689.64783"
+         x="375.40201"
+         y="614.89514"
          id="tspan8479"
          style="font-size:12px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"><tspan
    style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique"
@@ -587,8 +592,8 @@
     <text
        xml:space="preserve"
        style="font-size:12px;font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Serif;-inkscape-font-specification:Sans Italic"
-       x="666.6665"
-       y="384.14856"
+       x="663.29926"
+       y="303.39594"
        id="text2761"
        sodipodi:linespacing="100%"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
@@ -596,47 +601,52 @@
        inkscape:export-ydpi="151"><tspan
          sodipodi:role="line"
          id="tspan2763"
-         x="666.6665"
-         y="384.14856"
+         x="663.29926"
+         y="303.39594"
          style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique">• web browser</tspan><tspan
          sodipodi:role="line"
-         x="666.6665"
-         y="396.14856"
+         x="663.29926"
+         y="315.39594"
          id="tspan2765"
          style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique">• command-line tool</tspan><tspan
          sodipodi:role="line"
-         x="666.6665"
-         y="408.14856"
+         x="663.29926"
+         y="327.39594"
          id="tspan2767"
          style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique">• Windows virtual drive</tspan><tspan
          sodipodi:role="line"
-         x="666.6665"
-         y="420.14856"
+         x="663.29926"
+         y="339.39594"
          id="tspan2769"
          style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique">• JavaScript frontends</tspan><tspan
          sodipodi:role="line"
-         x="666.6665"
-         y="432.14856"
+         x="663.29926"
+         y="351.39594"
          id="tspan2787"
          style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique">• tahoe backup tool</tspan><tspan
          sodipodi:role="line"
-         x="666.6665"
-         y="444.14856"
-         id="tspan2771"
-         style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique">• duplicity</tspan><tspan
+         x="663.29926"
+         y="363.39594"
+         style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique"
+         id="tspan2823">• duplicity</tspan><tspan
          sodipodi:role="line"
-         x="666.6665"
-         y="456.14856"
+         x="663.29926"
+         y="375.39594"
+         style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique"
+         id="tspan2835">• (S)FTP client</tspan><tspan
+         sodipodi:role="line"
+         x="663.29926"
+         y="387.39594"
          id="tspan2775"
          style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique">• GridBackup (incomplete)</tspan><tspan
          sodipodi:role="line"
-         x="666.6665"
-         y="468.14856"
+         x="663.29926"
+         y="399.39594"
          id="tspan2781"
          style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique">• FUSE (incomplete)</tspan><tspan
          sodipodi:role="line"
-         x="666.6665"
-         y="480.14856"
+         x="663.29926"
+         y="411.39594"
          id="tspan2773"
          style="font-size:12px;font-style:oblique;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans Oblique" /></text>
     <rect
@@ -644,14 +654,14 @@
        id="rect2791"
        width="62.804142"
        height="70.508224"
-       x="401.42587"
-       y="387.10129"
+       x="398.05865"
+       y="312.34866"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151" />
     <g
        id="g5891"
-       transform="translate(10.565547,43.453895)"
+       transform="translate(7.1983103,-31.29876)"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151">
@@ -788,7 +798,7 @@
     </g>
     <g
        id="g5943"
-       transform="translate(10.565547,430.90071)"
+       transform="translate(7.1983103,356.14805)"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151">
@@ -925,7 +935,7 @@
     </g>
     <g
        id="g5977"
-       transform="translate(10.565547,353.41133)"
+       transform="translate(7.1983103,278.65867)"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151">
@@ -1062,7 +1072,7 @@
     </g>
     <g
        id="g6011"
-       transform="translate(10.565547,275.92195)"
+       transform="translate(7.1983103,201.16929)"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151">
@@ -1199,7 +1209,7 @@
     </g>
     <g
        id="g6045"
-       transform="translate(10.565547,198.4326)"
+       transform="translate(7.1983103,123.67994)"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151">
@@ -1336,7 +1346,7 @@
     </g>
     <g
        id="g6079"
-       transform="translate(10.565547,120.94325)"
+       transform="translate(7.1983103,46.190595)"
        inkscape:export-filename="/home/zooko/playground/allmydata/tahoe/trunk/trunk/docs/network-and-reliance-topology.png"
        inkscape:export-xdpi="151"
        inkscape:export-ydpi="151">
@@ -1474,24 +1484,24 @@
     <text
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
-       x="181.36736"
-       y="416.97171"
+       x="178.00012"
+       y="342.21909"
        id="text2815"
        sodipodi:linespacing="100%"><tspan
          sodipodi:role="line"
          id="tspan2818"
-         x="181.36736"
-         y="416.97171">Tahoe-LAFS storage protocol</tspan></text>
+         x="178.00012"
+         y="342.21909">Tahoe-LAFS storage protocol</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:10px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:start;line-height:100%;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;font-family:DejaVu Sans;-inkscape-font-specification:DejaVu Sans"
-       x="472.89645"
-       y="417.44791"
+       x="469.52924"
+       y="342.69528"
        id="text2820"
        sodipodi:linespacing="100%"><tspan
          sodipodi:role="line"
          id="tspan2822"
-         x="472.89645"
-         y="417.44791">Tahoe-LAFS WAPI</tspan></text>
+         x="469.52924"
+         y="342.69528">Tahoe-LAFS WAPI</tspan></text>
   </g>
 </svg>
