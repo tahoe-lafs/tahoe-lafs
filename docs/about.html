@@ -11,14 +11,13 @@
     <h1>Welcome to Tahoe</h1>
     <p>Welcome to allmydata.org Tahoe, the Least-Authority Filesystem.  This is a secure, decentralized, fault-tolerant filesystem.  All of the source code is available under a choice of two Free Software, Open Source licences.</p>
     <p>This filesystem is encrypted and spread over multiple peers in such a way that it continues to function even when some of the peers are unavailable, malfunctioning, or malicious.</p>
-    <p>See the web site for information, news, and discussion:</p>
-    <p><a href="http://allmydata.org">http://allmydata.org</a></p>
 
-    <h2>Overview</h2>
-    <p>A "storage grid" is made up of a number of storage servers.  A storage server has local attached storage (typically one or more hard disks).  A "gateway" uses the storage servers and provides to its clients a filesystem over a standard protocol such as HTTP(S), FUSE, SMB, or (S)FTP.</p>
+    <img src="http://allmydata.org/~zooko/network-and-reliance-topology.png"></img>
+
+    <p>A "storage grid" is made up of a number of storage servers.  A storage server has local attached storage (typically one or more hard disks).  A "gateway" uses the storage servers and provides a filesystem over a standard protocol such as HTTP(S), FUSE, SMB, or (S)FTP.</p>
     <p>Users do not rely on storage servers to provide <i>confidentiality</i> nor <i>integrity</i> for their data -- instead all of the data is encrypted and integrity-checked by the gateway, so that the servers can neither read nor alter the contents of the files.</p>
-    <p>Users do rely on storage servers for <i>availability</i>.  The ciphertext is erasure-coded and distributed across <cite>N</cite> storage servers (the default value for <cite>N</cite> is 10) so that it can be recovered from any <cite>K</cite> of these servers (the default value of <cite>K</cite> is 3).  Therefore only the simultaneous failure of <cite>N-K+1</cite> (with the defaults, 8) servers can make the data unavailable.  Users rely on the gateway for the confidentiality and integrity of the data, and on any 3 of the 10 servers for the availability of the data.</p>
-    <p>In the typical deployment mode each user runs her own gateway on her own machine.  This way she relies on only her own machine for the confidentiality and integrity of the data, and she can take advantage of filesystem integration using FUSE or SMB.</p>
+    <p>Users rely on storage servers for <i>availability</i>.  The ciphertext is erasure-coded and distributed across <cite>N</cite> storage servers (the default value for <cite>N</cite> is 10) so that it can be recovered from any <cite>K</cite> of these servers (the default value of <cite>K</cite> is 3).  Therefore only the simultaneous failure of <cite>N-K+1</cite> (with the defaults, 8) servers can make the data unavailable.</p>
+    <p>In the typical deployment mode each user runs her own gateway on her own machine.  This way she relies on her own machine for the confidentiality and integrity of the data.</p>
     <p>An alternate deployment mode is that the gateway runs on a remote machine and the user connects to it over HTTPS or SFTP.  This means that the operator of the gateway can view and modify the user's data (the user <i>relies on</i> the gateway for confidentiality and integrity), but the user can access the filesystem with a client that doesn't have the gateway software installed, such as an Internet kiosk or cell phone.</p>
 
     <h2>Access control</h2>
