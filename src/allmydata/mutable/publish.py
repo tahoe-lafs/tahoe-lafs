@@ -108,6 +108,7 @@ class Publish:
         num = self._node._client.log("Publish(%s): starting" % prefix)
         self._log_number = num
         self._running = True
+        self._first_write_error = None
 
         self._status = PublishStatus()
         self._status.set_storage_index(self._storage_index)
@@ -382,7 +383,10 @@ class Publish:
         peerlist.sort()
 
         if not peerlist:
-            raise NotEnoughServersError("Ran out of non-bad servers")
+            raise NotEnoughServersError("Ran out of non-bad servers, "
+                                        "first_error=%s" %
+                                        str(self._first_write_error),
+                                        self._first_write_error)
 
         new_assignments = []
         # we then index this peerlist with an integer, because we may have to
@@ -801,6 +805,8 @@ class Publish:
         for shnum in shnums:
             self.outstanding.discard( (peerid, shnum) )
         self.bad_peers.add(peerid)
+        if self._first_write_error is None:
+            self._first_write_error = f
         self.log(format="error while writing shares %(shnums)s to peerid %(peerid)s",
                  shnums=list(shnums), peerid=idlib.shortnodeid_b2a(peerid),
                  failure=f,

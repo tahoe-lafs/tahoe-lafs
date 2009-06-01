@@ -33,7 +33,13 @@ class UnrecoverableFileError(Exception):
 
 class NotEnoughServersError(Exception):
     """There were not enough functioning servers available to place shares
-    upon."""
+    upon. This might result from all servers being full or having an error, a
+    local bug which causes all server requests to fail in the same way, or
+    from there being zero servers. The first error received (if any) is
+    stored in my .first_error attribute."""
+    def __init__(self, why, first_error=None):
+        Exception.__init__(self, why, first_error)
+        self.first_error = first_error
 
 class CorruptShareError(Exception):
     def __init__(self, peerid, shnum, reason):
