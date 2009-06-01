@@ -11,6 +11,7 @@ from pycryptopp.publickey import rsa
 
 import allmydata
 from allmydata.storage.server import StorageServer
+from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.download import Downloader
 from allmydata.immutable.filenode import FileNode, LiteralFileNode
@@ -220,6 +221,8 @@ class Client(node.Node, pollmixin.PollMixin):
         convergence_s = self.get_or_create_private_config('convergence', _make_secret)
         self.convergence = base32.a2b(convergence_s)
         self._node_cache = weakref.WeakValueDictionary() # uri -> node
+
+        self.init_client_storage_broker()
         self.add_service(History(self.stats_provider))
         self.add_service(Uploader(helper_furl, self.stats_provider))
         download_cachedir = os.path.join(self.basedir,
@@ -228,6 +231,37 @@ class Client(node.Node, pollmixin.PollMixin):
         self.download_cache.setServiceParent(self)
         self.add_service(Downloader(self.stats_provider))
         self.init_stub_client()
+
+    def init_client_storage_broker(self):
+        # create a StorageFarmBroker object, for use by Uploader/Downloader
+        # (and everybody else who wants to use storage servers)
+        self.storage_broker = sb = storage_client.StorageFarmBroker()
+
+        # load static server specifications from tahoe.cfg, if any
+        #if self.config.has_section("client-server-selection"):
+        #    server_params = {} # maps serverid to dict of parameters
+        #    for (name, value) in self.config.items("client-server-selection"):
+        #        pieces = name.split(".")
+        #        if pieces[0] == "server":
+        #            serverid = pieces[1]
+        #            if serverid not in server_params:
+        #                server_params[serverid] = {}
+        #            server_params[serverid][pieces[2]] = value
+        #    for serverid, params in server_params.items():
+        #        server_type = params.pop("type")
+        #        if server_type == "tahoe-foolscap":
+        #            s = storage_client.NativeStorageClient(*params)
+        #        else:
+        #            msg = ("unrecognized server type '%s' in "
+        #                   "tahoe.cfg [client-server-selection]server.%s.type"
+        #                   % (server_type, serverid))
+        #            raise storage_client.UnknownServerTypeError(msg)
+        #        sb.add_server(s.serverid, s)
+
+        # check to see if we're supposed to use the introducer too
+        if self.get_config("client-server-selection", "use_introducer",
+                           default=True, boolean=True):
+            sb.use_introducer(self.introducer_client)
 
     def init_stub_client(self):
         def _publish(res):
@@ -338,18 +372,10 @@ class Client(node.Node, pollmixin.PollMixin):
             self.log("hotline file missing, shutting down")
         reactor.stop()
 
-    def get_all_peerids(self):
-        return self.introducer_client.get_all_peerids()
-    def get_nickname_for_peerid(self, peerid):
-        return self.introducer_client.get_nickname_for_peerid(peerid)
-
-    def get_permuted_peers(self, service_name, key):
-        """
-        @return: list of (peerid, connection,)
-        """
-        assert isinstance(service_name, str)
-        assert isinstance(key, str)
-        return self.introducer_client.get_permuted_peers(service_name, key)
+    def get_all_serverids(self):
+        return self.storage_broker.get_all_serverids()
+    def get_nickname_for_serverid(self, serverid):
+        return self.storage_broker.get_nickname_for_serverid(serverid)
 
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
@@ -371,7 +397,7 @@ class Client(node.Node, pollmixin.PollMixin):
         temporary test network and need to know when it is safe to proceed
         with an upload or download."""
         def _check():
-            current_clients = list(self.get_all_peerids())
+            current_clients = list(self.get_all_serverids())
             return len(current_clients) >= num_clients
         d = self.poll(_check, 0.5)
         d.addCallback(lambda res: None)

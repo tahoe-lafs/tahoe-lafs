@@ -15,6 +15,7 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from no_network import GridTestMixin
 from common_util import ShouldFailMixin
+from allmydata.storage_client import StorageFarmBroker
 
 MiB = 1024*1024
 
@@ -158,22 +159,22 @@ class FakeClient:
         self.mode = mode
         self.num_servers = num_servers
         if mode == "some_big_some_small":
-            self.peers = []
+            peers = []
             for fakeid in range(num_servers):
                 if fakeid % 2:
-                    self.peers.append( ("%20d" % fakeid,
-                                        FakeStorageServer("good")) )
+                    peers.append(("%20d" % fakeid, FakeStorageServer("good")))
                 else:
-                    self.peers.append( ("%20d" % fakeid,
-                                        FakeStorageServer("small")) )
+                    peers.append(("%20d" % fakeid, FakeStorageServer("small")))
         else:
-            self.peers = [ ("%20d"%fakeid, FakeStorageServer(self.mode),)
+            peers = [ ("%20d"%fakeid, FakeStorageServer(self.mode),)
                            for fakeid in range(self.num_servers) ]
+        self.storage_broker = StorageFarmBroker()
+        for (serverid, server) in peers:
+            self.storage_broker.add_server(serverid, server)
+        self.last_peers = [p[1] for p in peers]
+
     def log(self, *args, **kwargs):
         pass
-    def get_permuted_peers(self, storage_index, include_myself):
-        self.last_peers = [p[1] for p in self.peers]
-        return self.peers
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
 

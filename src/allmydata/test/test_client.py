@@ -6,6 +6,7 @@ from twisted.python import log
 
 import allmydata
 from allmydata import client
+from allmydata.storage_client import StorageFarmBroker
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import base32
 from foolscap.api import flushEventualQueue
@@ -140,30 +141,19 @@ class Basic(unittest.TestCase):
         c = client.Client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 0)
 
-    def _permute(self, c, key):
+    def _permute(self, sb, key):
         return [ peerid
-                 for (peerid,rref) in c.get_permuted_peers("storage", key) ]
+                 for (peerid,rref) in sb.get_servers(key) ]
 
     def test_permute(self):
-        basedir = "test_client.Basic.test_permute"
-        os.mkdir(basedir)
-        open(os.path.join(basedir, "introducer.furl"), "w").write("")
-        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
-        c = client.Client(basedir)
-        c.introducer_client = FakeIntroducerClient()
+        sb = StorageFarmBroker()
         for k in ["%d" % i for i in range(5)]:
-            c.introducer_client.add_peer(k)
+            sb.add_server(k, None)
 
-        self.failUnlessEqual(self._permute(c, "one"), ['3','1','0','4','2'])
-        self.failUnlessEqual(self._permute(c, "two"), ['0','4','2','1','3'])
-        c.introducer_client.remove_all_peers()
-        self.failUnlessEqual(self._permute(c, "one"), [])
-
-        c2 = client.Client(basedir)
-        c2.introducer_client = FakeIntroducerClient()
-        for k in ["%d" % i for i in range(5)]:
-            c2.introducer_client.add_peer(k)
-        self.failUnlessEqual(self._permute(c2, "one"), ['3','1','0','4','2'])
+        self.failUnlessEqual(self._permute(sb, "one"), ['3','1','0','4','2'])
+        self.failUnlessEqual(self._permute(sb, "two"), ['0','4','2','1','3'])
+        sb.servers = {}
+        self.failUnlessEqual(self._permute(sb, "one"), [])
 
     def test_versions(self):
         basedir = "test_client.Basic.test_versions"

@@ -3,32 +3,32 @@ import simplejson
 from twisted.trial import unittest
 from allmydata import check_results, uri
 from allmydata.web import check_results as web_check_results
+from allmydata.storage_client import StorageFarmBroker, NativeStorageClient
 from common_web import WebRenderingMixin
 
 class FakeClient:
-    def get_nickname_for_peerid(self, peerid):
-        if peerid == "\x00"*20:
-            return "peer-0"
-        if peerid == "\xff"*20:
-            return "peer-f"
-        if peerid == "\x11"*20:
-            return "peer-11"
-        return "peer-unknown"
-
-    def get_permuted_peers(self, service, key):
-        return [("\x00"*20, None),
-                ("\x11"*20, None),
-                ("\xff"*20, None),
-                ]
+    def get_nickname_for_serverid(self, serverid):
+        return self.storage_broker.get_nickname_for_serverid(serverid)
 
 class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
+
+    def create_fake_client(self):
+        sb = StorageFarmBroker()
+        for (peerid, nickname) in [("\x00"*20, "peer-0"),
+                                   ("\xff"*20, "peer-f"),
+                                   ("\x11"*20, "peer-11")] :
+            n = NativeStorageClient(peerid, None, nickname)
+            sb.add_server(peerid, n)
+        c = FakeClient()
+        c.storage_broker = sb
+        return c
 
     def render_json(self, page):
         d = self.render1(page, args={"output": ["json"]})
         return d
 
     def test_literal(self):
-        c = FakeClient()
+        c = self.create_fake_client()
         lcr = web_check_results.LiteralCheckResults(c)
 
         d = self.render1(lcr)
@@ -53,7 +53,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         return d
 
     def test_check(self):
-        c = FakeClient()
+        c = self.create_fake_client()
         serverid_1 = "\x00"*20
         serverid_f = "\xff"*20
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
@@ -151,7 +151,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
 
     def test_check_and_repair(self):
-        c = FakeClient()
+        c = self.create_fake_client()
         serverid_1 = "\x00"*20
         serverid_f = "\xff"*20
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)

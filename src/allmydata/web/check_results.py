@@ -95,7 +95,7 @@ class ResultsBase:
         if data["list-corrupt-shares"]:
             badsharemap = []
             for (serverid, si, shnum) in data["list-corrupt-shares"]:
-                nickname = c.get_nickname_for_peerid(serverid)
+                nickname = c.get_nickname_for_serverid(serverid)
                 badsharemap.append(T.tr[T.td["sh#%d" % shnum],
                                         T.td[T.div(class_="nickname")[nickname],
                                               T.div(class_="nodeid")[T.tt[base32.b2a(serverid)]]],
@@ -123,7 +123,7 @@ class ResultsBase:
                 shareid_s = ""
                 if i == 0:
                     shareid_s = shareid
-                nickname = c.get_nickname_for_peerid(serverid)
+                nickname = c.get_nickname_for_serverid(serverid)
                 sharemap.append(T.tr[T.td[shareid_s],
                                      T.td[T.div(class_="nickname")[nickname],
                                           T.div(class_="nodeid")[T.tt[base32.b2a(serverid)]]]
@@ -137,15 +137,15 @@ class ResultsBase:
         add("Unrecoverable Versions", data["count-unrecoverable-versions"])
 
         # this table is sorted by permuted order
+        sb = c.storage_broker
         permuted_peer_ids = [peerid
                              for (peerid, rref)
-                             in c.get_permuted_peers("storage",
-                                                     cr.get_storage_index())]
+                             in sb.get_servers(cr.get_storage_index())]
 
         num_shares_left = sum([len(shares) for shares in servers.values()])
         servermap = []
         for serverid in permuted_peer_ids:
-            nickname = c.get_nickname_for_peerid(serverid)
+            nickname = c.get_nickname_for_serverid(serverid)
             shareids = servers.get(serverid, [])
             shareids.reverse()
             shareids_s = [ T.tt[shareid, " "] for shareid in sorted(shareids) ]
@@ -419,7 +419,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
     def render_server_problem(self, ctx, data):
         serverid = data
         data = [idlib.shortnodeid_b2a(serverid)]
-        nickname = self.client.get_nickname_for_peerid(serverid)
+        nickname = self.client.get_nickname_for_serverid(serverid)
         if nickname:
             data.append(" (%s)" % self._html(nickname))
         return ctx.tag[data]
@@ -433,7 +433,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         return self.monitor.get_status().get_corrupt_shares()
     def render_share_problem(self, ctx, data):
         serverid, storage_index, sharenum = data
-        nickname = self.client.get_nickname_for_peerid(serverid)
+        nickname = self.client.get_nickname_for_serverid(serverid)
         ctx.fillSlots("serverid", idlib.shortnodeid_b2a(serverid))
         if nickname:
             ctx.fillSlots("nickname", self._html(nickname))

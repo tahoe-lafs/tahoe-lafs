@@ -6,6 +6,7 @@ from foolscap.api import Tub, fireEventually, flushEventualQueue
 from foolscap.logging import log
 
 from allmydata.storage.server import si_b2a
+from allmydata.storage_client import StorageFarmBroker
 from allmydata.immutable import offloaded, upload
 from allmydata import uri
 from allmydata.util import hashutil, fileutil, mathutil
@@ -62,12 +63,11 @@ class FakeClient(service.MultiService):
                                    "max_segment_size": 1*MiB,
                                    }
     stats_provider = None
+    storage_broker = StorageFarmBroker()
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
-    def get_permuted_peers(self, service_name, storage_index):
-        return []
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()

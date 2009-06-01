@@ -421,9 +421,8 @@ class ServermapUpdater:
 
         self._queries_completed = 0
 
-        client = self._node._client
-        full_peerlist = client.get_permuted_peers("storage",
-                                                  self._node._storage_index)
+        sb = self._node._client.storage_broker
+        full_peerlist = list(sb.get_servers(self._node._storage_index))
         self.full_peerlist = full_peerlist # for use later, immutable
         self.extra_peers = full_peerlist[:] # peers are removed as we use them
         self._good_peers = set() # peers who had some shares

@@ -104,6 +104,11 @@ def wrap(original, service_name):
     wrapper.version = version
     return wrapper
 
+class NoNetworkStorageBroker:
+    def get_servers(self, key):
+        return sorted(self.client._servers,
+                      key=lambda x: sha.new(key+x[0]).digest())
+
 class NoNetworkClient(Client):
 
     def create_tub(self):
@@ -126,15 +131,16 @@ class NoNetworkClient(Client):
         pass
     def init_storage(self):
         pass
+    def init_client_storage_broker(self):
+        self.storage_broker = NoNetworkStorageBroker()
+        self.storage_broker.client = self
     def init_stub_client(self):
         pass
 
     def get_servers(self, service_name):
         return self._servers
 
-    def get_permuted_peers(self, service_name, key):
-        return sorted(self._servers, key=lambda x: sha.new(key+x[0]).digest())
-    def get_nickname_for_peerid(self, peerid):
+    def get_nickname_for_serverid(self, serverid):
         return None
 
 class SimpleStats:

@@ -190,9 +190,8 @@ class Publish:
         assert self._privkey
         self._encprivkey = self._node.get_encprivkey()
 
-        client = self._node._client
-        full_peerlist = client.get_permuted_peers("storage",
-                                                  self._storage_index)
+        sb = self._node._client.storage_broker
+        full_peerlist = sb.get_servers(self._storage_index)
         self.full_peerlist = full_peerlist # for use later, immutable
         self.bad_peers = set() # peerids who have errbacked/refused requests
 

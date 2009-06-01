@@ -54,7 +54,7 @@ class CHKCheckerAndUEBFetcher:
 
     def _get_all_shareholders(self, storage_index):
         dl = []
-        for (peerid, ss) in self._peer_getter("storage", storage_index):
+        for (peerid, ss) in self._peer_getter(storage_index):
             d = ss.callRemote("get_buckets", storage_index)
             d.addCallbacks(self._got_response, self._got_error,
                            callbackArgs=(peerid,))
@@ -622,8 +622,8 @@ class Helper(Referenceable, service.MultiService):
         # see if this file is already in the grid
         lp2 = self.log("doing a quick check+UEBfetch",
                        parent=lp, level=log.NOISY)
-        c = CHKCheckerAndUEBFetcher(self.parent.get_permuted_peers,
-                                    storage_index, lp2)
+        sb = self.parent.storage_broker
+        c = CHKCheckerAndUEBFetcher(sb.get_servers, storage_index, lp2)
         d = c.check()
         def _checked(res):
             if res:

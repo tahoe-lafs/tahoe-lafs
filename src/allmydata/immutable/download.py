@@ -743,8 +743,8 @@ class CiphertextDownloader(log.PrefixingLogMixin):
 
     def _get_all_shareholders(self):
         dl = []
-        for (peerid,ss) in self._client.get_permuted_peers("storage",
-                                                           self._storage_index):
+        sb = self._client.storage_broker
+        for (peerid,ss) in sb.get_servers(self._storage_index):
             d = ss.callRemote("get_buckets", self._storage_index)
             d.addCallbacks(self._got_response, self._got_error,
                            callbackArgs=(peerid,))

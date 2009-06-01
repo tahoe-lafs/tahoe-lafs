@@ -9,6 +9,7 @@ from twisted.python import failure, log
 from nevow import rend
 from allmydata import interfaces, uri, webish
 from allmydata.storage.shares import get_share_file
+from allmydata.storage_client import StorageFarmBroker
 from allmydata.immutable import upload, download
 from allmydata.web import status, common
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
@@ -64,11 +65,10 @@ class FakeClient(service.MultiService):
     def connected_to_introducer(self):
         return False
 
-    def get_nickname_for_peerid(self, peerid):
+    def get_nickname_for_serverid(self, serverid):
         return u"John Doe"
 
-    def get_permuted_peers(self, service_name, key):
-        return []
+    storage_broker = StorageFarmBroker()
 
     def create_node_from_uri(self, auri):
         precondition(isinstance(auri, str), auri)

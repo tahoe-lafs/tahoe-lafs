@@ -17,7 +17,7 @@ from allmydata.monitor import Monitor
 from allmydata.test.common import ShouldFailMixin
 from foolscap.api import eventually, fireEventually
 from foolscap.logging import log
-import sha
+from allmydata.storage_client import StorageFarmBroker
 
 from allmydata.mutable.filenode import MutableFileNode, BackoffAgent
 from allmydata.mutable.common import ResponseCache, \
@@ -171,12 +171,22 @@ class FakeClient:
     def __init__(self, num_peers=10):
         self._storage = FakeStorage()
         self._num_peers = num_peers
-        self._peerids = [tagged_hash("peerid", "%d" % i)[:20]
-                         for i in range(self._num_peers)]
-        self._connections = dict([(peerid, FakeStorageServer(peerid,
-                                                             self._storage))
-                                  for peerid in self._peerids])
+        peerids = [tagged_hash("peerid", "%d" % i)[:20]
+                   for i in range(self._num_peers)]
         self.nodeid = "fakenodeid"
+        self.storage_broker = StorageFarmBroker()
+        for peerid in peerids:
+            fss = FakeStorageServer(peerid, self._storage)
+            self.storage_broker.add_server(peerid, fss)
+
+    def get_all_serverids(self):
+        return self.storage_broker.get_all_serverids()
+    def debug_break_connection(self, peerid):
+        self.storage_broker.servers[peerid].broken = True
+    def debug_remove_connection(self, peerid):
+        self.storage_broker.servers.pop(peerid)
+    def debug_get_connection(self, peerid):
+        return self.storage_broker.servers[peerid]
 
     def get_encoding_parameters(self):
         return {"k": 3, "n": 10}
@@ -203,19 +213,6 @@ class FakeClient:
         assert IMutableFileURI.providedBy(u), u
         res = self.mutable_file_node_class(self).init_from_uri(u)
         return res
-
-    def get_permuted_peers(self, service_name, key):
-        """
-        @return: list of (peerid, connection,)
-        """
-        results = []
-        for (peerid, connection) in self._connections.items():
-            assert isinstance(peerid, str)
-            permuted = sha.new(key + peerid).digest()
-            results.append((permuted, peerid, connection))
-        results.sort()
-        results = [ (r[1],r[2]) for r in results]
-        return results
 
     def upload(self, uploadable):
         assert IUploadable.providedBy(uploadable)
@@ -276,7 +273,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         def _created(n):
             self.failUnless(isinstance(n, FastMutableFileNode))
             self.failUnlessEqual(n.get_storage_index(), n._storage_index)
-            peer0 = self.client._peerids[0]
+            peer0 = sorted(self.client.get_all_serverids())[0]
             shnums = self.client._storage._peers[peer0].keys()
             self.failUnlessEqual(len(shnums), 1)
         d.addCallback(_created)
@@ -1575,7 +1572,7 @@ class MultipleEncodings(unittest.TestCase):
 
             sharemap = {}
 
-            for i,peerid in enumerate(self._client._peerids):
+            for i,peerid in enumerate(self._client.get_all_serverids()):
                 peerid_s = shortnodeid_b2a(peerid)
                 for shnum in self._shares1.get(peerid, {}):
                     if shnum < len(places):
@@ -1798,15 +1795,15 @@ class LessFakeClient(FakeClient):
 
     def __init__(self, basedir, num_peers=10):
         self._num_peers = num_peers
-        self._peerids = [tagged_hash("peerid", "%d" % i)[:20]
-                         for i in range(self._num_peers)]
-        self._connections = {}
-        for peerid in self._peerids:
+        peerids = [tagged_hash("peerid", "%d" % i)[:20] 
+                   for i in range(self._num_peers)]
+        self.storage_broker = StorageFarmBroker()
+        for peerid in peerids:
             peerdir = os.path.join(basedir, idlib.shortnodeid_b2a(peerid))
             make_dirs(peerdir)
             ss = StorageServer(peerdir, peerid)
             lw = LocalWrapper(ss)
-            self._connections[peerid] = lw
+            self.storage_broker.add_server(peerid, lw)
         self.nodeid = "fakenodeid"
 
 
@@ -1886,7 +1883,7 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
                 self.old_map = smap
                 # now shut down one of the servers
                 peer0 = list(smap.make_sharemap()[0])[0]
-                self.client._connections.pop(peer0)
+                self.client.debug_remove_connection(peer0)
                 # then modify the file, leaving the old map untouched
                 log.msg("starting winning write")
                 return n.overwrite("contents 2")
@@ -1920,7 +1917,7 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(n._generated)
         def _break_peer0(res):
             si = n.get_storage_index()
-            peerlist = self.client.get_permuted_peers("storage", si)
+            peerlist = list(self.client.storage_broker.get_servers(si))
             peerid0, connection0 = peerlist[0]
             peerid1, connection1 = peerlist[1]
             connection0.broken = True
@@ -1939,6 +1936,12 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         # that ought to work too
         d.addCallback(lambda res: n.download_best_version())
         d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
+        def _explain_error(f):
+            print f
+            if f.check(NotEnoughServersError):
+                print "first_error:", f.value.first_error
+            return f
+        d.addErrback(_explain_error)
         return d
 
     def test_bad_server_overlap(self):
@@ -1954,8 +1957,8 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         basedir = os.path.join("mutable/CollidingWrites/test_bad_server")
         self.client = LessFakeClient(basedir, 10)
 
-        peerids = sorted(self.client._connections.keys())
-        self.client._connections[peerids[0]].broken = True
+        peerids = list(self.client.get_all_serverids())
+        self.client.debug_break_connection(peerids[0])
 
         d = self.client.create_mutable_file("contents 1")
         def _created(n):
@@ -1963,7 +1966,7 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
             # now break one of the remaining servers
             def _break_second_server(res):
-                self.client._connections[peerids[1]].broken = True
+                self.client.debug_break_connection(peerids[1])
             d.addCallback(_break_second_server)
             d.addCallback(lambda res: n.overwrite("contents 2"))
             # that ought to work too
@@ -1977,8 +1980,8 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         # Break all servers: the publish should fail
         basedir = os.path.join("mutable/CollidingWrites/publish_all_servers_bad")
         self.client = LessFakeClient(basedir, 20)
-        for connection in self.client._connections.values():
-            connection.broken = True
+        for peerid in self.client.get_all_serverids():
+            self.client.debug_break_connection(peerid)
         d = self.shouldFail(NotEnoughServersError,
                             "test_publish_all_servers_bad",
                             "Ran out of non-bad servers",
