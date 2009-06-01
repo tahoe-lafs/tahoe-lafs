@@ -469,11 +469,7 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
         d = defer.maybeDeferred(self.f.read, length)
         d.addCallback(lambda data: [data])
         return d
-    def get_plaintext_hashtree_leaves(self, first, last, num_segments):
-        return self.call("get_plaintext_hashtree_leaves", first, last,
-                         num_segments)
-    def get_plaintext_hash(self):
-        return self.call("get_plaintext_hash")
+
     def close(self):
         self.f.close()
         # ??. I'm not sure if it makes sense to forward the close message.

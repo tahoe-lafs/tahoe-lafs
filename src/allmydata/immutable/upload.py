@@ -577,6 +577,7 @@ class EncryptAnUploadable:
 
 
     def get_plaintext_hashtree_leaves(self, first, last, num_segments):
+        # this is currently unused, but will live again when we fix #453
         if len(self._plaintext_segment_hashes) < num_segments:
             # close out the last one
             assert len(self._plaintext_segment_hashes) == num_segments-1
@@ -907,15 +908,6 @@ class RemoteEncryptedUploadable(Referenceable):
         d.addCallback(_read)
         return d
 
-    def remote_get_plaintext_hashtree_leaves(self, first, last, num_segments):
-        log.msg("remote_get_plaintext_hashtree_leaves: %d-%d of %d" %
-                (first, last-1, num_segments),
-                level=log.NOISY)
-        d = self._eu.get_plaintext_hashtree_leaves(first, last, num_segments)
-        d.addCallback(list)
-        return d
-    def remote_get_plaintext_hash(self):
-        return self._eu.get_plaintext_hash()
     def remote_close(self):
         return self._eu.close()
 

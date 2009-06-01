@@ -2122,12 +2122,6 @@ class RIEncryptedUploadable(RemoteInterface):
     def read_encrypted(offset=Offset, length=ReadSize):
         return ListOf(str)
 
-    def get_plaintext_hashtree_leaves(first=int, last=int, num_segments=int):
-        return ListOf(Hash)
-
-    def get_plaintext_hash():
-        return Hash
-
     def close():
         return None
 
