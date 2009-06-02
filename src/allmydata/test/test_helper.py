@@ -68,6 +68,8 @@ class FakeClient(service.MultiService):
         return log.msg(*args, **kwargs)
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
+    def get_storage_broker(self):
+        return self.storage_broker
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()

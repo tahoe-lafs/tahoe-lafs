@@ -618,7 +618,7 @@ class Helper(Referenceable, service.MultiService):
         # see if this file is already in the grid
         lp2 = self.log("doing a quick check+UEBfetch",
                        parent=lp, level=log.NOISY)
-        sb = self.parent.storage_broker
+        sb = self.parent.get_storage_broker()
         c = CHKCheckerAndUEBFetcher(sb.get_servers, storage_index, lp2)
         d = c.check()
         def _checked(res):

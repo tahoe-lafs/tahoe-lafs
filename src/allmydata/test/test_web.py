@@ -69,6 +69,8 @@ class FakeClient(service.MultiService):
         return u"John Doe"
 
     storage_broker = StorageFarmBroker()
+    def get_storage_broker(self):
+        return self.storage_broker
 
     def create_node_from_uri(self, auri):
         precondition(isinstance(auri, str), auri)

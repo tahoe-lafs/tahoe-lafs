@@ -177,6 +177,8 @@ class FakeClient:
         pass
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
+    def get_storage_broker(self):
+        return self.storage_broker
 
     def get_renewal_secret(self):
         return ""

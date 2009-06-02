@@ -616,21 +616,22 @@ class DownloadStatus:
         self.results = value
 
 class CiphertextDownloader(log.PrefixingLogMixin):
-    """ I download shares, check their integrity, then decode them, check the integrity of the
-    resulting ciphertext, then and write it to my target. Before I send any new request to a
-    server, I always ask the "monitor" object that was passed into my constructor whether this
-    task has been cancelled (by invoking its raise_if_cancelled() method). """
+    """ I download shares, check their integrity, then decode them, check the
+    integrity of the resulting ciphertext, then and write it to my target.
+    Before I send any new request to a server, I always ask the 'monitor'
+    object that was passed into my constructor whether this task has been
+    cancelled (by invoking its raise_if_cancelled() method)."""
     implements(IPushProducer)
     _status = None
 
-    def __init__(self, client, v, target, monitor):
+    def __init__(self, storage_broker, v, target, monitor):
 
         precondition(IVerifierURI.providedBy(v), v)
         precondition(IDownloadTarget.providedBy(target), target)
 
         prefix=base32.b2a_l(v.storage_index[:8], 60)
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.download", prefix=prefix)
-        self._client = client
+        self._storage_broker = storage_broker
 
         self._verifycap = v
         self._storage_index = v.storage_index
@@ -743,7 +744,7 @@ class CiphertextDownloader(log.PrefixingLogMixin):
 
     def _get_all_shareholders(self):
         dl = []
-        sb = self._client.storage_broker
+        sb = self._storage_broker
         for (peerid,ss) in sb.get_servers(self._storage_index):
             d = ss.callRemote("get_buckets", self._storage_index)
             d.addCallbacks(self._got_response, self._got_error,
@@ -1191,11 +1192,13 @@ class Downloader(service.MultiService):
             # include LIT files
             self.stats_provider.count('downloader.files_downloaded', 1)
             self.stats_provider.count('downloader.bytes_downloaded', u.get_size())
+        storage_broker = self.parent.get_storage_broker()
 
         target = DecryptingTarget(t, u.key, _log_msg_id=_log_msg_id)
         if not monitor:
             monitor=Monitor()
-        dl = CiphertextDownloader(self.parent, u.get_verify_cap(), target, monitor=monitor)
+        dl = CiphertextDownloader(storage_broker, u.get_verify_cap(), target,
+                                  monitor=monitor)
         self._all_downloads[dl] = None
         if history:
             history.add_download(dl.get_download_status())

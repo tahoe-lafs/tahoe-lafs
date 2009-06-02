@@ -137,7 +137,7 @@ class ResultsBase:
         add("Unrecoverable Versions", data["count-unrecoverable-versions"])
 
         # this table is sorted by permuted order
-        sb = c.storage_broker
+        sb = c.get_storage_broker()
         permuted_peer_ids = [peerid
                              for (peerid, rref)
                              in sb.get_servers(cr.get_storage_index())]

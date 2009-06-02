@@ -181,6 +181,8 @@ class FakeClient:
 
     def get_all_serverids(self):
         return self.storage_broker.get_all_serverids()
+    def get_storage_broker(self):
+        return self.storage_broker
     def debug_break_connection(self, peerid):
         self.storage_broker.servers[peerid].broken = True
     def debug_remove_connection(self, peerid):

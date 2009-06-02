@@ -263,6 +263,9 @@ class Client(node.Node, pollmixin.PollMixin):
                            default=True, boolean=True):
             sb.use_introducer(self.introducer_client)
 
+    def get_storage_broker(self):
+        return self.storage_broker
+
     def init_stub_client(self):
         def _publish(res):
             # we publish an empty object so that the introducer can count how

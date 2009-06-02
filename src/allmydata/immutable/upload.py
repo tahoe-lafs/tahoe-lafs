@@ -166,7 +166,7 @@ class Tahoe2PeerSelector:
         self.use_peers = set() # PeerTrackers that have shares assigned to them
         self.preexisting_shares = {} # sharenum -> peerid holding the share
 
-        sb = client.storage_broker
+        sb = client.get_storage_broker()
         peers = list(sb.get_servers(storage_index))
         if not peers:
             raise NoServersError("client gave us zero peers")
