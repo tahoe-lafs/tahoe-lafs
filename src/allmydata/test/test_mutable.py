@@ -179,8 +179,6 @@ class FakeClient:
             fss = FakeStorageServer(peerid, self._storage)
             self.storage_broker.add_server(peerid, fss)
 
-    def get_all_serverids(self):
-        return self.storage_broker.get_all_serverids()
     def get_storage_broker(self):
         return self.storage_broker
     def debug_break_connection(self, peerid):
@@ -275,7 +273,8 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         def _created(n):
             self.failUnless(isinstance(n, FastMutableFileNode))
             self.failUnlessEqual(n.get_storage_index(), n._storage_index)
-            peer0 = sorted(self.client.get_all_serverids())[0]
+            sb = self.client.get_storage_broker()
+            peer0 = sorted(sb.get_all_serverids())[0]
             shnums = self.client._storage._peers[peer0].keys()
             self.failUnlessEqual(len(shnums), 1)
         d.addCallback(_created)
@@ -1573,8 +1572,9 @@ class MultipleEncodings(unittest.TestCase):
             places = [2, 2, 3, 2, 1, 1, 1, 2]
 
             sharemap = {}
+            sb = self._client.get_storage_broker()
 
-            for i,peerid in enumerate(self._client.get_all_serverids()):
+            for i,peerid in enumerate(sb.get_all_serverids()):
                 peerid_s = shortnodeid_b2a(peerid)
                 for shnum in self._shares1.get(peerid, {}):
                     if shnum < len(places):
@@ -1958,8 +1958,9 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         # not prevent an update from succeeding either.
         basedir = os.path.join("mutable/CollidingWrites/test_bad_server")
         self.client = LessFakeClient(basedir, 10)
+        sb = self.client.get_storage_broker()
 
-        peerids = list(self.client.get_all_serverids())
+        peerids = list(sb.get_all_serverids())
         self.client.debug_break_connection(peerids[0])
 
         d = self.client.create_mutable_file("contents 1")
@@ -1982,7 +1983,8 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         # Break all servers: the publish should fail
         basedir = os.path.join("mutable/CollidingWrites/publish_all_servers_bad")
         self.client = LessFakeClient(basedir, 20)
-        for peerid in self.client.get_all_serverids():
+        sb = self.client.get_storage_broker()
+        for peerid in sb.get_all_serverids():
             self.client.debug_break_connection(peerid)
         d = self.shouldFail(NotEnoughServersError,
                             "test_publish_all_servers_bad",

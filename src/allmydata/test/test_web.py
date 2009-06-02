@@ -65,9 +65,6 @@ class FakeClient(service.MultiService):
     def connected_to_introducer(self):
         return False
 
-    def get_nickname_for_serverid(self, serverid):
-        return u"John Doe"
-
     storage_broker = StorageFarmBroker()
     def get_storage_broker(self):
         return self.storage_broker

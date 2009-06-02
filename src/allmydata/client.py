@@ -375,11 +375,6 @@ class Client(node.Node, pollmixin.PollMixin):
             self.log("hotline file missing, shutting down")
         reactor.stop()
 
-    def get_all_serverids(self):
-        return self.storage_broker.get_all_serverids()
-    def get_nickname_for_serverid(self, serverid):
-        return self.storage_broker.get_nickname_for_serverid(serverid)
-
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
 
@@ -400,7 +395,7 @@ class Client(node.Node, pollmixin.PollMixin):
         temporary test network and need to know when it is safe to proceed
         with an upload or download."""
         def _check():
-            current_clients = list(self.get_all_serverids())
+            current_clients = list(self.storage_broker.get_all_serverids())
             return len(current_clients) >= num_clients
         d = self.poll(_check, 0.5)
         d.addCallback(lambda res: None)

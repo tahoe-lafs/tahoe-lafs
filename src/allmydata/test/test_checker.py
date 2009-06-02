@@ -7,8 +7,6 @@ from allmydata.storage_client import StorageFarmBroker, NativeStorageClient
 from common_web import WebRenderingMixin
 
 class FakeClient:
-    def get_nickname_for_serverid(self, serverid):
-        return self.storage_broker.get_nickname_for_serverid(serverid)
     def get_storage_broker(self):
         return self.storage_broker
 

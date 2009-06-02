@@ -108,6 +108,8 @@ class NoNetworkStorageBroker:
     def get_servers(self, key):
         return sorted(self.client._servers,
                       key=lambda x: sha.new(key+x[0]).digest())
+    def get_nickname_for_serverid(self, serverid):
+        return None
 
 class NoNetworkClient(Client):
 
@@ -139,9 +141,6 @@ class NoNetworkClient(Client):
 
     def get_servers(self, service_name):
         return self._servers
-
-    def get_nickname_for_serverid(self, serverid):
-        return None
 
 class SimpleStats:
     def __init__(self):
