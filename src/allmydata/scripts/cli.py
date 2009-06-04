@@ -208,7 +208,6 @@ class BackupConfigurationError(Exception):
 class BackupOptions(VDriveOptions):
     optFlags = [
         ("verbose", "v", "Be noisy about what is happening."),
-        ("no-backupdb", None, "Do not use the SQLite-based backup-database (always upload all files)."),
         ("ignore-timestamps", None, "Do not use backupdb timestamps to decide if a local file is unchanged."),
         ]
 

@@ -157,17 +157,13 @@ class BackerUpper:
 
         start_timestamp = datetime.datetime.now()
         self.backupdb = None
-        use_backupdb = not options["no-backupdb"]
-        if use_backupdb:
-            bdbfile = os.path.join(options["node-directory"],
-                                   "private", "backupdb.sqlite")
-            bdbfile = os.path.abspath(bdbfile)
-            self.backupdb = backupdb.get_backupdb(bdbfile, stderr)
-            if not self.backupdb:
-                # get_backupdb() has already delivered a lengthy speech about
-                # where to find pysqlite and how to add --no-backupdb
-                print >>stderr, "ERROR: Unable to import sqlite."
-                return 1
+        bdbfile = os.path.join(options["node-directory"],
+                               "private", "backupdb.sqlite")
+        bdbfile = os.path.abspath(bdbfile)
+        self.backupdb = backupdb.get_backupdb(bdbfile, stderr)
+        if not self.backupdb:
+            print >>stderr, "ERROR: Unable to load backup db."
+            return 1
 
         rootcap, path = get_alias(options.aliases, options.to_dir, DEFAULT_ALIAS)
         to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)

@@ -871,10 +871,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self.writeto("parent/subdir/bar.txt", "bar\n" * 1000)
         self.writeto("parent/blah.txt", "blah")
 
-        def do_backup(use_backupdb=True, verbose=False):
+        def do_backup(verbose=False):
             cmd = ["backup"]
-            if not have_bdb or not use_backupdb:
-                cmd.append("--no-backupdb")
             if verbose:
                 cmd.append("--verbose")
             cmd.append(source)
@@ -1054,20 +1052,6 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(out, "foo")
         d.addCallback(_check8)
-
-        d.addCallback(self.stall, 1.1)
-        d.addCallback(lambda res: do_backup(use_backupdb=False))
-        def _check9((rc, out, err)):
-            # --no-backupdb means re-upload everything. We still get to
-            # re-use the directories, since nothing changed.
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
-            fu, fr, dc, dr = self.count_output(out)
-            self.failUnlessEqual(fu, 5)
-            self.failUnlessEqual(fr, 0)
-            self.failUnlessEqual(dc, 0)
-            self.failUnlessEqual(dr, 5)
-        d.addCallback(_check9)
 
         return d
 

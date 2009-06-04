@@ -5,9 +5,9 @@ To speed up backup operations, Tahoe maintains a small database known as the
 uploaded recently.
 
 This database lives in ~/.tahoe/private/backupdb.sqlite, and is a SQLite
-single-file database. It is used by the "tahoe backup" command (unless the
---no-backupdb option is included). In the future, it will also be used by
-"tahoe mirror", and by "tahoe cp" when the --use-backupdb option is included.
+single-file database. It is used by the "tahoe backup" command. In the future,
+it will also be used by "tahoe mirror", and by "tahoe cp" when the
+--use-backupdb option is included.
 
 The purpose of this database is specifically to manage the file-to-cap
 translation (the "upload" step). It does not address directory updates. A
@@ -23,9 +23,13 @@ subsequent backup operation may use more effort (network bandwidth, CPU
 cycles, and disk IO) than it would have without the backupdb.
 
 The database uses sqlite3, which is included as part of the standard python
-library with python2.5 and later. For python2.4, please install the
-"pysqlite2" package (which, despite the name, actually provides sqlite3
-rather than sqlite2).
+library with python2.5 and later. For python2.4, Tahoe will try to install the
+"pysqlite" package at build-time, but this will succeed only if sqlite3 with
+development headers is already installed.  On Debian and Debian derivatives
+you can install the "python-pysqlite2" package (which, despite the name,
+actually provides sqlite3 rather than sqlite2), but on old distributions such
+as Debian etch (4.0 "oldstable") or Ubuntu Edgy (6.10) the "python-pysqlite2"
+package won't work, but the "sqlite3-dev" package will.
 
 == Schema ==
 
