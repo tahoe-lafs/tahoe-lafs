@@ -1,8 +1,9 @@
 
 # the backupdb is only available if sqlite3 is available. Python-2.5.x and
 # beyond include sqlite3 in the standard library. For python-2.4, the
-# "pysqlite2" package (which, despite the confusing name, uses sqlite3) must
-# be installed. On debian, install python-pysqlite2
+# "pysqlite2" "package" (or "module") (which, despite the confusing name, uses
+# sqlite3, and which, confusingly, comes in the "pysqlite" "distribution" (or
+# "package")) must be installed. On debian, install python-pysqlite2
 
 import os.path, sys, time, random, stat
 

@@ -133,10 +133,29 @@ def get_platform():
         return platform.platform()
 
 def get_package_versions_and_locations():
-    # because there are a few dependencies that are outside setuptools's ken (Python and
-    # platform), and because setuptools might fail to find something even though import finds
-    # it:
+    # because there are a few dependencies that are outside setuptools's ken
+    # (Python and platform, and sqlite3 if you are on Python >= 2.5), and
+    # because setuptools might fail to find something even though import
+    # finds it:
     import OpenSSL, allmydata, foolscap.api, nevow, platform, pycryptopp, setuptools, simplejson, twisted, zfec, zope.interface
+    pysqlitever = None
+    pysqlitefile = None
+    sqlitever = None
+    try:
+        import sqlite3
+    except ImportError:
+        try:
+            from pysqlite2 import dbapi2
+        except ImportError:
+            pass
+        else:
+            pysqlitever = dbapi2.version
+            pysqlitefile = os.path.dirname(dbapi2.__file__)
+            sqlitever = dbapi2.sqlite_version
+    else:
+        pysqlitever = sqlite3.version
+        pysqlitefile = os.path.dirname(sqlite3.__file__)
+        sqlitever = sqlite3.sqlite_version
 
     d1 = {
         'pyOpenSSL': (OpenSSL.__version__, os.path.dirname(OpenSSL.__file__)),
@@ -146,6 +165,8 @@ def get_package_versions_and_locations():
         'pycryptopp': (pycryptopp.__version__, os.path.dirname(pycryptopp.__file__)),
         'setuptools': (setuptools.__version__, os.path.dirname(setuptools.__file__)),
         'simplejson': (simplejson.__version__, os.path.dirname(simplejson.__file__)),
+        'pysqlite': (pysqlitever, pysqlitefile),
+        'sqlite': (sqlitever, 'unknown'),
         'zope.interface': ('unknown', os.path.dirname(zope.interface.__file__)),
         'Twisted': (twisted.__version__, os.path.dirname(twisted.__file__)),
         'zfec': (zfec.__version__, os.path.dirname(zfec.__file__)),
