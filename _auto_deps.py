@@ -19,6 +19,13 @@ install_requires=[
                   "Nevow >= 0.6.0",
                   ]
 
+# Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
+# distribution for Python 2.4.
+import sys
+if sys.version_info < (2, 5):
+    # pysqlite v2.0.5 was shipped in Ubuntu 6.06 LTS "dapper" and Nexenta NCP 1.
+    install_requires.append("pysqlite >= 2.0.5")
+
 ## The following block is commented-out because there is not currently a pywin32 package which
 ## can be easy_install'ed and also which actually makes "import win32api" succeed.  Users have
 ## to manually install pywin32 on Windows before installing Tahoe.
@@ -35,7 +42,6 @@ install_requires=[
 ##    # until Twisted does that, Tahoe needs to be non-ignorant of the following requirement:
 ##    install_requires.append('pywin32')
 
-import sys
 if hasattr(sys, 'frozen'): # for py2exe
     install_requires=[]
 
