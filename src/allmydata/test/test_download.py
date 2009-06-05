@@ -68,6 +68,7 @@ mutable_shares = {
 #--------- END stored_shares.py ----------------
 
 class DownloadTest(GridTestMixin, unittest.TestCase):
+    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def test_download(self):
         self.basedir = self.mktemp()
         self.set_up_grid()

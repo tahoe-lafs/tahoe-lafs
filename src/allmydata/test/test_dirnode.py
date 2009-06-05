@@ -92,6 +92,7 @@ class FakeClient:
 
 class Dirnode(unittest.TestCase,
               testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
+    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def setUp(self):
         self.client = FakeClient()
 
@@ -713,6 +714,7 @@ class Dirnode(unittest.TestCase,
         return d
 
 class DeepStats(unittest.TestCase):
+    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def test_stats(self):
         ds = dirnode.DeepStats(None)
         ds.add("count-files")
@@ -772,6 +774,7 @@ class UCWEingNewDirectoryNode(dirnode.NewDirectoryNode):
 
 
 class Deleter(GridTestMixin, unittest.TestCase):
+    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def test_retry(self):
         # ticket #550, a dirnode.delete which experiences an
         # UncoordinatedWriteError will fail with an incorrect "you're

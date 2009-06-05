@@ -92,6 +92,7 @@ def upload_data(uploader, data, convergence):
     return uploader.upload(u)
 
 class AssistedUpload(unittest.TestCase):
+    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def setUp(self):
         self.s = FakeClient()
         self.s.startService()
