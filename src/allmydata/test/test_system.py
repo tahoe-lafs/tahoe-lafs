@@ -63,6 +63,7 @@ class GrabEverythingConsumer:
         pass
 
 class SystemTest(SystemTestMixin, unittest.TestCase):
+    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
 
     def test_connections(self):
         self.basedir = "system/SystemTest/test_connections"
@@ -85,7 +86,6 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             return res
         d.addBoth(_shutdown_extra_node)
         return d
-    test_connections.timeout = 300
     # test_connections is subsumed by test_upload_and_download, and takes
     # quite a while to run on a slow machine (because of all the TLS
     # connections that must be established). If we ever rework the introducer
@@ -96,12 +96,10 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
     def test_upload_and_download_random_key(self):
         self.basedir = "system/SystemTest/test_upload_and_download_random_key"
         return self._test_upload_and_download(convergence=None)
-    test_upload_and_download_random_key.timeout = 4800
 
     def test_upload_and_download_convergent(self):
         self.basedir = "system/SystemTest/test_upload_and_download_convergent"
         return self._test_upload_and_download(convergence="some convergence string")
-    test_upload_and_download_convergent.timeout = 4800
 
     def _test_upload_and_download(self, convergence):
         # we use 4000 bytes of data, which will result in about 400k written
@@ -734,9 +732,6 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(check_kg_poolsize, -3)
 
         return d
-    # The default 120 second timeout went off when running it under valgrind
-    # on my old Windows laptop, so I'm bumping up the timeout.
-    test_mutable.timeout = 240
 
     def flip_bit(self, good):
         return good[:-1] + chr(ord(good[-1]) ^ 0x01)
@@ -802,7 +797,6 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         # P/test_put/  (empty)
         d.addCallback(self._test_checker)
         return d
-    test_vdrive.timeout = 1100
 
     def _test_introweb(self, res):
         d = getPage(self.introweb_url, method="GET", followRedirect=True)
