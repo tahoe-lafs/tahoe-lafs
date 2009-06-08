@@ -689,6 +689,8 @@ class Abbreviate(unittest.TestCase):
         self.failUnless("12 cubits" in str(e))
 
 class Limiter(unittest.TestCase):
+    timeout = 240 # This takes longer than 120 seconds on Francois's arm box.
+
     def job(self, i, foo):
         self.calls.append( (i, foo) )
         self.simultaneous += 1

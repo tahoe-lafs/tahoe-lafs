@@ -29,6 +29,8 @@ from allmydata.test.common_web import HTTPClientGETFactory, \
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
+timeout = 240 # Most of these take longer than 120 seconds on Francois's arm box.
+
 class FakeIntroducerClient:
     def get_all_connectors(self):
         return {}
