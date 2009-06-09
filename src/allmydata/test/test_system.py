@@ -63,7 +63,7 @@ class GrabEverythingConsumer:
         pass
 
 class SystemTest(SystemTestMixin, unittest.TestCase):
-    timeout = 480 # It takes longer than 240 seconds on Francois's arm box.
+    timeout = 960 # It takes longer than 480 seconds on Francois's arm box.
 
     def test_connections(self):
         self.basedir = "system/SystemTest/test_connections"
