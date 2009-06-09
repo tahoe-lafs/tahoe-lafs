@@ -26,6 +26,8 @@ from allmydata.test.no_network import GridTestMixin
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.python import usage
 
+timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
+
 class CLI(unittest.TestCase):
     # this test case only looks at argument-processing and simple stuff.
     def test_options(self):
