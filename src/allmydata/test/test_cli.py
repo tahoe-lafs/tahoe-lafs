@@ -1060,7 +1060,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     # and initial backup alone take 60s, probably because of the handful of
     # dirnodes being created (RSA key generation). The backup between check4
     # and check4a takes 6s, as does the backup before check4b.
-    test_backup.timeout = 300
+    test_backup.timeout = 3000
 
     def test_exclude_options(self):
         root_listdir = ('lib.a', '_darcs', 'subdir', 'nice_doc.lyx')
