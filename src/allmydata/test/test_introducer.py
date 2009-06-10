@@ -97,6 +97,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         i.setServiceParent(self.parent)
         self.introducer_furl = self.central_tub.registerReference(i)
         return self.do_system_test()
+    test_system.timeout = 480 # occasionally takes longer than 350s on "draco"
 
     def test_system_oldserver(self):
         i = old.IntroducerService_V1()
