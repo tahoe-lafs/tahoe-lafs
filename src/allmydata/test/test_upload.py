@@ -22,7 +22,10 @@ MiB = 1024*1024
 def extract_uri(results):
     return results.uri
 
-timeout = 480 # Some of these take longer than 240 seconds on Francois's arm box.
+# Some of these took longer than 480 seconds on Zandr's arm box, but this may
+# have been due to an earlier test ERROR'ing out due to timeout, which seems
+# to screw up subsequent tests.
+timeout = 960
 
 class Uploadable(unittest.TestCase):
     def shouldEqual(self, data, expected):
