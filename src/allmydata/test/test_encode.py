@@ -271,7 +271,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
         return defer.DeferredList(dl)
 
 class Encode(unittest.TestCase):
-    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
+    timeout = 2400 # It takes longer than 240 seconds on Zandr's ARM box.
 
     def do_encode(self, max_segment_size, datalen, NUM_SHARES, NUM_SEGMENTS,
                   expected_block_hashes, expected_share_hashes):
@@ -418,7 +418,7 @@ class StoppingTarget(PausingTarget):
         self.producer.stopProducing()
 
 class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
-    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
+    timeout = 2400 # It takes longer than 240 seconds on Zandr's ARM box.
     def send_and_recover(self, k_and_happy_and_n=(25,75,100),
                          AVAILABLE_SHARES=None,
                          datalen=76,

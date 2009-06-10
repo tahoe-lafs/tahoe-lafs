@@ -20,9 +20,9 @@ from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data, \
 from allmydata.test.common_util import StallMixin
 from allmydata.test.no_network import GridTestMixin
 
-class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
-    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
+timeout = 960 # Most of these take longer than 340 seconds on Zand's ARM box.
 
+class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
     def _run_cli(self, argv):
         stdout, stderr = StringIO(), StringIO()
         # this can only do synchronous operations
@@ -832,8 +832,6 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
 
 class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
-    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
-
     def test_bad(self):
         self.basedir = "deepcheck/DeepCheckWebBad/bad"
         self.set_up_grid()
@@ -1161,7 +1159,6 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         return d
 
 class Large(DeepCheckBase, unittest.TestCase):
-    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def test_lots_of_lits(self):
         self.basedir = "deepcheck/Large/lots_of_lits"
         self.set_up_grid()

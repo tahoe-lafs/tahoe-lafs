@@ -774,7 +774,7 @@ class UCWEingNewDirectoryNode(dirnode.NewDirectoryNode):
 
 
 class Deleter(GridTestMixin, unittest.TestCase):
-    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
+    timeout = 3600 # It takes longer than 433 seconds on Zandr's ARM box.
     def test_retry(self):
         # ticket #550, a dirnode.delete which experiences an
         # UncoordinatedWriteError will fail with an incorrect "you're
