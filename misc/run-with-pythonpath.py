@@ -34,17 +34,13 @@ if oldpp == [""]:
 newpp = os.pathsep.join(oldpp + [supportlib,])
 os.environ['PYTHONPATH'] = newpp
 
-if sys.platform == "win32":
-    command = sys.argv[1:]
-    rc = subprocess.call(command)
-    sys.exit(rc)
-else:
-    from twisted.python.procutils import which
-    cmd = sys.argv[1]
-    if cmd and cmd[0] not in "/~.":
-        cmds = which(cmd)
-        if not cmds:
-            print >>sys.stderr, "'%s' not found on PATH" % (cmd,)
-            sys.exit(-1)
-        cmd = cmds[0]
-    os.execve(cmd, sys.argv[1:], os.environ)
+from twisted.python.procutils import which
+cmd = sys.argv[1]
+if cmd and cmd[0] not in "/~.":
+    cmds = which(cmd)
+    if not cmds:
+        print >>sys.stderr, "'%s' not found on PATH" % (cmd,)
+        sys.exit(-1)
+    cmd = cmds[0]
+
+os.execve(cmd, sys.argv[1:], os.environ)
