@@ -765,6 +765,31 @@ class Limiter(unittest.TestCase):
 
 class TimeFormat(unittest.TestCase):
     def test_epoch(self):
+        return self._help_test_epoch()
+
+    def test_epoch_in_London(self):
+        # Europe/London is a particularly troublesome timezone.  Nowadays, its
+        # offset from GMT is 0.  But in 1970, its offset from GMT was 1.
+        # (Apparently in 1970 Britain had redefined standard time to be GMT+1
+        # and stayed in standard time all year round, whereas today
+        # Europe/London standard time is GMT and Europe/London Daylight
+        # Savings Time is GMT+1.)  The current implementation of
+        # time_format.iso_utc_time_to_localseconds() breaks if the timezone is
+        # Europe/London.  (As soon as this unit test is done then I'll change
+        # that implementation to something that works even in this case...)
+        origtz = os.environ.get('TZ')
+        os.environ['TZ'] = "Europe/London"
+        time.tzset()
+        try:
+            return self._help_test_epoch()
+        finally:
+            if origtz is None:
+                del os.environ['TZ']
+            else:
+                os.environ['TZ'] = origtz
+            time.tzset()
+
+    def _help_test_epoch(self):
         s = time_format.iso_utc_time_to_seconds("1970-01-01T00:00:01")
         self.failUnlessEqual(s, 1.0)
         s = time_format.iso_utc_time_to_seconds("1970-01-01_00:00:01")

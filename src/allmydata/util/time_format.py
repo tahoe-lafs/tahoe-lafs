@@ -7,7 +7,7 @@
 # ISO-8601:
 # http://www.cl.cam.ac.uk/~mgk25/iso-time.html
 
-import datetime, re, time
+import datetime, os, re, time
 
 def iso_utc_date(now=None, t=time.time):
     if now is None:
@@ -42,10 +42,17 @@ def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})
     else:
         subsecfloat = 0
 
-    localsecondsnodst = time.mktime( (year, month, day, hour, minute, second, 0, 1, 0) )
-    localsecondsnodst += subsecfloat
-    utcseconds = localsecondsnodst - time.timezone
-    return utcseconds
+    origtz = os.environ.get('TZ')
+    os.environ['TZ'] = "UTC"
+    time.tzset()
+    try:
+        return time.mktime( (year, month, day, hour, minute, second, 0, 1, 0) ) + subsecfloat
+    finally:
+        if origtz is None:
+            del os.environ['TZ']
+        else:
+            os.environ['TZ'] = origtz
+        time.tzset()
 
 def parse_duration(s):
     orig = s
