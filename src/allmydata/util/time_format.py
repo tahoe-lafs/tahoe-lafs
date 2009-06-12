@@ -44,7 +44,8 @@ def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})
 
     origtz = os.environ.get('TZ')
     os.environ['TZ'] = "UTC"
-    time.tzset()
+    if hasattr(time, 'tzset'):
+        time.tzset()
     try:
         return time.mktime( (year, month, day, hour, minute, second, 0, 1, 0) ) + subsecfloat
     finally:
@@ -52,7 +53,8 @@ def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})
             del os.environ['TZ']
         else:
             os.environ['TZ'] = origtz
-        time.tzset()
+        if hasattr(time, 'tzset'):
+            time.tzset()
 
 def parse_duration(s):
     orig = s

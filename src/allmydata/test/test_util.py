@@ -779,7 +779,8 @@ class TimeFormat(unittest.TestCase):
         # that implementation to something that works even in this case...)
         origtz = os.environ.get('TZ')
         os.environ['TZ'] = "Europe/London"
-        time.tzset()
+        if hasattr(time, 'tzset'):
+            time.tzset()
         try:
             return self._help_test_epoch()
         finally:
@@ -787,7 +788,8 @@ class TimeFormat(unittest.TestCase):
                 del os.environ['TZ']
             else:
                 os.environ['TZ'] = origtz
-            time.tzset()
+            if hasattr(time, 'tzset'):
+                time.tzset()
 
     def _help_test_epoch(self):
         s = time_format.iso_utc_time_to_seconds("1970-01-01T00:00:01")
