@@ -792,6 +792,7 @@ class TimeFormat(unittest.TestCase):
                 time.tzset()
 
     def _help_test_epoch(self):
+        origtzname = time.tzname
         s = time_format.iso_utc_time_to_seconds("1970-01-01T00:00:01")
         self.failUnlessEqual(s, 1.0)
         s = time_format.iso_utc_time_to_seconds("1970-01-01_00:00:01")
@@ -822,6 +823,7 @@ class TimeFormat(unittest.TestCase):
         # Look for daylight-savings-related errors.
         thatmomentinmarch = time_format.iso_utc_time_to_seconds("2009-03-20 21:49:02.226536")
         self.failUnlessEqual(thatmomentinmarch, 1237585742.226536)
+        self.failUnlessEqual(origtzname, time.tzname)
 
 class CacheDir(unittest.TestCase):
     def test_basic(self):
