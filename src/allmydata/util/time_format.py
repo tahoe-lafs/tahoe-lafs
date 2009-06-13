@@ -7,7 +7,7 @@
 # ISO-8601:
 # http://www.cl.cam.ac.uk/~mgk25/iso-time.html
 
-import datetime, re, time
+import calendar, datetime, re, time
 
 def iso_utc_date(now=None, t=time.time):
     if now is None:
@@ -42,16 +42,7 @@ def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})
     else:
         subsecfloat = 0
 
-    # Brian's hack to figure out the offset from localtime to UTC.
-    localseconds = time.mktime( (year, month, day, hour, minute, second, 0, 1, 0) )
-    asifutcstr = iso_utc(localseconds)
-    asifm = _conversion_re.match(asifutcstr)
-    asifyear, asifmonth, asifday = int(asifm.group('year')), int(asifm.group('month')), int(asifm.group('day'))
-    asifhour, asifminute, asifsecond = int(asifm.group('hour')), int(asifm.group('minute')), int(asifm.group('second'))
-    asifutcsecs = time.mktime( (asifyear, asifmonth, asifday, asifhour, asifminute, asifsecond, 0, 1, 0) )
-    offset = asifutcsecs - localseconds
-
-    return localseconds - offset + subsecfloat
+    return calendar.timegm( (year, month, day, hour, minute, second, 0, 1, 0) ) + subsecfloat
 
 def parse_duration(s):
     orig = s
