@@ -20,7 +20,7 @@ from allmydata.test.common import ErrorMixin, _corrupt_mutable_share_data, \
 from allmydata.test.common_util import StallMixin
 from allmydata.test.no_network import GridTestMixin
 
-timeout = 960 # Most of these take longer than 340 seconds on Zand's ARM box.
+timeout = 2400 # One of these took 1046.091s on Zandr's ARM box.
 
 class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
     def _run_cli(self, argv):
