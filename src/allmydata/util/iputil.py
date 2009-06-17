@@ -159,6 +159,11 @@ _platform_map = {
     "freebsd5": "bsd",
     "freebsd6": "bsd",
     "netbsd1": "bsd",
+    "netbsd2": "bsd",
+    "netbsd3": "bsd",
+    "netbsd4": "bsd",
+    "netbsd5": "bsd",
+    "netbsd6": "bsd",
     "sunos5": "sunos",
     "cygwin": "cygwin",
     }
