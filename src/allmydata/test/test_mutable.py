@@ -265,6 +265,10 @@ def corrupt(res, s, offset, shnums_to_corrupt=None, offset_offset=0):
     return res
 
 class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
+    # this used to be in Publish, but we removed the limit. Some of 
+    # these tests test whether the new code correctly allows files 
+    # larger than the limit.
+    OLD_MAX_SEGMENT_SIZE = 3500000
     def setUp(self):
         self.client = FakeClient()
 
@@ -355,17 +359,11 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
     def test_create_with_too_large_contents(self):
-        BIG = "a" * (Publish.MAX_SEGMENT_SIZE+1)
-        d = self.shouldFail(FileTooLargeError, "too_large",
-                            "SDMF is limited to one segment, and %d > %d" %
-                            (len(BIG), Publish.MAX_SEGMENT_SIZE),
-                            self.client.create_mutable_file, BIG)
-        d.addCallback(lambda res: self.client.create_mutable_file("small"))
+        BIG = "a" * (self.OLD_MAX_SEGMENT_SIZE + 1)
+        d = self.client.create_mutable_file(BIG)
         def _created(n):
-            return self.shouldFail(FileTooLargeError, "too_large_2",
-                                   "SDMF is limited to one segment, and %d > %d" %
-                                   (len(BIG), Publish.MAX_SEGMENT_SIZE),
-                                   n.overwrite, BIG)
+            d = n.overwrite(BIG)
+            return d
         d.addCallback(_created)
         return d
 
@@ -386,7 +384,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         def _error_modifier(old_contents, servermap, first_time):
             raise ValueError("oops")
         def _toobig_modifier(old_contents, servermap, first_time):
-            return "b" * (Publish.MAX_SEGMENT_SIZE+1)
+            return "b" * (self.OLD_MAX_SEGMENT_SIZE+1)
         calls = []
         def _ucw_error_modifier(old_contents, servermap, first_time):
             # simulate an UncoordinatedWriteError once
@@ -426,10 +424,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "err"))
 
-            d.addCallback(lambda res:
-                          self.shouldFail(FileTooLargeError, "toobig_modifier",
-                                          "SDMF is limited to one segment",
-                                          n.modify, _toobig_modifier))
+
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "line1line2"))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 2, "big"))
@@ -458,7 +453,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: self.failUnlessEqual(res,
                                                            "line1line2line3"))
             d.addCallback(lambda res: self.failUnlessCurrentSeqnumIs(n, 4, "ucw"))
-
+            d.addCallback(lambda res: n.modify(_toobig_modifier))
             return d
         d.addCallback(_created)
         return d
