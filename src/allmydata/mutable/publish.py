@@ -90,16 +90,6 @@ class Publish:
     To make the initial publish, set servermap to None.
     """
 
-    # we limit the segment size as usual to constrain our memory footprint.
-    # The max segsize is higher for mutable files, because we want to support
-    # dirnodes with up to 10k children, and each child uses about 330 bytes.
-    # If you actually put that much into a directory you'll be using a
-    # footprint of around 14MB, which is higher than we'd like, but it is
-    # more important right now to support large directories than to make
-    # memory usage small when you use them. Once we implement MDMF (with
-    # multiple segments), we will drop this back down, probably to 128KiB.
-    MAX_SEGMENT_SIZE = 3500000
-
     def __init__(self, filenode, servermap):
         self._node = filenode
         self._servermap = servermap
@@ -143,10 +133,6 @@ class Publish:
         # 5: when enough responses are back, we're done
 
         self.log("starting publish, datalen is %s" % len(newdata))
-        if len(newdata) > self.MAX_SEGMENT_SIZE:
-            raise FileTooLargeError("SDMF is limited to one segment, and "
-                                    "%d > %d" % (len(newdata),
-                                                 self.MAX_SEGMENT_SIZE))
         self._status.set_size(len(newdata))
         self._status.set_status("Started")
         self._started = time.time()
@@ -262,7 +248,7 @@ class Publish:
         return self.done_deferred
 
     def setup_encoding_parameters(self):
-        segment_size = min(self.MAX_SEGMENT_SIZE, len(self.newdata))
+        segment_size = len(self.newdata)
         # this must be a multiple of self.required_shares
         segment_size = mathutil.next_multiple(segment_size,
                                               self.required_shares)
