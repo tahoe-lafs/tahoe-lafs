@@ -11,46 +11,58 @@
   <body>
     <h1>How To Start Tahoe</h1>
 
-    <p>This is how to run a Tahoe node or a complete Tahoe grid. First you
-    have to install the Tahoe source code, as documented in <a
+    <p>This is how to run a Tahoe client or a complete Tahoe grid. First you
+    have to install the Tahoe software, as documented in <a
     href="install.html">install.html</a>.</p>
 
-    <p>The <cite>tahoe</cite> executable in the <cite>bin</cite> directory is used to create, start, and stop
-    nodes. Each node lives in a separate base directory in which you can add
-    files to configure the node. Nodes also read and write files within that
-    directory.</p>
+    <p>The <cite>tahoe</cite> executable in the <cite>bin</cite> directory is
+    used to create, start, and stop nodes. Each node lives in a separate base
+    directory, in which there is a configuration file named "tahoe.cfg". Nodes
+    read and write files within that directory.</p>
 
-    <p>A grid consists of a single introducer and one or more nodes. If you
-    are creating a new grid, you'll need to create both an introducer and a
-    node (and then invite other people to create their own nodes and join
-    your grid). If you are joining an existing grid (such as <a
+    <p>A grid consists of a single introducer, one or more servers, and any
+    number of clients. If you are creating a new grid, you'll need to create
+    both an introducer and a server (and then invite other people to create
+    their own servers and/or clients and join your grid). If you are joining an
+    existing grid (such as <a
     href="http://allmydata.org/trac/tahoe/wiki/TestGrid">the public test
-    grid</a>), the introducer will already be running, and you'll need to
-    create a node.</p>
+    grid</a>), the introducer will already be running, and you'll just need to
+    create a client.</p>
 
     <p>To construct an introducer, create a new base directory for it (the name
-    of the directory is up to you), cd into it, and run "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
-    create-introducer .</cite>". Now start the introducer by running "<cite>tahoe
-    start .</cite>". After it starts, there will be a file named
-    <cite>introducer.furl</cite> in that base directory. This file contains
-    the URL the nodes must use in order to connect to this
-    introducer.</p>
+    of the directory is up to you), cd into it, and run
+    "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
+    create-introducer .</cite>". Now start the introducer by running
+    "<cite>tahoe start .</cite>". After it starts, it will write a file named
+    <cite>introducer.furl</cite> in that base directory. This file contains the
+    URL the other nodes must use in order to connect to this introducer.</p>
 
-    <p>To construct a node run "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe create-client</cite>", which will
-    create <cite>~/.tahoe</cite> to be the node's base directory. Acquire a copy
-    of the <cite>introducer.furl</cite> from the introducer and put it into this
-    directory, then run "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe start</cite>". After that, the node should
-    be off and running. The first thing it will do is connect to the introducer
-    and get itself connected to all other nodes on the grid.  By default, a node
-    will serve as a Storage Server, meaning that it offers its disk space to
-    other nodes.  To configure other behavior,
-    see <a href="configuration.txt">configuration.txt</a>.</p>
+    <p>To construct a node, run
+    "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
+    create-client</cite>", which will create <cite>~/.tahoe</cite> to be the
+    node's base directory. Acquire a copy of the <cite>introducer.furl</cite>
+    from the introducer and put it into this directory, then run
+    "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
+    start</cite>". After that, the node should be off and running. The first
+    thing it will do is connect to the introducer and get itself connected to
+    all other nodes on the grid.  By default, a node will serve as a Storage
+    Server, meaning that it offers its disk space to other nodes.  To configure
+    other behavior, see <a href="configuration.txt">configuration.txt</a>.</p>
 
-    <p>To stop a running node run "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe stop</cite>".</p>
+    <p>If you are behind firewall or NAT and want to run a server which clients
+    can connect to even though they are also behind firewall or NAT, then see
+    <a href="configuration.txt">configuration.txt</a> about the
+    <cite>tub.location</cite> setting.</p>
+
+    <p>To stop a running node run
+    "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
+    stop</cite>".</p>
 
     <h2>Do Stuff With It</h2>
 
-    <p>Now you have a decentralized filesystem.  See <a href="using.html">using.html</a> for instructions about how to interact with it.</p>
+    <p>Now you have a decentralized filesystem.  See <a
+    href="using.html">using.html</a> for instructions about how to interact
+    with it.</p>
 
   </body>
 
