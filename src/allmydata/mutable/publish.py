@@ -5,7 +5,7 @@ from itertools import count
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
-from allmydata.interfaces import IPublishStatus, FileTooLargeError
+from allmydata.interfaces import IPublishStatus
 from allmydata.util import base32, hashutil, mathutil, idlib, log
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a

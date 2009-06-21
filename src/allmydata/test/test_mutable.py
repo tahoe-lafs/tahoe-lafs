@@ -12,7 +12,7 @@ from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.util.fileutil import make_dirs
 from allmydata.interfaces import IURI, IMutableFileURI, IUploadable, \
-     FileTooLargeError, NotEnoughSharesError, IRepairResults
+     NotEnoughSharesError, IRepairResults
 from allmydata.monitor import Monitor
 from allmydata.test.common import ShouldFailMixin
 from foolscap.api import eventually, fireEventually
