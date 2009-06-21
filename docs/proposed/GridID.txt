@@ -1,0 +1,227 @@
+= Grid Identifiers =
+
+What makes up a Tahoe "grid"? The rough answer is a fairly-stable set of
+Storage Servers.
+
+The read- and write- caps that point to files and directories are scoped to a
+particular set of servers. The Tahoe peer-selection and erasure-coding
+algorithms provide high availability as long as there is significant overlap
+between the servers that were used for upload and the servers that are
+available for subsequent download. When new peers are added, the shares will
+get spread out in the search space, so clients must work harder to download
+their files. When peers are removed, shares are lost, and file health is
+threatened. Repair bandwidth must be used to generate new shares, so cost
+increases with the rate of server departure. If servers leave the grid too
+quickly, repair may not be able to keep up, and files will be lost.
+
+So to get long-term stability, we need that peer set to remain fairly stable.
+A peer which joins the grid needs to stick around for a while.
+
+== Multiple Grids ==
+
+The current Tahoe read-cap format doesn't admit the existence of multiple
+grids. In fact, the "URI:" prefix implies that these cap strings are
+universal: it suggests that this string (plus some protocol definition) is
+completely sufficient to recover the file.
+
+However, there are a variety of reasons why we may want to have more than one
+Tahoe grid in the world:
+
+ * scaling: there are a variety of problems that are likely to be encountered
+   as we attempt to grow a Tahoe grid from a few dozen servers to a few
+   thousand, some of which are easier to deal with than others. Maintaining
+   connections to servers and keeping up-to-date on the locations of servers
+   is one issue. There are design improvements that can work around these,
+   but they will take time, and we may not want to wait for that work to be
+   done. Begin able to deploy multiple grids may be the best way to get a
+   large number of clients using tahoe at once.
+
+ * managing quality of storage, storage allocation: the members of a
+   friendnet may want to restrict access to storage space to just each other,
+   and may want to run their grid without involving any external coordination
+
+ * commercial goals: a company using Tahoe may want to restrict access to
+   storage space to just their customers
+
+ * protocol upgrades, development: new and experimental versions of the tahoe
+   software may need to be deployed and analyzed in isolation from the grid
+   that clients are using for active storage
+
+So if we define a grid to be a set of storage servers, then two distinct
+grids will have two distinct sets of storage servers. Clients are free to use
+whichever grid they like (and have permission to use), however each time they
+upload a file, they must choose a specific grid to put it in. Clients can
+upload the same file to multiple grids in two separate upload operations.
+
+== Grid IDs in URIs ==
+
+Each URI needs to be scoped to a specific grid, to avoid confusion ("I looked
+for URI123 and it said File Not Found.. oh, which grid did you upload that
+into?"). To accomplish this, the URI will contain a "grid identifier" that
+references a specific Tahoe grid. The grid ID is shorthand for a relatively
+stable set of storage servers.
+
+To make the URIs actually Universal, there must be a way to get from the grid
+ID to the actual grid. This document defines a protocol by which a client
+that wants to download a file from a previously-unknown grid will be able to
+locate and connect to that grid.
+
+== Grid ID specification ==
+
+The Grid ID is a string, using a fairly limited character set, alphanumerics
+plus possibly a few others. It can be very short: a gridid of just "0" can be
+used. The gridID will be copied into the cap string for every file that is
+uploaded to that grid, so there is pressure to keep them short.
+
+The cap format needs to be able to distinguish the gridID from the rest of
+the cap. This could be expressed in DNS-style dot notation, for example the
+directory write-cap with a write-key of "0ZrD.." that lives on gridID "foo"
+could be expressed as "D0ZrDNAHuxs0XhYJNmkdicBUFxsgiHzMdm.foo" .
+
+ * design goals: non-word-breaking, double-click-pasteable, maybe
+   human-readable (do humans need to know which grid is being used? probably
+   not).
+ * does not need to be Secure (i.e. long and unguessable), but we must
+   analyze the sorts of DoS attack that can result if it is not (and even
+   if it is)
+ * does not need to be human-memorable, although that may assist debugging
+   and discussion ("my file is on grid 4, where is yours?)
+ * *does* need to be unique, but the total number of grids is fairly small
+   (counted in the hundreds or thousands rather than millions or billions)
+   and we can afford to coordinate the use of short names. Folks who don't
+   like coordination can pick a largeish random string.
+
+Each announcement that a Storage Server publishes (to introducers) will
+include its grid id. If a server participates in multiple grids, it will make
+multiple announcements, each with a single grid id. Clients will be able to
+ask an introducer for information about all storage servers that participate
+in a specific grid.
+
+Clients are likely to have a default grid id, to which they upload files. If
+a client is adding a file to a directory that lives in a different grid, they
+may upload the file to that other grid instead of their default.
+
+== Getting from a Grid ID to a grid ==
+
+When a client decides to download a file, it starts by unpacking the cap and
+extracting the grid ID.
+
+Then it attempts to connect to at least one introducer for that grid, by
+leveraging DNS:
+
+ hash $GRIDID id (with some tag) to get a long base32-encoded string: $HASH
+
+ GET http://tahoe-$HASH.com/introducer/gridid/$GRIDID
+
+ the results should be a JSON-encoded list of introducer FURLs
+
+ for extra redundancy, if that query fails, perform the following additional
+ queries:
+
+  GET http://tahoe-$HASH.net/introducer/gridid/$GRIDID
+  GET http://tahoe-$HASH.org/introducer/gridid/$GRIDID
+  GET http://tahoe-$HASH.tv/introducer/gridid/$GRIDID
+  GET http://tahoe-$HASH.info/introducer/gridid/$GRIDID
+   etc
+  GET http://tahoe-grids.allmydata.com/introducer/gridid/$GRIDID
+
+ The first few introducers should be able to announce other introducers, via
+ the distributed gossip-based introduction scheme of #68.
+
+Properties:
+
+ * claiming a grid ID is cheap: a single domain name registration (in an
+   uncontested namespace), and a simple web server. allmydata.com can publish
+   introducer FURLs for grids that don't want to register their own domain.
+
+ * lookup is at least as robust as DNS. By using benevolent public services
+   like tahoe-grids.allmydata.com, reliability can be increased further. The
+   HTTP fetch can return a list of every known server node, all of which can
+   act as introducers.
+
+ * not secure: anyone who can interfere with DNS lookups (or claims
+   tahoe-$HASH.com before you do) can cause clients to connect to their
+   servers instead of yours. This admits a moderate DoS attack against
+   download availability. Performing multiple queries (to .net, .org, etc)
+   and merging the results may mitigate this (you'll get their servers *and*
+   your servers; the download search will be slower but is still likely to
+   succeed). It may admit an upload DoS attack as well, or an upload
+   file-reliability attack (trick you into uploading to unreliable servers)
+   depending upon how the "server selection policy" (see below) is
+   implemented.
+
+Once the client is connected to an introducer, it will see if there is a
+Helper who is willing to assist with the upload or download. (For download,
+this might reduce the number of connections that the grid's storage servers
+must deal with). If not, ask the introducers for storage servers, and connect
+to them directly.
+
+== Controlling Access ==
+
+The introducers are not used to enforce access control. Instead, a system of
+public keys are used.
+
+There are a few kinds of access control that we might want to implement:
+
+ * protect storage space: only let authorized clients upload/consume storage
+ * protect download bandwidth: only give shares to authorized clients
+ * protect share reliability: only upload shares to "good" servers
+
+The first two are implemented by the server, to protect their resources. The
+last is implemented by the client, to avoid uploading shares to unreliable
+servers (specifically, to maximize the utility of the client's limited upload
+bandwidth: there's no problem with putting shares on unreliable peers per se,
+but it is a problem if doing so means the client won't put a share on a more
+reliable peer).
+
+The first limitation (protect storage space) will be implemented by public
+keys and signed "storage authority" certificates. The client will present
+some credentials to the storage server to convince it that the client
+deserves the space. When storage servers are in this mode, they will have a
+certificate that names a public key, and any credentials that can demonstrate
+a path from that key will be accepted. This scheme is described in
+docs/accounts-pubkey.txt .
+
+The second limitation is unexplored. The read-cap does not currently contain
+any notion of who must pay for the bandwidth incurred.
+
+The third limitation (only upload to "good" servers), when enabled, is
+implemented by a "server selection policy" on the client side, which defines
+which server credentials will be accepted. This is just like the first
+limitation in reverse. Before clients consider including a server in their
+peer selection algorithm, they check the credentials, and ignore any that do
+not meet them.
+
+This means that a client may not wish to upload anything to "foreign grids",
+because they have no promise of reliability. The reasons that a client might
+want to upload to a foreign grid need to be examined: reliability may not be
+important, or it might be good enough to upload the file to the client's
+"home grid" instead.
+
+The server selection policy is intended to be fairly open-ended: we can
+imagine a policy that says "upload to any server that has a good reputation
+among group X", or more complicated schemes that require less and less
+centralized management. One important and simple scheme is to simply have a
+list of acceptable keys: a friendnet with 5 members would include 5 such keys
+in each policy, enabling every member to use the services of the others,
+without having a single central manager with unilateral control over the
+definition of the group.
+
+== Closed Grids ==
+
+To implement these access controls, each client needs to be configured with
+three things:
+
+ * home grid ID (used to find introducers, helpers, storage servers)
+ * storage authority (certificate to enable uploads)
+ * server selection policy (identify good/reliable servers)
+
+If the server selection policy indicates centralized control (i.e. there is
+some single key X which is used to sign the credentials for all "good"
+servers), then this could be built in to the grid ID. By using the base32
+hash of the pubkey as the grid ID, clients would only need to be configured
+with two things: the grid ID, and their storage authority. In this case, the
+introducer would provide the pubkey, and the client would compare the hashes
+to make sure they match. This is analogous to how a TubID is used in a FURL.
+
+Such grids would have significantly larger grid IDs, 24 characters or more.
