@@ -9,7 +9,7 @@ try:
     out = subprocess.Popen(["buildbot", "--version"],
                            stdout=subprocess.PIPE).communicate()[0]
     print "buildbot:", out.replace("\n", " ")
-except OSError:
+except EnvironmentError:
     pass
 
 try:
@@ -20,5 +20,21 @@ try:
     print
     print "darcs:", out.replace("\n", " ")
     print full.rstrip()
-except OSError:
+except EnvironmentError:
+    pass
+
+try:
+    import platform
+    out = platform.platform()
+    print
+    print "platform:", out.replace("\n", " ")
+except EnvironmentError:
+    pass
+
+try:
+    import pkg_resources
+    out = str(pkg_resources.require("setuptools"))
+    print
+    print "setuptools:", out.replace("\n", " ")
+except (ImportError, EnvironmentError):
     pass
