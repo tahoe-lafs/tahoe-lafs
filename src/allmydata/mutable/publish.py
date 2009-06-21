@@ -177,7 +177,7 @@ class Publish:
         self._encprivkey = self._node.get_encprivkey()
 
         sb = self._node._client.get_storage_broker()
-        full_peerlist = sb.get_servers(self._storage_index)
+        full_peerlist = sb.get_servers_for_index(self._storage_index)
         self.full_peerlist = full_peerlist # for use later, immutable
         self.bad_peers = set() # peerids who have errbacked/refused requests
 

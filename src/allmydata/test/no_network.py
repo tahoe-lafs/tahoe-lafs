@@ -15,6 +15,7 @@
 
 import os.path
 import sha
+from zope.interface import implements
 from twisted.application import service
 from twisted.internet import reactor
 from twisted.python.failure import Failure
@@ -26,6 +27,7 @@ from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.introducer.client import RemoteServiceConnector
 from allmydata.test.common_web import HTTPClientGETFactory
+from allmydata.interfaces import IStorageBroker
 
 class IntentionalError(Exception):
     pass
@@ -105,9 +107,12 @@ def wrap(original, service_name):
     return wrapper
 
 class NoNetworkStorageBroker:
-    def get_servers(self, key):
+    implements(IStorageBroker)
+    def get_servers_for_index(self, key):
         return sorted(self.client._servers,
                       key=lambda x: sha.new(key+x[0]).digest())
+    def get_all_servers(self):
+        return frozenset(self.client._servers)
     def get_nickname_for_serverid(self, serverid):
         return None
 
@@ -138,9 +143,7 @@ class NoNetworkClient(Client):
         self.storage_broker.client = self
     def init_stub_client(self):
         pass
-
-    def get_servers(self, service_name):
-        return self._servers
+    #._servers will be set by the NoNetworkGrid which creates us
 
 class SimpleStats:
     def __init__(self):

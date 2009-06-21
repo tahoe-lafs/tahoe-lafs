@@ -50,7 +50,8 @@ class Repairer(log.PrefixingLogMixin):
     def start(self):
         self.log("starting repair")
         duc = DownUpConnector()
-        dl = download.CiphertextDownloader(self._client, self._verifycap, target=duc, monitor=self._monitor)
+        sb = self._client.get_storage_broker()
+        dl = download.CiphertextDownloader(sb, self._verifycap, target=duc, monitor=self._monitor)
         ul = upload.CHKUploader(self._client)
 
         d = defer.Deferred()

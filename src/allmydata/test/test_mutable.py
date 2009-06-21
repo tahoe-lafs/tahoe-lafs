@@ -1914,7 +1914,7 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(n._generated)
         def _break_peer0(res):
             si = n.get_storage_index()
-            peerlist = list(self.client.storage_broker.get_servers(si))
+            peerlist = self.client.storage_broker.get_servers_for_index(si)
             peerid0, connection0 = peerlist[0]
             peerid1, connection1 = peerlist[1]
             connection0.broken = True

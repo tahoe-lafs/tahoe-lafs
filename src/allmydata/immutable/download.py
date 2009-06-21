@@ -9,7 +9,8 @@ from allmydata.util import base32, deferredutil, hashutil, log, mathutil, idlib
 from allmydata.util.assertutil import _assert, precondition
 from allmydata import codec, hashtree, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, IVerifierURI, \
-     IDownloadStatus, IDownloadResults, IValidatedThingProxy, NotEnoughSharesError, \
+     IDownloadStatus, IDownloadResults, IValidatedThingProxy, \
+     IStorageBroker, NotEnoughSharesError, \
      UnableToFetchCriticalDownloadDataError
 from allmydata.immutable import layout
 from allmydata.monitor import Monitor
@@ -626,6 +627,7 @@ class CiphertextDownloader(log.PrefixingLogMixin):
 
     def __init__(self, storage_broker, v, target, monitor):
 
+        precondition(IStorageBroker.providedBy(storage_broker), storage_broker)
         precondition(IVerifierURI.providedBy(v), v)
         precondition(IDownloadTarget.providedBy(target), target)
 
@@ -745,7 +747,7 @@ class CiphertextDownloader(log.PrefixingLogMixin):
     def _get_all_shareholders(self):
         dl = []
         sb = self._storage_broker
-        for (peerid,ss) in sb.get_servers(self._storage_index):
+        for (peerid,ss) in sb.get_servers_for_index(self._storage_index):
             self.log(format="sending DYHB to [%(peerid)s]",
                      peerid=idlib.shortnodeid_b2a(peerid),
                      level=log.NOISY, umid="rT03hg")

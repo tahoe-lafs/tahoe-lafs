@@ -143,7 +143,7 @@ class Basic(unittest.TestCase):
 
     def _permute(self, sb, key):
         return [ peerid
-                 for (peerid,rref) in sb.get_servers(key) ]
+                 for (peerid,rref) in sb.get_servers_for_index(key) ]
 
     def test_permute(self):
         sb = StorageFarmBroker()

@@ -19,8 +19,11 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 #  implement tahoe.cfg scanner, create static NativeStorageClients
 
 import sha
+from zope.interface import implements
+from allmydata.interfaces import IStorageBroker
 
 class StorageFarmBroker:
+    implements(IStorageBroker)
     """I live on the client, and know about storage servers. For each server
     that is participating in a grid, I either maintain a connection to it or
     remember enough information to establish a connection to it on demand.
@@ -38,20 +41,23 @@ class StorageFarmBroker:
         self.introducer_client = ic = introducer_client
         ic.subscribe_to("storage")
 
-    def get_servers(self, peer_selection_index):
-        # first cut: return an iterator of (peerid, versioned-rref) tuples
+    def get_servers_for_index(self, peer_selection_index):
+        # first cut: return a list of (peerid, versioned-rref) tuples
         assert self.permute_peers == True
+        servers = self.get_all_servers()
+        key = peer_selection_index
+        return sorted(servers, key=lambda x: sha.new(key+x[0]).digest())
+
+    def get_all_servers(self):
+        # return a frozenset of (peerid, versioned-rref) tuples
         servers = {}
         for serverid,server in self.servers.items():
             servers[serverid] = server
         if self.introducer_client:
             ic = self.introducer_client
-            for serverid,server in ic.get_permuted_peers("storage",
-                                                         peer_selection_index):
+            for serverid,server in ic.get_peers("storage"):
                 servers[serverid] = server
-        servers = servers.items()
-        key = peer_selection_index
-        return sorted(servers, key=lambda x: sha.new(key+x[0]).digest())
+        return frozenset(servers.items())
 
     def get_all_serverids(self):
         for serverid in self.servers:

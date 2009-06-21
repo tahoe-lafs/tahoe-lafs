@@ -201,7 +201,8 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
 
     def check_and_repair(self, monitor, verify=False, add_lease=False):
         verifycap = self.get_verify_cap()
-        servers = self._client.get_servers("storage")
+        sb = self._client.get_storage_broker()
+        servers = sb.get_all_servers()
 
         c = Checker(client=self._client, verifycap=verifycap, servers=servers,
                     verify=verify, add_lease=add_lease, monitor=monitor)
@@ -253,8 +254,11 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
         return d
 
     def check(self, monitor, verify=False, add_lease=False):
-        v = Checker(client=self._client, verifycap=self.get_verify_cap(),
-                    servers=self._client.get_servers("storage"),
+        verifycap = self.get_verify_cap()
+        sb = self._client.get_storage_broker()
+        servers = sb.get_all_servers()
+
+        v = Checker(client=self._client, verifycap=verifycap, servers=servers,
                     verify=verify, add_lease=add_lease, monitor=monitor)
         return v.start()
 

@@ -167,7 +167,7 @@ class Tahoe2PeerSelector:
         self.preexisting_shares = {} # sharenum -> peerid holding the share
 
         sb = client.get_storage_broker()
-        peers = list(sb.get_servers(storage_index))
+        peers = sb.get_servers_for_index(storage_index)
         if not peers:
             raise NoServersError("client gave us zero peers")
 

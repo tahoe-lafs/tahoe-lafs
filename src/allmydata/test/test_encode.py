@@ -8,7 +8,8 @@ from allmydata import hashtree, uri
 from allmydata.immutable import encode, upload, download
 from allmydata.util import hashutil
 from allmydata.util.assertutil import _assert
-from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, NotEnoughSharesError
+from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
+     NotEnoughSharesError, IStorageBroker
 from allmydata.monitor import Monitor
 import common_util as testutil
 
@@ -18,9 +19,8 @@ class LostPeerError(Exception):
 def flip_bit(good): # flips the last bit
     return good[:-1] + chr(ord(good[-1]) ^ 0x01)
 
-class FakeClient:
-    def log(self, *args, **kwargs):
-        pass
+class FakeStorageBroker:
+    implements(IStorageBroker)
 
 class FakeBucketReaderWriterProxy:
     implements(IStorageBucketWriter, IStorageBucketReader)
@@ -494,11 +494,11 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                            total_shares=verifycap.total_shares,
                            size=verifycap.size)
 
-        client = FakeClient()
+        sb = FakeStorageBroker()
         if not target:
             target = download.Data()
         target = download.DecryptingTarget(target, u.key)
-        fd = download.CiphertextDownloader(client, u.get_verify_cap(), target, monitor=Monitor())
+        fd = download.CiphertextDownloader(sb, u.get_verify_cap(), target, monitor=Monitor())
 
         # we manually cycle the CiphertextDownloader through a number of steps that
         # would normally be sequenced by a Deferred chain in

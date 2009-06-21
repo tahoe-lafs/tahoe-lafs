@@ -141,7 +141,7 @@ class ResultsBase:
         sb = c.get_storage_broker()
         permuted_peer_ids = [peerid
                              for (peerid, rref)
-                             in sb.get_servers(cr.get_storage_index())]
+                             in sb.get_servers_for_index(cr.get_storage_index())]
 
         num_shares_left = sum([len(shares) for shares in servers.values()])
         servermap = []

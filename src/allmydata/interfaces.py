@@ -349,6 +349,23 @@ class IStorageBucketReader(Interface):
         @return: URIExtensionData
         """
 
+class IStorageBroker(Interface):
+    def get_servers_for_index(peer_selection_index):
+        """
+        @return: list of (peerid, versioned-rref) tuples
+        """
+    def get_all_servers():
+        """
+        @return: frozenset of (peerid, versioned-rref) tuples
+        """
+    def get_all_serverids():
+        """
+        @return: iterator of serverid strings
+        """
+    def get_nickname_for_serverid(serverid):
+        """
+        @return: unicode nickname, or None
+        """
 
 
 # hm, we need a solution for forward references in schemas

@@ -619,7 +619,7 @@ class Helper(Referenceable, service.MultiService):
         lp2 = self.log("doing a quick check+UEBfetch",
                        parent=lp, level=log.NOISY)
         sb = self.parent.get_storage_broker()
-        c = CHKCheckerAndUEBFetcher(sb.get_servers, storage_index, lp2)
+        c = CHKCheckerAndUEBFetcher(sb.get_servers_for_index, storage_index, lp2)
         d = c.check()
         def _checked(res):
             if res:
