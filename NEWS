@@ -4,7 +4,21 @@ User visible changes in Tahoe.  -*- outline -*-
 
 ** New WUI Style
 
-WUI Style!  It sounds like an ancient Chinese martial art!  Or possibly an American Hip Hop group!
+WUI Style!  It sounds like an ancient Chinese martial art!  Or possibly an
+American Hip Hop group!
+
+Slightly faster uploads
+http://allmydata.org/trac/tahoe/ticket/392
+??? (This one is not actually here yet.)
+
+Port to ARM CPUs and embedded boxes such as NASes.
+
+Packaging improvements to make Tahoe's packaging acceptable for inclusion in
+Linux distributions like Fedora and Debian.
+
+Remove limit on size of mutable files (but note that there is no efficient
+update -- writing a new mutable file requires encoding and uploading the entire
+contents of the new version of the file).
 
 
 * Release 1.4.1 (2009-04-13)

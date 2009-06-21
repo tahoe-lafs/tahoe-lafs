@@ -83,3 +83,7 @@ D: improvements to the CLI: exclude patterns, usage text
 
 N: DarKnesS_WOlF
 D: patch Makefile to build .debs for Ubuntu Intrepid
+
+N: Kevan Carstensen
+E: kevan@isnotajoke.com
+D: remove the limit on size of mutable files

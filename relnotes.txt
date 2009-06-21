@@ -17,7 +17,7 @@ explanation of Tahoe's unique security and fault-tolerance properties:
 http://allmydata.org/source/tahoe/trunk/docs/about.html
 
 This is the successor to Tahoe-LAFS v1.3, which was released February
-13, 2009 [2].  This is a major new release, adding  XXX new WUI style
+13, 2009 [2].  This is a major new release, adding  XXX new WUI style, port to ARM CPU and embedded systems such as NAS boxes.
 
 See the NEWS file [3] and the known_issues.txt file [4] for more
 information.
