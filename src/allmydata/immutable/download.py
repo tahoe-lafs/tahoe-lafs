@@ -5,7 +5,7 @@ from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.application import service
 from foolscap.api import DeadReferenceError, RemoteException, eventually
 
-from allmydata.util import base32, deferredutil, hashutil, log, mathutil
+from allmydata.util import base32, deferredutil, hashutil, log, mathutil, idlib
 from allmydata.util.assertutil import _assert, precondition
 from allmydata import codec, hashtree, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, IVerifierURI, \
@@ -746,6 +746,9 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         dl = []
         sb = self._storage_broker
         for (peerid,ss) in sb.get_servers(self._storage_index):
+            self.log(format="sending DYHB to [%(peerid)s]",
+                     peerid=idlib.shortnodeid_b2a(peerid),
+                     level=log.NOISY, umid="rT03hg")
             d = ss.callRemote("get_buckets", self._storage_index)
             d.addCallbacks(self._got_response, self._got_error,
                            callbackArgs=(peerid,))
@@ -759,6 +762,10 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         return defer.DeferredList(dl)
 
     def _got_response(self, buckets, peerid):
+        self.log(format="got results from [%(peerid)s]: shnums %(shnums)s",
+                 peerid=idlib.shortnodeid_b2a(peerid),
+                 shnums=sorted(buckets.keys()),
+                 level=log.NOISY, umid="o4uwFg")
         self._responses_received += 1
         if self._results:
             elapsed = time.time() - self._started
