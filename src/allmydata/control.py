@@ -70,10 +70,10 @@ class ControlServer(Referenceable, service.Service):
         # phase to take more than 10 seconds. Expect worst-case latency to be
         # 300ms.
         results = {}
-        conns = self.parent.introducer_client.get_all_connections_for("storage")
-        everyone = [(peerid,rref) for (peerid, service_name, rref) in conns]
+        sb = self.parent.get_storage_broker()
+        everyone = sb.get_all_servers()
         num_pings = int(mathutil.div_ceil(10, (len(everyone) * 0.3)))
-        everyone = everyone * num_pings
+        everyone = list(everyone) * num_pings
         d = self._do_one_ping(None, everyone, results)
         return d
     def _do_one_ping(self, res, everyone_left, results):

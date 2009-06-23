@@ -11,7 +11,13 @@ from foolscap.api import Referenceable
 from allmydata.util import log, idlib
 from allmydata.introducer.interfaces import RIIntroducerSubscriberClient, \
      IIntroducerClient, RIIntroducerPublisherAndSubscriberService
-from allmydata.introducer.common import make_index
+
+def make_index(announcement):
+    (furl, service_name, ri_name, nickname, ver, oldest) = announcement
+    m = re.match(r'pb://(\w+)@', furl)
+    assert m
+    nodeid = b32decode(m.group(1).upper())
+    return (nodeid, service_name)
 
 class RemoteServiceConnector:
     """I hold information about a peer service that we want to connect to. If

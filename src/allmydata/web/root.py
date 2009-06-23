@@ -238,30 +238,24 @@ class Root(rend.Page):
         return "no"
 
     def data_known_storage_servers(self, ctx, data):
-        ic = self.client.introducer_client
-        servers = [c
-                   for c in ic.get_all_connectors().values()
-                   if c.service_name == "storage"]
-        return len(servers)
+        sb = self.client.get_storage_broker()
+        return len(sb.get_all_serverids())
 
     def data_connected_storage_servers(self, ctx, data):
-        ic = self.client.introducer_client
-        return len(ic.get_all_connections_for("storage"))
+        sb = self.client.get_storage_broker()
+        return len(sb.get_all_servers())
 
     def data_services(self, ctx, data):
-        ic = self.client.introducer_client
-        c = [ (service_name, nodeid, rsc)
-              for (nodeid, service_name), rsc
-              in ic.get_all_connectors().items() ]
-        c.sort()
-        return c
+        sb = self.client.get_storage_broker()
+        return sb.get_all_descriptors()
 
-    def render_service_row(self, ctx, data):
-        (service_name, nodeid, rsc) = data
+    def render_service_row(self, ctx, descriptor):
+        nodeid = descriptor.get_serverid()
+
         ctx.fillSlots("peerid", idlib.nodeid_b2a(nodeid))
-        ctx.fillSlots("nickname", rsc.nickname)
-        if rsc.rref:
-            rhost = rsc.remote_host
+        ctx.fillSlots("nickname", descriptor.get_nickname())
+        rhost = descriptor.get_remote_host()
+        if rhost:
             if nodeid == self.client.nodeid:
                 rhost_s = "(loopback)"
             elif isinstance(rhost, address.IPv4Address):
@@ -269,19 +263,24 @@ class Root(rend.Page):
             else:
                 rhost_s = str(rhost)
             connected = "Yes: to " + rhost_s
-            since = rsc.last_connect_time
+            since = descriptor.get_last_connect_time()
         else:
             connected = "No"
-            since = rsc.last_loss_time
+            since = descriptor.get_last_loss_time()
+        announced = descriptor.get_announcement_time()
+        announcement = descriptor.get_announcement()
+        version = announcement["version"]
+        service_name = announcement["service-name"]
 
         TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
         ctx.fillSlots("connected", connected)
-        ctx.fillSlots("connected-bool", not not rsc.rref)
-        ctx.fillSlots("since", time.strftime(TIME_FORMAT, time.localtime(since)))
+        ctx.fillSlots("connected-bool", bool(rhost))
+        ctx.fillSlots("since", time.strftime(TIME_FORMAT,
+                                             time.localtime(since)))
         ctx.fillSlots("announced", time.strftime(TIME_FORMAT,
-                                                 time.localtime(rsc.announcement_time)))
-        ctx.fillSlots("version", rsc.version)
-        ctx.fillSlots("service_name", rsc.service_name)
+                                                 time.localtime(announced)))
+        ctx.fillSlots("version", version)
+        ctx.fillSlots("service_name", service_name)
 
         return ctx.tag
 

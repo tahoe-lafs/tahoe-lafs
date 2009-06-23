@@ -73,10 +73,10 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         def _check(extra_node):
             self.extra_node = extra_node
             for c in self.clients:
-                all_peerids = list(c.get_storage_broker().get_all_serverids())
+                all_peerids = c.get_storage_broker().get_all_serverids()
                 self.failUnlessEqual(len(all_peerids), self.numclients+1)
                 sb = c.storage_broker
-                permuted_peers = list(sb.get_servers_for_index("a"))
+                permuted_peers = sb.get_servers_for_index("a")
                 self.failUnlessEqual(len(permuted_peers), self.numclients+1)
 
         d.addCallback(_check)
@@ -108,10 +108,10 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d = self.set_up_nodes()
         def _check_connections(res):
             for c in self.clients:
-                all_peerids = list(c.get_storage_broker().get_all_serverids())
+                all_peerids = c.get_storage_broker().get_all_serverids()
                 self.failUnlessEqual(len(all_peerids), self.numclients)
                 sb = c.storage_broker
-                permuted_peers = list(sb.get_servers_for_index("a"))
+                permuted_peers = sb.get_servers_for_index("a")
                 self.failUnlessEqual(len(permuted_peers), self.numclients)
         d.addCallback(_check_connections)
 

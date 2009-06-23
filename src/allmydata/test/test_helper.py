@@ -63,7 +63,7 @@ class FakeClient(service.MultiService):
                                    "max_segment_size": 1*MiB,
                                    }
     stats_provider = None
-    storage_broker = StorageFarmBroker()
+    storage_broker = StorageFarmBroker(None, True)
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
     def get_encoding_parameters(self):

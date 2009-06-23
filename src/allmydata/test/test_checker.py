@@ -3,7 +3,7 @@ import simplejson
 from twisted.trial import unittest
 from allmydata import check_results, uri
 from allmydata.web import check_results as web_check_results
-from allmydata.storage_client import StorageFarmBroker, NativeStorageClient
+from allmydata.storage_client import StorageFarmBroker, NativeStorageClientDescriptor
 from common_web import WebRenderingMixin
 
 class FakeClient:
@@ -13,12 +13,20 @@ class FakeClient:
 class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def create_fake_client(self):
-        sb = StorageFarmBroker()
+        sb = StorageFarmBroker(None, True)
         for (peerid, nickname) in [("\x00"*20, "peer-0"),
                                    ("\xff"*20, "peer-f"),
                                    ("\x11"*20, "peer-11")] :
-            n = NativeStorageClient(peerid, None, nickname)
-            sb.add_server(peerid, n)
+            ann_d = { "version": 0,
+                      "service-name": "storage",
+                      "FURL": "fake furl",
+                      "nickname": unicode(nickname),
+                      "app-versions": {}, # need #466 and v2 introducer
+                      "my-version": "ver",
+                      "oldest-supported": "oldest",
+                      }
+            dsc = NativeStorageClientDescriptor(peerid, ann_d)
+            sb.test_add_descriptor(peerid, dsc)
         c = FakeClient()
         c.storage_broker = sb
         return c

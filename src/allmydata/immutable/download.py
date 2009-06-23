@@ -8,9 +8,10 @@ from foolscap.api import DeadReferenceError, RemoteException, eventually
 from allmydata.util import base32, deferredutil, hashutil, log, mathutil, idlib
 from allmydata.util.assertutil import _assert, precondition
 from allmydata import codec, hashtree, uri
-from allmydata.interfaces import IDownloadTarget, IDownloader, IFileURI, IVerifierURI, \
+from allmydata.interfaces import IDownloadTarget, IDownloader, \
+     IFileURI, IVerifierURI, \
      IDownloadStatus, IDownloadResults, IValidatedThingProxy, \
-     IStorageBroker, NotEnoughSharesError, \
+     IStorageBroker, NotEnoughSharesError, NoServersError, \
      UnableToFetchCriticalDownloadDataError
 from allmydata.immutable import layout
 from allmydata.monitor import Monitor
@@ -747,7 +748,10 @@ class CiphertextDownloader(log.PrefixingLogMixin):
     def _get_all_shareholders(self):
         dl = []
         sb = self._storage_broker
-        for (peerid,ss) in sb.get_servers_for_index(self._storage_index):
+        servers = sb.get_servers_for_index(self._storage_index)
+        if not servers:
+            raise NoServersError("broker gave us no servers!")
+        for (peerid,ss) in servers:
             self.log(format="sending DYHB to [%(peerid)s]",
                      peerid=idlib.shortnodeid_b2a(peerid),
                      level=log.NOISY, umid="rT03hg")

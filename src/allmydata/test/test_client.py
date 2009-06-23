@@ -146,13 +146,13 @@ class Basic(unittest.TestCase):
                  for (peerid,rref) in sb.get_servers_for_index(key) ]
 
     def test_permute(self):
-        sb = StorageFarmBroker()
+        sb = StorageFarmBroker(None, True)
         for k in ["%d" % i for i in range(5)]:
-            sb.add_server(k, None)
+            sb.test_add_server(k, None)
 
         self.failUnlessEqual(self._permute(sb, "one"), ['3','1','0','4','2'])
         self.failUnlessEqual(self._permute(sb, "two"), ['0','4','2','1','3'])
-        sb.servers = {}
+        sb.test_servers.clear()
         self.failUnlessEqual(self._permute(sb, "one"), [])
 
     def test_versions(self):

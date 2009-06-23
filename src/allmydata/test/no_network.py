@@ -25,7 +25,6 @@ from allmydata import uri as tahoe_uri
 from allmydata.client import Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
-from allmydata.introducer.client import RemoteServiceConnector
 from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker
 
@@ -93,17 +92,13 @@ class LocalWrapper:
     def dontNotifyOnDisconnect(self, marker):
         del self.disconnectors[marker]
 
-def wrap(original, service_name):
+def wrap_storage_server(original):
     # Much of the upload/download code uses rref.version (which normally
     # comes from rrefutil.add_version_to_remote_reference). To avoid using a
     # network, we want a LocalWrapper here. Try to satisfy all these
     # constraints at the same time.
     wrapper = LocalWrapper(original)
-    try:
-        version = original.remote_get_version()
-    except AttributeError:
-        version = RemoteServiceConnector.VERSION_DEFAULTS[service_name]
-    wrapper.version = version
+    wrapper.version = original.remote_get_version()
     return wrapper
 
 class NoNetworkStorageBroker:
@@ -220,7 +215,7 @@ class NoNetworkGrid(service.MultiService):
         ss.setServiceParent(middleman)
         serverid = ss.my_nodeid
         self.servers_by_number[i] = ss
-        self.servers_by_id[serverid] = wrap(ss, "storage")
+        self.servers_by_id[serverid] = wrap_storage_server(ss)
         self.all_servers = frozenset(self.servers_by_id.items())
         for c in self.clients:
             c._servers = self.all_servers

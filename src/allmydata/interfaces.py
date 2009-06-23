@@ -360,11 +360,54 @@ class IStorageBroker(Interface):
         """
     def get_all_serverids():
         """
-        @return: iterator of serverid strings
+        @return: frozenset of serverid strings
         """
     def get_nickname_for_serverid(serverid):
         """
         @return: unicode nickname, or None
+        """
+
+    # methods moved from IntroducerClient, need review
+    def get_all_connections():
+        """Return a frozenset of (nodeid, service_name, rref) tuples, one for
+        each active connection we've established to a remote service. This is
+        mostly useful for unit tests that need to wait until a certain number
+        of connections have been made."""
+
+    def get_all_connectors():
+        """Return a dict that maps from (nodeid, service_name) to a
+        RemoteServiceConnector instance for all services that we are actively
+        trying to connect to. Each RemoteServiceConnector has the following
+        public attributes::
+
+          service_name: the type of service provided, like 'storage'
+          announcement_time: when we first heard about this service
+          last_connect_time: when we last established a connection
+          last_loss_time: when we last lost a connection
+
+          version: the peer's version, from the most recent connection
+          oldest_supported: the peer's oldest supported version, same
+
+          rref: the RemoteReference, if connected, otherwise None
+          remote_host: the IAddress, if connected, otherwise None
+
+        This method is intended for monitoring interfaces, such as a web page
+        which describes connecting and connected peers.
+        """
+
+    def get_all_peerids():
+        """Return a frozenset of all peerids to whom we have a connection (to
+        one or more services) established. Mostly useful for unit tests."""
+
+    def get_all_connections_for(service_name):
+        """Return a frozenset of (nodeid, service_name, rref) tuples, one
+        for each active connection that provides the given SERVICE_NAME."""
+
+    def get_permuted_peers(service_name, key):
+        """Returns an ordered list of (peerid, rref) tuples, selecting from
+        the connections that provide SERVICE_NAME, using a hash-based
+        permutation keyed by KEY. This randomizes the service list in a
+        repeatable way, to distribute load over many peers.
         """
 
 

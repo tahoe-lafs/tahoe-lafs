@@ -6,7 +6,6 @@ from zope.interface import implements
 from twisted.internet import reactor
 from twisted.application.internet import TimerService
 from foolscap.api import Referenceable
-from foolscap.logging import log
 from pycryptopp.publickey import rsa
 
 import allmydata
@@ -18,7 +17,7 @@ from allmydata.immutable.filenode import FileNode, LiteralFileNode
 from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import hashutil, base32, pollmixin, cachedir
+from allmydata.util import hashutil, base32, pollmixin, cachedir, log
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.uri import LiteralFileURI
@@ -128,8 +127,6 @@ class Client(node.Node, pollmixin.PollMixin):
         d = self.when_tub_ready()
         def _start_introducer_client(res):
             ic.setServiceParent(self)
-            # nodes that want to upload and download will need storage servers
-            ic.subscribe_to("storage")
         d.addCallback(_start_introducer_client)
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="URyI5w")
@@ -235,9 +232,11 @@ class Client(node.Node, pollmixin.PollMixin):
     def init_client_storage_broker(self):
         # create a StorageFarmBroker object, for use by Uploader/Downloader
         # (and everybody else who wants to use storage servers)
-        self.storage_broker = sb = storage_client.StorageFarmBroker()
+        sb = storage_client.StorageFarmBroker(self.tub, permute_peers=True)
+        self.storage_broker = sb
 
-        # load static server specifications from tahoe.cfg, if any
+        # load static server specifications from tahoe.cfg, if any.
+        # Not quite ready yet.
         #if self.config.has_section("client-server-selection"):
         #    server_params = {} # maps serverid to dict of parameters
         #    for (name, value) in self.config.items("client-server-selection"):
@@ -390,8 +389,7 @@ class Client(node.Node, pollmixin.PollMixin):
         temporary test network and need to know when it is safe to proceed
         with an upload or download."""
         def _check():
-            current_clients = list(self.storage_broker.get_all_serverids())
-            return len(current_clients) >= num_clients
+            return len(self.storage_broker.get_all_servers()) >= num_clients
         d = self.poll(_check, 0.5)
         d.addCallback(lambda res: None)
         return d

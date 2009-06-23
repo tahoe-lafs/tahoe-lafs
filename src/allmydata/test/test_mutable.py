@@ -174,19 +174,19 @@ class FakeClient:
         peerids = [tagged_hash("peerid", "%d" % i)[:20]
                    for i in range(self._num_peers)]
         self.nodeid = "fakenodeid"
-        self.storage_broker = StorageFarmBroker()
+        self.storage_broker = StorageFarmBroker(None, True)
         for peerid in peerids:
             fss = FakeStorageServer(peerid, self._storage)
-            self.storage_broker.add_server(peerid, fss)
+            self.storage_broker.test_add_server(peerid, fss)
 
     def get_storage_broker(self):
         return self.storage_broker
     def debug_break_connection(self, peerid):
-        self.storage_broker.servers[peerid].broken = True
+        self.storage_broker.test_servers[peerid].broken = True
     def debug_remove_connection(self, peerid):
-        self.storage_broker.servers.pop(peerid)
+        self.storage_broker.test_servers.pop(peerid)
     def debug_get_connection(self, peerid):
-        return self.storage_broker.servers[peerid]
+        return self.storage_broker.test_servers[peerid]
 
     def get_encoding_parameters(self):
         return {"k": 3, "n": 10}
@@ -1569,7 +1569,7 @@ class MultipleEncodings(unittest.TestCase):
             sharemap = {}
             sb = self._client.get_storage_broker()
 
-            for i,peerid in enumerate(sb.get_all_serverids()):
+            for peerid in sorted(sb.get_all_serverids()):
                 peerid_s = shortnodeid_b2a(peerid)
                 for shnum in self._shares1.get(peerid, {}):
                     if shnum < len(places):
@@ -1794,13 +1794,13 @@ class LessFakeClient(FakeClient):
         self._num_peers = num_peers
         peerids = [tagged_hash("peerid", "%d" % i)[:20] 
                    for i in range(self._num_peers)]
-        self.storage_broker = StorageFarmBroker()
+        self.storage_broker = StorageFarmBroker(None, True)
         for peerid in peerids:
             peerdir = os.path.join(basedir, idlib.shortnodeid_b2a(peerid))
             make_dirs(peerdir)
             ss = StorageServer(peerdir, peerid)
             lw = LocalWrapper(ss)
-            self.storage_broker.add_server(peerid, lw)
+            self.storage_broker.test_add_server(peerid, lw)
         self.nodeid = "fakenodeid"
 
 

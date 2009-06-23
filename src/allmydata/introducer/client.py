@@ -1,108 +1,13 @@
 
-import re, time, sha
 from base64 import b32decode
 from zope.interface import implements
 from twisted.application import service
-from foolscap.api import Referenceable
+from foolscap.api import Referenceable, SturdyRef, eventually
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.interfaces import RIIntroducerSubscriberClient, \
      IIntroducerClient
 from allmydata.util import log, idlib
-from allmydata.util.rrefutil import add_version_to_remote_reference
-from allmydata.introducer.common import make_index
-
-
-class RemoteServiceConnector:
-    """I hold information about a peer service that we want to connect to. If
-    we are connected, I hold the RemoteReference, the peer's address, and the
-    peer's version information. I remember information about when we were
-    last connected to the peer too, even if we aren't currently connected.
-
-    @ivar announcement_time: when we first heard about this service
-    @ivar last_connect_time: when we last established a connection
-    @ivar last_loss_time: when we last lost a connection
-
-    @ivar version: the peer's version, from the most recent announcement
-    @ivar oldest_supported: the peer's oldest supported version, same
-    @ivar nickname: the peer's self-reported nickname, same
-
-    @ivar rref: the RemoteReference, if connected, otherwise None
-    @ivar remote_host: the IAddress, if connected, otherwise None
-    """
-
-    VERSION_DEFAULTS = {
-        "storage": { "http://allmydata.org/tahoe/protocols/storage/v1" :
-                     { "maximum-immutable-share-size": 2**32,
-                       "tolerates-immutable-read-overrun": False,
-                       "delete-mutable-shares-with-zero-length-writev": False,
-                       },
-                     "application-version": "unknown: no get_version()",
-                     },
-        "stub_client": { },
-        }
-
-    def __init__(self, announcement, tub, ic):
-        self._tub = tub
-        self._announcement = announcement
-        self._ic = ic
-        (furl, service_name, ri_name, nickname, ver, oldest) = announcement
-
-        self._furl = furl
-        m = re.match(r'pb://(\w+)@', furl)
-        assert m
-        self._nodeid = b32decode(m.group(1).upper())
-        self._nodeid_s = idlib.shortnodeid_b2a(self._nodeid)
-
-        self.service_name = service_name
-
-        self.log("attempting to connect to %s" % self._nodeid_s)
-        self.announcement_time = time.time()
-        self.last_loss_time = None
-        self.rref = None
-        self.remote_host = None
-        self.last_connect_time = None
-        self.version = ver
-        self.oldest_supported = oldest
-        self.nickname = nickname
-
-    def log(self, *args, **kwargs):
-        return self._ic.log(*args, **kwargs)
-
-    def startConnecting(self):
-        self._reconnector = self._tub.connectTo(self._furl, self._got_service)
-
-    def stopConnecting(self):
-        self._reconnector.stopConnecting()
-
-    def _got_service(self, rref):
-        self.log("got connection to %s, getting versions" % self._nodeid_s)
-
-        default = self.VERSION_DEFAULTS.get(self.service_name, {})
-        d = add_version_to_remote_reference(rref, default)
-        d.addCallback(self._got_versioned_service)
-
-    def _got_versioned_service(self, rref):
-        self.log("connected to %s, version %s" % (self._nodeid_s, rref.version))
-
-        self.last_connect_time = time.time()
-        self.remote_host = rref.tracker.broker.transport.getPeer()
-
-        self.rref = rref
-
-        self._ic.add_connection(self._nodeid, self.service_name, rref)
-
-        rref.notifyOnDisconnect(self._lost, rref)
-
-    def _lost(self, rref):
-        self.log("lost connection to %s" % self._nodeid_s)
-        self.last_loss_time = time.time()
-        self.rref = None
-        self.remote_host = None
-        self._ic.remove_connection(self._nodeid, self.service_name, rref)
-
-
-    def reset(self):
-        self._reconnector.reset()
+from allmydata.util.rrefutil import add_version_to_remote_reference, trap_deadref
 
 
 class IntroducerClient(service.Service, Referenceable):
@@ -113,31 +18,39 @@ class IntroducerClient(service.Service, Referenceable):
         self._tub = tub
         self.introducer_furl = introducer_furl
 
-        self._nickname = nickname.encode("utf-8")
+        assert type(nickname) is unicode
+        self._nickname_utf8 = nickname.encode("utf-8") # we always send UTF-8
         self._my_version = my_version
         self._oldest_supported = oldest_supported
 
         self._published_announcements = set()
 
         self._publisher = None
-        self._connected = False
 
+        self._local_subscribers = [] # (servicename,cb,args,kwargs) tuples
         self._subscribed_service_names = set()
         self._subscriptions = set() # requests we've actually sent
-        self._received_announcements = set()
-        # TODO: this set will grow without bound, until the node is restarted
 
-        # we only accept one announcement per (peerid+service_name) pair.
-        # This insures that an upgraded host replace their previous
-        # announcement. It also means that each peer must have their own Tub
-        # (no sharing), which is slightly weird but consistent with the rest
-        # of the Tahoe codebase.
-        self._connectors = {} # k: (peerid+svcname), v: RemoteServiceConnector
-        # self._connections is a set of (peerid, service_name, rref) tuples
-        self._connections = set()
+        # _current_announcements remembers one announcement per
+        # (servicename,serverid) pair. Anything that arrives with the same
+        # pair will displace the previous one. This stores unpacked
+        # announcement dictionaries, which can be compared for equality to
+        # distinguish re-announcement from updates. It also provides memory
+        # for clients who subscribe after startup.
+        self._current_announcements = {}
 
-        self.counter = 0 # incremented each time we change state, for tests
         self.encoding_parameters = None
+
+        # hooks for unit tests
+        self._debug_counts = {
+            "inbound_message": 0,
+            "inbound_announcement": 0,
+            "wrong_service": 0,
+            "duplicate_announcement": 0,
+            "update": 0,
+            "new_announcement": 0,
+            "outbound_message": 0,
+            }
 
     def startService(self):
         service.Service.startService(self)
@@ -170,7 +83,6 @@ class IntroducerClient(service.Service, Referenceable):
         needed = "http://allmydata.org/tahoe/protocols/introducer/v1"
         if needed not in publisher.version:
             raise InsufficientVersionError(needed, publisher.version)
-        self._connected = True
         self._publisher = publisher
         publisher.notifyOnDisconnect(self._disconnected)
         self._maybe_publish()
@@ -178,15 +90,8 @@ class IntroducerClient(service.Service, Referenceable):
 
     def _disconnected(self):
         self.log("bummer, we've lost our connection to the introducer")
-        self._connected = False
         self._publisher = None
         self._subscriptions.clear()
-
-    def stopService(self):
-        service.Service.stopService(self)
-        self._introducer_reconnector.stopConnecting()
-        for rsc in self._connectors.itervalues():
-            rsc.stopConnecting()
 
     def log(self, *args, **kwargs):
         if "facility" not in kwargs:
@@ -195,14 +100,19 @@ class IntroducerClient(service.Service, Referenceable):
 
 
     def publish(self, furl, service_name, remoteinterface_name):
+        assert type(self._nickname_utf8) is str # we always send UTF-8
         ann = (furl, service_name, remoteinterface_name,
-               self._nickname, self._my_version, self._oldest_supported)
+               self._nickname_utf8, self._my_version, self._oldest_supported)
         self._published_announcements.add(ann)
         self._maybe_publish()
 
-    def subscribe_to(self, service_name):
+    def subscribe_to(self, service_name, cb, *args, **kwargs):
+        self._local_subscribers.append( (service_name,cb,args,kwargs) )
         self._subscribed_service_names.add(service_name)
         self._maybe_subscribe()
+        for (servicename,nodeid),ann_d in self._current_announcements.items():
+            if servicename == service_name:
+                eventually(cb, nodeid, ann_d)
 
     def _maybe_subscribe(self):
         if not self._publisher:
@@ -215,7 +125,9 @@ class IntroducerClient(service.Service, Referenceable):
                 # duplicate requests.
                 self._subscriptions.add(service_name)
                 d = self._publisher.callRemote("subscribe", self, service_name)
-                d.addErrback(log.err, facility="tahoe.introducer",
+                d.addErrback(trap_deadref)
+                d.addErrback(log.err, format="server errored during subscribe",
+                             facility="tahoe.introducer",
                              level=log.WEIRD, umid="2uMScQ")
 
     def _maybe_publish(self):
@@ -224,100 +136,83 @@ class IntroducerClient(service.Service, Referenceable):
             return
         # this re-publishes everything. The Introducer ignores duplicates
         for ann in self._published_announcements:
+            self._debug_counts["outbound_message"] += 1
             d = self._publisher.callRemote("publish", ann)
-            d.addErrback(log.err, facility="tahoe.introducer",
+            d.addErrback(trap_deadref)
+            d.addErrback(log.err,
+                         format="server errored during publish %(ann)s",
+                         ann=ann, facility="tahoe.introducer",
                          level=log.WEIRD, umid="xs9pVQ")
 
 
 
     def remote_announce(self, announcements):
+        self.log("received %d announcements" % len(announcements))
+        self._debug_counts["inbound_message"] += 1
         for ann in announcements:
-            self.log("received %d announcements" % len(announcements))
-            (furl, service_name, ri_name, nickname, ver, oldest) = ann
-            if service_name not in self._subscribed_service_names:
-                self.log("announcement for a service we don't care about [%s]"
-                         % (service_name,), level=log.UNUSUAL, umid="dIpGNA")
-                continue
-            if ann in self._received_announcements:
-                self.log("ignoring old announcement: %s" % (ann,),
-                         level=log.NOISY)
-                continue
-            self.log("new announcement[%s]: %s" % (service_name, ann))
-            self._received_announcements.add(ann)
-            self._new_announcement(ann)
+            try:
+                self._process_announcement(ann)
+            except:
+                log.err(format="unable to process announcement %(ann)s",
+                        ann=ann)
+                # Don't let a corrupt announcement prevent us from processing
+                # the remaining ones. Don't return an error to the server,
+                # since they'd just ignore it anyways.
+                pass
 
-    def _new_announcement(self, announcement):
-        # this will only be called for new announcements
-        index = make_index(announcement)
-        if index in self._connectors:
-            self.log("replacing earlier announcement", level=log.NOISY)
-            self._connectors[index].stopConnecting()
-        rsc = RemoteServiceConnector(announcement, self._tub, self)
-        self._connectors[index] = rsc
-        rsc.startConnecting()
+    def _process_announcement(self, ann):
+        self._debug_counts["inbound_announcement"] += 1
+        (furl, service_name, ri_name, nickname_utf8, ver, oldest) = ann
+        if service_name not in self._subscribed_service_names:
+            self.log("announcement for a service we don't care about [%s]"
+                     % (service_name,), level=log.UNUSUAL, umid="dIpGNA")
+            self._debug_counts["wrong_service"] += 1
+            return
+        self.log("announcement for [%s]: %s" % (service_name, ann),
+                 umid="BoKEag")
+        assert type(furl) is str
+        assert type(service_name) is str
+        assert type(ri_name) is str
+        assert type(nickname_utf8) is str
+        nickname = nickname_utf8.decode("utf-8")
+        assert type(nickname) is unicode
+        assert type(ver) is str
+        assert type(oldest) is str
 
-    def add_connection(self, nodeid, service_name, rref):
-        self._connections.add( (nodeid, service_name, rref) )
-        self.counter += 1
-        # when one connection is established, reset the timers on all others,
-        # to trigger a reconnection attempt in one second. This is intended
-        # to accelerate server connections when we've been offline for a
-        # while. The goal is to avoid hanging out for a long time with
-        # connections to only a subset of the servers, which would increase
-        # the chances that we'll put shares in weird places (and not update
-        # existing shares of mutable files). See #374 for more details.
-        for rsc in self._connectors.values():
-            rsc.reset()
+        nodeid = b32decode(SturdyRef(furl).tubID.upper())
+        nodeid_s = idlib.shortnodeid_b2a(nodeid)
 
-    def remove_connection(self, nodeid, service_name, rref):
-        self._connections.discard( (nodeid, service_name, rref) )
-        self.counter += 1
+        ann_d = { "version": 0,
+                  "service-name": service_name,
 
+                  "FURL": furl,
+                  "nickname": nickname,
+                  "app-versions": {}, # need #466 and v2 introducer
+                  "my-version": ver,
+                  "oldest-supported": oldest,
+                  }
 
-    def get_all_connections(self):
-        return frozenset(self._connections)
+        index = (service_name, nodeid)
+        if self._current_announcements.get(index, None) == ann_d:
+            self.log("reannouncement for [%(service)s]:%(nodeid)s, ignoring",
+                     service=service_name, nodeid=nodeid_s,
+                     level=log.UNUSUAL, umid="B1MIdA")
+            self._debug_counts["duplicate_announcement"] += 1
+            return
+        if index in self._current_announcements:
+            self._debug_counts["update"] += 1
+        else:
+            self._debug_counts["new_announcement"] += 1
 
-    def get_all_connectors(self):
-        return self._connectors.copy()
+        self._current_announcements[index] = ann_d
+        # note: we never forget an index, but we might update its value
 
-    def get_all_peerids(self):
-        return frozenset([peerid
-                          for (peerid, service_name, rref)
-                          in self._connections])
-
-    def get_nickname_for_peerid(self, peerid):
-        for k in self._connectors:
-            (peerid0, svcname0) = k
-            if peerid0 == peerid:
-                rsc = self._connectors[k]
-                return rsc.nickname
-        return None
-
-    def get_all_connections_for(self, service_name):
-        return frozenset([c
-                          for c in self._connections
-                          if c[1] == service_name])
-
-    def get_peers(self, service_name):
-        """Return a set of (peerid, versioned-rref) tuples."""
-        return frozenset([(peerid, r) for (peerid, servname, r) in self._connections if servname == service_name])
-
-    def get_permuted_peers(self, service_name, key):
-        """Return an ordered list of (peerid, versioned-rref) tuples."""
-
-        servers = self.get_peers(service_name)
-
-        return sorted(servers, key=lambda x: sha.new(key+x[0]).digest())
+        for (service_name2,cb,args,kwargs) in self._local_subscribers:
+            if service_name2 == service_name:
+                eventually(cb, nodeid, ann_d, *args, **kwargs)
 
     def remote_set_encoding_parameters(self, parameters):
         self.encoding_parameters = parameters
 
     def connected_to_introducer(self):
-        return self._connected
-
-    def debug_disconnect_from_peerid(self, victim_nodeid):
-        # for unit tests: locate and sever all connections to the given
-        # peerid.
-        for (nodeid, service_name, rref) in self._connections:
-            if nodeid == victim_nodeid:
-                rref.tracker.broker.transport.loseConnection()
+        return bool(self._publisher)

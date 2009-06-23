@@ -11,15 +11,11 @@ from twisted.application import service
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.client import IntroducerClient
 from allmydata.introducer.server import IntroducerService
-from allmydata.introducer.common import make_index
 # test compatibility with old introducer .tac files
 from allmydata.introducer import IntroducerNode
 from allmydata.introducer import old
-from allmydata.util import idlib, pollmixin
+from allmydata.util import pollmixin
 import common_util as testutil
-
-class FakeNode(Referenceable):
-    pass
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
@@ -51,7 +47,7 @@ class ServiceMixin:
 class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
 
     def test_create(self):
-        ic = IntroducerClient(None, "introducer.furl", "my_nickname",
+        ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
                               "my_version", "oldest_version")
 
     def test_listen(self):
@@ -79,33 +75,35 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
 
 class SystemTestMixin(ServiceMixin, pollmixin.PollMixin):
 
-    def setUp(self):
-        ServiceMixin.setUp(self)
-        self.central_tub = tub = Tub()
+    def create_tub(self, portnum=0):
+        tubfile = os.path.join(self.basedir, "tub.pem")
+        self.central_tub = tub = Tub(certFile=tubfile)
         #tub.setOption("logLocalFailures", True)
         #tub.setOption("logRemoteFailures", True)
         tub.setOption("expose-remote-exception-types", False)
         tub.setServiceParent(self.parent)
-        l = tub.listenOn("tcp:0")
-        portnum = l.getPortnum()
-        tub.setLocation("localhost:%d" % portnum)
+        l = tub.listenOn("tcp:%d" % portnum)
+        self.central_portnum = l.getPortnum()
+        if portnum != 0:
+            assert self.central_portnum == portnum
+        tub.setLocation("localhost:%d" % self.central_portnum)
 
 class SystemTest(SystemTestMixin, unittest.TestCase):
 
     def test_system(self):
-        i = IntroducerService()
-        i.setServiceParent(self.parent)
-        self.introducer_furl = self.central_tub.registerReference(i)
-        return self.do_system_test()
+        self.basedir = "introducer/SystemTest/system"
+        os.makedirs(self.basedir)
+        return self.do_system_test(IntroducerService)
     test_system.timeout = 480 # occasionally takes longer than 350s on "draco"
 
-    def test_system_oldserver(self):
-        i = old.IntroducerService_V1()
-        i.setServiceParent(self.parent)
-        self.introducer_furl = self.central_tub.registerReference(i)
-        return self.do_system_test()
-
-    def do_system_test(self):
+    def do_system_test(self, create_introducer):
+        self.create_tub()
+        introducer = create_introducer()
+        introducer.setServiceParent(self.parent)
+        iff = os.path.join(self.basedir, "introducer.furl")
+        tub = self.central_tub
+        ifurl = self.central_tub.registerReference(introducer, furlFile=iff)
+        self.introducer_furl = ifurl
 
         NUMCLIENTS = 5
         # we have 5 clients who publish themselves, and an extra one does
@@ -114,6 +112,11 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         clients = []
         tubs = {}
+        received_announcements = {}
+        NUM_SERVERS = NUMCLIENTS
+        subscribing_clients = []
+        publishing_clients = []
+
         for i in range(NUMCLIENTS+1):
             tub = Tub()
             #tub.setOption("logLocalFailures", True)
@@ -124,101 +127,75 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             portnum = l.getPortnum()
             tub.setLocation("localhost:%d" % portnum)
 
-            n = FakeNode()
             log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
-            client_class = IntroducerClient
-            if i == 0:
-                client_class = old.IntroducerClient_V1
-            c = client_class(tub, self.introducer_furl,
-                             "nickname-%d" % i, "version", "oldest")
-            if i < NUMCLIENTS:
-                node_furl = tub.registerReference(n)
-                c.publish(node_furl, "storage", "ri_name")
-            # the last one does not publish anything
+            c = IntroducerClient(tub, self.introducer_furl, u"nickname-%d" % i,
+                                 "version", "oldest")
+            received_announcements[c] = ra = {}
+            def got(serverid, ann_d, announcements):
+                announcements[serverid] = ann_d
+            c.subscribe_to("storage", got, received_announcements[c])
+            subscribing_clients.append(c)
 
-            c.subscribe_to("storage")
+            if i < NUMCLIENTS:
+                node_furl = tub.registerReference(Referenceable())
+                c.publish(node_furl, "storage", "ri_name")
+                publishing_clients.append(c)
+            # the last one does not publish anything
 
             c.setServiceParent(self.parent)
             clients.append(c)
             tubs[c] = tub
 
         def _wait_for_all_connections():
-            for c in clients:
-                if len(c.get_all_connections()) < NUMCLIENTS:
+            for c in subscribing_clients:
+                if len(received_announcements[c]) < NUM_SERVERS:
                     return False
             return True
         d = self.poll(_wait_for_all_connections)
 
         def _check1(res):
             log.msg("doing _check1")
+            dc = introducer._debug_counts
+            self.failUnlessEqual(dc["inbound_message"], NUM_SERVERS)
+            self.failUnlessEqual(dc["inbound_duplicate"], 0)
+            self.failUnlessEqual(dc["inbound_update"], 0)
+            self.failUnless(dc["outbound_message"])
+
             for c in clients:
                 self.failUnless(c.connected_to_introducer())
-                self.failUnlessEqual(len(c.get_all_connections()), NUMCLIENTS)
-                self.failUnlessEqual(len(c.get_all_peerids()), NUMCLIENTS)
-                self.failUnlessEqual(len(c.get_all_connections_for("storage")),
-                                     NUMCLIENTS)
+            for c in subscribing_clients:
+                cdc = c._debug_counts
+                self.failUnless(cdc["inbound_message"])
+                self.failUnlessEqual(cdc["inbound_announcement"],
+                                     NUM_SERVERS)
+                self.failUnlessEqual(cdc["wrong_service"], 0)
+                self.failUnlessEqual(cdc["duplicate_announcement"], 0)
+                self.failUnlessEqual(cdc["update"], 0)
+                self.failUnlessEqual(cdc["new_announcement"],
+                                     NUM_SERVERS)
+                anns = received_announcements[c]
+                self.failUnlessEqual(len(anns), NUM_SERVERS)
+
                 nodeid0 = b32decode(tubs[clients[0]].tubID.upper())
-                self.failUnlessEqual(c.get_nickname_for_peerid(nodeid0),
-                                     "nickname-0")
+                ann_d = anns[nodeid0]
+                nick = ann_d["nickname"]
+                self.failUnlessEqual(type(nick), unicode)
+                self.failUnlessEqual(nick, u"nickname-0")
+            for c in publishing_clients:
+                cdc = c._debug_counts
+                self.failUnlessEqual(cdc["outbound_message"], 1)
         d.addCallback(_check1)
 
-        origin_c = clients[0]
-        def _disconnect_somebody_else(res):
-            # now disconnect somebody's connection to someone else
-            current_counter = origin_c.counter
-            victim_nodeid = b32decode(tubs[clients[1]].tubID.upper())
-            log.msg(" disconnecting %s->%s" %
-                    (tubs[origin_c].tubID,
-                     idlib.shortnodeid_b2a(victim_nodeid)))
-            origin_c.debug_disconnect_from_peerid(victim_nodeid)
-            log.msg(" did disconnect")
+        # force an introducer reconnect, by shutting down the Tub it's using
+        # and starting a new Tub (with the old introducer). Everybody should
+        # reconnect and republish, but the introducer should ignore the
+        # republishes as duplicates. However, because the server doesn't know
+        # what each client does and does not know, it will send them a copy
+        # of the current announcement table anyway.
 
-            # then wait until something changes, which ought to be them
-            # noticing the loss
-            def _compare():
-                return current_counter != origin_c.counter
-            return self.poll(_compare)
+        d.addCallback(lambda _ign: log.msg("shutting down introducer's Tub"))
+        d.addCallback(lambda _ign: self.central_tub.disownServiceParent())
 
-        d.addCallback(_disconnect_somebody_else)
-
-        # and wait for them to reconnect
-        d.addCallback(lambda res: self.poll(_wait_for_all_connections))
-        def _check2(res):
-            log.msg("doing _check2")
-            for c in clients:
-                self.failUnlessEqual(len(c.get_all_connections()), NUMCLIENTS)
-        d.addCallback(_check2)
-
-        def _disconnect_yourself(res):
-            # now disconnect somebody's connection to themselves.
-            current_counter = origin_c.counter
-            victim_nodeid = b32decode(tubs[clients[0]].tubID.upper())
-            log.msg(" disconnecting %s->%s" %
-                    (tubs[origin_c].tubID,
-                     idlib.shortnodeid_b2a(victim_nodeid)))
-            origin_c.debug_disconnect_from_peerid(victim_nodeid)
-            log.msg(" did disconnect from self")
-
-            def _compare():
-                return current_counter != origin_c.counter
-            return self.poll(_compare)
-        d.addCallback(_disconnect_yourself)
-
-        d.addCallback(lambda res: self.poll(_wait_for_all_connections))
-        def _check3(res):
-            log.msg("doing _check3")
-            for c in clients:
-                self.failUnlessEqual(len(c.get_all_connections_for("storage")),
-                                     NUMCLIENTS)
-        d.addCallback(_check3)
-        def _shutdown_introducer(res):
-            # now shut down the introducer. We do this by shutting down the
-            # tub it's using. Nobody's connections (to each other) should go
-            # down. All clients should notice the loss, and no other errors
-            # should occur.
-            log.msg("shutting down the introducer")
-            return self.central_tub.disownServiceParent()
-        d.addCallback(_shutdown_introducer)
         def _wait_for_introducer_loss():
             for c in clients:
                 if c.connected_to_introducer():
@@ -226,13 +203,134 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             return True
         d.addCallback(lambda res: self.poll(_wait_for_introducer_loss))
 
-        def _check4(res):
-            log.msg("doing _check4")
+        def _restart_introducer_tub(_ign):
+            log.msg("restarting introducer's Tub")
+
+            # note: old.Server doesn't have this count
+            dc = introducer._debug_counts
+            self.expected_count = dc["inbound_message"] + NUM_SERVERS
+            self.expected_subscribe_count = dc["inbound_subscribe"] + NUMCLIENTS+1
+            introducer._debug0 = dc["outbound_message"]
+            for c in subscribing_clients:
+                cdc = c._debug_counts
+                c._debug0 = cdc["inbound_message"]
+
+            self.create_tub(self.central_portnum)
+            newfurl = self.central_tub.registerReference(introducer,
+                                                         furlFile=iff)
+            assert newfurl == self.introducer_furl
+        d.addCallback(_restart_introducer_tub)
+
+        def _wait_for_introducer_reconnect():
+            # wait until:
+            #  all clients are connected
+            #  the introducer has received publish messages from all of them
+            #  the introducer has received subscribe messages from all of them
+            #  the introducer has sent (duplicate) announcements to all of them
+            #  all clients have received (duplicate) announcements
+            dc = introducer._debug_counts
             for c in clients:
-                self.failUnlessEqual(len(c.get_all_connections_for("storage")),
-                                     NUMCLIENTS)
-                self.failIf(c.connected_to_introducer())
-        d.addCallback(_check4)
+                if not c.connected_to_introducer():
+                    return False
+            if dc["inbound_message"] < self.expected_count:
+                return False
+            if dc["inbound_subscribe"] < self.expected_subscribe_count:
+                return False
+            for c in subscribing_clients:
+                cdc = c._debug_counts
+                if cdc["inbound_message"] < c._debug0+1:
+                    return False
+            return True
+        d.addCallback(lambda res: self.poll(_wait_for_introducer_reconnect))
+
+        def _check2(res):
+            log.msg("doing _check2")
+            # assert that the introducer sent out new messages, one per
+            # subscriber
+            dc = introducer._debug_counts
+            self.failUnlessEqual(dc["inbound_message"], 2*NUM_SERVERS)
+            self.failUnlessEqual(dc["inbound_duplicate"], NUM_SERVERS)
+            self.failUnlessEqual(dc["inbound_update"], 0)
+            self.failUnlessEqual(dc["outbound_message"],
+                                 introducer._debug0 + len(subscribing_clients))
+            for c in clients:
+                self.failUnless(c.connected_to_introducer())
+            for c in subscribing_clients:
+                cdc = c._debug_counts
+                self.failUnlessEqual(cdc["duplicate_announcement"], NUM_SERVERS)
+        d.addCallback(_check2)
+
+        # Then force an introducer restart, by shutting down the Tub,
+        # destroying the old introducer, and starting a new Tub+Introducer.
+        # Everybody should reconnect and republish, and the (new) introducer
+        # will distribute the new announcements, but the clients should
+        # ignore the republishes as duplicates.
+
+        d.addCallback(lambda _ign: log.msg("shutting down introducer"))
+        d.addCallback(lambda _ign: self.central_tub.disownServiceParent())
+        d.addCallback(lambda res: self.poll(_wait_for_introducer_loss))
+
+        def _restart_introducer(_ign):
+            log.msg("restarting introducer")
+            self.create_tub(self.central_portnum)
+
+            for c in subscribing_clients:
+                # record some counters for later comparison. Stash the values
+                # on the client itself, because I'm lazy.
+                cdc = c._debug_counts
+                c._debug1 = cdc["inbound_announcement"]
+                c._debug2 = cdc["inbound_message"]
+                c._debug3 = cdc["new_announcement"]
+            newintroducer = create_introducer()
+            self.expected_message_count = NUM_SERVERS
+            self.expected_announcement_count = NUM_SERVERS*len(subscribing_clients)
+            self.expected_subscribe_count = len(subscribing_clients)
+            newfurl = self.central_tub.registerReference(newintroducer,
+                                                         furlFile=iff)
+            assert newfurl == self.introducer_furl
+        d.addCallback(_restart_introducer)
+        def _wait_for_introducer_reconnect2():
+            # wait until:
+            #  all clients are connected
+            #  the introducer has received publish messages from all of them
+            #  the introducer has received subscribe messages from all of them
+            #  the introducer has sent announcements for everybody to everybody
+            #  all clients have received all the (duplicate) announcements
+            # at that point, the system should be quiescent
+            dc = introducer._debug_counts
+            for c in clients:
+                if not c.connected_to_introducer():
+                    return False
+            if dc["inbound_message"] < self.expected_message_count:
+                return False
+            if dc["outbound_announcements"] < self.expected_announcement_count:
+                return False
+            if dc["inbound_subscribe"] < self.expected_subscribe_count:
+                return False
+            for c in subscribing_clients:
+                cdc = c._debug_counts
+                if cdc["inbound_announcement"] < c._debug1+NUM_SERVERS:
+                    return False
+            return True
+        d.addCallback(lambda res: self.poll(_wait_for_introducer_reconnect2))
+
+        def _check3(res):
+            log.msg("doing _check3")
+            for c in clients:
+                self.failUnless(c.connected_to_introducer())
+            for c in subscribing_clients:
+                cdc = c._debug_counts
+                self.failUnless(cdc["inbound_announcement"] > c._debug1)
+                self.failUnless(cdc["inbound_message"] > c._debug2)
+                # there should have been no new announcements
+                self.failUnlessEqual(cdc["new_announcement"], c._debug3)
+                # and the right number of duplicate ones. There were
+                # NUM_SERVERS from the servertub restart, and there should be
+                # another NUM_SERVERS now
+                self.failUnlessEqual(cdc["duplicate_announcement"],
+                                     2*NUM_SERVERS)
+
+        d.addCallback(_check3)
         return d
 
 class TooNewServer(IntroducerService):
@@ -247,6 +345,9 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
     # exception.
 
     def test_failure(self):
+        self.basedir = "introducer/NonV1Server/failure"
+        os.makedirs(self.basedir)
+        self.create_tub()
         i = TooNewServer()
         i.setServiceParent(self.parent)
         self.introducer_furl = self.central_tub.registerReference(i)
@@ -258,10 +359,12 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         portnum = l.getPortnum()
         tub.setLocation("localhost:%d" % portnum)
 
-        n = FakeNode()
         c = IntroducerClient(tub, self.introducer_furl,
-                             "nickname-client", "version", "oldest")
-        c.subscribe_to("storage")
+                             u"nickname-client", "version", "oldest")
+        announcements = {}
+        def got(serverid, ann_d):
+            announcements[serverid] = ann_d
+        c.subscribe_to("storage", got)
 
         c.setServiceParent(self.parent)
 
@@ -283,7 +386,7 @@ class Index(unittest.TestCase):
         ann = ('pb://t5g7egomnnktbpydbuijt6zgtmw4oqi5@127.0.0.1:51857/hfzv36i',
                'storage', 'RIStorageServer.tahoe.allmydata.com',
                'plancha', 'allmydata-tahoe/1.4.1', '1.0.0')
-        (nodeid, service_name) = make_index(ann)
+        (nodeid, service_name) = old.make_index(ann)
         self.failUnlessEqual(nodeid, "\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d")
         self.failUnlessEqual(service_name, "storage")
 

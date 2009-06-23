@@ -62,6 +62,7 @@ class Node(service.MultiService):
 
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
         self.nickname = nickname_utf8.decode("utf-8")
+        assert type(self.nickname) is unicode
 
         self.init_tempdir()
         self.create_tub()

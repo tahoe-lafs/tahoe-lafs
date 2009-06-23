@@ -31,14 +31,6 @@ from allmydata.test.common_web import HTTPClientGETFactory, \
 
 timeout = 480 # Most of these take longer than 240 seconds on Francois's arm box.
 
-class FakeIntroducerClient:
-    def get_all_connectors(self):
-        return {}
-    def get_all_connections_for(self, service_name):
-        return frozenset()
-    def get_all_peerids(self):
-        return frozenset()
-
 class FakeStatsProvider:
     def get_stats(self):
         stats = {'stats': {}, 'counters': {}}
@@ -55,7 +47,7 @@ class FakeClient(service.MultiService):
                 'zfec': "fake",
                 }
     introducer_furl = "None"
-    introducer_client = FakeIntroducerClient()
+
     _all_upload_status = [upload.UploadStatus()]
     _all_download_status = [download.DownloadStatus()]
     _all_mapupdate_statuses = [servermap.UpdateStatus()]
@@ -67,7 +59,7 @@ class FakeClient(service.MultiService):
     def connected_to_introducer(self):
         return False
 
-    storage_broker = StorageFarmBroker()
+    storage_broker = StorageFarmBroker(None, permute_peers=True)
     def get_storage_broker(self):
         return self.storage_broker
 

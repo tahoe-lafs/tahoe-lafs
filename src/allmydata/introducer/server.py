@@ -1,14 +1,14 @@
 
 import time, os.path
+from base64 import b32decode
 from zope.interface import implements
 from twisted.application import service
-from foolscap.api import Referenceable
+from foolscap.api import Referenceable, SturdyRef
 import allmydata
 from allmydata import node
-from allmydata.util import log
+from allmydata.util import log, rrefutil
 from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService
-from allmydata.introducer.common import make_index
 
 class IntroducerNode(node.Node):
     PORTNUMFILE = "introducer.port"
@@ -55,9 +55,15 @@ class IntroducerService(service.MultiService, Referenceable):
     def __init__(self, basedir="."):
         service.MultiService.__init__(self)
         self.introducer_url = None
-        # 'index' is (tubid, service_name)
+        # 'index' is (service_name, tubid)
         self._announcements = {} # dict of index -> (announcement, timestamp)
         self._subscribers = {} # dict of (rref->timestamp) dicts
+        self._debug_counts = {"inbound_message": 0,
+                              "inbound_duplicate": 0,
+                              "inbound_update": 0,
+                              "outbound_message": 0,
+                              "outbound_announcements": 0,
+                              "inbound_subscribe": 0}
 
     def log(self, *args, **kwargs):
         if "facility" not in kwargs:
@@ -73,23 +79,46 @@ class IntroducerService(service.MultiService, Referenceable):
         return self.VERSION
 
     def remote_publish(self, announcement):
+        try:
+            self._publish(announcement)
+        except:
+            log.err(format="Introducer.remote_publish failed on %(ann)s",
+                    ann=announcement, level=log.UNUSUAL, umid="620rWA")
+            raise
+
+    def _publish(self, announcement):
+        self._debug_counts["inbound_message"] += 1
         self.log("introducer: announcement published: %s" % (announcement,) )
-        index = make_index(announcement)
+        (furl, service_name, ri_name, nickname_utf8, ver, oldest) = announcement
+
+        nodeid = b32decode(SturdyRef(furl).tubID.upper())
+        index = (service_name, nodeid)
+
         if index in self._announcements:
             (old_announcement, timestamp) = self._announcements[index]
             if old_announcement == announcement:
                 self.log("but we already knew it, ignoring", level=log.NOISY)
+                self._debug_counts["inbound_duplicate"] += 1
                 return
             else:
                 self.log("old announcement being updated", level=log.NOISY)
+                self._debug_counts["inbound_update"] += 1
         self._announcements[index] = (announcement, time.time())
-        (furl, service_name, ri_name, nickname, ver, oldest) = announcement
+
         for s in self._subscribers.get(service_name, []):
-            s.callRemote("announce", set([announcement]))
+            self._debug_counts["outbound_message"] += 1
+            self._debug_counts["outbound_announcements"] += 1
+            d = s.callRemote("announce", set([announcement]))
+            d.addErrback(rrefutil.trap_deadref)
+            d.addErrback(log.err,
+                         format="subscriber errored on announcement %(ann)s",
+                         ann=announcement, facility="tahoe.introducer",
+                         level=log.UNUSUAL, umid="jfGMXQ")
 
     def remote_subscribe(self, subscriber, service_name):
         self.log("introducer: subscription[%s] request at %s" % (service_name,
                                                                  subscriber))
+        self._debug_counts["inbound_subscribe"] += 1
         if service_name not in self._subscribers:
             self._subscribers[service_name] = {}
         subscribers = self._subscribers[service_name]
@@ -104,11 +133,16 @@ class IntroducerService(service.MultiService, Referenceable):
             subscribers.pop(subscriber, None)
         subscriber.notifyOnDisconnect(_remove)
 
-        announcements = set( [ ann
-                               for idx,(ann,when) in self._announcements.items()
-                               if idx[1] == service_name] )
+        announcements = set(
+            [ ann
+              for (sn2,nodeid),(ann,when) in self._announcements.items()
+              if sn2 == service_name] )
+
+        self._debug_counts["outbound_message"] += 1
+        self._debug_counts["outbound_announcements"] += len(announcements)
         d = subscriber.callRemote("announce", announcements)
-        d.addErrback(log.err, facility="tahoe.introducer", level=log.UNUSUAL)
-
-
-
+        d.addErrback(rrefutil.trap_deadref)
+        d.addErrback(log.err,
+                     format="subscriber errored during subscribe %(anns)s",
+                     anns=announcements, facility="tahoe.introducer",
+                     level=log.UNUSUAL, umid="mtZepQ")
