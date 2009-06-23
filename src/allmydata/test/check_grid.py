@@ -79,7 +79,7 @@ class GridTester:
         self.nodedir = config.nodedir
 
     def command(self, *cmd, **kwargs):
-        expected_rc = kwargs.get("expected_rc", None)
+        expected_rc = kwargs.get("expected_rc", 0)
         stdin = kwargs.get("stdin", None)
         if self.config["no"]:
             return
@@ -96,6 +96,9 @@ class GridTester:
             (stdout,stderr) = p.communicate()
         rc = p.returncode
         if expected_rc != None and rc != expected_rc:
+            if stderr:
+                print "STDERR:"
+                print stderr
             raise CommandFailed("command '%s' failed: rc=%d" % (cmd, rc))
         return stdout, stderr
 
