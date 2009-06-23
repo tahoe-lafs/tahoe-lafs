@@ -2302,6 +2302,10 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         return d
 
     def test_share_corruption(self):
+        self._poll_should_ignore_these_errors = [
+            UnknownMutableContainerVersionError,
+            UnknownImmutableContainerVersionError,
+            ]
         basedir = "storage/LeaseCrawler/share_corruption"
         fileutil.make_dirs(basedir)
         ss = InstrumentedStorageServer(basedir, "\x00" * 20)

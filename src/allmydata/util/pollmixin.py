@@ -9,6 +9,7 @@ class PollComplete(Exception):
     pass
 
 class PollMixin:
+    _poll_should_ignore_these_errors = []
 
     def poll(self, check_f, pollinterval=0.01, timeout=100):
         # Return a Deferred, then call check_f periodically until it returns
@@ -33,4 +34,17 @@ class PollMixin:
             raise TimeoutError("PollMixin never saw %s return True" % check_f)
         if check_f():
             raise PollComplete()
+        # since PollMixin is mostly used for unit tests, quit if we see any
+        # logged errors. This should give us a nice fast failure, instead of
+        # waiting for a timeout. Tests which use flushLoggedErrors() will
+        # need to warn us by putting the error types they'll be ignoring in
+        # self._poll_should_ignore_these_errors
+        if hasattr(self, "_observer") and hasattr(self._observer, "getErrors"):
+            errs = []
+            for e in self._observer.getErrors():
+                if not e.check(*self._poll_should_ignore_these_errors):
+                    errs.append(e)
+            if errs:
+                print errs
+                self.fail("Errors snooped, terminating early")
 
