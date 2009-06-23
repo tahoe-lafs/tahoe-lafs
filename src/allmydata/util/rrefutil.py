@@ -1,5 +1,5 @@
 
-from foolscap.api import Violation, RemoteException
+from foolscap.api import Violation, RemoteException, DeadReferenceError
 
 def add_version_to_remote_reference(rref, default):
     """I try to add a .version attribute to the given RemoteReference. I call
@@ -17,3 +17,10 @@ def add_version_to_remote_reference(rref, default):
     d.addCallbacks(_got_version, _no_get_version)
     return d
 
+def trap_and_discard(f, *errorTypes):
+    f.trap(*errorTypes)
+    pass
+
+def trap_deadref(f):
+    f.trap(DeadReferenceError)
+    pass
