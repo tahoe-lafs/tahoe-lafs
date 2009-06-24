@@ -1,6 +1,6 @@
-from base64 import b32decode
 
-import os
+import os, re
+from base64 import b32decode
 
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -13,7 +13,6 @@ from allmydata.introducer.client import IntroducerClient
 from allmydata.introducer.server import IntroducerService
 # test compatibility with old introducer .tac files
 from allmydata.introducer import IntroducerNode
-from allmydata.introducer import old
 from allmydata.util import pollmixin
 import common_util as testutil
 
@@ -206,7 +205,6 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         def _restart_introducer_tub(_ign):
             log.msg("restarting introducer's Tub")
 
-            # note: old.Server doesn't have this count
             dc = introducer._debug_counts
             self.expected_count = dc["inbound_message"] + NUM_SERVERS
             self.expected_subscribe_count = dc["inbound_subscribe"] + NUMCLIENTS+1
@@ -379,14 +377,13 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         d.addCallback(_done)
         return d
 
-class Index(unittest.TestCase):
-    def test_make_index(self):
+class DecodeFurl(unittest.TestCase):
+    def test_decode(self):
         # make sure we have a working base64.b32decode. The one in
         # python2.4.[01] was broken.
-        ann = ('pb://t5g7egomnnktbpydbuijt6zgtmw4oqi5@127.0.0.1:51857/hfzv36i',
-               'storage', 'RIStorageServer.tahoe.allmydata.com',
-               'plancha', 'allmydata-tahoe/1.4.1', '1.0.0')
-        (nodeid, service_name) = old.make_index(ann)
+        furl = 'pb://t5g7egomnnktbpydbuijt6zgtmw4oqi5@127.0.0.1:51857/hfzv36i'
+        m = re.match(r'pb://(\w+)@', furl)
+        assert m
+        nodeid = b32decode(m.group(1).upper())
         self.failUnlessEqual(nodeid, "\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d")
-        self.failUnlessEqual(service_name, "storage")
 
