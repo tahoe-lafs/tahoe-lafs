@@ -153,6 +153,8 @@ class MoreInfo(rend.Page):
             ],
             T.div["Repair any problems?: ",
                   T.input(type="checkbox", name="repair")],
+            T.div["Add/renew lease on all shares?: ",
+                  T.input(type="checkbox", name="add-lease")],
             T.div["Emit results in JSON format?: ",
                   T.input(type="checkbox", name="output", value="JSON")],
 
@@ -207,6 +209,8 @@ class MoreInfo(rend.Page):
             ],
             T.div["Repair any problems?: ",
                   T.input(type="checkbox", name="repair")],
+            T.div["Add/renew lease on all shares?: ",
+                  T.input(type="checkbox", name="add-lease")],
             T.div["Emit results in JSON format?: ",
                   T.input(type="checkbox", name="output", value="JSON")],
 
