@@ -3237,16 +3237,17 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET unrecoverable",
-                                           410, "Gone", "NotEnoughSharesError",
+                                           410, "Gone", "NoSharesError",
                                            self.GET, self.fileurls["0shares"]))
         def _check_zero_shares(body):
             self.failIf("<html>" in body, body)
             body = " ".join(body.strip().split())
-            exp = ("NotEnoughSharesError: no shares could be found. "
+            exp = ("NoSharesError: no shares could be found. "
                    "Zero shares usually indicates a corrupt URI, or that "
                    "no servers were connected, but it might also indicate "
                    "severe corruption. You should perform a filecheck on "
-                   "this object to learn more.")
+                   "this object to learn more. The full error message is: "
+                   "Failed to get enough shareholders: have 0, need 3")
             self.failUnlessEqual(exp, body)
         d.addCallback(_check_zero_shares)
 
@@ -3258,12 +3259,12 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         def _check_one_share(body):
             self.failIf("<html>" in body, body)
             body = " ".join(body.strip().split())
-            exp = ("NotEnoughSharesError: 1 share found, but we need "
-                   "3 to recover the file. This indicates that some "
+            exp = ("NotEnoughSharesError: This indicates that some "
                    "servers were unavailable, or that shares have been "
                    "lost to server departure, hard drive failure, or disk "
                    "corruption. You should perform a filecheck on "
-                   "this object to learn more.")
+                   "this object to learn more. The full error message is:"
+                   " Failed to get enough shareholders: have 1, need 3")
             self.failUnlessEqual(exp, body)
         d.addCallback(_check_one_share)
 

@@ -465,8 +465,7 @@ class Retrieve:
             self.log(format=format,
                      level=log.WEIRD, umid="ezTfjw", **args)
             err = NotEnoughSharesError("%s, last failure: %s" %
-                                      (format % args, self._last_failure),
-                                       len(self.shares), k)
+                                      (format % args, self._last_failure))
             if self._bad_shares:
                 self.log("We found some bad shares this pass. You should "
                          "update the servermap and try again to check "

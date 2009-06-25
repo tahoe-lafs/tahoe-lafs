@@ -16,7 +16,7 @@ from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
-     NoSuchChildError, NotEnoughSharesError
+     NoSuchChildError, NotEnoughSharesError, NoSharesError
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable import layout as mutable_layout
@@ -219,7 +219,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             bad_n = self.clients[1].create_node_from_uri(bad_u.to_string())
             # this should cause an error during download
 
-            d = self.shouldFail2(NotEnoughSharesError, "'download bad node'",
+            d = self.shouldFail2(NoSharesError, "'download bad node'",
                                  None,
                                  bad_n.read, MemoryConsumer(), offset=2)
             return d
@@ -234,12 +234,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 log.msg("finished downloading non-existend URI",
                         level=log.UNUSUAL, facility="tahoe.tests")
                 self.failUnless(isinstance(res, Failure))
-                self.failUnless(res.check(NotEnoughSharesError),
-                                "expected NotEnoughSharesError, got %s" % res)
-                # TODO: files that have zero peers should get a special kind
-                # of NotEnoughSharesError, which can be used to suggest that
-                # the URI might be wrong or that they've never uploaded the
-                # file in the first place.
+                self.failUnless(res.check(NoSharesError),
+                                "expected NoSharesError, got %s" % res)
             d1.addBoth(_baduri_should_fail)
             return d1
         d.addCallback(_download_nonexistent_uri)

@@ -1,11 +1,12 @@
 
 from twisted.web import http, server
+from twisted.python import log
 from zope.interface import Interface
 from nevow import loaders, appserver
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
-     FileTooLargeError, NotEnoughSharesError
+     FileTooLargeError, NotEnoughSharesError, NoSharesError
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate # TODO: consolidate
 
@@ -124,21 +125,20 @@ def humanize_failure(f):
         name = f.value.args[0]
         return ("No such child: %s" % name.encode("utf-8"), http.NOT_FOUND)
     if f.check(NotEnoughSharesError):
-        got = f.value.got
-        needed = f.value.needed
-        if got == 0:
-            t = ("NotEnoughSharesError: no shares could be found. "
-                 "Zero shares usually indicates a corrupt URI, or that "
-                 "no servers were connected, but it might also indicate "
-                 "severe corruption. You should perform a filecheck on "
-                 "this object to learn more.")
-        else:
-            t = ("NotEnoughSharesError: %d share%s found, but we need "
-                 "%d to recover the file. This indicates that some "
-                 "servers were unavailable, or that shares have been "
-                 "lost to server departure, hard drive failure, or disk "
-                 "corruption. You should perform a filecheck on "
-                 "this object to learn more.") % (got, plural(got), needed)
+        t = ("NotEnoughSharesError: This indicates that some "
+             "servers were unavailable, or that shares have been "
+             "lost to server departure, hard drive failure, or disk "
+             "corruption. You should perform a filecheck on "
+             "this object to learn more.\n\nThe full error message is:\n"
+             "%s") % str(f.value)
+        return (t, http.GONE)
+    if f.check(NoSharesError):
+        t = ("NoSharesError: no shares could be found. "
+             "Zero shares usually indicates a corrupt URI, or that "
+             "no servers were connected, but it might also indicate "
+             "severe corruption. You should perform a filecheck on "
+             "this object to learn more.\n\nThe full error message is:\n"
+             "%s") % str(f.value)
         return (t, http.GONE)
     if f.check(UnrecoverableFileError):
         t = ("UnrecoverableFileError: the directory (or mutable file) could "
@@ -170,7 +170,13 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
         req.finishRequest(False)
 
     def renderHTTP_exception(self, ctx, f):
-        text, code = humanize_failure(f)
+        try:
+            text, code = humanize_failure(f)
+        except:
+            log.msg("exception in humanize_failure")
+            log.msg("argument was %s" % (f,))
+            log.err()
+            text, code = str(f), None
         if code is not None:
             return self.simple(ctx, text, code)
         if f.check(server.UnsupportedMethod):

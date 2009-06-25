@@ -774,11 +774,11 @@ class IMutableFileNode(IFileNode, IMutableFilesystemNode):
         """
 
 class NotEnoughSharesError(Exception):
-    def __init__(self, msg, got, needed):
-        Exception.__init__(self, msg)
-        self.got = got
-        self.needed = needed
-        self.servermap = None
+    """Download was unable to get enough shares, or upload was unable to
+    place 'shares_of_happiness' shares."""
+
+class NoSharesError(Exception):
+    """Upload or Download was unable to get any shares at all."""
 
 class UnableToFetchCriticalDownloadDataError(Exception):
     """I was unable to fetch some piece of critical data which is supposed to

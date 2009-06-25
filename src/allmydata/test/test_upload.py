@@ -10,7 +10,8 @@ from foolscap.api import fireEventually
 import allmydata # for __full_version__
 from allmydata import uri, monitor
 from allmydata.immutable import upload
-from allmydata.interfaces import IFileURI, FileTooLargeError, NotEnoughSharesError
+from allmydata.interfaces import IFileURI, FileTooLargeError, \
+     NotEnoughSharesError, NoSharesError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from no_network import GridTestMixin
@@ -381,7 +382,7 @@ class FullServer(unittest.TestCase):
         self.u.parent = self.node
 
     def _should_fail(self, f):
-        self.failUnless(isinstance(f, Failure) and f.check(NotEnoughSharesError), f)
+        self.failUnless(isinstance(f, Failure) and f.check(NoSharesError), f)
 
     def test_data_large(self):
         data = DATA

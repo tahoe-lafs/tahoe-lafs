@@ -11,7 +11,7 @@ from allmydata.util import mathutil, hashutil, base32, log
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
-     IEncryptedUploadable, IUploadStatus, NotEnoughSharesError
+     IEncryptedUploadable, IUploadStatus, NotEnoughSharesError, NoSharesError
 
 """
 The goal of the encoder is to turn the original file into a series of
@@ -487,9 +487,12 @@ class Encoder(object):
             self.log("they weren't in our list of landlords", parent=ln,
                      level=log.WEIRD, umid="TQGFRw")
         if len(self.landlords) < self.shares_of_happiness:
-            msg = "lost too many shareholders during upload: %s" % why
-            raise NotEnoughSharesError(msg, len(self.landlords),
-                                       self.shares_of_happiness)
+            msg = "lost too many shareholders during upload (still have %d, want %d): %s" % \
+                  (len(self.landlords), self.shares_of_happiness, why)
+            if self.landlords:
+                raise NotEnoughSharesError(msg)
+            else:
+                raise NoSharesError(msg)
         self.log("but we can still continue with %s shares, we'll be happy "
                  "with at least %s" % (len(self.landlords),
                                        self.shares_of_happiness),
@@ -504,7 +507,7 @@ class Encoder(object):
             # otherwise be consumed. Allow non-NotEnoughSharesError exceptions
             # to pass through as an unhandled errback. We use this in lieu of
             # consumeErrors=True to allow coding errors to be logged.
-            f.trap(NotEnoughSharesError)
+            f.trap(NotEnoughSharesError, NoSharesError)
             return None
         for d0 in dl:
             d0.addErrback(_eatNotEnoughSharesError)

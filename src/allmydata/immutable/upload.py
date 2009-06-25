@@ -17,7 +17,8 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
-     NotEnoughSharesError, InsufficientVersionError, NoServersError
+     NotEnoughSharesError, NoSharesError, NoServersError, \
+     InsufficientVersionError
 from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
@@ -286,11 +287,13 @@ class Tahoe2PeerSelector:
             placed_shares = self.total_shares - len(self.homeless_shares)
             if placed_shares < self.shares_of_happiness:
                 msg = ("placed %d shares out of %d total (%d homeless), "
+                       "want to place %d, "
                        "sent %d queries to %d peers, "
                        "%d queries placed some shares, %d placed none, "
                        "got %d errors" %
                        (self.total_shares - len(self.homeless_shares),
                         self.total_shares, len(self.homeless_shares),
+                        self.shares_of_happiness,
                         self.query_count, self.num_peers_contacted,
                         self.good_query_count, self.bad_query_count,
                         self.error_count))
@@ -298,8 +301,10 @@ class Tahoe2PeerSelector:
                 if self.last_failure_msg:
                     msg += " (%s)" % (self.last_failure_msg,)
                 log.msg(msg, level=log.UNUSUAL, parent=self._log_parent)
-                raise NotEnoughSharesError(msg, placed_shares,
-                                           self.shares_of_happiness)
+                if placed_shares:
+                    raise NotEnoughSharesError(msg)
+                else:
+                    raise NoSharesError(msg)
             else:
                 # we placed enough to be happy, so we're done
                 if self._status:

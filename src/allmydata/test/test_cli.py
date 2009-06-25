@@ -1425,8 +1425,8 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check1((rc, out, err)):
             self.failIfEqual(rc, 0)
             self.failUnless("410 Gone" in err, err)
-            self.failUnless("NotEnoughSharesError: 1 share found, but we need 3" in err,
-                            err)
+            self.failUnlessIn("NotEnoughSharesError: ", err)
+            self.failUnlessIn("Failed to get enough shareholders: have 1, need 3", err)
         d.addCallback(_check1)
 
         return d

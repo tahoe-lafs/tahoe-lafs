@@ -11,7 +11,7 @@ from allmydata import codec, hashtree, uri
 from allmydata.interfaces import IDownloadTarget, IDownloader, \
      IFileURI, IVerifierURI, \
      IDownloadStatus, IDownloadResults, IValidatedThingProxy, \
-     IStorageBroker, NotEnoughSharesError, NoServersError, \
+     IStorageBroker, NotEnoughSharesError, NoSharesError, NoServersError, \
      UnableToFetchCriticalDownloadDataError
 from allmydata.immutable import layout
 from allmydata.monitor import Monitor
@@ -818,9 +818,12 @@ class CiphertextDownloader(log.PrefixingLogMixin):
             self._results.timings["peer_selection"] = now - self._started
 
         if len(self._share_buckets) < self._verifycap.needed_shares:
-            raise NotEnoughSharesError("Failed to get enough shareholders",
-                                       len(self._share_buckets),
-                                       self._verifycap.needed_shares)
+            msg = "Failed to get enough shareholders: have %d, need %d" \
+                  % (len(self._share_buckets), self._verifycap.needed_shares)
+            if self._share_buckets:
+                raise NotEnoughSharesError(msg)
+            else:
+                raise NoSharesError(msg)
 
         #for s in self._share_vbuckets.values():
         #    for vb in s:
@@ -906,8 +909,12 @@ class CiphertextDownloader(log.PrefixingLogMixin):
             potential_shnums = list(available_shnums - handled_shnums)
             if len(potential_shnums) < (self._verifycap.needed_shares - len(self.active_buckets)):
                 have = len(potential_shnums) + len(self.active_buckets)
-                raise NotEnoughSharesError("Unable to activate enough shares",
-                                           have, self._verifycap.needed_shares)
+                msg = "Unable to activate enough shares: have %d, need %d" \
+                      % (have, self._verifycap.needed_shares)
+                if have:
+                    raise NotEnoughSharesError(msg)
+                else:
+                    raise NoSharesError(msg)
             # For the next share, choose a primary share if available, else a randomly chosen
             # secondary share.
             potential_shnums.sort()
