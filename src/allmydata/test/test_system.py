@@ -16,7 +16,7 @@ from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
-     NoSuchChildError, NotEnoughSharesError, NoSharesError
+     NoSuchChildError, NoSharesError
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable import layout as mutable_layout

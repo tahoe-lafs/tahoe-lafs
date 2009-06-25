@@ -10,8 +10,7 @@ from foolscap.api import fireEventually
 import allmydata # for __full_version__
 from allmydata import uri, monitor
 from allmydata.immutable import upload
-from allmydata.interfaces import IFileURI, FileTooLargeError, \
-     NotEnoughSharesError, NoSharesError
+from allmydata.interfaces import IFileURI, FileTooLargeError, NoSharesError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from no_network import GridTestMixin
