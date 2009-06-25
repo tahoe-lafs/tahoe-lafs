@@ -178,6 +178,26 @@ class CpOptions(VDriveOptions):
             raise usage.UsageError("cp requires at least two arguments")
         self.sources = args[:-1]
         self.destination = args[-1]
+    def getSynopsis(self):
+        return "Usage: tahoe [options] cp FROM.. TO"
+    longdesc = """
+    Use 'tahoe cp' to copy files between a local filesystem and a Tahoe
+    virtual filesystem. Any FROM/TO arguments that begin with an alias
+    indicate Tahoe-side files, and arguments which do not indicate local
+    files. Directories will be copied recursively. New Tahoe-side directories
+    will be created when necessary. Assuming that you have previously set up
+    an alias 'home' with 'tahoe create-alias home', here are some examples:
+
+    tahoe cp ~/foo.txt home:  # creates tahoe-side home:foo.txt
+
+    tahoe cp ~/foo.txt /tmp/bar.txt home:  # copies two files to home:
+
+    tahoe cp ~/Pictures home:stuff/my-pictures  # copies recursively
+
+    Limitations: symlinks, special files (device nodes, named pipes), and
+    non-ASCII filenames are not handled very well. Arguments should not have
+    trailing slashes. 'tahoe cp' does not behave exactly like /bin/cp .
+    """
 
 class RmOptions(VDriveOptions):
     def parseArgs(self, where):
