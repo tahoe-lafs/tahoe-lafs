@@ -85,6 +85,8 @@ class MutableFileNode:
         self._uri = IMutableFileURI(myuri)
         if not self._uri.is_readonly():
             self._writekey = self._uri.writekey
+        else:
+            self._writekey = None
         self._readkey = self._uri.readkey
         self._storage_index = self._uri.storage_index
         self._fingerprint = self._uri.fingerprint
