@@ -192,7 +192,7 @@ class CpOptions(VDriveOptions):
 
     tahoe cp ~/foo.txt /tmp/bar.txt home:  # copies two files to home:
 
-    tahoe cp ~/Pictures home:stuff/my-pictures  # copies recursively
+    tahoe cp ~/Pictures home:stuff/my-pictures  # copies directory recursively
 
     This command still has some limitations: symlinks, special files (device
     nodes, named pipes), and non-ASCII filenames are not handled very well.
