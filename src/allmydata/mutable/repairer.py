@@ -11,6 +11,9 @@ class RepairResults:
     def to_string(self):
         return ""
 
+class RepairRequiresWritecapError(Exception):
+    """Repair currently requires a writecap."""
+    
 class MustForceRepairError(Exception):
     pass
 
@@ -86,7 +89,8 @@ class Repairer:
         # available, to avoid the extra roundtrip that would occur if we,
         # say, added an smap.get_privkey() method.
 
-        assert self.node.get_writekey() # repair currently requires a writecap
+        if not self.node.get_writekey():
+            raise RepairRequiresWritecapError("Sorry, repair currently requires a writecap, to set the write-enabler properly.")
 
         best_version = smap.best_recoverable_version()
         d = self.node.download_version(smap, best_version, fetch_privkey=True)
