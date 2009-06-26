@@ -194,9 +194,11 @@ class CpOptions(VDriveOptions):
 
     tahoe cp ~/Pictures home:stuff/my-pictures  # copies recursively
 
-    Limitations: symlinks, special files (device nodes, named pipes), and
-    non-ASCII filenames are not handled very well. Arguments should not have
-    trailing slashes. 'tahoe cp' does not behave exactly like /bin/cp .
+    This command still has some limitations: symlinks, special files (device
+    nodes, named pipes), and non-ASCII filenames are not handled very well.
+    Arguments should probably not have trailing slashes. 'tahoe cp' does not
+    behave as much like /bin/cp as you would wish, especially with respect to
+    trailing slashes.
     """
 
 class RmOptions(VDriveOptions):
