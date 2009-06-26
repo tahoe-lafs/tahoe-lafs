@@ -194,7 +194,7 @@ class CpOptions(VDriveOptions):
 
     tahoe cp ~/Pictures home:stuff/my-pictures  # copies directory recursively
 
-    You can also use a dircap as either FROM or TO:
+    You can also use a dircap as either FROM or TO target:
 
     tahoe cp URI:DIR2-RO:j74uhg25nwdpjpacl6rkat2yhm:kav7ijeft5h7r7rxdp5bgtlt3viv32yabqajkrdykozia5544jqa/wiki.html ./   # copy Zooko's wiki page to a local file
 
