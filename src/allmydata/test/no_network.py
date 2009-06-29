@@ -112,6 +112,7 @@ class NoNetworkStorageBroker:
         return None
 
 class NoNetworkClient(Client):
+    DEFAULT_MUTABLE_KEYSIZE = 522
 
     def create_tub(self):
         pass

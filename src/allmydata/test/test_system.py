@@ -1,5 +1,5 @@
 from base64 import b32encode
-import os, sys, time, re, simplejson
+import os, sys, time, simplejson
 from cStringIO import StringIO
 from zope.interface import implements
 from twisted.trial import unittest
@@ -536,16 +536,6 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 peerid = idlib.nodeid_b2a(self.clients[client_num].nodeid)
                 self.failUnless(" WE for nodeid: %s\n" % peerid in output)
                 self.failUnless(" num_extra_leases: 0\n" in output)
-                # the pubkey size can vary by a byte, so the container might
-                # be a bit larger on some runs.
-                m = re.search(r'^ container_size: (\d+)$', output, re.M)
-                self.failUnless(m)
-                container_size = int(m.group(1))
-                self.failUnless(2037 <= container_size <= 2049, container_size)
-                m = re.search(r'^ data_length: (\d+)$', output, re.M)
-                self.failUnless(m)
-                data_length = int(m.group(1))
-                self.failUnless(2037 <= data_length <= 2049, data_length)
                 self.failUnless("  secrets are for nodeid: %s\n" % peerid
                                 in output)
                 self.failUnless(" SDMF contents:\n" in output)

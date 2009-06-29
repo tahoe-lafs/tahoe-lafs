@@ -1910,7 +1910,7 @@ class Problems(unittest.TestCase, testutil.ShouldFailMixin):
         # broken the server on which the first share wants to be stored.
         n = FastMutableFileNode(self.client)
         d = defer.succeed(None)
-        d.addCallback(n._generate_pubprivkeys)
+        d.addCallback(n._generate_pubprivkeys, keysize=522)
         d.addCallback(n._generated)
         def _break_peer0(res):
             si = n.get_storage_index()

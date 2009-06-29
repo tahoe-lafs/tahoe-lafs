@@ -63,6 +63,11 @@ class Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": 128*KiB,
                                    }
 
+    # set this to override the size of the RSA keys created for new mutable
+    # files. The default of None means to let mutable.filenode choose its own
+    # size, which means 2048 bits.
+    DEFAULT_MUTABLE_KEYSIZE = None
+
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
         self.started_timestamp = time.time()
@@ -425,13 +430,14 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def create_empty_dirnode(self):
         n = NewDirectoryNode(self)
-        d = n.create(self._generate_pubprivkeys)
+        d = n.create(self._generate_pubprivkeys, self.DEFAULT_MUTABLE_KEYSIZE)
         d.addCallback(lambda res: n)
         return d
 
-    def create_mutable_file(self, contents=""):
+    def create_mutable_file(self, contents="", keysize=None):
+        keysize = keysize or self.DEFAULT_MUTABLE_KEYSIZE
         n = MutableFileNode(self)
-        d = n.create(contents, self._generate_pubprivkeys)
+        d = n.create(contents, self._generate_pubprivkeys, keysize=keysize)
         d.addCallback(lambda res: n)
         return d
 

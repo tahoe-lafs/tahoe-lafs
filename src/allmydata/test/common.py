@@ -158,7 +158,7 @@ class FakeMutableFileNode:
         self.client = thisclient
         self.my_uri = make_mutable_file_uri()
         self.storage_index = self.my_uri.storage_index
-    def create(self, initial_contents, key_generator=None):
+    def create(self, initial_contents, key_generator=None, keysize=None):
         if len(initial_contents) > self.MUTABLE_SIZELIMIT:
             raise FileTooLargeError("SDMF is limited to one segment, and "
                                     "%d > %d" % (len(initial_contents),
@@ -386,7 +386,9 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         kgsdir = self.getdir("key_generator")
         fileutil.make_dirs(kgsdir)
 
-        self.key_generator_svc = KeyGeneratorService(kgsdir, display_furl=False)
+        self.key_generator_svc = KeyGeneratorService(kgsdir,
+                                                     display_furl=False,
+                                                     default_key_size=522)
         self.key_generator_svc.key_generator.pool_size = 4
         self.key_generator_svc.key_generator.pool_refresh_delay = 60
         self.add_service(self.key_generator_svc)
@@ -442,6 +444,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # will have registered the helper furl).
         c = self.add_service(client.Client(basedir=basedirs[0]))
         self.clients.append(c)
+        c.DEFAULT_MUTABLE_KEYSIZE = 522
         d = c.when_tub_ready()
         def _ready(res):
             f = open(os.path.join(basedirs[0],"private","helper.furl"), "r")
@@ -457,6 +460,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             for i in range(1, self.numclients):
                 c = self.add_service(client.Client(basedir=basedirs[i]))
                 self.clients.append(c)
+                c.DEFAULT_MUTABLE_KEYSIZE = 522
             log.msg("STARTING")
             return self.wait_for_connections()
         d.addCallback(_ready)
@@ -493,6 +497,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         def _stopped(res):
             new_c = client.Client(basedir=self.getdir("client%d" % num))
             self.clients[num] = new_c
+            new_c.DEFAULT_MUTABLE_KEYSIZE = 522
             self.add_service(new_c)
             return new_c.when_tub_ready()
         d.addCallback(_stopped)
@@ -522,6 +527,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         c = client.Client(basedir=basedir)
         self.clients.append(c)
+        c.DEFAULT_MUTABLE_KEYSIZE = 522
         self.numclients += 1
         if add_to_sparent:
             c.setServiceParent(self.sparent)

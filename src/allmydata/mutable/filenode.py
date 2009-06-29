@@ -100,15 +100,16 @@ class MutableFileNode:
         self._encprivkey = None
         return self
 
-    def create(self, initial_contents, keypair_generator=None):
+    def create(self, initial_contents, keypair_generator=None, keysize=None):
         """Call this when the filenode is first created. This will generate
         the keys, generate the initial shares, wait until at least numpeers
         are connected, allocate shares, and upload the initial
         contents. Returns a Deferred that fires (with the MutableFileNode
         instance you should use) when it completes.
         """
-
-        d = defer.maybeDeferred(self._generate_pubprivkeys, keypair_generator)
+        keysize = keysize or self.SIGNATURE_KEY_SIZE
+        d = defer.maybeDeferred(self._generate_pubprivkeys,
+                                keypair_generator, keysize)
         d.addCallback(self._generated)
         d.addCallback(lambda res: self._upload(initial_contents, None))
         return d
@@ -124,12 +125,13 @@ class MutableFileNode:
         self._readkey = self._uri.readkey
         self._storage_index = self._uri.storage_index
 
-    def _generate_pubprivkeys(self, keypair_generator):
+    def _generate_pubprivkeys(self, keypair_generator, keysize):
         if keypair_generator:
-            return keypair_generator(self.SIGNATURE_KEY_SIZE)
+            return keypair_generator(keysize)
         else:
-            # RSA key generation for a 2048 bit key takes between 0.8 and 3.2 secs
-            signer = rsa.generate(self.SIGNATURE_KEY_SIZE)
+            # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
+            # secs
+            signer = rsa.generate(keysize)
             verifier = signer.get_verifying_key()
             return verifier, signer
 
