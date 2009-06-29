@@ -13,7 +13,7 @@ class RepairResults:
 
 class RepairRequiresWritecapError(Exception):
     """Repair currently requires a writecap."""
-    
+
 class MustForceRepairError(Exception):
     pass
 

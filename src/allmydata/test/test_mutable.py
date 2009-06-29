@@ -265,8 +265,8 @@ def corrupt(res, s, offset, shnums_to_corrupt=None, offset_offset=0):
     return res
 
 class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
-    # this used to be in Publish, but we removed the limit. Some of 
-    # these tests test whether the new code correctly allows files 
+    # this used to be in Publish, but we removed the limit. Some of
+    # these tests test whether the new code correctly allows files
     # larger than the limit.
     OLD_MAX_SEGMENT_SIZE = 3500000
     def setUp(self):
@@ -1792,7 +1792,7 @@ class LessFakeClient(FakeClient):
 
     def __init__(self, basedir, num_peers=10):
         self._num_peers = num_peers
-        peerids = [tagged_hash("peerid", "%d" % i)[:20] 
+        peerids = [tagged_hash("peerid", "%d" % i)[:20]
                    for i in range(self._num_peers)]
         self.storage_broker = StorageFarmBroker(None, True)
         for peerid in peerids:

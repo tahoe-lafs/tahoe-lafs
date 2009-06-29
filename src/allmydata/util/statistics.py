@@ -72,7 +72,7 @@ def survival_pmf_via_bd(p_list):
     Note that this function does little to no error checking and is
     intended for internal use and testing only.
     """
-    pmf_list = [ binomial_distribution_pmf(p_list.count(p), p) 
+    pmf_list = [ binomial_distribution_pmf(p_list.count(p), p)
                  for p in set(p_list) ]
     return reduce(convolve, pmf_list)
 
@@ -90,7 +90,7 @@ def survival_pmf_via_conv(p_list):
 def print_pmf(pmf, n=4, out=sys.stdout):
     """
     Print a PMF in a readable form, with values rounded to n
-    significant digits. 
+    significant digits.
     """
     for k, p in enumerate(pmf):
         print >>out, "i=" + str(k) + ":", round_sigfigs(p, n)
@@ -124,7 +124,7 @@ def find_k(p_list, target_loss_prob):
 
 def find_k_from_pmf(pmf, target_loss_prob):
     """
-    Find the highest k value that achieves the targeted loss 
+    Find the highest k value that achieves the targeted loss
     probability, given the share survival PMF given in pmf.
     """
     assert valid_pmf(pmf)
@@ -151,11 +151,11 @@ def repair_count_pmf(survival_pmf, k):
     # Probability of 0 to repair is the probability of all shares
     # surviving plus the probability of less than k surviving.
     pmf = [ survival_pmf[n] + sum(survival_pmf[0:k]) ]
-    
+
     # Probability of more than 0, up to N-k to repair
     for i in range(1, n-k+1):
         pmf.append(survival_pmf[n-i])
-                   
+
     # Probability of more than N-k to repair is 0, because that means
     # there are less than k available and the file is irreparable.
     for i in range(n-k+1, n+1):
@@ -220,14 +220,14 @@ def convolve(list_a, list_b):
     """
     n = len(list_a)
     m = len(list_b)
-    
+
     result = []
     for i in range(n + m - 1):
         sum = 0.0
 
         lower = max(0, i - n + 1)
         upper = min(m - 1, i)
-        
+
         for j in range(lower, upper+1):
             sum += list_a[i-j] * list_b[j]
 
@@ -250,8 +250,8 @@ def binomial_distribution_pmf(n, p):
 
     result = []
     for k in range(n+1):
-        result.append(math.pow(p    , k    ) * 
-                      math.pow(1 - p, n - k) * 
+        result.append(math.pow(p    , k    ) *
+                      math.pow(1 - p, n - k) *
                       binomial_coeff(n, k))
 
     assert valid_pmf(result)
