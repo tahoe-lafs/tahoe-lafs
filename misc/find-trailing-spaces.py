@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os
+import os, sys
 
 from twisted.python import usage
 
@@ -10,6 +10,8 @@ class Options(usage.Options):
         ]
     def parseArgs(self, *starting_points):
         self.starting_points = starting_points
+
+found = [False]
 
 def check(fn):
     f = open(fn, "r")
@@ -21,6 +23,7 @@ def check(fn):
         if line.rstrip() != line:
             # the %s:%d:%d: lets emacs' compile-mode jump to those locations
             print "%s:%d:%d: trailing whitespace" % (fn, i+1, len(line)+1)
+            found[0] = True
     f.close()
 
 o = Options()
@@ -34,3 +37,6 @@ if o['recursive']:
 else:
     for fn in o.starting_points:
         check(fn)
+if found[0]:
+    sys.exit(1)
+sys.exit(0)
