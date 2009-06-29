@@ -19,7 +19,7 @@ class NummedObj(object):
         if klass is None:
             klass = self.__class__
         self._classname = klass.__name__
-            
+
         NummedObj.objnums.inc(self._classname)
         self._objid = NummedObj.objnums[self._classname]
 

@@ -348,7 +348,7 @@ def del_if_present(d, k):
 class ValueOrderedDict:
     """
     Note: this implementation assumes that the values do not mutate and change
-    their sort order.  That is, it stores the values in a sorted list and 
+    their sort order.  That is, it stores the values in a sorted list and
     as items are added and removed from the dict, it makes updates to the list
     which will keep the list sorted.  But if a value that is currently sitting
     in the list changes its sort order, then the internal consistency of this
