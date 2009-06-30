@@ -2,39 +2,61 @@ User visible changes in Tahoe.  -*- outline -*-
 
 * Release 1.XXX (200X-YY-ZZ)
 
-** New WUI Style
+** minor improvements
 
-WUI Style!  It sounds like an ancient Chinese martial art!  Or possibly an
-American Hip Hop group!
+Uploads of immutable files now use pipelined writes, improving upload speed
+slightly (10%) over high-latency connections. (#392)
 
-Slightly faster uploads
-http://allmydata.org/trac/tahoe/ticket/392
-??? (This one is not actually here yet.)
+The human-facing web interface (aka the "WUI") received a significant CSS
+makeover by Kevin Reid, making it much prettier and easier to read.
 
-Port to ARM CPUs and embedded boxes such as NASes.
+The 3.5MB limit on mutable files was removed, so it should be possible to
+upload arbitrarily-sized mutable files. Note, however, that the data format
+and algorithm remains the same, so larger files will suffer from poor speed,
+data transfer overhead, memory consumption, and alacrity until "MDMF" mutable
+files (#393) are implemented. (#694)
 
-Packaging improvements to make Tahoe's packaging acceptable for inclusion in
-Linux distributions like Fedora and Debian.
+The WUI "check" and "deep-check" forms now include a "Renew Lease" checkbox,
+mirroring the CLI --add-lease option, so leases can be added or renewed from
+the web interface.
 
-Remove limit on size of mutable files (but note that there is no efficient
-update -- writing a new mutable file requires encoding and uploading the entire
-contents of the new version of the file).
+** minor bugfixes
 
+A bug in 1.4.1 which caused a server to be listed multiple times (and
+frequently broke all connections to that server) was fixed. (#653)
 
-fix quicktest
-raise test timeouts
-pipeline uploads #392
-test for py2.4.0/py2.4.1 base64.b32decode bug
-switch to foolscap-0.4.1
-fix #653 rref-EQ
-make wui prettier
-minor docs updates
-remove plaintext-hashing code from helper interface, #722
-require sqlite3 or pysqlite2, remove --no-backupdb from 'tahoe backup'
-remove limit on SDMF size (no performance improvements though)
-work on netbsd
-add --renew-lease checkbox to WUI
+The plaintext-hashing code was removed from the Helper interface, removing
+the Helper's ability to mount a partial-information-guessing attack. (#722)
 
+** platform/packaging changes
+
+Tahoe now runs on NetBSD.
+
+Unit test timeouts have been raised to allow the tests to complete on
+extremely slow platforms like embedded ARM-based NAS boxes. An ARM-specific
+data-corrupting bug in an older version of Crypto++ (5.5.2) was identified,
+ARM-users are encouraged to use recent Crypto++/pycryptopp which avoids this
+problem.
+
+Tahoe now requires a SQLite library, either the sqlite3 that comes built-in
+with python2.5/2.6, or the add-on pysqlite2 if you're using python2.4. In the
+previous release, this was only needed for the "tahoe backup" command, now it
+is mandatory.
+
+Several minor documentation updates were made.
+
+To help get Tahoe into Linux distributions like Fedora and Debian, packaging
+improvements are being made in both Tahoe and related libraries like
+pycryptopp and zfec.
+
+** dependency updates
+
+ foolscap-0.4.1
+ no python-2.4.0 or 2.4.1 (2.4.2 is good)
+  (they contained a bug in base64.b32decode)
+ avoid python-2.6 on windows with mingw, compiler issues
+ python2.4 requires pysqlite2 (2.5,2.6 does not)
+ no python-3.x
 
 
 * Release 1.4.1 (2009-04-13)
