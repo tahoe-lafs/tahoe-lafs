@@ -3,11 +3,6 @@ install_requires=[
                   # zetuptoolz) to build, but can handle older versions to run
                   "setuptools >= 0.6c6",
 
-                  # pycryptopp < 0.5 had a bug which, using a Microsoft
-                  # compiler, or using some versions of g++ while linking
-                  # against certain older versions of Crypto++, would cause
-                  # incorrect AES results.
-                  "pycryptopp >= 0.5",
                   "zfec >= 1.1.0",
 
                   # Feisty has simplejson 1.4
@@ -19,9 +14,24 @@ install_requires=[
                   "Nevow >= 0.6.0",
                   ]
 
+import platform, sys
+if sys.version_info >= (2, 6) and (platform.system() == "Windows"):
+    # pycryptopp v0.5.14 patched the embedded Crypto++ to remove the usages of
+    # time functions, thus allowing mingw to build and link it for Python 2.6.
+    # If I knew a convenient, reliable way to test whether the compiler that
+    # builds pycryptopp will be mingw then I guess I would add that, along with
+    # the Python >= v2.6 and the platform == Windows.  This is to work-around
+    # http://sourceforge.net/tracker/?func=detail&aid=2805976&group_id=2435&atid=302435
+    # .
+    install_requires.append( "pycryptopp >= 0.5.14")
+else:
+    # pycryptopp < 0.5 had a bug which, using a Microsoft compiler, or using
+    # some versions of g++ while linking against certain older versions of
+    # Crypto++, would cause incorrect AES results.
+    install_requires.append( "pycryptopp >= 0.5")
+
 # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
 # distribution for Python 2.4.
-import sys
 if sys.version_info < (2, 5):
     # pysqlite v2.0.5 was shipped in Ubuntu 6.06 LTS "dapper" and Nexenta NCP 1.
     install_requires.append("pysqlite >= 2.0.5")
