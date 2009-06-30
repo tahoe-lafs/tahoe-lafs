@@ -21,6 +21,22 @@ update -- writing a new mutable file requires encoding and uploading the entire
 contents of the new version of the file).
 
 
+fix quicktest
+raise test timeouts
+pipeline uploads #392
+test for py2.4.0/py2.4.1 base64.b32decode bug
+switch to foolscap-0.4.1
+fix #653 rref-EQ
+make wui prettier
+minor docs updates
+remove plaintext-hashing code from helper interface, #722
+require sqlite3 or pysqlite2, remove --no-backupdb from 'tahoe backup'
+remove limit on SDMF size (no performance improvements though)
+work on netbsd
+add --renew-lease checkbox to WUI
+
+
+
 * Release 1.4.1 (2009-04-13)
 
 ** Garbage Collection
