@@ -7,12 +7,15 @@ def webopen(options, opener=None):
     if not nodeurl.endswith("/"):
         nodeurl += "/"
     where = options.where
-    rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-    if path == '/':
-        path = ''
-    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
-    if path:
-        url += "/" + escape_path(path)
+    if where:
+        rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
+        if path == '/':
+            path = ''
+        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        if path:
+            url += "/" + escape_path(path)
+    else:
+        url = nodeurl
     if not opener:
         import webbrowser
         opener = webbrowser.open

@@ -474,6 +474,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             aliases = get_aliases(self.get_clientdir())
             node_url_file = os.path.join(self.get_clientdir(), "node.url")
             nodeurl = open(node_url_file, "r").read().strip()
+            self.welcome_url = nodeurl
             uribase = nodeurl + "uri/"
             self.tahoe_url = uribase + urllib.quote(aliases["tahoe"])
             self.tahoe_subdir_url = self.tahoe_url + "/subdir"
@@ -505,7 +506,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_add_duplicate)
 
         def _test_urls(junk):
-            self._test_webopen([], self.tahoe_url)
+            self._test_webopen([], self.welcome_url)
             self._test_webopen(["/"], self.tahoe_url)
             self._test_webopen(["tahoe:"], self.tahoe_url)
             self._test_webopen(["tahoe:/"], self.tahoe_url)

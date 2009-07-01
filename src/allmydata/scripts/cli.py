@@ -300,7 +300,7 @@ class WebopenOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s webopen [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
-    longdesc = """Opens a webbrowser to the contents of some portion of the virtual drive."""
+    longdesc = """Opens a webbrowser to the contents of some portion of the virtual drive. When called without arguments, opens to the Welcome page."""
 
 class ManifestOptions(VDriveOptions):
     optFlags = [
