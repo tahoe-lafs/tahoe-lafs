@@ -12,7 +12,7 @@ from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash
 from allmydata.util.fileutil import make_dirs
 from allmydata.interfaces import IURI, IMutableFileURI, IUploadable, \
-     NotEnoughSharesError, IRepairResults
+     NotEnoughSharesError, IRepairResults, ICheckAndRepairResults
 from allmydata.monitor import Monitor
 from allmydata.test.common import ShouldFailMixin
 from foolscap.api import eventually, fireEventually
@@ -1464,6 +1464,28 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
                 (version, seqnum, root_hash, IV, k, N, segsize, datalen, o) = \
                           unpack_header(share)
                 return root_hash
+
+    def test_check_and_repair_readcap(self):
+        # we can't currently repair from a mutable readcap: #625
+        self.old_shares = []
+        d = self.publish_one()
+        d.addCallback(self.copy_shares)
+        def _get_readcap(res):
+            self._fn3 = self._fn.get_readonly()
+            # also delete some shares
+            for peerid,shares in self._storage._peers.items():
+                shares.pop(0, None)
+        d.addCallback(_get_readcap)
+        d.addCallback(lambda res: self._fn3.check_and_repair(Monitor()))
+        def _check_results(crr):
+            self.failUnless(ICheckAndRepairResults.providedBy(crr))
+            # we should detect the unhealthy, but skip over mutable-readcap
+            # repairs until #625 is fixed
+            self.failIf(crr.get_pre_repair_results().is_healthy())
+            self.failIf(crr.get_repair_attempted())
+            self.failIf(crr.get_post_repair_results().is_healthy())
+        d.addCallback(_check_results)
+        return d
 
 class MultipleEncodings(unittest.TestCase):
     def setUp(self):

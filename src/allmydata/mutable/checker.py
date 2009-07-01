@@ -297,6 +297,11 @@ class MutableCheckAndRepairer(MutableChecker):
         if not self.need_repair:
             self.cr_results.post_repair_results = self.results
             return
+        if self._node.is_readonly():
+            # ticket #625: we cannot yet repair read-only mutable files
+            self.cr_results.post_repair_results = self.results
+            self.cr_results.repair_attempted = False
+            return
         self.cr_results.repair_attempted = True
         d = self._node.repair(self.results)
         def _repair_finished(repair_results):
