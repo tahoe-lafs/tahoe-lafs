@@ -1829,7 +1829,10 @@ class ICheckAndRepairResults(Interface):
     def get_storage_index_string():
         """Return a string with the (printable) abbreviated storage index."""
     def get_repair_attempted():
-        """Return a boolean, True if a repair was attempted."""
+        """Return a boolean, True if a repair was attempted. We might not
+        attempt to repair the file because it was healthy, or healthy enough
+        (i.e. some shares were missing but not enough to exceed some
+        threshold), or because we don't know how to repair this object."""
     def get_repair_successful():
         """Return a boolean, True if repair was attempted and the file/dir
         was fully healthy afterwards. False if no repair was attempted or if
