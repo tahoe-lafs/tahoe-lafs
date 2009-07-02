@@ -188,8 +188,10 @@ class NewDirectoryNode:
         plaintext = cryptor.process(crypttext)
         return plaintext
 
-    def _create_node(self, child_uri):
-        return self._client.create_node_from_uri(child_uri)
+    def _create_node(self, rwcap, rocap):
+        if rwcap:
+            return self._client.create_node_from_uri(rwcap)
+        return self._client.create_node_from_uri(rocap)
 
     def _unpack_contents(self, data):
         # the directory is serialized as a list of netstrings, one per child.
@@ -207,11 +209,10 @@ class NewDirectoryNode:
             entry, data = split_netstring(data, 1, True)
             name, rocap, rwcapdata, metadata_s = split_netstring(entry, 4)
             name = name.decode("utf-8")
+            rwcap = None
             if writeable:
                 rwcap = self._decrypt_rwcapdata(rwcapdata)
-                child = self._create_node(rwcap)
-            else:
-                child = self._create_node(rocap)
+            child = self._create_node(rwcap, rocap)
             metadata = simplejson.loads(metadata_s)
             assert isinstance(metadata, dict)
             children[name] = (child, metadata)
@@ -374,7 +375,7 @@ class NewDirectoryNode:
         NotMutableError."""
         precondition(isinstance(name, unicode), name)
         precondition(isinstance(child_uri, str), child_uri)
-        child_node = self._create_node(child_uri)
+        child_node = self._create_node(child_uri, None)
         d = self.set_node(name, child_node, metadata, overwrite)
         d.addCallback(lambda res: child_node)
         return d
@@ -391,7 +392,7 @@ class NewDirectoryNode:
                 assert len(e) == 3
                 name, child_uri, metadata = e
             assert isinstance(name, unicode)
-            a.set_node(name, self._create_node(child_uri), metadata)
+            a.set_node(name, self._create_node(child_uri, None), metadata)
         return self._node.modify(a.modify)
 
     def set_node(self, name, child, metadata=None, overwrite=True):
