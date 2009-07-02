@@ -2007,11 +2007,16 @@ class IClient(Interface):
         @return: a Deferred that fires with the new IDirectoryNode instance.
         """
 
-    def create_node_from_uri(uri):
+    def create_node_from_uri(uri, rouri):
         """Create a new IFilesystemNode instance from the uri, synchronously.
-        @param uri: a string or IURI-providing instance. This could be for a
-                    LiteralFileNode, a CHK file node, a mutable file node, or
-                    a directory node
+        @param uri: a string or IURI-providing instance, or None. This could
+                    be for a LiteralFileNode, a CHK file node, a mutable file
+                    node, or a directory node
+        @param rouri: a string or IURI-providing instance, or None. If the
+                      main uri is None, I will use the rouri instead. If I
+                      recognize the format of the main uri, I will ignore the
+                      rouri (because it can be derived from the writecap).
+
         @return: an instance that provides IFilesystemNode (or more usefully
                  one of its subclasses). File-specifying URIs will result in
                  IFileNode or IMutableFileNode -providing instances, like

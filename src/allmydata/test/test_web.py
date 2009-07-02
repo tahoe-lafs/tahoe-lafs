@@ -63,7 +63,9 @@ class FakeClient(service.MultiService):
     def get_storage_broker(self):
         return self.storage_broker
 
-    def create_node_from_uri(self, auri):
+    def create_node_from_uri(self, auri, readcap=None):
+        if not auri:
+            auri = readcap
         precondition(isinstance(auri, str), auri)
         u = uri.from_string(auri)
         if (INewDirectoryURI.providedBy(u)

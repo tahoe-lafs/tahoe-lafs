@@ -404,8 +404,10 @@ class Client(node.Node, pollmixin.PollMixin):
     # dirnodes. The first takes a URI and produces a filenode or (new-style)
     # dirnode. The other three create brand-new filenodes/dirnodes.
 
-    def create_node_from_uri(self, u):
+    def create_node_from_uri(self, u, readcap=None):
         # this returns synchronously.
+        if not u:
+            u = readcap
         u = IURI(u)
         u_s = u.to_string()
         if u_s not in self._node_cache:

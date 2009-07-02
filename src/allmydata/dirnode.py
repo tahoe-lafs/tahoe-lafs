@@ -15,8 +15,7 @@ from allmydata.check_results import DeepCheckResults, \
 from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log
 from allmydata.util.assertutil import _assert, precondition
-from allmydata.util.hashutil import netstring
-from allmydata.util.netstring import split_netstring
+from allmydata.util.netstring import netstring, split_netstring
 from allmydata.uri import NewDirectoryURI, LiteralFileURI, from_string
 from pycryptopp.cipher.aes import AES
 
@@ -189,9 +188,7 @@ class NewDirectoryNode:
         return plaintext
 
     def _create_node(self, rwcap, rocap):
-        if rwcap:
-            return self._client.create_node_from_uri(rwcap)
-        return self._client.create_node_from_uri(rocap)
+        return self._client.create_node_from_uri(rwcap, rocap)
 
     def _unpack_contents(self, data):
         # the directory is serialized as a list of netstrings, one per child.
@@ -212,6 +209,10 @@ class NewDirectoryNode:
             rwcap = None
             if writeable:
                 rwcap = self._decrypt_rwcapdata(rwcapdata)
+            if not rwcap:
+                rwcap = None # rwcap is None or a non-empty string
+            if not rocap:
+                rocap = None # rocap is None or a non-empty string
             child = self._create_node(rwcap, rocap)
             metadata = simplejson.loads(metadata_s)
             assert isinstance(metadata, dict)
@@ -230,8 +231,12 @@ class NewDirectoryNode:
                     or IDirectoryNode.providedBy(child)), (name,child)
             assert isinstance(metadata, dict)
             rwcap = child.get_uri() # might be RO if the child is not writeable
+            if rwcap is None:
+                rwcap = ""
             assert isinstance(rwcap, str), rwcap
             rocap = child.get_readonly_uri()
+            if rocap is None:
+                rocap = ""
             assert isinstance(rocap, str), rocap
             entry = "".join([netstring(name.encode("utf-8")),
                              netstring(rocap),

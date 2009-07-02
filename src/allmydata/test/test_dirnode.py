@@ -76,7 +76,9 @@ class FakeClient:
         d.addCallback(_got_data)
         return d
 
-    def create_node_from_uri(self, u):
+    def create_node_from_uri(self, u, readcap=None):
+        if not u:
+            u = readcap
         u = IURI(u)
         if (INewDirectoryURI.providedBy(u)
             or IReadonlyNewDirectoryURI.providedBy(u)):

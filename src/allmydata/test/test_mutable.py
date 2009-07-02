@@ -208,7 +208,9 @@ class FakeClient:
     def get_history(self):
         return None
 
-    def create_node_from_uri(self, u):
+    def create_node_from_uri(self, u, readcap=None):
+        if not u:
+            u = readcap
         u = IURI(u)
         assert IMutableFileURI.providedBy(u), u
         res = self.mutable_file_node_class(self).init_from_uri(u)
