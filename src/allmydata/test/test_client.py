@@ -21,6 +21,10 @@ class FakeIntroducerClient(IntroducerClient):
     def remove_all_peers(self):
         self._connections.clear()
 
+BASECONFIG = ("[client]\n"
+              "introducer.furl = \n"
+              )
+
 class Basic(unittest.TestCase):
     def test_loadable(self):
         basedir = "test_client.Basic.test_loadable"
@@ -75,15 +79,11 @@ class Basic(unittest.TestCase):
         cancel_secret = c.get_cancel_secret()
         self.failUnless(base32.b2a(cancel_secret))
 
-    BASECONFIG = ("[client]\n"
-                  "introducer.furl = \n"
-                  )
-
     def test_reserved_1(self):
         basedir = "client.Basic.test_reserved_1"
         os.mkdir(basedir)
         f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(self.BASECONFIG)
+        f.write(BASECONFIG)
         f.write("[storage]\n")
         f.write("enabled = true\n")
         f.write("reserved_space = 1000\n")
@@ -95,7 +95,7 @@ class Basic(unittest.TestCase):
         basedir = "client.Basic.test_reserved_2"
         os.mkdir(basedir)
         f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(self.BASECONFIG)
+        f.write(BASECONFIG)
         f.write("[storage]\n")
         f.write("enabled = true\n")
         f.write("reserved_space = 10K\n")
@@ -107,7 +107,7 @@ class Basic(unittest.TestCase):
         basedir = "client.Basic.test_reserved_3"
         os.mkdir(basedir)
         f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(self.BASECONFIG)
+        f.write(BASECONFIG)
         f.write("[storage]\n")
         f.write("enabled = true\n")
         f.write("reserved_space = 5mB\n")
@@ -120,7 +120,7 @@ class Basic(unittest.TestCase):
         basedir = "client.Basic.test_reserved_4"
         os.mkdir(basedir)
         f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(self.BASECONFIG)
+        f.write(BASECONFIG)
         f.write("[storage]\n")
         f.write("enabled = true\n")
         f.write("reserved_space = 78Gb\n")
@@ -133,7 +133,7 @@ class Basic(unittest.TestCase):
         basedir = "client.Basic.test_reserved_bad"
         os.mkdir(basedir)
         f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(self.BASECONFIG)
+        f.write(BASECONFIG)
         f.write("[storage]\n")
         f.write("enabled = true\n")
         f.write("reserved_space = bogus\n")
