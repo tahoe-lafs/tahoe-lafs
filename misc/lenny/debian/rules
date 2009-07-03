@@ -1,0 +1,48 @@
+#! /usr/bin/make -f
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+DEB_PYTHON_SYSTEM=pycentral
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/python-distutils.mk
+
+# this ought to be the name of the package that we're building, which is
+# different on each tahoe branch. debian/control is the master: whatever
+# package is listed in there will be built.
+DEBNAME := $(firstword $(DEB_PACKAGES))
+
+STAGING_DIR := $(CURDIR)/debian/$(DEBNAME)
+
+DEB_INSTALL_DOCS_ALL := COPYING.GPL COPYING.TGPPL.html CREDITS \
+ NEWS README relnotes.txt docs misc/spacetime misc/cpu-watcher.tac
+DEB_COMPRESS_EXCLUDE := .tac
+
+
+# we overwrite the setuptools-generated /usr/bin/tahoe (located in
+# support/bin/tahoe after a 'make build') with a different version, because
+# the setuptools form (using "entry points") insists upon .egg-info -visible
+# forms of dependent packages to be installed. For a debian package, we rely
+# upon the dependencies that are declared in debian/control .
+#
+# To make sure the #! line matches the version of python that we're using for
+# this build, we copy it from the setuptools-generated /usr/bin/tahoe, then
+# add other code to the generated file.
+
+install/$(DEBNAME)::
+	mkdir -pm755 $(STAGING_DIR)
+	python setup.py install --root=$(STAGING_DIR)
+
+	head -1 $(STAGING_DIR)/usr/bin/tahoe >$(STAGING_DIR)/usr/bin/tahoe.new
+	echo "from allmydata.scripts import runner" >>$(STAGING_DIR)/usr/bin/tahoe.new
+	echo "runner.run()" >>$(STAGING_DIR)/usr/bin/tahoe.new
+	chmod +x $(STAGING_DIR)/usr/bin/tahoe.new
+	mv $(STAGING_DIR)/usr/bin/tahoe.new $(STAGING_DIR)/usr/bin/tahoe
+
+	dh_install misc/munin/* usr/share/$(DEBNAME)/munin
+	chmod +x $(STAGING_DIR)/usr/share/$(DEBNAME)/munin/*
+
+	dh_pycentral
+
+clean::
+	-rm -rf build

@@ -295,28 +295,27 @@ show-pp:
 .PHONY: deb-etch deb-lenny deb-sid
 .PHONY: deb-edgy deb-feisty deb-gutsy deb-hardy deb-intrepid deb-jaunty
 
-# etch uses the feisty control files for now
-deb-etch:
-	$(MAKE) deb-ARCH ARCH=etch TAHOE_ARCH=feisty
-deb-lenny:
-	$(MAKE) deb-ARCH ARCH=lenny TAHOE_ARCH=feisty
-deb-sid:
-	$(MAKE) deb-ARCH ARCH=sid
+# we use misc/$TAHOE_ARCH/debian
 
-# edgy uses the feisty control files for now
-deb-edgy:
-	$(MAKE) deb-ARCH ARCH=edgy TAHOE_ARCH=feisty
-deb-feisty:
-	$(MAKE) deb-ARCH ARCH=feisty
-# same with gutsy, the process has been nicely stable for a while now
-deb-gutsy:
-	$(MAKE) deb-ARCH ARCH=gutsy TAHOE_ARCH=feisty
-deb-hardy:
-	$(MAKE) deb-ARCH ARCH=hardy TAHOE_ARCH=feisty
-deb-intrepid:
-	$(MAKE) deb-ARCH ARCH=intrepid TAHOE_ARCH=feisty
-deb-jaunty:
-	$(MAKE) deb-ARCH ARCH=jaunty TAHOE_ARCH=feisty
+deb-etch:      # py2.4
+	$(MAKE) deb-ARCH ARCH=etch TAHOE_ARCH=etch
+deb-lenny:     # py2.5
+	$(MAKE) deb-ARCH ARCH=lenny TAHOE_ARCH=lenny
+deb-sid:
+	$(MAKE) deb-ARCH ARCH=sid TAHOE_ARCH=sid
+
+deb-edgy:     # py2.4
+	$(MAKE) deb-ARCH ARCH=edgy TAHOE_ARCH=etch
+deb-feisty:   # py2.5
+	$(MAKE) deb-ARCH ARCH=feisty TAHOE_ARCH=lenny
+deb-gutsy:    # py2.5
+	$(MAKE) deb-ARCH ARCH=gutsy TAHOE_ARCH=lenny
+deb-hardy:    # py2.5
+	$(MAKE) deb-ARCH ARCH=hardy TAHOE_ARCH=lenny
+deb-intrepid: # py2.5
+	$(MAKE) deb-ARCH ARCH=intrepid TAHOE_ARCH=lenny
+deb-jaunty:   # py2.6
+	$(MAKE) deb-ARCH ARCH=jaunty TAHOE_ARCH=lenny
 
 
 
@@ -366,40 +365,40 @@ deb-ARCH: is-known-debian-arch setup-deb
 increment-deb-version: make-version
 	debchange --newversion $(VER) $(DEBCOMMENTS)
 deb-etch-head:
-	$(MAKE) setup-deb ARCH=etch TAHOE_ARCH=feisty
+	$(MAKE) setup-deb ARCH=etch TAHOE_ARCH=etch
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 deb-lenny-head:
-	$(MAKE) setup-deb ARCH=lenny TAHOE_ARCH=feisty
+	$(MAKE) setup-deb ARCH=lenny TAHOE_ARCH=lenny
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 deb-sid-head:
-	$(MAKE) setup-deb ARCH=sid
+	$(MAKE) setup-deb ARCH=sid TAHOE_ARCH=lenny
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 
 deb-edgy-head:
-	$(MAKE) setup-deb ARCH=edgy TAHOE_ARCH=feisty
+	$(MAKE) setup-deb ARCH=edgy TAHOE_ARCH=etch
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 deb-feisty-head:
-	$(MAKE) setup-deb ARCH=feisty
+	$(MAKE) setup-deb ARCH=feisty TAHOE_ARCH=lenny
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 deb-gutsy-head:
-	$(MAKE) setup-deb ARCH=gutsy TAHOE_ARCH=feisty
+	$(MAKE) setup-deb ARCH=gutsy TAHOE_ARCH=lenny
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 deb-hardy-head:
-	$(MAKE) setup-deb ARCH=hardy TAHOE_ARCH=feisty
+	$(MAKE) setup-deb ARCH=hardy TAHOE_ARCH=lenny
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 deb-intrepid-head:
-	$(MAKE) setup-deb ARCH=intrepid TAHOE_ARCH=feisty
+	$(MAKE) setup-deb ARCH=intrepid TAHOE_ARCH=lenny
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 deb-jaunty-head:
-	$(MAKE) setup-deb ARCH=jaunty TAHOE_ARCH=feisty
+	$(MAKE) setup-deb ARCH=jaunty TAHOE_ARCH=lenny
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
 
