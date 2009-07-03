@@ -11,6 +11,7 @@ from allmydata import interfaces, uri, webish
 from allmydata.storage.shares import get_share_file
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.immutable import upload, download
+from allmydata.unknown import UnknownNode
 from allmydata.web import status, common
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.util import fileutil, base32
@@ -2781,6 +2782,73 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         d.addErrback(self.explain_web_error)
         return d
 
+    def test_unknown(self):
+        self.basedir = "web/Grid/unknown"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        self.uris = {}
+        self.fileurls = {}
+
+        future_writecap = "x-tahoe-crazy://I_am_from_the_future."
+        future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
+        # the future cap format may contain slashes, which must be tolerated
+        expected_info_url = "uri/%s?t=info" % urllib.quote(future_writecap,
+                                                           safe="")
+        future_node = UnknownNode(future_writecap, future_readcap)
+
+        d = c0.create_empty_dirnode()
+        def _stash_root_and_create_file(n):
+            self.rootnode = n
+            self.rooturl = "uri/" + urllib.quote(n.get_uri()) + "/"
+            self.rourl = "uri/" + urllib.quote(n.get_readonly_uri()) + "/"
+            return self.rootnode.set_node(u"future", future_node)
+        d.addCallback(_stash_root_and_create_file)
+        # make sure directory listing tolerates unknown nodes
+        d.addCallback(lambda ign: self.GET(self.rooturl))
+        def _check_html(res):
+            self.failUnlessIn("<td>future</td>", res)
+            # find the More Info link for "future", should be relative
+            mo = re.search(r'<a href="([^"]+)">More Info</a>', res)
+            info_url = mo.group(1)
+            self.failUnlessEqual(info_url, "future?t=info")
+
+        d.addCallback(_check_html)
+        d.addCallback(lambda ign: self.GET(self.rooturl+"?t=json"))
+        def _check_json(res, expect_writecap):
+            data = simplejson.loads(res)
+            self.failUnlessEqual(data[0], "dirnode")
+            f = data[1]["children"]["future"]
+            self.failUnlessEqual(f[0], "unknown")
+            if expect_writecap:
+                self.failUnlessEqual(f[1]["rw_uri"], future_writecap)
+            else:
+                self.failIfIn("rw_uri", f[1])
+            self.failUnlessEqual(f[1]["ro_uri"], future_readcap)
+            self.failUnless("metadata" in f[1])
+        d.addCallback(_check_json, expect_writecap=True)
+        d.addCallback(lambda ign: self.GET(expected_info_url))
+        def _check_info(res, expect_readcap):
+            self.failUnlessIn("Object Type: <span>unknown</span>", res)
+            self.failUnlessIn(future_writecap, res)
+            if expect_readcap:
+                self.failUnlessIn(future_readcap, res)
+            self.failIfIn("Raw data as", res)
+            self.failIfIn("Directory writecap", res)
+            self.failIfIn("Checker Operations", res)
+            self.failIfIn("Mutable File Operations", res)
+            self.failIfIn("Directory Operations", res)
+        d.addCallback(_check_info, expect_readcap=False)
+        d.addCallback(lambda ign: self.GET(self.rooturl+"future?t=info"))
+        d.addCallback(_check_info, expect_readcap=True)
+
+        # and make sure that a read-only version of the directory can be
+        # rendered too. This version will not have future_writecap
+        d.addCallback(lambda ign: self.GET(self.rourl))
+        d.addCallback(_check_html)
+        d.addCallback(lambda ign: self.GET(self.rourl+"?t=json"))
+        d.addCallback(_check_json, expect_writecap=False)
+        return d
+
     def test_deep_check(self):
         self.basedir = "web/Grid/deep_check"
         self.set_up_grid()
@@ -2809,6 +2877,13 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
                                                         convergence="")))
         d.addCallback(_stash_uri, "sick")
 
+        # this tests that deep-check and stream-manifest will ignore
+        # UnknownNode instances. Hopefully this will also cover deep-stats.
+        future_writecap = "x-tahoe-crazy://I_am_from_the_future."
+        future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
+        future_node = UnknownNode(future_writecap, future_readcap)
+        d.addCallback(lambda ign: self.rootnode.set_node(u"future",future_node))
+
         def _clobber_shares(ignored):
             self.delete_shares_numbered(self.uris["sick"], [0,1])
         d.addCallback(_clobber_shares)
@@ -2817,13 +2892,19 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         # root/good
         # root/small
         # root/sick
+        # root/future
 
         d.addCallback(self.CHECK, "root", "t=stream-deep-check")
         def _done(res):
-            units = [simplejson.loads(line)
-                     for line in res.splitlines()
-                     if line]
-            self.failUnlessEqual(len(units), 4+1)
+            try:
+                units = [simplejson.loads(line)
+                         for line in res.splitlines()
+                         if line]
+            except ValueError:
+                print "response is:", res
+                print "undecodeable line was '%s'" % line
+                raise
+            self.failUnlessEqual(len(units), 5+1)
             # should be parent-first
             u0 = units[0]
             self.failUnlessEqual(u0["path"], [])
@@ -2844,7 +2925,26 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(s["count-immutable-files"], 2)
             self.failUnlessEqual(s["count-literal-files"], 1)
             self.failUnlessEqual(s["count-directories"], 1)
+            self.failUnlessEqual(s["count-unknown"], 1)
         d.addCallback(_done)
+
+        d.addCallback(self.CHECK, "root", "t=stream-manifest")
+        def _check_manifest(res):
+            self.failUnless(res.endswith("\n"))
+            units = [simplejson.loads(t) for t in res[:-1].split("\n")]
+            self.failUnlessEqual(len(units), 5+1)
+            self.failUnlessEqual(units[-1]["type"], "stats")
+            first = units[0]
+            self.failUnlessEqual(first["path"], [])
+            self.failUnlessEqual(first["cap"], self.rootnode.get_uri())
+            self.failUnlessEqual(first["type"], "directory")
+            stats = units[-1]["stats"]
+            self.failUnlessEqual(stats["count-immutable-files"], 2)
+            self.failUnlessEqual(stats["count-literal-files"], 1)
+            self.failUnlessEqual(stats["count-mutable-files"], 0)
+            self.failUnlessEqual(stats["count-immutable-files"], 2)
+            self.failUnlessEqual(stats["count-unknown"], 1)
+        d.addCallback(_check_manifest)
 
         # now add root/subdir and root/subdir/grandchild, then make subdir
         # unrecoverable, then see what happens
@@ -2866,6 +2966,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         # root/good
         # root/small
         # root/sick
+        # root/future
         # root/subdir [unrecoverable]
         # root/subdir/grandchild
 
@@ -2888,7 +2989,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
                               error_line)
             self.failUnless(len(error_msg) > 2, error_msg_s) # some traceback
             units = [simplejson.loads(line) for line in lines[:first_error]]
-            self.failUnlessEqual(len(units), 5) # includes subdir
+            self.failUnlessEqual(len(units), 6) # includes subdir
             last_unit = units[-1]
             self.failUnlessEqual(last_unit["path"], ["subdir"])
         d.addCallback(_check_broken_manifest)
@@ -2909,7 +3010,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
                               error_line)
             self.failUnless(len(error_msg) > 2, error_msg_s) # some traceback
             units = [simplejson.loads(line) for line in lines[:first_error]]
-            self.failUnlessEqual(len(units), 5) # includes subdir
+            self.failUnlessEqual(len(units), 6) # includes subdir
             last_unit = units[-1]
             self.failUnlessEqual(last_unit["path"], ["subdir"])
             r = last_unit["check-results"]["results"]

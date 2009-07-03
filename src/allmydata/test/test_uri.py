@@ -61,7 +61,7 @@ class Compare(unittest.TestCase):
     def test_is_uri(self):
         lit1 = uri.LiteralFileURI("some data").to_string()
         self.failUnless(uri.is_uri(lit1))
-        self.failIf(uri.is_uri("this is not a uri"))
+        self.failIf(uri.is_uri(None))
 
 class CHKFile(unittest.TestCase):
     def test_pack(self):
@@ -175,10 +175,12 @@ class Extension(unittest.TestCase):
         readable = uri.unpack_extension_readable(ext)
 
 class Invalid(unittest.TestCase):
-    def test_create_invalid(self):
-        not_uri = "I am not a URI"
-        self.failUnlessRaises(TypeError, uri.from_string, not_uri)
-
+    def test_from_future(self):
+        # any URI type that we don't recognize should be treated as unknown
+        future_uri = "I am a URI from the future. Whatever you do, don't "
+        u = uri.from_string(future_uri)
+        self.failUnless(isinstance(u, uri.UnknownURI))
+        self.failUnlessEqual(u.to_string(), future_uri)
 
 class Constraint(unittest.TestCase):
     def test_constraint(self):

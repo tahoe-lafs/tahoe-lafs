@@ -4,11 +4,12 @@ from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata import uri, dirnode
+from allmydata.client import Client
 from allmydata.immutable import upload
 from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
      INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, \
      ExistingChildError, NoSuchChildError, \
-     IDeepCheckResults, IDeepCheckAndRepairResults
+     IDeepCheckResults, IDeepCheckAndRepairResults, CannotPackUnknownNodeError
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.mutable.common import UncoordinatedWriteError
 from allmydata.util import hashutil, base32
@@ -17,6 +18,7 @@ from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      FakeDirectoryNode, create_chk_filenode, ErrorMixin
 from allmydata.test.no_network import GridTestMixin
 from allmydata.check_results import CheckResults, CheckAndRepairResults
+from allmydata.unknown import UnknownNode
 import common_util as testutil
 
 # to test dirnode.py, we want to construct a tree of real DirectoryNodes that
@@ -713,6 +715,83 @@ class Dirnode(unittest.TestCase,
         d.addCallback(_then)
 
         d.addErrback(self.explain_error)
+        return d
+
+class FakeMutableFile:
+    counter = 0
+    def __init__(self, initial_contents=""):
+        self.data = initial_contents
+        counter = FakeMutableFile.counter
+        FakeMutableFile.counter += 1
+        writekey = hashutil.ssk_writekey_hash(str(counter))
+        fingerprint = hashutil.ssk_pubkey_fingerprint_hash(str(counter))
+        self.uri = uri.WriteableSSKFileURI(writekey, fingerprint)
+    def get_uri(self):
+        return self.uri.to_string()
+    def download_best_version(self):
+        return defer.succeed(self.data)
+    def get_writekey(self):
+        return "writekey"
+    def is_readonly(self):
+        return False
+    def is_mutable(self):
+        return True
+    def modify(self, modifier):
+        self.data = modifier(self.data, None, True)
+        return defer.succeed(None)
+
+class FakeClient2(Client):
+    def __init__(self):
+        pass
+    def create_mutable_file(self, initial_contents=""):
+        return defer.succeed(FakeMutableFile(initial_contents))
+
+class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
+    def setUp(self):
+        self.client = FakeClient2()
+
+    def test_from_future(self):
+        # create a dirnode that contains unknown URI types, and make sure we
+        # tolerate them properly. Since dirnodes aren't allowed to add
+        # unknown node types, we have to be tricky.
+        d = self.client.create_empty_dirnode()
+        future_writecap = "x-tahoe-crazy://I_am_from_the_future."
+        future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
+        future_node = UnknownNode(future_writecap, future_readcap)
+        def _then(n):
+            self._node = n
+            return n.set_node(u"future", future_node)
+        d.addCallback(_then)
+
+        # we should be prohibited from adding an unknown URI to a directory,
+        # since we don't know how to diminish the cap to a readcap (for the
+        # dirnode's rocap slot), and we don't want to accidentally grant
+        # write access to a holder of the dirnode's readcap.
+        d.addCallback(lambda ign:
+             self.shouldFail(CannotPackUnknownNodeError,
+                             "copy unknown",
+                             "cannot pack unknown node as child add",
+                             self._node.set_uri, u"add", future_writecap))
+        d.addCallback(lambda ign: self._node.list())
+        def _check(children):
+            self.failUnlessEqual(len(children), 1)
+            (fn, metadata) = children[u"future"]
+            self.failUnless(isinstance(fn, UnknownNode), fn)
+            self.failUnlessEqual(fn.get_uri(), future_writecap)
+            self.failUnlessEqual(fn.get_readonly_uri(), future_readcap)
+            # but we *should* be allowed to copy this node, because the
+            # UnknownNode contains all the information that was in the
+            # original directory (readcap and writecap), so we're preserving
+            # everything.
+            return self._node.set_node(u"copy", fn)
+        d.addCallback(_check)
+        d.addCallback(lambda ign: self._node.list())
+        def _check2(children):
+            self.failUnlessEqual(len(children), 2)
+            (fn, metadata) = children[u"copy"]
+            self.failUnless(isinstance(fn, UnknownNode), fn)
+            self.failUnlessEqual(fn.get_uri(), future_writecap)
+            self.failUnlessEqual(fn.get_readonly_uri(), future_readcap)
         return d
 
 class DeepStats(unittest.TestCase):

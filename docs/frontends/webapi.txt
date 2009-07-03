@@ -1232,6 +1232,7 @@ POST $DIRURL?t=start-deep-stats    (must add &ophandle=XYZ)
    count-literal-files: same, for LIT files (data contained inside the URI)
    count-files: sum of the above three
    count-directories: count of directories
+   count-unknown: count of unrecognized objects (perhaps from the future)
    size-immutable-files: total bytes for all CHK files in the set, =deep-size
    size-mutable-files (TODO): same, for current version of all mutable files
    size-literal-files: same, for LIT files

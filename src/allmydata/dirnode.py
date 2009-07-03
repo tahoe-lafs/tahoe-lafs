@@ -7,9 +7,11 @@ from foolscap.api import fireEventually
 import simplejson
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.filenode import MutableFileNode
+from allmydata.unknown import UnknownNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
      IURI, IFileNode, IMutableFileURI, IFilesystemNode, \
-     ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable
+     ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable, \
+     CannotPackUnknownNodeError
 from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
@@ -137,6 +139,12 @@ class NewDirectoryNode:
         self._node.init_from_uri(self._uri.get_filenode_uri())
         return self
 
+    @classmethod
+    def create_with_mutablefile(cls, filenode, client):
+        self = cls(client)
+        self._node = filenode
+        return self._filenode_created(filenode)
+
     def create(self, keypair_generator=None, keysize=None):
         """
         Returns a deferred that eventually fires with self once the directory
@@ -226,9 +234,7 @@ class NewDirectoryNode:
         for name in sorted(children.keys()):
             child, metadata = children[name]
             assert isinstance(name, unicode)
-            assert (IFileNode.providedBy(child)
-                    or IMutableFileNode.providedBy(child)
-                    or IDirectoryNode.providedBy(child)), (name,child)
+            assert IFilesystemNode.providedBy(child), (name,child)
             assert isinstance(metadata, dict)
             rwcap = child.get_uri() # might be RO if the child is not writeable
             if rwcap is None:
@@ -381,6 +387,13 @@ class NewDirectoryNode:
         precondition(isinstance(name, unicode), name)
         precondition(isinstance(child_uri, str), child_uri)
         child_node = self._create_node(child_uri, None)
+        if isinstance(child_node, UnknownNode):
+            # don't be willing to pack unknown nodes: we might accidentally
+            # put some write-authority into the rocap slot because we don't
+            # know how to diminish the URI they gave us. We don't even know
+            # if they gave us a readcap or a writecap.
+            msg = "cannot pack unknown node as child %s" % str(name)
+            raise CannotPackUnknownNodeError(msg)
         d = self.set_node(name, child_node, metadata, overwrite)
         d.addCallback(lambda res: child_node)
         return d
@@ -397,7 +410,11 @@ class NewDirectoryNode:
                 assert len(e) == 3
                 name, child_uri, metadata = e
             assert isinstance(name, unicode)
-            a.set_node(name, self._create_node(child_uri, None), metadata)
+            child_node = self._create_node(child_uri, None)
+            if isinstance(child_node, UnknownNode):
+                msg = "cannot pack unknown node as child %s" % str(name)
+                raise CannotPackUnknownNodeError(msg)
+            a.set_node(name, child_node, metadata)
         return self._node.modify(a.modify)
 
     def set_node(self, name, child, metadata=None, overwrite=True):
@@ -560,12 +577,15 @@ class NewDirectoryNode:
         dirkids = []
         filekids = []
         for name, (child, metadata) in sorted(children.iteritems()):
+            childpath = path + [name]
+            if isinstance(child, UnknownNode):
+                walker.add_node(child, childpath)
+                continue
             verifier = child.get_verify_cap()
             # allow LIT files (for which verifier==None) to be processed
             if (verifier is not None) and (verifier in found):
                 continue
             found.add(verifier)
-            childpath = path + [name]
             if IDirectoryNode.providedBy(child):
                 dirkids.append( (child, childpath) )
             else:
@@ -618,6 +638,7 @@ class DeepStats:
                   "count-literal-files",
                   "count-files",
                   "count-directories",
+                  "count-unknown",
                   "size-immutable-files",
                   #"size-mutable-files",
                   "size-literal-files",
@@ -640,7 +661,9 @@ class DeepStats:
         monitor.set_status(self.get_results())
 
     def add_node(self, node, childpath):
-        if IDirectoryNode.providedBy(node):
+        if isinstance(node, UnknownNode):
+            self.add("count-unknown")
+        elif IDirectoryNode.providedBy(node):
             self.add("count-directories")
         elif IMutableFileNode.providedBy(node):
             self.add("count-files")

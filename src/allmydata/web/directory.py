@@ -15,7 +15,7 @@ from foolscap.api import fireEventually
 from allmydata.util import base32, time_format
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
-     ExistingChildError, NoSuchChildError
+     IFilesystemNode, ExistingChildError, NoSuchChildError
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata import dirnode
 from allmydata.web.common import text_plain, WebError, \
@@ -46,7 +46,7 @@ def make_handler_for(node, client, parentnode=None, name=None):
         return FileNodeHandler(client, node, parentnode, name)
     if IDirectoryNode.providedBy(node):
         return DirectoryNodeHandler(client, node, parentnode, name)
-    raise WebError("Cannot provide handler for '%s'" % node)
+    return UnknownNodeHandler(client, node, parentnode, name)
 
 class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     addSlash = True
@@ -617,11 +617,9 @@ class DirectoryAsHTML(rend.Page):
                 times.append("m: " + mtime)
         ctx.fillSlots("times", times)
 
-        assert (IFileNode.providedBy(target)
-                or IDirectoryNode.providedBy(target)
-                or IMutableFileNode.providedBy(target)), target
-
-        quoted_uri = urllib.quote(target.get_uri())
+        assert IFilesystemNode.providedBy(target), target
+        writecap = target.get_uri() or ""
+        quoted_uri = urllib.quote(writecap, safe="") # escape slashes too
 
         if IMutableFileNode.providedBy(target):
             # to prevent javascript in displayed .html files from stealing a
@@ -650,7 +648,7 @@ class DirectoryAsHTML(rend.Page):
 
         elif IDirectoryNode.providedBy(target):
             # directory
-            uri_link = "%s/uri/%s/" % (root, urllib.quote(target.get_uri()))
+            uri_link = "%s/uri/%s/" % (root, urllib.quote(writecap))
             ctx.fillSlots("filename",
                           T.a(href=uri_link)[html.escape(name)])
             if target.is_readonly():
@@ -660,6 +658,15 @@ class DirectoryAsHTML(rend.Page):
             ctx.fillSlots("type", dirtype)
             ctx.fillSlots("size", "-")
             info_link = "%s/uri/%s/?t=info" % (root, quoted_uri)
+
+        else:
+            # unknown
+            ctx.fillSlots("filename", html.escape(name))
+            ctx.fillSlots("type", "?")
+            ctx.fillSlots("size", "-")
+            # use a directory-relative info link, so we can extract both the
+            # writecap and the readcap
+            info_link = "%s?t=info" % urllib.quote(name)
 
         ctx.fillSlots("info", T.a(href=info_link)["More Info"])
 
@@ -727,20 +734,23 @@ def DirectoryJSONMetadata(ctx, dirnode):
     def _got(children):
         kids = {}
         for name, (childnode, metadata) in children.iteritems():
-            if childnode.is_readonly():
-                rw_uri = None
-                ro_uri = childnode.get_uri()
-            else:
-                rw_uri = childnode.get_uri()
-                ro_uri = childnode.get_readonly_uri()
+            assert IFilesystemNode.providedBy(childnode), childnode
+            rw_uri = childnode.get_uri()
+            ro_uri = childnode.get_readonly_uri()
+            if (IDirectoryNode.providedBy(childnode)
+                or IFileNode.providedBy(childnode)):
+                if childnode.is_readonly():
+                    rw_uri = None
             if IFileNode.providedBy(childnode):
                 kiddata = ("filenode", {'size': childnode.get_size(),
-                                        'metadata': metadata,
+                                        'mutable': childnode.is_mutable(),
                                         })
+            elif IDirectoryNode.providedBy(childnode):
+                kiddata = ("dirnode", {'mutable': childnode.is_mutable(),
+                                       })
             else:
-                assert IDirectoryNode.providedBy(childnode), (childnode,
-                                                              children,)
-                kiddata = ("dirnode", {'metadata': metadata})
+                kiddata = ("unknown", {})
+            kiddata[1]["metadata"] = metadata
             if ro_uri:
                 kiddata[1]["ro_uri"] = ro_uri
             if rw_uri:
@@ -748,7 +758,6 @@ def DirectoryJSONMetadata(ctx, dirnode):
             verifycap = childnode.get_verify_cap()
             if verifycap:
                 kiddata[1]['verify_uri'] = verifycap.to_string()
-            kiddata[1]['mutable'] = childnode.is_mutable()
             kids[name] = kiddata
         if dirnode.is_readonly():
             drw_uri = None
@@ -879,13 +888,16 @@ class ManifestResults(rend.Page, ReloadMixin):
         ctx.fillSlots("path", self.slashify_path(path))
         root = get_root(ctx)
         # TODO: we need a clean consistent way to get the type of a cap string
-        if cap.startswith("URI:CHK") or cap.startswith("URI:SSK"):
-            nameurl = urllib.quote(path[-1].encode("utf-8"))
-            uri_link = "%s/file/%s/@@named=/%s" % (root, urllib.quote(cap),
-                                                   nameurl)
+        if cap:
+            if cap.startswith("URI:CHK") or cap.startswith("URI:SSK"):
+                nameurl = urllib.quote(path[-1].encode("utf-8"))
+                uri_link = "%s/file/%s/@@named=/%s" % (root, urllib.quote(cap),
+                                                       nameurl)
+            else:
+                uri_link = "%s/uri/%s" % (root, urllib.quote(cap, safe=""))
+            ctx.fillSlots("cap", T.a(href=uri_link)[cap])
         else:
-            uri_link = "%s/uri/%s" % (root, urllib.quote(cap))
-        ctx.fillSlots("cap", T.a(href=uri_link)[cap])
+            ctx.fillSlots("cap", "")
         return ctx.tag
 
 class DeepSizeResults(rend.Page):
@@ -951,8 +963,10 @@ class ManifestStreamer(dirnode.DeepStats):
 
         if IDirectoryNode.providedBy(node):
             d["type"] = "directory"
-        else:
+        elif IFileNode.providedBy(node):
             d["type"] = "file"
+        else:
+            d["type"] = "unknown"
 
         v = node.get_verify_cap()
         if v:
@@ -1058,3 +1072,19 @@ class DeepCheckStreamer(dirnode.DeepStats):
         assert "\n" not in j
         self.req.write(j+"\n")
         return ""
+
+class UnknownNodeHandler(RenderMixin, rend.Page):
+
+    def __init__(self, client, node, parentnode=None, name=None):
+        rend.Page.__init__(self)
+        assert node
+        self.node = node
+
+    def render_GET(self, ctx):
+        req = IRequest(ctx)
+        t = get_arg(req, "t", "").strip()
+        if t == "info":
+            return MoreInfo(self.node)
+        raise WebError("GET unknown: can only do t=info, not t=%s" % t)
+
+

@@ -428,10 +428,16 @@ class NewDirectoryURIVerifier(_NewDirectoryBaseURI):
     def get_filenode_uri(self):
         return self._filenode_uri
 
-
+class UnknownURI:
+    def __init__(self, uri):
+        self._uri = uri
+    def to_string(self):
+        return self._uri
 
 def from_string(s):
-    if s.startswith('URI:CHK:'):
+    if not isinstance(s, str):
+        raise TypeError("unknown URI type: %s.." % str(s)[:100])
+    elif s.startswith('URI:CHK:'):
         return CHKFileURI.init_from_string(s)
     elif s.startswith('URI:CHK-Verifier:'):
         return CHKFileVerifierURI.init_from_string(s)
@@ -449,8 +455,7 @@ def from_string(s):
         return ReadonlyNewDirectoryURI.init_from_string(s)
     elif s.startswith('URI:DIR2-Verifier:'):
         return NewDirectoryURIVerifier.init_from_string(s)
-    else:
-        raise TypeError("unknown URI type: %s.." % s[:12])
+    return UnknownURI(s)
 
 registerAdapter(from_string, str, IURI)
 

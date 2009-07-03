@@ -6,10 +6,11 @@ from twisted.internet import defer
 from nevow import url, rend
 from nevow.inevow import IRequest
 
-from allmydata.interfaces import ExistingChildError
+from allmydata.interfaces import ExistingChildError, CannotPackUnknownNodeError
 from allmydata.monitor import Monitor
 from allmydata.immutable.upload import FileHandle
 from allmydata.immutable.filenode import LiteralFileNode
+from allmydata.unknown import UnknownNode
 from allmydata.util import log, base32
 
 from allmydata.web.common import text_plain, WebError, RenderMixin, \
@@ -55,7 +56,14 @@ class ReplaceMeMixin:
     def replace_me_with_a_childcap(self, req, client, replace):
         req.content.seek(0)
         childcap = req.content.read()
-        childnode = client.create_node_from_uri(childcap)
+        childnode = client.create_node_from_uri(childcap, childcap+"readonly")
+        if isinstance(childnode, UnknownNode):
+            # don't be willing to pack unknown nodes: we might accidentally
+            # put some write-authority into the rocap slot because we don't
+            # know how to diminish the URI they gave us. We don't even know
+            # if they gave us a readcap or a writecap.
+            msg = "cannot attach unknown node as child %s" % str(self.name)
+            raise CannotPackUnknownNodeError(msg)
         d = self.parentnode.set_node(self.name, childnode, overwrite=replace)
         d.addCallback(lambda res: childnode.get_uri())
         return d

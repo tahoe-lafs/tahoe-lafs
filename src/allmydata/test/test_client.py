@@ -8,7 +8,8 @@ import allmydata
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import base32
+from allmydata.util import base32, fileutil
+from allmydata.interfaces import IFilesystemNode, IFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
 import common_util as testutil
 
@@ -234,3 +235,39 @@ class Run(unittest.TestCase, testutil.StallMixin):
         d.addCallback(_restart)
         return d
 
+class NodeMaker(unittest.TestCase):
+    def test_maker(self):
+        basedir = "client/NodeMaker/maker"
+        fileutil.make_dirs(basedir)
+        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
+        f.write(BASECONFIG)
+        f.close()
+        c = client.Client(basedir)
+
+        n = c.create_node_from_uri("URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
+        self.failUnless(IFilesystemNode.providedBy(n))
+        self.failUnless(IFileNode.providedBy(n))
+        self.failIf(IDirectoryNode.providedBy(n))
+        self.failUnless(n.is_readonly())
+        self.failIf(n.is_mutable())
+
+        n = c.create_node_from_uri("URI:DIR2:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        self.failUnless(IFilesystemNode.providedBy(n))
+        self.failIf(IFileNode.providedBy(n))
+        self.failUnless(IDirectoryNode.providedBy(n))
+        self.failIf(n.is_readonly())
+        self.failUnless(n.is_mutable())
+
+        n = c.create_node_from_uri("URI:DIR2-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        self.failUnless(IFilesystemNode.providedBy(n))
+        self.failIf(IFileNode.providedBy(n))
+        self.failUnless(IDirectoryNode.providedBy(n))
+        self.failUnless(n.is_readonly())
+        self.failUnless(n.is_mutable())
+
+        future = "x-tahoe-crazy://future_cap_format."
+        n = c.create_node_from_uri(future)
+        self.failUnless(IFilesystemNode.providedBy(n))
+        self.failIf(IFileNode.providedBy(n))
+        self.failIf(IDirectoryNode.providedBy(n))
+        self.failUnlessEqual(n.get_uri(), future)

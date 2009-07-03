@@ -478,6 +478,9 @@ class INewDirectoryURI(Interface):
 class IReadonlyNewDirectoryURI(Interface):
     pass
 
+class CannotPackUnknownNodeError(Exception):
+    """UnknownNodes (using filecaps from the future that we don't understand)
+    cannot yet be copied safely, so I refuse to copy them."""
 
 class IFilesystemNode(Interface):
     def get_uri():

@@ -6,7 +6,7 @@ from nevow import rend, tags as T
 from nevow.inevow import IRequest
 
 from allmydata.util import base32
-from allmydata.interfaces import IDirectoryNode
+from allmydata.interfaces import IDirectoryNode, IFileNode
 from allmydata.web.common import getxmlfile
 from allmydata.mutable.common import UnrecoverableFileError # TODO: move
 
@@ -21,14 +21,16 @@ class MoreInfo(rend.Page):
 
     def get_type(self):
         node = self.original
-        si = node.get_storage_index()
         if IDirectoryNode.providedBy(node):
             return "directory"
-        if si:
-            if node.is_mutable():
-                return "mutable file"
-            return "immutable file"
-        return "LIT file"
+        if IFileNode.providedBy(node):
+            si = node.get_storage_index()
+            if si:
+                if node.is_mutable():
+                    return "mutable file"
+                return "immutable file"
+            return "LIT file"
+        return "unknown"
 
     def render_title(self, ctx, data):
         node = self.original
@@ -55,11 +57,15 @@ class MoreInfo(rend.Page):
         si = node.get_storage_index()
         if IDirectoryNode.providedBy(node):
             d = node._node.get_size_of_best_version()
-        elif node.is_mutable():
-            d = node.get_size_of_best_version()
+        elif IFileNode.providedBy(node):
+            if node.is_mutable():
+                d = node.get_size_of_best_version()
+            else:
+                # for immutable files and LIT files, we get the size from the
+                # URI
+                d = defer.succeed(node.get_size())
         else:
-            # for immutable files and LIT files, we get the size from the URI
-            d = defer.succeed(node.get_size())
+            d = defer.succeed("?")
         def _handle_unrecoverable(f):
             f.trap(UnrecoverableFileError)
             return "?"
@@ -92,15 +98,22 @@ class MoreInfo(rend.Page):
         node = self.original
         if IDirectoryNode.providedBy(node):
             node = node._node
-        if node.is_readonly():
+        if ((IDirectoryNode.providedBy(node) or IFileNode.providedBy(node))
+            and node.is_readonly()):
             return ""
-        return ctx.tag[node.get_uri()]
+        writecap = node.get_uri()
+        if not writecap:
+            return ""
+        return ctx.tag[writecap]
 
     def render_file_readcap(self, ctx, data):
         node = self.original
         if IDirectoryNode.providedBy(node):
             node = node._node
-        return ctx.tag[node.get_readonly_uri()]
+        readcap = node.get_readonly_uri()
+        if not readcap:
+            return ""
+        return ctx.tag[readcap]
 
     def render_file_verifycap(self, ctx, data):
         node = self.original
@@ -122,10 +135,14 @@ class MoreInfo(rend.Page):
         node = self.original
         if IDirectoryNode.providedBy(node):
             node = node._node
+        elif IFileNode.providedBy(node):
+            pass
+        else:
+            return ""
         root = self.get_root(ctx)
         quoted_uri = urllib.quote(node.get_uri())
         text_plain_url = "%s/file/%s/@@named=/raw.txt" % (root, quoted_uri)
-        return ctx.tag[text_plain_url]
+        return T.li["Raw data as ", T.a(href=text_plain_url)["text/plain"]]
 
     def render_is_checkable(self, ctx, data):
         node = self.original
@@ -167,7 +184,8 @@ class MoreInfo(rend.Page):
         node = self.original
         if IDirectoryNode.providedBy(node):
             return ""
-        if node.is_mutable() and not node.is_readonly():
+        if (IFileNode.providedBy(node)
+            and node.is_mutable() and not node.is_readonly()):
             return ctx.tag
         return ""
 

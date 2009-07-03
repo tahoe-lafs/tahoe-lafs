@@ -20,9 +20,10 @@ from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, pollmixin, cachedir, log
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
-from allmydata.uri import LiteralFileURI
+from allmydata.uri import LiteralFileURI, UnknownURI
 from allmydata.dirnode import NewDirectoryNode
 from allmydata.mutable.filenode import MutableFileNode
+from allmydata.unknown import UnknownNode
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import IURI, INewDirectoryURI, IStatsProducer, \
@@ -404,11 +405,17 @@ class Client(node.Node, pollmixin.PollMixin):
     # dirnodes. The first takes a URI and produces a filenode or (new-style)
     # dirnode. The other three create brand-new filenodes/dirnodes.
 
-    def create_node_from_uri(self, u, readcap=None):
+    def create_node_from_uri(self, writecap, readcap=None):
         # this returns synchronously.
+        u = writecap or readcap
         if not u:
-            u = readcap
+            # maybe the writecap was hidden because we're in a readonly
+            # directory, and the future cap format doesn't have a readcap, or
+            # something.
+            return UnknownNode(writecap, readcap)
         u = IURI(u)
+        if isinstance(u, UnknownURI):
+            return UnknownNode(writecap, readcap)
         u_s = u.to_string()
         if u_s not in self._node_cache:
             if IReadonlyNewDirectoryURI.providedBy(u):
@@ -427,13 +434,12 @@ class Client(node.Node, pollmixin.PollMixin):
             else:
                 assert IMutableFileURI.providedBy(u), u
                 node = MutableFileNode(self).init_from_uri(u)
-            self._node_cache[u_s] = node
+            self._node_cache[u_s] = node  # note: WeakValueDictionary
         return self._node_cache[u_s]
 
     def create_empty_dirnode(self):
-        n = NewDirectoryNode(self)
-        d = n.create(self._generate_pubprivkeys, self.DEFAULT_MUTABLE_KEYSIZE)
-        d.addCallback(lambda res: n)
+        d = self.create_mutable_file()
+        d.addCallback(NewDirectoryNode.create_with_mutablefile, self)
         return d
 
     def create_mutable_file(self, contents="", keysize=None):
