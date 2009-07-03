@@ -45,7 +45,7 @@ setup_args = {
     'app': [ 'allmydata_tahoe.py' ],
     'options': { 'py2app': py2app_options },
     'data_files': data_files,
-    'setup_requires': [ 'py2app' ],
+    'setup_requires': [ 'py2app', 'macholib>=1.2' ],
     'packages': packages,
 }
 
