@@ -2,13 +2,19 @@ User visible changes in Tahoe.  -*- outline -*-
 
 * Release 1.XXX (200X-YY-ZZ)
 
-** minor improvements
+** Improvements
 
 Uploads of immutable files now use pipelined writes, improving upload speed
 slightly (10%) over high-latency connections. (#392)
 
 The human-facing web interface (aka the "WUI") received a significant CSS
-makeover by Kevin Reid, making it much prettier and easier to read.
+makeover by Kevin Reid, making it much prettier and easier to read. The WUI
+"check" and "deep-check" forms now include a "Renew Lease" checkbox,
+mirroring the CLI --add-lease option, so leases can be added or renewed from
+the web interface.
+
+The CLI "tahoe webopen" command, when run without arguments, will bring up
+the "Welcome Page" (node status and mkdir/upload forms).
 
 The 3.5MB limit on mutable files was removed, so it should be possible to
 upload arbitrarily-sized mutable files. Note, however, that the data format
@@ -16,11 +22,21 @@ and algorithm remains the same, so larger files will suffer from poor speed,
 data transfer overhead, memory consumption, and alacrity until "MDMF" mutable
 files (#393) are implemented. (#694)
 
-The WUI "check" and "deep-check" forms now include a "Renew Lease" checkbox,
-mirroring the CLI --add-lease option, so leases can be added or renewed from
-the web interface.
+This version of Tahoe will tolerate directory entries that contain filecap
+formats which it does not recognize: files and directories from the future.
+Previous versions would fail badly, preventing the user from seeing or
+editing anything else in those directories. These unrecognized objects can be
+renamed and deleted, but obviously not read or written. This should improve
+the user experience when we add new cap formats in the future. (#683)
 
-** minor bugfixes
+** Bugfixes
+
+deep-check-and-repair now tolerates read-only directories, such as the ones
+produced by the "tahoe backup" CLI command. Read-only directories and mutable
+files are checked, but not repaired. Previous versions threw an exception
+when attempting the repair and failed to process the remaining contents. We
+cannot yet repair these read-only objects, but at least this version allows
+the rest of the check+repair to proceed. (#625)
 
 A bug in 1.4.1 which caused a server to be listed multiple times (and
 frequently broke all connections to that server) was fixed. (#653)
@@ -28,7 +44,7 @@ frequently broke all connections to that server) was fixed. (#653)
 The plaintext-hashing code was removed from the Helper interface, removing
 the Helper's ability to mount a partial-information-guessing attack. (#722)
 
-** platform/packaging changes
+** Platform/packaging changes
 
 Tahoe now runs on NetBSD.
 
@@ -54,7 +70,7 @@ pycryptopp and zfec.
  foolscap-0.4.1
  no python-2.4.0 or 2.4.1 (2.4.2 is good)
   (they contained a bug in base64.b32decode)
- avoid python-2.6 on windows with mingw, compiler issues
+ avoid python-2.6 on windows with mingw: compiler issues
  python2.4 requires pysqlite2 (2.5,2.6 does not)
  no python-3.x
 
