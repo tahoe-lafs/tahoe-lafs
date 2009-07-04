@@ -19,6 +19,7 @@ from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
 from allmydata.test.no_network import GridTestMixin
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.unknown import UnknownNode
+from base64 import b32decode
 import common_util as testutil
 
 # to test dirnode.py, we want to construct a tree of real DirectoryNodes that
@@ -93,12 +94,21 @@ class FakeClient:
         d.addCallback(lambda res: n)
         return d
 
-
 class Dirnode(unittest.TestCase,
               testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
     timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def setUp(self):
         self.client = FakeClient()
+        # This is a base32-encoded representation of the directory tree
+        # root/file1
+        # root/file2
+        # root/file3
+        # as represented after being fed to _pack_contents.
+        # We have it here so we can decode it, feed it to 
+        # _unpack_contents, and verify that _unpack_contents 
+        # works correctly.
+
+        self.known_tree = "GM4TOORVHJTGS3DFGEWDSNJ2KVJESOSDJBFTU33MPB2GS3LZNVYG6N3GGI3WU5TIORTXC3DOMJ2G4NB2MVWXUZDONBVTE5LNGRZWK2LYN55GY23XGNYXQMTOMZUWU5TENN4DG23ZG5UTO2L2NQ2DO6LFMRWDMZJWGRQTUMZ2GEYDUMJQFQYTIMZ22XZKZORX5XS7CAQCSK3URR6QOHISHRCMGER5LRFSZRNAS5ZSALCS6TWFQAE754IVOIKJVK73WZPP3VUUEDTX3WHTBBZ5YX3CEKHCPG3ZWQLYA4QM6LDRCF7TJQYWLIZHKGN5ROA3AUZPXESBNLQQ6JTC2DBJU2D47IZJTLR3PKZ4RVF57XLPWY7FX7SZV3T6IJ3ORFW37FXUPGOE3ROPFNUX5DCGMAQJ3PGGULBRGM3TU6ZCMN2GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGI3TKNRWGEWCAITUMFUG6ZJCHIQHWITMNFXGW3LPORUW2ZJCHIQDCMRUGY3DMMZYHE3S4NBSG42TMNRRFQQCE3DJNZVWG4TUNFWWKIR2EAYTENBWGY3DGOBZG4XDIMRXGU3DMML5FQQCE3LUNFWWKIR2EAYTENBWGY3DGOBZG4XDIMRXGU3DMML5FQWDGOJRHI2TUZTJNRSTELBZGQ5FKUSJHJBUQSZ2MFYGKZ3SOBSWQ43IO52WO23CNAZWU3DUGVSWSNTIOE5DK33POVTW4ZLNMNWDK6DHPA2GS2THNF2W25DEN5VGY2LQNFRGG5DKNNRHO5TZPFTWI6LNMRYGQ2LCGJTHM4J2GM5DCMB2GQWDCNBSHKVVQBGRYMACKJ27CVQ6O6B4QPR72RFVTGOZUI76XUSWAX73JRV5PYRHMIFYZIA25MXDPGUGML6M2NMRSG4YD4W4K37ZDYSXHMJ3IUVT4F64YTQQVBJFFFOUC7J7LAB2VFCL5UKKGMR2D3F4EPOYC7UYWQZNR5KXHBSNXLCNBX2SNF22DCXJIHSMEKWEWOG5XCJEVVZ7UW5IB6I64XXQSJ34B5CAYZGZIIMR6LBRGMZTU6ZCMN2GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGMYDEMJYFQQCE5DBNBXWKIR2EB5SE3DJNZVW233UNFWWKIR2EAYTENBWGY3DGOBZG4XDIMZQGIYTQLBAEJWGS3TLMNZHI2LNMURDUIBRGI2DMNRWGM4DSNZOGQZTAMRRHB6SYIBCNV2GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGMYDEMJYPUWCYMZZGU5DKOTGNFWGKMZMHE2DUVKSJE5EGSCLHJRW25DDPBYTO2DXPB3GM6DBNYZTI6LJMV3DM2LWNB4TU4LWMNSWW3LKORXWK5DEMN3TI23NNE3WEM3SORRGY5THPA3TKNBUMNZG453BOF2GSZLXMVWWI3DJOFZW623RHIZTUMJQHI2SYMJUGI5BOSHWDPG3WKPAVXCF3XMKA7QVIWPRMWJHDTQHD27AHDCPJWDQENQ5H5ZZILTXQNIXXCIW4LKQABU2GCFRG5FHQN7CHD7HF4EKNRZFIV2ZYQIBM7IQU7F4RGB3XCX3FREPBKQ7UCICHVWPCYFGA6OLH3J45LXQ6GWWICJ3PGWJNLZ7PCRNLAPNYUGU6BENS7OXMBEOOFRIZV3PF2FFWZ5WHDPKXERYP7GNHKRMGEZTOOT3EJRXI2LNMURDUIBRGI2DMNRWGM4DSNZOGQZTGNRSGY4SYIBCORQWQ33FEI5CA6ZCNRUW423NN52GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGMZTMMRWHEWCAITMNFXGWY3SORUW2ZJCHIQDCMRUGY3DMMZYHE3S4NBTGM3DENRZPUWCAITNORUW2ZJCHIQDCMRUGY3DMMZYHE3S4NBTGM3DENRZPUWCY==="
 
     def test_basic(self):
         d = self.client.create_empty_dirnode()
@@ -716,6 +726,75 @@ class Dirnode(unittest.TestCase,
 
         d.addErrback(self.explain_error)
         return d
+
+    def test_unpack_and_pack_behavior(self):
+        known_tree = b32decode(self.known_tree)
+        d = self.client.create_empty_dirnode()
+
+        def _check_tree(node):
+            def check_children(children):
+                # Are all the expected child nodes there?
+                self.failUnless(children.has_key(u'file1'))
+                self.failUnless(children.has_key(u'file2'))
+                self.failUnless(children.has_key(u'file3'))
+
+                # Are the metadata for child 3 right?
+                file3_rocap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
+                file3_rwcap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
+                file3_metadata = {'ctime': 1246663897.4336269, 'tahoe': {'linkmotime': 1246663897.4336269, 'linkcrtime': 1246663897.4336269}, 'mtime': 1246663897.4336269}
+                self.failUnlessEqual(file3_metadata, children[u'file3'][1])
+                self.failUnlessEqual(file3_rocap,
+                                     children[u'file3'][0].get_readonly_uri())
+                self.failUnlessEqual(file3_rwcap,
+                                     children[u'file3'][0].get_uri())
+
+                # Are the metadata for child 2 right?
+                file2_rocap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
+                file2_rwcap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
+                file2_metadata = {'ctime': 1246663897.430218, 'tahoe': {'linkmotime': 1246663897.430218, 'linkcrtime': 1246663897.430218}, 'mtime': 1246663897.430218}
+                self.failUnlessEqual(file2_metadata, children[u'file2'][1])
+                self.failUnlessEqual(file2_rocap,
+                                     children[u'file2'][0].get_readonly_uri())
+                self.failUnlessEqual(file2_rwcap,
+                                     children[u'file2'][0].get_uri())
+
+                # Are the metadata for child 1 right?
+                file1_rocap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
+                file1_rwcap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
+                file1_metadata = {'ctime': 1246663897.4275661, 'tahoe': {'linkmotime': 1246663897.4275661, 'linkcrtime': 1246663897.4275661}, 'mtime': 1246663897.4275661}
+                self.failUnlessEqual(file1_metadata, children[u'file1'][1])
+                self.failUnlessEqual(file1_rocap,
+                                     children[u'file1'][0].get_readonly_uri())
+                self.failUnlessEqual(file1_rwcap,
+                                     children[u'file1'][0].get_uri())
+
+            children = node._unpack_contents(known_tree)
+
+            check_children(children)
+
+            packed_children = node._pack_contents(children)
+
+            children = node._unpack_contents(packed_children)
+
+            check_children(children)
+
+        d.addCallback(_check_tree)
+        return d
+
+    def test_caching_dict(self):
+        d = dirnode.CachingDict()
+        d.set_both_items("test", "test2", ("test3", "test4"))
+        cached, value = d.get_both_items("test")
+
+        self.failUnlessEqual(cached, "test2")
+        self.failUnlessEqual(value, ("test3", "test4"))
+
+        d['test'] = ("test3", "test2")
+
+        cached, value = d.get_both_items("test")
+
+        self.failUnlessEqual(cached, None)
+        self.failUnlessEqual(value, ("test3", "test2"))
 
 class FakeMutableFile:
     counter = 0
