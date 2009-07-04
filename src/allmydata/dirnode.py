@@ -170,7 +170,7 @@ class NewDirectoryNode:
         # first we create a MutableFileNode with empty_contents, then use its
         # URI to create our own.
         self._node = self.filenode_class(self._client)
-        empty_contents = self._pack_contents({})
+        empty_contents = self._pack_contents(CachingDict())
         d = self._node.create(empty_contents, keypair_generator, keysize=keysize)
         d.addCallback(self._filenode_created)
         return d
@@ -224,9 +224,9 @@ class NewDirectoryNode:
         assert isinstance(data, str), (repr(data), type(data))
         # an empty directory is serialized as an empty string
         if data == "":
-            return {}
+            return CachingDict()
         writeable = not self.is_readonly()
-        children = {}
+        children = CachingDict()
         position = 0
         while position < len(data):
             entries, position = split_netstring(data, 1, position)
@@ -243,27 +243,29 @@ class NewDirectoryNode:
             child = self._create_node(rwcap, rocap)
             metadata = simplejson.loads(metadata_s)
             assert isinstance(metadata, dict)
-            children[name] = (child, metadata)
+            children.set_both_items(name, entry, (child, metadata))
         return children
 
     def _pack_contents(self, children):
         # expects children in the same format as _unpack_contents
-        assert isinstance(children, dict)
+        assert isinstance(children, CachingDict)
         entries = []
         for name in sorted(children.keys()):
-            child, metadata = children[name]
-            assert isinstance(name, unicode)
-            assert IFilesystemNode.providedBy(child), (name,child)
-            assert isinstance(metadata, dict)
-            rwcap = child.get_uri() # might be RO if the child is not writeable
-            if rwcap is None:
-                rwcap = ""
-            assert isinstance(rwcap, str), rwcap
-            rocap = child.get_readonly_uri()
-            if rocap is None:
-                rocap = ""
-            assert isinstance(rocap, str), rocap
-            entry = "".join([netstring(name.encode("utf-8")),
+            entry, metadata = children.get_both_items(name)
+            if entry == None:
+                child, metadata = metadata
+                assert isinstance(name, unicode)
+                assert IFilesystemNode.providedBy(child), (name,child)
+                assert isinstance(metadata, dict)
+                rwcap = child.get_uri() # might be RO if the child is not writeable
+                if rwcap is None:
+                    rwcap = ""
+                assert isinstance(rwcap, str), rwcap
+                rocap = child.get_readonly_uri()
+                if rocap is None:
+                    rocap = ""
+                assert isinstance(rocap, str), rocap
+                entry = "".join([netstring(name.encode("utf-8")),
                              netstring(rocap),
                              netstring(self._encrypt_rwcap(rwcap)),
                              netstring(simplejson.dumps(metadata))])
