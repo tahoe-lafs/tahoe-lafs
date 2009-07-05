@@ -204,15 +204,16 @@ class NewDirectoryNode:
         # rocap, rwcap, metadata), in which the name,rocap,metadata are in
         # cleartext. The 'name' is UTF-8 encoded. The rwcap is formatted as:
         # pack("16ss32s", iv, AES(H(writekey+iv), plaintextrwcap), mac)
-        assert isinstance(data, str)
+        assert isinstance(data, str), (repr(data), type(data))
         # an empty directory is serialized as an empty string
         if data == "":
             return {}
         writeable = not self.is_readonly()
         children = {}
-        while len(data) > 0:
-            entry, data = split_netstring(data, 1, True)
-            name, rocap, rwcapdata, metadata_s = split_netstring(entry, 4)
+        position = 0
+        while position < len(data):
+            entries, position = split_netstring(data, 1, position)
+            (name, rocap, rwcapdata, metadata_s), subpos = split_netstring(entries[0], 4)
             name = name.decode("utf-8")
             rwcap = None
             if writeable:
