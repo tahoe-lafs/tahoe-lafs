@@ -1,4 +1,4 @@
-import os, random
+import hotshot.stats, os, random
 
 from pyutil import benchutil, randutil # http://allmydata.org/trac/pyutil
 
@@ -85,17 +85,23 @@ def pack(N):
 def unpack(N):
     return testdirnode._unpack_contents(packstr)
 
-def run_benchmarks():
-    print "benchmarking %s" % (unpack,)
-    benchutil.bench(unpack, initfunc=init_for_unpack, TOPXP=12)
-    print "benchmarking %s" % (pack,)
-    benchutil.bench(pack, initfunc=init_for_pack, TOPXP=12)
+def unpack_and_repack(N):
+    return testdirnode._pack_contents(testdirnode._unpack_contents(packstr))
+
+def run_benchmarks(profile=False):
+    for (func, initfunc) in [(unpack, init_for_unpack), (pack, init_for_pack), (unpack_and_repack, init_for_unpack)]:
+        print "benchmarking %s" % (func,)
+        benchutil.bench(unpack_and_repack, initfunc=init_for_unpack, TOPXP=12, profile=profile, profresults="bench_dirnode.prof")
+
+def print_stats():
+    s = hotshot.stats.load("bench_dirnode.prof")
+    s.strip_dirs().sort_stats("time").print_stats(32)
 
 def prof_benchmarks():
-    import hotshot
-    prof = hotshot.Profile("bench_dirnode.prof")
-    prof.runcall(run_benchmarks)
-    prof.close()
+    # This requires pyutil >= v1.3.34.
+    run_benchmarks(profile=True)
 
 if __name__ == "__main__":
     run_benchmarks()
+    # prof_benchmarks()
+    # print_stats()
