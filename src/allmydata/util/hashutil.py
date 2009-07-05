@@ -82,6 +82,7 @@ MUTABLE_STORAGEINDEX_TAG = "allmydata_mutable_readkey_to_storage_index_v1"
 
 # dirnodes
 DIRNODE_CHILD_WRITECAP_TAG = "allmydata_mutable_writekey_and_salt_to_dirnode_child_capkey_v1"
+DIRNODE_CHILD_IV_TAG = "allmydata_mutable_writekey_to_iv_v1"
 
 def storage_index_hash(key):
     # storage index is truncated to 128 bits (16 bytes). We're only hashing a
@@ -122,6 +123,7 @@ def plaintext_segment_hasher():
     return tagged_hasher(PLAINTEXT_SEGMENT_TAG)
 
 KEYLEN = 16
+IVLEN = 16
 
 def convergence_hash(k, n, segsize, data, convergence):
     h = convergence_hasher(k, n, segsize, convergence)
@@ -170,6 +172,8 @@ def hmac(tag, data):
 
 def mutable_rwcap_key_hash(iv, writekey):
     return tagged_pair_hash(DIRNODE_CHILD_WRITECAP_TAG, iv, writekey, KEYLEN)
+def mutable_rwcap_iv_hash(writekey):
+    return tagged_hash(DIRNODE_CHILD_IV_TAG, writekey, IVLEN)
 
 def ssk_writekey_hash(privkey):
     return tagged_hash(MUTABLE_WRITEKEY_TAG, privkey, KEYLEN)
