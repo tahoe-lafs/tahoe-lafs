@@ -21,6 +21,23 @@ from allmydata.util.netstring import netstring, split_netstring
 from allmydata.uri import NewDirectoryURI, LiteralFileURI, from_string
 from pycryptopp.cipher.aes import AES
 
+class CachingDict(dict):
+    def __init__(self, *args):
+        super(CachingDict, self).__init__(*args)
+        self.serialized = {}
+
+    def __setitem__(self, k, v):
+        super(CachingDict, self).__setitem__(k, v)
+        self.serialized[k] = None
+
+    def get_both_items(self, k):
+        return (self.serialized.setdefault(k, None),
+                super(CachingDict, self).__getitem__(k))
+
+    def set_both_items(self, key, serialized, t):
+        self.serialized[key] = serialized
+        super(CachingDict, self).__setitem__(key, t)
+
 class Deleter:
     def __init__(self, node, name, must_exist=True):
         self.node = node
