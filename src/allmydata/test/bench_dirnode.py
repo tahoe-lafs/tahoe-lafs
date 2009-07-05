@@ -78,7 +78,7 @@ def init_for_unpack(N):
     packstr = pack(N)
 
 def pack(N):
-    return testdirnode._pack_contents(dict(children[:N]))
+    return testdirnode._pack_contents(dirnode.CachingDict(children[:N]))
 
 def unpack(N):
     return testdirnode._unpack_contents(packstr)
