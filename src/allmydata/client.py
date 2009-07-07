@@ -230,8 +230,8 @@ class Client(node.Node, pollmixin.PollMixin):
         self.add_service(Uploader(helper_furl, self.stats_provider))
         download_cachedir = os.path.join(self.basedir,
                                          "private", "cache", "download")
-        self.download_cache = cachedir.CacheDirectoryManager(download_cachedir)
-        self.download_cache.setServiceParent(self)
+        self.download_cache_dirman = cachedir.CacheDirectoryManager(download_cachedir)
+        self.download_cache_dirman.setServiceParent(self)
         self.add_service(Downloader(self.stats_provider))
         self.init_stub_client()
 
@@ -429,7 +429,7 @@ class Client(node.Node, pollmixin.PollMixin):
                     node = LiteralFileNode(u, self) # LIT
                 else:
                     key = base32.b2a(u.storage_index)
-                    cachefile = self.download_cache.get_file(key)
+                    cachefile = self.download_cache_dirman.get_file(key)
                     node = FileNode(u, self, cachefile) # CHK
             else:
                 assert IMutableFileURI.providedBy(u), u
