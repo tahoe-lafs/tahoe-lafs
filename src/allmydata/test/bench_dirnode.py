@@ -1,4 +1,4 @@
-import hotshot.stats, os, random
+import hotshot.stats, os, random, sys
 
 from pyutil import benchutil, randutil # http://allmydata.org/trac/pyutil
 
@@ -88,13 +88,15 @@ def unpack(N):
 def unpack_and_repack(N):
     return testdirnode._pack_contents(testdirnode._unpack_contents(packstr))
 
+PROF_FILE_NAME="bench_dirnode.prof"
+
 def run_benchmarks(profile=False):
     for (func, initfunc) in [(unpack, init_for_unpack), (pack, init_for_pack), (unpack_and_repack, init_for_unpack)]:
         print "benchmarking %s" % (func,)
-        benchutil.bench(unpack_and_repack, initfunc=init_for_unpack, TOPXP=12, profile=profile, profresults="bench_dirnode.prof")
+        benchutil.bench(unpack_and_repack, initfunc=init_for_unpack, TOPXP=12, profile=profile, profresults=PROF_FILE_NAME)
 
 def print_stats():
-    s = hotshot.stats.load("bench_dirnode.prof")
+    s = hotshot.stats.load(PROF_FILE_NAME)
     s.strip_dirs().sort_stats("time").print_stats(32)
 
 def prof_benchmarks():
@@ -102,6 +104,10 @@ def prof_benchmarks():
     run_benchmarks(profile=True)
 
 if __name__ == "__main__":
-    run_benchmarks()
-    # prof_benchmarks()
-    # print_stats()
+    if '--profile' in sys.argv:
+        if os.path.exists(PROF_FILE_NAME):
+            print "WARNING: profiling results file '%s' already exists -- the profiling results from this run will be added into the profiling results stored in that file and then the sum of them will be printed out after this run."
+        prof_benchmarks()
+        print_stats()
+    else:
+        run_benchmarks()
