@@ -5,16 +5,14 @@ from pyutil import benchutil, randutil # http://allmydata.org/trac/pyutil
 from allmydata import client, dirnode, uri
 from allmydata.mutable import filenode as mut_filenode
 from allmydata.immutable import filenode as immut_filenode
-
-class FakeDownloadCache:
-    def get_file(self, key):
-        return None
+from allmydata.util import cachedir, fileutil
 
 class FakeClient(client.Client):
     # just enough
     def __init__(self):
         self._node_cache = {}
-        self.download_cache = FakeDownloadCache()
+        download_cachedir = fileutil.NamedTemporaryDirectory()
+        self.download_cache_dirman = cachedir.CacheDirectoryManager(download_cachedir.name)
     def getServiceNamed(self, name):
         return None
     def get_encoding_parameters(self):
