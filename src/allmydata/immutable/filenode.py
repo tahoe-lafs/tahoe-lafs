@@ -105,7 +105,7 @@ class DownloadCache:
     def read(self, consumer, offset, size):
         assert offset+size <= self.get_filesize()
         if not self.cachefile:
-            self.cachefile = self.cachedirectorymanager.get_file(self._storage_index)
+            self.cachefile = self.cachedirectorymanager.get_file(base32.b2a(self._storage_index))
         f = PortionOfFile(self.cachefile.get_filename(), offset, size)
         d = basic.FileSender().beginFileTransfer(f, consumer)
         d.addCallback(lambda lastSent: consumer)
@@ -146,7 +146,7 @@ class DownloadCache:
 
     def get_filesize(self):
         if not self.cachefile:
-            self.cachefile = self.cachedirectorymanager.get_file(self._storage_index)
+            self.cachefile = self.cachedirectorymanager.get_file(base32.b2a(self._storage_index))
         try:
             filesize = os.stat(self.cachefile.get_filename())[stat.ST_SIZE]
         except OSError:
@@ -156,7 +156,7 @@ class DownloadCache:
 
     def open(self, size):
         if not self.cachefile:
-            self.cachefile = self.cachedirectorymanager.get_file(self._storage_index)
+            self.cachefile = self.cachedirectorymanager.get_file(base32.b2a(self._storage_index))
         self.f = open(self.cachefile.get_filename(), "wb")
 
     def write(self, data):
