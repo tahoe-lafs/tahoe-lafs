@@ -428,9 +428,7 @@ class Client(node.Node, pollmixin.PollMixin):
                 if isinstance(u, LiteralFileURI):
                     node = LiteralFileNode(u, self) # LIT
                 else:
-                    key = base32.b2a(u.storage_index)
-                    cachefile = self.download_cache_dirman.get_file(key)
-                    node = FileNode(u, self, cachefile) # CHK
+                    node = FileNode(u, self, self.download_cache_dirman) # CHK
             else:
                 assert IMutableFileURI.providedBy(u), u
                 node = MutableFileNode(self).init_from_uri(u)

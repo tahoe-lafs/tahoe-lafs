@@ -68,12 +68,13 @@ class PortionOfFile:
 class DownloadCache:
     implements(IDownloadTarget)
 
-    def __init__(self, node, cachefile):
+    def __init__(self, node, cachedirectorymanager):
         self._downloader = node._client.getServiceNamed("downloader")
         self._uri = node.get_uri()
         self._storage_index = node.get_storage_index()
         self.milestones = set() # of (offset,size,Deferred)
-        self.cachefile = cachefile
+        self.cachedirectorymanager = cachedirectorymanager
+        self.cachefile = None
         self.download_in_progress = False
         # five states:
         #  new FileNode, no downloads ever performed
@@ -103,6 +104,8 @@ class DownloadCache:
 
     def read(self, consumer, offset, size):
         assert offset+size <= self.get_filesize()
+        if not self.cachefile:
+            self.cachefile = self.cachedirectorymanager.get_file(self._storage_index)
         f = PortionOfFile(self.cachefile.get_filename(), offset, size)
         d = basic.FileSender().beginFileTransfer(f, consumer)
         d.addCallback(lambda lastSent: consumer)
@@ -142,6 +145,8 @@ class DownloadCache:
                         umid="8PKOhg", level=log.NOISY)
 
     def get_filesize(self):
+        if not self.cachefile:
+            self.cachefile = self.cachedirectorymanager.get_file(self._storage_index)
         try:
             filesize = os.stat(self.cachefile.get_filename())[stat.ST_SIZE]
         except OSError:
@@ -150,6 +155,8 @@ class DownloadCache:
 
 
     def open(self, size):
+        if not self.cachefile:
+            self.cachefile = self.cachedirectorymanager.get_file(self._storage_index)
         self.f = open(self.cachefile.get_filename(), "wb")
 
     def write(self, data):
@@ -176,9 +183,9 @@ class DownloadCache:
 
 
 class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
-    def __init__(self, uri, client, cachefile):
+    def __init__(self, uri, client, cachedirectorymanager):
         _ImmutableFileNodeBase.__init__(self, uri, client)
-        self.download_cache = DownloadCache(self, cachefile)
+        self.download_cache = DownloadCache(self, cachedirectorymanager)
         prefix = uri.get_verify_cap().to_string()
         log.PrefixingLogMixin.__init__(self, "allmydata.immutable.filenode", prefix=prefix)
         self.log("starting", level=log.OPERATIONAL)
