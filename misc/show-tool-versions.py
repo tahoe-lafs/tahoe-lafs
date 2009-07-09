@@ -3,7 +3,7 @@
 import sys
 import subprocess
 
-print "python:", sys.version.replace("\n", " ")
+print "python:", sys.version.replace("\n", " ") + ', maxunicode: ' + str(sys.maxunicode)
 
 try:
     out = subprocess.Popen(["buildbot", "--version"],
