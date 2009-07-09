@@ -1,5 +1,5 @@
 
-import os, time, math
+import time, math
 
 from zope.interface import implements
 from twisted.internet import defer
