@@ -230,7 +230,8 @@ class NewDirectoryNode:
         position = 0
         while position < len(data):
             entries, position = split_netstring(data, 1, position)
-            (name, rocap, rwcapdata, metadata_s), subpos = split_netstring(entries[0], 4)
+            entry = entries[0]
+            (name, rocap, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
             name = name.decode("utf-8")
             rwcap = None
             if writeable:
