@@ -10,6 +10,39 @@ This file shows only the differences from RSA-based mutable files to
 (EC)DSA-based mutable files.  You have to read and understand mutable.txt before
 reading this file (mutable-DSA.txt).
 
+== new design criteria ==
+
+* provide for variable number of semiprivate sections?
+* put e.g. filenames in one section, readcaps in another, writecaps in a third
+  (ideally, to modify a filename you'd only have to modify one section, and
+  we'd make encrypting/hashing more efficient by doing it on larger blocks of
+  data, preferably one segment at a time instead of one writecap at a time)
+* cleanly distinguish between "container" (leases, write-enabler) and
+  "slot contents" (everything that comes from share encoding)
+* sign all slot bits (to allow server-side verification)
+* someone reading the whole file should be able to read the share in a single
+  linear pass with just a single seek to zero
+* writing the file should occur in two passes (3 seeks) in mostly linear order
+  1: write version/pubkey/topbits/salt
+  2: write zeros / seek+prefill where the hashchain/tree goes
+  3: write blocks
+  4: seek back
+  5: write hashchain/tree
+* storage format: consider putting container bits in a separate file
+  - $SI.index (contains list of shnums, leases, other-cabal-members, WE, etc)
+  - $SI-$shnum.share (actual share data)
+* possible layout:
+    - version
+    - pubkey
+    - topbits (k, N, size, segsize, etc)
+    - salt? (salt tree root?)
+    - share hash root
+    - share hash chain
+    - block hash tree
+    - (salts?) (salt tree?)
+    - blocks
+    - signature (of [version .. share hash root])
+
 === SDMF slots overview ===
 
 Each SDMF slot is created with a DSA public/private key pair, using a
