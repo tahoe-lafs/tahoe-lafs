@@ -7,6 +7,10 @@ User visible changes in Tahoe.  -*- outline -*-
 Uploads of immutable files now use pipelined writes, improving upload speed
 slightly (10%) over high-latency connections. (#392)
 
+Processing large directories has been sped up, by removing a O(N^2) algorithm
+from the dirnode decoding path and retaining unmodified encrypted entries.
+(#750, #752)
+
 The human-facing web interface (aka the "WUI") received a significant CSS
 makeover by Kevin Reid, making it much prettier and easier to read. The WUI
 "check" and "deep-check" forms now include a "Renew Lease" checkbox,
@@ -73,6 +77,7 @@ pycryptopp and zfec.
  avoid python-2.6 on windows with mingw: compiler issues
  python2.4 requires pysqlite2 (2.5,2.6 does not)
  no python-3.x
+ pycryptopp-0.5.15
 
 
 * Release 1.4.1 (2009-04-13)
