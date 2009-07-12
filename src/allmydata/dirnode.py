@@ -195,19 +195,20 @@ class NewDirectoryNode:
 
     def _encrypt_rwcap(self, rwcap):
         assert isinstance(rwcap, str)
-        IV = hashutil.mutable_rwcap_iv_hash(rwcap)
-        key = hashutil.mutable_rwcap_key_hash(IV, self._node.get_writekey())
+        salt = hashutil.mutable_rwcap_iv_hash(rwcap)
+        key = hashutil.mutable_rwcap_key_hash(salt, self._node.get_writekey())
         cryptor = AES(key)
         crypttext = cryptor.process(rwcap)
-        mac = hashutil.hmac(key, IV + crypttext)
+        mac = hashutil.hmac(key, salt + crypttext)
         assert len(mac) == 32
-        return IV + crypttext + mac
-        # The MAC is not checked by readers in Tahoe >= 1.3.0, but we still produce it for the sake of older readers.
+        return salt + crypttext + mac
+        # The MAC is not checked by readers in Tahoe >= 1.3.0, but we still
+        # produce it for the sake of older readers.
 
     def _decrypt_rwcapdata(self, encwrcap):
-        IV = encwrcap[:16]
+        salt = encwrcap[:16]
         crypttext = encwrcap[16:-32]
-        key = hashutil.mutable_rwcap_key_hash(IV, self._node.get_writekey())
+        key = hashutil.mutable_rwcap_key_hash(salt, self._node.get_writekey())
         cryptor = AES(key)
         plaintext = cryptor.process(crypttext)
         return plaintext
