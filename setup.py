@@ -190,6 +190,18 @@ class RunWithPythonPath(Command):
         rc = subprocess.call(command)
         sys.exit(rc)
 
+class TestMacDiskImage(Command):
+    user_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        import sys
+        sys.path.append('misc')
+        import test_mac_diskimage
+        return test_mac_diskimage.test_mac_diskimage('Allmydata', version=self.distribution.metadata.version)
+
 class CheckAutoDeps(Command):
     user_options = []
     def initialize_options(self):
@@ -332,6 +344,7 @@ setup(name=APPNAME,
                 "show_pythonpath": ShowPythonPath,
                 "run_with_pythonpath": RunWithPythonPath,
                 "check_auto_deps": CheckAutoDeps,
+                "test_mac_diskimage": TestMacDiskImage,
                 "make_executable": MakeExecutable,
                 "sdist": MySdist,
                 },
