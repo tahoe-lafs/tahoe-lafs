@@ -195,7 +195,7 @@ class NewDirectoryNode:
 
     def _encrypt_rwcap(self, rwcap):
         assert isinstance(rwcap, str)
-        salt = hashutil.mutable_rwcap_iv_hash(rwcap)
+        salt = hashutil.mutable_rwcap_salt_hash(rwcap)
         key = hashutil.mutable_rwcap_key_hash(salt, self._node.get_writekey())
         cryptor = AES(key)
         crypttext = cryptor.process(rwcap)
