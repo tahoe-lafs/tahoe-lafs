@@ -366,8 +366,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_welcome(self):
         d = self.GET("/")
         def _check(res):
-            self.failUnless('Welcome To AllMyData' in res)
-            self.failUnless('Tahoe' in res)
+            self.failUnless('Welcome To TahoeLAFS' in res, res)
 
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
