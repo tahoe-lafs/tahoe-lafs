@@ -524,7 +524,7 @@ class DirectoryAsHTML(rend.Page):
 
     def render_title(self, ctx, data):
         si_s = abbreviated_dirnode(self.node)
-        header = ["AllMyData - Tahoe - Directory SI=%s" % si_s]
+        header = ["TahoeLAFS - Directory SI=%s" % si_s]
         if self.node.is_readonly():
             header.append(" (read-only)")
         else:
@@ -533,7 +533,7 @@ class DirectoryAsHTML(rend.Page):
 
     def render_header(self, ctx, data):
         si_s = abbreviated_dirnode(self.node)
-        header = ["Directory SI=", T.span(class_="data-chars")[si_s]]
+        header = ["TahoeLAFS Directory SI=", T.span(class_="data-chars")[si_s]]
         if self.node.is_readonly():
             header.append(" (read-only)")
         return ctx.tag[header]
@@ -712,9 +712,7 @@ class DirectoryAsHTML(rend.Page):
             T.fieldset[
             T.input(type="hidden", name="t", value="uri"),
             T.input(type="hidden", name="when_done", value="."),
-            T.legend(class_="freeform-form-label")["Attach a file or directory"
-                                                   " (by URI) to this"
-                                                   " directory"],
+            T.legend(class_="freeform-form-label")["Add a link to a file or directory which is already in TahoeLAFS."],
             "New child name: ",
             T.input(type="text", name="name"), " ",
             "URI of new child: ",
