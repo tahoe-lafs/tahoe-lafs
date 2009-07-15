@@ -55,11 +55,8 @@ def test_mac_diskimage(appname, version):
             if rc is not None:
                 break
             if time.time() > deadline:
-                flags = fcntl.fcntl(callit.stdout.fileno(), fcntl.F_GETFL)
-                fcntl.fcntl(callit.stdout.fileno(), fcntl.F_SETFL, flags | os.O_NONBLOCK)
-                flags = fcntl.fcntl(callit.stderr.fileno(), fcntl.F_GETFL)
-                fcntl.fcntl(callit.stderr.fileno(), fcntl.F_SETFL, flags | os.O_NONBLOCK)
-                raise Exception("FAIL: it took longer than 2 seconds to invoke $appname --version-and-path. stdout: %r, stderr: %r" % (callit.stdout.read(), callit.stderr.read()))
+                os.kill(callitpid, 15)
+                raise Exception("FAIL: it took longer than 2 seconds to invoke $appname --version-and-path. stdout: %s, stderr: %s" % (callit.stdout.read(), callit.stderr.read()))
             time.sleep(0.05)
 
         if rc != 0:
