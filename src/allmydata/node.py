@@ -238,6 +238,11 @@ class Node(service.MultiService):
     def startService(self):
         # Note: this class can be started and stopped at most once.
         self.log("Node.startService")
+        # Record the process id in the twisted log, after startService()
+        # (__init__ is called before fork(), but startService is called
+        # after). Note that Foolscap logs handle pid-logging by itself, no
+        # need to send a pid to the foolscap log here.
+        twlog.msg("My pid: %s" % os.getpid())
         try:
             os.chmod("twistd.pid", 0644)
         except EnvironmentError:
