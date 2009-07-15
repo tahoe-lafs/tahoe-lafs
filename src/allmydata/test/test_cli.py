@@ -1268,6 +1268,21 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                             in lines, out)
         d.addCallback(_check2)
 
+        d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
+        def _check_stats((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnlessIn(" count-immutable-files: 1", lines)
+            self.failUnlessIn("   count-mutable-files: 1", lines)
+            self.failUnlessIn("   count-literal-files: 1", lines)
+            self.failUnlessIn("     count-directories: 1", lines)
+            self.failUnlessIn("  size-immutable-files: 400", lines)
+            self.failUnlessIn("Size Histogram:", lines)
+            self.failUnlessIn("   4-10   : 1    (10 B, 10 B)", lines)
+            self.failUnlessIn(" 317-1000 : 1    (1000 B, 1000 B)", lines)
+        d.addCallback(_check_stats)
+
         def _clobber_shares(ignored):
             shares = self.find_shares(self.uris["good"])
             self.failUnlessEqual(len(shares), 10)
@@ -1429,5 +1444,33 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("NotEnoughSharesError: ", err)
             self.failUnlessIn("Failed to get enough shareholders: have 1, need 3", err)
         d.addCallback(_check1)
+
+        return d
+
+class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_empty_directory(self):
+        self.basedir = "cli/Stats/empty_directory"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        self.fileurls = {}
+        d = c0.create_empty_dirnode()
+        def _stash_root(n):
+            self.rootnode = n
+            self.rooturi = n.get_uri()
+        d.addCallback(_stash_root)
+
+        # make sure we can get stats on an empty directory too
+        d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
+        def _check_stats((rc, out, err)):
+            self.failUnlessEqual(err, "")
+            self.failUnlessEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnlessIn(" count-immutable-files: 0", lines)
+            self.failUnlessIn("   count-mutable-files: 0", lines)
+            self.failUnlessIn("   count-literal-files: 0", lines)
+            self.failUnlessIn("     count-directories: 1", lines)
+            self.failUnlessIn("  size-immutable-files: 0", lines)
+            self.failIfIn("Size Histogram:", lines)
+        d.addCallback(_check_stats)
 
         return d
