@@ -1030,7 +1030,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
                 # should be noted in the servermap's list of problems.
                 if substring:
                     allproblems = [str(f) for f in servermap.problems]
-                    self.failUnless(substring in "".join(allproblems))
+                    self.failUnlessIn(substring, "".join(allproblems))
                 return servermap
             if should_succeed:
                 d1 = self._fn.download_version(servermap, ver)
@@ -1049,9 +1049,9 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         return d
 
     def test_corrupt_all_verbyte(self):
-        # when the version byte is not 0, we hit an assertion error in
-        # unpack_share().
-        d = self._test_corrupt_all(0, "AssertionError")
+        # when the version byte is not 0, we hit an UnknownVersionError error
+        # in unpack_share().
+        d = self._test_corrupt_all(0, "UnknownVersionError")
         def _check_servermap(servermap):
             # and the dump should mention the problems
             s = StringIO()

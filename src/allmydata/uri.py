@@ -7,6 +7,9 @@ from allmydata.util import base32, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IImmutableFileURI, \
     IVerifierURI, IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
 
+class BadURIError(Exception):
+    pass
+
 # the URI shall be an ascii representation of the file. It shall contain
 # enough information to retrieve and validate the contents. It shall be
 # expressed in a limited character set (namely [TODO]).
@@ -60,21 +63,22 @@ class CHKFileURI(_BaseURI):
         self.total_shares = total_shares
         self.size = size
         self.storage_index = hashutil.storage_index_hash(self.key)
-        assert len(self.storage_index) == 16
-        self.storage_index = hashutil.storage_index_hash(key)
-        assert len(self.storage_index) == 16 # sha256 hash truncated to 128
+        if not len(self.storage_index) == 16: # sha256 hash truncated to 128
+            raise BadURIError("storage index must be 16 bytes long")
 
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
-        assert mo, uri
+        if not mo:
+            raise BadURIError("%s doesn't look like a cap" % (uri,))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
-        assert mo, uri
+        if not mo:
+            raise BadURIError("%s doesn't look like a cap" % (uri,))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
@@ -212,13 +216,15 @@ class WriteableSSKFileURI(_BaseURI):
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
-        assert mo, uri
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a cap" % (uri,))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
-        assert mo, (uri, cls)
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
@@ -260,13 +266,15 @@ class ReadonlySSKFileURI(_BaseURI):
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
-        assert mo, uri
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a cap" % (uri,))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
-        assert mo, uri
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a cap" % (uri,))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
@@ -333,7 +341,8 @@ class _NewDirectoryBaseURI(_BaseURI):
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.BASE_STRING_RE.search(uri)
-        assert mo, (uri, cls)
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         bits = uri[mo.end():]
         fn = cls.INNER_URI_CLASS.init_from_string(
             cls.INNER_URI_CLASS.BASE_STRING+bits)
@@ -342,7 +351,8 @@ class _NewDirectoryBaseURI(_BaseURI):
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.BASE_HUMAN_RE.search(uri)
-        assert mo, (uri, cls)
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         bits = uri[mo.end():]
         while bits and bits[-1] == '/':
             bits = bits[:-1]

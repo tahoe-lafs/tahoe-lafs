@@ -19,7 +19,8 @@ from allmydata.util.assertutil import precondition
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
      FakeMutableFileNode, create_chk_filenode, WebErrorMixin, ShouldFailMixin
 from allmydata.interfaces import IURI, INewDirectoryURI, \
-     IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode
+     IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode, \
+     UnhandledCapTypeError
 from allmydata.mutable import servermap, publish, retrieve
 import common_util as testutil
 from allmydata.test.no_network import GridTestMixin
@@ -74,8 +75,9 @@ class FakeClient(service.MultiService):
             return FakeDirectoryNode(self).init_from_uri(u)
         if IFileURI.providedBy(u):
             return FakeCHKFileNode(u, self)
-        assert IMutableFileURI.providedBy(u), u
-        return FakeMutableFileNode(self).init_from_uri(u)
+        if IMutableFileURI.providedBy(u):
+            return FakeMutableFileNode(self).init_from_uri(u)
+        raise UnhandledCapTypeError("cap '%s' is recognized, but has no Node" % auri)
 
     def create_empty_dirnode(self):
         n = FakeDirectoryNode(self)

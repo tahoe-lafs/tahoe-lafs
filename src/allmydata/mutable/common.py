@@ -53,7 +53,8 @@ class CorruptShareError(Exception):
                                                                self.shnum,
                                                                self.reason)
 
-
+class UnknownVersionError(Exception):
+    """The share we received was of a version we don't recognize."""
 
 class ResponseCache:
     """I cache share data, to reduce the number of round trips used during

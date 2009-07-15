@@ -27,7 +27,8 @@ from allmydata.unknown import UnknownNode
 from allmydata.stats import StatsProvider
 from allmydata.history import History
 from allmydata.interfaces import IURI, INewDirectoryURI, IStatsProducer, \
-     IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, RIStubClient
+     IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, RIStubClient, \
+     UnhandledCapTypeError
 
 KiB=1024
 MiB=1024*KiB
@@ -429,9 +430,10 @@ class Client(node.Node, pollmixin.PollMixin):
                     node = LiteralFileNode(u, self) # LIT
                 else:
                     node = FileNode(u, self, self.download_cache_dirman) # CHK
-            else:
-                assert IMutableFileURI.providedBy(u), u
+            elif IMutableFileURI.providedBy(u):
                 node = MutableFileNode(self).init_from_uri(u)
+            else:
+                raise UnhandledCapTypeError("cap is recognized, but has no Node")
             self._node_cache[u_s] = node  # note: WeakValueDictionary
         return self._node_cache[u_s]
 

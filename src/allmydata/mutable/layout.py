@@ -1,6 +1,6 @@
 
 import struct
-from common import NeedMoreDataError
+from common import NeedMoreDataError, UnknownVersionError
 
 PREFIX = ">BQ32s16s" # each version has a different prefix
 SIGNED_PREFIX = ">BQ32s16s BBQQ" # this is covered by the signature
@@ -34,7 +34,9 @@ def unpack_prefix_and_signature(data):
      k, N, segsize, datalen,
      o) = unpack_header(data)
 
-    assert version == 0
+    if version != 0:
+        raise UnknownVersionError("got mutable share version %d, but I only understand version 0" % version)
+
     if len(data) < o['share_hash_chain']:
         raise NeedMoreDataError(o['share_hash_chain'],
                                 o['enc_privkey'], o['EOF']-o['enc_privkey'])
@@ -60,7 +62,9 @@ def unpack_share(data):
      o['enc_privkey'],
      o['EOF']) = struct.unpack(HEADER, data[:HEADER_LENGTH])
 
-    assert version == 0
+    if version != 0:
+        raise UnknownVersionError("got mutable share version %d, but I only understand version 0" % version)
+
     if len(data) < o['EOF']:
         raise NeedMoreDataError(o['EOF'],
                                 o['enc_privkey'], o['EOF']-o['enc_privkey'])
@@ -132,7 +136,8 @@ def pack_checkstring(seqnum, root_hash, IV):
 def unpack_checkstring(checkstring):
     cs_len = struct.calcsize(PREFIX)
     version, seqnum, root_hash, IV = struct.unpack(PREFIX, checkstring[:cs_len])
-    assert version == 0 # TODO: just ignore the share
+    if version != 0: # TODO: just ignore the share
+        raise UnknownVersionError("got mutable share version %d, but I only understand version 0" % version)
     return (seqnum, root_hash, IV)
 
 def pack_prefix(seqnum, root_hash, IV,
