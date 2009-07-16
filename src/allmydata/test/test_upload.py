@@ -10,7 +10,8 @@ from foolscap.api import fireEventually
 import allmydata # for __full_version__
 from allmydata import uri, monitor
 from allmydata.immutable import upload
-from allmydata.interfaces import IFileURI, FileTooLargeError, NoSharesError
+from allmydata.interfaces import IFileURI, FileTooLargeError, NoSharesError, \
+     NotEnoughSharesError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from no_network import GridTestMixin
@@ -83,6 +84,9 @@ class Uploadable(unittest.TestCase):
         d.addCallback(lambda res: u.close())
         return d
 
+class ServerError(Exception):
+    pass
+
 class FakeStorageServer:
     def __init__(self, mode):
         self.mode = mode
@@ -110,6 +114,12 @@ class FakeStorageServer:
     def allocate_buckets(self, storage_index, renew_secret, cancel_secret,
                          sharenums, share_size, canary):
         #print "FakeStorageServer.allocate_buckets(num=%d, size=%d)" % (len(sharenums), share_size)
+        if self.mode == "first-fail":
+            if self.queries == 0:
+                raise ServerError
+        if self.mode == "second-fail":
+            if self.queries == 1:
+                raise ServerError
         self.queries += 1
         if self.mode == "full":
             return (set(), {},)
@@ -161,18 +171,11 @@ class FakeClient:
                                    "max_segment_size": 1*MiB,
                                    }
     def __init__(self, mode="good", num_servers=50):
-        self.mode = mode
         self.num_servers = num_servers
-        if mode == "some_big_some_small":
-            peers = []
-            for fakeid in range(num_servers):
-                if fakeid % 2:
-                    peers.append(("%20d" % fakeid, FakeStorageServer("good")))
-                else:
-                    peers.append(("%20d" % fakeid, FakeStorageServer("small")))
-        else:
-            peers = [ ("%20d"%fakeid, FakeStorageServer(self.mode),)
-                           for fakeid in range(self.num_servers) ]
+        if type(mode) is str:
+            mode = dict([i,mode] for i in range(num_servers))
+        peers = [ ("%20d"%fakeid, FakeStorageServer(mode[fakeid]))
+                  for fakeid in range(self.num_servers) ]
         self.storage_broker = StorageFarmBroker(None, permute_peers=True)
         for (serverid, server) in peers:
             self.storage_broker.test_add_server(serverid, server)
@@ -373,6 +376,74 @@ class GoodServer(unittest.TestCase, ShouldFailMixin):
         d.addCallback(self._check_large, SIZE_LARGE)
         return d
 
+class ServerErrors(unittest.TestCase, ShouldFailMixin):
+    def make_node(self, mode, num_servers=10):
+        self.node = FakeClient(mode, num_servers)
+        self.u = upload.Uploader()
+        self.u.running = True
+        self.u.parent = self.node
+
+    def _check_large(self, newuri, size):
+        u = IFileURI(newuri)
+        self.failUnless(isinstance(u, uri.CHKFileURI))
+        self.failUnless(isinstance(u.storage_index, str))
+        self.failUnlessEqual(len(u.storage_index), 16)
+        self.failUnless(isinstance(u.key, str))
+        self.failUnlessEqual(len(u.key), 16)
+        self.failUnlessEqual(u.size, size)
+
+    def test_first_error(self):
+        mode = dict([(0,"good")] + [(i,"first-fail") for i in range(1,10)])
+        self.make_node(mode)
+        d = upload_data(self.u, DATA)
+        d.addCallback(extract_uri)
+        d.addCallback(self._check_large, SIZE_LARGE)
+        return d
+
+    def test_first_error_all(self):
+        self.make_node("first-fail")
+        d = self.shouldFail(NoSharesError, "first_error_all",
+                            "peer selection failed",
+                            upload_data, self.u, DATA)
+        def _check((f,)):
+            self.failUnlessIn("placed 0 shares out of 100 total", str(f.value))
+            # there should also be a 'last failure was' message
+            self.failUnlessIn("ServerError", str(f.value))
+        d.addCallback(_check)
+        return d
+
+    def test_second_error(self):
+        # we want to make sure we make it to a third pass. This means that
+        # the first pass was insufficient to place all shares, and at least
+        # one of second pass servers (other than the last one) accepted a
+        # share (so we'll believe that a third pass will be useful). (if
+        # everyone but the last server throws an error, then we'll send all
+        # the remaining shares to the last server at the end of the second
+        # pass, and if that succeeds, we won't make it to a third pass).
+        #
+        # we can achieve this 97.5% of the time by using 40 servers, having
+        # 39 of them fail on the second request, leaving only one to succeed
+        # on the second request. (we need to keep the number of servers low
+        # enough to ensure a second pass with 100 shares).
+        mode = dict([(0,"good")] + [(i,"second-fail") for i in range(1,40)])
+        self.make_node(mode, 40)
+        d = upload_data(self.u, DATA)
+        d.addCallback(extract_uri)
+        d.addCallback(self._check_large, SIZE_LARGE)
+        return d
+
+    def test_second_error_all(self):
+        self.make_node("second-fail")
+        d = self.shouldFail(NotEnoughSharesError, "second_error_all",
+                            "peer selection failed",
+                            upload_data, self.u, DATA)
+        def _check((f,)):
+            self.failUnlessIn("placed 10 shares out of 100 total", str(f.value))
+            # there should also be a 'last failure was' message
+            self.failUnlessIn("ServerError", str(f.value))
+        d.addCallback(_check)
+        return d
+
 class FullServer(unittest.TestCase):
     def setUp(self):
         self.node = FakeClient(mode="full")
@@ -522,7 +593,8 @@ class PeerSelection(unittest.TestCase):
     def test_some_big_some_small(self):
         # 10 shares, 20 servers, but half the servers don't support a
         # share-size large enough for our file
-        self.node = FakeClient(mode="some_big_some_small", num_servers=20)
+        mode = dict([(i,{0:"good",1:"small"}[i%2]) for i in range(20)])
+        self.node = FakeClient(mode, num_servers=20)
         self.u = upload.Uploader()
         self.u.running = True
         self.u.parent = self.node

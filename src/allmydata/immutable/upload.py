@@ -280,7 +280,7 @@ class Tahoe2PeerSelector:
             # we've finished the second-or-later pass. Move all the remaining
             # peers back into self.contacted_peers for the next pass.
             self.contacted_peers.extend(self.contacted_peers2)
-            self.contacted_peers[:] = []
+            self.contacted_peers2[:] = []
             return self._loop()
         else:
             # no more peers. If we haven't placed enough shares, we fail.
