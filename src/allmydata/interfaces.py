@@ -411,12 +411,6 @@ class IStorageBroker(Interface):
         """
 
 
-# hm, we need a solution for forward references in schemas
-FileNode_ = Any() # TODO: foolscap needs constraints on copyables
-DirectoryNode_ = Any() # TODO: same
-AnyNode_ = ChoiceOf(FileNode_, DirectoryNode_)
-EncryptedThing = str
-
 class IURI(Interface):
     def init_from_string(uri):
         """Accept a string (as created by my to_string() method) and populate
