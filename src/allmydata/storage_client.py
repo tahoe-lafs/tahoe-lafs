@@ -33,6 +33,7 @@ from zope.interface import implements, Interface
 from foolscap.api import eventually
 from allmydata.interfaces import IStorageBroker
 from allmydata.util import idlib, log
+from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.rrefutil import add_version_to_remote_reference
 
 # who is responsible for de-duplication?
@@ -68,7 +69,7 @@ class StorageFarmBroker:
         # descriptor manages its own Reconnector, and will give us a
         # RemoteReference when we ask them for it.
         self.descriptors = {}
-        # self.servers are statically configured from unit tests
+        # self.test_servers are statically configured from unit tests
         self.test_servers = {} # serverid -> rref
         self.introducer_client = None
 
@@ -83,6 +84,8 @@ class StorageFarmBroker:
         ic.subscribe_to("storage", self._got_announcement)
 
     def _got_announcement(self, serverid, ann_d):
+        precondition(isinstance(serverid, str), serverid)
+        precondition(len(serverid) == 20, serverid)
         assert ann_d["service-name"] == "storage"
         old = self.descriptors.get(serverid)
         if old:
@@ -127,7 +130,9 @@ class StorageFarmBroker:
             rref = dsc.get_rref()
             if rref:
                 servers[serverid] = rref
-        return frozenset(servers.items())
+        result = frozenset(servers.items())
+        _assert(len(result) <= len(self.get_all_serverids()), result, self.get_all_serverids())
+        return result
 
     def get_all_serverids(self):
         serverids = set()
