@@ -18,9 +18,8 @@ from allmydata.util import fileutil, base32
 from allmydata.util.assertutil import precondition
 from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
      FakeMutableFileNode, create_chk_filenode, WebErrorMixin, ShouldFailMixin
-from allmydata.interfaces import IURI, INewDirectoryURI, \
-     IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, IMutableFileNode, \
-     UnhandledCapTypeError
+from allmydata.interfaces import IURI, IDirectoryURI, IReadonlyDirectoryURI, \
+     IFileURI, IMutableFileURI, IMutableFileNode, UnhandledCapTypeError
 from allmydata.mutable import servermap, publish, retrieve
 import common_util as testutil
 from allmydata.test.no_network import GridTestMixin
@@ -70,8 +69,7 @@ class FakeClient(service.MultiService):
             auri = readcap
         precondition(isinstance(auri, str), auri)
         u = uri.from_string(auri)
-        if (INewDirectoryURI.providedBy(u)
-            or IReadonlyNewDirectoryURI.providedBy(u)):
+        if (IDirectoryURI.providedBy(u) or IReadonlyDirectoryURI.providedBy(u)):
             return FakeDirectoryNode(self).init_from_uri(u)
         if IFileURI.providedBy(u):
             return FakeCHKFileNode(u, self)
@@ -1868,7 +1866,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_POST_mkdir_no_parentdir_noredirect(self):
         d = self.POST("/uri?t=mkdir")
         def _after_mkdir(res):
-            uri.NewDirectoryURI.init_from_string(res)
+            uri.DirectoryURI.init_from_string(res)
         d.addCallback(_after_mkdir)
         return d
 

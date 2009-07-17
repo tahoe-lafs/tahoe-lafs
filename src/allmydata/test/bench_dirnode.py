@@ -25,19 +25,19 @@ class FakeMutableFileNode(mut_filenode.MutableFileNode):
         mut_filenode.MutableFileNode.__init__(self, client)
         self._uri = uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))
 
-class FakeDirectoryNode(dirnode.NewDirectoryNode):
+class FakeDirectoryNode(dirnode.DirectoryNode):
     def __init__(self, client):
-        dirnode.NewDirectoryNode.__init__(self, client)
+        dirnode.DirectoryNode.__init__(self, client)
         mutfileuri = uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))
-        myuri = uri.NewDirectoryURI(mutfileuri)
+        myuri = uri.DirectoryURI(mutfileuri)
         self.init_from_uri(myuri)
 
 
 children = [] # tuples of (k, v) (suitable for passing to dict())
 packstr = None
 fakeclient = FakeClient()
-testdirnode = dirnode.NewDirectoryNode(fakeclient)
-testdirnode.init_from_uri(uri.NewDirectoryURI(uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))))
+testdirnode = dirnode.DirectoryNode(fakeclient)
+testdirnode.init_from_uri(uri.DirectoryURI(uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))))
 
 def random_unicode(l):
     while True:

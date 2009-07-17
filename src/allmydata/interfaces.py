@@ -467,9 +467,9 @@ class IImmutableFileURI(IFileURI):
 
 class IMutableFileURI(Interface):
     """I am a URI which represents a mutable filenode."""
-class INewDirectoryURI(Interface):
+class IDirectoryURI(Interface):
     pass
-class IReadonlyNewDirectoryURI(Interface):
+class IReadonlyDirectoryURI(Interface):
     pass
 
 class CannotPackUnknownNodeError(Exception):
@@ -2023,7 +2023,7 @@ class IClient(Interface):
                  IFileNode or IMutableFileNode -providing instances, like
                  FileNode, LiteralFileNode, or MutableFileNode.
                  Directory-specifying URIs will result in
-                 IDirectoryNode-providing instances, like NewDirectoryNode.
+                 IDirectoryNode-providing instances, like DirectoryNode.
         """
 
 class IClientStatus(Interface):

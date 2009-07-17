@@ -7,7 +7,7 @@ from allmydata import uri, dirnode
 from allmydata.client import Client
 from allmydata.immutable import upload
 from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
-     INewDirectoryURI, IReadonlyNewDirectoryURI, IFileNode, \
+     IDirectoryURI, IReadonlyDirectoryURI, IFileNode, \
      ExistingChildError, NoSuchChildError, \
      IDeepCheckResults, IDeepCheckAndRepairResults, CannotPackUnknownNodeError
 from allmydata.mutable.filenode import MutableFileNode
@@ -83,8 +83,8 @@ class FakeClient:
         if not u:
             u = readcap
         u = IURI(u)
-        if (INewDirectoryURI.providedBy(u)
-            or IReadonlyNewDirectoryURI.providedBy(u)):
+        if (IDirectoryURI.providedBy(u)
+            or IReadonlyDirectoryURI.providedBy(u)):
             return FakeDirectoryNode(self).init_from_uri(u)
         return Marker(u.to_string())
 
@@ -929,7 +929,7 @@ class UCWEingMutableFileNode(MutableFileNode):
             return res
         d.addCallback(_ucwe)
         return d
-class UCWEingNewDirectoryNode(dirnode.NewDirectoryNode):
+class UCWEingDirectoryNode(dirnode.DirectoryNode):
     filenode_class = UCWEingMutableFileNode
 
 
@@ -957,7 +957,7 @@ class Deleter(GridTestMixin, unittest.TestCase):
             return dn.add_file(u"file", small)
         d.addCallback(_created_dir)
         def _do_delete(ignored):
-            n = UCWEingNewDirectoryNode(c0).init_from_uri(self.root_uri)
+            n = UCWEingDirectoryNode(c0).init_from_uri(self.root_uri)
             assert n._node.please_ucwe_after_next_upload == False
             n._node.please_ucwe_after_next_upload = True
             # This should succeed, not raise an exception

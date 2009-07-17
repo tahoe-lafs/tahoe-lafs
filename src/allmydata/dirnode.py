@@ -18,7 +18,7 @@ from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.netstring import netstring, split_netstring
-from allmydata.uri import NewDirectoryURI, LiteralFileURI, from_string
+from allmydata.uri import DirectoryURI, LiteralFileURI, from_string
 from pycryptopp.cipher.aes import AES
 
 class CachingDict(dict):
@@ -140,7 +140,7 @@ class Adder:
         new_contents = self.node._pack_contents(children)
         return new_contents
 
-class NewDirectoryNode:
+class DirectoryNode:
     implements(IDirectoryNode, ICheckable, IDeepCheckable)
     filenode_class = MutableFileNode
 
@@ -175,7 +175,7 @@ class NewDirectoryNode:
         d.addCallback(self._filenode_created)
         return d
     def _filenode_created(self, res):
-        self._uri = NewDirectoryURI(IMutableFileURI(self._node.get_uri()))
+        self._uri = DirectoryURI(IMutableFileURI(self._node.get_uri()))
         return self
 
     def get_size(self):

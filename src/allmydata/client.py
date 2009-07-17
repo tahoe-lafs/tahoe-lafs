@@ -21,13 +21,13 @@ from allmydata.util import hashutil, base32, pollmixin, cachedir, log
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.uri import LiteralFileURI, UnknownURI
-from allmydata.dirnode import NewDirectoryNode
+from allmydata.dirnode import DirectoryNode
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.unknown import UnknownNode
 from allmydata.stats import StatsProvider
 from allmydata.history import History
-from allmydata.interfaces import IURI, INewDirectoryURI, IStatsProducer, \
-     IReadonlyNewDirectoryURI, IFileURI, IMutableFileURI, RIStubClient, \
+from allmydata.interfaces import IURI, IDirectoryURI, IStatsProducer, \
+     IReadonlyDirectoryURI, IFileURI, IMutableFileURI, RIStubClient, \
      UnhandledCapTypeError
 
 KiB=1024
@@ -419,12 +419,12 @@ class Client(node.Node, pollmixin.PollMixin):
             return UnknownNode(writecap, readcap)
         u_s = u.to_string()
         if u_s not in self._node_cache:
-            if IReadonlyNewDirectoryURI.providedBy(u):
-                # new-style read-only dirnodes
-                node = NewDirectoryNode(self).init_from_uri(u)
-            elif INewDirectoryURI.providedBy(u):
-                # new-style dirnodes
-                node = NewDirectoryNode(self).init_from_uri(u)
+            if IReadonlyDirectoryURI.providedBy(u):
+                # read-only dirnodes
+                node = DirectoryNode(self).init_from_uri(u)
+            elif IDirectoryURI.providedBy(u):
+                # dirnodes
+                node = DirectoryNode(self).init_from_uri(u)
             elif IFileURI.providedBy(u):
                 if isinstance(u, LiteralFileURI):
                     node = LiteralFileNode(u, self) # LIT
@@ -439,7 +439,7 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def create_empty_dirnode(self):
         d = self.create_mutable_file()
-        d.addCallback(NewDirectoryNode.create_with_mutablefile, self)
+        d.addCallback(DirectoryNode.create_with_mutablefile, self)
         return d
 
     def create_mutable_file(self, contents="", keysize=None):

@@ -37,7 +37,7 @@ class CLI(unittest.TestCase):
         open("cli/test_options/node.url","w").write("http://localhost:8080/\n")
         filenode_uri = uri.WriteableSSKFileURI(writekey="\x00"*16,
                                                fingerprint="\x00"*32)
-        private_uri = uri.NewDirectoryURI(filenode_uri).to_string()
+        private_uri = uri.DirectoryURI(filenode_uri).to_string()
         open("cli/test_options/private/root_dir.cap", "w").write(private_uri + "\n")
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options"])
@@ -62,7 +62,7 @@ class CLI(unittest.TestCase):
         o = cli.ListOptions()
         other_filenode_uri = uri.WriteableSSKFileURI(writekey="\x11"*16,
                                                      fingerprint="\x11"*32)
-        other_uri = uri.NewDirectoryURI(other_filenode_uri).to_string()
+        other_uri = uri.DirectoryURI(other_filenode_uri).to_string()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--dir-cap", other_uri])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
@@ -199,7 +199,7 @@ class CLI(unittest.TestCase):
         writekey = "\x01" * 16
         fingerprint = "\xfe" * 32
         u1 = uri.WriteableSSKFileURI(writekey, fingerprint)
-        u = uri.NewDirectoryURI(u1)
+        u = uri.DirectoryURI(u1)
 
         output = self._dump_cap(u.to_string())
         self.failUnless("Directory Writeable URI:" in output, output)

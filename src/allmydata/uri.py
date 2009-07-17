@@ -5,7 +5,7 @@ from twisted.python.components import registerAdapter
 from allmydata.storage.server import si_a2b, si_b2a
 from allmydata.util import base32, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IImmutableFileURI, \
-    IVerifierURI, IMutableFileURI, INewDirectoryURI, IReadonlyNewDirectoryURI
+    IVerifierURI, IMutableFileURI, IDirectoryURI, IReadonlyDirectoryURI
 
 class BadURIError(Exception):
     pass
@@ -330,7 +330,7 @@ class SSKVerifierURI(_BaseURI):
         return 'URI:SSK-Verifier:%s:%s' % (si_b2a(self.storage_index),
                                            base32.b2a(self.fingerprint))
 
-class _NewDirectoryBaseURI(_BaseURI):
+class _DirectoryBaseURI(_BaseURI):
     implements(IURI, IDirnodeURI)
     def __init__(self, filenode_uri=None):
         self._filenode_uri = filenode_uri
@@ -379,13 +379,13 @@ class _NewDirectoryBaseURI(_BaseURI):
         return True
 
     def get_verify_cap(self):
-        return NewDirectoryURIVerifier(self._filenode_uri.get_verify_cap())
+        return DirectoryURIVerifier(self._filenode_uri.get_verify_cap())
 
     def get_storage_index(self):
         return self._filenode_uri.get_storage_index()
 
-class NewDirectoryURI(_NewDirectoryBaseURI):
-    implements(INewDirectoryURI)
+class DirectoryURI(_DirectoryBaseURI):
+    implements(IDirectoryURI)
 
     BASE_STRING='URI:DIR2:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
@@ -395,16 +395,16 @@ class NewDirectoryURI(_NewDirectoryBaseURI):
     def __init__(self, filenode_uri=None):
         if filenode_uri:
             assert not filenode_uri.is_readonly()
-        _NewDirectoryBaseURI.__init__(self, filenode_uri)
+        _DirectoryBaseURI.__init__(self, filenode_uri)
 
     def is_readonly(self):
         return False
 
     def get_readonly(self):
-        return ReadonlyNewDirectoryURI(self._filenode_uri.get_readonly())
+        return ReadonlyDirectoryURI(self._filenode_uri.get_readonly())
 
-class ReadonlyNewDirectoryURI(_NewDirectoryBaseURI):
-    implements(IReadonlyNewDirectoryURI)
+class ReadonlyDirectoryURI(_DirectoryBaseURI):
+    implements(IReadonlyDirectoryURI)
 
     BASE_STRING='URI:DIR2-RO:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
@@ -414,7 +414,7 @@ class ReadonlyNewDirectoryURI(_NewDirectoryBaseURI):
     def __init__(self, filenode_uri=None):
         if filenode_uri:
             assert filenode_uri.is_readonly()
-        _NewDirectoryBaseURI.__init__(self, filenode_uri)
+        _DirectoryBaseURI.__init__(self, filenode_uri)
 
     def is_readonly(self):
         return True
@@ -422,7 +422,7 @@ class ReadonlyNewDirectoryURI(_NewDirectoryBaseURI):
     def get_readonly(self):
         return self
 
-class NewDirectoryURIVerifier(_NewDirectoryBaseURI):
+class DirectoryURIVerifier(_DirectoryBaseURI):
     implements(IVerifierURI)
 
     BASE_STRING='URI:DIR2-Verifier:'
@@ -460,11 +460,11 @@ def from_string(s):
     elif s.startswith('URI:SSK-Verifier:'):
         return SSKVerifierURI.init_from_string(s)
     elif s.startswith('URI:DIR2:'):
-        return NewDirectoryURI.init_from_string(s)
+        return DirectoryURI.init_from_string(s)
     elif s.startswith('URI:DIR2-RO:'):
-        return ReadonlyNewDirectoryURI.init_from_string(s)
+        return ReadonlyDirectoryURI.init_from_string(s)
     elif s.startswith('URI:DIR2-Verifier:'):
-        return NewDirectoryURIVerifier.init_from_string(s)
+        return DirectoryURIVerifier.init_from_string(s)
     return UnknownURI(s)
 
 registerAdapter(from_string, str, IURI)

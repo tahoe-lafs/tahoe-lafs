@@ -185,11 +185,11 @@ class Invalid(unittest.TestCase):
 class Constraint(unittest.TestCase):
     def test_constraint(self):
        good="http://127.0.0.1:3456/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
-       uri.NewDirectoryURI.init_from_human_encoding(good)
-       self.failUnlessRaises(uri.BadURIError, uri.NewDirectoryURI.init_from_string, good)
+       uri.DirectoryURI.init_from_human_encoding(good)
+       self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, good)
        bad = good + '==='
-       self.failUnlessRaises(uri.BadURIError, uri.NewDirectoryURI.init_from_human_encoding, bad)
-       self.failUnlessRaises(uri.BadURIError, uri.NewDirectoryURI.init_from_string, bad)
+       self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_human_encoding, bad)
+       self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, bad)
        fileURI = 'URI:CHK:gh3l5rbvnv2333mrfvalmjfr4i:lz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma:3:10:345834'
        uri.CHKFileURI.init_from_string(fileURI)
 
@@ -272,13 +272,13 @@ class NewDirnode(unittest.TestCase):
         fingerprint = "\x02" * 32
 
         n = uri.WriteableSSKFileURI(writekey, fingerprint)
-        u1 = uri.NewDirectoryURI(n)
+        u1 = uri.DirectoryURI(n)
         self.failIf(u1.is_readonly())
         self.failUnless(u1.is_mutable())
         self.failUnless(IURI.providedBy(u1))
         self.failIf(IFileURI.providedBy(u1))
         self.failUnless(IDirnodeURI.providedBy(u1))
-        self.failUnless("NewDirectoryURI" in str(u1))
+        self.failUnless("DirectoryURI" in str(u1))
         u1_filenode = u1.get_filenode_uri()
         self.failUnless(u1_filenode.is_mutable())
         self.failIf(u1_filenode.is_readonly())
@@ -309,7 +309,7 @@ class NewDirnode(unittest.TestCase):
         u3a = uri.from_string(u3.to_string())
         self.failUnlessIdentical(u3a, u3a.get_readonly())
 
-        u4 = uri.ReadonlyNewDirectoryURI(u2._filenode_uri.get_readonly())
+        u4 = uri.ReadonlyDirectoryURI(u2._filenode_uri.get_readonly())
         self.failUnlessEqual(u4.to_string(), u3.to_string())
         self.failUnless(u4.is_readonly())
         self.failUnless(u4.is_mutable())
@@ -324,8 +324,8 @@ class NewDirnode(unittest.TestCase):
         verifiers = [u1.get_verify_cap(), u2.get_verify_cap(),
                      u3.get_verify_cap(), u4.get_verify_cap(),
                      IVerifierURI(u1.get_verify_cap().to_string()),
-                     uri.NewDirectoryURIVerifier(n.get_verify_cap()),
-                     uri.NewDirectoryURIVerifier(n.get_verify_cap().to_string()),
+                     uri.DirectoryURIVerifier(n.get_verify_cap()),
+                     uri.DirectoryURIVerifier(n.get_verify_cap().to_string()),
                      ]
         for v in verifiers:
             self.failUnless(IVerifierURI.providedBy(v))

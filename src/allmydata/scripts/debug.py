@@ -430,15 +430,15 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
         print >>out, " storage index:", si_b2a(u.storage_index)
         print >>out, " fingerprint:", base32.b2a(u.fingerprint)
 
-    elif isinstance(u, uri.NewDirectoryURI):
+    elif isinstance(u, uri.DirectoryURI):
         if show_header:
             print >>out, "Directory Writeable URI:"
         dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
-    elif isinstance(u, uri.ReadonlyNewDirectoryURI):
+    elif isinstance(u, uri.ReadonlyDirectoryURI):
         if show_header:
             print >>out, "Directory Read-only URI:"
         dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
-    elif isinstance(u, uri.NewDirectoryURIVerifier):
+    elif isinstance(u, uri.DirectoryURIVerifier):
         if show_header:
             print >>out, "Directory Verifier URI:"
         dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
