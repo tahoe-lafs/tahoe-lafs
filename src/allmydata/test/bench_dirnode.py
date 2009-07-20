@@ -104,7 +104,7 @@ def prof_benchmarks():
 if __name__ == "__main__":
     if '--profile' in sys.argv:
         if os.path.exists(PROF_FILE_NAME):
-            print "WARNING: profiling results file '%s' already exists -- the profiling results from this run will be added into the profiling results stored in that file and then the sum of them will be printed out after this run."
+            print "WARNING: profiling results file '%s' already exists -- the profiling results from this run will be added into the profiling results stored in that file and then the sum of them will be printed out after this run." % (PROF_FILE_NAME,)
         prof_benchmarks()
         print_stats()
     else:
