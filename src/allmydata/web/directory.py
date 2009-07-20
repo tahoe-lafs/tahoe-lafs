@@ -20,7 +20,7 @@ from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata import dirnode
 from allmydata.web.common import text_plain, WebError, \
      IOpHandleTable, NeedOperationHandleError, \
-     boolean_of_arg, get_arg, get_root, \
+     boolean_of_arg, get_arg, get_root, parse_replace_arg, \
      should_create_intermediate_directories, \
      getxmlfile, RenderMixin, humanize_failure
 from allmydata.web.filenode import ReplaceMeMixin, \
@@ -155,7 +155,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def render_PUT(self, ctx):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
+        replace = parse_replace_arg(get_arg(req, "replace", "true"))
+
         if t == "mkdir":
             # our job was done by the traversal/create-intermediate-directory
             # process that got us here.
