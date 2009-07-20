@@ -391,6 +391,7 @@ class Help(unittest.TestCase):
     def test_mv(self):
         help = str(cli.MvOptions())
         self.failUnless("mv FROM TO" in help, help)
+        self.failUnless("Use 'tahoe mv' to move files" in help)
 
     def test_ln(self):
         help = str(cli.LnOptions())
