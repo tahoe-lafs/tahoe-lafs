@@ -789,6 +789,94 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check3)
         return d
 
+class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_mv_behavior(self):
+        self.basedir = "cli/Mv/mv_behavior"
+        self.set_up_grid()
+        fn1 = os.path.join(self.basedir, "file1")
+        DATA1 = "Nuclear launch codes"
+        open(fn1, "wb").write(DATA1)
+        fn2 = os.path.join(self.basedir, "file2")
+        DATA2 = "UML diagrams"
+        open(fn2, "wb").write(DATA2)
+        # copy both files to the grid
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda res:
+            self.do_cli("cp", fn1, "tahoe:"))
+        d.addCallback(lambda res:
+            self.do_cli("cp", fn2, "tahoe:"))
+        # do mv file1 file3 
+        # (we should be able to rename files)
+        d.addCallback(lambda res:
+            self.do_cli("mv", "tahoe:file1", "tahoe:file3"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessIn("OK", out, "mv didn't rename a file"))
+        # do mv file3 file2
+        # (This should succeed without issue)
+        d.addCallback(lambda res:
+            self.do_cli("mv", "tahoe:file3", "tahoe:file2"))
+        # Out should contain "OK" to show that the transfer worked.
+        d.addCallback(lambda (rc,out,err):
+            self.failUnlessIn("OK", out, "mv didn't output OK after mving"))
+        # Next, make a remote directory.
+        d.addCallback(lambda res:
+            self.do_cli("mkdir", "tahoe:directory"))
+        # mv file2 directory
+        # (should fail with a descriptive error message; the CLI mv 
+        #  client should support this)
+        d.addCallback(lambda res:
+            self.do_cli("mv", "tahoe:file2", "tahoe:directory"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessIn(
+                "Error: You can't overwrite a directory with a file", err,
+                "mv shouldn't overwrite directories" ))
+        # mv file2 directory/
+        # (should succeed by making file2 a child node of directory)
+        d.addCallback(lambda res:
+            self.do_cli("mv", "tahoe:file2", "tahoe:directory/"))
+        # We should see an "OK"...
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessIn("OK", out,
+                            "mv didn't mv a file into a directory"))
+        # ... and be able to GET the file
+        d.addCallback(lambda res:
+            self.do_cli("get", "tahoe:directory/file2", self.basedir + "new"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnless(os.path.exists(self.basedir + "new"),
+                            "mv didn't write the destination file"))
+        # ... and not find the file where it was before.
+        d.addCallback(lambda res:
+            self.do_cli("get", "tahoe:file2", "file2"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessIn("404", err,
+                            "mv left the source file intact"))
+        # Let's build:
+        # directory/directory2/some_file
+        # directory3
+        d.addCallback(lambda res:
+            self.do_cli("mkdir", "tahoe:directory/directory2"))
+        d.addCallback(lambda res:
+            self.do_cli("cp", fn2, "tahoe:directory/directory2/some_file"))
+        d.addCallback(lambda res:
+            self.do_cli("mkdir", "tahoe:directory3"))
+        # Let's now try to mv directory/directory2/some_file to
+        # directory3/some_file
+        d.addCallback(lambda res:
+            self.do_cli("mv", "tahoe:directory/directory2/some_file",
+                        "tahoe:directory3/"))
+        # We should have just some_file in tahoe:directory3
+        d.addCallback(lambda res:
+            self.do_cli("get", "tahoe:directory3/some_file", "some_file"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnless("404" not in err,
+                              "mv didn't handle nested directories correctly"))
+        d.addCallback(lambda res:
+            self.do_cli("get", "tahoe:directory3/directory", "directory"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessIn("404", err,
+                              "mv moved the wrong thing"))
+        return d
+
 class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def test_not_enough_args(self):
