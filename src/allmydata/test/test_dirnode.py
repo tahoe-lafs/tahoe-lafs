@@ -967,7 +967,7 @@ class Deleter(GridTestMixin, unittest.TestCase):
         return d
 
 class Adder(unittest.TestCase,
-              testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
+            testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
 
     def setUp(self):
         self.client = FakeClient()
@@ -983,10 +983,9 @@ class Adder(unittest.TestCase,
             # root/file2
             # root/dir1
             d = root_node.add_file(u'file1', upload.Data("Important Things",
-                                                         None))
+                None))
             d.addCallback(lambda res:
-                root_node.add_file(u'file2', upload.Data("Sekrit Codes",
-                                                         None)))
+                root_node.add_file(u'file2', upload.Data("Sekrit Codes", None)))
             d.addCallback(lambda res:
                 root_node.create_empty_directory(u"dir1"))
             d.addCallback(lambda res: root_node)
@@ -996,14 +995,11 @@ class Adder(unittest.TestCase,
 
         def _test_adder(root_node):
             d = root_node.set_node(u'file1', filenode)
-
             # We've overwritten file1. Let's try it with a directory
             d.addCallback(lambda res:
                 root_node.create_empty_directory(u'dir2'))
-
             d.addCallback(lambda res:
                 root_node.set_node(u'dir2', filenode))
-
             # We try overwriting a file with a child while also specifying
             # overwrite=False. We should receive an ExistingChildError 
             # when we do this.
@@ -1012,23 +1008,20 @@ class Adder(unittest.TestCase,
                                 "child 'file1' already exists",
                                root_node.set_node, u"file1",
                                filenode, overwrite=False))
-
             # If we try with a directory, we should see the same thing
             d.addCallback(lambda res:
                 self.shouldFail(ExistingChildError, "set_node",
                                 "child 'dir1' already exists",
                                 root_node.set_node, u'dir1', filenode,
                                 overwrite=False))
-
             d.addCallback(lambda res:
                  root_node.set_node(u'file1', filenode,
-                                    overwrite="only_files"))
-
+                                    overwrite="only-files"))
             d.addCallback(lambda res:
                  self.shouldFail(ExistingChildError, "set_node",
                                 "child 'dir1' already exists",
                                 root_node.set_node, u'dir1', filenode,
-                                overwrite="only_files"))
+                                overwrite="only-files"))
             return d
 
         d.addCallback(_test_adder)

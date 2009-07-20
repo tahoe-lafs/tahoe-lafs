@@ -99,7 +99,7 @@ class Adder:
                 if not self.overwrite:
                     raise ExistingChildError("child '%s' already exists" % name)
 
-                if self.overwrite == "only_files" and IDirectoryNode.providedBy(children[name][0]):
+                if self.overwrite == "only-files" and IDirectoryNode.providedBy(children[name][0]):
                     raise ExistingChildError("child '%s' already exists" % name)
                 metadata = children[name][1].copy()
             else:
