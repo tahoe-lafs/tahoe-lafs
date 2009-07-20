@@ -702,6 +702,26 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addBoth(self.should404, "test_GET_FILEURL_missing")
         return d
 
+    def test_PUT_overwrite_only_files(self):
+        # create a directory, put a file in that directory.
+        contents, n, uri = self.makefile(8)
+        d = self.PUT(self.public_url + "/foo/dir?t=mkdir", "")
+        d.addCallback(lambda res:
+            self.PUT(self.public_url + "/foo/dir/file1.txt",
+                     self.NEWFILE_CONTENTS))
+        # try to overwrite the file with replace=only-files
+        # (this should work)
+        d.addCallback(lambda res:
+            self.PUT(self.public_url + "/foo/dir/file1.txt?t=uri&replace=only-files",
+                     uri))
+        d.addCallback(lambda res:
+            self.shouldFail2(error.Error, "PUT_bad_t", "409 Conflict",
+                 "There was already a child by that name, and you asked me "
+                 "to not replace it",
+                 self.PUT, self.public_url + "/foo/dir?t=uri&replace=only-files",
+                 uri))
+        return d
+
     def test_PUT_NEWFILEURL(self):
         d = self.PUT(self.public_url + "/foo/new.txt", self.NEWFILE_CONTENTS)
         # TODO: we lose the response code, so we can't check this
