@@ -17,10 +17,10 @@ def mv(options, mode="move"):
 
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    rootcap, path = get_alias(aliases, from_file, DEFAULT_ALIAS)
+    rootcap, from_path = get_alias(aliases, from_file, DEFAULT_ALIAS)
     from_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
-    if path:
-        from_url += "/" + escape_path(path)
+    if from_path:
+        from_url += "/" + escape_path(from_path)
     # figure out the source cap
     data = urllib.urlopen(from_url + "?t=json").read()
     nodetype, attrs = simplejson.loads(data)
@@ -34,18 +34,23 @@ def mv(options, mode="move"):
     to_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
     if path:
         to_url += "/" + escape_path(path)
-    if path.endswith("/"):
+
+    if to_url.endswith("/"):
         # "mv foo.txt bar/" == "mv foo.txt bar/foo.txt"
-        pass # TODO
-    to_url += "?t=uri"
+        to_url += escape_path(from_path[from_path.rfind("/")+1:])
+
+    to_url += "?t=uri&replace=only-files"
 
     resp = do_http("PUT", to_url, cap)
     status = resp.status
     if not re.search(r'^2\d\d$', str(status)):
-        print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
-        print >>stderr, resp.read()
-        if mode == "move":
-            print >>stderr, "NOT removing the original"
+        if status == 409:
+            print >>stderr, "Error: You can't overwrite a directory with a file"
+        else:
+            print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
+            print >>stderr, resp.read()
+            if mode == "move":
+                print >>stderr, "NOT removing the original"
         return
 
     if mode == "move":
@@ -57,6 +62,3 @@ def mv(options, mode="move"):
 
     print >>stdout, "OK"
     return
-
-
-
