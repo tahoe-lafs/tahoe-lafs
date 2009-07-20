@@ -15,7 +15,7 @@ from allmydata.util import log, base32
 
 from allmydata.web.common import text_plain, WebError, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories, \
-     MyExceptionHandler
+     MyExceptionHandler, parse_replace_arg
 from allmydata.web.check_results import CheckResults, \
      CheckAndRepairResults, LiteralCheckResults
 from allmydata.web.info import MoreInfo
@@ -109,7 +109,8 @@ class PlaceHolderNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def render_PUT(self, ctx):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
+        replace = parse_replace_arg(get_arg(req, "replace", "true"))
+
         assert self.parentnode and self.name
         if req.getHeader("content-range"):
             raise WebError("Content-Range in PUT not yet supported",
@@ -212,7 +213,8 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def render_PUT(self, ctx):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
+        replace = parse_replace_arg(get_arg(req, "replace", "true"))
+
         if not t:
             if self.node.is_mutable():
                 return self.replace_my_contents(req)
