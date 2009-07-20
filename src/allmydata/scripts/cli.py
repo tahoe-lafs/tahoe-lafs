@@ -219,6 +219,13 @@ class MvOptions(VDriveOptions):
 
     def getSynopsis(self):
         return "%s mv FROM TO" % (os.path.basename(sys.argv[0]),)
+    longdesc = """
+    Use 'tahoe mv' to move files that are already on the grid elsewhere on the grid, e.g., 'tahoe mv alias:some_file alias:new_file'.
+
+    If moving a remote file into a remote directory, you'll need to append a '/' to the name of the remote directory, e.g., 'tahoe mv tahoe:file1 tahoe:dir/', not 'tahoe mv tahoe:file1 tahoe:dir'.
+
+    Note that it is not possible to use this command to move local files to the grid -- use 'tahoe cp' for that.
+    """
 
 class LnOptions(VDriveOptions):
     def parseArgs(self, frompath, topath):
