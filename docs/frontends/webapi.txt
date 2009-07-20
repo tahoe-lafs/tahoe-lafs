@@ -572,7 +572,10 @@ PUT /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri
   there is already an object at the given location, rather than overwriting the
   existing object. Note that "true", "t", and "1" are all synonyms for "True",
   and "false", "f", and "0" are synonyms for "False". the parameter is
-  case-insensitive.
+  case-insensitive. If you want this behavior only if there is an existing 
+  directory at the same location (that is, you want the operation to return an
+  error if there is a directory at the same name, but to succeed if there is a
+  file), add a "replace=only-files" argument, as "?t=uri&replace=only-files".
 
 === Deleting a File or Directory ===
 
