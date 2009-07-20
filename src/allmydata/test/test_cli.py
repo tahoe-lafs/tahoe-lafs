@@ -805,12 +805,14 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("cp", fn1, "tahoe:"))
         d.addCallback(lambda res:
             self.do_cli("cp", fn2, "tahoe:"))
-        # do mv file1 file3 
+
+        # do mv file1 file3
         # (we should be able to rename files)
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file1", "tahoe:file3"))
         d.addCallback(lambda (rc, out, err):
             self.failUnlessIn("OK", out, "mv didn't rename a file"))
+
         # do mv file3 file2
         # (This should succeed without issue)
         d.addCallback(lambda res:
@@ -818,11 +820,13 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Out should contain "OK" to show that the transfer worked.
         d.addCallback(lambda (rc,out,err):
             self.failUnlessIn("OK", out, "mv didn't output OK after mving"))
+
         # Next, make a remote directory.
         d.addCallback(lambda res:
             self.do_cli("mkdir", "tahoe:directory"))
+
         # mv file2 directory
-        # (should fail with a descriptive error message; the CLI mv 
+        # (should fail with a descriptive error message; the CLI mv
         #  client should support this)
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file2", "tahoe:directory"))
@@ -830,6 +834,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn(
                 "Error: You can't overwrite a directory with a file", err,
                 "mv shouldn't overwrite directories" ))
+
         # mv file2 directory/
         # (should succeed by making file2 a child node of directory)
         d.addCallback(lambda res:
@@ -850,6 +855,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda (rc, out, err):
             self.failUnlessIn("404", err,
                             "mv left the source file intact"))
+
         # Let's build:
         # directory/directory2/some_file
         # directory3
@@ -859,6 +865,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("cp", fn2, "tahoe:directory/directory2/some_file"))
         d.addCallback(lambda res:
             self.do_cli("mkdir", "tahoe:directory3"))
+
         # Let's now try to mv directory/directory2/some_file to
         # directory3/some_file
         d.addCallback(lambda res:

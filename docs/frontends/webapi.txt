@@ -566,16 +566,16 @@ PUT /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri
   request, and this same cap is returned in the response body.
 
   The default behavior is to overwrite any existing object at the same
-  location. To prevent this (and make the operation return an error instead of
-  overwriting), add a "replace=false" argument, as "?t=uri&replace=false". With
-  replace=false, this operation will return an HTTP 409 "Conflict" error if
-  there is already an object at the given location, rather than overwriting the
-  existing object. Note that "true", "t", and "1" are all synonyms for "True",
-  and "false", "f", and "0" are synonyms for "False". the parameter is
-  case-insensitive. If you want this behavior only if there is an existing 
-  directory at the same location (that is, you want the operation to return an
-  error if there is a directory at the same name, but to succeed if there is a
-  file), add a "replace=only-files" argument, as "?t=uri&replace=only-files".
+  location. To prevent this (and make the operation return an error instead
+  of overwriting), add a "replace=false" argument, as "?t=uri&replace=false".
+  With replace=false, this operation will return an HTTP 409 "Conflict" error
+  if there is already an object at the given location, rather than
+  overwriting the existing object. To allow the operation to overwrite a
+  file, but return an error when trying to overwrite a directory, use
+  "replace=only-files" (this behavior is closer to the traditional unix "mv"
+  command). Note that "true", "t", and "1" are all synonyms for "True", and
+  "false", "f", and "0" are synonyms for "False", and the parameter is
+  case-insensitive.
 
 === Deleting a File or Directory ===
 
@@ -821,6 +821,8 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=uri&name=CHILDNAME&uri=CHILDCAP
  since it is expected to be triggered by a form that was retrieved by "GET
  /uri/$DIRCAP/[SUBDIRS../]", it is likely that the parent directory will
  already exist.
+
+ This accepts the same replace= argument as POST t=upload.
 
 === Deleting A Child ===
 

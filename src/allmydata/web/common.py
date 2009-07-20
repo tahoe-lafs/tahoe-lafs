@@ -22,7 +22,7 @@ def boolean_of_arg(arg):
     return arg.lower() in ("true", "t", "1", "on")
 
 def parse_replace_arg(replace):
-    if replace == "only-files":
+    if replace.lower() == "only-files":
         return replace
     else:
         return boolean_of_arg(replace)
