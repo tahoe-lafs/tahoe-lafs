@@ -79,8 +79,9 @@ The upload process starts with a pathname (like ~/.emacs) and wants to end up
 with a file-cap (like URI:CHK:...).
 
 The first step is to convert the path to an absolute form
-(/home/warner/emacs) and do a lookup in the last_upload table. If the path is
-not present in this table, the file must be uploaded. The upload process is:
+(/home/warner/.emacs) and do a lookup in the local_files table. If the path
+is not present in this table, the file must be uploaded. The upload process
+is:
 
  1. record the file's size, creation time, and modification time
  2. upload the file into the grid, obtaining an immutable file read-cap
@@ -89,9 +90,9 @@ not present in this table, the file must be uploaded. The upload process is:
  5. add an entry to the 'local_files' table, with the fileid, the path,
     and the local file's size/ctime/mtime
 
-If the path *is* present in 'last_upload', the easy-to-compute identifying
+If the path *is* present in 'local_files', the easy-to-compute identifying
 information is compared: file size and ctime/mtime. If these differ, the file
-must be uploaded. The row is removed from the last_upload table, and the
+must be uploaded. The row is removed from the local_files table, and the
 upload process above is followed.
 
 If the path is present but ctime or mtime differs, the file may have changed.
