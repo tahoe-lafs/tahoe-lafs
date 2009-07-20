@@ -2512,7 +2512,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
 
-class Util(unittest.TestCase):
+class Util(unittest.TestCase, ShouldFailMixin):
+    def test_parse_replace_arg(self):
+        self.failUnlessEqual(common.parse_replace_arg("true"), True)
+        self.failUnlessEqual(common.parse_replace_arg("false"), False)
+        self.failUnlessEqual(common.parse_replace_arg("only-files"),
+                             "only-files")
+        self.shouldFail(AssertionError, "test_parse_replace_arg", "",
+                        common.parse_replace_arg, "only_fles")
+
     def test_abbreviate_time(self):
         self.failUnlessEqual(common.abbreviate_time(None), "")
         self.failUnlessEqual(common.abbreviate_time(1.234), "1.23s")
