@@ -39,7 +39,7 @@ E: dreid@dreid.org
 D: make the provisioning page work in py2exe and py2app packages
 
 N: Paul Gerhardt
-D: don't emit "signal-error" to stdout when testing for error in make check-deps
+D: don't emit error to stdout when testing for error in make check-deps
 
 N: Armin Rigo
 D: Linux FUSE interface "b"
@@ -69,7 +69,7 @@ D: statistical and cryptographic analysis, code review, encouragement
 
 N: Nils Durner
 E: ndurner@googlemail.com
-D: security bug report (cleartext credentials to allmydata.com), darcsver bugfix
+D: security bug report (cleartext login allmydata.com), darcsver bugfix
 
 N: Kevin Reid
 E: kpreid@mac.com
@@ -86,4 +86,9 @@ D: patch Makefile to build .debs for Ubuntu Intrepid
 
 N: Kevan Carstensen
 E: kevan@isnotajoke.com
-D: remove the limit on size of mutable files
+D: optimize mutable files and directories, safer "tahoe mv"
+
+N: Marc Tooley
+W: http://rune.ca
+P: 0xD5A7EE69911DF5CF
+D: port to NetBSD, help debugging Crypto++ bug
