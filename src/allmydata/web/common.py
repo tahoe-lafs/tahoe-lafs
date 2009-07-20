@@ -21,6 +21,12 @@ def boolean_of_arg(arg):
     assert arg.lower() in ("true", "t", "1", "false", "f", "0", "on", "off")
     return arg.lower() in ("true", "t", "1", "on")
 
+def parse_replace_arg(replace):
+    if replace == "only-files":
+        return replace
+    else:
+        return boolean_of_arg(replace)
+
 def get_root(ctx_or_req):
     req = IRequest(ctx_or_req)
     # the addSlash=True gives us one extra (empty) segment
