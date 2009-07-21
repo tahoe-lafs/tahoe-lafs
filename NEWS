@@ -1,6 +1,6 @@
 User visible changes in Tahoe.  -*- outline -*-
 
-* Release 1.XXX (200X-YY-ZZ)
+* Release 1.5.0 (2009-07-22)
 
 ** Improvements
 
@@ -17,14 +17,16 @@ makeover by Kevin Reid, making it much prettier and easier to read. The WUI
 mirroring the CLI --add-lease option, so leases can be added or renewed from
 the web interface.
 
+The CLI "tahoe mv" command refuses to overwrite directories. (#705)
+
 The CLI "tahoe webopen" command, when run without arguments, will bring up
 the "Welcome Page" (node status and mkdir/upload forms).
 
 The 3.5MB limit on mutable files was removed, so it should be possible to
 upload arbitrarily-sized mutable files. Note, however, that the data format
-and algorithm remains the same, so larger files will suffer from poor speed,
-data transfer overhead, memory consumption, and alacrity until "MDMF" mutable
-files (#393) are implemented. (#694)
+and algorithm remains the same, so using mutable files still requires
+bandwidth, computation, and RAM in proportion to the size of the mutable file.
+(#694)
 
 This version of Tahoe will tolerate directory entries that contain filecap
 formats which it does not recognize: files and directories from the future.
@@ -51,7 +53,8 @@ the Helper's ability to mount a partial-information-guessing attack. (#722)
 
 ** Platform/packaging changes
 
-Tahoe now runs on NetBSD.
+Tahoe-LAFS now runs on NetBSD, OpenBSD, and ArchLinux, and an embedded system
+based on an ARM CPU running at 266 MHz. XXX
 
 Unit test timeouts have been raised to allow the tests to complete on
 extremely slow platforms like embedded ARM-based NAS boxes. An ARM-specific
