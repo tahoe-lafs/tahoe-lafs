@@ -30,8 +30,9 @@ This version of Tahoe will tolerate directory entries that contain filecap
 formats which it does not recognize: files and directories from the future.
 Previous versions would fail badly, preventing the user from seeing or
 editing anything else in those directories. These unrecognized objects can be
-renamed and deleted, but obviously not read or written. This should improve
-the user experience when we add new cap formats in the future. (#683)
+renamed and deleted, but obviously not read or written.  Also they cannot be
+copied. This should improve the user experience when we add new cap formats in
+the future. (#683)
 
 ** Bugfixes
 

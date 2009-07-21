@@ -6,12 +6,12 @@ OVERVIEW
 At a high-level this system consists of three layers: the grid, the
 filesystem, and the application.
 
-The lowest layer is the "grid", a mapping from capabilities to data.
-The capabilities are relatively short ascii strings, each used as a
-reference to an arbitrary-length sequence of data bytes, and are like a
-URI for that data. This data is encrypted and distributed across a
-number of nodes, such that it will survive the loss of most of the
-nodes.
+The lowest layer is the "grid", a key-value store mapping from
+capabilities to data.  The capabilities are relatively short ascii
+strings, each used as a reference to an arbitrary-length sequence of
+data bytes, and are like a URI for that data. This data is encrypted and
+distributed across a number of nodes, such that it will survive the loss
+of most of the nodes.
 
 The middle layer is the decentralized filesystem: a directed graph in
 which the intermediate nodes are directories and the leaf nodes are
