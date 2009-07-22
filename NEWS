@@ -17,10 +17,10 @@ makeover by Kevin Reid, making it much prettier and easier to read. The WUI
 mirroring the CLI --add-lease option, so leases can be added or renewed from
 the web interface.
 
-The CLI "tahoe mv" command refuses to overwrite directories. (#705)
+The CLI "tahoe mv" command now refuses to overwrite directories. (#705)
 
-The CLI "tahoe webopen" command, when run without arguments, will bring up
-the "Welcome Page" (node status and mkdir/upload forms).
+The CLI "tahoe webopen" command, when run without arguments, will now bring
+up the "Welcome Page" (node status and mkdir/upload forms).
 
 The 3.5MB limit on mutable files was removed, so it should be possible to
 upload arbitrarily-sized mutable files. Note, however, that the data format
@@ -30,11 +30,11 @@ bandwidth, computation, and RAM in proportion to the size of the mutable file.
 
 This version of Tahoe will tolerate directory entries that contain filecap
 formats which it does not recognize: files and directories from the future.
-Previous versions would fail badly, preventing the user from seeing or
-editing anything else in those directories. These unrecognized objects can be
-renamed and deleted, but obviously not read or written.  Also they cannot be
-copied. This should improve the user experience when we add new cap formats in
-the future. (#683)
+This should improve the user experience (for 1.5.0 users) when we add new cap
+formats in the future. Previous versions would fail badly, preventing the
+user from seeing or editing anything else in those directories. These
+unrecognized objects can be renamed and deleted, but obviously not read or
+written. Also they cannot generally be copied. (#683)
 
 ** Bugfixes
 
@@ -57,14 +57,14 @@ Tahoe-LAFS now runs on NetBSD, OpenBSD, and ArchLinux, and an embedded system
 based on an ARM CPU running at 266 MHz. XXX
 
 Unit test timeouts have been raised to allow the tests to complete on
-extremely slow platforms like embedded ARM-based NAS boxes. An ARM-specific
-data-corrupting bug in an older version of Crypto++ (5.5.2) was identified,
-ARM-users are encouraged to use recent Crypto++/pycryptopp which avoids this
-problem.
+extremely slow platforms like embedded ARM-based NAS boxes, which may take
+several hours to run the test suite. An ARM-specific data-corrupting bug in
+an older version of Crypto++ (5.5.2) was identified: ARM-users are encouraged
+to use recent Crypto++/pycryptopp which avoids this problem.
 
 Tahoe now requires a SQLite library, either the sqlite3 that comes built-in
 with python2.5/2.6, or the add-on pysqlite2 if you're using python2.4. In the
-previous release, this was only needed for the "tahoe backup" command, now it
+previous release, this was only needed for the "tahoe backup" command: now it
 is mandatory.
 
 Several minor documentation updates were made.
