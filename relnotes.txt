@@ -131,6 +131,11 @@ besides.
 April 13, 2009
 Boulder, Colorado, USA
 
+P.S.  Just kidding about that acronym.  "LAFS" actually stands for
+"Lightweight Authorization File System".  Or possibly for
+"Least-Authority File System".  There is no truth to the rumour that it
+actually stands for "Long-lived Axe-tolerant File System".
+
 [1] http://allmydata.org/pipermail/tahoe-dev/2009-March/001461.html
 [2] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=3620
 [3] http://allmydata.org/trac/tahoe/browser/NEWS?rev=3835
