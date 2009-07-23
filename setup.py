@@ -127,6 +127,10 @@ setup_requires.extend(['setuptools_trial >= 0.5'])
 # to setup_requires. http://pypi.python.org/pypi/setuptools_darcs
 setup_requires.append('setuptools_darcs >= 1.1.0')
 
+# stdeb is required to produce Debian files with the "sdist_dsc" command.
+if "sdist_dsc" in sys.argv:
+    setup_requires.append('stdeb >= 0.3')
+
 class ShowSupportLib(Command):
     user_options = []
     def initialize_options(self):
