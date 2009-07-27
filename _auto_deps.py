@@ -12,24 +12,22 @@ install_requires=[
                   "Twisted >= 2.4.0",
                   "foolscap[secure_connections] >= 0.4.1",
                   "Nevow >= 0.6.0",
+
+                  # pycryptopp v0.5.15 applied a patch from Wei Dai to fix an
+                  # error in x86 assembly on CPUs that can't do SSE2.  Fixes
+                  # http://allmydata.org/trac/pycryptopp/ticket/24 .
+
+                  # pycryptopp v0.5.14 patched the embedded Crypto++ to remove
+                  # the usages of time functions, thus allowing mingw to build
+                  # and link it for Python 2.6.  If I knew a convenient,
+                  # reliable way to test whether the compiler that builds
+                  # pycryptopp will be mingw then I guess I would add that,
+                  # along with the Python >= v2.6 and the platform == Windows.
+                  # This is to work-around
+                  # http://sourceforge.net/tracker/?func=detail&aid=2805976&group_id=2435&atid=302435
+                  # .
+                   "pycryptopp >= 0.5.15",
                   ]
-
-# pycryptopp v0.5.15 applied a patch from Wei Dai to fix an error in x86
-# assembly on CPUs that can't do SSE2.  Fixes
-# http://allmydata.org/trac/pycryptopp/ticket/24 .
-
-# pycryptopp v0.5.14 patched the embedded Crypto++ to remove the usages of time
-# functions, thus allowing mingw to build and link it for Python 2.6.  If I
-# knew a convenient, reliable way to test whether the compiler that builds
-# pycryptopp will be mingw then I guess I would add that, along with the Python
-# >= v2.6 and the platform == Windows.  This is to work-around
-# http://sourceforge.net/tracker/?func=detail&aid=2805976&group_id=2435&atid=302435
-# .
-
-# pycryptopp < 0.5 had a bug which, using a Microsoft compiler, or using some
-# versions of g++ while linking against certain older versions of Crypto++,
-# would cause incorrect AES results.
-install_requires.append( "pycryptopp >= 0.5.15")
 
 # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
 # distribution for Python 2.4.
