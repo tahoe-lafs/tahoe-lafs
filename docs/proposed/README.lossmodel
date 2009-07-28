@@ -1,0 +1,28 @@
+The lossmodel.lyx file is the source document for an in-progress paper
+that analyzes the probability of losing files stored in a Tahoe
+Least-acces File System under various scenarios.  It describes:
+
+1.  How to estimate peer reliabilities, based on peer MTBF failure
+data.
+
+2.  How to compute file loss probabilities, based on a given set of
+shares stored on peers with estimated reliabilities.  The peer
+reliabilities do not have to be uniform, and the model takes into
+account the file repair process.
+
+3.  How to estimate Tahoe parameters for k (shares needed), n (shares
+distributed) and A (repair interval) to achieve a file reliability
+target.
+
+4.  How to compute the estimated repair cost over time, discounted at
+a fixed rate, of maintaining a file for a time period T.
+
+Future work will also address the latter three issues in the context
+of "non-aggressive" repair, where repair will only be performed if
+too many shares are lost, and it will also extend the repair cost
+estimation model to suggest cost functions appropriate for common
+network architectures.
+
+A PDF of the current version of the file may be downloaded from:
+
+    http://willden.org/~shawn/lossmodel.pdf

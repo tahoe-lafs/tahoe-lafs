@@ -1,4 +1,4 @@
-#LyX 1.6.1 created this file. For more info see http://www.lyx.org/
+#LyX 1.6.2 created this file. For more info see http://www.lyx.org/
 \lyxformat 345
 \begin_document
 \begin_header
@@ -56,7 +56,7 @@ Shawn Willden
 \end_layout
 
 \begin_layout Date
-01/14/2009
+07/22/2009
 \end_layout
 
 \begin_layout Address
@@ -81,8 +81,8 @@ The allmydata Tahoe distributed file system uses Reed-Solomon erasure coding
 \begin_inset Formula $N$
 \end_inset
 
- shares, each of which is then delivered to a randomly-selected peer in
- a distributed network.
+ shares which are delivered to randomly-selected peers in a distributed
+ network.
  The file can later be reassembled from any 
 \begin_inset Formula $k\leq N$
 \end_inset
@@ -112,7 +112,7 @@ s the missing ones, bringing the availability back up to full.
 \end_layout
 
 \begin_layout Standard
-The question we're trying to answer is "What's the probability that we'll
+The question we're trying to answer is "What is the probability that we'll
  be able to reassemble the file at some later time 
 \begin_inset Formula $T$
 \end_inset
@@ -136,11 +136,11 @@ The question we're trying to answer is "What's the probability that we'll
 \end_inset
 
  in order to ensure 
-\begin_inset Formula $Pr[loss]\leq t$
+\begin_inset Formula $Pr[loss]\leq r$
 \end_inset
 
  for some threshold probability 
-\begin_inset Formula $t$
+\begin_inset Formula $r$
 \end_inset
 
 .
@@ -149,45 +149,33 @@ The question we're trying to answer is "What's the probability that we'll
 \begin_inset Formula $Pr[loss]$
 \end_inset
 
- by choosing small 
-\begin_inset Formula $k,$
-\end_inset
-
- large 
-\begin_inset Formula $N$
-\end_inset
-
-, small 
-\begin_inset Formula $A$
-\end_inset
-
-, and setting 
-\begin_inset Formula $L=N$
-\end_inset
-
-, these choices have costs.
+ by selecting conservative parameters, these choices have costs.
  The peer storage and bandwidth consumed by the share distribution process
  are approximately 
 \begin_inset Formula $\nicefrac{N}{k}$
 \end_inset
 
- times the size of the original file, so we would like to reduce this ratio
- as far as possible consistent with 
-\begin_inset Formula $Pr[loss]\leq t$
+ times the size of the original file, so we would like to minimize 
+\begin_inset Formula $\nicefrac{N}{k}$
+\end_inset
+
+, consistent with 
+\begin_inset Formula $Pr[loss]\leq r$
 \end_inset
 
 .
- Likewise, frequent and aggressive repair process can be used to ensure
- that the number of shares available at any time is very close to 
+ Likewise, a frequent and aggressive repair process keeps the number of
+ shares available close to 
 \begin_inset Formula $N,$
 \end_inset
 
- but at a cost in bandwidth as the repair agent downloads 
+ but at a cost in bandwidth and processing time as the repair agent downloads
+ 
 \begin_inset Formula $k$
 \end_inset
 
- shares to reconstruct the file and uploads new shares to replace those
- that are lost.
+ shares, reconstructs the file and uploads new shares to replace those that
+ are lost.
 \end_layout
 
 \begin_layout Section
@@ -198,13 +186,13 @@ Reliability
 The probability that the file becomes unrecoverable is dependent upon the
  probability that the peers to whom we send shares are able to return those
  copies on demand.
- Shares that are returned in corrupted form can be detected and discarded,
- so there is no need to distinguish between corruption and loss.
+ Shares that are corrupted are detected and discarded, so there is no need
+ to distinguish between corruption and loss.
 \end_layout
 
 \begin_layout Standard
-There are a large number of factors that affect share availability.
- Availability can be temporarily interrupted by peer unavailability, due
+Many factors affect share availability.
+ Availability can be temporarily interrupted by peer unavailability due
  to network outages, power failures or administrative shutdown, among other
  reasons.
  Availability can be permanently lost due to failure or corruption of storage
@@ -238,12 +226,12 @@ Another consideration is that some failures affect multiple shares.
 \end_layout
 
 \begin_layout Standard
-While the types of failures that may occur are pretty consistent across
- even very different peers, their probabilities differ dramatically.
- A professionally-administered blade server with redundant storage, power
- and Internet located in a carefully-monitored data center with automatic
- fire suppression systems is much less likely to become either temporarily
- or permanently unavailable than the typical virus and malware-ridden home
+While the types of failures that may occur are quite consistent across peers,
+ their probabilities differ dramatically.
+ A professionally-administered server with redundant storage, power and
+ Internet located in a carefully-monitored data center with automatic fire
+ suppression systems is much less likely to become either temporarily or
+ permanently unavailable than the typical virus and malware-ridden home
  computer on a single cable modem connection.
  A variety of situations in between exist as well, such as the case of the
  author's home file server, which is administered by an IT professional
@@ -268,7 +256,7 @@ Reliability
 \begin_inset Formula $s_{i}$
 \end_inset
 
- will surve to (be retrievable at) time 
+ will survive to (be retrievable at) time 
 \begin_inset Formula $T=A$
 \end_inset
 
@@ -278,8 +266,12 @@ Reliability
  any lost shares.
 \end_layout
 
-\begin_layout Definition
-Reliability is clearly dependent on 
+\begin_layout Standard
+Reliability 
+\begin_inset Formula $p_{i}$
+\end_inset
+
+ is clearly dependent on 
 \begin_inset Formula $A$
 \end_inset
 
@@ -296,7 +288,181 @@ decay
 \end_layout
 
 \begin_layout Subsection
-Fixed Reliability
+Peer Reliability
+\end_layout
+
+\begin_layout Standard
+Since peer reliability is the basis for any computations we may do on share
+ and file reliability, we must have a way to estimate it.
+ Reliability modeling of hardware, software and human performance are each
+ complex topics, the subject of much ongoing research.
+ In particular, the reliability of one of the key components of any peer
+ from our perspective -- the hard drive where file shares are stored --
+ is the subject of much current debate.
+\end_layout
+
+\begin_layout Standard
+A common assumption about hardware failure is that it follows the 
+\begin_inset Quotes eld
+\end_inset
+
+bathtub curve
+\begin_inset Quotes erd
+\end_inset
+
+, with frequent failures during the first few months, a constant failure
+ rate for a few years and then a rising failure rate as the hardware wears
+ out.
+ This curve is often flattened by burn-in stress testing, and by periodic
+ replacement that assures that in-service components never reach 
+\begin_inset Quotes eld
+\end_inset
+
+old age
+\begin_inset Quotes erd
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+In any case, we're generally going to ignore all of that complexity and
+ focus on the bottom of the bathtub, assuming constant failure rates.
+ This is a particularly reasonable assumption as long as we're focused on
+ failures during a particular, relatively short interval 
+\begin_inset Formula $A$
+\end_inset
+
+.
+ Towards the end of this paper, as we examine failures over many repair
+ intervals, the assumption becomes more tenuous, and we note some of the
+ issues.
+\end_layout
+
+\begin_layout Subsubsection
+Estimate Adaptation
+\end_layout
+
+\begin_layout Standard
+Even assuming constant failure rates, however, it will be rare that the
+ duration of 
+\begin_inset Formula $A$
+\end_inset
+
+ coincides with the available failure rate data, particularly since we want
+ to view 
+\begin_inset Formula $A$
+\end_inset
+
+ as a tunable parameter.
+ It's necessary to be able adapt failure rates baselined against any given
+ duration to the selected value of 
+\begin_inset Formula $A$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+Another issue is that failure rates of hardware, etc., are necessarily continuous
+ in nature, while the per-interval failure/survival rates that are of interest
+ for file reliability calculations are discrete -- a peer either survives
+ or fails during the interval.
+ The continuous nature of failure rates means that the common and obvious
+ methods for estimating failure rates result in values that follow continuous,
+ not discrete distributions.
+ The difference is minor for small failure probabilities, and converges
+ to zero as the number of intervals goes to infinity, but is important enough
+ in some cases to be worth correcting for.
+\end_layout
+
+\begin_layout Standard
+Continuous failure rates are described in terms of mean time to failure,
+ and under the assumption that failure rates are constant, are exponentially
+ distributed.
+ Under these assumptions, the probability that a machine fails at time 
+\begin_inset Formula $t$
+\end_inset
+
+, is 
+\begin_inset Formula \[
+f\left(t\right)=\lambda e^{-\lambda t}\]
+
+\end_inset
+
+where 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ represents the per unit-time failure rate.
+ The probability that a machine fails at or before time 
+\begin_inset Formula $A$
+\end_inset
+
+ is therefore
+\begin_inset Formula \begin{align}
+F\left(t\right) & =\int_{0}^{A}f\left(x\right)dx\nonumber \\
+ & =\int_{0}^{A}\lambda e^{-\lambda x}dx\nonumber \\
+ & =1-e^{-\lambda A}\label{eq:failure-time}\end{align}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that 
+\begin_inset Formula $A$
+\end_inset
+
+ and 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ in 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:failure-time"
+
+\end_inset
+
+ must be expressed in consistent time units.
+ If they're different, unit conversions should be applied in the normal
+ way.
+ For example, if the estimate for 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ is 750 failures per million hours, and 
+\begin_inset Formula $A$
+\end_inset
+
+ is one month, then either 
+\begin_inset Formula $A$
+\end_inset
+
+ should be represented as 
+\begin_inset Formula $30\cdot24/1000000=.00072$
+\end_inset
+
+, or 
+\begin_inset Formula $\lambda$
+\end_inset
+
+ should be converted to failures per month.
+ Or both may be converted to hours.
+\end_layout
+
+\begin_layout Subsubsection
+Acquiring Peer Reliability Estimates
+\end_layout
+
+\begin_layout Standard
+Need to write this.
+\end_layout
+
+\begin_layout Subsection
+Uniform Reliability
 \begin_inset CommandInset label
 LatexCommand label
 name "sub:Fixed-Reliability"
@@ -323,8 +489,8 @@ In the simplest case, the peers holding the file shares all have the same
 \end_inset
 
 .
- Each share's survival can be viewed as an indepedent Bernoulli trial with
- a succes probability of 
+ Each share's survival can be viewed as an independent Bernoulli trial with
+ a success probability of 
 \begin_inset Formula $p$
 \end_inset
 
@@ -332,7 +498,7 @@ In the simplest case, the peers holding the file shares all have the same
 \begin_inset Formula $K$
 \end_inset
 
- follows the binomial distribution with paramaters 
+ follows the binomial distribution with parameters 
 \begin_inset Formula $N$
 \end_inset
 
@@ -377,7 +543,15 @@ A Bernoulli trial is simply a test of some sort that results in one of two
 \begin_inset Formula $K$
 \end_inset
 
- be a random variable that represents the number of successes.
+ be a random variable that represents the number, 
+\begin_inset Formula $m$
+\end_inset
+
+, of successes, 
+\begin_inset Formula $0\le m\le n$
+\end_inset
+
+.
  We say that 
 \begin_inset Formula $K$
 \end_inset
@@ -387,7 +561,8 @@ A Bernoulli trial is simply a test of some sort that results in one of two
 \end_inset
 
 .
- The probability that 
+ The probability mass function (PMF) of K is a function that gives the probabili
+ty that 
 \begin_inset Formula $K$
 \end_inset
 
@@ -403,9 +578,10 @@ A Bernoulli trial is simply a test of some sort that results in one of two
 \begin_inset Formula $n-m$
 \end_inset
 
- failures) is called the probability mass function and is given by:
+ failures).
+ The PMF of K is
 \begin_inset Formula \begin{equation}
-Pr[K=m]=f(m;n,p)=\binom{n}{p}p^{m}(1-p)^{n-m}\label{eq:binomial-pmf}\end{equation}
+Pr[K=m]=f(m;n,p)=\binom{n}{m}p^{m}(1-p)^{n-m}\label{eq:binomial-pmf}\end{equation}
 
 \end_inset
 
@@ -455,7 +631,8 @@ Now consider any reordering of these
  Since multiplication is commutative, each such reordering has the same
  probability.
  There are n-choose-m such orderings, and each ordering is an independent
- event, so the probability that any ordering of 
+ event, meaning we can sum the probabilities of the individual orderings,
+ so the probability that any ordering of 
 \begin_inset Formula $m$
 \end_inset
 
@@ -544,7 +721,7 @@ reference "eq:simple-failure"
 
 \end_inset
 
- assumes that each share has the same probability of survival, but as explained
+ assumes that all shares have the same probability of survival, but as explained
  above, this is not necessarily true.
  A more accurate model allows each share 
 \begin_inset Formula $s_{i}$
@@ -570,11 +747,7 @@ reference "eq:simple-failure"
 \end_inset
 
  and 
-\begin_inset Formula $p_{i}$
-\end_inset
-
- where 
-\begin_inset Formula $1\leq i\leq N$
+\begin_inset Formula $p_{1},p_{2},\dots,p_{N}$
 \end_inset
 
 .
@@ -589,7 +762,7 @@ The PMF for this generalized
  However, the PMFs for random variables representing individual share survival
  do.
  Let 
-\begin_inset Formula $S_{i}$
+\begin_inset Formula $K_{i}$
 \end_inset
 
  be a random variable such that:
@@ -597,7 +770,7 @@ The PMF for this generalized
 
 \begin_layout Standard
 \begin_inset Formula \[
-S_{i}=\begin{cases}
+K_{i}=\begin{cases}
 1 & \textnormal{if }s_{i}\textnormal{ survives}\\
 0 & \textnormal{if }s_{i}\textnormal{ fails}\end{cases}\]
 
@@ -608,14 +781,20 @@ S_{i}=\begin{cases}
 
 \begin_layout Standard
 The PMF for 
-\begin_inset Formula $S_{i}$
+\begin_inset Formula $K_{i}$
 \end_inset
 
  is very simple: 
 \begin_inset Formula \[
-Pr[S_{i}=j]=\begin{cases}
-1-p_{i} & j=0\\
-p_{i} & j=1\end{cases}\]
+Pr[K_{i}=j]=\begin{cases}
+p_{i} & j=1\\
+1-p_{i} & j=0\end{cases}\]
+
+\end_inset
+
+ which can also be expressed as
+\begin_inset Formula \[
+Pr[K_{i}=j]=f\left(j\right)=\left(1-p_{i}\right)\left(1-j\right)+p_{i}\left(j\right)\]
 
 \end_inset
 
@@ -624,7 +803,7 @@ p_{i} & j=1\end{cases}\]
 
 \begin_layout Standard
 Note that since each 
-\begin_inset Formula $S_{i}$
+\begin_inset Formula $K_{i}$
 \end_inset
 
  represents the count of shares 
@@ -635,16 +814,15 @@ Note that since each
  counts, we get the group survivor count.
  That is:
 \begin_inset Formula \[
-\sum_{i=1}^{N}S_{i}=K\]
+\sum_{i=1}^{N}K_{i}=K\]
 
 \end_inset
 
-Effectively, 
+Effectively, we have separated 
 \begin_inset Formula $K$
 \end_inset
 
- has just been separated into the series of Bernoulli trials that make it
- up.
+ into the series of Bernoulli trials that make it up.
 \end_layout
 
 \begin_layout Theorem
@@ -709,54 +887,38 @@ where
 
 \begin_layout Proof
 The proof is beyond the scope of this paper.
-\begin_inset Foot
-status collapsed
-
-\begin_layout Plain Layout
-\begin_inset Quotes eld
-\end_inset
-
-Beyond the scope of this paper
-\begin_inset Quotes erd
-\end_inset
-
- usually means 
-\begin_inset Quotes eld
-\end_inset
-
-Too long and nasty to bore you with
-\begin_inset Quotes erd
-\end_inset
-
-.
- In this case it means 
-\begin_inset Quotes eld
-\end_inset
-
-The author hasn't the foggiest idea why this is true, or how to prove it,
- but reliable authorities say it's real, and in practice it works a treat.
-\begin_inset Quotes erd
-\end_inset
-
-
-\end_layout
-
-\end_inset
-
- If you don't believe it's true, look it up on Wikipedia, which is never
- wrong.
 \end_layout
 
 \begin_layout Standard
-Applying the discrete convolution theorem, if 
-\begin_inset Formula $Pr[K=i]=f(i)$
+If we denote the PMF of 
+\begin_inset Formula $K$
+\end_inset
+
+ with 
+\begin_inset Formula $f$
+\end_inset
+
+ and the PMF of 
+\begin_inset Formula $K_{i}$
+\end_inset
+
+ with 
+\begin_inset Formula $g_{i}$
+\end_inset
+
+ (more formally, 
+\begin_inset Formula $Pr[K=x]=f(x)$
 \end_inset
 
  and 
-\begin_inset Formula $Pr[S_{i}=j]=g_{i}(j)$
+\begin_inset Formula $Pr[K_{i}=x]=g_{i}(x)$
 \end_inset
 
-, then 
+) then since 
+\begin_inset Formula $K=\sum_{i=1}^{N}K_{i}$
+\end_inset
+
+, according to the discrete convolution theorem 
 \begin_inset Formula $f=g_{1}\star g_{2}\star g_{3}\star\ldots\star g_{N}$
 \end_inset
 
@@ -777,7 +939,7 @@ Therefore,
 
  can be computed as a sequence of convolution operations on the simple PMFs
  of the random variables 
-\begin_inset Formula $S_{i}$
+\begin_inset Formula $K_{i}$
 \end_inset
 
 .
@@ -796,8 +958,13 @@ reference "eq:convolution"
 \begin_inset Formula $K$
 \end_inset
 
- even in the case of the standard binomial distribution, primarily because
- the binomial calculation in equation 
+ than the binomial theorem.
+ even in the case of shares with identical survival probability.
+ The reason it's better is because the calculation of 
+\begin_inset Formula $\binom{n}{m}$
+\end_inset
+
+ in equation 
 \begin_inset CommandInset ref
 LatexCommand ref
 reference "eq:binomial-pmf"
@@ -811,24 +978,20 @@ reference "eq:binomial-pmf"
 \begin_layout Standard
 Note also that it is not necessary to have very simple PMFs like those of
  the 
-\begin_inset Formula $S_{i}$
+\begin_inset Formula $K_{i}$
 \end_inset
 
 .
  Any share or set of shares that has a known PMF can be combined with any
  other set with a known PMF by convolution, as long as the two share sets
  are independent.
- Since PMFs are easily represented as simple lists of probabilities, where
- the 
-\begin_inset Formula $i$
+ The reverse holds as well; given a group with an empirically-derived PMF,
+ in it's theoretically possible to solve for an individual PMF, and thereby
+ determine 
+\begin_inset Formula $p_{i}$
 \end_inset
 
-th element in the list corresponds to 
-\begin_inset Formula $Pr[K=i]$
-\end_inset
-
-, these functions are easily managed in software, and computing the convolution
- is both simple and efficient.
+ even when per-share data is unavailable.
 \end_layout
 
 \begin_layout Subsection
@@ -845,8 +1008,8 @@ name "sub:Multiple-Failure-Modes"
 \begin_layout Standard
 In modeling share survival probabilities, it's useful to be able to analyze
  separately each of the various failure modes.
- If reliable statistics for disk failure can be obtained, then a probability
- mass function for that form of failure can be generated.
+ For example, if reliable statistics for disk failure can be obtained, then
+ a probability mass function for that form of failure can be generated.
  Similarly, statistics on other hardware failures, administrative errors,
  network losses, etc., can all be estimated independently.
  If those estimates can then be combined into a single PMF for a share,
@@ -873,7 +1036,7 @@ th failure mode of share
 
 , then 
 \begin_inset Formula \[
-Pr[S_{i}=k]=f_{i}(k)=\begin{cases}
+Pr[K_{i}=k]=f_{i}(k)=\begin{cases}
 \prod_{j=1}^{m}p_{i,j} & k=1\\
 1-\prod_{j=1}^{m}p_{i,j} & k=0\end{cases}\]
 
@@ -918,12 +1081,12 @@ If there are failure modes that affect multiple computers, we can also construct
 \begin_inset Formula $K$
 \end_inset
 
-, a random variable representing the number of surviors is
+, a random variable representing the number of survivors is
 \begin_inset Formula \[
-Pr[K=i]=f(i)=\begin{cases}
-p & i=n\\
+Pr[K=k]=f(k)=\begin{cases}
+p & k=n\\
 0 & 0<i<n\\
-1-p & i=0\end{cases}\]
+1-p & k=0\end{cases}\]
 
 \end_inset
 
@@ -994,7 +1157,7 @@ Four PCs located in random homes, connected to the Internet via assorted
 \end_layout
 
 \begin_layout Standard
-If one share is placed on each of these 20 computers, what's the probability
+If one share is placed on each of these 12 computers, what's the probability
  mass function of share survival? To more compactly describe PMFs, we'll
  denote them as probability vectors of the form 
 \begin_inset Formula $\left[\alpha_{o},\alpha_{1},\alpha_{2},\ldots\alpha_{n}\right]$
@@ -1012,13 +1175,18 @@ If one share is placed on each of these 20 computers, what's the probability
 \end_layout
 
 \begin_layout Standard
-The servers in the two data centers have individual survival probabilities
- of RAID failure (.0002) and administrative error (.003) giving 
+The servers in the two data centers have individual failure probabilities
+ of RAID failure (.0002) and administrative error (.003) giving an individual
+ survival probability of 
 \begin_inset Formula \[
 (1-.0002)\cdot(1-.003)=.9998\cdot.997=.9968\]
 
 \end_inset
 
+
+\end_layout
+
+\begin_layout Standard
 Using 
 \begin_inset Formula $p=.9968,n=4$
 \end_inset
@@ -1046,26 +1214,30 @@ which applies to each group of four servers.
 \begin_inset Formula $1.049\cdot10^{-10}$
 \end_inset
 
-) times the probability they all fail because of a network outage (
+) plus the probability they all fail because of a network outage (
 \begin_inset Formula $.0001$
 \end_inset
 
 ) less the probability they fail for both reasons:
 \begin_inset Formula \[
-\left(1.049\times10^{-10}\right)+\left(0.0001\right)-\left[\left(1.049\times10^{-10}\right)\cdot\left(0.0001\right)\right]=0.0001\]
+\left(1.049\times10^{-10}\right)+\left(0.0001\right)-\left[\left(1.049\times10^{-10}\right)\cdot\left(0.0001\right)\right]\approxeq0.0001\]
 
 \end_inset
 
+
+\end_layout
+
+\begin_layout Standard
 That's the 
-\begin_inset Formula $0$
+\begin_inset Formula $i=0$
 \end_inset
 
-th element of the combined PMF.
+ element of the combined PMF.
  The combined probability of survival of 
 \begin_inset Formula $0<i\leq4$
 \end_inset
 
- servers is simpler: it's the probility they survive individual failure,
+ servers is simpler: it's the probability they survive individual failure,
  from the individual failure PMF above, times the probability they survive
  network failure (.9999).
  So the combined survival PMF, which we'll denote as 
@@ -1096,9 +1268,9 @@ Of course, the failures need not be truly simultaneous, they just have happen
 \end_layout
 
 \begin_layout Standard
-The same process for the Hawaii servers, but with group survival probability
- of 
-\begin_inset Formula $(1-.0001)(1-.02)=.9799$
+We apply the same process for the Hawaii servers, but with group survival
+ probability of 
+\begin_inset Formula $(1-.0001)(1-.04)=.9799$
 \end_inset
 
  gives the survival PMF 
@@ -1107,10 +1279,7 @@ h(i)=\left[0.0201,1.280\times10^{-7},5.982\times10^{-5},0.01242,0.9674\right]\]
 
 \end_inset
 
-which has the unusual property that it's more likely that all of the servers
- will be lost than that only one will survive.
- This is because in order for exactly one to survive, it's necessary for
- three to have the 
+
 \end_layout
 
 \begin_layout Standard
@@ -1140,10 +1309,30 @@ Applying the convolution operator to
 
 \end_inset
 
-Note the interesting fact that losing four shares is 10,000 times more likely
- than losing three.
- This is because both data centers have a whole-center failure modes, and
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that losing four shares (
+\begin_inset Formula $i=4$
+\end_inset
+
+) is 10,000 times more likely than losing three (
+\begin_inset Formula $i=5$
+\end_inset
+
+).
+ This is because both data centers have a whole-center failure mode, and
  the Hawaii center's lava burn probability is so high.
+ Similarly, the probability of losing all of them is 1000 times higher than
+ the probability of losing all but one.
 \end_layout
 
 \begin_layout Standard
@@ -1173,16 +1362,16 @@ reference "eq:binomial-pmf"
 \end_inset
 
  to compute the PMF 
-\begin_inset Formula $f(i),0\leq i\leq4$
+\begin_inset Formula $g(i),0\leq i\leq4$
 \end_inset
 
  for the PCs and finally compute 
-\begin_inset Formula $s(i)=\left(f\star\left(n\star h\right)\right)\left(i\right)$
+\begin_inset Formula $f(i)=\left(g\star\left(n\star h\right)\right)\left(i\right)$
 \end_inset
 
 , the PMF of the whole share set.
  Summing the values of 
-\begin_inset Formula $s(i)$
+\begin_inset Formula $f(i)$
 \end_inset
 
  for 
@@ -1848,7 +2037,7 @@ The table demonstrates the importance of the selection of
 
 .
  Normally, reducing the number of shares needed for reassembly improve the
- file's chances of survival, but in this case it provides a miniscule gain
+ file's chances of survival, but in this case it provides a minuscule gain
  in reliability at the cost of a 10% increase in bandwidth and storage consumed.
 \end_layout
 
@@ -1898,10 +2087,6 @@ A cheaper repair option is simply to direct some peer that has share
  in the network.
  This is not as good as actually replacing the lost share, though.
  Suppose that more shares were lost, leaving only 
-\begin_inset Formula $ $
-\end_inset
-
-
 \begin_inset Formula $k$
 \end_inset
 
@@ -1917,7 +2102,7 @@ A cheaper repair option is simply to direct some peer that has share
 \begin_layout Standard
 However, such cheap repair is not completely pointless; it does increase
  file survivability.
- The question is: By how much?
+ But by how much?
 \end_layout
 
 \begin_layout Standard
@@ -1955,12 +2140,12 @@ More generally, if a single share is deployed on
 \end_inset
 
 , the share survival count is a random variable 
-\begin_inset Formula $S$
+\begin_inset Formula $K$
 \end_inset
 
  and the probability of share loss is 
 \begin_inset Formula \[
-Pr[S=0]=(f_{1}\star f_{2}\star\ldots\star f_{n})(0)\]
+Pr[K=0]=(f_{1}\star f_{2}\star\ldots\star f_{n})(0)\]
 
 \end_inset
 
@@ -2023,7 +2208,7 @@ doubled
 \end_inset
 
  shares, each with survival probability 
-\begin_inset Formula $2p-p^{2}\approx.99$
+\begin_inset Formula $2p-p^{2}\approxeq.99$
 \end_inset
 
 .
@@ -2066,11 +2251,11 @@ Thus far, we've focused entirely on the probability that a file survives
  The probability that a file survives long-term, though, is also important.
  As long as the probability of failure during a repair period is non-zero,
  a given file will eventually be lost.
- We want to know what the probability of surviving for time 
+ We want to know the probability of surviving for time 
 \begin_inset Formula $T$
 \end_inset
 
- is, and how the parameters 
+, and how the parameters 
 \begin_inset Formula $A$
 \end_inset
 
@@ -2078,7 +2263,7 @@ Thus far, we've focused entirely on the probability that a file survives
 \begin_inset Formula $L$
 \end_inset
 
- (share low watermark) affect survival time.
+ (allowed share low watermark) affect survival time.
 \end_layout
 
 \begin_layout Standard
@@ -2113,7 +2298,7 @@ Most survival functions are continuous, but
 \begin_inset Formula $R(t)$
 \end_inset
 
- is inherently discrete, and stochastic.
+ is inherently discrete and stochastic.
  The time steps are the repair intervals, each of length 
 \begin_inset Formula $A$
 \end_inset
@@ -2136,7 +2321,7 @@ Most survival functions are continuous, but
 \end_layout
 
 \begin_layout Subsection
-Aggressive Repairs
+Aggressive Repair
 \end_layout
 
 \begin_layout Standard
@@ -2148,7 +2333,7 @@ Let's first consider the case of an aggressive repairer.
 \end_inset
 
  shares, distributed on servers with various individual and group failure
- probalities, which will survive or fail per the output of random variable
+ probabilities, which will survive or fail per the output of random variable
  
 \begin_inset Formula $K$
 \end_inset
@@ -2226,7 +2411,11 @@ So, given a PMF
 \end_inset
 
 , choose 
-\begin_inset Formula $k:f\left(k\right)\geq\sqrt[t]{r}$
+\begin_inset Formula $k$
+\end_inset
+
+ such that 
+\begin_inset Formula $f\left(k\right)\geq\sqrt[t]{r}$
 \end_inset
 
 .
@@ -2235,7 +2424,7 @@ So, given a PMF
 \end_inset
 
  is one month, and 
-\begin_inset Formula $r=1-\nicefrac{1}{1000000}$
+\begin_inset Formula $r=1-\nicefrac{1}{10^{6}}$
 \end_inset
 
  and 
@@ -2243,7 +2432,7 @@ So, given a PMF
 \end_inset
 
 , or 10 years, we calculate 
-\begin_inset Formula $f\left(k\right)\geq\sqrt[120]{.999999}\cong0.999999992$
+\begin_inset Formula $f\left(k\right)\geq\sqrt[120]{.999999}\approx0.999999992$
 \end_inset
 
 .
@@ -2258,7 +2447,7 @@ reference "tab:Example-PMF"
 \begin_inset Formula $k=2$
 \end_inset
 
-, achieves the goal, at the cose of a six-fold expansion in stored file
+, achieves the goal, at the cost of a six-fold expansion in stored file
  size.
  If the lesser goal of no more than 
 \begin_inset Formula $\nicefrac{1}{1000}$
@@ -2396,9 +2585,9 @@ Since each interval starts with a full complement of shares, the expected
 \end_layout
 
 \begin_layout Standard
-It may also be useful to discount future cost, since CPU and bandwidth are
+It is also necessary to discount future cost, since CPU and bandwidth are
  both going to get cheaper over time.
- To accomodate this, we throw in an addition per-period discount rate 
+ To accommodate this, we throw in an addition per-period discount rate 
 \begin_inset Formula $r$
 \end_inset
 
@@ -2429,6 +2618,14 @@ If
  this collapses to the previous result, as one would expect.
 \end_layout
 
+\begin_layout Subsection
+Non-aggressive Repair
+\end_layout
+
+\begin_layout Standard
+Need to write this.
+\end_layout
+
 \begin_layout Section
 Time-Sensitive Retrieval
 \end_layout
@@ -2436,8 +2633,10 @@ Time-Sensitive Retrieval
 \begin_layout Standard
 The above work has almost entirely ignored the distinction between availability
  and reliability.
- In reality, temporary and permanent failures need to be modeled separately,
- and 
+\end_layout
+
+\begin_layout Standard
+Need to write this.
 \end_layout
 
 \end_body
