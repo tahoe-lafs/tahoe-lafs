@@ -32,9 +32,12 @@ class TheRightCode(common_util.SignalMixin, unittest.TestCase,
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
 
-            # Fail unless the allmydata-tahoe package is *this* version *and* was loaded from *this* source directory.
-            required_ver_and_path = "allmydata-tahoe: %s (%s)" % (allmydata.__version__, os.path.dirname(os.path.dirname(allmydata.__file__)))
-            self.failUnless(out.startswith(required_ver_and_path), (out, err, rc_or_sig, required_ver_and_path))
+            # Fail unless the allmydata-tahoe package is *this* version *and*
+            # was loaded from *this* source directory.
+            ad = os.path.dirname(os.path.dirname(os.path.realpath(allmydata.__file__)))
+            required_ver_and_path = "allmydata-tahoe: %s (%s)" % (allmydata.__version__, ad)
+            self.failUnless(out.startswith(required_ver_and_path),
+                            (out, err, rc_or_sig, required_ver_and_path))
         d.addCallback(_cb)
         return d
 
