@@ -145,10 +145,11 @@ library that is frequently installed as /usr/lib/libcryptopp.a, to avoid
 problems with non-alphanumerics in filenames).
 
 The FTP server requires code in Twisted that enables asynchronous closing of
-file-upload operations. This code was not in the Twisted-8.1.0 release, and
-has not been committed to SVN trunk as of r24943. So it may be necessary to
-apply the following patch. The Tahoe node refuse to start the FTP server if
-it detects that this patch has not been applied.
+file-upload operations. This code was not in the Twisted-8.2.0 release, and
+has not been committed to SVN trunk as of r27213 (see
+http://twistedmatrix.com/trac/ticket/3462 for details). So it may be
+necessary to apply the following patch. The Tahoe node will refuse to start
+the FTP server if it detects that this patch has not been applied.
 
 Index: twisted/protocols/ftp.py
 ===================================================================
