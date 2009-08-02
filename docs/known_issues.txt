@@ -5,41 +5,41 @@ manage them.  The current version of this file can be found at
 
 http://allmydata.org/source/tahoe/trunk/docs/known_issues.txt
 
-If you've been using Tahoe-LAFS since v1.1, released 2008-06-11, or if you're
+If you've been using Tahoe-LAFS since v1.1 (released 2008-06-11) or if you're
 just curious about what sort of mistakes we've made in the past, then you might
 want to read the "historical known issues" document:
 
 http://allmydata.org/source/tahoe/trunk/docs/historical/historical_known_issues.txt
 
-== issues in Tahoe v1.5.0, released 2009-07-22 ==
+== issues in Tahoe-LAFS v1.5.0, released 2009-08-01 ==
 
 === potential unauthorized access by JavaScript in unrelated files ===
 
-If you view a file stored in Tahoe through a web user interface,
+If you view a file stored in Tahoe-LAFS through a web user interface,
 JavaScript embedded in that file might be able to access other files or
-directories stored in Tahoe which you view through the same web user
-interface.  Such a script would be able to send the contents of those
-other files or directories to the author of the script, and if you have
-the ability to modify the contents of those files or directories, then
-that script could modify or delete those files or directories.
+directories stored in Tahoe-LAFS which you view through the same web
+user interface.  Such a script would be able to send the contents of
+those other files or directories to the author of the script, and if you
+have the ability to modify the contents of those files or directories,
+then that script could modify or delete those files or directories.
 
 ==== how to manage it ====
 
-For future versions of Tahoe, we are considering ways to close off
-this leakage of authority while preserving ease of use -- the
-discussion of this issue is ticket #615.
+For future versions of Tahoe-LAFS, we are considering ways to close off
+this leakage of authority while preserving ease of use -- the discussion
+of this issue is ticket #615.
 
-For the present, either do not view files stored in Tahoe through a web
-user interface, or turn off JavaScript in your web browser before doing
-so, or limit your viewing to files which you know don't contain
+For the present, either do not view files stored in Tahoe-LAFS through a
+web user interface, or turn off JavaScript in your web browser before
+doing so, or limit your viewing to files which you know don't contain
 malicious JavaScript.
 
 
 === potential disclosure of file through embedded
 hyperlinks or JavaScript in that file ===
 
-If there is a file stored on a Tahoe storage grid, and that file gets
-downloaded and displayed in a web browser, then JavaScript or
+If there is a file stored on a Tahoe-LAFS storage grid, and that file
+gets downloaded and displayed in a web browser, then JavaScript or
 hyperlinks within that file can leak the capability to that file to a
 third party, which means that third party gets access to the file.
 
@@ -54,36 +54,38 @@ sufficient to prevent this from happening.
 
 ==== how to manage it ====
 
-For future versions of Tahoe, we are considering ways to close off
-this leakage of authority while preserving ease of use -- the
-discussion of this issue is ticket #127.
+For future versions of Tahoe-LAFS, we are considering ways to close off
+this leakage of authority while preserving ease of use -- the discussion
+of this issue is ticket #127.
 
 For the present, a good work-around is that if you want to store and
-view a file on Tahoe and you want that file to remain private, then
-remove from that file any hyperlinks pointing to other people's
-servers and remove any JavaScript unless you are sure that the
-JavaScript is not written to maliciously leak access.
+view a file on Tahoe-LAFS and you want that file to remain private, then
+remove from that file any hyperlinks pointing to other people's servers
+and remove any JavaScript unless you are sure that the JavaScript is not
+written to maliciously leak access.
 
 
 === command-line arguments are leaked to other local users ===
 
-Remember that command-line arguments are visible to other users
-(through the 'ps' command, or the windows Process Explorer tool), so
-if you are using a Tahoe node on a shared host, other users on that
-host will be able to see (and capture) any directory caps that you set
-up with the "tahoe add-alias" command.  Use "tahoe create-alias" instead.
+Remember that command-line arguments are visible to other users (through
+the 'ps' command, or the windows Process Explorer tool), so if you are
+using a Tahoe-LAFS node on a shared host, other users on that host will
+be able to see (and copy) any caps that you pass as command-line
+arguments.  This includes directory caps that you set up with the "tahoe
+add-alias" command.  Use "tahoe create-alias" for that purpose instead.
 
 ==== how to manage it ====
 
-Bypass add-alias and edit the NODEDIR/private/aliases file directly,
-by adding a line like this:
+Bypass add-alias and edit the NODEDIR/private/aliases file directly, by
+adding a line like this:
 
 fun: URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
 
-By entering the dircap through the editor, the command-line arguments are
-bypassed, and other users will not be able to see them. Once you've added the
-alias, no other secrets are passed through the command line, so this
-vulnerability becomes less significant: they can still see your filenames and
-other arguments you type there, but not the caps that Tahoe uses to permit
-access to your files and directories.  Starting in Tahoe-LAFS v1.3.0, there is
-a "tahoe create-alias" command that does this for you.
+By entering the dircap through the editor, the command-line arguments
+are bypassed, and other users will not be able to see them. Once you've
+added the alias, if you use that alias instead of a cap itself on the
+command-line, then no secrets are passed through the command line.  Then
+other processes on the system can still see your filenames and other
+arguments you type there, but not the caps that Tahoe uses to permit
+access to your files and directories.  Starting in Tahoe-LAFS v1.3.0,
+there is a "tahoe create-alias" command that does this for you.

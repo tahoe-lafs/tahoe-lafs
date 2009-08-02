@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2002-2008 Bryce "Zooko" Wilcox-O'Hearn
+# Copyright (c) 2002-2009 Zooko Wilcox-O'Hearn
 # mailto:zooko@zooko.com
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this work to deal in this work without restriction (including the rights

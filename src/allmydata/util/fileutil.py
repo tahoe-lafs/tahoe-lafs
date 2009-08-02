@@ -1,10 +1,5 @@
-#  Copyright (c) 2000 Autonomous Zone Industries
-#  Copyright (c) 2002-2007 Bryce "Zooko" Wilcox-O'Hearn
-#  This file is licensed under the
-#    GNU Lesser General Public License v2.1.
-#    See the file COPYING or visit http://www.gnu.org/ for details.
-# Portions snarfed out of the Python standard library.
-# The du part is due to Jim McCoy.
+#  Copyright (c) 2002-2009 Zooko Wilcox-O'Hearn
+#  This file is part of pyutil; see README.txt for licensing terms.
 
 """
 Futz with files like a pro.

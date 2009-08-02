@@ -1,11 +1,5 @@
-# Copyright (c) 2005-2009 Bryce "Zooko" Wilcox-O'Hearn
-# mailto:zooko@zooko.com
-# http://zooko.com/repos/pyutil
-# http://pypi.python.org/pypi/pyutil
-# http://allmydata.org/trac/pyutil
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this work to deal in this work without restriction (including the rights
-# to use, modify, distribute, sublicense, and/or sell copies).
+#  Copyright (c) 2002-2009 Zooko Wilcox-O'Hearn
+#  This file is part of pyutil; see README.txt for licensing terms.
 
 """
 A few commonly needed functions.

@@ -2,9 +2,9 @@
 
 # Allmydata Tahoe -- secure, distributed storage grid
 #
-# Copyright (C) 2008 Allmydata, Inc.
+# Copyright (C) 2008-2009 Allmydata, Inc.
 #
-# This file is part of tahoe.
+# This file is part of Tahoe-LAFS.
 #
 # See the docs/about.html file for licensing information.
 
