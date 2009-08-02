@@ -95,17 +95,17 @@ project.  The Dev page [11] contains resources for hackers.
 
 SPONSORSHIP
 
-Tahoe was originally developed thanks to the sponsorship of Allmydata,
-Inc. [12], a provider of commercial backup services.  Allmydata,
-Inc. created the Tahoe project, and contributed hardware, software,
-ideas, bug reports, suggestions, demands, and money (employing several
-Tahoe hackers and instructing them to spend part of their work time on
-this Free Software project).  Also they awarded customized t-shirts to
-hackers who find security flaws in Tahoe (see http://hacktahoe.org
-). After discontinuing funding of Tahoe R&D in early 2009, Allmydata,
-Inc. has continued to provide servers, co-lo space and bandwidth to the
-open source project. Thank you to Allmydata, Inc. for their generous and
-public-spirited support.
+Tahoe-LAFS was originally developed thanks to the sponsorship of
+Allmydata, Inc. [12], a provider of commercial backup services.
+Allmydata, Inc. created the Tahoe-LAFS project and contributed hardware,
+software, ideas, bug reports, suggestions, demands, and money (employing
+several Tahoe-LAFS hackers and instructing them to spend part of their
+work time on this Free Software project).  Also they awarded customized
+t-shirts to hackers who found security flaws in Tahoe-LAFS (see
+http://hacktahoe.org ). After discontinuing funding of Tahoe-LAFS R&D in
+early 2009, Allmydata, Inc. has continued to provide servers, co-lo
+space and bandwidth to the open source project. Thank you to Allmydata,
+Inc. for their generous and public-spirited support.
 
 This is the second release of Tahoe-LAFS which was created solely as a
 labor of love by volunteers; developer time is no longer funded by
