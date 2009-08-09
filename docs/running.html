@@ -15,48 +15,87 @@
     have to install the Tahoe software, as documented in <a
     href="install.html">install.html</a>.</p>
 
-    <p>The <cite>tahoe</cite> executable in the <cite>bin</cite> directory is
+    <p>The <cite>tahoe</cite> executable in the <code>bin</code> directory is
     used to create, start, and stop nodes. Each node lives in a separate base
-    directory, in which there is a configuration file named "tahoe.cfg". Nodes
-    read and write files within that directory.</p>
+    directory, in which there is a configuration file named <code>tahoe.cfg</code>. Nodes
+    read and write files within this base directory.</p>
 
-    <p>A grid consists of a single introducer, one or more servers, and any
-    number of clients. If you are creating a new grid, you'll need to create
-    both an introducer and a server (and then invite other people to create
-    their own servers and/or clients and join your grid). If you are joining an
-    existing grid (such as <a
-    href="http://allmydata.org/trac/tahoe/wiki/TestGrid">the public test
-    grid</a>), the introducer will already be running, and you'll just need to
-    create a client.</p>
+    <p>A grid consists of a set of <em>nodes</em>, computers running
+    the tahoe code, each of these nodes functions as in one of the
+    following roles:</p>
+
+    <dl>
+      <dt>Storage Nodes (or Server Nodes)</dt><dd>are the computers
+      that actually store the data in a grid.</dd>
+      <dt>Client Nodes</dt><dd>talk to the storage nodes to put files
+      onto the grid and get them back off again.</dd>
+      <dt>Introducer Node</dt><dd>is responsible for getting everybody
+      talking to each other.</dd>
+    </dl>
+
+    <p>If you're getting started we recommend you try connecting to
+    the <a href="http://allmydata.org/trac/tahoe/wiki/TestGrid">the
+    public test grid</a> as you only need to create a client node.
+    When you want to create your own grid you'll need to create the
+    introducer and an initial storage nodes.</p>
+
+    <p>To construct a client node, run
+    "<code><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
+    create-client</code>", which will create <code>~/.tahoe</code> to be the
+    node's base directory. Acquire a copy of the <code>introducer.furl</code>
+    from the introducer and put it into this directory, then run
+    "<code><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
+    start</code>". After that, the node should be off and running. The first
+    thing it will do is connect to the introducer and get itself connected to
+    all other nodes on the grid.  By default, a node will serve as a storage
+    node, meaning that it offers its disk space to other nodes.  To configure
+    other behavior, see <a href="configuration.txt">configuration.txt</a>.</p>
+
 
     <p>To construct an introducer, create a new base directory for it (the name
     of the directory is up to you), cd into it, and run
-    "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
-    create-introducer .</cite>". Now start the introducer by running
-    "<cite>tahoe start .</cite>". After it starts, it will write a file named
-    <cite>introducer.furl</cite> in that base directory. This file contains the
+    "<code><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
+    create-introducer .</code>". Now start the introducer by running
+    "<code>tahoe start .</code>". After it starts, it will write a file named
+    <code>introducer.furl</code> in that base directory. This file contains the
     URL the other nodes must use in order to connect to this introducer.</p>
 
-    <p>To construct a node, run
-    "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
-    create-client</cite>", which will create <cite>~/.tahoe</cite> to be the
-    node's base directory. Acquire a copy of the <cite>introducer.furl</cite>
-    from the introducer and put it into this directory, then run
-    "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
-    start</cite>". After that, the node should be off and running. The first
-    thing it will do is connect to the introducer and get itself connected to
-    all other nodes on the grid.  By default, a node will serve as a Storage
-    Server, meaning that it offers its disk space to other nodes.  To configure
-    other behavior, see <a href="configuration.txt">configuration.txt</a>.</p>
-
-    <p>If you are behind firewall or NAT and want to run a server which clients
-    can connect to even though they are also behind firewall or NAT, then see
-    <a href="configuration.txt">configuration.txt</a> about the
-    <cite>tub.location</cite> setting.</p>
-
     <p>To stop a running node run
-    "<cite><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
-    stop</cite>".</p>
+    "<code><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
+    stop</code>".</p>
+
+
+    <p>See <a href="configuration.txt">configuration.txt</a> for more
+    details about how to configure tahoe.</p>
+
+
+    <h2>A note about firewalls</h2>
+
+    <p>If your node is behind a firewall or NAT device and want other
+    clients to connect to it then you'll need to <em>open a port</em>
+    in your firewall.  To do that you'll need to know which port tahoe
+    is listening on as, by default, it listens on an arbitrary port
+    number.  To tell tahoe to listen to a fixed port, open the
+    <code>~/.tahoe/tahoe.cfg</code> file in your favourite text editor
+    and changing the <code>tub.port</code> line to something like the
+    following:</p>
+
+    <pre>tub.port = 8098</pre>
+
+    <p>This tells tahoe to always listen on port 8098 of your
+    computer.  The next issue is that your computer may be behind a
+    NATing router and isn't directly connected to the internet but
+    goes through a router to get out.  If that's the case then you'll
+    need to set the <code>tub.location</code> option so that tahoe
+    tells the introducer where you're really listening:</p>
+
+    <pre>tub.location = myserver.mydomain.org:8098</pre>
+
+    <p>or probably more likely</p>
+
+    <pre>tub.location = 123.456.789.012:8098</pre>
+
+    <p>The <a href="configuration.txt">configuration.txt</a> file contains more details</p>
 
     <h2>Do Stuff With It</h2>
 
