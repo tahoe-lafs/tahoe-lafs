@@ -337,14 +337,15 @@ class ServerMap:
 
 
 class ServermapUpdater:
-    def __init__(self, filenode, monitor, servermap, mode=MODE_READ,
-                 add_lease=False):
+    def __init__(self, filenode, storage_broker, monitor, servermap,
+                 mode=MODE_READ, add_lease=False):
         """I update a servermap, locating a sufficient number of useful
         shares and remembering where they are located.
 
         """
 
         self._node = filenode
+        self._storage_broker = storage_broker
         self._monitor = monitor
         self._servermap = servermap
         self.mode = mode
@@ -421,8 +422,8 @@ class ServermapUpdater:
 
         self._queries_completed = 0
 
-        sb = self._node._client.get_storage_broker()
-        full_peerlist = sb.get_servers_for_index(self._node._storage_index)
+        sb = self._storage_broker
+        full_peerlist = sb.get_servers_for_index(self._storage_index)
         self.full_peerlist = full_peerlist # for use later, immutable
         self.extra_peers = full_peerlist[:] # peers are removed as we use them
         self._good_peers = set() # peers who had some shares

@@ -8,9 +8,8 @@ from allmydata.interfaces import IMutableFileNode, IMutableFileURI, \
      ICheckable, ICheckResults, NotEnoughSharesError
 from allmydata.util import hashutil, log
 from allmydata.util.assertutil import precondition
-from allmydata.uri import WriteableSSKFileURI
+from allmydata.uri import WriteableSSKFileURI, ReadonlySSKFileURI
 from allmydata.monitor import Monitor
-from pycryptopp.publickey import rsa
 from pycryptopp.cipher.aes import AES
 
 from publish import Publish
@@ -44,24 +43,24 @@ class BackoffAgent:
         reactor.callLater(self._delay, d.callback, None)
         return d
 
-# use client.create_mutable_file() to make one of these
+# use nodemaker.create_mutable_file() to make one of these
 
 class MutableFileNode:
     implements(IMutableFileNode, ICheckable)
-    SIGNATURE_KEY_SIZE = 2048
-    checker_class = MutableChecker
-    check_and_repairer_class = MutableCheckAndRepairer
 
-    def __init__(self, client):
-        self._client = client
+    def __init__(self, storage_broker, secret_holder,
+                 default_encoding_parameters, history):
+        self._storage_broker = storage_broker
+        self._secret_holder = secret_holder
+        self._default_encoding_parameters = default_encoding_parameters
+        self._history = history
         self._pubkey = None # filled in upon first read
         self._privkey = None # filled in if we're mutable
         # we keep track of the last encoding parameters that we use. These
         # are updated upon retrieve, and used by publish. If we publish
         # without ever reading (i.e. overwrite()), then we use these values.
-        defaults = client.get_encoding_parameters()
-        self._required_shares = defaults["k"]
-        self._total_shares = defaults["n"]
+        self._required_shares = default_encoding_parameters["k"]
+        self._total_shares = default_encoding_parameters["n"]
         self._sharemap = {} # known shares, shnum-to-[nodeids]
         self._cache = ResponseCache()
 
@@ -77,15 +76,18 @@ class MutableFileNode:
         else:
             return "<%s %x %s %s>" % (self.__class__.__name__, id(self), None, None)
 
-    def init_from_uri(self, myuri):
+    def init_from_uri(self, filecap):
         # we have the URI, but we have not yet retrieved the public
         # verification key, nor things like 'k' or 'N'. If and when someone
         # wants to get our contents, we'll pull from shares and fill those
         # in.
-        self._uri = IMutableFileURI(myuri)
-        if not self._uri.is_readonly():
+        assert isinstance(filecap, str)
+        if filecap.startswith("URI:SSK:"):
+            self._uri = WriteableSSKFileURI.init_from_string(filecap)
             self._writekey = self._uri.writekey
         else:
+            assert filecap.startswith("URI:SSK-RO:")
+            self._uri = ReadonlySSKFileURI.init_from_string(filecap)
             self._writekey = None
         self._readkey = self._uri.readkey
         self._storage_index = self._uri.storage_index
@@ -100,21 +102,12 @@ class MutableFileNode:
         self._encprivkey = None
         return self
 
-    def create(self, initial_contents, keypair_generator=None, keysize=None):
-        """Call this when the filenode is first created. This will generate
-        the keys, generate the initial shares, wait until at least numpeers
-        are connected, allocate shares, and upload the initial
-        contents. Returns a Deferred that fires (with the MutableFileNode
-        instance you should use) when it completes.
+    def create_with_keys(self, (pubkey, privkey), initial_contents):
+        """Call this to create a brand-new mutable file. It will create the
+        shares, find homes for them, and upload the initial contents. Returns
+        a Deferred that fires (with the MutableFileNode instance you should
+        use) when it completes.
         """
-        keysize = keysize or self.SIGNATURE_KEY_SIZE
-        d = defer.maybeDeferred(self._generate_pubprivkeys,
-                                keypair_generator, keysize)
-        d.addCallback(self._generated)
-        d.addCallback(lambda res: self._upload(initial_contents, None))
-        return d
-
-    def _generated(self, (pubkey, privkey) ):
         self._pubkey, self._privkey = pubkey, privkey
         pubkey_s = self._pubkey.serialize()
         privkey_s = self._privkey.serialize()
@@ -124,16 +117,7 @@ class MutableFileNode:
         self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
         self._readkey = self._uri.readkey
         self._storage_index = self._uri.storage_index
-
-    def _generate_pubprivkeys(self, keypair_generator, keysize):
-        if keypair_generator:
-            return keypair_generator(keysize)
-        else:
-            # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
-            # secs
-            signer = rsa.generate(keysize)
-            verifier = signer.get_verifying_key()
-            return verifier, signer
+        return self._upload(initial_contents, None)
 
     def _encrypt_privkey(self, writekey, privkey):
         enc = AES(writekey)
@@ -163,12 +147,12 @@ class MutableFileNode:
         return hashutil.ssk_write_enabler_hash(self._writekey, peerid)
     def get_renewal_secret(self, peerid):
         assert len(peerid) == 20
-        crs = self._client.get_renewal_secret()
+        crs = self._secret_holder.get_renewal_secret()
         frs = hashutil.file_renewal_secret_hash(crs, self._storage_index)
         return hashutil.bucket_renewal_secret_hash(frs, peerid)
     def get_cancel_secret(self, peerid):
         assert len(peerid) == 20
-        ccs = self._client.get_cancel_secret()
+        ccs = self._secret_holder.get_cancel_secret()
         fcs = hashutil.file_cancel_secret_hash(ccs, self._storage_index)
         return hashutil.bucket_cancel_secret_hash(fcs, peerid)
 
@@ -200,8 +184,9 @@ class MutableFileNode:
     def get_readonly(self):
         if self.is_readonly():
             return self
-        ro = MutableFileNode(self._client)
-        ro.init_from_uri(self._uri.get_readonly())
+        ro = MutableFileNode(self._storage_broker, self._secret_holder,
+                             self._default_encoding_parameters, self._history)
+        ro.init_from_uri(self.get_readonly_uri())
         return ro
 
     def get_readonly_uri(self):
@@ -251,11 +236,13 @@ class MutableFileNode:
     # ICheckable
 
     def check(self, monitor, verify=False, add_lease=False):
-        checker = self.checker_class(self, monitor)
+        checker = MutableChecker(self, self._storage_broker,
+                                 self._history, monitor)
         return checker.check(verify, add_lease)
 
     def check_and_repair(self, monitor, verify=False, add_lease=False):
-        checker = self.check_and_repairer_class(self, monitor)
+        checker = MutableCheckAndRepairer(self, self._storage_broker,
+                                          self._history, monitor)
         return checker.check(verify, add_lease)
 
     #################################
@@ -414,10 +401,10 @@ class MutableFileNode:
         servermap = ServerMap()
         return self._update_servermap(servermap, mode)
     def _update_servermap(self, servermap, mode):
-        u = ServermapUpdater(self, Monitor(), servermap, mode)
-        history = self._client.get_history()
-        if history:
-            history.notify_mapupdate(u.get_status())
+        u = ServermapUpdater(self, self._storage_broker, Monitor(), servermap,
+                             mode)
+        if self._history:
+            self._history.notify_mapupdate(u.get_status())
         return u.update()
 
     def download_version(self, servermap, version, fetch_privkey=False):
@@ -426,17 +413,15 @@ class MutableFileNode:
     def _try_once_to_download_version(self, servermap, version,
                                       fetch_privkey=False):
         r = Retrieve(self, servermap, version, fetch_privkey)
-        history = self._client.get_history()
-        if history:
-            history.notify_retrieve(r.get_status())
+        if self._history:
+            self._history.notify_retrieve(r.get_status())
         return r.download()
 
     def upload(self, new_contents, servermap):
         return self._do_serialized(self._upload, new_contents, servermap)
     def _upload(self, new_contents, servermap):
         assert self._pubkey, "update_servermap must be called before publish"
-        p = Publish(self, servermap)
-        history = self._client.get_history()
-        if history:
-            history.notify_publish(p.get_status(), len(new_contents))
+        p = Publish(self, self._storage_broker, servermap)
+        if self._history:
+            self._history.notify_publish(p.get_status(), len(new_contents))
         return p.publish(new_contents)

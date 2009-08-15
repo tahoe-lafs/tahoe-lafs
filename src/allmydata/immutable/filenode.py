@@ -5,10 +5,9 @@ from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.protocols import basic
 from foolscap.api import eventually
-from allmydata.interfaces import IFileNode, IFileURI, ICheckable, \
+from allmydata.interfaces import IFileNode, ICheckable, \
      IDownloadTarget, IUploadResults
 from allmydata.util import dictutil, log, base32
-from allmydata.util.assertutil import precondition
 from allmydata import uri as urimodule
 from allmydata.immutable.checker import Checker
 from allmydata.check_results import CheckResults, CheckAndRepairResults
@@ -17,11 +16,6 @@ from allmydata.immutable import download
 
 class _ImmutableFileNodeBase(object):
     implements(IFileNode, ICheckable)
-
-    def __init__(self, uri, client):
-        precondition(urimodule.IImmutableFileURI.providedBy(uri), uri)
-        self.u = IFileURI(uri)
-        self._client = client
 
     def get_readonly_uri(self):
         return self.get_uri()
@@ -68,10 +62,11 @@ class PortionOfFile:
 class DownloadCache:
     implements(IDownloadTarget)
 
-    def __init__(self, node, cachedirectorymanager):
-        self._downloader = node._client.getServiceNamed("downloader")
-        self._uri = node.get_uri()
-        self._storage_index = node.get_storage_index()
+    def __init__(self, filecap, storage_index, downloader,
+                 cachedirectorymanager):
+        self._downloader = downloader
+        self._uri = filecap
+        self._storage_index = storage_index
         self.milestones = set() # of (offset,size,Deferred)
         self.cachedirectorymanager = cachedirectorymanager
         self.cachefile = None
@@ -173,9 +168,10 @@ class DownloadCache:
         pass
     def finish(self):
         return None
-    # The following methods are just because the target might be a repairer.DownUpConnector,
-    # and just because the current CHKUpload object expects to find the storage index and
-    # encoding parameters in its Uploadable.
+    # The following methods are just because the target might be a
+    # repairer.DownUpConnector, and just because the current CHKUpload object
+    # expects to find the storage index and encoding parameters in its
+    # Uploadable.
     def set_storageindex(self, storageindex):
         pass
     def set_encodingparams(self, encodingparams):
@@ -183,10 +179,18 @@ class DownloadCache:
 
 
 class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
-    def __init__(self, uri, client, cachedirectorymanager):
-        _ImmutableFileNodeBase.__init__(self, uri, client)
-        self.download_cache = DownloadCache(self, cachedirectorymanager)
-        prefix = uri.get_verify_cap().to_string()
+    def __init__(self, filecap, storage_broker, secret_holder,
+                 downloader, history, cachedirectorymanager):
+        assert isinstance(filecap, str)
+        self.u = urimodule.CHKFileURI.init_from_string(filecap)
+        self._storage_broker = storage_broker
+        self._secret_holder = secret_holder
+        self._downloader = downloader
+        self._history = history
+        storage_index = self.get_storage_index()
+        self.download_cache = DownloadCache(filecap, storage_index, downloader,
+                                            cachedirectorymanager)
+        prefix = self.u.get_verify_cap().to_string()
         log.PrefixingLogMixin.__init__(self, "allmydata.immutable.filenode", prefix=prefix)
         self.log("starting", level=log.OPERATIONAL)
 
@@ -208,11 +212,13 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
 
     def check_and_repair(self, monitor, verify=False, add_lease=False):
         verifycap = self.get_verify_cap()
-        sb = self._client.get_storage_broker()
+        sb = self._storage_broker
         servers = sb.get_all_servers()
+        sh = self._secret_holder
 
-        c = Checker(client=self._client, verifycap=verifycap, servers=servers,
-                    verify=verify, add_lease=add_lease, monitor=monitor)
+        c = Checker(verifycap=verifycap, servers=servers,
+                    verify=verify, add_lease=add_lease, secret_holder=sh,
+                    monitor=monitor)
         d = c.start()
         def _maybe_repair(cr):
             crr = CheckAndRepairResults(self.u.storage_index)
@@ -252,7 +258,8 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
                     crr.repair_successful = False
                     crr.repair_failure = f
                     return f
-                r = Repairer(client=self._client, verifycap=verifycap, monitor=monitor)
+                r = Repairer(storage_broker=sb, secret_holder=sh,
+                             verifycap=verifycap, monitor=monitor)
                 d = r.start()
                 d.addCallbacks(_gather_repair_results, _repair_error)
                 return d
@@ -262,11 +269,13 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
 
     def check(self, monitor, verify=False, add_lease=False):
         verifycap = self.get_verify_cap()
-        sb = self._client.get_storage_broker()
+        sb = self._storage_broker
         servers = sb.get_all_servers()
+        sh = self._secret_holder
 
-        v = Checker(client=self._client, verifycap=verifycap, servers=servers,
-                    verify=verify, add_lease=add_lease, monitor=monitor)
+        v = Checker(verifycap=verifycap, servers=servers,
+                    verify=verify, add_lease=add_lease, secret_holder=sh,
+                    monitor=monitor)
         return v.start()
 
     def read(self, consumer, offset=0, size=None):
@@ -285,15 +294,13 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
         return d
 
     def download(self, target):
-        downloader = self._client.getServiceNamed("downloader")
-        history = self._client.get_history()
-        return downloader.download(self.get_uri(), target, self._parentmsgid,
-                                   history=history)
+        return self._downloader.download(self.get_uri(), target,
+                                         self._parentmsgid,
+                                         history=self._history)
 
     def download_to_data(self):
-        downloader = self._client.getServiceNamed("downloader")
-        history = self._client.get_history()
-        return downloader.download_to_data(self.get_uri(), history=history)
+        return self._downloader.download_to_data(self.get_uri(),
+                                                 history=self._history)
 
 class LiteralProducer:
     implements(IPushProducer)
@@ -305,9 +312,9 @@ class LiteralProducer:
 
 class LiteralFileNode(_ImmutableFileNodeBase):
 
-    def __init__(self, uri, client):
-        precondition(urimodule.IImmutableFileURI.providedBy(uri), uri)
-        _ImmutableFileNodeBase.__init__(self, uri, client)
+    def __init__(self, filecap):
+        assert isinstance(filecap, str)
+        self.u = urimodule.LiteralFileURI.init_from_string(filecap)
 
     def get_uri(self):
         return self.u.to_string()

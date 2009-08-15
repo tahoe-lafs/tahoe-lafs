@@ -15,21 +15,28 @@ class FakeClient(client.Client):
         self.download_cache_dirman = cachedir.CacheDirectoryManager(download_cachedir.name)
     def getServiceNamed(self, name):
         return None
+    def get_storage_broker(self):
+        return None
+    _secret_holder=None
+    def get_history(self):
+        return None
     def get_encoding_parameters(self):
         return {"k": 3, "n": 10}
     def get_writekey(self):
         return os.urandom(16)
+    def create_node_from_uri(self, writecap, readcap):
+        return None
 
 class FakeMutableFileNode(mut_filenode.MutableFileNode):
-    def __init__(self, client):
-        mut_filenode.MutableFileNode.__init__(self, client)
+    def __init__(self, *args, **kwargs):
+        mut_filenode.MutableFileNode.__init__(self, *args, **kwargs)
         self._uri = uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))
 
 class FakeDirectoryNode(dirnode.DirectoryNode):
     def __init__(self, client):
         dirnode.DirectoryNode.__init__(self, client)
         mutfileuri = uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))
-        myuri = uri.DirectoryURI(mutfileuri)
+        myuri = uri.DirectoryURI(mutfileuri).to_string()
         self.init_from_uri(myuri)
 
 
@@ -37,7 +44,7 @@ children = [] # tuples of (k, v) (suitable for passing to dict())
 packstr = None
 fakeclient = FakeClient()
 testdirnode = dirnode.DirectoryNode(fakeclient)
-testdirnode.init_from_uri(uri.DirectoryURI(uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))))
+testdirnode.init_from_uri(uri.DirectoryURI(uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))).to_string())
 
 def random_unicode(l):
     while True:
@@ -49,9 +56,10 @@ def random_unicode(l):
 def random_fsnode():
     coin = random.randrange(0, 3)
     if coin == 0:
-        return immut_filenode.FileNode(uri.CHKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32), random.randrange(1, 5), random.randrange(6, 15), random.randrange(99, 1000000000000)), fakeclient, None)
+        return immut_filenode.FileNode(uri.CHKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32), random.randrange(1, 5), random.randrange(6, 15), random.randrange(99, 1000000000000)).to_string(), None, None, None, None, None)
     elif coin == 1:
-        return FakeMutableFileNode(fakeclient)
+        encoding_parameters = {"k": 3, "n": 10}
+        return FakeMutableFileNode(None, None, encoding_parameters, None)
     else:
         assert coin == 2
         return FakeDirectoryNode(fakeclient)
@@ -91,7 +99,7 @@ PROF_FILE_NAME="bench_dirnode.prof"
 def run_benchmarks(profile=False):
     for (func, initfunc) in [(unpack, init_for_unpack), (pack, init_for_pack), (unpack_and_repack, init_for_unpack)]:
         print "benchmarking %s" % (func,)
-        benchutil.bench(unpack_and_repack, initfunc=init_for_unpack, TOPXP=12, profile=profile, profresults=PROF_FILE_NAME)
+        benchutil.bench(unpack_and_repack, initfunc=init_for_unpack, TOPXP=12)#, profile=profile, profresults=PROF_FILE_NAME)
 
 def print_stats():
     s = hotshot.stats.load(PROF_FILE_NAME)

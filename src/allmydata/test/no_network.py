@@ -82,7 +82,7 @@ class LocalWrapper:
             return res
         d.addCallback(_return_membrane)
         if self.post_call_notifier:
-            d.addCallback(self.post_call_notifier, methname)
+            d.addCallback(self.post_call_notifier, self, methname)
         return d
 
     def notifyOnDisconnect(self, f, *args, **kwargs):
@@ -112,8 +112,6 @@ class NoNetworkStorageBroker:
         return None
 
 class NoNetworkClient(Client):
-    DEFAULT_MUTABLE_KEYSIZE = 522
-
     def create_tub(self):
         pass
     def init_introducer_client(self):
@@ -174,6 +172,7 @@ class NoNetworkGrid(service.MultiService):
         for i in range(num_servers):
             ss = self.make_server(i)
             self.add_server(i, ss)
+        self.rebuild_serverlist()
 
         for i in range(num_clients):
             clientid = hashutil.tagged_hash("clientid", str(i))[:20]
@@ -194,6 +193,7 @@ class NoNetworkGrid(service.MultiService):
                 c = client_config_hooks[i](clientdir)
             if not c:
                 c = NoNetworkClient(clientdir)
+                c.set_default_mutable_keysize(522)
             c.nodeid = clientid
             c.short_nodeid = b32encode(clientid).lower()[:8]
             c._servers = self.all_servers # can be updated later
@@ -217,9 +217,27 @@ class NoNetworkGrid(service.MultiService):
         serverid = ss.my_nodeid
         self.servers_by_number[i] = ss
         self.servers_by_id[serverid] = wrap_storage_server(ss)
+        self.rebuild_serverlist()
+
+    def rebuild_serverlist(self):
         self.all_servers = frozenset(self.servers_by_id.items())
         for c in self.clients:
             c._servers = self.all_servers
+
+    def remove_server(self, serverid):
+        # it's enough to remove the server from c._servers (we don't actually
+        # have to detach and stopService it)
+        for i,ss in self.servers_by_number.items():
+            if ss.my_nodeid == serverid:
+                del self.servers_by_number[i]
+                break
+        del self.servers_by_id[serverid]
+        self.rebuild_serverlist()
+
+    def break_server(self, serverid):
+        # mark the given server as broken, so it will throw exceptions when
+        # asked to hold a share
+        self.servers_by_id[serverid].broken = True
 
 class GridTestMixin:
     def setUp(self):

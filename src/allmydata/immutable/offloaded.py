@@ -153,7 +153,9 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._helper.log("CHKUploadHelper starting for SI %s" % self._upload_id,
                          parent=log_number)
 
-        self._client = helper.parent
+        client = helper.parent
+        self._storage_broker = client.get_storage_broker()
+        self._secret_holder = client._secret_holder
         self._fetcher = CHKCiphertextFetcher(self, incoming_file, encoding_file,
                                              self._log_number)
         self._reader = LocalCiphertextReader(self, storage_index, encoding_file)
@@ -493,7 +495,7 @@ class Helper(Referenceable, service.MultiService):
     chk_upload_helper_class = CHKUploadHelper
     MAX_UPLOAD_STATUSES = 10
 
-    def __init__(self, basedir, stats_provider=None):
+    def __init__(self, basedir, stats_provider=None, history=None):
         self._basedir = basedir
         self._chk_incoming = os.path.join(basedir, "CHK_incoming")
         self._chk_encoding = os.path.join(basedir, "CHK_encoding")
@@ -501,8 +503,6 @@ class Helper(Referenceable, service.MultiService):
         fileutil.make_dirs(self._chk_encoding)
         self._active_uploads = {}
         self._all_uploads = weakref.WeakKeyDictionary() # for debugging
-        self._all_upload_statuses = weakref.WeakKeyDictionary()
-        self._recent_upload_statuses = []
         self.stats_provider = stats_provider
         if stats_provider:
             stats_provider.register_producer(self)
@@ -513,6 +513,7 @@ class Helper(Referenceable, service.MultiService):
                           "chk_upload_helper.fetched_bytes": 0,
                           "chk_upload_helper.encoded_bytes": 0,
                           }
+        self._history = history
         service.MultiService.__init__(self)
 
     def setServiceParent(self, parent):
@@ -637,11 +638,9 @@ class Helper(Referenceable, service.MultiService):
 
     def _add_upload(self, uh):
         self._all_uploads[uh] = None
-        s = uh.get_upload_status()
-        self._all_upload_statuses[s] = None
-        self._recent_upload_statuses.append(s)
-        while len(self._recent_upload_statuses) > self.MAX_UPLOAD_STATUSES:
-            self._recent_upload_statuses.pop(0)
+        if self._history:
+            s = uh.get_upload_status()
+            self._history.notify_helper_upload(s)
 
     def upload_finished(self, storage_index, size):
         # this is called with size=0 if the upload failed
@@ -650,6 +649,3 @@ class Helper(Referenceable, service.MultiService):
         del self._active_uploads[storage_index]
         s = uh.get_upload_status()
         s.set_active(False)
-
-    def get_all_upload_statuses(self):
-        return self._all_upload_statuses

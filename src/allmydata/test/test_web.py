@@ -11,19 +11,17 @@ from allmydata import interfaces, uri, webish
 from allmydata.storage.shares import get_share_file
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.immutable import upload, download
+from allmydata.nodemaker import NodeMaker
 from allmydata.unknown import UnknownNode
 from allmydata.web import status, common
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.util import fileutil, base32
-from allmydata.util.assertutil import precondition
-from allmydata.test.common import FakeDirectoryNode, FakeCHKFileNode, \
-     FakeMutableFileNode, create_chk_filenode, WebErrorMixin, ShouldFailMixin
-from allmydata.interfaces import IURI, IDirectoryURI, IReadonlyDirectoryURI, \
-     IFileURI, IMutableFileURI, IMutableFileNode, UnhandledCapTypeError
+from allmydata.test.common import FakeCHKFileNode, FakeMutableFileNode, \
+     create_chk_filenode, WebErrorMixin, ShouldFailMixin
+from allmydata.interfaces import IMutableFileNode
 from allmydata.mutable import servermap, publish, retrieve
 import common_util as testutil
 from allmydata.test.no_network import GridTestMixin
-
 from allmydata.test.common_web import HTTPClientGETFactory, \
      HTTPClientHEADFactory
 
@@ -37,68 +35,36 @@ class FakeStatsProvider:
         stats = {'stats': {}, 'counters': {}}
         return stats
 
-class FakeClient(service.MultiService):
-    nodeid = "fake_nodeid"
-    nickname = "fake_nickname"
-    basedir = "fake_basedir"
-    def get_versions(self):
-        return {'allmydata': "fake",
-                'foolscap': "fake",
-                'twisted': "fake",
-                'zfec': "fake",
-                }
-    introducer_furl = "None"
-
-    _all_upload_status = [upload.UploadStatus()]
-    _all_download_status = [download.DownloadStatus()]
-    _all_mapupdate_statuses = [servermap.UpdateStatus()]
-    _all_publish_statuses = [publish.PublishStatus()]
-    _all_retrieve_statuses = [retrieve.RetrieveStatus()]
-    convergence = "some random string"
-    stats_provider = FakeStatsProvider()
-
-    def connected_to_introducer(self):
-        return False
-
-    storage_broker = StorageFarmBroker(None, permute_peers=True)
-    def get_storage_broker(self):
-        return self.storage_broker
-
-    def create_node_from_uri(self, auri, readcap=None):
-        if not auri:
-            auri = readcap
-        precondition(isinstance(auri, str), auri)
-        u = uri.from_string(auri)
-        if (IDirectoryURI.providedBy(u) or IReadonlyDirectoryURI.providedBy(u)):
-            return FakeDirectoryNode(self).init_from_uri(u)
-        if IFileURI.providedBy(u):
-            return FakeCHKFileNode(u, self)
-        if IMutableFileURI.providedBy(u):
-            return FakeMutableFileNode(self).init_from_uri(u)
-        raise UnhandledCapTypeError("cap '%s' is recognized, but has no Node" % auri)
-
-    def create_empty_dirnode(self):
-        n = FakeDirectoryNode(self)
-        d = n.create()
-        d.addCallback(lambda res: n)
-        return d
-
-    MUTABLE_SIZELIMIT = FakeMutableFileNode.MUTABLE_SIZELIMIT
-    def create_mutable_file(self, contents=""):
-        n = FakeMutableFileNode(self)
+class FakeNodeMaker(NodeMaker):
+    def _create_lit(self, cap):
+        return FakeCHKFileNode(cap)
+    def _create_immutable(self, cap):
+        return FakeCHKFileNode(cap)
+    def _create_mutable(self, cap):
+        return FakeMutableFileNode(None, None, None, None).init_from_uri(cap)
+    def create_mutable_file(self, contents="", keysize=None):
+        n = FakeMutableFileNode(None, None, None, None)
         return n.create(contents)
 
+class FakeUploader:
     def upload(self, uploadable):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
         def _got_data(datav):
             data = "".join(datav)
-            n = create_chk_filenode(self, data)
+            n = create_chk_filenode(data)
             results = upload.UploadResults()
             results.uri = n.get_uri()
             return results
         d.addCallback(_got_data)
         return d
+
+class FakeHistory:
+    _all_upload_status = [upload.UploadStatus()]
+    _all_download_status = [download.DownloadStatus()]
+    _all_mapupdate_statuses = [servermap.UpdateStatus()]
+    _all_publish_statuses = [publish.PublishStatus()]
+    _all_retrieve_statuses = [retrieve.RetrieveStatus()]
 
     def list_all_upload_statuses(self):
         return self._all_upload_status
@@ -112,6 +78,53 @@ class FakeClient(service.MultiService):
         return self._all_retrieve_statuses
     def list_all_helper_statuses(self):
         return []
+
+class FakeClient(service.MultiService):
+    def __init__(self):
+        service.MultiService.__init__(self)
+        self.uploader = FakeUploader()
+        self.nodemaker = FakeNodeMaker(None, None, None,
+                                       self.uploader, None, None,
+                                       None, None)
+
+    nodeid = "fake_nodeid"
+    nickname = "fake_nickname"
+    basedir = "fake_basedir"
+    def get_versions(self):
+        return {'allmydata': "fake",
+                'foolscap': "fake",
+                'twisted': "fake",
+                'zfec': "fake",
+                }
+    introducer_furl = "None"
+
+    convergence = "some random string"
+    stats_provider = FakeStatsProvider()
+
+    def connected_to_introducer(self):
+        return False
+
+    storage_broker = StorageFarmBroker(None, permute_peers=True)
+    def get_storage_broker(self):
+        return self.storage_broker
+    _secret_holder = None
+    def get_encoding_parameters(self):
+        return {"k": 3, "n": 10}
+    def get_history(self):
+        return FakeHistory()
+
+    def create_node_from_uri(self, writecap, readcap=None):
+        return self.nodemaker.create_from_cap(writecap, readcap)
+
+    def create_empty_dirnode(self):
+        return self.nodemaker.create_new_mutable_directory()
+
+    MUTABLE_SIZELIMIT = FakeMutableFileNode.MUTABLE_SIZELIMIT
+    def create_mutable_file(self, contents=""):
+        return self.nodemaker.create_mutable_file(contents)
+
+    def upload(self, uploadable):
+        return self.uploader.upload(uploadable)
 
 class WebMixin(object):
     def setUp(self):
@@ -190,7 +203,7 @@ class WebMixin(object):
 
     def makefile(self, number):
         contents = "contents of file %s\n" % number
-        n = create_chk_filenode(self.s, contents)
+        n = create_chk_filenode(contents)
         return contents, n, n.get_uri()
 
     def tearDown(self):
@@ -456,11 +469,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_status(self):
-        dl_num = self.s.list_all_download_statuses()[0].get_counter()
-        ul_num = self.s.list_all_upload_statuses()[0].get_counter()
-        mu_num = self.s.list_all_mapupdate_statuses()[0].get_counter()
-        pub_num = self.s.list_all_publish_statuses()[0].get_counter()
-        ret_num = self.s.list_all_retrieve_statuses()[0].get_counter()
+        h = self.s.get_history()
+        dl_num = h.list_all_download_statuses()[0].get_counter()
+        ul_num = h.list_all_upload_statuses()[0].get_counter()
+        mu_num = h.list_all_mapupdate_statuses()[0].get_counter()
+        pub_num = h.list_all_publish_statuses()[0].get_counter()
+        ret_num = h.list_all_retrieve_statuses()[0].get_counter()
         d = self.GET("/status", followRedirect=True)
         def _check(res):
             self.failUnless('Upload and Download Status' in res, res)
@@ -652,8 +666,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         base = "/file/%s" % urllib.quote(verifier_cap)
         # client.create_node_from_uri() can't handle verify-caps
         d = self.shouldFail2(error.Error, "GET_unhandled_URI_named",
-                             "400 Bad Request",
-                             "is not a valid file- or directory- cap",
+                             "400 Bad Request", "is not a file-cap",
                              self.GET, base)
         return d
 
@@ -664,7 +677,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         # client.create_node_from_uri() can't handle verify-caps
         d = self.shouldFail2(error.Error, "test_GET_unhandled_URI",
                              "400 Bad Request",
-                             "is not a valid file- or directory- cap",
+                             "GET unknown URI type: can only do t=info",
                              self.GET, base)
         return d
 
@@ -704,7 +717,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
     def test_PUT_overwrite_only_files(self):
         # create a directory, put a file in that directory.
-        contents, n, uri = self.makefile(8)
+        contents, n, filecap = self.makefile(8)
         d = self.PUT(self.public_url + "/foo/dir?t=mkdir", "")
         d.addCallback(lambda res:
             self.PUT(self.public_url + "/foo/dir/file1.txt",
@@ -713,13 +726,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         # (this should work)
         d.addCallback(lambda res:
             self.PUT(self.public_url + "/foo/dir/file1.txt?t=uri&replace=only-files",
-                     uri))
+                     filecap))
         d.addCallback(lambda res:
             self.shouldFail2(error.Error, "PUT_bad_t", "409 Conflict",
                  "There was already a child by that name, and you asked me "
                  "to not replace it",
                  self.PUT, self.public_url + "/foo/dir?t=uri&replace=only-files",
-                 uri))
+                 filecap))
         return d
 
     def test_PUT_NEWFILEURL(self):
@@ -1351,22 +1364,22 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_POST_upload_no_link_mutable(self):
         d = self.POST("/uri", t="upload", mutable="true",
                       file=("new.txt", self.NEWFILE_CONTENTS))
-        def _check(new_uri):
-            new_uri = new_uri.strip()
-            self.new_uri = new_uri
-            u = IURI(new_uri)
-            self.failUnless(IMutableFileURI.providedBy(u))
+        def _check(filecap):
+            filecap = filecap.strip()
+            self.failUnless(filecap.startswith("URI:SSK:"), filecap)
+            self.filecap = filecap
+            u = uri.WriteableSSKFileURI.init_from_string(filecap)
             self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
-            n = self.s.create_node_from_uri(new_uri)
+            n = self.s.create_node_from_uri(filecap)
             return n.download_best_version()
         d.addCallback(_check)
         def _check2(data):
             self.failUnlessEqual(data, self.NEWFILE_CONTENTS)
-            return self.GET("/uri/%s" % urllib.quote(self.new_uri))
+            return self.GET("/uri/%s" % urllib.quote(self.filecap))
         d.addCallback(_check2)
         def _check3(data):
             self.failUnlessEqual(data, self.NEWFILE_CONTENTS)
-            return self.GET("/file/%s" % urllib.quote(self.new_uri))
+            return self.GET("/file/%s" % urllib.quote(self.filecap))
         d.addCallback(_check3)
         def _check4(data):
             self.failUnlessEqual(data, self.NEWFILE_CONTENTS)
@@ -1526,7 +1539,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
     def test_POST_upload_mutable_toobig(self):
         d = self.shouldFail2(error.Error,
-                             "test_POST_upload_no_link_mutable_toobig",
+                             "test_POST_upload_mutable_toobig",
                              "413 Request Entity Too Large",
                              "SDMF is limited to one segment, and 10001 > 10000",
                              self.POST,
@@ -2361,28 +2374,22 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_PUT_NEWFILE_URI_mutable(self):
         file_contents = "New file contents here\n"
         d = self.PUT("/uri?mutable=true", file_contents)
-        def _check_mutable(uri):
-            uri = uri.strip()
-            u = IURI(uri)
-            self.failUnless(IMutableFileURI.providedBy(u))
+        def _check1(filecap):
+            filecap = filecap.strip()
+            self.failUnless(filecap.startswith("URI:SSK:"), filecap)
+            self.filecap = filecap
+            u = uri.WriteableSSKFileURI.init_from_string(filecap)
             self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
-            n = self.s.create_node_from_uri(uri)
+            n = self.s.create_node_from_uri(filecap)
             return n.download_best_version()
-        d.addCallback(_check_mutable)
-        def _check2_mutable(data):
+        d.addCallback(_check1)
+        def _check2(data):
             self.failUnlessEqual(data, file_contents)
-        d.addCallback(_check2_mutable)
-        return d
-
-        def _check(uri):
-            self.failUnless(uri.to_string() in FakeCHKFileNode.all_contents)
-            self.failUnlessEqual(FakeCHKFileNode.all_contents[uri.to_string()],
-                                 file_contents)
-            return self.GET("/uri/%s" % uri)
-        d.addCallback(_check)
-        def _check2(res):
-            self.failUnlessEqual(res, file_contents)
+            return self.GET("/uri/%s" % urllib.quote(self.filecap))
         d.addCallback(_check2)
+        def _check3(res):
+            self.failUnlessEqual(res, file_contents)
+        d.addCallback(_check3)
         return d
 
     def test_PUT_mkdir(self):

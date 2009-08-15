@@ -1084,6 +1084,6 @@ class UnknownNodeHandler(RenderMixin, rend.Page):
         t = get_arg(req, "t", "").strip()
         if t == "info":
             return MoreInfo(self.node)
-        raise WebError("GET unknown: can only do t=info, not t=%s" % t)
+        raise WebError("GET unknown URI type: can only do t=info, not t=%s" % t)
 
 

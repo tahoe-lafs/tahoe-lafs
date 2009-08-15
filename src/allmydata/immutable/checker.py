@@ -33,7 +33,8 @@ class Checker(log.PrefixingLogMixin):
     object that was passed into my constructor whether this task has been
     cancelled (by invoking its raise_if_cancelled() method).
     """
-    def __init__(self, client, verifycap, servers, verify, add_lease, monitor):
+    def __init__(self, verifycap, servers, verify, add_lease, secret_holder,
+                 monitor):
         assert precondition(isinstance(verifycap, CHKFileVerifierURI), verifycap, type(verifycap))
         assert precondition(isinstance(servers, (set, frozenset)), servers)
         for (serverid, serverrref) in servers:
@@ -42,7 +43,6 @@ class Checker(log.PrefixingLogMixin):
         prefix = "%s" % base32.b2a_l(verifycap.storage_index[:8], 60)
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.checker", prefix=prefix)
 
-        self._client = client
         self._verifycap = verifycap
 
         self._monitor = monitor
@@ -52,10 +52,10 @@ class Checker(log.PrefixingLogMixin):
 
         self._share_hash_tree = None
 
-        frs = file_renewal_secret_hash(client.get_renewal_secret(),
+        frs = file_renewal_secret_hash(secret_holder.get_renewal_secret(),
                                        self._verifycap.storage_index)
         self.file_renewal_secret = frs
-        fcs = file_cancel_secret_hash(client.get_cancel_secret(),
+        fcs = file_cancel_secret_hash(secret_holder.get_cancel_secret(),
                                       self._verifycap.storage_index)
         self.file_cancel_secret = fcs
 

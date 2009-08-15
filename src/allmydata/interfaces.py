@@ -483,22 +483,22 @@ class UnhandledCapTypeError(Exception):
 class IFilesystemNode(Interface):
     def get_uri():
         """
-        Return the URI that can be used by others to get access to this
-        node. If this node is read-only, the URI will only offer read-only
-        access. If this node is read-write, the URI will offer read-write
-        access.
+        Return the URI string that can be used by others to get access to
+        this node. If this node is read-only, the URI will only offer
+        read-only access. If this node is read-write, the URI will offer
+        read-write access.
 
         If you have read-write access to a node and wish to share merely
         read-only access with others, use get_readonly_uri().
         """
 
     def get_readonly_uri():
-        """Return the directory URI that can be used by others to get
-        read-only access to this directory node. The result is a read-only
-        URI, regardless of whether this dirnode is read-only or read-write.
+        """Return the URI string that can be used by others to get read-only
+        access to this node. The result is a read-only URI, regardless of
+        whether this node is read-only or read-write.
 
-        If you have merely read-only access to this dirnode,
-        get_readonly_uri() will return the same thing as get_uri().
+        If you have merely read-only access to this node, get_readonly_uri()
+        will return the same thing as get_uri().
         """
 
     def get_repair_cap():

@@ -9,7 +9,7 @@ from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.unknown import UnknownNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
-     IURI, IFileNode, IMutableFileURI, IFilesystemNode, \
+     IFileNode, IMutableFileURI, IFilesystemNode, \
      ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable, \
      CannotPackUnknownNodeError
 from allmydata.check_results import DeepCheckResults, \
@@ -18,7 +18,8 @@ from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.netstring import netstring, split_netstring
-from allmydata.uri import DirectoryURI, LiteralFileURI, from_string
+from allmydata.uri import DirectoryURI, ReadonlyDirectoryURI, \
+     LiteralFileURI, from_string
 from pycryptopp.cipher.aes import AES
 
 class CachingDict(dict):
@@ -147,39 +148,19 @@ class DirectoryNode:
     implements(IDirectoryNode, ICheckable, IDeepCheckable)
     filenode_class = MutableFileNode
 
-    def __init__(self, client):
-        self._client = client
+    def __init__(self, filenode, nodemaker, uploader):
+        self._node = filenode
+        filenode_uri = IMutableFileURI(filenode.get_uri())
+        if filenode_uri.is_readonly():
+            self._uri = ReadonlyDirectoryURI(filenode_uri)
+        else:
+            self._uri = DirectoryURI(filenode_uri)
+        self._nodemaker = nodemaker
+        self._uploader = uploader
         self._most_recent_size = None
 
     def __repr__(self):
         return "<%s %s %s>" % (self.__class__.__name__, self.is_readonly() and "RO" or "RW", hasattr(self, '_uri') and self._uri.abbrev())
-    def init_from_uri(self, myuri):
-        self._uri = IURI(myuri)
-        self._node = self.filenode_class(self._client)
-        self._node.init_from_uri(self._uri.get_filenode_uri())
-        return self
-
-    @classmethod
-    def create_with_mutablefile(cls, filenode, client):
-        self = cls(client)
-        self._node = filenode
-        return self._filenode_created(filenode)
-
-    def create(self, keypair_generator=None, keysize=None):
-        """
-        Returns a deferred that eventually fires with self once the directory
-        has been created (distributed across a set of storage servers).
-        """
-        # first we create a MutableFileNode with empty_contents, then use its
-        # URI to create our own.
-        self._node = self.filenode_class(self._client)
-        empty_contents = self._pack_contents(CachingDict())
-        d = self._node.create(empty_contents, keypair_generator, keysize=keysize)
-        d.addCallback(self._filenode_created)
-        return d
-    def _filenode_created(self, res):
-        self._uri = DirectoryURI(IMutableFileURI(self._node.get_uri()))
-        return self
 
     def get_size(self):
         # return the size of our backing mutable file, in bytes, if we've
@@ -217,7 +198,7 @@ class DirectoryNode:
         return plaintext
 
     def _create_node(self, rwcap, rocap):
-        return self._client.create_node_from_uri(rwcap, rocap)
+        return self._nodemaker.create_from_cap(rwcap, rocap)
 
     def _unpack_contents(self, data):
         # the directory is serialized as a list of netstrings, one per child.
@@ -435,6 +416,7 @@ class DirectoryNode:
                 assert len(e) == 3
                 name, child_uri, metadata = e
             assert isinstance(name, unicode)
+            assert isinstance(child_uri, str)
             child_node = self._create_node(child_uri, None)
             if isinstance(child_node, UnknownNode):
                 msg = "cannot pack unknown node as child %s" % str(name)
@@ -480,9 +462,9 @@ class DirectoryNode:
         assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        d = self._client.upload(uploadable)
+        d = self._uploader.upload(uploadable)
         d.addCallback(lambda results: results.uri)
-        d.addCallback(self._client.create_node_from_uri)
+        d.addCallback(self._nodemaker.create_from_cap)
         d.addCallback(lambda node:
                       self.set_node(name, node, metadata, overwrite))
         return d
@@ -505,7 +487,7 @@ class DirectoryNode:
         assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        d = self._client.create_empty_dirnode()
+        d = self._nodemaker.create_new_mutable_directory()
         def _created(child):
             entries = [(name, child, None)]
             a = Adder(self, entries, overwrite=overwrite)

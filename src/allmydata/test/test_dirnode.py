@@ -1,13 +1,11 @@
 
 import time
-from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata import uri, dirnode
 from allmydata.client import Client
 from allmydata.immutable import upload
-from allmydata.interfaces import IURI, IClient, IMutableFileNode, \
-     IDirectoryURI, IReadonlyDirectoryURI, IFileNode, \
+from allmydata.interfaces import IFileNode, \
      ExistingChildError, NoSuchChildError, \
      IDeepCheckResults, IDeepCheckAndRepairResults, CannotPackUnknownNodeError
 from allmydata.mutable.filenode import MutableFileNode
@@ -15,112 +13,34 @@ from allmydata.mutable.common import UncoordinatedWriteError
 from allmydata.util import hashutil, base32
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
-     FakeDirectoryNode, create_chk_filenode, ErrorMixin
+     ErrorMixin
 from allmydata.test.no_network import GridTestMixin
-from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.unknown import UnknownNode
+from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
 import common_util as testutil
 
-# to test dirnode.py, we want to construct a tree of real DirectoryNodes that
-# contain pointers to fake files. We start with a fake MutableFileNode that
-# stores all of its data in a static table.
-
-class Marker:
-    implements(IFileNode, IMutableFileNode) # sure, why not
-    def __init__(self, nodeuri):
-        if not isinstance(nodeuri, str):
-            nodeuri = nodeuri.to_string()
-        self.nodeuri = nodeuri
-        si = hashutil.tagged_hash("tag1", nodeuri)[:16]
-        self.storage_index = si
-        fp = hashutil.tagged_hash("tag2", nodeuri)
-        self.verifieruri = uri.SSKVerifierURI(storage_index=si, fingerprint=fp)
-    def get_uri(self):
-        return self.nodeuri
-    def get_readonly_uri(self):
-        return self.nodeuri
-    def get_verify_cap(self):
-        return self.verifieruri
-    def get_storage_index(self):
-        return self.storage_index
-
-    def check(self, monitor, verify=False, add_lease=False):
-        r = CheckResults(uri.from_string(self.nodeuri), None)
-        r.set_healthy(True)
-        r.set_recoverable(True)
-        return defer.succeed(r)
-
-    def check_and_repair(self, monitor, verify=False, add_lease=False):
-        d = self.check(verify)
-        def _got(cr):
-            r = CheckAndRepairResults(None)
-            r.pre_repair_results = r.post_repair_results = cr
-            return r
-        d.addCallback(_got)
-        return d
-
-# dirnode requires three methods from the client: upload(),
-# create_node_from_uri(), and create_empty_dirnode(). Of these, upload() is
-# only used by the convenience composite method add_file().
-
-class FakeClient:
-    implements(IClient)
-
-    def upload(self, uploadable):
-        d = uploadable.get_size()
-        d.addCallback(lambda size: uploadable.read(size))
-        def _got_data(datav):
-            data = "".join(datav)
-            n = create_chk_filenode(self, data)
-            results = upload.UploadResults()
-            results.uri = n.get_uri()
-            return results
-        d.addCallback(_got_data)
-        return d
-
-    def create_node_from_uri(self, u, readcap=None):
-        if not u:
-            u = readcap
-        u = IURI(u)
-        if (IDirectoryURI.providedBy(u)
-            or IReadonlyDirectoryURI.providedBy(u)):
-            return FakeDirectoryNode(self).init_from_uri(u)
-        return Marker(u.to_string())
-
-    def create_empty_dirnode(self):
-        n = FakeDirectoryNode(self)
-        d = n.create()
-        d.addCallback(lambda res: n)
-        return d
-
-class Dirnode(unittest.TestCase,
+class Dirnode(GridTestMixin, unittest.TestCase,
               testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
     timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
-    def setUp(self):
-        self.client = FakeClient()
-        # This is a base32-encoded representation of the directory tree
-        # root/file1
-        # root/file2
-        # root/file3
-        # as represented after being fed to _pack_contents.
-        # We have it here so we can decode it, feed it to 
-        # _unpack_contents, and verify that _unpack_contents 
-        # works correctly.
-
-        self.known_tree = "GM4TOORVHJTGS3DFGEWDSNJ2KVJESOSDJBFTU33MPB2GS3LZNVYG6N3GGI3WU5TIORTXC3DOMJ2G4NB2MVWXUZDONBVTE5LNGRZWK2LYN55GY23XGNYXQMTOMZUWU5TENN4DG23ZG5UTO2L2NQ2DO6LFMRWDMZJWGRQTUMZ2GEYDUMJQFQYTIMZ22XZKZORX5XS7CAQCSK3URR6QOHISHRCMGER5LRFSZRNAS5ZSALCS6TWFQAE754IVOIKJVK73WZPP3VUUEDTX3WHTBBZ5YX3CEKHCPG3ZWQLYA4QM6LDRCF7TJQYWLIZHKGN5ROA3AUZPXESBNLQQ6JTC2DBJU2D47IZJTLR3PKZ4RVF57XLPWY7FX7SZV3T6IJ3ORFW37FXUPGOE3ROPFNUX5DCGMAQJ3PGGULBRGM3TU6ZCMN2GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGI3TKNRWGEWCAITUMFUG6ZJCHIQHWITMNFXGW3LPORUW2ZJCHIQDCMRUGY3DMMZYHE3S4NBSG42TMNRRFQQCE3DJNZVWG4TUNFWWKIR2EAYTENBWGY3DGOBZG4XDIMRXGU3DMML5FQQCE3LUNFWWKIR2EAYTENBWGY3DGOBZG4XDIMRXGU3DMML5FQWDGOJRHI2TUZTJNRSTELBZGQ5FKUSJHJBUQSZ2MFYGKZ3SOBSWQ43IO52WO23CNAZWU3DUGVSWSNTIOE5DK33POVTW4ZLNMNWDK6DHPA2GS2THNF2W25DEN5VGY2LQNFRGG5DKNNRHO5TZPFTWI6LNMRYGQ2LCGJTHM4J2GM5DCMB2GQWDCNBSHKVVQBGRYMACKJ27CVQ6O6B4QPR72RFVTGOZUI76XUSWAX73JRV5PYRHMIFYZIA25MXDPGUGML6M2NMRSG4YD4W4K37ZDYSXHMJ3IUVT4F64YTQQVBJFFFOUC7J7LAB2VFCL5UKKGMR2D3F4EPOYC7UYWQZNR5KXHBSNXLCNBX2SNF22DCXJIHSMEKWEWOG5XCJEVVZ7UW5IB6I64XXQSJ34B5CAYZGZIIMR6LBRGMZTU6ZCMN2GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGMYDEMJYFQQCE5DBNBXWKIR2EB5SE3DJNZVW233UNFWWKIR2EAYTENBWGY3DGOBZG4XDIMZQGIYTQLBAEJWGS3TLMNZHI2LNMURDUIBRGI2DMNRWGM4DSNZOGQZTAMRRHB6SYIBCNV2GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGMYDEMJYPUWCYMZZGU5DKOTGNFWGKMZMHE2DUVKSJE5EGSCLHJRW25DDPBYTO2DXPB3GM6DBNYZTI6LJMV3DM2LWNB4TU4LWMNSWW3LKORXWK5DEMN3TI23NNE3WEM3SORRGY5THPA3TKNBUMNZG453BOF2GSZLXMVWWI3DJOFZW623RHIZTUMJQHI2SYMJUGI5BOSHWDPG3WKPAVXCF3XMKA7QVIWPRMWJHDTQHD27AHDCPJWDQENQ5H5ZZILTXQNIXXCIW4LKQABU2GCFRG5FHQN7CHD7HF4EKNRZFIV2ZYQIBM7IQU7F4RGB3XCX3FREPBKQ7UCICHVWPCYFGA6OLH3J45LXQ6GWWICJ3PGWJNLZ7PCRNLAPNYUGU6BENS7OXMBEOOFRIZV3PF2FFWZ5WHDPKXERYP7GNHKRMGEZTOOT3EJRXI2LNMURDUIBRGI2DMNRWGM4DSNZOGQZTGNRSGY4SYIBCORQWQ33FEI5CA6ZCNRUW423NN52GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGMZTMMRWHEWCAITMNFXGWY3SORUW2ZJCHIQDCMRUGY3DMMZYHE3S4NBTGM3DENRZPUWCAITNORUW2ZJCHIQDCMRUGY3DMMZYHE3S4NBTGM3DENRZPUWCY==="
 
     def test_basic(self):
-        d = self.client.create_empty_dirnode()
+        self.basedir = "dirnode/Dirnode/test_basic"
+        self.set_up_grid()
+        c = self.g.clients[0]
+        d = c.create_empty_dirnode()
         def _done(res):
-            self.failUnless(isinstance(res, FakeDirectoryNode))
+            self.failUnless(isinstance(res, dirnode.DirectoryNode))
             rep = str(res)
             self.failUnless("RW" in rep)
         d.addCallback(_done)
         return d
 
     def test_check(self):
-        d = self.client.create_empty_dirnode()
+        self.basedir = "dirnode/Dirnode/test_check"
+        self.set_up_grid()
+        c = self.g.clients[0]
+        d = c.create_empty_dirnode()
         d.addCallback(lambda dn: dn.check(Monitor()))
         def _done(res):
             self.failUnless(res.is_healthy())
@@ -134,16 +54,17 @@ class Dirnode(unittest.TestCase,
         #  root/subdir/file1
         #  root/subdir/link -> root
         #  root/rodir
-        d = self.client.create_empty_dirnode()
+        c = self.g.clients[0]
+        d = c.create_empty_dirnode()
         def _created_root(rootnode):
             self._rootnode = rootnode
             return rootnode.create_empty_directory(u"subdir")
         d.addCallback(_created_root)
         def _created_subdir(subdir):
             self._subdir = subdir
-            d = subdir.add_file(u"file1", upload.Data("data", None))
+            d = subdir.add_file(u"file1", upload.Data("data"*100, None))
             d.addCallback(lambda res: subdir.set_node(u"link", self._rootnode))
-            d.addCallback(lambda res: self.client.create_empty_dirnode())
+            d.addCallback(lambda res: c.create_empty_dirnode())
             d.addCallback(lambda dn:
                           self._rootnode.set_uri(u"rodir",
                                                  dn.get_readonly_uri()))
@@ -155,6 +76,8 @@ class Dirnode(unittest.TestCase,
         return d
 
     def test_deepcheck(self):
+        self.basedir = "dirnode/Dirnode/test_deepcheck"
+        self.set_up_grid()
         d = self._test_deepcheck_create()
         d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
         def _check_results(r):
@@ -173,6 +96,8 @@ class Dirnode(unittest.TestCase,
         return d
 
     def test_deepcheck_and_repair(self):
+        self.basedir = "dirnode/Dirnode/test_deepcheck_and_repair"
+        self.set_up_grid()
         d = self._test_deepcheck_create()
         d.addCallback(lambda rootnode:
                       rootnode.start_deep_check_and_repair().when_done())
@@ -200,11 +125,13 @@ class Dirnode(unittest.TestCase,
         return d
 
     def _mark_file_bad(self, rootnode):
-        si = IURI(rootnode.get_uri())._filenode_uri.storage_index
-        rootnode._node.bad_shares[si] = "unhealthy"
+        si = rootnode.get_storage_index()
+        self.delete_shares_numbered(rootnode.get_uri(), [0])
         return rootnode
 
     def test_deepcheck_problems(self):
+        self.basedir = "dirnode/Dirnode/test_deepcheck_problems"
+        self.set_up_grid()
         d = self._test_deepcheck_create()
         d.addCallback(lambda rootnode: self._mark_file_bad(rootnode))
         d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
@@ -222,25 +149,29 @@ class Dirnode(unittest.TestCase,
         return d
 
     def test_readonly(self):
-        fileuri = make_chk_file_uri(1234)
-        filenode = self.client.create_node_from_uri(fileuri)
+        self.basedir = "dirnode/Dirnode/test_readonly"
+        self.set_up_grid()
+        c = self.g.clients[0]
+        nm = c.nodemaker
+        filecap = make_chk_file_uri(1234)
+        filenode = nm.create_from_cap(filecap)
         uploadable = upload.Data("some data", convergence="some convergence string")
 
-        d = self.client.create_empty_dirnode()
+        d = c.create_empty_dirnode()
         def _created(rw_dn):
-            d2 = rw_dn.set_uri(u"child", fileuri.to_string())
+            d2 = rw_dn.set_uri(u"child", filecap)
             d2.addCallback(lambda res: rw_dn)
             return d2
         d.addCallback(_created)
 
         def _ready(rw_dn):
             ro_uri = rw_dn.get_readonly_uri()
-            ro_dn = self.client.create_node_from_uri(ro_uri)
+            ro_dn = c.create_node_from_uri(ro_uri)
             self.failUnless(ro_dn.is_readonly())
             self.failUnless(ro_dn.is_mutable())
 
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
-                            ro_dn.set_uri, u"newchild", fileuri.to_string())
+                            ro_dn.set_uri, u"newchild", filecap)
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.set_node, u"newchild", filenode)
             self.shouldFail(dirnode.NotMutableError, "set_nodes ro", None,
@@ -271,13 +202,18 @@ class Dirnode(unittest.TestCase,
         self.failUnless(a >= b, "%r should be >= %r" % (a, b))
 
     def test_create(self):
+        self.basedir = "dirnode/Dirnode/test_create"
+        self.set_up_grid()
+        c = self.g.clients[0]
+
         self.expected_manifest = []
         self.expected_verifycaps = set()
         self.expected_storage_indexes = set()
 
-        d = self.client.create_empty_dirnode()
+        d = c.create_empty_dirnode()
         def _then(n):
             # /
+            self.rootnode = n
             self.failUnless(n.is_mutable())
             u = n.get_uri()
             self.failUnless(u)
@@ -299,18 +235,19 @@ class Dirnode(unittest.TestCase,
             d.addCallback(lambda res: self.failUnlessEqual(res, {}))
             d.addCallback(lambda res: n.has_child(u"missing"))
             d.addCallback(lambda res: self.failIf(res))
+
             fake_file_uri = make_mutable_file_uri()
             other_file_uri = make_mutable_file_uri()
-            m = Marker(fake_file_uri)
+            m = c.nodemaker.create_from_cap(fake_file_uri)
             ffu_v = m.get_verify_cap().to_string()
             self.expected_manifest.append( ((u"child",) , m.get_uri()) )
             self.expected_verifycaps.add(ffu_v)
             self.expected_storage_indexes.add(base32.b2a(m.get_storage_index()))
-            d.addCallback(lambda res: n.set_uri(u"child", fake_file_uri.to_string()))
+            d.addCallback(lambda res: n.set_uri(u"child", fake_file_uri))
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "set_uri-no",
                                           "child 'child' already exists",
-                                          n.set_uri, u"child", other_file_uri.to_string(),
+                                          n.set_uri, u"child", other_file_uri,
                                           overwrite=False))
             # /
             # /child = mutable
@@ -321,7 +258,7 @@ class Dirnode(unittest.TestCase,
             # /child = mutable
             # /subdir = directory
             def _created(subdir):
-                self.failUnless(isinstance(subdir, FakeDirectoryNode))
+                self.failUnless(isinstance(subdir, dirnode.DirectoryNode))
                 self.subdir = subdir
                 new_v = subdir.get_verify_cap().to_string()
                 assert isinstance(new_v, str)
@@ -391,7 +328,7 @@ class Dirnode(unittest.TestCase,
             d.addCallback(lambda res: n.get_child_at_path(u"subdir/subsubdir"))
             d.addCallback(lambda subsubdir:
                           self.failUnless(isinstance(subsubdir,
-                                                     FakeDirectoryNode)))
+                                                     dirnode.DirectoryNode)))
             d.addCallback(lambda res: n.get_child_at_path(u""))
             d.addCallback(lambda res: self.failUnlessEqual(res.get_uri(),
                                                            n.get_uri()))
@@ -410,7 +347,7 @@ class Dirnode(unittest.TestCase,
                           n.get_child_and_metadata_at_path(u""))
             def _check_child_and_metadata1(res):
                 child, metadata = res
-                self.failUnless(isinstance(child, FakeDirectoryNode))
+                self.failUnless(isinstance(child, dirnode.DirectoryNode))
                 # edge-metadata needs at least one path segment
                 self.failUnlessEqual(sorted(metadata.keys()), [])
             d.addCallback(_check_child_and_metadata1)
@@ -420,7 +357,7 @@ class Dirnode(unittest.TestCase,
             def _check_child_and_metadata2(res):
                 child, metadata = res
                 self.failUnlessEqual(child.get_uri(),
-                                     fake_file_uri.to_string())
+                                     fake_file_uri)
                 self.failUnlessEqual(set(metadata.keys()),
                                      set(["tahoe", "ctime", "mtime"]))
             d.addCallback(_check_child_and_metadata2)
@@ -429,19 +366,19 @@ class Dirnode(unittest.TestCase,
                           n.get_child_and_metadata_at_path(u"subdir/subsubdir"))
             def _check_child_and_metadata3(res):
                 child, metadata = res
-                self.failUnless(isinstance(child, FakeDirectoryNode))
+                self.failUnless(isinstance(child, dirnode.DirectoryNode))
                 self.failUnlessEqual(set(metadata.keys()),
                                      set(["tahoe", "ctime", "mtime"]))
             d.addCallback(_check_child_and_metadata3)
 
             # set_uri + metadata
             # it should be possible to add a child without any metadata
-            d.addCallback(lambda res: n.set_uri(u"c2", fake_file_uri.to_string(), {}))
+            d.addCallback(lambda res: n.set_uri(u"c2", fake_file_uri, {}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
             d.addCallback(lambda metadata: self.failUnlessEqual(metadata.keys(), ['tahoe']))
 
             # You can't override the link timestamps.
-            d.addCallback(lambda res: n.set_uri(u"c2", fake_file_uri.to_string(), { 'tahoe': {'linkcrtime': "bogus"}}))
+            d.addCallback(lambda res: n.set_uri(u"c2", fake_file_uri, { 'tahoe': {'linkcrtime': "bogus"}}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
             def _has_good_linkcrtime(metadata):
                 self.failUnless(metadata.has_key('tahoe'))
@@ -450,7 +387,7 @@ class Dirnode(unittest.TestCase,
             d.addCallback(_has_good_linkcrtime)
 
             # if we don't set any defaults, the child should get timestamps
-            d.addCallback(lambda res: n.set_uri(u"c3", fake_file_uri.to_string()))
+            d.addCallback(lambda res: n.set_uri(u"c3", fake_file_uri))
             d.addCallback(lambda res: n.get_metadata_for(u"c3"))
             d.addCallback(lambda metadata:
                           self.failUnlessEqual(set(metadata.keys()),
@@ -458,7 +395,7 @@ class Dirnode(unittest.TestCase,
 
             # or we can add specific metadata at set_uri() time, which
             # overrides the timestamps
-            d.addCallback(lambda res: n.set_uri(u"c4", fake_file_uri.to_string(),
+            d.addCallback(lambda res: n.set_uri(u"c4", fake_file_uri,
                                                 {"key": "value"}))
             d.addCallback(lambda res: n.get_metadata_for(u"c4"))
             d.addCallback(lambda metadata:
@@ -472,7 +409,7 @@ class Dirnode(unittest.TestCase,
             # set_node + metadata
             # it should be possible to add a child without any metadata
             d.addCallback(lambda res: n.set_node(u"d2", n, {}))
-            d.addCallback(lambda res: self.client.create_empty_dirnode())
+            d.addCallback(lambda res: c.create_empty_dirnode())
             d.addCallback(lambda n2:
                           self.shouldFail(ExistingChildError, "set_node-no",
                                           "child 'd2' already exists",
@@ -502,9 +439,9 @@ class Dirnode(unittest.TestCase,
             d.addCallback(lambda res: n.delete(u"d4"))
 
             # metadata through set_children()
-            d.addCallback(lambda res: n.set_children([ (u"e1", fake_file_uri.to_string()),
-                                                   (u"e2", fake_file_uri.to_string(), {}),
-                                                   (u"e3", fake_file_uri.to_string(),
+            d.addCallback(lambda res: n.set_children([ (u"e1", fake_file_uri),
+                                                   (u"e2", fake_file_uri, {}),
+                                                   (u"e3", fake_file_uri,
                                                     {"key": "value"}),
                                                    ]))
             d.addCallback(lambda res:
@@ -639,16 +576,16 @@ class Dirnode(unittest.TestCase,
                           self.failUnlessEqual(sorted(children.keys()),
                                                sorted([u"child"])))
 
-            uploadable = upload.Data("some data", convergence="some convergence string")
-            d.addCallback(lambda res: n.add_file(u"newfile", uploadable))
+            uploadable1 = upload.Data("some data", convergence="converge")
+            d.addCallback(lambda res: n.add_file(u"newfile", uploadable1))
             d.addCallback(lambda newnode:
                           self.failUnless(IFileNode.providedBy(newnode)))
-            other_uploadable = upload.Data("some data", convergence="stuff")
+            uploadable2 = upload.Data("some data", convergence="stuff")
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "add_file-no",
                                           "child 'newfile' already exists",
                                           n.add_file, u"newfile",
-                                          other_uploadable,
+                                          uploadable2,
                                           overwrite=False))
             d.addCallback(lambda res: n.list())
             d.addCallback(lambda children:
@@ -659,8 +596,9 @@ class Dirnode(unittest.TestCase,
                           self.failUnlessEqual(set(metadata.keys()),
                                                set(["tahoe", "ctime", "mtime"])))
 
+            uploadable3 = upload.Data("some data", convergence="converge")
             d.addCallback(lambda res: n.add_file(u"newfile-metadata",
-                                                 uploadable,
+                                                 uploadable3,
                                                  {"key": "value"}))
             d.addCallback(lambda newnode:
                           self.failUnless(IFileNode.providedBy(newnode)))
@@ -691,7 +629,7 @@ class Dirnode(unittest.TestCase,
             d.addCallback(lambda res: self.subdir2.get(u"child"))
             d.addCallback(lambda child:
                           self.failUnlessEqual(child.get_uri(),
-                                               fake_file_uri.to_string()))
+                                               fake_file_uri))
 
             # move it back, using new_child_name=
             d.addCallback(lambda res:
@@ -707,7 +645,7 @@ class Dirnode(unittest.TestCase,
 
             # now make sure that we honor overwrite=False
             d.addCallback(lambda res:
-                          self.subdir2.set_uri(u"newchild", other_file_uri.to_string()))
+                          self.subdir2.set_uri(u"newchild", other_file_uri))
 
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "move_child_to-no",
@@ -718,7 +656,7 @@ class Dirnode(unittest.TestCase,
             d.addCallback(lambda res: self.subdir2.get(u"newchild"))
             d.addCallback(lambda child:
                           self.failUnlessEqual(child.get_uri(),
-                                               other_file_uri.to_string()))
+                                               other_file_uri))
 
             return d
 
@@ -727,59 +665,68 @@ class Dirnode(unittest.TestCase,
         d.addErrback(self.explain_error)
         return d
 
+class Packing(unittest.TestCase):
+    # This is a base32-encoded representation of the directory tree
+    # root/file1
+    # root/file2
+    # root/file3
+    # as represented after being fed to _pack_contents.
+    # We have it here so we can decode it, feed it to
+    # _unpack_contents, and verify that _unpack_contents
+    # works correctly.
+
+    known_tree = "GM4TOORVHJTGS3DFGEWDSNJ2KVJESOSDJBFTU33MPB2GS3LZNVYG6N3GGI3WU5TIORTXC3DOMJ2G4NB2MVWXUZDONBVTE5LNGRZWK2LYN55GY23XGNYXQMTOMZUWU5TENN4DG23ZG5UTO2L2NQ2DO6LFMRWDMZJWGRQTUMZ2GEYDUMJQFQYTIMZ22XZKZORX5XS7CAQCSK3URR6QOHISHRCMGER5LRFSZRNAS5ZSALCS6TWFQAE754IVOIKJVK73WZPP3VUUEDTX3WHTBBZ5YX3CEKHCPG3ZWQLYA4QM6LDRCF7TJQYWLIZHKGN5ROA3AUZPXESBNLQQ6JTC2DBJU2D47IZJTLR3PKZ4RVF57XLPWY7FX7SZV3T6IJ3ORFW37FXUPGOE3ROPFNUX5DCGMAQJ3PGGULBRGM3TU6ZCMN2GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGI3TKNRWGEWCAITUMFUG6ZJCHIQHWITMNFXGW3LPORUW2ZJCHIQDCMRUGY3DMMZYHE3S4NBSG42TMNRRFQQCE3DJNZVWG4TUNFWWKIR2EAYTENBWGY3DGOBZG4XDIMRXGU3DMML5FQQCE3LUNFWWKIR2EAYTENBWGY3DGOBZG4XDIMRXGU3DMML5FQWDGOJRHI2TUZTJNRSTELBZGQ5FKUSJHJBUQSZ2MFYGKZ3SOBSWQ43IO52WO23CNAZWU3DUGVSWSNTIOE5DK33POVTW4ZLNMNWDK6DHPA2GS2THNF2W25DEN5VGY2LQNFRGG5DKNNRHO5TZPFTWI6LNMRYGQ2LCGJTHM4J2GM5DCMB2GQWDCNBSHKVVQBGRYMACKJ27CVQ6O6B4QPR72RFVTGOZUI76XUSWAX73JRV5PYRHMIFYZIA25MXDPGUGML6M2NMRSG4YD4W4K37ZDYSXHMJ3IUVT4F64YTQQVBJFFFOUC7J7LAB2VFCL5UKKGMR2D3F4EPOYC7UYWQZNR5KXHBSNXLCNBX2SNF22DCXJIHSMEKWEWOG5XCJEVVZ7UW5IB6I64XXQSJ34B5CAYZGZIIMR6LBRGMZTU6ZCMN2GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGMYDEMJYFQQCE5DBNBXWKIR2EB5SE3DJNZVW233UNFWWKIR2EAYTENBWGY3DGOBZG4XDIMZQGIYTQLBAEJWGS3TLMNZHI2LNMURDUIBRGI2DMNRWGM4DSNZOGQZTAMRRHB6SYIBCNV2GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGMYDEMJYPUWCYMZZGU5DKOTGNFWGKMZMHE2DUVKSJE5EGSCLHJRW25DDPBYTO2DXPB3GM6DBNYZTI6LJMV3DM2LWNB4TU4LWMNSWW3LKORXWK5DEMN3TI23NNE3WEM3SORRGY5THPA3TKNBUMNZG453BOF2GSZLXMVWWI3DJOFZW623RHIZTUMJQHI2SYMJUGI5BOSHWDPG3WKPAVXCF3XMKA7QVIWPRMWJHDTQHD27AHDCPJWDQENQ5H5ZZILTXQNIXXCIW4LKQABU2GCFRG5FHQN7CHD7HF4EKNRZFIV2ZYQIBM7IQU7F4RGB3XCX3FREPBKQ7UCICHVWPCYFGA6OLH3J45LXQ6GWWICJ3PGWJNLZ7PCRNLAPNYUGU6BENS7OXMBEOOFRIZV3PF2FFWZ5WHDPKXERYP7GNHKRMGEZTOOT3EJRXI2LNMURDUIBRGI2DMNRWGM4DSNZOGQZTGNRSGY4SYIBCORQWQ33FEI5CA6ZCNRUW423NN52GS3LFEI5CAMJSGQ3DMNRTHA4TOLRUGMZTMMRWHEWCAITMNFXGWY3SORUW2ZJCHIQDCMRUGY3DMMZYHE3S4NBTGM3DENRZPUWCAITNORUW2ZJCHIQDCMRUGY3DMMZYHE3S4NBTGM3DENRZPUWCY==="
+
     def test_unpack_and_pack_behavior(self):
         known_tree = b32decode(self.known_tree)
-        d = self.client.create_empty_dirnode()
+        nodemaker = NodeMaker(None, None, None,
+                              None, None, None,
+                              {"k": 3, "n": 10}, None)
+        writecap = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        filenode = nodemaker.create_from_cap(writecap)
+        node = dirnode.DirectoryNode(filenode, nodemaker, None)
+        children = node._unpack_contents(known_tree)
+        self._check_children(children)
 
-        def _check_tree(node):
-            def check_children(children):
-                # Are all the expected child nodes there?
-                self.failUnless(children.has_key(u'file1'))
-                self.failUnless(children.has_key(u'file2'))
-                self.failUnless(children.has_key(u'file3'))
+        packed_children = node._pack_contents(children)
+        children = node._unpack_contents(packed_children)
+        self._check_children(children)
 
-                # Are the metadata for child 3 right?
-                file3_rocap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
-                file3_rwcap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
-                file3_metadata = {'ctime': 1246663897.4336269, 'tahoe': {'linkmotime': 1246663897.4336269, 'linkcrtime': 1246663897.4336269}, 'mtime': 1246663897.4336269}
-                self.failUnlessEqual(file3_metadata, children[u'file3'][1])
-                self.failUnlessEqual(file3_rocap,
-                                     children[u'file3'][0].get_readonly_uri())
-                self.failUnlessEqual(file3_rwcap,
-                                     children[u'file3'][0].get_uri())
+    def _check_children(self, children):
+        # Are all the expected child nodes there?
+        self.failUnless(children.has_key(u'file1'))
+        self.failUnless(children.has_key(u'file2'))
+        self.failUnless(children.has_key(u'file3'))
 
-                # Are the metadata for child 2 right?
-                file2_rocap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
-                file2_rwcap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
-                file2_metadata = {'ctime': 1246663897.430218, 'tahoe': {'linkmotime': 1246663897.430218, 'linkcrtime': 1246663897.430218}, 'mtime': 1246663897.430218}
-                self.failUnlessEqual(file2_metadata, children[u'file2'][1])
-                self.failUnlessEqual(file2_rocap,
-                                     children[u'file2'][0].get_readonly_uri())
-                self.failUnlessEqual(file2_rwcap,
-                                     children[u'file2'][0].get_uri())
+        # Are the metadata for child 3 right?
+        file3_rocap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
+        file3_rwcap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
+        file3_metadata = {'ctime': 1246663897.4336269, 'tahoe': {'linkmotime': 1246663897.4336269, 'linkcrtime': 1246663897.4336269}, 'mtime': 1246663897.4336269}
+        self.failUnlessEqual(file3_metadata, children[u'file3'][1])
+        self.failUnlessEqual(file3_rocap,
+                             children[u'file3'][0].get_readonly_uri())
+        self.failUnlessEqual(file3_rwcap,
+                             children[u'file3'][0].get_uri())
 
-                # Are the metadata for child 1 right?
-                file1_rocap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
-                file1_rwcap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
-                file1_metadata = {'ctime': 1246663897.4275661, 'tahoe': {'linkmotime': 1246663897.4275661, 'linkcrtime': 1246663897.4275661}, 'mtime': 1246663897.4275661}
-                self.failUnlessEqual(file1_metadata, children[u'file1'][1])
-                self.failUnlessEqual(file1_rocap,
-                                     children[u'file1'][0].get_readonly_uri())
-                self.failUnlessEqual(file1_rwcap,
-                                     children[u'file1'][0].get_uri())
+        # Are the metadata for child 2 right?
+        file2_rocap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
+        file2_rwcap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
+        file2_metadata = {'ctime': 1246663897.430218, 'tahoe': {'linkmotime': 1246663897.430218, 'linkcrtime': 1246663897.430218}, 'mtime': 1246663897.430218}
+        self.failUnlessEqual(file2_metadata, children[u'file2'][1])
+        self.failUnlessEqual(file2_rocap,
+                             children[u'file2'][0].get_readonly_uri())
+        self.failUnlessEqual(file2_rwcap,
+                             children[u'file2'][0].get_uri())
 
-            children = node._unpack_contents(known_tree)
-
-            check_children(children)
-
-            packed_children = node._pack_contents(children)
-
-            children = node._unpack_contents(packed_children)
-
-            check_children(children)
-
-        d.addCallback(_check_tree)
-        return d
+        # Are the metadata for child 1 right?
+        file1_rocap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
+        file1_rwcap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
+        file1_metadata = {'ctime': 1246663897.4275661, 'tahoe': {'linkmotime': 1246663897.4275661, 'linkcrtime': 1246663897.4275661}, 'mtime': 1246663897.4275661}
+        self.failUnlessEqual(file1_metadata, children[u'file1'][1])
+        self.failUnlessEqual(file1_rocap,
+                             children[u'file1'][0].get_readonly_uri())
+        self.failUnlessEqual(file1_rwcap,
+                             children[u'file1'][0].get_uri())
 
     def test_caching_dict(self):
         d = dirnode.CachingDict()
@@ -819,21 +766,28 @@ class FakeMutableFile:
         self.data = modifier(self.data, None, True)
         return defer.succeed(None)
 
+class FakeNodeMaker(NodeMaker):
+    def create_mutable_file(self, contents="", keysize=None):
+        return defer.succeed(FakeMutableFile(contents))
+
 class FakeClient2(Client):
     def __init__(self):
-        pass
-    def create_mutable_file(self, initial_contents=""):
-        return defer.succeed(FakeMutableFile(initial_contents))
+        self.nodemaker = FakeNodeMaker(None, None, None,
+                                       None, None, None,
+                                       {"k":3,"n":10}, None)
+    def create_node_from_uri(self, rwcap, rocap):
+        return self.nodemaker.create_from_cap(rwcap, rocap)
 
 class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
     def setUp(self):
         self.client = FakeClient2()
+        self.nodemaker = self.client.nodemaker
 
     def test_from_future(self):
         # create a dirnode that contains unknown URI types, and make sure we
         # tolerate them properly. Since dirnodes aren't allowed to add
         # unknown node types, we have to be tricky.
-        d = self.client.create_empty_dirnode()
+        d = self.nodemaker.create_new_mutable_directory()
         future_writecap = "x-tahoe-crazy://I_am_from_the_future."
         future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
         future_node = UnknownNode(future_writecap, future_readcap)
@@ -929,8 +883,13 @@ class UCWEingMutableFileNode(MutableFileNode):
             return res
         d.addCallback(_ucwe)
         return d
-class UCWEingDirectoryNode(dirnode.DirectoryNode):
-    filenode_class = UCWEingMutableFileNode
+
+class UCWEingNodeMaker(NodeMaker):
+    def _create_mutable(self, cap):
+        n = UCWEingMutableFileNode(self.storage_broker, self.secret_holder,
+                                   self.default_encoding_parameters,
+                                   self.history)
+        return n.init_from_uri(cap)
 
 
 class Deleter(GridTestMixin, unittest.TestCase):
@@ -957,7 +916,13 @@ class Deleter(GridTestMixin, unittest.TestCase):
             return dn.add_file(u"file", small)
         d.addCallback(_created_dir)
         def _do_delete(ignored):
-            n = UCWEingDirectoryNode(c0).init_from_uri(self.root_uri)
+            nm = UCWEingNodeMaker(c0.storage_broker, c0._secret_holder,
+                                  c0.get_history(), c0.getServiceNamed("uploader"),
+                                  c0.getServiceNamed("downloader"),
+                                  c0.download_cache_dirman,
+                                  c0.get_encoding_parameters(),
+                                  c0._key_generator)
+            n = nm.create_from_cap(self.root_uri)
             assert n._node.please_ucwe_after_next_upload == False
             n._node.please_ucwe_after_next_upload = True
             # This should succeed, not raise an exception
@@ -966,16 +931,20 @@ class Deleter(GridTestMixin, unittest.TestCase):
 
         return d
 
-class Adder(unittest.TestCase,
-            testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
-
-    def setUp(self):
-        self.client = FakeClient()
+class Adder(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
     def test_overwrite(self):
+        # note: This functionality could be tested without actually creating
+        # several RSA keys. It would be faster without the GridTestMixin: use
+        # dn.set_node(nodemaker.create_from_cap(make_chk_file_uri())) instead
+        # of dn.add_file, and use a special NodeMaker that creates fake
+        # mutable files.
+        self.basedir = "dirnode/Adder/test_overwrite"
+        self.set_up_grid()
+        c = self.g.clients[0]
         fileuri = make_chk_file_uri(1234)
-        filenode = self.client.create_node_from_uri(fileuri)
-        d = self.client.create_empty_dirnode()
+        filenode = c.nodemaker.create_from_cap(fileuri)
+        d = c.create_empty_dirnode()
 
         def _create_directory_tree(root_node):
             # Build
@@ -1001,7 +970,7 @@ class Adder(unittest.TestCase,
             d.addCallback(lambda res:
                 root_node.set_node(u'dir2', filenode))
             # We try overwriting a file with a child while also specifying
-            # overwrite=False. We should receive an ExistingChildError 
+            # overwrite=False. We should receive an ExistingChildError
             # when we do this.
             d.addCallback(lambda res:
                 self.shouldFail(ExistingChildError, "set_node",

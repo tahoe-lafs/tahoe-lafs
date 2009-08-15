@@ -27,6 +27,9 @@ class History(service.Service):
         self.all_retrieve_status = weakref.WeakKeyDictionary()
         self.recent_retrieve_status = []
 
+        self.all_helper_upload_statuses = weakref.WeakKeyDictionary()
+        self.recent_helper_upload_statuses = []
+
 
     def add_download(self, download_status):
         self.all_downloads_statuses[download_status] = None
@@ -89,5 +92,13 @@ class History(service.Service):
         for s in self.all_retrieve_status:
             yield s
 
+    def notify_helper_upload(self, s):
+        self.all_helper_upload_statuses[s] = None
+        self.recent_helper_upload_statuses.append(s)
+        while len(self.recent_helper_upload_statuses) > self.MAX_UPLOAD_STATUSES:
+            self.recent_helper_upload_statuses.pop(0)
 
+    def list_all_helper_statuses(self):
+        for s in self.all_helper_upload_statuses:
+            yield s
 

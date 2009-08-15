@@ -8,7 +8,7 @@ from twisted.web.error import Error as WebError
 from foolscap.api import flushEventualQueue, fireEventually
 from allmydata import uri, dirnode, client
 from allmydata.introducer.server import IntroducerNode
-from allmydata.interfaces import IURI, IMutableFileNode, IFileNode, \
+from allmydata.interfaces import IMutableFileNode, IFileNode, \
      FileTooLargeError, NotEnoughSharesError, ICheckable
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
@@ -38,11 +38,10 @@ class FakeCHKFileNode:
     all_contents = {}
     bad_shares = {}
 
-    def __init__(self, u, thisclient):
-        precondition(IURI.providedBy(u), u)
-        self.client = thisclient
-        self.my_uri = u
-        self.storage_index = u.storage_index
+    def __init__(self, filecap):
+        precondition(isinstance(filecap, str), filecap)
+        self.my_uri = uri.CHKFileURI.init_from_string(filecap)
+        self.storage_index = self.my_uri.storage_index
 
     def get_uri(self):
         return self.my_uri.to_string()
@@ -132,16 +131,17 @@ class FakeCHKFileNode:
         return d
 
 def make_chk_file_uri(size):
-    return uri.CHKFileURI(key=os.urandom(16),
-                          uri_extension_hash=os.urandom(32),
-                          needed_shares=3,
-                          total_shares=10,
-                          size=size)
+    u = uri.CHKFileURI(key=os.urandom(16),
+                       uri_extension_hash=os.urandom(32),
+                       needed_shares=3,
+                       total_shares=10,
+                       size=size)
+    return u.to_string()
 
-def create_chk_filenode(thisclient, contents):
-    u = make_chk_file_uri(len(contents))
-    n = FakeCHKFileNode(u, thisclient)
-    FakeCHKFileNode.all_contents[u.to_string()] = contents
+def create_chk_filenode(contents):
+    filecap = make_chk_file_uri(len(contents))
+    n = FakeCHKFileNode(filecap)
+    FakeCHKFileNode.all_contents[filecap] = contents
     return n
 
 
@@ -154,10 +154,9 @@ class FakeMutableFileNode:
     all_contents = {}
     bad_shares = {}
 
-    def __init__(self, thisclient):
-        self.client = thisclient
-        self.my_uri = make_mutable_file_uri()
-        self.storage_index = self.my_uri.storage_index
+    def __init__(self, storage_broker, secret_holder,
+                 default_encoding_parameters, history):
+        self.init_from_uri(make_mutable_file_uri())
     def create(self, initial_contents, key_generator=None, keysize=None):
         if len(initial_contents) > self.MUTABLE_SIZELIMIT:
             raise FileTooLargeError("SDMF is limited to one segment, and "
@@ -165,8 +164,13 @@ class FakeMutableFileNode:
                                                  self.MUTABLE_SIZELIMIT))
         self.all_contents[self.storage_index] = initial_contents
         return defer.succeed(self)
-    def init_from_uri(self, myuri):
-        self.my_uri = IURI(myuri)
+    def init_from_uri(self, filecap):
+        assert isinstance(filecap, str)
+        if filecap.startswith("URI:SSK:"):
+            self.my_uri = uri.WriteableSSKFileURI.init_from_string(filecap)
+        else:
+            assert filecap.startswith("URI:SSK-RO:")
+            self.my_uri = uri.ReadonlySSKFileURI.init_from_string(filecap)
         self.storage_index = self.my_uri.storage_index
         return self
     def get_uri(self):
@@ -285,10 +289,10 @@ class FakeMutableFileNode:
 
 def make_mutable_file_uri():
     return uri.WriteableSSKFileURI(writekey=os.urandom(16),
-                                   fingerprint=os.urandom(32))
+                                   fingerprint=os.urandom(32)).to_string()
 def make_verifier_uri():
     return uri.SSKVerifierURI(storage_index=os.urandom(16),
-                              fingerprint=os.urandom(32))
+                              fingerprint=os.urandom(32)).to_string()
 
 class FakeDirectoryNode(dirnode.DirectoryNode):
     """This offers IDirectoryNode, but uses a FakeMutableFileNode for the
@@ -444,7 +448,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # will have registered the helper furl).
         c = self.add_service(client.Client(basedir=basedirs[0]))
         self.clients.append(c)
-        c.DEFAULT_MUTABLE_KEYSIZE = 522
+        c.set_default_mutable_keysize(522)
         d = c.when_tub_ready()
         def _ready(res):
             f = open(os.path.join(basedirs[0],"private","helper.furl"), "r")
@@ -460,7 +464,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             for i in range(1, self.numclients):
                 c = self.add_service(client.Client(basedir=basedirs[i]))
                 self.clients.append(c)
-                c.DEFAULT_MUTABLE_KEYSIZE = 522
+                c.set_default_mutable_keysize(522)
             log.msg("STARTING")
             return self.wait_for_connections()
         d.addCallback(_ready)
@@ -497,7 +501,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         def _stopped(res):
             new_c = client.Client(basedir=self.getdir("client%d" % num))
             self.clients[num] = new_c
-            new_c.DEFAULT_MUTABLE_KEYSIZE = 522
+            new_c.set_default_mutable_keysize(522)
             self.add_service(new_c)
             return new_c.when_tub_ready()
         d.addCallback(_stopped)
@@ -527,7 +531,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         c = client.Client(basedir=basedir)
         self.clients.append(c)
-        c.DEFAULT_MUTABLE_KEYSIZE = 522
+        c.set_default_mutable_keysize(522)
         self.numclients += 1
         if add_to_sparent:
             c.setServiceParent(self.sparent)
@@ -904,8 +908,9 @@ class ShareManglingMixin(SystemTestMixin):
             cl0.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
             d2 = cl0.upload(immutable.upload.Data(TEST_DATA, convergence=""))
             def _after_upload(u):
-                self.uri = IURI(u.uri)
-                return cl0.create_node_from_uri(self.uri)
+                filecap = u.uri
+                self.uri = uri.CHKFileURI.init_from_string(filecap)
+                return cl0.create_node_from_uri(filecap)
             d2.addCallback(_after_upload)
             return d2
         d.addCallback(_upload_a_file)

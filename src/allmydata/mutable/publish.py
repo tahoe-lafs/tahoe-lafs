@@ -90,12 +90,13 @@ class Publish:
     To make the initial publish, set servermap to None.
     """
 
-    def __init__(self, filenode, servermap):
+    def __init__(self, filenode, storage_broker, servermap):
         self._node = filenode
+        self._storage_broker = storage_broker
         self._servermap = servermap
         self._storage_index = self._node.get_storage_index()
         self._log_prefix = prefix = si_b2a(self._storage_index)[:5]
-        num = self._node._client.log("Publish(%s): starting" % prefix)
+        num = self.log("Publish(%s): starting" % prefix, parent=None)
         self._log_number = num
         self._running = True
         self._first_write_error = None
@@ -176,7 +177,7 @@ class Publish:
         assert self._privkey
         self._encprivkey = self._node.get_encprivkey()
 
-        sb = self._node._client.get_storage_broker()
+        sb = self._storage_broker
         full_peerlist = sb.get_servers_for_index(self._storage_index)
         self.full_peerlist = full_peerlist # for use later, immutable
         self.bad_peers = set() # peerids who have errbacked/refused requests

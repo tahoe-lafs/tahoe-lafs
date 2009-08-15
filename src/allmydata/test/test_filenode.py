@@ -1,6 +1,6 @@
 
 from twisted.trial import unittest
-from allmydata import uri
+from allmydata import uri, client
 from allmydata.monitor import Monitor
 from allmydata.immutable import filenode, download
 from allmydata.mutable.filenode import MutableFileNode
@@ -17,6 +17,11 @@ class FakeClient:
         return None
     def get_encoding_parameters(self):
         return {"k": 3, "n": 10}
+    def get_storage_broker(self):
+        return None
+    def get_history(self):
+        return None
+    _secret_holder = client.SecretHolder("lease secret")
 
 class Node(unittest.TestCase):
     def test_chk_filenode(self):
@@ -27,8 +32,8 @@ class Node(unittest.TestCase):
                            size=1000)
         c = FakeClient()
         cf = cachedir.CacheFile("none")
-        fn1 = filenode.FileNode(u, c, cf)
-        fn2 = filenode.FileNode(u, c, cf)
+        fn1 = filenode.FileNode(u.to_string(), None, None, None, None, cf)
+        fn2 = filenode.FileNode(u.to_string(), None, None, None, None, cf)
         self.failUnlessEqual(fn1, fn2)
         self.failIfEqual(fn1, "I am not a filenode")
         self.failIfEqual(fn1, NotANode())
@@ -49,8 +54,8 @@ class Node(unittest.TestCase):
         DATA = "I am a short file."
         u = uri.LiteralFileURI(data=DATA)
         c = None
-        fn1 = filenode.LiteralFileNode(u, c)
-        fn2 = filenode.LiteralFileNode(u, c)
+        fn1 = filenode.LiteralFileNode(u.to_string())
+        fn2 = filenode.LiteralFileNode(u.to_string())
         self.failUnlessEqual(fn1, fn2)
         self.failIfEqual(fn1, "I am not a filenode")
         self.failIfEqual(fn1, NotANode())
@@ -93,7 +98,8 @@ class Node(unittest.TestCase):
         si = hashutil.ssk_storage_index_hash(rk)
 
         u = uri.WriteableSSKFileURI("\x00"*16, "\x00"*32)
-        n = MutableFileNode(client).init_from_uri(u)
+        n = MutableFileNode(None, None, client.get_encoding_parameters(),
+                            None).init_from_uri(u.to_string())
 
         self.failUnlessEqual(n.get_writekey(), wk)
         self.failUnlessEqual(n.get_readkey(), rk)
@@ -109,7 +115,8 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(n.is_mutable(), True)
         self.failUnlessEqual(n.is_readonly(), False)
 
-        n2 = MutableFileNode(client).init_from_uri(u)
+        n2 = MutableFileNode(None, None, client.get_encoding_parameters(),
+                             None).init_from_uri(u.to_string())
         self.failUnlessEqual(n, n2)
         self.failIfEqual(n, "not even the right type")
         self.failIfEqual(n, u) # not the right class
@@ -136,7 +143,7 @@ class LiteralChecker(unittest.TestCase):
     def test_literal_filenode(self):
         DATA = "I am a short file."
         u = uri.LiteralFileURI(data=DATA)
-        fn1 = filenode.LiteralFileNode(u, None)
+        fn1 = filenode.LiteralFileNode(u.to_string())
 
         d = fn1.check(Monitor())
         def _check_checker_results(cr):

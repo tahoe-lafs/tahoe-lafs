@@ -43,24 +43,25 @@ class Repairer(log.PrefixingLogMixin):
     cancelled (by invoking its raise_if_cancelled() method).
     """
 
-    def __init__(self, client, verifycap, monitor):
+    def __init__(self, storage_broker, secret_holder, verifycap, monitor):
         assert precondition(isinstance(verifycap, CHKFileVerifierURI))
 
         logprefix = si_b2a(verifycap.storage_index)[:5]
         log.PrefixingLogMixin.__init__(self, "allmydata.immutable.repairer",
                                        prefix=logprefix)
 
-        self._client = client
+        self._storage_broker = storage_broker
+        self._secret_holder = secret_holder
         self._verifycap = verifycap
         self._monitor = monitor
 
     def start(self):
         self.log("starting repair")
         duc = DownUpConnector()
-        sb = self._client.get_storage_broker()
-        dl = download.CiphertextDownloader(sb, self._verifycap, target=duc,
+        dl = download.CiphertextDownloader(self._storage_broker,
+                                           self._verifycap, target=duc,
                                            monitor=self._monitor)
-        ul = upload.CHKUploader(self._client)
+        ul = upload.CHKUploader(self._storage_broker, self._secret_holder)
 
         d = defer.Deferred()
 

@@ -8,7 +8,7 @@ from foolscap.logging import log
 from allmydata.storage.server import si_b2a
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.immutable import offloaded, upload
-from allmydata import uri
+from allmydata import uri, client
 from allmydata.util import hashutil, fileutil, mathutil
 from pycryptopp.cipher.aes import AES
 
@@ -64,6 +64,7 @@ class FakeClient(service.MultiService):
                                    }
     stats_provider = None
     storage_broker = StorageFarmBroker(None, True)
+    _secret_holder = client.SecretHolder("lease secret")
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
     def get_encoding_parameters(self):

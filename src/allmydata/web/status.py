@@ -764,9 +764,9 @@ class Status(rend.Page):
     docFactory = getxmlfile("status.xhtml")
     addSlash = True
 
-    def __init__(self, client):
-        rend.Page.__init__(self, client)
-        self.client = client
+    def __init__(self, history):
+        rend.Page.__init__(self, history)
+        self.history = history
 
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
@@ -804,13 +804,13 @@ class Status(rend.Page):
         return simplejson.dumps(data, indent=1) + "\n"
 
     def _get_all_statuses(self):
-        c = self.client
-        return itertools.chain(c.list_all_upload_statuses(),
-                               c.list_all_download_statuses(),
-                               c.list_all_mapupdate_statuses(),
-                               c.list_all_publish_statuses(),
-                               c.list_all_retrieve_statuses(),
-                               c.list_all_helper_statuses(),
+        h = self.history
+        return itertools.chain(h.list_all_upload_statuses(),
+                               h.list_all_download_statuses(),
+                               h.list_all_mapupdate_statuses(),
+                               h.list_all_publish_statuses(),
+                               h.list_all_retrieve_statuses(),
+                               h.list_all_helper_statuses(),
                                )
 
     def data_active_operations(self, ctx, data):
@@ -887,30 +887,30 @@ class Status(rend.Page):
         return ctx.tag
 
     def childFactory(self, ctx, name):
-        client = self.client
+        h = self.history
         stype,count_s = name.split("-")
         count = int(count_s)
         if stype == "up":
-            for s in itertools.chain(client.list_all_upload_statuses(),
-                                     client.list_all_helper_statuses()):
+            for s in itertools.chain(h.list_all_upload_statuses(),
+                                     h.list_all_helper_statuses()):
                 # immutable-upload helpers use the same status object as a
                 # regular immutable-upload
                 if s.get_counter() == count:
                     return UploadStatusPage(s)
         if stype == "down":
-            for s in client.list_all_download_statuses():
+            for s in h.list_all_download_statuses():
                 if s.get_counter() == count:
                     return DownloadStatusPage(s)
         if stype == "mapupdate":
-            for s in client.list_all_mapupdate_statuses():
+            for s in h.list_all_mapupdate_statuses():
                 if s.get_counter() == count:
                     return MapupdateStatusPage(s)
         if stype == "publish":
-            for s in client.list_all_publish_statuses():
+            for s in h.list_all_publish_statuses():
                 if s.get_counter() == count:
                     return PublishStatusPage(s)
         if stype == "retrieve":
-            for s in client.list_all_retrieve_statuses():
+            for s in h.list_all_retrieve_statuses():
                 if s.get_counter() == count:
                     return RetrieveStatusPage(s)
 

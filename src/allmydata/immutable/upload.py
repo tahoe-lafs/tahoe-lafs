@@ -142,7 +142,7 @@ class Tahoe2PeerSelector:
     def __repr__(self):
         return "<Tahoe2PeerSelector for upload %s>" % self.upload_id
 
-    def get_shareholders(self, client,
+    def get_shareholders(self, storage_broker, secret_holder,
                          storage_index, share_size, block_size,
                          num_segments, total_shares, shares_of_happiness):
         """
@@ -167,8 +167,7 @@ class Tahoe2PeerSelector:
         self.use_peers = set() # PeerTrackers that have shares assigned to them
         self.preexisting_shares = {} # sharenum -> peerid holding the share
 
-        sb = client.get_storage_broker()
-        peers = sb.get_servers_for_index(storage_index)
+        peers = storage_broker.get_servers_for_index(storage_index)
         if not peers:
             raise NoServersError("client gave us zero peers")
 
@@ -199,9 +198,9 @@ class Tahoe2PeerSelector:
             raise NoServersError("no peers could accept an allocated_size of %d" % allocated_size)
 
         # decide upon the renewal/cancel secrets, to include them in the
-        # allocat_buckets query.
-        client_renewal_secret = client.get_renewal_secret()
-        client_cancel_secret = client.get_cancel_secret()
+        # allocate_buckets query.
+        client_renewal_secret = secret_holder.get_renewal_secret()
+        client_cancel_secret = secret_holder.get_cancel_secret()
 
         file_renewal_secret = file_renewal_secret_hash(client_renewal_secret,
                                                        storage_index)
@@ -659,9 +658,11 @@ class UploadStatus:
 class CHKUploader:
     peer_selector_class = Tahoe2PeerSelector
 
-    def __init__(self, client):
-        self._client = client
-        self._log_number = self._client.log("CHKUploader starting")
+    def __init__(self, storage_broker, secret_holder):
+        # peer_selector needs storage_broker and secret_holder
+        self._storage_broker = storage_broker
+        self._secret_holder = secret_holder
+        self._log_number = self.log("CHKUploader starting", parent=None)
         self._encoder = None
         self._results = UploadResults()
         self._storage_index = None
@@ -678,7 +679,7 @@ class CHKUploader:
             kwargs["parent"] = self._log_number
         if "facility" not in kwargs:
             kwargs["facility"] = "tahoe.upload"
-        return self._client.log(*args, **kwargs)
+        return log.msg(*args, **kwargs)
 
     def start(self, encrypted_uploadable):
         """Start uploading the file.
@@ -724,6 +725,8 @@ class CHKUploader:
     def locate_all_shareholders(self, encoder, started):
         peer_selection_started = now = time.time()
         self._storage_index_elapsed = now - started
+        storage_broker = self._storage_broker
+        secret_holder = self._secret_holder
         storage_index = encoder.get_param("storage_index")
         self._storage_index = storage_index
         upload_id = si_b2a(storage_index)[:5]
@@ -737,7 +740,8 @@ class CHKUploader:
         k,desired,n = encoder.get_param("share_counts")
 
         self._peer_selection_started = time.time()
-        d = peer_selector.get_shareholders(self._client, storage_index,
+        d = peer_selector.get_shareholders(storage_broker, secret_holder,
+                                           storage_index,
                                            share_size, block_size,
                                            num_segments, n, desired)
         def _done(res):
@@ -809,8 +813,7 @@ def read_this_many_bytes(uploadable, size, prepend_data=[]):
 
 class LiteralUploader:
 
-    def __init__(self, client):
-        self._client = client
+    def __init__(self):
         self._results = UploadResults()
         self._status = s = UploadStatus()
         s.set_storage_index(None)
@@ -1263,7 +1266,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
                 self.stats_provider.count('uploader.bytes_uploaded', size)
 
             if size <= self.URI_LIT_SIZE_THRESHOLD:
-                uploader = LiteralUploader(self.parent)
+                uploader = LiteralUploader()
                 return uploader.start(uploadable)
             else:
                 eu = EncryptAnUploadable(uploadable, self._parentmsgid)
@@ -1273,7 +1276,9 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
                     d2.addCallback(lambda x: eu.get_storage_index())
                     d2.addCallback(lambda si: uploader.start(eu, si))
                 else:
-                    uploader = CHKUploader(self.parent)
+                    storage_broker = self.parent.get_storage_broker()
+                    secret_holder = self.parent._secret_holder
+                    uploader = CHKUploader(storage_broker, secret_holder)
                     d2.addCallback(lambda x: uploader.start(eu))
 
                 self._all_uploads[uploader] = None

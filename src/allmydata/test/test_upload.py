@@ -8,7 +8,7 @@ from twisted.internet import defer
 from foolscap.api import fireEventually
 
 import allmydata # for __full_version__
-from allmydata import uri, monitor
+from allmydata import uri, monitor, client
 from allmydata.immutable import upload
 from allmydata.interfaces import IFileURI, FileTooLargeError, NoSharesError, \
      NotEnoughSharesError
@@ -187,11 +187,7 @@ class FakeClient:
         return self.DEFAULT_ENCODING_PARAMETERS
     def get_storage_broker(self):
         return self.storage_broker
-
-    def get_renewal_secret(self):
-        return ""
-    def get_cancel_secret(self):
-        return ""
+    _secret_holder = client.SecretHolder("lease secret")
 
 class GotTooFarError(Exception):
     pass

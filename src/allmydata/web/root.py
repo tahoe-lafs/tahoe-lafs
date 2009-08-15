@@ -99,6 +99,7 @@ class FileHandler(rend.Page):
         try:
             node = self.client.create_node_from_uri(name)
         except (TypeError, UnhandledCapTypeError, AssertionError):
+            # I think this can no longer be reached
             raise WebError("'%s' is not a valid file- or directory- cap"
                            % name)
         if not IFileNode.providedBy(node):
@@ -153,7 +154,7 @@ class Root(rend.Page):
 
         self.child_file = FileHandler(client)
         self.child_named = FileHandler(client)
-        self.child_status = status.Status(client) # TODO: use client.history
+        self.child_status = status.Status(client.get_history())
         self.child_statistics = status.Statistics(client.stats_provider)
 
     def child_helper_status(self, ctx):

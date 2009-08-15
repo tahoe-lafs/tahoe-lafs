@@ -12,8 +12,10 @@ from layout import unpack_share, SIGNED_PREFIX_LENGTH
 
 class MutableChecker:
 
-    def __init__(self, node, monitor):
+    def __init__(self, node, storage_broker, history, monitor):
         self._node = node
+        self._storage_broker = storage_broker
+        self._history = history
         self._monitor = monitor
         self.bad_shares = [] # list of (nodeid,shnum,failure)
         self._storage_index = self._node.get_storage_index()
@@ -23,11 +25,10 @@ class MutableChecker:
 
     def check(self, verify=False, add_lease=False):
         servermap = ServerMap()
-        u = ServermapUpdater(self._node, self._monitor, servermap, MODE_CHECK,
-                             add_lease=add_lease)
-        history = self._node._client.get_history()
-        if history:
-            history.notify_mapupdate(u.get_status())
+        u = ServermapUpdater(self._node, self._storage_broker, self._monitor,
+                             servermap, MODE_CHECK, add_lease=add_lease)
+        if self._history:
+            self._history.notify_mapupdate(u.get_status())
         d = u.update()
         d.addCallback(self._got_mapupdate_results)
         if verify:
@@ -280,8 +281,8 @@ class MutableChecker:
 
 
 class MutableCheckAndRepairer(MutableChecker):
-    def __init__(self, node, monitor):
-        MutableChecker.__init__(self, node, monitor)
+    def __init__(self, node, storage_broker, history, monitor):
+        MutableChecker.__init__(self, node, storage_broker, history, monitor)
         self.cr_results = CheckAndRepairResults(self._storage_index)
         self.cr_results.pre_repair_results = self.results
         self.need_repair = False

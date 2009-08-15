@@ -467,8 +467,6 @@ def from_string(s):
         return DirectoryURIVerifier.init_from_string(s)
     return UnknownURI(s)
 
-registerAdapter(from_string, str, IURI)
-
 def is_uri(s):
     try:
         uri = from_string(s)

@@ -1179,17 +1179,18 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         def _got_status(res):
             # find an interesting upload and download to look at. LIT files
             # are not interesting.
-            for ds in self.clients[0].list_all_download_statuses():
+            h = self.clients[0].get_history()
+            for ds in h.list_all_download_statuses():
                 if ds.get_size() > 200:
                     self._down_status = ds.get_counter()
-            for us in self.clients[0].list_all_upload_statuses():
+            for us in h.list_all_upload_statuses():
                 if us.get_size() > 200:
                     self._up_status = us.get_counter()
-            rs = list(self.clients[0].list_all_retrieve_statuses())[0]
+            rs = list(h.list_all_retrieve_statuses())[0]
             self._retrieve_status = rs.get_counter()
-            ps = list(self.clients[0].list_all_publish_statuses())[0]
+            ps = list(h.list_all_publish_statuses())[0]
             self._publish_status = ps.get_counter()
-            us = list(self.clients[0].list_all_mapupdate_statuses())[0]
+            us = list(h.list_all_mapupdate_statuses())[0]
             self._update_status = us.get_counter()
 
             # and that there are some upload- and download- status pages

@@ -1,9 +1,9 @@
-import os, stat, time, weakref
+import os, stat, time
 from allmydata.interfaces import RIStorageServer
 from allmydata import node
 
 from zope.interface import implements
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from twisted.application.internet import TimerService
 from foolscap.api import Referenceable
 from pycryptopp.publickey import rsa
@@ -13,22 +13,17 @@ from allmydata.storage.server import StorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.download import Downloader
-from allmydata.immutable.filenode import FileNode, LiteralFileNode
 from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, pollmixin, cachedir, log
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
-from allmydata.uri import LiteralFileURI, UnknownURI
-from allmydata.dirnode import DirectoryNode
-from allmydata.mutable.filenode import MutableFileNode
-from allmydata.unknown import UnknownNode
 from allmydata.stats import StatsProvider
 from allmydata.history import History
-from allmydata.interfaces import IURI, IDirectoryURI, IStatsProducer, \
-     IReadonlyDirectoryURI, IFileURI, IMutableFileURI, RIStubClient, \
-     UnhandledCapTypeError
+from allmydata.interfaces import IStatsProducer, RIStubClient
+from allmydata.nodemaker import NodeMaker
+
 
 KiB=1024
 MiB=1024*KiB
@@ -41,6 +36,47 @@ class StubClient(Referenceable):
 
 def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
+
+class SecretHolder:
+    def __init__(self, lease_secret):
+        self._lease_secret = lease_secret
+
+    def get_renewal_secret(self):
+        return hashutil.my_renewal_secret_hash(self._lease_secret)
+
+    def get_cancel_secret(self):
+        return hashutil.my_cancel_secret_hash(self._lease_secret)
+
+class KeyGenerator:
+    def __init__(self):
+        self._remote = None
+        self.default_keysize = 2048
+
+    def set_remote_generator(self, keygen):
+        self._remote = keygen
+    def set_default_keysize(self, keysize):
+        """Call this to override the size of the RSA keys created for new
+        mutable files. The default of None means to let mutable.filenode
+        choose its own size, which means 2048 bits."""
+        self.default_keysize = keysize
+
+    def generate(self, keysize=None):
+        keysize = keysize or self.default_keysize
+        if self._remote:
+            d = self._remote.callRemote('get_rsa_key_pair', keysize)
+            def make_key_objs((verifying_key, signing_key)):
+                v = rsa.create_verifying_key_from_string(verifying_key)
+                s = rsa.create_signing_key_from_string(signing_key)
+                return v, s
+            d.addCallback(make_key_objs)
+            return d
+        else:
+            # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
+            # secs
+            signer = rsa.generate(keysize)
+            verifier = signer.get_verifying_key()
+            return defer.succeed( (verifier, signer) )
+
 
 class Client(node.Node, pollmixin.PollMixin):
     implements(IStatsProducer)
@@ -65,11 +101,6 @@ class Client(node.Node, pollmixin.PollMixin):
                                    "max_segment_size": 128*KiB,
                                    }
 
-    # set this to override the size of the RSA keys created for new mutable
-    # files. The default of None means to let mutable.filenode choose its own
-    # size, which means 2048 bits.
-    DEFAULT_MUTABLE_KEYSIZE = None
-
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)
         self.started_timestamp = time.time()
@@ -82,11 +113,11 @@ class Client(node.Node, pollmixin.PollMixin):
         self.init_control()
         if self.get_config("helper", "enabled", False, boolean=True):
             self.init_helper()
-        self.init_client()
-        self._key_generator = None
+        self._key_generator = KeyGenerator()
         key_gen_furl = self.get_config("client", "key_generator.furl", None)
         if key_gen_furl:
             self.init_key_gen(key_gen_furl)
+        self.init_client()
         # ControlServer and Helper are attached after Tub startup
         self.init_ftp_server()
         self.init_sftp_server()
@@ -149,7 +180,8 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_lease_secret(self):
         secret_s = self.get_or_create_private_config("secret", _make_secret)
-        self._lease_secret = base32.a2b(secret_s)
+        lease_secret = base32.a2b(secret_s)
+        self._secret_holder = SecretHolder(lease_secret)
 
     def init_storage(self):
         # should we run a storage server (and publish it for others to use)?
@@ -224,10 +256,9 @@ class Client(node.Node, pollmixin.PollMixin):
         DEP["happy"] = int(self.get_config("client", "shares.happy", DEP["happy"]))
         convergence_s = self.get_or_create_private_config('convergence', _make_secret)
         self.convergence = base32.a2b(convergence_s)
-        self._node_cache = weakref.WeakValueDictionary() # uri -> node
 
         self.init_client_storage_broker()
-        self.add_service(History(self.stats_provider))
+        self.history = self.add_service(History(self.stats_provider))
         self.add_service(Uploader(helper_furl, self.stats_provider))
         download_cachedir = os.path.join(self.basedir,
                                          "private", "cache", "download")
@@ -235,6 +266,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.download_cache_dirman.setServiceParent(self)
         self.add_service(Downloader(self.stats_provider))
         self.init_stub_client()
+        self.init_nodemaker()
 
     def init_client_storage_broker(self):
         # create a StorageFarmBroker object, for use by Uploader/Downloader
@@ -286,6 +318,16 @@ class Client(node.Node, pollmixin.PollMixin):
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="OEHq3g")
 
+    def init_nodemaker(self):
+        self.nodemaker = NodeMaker(self.storage_broker,
+                                   self._secret_holder,
+                                   self.get_history(),
+                                   self.getServiceNamed("uploader"),
+                                   self.getServiceNamed("downloader"),
+                                   self.download_cache_dirman,
+                                   self.get_encoding_parameters(),
+                                   self._key_generator)
+
     def get_history(self):
         return self.getServiceNamed("history")
 
@@ -303,7 +345,8 @@ class Client(node.Node, pollmixin.PollMixin):
     def init_helper(self):
         d = self.when_tub_ready()
         def _publish(self):
-            h = Helper(os.path.join(self.basedir, "helper"), self.stats_provider)
+            h = Helper(os.path.join(self.basedir, "helper"),
+                       self.stats_provider, self.history)
             h.setServiceParent(self)
             # TODO: this is confusing. BASEDIR/private/helper.furl is created
             # by the helper. BASEDIR/helper.furl is consumed by the client
@@ -326,11 +369,14 @@ class Client(node.Node, pollmixin.PollMixin):
                      level=log.BAD, umid="z9DMzw")
 
     def _got_key_generator(self, key_generator):
-        self._key_generator = key_generator
+        self._key_generator.set_remote_generator(key_generator)
         key_generator.notifyOnDisconnect(self._lost_key_generator)
 
     def _lost_key_generator(self):
-        self._key_generator = None
+        self._key_generator.set_remote_generator(None)
+
+    def set_default_mutable_keysize(self, keysize):
+        self._key_generator.set_default_keysize(keysize)
 
     def init_web(self, webport):
         self.log("init_web(webport=%s)", args=(webport,))
@@ -384,11 +430,11 @@ class Client(node.Node, pollmixin.PollMixin):
             return self.introducer_client.connected_to_introducer()
         return False
 
-    def get_renewal_secret(self):
-        return hashutil.my_renewal_secret_hash(self._lease_secret)
+    def get_renewal_secret(self): # this will go away
+        return self._secret_holder.get_renewal_secret()
 
     def get_cancel_secret(self):
-        return hashutil.my_cancel_secret_hash(self._lease_secret)
+        return self._secret_holder.get_cancel_secret()
 
     def debug_wait_for_client_connections(self, num_clients):
         """Return a Deferred that fires (with None) when we have connections
@@ -408,84 +454,14 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def create_node_from_uri(self, writecap, readcap=None):
         # this returns synchronously.
-        u = writecap or readcap
-        if not u:
-            # maybe the writecap was hidden because we're in a readonly
-            # directory, and the future cap format doesn't have a readcap, or
-            # something.
-            return UnknownNode(writecap, readcap)
-        u = IURI(u)
-        if isinstance(u, UnknownURI):
-            return UnknownNode(writecap, readcap)
-        u_s = u.to_string()
-        if u_s not in self._node_cache:
-            if IReadonlyDirectoryURI.providedBy(u):
-                # read-only dirnodes
-                node = DirectoryNode(self).init_from_uri(u)
-            elif IDirectoryURI.providedBy(u):
-                # dirnodes
-                node = DirectoryNode(self).init_from_uri(u)
-            elif IFileURI.providedBy(u):
-                if isinstance(u, LiteralFileURI):
-                    node = LiteralFileNode(u, self) # LIT
-                else:
-                    node = FileNode(u, self, self.download_cache_dirman) # CHK
-            elif IMutableFileURI.providedBy(u):
-                node = MutableFileNode(self).init_from_uri(u)
-            else:
-                raise UnhandledCapTypeError("cap is recognized, but has no Node")
-            self._node_cache[u_s] = node  # note: WeakValueDictionary
-        return self._node_cache[u_s]
+        return self.nodemaker.create_from_cap(writecap, readcap)
 
     def create_empty_dirnode(self):
-        d = self.create_mutable_file()
-        d.addCallback(DirectoryNode.create_with_mutablefile, self)
-        return d
+        return self.nodemaker.create_new_mutable_directory()
 
     def create_mutable_file(self, contents="", keysize=None):
-        keysize = keysize or self.DEFAULT_MUTABLE_KEYSIZE
-        n = MutableFileNode(self)
-        d = n.create(contents, self._generate_pubprivkeys, keysize=keysize)
-        d.addCallback(lambda res: n)
-        return d
-
-    def _generate_pubprivkeys(self, key_size):
-        if self._key_generator:
-            d = self._key_generator.callRemote('get_rsa_key_pair', key_size)
-            def make_key_objs((verifying_key, signing_key)):
-                v = rsa.create_verifying_key_from_string(verifying_key)
-                s = rsa.create_signing_key_from_string(signing_key)
-                return v, s
-            d.addCallback(make_key_objs)
-            return d
-        else:
-            # RSA key generation for a 2048 bit key takes between 0.8 and 3.2
-            # secs
-            signer = rsa.generate(key_size)
-            verifier = signer.get_verifying_key()
-            return verifier, signer
+        return self.nodemaker.create_mutable_file(contents, keysize)
 
     def upload(self, uploadable):
         uploader = self.getServiceNamed("uploader")
         return uploader.upload(uploadable, history=self.get_history())
-
-
-    def list_all_upload_statuses(self):
-        return self.get_history().list_all_upload_statuses()
-
-    def list_all_download_statuses(self):
-        return self.get_history().list_all_download_statuses()
-
-    def list_all_mapupdate_statuses(self):
-        return self.get_history().list_all_mapupdate_statuses()
-    def list_all_publish_statuses(self):
-        return self.get_history().list_all_publish_statuses()
-    def list_all_retrieve_statuses(self):
-        return self.get_history().list_all_retrieve_statuses()
-
-    def list_all_helper_statuses(self):
-        try:
-            helper = self.getServiceNamed("helper")
-        except KeyError:
-            return []
-        return helper.get_all_upload_statuses()
