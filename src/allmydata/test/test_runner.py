@@ -332,7 +332,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             return res
         d.addBoth(_remove_hotline)
         return d
-    test_introducer.timeout = 240 # This hit the 120-second timeout on "François Lenny-armv5tel"
+    test_introducer.timeout = 480 # This hit the 120-second timeout on "François Lenny-armv5tel", then it hit a 240-second timeout on our feisty2.5 buildslave: http://allmydata.org/buildbot/builders/feisty2.5/builds/2381/steps/test/logs/test.log
 
     def test_client(self):
         self.skip_on_cygwin()
