@@ -264,7 +264,7 @@ class Client(node.Node, pollmixin.PollMixin):
                                          "private", "cache", "download")
         self.download_cache_dirman = cachedir.CacheDirectoryManager(download_cachedir)
         self.download_cache_dirman.setServiceParent(self)
-        self.add_service(Downloader(self.stats_provider))
+        self.downloader = Downloader(self.storage_broker, self.stats_provider)
         self.init_stub_client()
         self.init_nodemaker()
 
@@ -323,7 +323,7 @@ class Client(node.Node, pollmixin.PollMixin):
                                    self._secret_holder,
                                    self.get_history(),
                                    self.getServiceNamed("uploader"),
-                                   self.getServiceNamed("downloader"),
+                                   self.downloader,
                                    self.download_cache_dirman,
                                    self.get_encoding_parameters(),
                                    self._key_generator)

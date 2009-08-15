@@ -2,7 +2,6 @@ import os, random, weakref, itertools, time
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
-from twisted.application import service
 from foolscap.api import DeadReferenceError, RemoteException, eventually
 
 from allmydata.util import base32, deferredutil, hashutil, log, mathutil, idlib
@@ -1185,22 +1184,19 @@ class ConsumerAdapter:
         pass
 
 
-class Downloader(service.MultiService):
+class Downloader:
     """I am a service that allows file downloading.
     """
     # TODO: in fact, this service only downloads immutable files (URI:CHK:).
     # It is scheduled to go away, to be replaced by filenode.download()
     implements(IDownloader)
-    name = "downloader"
 
-    def __init__(self, stats_provider=None):
-        service.MultiService.__init__(self)
+    def __init__(self, storage_broker, stats_provider):
+        self.storage_broker = storage_broker
         self.stats_provider = stats_provider
         self._all_downloads = weakref.WeakKeyDictionary() # for debugging
 
     def download(self, u, t, _log_msg_id=None, monitor=None, history=None):
-        assert self.parent
-        assert self.running
         u = IFileURI(u)
         t = IDownloadTarget(t)
         assert t.write
@@ -1212,12 +1208,12 @@ class Downloader(service.MultiService):
             # include LIT files
             self.stats_provider.count('downloader.files_downloaded', 1)
             self.stats_provider.count('downloader.bytes_downloaded', u.get_size())
-        storage_broker = self.parent.get_storage_broker()
 
         target = DecryptingTarget(t, u.key, _log_msg_id=_log_msg_id)
         if not monitor:
             monitor=Monitor()
-        dl = CiphertextDownloader(storage_broker, u.get_verify_cap(), target,
+        dl = CiphertextDownloader(self.storage_broker,
+                                  u.get_verify_cap(), target,
                                   monitor=monitor)
         self._all_downloads[dl] = None
         if history:

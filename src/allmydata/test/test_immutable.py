@@ -26,8 +26,7 @@ class Test(common.ShareManglingMixin, unittest.TestCase):
         d.addCallback(_then_delete_8)
 
         def _then_download(unused=None):
-            self.downloader = self.clients[1].getServiceNamed("downloader")
-            d2 = self.downloader.download_to_data(self.uri)
+            d2 = self.clients[1].downloader.download_to_data(self.uri)
 
             def _after_download_callb(result):
                 self.fail() # should have gotten an errback instead
@@ -94,8 +93,7 @@ class Test(common.ShareManglingMixin, unittest.TestCase):
 
         before_download_reads = self._count_reads()
         def _attempt_to_download(unused=None):
-            downloader = self.clients[1].getServiceNamed("downloader")
-            d2 = downloader.download_to_data(self.uri)
+            d2 = self.clients[1].downloader.download_to_data(self.uri)
 
             def _callb(res):
                 self.fail("Should have gotten an error from attempt to download, not %r" % (res,))
@@ -128,8 +126,7 @@ class Test(common.ShareManglingMixin, unittest.TestCase):
 
         before_download_reads = self._count_reads()
         def _attempt_to_download(unused=None):
-            downloader = self.clients[1].getServiceNamed("downloader")
-            d2 = downloader.download_to_data(self.uri)
+            d2 = self.clients[1].downloader.download_to_data(self.uri)
 
             def _callb(res):
                 self.fail("Should have gotten an error from attempt to download, not %r" % (res,))

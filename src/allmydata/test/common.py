@@ -1027,8 +1027,7 @@ class ShareManglingMixin(SystemTestMixin):
         return sum_of_write_counts
 
     def _download_and_check_plaintext(self, unused=None):
-        self.downloader = self.clients[1].getServiceNamed("downloader")
-        d = self.downloader.download_to_data(self.uri)
+        d = self.clients[1].downloader.download_to_data(self.uri)
 
         def _after_download(result):
             self.failUnlessEqual(result, TEST_DATA)

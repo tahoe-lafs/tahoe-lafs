@@ -50,8 +50,7 @@ class ControlServer(Referenceable, service.Service):
         return d
 
     def remote_download_from_uri_to_file(self, uri, filename):
-        downloader = self.parent.getServiceNamed("downloader")
-        d = downloader.download_to_filename(uri, filename)
+        d = self.parent.downloader.download_to_filename(uri, filename)
         d.addCallback(lambda res: filename)
         return d
 

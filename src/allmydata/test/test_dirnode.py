@@ -918,7 +918,7 @@ class Deleter(GridTestMixin, unittest.TestCase):
         def _do_delete(ignored):
             nm = UCWEingNodeMaker(c0.storage_broker, c0._secret_holder,
                                   c0.get_history(), c0.getServiceNamed("uploader"),
-                                  c0.getServiceNamed("downloader"),
+                                  c0.downloader,
                                   c0.download_cache_dirman,
                                   c0.get_encoding_parameters(),
                                   c0._key_generator)

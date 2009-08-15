@@ -135,8 +135,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             log.msg("upload finished: uri is %s" % (theuri,))
             self.uri = theuri
             assert isinstance(self.uri, str), self.uri
-            dl = self.clients[1].getServiceNamed("downloader")
-            self.downloader = dl
+            self.downloader = self.clients[1].downloader
         d.addCallback(_upload_done)
 
         def _upload_again(res):
