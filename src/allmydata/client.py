@@ -111,6 +111,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.init_lease_secret()
         self.init_storage()
         self.init_control()
+        self.helper = None
         if self.get_config("helper", "enabled", False, boolean=True):
             self.init_helper()
         self._key_generator = KeyGenerator()
@@ -345,9 +346,9 @@ class Client(node.Node, pollmixin.PollMixin):
     def init_helper(self):
         d = self.when_tub_ready()
         def _publish(self):
-            h = Helper(os.path.join(self.basedir, "helper"),
-                       self.stats_provider, self.history)
-            h.setServiceParent(self)
+            self.helper = Helper(os.path.join(self.basedir, "helper"),
+                                 self.storage_broker, self._secret_holder,
+                                 self.stats_provider, self.history)
             # TODO: this is confusing. BASEDIR/private/helper.furl is created
             # by the helper. BASEDIR/helper.furl is consumed by the client
             # who wants to use the helper. I like having the filename be the
@@ -355,7 +356,7 @@ class Client(node.Node, pollmixin.PollMixin):
             # between config inputs and generated outputs is hard to see.
             helper_furlfile = os.path.join(self.basedir,
                                            "private", "helper.furl")
-            self.tub.registerReference(h, furlFile=helper_furlfile)
+            self.tub.registerReference(self.helper, furlFile=helper_furlfile)
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="K0mW5w")

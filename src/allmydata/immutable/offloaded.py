@@ -1,7 +1,6 @@
 
 import os, stat, time, weakref
 from zope.interface import implements
-from twisted.application import service
 from twisted.internet import defer
 from foolscap.api import Referenceable, DeadReferenceError, eventually
 import allmydata # for __full_version__
@@ -135,7 +134,8 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
                 "application-version": str(allmydata.__full_version__),
                 }
 
-    def __init__(self, storage_index, helper,
+    def __init__(self, storage_index,
+                 helper, storage_broker, secret_holder,
                  incoming_file, encoding_file,
                  results, log_number):
         self._storage_index = storage_index
@@ -153,9 +153,8 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         self._helper.log("CHKUploadHelper starting for SI %s" % self._upload_id,
                          parent=log_number)
 
-        client = helper.parent
-        self._storage_broker = client.get_storage_broker()
-        self._secret_holder = client._secret_holder
+        self._storage_broker = storage_broker
+        self._secret_holder = secret_holder
         self._fetcher = CHKCiphertextFetcher(self, incoming_file, encoding_file,
                                              self._log_number)
         self._reader = LocalCiphertextReader(self, storage_index, encoding_file)
@@ -479,7 +478,7 @@ class LocalCiphertextReader(AskUntilSuccessMixin):
 
 
 
-class Helper(Referenceable, service.MultiService):
+class Helper(Referenceable):
     implements(interfaces.RIHelper, interfaces.IStatsProducer)
     # this is the non-distributed version. When we need to have multiple
     # helpers, this object will become the HelperCoordinator, and will query
@@ -495,8 +494,11 @@ class Helper(Referenceable, service.MultiService):
     chk_upload_helper_class = CHKUploadHelper
     MAX_UPLOAD_STATUSES = 10
 
-    def __init__(self, basedir, stats_provider=None, history=None):
+    def __init__(self, basedir, storage_broker, secret_holder,
+                 stats_provider, history):
         self._basedir = basedir
+        self._storage_broker = storage_broker
+        self._secret_holder = secret_holder
         self._chk_incoming = os.path.join(basedir, "CHK_incoming")
         self._chk_encoding = os.path.join(basedir, "CHK_encoding")
         fileutil.make_dirs(self._chk_incoming)
@@ -514,15 +516,11 @@ class Helper(Referenceable, service.MultiService):
                           "chk_upload_helper.encoded_bytes": 0,
                           }
         self._history = history
-        service.MultiService.__init__(self)
-
-    def setServiceParent(self, parent):
-        service.MultiService.setServiceParent(self, parent)
 
     def log(self, *args, **kwargs):
         if 'facility' not in kwargs:
             kwargs['facility'] = "tahoe.helper"
-        return self.parent.log(*args, **kwargs)
+        return log.msg(*args, **kwargs)
 
     def count(self, key, value=1):
         if self.stats_provider:
@@ -602,6 +600,8 @@ class Helper(Referenceable, service.MultiService):
             else:
                 self.log("creating new upload helper", parent=lp)
                 uh = self.chk_upload_helper_class(storage_index, self,
+                                                  self._storage_broker,
+                                                  self._secret_holder,
                                                   incoming_file, encoding_file,
                                                   r, lp)
                 self._active_uploads[storage_index] = uh
@@ -619,7 +619,7 @@ class Helper(Referenceable, service.MultiService):
         # see if this file is already in the grid
         lp2 = self.log("doing a quick check+UEBfetch",
                        parent=lp, level=log.NOISY)
-        sb = self.parent.get_storage_broker()
+        sb = self._storage_broker
         c = CHKCheckerAndUEBFetcher(sb.get_servers_for_index, storage_index, lp2)
         d = c.check()
         def _checked(res):

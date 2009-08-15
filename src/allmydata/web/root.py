@@ -160,11 +160,7 @@ class Root(rend.Page):
     def child_helper_status(self, ctx):
         # the Helper isn't attached until after the Tub starts, so this child
         # needs to created on each request
-        try:
-            helper = self.client.getServiceNamed("helper")
-        except KeyError:
-            helper = None
-        return status.HelperStatus(helper)
+        return status.HelperStatus(self.client.helper)
 
     child_webform_css = webform.defaultCSS
     child_tahoe_css = nevow_File(resource_filename('allmydata.web', 'tahoe.css'))
@@ -204,12 +200,11 @@ class Root(rend.Page):
         except KeyError:
             ul[T.li["Not running storage server"]]
 
-        try:
-            h = self.client.getServiceNamed("helper")
-            stats = h.get_stats()
+        if self.client.helper:
+            stats = self.client.helper.get_stats()
             active_uploads = stats["chk_upload_helper.active_uploads"]
             ul[T.li["Helper: %d active uploads" % (active_uploads,)]]
-        except KeyError:
+        else:
             ul[T.li["Not running helper"]]
 
         return ctx.tag[ul]

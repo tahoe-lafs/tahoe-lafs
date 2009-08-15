@@ -86,6 +86,7 @@ class FakeClient(service.MultiService):
         self.nodemaker = FakeNodeMaker(None, None, None,
                                        self.uploader, None, None,
                                        None, None)
+        self.helper = None
 
     nodeid = "fake_nodeid"
     nickname = "fake_nickname"

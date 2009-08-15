@@ -3,7 +3,6 @@ from twisted.trial import unittest
 from twisted.application import service
 
 from foolscap.api import Tub, fireEventually, flushEventualQueue
-from foolscap.logging import log
 
 from allmydata.storage.server import si_b2a
 from allmydata.storage_client import StorageFarmBroker
@@ -62,15 +61,9 @@ class FakeClient(service.MultiService):
                                    "n": 100,
                                    "max_segment_size": 1*MiB,
                                    }
-    stats_provider = None
-    storage_broker = StorageFarmBroker(None, True)
-    _secret_holder = client.SecretHolder("lease secret")
-    def log(self, *args, **kwargs):
-        return log.msg(*args, **kwargs)
+
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
-    def get_storage_broker(self):
-        return self.storage_broker
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()
@@ -96,6 +89,8 @@ class AssistedUpload(unittest.TestCase):
     timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def setUp(self):
         self.s = FakeClient()
+        self.storage_broker = StorageFarmBroker(None, True)
+        self.secret_holder = client.SecretHolder("lease secret")
         self.s.startService()
 
         self.tub = t = Tub()
@@ -108,9 +103,11 @@ class AssistedUpload(unittest.TestCase):
 
     def setUpHelper(self, basedir):
         fileutil.make_dirs(basedir)
-        self.helper = h = offloaded.Helper(basedir)
+        self.helper = h = offloaded.Helper(basedir,
+                                           self.storage_broker,
+                                           self.secret_holder,
+                                           None, None)
         h.chk_upload_helper_class = CHKUploadHelper_fake
-        h.setServiceParent(self.s)
         self.helper_furl = self.tub.registerReference(h)
 
     def tearDown(self):
