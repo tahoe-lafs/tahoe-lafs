@@ -1,8 +1,7 @@
 
 import weakref
-from twisted.application import service
 
-class History(service.Service):
+class History:
     """Keep track of recent operations, for a status display."""
 
     name = "history"

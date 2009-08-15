@@ -258,7 +258,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.convergence = base32.a2b(convergence_s)
 
         self.init_client_storage_broker()
-        self.history = self.add_service(History(self.stats_provider))
+        self.history = History(self.stats_provider)
         self.add_service(Uploader(helper_furl, self.stats_provider))
         download_cachedir = os.path.join(self.basedir,
                                          "private", "cache", "download")
@@ -329,7 +329,7 @@ class Client(node.Node, pollmixin.PollMixin):
                                    self._key_generator)
 
     def get_history(self):
-        return self.getServiceNamed("history")
+        return self.history
 
     def init_control(self):
         d = self.when_tub_ready()
