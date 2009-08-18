@@ -241,7 +241,6 @@ test-clean:
 
 clean:
 	rm -rf build _trial_temp _test_memory .checked-deps .built
-	rm -f debian
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
 	rm -rf src/allmydata_tahoe.egg-info
 	rm -rf support dist
@@ -401,6 +400,11 @@ deb-jaunty-head:
 	$(MAKE) setup-deb ARCH=jaunty TAHOE_ARCH=lenny
 	$(MAKE) increment-deb-version
 	fakeroot debian/rules binary
+
+# new experimental debian-packaging-building target
+.PHONY: EXPERIMENTAL-deb
+EXPERIMENTAL-deb: is-known-debian-arch
+	misc/build-deb.sh
 
 
 # These targets provide for windows native builds
