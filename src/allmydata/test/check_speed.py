@@ -1,4 +1,4 @@
-#! /bin/env/python
+#! /usr/bin/env python
 
 import os, sys
 from twisted.internet import reactor, defer
