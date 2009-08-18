@@ -404,7 +404,7 @@ deb-jaunty-head:
 # new experimental debian-packaging-building target
 .PHONY: EXPERIMENTAL-deb
 EXPERIMENTAL-deb: is-known-debian-arch
-	misc/build-deb.sh
+	$(PYTHON) misc/build-deb.py $(ARCH)
 
 
 # These targets provide for windows native builds

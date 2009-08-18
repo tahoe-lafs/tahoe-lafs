@@ -1,0 +1,27 @@
+This package was debianized by Brian Warner <warner@allmydata.com>
+
+The upstream source of this project is http://allmydata.org .
+
+Copyright (c) 2006-2009
+AllMyData, Inc.
+
+You may use this package under the GNU General Public License, version 2 or, at
+your option, any later version.
+
+On Debian GNU/Linux systems, the complete text of the GNU General
+Public License can be found in `/usr/share/common-licenses/GPL'.
+
+This licence also comes with the added permission that you may link this
+program with the OpenSSL library and distribute executables, as long as you
+follow the requirements of this licence in regard to all of the software in
+the executable aside from OpenSSL.
+
+You may use this package under the Transitive Grace Period Public Licence,
+version 1 or, at your option, any later version.  The Transitive Grace Period
+Public Licence has requirements similar to the GPL except that it allows you to
+wait for up to twelve months after you redistribute a derived work before
+releasing the source code of your derived work. See the file COPYING.TGPPL.html
+for the terms of the Transitive Grace Period Public Licence, version 1.
+
+(You may choose to use this package under the terms of either licence, at your
+option.)

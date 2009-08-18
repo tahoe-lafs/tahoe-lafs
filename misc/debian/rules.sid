@@ -1,0 +1,34 @@
+#! /usr/bin/make -f
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+DEB_PYTHON_SYSTEM=pycentral
+
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/python-distutils.mk
+
+# this ought to be the name of the package that we're building, which is
+# different on each tahoe branch. debian/control is the master: whatever
+# package is listed in there will be built.
+DEBNAME := $(firstword $(DEB_PACKAGES))
+
+STAGING_DIR := $(CURDIR)/debian/$(DEBNAME)
+
+DEB_INSTALL_DOCS_ALL := COPYING.TGPPL.html CREDITS NEWS README relnotes.txt \
+ docs misc/spacetime misc/cpu-watcher.tac
+DEB_COMPRESS_EXCLUDE := .tac
+
+install/$(DEBNAME)::
+	dh_install misc/munin/* usr/share/$(DEBNAME)/munin
+	chmod +x $(STAGING_DIR)/usr/share/$(DEBNAME)/munin/*
+	chmod -x $(STAGING_DIR)/usr/share/$(DEBNAME)/munin/*-conf
+
+# the base rules do "python setup.py clean", which spuriously downloads and
+# builds several setuptools-extensions eggs. The tahoe 'setup.py clean'
+# leaves those and many other files in place, but its "make clean" does the
+# right thing. Putting this double-colon rule after the 'include' statements
+# above should ensure that it runs after the base rules.
+
+clean::
+	$(MAKE) clean
+
