@@ -8,7 +8,7 @@
 #
 # See the docs/about.html file for licensing information.
 
-import os, shutil, stat, subprocess, sys, zipfile
+import os, shutil, stat, subprocess, sys, zipfile, re
 
 ##### sys.path management
 
@@ -21,6 +21,21 @@ def pylibdir(prefixdir):
 
 basedir = os.path.dirname(os.path.abspath(__file__))
 supportlib = pylibdir(os.path.join(basedir, "support"))
+
+# locate our version number
+
+def read_version_py(infname):
+    try:
+        verstrline = open(infname, "rt").read()
+    except EnvironmentError:
+        return None
+    else:
+        VSRE = r"^verstr = ['\"]([^'\"]*)['\"]"
+        mo = re.search(VSRE, verstrline, re.M)
+        if mo:
+            return mo.group(1)
+
+version = read_version_py("src/allmydata/_version.py")
 
 try:
     from ez_setup import use_setuptools
@@ -337,6 +352,10 @@ else:
         print "Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR)
         sys.exit(-1)
 
+setup_args = {}
+if version:
+    setup_args["version"] = version
+
 setup(name=APPNAME,
       description='secure, decentralized, fault-tolerant filesystem',
       long_description=LONG_DESCRIPTION,
@@ -361,4 +380,5 @@ setup(name=APPNAME,
       setup_requires=setup_requires,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       zip_safe=False, # We prefer unzipped for easier access.
+      **setup_args
       )
