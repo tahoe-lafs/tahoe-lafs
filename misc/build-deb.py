@@ -1,4 +1,4 @@
-# invoke this with a specific python
+#!/bin/false # invoke this with a specific python
 
 import sys, shutil, os.path
 from subprocess import Popen, PIPE
