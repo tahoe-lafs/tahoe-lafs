@@ -41,7 +41,7 @@ def run(*cmd, **kwargs):
 # the very first time you run setup.py, it will download+build darcsver and
 # whatnot, emitting noise to stdout. Run it once (and throw away that junk)
 # to avoid treating that noise as the package name.
-run(PYTHON, "setup.py", "--name")
+run(PYTHON, "setup.py", "darcsver")
 
 NAME = get_output(PYTHON, "setup.py", "--name").strip()
 VERSION = get_output(PYTHON, "setup.py", "--version").strip()
