@@ -1,6 +1,3 @@
-#  Copyright (c) 2002-2009 Zooko Wilcox-O'Hearn
-#  This file is part of pyutil; see README.txt for licensing terms.
-
 """
 Futz with files like a pro.
 """

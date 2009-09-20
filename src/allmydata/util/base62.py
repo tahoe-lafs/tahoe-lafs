@@ -1,11 +1,5 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2002-2009 Zooko Wilcox-O'Hearn
-# mailto:zooko@zooko.com
-# Permission is hereby granted to any person obtaining a copy of this work to
-# deal in this work without restriction (including the rights to use, modify,
-# distribute, sublicense, and/or sell copies).
-
 # from the Python Standard Library
 import string
 

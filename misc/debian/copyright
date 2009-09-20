@@ -2,7 +2,7 @@ This package was debianized by Brian Warner <warner@allmydata.com>
 
 The upstream source of this project is http://allmydata.org .
 
-Copyright (c) 2006-2009
+Copyright © 2006-2009
 AllMyData, Inc.
 
 You may use this package under the GNU General Public License, version 2 or, at
@@ -25,3 +25,10 @@ for the terms of the Transitive Grace Period Public Licence, version 1.
 
 (You may choose to use this package under the terms of either licence, at your
 option.)
+
+
+The files mac/fuse.py and mac/fuseparts/subbedopts.py are licensed under
+the GNU Lesser General Public Licence.
+
+
+The file src/allmydata/util/figleaf.py is licensed under the MIT licence.

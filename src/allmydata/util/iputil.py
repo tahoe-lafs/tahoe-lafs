@@ -1,8 +1,3 @@
-# portions extracted from ipaddresslib by Autonomous Zone Industries, LGPL (author: Greg Smith)
-# portions adapted from nattraverso.ipdiscover
-# portions authored by Brian Warner, working for Allmydata
-# most recent version authored by Zooko O'Whielacronx, working for Allmydata
-
 # from the Python Standard Library
 import os, re, socket, sys
 
