@@ -4,6 +4,9 @@
 #    This program can be distributed under the terms of the GNU LGPL.
 #    See the file COPYING.
 #
+# On 2009-09-21 Csaba Henk granted permission for this file to be 
+# licensed under the same terms as Tahoe-LAFS itself.
+#
 
 from optparse import Option, OptionParser, OptParseError, OptionConflictError
 from optparse import HelpFormatter, IndentedHelpFormatter, SUPPRESS_HELP
