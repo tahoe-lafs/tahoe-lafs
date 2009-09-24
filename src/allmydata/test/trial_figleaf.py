@@ -59,7 +59,7 @@ from twisted.trial.reporter import TreeReporter, VerboseTextReporter
 # in printSummary. To include import, we have to start in our own import and
 # finish in printSummary.
 
-from allmydata.util import figleaf
+import figleaf
 figleaf.start()
 
 
