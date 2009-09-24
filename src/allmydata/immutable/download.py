@@ -1036,7 +1036,7 @@ class CiphertextDownloader(log.PrefixingLogMixin):
             # Repairer (uploader) needs the encodingparams.
             self._target.set_encodingparams((
                 self._verifycap.needed_shares,
-                self._verifycap.total_shares, # I don't think the target actually cares about "happy".
+                0, # see ticket #778 for why this is
                 self._verifycap.total_shares,
                 self._vup.segment_size
                 ))
