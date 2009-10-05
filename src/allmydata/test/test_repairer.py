@@ -134,23 +134,23 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.failUnless(len(data['servers-responding']) == 10, data)
         self.failUnless(len(data['list-corrupt-shares']) == 0, data)
 
-    def test_verify_no_problem_1(self):
-        self.basedir = "repairer/Verify/verify_no_problem_1"
+    def test_ok_no_corruption(self):
+        self.basedir = "repairer/Verify/ok_no_corruption"
         return self._help_test_verify(common._corrupt_nothing,
                                       self.judge_no_problem)
 
-    def test_verify_no_problem_2(self):
-        self.basedir = "repairer/Verify/verify_no_problem_2"
+    def test_ok_filedata_size(self):
+        self.basedir = "repairer/Verify/ok_filedatasize"
         return self._help_test_verify(common._corrupt_size_of_file_data,
                                       self.judge_no_problem)
 
-    def test_verify_no_problem_3(self):
-        self.basedir = "repairer/Verify/verify_no_problem_3"
+    def test_ok_sharedata_size(self):
+        self.basedir = "repairer/Verify/ok_sharedata_size"
         return self._help_test_verify(common._corrupt_size_of_sharedata,
                                       self.judge_no_problem)
 
-    def test_verify_no_problem_4(self):
-        self.basedir = "repairer/Verify/verify_no_problem_4"
+    def test_ok_segment_size(self):
+        self.basedir = "repairer/Verify/test_ok_segment_size"
         return self._help_test_verify(common._corrupt_segment_size,
                                       self.judge_no_problem)
 
@@ -170,8 +170,8 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.failUnless(len(data['servers-responding']) == 10, data)
         self.failUnless(len(data['list-corrupt-shares']) == 0, data)
 
-    def test_verify_server_visible_corruption(self):
-        self.basedir = "repairer/Verify/verify_server_visible_corruption"
+    def test_corrupt_file_verno(self):
+        self.basedir = "repairer/Verify/corrupt_file_verno"
         return self._help_test_verify(common._corrupt_file_version_number,
                                       self.judge_visible_corruption)
 
@@ -194,8 +194,8 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.failUnlessEqual(len(data['list-incompatible-shares']), 1)
         self.failUnlessEqual(data['count-incompatible-shares'], 1)
 
-    def test_verify_share_version_incompatibility(self):
-        self.basedir = "repairer/Verify/verify_share_version_incompatibility"
+    def test_corrupt_share_verno(self):
+        self.basedir = "repairer/Verify/corrupt_share_verno"
         return self._help_test_verify(common._corrupt_sharedata_version_number,
                                       self.judge_share_version_incompatibility)
 
@@ -216,82 +216,84 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.failUnlessEqual(len(data['servers-responding']), 10)
         self.failUnlessEqual(len(data['sharemap']), 9)
 
-    def test_verify_server_invisible_corruption_1(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_1"
+    def test_corrupt_sharedata_offset(self):
+        self.basedir = "repairer/Verify/corrupt_sharedata_offset"
         return self._help_test_verify(common._corrupt_offset_of_sharedata,
                                       self.judge_invisible_corruption)
 
-    def test_verify_server_invisible_corruption_2(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_2"
+    def test_corrupt_ueb_offset(self):
+        self.basedir = "repairer/Verify/corrupt_ueb_offset"
         return self._help_test_verify(common._corrupt_offset_of_uri_extension,
                                       self.judge_invisible_corruption)
 
-    def test_verify_server_invisible_corruption_3(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_3"
+    def test_corrupt_ueb_offset_shortread(self):
+        self.basedir = "repairer/Verify/corrupt_ueb_offset_shortread"
         return self._help_test_verify(common._corrupt_offset_of_uri_extension_to_force_short_read,
                                       self.judge_invisible_corruption)
 
-    def test_verify_server_invisible_corruption_4(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_4"
+    def test_corrupt_sharedata(self):
+        self.basedir = "repairer/Verify/corrupt_sharedata"
         return self._help_test_verify(common._corrupt_share_data,
                                       self.judge_invisible_corruption)
 
-    def test_verify_server_invisible_corruption_5(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_5"
+    def test_corrupt_ueb_length(self):
+        self.basedir = "repairer/Verify/corrupt_ueb_length"
         return self._help_test_verify(common._corrupt_length_of_uri_extension,
                                       self.judge_invisible_corruption)
 
-    def test_verify_server_invisible_corruption_6(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_6"
+    def test_corrupt_ueb(self):
+        self.basedir = "repairer/Verify/corrupt_ueb"
         return self._help_test_verify(common._corrupt_uri_extension,
                                       self.judge_invisible_corruption)
 
-    def test_verify_server_invisible_corruption_offset_of_block_hashtree_to_truncate_crypttext_hashtree_TODO(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_offset_of_block_hashtree_to_truncate_crypttext_hashtree"
+    def test_truncate_crypttext_hashtree(self):
+        # change the start of the block hashtree, to truncate the preceding
+        # crypttext hashtree
+        self.basedir = "repairer/Verify/truncate_crypttext_hashtree"
         return self._help_test_verify(common._corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes,
                                       self.judge_invisible_corruption)
-    test_verify_server_invisible_corruption_offset_of_block_hashtree_to_truncate_crypttext_hashtree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
+    test_truncate_crypttext_hashtree.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
-    def test_verify_server_invisible_corruption_offset_of_block_hashtree_TODO(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_offset_of_block_hashtree"
+    def test_corrupt_block_hashtree_offset(self):
+        self.basedir = "repairer/Verify/corrupt_block_hashtree_offset"
         return self._help_test_verify(common._corrupt_offset_of_block_hashes,
                                       self.judge_invisible_corruption)
-    test_verify_server_invisible_corruption_offset_of_block_hashtree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
+    test_corrupt_block_hashtree_offset.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
-    def test_verify_server_invisible_corruption_sharedata_plausible_version(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_sharedata_plausible_version"
+    def test_wrong_share_verno(self):
+        self.basedir = "repairer/Verify/wrong_share_verno"
         return self._help_test_verify(common._corrupt_sharedata_version_number_to_plausible_version,
                                       self.judge_invisible_corruption)
 
-    def test_verify_server_invisible_corruption_offset_of_share_hashtree_TODO(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_offset_of_share_hashtree"
+    def test_corrupt_share_hashtree_offset(self):
+        self.basedir = "repairer/Verify/corrupt_share_hashtree_offset"
         return self._help_test_verify(common._corrupt_offset_of_share_hashes,
                                       self.judge_invisible_corruption)
-    test_verify_server_invisible_corruption_offset_of_share_hashtree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
+    test_corrupt_share_hashtree_offset.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
-    def test_verify_server_invisible_corruption_offset_of_ciphertext_hashtree_TODO(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_offset_of_ciphertext_hashtree"
+    def test_corrupt_crypttext_hashtree_offset(self):
+        self.basedir = "repairer/Verify/corrupt_crypttext_hashtree_offset"
         return self._help_test_verify(common._corrupt_offset_of_ciphertext_hash_tree,
                                       self.judge_invisible_corruption)
-    test_verify_server_invisible_corruption_offset_of_ciphertext_hashtree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
+    test_corrupt_crypttext_hashtree_offset.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
-    def test_verify_server_invisible_corruption_cryptext_hash_tree_TODO(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_cryptext_hash_tree"
+    def test_corrupt_crypttext_hashtree(self):
+        self.basedir = "repairer/Verify/corrupt_crypttext_hashtree"
         return self._help_test_verify(common._corrupt_crypttext_hash_tree,
                                       self.judge_invisible_corruption)
-    test_verify_server_invisible_corruption_cryptext_hash_tree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
+    test_corrupt_crypttext_hashtree.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
-    def test_verify_server_invisible_corruption_block_hash_tree_TODO(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_block_hash_tree"
+    def test_corrupt_block_hashtree(self):
+        self.basedir = "repairer/Verify/corrupt_block_hashtree"
         return self._help_test_verify(common._corrupt_block_hashes,
                                       self.judge_invisible_corruption)
-    test_verify_server_invisible_corruption_block_hash_tree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
+    test_corrupt_block_hashtree.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
-    def test_verify_server_invisible_corruption_share_hash_tree_TODO(self):
-        self.basedir = "repairer/Verify/verify_server_invisible_corruption_share_hash_tree"
+    def test_corrupt_share_hashtree(self):
+        self.basedir = "repairer/Verify/corrupt_share_hashtree"
         return self._help_test_verify(common._corrupt_share_hashes,
                                       self.judge_invisible_corruption)
-    test_verify_server_invisible_corruption_share_hash_tree_TODO.todo = "Verifier doesn't yet properly detect this kind of corruption."
+    test_corrupt_share_hashtree.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
 # We'll allow you to pass this test even if you trigger thirty-five times as
 # many block sends and disk writes as would be optimal.
