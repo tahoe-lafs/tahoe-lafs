@@ -252,7 +252,6 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.basedir = "repairer/Verify/truncate_crypttext_hashtree"
         return self._help_test_verify(common._corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes,
                                       self.judge_invisible_corruption)
-    test_truncate_crypttext_hashtree.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_corrupt_block_hashtree_offset(self):
         self.basedir = "repairer/Verify/corrupt_block_hashtree_offset"
@@ -273,13 +272,11 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.basedir = "repairer/Verify/corrupt_crypttext_hashtree_offset"
         return self._help_test_verify(common._corrupt_offset_of_ciphertext_hash_tree,
                                       self.judge_invisible_corruption)
-    test_corrupt_crypttext_hashtree_offset.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_corrupt_crypttext_hashtree(self):
         self.basedir = "repairer/Verify/corrupt_crypttext_hashtree"
         return self._help_test_verify(common._corrupt_crypttext_hash_tree,
                                       self.judge_invisible_corruption)
-    test_corrupt_crypttext_hashtree.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_corrupt_block_hashtree(self):
         self.basedir = "repairer/Verify/corrupt_block_hashtree"

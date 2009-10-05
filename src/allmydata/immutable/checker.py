@@ -159,6 +159,11 @@ class Checker(log.PrefixingLogMixin):
             # block fetches won't send redundant share-hash-tree requests, to
             # speed things up. Then we fetch+validate all the blockhashes.
             d.addCallback(lambda ign: vrbp.get_all_blockhashes())
+
+            cht = IncompleteHashTree(vup.num_segments)
+            cht.set_hashes({0: vup.crypttext_root_hash})
+            d.addCallback(lambda ign: vrbp.get_all_crypttext_hashes(cht))
+
             d.addCallback(lambda ign: vrbp)
             return d
         d.addCallback(_got_ueb)

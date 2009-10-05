@@ -419,6 +419,33 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
         d.addCallback(_got_block_hashes)
         return d
 
+    def get_all_crypttext_hashes(self, crypttext_hash_tree):
+        """Retrieve and validate all the crypttext-hash-tree nodes that are
+        in this share. Normally we don't look at these at all: the download
+        process fetches them incrementally as needed to validate each segment
+        of ciphertext. But this is a convenient place to give the Verifier a
+        function to validate all of these at once.
+
+        Call this with a new hashtree object for each share, initialized with
+        the crypttext hash tree root. I return a Deferred which errbacks upon
+        failure, probably with BadOrMissingHash.
+        """
+
+        # get_crypttext_hashes() always returns everything
+        d = self.bucket.get_crypttext_hashes()
+        def _got_crypttext_hashes(hashes):
+            if len(hashes) < len(crypttext_hash_tree):
+                raise BadOrMissingHash()
+            ct_hashes = dict(enumerate(hashes))
+            try:
+                crypttext_hash_tree.set_hashes(ct_hashes)
+            except IndexError, le:
+                raise BadOrMissingHash(le)
+            except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
+                raise BadOrMissingHash(le)
+        d.addCallback(_got_crypttext_hashes)
+        return d
+
     def get_block(self, blocknum):
         # the first time we use this bucket, we need to fetch enough elements
         # of the share hash tree to validate it from our share hash up to the
