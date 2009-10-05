@@ -269,7 +269,6 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.basedir = "repairer/Verify/corrupt_share_hashtree_offset"
         return self._help_test_verify(common._corrupt_offset_of_share_hashes,
                                       self.judge_invisible_corruption)
-    test_corrupt_share_hashtree_offset.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_corrupt_crypttext_hashtree_offset(self):
         self.basedir = "repairer/Verify/corrupt_crypttext_hashtree_offset"
@@ -293,7 +292,6 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.basedir = "repairer/Verify/corrupt_share_hashtree"
         return self._help_test_verify(common._corrupt_share_hashes,
                                       self.judge_invisible_corruption)
-    test_corrupt_share_hashtree.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
 # We'll allow you to pass this test even if you trigger thirty-five times as
 # many block sends and disk writes as would be optimal.

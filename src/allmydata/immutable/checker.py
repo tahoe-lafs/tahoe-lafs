@@ -50,8 +50,6 @@ class Checker(log.PrefixingLogMixin):
         self._verify = verify # bool: verify what the servers claim, or not?
         self._add_lease = add_lease
 
-        self._share_hash_tree = None
-
         frs = file_renewal_secret_hash(secret_holder.get_renewal_secret(),
                                        self._verifycap.storage_index)
         self.file_renewal_secret = frs
@@ -138,36 +136,53 @@ class Checker(log.PrefixingLogMixin):
         d = veup.start()
 
         def _got_ueb(vup):
-            self._share_hash_tree = IncompleteHashTree(vcap.total_shares)
-            self._share_hash_tree.set_hashes({0: vup.share_root_hash})
+            share_hash_tree = IncompleteHashTree(vcap.total_shares)
+            share_hash_tree.set_hashes({0: vup.share_root_hash})
 
             vrbp = download.ValidatedReadBucketProxy(sharenum, b,
-                                                     self._share_hash_tree,
+                                                     share_hash_tree,
                                                      vup.num_segments,
                                                      vup.block_size,
                                                      vup.share_size)
 
+            # note: normal download doesn't use get_all_sharehashes(),
+            # because it gets more data than necessary. We've discussed the
+            # security properties of having verification and download look
+            # identical (so the server couldn't, say, provide good responses
+            # for one and not the other), but I think that full verification
+            # is more important than defending against inconsistent server
+            # behavior. Besides, they can't pass the verifier without storing
+            # all the data, so there's not so much to be gained by behaving
+            # inconsistently.
+            d = vrbp.get_all_sharehashes()
+            # we fill share_hash_tree before fetching any blocks, so the
+            # block fetches won't send redundant share-hash-tree requests, to
+            # speed things up.
+            d.addCallbacks(lambda ign: vrbp)
+            return d
+        d.addCallbacks(_got_ueb)
+        def _discard_result(r):
+            assert isinstance(r, str), r
+            # to free up the RAM
+            return None
+        def _get_blocks(vrbp):
             ds = []
-            for blocknum in range(vup.num_segments):
-                def _discard_result(r):
-                    assert isinstance(r, str), r
-                    # to free up the RAM
-                    return None
-                d2 = vrbp.get_block(blocknum)
-                d2.addCallback(_discard_result)
-                ds.append(d2)
+            for blocknum in range(veup.num_segments):
+                db = vrbp.get_block(blocknum)
+                db.addCallback(_discard_result)
+                ds.append(db)
+            # this gatherResults will fire once every block of this share has
+            # been downloaded and verified, or else it will errback.
+            return deferredutil.gatherResults(ds)
+        d.addCallback(_get_blocks)
 
-            dl = deferredutil.gatherResults(ds)
-            # dl will fire once every block of this share has been downloaded
-            # and verified, or else it will errback.
+        # if none of those errbacked, the blocks (and the hashes above them)
+        # are good
+        def _all_good(ign):
+            return (True, sharenum, None)
+        d.addCallback(_all_good)
 
-            def _cb(result):
-                return (True, sharenum, None)
-
-            dl.addCallback(_cb)
-            return dl
-        d.addCallback(_got_ueb)
-
+        # but if anything fails, we'll land here
         def _errb(f):
             # We didn't succeed at fetching and verifying all the blocks of
             # this share. Handle each reason for failure differently.
