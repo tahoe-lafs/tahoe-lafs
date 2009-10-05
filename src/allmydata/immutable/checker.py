@@ -157,10 +157,12 @@ class Checker(log.PrefixingLogMixin):
             d = vrbp.get_all_sharehashes()
             # we fill share_hash_tree before fetching any blocks, so the
             # block fetches won't send redundant share-hash-tree requests, to
-            # speed things up.
-            d.addCallbacks(lambda ign: vrbp)
+            # speed things up. Then we fetch+validate all the blockhashes.
+            d.addCallback(lambda ign: vrbp.get_all_blockhashes())
+            d.addCallback(lambda ign: vrbp)
             return d
-        d.addCallbacks(_got_ueb)
+        d.addCallback(_got_ueb)
+
         def _discard_result(r):
             assert isinstance(r, str), r
             # to free up the RAM

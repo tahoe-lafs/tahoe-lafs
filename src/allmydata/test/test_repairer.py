@@ -258,7 +258,6 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.basedir = "repairer/Verify/corrupt_block_hashtree_offset"
         return self._help_test_verify(common._corrupt_offset_of_block_hashes,
                                       self.judge_invisible_corruption)
-    test_corrupt_block_hashtree_offset.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_wrong_share_verno(self):
         self.basedir = "repairer/Verify/wrong_share_verno"
@@ -286,12 +285,18 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.basedir = "repairer/Verify/corrupt_block_hashtree"
         return self._help_test_verify(common._corrupt_block_hashes,
                                       self.judge_invisible_corruption)
-    test_corrupt_block_hashtree.todo = "Verifier doesn't yet properly detect this kind of corruption."
 
     def test_corrupt_share_hashtree(self):
         self.basedir = "repairer/Verify/corrupt_share_hashtree"
         return self._help_test_verify(common._corrupt_share_hashes,
                                       self.judge_invisible_corruption)
+
+    # TODO: the Verifier should decode to ciphertext and check it against the
+    # crypttext-hash-tree. Check this by constructing a bogus file, in which
+    # the crypttext-hash-tree is modified after encoding is done, but before
+    # the UEB is finalized. The Verifier should see a valid
+    # crypttext-hash-tree but then the ciphertext should show up as invalid.
+    # Normally this could only be triggered by a bug in FEC decode.
 
 # We'll allow you to pass this test even if you trigger thirty-five times as
 # many block sends and disk writes as would be optimal.

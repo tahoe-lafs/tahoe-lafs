@@ -386,6 +386,39 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
         d.addCallback(_got_share_hashes)
         return d
 
+    def get_all_blockhashes(self):
+        """Retrieve and validate all the block-hash-tree nodes that are
+        included in this share. Each share contains a full Merkle tree, but
+        we usually only fetch the minimal subset necessary for any particular
+        block. This function fetches everything at once. The Verifier uses
+        this function to validate the block hash tree.
+
+        Call this (and wait for the Deferred it returns to fire) after
+        calling get_all_sharehashes() and before calling get_block() for the
+        first time: this lets us check that the share contains all block
+        hashes and avoids downloading them multiple times.
+
+        I return a Deferred which errbacks upon failure, probably with
+        BadOrMissingHash.
+        """
+
+        # get_block_hashes(anything) currently always returns everything
+        needed = list(range(len(self.block_hash_tree)))
+        d = self.bucket.get_block_hashes(needed)
+        def _got_block_hashes(blockhashes):
+            if len(blockhashes) < len(self.block_hash_tree):
+                raise BadOrMissingHash()
+            bh = dict(enumerate(blockhashes))
+
+            try:
+                self.block_hash_tree.set_hashes(bh)
+            except IndexError, le:
+                raise BadOrMissingHash(le)
+            except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
+                raise BadOrMissingHash(le)
+        d.addCallback(_got_block_hashes)
+        return d
+
     def get_block(self, blocknum):
         # the first time we use this bucket, we need to fetch enough elements
         # of the share hash tree to validate it from our share hash up to the
