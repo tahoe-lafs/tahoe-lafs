@@ -1,6 +1,6 @@
 from foolscap.api import DeadReferenceError, RemoteException
 from twisted.internet import defer
-from allmydata import hashtree
+from allmydata.hashtree import IncompleteHashTree
 from allmydata.check_results import CheckResults
 from allmydata.immutable import download
 from allmydata.uri import CHKFileVerifierURI
@@ -132,34 +132,20 @@ class Checker(log.PrefixingLogMixin):
         it will not errback -- it will fire normally with the indicated
         results."""
 
-        b = layout.ReadBucketProxy(bucket, serverid, self._verifycap.storage_index)
-        veup = download.ValidatedExtendedURIProxy(b, self._verifycap)
+        vcap = self._verifycap
+        b = layout.ReadBucketProxy(bucket, serverid, vcap.storage_index)
+        veup = download.ValidatedExtendedURIProxy(b, vcap)
         d = veup.start()
 
-        def _errb(f):
-            # We didn't succeed at fetching and verifying all the blocks of
-            # this share. Handle each reason for failure differently.
-
-            if f.check(DeadReferenceError):
-                return (False, sharenum, 'disconnect')
-            elif f.check(RemoteException):
-                return (False, sharenum, 'failure')
-            elif f.check(layout.ShareVersionIncompatible):
-                return (False, sharenum, 'incompatible')
-            elif f.check(layout.LayoutInvalid,
-                         layout.RidiculouslyLargeURIExtensionBlock,
-                         download.BadOrMissingHash,
-                         download.BadURIExtensionHashValue):
-                return (False, sharenum, 'corrupt')
-
-            # if it wasn't one of those reasons, re-raise the error
-            return f
-
         def _got_ueb(vup):
-            self._share_hash_tree = hashtree.IncompleteHashTree(self._verifycap.total_shares)
+            self._share_hash_tree = IncompleteHashTree(vcap.total_shares)
             self._share_hash_tree.set_hashes({0: vup.share_root_hash})
 
-            vrbp = download.ValidatedReadBucketProxy(sharenum, b, self._share_hash_tree, vup.num_segments, vup.block_size, vup.share_size)
+            vrbp = download.ValidatedReadBucketProxy(sharenum, b,
+                                                     self._share_hash_tree,
+                                                     vup.num_segments,
+                                                     vup.block_size,
+                                                     vup.share_size)
 
             ds = []
             for blocknum in range(vup.num_segments):
@@ -180,8 +166,26 @@ class Checker(log.PrefixingLogMixin):
 
             dl.addCallback(_cb)
             return dl
-
         d.addCallback(_got_ueb)
+
+        def _errb(f):
+            # We didn't succeed at fetching and verifying all the blocks of
+            # this share. Handle each reason for failure differently.
+
+            if f.check(DeadReferenceError):
+                return (False, sharenum, 'disconnect')
+            elif f.check(RemoteException):
+                return (False, sharenum, 'failure')
+            elif f.check(layout.ShareVersionIncompatible):
+                return (False, sharenum, 'incompatible')
+            elif f.check(layout.LayoutInvalid,
+                         layout.RidiculouslyLargeURIExtensionBlock,
+                         download.BadOrMissingHash,
+                         download.BadURIExtensionHashValue):
+                return (False, sharenum, 'corrupt')
+
+            # if it wasn't one of those reasons, re-raise the error
+            return f
         d.addErrback(_errb)
 
         return d
