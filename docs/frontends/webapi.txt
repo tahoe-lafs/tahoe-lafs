@@ -284,7 +284,7 @@ Now that we know how to build URLs that refer to files and directories in a
 Tahoe virtual filesystem, what sorts of operations can we do with those URLs?
 This section contains a catalog of GET, PUT, DELETE, and POST operations that
 can be performed on these URLs. This set of operations are aimed at programs
-that use HTTP to communicate with a Tahoe node. The next section describes
+that use HTTP to communicate with a Tahoe node. A later section describes
 operations that are intended for web browsers.
 
 === Reading A File ===
@@ -440,16 +440,17 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
                 "linkcrtime": 1202777696.7564139,
                 "linkmotime": 1202777696.7564139,
                 } } } ],
-      "subdir":  [ "dirnode", {
-          "rw_uri": rwuri,
-          "ro_uri": rouri,
-          "metadata": {
-            "ctime": 1202778102.7589991,
-            "mtime": 1202778111.2160511,
-            "tahoe": {
-              "linkcrtime": 1202777696.7564139,
-              "linkmotime": 1202777696.7564139,
-              } } } ] } } ]
+        "subdir":  [ "dirnode", {
+            "rw_uri": rwuri,
+            "ro_uri": rouri,
+            "metadata": {
+              "ctime": 1202778102.7589991,
+              "mtime": 1202778111.2160511,
+              "tahoe": {
+                "linkcrtime": 1202777696.7564139,
+                "linkmotime": 1202777696.7564139,
+              } } } ]
+      } } ]
 
   In the above example, note how 'children' is a dictionary in which the keys
   are child names and the values depend upon whether the child is a file or a
@@ -474,15 +475,15 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
   Starting in Tahoe v1.4.0, the 'linkmotime'/'linkcrtime' keys in the 'tahoe'
   sub-dict are also populated.
 
-  The reason we added the new values in Tahoe v1.4.0 is that there is an
-  undocumented API (search the source code for 'set_children') which you can
-  use to overwrite the values of the 'mtime'/'ctime' pair, and this
-  set_children API is used by the "tahoe backup" command (both in Tahoe v1.3.0
-  and in Tahoe v1.4.0) to set the 'mtime' and 'ctime' values when backing up
-  files from a local filesystem into the Tahoe filesystem. As of Tahoe v1.4.0,
-  the set_children API cannot be used to set anything under the 'tahoe' key of
-  the metadata dict -- if you include 'tahoe' keys in your 'metadata' arguments
-  then it will silently ignore those keys.
+  The reason we added the new values in Tahoe v1.4.0 is that there is a
+  "set_children" API (described below) which you can use to overwrite the
+  values of the 'mtime'/'ctime' pair, and this API is used by the "tahoe
+  backup" command (both in Tahoe v1.3.0 and in Tahoe v1.4.0) to set the
+  'mtime' and 'ctime' values when backing up files from a local filesystem
+  into the Tahoe filesystem. As of Tahoe v1.4.0, the set_children API cannot
+  be used to set anything under the 'tahoe' key of the metadata dict -- if
+  you include 'tahoe' keys in your 'metadata' arguments then it will silently
+  ignore those keys.
 
   Therefore, if the 'tahoe' sub-dict is present, you can rely on the
   'linkcrtime' and 'linkmotime' values therein to have the semantics described
@@ -577,6 +578,39 @@ PUT /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri
   "false", "f", and "0" are synonyms for "False", and the parameter is
   case-insensitive.
 
+=== Adding multiple files or directories to a parent directory at once ===
+
+POST /uri/$DIRCAP/[SUBDIRS..]?t=set_children
+
+  This command adds multiple children to a directory in a single operation.
+  It reads the request body and interprets it as a JSON-encoded description
+  of the child names and read/write-caps that should be added.
+
+  The body should be a JSON-encoded dictionary, in the same format as the
+  "children" value returned by the "GET /uri/$DIRCAP?t=json" operation
+  described above. In this format, each key is a child names, and the
+  corresponding value is a tuple of (type, childinfo). "type" is ignored, and
+  "childinfo" is a dictionary that contains "rw_uri", "ro_uri", and
+  "metadata" keys. You can take the output of "GET /uri/$DIRCAP1?t=json" and
+  use it as the input to "POST /uri/$DIRCAP2?t=set_children" to make DIR2
+  look very much like DIR1.
+
+  When the set_children request contains a child name that already exists in
+  the target directory, this command defaults to overwriting that child with
+  the new value (both child cap and metadata, but if the JSON data does not
+  contain a "metadata" key, the old child's metadata is preserved). The
+  command takes a boolean "overwrite=" query argument to control this
+  behavior. If you use "?t=set_children&overwrite=false", then an attempt to
+  replace an existing child will instead cause an error.
+
+  Any "tahoe" key in the new child's "metadata" value is ignored. Any
+  existing "tahoe" metadata is preserved. The metadata["tahoe"] value is
+  reserved for metadata generated by the tahoe node itself. The only two keys
+  currently placed here are "linkcrtime" and "linkmotime". For details, see
+  the section above entitled "Get Information About A File Or Directory (as
+  JSON)", in the "About the metadata" subsection.
+
+
 === Deleting a File or Directory ===
 
 DELETE /uri/$DIRCAP/[SUBDIRS../]CHILDNAME
@@ -609,7 +643,9 @@ DELETE /uri/$DIRCAP/[SUBDIRS../]CHILDNAME
 
 This section describes the HTTP operations that provide support for humans
 running a web browser. Most of these operations use HTML forms that use POST
-to drive the Tahoe node.
+to drive the Tahoe node. This section is intended for HTML authors who want
+to write web pages that contain forms and buttons which manipulate the Tahoe
+filesystem.
 
 Note that for all POST operations, the arguments listed can be provided
 either as URL query arguments or as form body fields. URL query arguments are
