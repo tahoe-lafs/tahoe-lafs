@@ -24,6 +24,7 @@ import common_util as testutil
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_web import HTTPClientGETFactory, \
      HTTPClientHEADFactory
+from allmydata.client import Client
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -46,8 +47,9 @@ class FakeNodeMaker(NodeMaker):
         n = FakeMutableFileNode(None, None, None, None)
         return n.create(contents)
 
-class FakeUploader:
-    def upload(self, uploadable):
+class FakeUploader(service.Service):
+    name = "uploader"
+    def upload(self, uploadable, history=None):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
         def _got_data(datav):
@@ -58,6 +60,8 @@ class FakeUploader:
             return results
         d.addCallback(_got_data)
         return d
+    def get_helper_info(self):
+        return (None, False)
 
 class FakeHistory:
     _all_upload_status = [upload.UploadStatus()]
@@ -79,62 +83,42 @@ class FakeHistory:
     def list_all_helper_statuses(self):
         return []
 
-class FakeClient(service.MultiService):
+class FakeClient(Client):
     def __init__(self):
+        # don't upcall to Client.__init__, since we only want to initialize a
+        # minimal subset
         service.MultiService.__init__(self)
+        self.nodeid = "fake_nodeid"
+        self.nickname = "fake_nickname"
+        self.introducer_furl = "None"
+        self.stats_provider = FakeStatsProvider()
+        self._secret_holder = None
+        self.helper = None
+        self.convergence = "some random string"
+        self.storage_broker = StorageFarmBroker(None, permute_peers=True)
+        self.introducer_client = None
+        self.history = FakeHistory()
         self.uploader = FakeUploader()
+        self.uploader.setServiceParent(self)
         self.nodemaker = FakeNodeMaker(None, None, None,
                                        self.uploader, None, None,
                                        None, None)
-        self.helper = None
 
-    nodeid = "fake_nodeid"
-    nickname = "fake_nickname"
-    basedir = "fake_basedir"
-    def get_versions(self):
-        return {'allmydata': "fake",
-                'foolscap': "fake",
-                'twisted': "fake",
-                'zfec': "fake",
-                }
-    introducer_furl = "None"
-
-    convergence = "some random string"
-    stats_provider = FakeStatsProvider()
-
-    def connected_to_introducer(self):
-        return False
-
-    storage_broker = StorageFarmBroker(None, permute_peers=True)
-    def get_storage_broker(self):
-        return self.storage_broker
-    _secret_holder = None
-    def get_encoding_parameters(self):
-        return {"k": 3, "n": 10}
-    def get_history(self):
-        return FakeHistory()
-
-    def create_node_from_uri(self, writecap, readcap=None):
-        return self.nodemaker.create_from_cap(writecap, readcap)
-
-    def create_empty_dirnode(self):
-        return self.nodemaker.create_new_mutable_directory()
+    def startService(self):
+        return service.MultiService.startService(self)
+    def stopService(self):
+        return service.MultiService.stopService(self)
 
     MUTABLE_SIZELIMIT = FakeMutableFileNode.MUTABLE_SIZELIMIT
-    def create_mutable_file(self, contents=""):
-        return self.nodemaker.create_mutable_file(contents)
-
-    def upload(self, uploadable):
-        return self.uploader.upload(uploadable)
 
 class WebMixin(object):
     def setUp(self):
         self.s = FakeClient()
         self.s.startService()
         self.staticdir = self.mktemp()
-        self.ws = s = webish.WebishServer(self.s, "0", staticdir=self.staticdir)
-        s.setServiceParent(self.s)
-        self.webish_port = port = s.listener._port.getHost().port
+        self.ws = webish.WebishServer(self.s, "0", staticdir=self.staticdir)
+        self.ws.setServiceParent(self.s)
+        self.webish_port = port = self.ws.listener._port.getHost().port
         self.webish_url = "http://localhost:%d" % port
 
         l = [ self.s.create_empty_dirnode() for x in range(6) ]
