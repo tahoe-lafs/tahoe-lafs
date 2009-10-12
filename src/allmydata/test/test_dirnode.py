@@ -28,7 +28,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.basedir = "dirnode/Dirnode/test_basic"
         self.set_up_grid()
         c = self.g.clients[0]
-        d = c.create_empty_dirnode()
+        d = c.create_dirnode()
         def _done(res):
             self.failUnless(isinstance(res, dirnode.DirectoryNode))
             rep = str(res)
@@ -40,7 +40,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.basedir = "dirnode/Dirnode/test_check"
         self.set_up_grid()
         c = self.g.clients[0]
-        d = c.create_empty_dirnode()
+        d = c.create_dirnode()
         d.addCallback(lambda dn: dn.check(Monitor()))
         def _done(res):
             self.failUnless(res.is_healthy())
@@ -55,7 +55,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         #  root/subdir/link -> root
         #  root/rodir
         c = self.g.clients[0]
-        d = c.create_empty_dirnode()
+        d = c.create_dirnode()
         def _created_root(rootnode):
             self._rootnode = rootnode
             return rootnode.create_empty_directory(u"subdir")
@@ -64,7 +64,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self._subdir = subdir
             d = subdir.add_file(u"file1", upload.Data("data"*100, None))
             d.addCallback(lambda res: subdir.set_node(u"link", self._rootnode))
-            d.addCallback(lambda res: c.create_empty_dirnode())
+            d.addCallback(lambda res: c.create_dirnode())
             d.addCallback(lambda dn:
                           self._rootnode.set_uri(u"rodir",
                                                  dn.get_readonly_uri()))
@@ -157,7 +157,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         filenode = nm.create_from_cap(filecap)
         uploadable = upload.Data("some data", convergence="some convergence string")
 
-        d = c.create_empty_dirnode()
+        d = c.create_dirnode()
         def _created(rw_dn):
             d2 = rw_dn.set_uri(u"child", filecap)
             d2.addCallback(lambda res: rw_dn)
@@ -210,7 +210,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.expected_verifycaps = set()
         self.expected_storage_indexes = set()
 
-        d = c.create_empty_dirnode()
+        d = c.create_dirnode()
         def _then(n):
             # /
             self.rootnode = n
@@ -409,7 +409,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             # set_node + metadata
             # it should be possible to add a child without any metadata
             d.addCallback(lambda res: n.set_node(u"d2", n, {}))
-            d.addCallback(lambda res: c.create_empty_dirnode())
+            d.addCallback(lambda res: c.create_dirnode())
             d.addCallback(lambda n2:
                           self.shouldFail(ExistingChildError, "set_node-no",
                                           "child 'd2' already exists",
@@ -908,7 +908,7 @@ class Deleter(GridTestMixin, unittest.TestCase):
         self.basedir = self.mktemp()
         self.set_up_grid()
         c0 = self.g.clients[0]
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         small = upload.Data("Small enough for a LIT", None)
         def _created_dir(dn):
             self.root = dn
@@ -944,7 +944,7 @@ class Adder(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         c = self.g.clients[0]
         fileuri = make_chk_file_uri(1234)
         filenode = c.nodemaker.create_from_cap(fileuri)
-        d = c.create_empty_dirnode()
+        d = c.create_dirnode()
 
         def _create_directory_tree(root_node):
             # Build

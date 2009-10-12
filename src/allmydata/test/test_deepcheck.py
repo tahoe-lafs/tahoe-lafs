@@ -214,7 +214,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         #   small2
         #   loop -> root
         c0 = self.g.clients[0]
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _created_root(n):
             self.root = n
             self.root_uri = n.get_uri()
@@ -868,7 +868,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         self.nodes = {}
 
         c0 = self.g.clients[0]
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _created_root(n):
             self.root = n
             self.root_uri = n.get_uri()
@@ -881,7 +881,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         d.addCallback(self.create_mangled, "large-missing-shares")
         d.addCallback(self.create_mangled, "large-corrupt-shares")
         d.addCallback(self.create_mangled, "large-unrecoverable")
-        d.addCallback(lambda ignored: c0.create_empty_dirnode())
+        d.addCallback(lambda ignored: c0.create_dirnode())
         d.addCallback(self._stash_node, "broken")
         large1 = upload.Data("Lots of data\n" * 1000 + "large1" + "\n", None)
         d.addCallback(lambda ignored:
@@ -1175,7 +1175,7 @@ class Large(DeepCheckBase, unittest.TestCase):
 
         COUNT = 400
         c0 = self.g.clients[0]
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         self.stash = {}
         def _created_root(n):
             self.root = n

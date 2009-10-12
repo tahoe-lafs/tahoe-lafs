@@ -25,7 +25,7 @@ def PUTUnlinkedSSK(req, client):
 
 def PUTUnlinkedCreateDirectory(req, client):
     # "PUT /uri?t=mkdir", to create an unlinked directory.
-    d = client.create_empty_dirnode()
+    d = client.create_dirnode()
     d.addCallback(lambda dirnode: dirnode.get_uri())
     # XXX add redirect_to_result
     return d
@@ -90,7 +90,7 @@ def POSTUnlinkedSSK(req, client):
 
 def POSTUnlinkedCreateDirectory(req, client):
     # "POST /uri?t=mkdir", to create an unlinked directory.
-    d = client.create_empty_dirnode()
+    d = client.create_dirnode()
     redirect = get_arg(req, "redirect_to_result", "false")
     if boolean_of_arg(redirect):
         def _then_redir(res):

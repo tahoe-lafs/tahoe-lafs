@@ -683,7 +683,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             return d1
         d.addCallback(_check_empty_file)
 
-        d.addCallback(lambda res: self.clients[0].create_empty_dirnode())
+        d.addCallback(lambda res: self.clients[0].create_dirnode())
         def _created_dirnode(dnode):
             log.msg("_created_dirnode(%s)" % (dnode,))
             d1 = dnode.list()
@@ -710,7 +710,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(check_kg_poolsize, 0)
         d.addCallback(lambda junk: self.clients[3].create_mutable_file('hello, world'))
         d.addCallback(check_kg_poolsize, -1)
-        d.addCallback(lambda junk: self.clients[3].create_empty_dirnode())
+        d.addCallback(lambda junk: self.clients[3].create_dirnode())
         d.addCallback(check_kg_poolsize, -2)
         # use_helper induces use of clients[3], which is the using-key_gen client
         d.addCallback(lambda junk: self.POST("uri", use_helper=True, t="mkdir", name='george'))
@@ -820,7 +820,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
     def _do_publish1(self, res):
         ut = upload.Data(self.data, convergence=None)
         c0 = self.clients[0]
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _made_root(new_dirnode):
             self._root_directory_uri = new_dirnode.get_uri()
             return c0.create_node_from_uri(self._root_directory_uri)
@@ -852,7 +852,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
     def _do_publish_private(self, res):
         self.smalldata = "sssh, very secret stuff"
         ut = upload.Data(self.smalldata, convergence=None)
-        d = self.clients[0].create_empty_dirnode()
+        d = self.clients[0].create_dirnode()
         d.addCallback(self.log, "GOT private directory")
         def _got_new_dir(privnode):
             rootnode = self.clients[0].create_node_from_uri(self._root_directory_uri)

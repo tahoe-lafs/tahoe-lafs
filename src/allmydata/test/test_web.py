@@ -121,7 +121,7 @@ class WebMixin(object):
         self.webish_port = port = self.ws.listener._port.getHost().port
         self.webish_url = "http://localhost:%d" % port
 
-        l = [ self.s.create_empty_dirnode() for x in range(6) ]
+        l = [ self.s.create_dirnode() for x in range(6) ]
         d = defer.DeferredList(l)
         def _then(res):
             self.public_root = res[0][1]
@@ -2247,7 +2247,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_PUT_DIRURL_uri(self):
-        d = self.s.create_empty_dirnode()
+        d = self.s.create_dirnode()
         def _made_dir(dn):
             new_uri = dn.get_uri()
             # replace /foo with a new (empty) directory
@@ -2263,7 +2263,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_PUT_DIRURL_uri_noreplace(self):
-        d = self.s.create_empty_dirnode()
+        d = self.s.create_dirnode()
         def _made_dir(dn):
             new_uri = dn.get_uri()
             # replace /foo with a new (empty) directory, but ask that
@@ -2815,7 +2815,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
                                                            safe="")
         future_node = UnknownNode(future_writecap, future_readcap)
 
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturl = "uri/" + urllib.quote(n.get_uri()) + "/"
@@ -2875,7 +2875,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         self.uris = {}
         self.fileurls = {}
         DATA = "data" * 100
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri()) + "/"
@@ -3048,7 +3048,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         self.uris = {}
         self.fileurls = {}
         DATA = "data" * 100
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri()) + "/"
@@ -3255,7 +3255,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         self.uris = {}
         self.fileurls = {}
         DATA = "data" * 100
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.uris["root"] = n.get_uri()
@@ -3322,7 +3322,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         c0 = self.g.clients[0]
         self.fileurls = {}
         DATA = "data" * 100
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _stash_root(n):
             self.fileurls["root"] = "uri/" + urllib.quote(n.get_uri()) + "/"
             self.fileurls["imaginary"] = self.fileurls["root"] + "imaginary"
@@ -3338,14 +3338,14 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
             baduri = u.to_string()
             self.fileurls["0shares"] = "uri/" + urllib.quote(baduri)
         d.addCallback(_stash_bad)
-        d.addCallback(lambda ign: c0.create_empty_dirnode())
+        d.addCallback(lambda ign: c0.create_dirnode())
         def _mangle_dirnode_1share(n):
             u = n.get_uri()
             url = self.fileurls["dir-1share"] = "uri/" + urllib.quote(u) + "/"
             self.fileurls["dir-1share-json"] = url + "?t=json"
             self.delete_shares_numbered(u, range(1,10))
         d.addCallback(_mangle_dirnode_1share)
-        d.addCallback(lambda ign: c0.create_empty_dirnode())
+        d.addCallback(lambda ign: c0.create_dirnode())
         def _mangle_dirnode_0share(n):
             u = n.get_uri()
             url = self.fileurls["dir-0share"] = "uri/" + urllib.quote(u) + "/"

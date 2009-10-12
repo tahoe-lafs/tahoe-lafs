@@ -748,7 +748,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/List/list"
         self.set_up_grid()
         c0 = self.g.clients[0]
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturi = n.get_uri()
@@ -1317,7 +1317,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.uris = {}
         self.fileurls = {}
         DATA = "data" * 100
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturi = n.get_uri()
@@ -1549,7 +1549,7 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         c0 = self.g.clients[0]
         self.fileurls = {}
-        d = c0.create_empty_dirnode()
+        d = c0.create_dirnode()
         def _stash_root(n):
             self.rootnode = n
             self.rooturi = n.get_uri()

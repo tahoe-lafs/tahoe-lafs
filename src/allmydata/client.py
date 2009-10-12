@@ -457,8 +457,12 @@ class Client(node.Node, pollmixin.PollMixin):
         # this returns synchronously.
         return self.nodemaker.create_from_cap(writecap, readcap)
 
-    def create_empty_dirnode(self):
-        return self.nodemaker.create_new_mutable_directory()
+    def create_dirnode(self, initial_children={}):
+        d = self.nodemaker.create_new_mutable_directory()
+        assert not initial_children, "not ready yet: %s" % (initial_children,)
+        if initial_children:
+            d.addCallback(lambda n: n.set_children(initial_children))
+        return d
 
     def create_mutable_file(self, contents="", keysize=None):
         return self.nodemaker.create_mutable_file(contents, keysize)

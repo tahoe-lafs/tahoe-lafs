@@ -2003,8 +2003,12 @@ class IClient(Interface):
                  file.
         """
 
-    def create_empty_dirnode():
-        """Create a new dirnode, empty and unattached.
+    def create_dirnode(initial_children={}):
+        """Create a new unattached dirnode, possibly with initial children.
+
+        @param initial_children: dict with keys that are unicode child names,
+        and values that are (child_writecap, child_readcap, metadata) tuples.
+
         @return: a Deferred that fires with the new IDirectoryNode instance.
         """
 
