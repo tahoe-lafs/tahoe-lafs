@@ -873,15 +873,19 @@ class IDirectoryNode(IMutableFilesystemNode):
         is empty, the metadata will be an empty dictionary.
         """
 
-    def set_uri(name, child_uri, metadata=None, overwrite=True):
-        """I add a child (by URI) at the specific name. I return a Deferred
-        that fires when the operation finishes. If overwrite= is True, I will
-        replace any existing child of the same name, otherwise an existing
-        child will cause me to return ExistingChildError. The child name must
-        be a unicode string.
+    def set_uri(name, writecap, readcap=None, metadata=None, overwrite=True):
+        """I add a child (by writecap+readcap) at the specific name. I return
+        a Deferred that fires when the operation finishes. If overwrite= is
+        True, I will replace any existing child of the same name, otherwise
+        an existing child will cause me to return ExistingChildError. The
+        child name must be a unicode string.
 
-        The child_uri could be for a file, or for a directory (either
-        read-write or read-only, using a URI that came from get_uri() ).
+        The child caps could be for a file, or for a directory. If the new
+        child is read/write, you will provide both writecap and readcap. If
+        the child is read-only, you will provide the readcap write (i.e. the
+        writecap= and readcap= arguments will both be the child's readcap).
+        The filecaps are typically obtained from an IFilesystemNode with
+        get_uri() and get_readonly_uri().
 
         If metadata= is provided, I will use it as the metadata for the named
         edge. This will replace any existing metadata. If metadata= is left
@@ -894,11 +898,11 @@ class IDirectoryNode(IMutableFilesystemNode):
         NotMutableError."""
 
     def set_children(entries, overwrite=True):
-        """Add multiple (name, child_uri) pairs (or (name, child_uri,
-        metadata) triples) to a directory node. Returns a Deferred that fires
-        (with None) when the operation finishes. This is equivalent to
-        calling set_uri() multiple times, but is much more efficient. All
-        child names must be unicode strings.
+        """Add multiple (name, writecap, readcap) triples (or (name,
+        writecap, readcap, metadata) 4-tuples) to a directory node. Returns a
+        Deferred that fires (with None) when the operation finishes. This is
+        equivalent to calling set_uri() multiple times, but is much more
+        efficient. All child names must be unicode strings.
         """
 
     def set_node(name, child, metadata=None, overwrite=True):

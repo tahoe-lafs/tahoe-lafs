@@ -204,7 +204,6 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         elif t == "stream-manifest":
             d = self._POST_stream_manifest(ctx)
         elif t == "set_children":
-            # TODO: docs
             d = self._POST_set_children(req)
         else:
             raise WebError("POST to a directory with bad t=%s" % t)
@@ -303,7 +302,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         charset = get_arg(req, "_charset", "utf-8")
         name = name.decode(charset)
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        d = self.node.set_uri(name, childcap, overwrite=replace)
+        d = self.node.set_uri(name, childcap, childcap, overwrite=replace)
         d.addCallback(lambda res: childcap)
         return d
 
@@ -471,8 +470,13 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         cs = []
         for name, (file_or_dir, mddict) in children.iteritems():
             name = unicode(name) # simplejson-2.0.1 returns str *or* unicode
-            cap = str(mddict.get('rw_uri') or mddict.get('ro_uri'))
-            cs.append((name, cap, mddict.get('metadata')))
+            writecap = mddict.get('rw_uri')
+            if writecap is not None:
+                writecap = str(writecap)
+            readcap = mddict.get('ro_uri')
+            if readcap is not None:
+                readcap = str(readcap)
+            cs.append((name, writecap, readcap, mddict.get('metadata')))
         d = self.node.set_children(cs, replace)
         d.addCallback(lambda res: "Okay so I did it.")
         # TODO: results

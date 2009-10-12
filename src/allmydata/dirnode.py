@@ -380,19 +380,11 @@ class DirectoryNode:
         d = self.get_child_and_metadata(childname)
         return d
 
-    def set_uri(self, name, child_uri, metadata=None, overwrite=True):
-        """I add a child (by URI) at the specific name. I return a Deferred
-        that fires with the child node when the operation finishes. I will
-        replace any existing child of the same name.
-
-        The child_uri could be for a file, or for a directory (either
-        read-write or read-only, using a URI that came from get_uri() ).
-
-        If this directory node is read-only, the Deferred will errback with a
-        NotMutableError."""
+    def set_uri(self, name, writecap, readcap, metadata=None, overwrite=True):
         precondition(isinstance(name, unicode), name)
-        precondition(isinstance(child_uri, str), child_uri)
-        child_node = self._create_node(child_uri, None)
+        precondition(isinstance(writecap, (str,type(None))), writecap)
+        precondition(isinstance(readcap, (str,type(None))), readcap)
+        child_node = self._create_node(writecap, readcap)
         if isinstance(child_node, UnknownNode):
             # don't be willing to pack unknown nodes: we might accidentally
             # put some write-authority into the rocap slot because we don't
@@ -409,15 +401,16 @@ class DirectoryNode:
         a = Adder(self, overwrite=overwrite)
         node_entries = []
         for e in entries:
-            if len(e) == 2:
-                name, child_uri = e
+            if len(e) == 3:
+                name, writecap, readcap = e
                 metadata = None
             else:
-                assert len(e) == 3
-                name, child_uri, metadata = e
+                assert len(e) == 4
+                name, writecap, readcap, metadata = e
             assert isinstance(name, unicode)
-            assert isinstance(child_uri, str)
-            child_node = self._create_node(child_uri, None)
+            precondition(isinstance(writecap, (str,type(None))), writecap)
+            precondition(isinstance(readcap, (str,type(None))), readcap)
+            child_node = self._create_node(writecap, readcap)
             if isinstance(child_node, UnknownNode):
                 msg = "cannot pack unknown node as child %s" % str(name)
                 raise CannotPackUnknownNodeError(msg)

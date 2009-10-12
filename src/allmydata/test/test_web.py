@@ -136,37 +136,40 @@ class WebMixin(object):
             self._foo_verifycap = foo.get_verify_cap().to_string()
             # NOTE: we ignore the deferred on all set_uri() calls, because we
             # know the fake nodes do these synchronously
-            self.public_root.set_uri(u"foo", foo.get_uri())
+            self.public_root.set_uri(u"foo", foo.get_uri(),
+                                     foo.get_readonly_uri())
 
             self.BAR_CONTENTS, n, self._bar_txt_uri = self.makefile(0)
-            foo.set_uri(u"bar.txt", self._bar_txt_uri)
+            foo.set_uri(u"bar.txt", self._bar_txt_uri, self._bar_txt_uri)
             self._bar_txt_verifycap = n.get_verify_cap().to_string()
 
-            foo.set_uri(u"empty", res[3][1].get_uri())
+            foo.set_uri(u"empty", res[3][1].get_uri(),
+                        res[3][1].get_readonly_uri())
             sub_uri = res[4][1].get_uri()
             self._sub_uri = sub_uri
-            foo.set_uri(u"sub", sub_uri)
+            foo.set_uri(u"sub", sub_uri, sub_uri)
             sub = self.s.create_node_from_uri(sub_uri)
 
             _ign, n, blocking_uri = self.makefile(1)
-            foo.set_uri(u"blockingfile", blocking_uri)
+            foo.set_uri(u"blockingfile", blocking_uri, blocking_uri)
 
             unicode_filename = u"n\u00fc.txt" # n u-umlaut . t x t
             # ok, unicode calls it LATIN SMALL LETTER U WITH DIAERESIS but I
             # still think of it as an umlaut
-            foo.set_uri(unicode_filename, self._bar_txt_uri)
+            foo.set_uri(unicode_filename, self._bar_txt_uri, self._bar_txt_uri)
 
             _ign, n, baz_file = self.makefile(2)
             self._baz_file_uri = baz_file
-            sub.set_uri(u"baz.txt", baz_file)
+            sub.set_uri(u"baz.txt", baz_file, baz_file)
 
             _ign, n, self._bad_file_uri = self.makefile(3)
             # this uri should not be downloadable
             del FakeCHKFileNode.all_contents[self._bad_file_uri]
 
             rodir = res[5][1]
-            self.public_root.set_uri(u"reedownlee", rodir.get_readonly_uri())
-            rodir.set_uri(u"nor", baz_file)
+            self.public_root.set_uri(u"reedownlee", rodir.get_readonly_uri(),
+                                     rodir.get_readonly_uri())
+            rodir.set_uri(u"nor", baz_file, baz_file)
 
             # public/
             # public/foo/

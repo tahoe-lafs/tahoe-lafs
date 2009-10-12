@@ -67,6 +67,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda res: c.create_dirnode())
             d.addCallback(lambda dn:
                           self._rootnode.set_uri(u"rodir",
+                                                 dn.get_uri(),
                                                  dn.get_readonly_uri()))
             return d
         d.addCallback(_created_subdir)
@@ -159,7 +160,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
         d = c.create_dirnode()
         def _created(rw_dn):
-            d2 = rw_dn.set_uri(u"child", filecap)
+            d2 = rw_dn.set_uri(u"child", filecap, filecap)
             d2.addCallback(lambda res: rw_dn)
             return d2
         d.addCallback(_created)
@@ -171,7 +172,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnless(ro_dn.is_mutable())
 
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
-                            ro_dn.set_uri, u"newchild", filecap)
+                            ro_dn.set_uri, u"newchild", filecap, filecap)
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.set_node, u"newchild", filenode)
             self.shouldFail(dirnode.NotMutableError, "set_nodes ro", None,
@@ -243,11 +244,13 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.expected_manifest.append( ((u"child",) , m.get_uri()) )
             self.expected_verifycaps.add(ffu_v)
             self.expected_storage_indexes.add(base32.b2a(m.get_storage_index()))
-            d.addCallback(lambda res: n.set_uri(u"child", fake_file_uri))
+            d.addCallback(lambda res: n.set_uri(u"child",
+                                                fake_file_uri, fake_file_uri))
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "set_uri-no",
                                           "child 'child' already exists",
-                                          n.set_uri, u"child", other_file_uri,
+                                          n.set_uri, u"child",
+                                          other_file_uri, other_file_uri,
                                           overwrite=False))
             # /
             # /child = mutable
@@ -373,12 +376,16 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
             # set_uri + metadata
             # it should be possible to add a child without any metadata
-            d.addCallback(lambda res: n.set_uri(u"c2", fake_file_uri, {}))
+            d.addCallback(lambda res: n.set_uri(u"c2",
+                                                fake_file_uri, fake_file_uri,
+                                                {}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
             d.addCallback(lambda metadata: self.failUnlessEqual(metadata.keys(), ['tahoe']))
 
             # You can't override the link timestamps.
-            d.addCallback(lambda res: n.set_uri(u"c2", fake_file_uri, { 'tahoe': {'linkcrtime': "bogus"}}))
+            d.addCallback(lambda res: n.set_uri(u"c2",
+                                                fake_file_uri, fake_file_uri,
+                                                { 'tahoe': {'linkcrtime': "bogus"}}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
             def _has_good_linkcrtime(metadata):
                 self.failUnless(metadata.has_key('tahoe'))
@@ -387,7 +394,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(_has_good_linkcrtime)
 
             # if we don't set any defaults, the child should get timestamps
-            d.addCallback(lambda res: n.set_uri(u"c3", fake_file_uri))
+            d.addCallback(lambda res: n.set_uri(u"c3",
+                                                fake_file_uri, fake_file_uri))
             d.addCallback(lambda res: n.get_metadata_for(u"c3"))
             d.addCallback(lambda metadata:
                           self.failUnlessEqual(set(metadata.keys()),
@@ -395,7 +403,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
             # or we can add specific metadata at set_uri() time, which
             # overrides the timestamps
-            d.addCallback(lambda res: n.set_uri(u"c4", fake_file_uri,
+            d.addCallback(lambda res: n.set_uri(u"c4",
+                                                fake_file_uri, fake_file_uri,
                                                 {"key": "value"}))
             d.addCallback(lambda res: n.get_metadata_for(u"c4"))
             d.addCallback(lambda metadata:
@@ -439,17 +448,19 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda res: n.delete(u"d4"))
 
             # metadata through set_children()
-            d.addCallback(lambda res: n.set_children([ (u"e1", fake_file_uri),
-                                                   (u"e2", fake_file_uri, {}),
-                                                   (u"e3", fake_file_uri,
-                                                    {"key": "value"}),
-                                                   ]))
+            d.addCallback(lambda res:
+                          n.set_children([
+                              (u"e1", fake_file_uri, fake_file_uri),
+                              (u"e2", fake_file_uri, fake_file_uri, {}),
+                              (u"e3", fake_file_uri, fake_file_uri,
+                               {"key": "value"}),
+                              ]))
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "set_children-no",
                                           "child 'e1' already exists",
                                           n.set_children,
-                                          [ (u"e1", other_file_uri),
-                                            (u"new", other_file_uri), ],
+                                          [ (u"e1", other_file_uri, other_file_uri),
+                                            (u"new", other_file_uri, other_file_uri), ],
                                           overwrite=False))
             # and 'new' should not have been created
             d.addCallback(lambda res: n.list())
@@ -645,7 +656,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
             # now make sure that we honor overwrite=False
             d.addCallback(lambda res:
-                          self.subdir2.set_uri(u"newchild", other_file_uri))
+                          self.subdir2.set_uri(u"newchild",
+                                               other_file_uri, other_file_uri))
 
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "move_child_to-no",
@@ -804,7 +816,8 @@ class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
              self.shouldFail(CannotPackUnknownNodeError,
                              "copy unknown",
                              "cannot pack unknown node as child add",
-                             self._node.set_uri, u"add", future_writecap))
+                             self._node.set_uri, u"add",
+                             future_writecap, future_readcap))
         d.addCallback(lambda ign: self._node.list())
         def _check(children):
             self.failUnlessEqual(len(children), 1)

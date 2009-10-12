@@ -1186,8 +1186,8 @@ class Large(DeepCheckBase, unittest.TestCase):
             self.subdir_node = subdir_node
             kids = []
             for i in range(1, COUNT):
-                litnode = LiteralFileURI("%03d-data" % i).to_string()
-                kids.append( (u"%03d-small" % i, litnode) )
+                litcap = LiteralFileURI("%03d-data" % i).to_string()
+                kids.append( (u"%03d-small" % i, litcap, litcap) )
             return subdir_node.set_children(kids)
         d.addCallback(_add_children)
         up = upload.Data("large enough for CHK" * 100, "")

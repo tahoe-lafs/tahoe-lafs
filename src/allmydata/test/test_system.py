@@ -862,8 +862,12 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             d1.addCallback(self.log, "made P/personal/sekrit data")
             d1.addCallback(lambda res: rootnode.get_child_at_path([u"subdir1", u"subdir2"]))
             def _got_s2(s2node):
-                d2 = privnode.set_uri(u"s2-rw", s2node.get_uri())
-                d2.addCallback(lambda node: privnode.set_uri(u"s2-ro", s2node.get_readonly_uri()))
+                d2 = privnode.set_uri(u"s2-rw", s2node.get_uri(),
+                                      s2node.get_readonly_uri())
+                d2.addCallback(lambda node:
+                               privnode.set_uri(u"s2-ro",
+                                                s2node.get_readonly_uri(),
+                                                s2node.get_readonly_uri()))
                 return d2
             d1.addCallback(_got_s2)
             d1.addCallback(lambda res: privnode)
@@ -944,7 +948,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             d1.addCallback(self.log, "doing delete(ro)")
             d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "delete(nope)", None, dirnode.delete, u"mydata992"))
 
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "set_uri(nope)", None, dirnode.set_uri, u"hopeless", self.uri))
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "set_uri(nope)", None, dirnode.set_uri, u"hopeless", self.uri, self.uri))
 
             d1.addCallback(lambda res: self.shouldFail2(NoSuchChildError, "get(missing)", "missing", dirnode.get, u"missing"))
 
