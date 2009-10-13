@@ -89,8 +89,8 @@ class NodeMaker:
         return d
 
     def create_new_mutable_directory(self, initial_children={}):
-        if initial_children:
-            raise NotImplementedError("initial_children= not implemented yet")
         d = self.create_mutable_file()
         d.addCallback(self._create_dirnode)
+        if initial_children:
+            d.addCallback(lambda n: n.set_children(initial_children))
         return d

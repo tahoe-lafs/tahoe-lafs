@@ -479,9 +479,7 @@ class DirectoryNode:
         assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        d = self._nodemaker.create_new_mutable_directory()
-        if initial_children:
-            d.addCallback(lambda n: n.set_children(initial_children))
+        d = self._nodemaker.create_new_mutable_directory(initial_children)
         def _created(child):
             entries = [(name, child, None)]
             a = Adder(self, entries, overwrite=overwrite)
