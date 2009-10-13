@@ -2972,7 +2972,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         # unrecoverable, then see what happens
 
         d.addCallback(lambda ign:
-                      self.rootnode.create_empty_directory(u"subdir"))
+                      self.rootnode.create_subdirectory(u"subdir"))
         d.addCallback(_stash_uri, "subdir")
         d.addCallback(lambda subdir_node:
                       subdir_node.add_file(u"grandchild",

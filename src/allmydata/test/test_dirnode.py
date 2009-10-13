@@ -58,7 +58,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d = c.create_dirnode()
         def _created_root(rootnode):
             self._rootnode = rootnode
-            return rootnode.create_empty_directory(u"subdir")
+            return rootnode.create_subdirectory(u"subdir")
         d.addCallback(_created_root)
         def _created_subdir(subdir):
             self._subdir = subdir
@@ -182,7 +182,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.delete, u"child")
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
-                            ro_dn.create_empty_directory, u"newchild")
+                            ro_dn.create_subdirectory, u"newchild")
             self.shouldFail(dirnode.NotMutableError, "set_metadata_for ro", None,
                             ro_dn.set_metadata_for, u"child", {})
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
@@ -255,7 +255,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             # /
             # /child = mutable
 
-            d.addCallback(lambda res: n.create_empty_directory(u"subdir"))
+            d.addCallback(lambda res: n.create_subdirectory(u"subdir"))
 
             # /
             # /child = mutable
@@ -274,7 +274,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "mkdir-no",
                                           "child 'subdir' already exists",
-                                          n.create_empty_directory, u"subdir",
+                                          n.create_subdirectory, u"subdir",
                                           overwrite=False))
 
             d.addCallback(lambda res: n.list())
@@ -322,7 +322,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(_check_manifest)
 
             def _add_subsubdir(res):
-                return self.subdir.create_empty_directory(u"subsubdir")
+                return self.subdir.create_subdirectory(u"subsubdir")
             d.addCallback(_add_subsubdir)
             # /
             # /child = mutable
@@ -624,7 +624,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                               (metadata['key'] == "value"), metadata))
             d.addCallback(lambda res: n.delete(u"newfile-metadata"))
 
-            d.addCallback(lambda res: n.create_empty_directory(u"subdir2"))
+            d.addCallback(lambda res: n.create_subdirectory(u"subdir2"))
             def _created2(subdir2):
                 self.subdir2 = subdir2
                 # put something in the way, to make sure it gets overwritten
@@ -680,6 +680,37 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(_then)
 
         d.addErrback(self.explain_error)
+        return d
+
+    def test_create_subdirectory(self):
+        self.basedir = "dirnode/Dirnode/test_create_subdirectory"
+        self.set_up_grid()
+        c = self.g.clients[0]
+
+        d = c.create_dirnode()
+        def _then(n):
+            # /
+            self.rootnode = n
+            fake_file_uri = make_mutable_file_uri()
+            other_file_uri = make_mutable_file_uri()
+            md = {"metakey": "metavalue"}
+            kids = {u"kid1": (fake_file_uri, fake_file_uri),
+                    u"kid2": (other_file_uri, other_file_uri, md),
+                    }
+            d = n.create_subdirectory(u"subdir", kids)
+            def _check(sub):
+                d = n.get_child_at_path(u"subdir")
+                d.addCallback(lambda sub2: self.failUnlessEqual(sub2.get_uri(),
+                                                                sub.get_uri()))
+                d.addCallback(lambda ign: sub.list())
+                return d
+            d.addCallback(_check)
+            def _check_kids(kids2):
+                self.failUnlessEqual(sorted(kids.keys()), sorted(kids2.keys()))
+                self.failUnlessEqual(kids2[u"kid2"][1]["metakey"], "metavalue")
+            d.addCallback(_check_kids)
+            return d
+        d.addCallback(_then)
         return d
 
 class Packing(unittest.TestCase):
@@ -974,7 +1005,7 @@ class Adder(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res:
                 root_node.add_file(u'file2', upload.Data("Sekrit Codes", None)))
             d.addCallback(lambda res:
-                root_node.create_empty_directory(u"dir1"))
+                root_node.create_subdirectory(u"dir1"))
             d.addCallback(lambda res: root_node)
             return d
 
@@ -984,7 +1015,7 @@ class Adder(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d = root_node.set_node(u'file1', filenode)
             # We've overwritten file1. Let's try it with a directory
             d.addCallback(lambda res:
-                root_node.create_empty_directory(u'dir2'))
+                root_node.create_subdirectory(u'dir2'))
             d.addCallback(lambda res:
                 root_node.set_node(u'dir2', filenode))
             # We try overwriting a file with a child while also specifying

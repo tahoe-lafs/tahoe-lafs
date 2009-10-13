@@ -754,12 +754,10 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.rooturi = n.get_uri()
             return n.add_file(u"good", upload.Data("small", convergence=""))
         d.addCallback(_stash_root_and_create_file)
-        d.addCallback(lambda ign:
-                      self.rootnode.create_empty_directory(u"1share"))
+        d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"1share"))
         d.addCallback(lambda n:
                       self.delete_shares_numbered(n.get_uri(), range(1,10)))
-        d.addCallback(lambda ign:
-                      self.rootnode.create_empty_directory(u"0share"))
+        d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"0share"))
         d.addCallback(lambda n:
                       self.delete_shares_numbered(n.get_uri(), range(0,10)))
         d.addCallback(lambda ign:
@@ -1471,8 +1469,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         # now add a subdir, and a file below that, then make the subdir
         # unrecoverable
 
-        d.addCallback(lambda ign:
-                      self.rootnode.create_empty_directory(u"subdir"))
+        d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"subdir"))
         d.addCallback(_stash_uri, "subdir")
         d.addCallback(lambda fn:
                       fn.add_file(u"subfile", upload.Data(DATA+"2", "")))

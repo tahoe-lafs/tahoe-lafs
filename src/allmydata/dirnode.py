@@ -475,14 +475,13 @@ class DirectoryNode:
         d.addCallback(lambda res: deleter.old_child)
         return d
 
-    def create_empty_directory(self, name, overwrite=True):
-        """I create and attach an empty directory at the given name. I return
-        a Deferred that fires (with the new directory node) when the
-        operation finishes."""
+    def create_subdirectory(self, name, initial_children={}, overwrite=True):
         assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotMutableError())
         d = self._nodemaker.create_new_mutable_directory()
+        if initial_children:
+            d.addCallback(lambda n: n.set_children(initial_children))
         def _created(child):
             entries = [(name, child, None)]
             a = Adder(self, entries, overwrite=overwrite)

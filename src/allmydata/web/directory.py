@@ -86,7 +86,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                 if should_create_intermediate_directories(req):
                     # create intermediate directories
                     if DEBUG: print " making intermediate directory"
-                    d = self.node.create_empty_directory(name)
+                    d = self.node.create_subdirectory(name)
                     d.addCallback(make_handler_for,
                                   self.client, self.node, name)
                     return d
@@ -96,7 +96,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                 if (method,t) in [ ("POST","mkdir"), ("PUT","mkdir") ]:
                     if DEBUG: print " making final directory"
                     # final directory
-                    d = self.node.create_empty_directory(name)
+                    d = self.node.create_subdirectory(name)
                     d.addCallback(make_handler_for,
                                   self.client, self.node, name)
                     return d
@@ -221,7 +221,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             return defer.succeed(self.node.get_uri()) # TODO: urlencode
         name = name.decode("utf-8")
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        d = self.node.create_empty_directory(name, overwrite=replace)
+        d = self.node.create_subdirectory(name, overwrite=replace)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 
@@ -246,7 +246,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d = node.get(path[0])
         def _maybe_create(f):
             f.trap(NoSuchChildError)
-            return node.create_empty_directory(path[0])
+            return node.create_subdirectory(path[0])
         d.addErrback(_maybe_create)
         d.addCallback(self._get_or_create_directories, path[1:])
         return d

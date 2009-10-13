@@ -825,7 +825,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             self._root_directory_uri = new_dirnode.get_uri()
             return c0.create_node_from_uri(self._root_directory_uri)
         d.addCallback(_made_root)
-        d.addCallback(lambda root: root.create_empty_directory(u"subdir1"))
+        d.addCallback(lambda root: root.create_subdirectory(u"subdir1"))
         def _made_subdir1(subdir1_node):
             self._subdir1_node = subdir1_node
             d1 = subdir1_node.add_file(u"mydata567", ut)
@@ -840,7 +840,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
     def _do_publish2(self, res):
         ut = upload.Data(self.data, convergence=None)
-        d = self._subdir1_node.create_empty_directory(u"subdir2")
+        d = self._subdir1_node.create_subdirectory(u"subdir2")
         d.addCallback(lambda subdir2: subdir2.add_file(u"mydata992", ut))
         return d
 
@@ -856,7 +856,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(self.log, "GOT private directory")
         def _got_new_dir(privnode):
             rootnode = self.clients[0].create_node_from_uri(self._root_directory_uri)
-            d1 = privnode.create_empty_directory(u"personal")
+            d1 = privnode.create_subdirectory(u"personal")
             d1.addCallback(self.log, "made P/personal")
             d1.addCallback(lambda node: node.add_file(u"sekrit data", ut))
             d1.addCallback(self.log, "made P/personal/sekrit data")
@@ -934,7 +934,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             d1.addCallback(lambda res: dirnode.list())
             d1.addCallback(self.log, "dirnode.list")
 
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mkdir(nope)", None, dirnode.create_empty_directory, u"nope"))
+            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mkdir(nope)", None, dirnode.create_subdirectory, u"nope"))
 
             d1.addCallback(self.log, "doing add_file(ro)")
             ut = upload.Data("I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.", convergence="99i-p1x4-xd4-18yc-ywt-87uu-msu-zo -- completely and totally unguessable string (unless you read this)")

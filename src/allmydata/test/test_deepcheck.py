@@ -887,11 +887,11 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda ignored:
                       self.nodes["broken"].add_file(u"large1", large1))
         d.addCallback(lambda ignored:
-                      self.nodes["broken"].create_empty_directory(u"subdir-good"))
+                      self.nodes["broken"].create_subdirectory(u"subdir-good"))
         large2 = upload.Data("Lots of data\n" * 1000 + "large2" + "\n", None)
         d.addCallback(lambda subdir: subdir.add_file(u"large2-good", large2))
         d.addCallback(lambda ignored:
-                      self.nodes["broken"].create_empty_directory(u"subdir-unrecoverable"))
+                      self.nodes["broken"].create_subdirectory(u"subdir-unrecoverable"))
         d.addCallback(self._stash_node, "subdir-unrecoverable")
         large3 = upload.Data("Lots of data\n" * 1000 + "large3" + "\n", None)
         d.addCallback(lambda subdir: subdir.add_file(u"large3-good", large3))
@@ -1181,7 +1181,7 @@ class Large(DeepCheckBase, unittest.TestCase):
             self.root = n
             return n
         d.addCallback(_created_root)
-        d.addCallback(lambda root: root.create_empty_directory(u"subdir"))
+        d.addCallback(lambda root: root.create_subdirectory(u"subdir"))
         def _add_children(subdir_node):
             self.subdir_node = subdir_node
             kids = {}

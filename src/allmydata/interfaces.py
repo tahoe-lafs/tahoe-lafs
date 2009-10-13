@@ -946,10 +946,14 @@ class IDirectoryNode(IMutableFilesystemNode):
         string. I raise NoSuchChildError if I do not have a child by that
         name."""
 
-    def create_empty_directory(name, overwrite=True):
-        """I create and attach an empty directory at the given name. The
-        child name must be a unicode string. I return a Deferred that fires
-        when the operation finishes."""
+    def create_subdirectory(name, initial_children={}, overwrite=True):
+        """I create and attach a directory at the given name. The new
+        directory can be empty, or it can be populated with children
+        according to 'initial_children', which takes a dictionary in the same
+        format as set_children (i.e. mapping unicode child name to (writecap,
+        readcap, metadata) triples). The child name must be a unicode string.
+        I return a Deferred that fires (with the new directory node) when the
+        operation finishes."""
 
     def move_child_to(current_child_name, new_parent, new_child_name=None,
                       overwrite=True):

@@ -242,7 +242,7 @@ class SFTPHandler:
         d = node.get(path[0])
         def _maybe_create(f):
             f.trap(NoSuchChildError)
-            return node.create_empty_directory(path[0])
+            return node.create_subdirectory(path[0])
         d.addErrback(_maybe_create)
         d.addCallback(self._get_or_create_directories, path[1:])
         return d
