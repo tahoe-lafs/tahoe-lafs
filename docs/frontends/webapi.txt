@@ -345,10 +345,46 @@ PUT /uri
 POST /uri?t=mkdir
 PUT /uri?t=mkdir
 
- Create a new empty directory and return its write-cap as the HTTP response
- body. This does not make the newly created directory visible from the
- virtual drive. The "PUT" operation is provided for backwards compatibility:
- new code should use POST.
+ Create a new directory (either empty or with some initial children) and
+ return its write-cap as the HTTP response body. This does not make the newly
+ created directory visible from the virtual drive. The "PUT" operation is
+ provided for backwards compatibility: new code should use POST.
+
+ Initial children are provided in the "children" field of the POST form, or
+ as the request body of the PUT request. This is more efficient than doing
+ separate mkdir and add-children operations. If this value is empty, the new
+ directory will be empty.
+
+ If not empty, it will be interpreted as a JSON-encoded dictionary of
+ children with which the new directory should be populated, using the same
+ format as would be returned in the 'children' value of the t=json GET
+ request, described below. Each dictionary key should be a child name, and
+ each value should be a list of [TYPE, PROPDICT], where PROPDICT contains
+ "rw_uri", "ro_uri", and "metadata" keys (all others are ignored). For
+ example, the PUT request body could be:
+
+  {
+    "Fran\u00e7ais": [ "filenode", {
+        "ro_uri": "URI:CHK:...",
+        "size": bytes,
+        "metadata": {
+          "ctime": 1202777696.7564139,
+          "mtime": 1202777696.7564139,
+          "tahoe": {
+            "linkcrtime": 1202777696.7564139,
+            "linkmotime": 1202777696.7564139,
+            } } } ],
+    "subdir":  [ "dirnode", {
+        "rw_uri": "URI:DIR2:...",
+        "ro_uri": "URI:DIR2-RO:...",
+        "metadata": {
+          "ctime": 1202778102.7589991,
+          "mtime": 1202778111.2160511,
+          "tahoe": {
+            "linkcrtime": 1202777696.7564139,
+            "linkmotime": 1202777696.7564139,
+          } } } ]
+ }
 
 POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
 PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
@@ -357,6 +393,9 @@ PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
  ($DIRCAP/SUBDIRS../SUBDIR) is a directory. This will create additional
  intermediate directories as necessary. If the named target directory already
  exists, this will make no changes to it.
+
+ If a directory is created, it will be populated with initial children via
+ the PUT request body or POST 'children' form field, as described above.
 
  This will return an error if a blocking file is present at any of the parent
  names, preventing the server from creating the necessary parent directory.
@@ -367,7 +406,9 @@ PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
 POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME
 
  Create a new empty directory and attach it to the given existing directory.
- This will create additional intermediate directories as necessary.
+ This will create additional intermediate directories as necessary. The new
+ directory will be populated with initial children via the PUT request body
+ or POST 'children' form field, as described above.
 
  The URL of this form points to the parent of the bottom-most new directory,
  whereas the previous form has a URL that points directly to the bottom-most
@@ -742,6 +783,9 @@ POST /uri?t=mkdir
  "false"), then the HTTP response body will simply be the write-cap of the
  new directory.
 
+ It accepts the same initial-children arguments as described in earlier
+ t=mkdir sections, but these are unlikely to be useful from a browser form.
+
 POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=CHILDNAME
 
  This creates a new directory as a child of the designated SUBDIR. This will
@@ -752,6 +796,9 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=CHILDNAME
  return the browser to the directory that was just modified. Without a
  when_done= argument, the HTTP response will simply contain the write-cap of
  the directory that was just created.
+
+ It accepts the same initial-children arguments as described in earlier
+ t=mkdir sections, but these are unlikely to be useful from a browser form.
 
 
 === Uploading a File ===

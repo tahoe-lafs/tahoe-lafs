@@ -4,7 +4,8 @@ from twisted.web import http
 from twisted.internet import defer
 from nevow import rend, url, tags as T
 from allmydata.immutable.upload import FileHandle
-from allmydata.web.common import getxmlfile, get_arg, boolean_of_arg
+from allmydata.web.common import getxmlfile, get_arg, boolean_of_arg, \
+     convert_initial_children_json
 from allmydata.web import status
 
 def PUTUnlinkedCHK(req, client):
@@ -25,7 +26,10 @@ def PUTUnlinkedSSK(req, client):
 
 def PUTUnlinkedCreateDirectory(req, client):
     # "PUT /uri?t=mkdir", to create an unlinked directory.
-    d = client.create_dirnode()
+    req.content.seek(0)
+    initial_children_json = req.content.read()
+    initial_children = convert_initial_children_json(initial_children_json)
+    d = client.create_dirnode(initial_children=initial_children)
     d.addCallback(lambda dirnode: dirnode.get_uri())
     # XXX add redirect_to_result
     return d
@@ -90,7 +94,9 @@ def POSTUnlinkedSSK(req, client):
 
 def POSTUnlinkedCreateDirectory(req, client):
     # "POST /uri?t=mkdir", to create an unlinked directory.
-    d = client.create_dirnode()
+    initial_json = get_arg(req, "children", "")
+    initial_children = convert_initial_children_json(initial_json)
+    d = client.create_dirnode(initial_children=initial_children)
     redirect = get_arg(req, "redirect_to_result", "false")
     if boolean_of_arg(redirect):
         def _then_redir(res):

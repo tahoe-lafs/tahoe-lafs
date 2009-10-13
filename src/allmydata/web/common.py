@@ -1,4 +1,5 @@
 
+import simplejson
 from twisted.web import http, server
 from twisted.python import log
 from zope.interface import Interface
@@ -52,6 +53,22 @@ def get_arg(ctx_or_req, argname, default=None, multiple=False):
     if results:
         return results[0]
     return default
+
+def convert_initial_children_json(initial_children_json):
+    initial_children = {}
+    if initial_children_json:
+        data = simplejson.loads(initial_children_json)
+        for (name, (ctype, propdict)) in data.iteritems():
+            name = unicode(name)
+            writecap = propdict.get("rw_uri")
+            if writecap is not None:
+                writecap = str(writecap)
+            readcap = propdict.get("ro_uri")
+            if readcap is not None:
+                readcap = str(readcap)
+            metadata = propdict.get("metadata", {})
+            initial_children[name] = (writecap, readcap, metadata)
+    return initial_children
 
 def abbreviate_time(data):
     # 1.23s, 790ms, 132us

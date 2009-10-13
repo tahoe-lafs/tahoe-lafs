@@ -459,7 +459,6 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def create_dirnode(self, initial_children={}):
         d = self.nodemaker.create_new_mutable_directory()
-        assert not initial_children, "not ready yet: %s" % (initial_children,)
         if initial_children:
             d.addCallback(lambda n: n.set_children(initial_children))
         return d

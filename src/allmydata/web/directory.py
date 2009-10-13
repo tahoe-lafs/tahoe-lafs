@@ -22,7 +22,7 @@ from allmydata.web.common import text_plain, WebError, \
      IOpHandleTable, NeedOperationHandleError, \
      boolean_of_arg, get_arg, get_root, parse_replace_arg, \
      should_create_intermediate_directories, \
-     getxmlfile, RenderMixin, humanize_failure
+     getxmlfile, RenderMixin, humanize_failure, convert_initial_children_json
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.check_results import CheckResults, \
@@ -96,7 +96,13 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                 if (method,t) in [ ("POST","mkdir"), ("PUT","mkdir") ]:
                     if DEBUG: print " making final directory"
                     # final directory
-                    d = self.node.create_subdirectory(name)
+                    if method == "POST":
+                        kids_json = get_arg(req, "children", "")
+                    else:
+                        req.content.seek(0)
+                        kids_json = req.content.read()
+                    initial_children = convert_initial_children_json(kids_json)
+                    d = self.node.create_subdirectory(name, initial_children)
                     d.addCallback(make_handler_for,
                                   self.client, self.node, name)
                     return d
@@ -221,7 +227,10 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             return defer.succeed(self.node.get_uri()) # TODO: urlencode
         name = name.decode("utf-8")
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        d = self.node.create_subdirectory(name, overwrite=replace)
+        children_json = get_arg(req, "children", "")
+        initial_children = convert_initial_children_json(children_json)
+        d = self.node.create_subdirectory(name, initial_children,
+                                          overwrite=replace)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 
