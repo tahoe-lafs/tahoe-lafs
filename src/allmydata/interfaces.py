@@ -2006,8 +2006,20 @@ class IClient(Interface):
         """
 
     def create_mutable_file(contents=""):
-        """Create a new mutable file with contents, get back the URI string.
-        @param contents: the initial contents to place in the file.
+        """Create a new mutable file (with initial) contents, get back the
+        URI string.
+
+        @param contents: (bytestring, callable, or None): this provides the
+        initial contents of the mutable file. If 'contents' is a bytestring,
+        it will be used as-is. If 'contents' is a callable, it will be
+        invoked with the new MutableFileNode instance and is expected to
+        return a bytestring with the initial contents of the file (the
+        callable can use node.get_writekey() to decide how to encrypt the
+        initial contents, e.g. for a brand new dirnode with initial
+        children). contents=None is equivalent to an empty string. Using
+        content_maker= is more efficient than creating a mutable file and
+        setting its contents in two separate operations.
+
         @return: a Deferred that fires with tne (string) SSK URI for the new
                  file.
         """

@@ -102,10 +102,11 @@ class MutableFileNode:
         self._encprivkey = None
         return self
 
-    def create_with_keys(self, (pubkey, privkey), initial_contents):
+    def create_with_keys(self, (pubkey, privkey), contents):
         """Call this to create a brand-new mutable file. It will create the
-        shares, find homes for them, and upload the initial contents. Returns
-        a Deferred that fires (with the MutableFileNode instance you should
+        shares, find homes for them, and upload the initial contents (created
+        with the same rules as IClient.create_mutable_file() ). Returns a
+        Deferred that fires (with the MutableFileNode instance you should
         use) when it completes.
         """
         self._pubkey, self._privkey = pubkey, privkey
@@ -117,7 +118,17 @@ class MutableFileNode:
         self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
         self._readkey = self._uri.readkey
         self._storage_index = self._uri.storage_index
+        initial_contents = self._get_initial_contents(contents)
         return self._upload(initial_contents, None)
+
+    def _get_initial_contents(self, contents):
+        if isinstance(contents, str):
+            return contents
+        if contents is None:
+            return ""
+        assert callable(contents), "%s should be callable, not %s" % \
+               (contents, type(contents))
+        return contents(self)
 
     def _encrypt_privkey(self, writekey, privkey):
         enc = AES(writekey)

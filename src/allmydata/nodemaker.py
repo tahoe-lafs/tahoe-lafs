@@ -80,7 +80,7 @@ class NodeMaker:
         return node
 
 
-    def create_mutable_file(self, contents="", keysize=None):
+    def create_mutable_file(self, contents=None, keysize=None):
         n = MutableFileNode(self.storage_broker, self.secret_holder,
                             self.default_encoding_parameters, self.history)
         d = self.key_generator.generate(keysize)

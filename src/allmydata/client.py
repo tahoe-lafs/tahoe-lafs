@@ -463,7 +463,7 @@ class Client(node.Node, pollmixin.PollMixin):
             d.addCallback(lambda n: n.set_children(initial_children))
         return d
 
-    def create_mutable_file(self, contents="", keysize=None):
+    def create_mutable_file(self, contents=None, keysize=None):
         return self.nodemaker.create_mutable_file(contents, keysize)
 
     def upload(self, uploadable):

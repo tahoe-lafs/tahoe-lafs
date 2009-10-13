@@ -299,6 +299,21 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         return d
 
+    def test_create_with_initial_contents_function(self):
+        data = "initial contents"
+        def _make_contents(n):
+            self.failUnless(isinstance(n, MutableFileNode))
+            key = n.get_writekey()
+            self.failUnless(isinstance(key, str), key)
+            self.failUnlessEqual(len(key), 16) # AES key size
+            return data
+        d = self.nodemaker.create_mutable_file(_make_contents)
+        def _created(n):
+            return n.download_best_version()
+        d.addCallback(_created)
+        d.addCallback(lambda data2: self.failUnlessEqual(data2, data))
+        return d
+
     def test_create_with_too_large_contents(self):
         BIG = "a" * (self.OLD_MAX_SEGMENT_SIZE + 1)
         d = self.nodemaker.create_mutable_file(BIG)
