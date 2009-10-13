@@ -901,9 +901,9 @@ class IDirectoryNode(IMutableFilesystemNode):
         """Add multiple children (by writecap+readcap) to a directory node.
         Takes a dictionary, with childname as keys and (writecap, readcap)
         tuples (or (writecap, readcap, metadata) triples) as values. Returns
-        a Deferred that fires (with None) when the operation finishes. This
-        is equivalent to calling set_uri() multiple times, but is much more
-        efficient. All child names must be unicode strings.
+        a Deferred that fires (with this dirnode) when the operation
+        finishes. This is equivalent to calling set_uri() multiple times, but
+        is much more efficient. All child names must be unicode strings.
         """
 
     def set_node(name, child, metadata=None, overwrite=True):

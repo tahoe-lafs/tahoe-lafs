@@ -415,7 +415,9 @@ class DirectoryNode:
                 msg = "cannot pack unknown node as child %s" % str(name)
                 raise CannotPackUnknownNodeError(msg)
             a.set_node(name, child_node, metadata)
-        return self._node.modify(a.modify)
+        d = self._node.modify(a.modify)
+        d.addCallback(lambda ign: self)
+        return d
 
     def set_node(self, name, child, metadata=None, overwrite=True):
         """I add a child at the specific name. I return a Deferred that fires
