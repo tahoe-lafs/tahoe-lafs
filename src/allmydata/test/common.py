@@ -157,13 +157,22 @@ class FakeMutableFileNode:
     def __init__(self, storage_broker, secret_holder,
                  default_encoding_parameters, history):
         self.init_from_uri(make_mutable_file_uri())
-    def create(self, initial_contents, key_generator=None, keysize=None):
+    def create(self, contents, key_generator=None, keysize=None):
+        initial_contents = self._get_initial_contents(contents)
         if len(initial_contents) > self.MUTABLE_SIZELIMIT:
             raise FileTooLargeError("SDMF is limited to one segment, and "
                                     "%d > %d" % (len(initial_contents),
                                                  self.MUTABLE_SIZELIMIT))
         self.all_contents[self.storage_index] = initial_contents
         return defer.succeed(self)
+    def _get_initial_contents(self, contents):
+        if isinstance(contents, str):
+            return contents
+        if contents is None:
+            return ""
+        assert callable(contents), "%s should be callable, not %s" % \
+               (contents, type(contents))
+        return contents(self)
     def init_from_uri(self, filecap):
         assert isinstance(filecap, str)
         if filecap.startswith("URI:SSK:"):
