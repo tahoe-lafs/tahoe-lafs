@@ -926,8 +926,8 @@ class IDirectoryNode(IMutableFilesystemNode):
     def set_nodes(entries, overwrite=True):
         """Add multiple (name, child_node) pairs (or (name, child_node,
         metadata) triples) to a directory node. Returns a Deferred that fires
-        (with None) when the operation finishes. This is equivalent to
-        calling set_node() multiple times, but is much more efficient. All
+        (with this dirnode) when the operation finishes. This is equivalent
+        to calling set_node() multiple times, but is much more efficient. All
         child names must be unicode strings."""
 
 

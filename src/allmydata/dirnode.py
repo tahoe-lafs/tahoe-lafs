@@ -443,7 +443,7 @@ class DirectoryNode:
             return defer.fail(NotMutableError())
         a = Adder(self, entries, overwrite=overwrite)
         d = self._node.modify(a.modify)
-        d.addCallback(lambda res: None)
+        d.addCallback(lambda res: self)
         return d
 
 

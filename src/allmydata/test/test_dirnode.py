@@ -490,6 +490,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                     (u"f3", n,
                                                      {"key": "value"}),
                                                     ]))
+            d.addCallback(lambda n2: self.failUnlessIdentical(n2, n))
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "set_nodes-no",
                                           "child 'f1' already exists",
