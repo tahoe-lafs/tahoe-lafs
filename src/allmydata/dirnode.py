@@ -400,14 +400,14 @@ class DirectoryNode:
         # this takes URIs
         a = Adder(self, overwrite=overwrite)
         node_entries = []
-        for e in entries:
-            if len(e) == 3:
-                name, writecap, readcap = e
+        for (name, e) in entries.iteritems():
+            assert isinstance(name, unicode)
+            if len(e) == 2:
+                writecap, readcap = e
                 metadata = None
             else:
-                assert len(e) == 4
-                name, writecap, readcap, metadata = e
-            assert isinstance(name, unicode)
+                assert len(e) == 3
+                writecap, readcap, metadata = e
             precondition(isinstance(writecap, (str,type(None))), writecap)
             precondition(isinstance(readcap, (str,type(None))), readcap)
             child_node = self._create_node(writecap, readcap)

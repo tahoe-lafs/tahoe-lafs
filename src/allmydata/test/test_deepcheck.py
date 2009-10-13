@@ -1184,10 +1184,10 @@ class Large(DeepCheckBase, unittest.TestCase):
         d.addCallback(lambda root: root.create_empty_directory(u"subdir"))
         def _add_children(subdir_node):
             self.subdir_node = subdir_node
-            kids = []
+            kids = {}
             for i in range(1, COUNT):
                 litcap = LiteralFileURI("%03d-data" % i).to_string()
-                kids.append( (u"%03d-small" % i, litcap, litcap) )
+                kids[u"%03d-small" % i] = (litcap, litcap)
             return subdir_node.set_children(kids)
         d.addCallback(_add_children)
         up = upload.Data("large enough for CHK" * 100, "")

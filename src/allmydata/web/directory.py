@@ -467,7 +467,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             le.args = tuple(le.args + (body,))
             # TODO test handling of bad JSON
             raise
-        cs = []
+        cs = {}
         for name, (file_or_dir, mddict) in children.iteritems():
             name = unicode(name) # simplejson-2.0.1 returns str *or* unicode
             writecap = mddict.get('rw_uri')
@@ -476,7 +476,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             readcap = mddict.get('ro_uri')
             if readcap is not None:
                 readcap = str(readcap)
-            cs.append((name, writecap, readcap, mddict.get('metadata')))
+            cs[name] = (writecap, readcap, mddict.get('metadata'))
         d = self.node.set_children(cs, replace)
         d.addCallback(lambda res: "Okay so I did it.")
         # TODO: results

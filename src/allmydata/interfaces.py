@@ -898,10 +898,11 @@ class IDirectoryNode(IMutableFilesystemNode):
         NotMutableError."""
 
     def set_children(entries, overwrite=True):
-        """Add multiple (name, writecap, readcap) triples (or (name,
-        writecap, readcap, metadata) 4-tuples) to a directory node. Returns a
-        Deferred that fires (with None) when the operation finishes. This is
-        equivalent to calling set_uri() multiple times, but is much more
+        """Add multiple children (by writecap+readcap) to a directory node.
+        Takes a dictionary, with childname as keys and (writecap, readcap)
+        tuples (or (writecap, readcap, metadata) triples) as values. Returns
+        a Deferred that fires (with None) when the operation finishes. This
+        is equivalent to calling set_uri() multiple times, but is much more
         efficient. All child names must be unicode strings.
         """
 

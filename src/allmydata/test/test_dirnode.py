@@ -449,18 +449,21 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
             # metadata through set_children()
             d.addCallback(lambda res:
-                          n.set_children([
-                              (u"e1", fake_file_uri, fake_file_uri),
-                              (u"e2", fake_file_uri, fake_file_uri, {}),
-                              (u"e3", fake_file_uri, fake_file_uri,
-                               {"key": "value"}),
-                              ]))
+                          n.set_children({
+                              u"e1": (fake_file_uri, fake_file_uri),
+                              u"e2": (fake_file_uri, fake_file_uri, {}),
+                              u"e3": (fake_file_uri, fake_file_uri,
+                                      {"key": "value"}),
+                              }))
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "set_children-no",
                                           "child 'e1' already exists",
                                           n.set_children,
-                                          [ (u"e1", other_file_uri, other_file_uri),
-                                            (u"new", other_file_uri, other_file_uri), ],
+                                          { u"e1": (other_file_uri,
+                                                    other_file_uri),
+                                            u"new": (other_file_uri,
+                                                     other_file_uri),
+                                            },
                                           overwrite=False))
             # and 'new' should not have been created
             d.addCallback(lambda res: n.list())
