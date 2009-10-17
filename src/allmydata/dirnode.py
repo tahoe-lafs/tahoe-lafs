@@ -128,6 +128,52 @@ class Adder:
         new_contents = self.node._pack_contents(children)
         return new_contents
 
+def _encrypt_rwcap(filenode, rwcap):
+    assert isinstance(rwcap, str)
+    salt = hashutil.mutable_rwcap_salt_hash(rwcap)
+    key = hashutil.mutable_rwcap_key_hash(salt, filenode.get_writekey())
+    cryptor = AES(key)
+    crypttext = cryptor.process(rwcap)
+    mac = hashutil.hmac(key, salt + crypttext)
+    assert len(mac) == 32
+    return salt + crypttext + mac
+    # The MAC is not checked by readers in Tahoe >= 1.3.0, but we still
+    # produce it for the sake of older readers.
+
+def pack_children(filenode, children):
+    """Take a dict that maps:
+         children[unicode_name] = (IFileSystemNode, metadata_dict)
+    and pack it into a single string, for use as the contents of the backing
+    file. This is the same format as is returned by _unpack_contents. I also
+    accept an AuxValueDict, in which case I'll use the auxilliary cached data
+    as the pre-packed entry, which is faster than re-packing everything each
+    time."""
+    has_aux = isinstance(children, AuxValueDict)
+    entries = []
+    for name in sorted(children.keys()):
+        assert isinstance(name, unicode)
+        entry = None
+        if has_aux:
+            entry = children.get_aux(name)
+        if not entry:
+            (child, metadata) = children[name]
+            assert IFilesystemNode.providedBy(child), (name,child)
+            assert isinstance(metadata, dict)
+            rwcap = child.get_uri() # might be RO if the child is not writeable
+            if rwcap is None:
+                rwcap = ""
+            assert isinstance(rwcap, str), rwcap
+            rocap = child.get_readonly_uri()
+            if rocap is None:
+                rocap = ""
+            assert isinstance(rocap, str), rocap
+            entry = "".join([netstring(name.encode("utf-8")),
+                             netstring(rocap),
+                             netstring(_encrypt_rwcap(filenode, rwcap)),
+                             netstring(simplejson.dumps(metadata))])
+        entries.append(netstring(entry))
+    return "".join(entries)
+
 class DirectoryNode:
     implements(IDirectoryNode, ICheckable, IDeepCheckable)
     filenode_class = MutableFileNode
@@ -160,18 +206,6 @@ class DirectoryNode:
         d.addCallback(self._set_size)
         d.addCallback(self._unpack_contents)
         return d
-
-    def _encrypt_rwcap(self, rwcap):
-        assert isinstance(rwcap, str)
-        salt = hashutil.mutable_rwcap_salt_hash(rwcap)
-        key = hashutil.mutable_rwcap_key_hash(salt, self._node.get_writekey())
-        cryptor = AES(key)
-        crypttext = cryptor.process(rwcap)
-        mac = hashutil.hmac(key, salt + crypttext)
-        assert len(mac) == 32
-        return salt + crypttext + mac
-        # The MAC is not checked by readers in Tahoe >= 1.3.0, but we still
-        # produce it for the sake of older readers.
 
     def _decrypt_rwcapdata(self, encwrcap):
         salt = encwrcap[:16]
@@ -217,31 +251,7 @@ class DirectoryNode:
 
     def _pack_contents(self, children):
         # expects children in the same format as _unpack_contents
-        has_aux = isinstance(children, AuxValueDict)
-        entries = []
-        for name in sorted(children.keys()):
-            assert isinstance(name, unicode)
-            entry = None
-            if has_aux:
-                entry = children.get_aux(name)
-            if not entry:
-                child, metadata = children.get(name)
-                assert IFilesystemNode.providedBy(child), (name,child)
-                assert isinstance(metadata, dict)
-                rwcap = child.get_uri() # might be RO if the child is not writeable
-                if rwcap is None:
-                    rwcap = ""
-                assert isinstance(rwcap, str), rwcap
-                rocap = child.get_readonly_uri()
-                if rocap is None:
-                    rocap = ""
-                assert isinstance(rocap, str), rocap
-                entry = "".join([netstring(name.encode("utf-8")),
-                             netstring(rocap),
-                             netstring(self._encrypt_rwcap(rwcap)),
-                             netstring(simplejson.dumps(metadata))])
-            entries.append(netstring(entry))
-        return "".join(entries)
+        return pack_children(self._node, children)
 
     def is_readonly(self):
         return self._node.is_readonly()
