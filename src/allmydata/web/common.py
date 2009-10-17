@@ -54,7 +54,10 @@ def get_arg(ctx_or_req, argname, default=None, multiple=False):
         return results[0]
     return default
 
-def convert_initial_children_json(initial_children_json):
+def convert_initial_children_json(nodemaker, initial_children_json):
+    """I convert the JSON output of GET?t=json into the dict-of-nodes input
+    to both dirnode.create_subdirectory() and
+    client.create_directory(initial_children=)."""
     initial_children = {}
     if initial_children_json:
         data = simplejson.loads(initial_children_json)
@@ -67,7 +70,8 @@ def convert_initial_children_json(initial_children_json):
             if readcap is not None:
                 readcap = str(readcap)
             metadata = propdict.get("metadata", {})
-            initial_children[name] = (writecap, readcap, metadata)
+            childnode = nodemaker.create_from_cap(writecap, readcap)
+            initial_children[name] = (childnode, metadata)
     return initial_children
 
 def abbreviate_time(data):

@@ -101,8 +101,9 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                     else:
                         req.content.seek(0)
                         kids_json = req.content.read()
-                    initial_children = convert_initial_children_json(kids_json)
-                    d = self.node.create_subdirectory(name, initial_children)
+                    kids = convert_initial_children_json(self.client.nodemaker,
+                                                         kids_json)
+                    d = self.node.create_subdirectory(name, kids)
                     d.addCallback(make_handler_for,
                                   self.client, self.node, name)
                     return d
@@ -227,10 +228,9 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             return defer.succeed(self.node.get_uri()) # TODO: urlencode
         name = name.decode("utf-8")
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        children_json = get_arg(req, "children", "")
-        initial_children = convert_initial_children_json(children_json)
-        d = self.node.create_subdirectory(name, initial_children,
-                                          overwrite=replace)
+        kids_json = get_arg(req, "children", "")
+        kids = convert_initial_children_json(self.client.nodemaker, kids_json)
+        d = self.node.create_subdirectory(name, kids, overwrite=replace)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 

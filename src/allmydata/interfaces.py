@@ -924,12 +924,12 @@ class IDirectoryNode(IMutableFilesystemNode):
         NotMutableError."""
 
     def set_nodes(entries, overwrite=True):
-        """Add multiple (name, child_node) pairs (or (name, child_node,
-        metadata) triples) to a directory node. Returns a Deferred that fires
-        (with this dirnode) when the operation finishes. This is equivalent
-        to calling set_node() multiple times, but is much more efficient. All
-        child names must be unicode strings."""
-
+        """Add multiple children to a directory node. Takes a dict mapping
+        unicode childname to (child_node, metdata) tuples. If metdata=None,
+        the original metadata is left unmodified. Returns a Deferred that
+        fires (with this dirnode) when the operation finishes. This is
+        equivalent to calling set_node() multiple times, but is much more
+        efficient."""
 
     def add_file(name, uploadable, metadata=None, overwrite=True):
         """I upload a file (using the given IUploadable), then attach the
@@ -950,9 +950,9 @@ class IDirectoryNode(IMutableFilesystemNode):
         """I create and attach a directory at the given name. The new
         directory can be empty, or it can be populated with children
         according to 'initial_children', which takes a dictionary in the same
-        format as set_children (i.e. mapping unicode child name to (writecap,
-        readcap, metadata) triples). The child name must be a unicode string.
-        I return a Deferred that fires (with the new directory node) when the
+        format as set_nodes (i.e. mapping unicode child name to (childnode,
+        metadata) tuples). The child name must be a unicode string. I return
+        a Deferred that fires (with the new directory node) when the
         operation finishes."""
 
     def move_child_to(current_child_name, new_parent, new_child_name=None,
@@ -2028,7 +2028,7 @@ class IClient(Interface):
         """Create a new unattached dirnode, possibly with initial children.
 
         @param initial_children: dict with keys that are unicode child names,
-        and values that are (child_writecap, child_readcap, metadata) tuples.
+        and values that are (childnode, metadata) tuples.
 
         @return: a Deferred that fires with the new IDirectoryNode instance.
         """
@@ -2050,6 +2050,39 @@ class IClient(Interface):
                  Directory-specifying URIs will result in
                  IDirectoryNode-providing instances, like DirectoryNode.
         """
+
+class INodeMaker(Interface):
+    """The NodeMaker is used to create IFilesystemNode instances. It can
+    accept a filecap/dircap string and return the node right away. It can
+    also create new nodes (i.e. upload a file, or create a mutable file)
+    asynchronously. Once you have one of these nodes, you can use other
+    methods to determine whether it is a file or directory, and to download
+    or modify its contents.
+
+    The NodeMaker encapsulates all the authorities that these
+    IfilesystemNodes require (like references to the StorageFarmBroker). Each
+    Tahoe process will typically have a single NodeMaker, but unit tests may
+    create simplified/mocked forms for testing purposes.
+    """
+    def create_from_cap(writecap, readcap=None):
+        """I create an IFilesystemNode from the given writecap/readcap. I can
+        only provide nodes for existing file/directory objects: use my other
+        methods to create new objects. I return synchronously."""
+
+    def create_mutable_file(contents=None, keysize=None):
+        """I create a new mutable file, and return a Deferred which will fire
+        with the IMutableFileNode instance when it is ready. If contents= is
+        provided (a bytestring), it will be used as the initial contents of
+        the new file, otherwise the file will contain zero bytes. keysize= is
+        for use by unit tests, to create mutable files that are smaller than
+        usual."""
+
+    def create_new_mutable_directory(initial_children={}):
+        """I create a new mutable directory, and return a Deferred which will
+        fire with the IDirectoryNode instance when it is ready. If
+        initial_children= is provided (a dict mapping unicode child name to
+        (childnode, metadata_dict) tuples), the directory will be populated
+        with those children, otherwise it will be empty."""
 
 class IClientStatus(Interface):
     def list_all_uploads():

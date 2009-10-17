@@ -16,7 +16,7 @@ from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log
-from allmydata.util.assertutil import _assert, precondition
+from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
 from allmydata.uri import DirectoryURI, ReadonlyDirectoryURI, \
      LiteralFileURI, from_string
@@ -59,27 +59,22 @@ class Adder:
     def __init__(self, node, entries=None, overwrite=True):
         self.node = node
         if entries is None:
-            entries = []
+            entries = {}
+        precondition(isinstance(entries, dict), entries)
         self.entries = entries
         self.overwrite = overwrite
 
     def set_node(self, name, node, metadata):
         precondition(isinstance(name, unicode), name)
         precondition(IFilesystemNode.providedBy(node), node)
-        self.entries.append( [name, node, metadata] )
+        self.entries[name] = (node, metadata)
 
     def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         now = time.time()
-        for e in self.entries:
-            if len(e) == 2:
-                name, child = e
-                new_metadata = None
-            else:
-                assert len(e) == 3
-                name, child, new_metadata = e
-                assert _assert(IFilesystemNode.providedBy(child), child)
-            assert isinstance(name, unicode)
+        for (name, (child, new_metadata)) in self.entries.iteritems():
+            precondition(isinstance(name, unicode), name)
+            precondition(IFilesystemNode.providedBy(child), child)
             if name in children:
                 if not self.overwrite:
                     raise ExistingChildError("child '%s' already exists" % name)
@@ -437,6 +432,7 @@ class DirectoryNode:
         return d
 
     def set_nodes(self, entries, overwrite=True):
+        precondition(isinstance(entries, dict), entries)
         if self.is_readonly():
             return defer.fail(NotMutableError())
         a = Adder(self, entries, overwrite=overwrite)
@@ -477,7 +473,7 @@ class DirectoryNode:
             return defer.fail(NotMutableError())
         d = self._nodemaker.create_new_mutable_directory(initial_children)
         def _created(child):
-            entries = [(name, child, None)]
+            entries = {name: (child, None)}
             a = Adder(self, entries, overwrite=overwrite)
             d = self._node.modify(a.modify)
             d.addCallback(lambda res: child)

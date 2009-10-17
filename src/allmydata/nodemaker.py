@@ -1,25 +1,15 @@
 import weakref
+from zope.interface import implements
+from allmydata.interfaces import INodeMaker
 from allmydata.immutable.filenode import FileNode, LiteralFileNode
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.dirnode import DirectoryNode
 from allmydata.unknown import UnknownNode
 from allmydata.uri import DirectoryURI, ReadonlyDirectoryURI
 
-# the "node maker" is a two-argument callable (really a 'create' method on a
-# NodeMaker instance) which accepts a URI string (and an optional readcap
-# string, for use by dirnode.copy) and returns an object which (at the very
-# least) provides IFilesystemNode. That interface has other methods that can
-# be used to determine if the node represents a file or directory, in which
-# case other methods are available (like download() or modify()). Each Tahoe
-# process will typically have a single NodeMaker, but unit tests may create
-# simplified/mocked forms for test purposes.
-
-# any authorities which fsnodes will need (like a reference to the
-# StorageFarmBroker, to access storage servers for publish/retrieve/download)
-# will be retained as attributes inside the NodeMaker and passed to fsnodes
-# as necessary.
-
 class NodeMaker:
+    implements(INodeMaker)
+
     def __init__(self, storage_broker, secret_holder, history,
                  uploader, downloader, download_cache_dirman,
                  default_encoding_parameters, key_generator):
@@ -92,5 +82,5 @@ class NodeMaker:
         d = self.create_mutable_file()
         d.addCallback(self._create_dirnode)
         if initial_children:
-            d.addCallback(lambda n: n.set_children(initial_children))
+            d.addCallback(lambda n: n.set_nodes(initial_children))
         return d

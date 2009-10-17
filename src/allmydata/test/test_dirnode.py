@@ -176,7 +176,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.set_node, u"newchild", filenode)
             self.shouldFail(dirnode.NotMutableError, "set_nodes ro", None,
-                            ro_dn.set_nodes, [ (u"newchild", filenode) ])
+                            ro_dn.set_nodes, { u"newchild": (filenode, None) })
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
                             ro_dn.add_file, u"newchild", uploadable)
             self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
@@ -486,18 +486,17 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda res: n.delete(u"e3"))
 
             # metadata through set_nodes()
-            d.addCallback(lambda res: n.set_nodes([ (u"f1", n),
-                                                    (u"f2", n, {}),
-                                                    (u"f3", n,
-                                                     {"key": "value"}),
-                                                    ]))
+            d.addCallback(lambda res:
+                          n.set_nodes({ u"f1": (n, None),
+                                        u"f2": (n, {}),
+                                        u"f3": (n, {"key": "value"}),
+                                        }))
             d.addCallback(lambda n2: self.failUnlessIdentical(n2, n))
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "set_nodes-no",
                                           "child 'f1' already exists",
-                                          n.set_nodes,
-                                          [ (u"f1", n),
-                                            (u"new", n), ],
+                                          n.set_nodes, { u"f1": (n, None),
+                                                         u"new": (n, None), },
                                           overwrite=False))
             # and 'new' should not have been created
             d.addCallback(lambda res: n.list())
@@ -686,6 +685,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.basedir = "dirnode/Dirnode/test_create_subdirectory"
         self.set_up_grid()
         c = self.g.clients[0]
+        nm = c.nodemaker
 
         d = c.create_dirnode()
         def _then(n):
@@ -694,8 +694,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             fake_file_uri = make_mutable_file_uri()
             other_file_uri = make_mutable_file_uri()
             md = {"metakey": "metavalue"}
-            kids = {u"kid1": (fake_file_uri, fake_file_uri),
-                    u"kid2": (other_file_uri, other_file_uri, md),
+            kids = {u"kid1": (nm.create_from_cap(fake_file_uri), None),
+                    u"kid2": (nm.create_from_cap(other_file_uri), md),
                     }
             d = n.create_subdirectory(u"subdir", kids)
             def _check(sub):
