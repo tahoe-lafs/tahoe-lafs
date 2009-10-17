@@ -21,23 +21,7 @@ from allmydata.util.netstring import netstring, split_netstring
 from allmydata.uri import DirectoryURI, ReadonlyDirectoryURI, \
      LiteralFileURI, from_string
 from pycryptopp.cipher.aes import AES
-
-class CachingDict(dict):
-    def __init__(self, *args):
-        super(CachingDict, self).__init__(*args)
-        self.serialized = {}
-
-    def __setitem__(self, k, v):
-        super(CachingDict, self).__setitem__(k, v)
-        self.serialized[k] = None
-
-    def get_both_items(self, k):
-        return (self.serialized.setdefault(k, None),
-                super(CachingDict, self).__getitem__(k))
-
-    def set_both_items(self, key, serialized, t):
-        self.serialized[key] = serialized
-        super(CachingDict, self).__setitem__(key, t)
+from allmydata.util.dictutil import AuxValueDict
 
 class Deleter:
     def __init__(self, node, name, must_exist=True):
@@ -209,9 +193,9 @@ class DirectoryNode:
         assert isinstance(data, str), (repr(data), type(data))
         # an empty directory is serialized as an empty string
         if data == "":
-            return CachingDict()
+            return AuxValueDict()
         writeable = not self.is_readonly()
-        children = CachingDict()
+        children = AuxValueDict()
         position = 0
         while position < len(data):
             entries, position = split_netstring(data, 1, position)
@@ -228,18 +212,20 @@ class DirectoryNode:
             child = self._create_node(rwcap, rocap)
             metadata = simplejson.loads(metadata_s)
             assert isinstance(metadata, dict)
-            children.set_both_items(name, entry, (child, metadata))
+            children.set_with_aux(name, (child, metadata), auxilliary=entry)
         return children
 
     def _pack_contents(self, children):
         # expects children in the same format as _unpack_contents
-        assert isinstance(children, CachingDict)
+        has_aux = isinstance(children, AuxValueDict)
         entries = []
         for name in sorted(children.keys()):
-            entry, metadata = children.get_both_items(name)
-            if entry == None:
-                child, metadata = metadata
-                assert isinstance(name, unicode)
+            assert isinstance(name, unicode)
+            entry = None
+            if has_aux:
+                entry = children.get_aux(name)
+            if not entry:
+                child, metadata = children.get(name)
                 assert IFilesystemNode.providedBy(child), (name,child)
                 assert isinstance(metadata, dict)
                 rwcap = child.get_uri() # might be RO if the child is not writeable

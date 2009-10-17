@@ -776,21 +776,6 @@ class Packing(unittest.TestCase):
         self.failUnlessEqual(file1_rwcap,
                              children[u'file1'][0].get_uri())
 
-    def test_caching_dict(self):
-        d = dirnode.CachingDict()
-        d.set_both_items("test", "test2", ("test3", "test4"))
-        cached, value = d.get_both_items("test")
-
-        self.failUnlessEqual(cached, "test2")
-        self.failUnlessEqual(value, ("test3", "test4"))
-
-        d['test'] = ("test3", "test2")
-
-        cached, value = d.get_both_items("test")
-
-        self.failUnlessEqual(cached, None)
-        self.failUnlessEqual(value, ("test3", "test2"))
-
 class FakeMutableFile:
     counter = 0
     def __init__(self, initial_contents=""):

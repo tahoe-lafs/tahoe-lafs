@@ -1274,6 +1274,53 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(x, "b")
         self.failUnlessEqual(d.items(), [("c", 1), ("a", 3)])
 
+    def test_auxdict(self):
+        d = dictutil.AuxValueDict()
+        # we put the serialized form in the auxdata
+        d.set_with_aux("key", ("filecap", "metadata"), "serialized")
+
+        self.failUnlessEqual(d.keys(), ["key"])
+        self.failUnlessEqual(d["key"], ("filecap", "metadata"))
+        self.failUnlessEqual(d.get_aux("key"), "serialized")
+        def _get_missing(key):
+            return d[key]
+        self.failUnlessRaises(KeyError, _get_missing, "nonkey")
+        self.failUnlessEqual(d.get("nonkey"), None)
+        self.failUnlessEqual(d.get("nonkey", "nonvalue"), "nonvalue")
+        self.failUnlessEqual(d.get_aux("nonkey"), None)
+        self.failUnlessEqual(d.get_aux("nonkey", "nonvalue"), "nonvalue")
+
+        d["key"] = ("filecap2", "metadata2")
+        self.failUnlessEqual(d["key"], ("filecap2", "metadata2"))
+        self.failUnlessEqual(d.get_aux("key"), None)
+
+        d.set_with_aux("key2", "value2", "aux2")
+        self.failUnlessEqual(sorted(d.keys()), ["key", "key2"])
+        del d["key2"]
+        self.failUnlessEqual(d.keys(), ["key"])
+        self.failIf("key2" in d)
+        self.failUnlessRaises(KeyError, _get_missing, "key2")
+        self.failUnlessEqual(d.get("key2"), None)
+        self.failUnlessEqual(d.get_aux("key2"), None)
+        d["key2"] = "newvalue2"
+        self.failUnlessEqual(d.get("key2"), "newvalue2")
+        self.failUnlessEqual(d.get_aux("key2"), None)
+
+        d = dictutil.AuxValueDict({1:2,3:4})
+        self.failUnlessEqual(sorted(d.keys()), [1,3])
+        self.failUnlessEqual(d[1], 2)
+        self.failUnlessEqual(d.get_aux(1), None)
+
+        d = dictutil.AuxValueDict([ (1,2), (3,4) ])
+        self.failUnlessEqual(sorted(d.keys()), [1,3])
+        self.failUnlessEqual(d[1], 2)
+        self.failUnlessEqual(d.get_aux(1), None)
+
+        d = dictutil.AuxValueDict(one=1, two=2)
+        self.failUnlessEqual(sorted(d.keys()), ["one","two"])
+        self.failUnlessEqual(d["one"], 1)
+        self.failUnlessEqual(d.get_aux("one"), None)
+
 class Pipeline(unittest.TestCase):
     def pause(self, *args, **kwargs):
         d = defer.Deferred()
