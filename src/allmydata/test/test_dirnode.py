@@ -36,6 +36,38 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(_done)
         return d
 
+    def test_initial_children(self):
+        self.basedir = "dirnode/Dirnode/test_initial_children"
+        self.set_up_grid()
+        c = self.g.clients[0]
+        setup_py_uri = "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
+        one_uri = "URI:LIT:n5xgk" # LIT for "one"
+        kids = {u"one": (c.nodemaker.create_from_cap(one_uri), {}),
+                u"two": (c.nodemaker.create_from_cap(setup_py_uri),
+                         {"metakey": "metavalue"}),
+                }
+        d = c.create_dirnode(kids)
+        def _created(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            rep = str(dn)
+            self.failUnless("RW" in rep)
+            return dn.list()
+        d.addCallback(_created)
+        def _check_kids(children):
+            self.failUnlessEqual(sorted(children.keys()), [u"one", u"two"])
+            one_node, one_metadata = children[u"one"]
+            two_node, two_metadata = children[u"two"]
+            self.failUnlessEqual(one_node.get_size(), 3)
+            self.failUnlessEqual(two_node.get_size(), 14861)
+            self.failUnless(isinstance(one_metadata, dict), one_metadata)
+            self.failUnlessEqual(two_metadata["metakey"], "metavalue")
+        d.addCallback(_check_kids)
+        d.addCallback(lambda ign:
+                      c.nodemaker.create_new_mutable_directory(kids))
+        d.addCallback(lambda dn: dn.list())
+        d.addCallback(_check_kids)
+        return d
+
     def test_check(self):
         self.basedir = "dirnode/Dirnode/test_check"
         self.set_up_grid()
