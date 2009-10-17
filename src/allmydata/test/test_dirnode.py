@@ -40,10 +40,11 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.basedir = "dirnode/Dirnode/test_initial_children"
         self.set_up_grid()
         c = self.g.clients[0]
+        nm = c.nodemaker
         setup_py_uri = "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
         one_uri = "URI:LIT:n5xgk" # LIT for "one"
-        kids = {u"one": (c.nodemaker.create_from_cap(one_uri), {}),
-                u"two": (c.nodemaker.create_from_cap(setup_py_uri),
+        kids = {u"one": (nm.create_from_cap(one_uri), {}),
+                u"two": (nm.create_from_cap(setup_py_uri),
                          {"metakey": "metavalue"}),
                 }
         d = c.create_dirnode(kids)
@@ -62,10 +63,24 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnless(isinstance(one_metadata, dict), one_metadata)
             self.failUnlessEqual(two_metadata["metakey"], "metavalue")
         d.addCallback(_check_kids)
-        d.addCallback(lambda ign:
-                      c.nodemaker.create_new_mutable_directory(kids))
+        d.addCallback(lambda ign: nm.create_new_mutable_directory(kids))
         d.addCallback(lambda dn: dn.list())
         d.addCallback(_check_kids)
+        future_writecap = "x-tahoe-crazy://I_am_from_the_future."
+        future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
+        future_node = UnknownNode(future_writecap, future_readcap)
+        bad_kids1 = {u"one": (future_node, {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(AssertionError, "bad_kids1",
+                                      "does not accept UnknownNode",
+                                      nm.create_new_mutable_directory,
+                                      bad_kids1))
+        bad_kids2 = {u"one": (nm.create_from_cap(one_uri), None)}
+        d.addCallback(lambda ign:
+                      self.shouldFail(AssertionError, "bad_kids2",
+                                      "requires metadata to be a dict",
+                                      nm.create_new_mutable_directory,
+                                      bad_kids2))
         return d
 
     def test_check(self):
@@ -726,7 +741,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             fake_file_uri = make_mutable_file_uri()
             other_file_uri = make_mutable_file_uri()
             md = {"metakey": "metavalue"}
-            kids = {u"kid1": (nm.create_from_cap(fake_file_uri), None),
+            kids = {u"kid1": (nm.create_from_cap(fake_file_uri), {}),
                     u"kid2": (nm.create_from_cap(other_file_uri), md),
                     }
             d = n.create_subdirectory(u"subdir", kids)
@@ -811,12 +826,22 @@ class Packing(unittest.TestCase):
 class FakeMutableFile:
     counter = 0
     def __init__(self, initial_contents=""):
-        self.data = initial_contents
+        self.data = self._get_initial_contents(initial_contents)
         counter = FakeMutableFile.counter
         FakeMutableFile.counter += 1
         writekey = hashutil.ssk_writekey_hash(str(counter))
         fingerprint = hashutil.ssk_pubkey_fingerprint_hash(str(counter))
         self.uri = uri.WriteableSSKFileURI(writekey, fingerprint)
+
+    def _get_initial_contents(self, contents):
+        if isinstance(contents, str):
+            return contents
+        if contents is None:
+            return ""
+        assert callable(contents), "%s should be callable, not %s" % \
+               (contents, type(contents))
+        return contents(self)
+
     def get_uri(self):
         return self.uri.to_string()
     def download_best_version(self):

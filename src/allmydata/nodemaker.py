@@ -1,9 +1,10 @@
 import weakref
 from zope.interface import implements
+from allmydata.util.assertutil import precondition
 from allmydata.interfaces import INodeMaker
 from allmydata.immutable.filenode import FileNode, LiteralFileNode
 from allmydata.mutable.filenode import MutableFileNode
-from allmydata.dirnode import DirectoryNode
+from allmydata.dirnode import DirectoryNode, pack_children
 from allmydata.unknown import UnknownNode
 from allmydata.uri import DirectoryURI, ReadonlyDirectoryURI
 
@@ -79,8 +80,14 @@ class NodeMaker:
         return d
 
     def create_new_mutable_directory(self, initial_children={}):
-        d = self.create_mutable_file()
+        # initial_children must have metadata (i.e. {} instead of None), and
+        # should not contain UnknownNodes
+        for (name, (node, metadata)) in initial_children.iteritems():
+            precondition(not isinstance(node, UnknownNode),
+                         "create_new_mutable_directory does not accept UnknownNode", node)
+            precondition(isinstance(metadata, dict),
+                         "create_new_mutable_directory requires metadata to be a dict, not None", metadata)
+        d = self.create_mutable_file(lambda n:
+                                     pack_children(n, initial_children))
         d.addCallback(self._create_dirnode)
-        if initial_children:
-            d.addCallback(lambda n: n.set_nodes(initial_children))
         return d
