@@ -216,12 +216,13 @@ class NoNetworkGrid(service.MultiService):
             c.setServiceParent(self)
             self.clients.append(c)
 
-    def make_server(self, i):
+    def make_server(self, i, readonly=False):
         serverid = hashutil.tagged_hash("serverid", str(i))[:20]
         serverdir = os.path.join(self.basedir, "servers",
                                  idlib.shortnodeid_b2a(serverid))
         fileutil.make_dirs(serverdir)
-        ss = StorageServer(serverdir, serverid, stats_provider=SimpleStats())
+        ss = StorageServer(serverdir, serverid, stats_provider=SimpleStats(),
+                           readonly_storage=readonly)
         return ss
 
     def add_server(self, i, ss):
