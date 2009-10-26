@@ -135,23 +135,35 @@ def _encrypt_rwcap(filenode, rwcap):
     # The MAC is not checked by readers in Tahoe >= 1.3.0, but we still
     # produce it for the sake of older readers.
 
-def pack_children(filenode, children):
+class MustBeDeepImmutable(Exception):
+    """You tried to add a non-deep-immutable node to a deep-immutable
+    directory."""
+
+def pack_children(filenode, children, deep_immutable=False):
     """Take a dict that maps:
          children[unicode_name] = (IFileSystemNode, metadata_dict)
     and pack it into a single string, for use as the contents of the backing
     file. This is the same format as is returned by _unpack_contents. I also
     accept an AuxValueDict, in which case I'll use the auxilliary cached data
     as the pre-packed entry, which is faster than re-packing everything each
-    time."""
+    time.
+
+    If deep_immutable is True, I will require that all my children are deeply
+    immutable, and will raise a MustBeDeepImmutable exception if not.
+    """
+
     has_aux = isinstance(children, AuxValueDict)
     entries = []
     for name in sorted(children.keys()):
         assert isinstance(name, unicode)
         entry = None
+        (child, metadata) = children[name]
+        if deep_immutable and child.is_mutable():
+            # TODO: consider adding IFileSystemNode.is_deep_immutable()
+            raise MustBeDeepImmutable("child '%s' is mutable" % (name,))
         if has_aux:
             entry = children.get_aux(name)
         if not entry:
-            (child, metadata) = children[name]
             assert IFilesystemNode.providedBy(child), (name,child)
             assert isinstance(metadata, dict)
             rwcap = child.get_uri() # might be RO if the child is not writeable

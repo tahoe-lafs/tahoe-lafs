@@ -760,6 +760,10 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(_then)
         return d
 
+class MinimalFakeMutableFile:
+    def get_writekey(self):
+        return "writekey"
+
 class Packing(unittest.TestCase):
     # This is a base32-encoded representation of the directory tree
     # root/file1
@@ -822,6 +826,54 @@ class Packing(unittest.TestCase):
                              children[u'file1'][0].get_readonly_uri())
         self.failUnlessEqual(file1_rwcap,
                              children[u'file1'][0].get_uri())
+
+    def _make_kids(self, nm, which):
+        caps = {"imm": "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861",
+                "lit": "URI:LIT:n5xgk", # LIT for "one"
+                "write": "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq",
+                "read": "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q",
+                "dirwrite": "URI:DIR2:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq",
+                "dirread":  "URI:DIR2-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq",
+                }
+        kids = {}
+        for name in which:
+            kids[unicode(name)] = (nm.create_from_cap(caps[name]), {})
+        return kids
+
+    def test_deep_immutable(self):
+        nm = NodeMaker(None, None, None, None, None, None, {"k": 3, "n": 10},
+                       None)
+        fn = MinimalFakeMutableFile()
+
+        kids = self._make_kids(nm, ["imm", "lit", "write", "read",
+                                    "dirwrite", "dirread"])
+        packed = dirnode.pack_children(fn, kids, deep_immutable=False)
+        self.failUnlessIn("lit", packed)
+
+        kids = self._make_kids(nm, ["imm", "lit"])
+        packed = dirnode.pack_children(fn, kids, deep_immutable=True)
+        self.failUnlessIn("lit", packed)
+
+        kids = self._make_kids(nm, ["imm", "lit", "write"])
+        e = self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+                                  dirnode.pack_children,
+                                  fn, kids, deep_immutable=True)
+
+        # read-only is not enough: all children must be immutable
+        kids = self._make_kids(nm, ["imm", "lit", "read"])
+        e = self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+                                  dirnode.pack_children,
+                                  fn, kids, deep_immutable=True)
+
+        kids = self._make_kids(nm, ["imm", "lit", "dirwrite"])
+        e = self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+                                  dirnode.pack_children,
+                                  fn, kids, deep_immutable=True)
+
+        kids = self._make_kids(nm, ["imm", "lit", "dirread"])
+        e = self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+                                  dirnode.pack_children,
+                                  fn, kids, deep_immutable=True)
 
 class FakeMutableFile:
     counter = 0
