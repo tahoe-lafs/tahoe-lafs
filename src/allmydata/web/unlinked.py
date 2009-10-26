@@ -5,7 +5,7 @@ from twisted.internet import defer
 from nevow import rend, url, tags as T
 from allmydata.immutable.upload import FileHandle
 from allmydata.web.common import getxmlfile, get_arg, boolean_of_arg, \
-     convert_initial_children_json
+     convert_children_json, WebError
 from allmydata.web import status
 
 def PUTUnlinkedCHK(req, client):
@@ -26,10 +26,7 @@ def PUTUnlinkedSSK(req, client):
 
 def PUTUnlinkedCreateDirectory(req, client):
     # "PUT /uri?t=mkdir", to create an unlinked directory.
-    req.content.seek(0)
-    kids_json = req.content.read()
-    kids = convert_initial_children_json(client.nodemaker, kids_json)
-    d = client.create_dirnode(initial_children=kids)
+    d = client.create_dirnode()
     d.addCallback(lambda dirnode: dirnode.get_uri())
     # XXX add redirect_to_result
     return d
@@ -94,8 +91,29 @@ def POSTUnlinkedSSK(req, client):
 
 def POSTUnlinkedCreateDirectory(req, client):
     # "POST /uri?t=mkdir", to create an unlinked directory.
+    kids_json = get_arg(req, "children", None)
+    if kids_json is not None:
+        raise WebError("t=mkdir does not accept children=, "
+                       "try t=mkdir-with-children instead",
+                       http.BAD_REQUEST)
+    d = client.create_dirnode()
+    redirect = get_arg(req, "redirect_to_result", "false")
+    if boolean_of_arg(redirect):
+        def _then_redir(res):
+            new_url = "uri/" + urllib.quote(res.get_uri())
+            req.setResponseCode(http.SEE_OTHER) # 303
+            req.setHeader('location', new_url)
+            req.finish()
+            return ''
+        d.addCallback(_then_redir)
+    else:
+        d.addCallback(lambda dirnode: dirnode.get_uri())
+    return d
+
+def POSTUnlinkedCreateDirectoryWithChildren(req, client):
+    # "POST /uri?t=mkdir", to create an unlinked directory.
     kids_json = get_arg(req, "children", "")
-    kids = convert_initial_children_json(client.nodemaker, kids_json)
+    kids = convert_children_json(client.nodemaker, kids_json)
     d = client.create_dirnode(initial_children=kids)
     redirect = get_arg(req, "redirect_to_result", "false")
     if boolean_of_arg(redirect):

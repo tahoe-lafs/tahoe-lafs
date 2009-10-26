@@ -345,15 +345,20 @@ PUT /uri
 POST /uri?t=mkdir
 PUT /uri?t=mkdir
 
- Create a new directory (either empty or with some initial children) and
- return its write-cap as the HTTP response body. This does not make the newly
- created directory visible from the virtual drive. The "PUT" operation is
- provided for backwards compatibility: new code should use POST.
+ Create a new empty directory and return its write-cap as the HTTP response
+ body. This does not make the newly created directory visible from the
+ virtual drive. The "PUT" operation is provided for backwards compatibility:
+ new code should use POST.
 
- Initial children are provided in the "children" field of the POST form, or
- as the request body of the PUT request. This is more efficient than doing
- separate mkdir and add-children operations. If this value is empty, the new
- directory will be empty.
+POST /uri?t=mkdir-with-children
+
+ Create a new directory, populated with a set of child nodes, and return its
+ write-cap as the HTTP response body. The new directory is not attached to
+ any other directory: the returned write-cap is the only reference to it.
+
+ Initial children are provided in the "children" field of the POST form. This
+ is more efficient than doing separate mkdir and add-children operations. If
+ this value is empty, the new directory will be empty.
 
  If not empty, it will be interpreted as a JSON-encoded dictionary of
  children with which the new directory should be populated, using the same
@@ -394,8 +399,7 @@ PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
  intermediate directories as necessary. If the named target directory already
  exists, this will make no changes to it.
 
- If a directory is created, it will be populated with initial children via
- the PUT request body or POST 'children' form field, as described above.
+ If the final directory is created, it will be empty.
 
  This will return an error if a blocking file is present at any of the parent
  names, preventing the server from creating the necessary parent directory.
@@ -403,16 +407,26 @@ PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
  The write-cap of the new directory will be returned as the HTTP response
  body.
 
+POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-with-children
+
+ Like above, but if the final directory is created, it will be populated with
+ initial children via the POST 'children' form field, as described above in
+ the /uri?t=mkdir-with-children operation.
+
 POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME
 
  Create a new empty directory and attach it to the given existing directory.
- This will create additional intermediate directories as necessary. The new
- directory will be populated with initial children via the PUT request body
- or POST 'children' form field, as described above.
+ This will create additional intermediate directories as necessary.
 
  The URL of this form points to the parent of the bottom-most new directory,
  whereas the previous form has a URL that points directly to the bottom-most
  new directory.
+
+POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-with-children&name=NAME
+
+ As above, but the new directory will be populated with initial children via
+ the POST 'children' form field, as described in /uri?t=mkdir-with-children
+ above.
 
 === Get Information About A File Or Directory (as JSON) ===
 
@@ -767,7 +781,7 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=info
 
 POST /uri?t=mkdir
 
- This creates a new directory, but does not attach it to the virtual
+ This creates a new empty directory, but does not attach it to the virtual
  filesystem.
 
  If a "redirect_to_result=true" argument is provided, then the HTTP response
@@ -783,22 +797,16 @@ POST /uri?t=mkdir
  "false"), then the HTTP response body will simply be the write-cap of the
  new directory.
 
- It accepts the same initial-children arguments as described in earlier
- t=mkdir sections, but these are unlikely to be useful from a browser form.
-
 POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=CHILDNAME
 
- This creates a new directory as a child of the designated SUBDIR. This will
- create additional intermediate directories as necessary.
+ This creates a new empty directory as a child of the designated SUBDIR. This
+ will create additional intermediate directories as necessary.
 
  If a "when_done=URL" argument is provided, the HTTP response will cause the
  web browser to redirect to the given URL. This provides a convenient way to
  return the browser to the directory that was just modified. Without a
  when_done= argument, the HTTP response will simply contain the write-cap of
  the directory that was just created.
-
- It accepts the same initial-children arguments as described in earlier
- t=mkdir sections, but these are unlikely to be useful from a browser form.
 
 
 === Uploading a File ===

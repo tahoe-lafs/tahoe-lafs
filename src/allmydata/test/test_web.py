@@ -1122,42 +1122,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(self.failUnlessNodeKeysAre, [])
         return d
 
-    def test_PUT_NEWDIRURL_initial_children(self):
-        (newkids, filecap1, filecap2, filecap3,
-         dircap) = self._create_initial_children()
-        d = self.PUT(self.public_url + "/foo/newdir?t=mkdir",
-                     simplejson.dumps(newkids))
-        def _check(uri):
-            n = self.s.create_node_from_uri(uri.strip())
-            d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
-            d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-imm", filecap1))
-            d2.addCallback(lambda ign:
-                           n.get_child_and_metadata_at_path(u"child-imm"))
-            d2.addCallback(lambda (c1, md1):
-                           self.failUnlessEqual(md1["metakey1"], "metavalue1"))
-            d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-mutable",
-                                                     filecap2))
-            d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-mutable-ro",
-                                                     filecap3))
-            d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"dirchild", dircap))
-            return d2
-        d.addCallback(_check)
-        d.addCallback(lambda res:
-                      self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
-        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
-        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessChildURIIs, u"child-imm", filecap1)
-        return d
-
     def test_POST_NEWDIRURL_initial_children(self):
         (newkids, filecap1, filecap2, filecap3,
          dircap) = self._create_initial_children()
-        d = self.POST(self.public_url + "/foo/newdir?t=mkdir",
+        d = self.POST(self.public_url + "/foo/newdir?t=mkdir-with-children",
                      children=simplejson.dumps(newkids))
         def _check(uri):
             n = self.s.create_node_from_uri(uri.strip())
@@ -1930,8 +1898,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
     def test_POST_mkdir_initial_children(self):
         newkids, filecap1, ign, ign, ign = self._create_initial_children()
-        d = self.POST(self.public_url + "/foo", t="mkdir", name="newdir",
-                      children=simplejson.dumps(newkids))
+        d = self.POST(self.public_url + "/foo", t="mkdir-with-children",
+                      name="newdir", children=simplejson.dumps(newkids))
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -1992,7 +1960,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_POST_mkdir_no_parentdir_initial_children(self):
         (newkids, filecap1, filecap2, filecap3,
          dircap) = self._create_initial_children()
-        d = self.POST("/uri?t=mkdir", children=simplejson.dumps(newkids))
+        d = self.POST("/uri?t=mkdir-with-children",
+                      children=simplejson.dumps(newkids))
         def _after_mkdir(res):
             self.failUnless(res.startswith("URI:DIR"), res)
             n = self.s.create_node_from_uri(res)
@@ -2009,6 +1978,19 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                            self.failUnlessChildURIIs(n, u"dirchild", dircap))
             return d2
         d.addCallback(_after_mkdir)
+        return d
+
+    def test_POST_mkdir_no_parentdir_unexpected_children(self):
+        # the regular /uri?t=mkdir operation is specified to ignore its body.
+        # Only t=mkdir-with-children pays attention to it.
+        (newkids, filecap1, filecap2, filecap3,
+         dircap) = self._create_initial_children()
+        d = self.shouldHTTPError("POST t=mkdir unexpected children",
+                                 400, "Bad Request",
+                                 "t=mkdir does not accept children=, "
+                                 "try t=mkdir-with-children instead",
+                                 self.POST, "/uri?t=mkdir", # without children
+                                 children=simplejson.dumps(newkids))
         return d
 
     def test_POST_noparent_bad(self):
@@ -2501,27 +2483,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             return d2
         d.addCallback(_check)
         d.addCallback(self.failUnlessIsEmptyJSON)
-        return d
-
-    def test_PUT_mkdir_initial_children(self):
-        (newkids, filecap1, filecap2, filecap3,
-         dircap) = self._create_initial_children()
-        d = self.PUT("/uri?t=mkdir", simplejson.dumps(newkids))
-        def _check(uri):
-            n = self.s.create_node_from_uri(uri.strip())
-            d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
-            d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-imm", filecap1))
-            d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-mutable",
-                                                     filecap2))
-            d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-mutable-ro",
-                                                     filecap3))
-            d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"dirchild", dircap))
-            return d2
-        d.addCallback(_check)
         return d
 
     def test_POST_check(self):

@@ -70,6 +70,9 @@ class URIHandler(RenderMixin, rend.Page):
                 return unlinked.POSTUnlinkedCHK(req, self.client)
         if t == "mkdir":
             return unlinked.POSTUnlinkedCreateDirectory(req, self.client)
+        elif t == "mkdir-with-children":
+            return unlinked.POSTUnlinkedCreateDirectoryWithChildren(req,
+                                                                    self.client)
         errmsg = ("/uri accepts only PUT, PUT?t=mkdir, POST?t=upload, "
                   "and POST?t=mkdir")
         raise WebError(errmsg, http.BAD_REQUEST)

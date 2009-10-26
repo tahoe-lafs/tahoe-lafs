@@ -54,13 +54,13 @@ def get_arg(ctx_or_req, argname, default=None, multiple=False):
         return results[0]
     return default
 
-def convert_initial_children_json(nodemaker, initial_children_json):
+def convert_children_json(nodemaker, children_json):
     """I convert the JSON output of GET?t=json into the dict-of-nodes input
     to both dirnode.create_subdirectory() and
     client.create_directory(initial_children=)."""
     initial_children = {}
-    if initial_children_json:
-        data = simplejson.loads(initial_children_json)
+    if children_json:
+        data = simplejson.loads(children_json)
         for (name, (ctype, propdict)) in data.iteritems():
             name = unicode(name)
             writecap = propdict.get("rw_uri")
