@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from allmydata.test import common
 from allmydata.monitor import Monitor
 from allmydata import check_results
@@ -13,6 +14,7 @@ from no_network import GridTestMixin
 READ_LEEWAY = 18
 MAX_DELTA_READS = 10 * READ_LEEWAY # N = 10
 
+timeout=240 # François's ARM box timed out after 120 seconds of Verifier.test_corrupt_crypttext_hashtree
 
 class RepairTestMixin:
     def failUnlessIsInstance(self, x, xtype):
