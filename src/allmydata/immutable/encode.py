@@ -118,7 +118,7 @@ class Encoder(object):
         assert not self._codec
         k, happy, n, segsize = params
         self.required_shares = k
-        self.shares_of_happiness = happy
+        self.servers_of_happiness = happy
         self.num_shares = n
         self.segment_size = segsize
         self.log("got encoding parameters: %d/%d/%d %d" % (k,happy,n, segsize))
@@ -176,7 +176,7 @@ class Encoder(object):
         if name == "storage_index":
             return self._storage_index
         elif name == "share_counts":
-            return (self.required_shares, self.shares_of_happiness,
+            return (self.required_shares, self.servers_of_happiness,
                     self.num_shares)
         elif name == "num_segments":
             return self.num_segments
@@ -191,11 +191,13 @@ class Encoder(object):
         else:
             raise KeyError("unknown parameter name '%s'" % name)
 
-    def set_shareholders(self, landlords):
+    def set_shareholders(self, landlords, servermap):
         assert isinstance(landlords, dict)
         for k in landlords:
             assert IStorageBucketWriter.providedBy(landlords[k])
         self.landlords = landlords.copy()
+        assert isinstance(servermap, dict)
+        self.servermap = servermap.copy()
 
     def start(self):
         """ Returns a Deferred that will fire with the verify cap (an instance of
@@ -486,16 +488,19 @@ class Encoder(object):
             # even more UNUSUAL
             self.log("they weren't in our list of landlords", parent=ln,
                      level=log.WEIRD, umid="TQGFRw")
-        if len(self.landlords) < self.shares_of_happiness:
-            msg = "lost too many shareholders during upload (still have %d, want %d): %s" % \
-                  (len(self.landlords), self.shares_of_happiness, why)
-            if self.landlords:
+        del(self.servermap[shareid])
+        servers_left = list(set(self.servermap.values()))
+        if len(servers_left) < self.servers_of_happiness:
+            msg = "lost too many servers during upload (still have %d, want %d): %s" % \
+                  (len(servers_left),
+                   self.servers_of_happiness, why)
+            if servers_left:
                 raise NotEnoughSharesError(msg)
             else:
                 raise NoSharesError(msg)
         self.log("but we can still continue with %s shares, we'll be happy "
-                 "with at least %s" % (len(self.landlords),
-                                       self.shares_of_happiness),
+                 "with at least %s" % (len(servers_left),
+                                       self.servers_of_happiness),
                  parent=ln)
 
     def _gather_responses(self, dl):
