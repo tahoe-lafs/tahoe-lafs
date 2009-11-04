@@ -1338,11 +1338,12 @@ class IEncoder(Interface):
         Once this is called, set_size() and set_params() may not be called.
         """
 
-    def set_shareholders(shareholders):
+    def set_shareholders(shareholders, servermap):
         """Tell the encoder where to put the encoded shares. 'shareholders'
         must be a dictionary that maps share number (an integer ranging from
-        0 to n-1) to an instance that provides IStorageBucketWriter. This
-        must be performed before start() can be called."""
+        0 to n-1) to an instance that provides IStorageBucketWriter.
+        'servermap' is a dictionary that maps share number (as defined above)
+        to a peerid. This must be performed before start() can be called."""
 
     def start():
         """Begin the encode/upload process. This involves reading encrypted
