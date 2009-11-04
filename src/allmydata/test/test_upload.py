@@ -1010,6 +1010,30 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.failUnlessIn(server, unique_servers)
 
 
+    def test_shares_by_server(self):
+        test = {
+                    1 : "server1",
+                    2 : "server2",
+                    3 : "server3",
+                    4 : "server4"
+               }
+        shares_by_server = upload.shares_by_server(test)
+        self.failUnlessEqual(set([1]), shares_by_server["server1"])
+        self.failUnlessEqual(set([2]), shares_by_server["server2"])
+        self.failUnlessEqual(set([3]), shares_by_server["server3"])
+        self.failUnlessEqual(set([4]), shares_by_server["server4"])
+        test1 = {
+                    1 : "server1",
+                    2 : "server1",
+                    3 : "server1",
+                    4 : "server2",
+                    5 : "server2"
+                }
+        shares_by_server = upload.shares_by_server(test1)
+        self.failUnlessEqual(set([1, 2, 3]), shares_by_server["server1"])
+        self.failUnlessEqual(set([4, 5]), shares_by_server["server2"])
+
+
     def _set_up_nodes_extra_config(self, clientdir):
         cfgfn = os.path.join(clientdir, "tahoe.cfg")
         oldcfg = open(cfgfn, "r").read()
