@@ -298,11 +298,13 @@ class Encode(unittest.TestCase):
                      (NUM_SEGMENTS-1)*segsize, len(data), NUM_SEGMENTS*segsize)
 
             shareholders = {}
+            servermap = {}
             for shnum in range(NUM_SHARES):
                 peer = FakeBucketReaderWriterProxy()
                 shareholders[shnum] = peer
+                servermap[shnum] = str(shnum)
                 all_shareholders.append(peer)
-            e.set_shareholders(shareholders)
+            e.set_shareholders(shareholders, servermap)
             return e.start()
         d.addCallback(_ready)
 
@@ -457,11 +459,13 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         def _ready(res):
             k,happy,n = e.get_param("share_counts")
             assert n == NUM_SHARES # else we'll be completely confused
+            all_peers = []
             for shnum in range(NUM_SHARES):
                 mode = bucket_modes.get(shnum, "good")
                 peer = FakeBucketReaderWriterProxy(mode)
                 shareholders[shnum] = peer
-            e.set_shareholders(shareholders)
+                servermap[shnum] = str(shnum)
+            e.set_shareholders(shareholders, servermap)
             return e.start()
         d.addCallback(_ready)
         def _sent(res):

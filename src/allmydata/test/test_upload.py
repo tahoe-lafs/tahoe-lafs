@@ -708,9 +708,12 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                 for share in server.buckets.keys():
                     server.buckets[share].abort()
             buckets = {}
+            servermap = already_peers.copy()
             for peer in used_peers:
                 buckets.update(peer.buckets)
-            encoder.set_shareholders(buckets)
+                for bucket in peer.buckets:
+                    servermap[bucket] = peer.peerid
+            encoder.set_shareholders(buckets, servermap)
             d = encoder.start()
             return d
         d.addCallback(_have_shareholders)
@@ -927,7 +930,6 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         _set_basedir()
         d = self._setup_and_upload();
         # Add 5 servers, with one share each from the original
-        # Add a readonly server
         def _do_server_setup(ign):
             self._add_server_with_share(1, 1, True)
             self._add_server_with_share(2)
