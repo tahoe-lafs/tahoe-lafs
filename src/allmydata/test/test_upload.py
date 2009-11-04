@@ -719,29 +719,39 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_have_shareholders)
         return d
 
-    def _add_server_with_share(self, server_number, share_number=None,
-                               readonly=False):
+    def _add_server(self, server_number, readonly=False):
         assert self.g, "I tried to find a grid at self.g, but failed"
         assert self.shares, "I tried to find shares at self.shares, but failed"
         ss = self.g.make_server(server_number, readonly)
         self.g.add_server(server_number, ss)
+
+    def _add_server_with_share(self, server_number, share_number=None,
+                               readonly=False):
+        self._add_server(server_number, readonly)
         if share_number:
-            # Copy share i from the directory associated with the first 
-            # storage server to the directory associated with this one.
-            old_share_location = self.shares[share_number][2]
-            new_share_location = os.path.join(ss.storedir, "shares")
-            si = uri.from_string(self.uri).get_storage_index()
-            new_share_location = os.path.join(new_share_location,
-                                              storage_index_to_dir(si))
-            if not os.path.exists(new_share_location):
-                os.makedirs(new_share_location)
-            new_share_location = os.path.join(new_share_location,
-                                              str(share_number))
-            shutil.copy(old_share_location, new_share_location)
-            shares = self.find_shares(self.uri)
-            # Make sure that the storage server has the share.
-            self.failUnless((share_number, ss.my_nodeid, new_share_location)
-                            in shares)
+            self._copy_share_to_server(share_number, server_number)
+
+    def _copy_share_to_server(self, share_number, server_number):
+        ss = self.g.servers_by_number[server_number]
+        # Copy share i from the directory associated with the first 
+        # storage server to the directory associated with this one.
+        assert self.g, "I tried to find a grid at self.g, but failed"
+        assert self.shares, "I tried to find shares at self.shares, but failed"
+        old_share_location = self.shares[share_number][2]
+        new_share_location = os.path.join(ss.storedir, "shares")
+        si = uri.from_string(self.uri).get_storage_index()
+        new_share_location = os.path.join(new_share_location,
+                                          storage_index_to_dir(si))
+        if not os.path.exists(new_share_location):
+            os.makedirs(new_share_location)
+        new_share_location = os.path.join(new_share_location,
+                                          str(share_number))
+        shutil.copy(old_share_location, new_share_location)
+        shares = self.find_shares(self.uri)
+        # Make sure that the storage server has the share.
+        self.failUnless((share_number, ss.my_nodeid, new_share_location)
+                        in shares)
+
 
     def _setup_and_upload(self):
         """
@@ -904,7 +914,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._add_server_with_share(server_number=3, share_number=1))
         # So, we now have the following layout:
-        # server 0: shares 1 - 10
+        # server 0: shares 0 - 9
         # server 1: share 0
         # server 2: share 1
         # server 3: share 2
@@ -919,6 +929,84 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_reset_encoding_parameters)
         # We need this to get around the fact that the old Data 
         # instance already has a happy parameter set.
+        d.addCallback(lambda client:
+            client.upload(upload.Data("data" * 10000, convergence="")))
+
+
+        # This scenario is basically comment:53, but with the order reversed;
+        # this means that the Tahoe2PeerSelector sees
+        # server 0: shares 1-10
+        # server 1: share 1
+        # server 2: share 2
+        # server 3: share 3
+        d.addCallback(_change_basedir)
+        d.addCallback(lambda ign:
+            self._setup_and_upload())
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=2, share_number=0))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=3, share_number=1))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=1, share_number=2))
+        # Copy all of the other shares to server number 2
+        def _copy_shares(ign):
+            for i in xrange(1, 10):
+                self._copy_share_to_server(i, 2)
+        d.addCallback(_copy_shares)
+        # Remove the first server, and add a placeholder with share 0
+        d.addCallback(lambda ign:
+            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=0, share_number=0))
+        # Now try uploading. 
+        d.addCallback(_reset_encoding_parameters)
+        d.addCallback(lambda client:
+            client.upload(upload.Data("data" * 10000, convergence="")))
+        # Try the same thing, but with empty servers after the first one
+        # We want to make sure that Tahoe2PeerSelector will redistribute
+        # shares as necessary, not simply discover an existing layout.
+        d.addCallback(_change_basedir)
+        d.addCallback(lambda ign:
+            self._setup_and_upload())
+        d.addCallback(lambda ign:
+            self._add_server(server_number=2))
+        d.addCallback(lambda ign:
+            self._add_server(server_number=3))
+        d.addCallback(lambda ign:
+            self._add_server(server_number=1))
+        d.addCallback(_copy_shares)
+        d.addCallback(lambda ign:
+            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        d.addCallback(lambda ign:
+            self._add_server(server_number=0))
+        d.addCallback(_reset_encoding_parameters)
+        d.addCallback(lambda client:
+            client.upload(upload.Data("data" * 10000, convergence="")))
+        # Try the following layout
+        # server 0: shares 1-10
+        # server 1: share 1, read-only
+        # server 2: share 2, read-only
+        # server 3: share 3, read-only
+        d.addCallback(_change_basedir)
+        d.addCallback(lambda ign:
+            self._setup_and_upload())
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=2, share_number=0))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=3, share_number=1,
+                                        readonly=True))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=1, share_number=2,
+                                        readonly=True))
+        # Copy all of the other shares to server number 2
+        d.addCallback(_copy_shares)
+        # Remove server 0, and add another in its place
+        d.addCallback(lambda ign:
+            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=0, share_number=0,
+                                        readonly=True))
+        d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
         return d
