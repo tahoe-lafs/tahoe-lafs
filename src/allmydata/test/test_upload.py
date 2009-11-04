@@ -931,7 +931,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d = self._setup_and_upload();
         # Add 5 servers, with one share each from the original
         def _do_server_setup(ign):
-            self._add_server_with_share(1, 1, True)
+            self._add_server_with_share(1, 1)
             self._add_server_with_share(2)
             self._add_server_with_share(3)
             self._add_server_with_share(4)
