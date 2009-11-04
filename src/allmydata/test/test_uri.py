@@ -331,3 +331,64 @@ class NewDirnode(unittest.TestCase):
             self.failUnless(IVerifierURI.providedBy(v))
             self.failUnlessEqual(v._filenode_uri,
                                  u1.get_verify_cap()._filenode_uri)
+
+    def test_immutable(self):
+        readkey = "\x01" * 16
+        uri_extension_hash = hashutil.uri_extension_hash("stuff")
+        needed_shares = 3
+        total_shares = 10
+        size = 1234
+
+        fnuri = uri.CHKFileURI(key=readkey,
+                               uri_extension_hash=uri_extension_hash,
+                               needed_shares=needed_shares,
+                               total_shares=total_shares,
+                               size=size)
+        fncap = fnuri.to_string()
+        self.failUnlessEqual(fncap, "URI:CHK:aeaqcaibaeaqcaibaeaqcaibae:nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa:3:10:1234")
+        u1 = uri.ImmutableDirectoryURI(fnuri)
+        self.failUnless(u1.is_readonly())
+        self.failIf(u1.is_mutable())
+        self.failUnless(IURI.providedBy(u1))
+        self.failIf(IFileURI.providedBy(u1))
+        self.failUnless(IDirnodeURI.providedBy(u1))
+        self.failUnless("DirectoryURI" in str(u1))
+        u1_filenode = u1.get_filenode_uri()
+        self.failIf(u1_filenode.is_mutable())
+        self.failUnless(u1_filenode.is_readonly())
+        self.failUnlessEqual(u1_filenode.to_string(), fncap)
+        self.failUnless(str(u1))
+
+        u2 = uri.from_string(u1.to_string())
+        self.failUnlessEqual(u1.to_string(), u2.to_string())
+        self.failUnless(u2.is_readonly())
+        self.failIf(u2.is_mutable())
+        self.failUnless(IURI.providedBy(u2))
+        self.failIf(IFileURI.providedBy(u2))
+        self.failUnless(IDirnodeURI.providedBy(u2))
+
+        u3 = u2.get_readonly()
+        self.failUnlessEqual(u3.to_string(), u2.to_string())
+        self.failUnless(str(u3))
+
+        u2_verifier = u2.get_verify_cap()
+        self.failUnless(isinstance(u2_verifier,
+                                   uri.ImmutableDirectoryURIVerifier), u2_verifier)
+        self.failUnless(IVerifierURI.providedBy(u2_verifier))
+        u2_verifier_fileuri = u2_verifier.get_filenode_uri()
+        self.failUnless(IVerifierURI.providedBy(u2_verifier_fileuri))
+        self.failUnlessEqual(u2_verifier_fileuri.to_string(),
+                             fnuri.get_verify_cap().to_string())
+        self.failUnless(str(u2_verifier))
+
+    def test_literal(self):
+        u1 = uri.LiteralDirectoryURI("data")
+        self.failUnless(str(u1))
+        u1s = u1.to_string()
+        self.failUnlessEqual(u1.to_string(), "URI:DIR2-LIT:mrqxiyi")
+        self.failUnless(u1.is_readonly())
+        self.failIf(u1.is_mutable())
+        self.failUnless(IURI.providedBy(u1))
+        self.failIf(IFileURI.providedBy(u1))
+        self.failUnless(IDirnodeURI.providedBy(u1))
+        self.failUnlessEqual(u1.get_verify_cap(), None)

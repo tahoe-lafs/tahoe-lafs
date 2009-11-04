@@ -48,6 +48,7 @@ class _BaseURI:
 class CHKFileURI(_BaseURI):
     implements(IURI, IImmutableFileURI)
 
+    BASE_STRING='URI:CHK:'
     STRING_RE=re.compile('^URI:CHK:'+BASE32STR_128bits+':'+
                          BASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER+
                          '$')
@@ -159,6 +160,7 @@ class CHKFileVerifierURI(_BaseURI):
 class LiteralFileURI(_BaseURI):
     implements(IURI, IImmutableFileURI)
 
+    BASE_STRING='URI:LIT:'
     STRING_RE=re.compile('^URI:LIT:'+base32.BASE32STR_anybytes+'$')
     HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'LIT'+SEP+base32.BASE32STR_anybytes+'$')
 
@@ -422,6 +424,44 @@ class ReadonlyDirectoryURI(_DirectoryBaseURI):
     def get_readonly(self):
         return self
 
+class _ImmutableDirectoryBaseURI(_DirectoryBaseURI):
+    def __init__(self, filenode_uri=None):
+        if filenode_uri:
+            assert isinstance(filenode_uri, self.INNER_URI_CLASS), filenode_uri
+        _DirectoryBaseURI.__init__(self, filenode_uri)
+
+    def is_mutable(self):
+        return False
+
+    def is_readonly(self):
+        return True
+
+    def get_readonly(self):
+        return self
+
+class ImmutableDirectoryURI(_ImmutableDirectoryBaseURI):
+    BASE_STRING='URI:DIR2-CHK:'
+    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-CHK'+SEP)
+    INNER_URI_CLASS=CHKFileURI
+    def get_verify_cap(self):
+        vcap = self._filenode_uri.get_verify_cap()
+        return ImmutableDirectoryURIVerifier(vcap)
+
+
+class LiteralDirectoryURI(_ImmutableDirectoryBaseURI):
+    BASE_STRING='URI:DIR2-LIT:'
+    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-LIT'+SEP)
+    INNER_URI_CLASS=LiteralFileURI
+    def __init__(self, data=None):
+        filenode_uri = LiteralFileURI(data)
+        _ImmutableDirectoryBaseURI.__init__(self, filenode_uri)
+    def get_verify_cap(self):
+        # LIT caps have no verifier, since they aren't distributed
+        return None
+
+
 class DirectoryURIVerifier(_DirectoryBaseURI):
     implements(IVerifierURI)
 
@@ -437,6 +477,13 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
 
     def get_filenode_uri(self):
         return self._filenode_uri
+
+class ImmutableDirectoryURIVerifier(DirectoryURIVerifier):
+    implements(IVerifierURI)
+    BASE_STRING='URI:DIR2-CHK-Verifier:'
+    BASE_STRING_RE=re.compile('^'+BASE_STRING)
+    BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-CHK-VERIFIER'+SEP)
+    INNER_URI_CLASS=CHKFileVerifierURI
 
 class UnknownURI:
     def __init__(self, uri):
@@ -465,6 +512,10 @@ def from_string(s):
         return ReadonlyDirectoryURI.init_from_string(s)
     elif s.startswith('URI:DIR2-Verifier:'):
         return DirectoryURIVerifier.init_from_string(s)
+    elif s.startswith('URI:DIR2-CHK:'):
+        return ImmutableDirectoryURI.init_from_string(s)
+    elif s.startswith('URI:DIR2-LIT:'):
+        return LiteralDirectoryURI.init_from_string(s)
     return UnknownURI(s)
 
 def is_uri(s):
