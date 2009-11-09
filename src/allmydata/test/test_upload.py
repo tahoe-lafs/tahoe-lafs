@@ -1122,6 +1122,42 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.failUnlessEqual(set([4, 5]), shares_by_server["server2"])
 
 
+    def test_existing_share_detection(self):
+        self.basedir = self.mktemp()
+        d = self._setup_and_upload()
+        # Our final setup should look like this:
+        # server 1: shares 1 - 10, read-only
+        # server 2: empty
+        # server 3: empty
+        # server 4: empty
+        # The purpose of this test is to make sure that the peer selector
+        # knows about the shares on server 1, even though it is read-only.
+        # It used to simply filter these out, which would cause the test
+        # to fail when servers_of_happiness = 4.
+        d.addCallback(lambda ign:
+            self._add_server_with_share(1, 0, True))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(2))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(3))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(4))
+        def _copy_shares(ign):
+            for i in xrange(1, 10):
+                self._copy_share_to_server(i, 1)
+        d.addCallback(_copy_shares)
+        d.addCallback(lambda ign:
+            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        def _prepare_client(ign):
+            client = self.g.clients[0]
+            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            return client
+        d.addCallback(_prepare_client)
+        d.addCallback(lambda client:
+            client.upload(upload.Data("data" * 10000, convergence="")))
+        return d
+
+
     def _set_up_nodes_extra_config(self, clientdir):
         cfgfn = os.path.join(clientdir, "tahoe.cfg")
         oldcfg = open(cfgfn, "r").read()
