@@ -374,7 +374,7 @@ class _DirectoryBaseURI(_BaseURI):
     def abbrev_si(self):
         return base32.b2a(self._filenode_uri.storage_index)[:5]
 
-    def get_filenode_uri(self):
+    def get_filenode_cap(self):
         return self._filenode_uri
 
     def is_mutable(self):
@@ -475,7 +475,7 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
             filenode_uri = IVerifierURI(filenode_uri)
         self._filenode_uri = filenode_uri
 
-    def get_filenode_uri(self):
+    def get_filenode_cap(self):
         return self._filenode_uri
 
 class ImmutableDirectoryURIVerifier(DirectoryURIVerifier):

@@ -6,7 +6,7 @@ from allmydata.immutable.filenode import FileNode, LiteralFileNode
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.dirnode import DirectoryNode, pack_children
 from allmydata.unknown import UnknownNode
-from allmydata.uri import DirectoryURI, ReadonlyDirectoryURI
+from allmydata import uri
 
 class NodeMaker:
     implements(INodeMaker)
@@ -35,41 +35,42 @@ class NodeMaker:
         n = MutableFileNode(self.storage_broker, self.secret_holder,
                             self.default_encoding_parameters,
                             self.history)
-        return n.init_from_uri(cap)
+        return n.init_from_cap(cap)
     def _create_dirnode(self, filenode):
         return DirectoryNode(filenode, self, self.uploader)
 
     def create_from_cap(self, writecap, readcap=None):
-        # this returns synchronously.
+        # this returns synchronously. It starts with a "cap string".
         assert isinstance(writecap, (str, type(None))), type(writecap)
         assert isinstance(readcap,  (str, type(None))), type(readcap)
-        cap = writecap or readcap
-        if not cap:
+        bigcap = writecap or readcap
+        if not bigcap:
             # maybe the writecap was hidden because we're in a readonly
             # directory, and the future cap format doesn't have a readcap, or
             # something.
             return UnknownNode(writecap, readcap)
-        if cap in self._node_cache:
-            return self._node_cache[cap]
-        elif cap.startswith("URI:LIT:"):
-            node = self._create_lit(cap)
-        elif cap.startswith("URI:CHK:"):
-            node = self._create_immutable(cap)
-        elif cap.startswith("URI:SSK-RO:") or cap.startswith("URI:SSK:"):
-            node = self._create_mutable(cap)
-        elif cap.startswith("URI:DIR2-RO:") or cap.startswith("URI:DIR2:"):
-            if cap.startswith("URI:DIR2-RO:"):
-                dircap = ReadonlyDirectoryURI.init_from_string(cap)
-            elif cap.startswith("URI:DIR2:"):
-                dircap = DirectoryURI.init_from_string(cap)
-            filecap = dircap.get_filenode_uri().to_string()
-            filenode = self.create_from_cap(filecap)
-            node = self._create_dirnode(filenode)
+        if bigcap in self._node_cache:
+            return self._node_cache[bigcap]
+        cap = uri.from_string(bigcap)
+        node = self._create_from_cap(cap)
+        if node:
+            self._node_cache[bigcap] = node  # note: WeakValueDictionary
         else:
-            return UnknownNode(writecap, readcap) # don't cache UnknownNode
-        self._node_cache[cap] = node  # note: WeakValueDictionary
+            node = UnknownNode(writecap, readcap) # don't cache UnknownNode
         return node
 
+    def _create_from_cap(self, cap):
+        # This starts with a "cap instance"
+        if isinstance(cap, uri.LiteralFileURI):
+            return self._create_lit(cap)
+        if isinstance(cap, uri.CHKFileURI):
+            return self._create_immutable(cap)
+        if isinstance(cap, (uri.ReadonlySSKFileURI, uri.WriteableSSKFileURI)):
+            return self._create_mutable(cap)
+        if isinstance(cap, (uri.ReadonlyDirectoryURI, uri.DirectoryURI)):
+            filenode = self._create_from_cap(cap.get_filenode_cap())
+            return self._create_dirnode(filenode)
+        return None
 
     def create_mutable_file(self, contents=None, keysize=None):
         n = MutableFileNode(self.storage_broker, self.secret_holder,

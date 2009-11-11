@@ -1032,7 +1032,7 @@ class UCWEingNodeMaker(NodeMaker):
         n = UCWEingMutableFileNode(self.storage_broker, self.secret_holder,
                                    self.default_encoding_parameters,
                                    self.history)
-        return n.init_from_uri(cap)
+        return n.init_from_cap(cap)
 
 
 class Deleter(GridTestMixin, unittest.TestCase):

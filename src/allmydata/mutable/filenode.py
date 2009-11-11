@@ -76,19 +76,16 @@ class MutableFileNode:
         else:
             return "<%s %x %s %s>" % (self.__class__.__name__, id(self), None, None)
 
-    def init_from_uri(self, filecap):
+    def init_from_cap(self, filecap):
         # we have the URI, but we have not yet retrieved the public
         # verification key, nor things like 'k' or 'N'. If and when someone
         # wants to get our contents, we'll pull from shares and fill those
         # in.
-        assert isinstance(filecap, str)
-        if filecap.startswith("URI:SSK:"):
-            self._uri = WriteableSSKFileURI.init_from_string(filecap)
+        assert isinstance(filecap, (ReadonlySSKFileURI, WriteableSSKFileURI))
+        self._uri = filecap
+        self._writekey = None
+        if isinstance(filecap, WriteableSSKFileURI):
             self._writekey = self._uri.writekey
-        else:
-            assert filecap.startswith("URI:SSK-RO:")
-            self._uri = ReadonlySSKFileURI.init_from_string(filecap)
-            self._writekey = None
         self._readkey = self._uri.readkey
         self._storage_index = self._uri.storage_index
         self._fingerprint = self._uri.fingerprint
@@ -188,20 +185,32 @@ class MutableFileNode:
     ####################################
     # IFilesystemNode
 
-    def get_uri(self):
-        return self._uri.to_string()
     def get_size(self):
         return "?" # TODO: this is likely to cause problems, not being an int
+
+    def get_cap(self):
+        return self._uri
+    def get_readcap(self):
+        return self._uri.get_readonly()
+    def get_verify_cap(self):
+        return IMutableFileURI(self._uri).get_verify_cap()
+    def get_repair_cap(self):
+        if self._uri.is_readonly():
+            return None
+        return self._uri
+
+    def get_uri(self):
+        return self._uri.to_string()
+    def get_readonly_uri(self):
+        return self._uri.get_readonly().to_string()
+
     def get_readonly(self):
         if self.is_readonly():
             return self
         ro = MutableFileNode(self._storage_broker, self._secret_holder,
                              self._default_encoding_parameters, self._history)
-        ro.init_from_uri(self.get_readonly_uri())
+        ro.init_from_cap(self._uri.get_readonly())
         return ro
-
-    def get_readonly_uri(self):
-        return self._uri.get_readonly().to_string()
 
     def is_mutable(self):
         return self._uri.is_mutable()
@@ -216,14 +225,6 @@ class MutableFileNode:
         if cmp(self.__class__, them.__class__):
             return cmp(self.__class__, them.__class__)
         return cmp(self._uri, them._uri)
-
-    def get_verify_cap(self):
-        return IMutableFileURI(self._uri).get_verify_cap()
-
-    def get_repair_cap(self):
-        if self._uri.is_readonly():
-            return None
-        return self._uri
 
     def _do_serialized(self, cb, *args, **kwargs):
         # note: to avoid deadlock, this callable is *not* allowed to invoke

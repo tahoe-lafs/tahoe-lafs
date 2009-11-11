@@ -135,6 +135,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             log.msg("upload finished: uri is %s" % (theuri,))
             self.uri = theuri
             assert isinstance(self.uri, str), self.uri
+            self.cap = uri.from_string(self.uri)
             self.downloader = self.clients[1].downloader
         d.addCallback(_upload_done)
 
@@ -151,7 +152,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         def _download_to_data(res):
             log.msg("DOWNLOADING")
-            return self.downloader.download_to_data(self.uri)
+            return self.downloader.download_to_data(self.cap)
         d.addCallback(_download_to_data)
         def _download_to_data_done(data):
             log.msg("download finished")
@@ -160,7 +161,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         target_filename = os.path.join(self.basedir, "download.target")
         def _download_to_filename(res):
-            return self.downloader.download_to_filename(self.uri,
+            return self.downloader.download_to_filename(self.cap,
                                                         target_filename)
         d.addCallback(_download_to_filename)
         def _download_to_filename_done(res):
@@ -171,7 +172,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         target_filename2 = os.path.join(self.basedir, "download.target2")
         def _download_to_filehandle(res):
             fh = open(target_filename2, "wb")
-            return self.downloader.download_to_filehandle(self.uri, fh)
+            return self.downloader.download_to_filehandle(self.cap, fh)
         d.addCallback(_download_to_filehandle)
         def _download_to_filehandle_done(fh):
             fh.close()
@@ -182,7 +183,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         consumer = GrabEverythingConsumer()
         ct = download.ConsumerAdapter(consumer)
         d.addCallback(lambda res:
-                      self.downloader.download(self.uri, ct))
+                      self.downloader.download(self.cap, ct))
         def _download_to_consumer_done(ign):
             self.failUnlessEqual(consumer.contents, DATA)
         d.addCallback(_download_to_consumer_done)
@@ -228,7 +229,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             baduri = self.mangle_uri(self.uri)
             log.msg("about to download non-existent URI", level=log.UNUSUAL,
                     facility="tahoe.tests")
-            d1 = self.downloader.download_to_data(baduri)
+            d1 = self.downloader.download_to_data(uri.from_string(baduri))
             def _baduri_should_fail(res):
                 log.msg("finished downloading non-existend URI",
                         level=log.UNUSUAL, facility="tahoe.tests")
@@ -253,8 +254,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             u = upload.Data(HELPER_DATA, convergence=convergence)
             d = self.extra_node.upload(u)
             def _uploaded(results):
-                uri = results.uri
-                return self.downloader.download_to_data(uri)
+                cap = uri.from_string(results.uri)
+                return self.downloader.download_to_data(cap)
             d.addCallback(_uploaded)
             def _check(newdata):
                 self.failUnlessEqual(newdata, HELPER_DATA)
@@ -267,8 +268,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             u.debug_stash_RemoteEncryptedUploadable = True
             d = self.extra_node.upload(u)
             def _uploaded(results):
-                uri = results.uri
-                return self.downloader.download_to_data(uri)
+                cap = uri.from_string(results.uri)
+                return self.downloader.download_to_data(cap)
             d.addCallback(_uploaded)
             def _check(newdata):
                 self.failUnlessEqual(newdata, HELPER_DATA)
@@ -355,7 +356,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             d.addCallback(lambda res: self.extra_node.upload(u2))
 
             def _uploaded(results):
-                uri = results.uri
+                cap = uri.from_string(results.uri)
                 log.msg("Second upload complete", level=log.NOISY,
                         facility="tahoe.test.test_system")
 
@@ -383,7 +384,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                                 "resumption saved us some work even though we were using random keys:"
                                 " read %d bytes out of %d total" %
                                 (bytes_sent, len(DATA)))
-                return self.downloader.download_to_data(uri)
+                return self.downloader.download_to_data(cap)
             d.addCallback(_uploaded)
 
             def _check(newdata):

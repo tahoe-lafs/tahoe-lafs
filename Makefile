@@ -223,6 +223,9 @@ check-grid: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
 	$(PYTHON) src/allmydata/test/check_grid.py $(TESTCLIENTDIR) bin/tahoe
 
+bench-dirnode: .built
+	$(RUNPP) -p -c src/allmydata/test/bench_dirnode.py
+
 # 'make repl' is a simple-to-type command to get a Python interpreter loop
 # from which you can type 'import allmydata'
 repl:

@@ -39,8 +39,8 @@ class FakeCHKFileNode:
     bad_shares = {}
 
     def __init__(self, filecap):
-        precondition(isinstance(filecap, str), filecap)
-        self.my_uri = uri.CHKFileURI.init_from_string(filecap)
+        precondition(isinstance(filecap, uri.CHKFileURI), filecap)
+        self.my_uri = filecap
         self.storage_index = self.my_uri.storage_index
 
     def get_uri(self):
@@ -130,18 +130,19 @@ class FakeCHKFileNode:
         d.addCallback(_got)
         return d
 
+def make_chk_file_cap(size):
+    return uri.CHKFileURI(key=os.urandom(16),
+                          uri_extension_hash=os.urandom(32),
+                          needed_shares=3,
+                          total_shares=10,
+                          size=size)
 def make_chk_file_uri(size):
-    u = uri.CHKFileURI(key=os.urandom(16),
-                       uri_extension_hash=os.urandom(32),
-                       needed_shares=3,
-                       total_shares=10,
-                       size=size)
-    return u.to_string()
+    return make_chk_file_cap(size).to_string()
 
 def create_chk_filenode(contents):
-    filecap = make_chk_file_uri(len(contents))
+    filecap = make_chk_file_cap(len(contents))
     n = FakeCHKFileNode(filecap)
-    FakeCHKFileNode.all_contents[filecap] = contents
+    FakeCHKFileNode.all_contents[filecap.to_string()] = contents
     return n
 
 
@@ -156,7 +157,7 @@ class FakeMutableFileNode:
 
     def __init__(self, storage_broker, secret_holder,
                  default_encoding_parameters, history):
-        self.init_from_uri(make_mutable_file_uri())
+        self.init_from_cap(make_mutable_file_cap())
     def create(self, contents, key_generator=None, keysize=None):
         initial_contents = self._get_initial_contents(contents)
         if len(initial_contents) > self.MUTABLE_SIZELIMIT:
@@ -173,15 +174,16 @@ class FakeMutableFileNode:
         assert callable(contents), "%s should be callable, not %s" % \
                (contents, type(contents))
         return contents(self)
-    def init_from_uri(self, filecap):
-        assert isinstance(filecap, str)
-        if filecap.startswith("URI:SSK:"):
-            self.my_uri = uri.WriteableSSKFileURI.init_from_string(filecap)
-        else:
-            assert filecap.startswith("URI:SSK-RO:")
-            self.my_uri = uri.ReadonlySSKFileURI.init_from_string(filecap)
+    def init_from_cap(self, filecap):
+        assert isinstance(filecap, (uri.WriteableSSKFileURI,
+                                    uri.ReadonlySSKFileURI))
+        self.my_uri = filecap
         self.storage_index = self.my_uri.storage_index
         return self
+    def get_cap(self):
+        return self.my_uri
+    def get_readcap(self):
+        return self.my_uri.get_readonly()
     def get_uri(self):
         return self.my_uri.to_string()
     def get_readonly(self):
@@ -296,9 +298,12 @@ class FakeMutableFileNode:
         data = self.all_contents[self.storage_index]
         return defer.succeed(data)
 
-def make_mutable_file_uri():
+def make_mutable_file_cap():
     return uri.WriteableSSKFileURI(writekey=os.urandom(16),
-                                   fingerprint=os.urandom(32)).to_string()
+                                   fingerprint=os.urandom(32))
+def make_mutable_file_uri():
+    return make_mutable_file_cap().to_string()
+
 def make_verifier_uri():
     return uri.SSKVerifierURI(storage_index=os.urandom(16),
                               fingerprint=os.urandom(32)).to_string()

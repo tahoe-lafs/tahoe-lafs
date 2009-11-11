@@ -32,12 +32,14 @@ class Node(unittest.TestCase):
                            size=1000)
         c = FakeClient()
         cf = cachedir.CacheFile("none")
-        fn1 = filenode.FileNode(u.to_string(), None, None, None, None, cf)
-        fn2 = filenode.FileNode(u.to_string(), None, None, None, None, cf)
+        fn1 = filenode.FileNode(u, None, None, None, None, cf)
+        fn2 = filenode.FileNode(u, None, None, None, None, cf)
         self.failUnlessEqual(fn1, fn2)
         self.failIfEqual(fn1, "I am not a filenode")
         self.failIfEqual(fn1, NotANode())
         self.failUnlessEqual(fn1.get_uri(), u.to_string())
+        self.failUnlessEqual(fn1.get_cap(), u)
+        self.failUnlessEqual(fn1.get_readcap(), u)
         self.failUnlessEqual(fn1.is_readonly(), True)
         self.failUnlessEqual(fn1.is_mutable(), False)
         self.failUnlessEqual(fn1.get_readonly_uri(), u.to_string())
@@ -54,12 +56,14 @@ class Node(unittest.TestCase):
         DATA = "I am a short file."
         u = uri.LiteralFileURI(data=DATA)
         c = None
-        fn1 = filenode.LiteralFileNode(u.to_string())
-        fn2 = filenode.LiteralFileNode(u.to_string())
+        fn1 = filenode.LiteralFileNode(u)
+        fn2 = filenode.LiteralFileNode(u)
         self.failUnlessEqual(fn1, fn2)
         self.failIfEqual(fn1, "I am not a filenode")
         self.failIfEqual(fn1, NotANode())
         self.failUnlessEqual(fn1.get_uri(), u.to_string())
+        self.failUnlessEqual(fn1.get_cap(), u)
+        self.failUnlessEqual(fn1.get_readcap(), u)
         self.failUnlessEqual(fn1.is_readonly(), True)
         self.failUnlessEqual(fn1.is_mutable(), False)
         self.failUnlessEqual(fn1.get_readonly_uri(), u.to_string())
@@ -99,7 +103,7 @@ class Node(unittest.TestCase):
 
         u = uri.WriteableSSKFileURI("\x00"*16, "\x00"*32)
         n = MutableFileNode(None, None, client.get_encoding_parameters(),
-                            None).init_from_uri(u.to_string())
+                            None).init_from_cap(u)
 
         self.failUnlessEqual(n.get_writekey(), wk)
         self.failUnlessEqual(n.get_readkey(), rk)
@@ -112,11 +116,13 @@ class Node(unittest.TestCase):
 
         self.failUnlessEqual(n.get_uri(), u.to_string())
         self.failUnlessEqual(n.get_readonly_uri(), u.get_readonly().to_string())
+        self.failUnlessEqual(n.get_cap(), u)
+        self.failUnlessEqual(n.get_readcap(), u.get_readonly())
         self.failUnlessEqual(n.is_mutable(), True)
         self.failUnlessEqual(n.is_readonly(), False)
 
         n2 = MutableFileNode(None, None, client.get_encoding_parameters(),
-                             None).init_from_uri(u.to_string())
+                             None).init_from_cap(u)
         self.failUnlessEqual(n, n2)
         self.failIfEqual(n, "not even the right type")
         self.failIfEqual(n, u) # not the right class
@@ -128,6 +134,8 @@ class Node(unittest.TestCase):
         self.failUnless(isinstance(nro, MutableFileNode))
 
         self.failUnlessEqual(nro.get_readonly(), nro)
+        self.failUnlessEqual(nro.get_cap(), u.get_readonly())
+        self.failUnlessEqual(nro.get_readcap(), u.get_readonly())
         nro_u = nro.get_uri()
         self.failUnlessEqual(nro_u, nro.get_readonly_uri())
         self.failUnlessEqual(nro_u, u.get_readonly().to_string())
@@ -143,7 +151,7 @@ class LiteralChecker(unittest.TestCase):
     def test_literal_filenode(self):
         DATA = "I am a short file."
         u = uri.LiteralFileURI(data=DATA)
-        fn1 = filenode.LiteralFileNode(u.to_string())
+        fn1 = filenode.LiteralFileNode(u)
 
         d = fn1.check(Monitor())
         def _check_checker_results(cr):

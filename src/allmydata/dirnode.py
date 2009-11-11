@@ -271,12 +271,15 @@ class DirectoryNode:
     def get_readonly_uri(self):
         return self._uri.get_readonly().to_string()
 
+    def get_cap(self):
+        return self._uri
+    def get_readcap(self):
+        return self._uri.get_readonly()
     def get_verify_cap(self):
         return self._uri.get_verify_cap()
-
     def get_repair_cap(self):
         if self._node.is_readonly():
-            return None
+            return None # readonly (mutable) dirnodes are not yet repairable
         return self._uri
 
     def get_storage_index(self):

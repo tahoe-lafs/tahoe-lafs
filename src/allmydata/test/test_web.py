@@ -43,7 +43,7 @@ class FakeNodeMaker(NodeMaker):
     def _create_immutable(self, cap):
         return FakeCHKFileNode(cap)
     def _create_mutable(self, cap):
-        return FakeMutableFileNode(None, None, None, None).init_from_uri(cap)
+        return FakeMutableFileNode(None, None, None, None).init_from_cap(cap)
     def create_mutable_file(self, contents="", keysize=None):
         n = FakeMutableFileNode(None, None, None, None)
         return n.create(contents)

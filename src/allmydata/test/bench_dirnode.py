@@ -2,49 +2,32 @@ import hotshot.stats, os, random, sys
 
 from pyutil import benchutil, randutil # http://allmydata.org/trac/pyutil
 
-from allmydata import client, dirnode, uri
+from allmydata import dirnode, uri
 from allmydata.mutable import filenode as mut_filenode
 from allmydata.immutable import filenode as immut_filenode
-from allmydata.util import cachedir, fileutil
-
-class FakeClient(client.Client):
-    # just enough
-    def __init__(self):
-        self._node_cache = {}
-        download_cachedir = fileutil.NamedTemporaryDirectory()
-        self.download_cache_dirman = cachedir.CacheDirectoryManager(download_cachedir.name)
-    def getServiceNamed(self, name):
-        return None
-    def get_storage_broker(self):
-        return None
-    _secret_holder=None
-    def get_history(self):
-        return None
-    def get_encoding_parameters(self):
-        return {"k": 3, "n": 10}
-    def get_writekey(self):
-        return os.urandom(16)
-    def create_node_from_uri(self, writecap, readcap):
-        return None
-
-class FakeMutableFileNode(mut_filenode.MutableFileNode):
-    def __init__(self, *args, **kwargs):
-        mut_filenode.MutableFileNode.__init__(self, *args, **kwargs)
-        self._uri = uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))
-
-class FakeDirectoryNode(dirnode.DirectoryNode):
-    def __init__(self, client):
-        dirnode.DirectoryNode.__init__(self, client)
-        mutfileuri = uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))
-        myuri = uri.DirectoryURI(mutfileuri).to_string()
-        self.init_from_uri(myuri)
-
 
 children = [] # tuples of (k, v) (suitable for passing to dict())
 packstr = None
-fakeclient = FakeClient()
-testdirnode = dirnode.DirectoryNode(fakeclient)
-testdirnode.init_from_uri(uri.DirectoryURI(uri.WriteableSSKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32))).to_string())
+
+class ContainerNode:
+    # dirnodes sit on top of a "container" filenode, from which it extracts a
+    # writekey
+    def __init__(self):
+        self._writekey = randutil.insecurerandstr(16)
+        self._fingerprint = randutil.insecurerandstr(32)
+        self._cap = uri.WriteableSSKFileURI(self._writekey, self._fingerprint)
+    def get_writekey(self):
+        return self._writekey
+    def get_uri(self):
+        return self._cap.to_string()
+    def is_readonly(self):
+        return False
+class FakeNodeMaker:
+    def create_from_cap(self, writecap, readcap=None):
+        return None
+
+nodemaker = FakeNodeMaker()
+testdirnode = dirnode.DirectoryNode(ContainerNode(), nodemaker, uploader=None)
 
 def random_unicode(l):
     while True:
@@ -53,16 +36,28 @@ def random_unicode(l):
         except UnicodeDecodeError:
             pass
 
+encoding_parameters = {"k": 3, "n": 10}
 def random_fsnode():
     coin = random.randrange(0, 3)
     if coin == 0:
-        return immut_filenode.FileNode(uri.CHKFileURI(randutil.insecurerandstr(16), randutil.insecurerandstr(32), random.randrange(1, 5), random.randrange(6, 15), random.randrange(99, 1000000000000)).to_string(), None, None, None, None, None)
+        cap = uri.CHKFileURI(randutil.insecurerandstr(16),
+                             randutil.insecurerandstr(32),
+                             random.randrange(1, 5),
+                             random.randrange(6, 15),
+                             random.randrange(99, 1000000000000))
+        return immut_filenode.FileNode(cap, None, None, None, None, None)
     elif coin == 1:
-        encoding_parameters = {"k": 3, "n": 10}
-        return FakeMutableFileNode(None, None, encoding_parameters, None)
+        cap = uri.WriteableSSKFileURI(randutil.insecurerandstr(16),
+                                      randutil.insecurerandstr(32))
+        n = mut_filenode.MutableFileNode(None, None, encoding_parameters, None)
+        return n.init_from_cap(cap)
     else:
         assert coin == 2
-        return FakeDirectoryNode(fakeclient)
+        cap = uri.WriteableSSKFileURI(randutil.insecurerandstr(16),
+                                      randutil.insecurerandstr(32))
+        n = mut_filenode.MutableFileNode(None, None, encoding_parameters, None)
+        n.init_from_cap(cap)
+        return dirnode.DirectoryNode(n, nodemaker, uploader=None)
 
 def random_metadata():
     d = {}
@@ -78,7 +73,8 @@ def random_child():
 
 def init_for_pack(N):
     for i in xrange(len(children), N):
-        children.append((random_unicode(random.randrange(1, 9)), random_child()))
+        name = random_unicode(random.randrange(1, 9))
+        children.append( (name, random_child()) )
 
 def init_for_unpack(N):
     global packstr
@@ -86,7 +82,7 @@ def init_for_unpack(N):
     packstr = pack(N)
 
 def pack(N):
-    return testdirnode._pack_contents(dirnode.CachingDict(children[:N]))
+    return testdirnode._pack_contents(dict(children[:N]))
 
 def unpack(N):
     return testdirnode._unpack_contents(packstr)
@@ -97,9 +93,12 @@ def unpack_and_repack(N):
 PROF_FILE_NAME="bench_dirnode.prof"
 
 def run_benchmarks(profile=False):
-    for (func, initfunc) in [(unpack, init_for_unpack), (pack, init_for_pack), (unpack_and_repack, init_for_unpack)]:
+    for (initfunc, func) in [(init_for_unpack, unpack),
+                             (init_for_pack, pack),
+                             (init_for_unpack, unpack_and_repack)]:
         print "benchmarking %s" % (func,)
-        benchutil.bench(unpack_and_repack, initfunc=init_for_unpack, TOPXP=12)#, profile=profile, profresults=PROF_FILE_NAME)
+        benchutil.bench(unpack_and_repack, initfunc=init_for_unpack,
+                        TOPXP=12)#, profile=profile, profresults=PROF_FILE_NAME)
 
 def print_stats():
     s = hotshot.stats.load(PROF_FILE_NAME)

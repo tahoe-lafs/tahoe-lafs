@@ -8,7 +8,7 @@ from foolscap.api import eventually
 from allmydata.interfaces import IFileNode, ICheckable, \
      IDownloadTarget, IUploadResults
 from allmydata.util import dictutil, log, base32
-from allmydata import uri as urimodule
+from allmydata.uri import CHKFileURI, LiteralFileURI
 from allmydata.immutable.checker import Checker
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.immutable.repairer import Repairer
@@ -181,8 +181,8 @@ class DownloadCache:
 class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
     def __init__(self, filecap, storage_broker, secret_holder,
                  downloader, history, cachedirectorymanager):
-        assert isinstance(filecap, str)
-        self.u = urimodule.CHKFileURI.init_from_string(filecap)
+        assert isinstance(filecap, CHKFileURI)
+        self.u = filecap
         self._storage_broker = storage_broker
         self._secret_holder = secret_holder
         self._downloader = downloader
@@ -194,18 +194,21 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
         log.PrefixingLogMixin.__init__(self, "allmydata.immutable.filenode", prefix=prefix)
         self.log("starting", level=log.OPERATIONAL)
 
-    def get_uri(self):
-        return self.u.to_string()
-
     def get_size(self):
         return self.u.get_size()
 
+    def get_cap(self):
+        return self.u
+    def get_readcap(self):
+        return self.u.get_readonly()
     def get_verify_cap(self):
         return self.u.get_verify_cap()
-
     def get_repair_cap(self):
         # CHK files can be repaired with just the verifycap
         return self.u.get_verify_cap()
+
+    def get_uri(self):
+        return self.u.to_string()
 
     def get_storage_index(self):
         return self.u.storage_index
@@ -294,13 +297,15 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
         return d
 
     def download(self, target):
-        return self._downloader.download(self.get_uri(), target,
+        return self._downloader.download(self.get_cap(), target,
                                          self._parentmsgid,
                                          history=self._history)
 
     def download_to_data(self):
-        return self._downloader.download_to_data(self.get_uri(),
+        return self._downloader.download_to_data(self.get_cap(),
                                                  history=self._history)
+    def download_to_filename(self, filename):
+        return self._downloader.download_to_filename(self.get_cap(), filename)
 
 class LiteralProducer:
     implements(IPushProducer)
@@ -313,20 +318,23 @@ class LiteralProducer:
 class LiteralFileNode(_ImmutableFileNodeBase):
 
     def __init__(self, filecap):
-        assert isinstance(filecap, str)
-        self.u = urimodule.LiteralFileURI.init_from_string(filecap)
-
-    def get_uri(self):
-        return self.u.to_string()
+        assert isinstance(filecap, LiteralFileURI)
+        self.u = filecap
 
     def get_size(self):
         return len(self.u.data)
 
+    def get_cap(self):
+        return self.u
+    def get_readcap(self):
+        return self.u
     def get_verify_cap(self):
         return None
-
     def get_repair_cap(self):
         return None
+
+    def get_uri(self):
+        return self.u.to_string()
 
     def get_storage_index(self):
         return None

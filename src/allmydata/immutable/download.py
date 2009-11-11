@@ -7,8 +7,7 @@ from foolscap.api import DeadReferenceError, RemoteException, eventually
 from allmydata.util import base32, deferredutil, hashutil, log, mathutil, idlib
 from allmydata.util.assertutil import _assert, precondition
 from allmydata import codec, hashtree, uri
-from allmydata.interfaces import IDownloadTarget, IDownloader, \
-     IFileURI, IVerifierURI, \
+from allmydata.interfaces import IDownloadTarget, IDownloader, IVerifierURI, \
      IDownloadStatus, IDownloadResults, IValidatedThingProxy, \
      IStorageBroker, NotEnoughSharesError, NoSharesError, NoServersError, \
      UnableToFetchCriticalDownloadDataError
@@ -1330,12 +1329,11 @@ class Downloader:
         self._all_downloads = weakref.WeakKeyDictionary() # for debugging
 
     def download(self, u, t, _log_msg_id=None, monitor=None, history=None):
-        u = IFileURI(u)
+        assert isinstance(u, uri.CHKFileURI)
         t = IDownloadTarget(t)
         assert t.write
         assert t.close
 
-        assert isinstance(u, uri.CHKFileURI)
         if self.stats_provider:
             # these counters are meant for network traffic, and don't
             # include LIT files

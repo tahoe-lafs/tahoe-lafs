@@ -279,7 +279,7 @@ class NewDirnode(unittest.TestCase):
         self.failIf(IFileURI.providedBy(u1))
         self.failUnless(IDirnodeURI.providedBy(u1))
         self.failUnless("DirectoryURI" in str(u1))
-        u1_filenode = u1.get_filenode_uri()
+        u1_filenode = u1.get_filenode_cap()
         self.failUnless(u1_filenode.is_mutable())
         self.failIf(u1_filenode.is_readonly())
         u1a = IDirnodeURI(u1.to_string())
@@ -302,7 +302,7 @@ class NewDirnode(unittest.TestCase):
         u3n = u3._filenode_uri
         self.failUnless(u3n.is_readonly())
         self.failUnless(u3n.is_mutable())
-        u3_filenode = u3.get_filenode_uri()
+        u3_filenode = u3.get_filenode_cap()
         self.failUnless(u3_filenode.is_mutable())
         self.failUnless(u3_filenode.is_readonly())
 
@@ -318,7 +318,7 @@ class NewDirnode(unittest.TestCase):
         self.failUnless(IDirnodeURI.providedBy(u4))
 
         u4_verifier = u4.get_verify_cap()
-        u4_verifier_filenode = u4_verifier.get_filenode_uri()
+        u4_verifier_filenode = u4_verifier.get_filenode_cap()
         self.failUnless(isinstance(u4_verifier_filenode, uri.SSKVerifierURI))
 
         verifiers = [u1.get_verify_cap(), u2.get_verify_cap(),
@@ -353,7 +353,7 @@ class NewDirnode(unittest.TestCase):
         self.failIf(IFileURI.providedBy(u1))
         self.failUnless(IDirnodeURI.providedBy(u1))
         self.failUnless("DirectoryURI" in str(u1))
-        u1_filenode = u1.get_filenode_uri()
+        u1_filenode = u1.get_filenode_cap()
         self.failIf(u1_filenode.is_mutable())
         self.failUnless(u1_filenode.is_readonly())
         self.failUnlessEqual(u1_filenode.to_string(), fncap)
@@ -375,7 +375,7 @@ class NewDirnode(unittest.TestCase):
         self.failUnless(isinstance(u2_verifier,
                                    uri.ImmutableDirectoryURIVerifier), u2_verifier)
         self.failUnless(IVerifierURI.providedBy(u2_verifier))
-        u2_verifier_fileuri = u2_verifier.get_filenode_uri()
+        u2_verifier_fileuri = u2_verifier.get_filenode_cap()
         self.failUnless(IVerifierURI.providedBy(u2_verifier_fileuri))
         self.failUnlessEqual(u2_verifier_fileuri.to_string(),
                              fnuri.get_verify_cap().to_string())

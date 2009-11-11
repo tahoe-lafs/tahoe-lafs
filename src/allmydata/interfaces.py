@@ -481,6 +481,32 @@ class UnhandledCapTypeError(Exception):
     it."""
 
 class IFilesystemNode(Interface):
+    def get_cap():
+        """Return the strongest 'cap instance' associated with this node.
+        (writecap for writeable-mutable files/directories, readcap for
+        immutable or readonly-mutable files/directories). To convert this
+        into a string, call .to_string() on the result."""
+
+    def get_readcap():
+        """Return a readonly cap instance for this node. For immutable or
+        readonly nodes, get_cap() and get_readcap() return the same thing."""
+
+    def get_repair_cap():
+        """Return an IURI instance that can be used to repair the file, or
+        None if this node cannot be repaired (either because it is not
+        distributed, like a LIT file, or because the node does not represent
+        sufficient authority to create a repair-cap, like a read-only RSA
+        mutable file node [which cannot create the correct write-enablers]).
+        """
+
+    def get_verify_cap():
+        """Return an IVerifierURI instance that represents the
+        'verifiy/refresh capability' for this node. The holder of this
+        capability will be able to renew the lease for this node, protecting
+        it from garbage-collection. They will also be able to ask a server if
+        it holds a share for the file or directory.
+        """
+
     def get_uri():
         """
         Return the URI string that can be used by others to get access to
@@ -499,22 +525,6 @@ class IFilesystemNode(Interface):
 
         If you have merely read-only access to this node, get_readonly_uri()
         will return the same thing as get_uri().
-        """
-
-    def get_repair_cap():
-        """Return an IURI instance that can be used to repair the file, or
-        None if this node cannot be repaired (either because it is not
-        distributed, like a LIT file, or because the node does not represent
-        sufficient authority to create a repair-cap, like a read-only RSA
-        mutable file node [which cannot create the correct write-enablers]).
-        """
-
-    def get_verify_cap():
-        """Return an IVerifierURI instance that represents the
-        'verifiy/refresh capability' for this node. The holder of this
-        capability will be able to renew the lease for this node, protecting
-        it from garbage-collection. They will also be able to ask a server if
-        it holds a share for the file or directory.
         """
 
     def get_storage_index():
