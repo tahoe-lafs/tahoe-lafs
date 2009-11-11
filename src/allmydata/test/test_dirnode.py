@@ -894,6 +894,8 @@ class FakeMutableFile:
                (contents, type(contents))
         return contents(self)
 
+    def get_cap(self):
+        return self.uri
     def get_uri(self):
         return self.uri.to_string()
     def download_best_version(self):

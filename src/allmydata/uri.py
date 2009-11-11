@@ -472,7 +472,7 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
 
     def __init__(self, filenode_uri=None):
         if filenode_uri:
-            filenode_uri = IVerifierURI(filenode_uri)
+            assert IVerifierURI.providedBy(filenode_uri)
         self._filenode_uri = filenode_uri
 
     def get_filenode_cap(self):

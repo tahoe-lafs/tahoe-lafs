@@ -4,7 +4,7 @@ import random
 from zope.interface import implements
 from twisted.internet import defer, reactor
 from foolscap.api import eventually
-from allmydata.interfaces import IMutableFileNode, IMutableFileURI, \
+from allmydata.interfaces import IMutableFileNode, \
      ICheckable, ICheckResults, NotEnoughSharesError
 from allmydata.util import hashutil, log
 from allmydata.util.assertutil import precondition
@@ -193,7 +193,7 @@ class MutableFileNode:
     def get_readcap(self):
         return self._uri.get_readonly()
     def get_verify_cap(self):
-        return IMutableFileURI(self._uri).get_verify_cap()
+        return self._uri.get_verify_cap()
     def get_repair_cap(self):
         if self._uri.is_readonly():
             return None

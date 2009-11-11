@@ -10,7 +10,7 @@ from foolscap.api import fireEventually
 import allmydata # for __full_version__
 from allmydata import uri, monitor, client
 from allmydata.immutable import upload
-from allmydata.interfaces import IFileURI, FileTooLargeError, NoSharesError, \
+from allmydata.interfaces import FileTooLargeError, NoSharesError, \
      NotEnoughSharesError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
@@ -250,12 +250,12 @@ class GoodServer(unittest.TestCase, ShouldFailMixin):
         self.node.DEFAULT_ENCODING_PARAMETERS = p
 
     def _check_small(self, newuri, size):
-        u = IFileURI(newuri)
+        u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.LiteralFileURI))
         self.failUnlessEqual(len(u.data), size)
 
     def _check_large(self, newuri, size):
-        u = IFileURI(newuri)
+        u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
         self.failUnless(isinstance(u.storage_index, str))
         self.failUnlessEqual(len(u.storage_index), 16)
@@ -380,7 +380,7 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin):
         self.u.parent = self.node
 
     def _check_large(self, newuri, size):
-        u = IFileURI(newuri)
+        u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
         self.failUnless(isinstance(u.storage_index, str))
         self.failUnlessEqual(len(u.storage_index), 16)
@@ -468,7 +468,7 @@ class PeerSelection(unittest.TestCase):
         return DATA[:size]
 
     def _check_large(self, newuri, size):
-        u = IFileURI(newuri)
+        u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
         self.failUnless(isinstance(u.storage_index, str))
         self.failUnlessEqual(len(u.storage_index), 16)

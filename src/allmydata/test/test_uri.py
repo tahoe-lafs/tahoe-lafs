@@ -92,8 +92,6 @@ class CHKFile(unittest.TestCase):
         self.failIf(u.is_mutable())
         u_ro = u.get_readonly()
         self.failUnlessIdentical(u, u_ro)
-        u1a = IFileURI(u.to_string())
-        self.failUnlessEqual(u1a, u)
         he = u.to_human_encoding()
         self.failUnlessEqual(he, "http://127.0.0.1:3456/uri/" + u.to_string())
         self.failUnlessEqual(uri.CHKFileURI.init_from_human_encoding(he), u)
@@ -207,8 +205,6 @@ class Mutable(unittest.TestCase):
         self.failUnless(IMutableFileURI.providedBy(u))
         self.failIf(IDirnodeURI.providedBy(u))
         self.failUnless("WriteableSSKFileURI" in str(u))
-        u1a = IMutableFileURI(u.to_string())
-        self.failUnlessEqual(u1a, u)
 
         he = u.to_human_encoding()
         u_h = uri.WriteableSSKFileURI.init_from_human_encoding(he)
@@ -254,9 +250,6 @@ class Mutable(unittest.TestCase):
         u5 = u4.get_verify_cap()
         self.failUnless(IVerifierURI.providedBy(u5))
         self.failUnlessEqual(u5.storage_index, u.storage_index)
-        u6 = IVerifierURI(u5.to_string())
-        self.failUnless(IVerifierURI.providedBy(u6))
-        self.failUnlessEqual(u6.storage_index, u.storage_index)
         u7 = u.get_verify_cap()
         self.failUnless(IVerifierURI.providedBy(u7))
         self.failUnlessEqual(u7.storage_index, u.storage_index)
@@ -282,8 +275,6 @@ class NewDirnode(unittest.TestCase):
         u1_filenode = u1.get_filenode_cap()
         self.failUnless(u1_filenode.is_mutable())
         self.failIf(u1_filenode.is_readonly())
-        u1a = IDirnodeURI(u1.to_string())
-        self.failUnlessEqual(u1a, u1)
 
         u2 = uri.from_string(u1.to_string())
         self.failUnlessEqual(u1.to_string(), u2.to_string())
@@ -323,9 +314,7 @@ class NewDirnode(unittest.TestCase):
 
         verifiers = [u1.get_verify_cap(), u2.get_verify_cap(),
                      u3.get_verify_cap(), u4.get_verify_cap(),
-                     IVerifierURI(u1.get_verify_cap().to_string()),
                      uri.DirectoryURIVerifier(n.get_verify_cap()),
-                     uri.DirectoryURIVerifier(n.get_verify_cap().to_string()),
                      ]
         for v in verifiers:
             self.failUnless(IVerifierURI.providedBy(v))

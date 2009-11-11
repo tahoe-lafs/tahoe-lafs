@@ -15,7 +15,7 @@ from allmydata.immutable import download, filenode, offloaded, upload
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.scripts import runner
-from allmydata.interfaces import IDirectoryNode, IFileNode, IFileURI, \
+from allmydata.interfaces import IDirectoryNode, IFileNode, \
      NoSuchChildError, NoSharesError
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotMutableError
@@ -725,7 +725,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
     def mangle_uri(self, gooduri):
         # change the key, which changes the storage index, which means we'll
         # be asking about the wrong file, so nobody will have any shares
-        u = IFileURI(gooduri)
+        u = uri.from_string(gooduri)
         u2 = uri.CHKFileURI(key=self.flip_bit(u.key),
                             uri_extension_hash=u.uri_extension_hash,
                             needed_shares=u.needed_shares,

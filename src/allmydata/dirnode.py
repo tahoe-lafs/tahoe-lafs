@@ -9,7 +9,7 @@ from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.unknown import UnknownNode
 from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
-     IFileNode, IMutableFileURI, IFilesystemNode, \
+     IFileNode, IFilesystemNode, \
      ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable, \
      CannotPackUnknownNodeError
 from allmydata.check_results import DeepCheckResults, \
@@ -187,11 +187,11 @@ class DirectoryNode:
 
     def __init__(self, filenode, nodemaker, uploader):
         self._node = filenode
-        filenode_uri = IMutableFileURI(filenode.get_uri())
-        if filenode_uri.is_readonly():
-            self._uri = ReadonlyDirectoryURI(filenode_uri)
+        filenode_cap = filenode.get_cap()
+        if filenode_cap.is_readonly():
+            self._uri = ReadonlyDirectoryURI(filenode_cap)
         else:
-            self._uri = DirectoryURI(filenode_uri)
+            self._uri = DirectoryURI(filenode_cap)
         self._nodemaker = nodemaker
         self._uploader = uploader
         self._most_recent_size = None
