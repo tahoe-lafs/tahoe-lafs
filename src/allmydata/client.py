@@ -460,6 +460,9 @@ class Client(node.Node, pollmixin.PollMixin):
     def create_dirnode(self, initial_children={}):
         d = self.nodemaker.create_new_mutable_directory(initial_children)
         return d
+    def create_immutable_dirnode(self, children):
+        return self.nodemaker.create_immutable_directory(children,
+                                                         self.convergence)
 
     def create_mutable_file(self, contents=None, keysize=None):
         return self.nodemaker.create_mutable_file(contents, keysize)

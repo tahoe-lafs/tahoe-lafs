@@ -371,7 +371,8 @@ class NewDirnode(unittest.TestCase):
         self.failUnless(str(u2_verifier))
 
     def test_literal(self):
-        u1 = uri.LiteralDirectoryURI("data")
+        u0 = uri.LiteralFileURI("data")
+        u1 = uri.LiteralDirectoryURI(u0)
         self.failUnless(str(u1))
         u1s = u1.to_string()
         self.failUnlessEqual(u1.to_string(), "URI:DIR2-LIT:mrqxiyi")

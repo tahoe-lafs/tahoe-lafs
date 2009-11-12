@@ -166,6 +166,7 @@ class LiteralFileURI(_BaseURI):
 
     def __init__(self, data=None):
         if data is not None:
+            assert isinstance(data, str)
             self.data = data
 
     @classmethod
@@ -454,13 +455,20 @@ class LiteralDirectoryURI(_ImmutableDirectoryBaseURI):
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
     BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-LIT'+SEP)
     INNER_URI_CLASS=LiteralFileURI
-    def __init__(self, data=None):
-        filenode_uri = LiteralFileURI(data)
-        _ImmutableDirectoryBaseURI.__init__(self, filenode_uri)
     def get_verify_cap(self):
         # LIT caps have no verifier, since they aren't distributed
         return None
 
+def wrap_dirnode_cap(filecap):
+    if isinstance(filecap, WriteableSSKFileURI):
+        return DirectoryURI(filecap)
+    if isinstance(filecap, ReadonlySSKFileURI):
+        return ReadonlyDirectoryURI(filecap)
+    if isinstance(filecap, CHKFileURI):
+        return ImmutableDirectoryURI(filecap)
+    if isinstance(filecap, LiteralFileURI):
+        return LiteralDirectoryURI(filecap)
+    assert False, "cannot wrap a dirnode around %s" % filecap.__class__
 
 class DirectoryURIVerifier(_DirectoryBaseURI):
     implements(IVerifierURI)

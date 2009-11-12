@@ -18,8 +18,7 @@ from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log
 from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
-from allmydata.uri import DirectoryURI, ReadonlyDirectoryURI, \
-     LiteralFileURI, from_string
+from allmydata.uri import LiteralFileURI, from_string, wrap_dirnode_cap
 from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
 
@@ -125,8 +124,11 @@ class Adder:
 
 def _encrypt_rwcap(filenode, rwcap):
     assert isinstance(rwcap, str)
+    writekey = filenode.get_writekey()
+    if not writekey:
+        return ""
     salt = hashutil.mutable_rwcap_salt_hash(rwcap)
-    key = hashutil.mutable_rwcap_key_hash(salt, filenode.get_writekey())
+    key = hashutil.mutable_rwcap_key_hash(salt, writekey)
     cryptor = AES(key)
     crypttext = cryptor.process(rwcap)
     mac = hashutil.hmac(key, salt + crypttext)
@@ -188,20 +190,23 @@ class DirectoryNode:
     def __init__(self, filenode, nodemaker, uploader):
         self._node = filenode
         filenode_cap = filenode.get_cap()
-        if filenode_cap.is_readonly():
-            self._uri = ReadonlyDirectoryURI(filenode_cap)
-        else:
-            self._uri = DirectoryURI(filenode_cap)
+        self._uri = wrap_dirnode_cap(filenode_cap)
         self._nodemaker = nodemaker
         self._uploader = uploader
         self._most_recent_size = None
 
     def __repr__(self):
-        return "<%s %s %s>" % (self.__class__.__name__, self.is_readonly() and "RO" or "RW", hasattr(self, '_uri') and self._uri.abbrev())
+        return "<%s %s-%s %s>" % (self.__class__.__name__,
+                                  self.is_readonly() and "RO" or "RW",
+                                  self.is_mutable() and "MUT" or "IMM",
+                                  hasattr(self, '_uri') and self._uri.abbrev())
 
     def get_size(self):
         # return the size of our backing mutable file, in bytes, if we've
         # fetched it.
+        if not self._node.is_mutable():
+            # TODO?: consider using IMutableFileNode.providedBy(self._node)
+            return self._node.get_size()
         return self._most_recent_size
 
     def _set_size(self, data):
@@ -209,8 +214,12 @@ class DirectoryNode:
         return data
 
     def _read(self):
-        d = self._node.download_best_version()
-        d.addCallback(self._set_size)
+        if self._node.is_mutable():
+            # use the IMutableFileNode API.
+            d = self._node.download_best_version()
+            d.addCallback(self._set_size)
+        else:
+            d = self._node.download_to_data()
         d.addCallback(self._unpack_contents)
         return d
 

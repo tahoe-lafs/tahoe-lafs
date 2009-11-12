@@ -3,10 +3,15 @@ from zope.interface import implements
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import INodeMaker
 from allmydata.immutable.filenode import FileNode, LiteralFileNode
+from allmydata.immutable.upload import Data
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.dirnode import DirectoryNode, pack_children
 from allmydata.unknown import UnknownNode
 from allmydata import uri
+
+class DummyImmutableFileNode:
+    def get_writekey(self):
+        return None
 
 class NodeMaker:
     implements(INodeMaker)
@@ -67,7 +72,10 @@ class NodeMaker:
             return self._create_immutable(cap)
         if isinstance(cap, (uri.ReadonlySSKFileURI, uri.WriteableSSKFileURI)):
             return self._create_mutable(cap)
-        if isinstance(cap, (uri.ReadonlyDirectoryURI, uri.DirectoryURI)):
+        if isinstance(cap, (uri.DirectoryURI,
+                            uri.ReadonlyDirectoryURI,
+                            uri.ImmutableDirectoryURI,
+                            uri.LiteralDirectoryURI)):
             filenode = self._create_from_cap(cap.get_filenode_cap())
             return self._create_dirnode(filenode)
         return None
@@ -90,5 +98,24 @@ class NodeMaker:
                          "create_new_mutable_directory requires metadata to be a dict, not None", metadata)
         d = self.create_mutable_file(lambda n:
                                      pack_children(n, initial_children))
+        d.addCallback(self._create_dirnode)
+        return d
+
+    def create_immutable_directory(self, children, convergence):
+        for (name, (node, metadata)) in children.iteritems():
+            precondition(not isinstance(node, UnknownNode),
+                         "create_immutable_directory does not accept UnknownNode", node)
+            precondition(isinstance(metadata, dict),
+                         "create_immutable_directory requires metadata to be a dict, not None", metadata)
+            precondition(not node.is_mutable(),
+                         "create_immutable_directory requires immutable children", node)
+        n = DummyImmutableFileNode() # writekey=None
+        packed = pack_children(n, children)
+        uploadable = Data(packed, convergence)
+        d = self.uploader.upload(uploadable, history=self.history)
+        def _uploaded(results):
+            filecap = self.create_from_cap(results.uri)
+            return filecap
+        d.addCallback(_uploaded)
         d.addCallback(self._create_dirnode)
         return d

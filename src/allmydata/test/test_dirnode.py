@@ -32,7 +32,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         def _done(res):
             self.failUnless(isinstance(res, dirnode.DirectoryNode))
             rep = str(res)
-            self.failUnless("RW" in rep)
+            self.failUnless("RW-MUT" in rep)
         d.addCallback(_done)
         return d
 
@@ -51,7 +51,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         def _created(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
             rep = str(dn)
-            self.failUnless("RW" in rep)
+            self.failUnless("RW-MUT" in rep)
             return dn.list()
         d.addCallback(_created)
         def _check_kids(children):
@@ -81,6 +81,102 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                       "requires metadata to be a dict",
                                       nm.create_new_mutable_directory,
                                       bad_kids2))
+        return d
+
+    def test_immutable(self):
+        self.basedir = "dirnode/Dirnode/test_immutable"
+        self.set_up_grid()
+        c = self.g.clients[0]
+        nm = c.nodemaker
+        setup_py_uri = "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
+        one_uri = "URI:LIT:n5xgk" # LIT for "one"
+        mut_readcap = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        mut_writecap = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+        kids = {u"one": (nm.create_from_cap(one_uri), {}),
+                u"two": (nm.create_from_cap(setup_py_uri),
+                         {"metakey": "metavalue"}),
+                }
+        d = c.create_immutable_dirnode(kids)
+        def _created(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            self.failIf(dn.is_mutable())
+            self.failUnless(dn.is_readonly())
+            rep = str(dn)
+            self.failUnless("RO-IMM" in rep)
+            cap = dn.get_cap()
+            self.failUnlessIn("CHK", cap.to_string())
+            self.cap = cap
+            return dn.list()
+        d.addCallback(_created)
+        def _check_kids(children):
+            self.failUnlessEqual(sorted(children.keys()), [u"one", u"two"])
+            one_node, one_metadata = children[u"one"]
+            two_node, two_metadata = children[u"two"]
+            self.failUnlessEqual(one_node.get_size(), 3)
+            self.failUnlessEqual(two_node.get_size(), 14861)
+            self.failUnless(isinstance(one_metadata, dict), one_metadata)
+            self.failUnlessEqual(two_metadata["metakey"], "metavalue")
+        d.addCallback(_check_kids)
+        d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
+        d.addCallback(lambda dn: dn.list())
+        d.addCallback(_check_kids)
+        future_writecap = "x-tahoe-crazy://I_am_from_the_future."
+        future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
+        future_node = UnknownNode(future_writecap, future_readcap)
+        bad_kids1 = {u"one": (future_node, {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(AssertionError, "bad_kids1",
+                                      "does not accept UnknownNode",
+                                      c.create_immutable_dirnode,
+                                      bad_kids1))
+        bad_kids2 = {u"one": (nm.create_from_cap(one_uri), None)}
+        d.addCallback(lambda ign:
+                      self.shouldFail(AssertionError, "bad_kids2",
+                                      "requires metadata to be a dict",
+                                      c.create_immutable_dirnode,
+                                      bad_kids2))
+        bad_kids3 = {u"one": (nm.create_from_cap(mut_writecap), {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(AssertionError, "bad_kids3",
+                                      "create_immutable_directory requires immutable children",
+                                      c.create_immutable_dirnode,
+                                      bad_kids3))
+        bad_kids4 = {u"one": (nm.create_from_cap(mut_readcap), {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(AssertionError, "bad_kids4",
+                                      "create_immutable_directory requires immutable children",
+                                      c.create_immutable_dirnode,
+                                      bad_kids4))
+        d.addCallback(lambda ign: c.create_immutable_dirnode({}))
+        def _created_empty(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            self.failIf(dn.is_mutable())
+            self.failUnless(dn.is_readonly())
+            rep = str(dn)
+            self.failUnless("RO-IMM" in rep)
+            cap = dn.get_cap()
+            self.failUnlessIn("LIT", cap.to_string())
+            self.failUnlessEqual(cap.to_string(), "URI:DIR2-LIT:")
+            self.cap = cap
+            return dn.list()
+        d.addCallback(_created_empty)
+        d.addCallback(lambda kids: self.failUnlessEqual(kids, {}))
+        smallkids = {u"o": (nm.create_from_cap(one_uri), {})}
+        d.addCallback(lambda ign: c.create_immutable_dirnode(smallkids))
+        def _created_small(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            self.failIf(dn.is_mutable())
+            self.failUnless(dn.is_readonly())
+            rep = str(dn)
+            self.failUnless("RO-IMM" in rep)
+            cap = dn.get_cap()
+            self.failUnlessIn("LIT", cap.to_string())
+            self.failUnlessEqual(cap.to_string(),
+                                 "URI:DIR2-LIT:gi4tumj2n4wdcmz2kvjesosmjfkdu3rvpbtwwlbqhiwdeot3puwcy")
+            self.cap = cap
+            return dn.list()
+        d.addCallback(_created_small)
+        d.addCallback(lambda kids: self.failUnlessEqual(kids.keys(), [u"o"]))
         return d
 
     def test_check(self):

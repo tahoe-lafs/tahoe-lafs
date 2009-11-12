@@ -1638,7 +1638,7 @@ class IDownloadResults(Interface):
 class IUploader(Interface):
     def upload(uploadable):
         """Upload the file. 'uploadable' must impement IUploadable. This
-        returns a Deferred which fires with an UploadResults instance, from
+        returns a Deferred which fires with an IUploadResults instance, from
         which the URI of the file can be obtained as results.uri ."""
 
     def upload_ssk(write_capability, new_version, uploadable):
