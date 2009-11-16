@@ -770,7 +770,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
     def test_lost_one_shareholder(self):
         # we have enough shareholders when we start, but one segment in we
         # lose one of them. The upload should still succeed, as long as we
-        # still have 'shares_of_happiness' peers left.
+        # still have 'servers_of_happiness' peers left.
         modemap = dict([(i, "good") for i in range(9)] +
                        [(i, "lost") for i in range(9, 10)])
         return self.send_and_recover((4,8,10), bucket_modes=modemap)
@@ -778,7 +778,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
     def test_lost_one_shareholder_early(self):
         # we have enough shareholders when we choose peers, but just before
         # we send the 'start' message, we lose one of them. The upload should
-        # still succeed, as long as we still have 'shares_of_happiness' peers
+        # still succeed, as long as we still have 'servers_of_happiness' peers
         # left.
         modemap = dict([(i, "good") for i in range(9)] +
                        [(i, "lost-early") for i in range(9, 10)])

@@ -187,7 +187,7 @@ place a quantity known as "servers of happiness" that each map to a unique
 server, we'll do the upload anyways. If we cannot place at least this many
 in this way, the upload is declared a failure.
 
-The current defaults use k=3, shares_of_happiness=7, and N=10, meaning that
+The current defaults use k=3, servers_of_happiness=7, and N=10, meaning that
 we'll try to place 10 shares, we'll be happy if we can place shares on enough
 servers that there are 7 different servers, the correct functioning of any 3 of
 which guarantee the availability of the file, and we need to get back any 3 to

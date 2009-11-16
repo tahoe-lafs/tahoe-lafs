@@ -806,7 +806,7 @@ class IMutableFileNode(IFileNode):
 
 class NotEnoughSharesError(Exception):
     """Download was unable to get enough shares, or upload was unable to
-    place 'shares_of_happiness' shares."""
+    place 'servers_of_happiness' shares."""
 
 class NoSharesError(Exception):
     """Upload or Download was unable to get any shares at all."""
@@ -1305,7 +1305,7 @@ class IEncoder(Interface):
                          pushed.
 
         'share_counts': return a tuple describing how many shares are used:
-                        (needed_shares, shares_of_happiness, total_shares)
+                        (needed_shares, servers_of_happiness, total_shares)
 
         'num_segments': return an int with the number of segments that
                         will be encoded.

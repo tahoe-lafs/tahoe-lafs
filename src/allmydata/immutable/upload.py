@@ -408,7 +408,7 @@ class Tahoe2PeerSelector:
                 pass
             else:
                 # No more peers, so this upload might fail (it depends upon
-                # whether we've hit shares_of_happiness or not). Log the last
+                # whether we've hit servers_of_happiness or not). Log the last
                 # failure we got: if a coding error causes all peers to fail
                 # in the same way, this allows the common failure to be seen
                 # by the uploader and should help with debugging
