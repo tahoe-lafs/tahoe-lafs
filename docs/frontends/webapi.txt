@@ -356,17 +356,15 @@ POST /uri?t=mkdir-with-children
  write-cap as the HTTP response body. The new directory is not attached to
  any other directory: the returned write-cap is the only reference to it.
 
- Initial children are provided in the "children" field of the POST form. This
- is more efficient than doing separate mkdir and add-children operations. If
- this value is empty, the new directory will be empty.
-
- If not empty, it will be interpreted as a JSON-encoded dictionary of
- children with which the new directory should be populated, using the same
- format as would be returned in the 'children' value of the t=json GET
- request, described below. Each dictionary key should be a child name, and
- each value should be a list of [TYPE, PROPDICT], where PROPDICT contains
- "rw_uri", "ro_uri", and "metadata" keys (all others are ignored). For
- example, the PUT request body could be:
+ Initial children are provided as the body of the POST form (this is more
+ efficient than doing separate mkdir and set_children operations). If the
+ body is empty, the new directory will be empty. If not empty, the body will
+ be interpreted as a JSON-encoded dictionary of children with which the new
+ directory should be populated, using the same format as would be returned in
+ the 'children' value of the t=json GET request, described below. Each
+ dictionary key should be a child name, and each value should be a list of
+ [TYPE, PROPDICT], where PROPDICT contains "rw_uri", "ro_uri", and "metadata"
+ keys (all others are ignored). For example, the PUT request body could be:
 
   {
     "Fran\u00e7ais": [ "filenode", {
@@ -391,6 +389,20 @@ POST /uri?t=mkdir-with-children
           } } } ]
  }
 
+ Note that the webapi-using client application must not provide the
+ "Content-Type: multipart/form-data" header that usually accompanies HTML
+ form submissions, since the body is not formatted this way. Doing so will
+ cause a server error as the lower-level code misparses the request body.
+
+POST /uri?t=mkdir-immutable
+
+ Like t=mkdir-with-children above, but the new directory will be
+ deep-immutable. This means that the directory itself is immutable, and that
+ it can only contain deep-immutable objects, like immutable files, literal
+ files, and deep-immutable directories. A non-empty request body is
+ mandatory, since after the directory is created, it will not be possible to
+ add more children to it.
+
 POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
 PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
 
@@ -410,8 +422,13 @@ PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
 POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-with-children
 
  Like above, but if the final directory is created, it will be populated with
- initial children via the POST 'children' form field, as described above in
- the /uri?t=mkdir-with-children operation.
+ initial children from the POST request body, as described above in the
+ /uri?t=mkdir-with-children operation.
+
+POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-immutable
+
+ Like above, but the final directory will be deep-immutable, with the
+ children specified as a JSON dictionary in the POST request body.
 
 POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME
 
@@ -425,8 +442,15 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME
 POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-with-children&name=NAME
 
  As above, but the new directory will be populated with initial children via
- the POST 'children' form field, as described in /uri?t=mkdir-with-children
- above.
+ the POST request body, as described in /uri?t=mkdir-with-children above.
+ Note that the name= argument must be passed as a queryarg, because the POST
+ request body is used for the initial children JSON.
+
+POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-immutable&name=NAME
+
+ As above, but the new directory will be deep-immutable, with the children
+ specified as a JSON dictionary in the POST request body. Again, the name=
+ argument must be passed as a queryarg.
 
 === Get Information About A File Or Directory (as JSON) ===
 

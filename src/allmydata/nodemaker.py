@@ -1,7 +1,7 @@
 import weakref
 from zope.interface import implements
 from allmydata.util.assertutil import precondition
-from allmydata.interfaces import INodeMaker
+from allmydata.interfaces import INodeMaker, NotDeepImmutableError
 from allmydata.immutable.filenode import FileNode, LiteralFileNode
 from allmydata.immutable.upload import Data
 from allmydata.mutable.filenode import MutableFileNode
@@ -101,14 +101,16 @@ class NodeMaker:
         d.addCallback(self._create_dirnode)
         return d
 
-    def create_immutable_directory(self, children, convergence):
+    def create_immutable_directory(self, children, convergence=None):
+        if convergence is None:
+            convergence = self.secret_holder.get_convergence_secret()
         for (name, (node, metadata)) in children.iteritems():
             precondition(not isinstance(node, UnknownNode),
                          "create_immutable_directory does not accept UnknownNode", node)
             precondition(isinstance(metadata, dict),
                          "create_immutable_directory requires metadata to be a dict, not None", metadata)
-            precondition(not node.is_mutable(),
-                         "create_immutable_directory requires immutable children", node)
+            if node.is_mutable():
+                raise NotDeepImmutableError("%s is not immutable" % (node,))
         n = DummyImmutableFileNode() # writekey=None
         packed = pack_children(n, children)
         uploadable = Data(packed, convergence)

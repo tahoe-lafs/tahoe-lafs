@@ -7,7 +7,8 @@ from nevow import loaders, appserver
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
-     FileTooLargeError, NotEnoughSharesError, NoSharesError
+     FileTooLargeError, NotEnoughSharesError, NoSharesError, \
+     NotDeepImmutableError
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate # TODO: consolidate
 
@@ -57,8 +58,9 @@ def get_arg(ctx_or_req, argname, default=None, multiple=False):
 def convert_children_json(nodemaker, children_json):
     """I convert the JSON output of GET?t=json into the dict-of-nodes input
     to both dirnode.create_subdirectory() and
-    client.create_directory(initial_children=)."""
-    initial_children = {}
+    client.create_directory(initial_children=). This is used by
+    t=mkdir-with-children and t=mkdir-immutable"""
+    children = {}
     if children_json:
         data = simplejson.loads(children_json)
         for (name, (ctype, propdict)) in data.iteritems():
@@ -71,8 +73,8 @@ def convert_children_json(nodemaker, children_json):
                 readcap = str(readcap)
             metadata = propdict.get("metadata", {})
             childnode = nodemaker.create_from_cap(writecap, readcap)
-            initial_children[name] = (childnode, metadata)
-    return initial_children
+            children[name] = (childnode, metadata)
+    return children
 
 def abbreviate_time(data):
     # 1.23s, 790ms, 132us
@@ -176,6 +178,10 @@ def humanize_failure(f):
              "failure, or disk corruption. You should perform a filecheck on "
              "this object to learn more.")
         return (t, http.GONE)
+    if f.check(NotDeepImmutableError):
+        t = ("NotDeepImmutableError: a mkdir-immutable operation was given "
+             "a child that was not itself immutable: %s" % (f.value,))
+        return (t, http.BAD_REQUEST)
     if f.check(WebError):
         return (f.value.text, f.value.code)
     if f.check(FileTooLargeError):

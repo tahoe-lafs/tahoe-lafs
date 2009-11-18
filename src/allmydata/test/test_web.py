@@ -281,7 +281,6 @@ class WebMixin(object):
         return client.getPage(url, method="DELETE")
 
     def POST(self, urlpath, followRedirect=False, **fields):
-        url = self.webish_url + urlpath
         sepbase = "boogabooga"
         sep = "--" + sepbase
         form = []
@@ -306,9 +305,15 @@ class WebMixin(object):
             form.append(value)
             form.append(sep)
         form[-1] += "--"
-        body = "\r\n".join(form) + "\r\n"
-        headers = {"content-type": "multipart/form-data; boundary=%s" % sepbase,
-                   }
+        body = ""
+        headers = {}
+        if fields:
+            body = "\r\n".join(form) + "\r\n"
+            headers["content-type"] = "multipart/form-data; boundary=%s" % sepbase
+        return self.POST2(urlpath, body, headers, followRedirect)
+
+    def POST2(self, urlpath, body="", headers={}, followRedirect=False):
+        url = self.webish_url + urlpath
         return client.getPage(url, method="POST", postdata=body,
                               headers=headers, followRedirect=followRedirect)
 
@@ -1125,8 +1130,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_POST_NEWDIRURL_initial_children(self):
         (newkids, filecap1, filecap2, filecap3,
          dircap) = self._create_initial_children()
-        d = self.POST(self.public_url + "/foo/newdir?t=mkdir-with-children",
-                     children=simplejson.dumps(newkids))
+        d = self.POST2(self.public_url + "/foo/newdir?t=mkdir-with-children",
+                       simplejson.dumps(newkids))
         def _check(uri):
             n = self.s.create_node_from_uri(uri.strip())
             d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
@@ -1148,6 +1153,42 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessChildURIIs, u"child-imm", filecap1)
+        return d
+
+    def test_POST_NEWDIRURL_immutable(self):
+        (newkids, filecap1, immdircap) = self._create_immutable_children()
+        d = self.POST2(self.public_url + "/foo/newdir?t=mkdir-immutable",
+                       simplejson.dumps(newkids))
+        def _check(uri):
+            n = self.s.create_node_from_uri(uri.strip())
+            d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
+            d2.addCallback(lambda ign:
+                           self.failUnlessChildURIIs(n, u"child-imm", filecap1))
+            d2.addCallback(lambda ign:
+                           self.failUnlessChildURIIs(n, u"dirchild-imm",
+                                                     immdircap))
+            return d2
+        d.addCallback(_check)
+        d.addCallback(lambda res:
+                      self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessChildURIIs, u"child-imm", filecap1)
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessChildURIIs, u"dirchild-imm", immdircap)
+        d.addErrback(self.explain_web_error)
+        return d
+
+    def test_POST_NEWDIRURL_immutable_bad(self):
+        (newkids, filecap1, filecap2, filecap3,
+         dircap) = self._create_initial_children()
+        d = self.shouldFail2(error.Error, "test_POST_NEWDIRURL_immutable_bad",
+                             "400 Bad Request",
+                             "a mkdir-immutable operation was given a child that was not itself immutable",
+                             self.POST2,
+                             self.public_url + "/foo/newdir?t=mkdir-immutable",
+                             simplejson.dumps(newkids))
         return d
 
     def test_PUT_NEWDIRURL_exists(self):
@@ -1898,14 +1939,42 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
     def test_POST_mkdir_initial_children(self):
         newkids, filecap1, ign, ign, ign = self._create_initial_children()
-        d = self.POST(self.public_url + "/foo", t="mkdir-with-children",
-                      name="newdir", children=simplejson.dumps(newkids))
+        d = self.POST2(self.public_url +
+                       "/foo?t=mkdir-with-children&name=newdir",
+                       simplejson.dumps(newkids))
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessChildURIIs, u"child-imm", filecap1)
+        return d
+
+    def test_POST_mkdir_immutable(self):
+        (newkids, filecap1, immdircap) = self._create_immutable_children()
+        d = self.POST2(self.public_url +
+                       "/foo?t=mkdir-immutable&name=newdir",
+                       simplejson.dumps(newkids))
+        d.addCallback(lambda res:
+                      self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessChildURIIs, u"child-imm", filecap1)
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessChildURIIs, u"dirchild-imm", immdircap)
+        return d
+
+    def test_POST_mkdir_immutable_bad(self):
+        (newkids, filecap1, filecap2, filecap3,
+         dircap) = self._create_initial_children()
+        d = self.shouldFail2(error.Error, "test_POST_mkdir_immutable_bad",
+                             "400 Bad Request",
+                             "a mkdir-immutable operation was given a child that was not itself immutable",
+                             self.POST2,
+                             self.public_url +
+                             "/foo?t=mkdir-immutable&name=newdir",
+                             simplejson.dumps(newkids))
         return d
 
     def test_POST_mkdir_2(self):
@@ -1957,11 +2026,23 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                    }
         return newkids, filecap1, filecap2, filecap3, dircap
 
+    def _create_immutable_children(self):
+        contents, n, filecap1 = self.makefile(12)
+        md1 = {"metakey1": "metavalue1"}
+        tnode = create_chk_filenode("immutable directory contents\n"*10)
+        dnode = DirectoryNode(tnode, None, None)
+        assert not dnode.is_mutable()
+        immdircap = dnode.get_uri()
+        newkids = {u"child-imm": ["filenode", {"ro_uri": filecap1,
+                                               "metadata": md1, }],
+                   u"dirchild-imm": ["dirnode", {"ro_uri": immdircap}],
+                   }
+        return newkids, filecap1, immdircap
+
     def test_POST_mkdir_no_parentdir_initial_children(self):
         (newkids, filecap1, filecap2, filecap3,
          dircap) = self._create_initial_children()
-        d = self.POST("/uri?t=mkdir-with-children",
-                      children=simplejson.dumps(newkids))
+        d = self.POST2("/uri?t=mkdir-with-children", simplejson.dumps(newkids))
         def _after_mkdir(res):
             self.failUnless(res.startswith("URI:DIR"), res)
             n = self.s.create_node_from_uri(res)
@@ -1989,8 +2070,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                  400, "Bad Request",
                                  "t=mkdir does not accept children=, "
                                  "try t=mkdir-with-children instead",
-                                 self.POST, "/uri?t=mkdir", # without children
-                                 children=simplejson.dumps(newkids))
+                                 self.POST2, "/uri?t=mkdir", # without children
+                                 simplejson.dumps(newkids))
         return d
 
     def test_POST_noparent_bad(self):
@@ -1998,6 +2079,34 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                  "/uri accepts only PUT, PUT?t=mkdir, "
                                  "POST?t=upload, and POST?t=mkdir",
                                  self.POST, "/uri?t=bogus")
+        return d
+
+    def test_POST_mkdir_no_parentdir_immutable(self):
+        (newkids, filecap1, immdircap) = self._create_immutable_children()
+        d = self.POST2("/uri?t=mkdir-immutable", simplejson.dumps(newkids))
+        def _after_mkdir(res):
+            self.failUnless(res.startswith("URI:DIR"), res)
+            n = self.s.create_node_from_uri(res)
+            d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
+            d2.addCallback(lambda ign:
+                           self.failUnlessChildURIIs(n, u"child-imm", filecap1))
+            d2.addCallback(lambda ign:
+                           self.failUnlessChildURIIs(n, u"dirchild-imm",
+                                                     immdircap))
+            return d2
+        d.addCallback(_after_mkdir)
+        return d
+
+    def test_POST_mkdir_no_parentdir_immutable_bad(self):
+        (newkids, filecap1, filecap2, filecap3,
+         dircap) = self._create_initial_children()
+        d = self.shouldFail2(error.Error,
+                             "test_POST_mkdir_no_parentdir_immutable_bad",
+                             "400 Bad Request",
+                             "a mkdir-immutable operation was given a child that was not itself immutable",
+                             self.POST2,
+                             "/uri?t=mkdir-immutable",
+                             simplejson.dumps(newkids))
         return d
 
     def test_welcome_page_mkdir_button(self):

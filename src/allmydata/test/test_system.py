@@ -714,7 +714,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda junk: self.clients[3].create_dirnode())
         d.addCallback(check_kg_poolsize, -2)
         # use_helper induces use of clients[3], which is the using-key_gen client
-        d.addCallback(lambda junk: self.POST("uri", use_helper=True, t="mkdir", name='george'))
+        d.addCallback(lambda junk:
+                      self.POST("uri?t=mkdir&name=george", use_helper=True))
         d.addCallback(check_kg_poolsize, -3)
 
         return d
@@ -1053,10 +1054,6 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         return getPage(url, method="GET", followRedirect=followRedirect)
 
     def POST(self, urlpath, followRedirect=False, use_helper=False, **fields):
-        if use_helper:
-            url = self.helper_webish_url + urlpath
-        else:
-            url = self.webish_url + urlpath
         sepbase = "boogabooga"
         sep = "--" + sepbase
         form = []
@@ -1076,11 +1073,21 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             form.append(str(value))
             form.append(sep)
         form[-1] += "--"
-        body = "\r\n".join(form) + "\r\n"
-        headers = {"content-type": "multipart/form-data; boundary=%s" % sepbase,
-                   }
-        return getPage(url, method="POST", postdata=body,
-                       headers=headers, followRedirect=followRedirect)
+        body = ""
+        headers = {}
+        if fields:
+            body = "\r\n".join(form) + "\r\n"
+            headers["content-type"] = "multipart/form-data; boundary=%s" % sepbase
+        return self.POST2(urlpath, body, headers, followRedirect, use_helper)
+
+    def POST2(self, urlpath, body="", headers={}, followRedirect=False,
+              use_helper=False):
+        if use_helper:
+            url = self.helper_webish_url + urlpath
+        else:
+            url = self.webish_url + urlpath
+        return getPage(url, method="POST", postdata=body, headers=headers,
+                       followRedirect=followRedirect)
 
     def _test_web(self, res):
         base = self.webish_url

@@ -1,12 +1,13 @@
 
 import time
+from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata import uri, dirnode
 from allmydata.client import Client
 from allmydata.immutable import upload
-from allmydata.interfaces import IFileNode, \
-     ExistingChildError, NoSuchChildError, \
+from allmydata.interfaces import IFileNode, IMutableFileNode, \
+     ExistingChildError, NoSuchChildError, NotDeepImmutableError, \
      IDeepCheckResults, IDeepCheckAndRepairResults, CannotPackUnknownNodeError
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.mutable.common import UncoordinatedWriteError
@@ -137,14 +138,14 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                       bad_kids2))
         bad_kids3 = {u"one": (nm.create_from_cap(mut_writecap), {})}
         d.addCallback(lambda ign:
-                      self.shouldFail(AssertionError, "bad_kids3",
-                                      "create_immutable_directory requires immutable children",
+                      self.shouldFail(NotDeepImmutableError, "bad_kids3",
+                                      "is not immutable",
                                       c.create_immutable_dirnode,
                                       bad_kids3))
         bad_kids4 = {u"one": (nm.create_from_cap(mut_readcap), {})}
         d.addCallback(lambda ign:
-                      self.shouldFail(AssertionError, "bad_kids4",
-                                      "create_immutable_directory requires immutable children",
+                      self.shouldFail(NotDeepImmutableError, "bad_kids4",
+                                      "is not immutable",
                                       c.create_immutable_dirnode,
                                       bad_kids4))
         d.addCallback(lambda ign: c.create_immutable_dirnode({}))
@@ -177,7 +178,31 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             return dn.list()
         d.addCallback(_created_small)
         d.addCallback(lambda kids: self.failUnlessEqual(kids.keys(), [u"o"]))
+
+        # now test n.create_subdirectory(mutable=False)
+        d.addCallback(lambda ign: c.create_dirnode())
+        def _made_parent(n):
+            d = n.create_subdirectory(u"subdir", kids, mutable=False)
+            d.addCallback(lambda sd: sd.list())
+            d.addCallback(_check_kids)
+            d.addCallback(lambda ign: n.list())
+            d.addCallback(lambda children:
+                          self.failUnlessEqual(children.keys(), [u"subdir"]))
+            d.addCallback(lambda ign: n.get(u"subdir"))
+            d.addCallback(lambda sd: sd.list())
+            d.addCallback(_check_kids)
+            d.addCallback(lambda ign: n.get(u"subdir"))
+            d.addCallback(lambda sd: self.failIf(sd.is_mutable()))
+            bad_kids = {u"one": (nm.create_from_cap(mut_writecap), {})}
+            d.addCallback(lambda ign:
+                          self.shouldFail(NotDeepImmutableError, "YZ",
+                                          "is not immutable",
+                                          n.create_subdirectory,
+                                          u"sub2", bad_kids, mutable=False))
+            return d
+        d.addCallback(_made_parent)
         return d
+
 
     def test_check(self):
         self.basedir = "dirnode/Dirnode/test_check"
@@ -972,6 +997,7 @@ class Packing(unittest.TestCase):
                                   fn, kids, deep_immutable=True)
 
 class FakeMutableFile:
+    implements(IMutableFileNode)
     counter = 0
     def __init__(self, initial_contents=""):
         self.data = self._get_initial_contents(initial_contents)

@@ -480,6 +480,9 @@ class UnhandledCapTypeError(Exception):
     """I recognize the cap/URI, but I cannot create an IFilesystemNode for
     it."""
 
+class NotDeepImmutableError(Exception):
+    """Deep-immutable directories can only contain deep-immutable children"""
+
 class IFilesystemNode(Interface):
     def get_cap():
         """Return the strongest 'cap instance' associated with this node.

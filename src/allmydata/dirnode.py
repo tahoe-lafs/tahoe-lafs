@@ -188,6 +188,8 @@ class DirectoryNode:
     filenode_class = MutableFileNode
 
     def __init__(self, filenode, nodemaker, uploader):
+        assert IFileNode.providedBy(filenode), filenode
+        assert not IDirectoryNode.providedBy(filenode), filenode
         self._node = filenode
         filenode_cap = filenode.get_cap()
         self._uri = wrap_dirnode_cap(filenode_cap)
@@ -491,11 +493,15 @@ class DirectoryNode:
         d.addCallback(lambda res: deleter.old_child)
         return d
 
-    def create_subdirectory(self, name, initial_children={}, overwrite=True):
+    def create_subdirectory(self, name, initial_children={}, overwrite=True,
+                            mutable=True):
         assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotMutableError())
-        d = self._nodemaker.create_new_mutable_directory(initial_children)
+        if mutable:
+            d = self._nodemaker.create_new_mutable_directory(initial_children)
+        else:
+            d = self._nodemaker.create_immutable_directory(initial_children)
         def _created(child):
             entries = {name: (child, None)}
             a = Adder(self, entries, overwrite=overwrite)

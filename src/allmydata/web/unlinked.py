@@ -91,8 +91,9 @@ def POSTUnlinkedSSK(req, client):
 
 def POSTUnlinkedCreateDirectory(req, client):
     # "POST /uri?t=mkdir", to create an unlinked directory.
-    kids_json = get_arg(req, "children", None)
-    if kids_json is not None:
+    req.content.seek(0)
+    kids_json = req.content.read()
+    if kids_json:
         raise WebError("t=mkdir does not accept children=, "
                        "try t=mkdir-with-children instead",
                        http.BAD_REQUEST)
@@ -112,7 +113,8 @@ def POSTUnlinkedCreateDirectory(req, client):
 
 def POSTUnlinkedCreateDirectoryWithChildren(req, client):
     # "POST /uri?t=mkdir", to create an unlinked directory.
-    kids_json = get_arg(req, "children", "")
+    req.content.seek(0)
+    kids_json = req.content.read()
     kids = convert_children_json(client.nodemaker, kids_json)
     d = client.create_dirnode(initial_children=kids)
     redirect = get_arg(req, "redirect_to_result", "false")
@@ -128,3 +130,21 @@ def POSTUnlinkedCreateDirectoryWithChildren(req, client):
         d.addCallback(lambda dirnode: dirnode.get_uri())
     return d
 
+def POSTUnlinkedCreateImmutableDirectory(req, client):
+    # "POST /uri?t=mkdir", to create an unlinked directory.
+    req.content.seek(0)
+    kids_json = req.content.read()
+    kids = convert_children_json(client.nodemaker, kids_json)
+    d = client.create_immutable_dirnode(kids)
+    redirect = get_arg(req, "redirect_to_result", "false")
+    if boolean_of_arg(redirect):
+        def _then_redir(res):
+            new_url = "uri/" + urllib.quote(res.get_uri())
+            req.setResponseCode(http.SEE_OTHER) # 303
+            req.setHeader('location', new_url)
+            req.finish()
+            return ''
+        d.addCallback(_then_redir)
+    else:
+        d.addCallback(lambda dirnode: dirnode.get_uri())
+    return d

@@ -94,15 +94,21 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                 if DEBUG: print " terminal"
                 # terminal node
                 if (method,t) in [ ("POST","mkdir"), ("PUT","mkdir"),
-                                   ("POST", "mkdir-with-children") ]:
+                                   ("POST", "mkdir-with-children"),
+                                   ("POST", "mkdir-immutable") ]:
                     if DEBUG: print " making final directory"
                     # final directory
                     kids = {}
-                    if (method,t) == ("POST", "mkdir-with-children"):
-                        kids_json = get_arg(req, "children", "")
+                    if t in ("mkdir-with-children", "mkdir-immutable"):
+                        req.content.seek(0)
+                        kids_json = req.content.read()
                         kids = convert_children_json(self.client.nodemaker,
                                                      kids_json)
-                    d = self.node.create_subdirectory(name, kids)
+                    mutable = True
+                    if t == "mkdir-immutable":
+                        mutable = False
+                    d = self.node.create_subdirectory(name, kids,
+                                                      mutable=mutable)
                     d.addCallback(make_handler_for,
                                   self.client, self.node, name)
                     return d
@@ -186,6 +192,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d = self._POST_mkdir(req)
         elif t == "mkdir-with-children":
             d = self._POST_mkdir_with_children(req)
+        elif t == "mkdir-immutable":
+            d = self._POST_mkdir_immutable(req)
         elif t == "mkdir-p":
             # TODO: docs, tests
             d = self._POST_mkdir_p(req)
@@ -242,9 +250,25 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             return defer.succeed(self.node.get_uri()) # TODO: urlencode
         name = name.decode("utf-8")
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        kids_json = get_arg(req, "children", "")
+        req.content.seek(0)
+        kids_json = req.content.read()
         kids = convert_children_json(self.client.nodemaker, kids_json)
         d = self.node.create_subdirectory(name, kids, overwrite=replace)
+        d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
+        return d
+
+    def _POST_mkdir_immutable(self, req):
+        name = get_arg(req, "name", "")
+        if not name:
+            # our job is done, it was handled by the code in got_child
+            # which created the final directory (i.e. us)
+            return defer.succeed(self.node.get_uri()) # TODO: urlencode
+        name = name.decode("utf-8")
+        replace = boolean_of_arg(get_arg(req, "replace", "true"))
+        req.content.seek(0)
+        kids_json = req.content.read()
+        kids = convert_children_json(self.client.nodemaker, kids_json)
+        d = self.node.create_subdirectory(name, kids, mutable=False)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 
