@@ -703,7 +703,9 @@ class DirectoryAsHTML(rend.Page):
             uri_link = "%s/uri/%s/" % (root, urllib.quote(writecap))
             ctx.fillSlots("filename",
                           T.a(href=uri_link)[html.escape(name)])
-            if target.is_readonly():
+            if not target.is_mutable():
+                dirtype = "DIR-IMM"
+            elif target.is_readonly():
                 dirtype = "DIR-RO"
             else:
                 dirtype = "DIR"
