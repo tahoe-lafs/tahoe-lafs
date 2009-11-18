@@ -196,7 +196,7 @@ def make_storagebroker(s=None, num_peers=10):
 
 def make_nodemaker(s=None, num_peers=10):
     storage_broker = make_storagebroker(s, num_peers)
-    sh = client.SecretHolder("lease secret")
+    sh = client.SecretHolder("lease secret", "convergence secret")
     keygen = client.KeyGenerator()
     keygen.set_default_keysize(522)
     nodemaker = NodeMaker(storage_broker, sh, None,

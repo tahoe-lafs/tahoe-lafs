@@ -21,7 +21,7 @@ class FakeClient:
         return None
     def get_history(self):
         return None
-    _secret_holder = client.SecretHolder("lease secret")
+    _secret_holder = client.SecretHolder("lease secret", "convergence secret")
 
 class Node(unittest.TestCase):
     def test_chk_filenode(self):

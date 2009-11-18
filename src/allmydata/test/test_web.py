@@ -25,7 +25,7 @@ import common_util as testutil
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_web import HTTPClientGETFactory, \
      HTTPClientHEADFactory
-from allmydata.client import Client
+from allmydata.client import Client, SecretHolder
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -93,7 +93,7 @@ class FakeClient(Client):
         self.nickname = "fake_nickname"
         self.introducer_furl = "None"
         self.stats_provider = FakeStatsProvider()
-        self._secret_holder = None
+        self._secret_holder = SecretHolder("lease secret", "convergence secret")
         self.helper = None
         self.convergence = "some random string"
         self.storage_broker = StorageFarmBroker(None, permute_peers=True)
@@ -101,7 +101,7 @@ class FakeClient(Client):
         self.history = FakeHistory()
         self.uploader = FakeUploader()
         self.uploader.setServiceParent(self)
-        self.nodemaker = FakeNodeMaker(None, None, None,
+        self.nodemaker = FakeNodeMaker(None, self._secret_holder, None,
                                        self.uploader, None, None,
                                        None, None)
 

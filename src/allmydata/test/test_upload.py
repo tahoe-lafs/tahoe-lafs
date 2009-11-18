@@ -187,7 +187,7 @@ class FakeClient:
         return self.DEFAULT_ENCODING_PARAMETERS
     def get_storage_broker(self):
         return self.storage_broker
-    _secret_holder = client.SecretHolder("lease secret")
+    _secret_holder = client.SecretHolder("lease secret", "convergence secret")
 
 class GotTooFarError(Exception):
     pass

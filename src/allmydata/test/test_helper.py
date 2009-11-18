@@ -90,7 +90,7 @@ class AssistedUpload(unittest.TestCase):
     def setUp(self):
         self.s = FakeClient()
         self.storage_broker = StorageFarmBroker(None, True)
-        self.secret_holder = client.SecretHolder("lease secret")
+        self.secret_holder = client.SecretHolder("lease secret", "convergence")
         self.s.startService()
 
         self.tub = t = Tub()

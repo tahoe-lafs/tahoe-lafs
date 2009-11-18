@@ -38,14 +38,18 @@ def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
 
 class SecretHolder:
-    def __init__(self, lease_secret):
+    def __init__(self, lease_secret, convergence_secret):
         self._lease_secret = lease_secret
+        self._convergence_secret = convergence_secret
 
     def get_renewal_secret(self):
         return hashutil.my_renewal_secret_hash(self._lease_secret)
 
     def get_cancel_secret(self):
         return hashutil.my_cancel_secret_hash(self._lease_secret)
+
+    def get_convergence_secret(self):
+        return self._convergence_secret
 
 class KeyGenerator:
     def __init__(self):
@@ -108,7 +112,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.DEFAULT_ENCODING_PARAMETERS = self.DEFAULT_ENCODING_PARAMETERS.copy()
         self.init_introducer_client()
         self.init_stats_provider()
-        self.init_lease_secret()
+        self.init_secrets()
         self.init_storage()
         self.init_control()
         self.helper = None
@@ -179,10 +183,13 @@ class Client(node.Node, pollmixin.PollMixin):
     def get_stats(self):
         return { 'node.uptime': time.time() - self.started_timestamp }
 
-    def init_lease_secret(self):
-        secret_s = self.get_or_create_private_config("secret", _make_secret)
-        lease_secret = base32.a2b(secret_s)
-        self._secret_holder = SecretHolder(lease_secret)
+    def init_secrets(self):
+        lease_s = self.get_or_create_private_config("secret", _make_secret)
+        lease_secret = base32.a2b(lease_s)
+        convergence_s = self.get_or_create_private_config('convergence',
+                                                          _make_secret)
+        self.convergence = base32.a2b(convergence_s)
+        self._secret_holder = SecretHolder(lease_secret, self.convergence)
 
     def init_storage(self):
         # should we run a storage server (and publish it for others to use)?
@@ -255,8 +262,6 @@ class Client(node.Node, pollmixin.PollMixin):
         DEP["k"] = int(self.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.get_config("client", "shares.total", DEP["n"]))
         DEP["happy"] = int(self.get_config("client", "shares.happy", DEP["happy"]))
-        convergence_s = self.get_or_create_private_config('convergence', _make_secret)
-        self.convergence = base32.a2b(convergence_s)
 
         self.init_client_storage_broker()
         self.history = History(self.stats_provider)
