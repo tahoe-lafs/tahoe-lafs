@@ -195,7 +195,6 @@ class DirectoryNode:
         self._uri = wrap_dirnode_cap(filenode_cap)
         self._nodemaker = nodemaker
         self._uploader = uploader
-        self._most_recent_size = None
 
     def __repr__(self):
         return "<%s %s-%s %s>" % (self.__class__.__name__,
@@ -204,22 +203,19 @@ class DirectoryNode:
                                   hasattr(self, '_uri') and self._uri.abbrev())
 
     def get_size(self):
-        # return the size of our backing mutable file, in bytes, if we've
-        # fetched it.
-        if not self._node.is_mutable():
-            # TODO?: consider using IMutableFileNode.providedBy(self._node)
-            return self._node.get_size()
-        return self._most_recent_size
+        """Return the size of our backing mutable file, in bytes, if we've
+        fetched it. Otherwise return None. This returns synchronously."""
+        return self._node.get_size()
 
-    def _set_size(self, data):
-        self._most_recent_size = len(data)
-        return data
+    def get_current_size(self):
+        """Calculate the size of our backing mutable file, in bytes. Returns
+        a Deferred that fires with the result."""
+        return self._node.get_current_size()
 
     def _read(self):
         if self._node.is_mutable():
             # use the IMutableFileNode API.
             d = self._node.download_best_version()
-            d.addCallback(self._set_size)
         else:
             d = self._node.download_to_data()
         d.addCallback(self._unpack_contents)
@@ -706,9 +702,10 @@ class DeepStats:
 
     def enter_directory(self, parent, children):
         dirsize_bytes = parent.get_size()
+        if dirsize_bytes is not None:
+            self.add("size-directories", dirsize_bytes)
+            self.max("largest-directory", dirsize_bytes)
         dirsize_children = len(children)
-        self.add("size-directories", dirsize_bytes)
-        self.max("largest-directory", dirsize_bytes)
         self.max("largest-directory-children", dirsize_children)
 
     def add(self, key, value=1):

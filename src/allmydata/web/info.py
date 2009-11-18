@@ -55,17 +55,12 @@ class MoreInfo(rend.Page):
     def render_size(self, ctx, data):
         node = self.original
         si = node.get_storage_index()
-        if IDirectoryNode.providedBy(node):
-            d = node._node.get_size_of_best_version()
-        elif IFileNode.providedBy(node):
-            if node.is_mutable():
-                d = node.get_size_of_best_version()
-            else:
-                # for immutable files and LIT files, we get the size from the
-                # URI
-                d = defer.succeed(node.get_size())
-        else:
-            d = defer.succeed("?")
+        d = node.get_current_size()
+        def _no_size(size):
+            if size is None:
+                return "?"
+            return size
+        d.addCallback(_no_size)
         def _handle_unrecoverable(f):
             f.trap(UnrecoverableFileError)
             return "?"

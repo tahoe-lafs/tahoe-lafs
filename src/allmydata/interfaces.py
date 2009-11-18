@@ -550,6 +550,19 @@ class IFilesystemNode(Interface):
         file.
         """
 
+    def get_size():
+        """Return the length (in bytes) of the data this node represents. For
+        directory nodes, I return the size of the backing store. I return
+        synchronously and do not consult the network, so for mutable objects,
+        I will return the most recently observed size for the object, or None
+        if I don't remember a size. Use get_current_size, which returns a
+        Deferred, if you want more up-to-date information."""
+
+    def get_current_size():
+        """I return a Deferred that fires with the length (in bytes) of the
+        data this node represents.
+        """
+
 class IMutableFilesystemNode(IFilesystemNode):
     pass
 
@@ -560,9 +573,6 @@ class IFileNode(IFilesystemNode):
     def download_to_data():
         """Download the file's contents. Return a Deferred that fires
         with those contents."""
-
-    def get_size():
-        """Return the length (in bytes) of the data this node represents."""
 
     def read(consumer, offset=0, size=None):
         """Download a portion (possibly all) of the file's contents, making

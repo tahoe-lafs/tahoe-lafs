@@ -19,6 +19,10 @@ class UnknownNode:
         return None
     def get_repair_cap(self):
         return None
+    def get_size(self):
+        return None
+    def get_current_size(self):
+        return defer.succeed(None)
     def check(self, monitor, verify, add_lease):
         return defer.succeed(None)
     def check_and_repair(self, monitor, verify, add_lease):

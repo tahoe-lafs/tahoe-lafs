@@ -196,6 +196,8 @@ class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
 
     def get_size(self):
         return self.u.get_size()
+    def get_current_size(self):
+        return defer.succeed(self.get_size())
 
     def get_cap(self):
         return self.u
@@ -323,6 +325,8 @@ class LiteralFileNode(_ImmutableFileNodeBase):
 
     def get_size(self):
         return len(self.u.data)
+    def get_current_size(self):
+        return defer.succeed(self.get_size())
 
     def get_cap(self):
         return self.u

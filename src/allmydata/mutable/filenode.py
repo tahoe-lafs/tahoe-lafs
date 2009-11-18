@@ -63,6 +63,7 @@ class MutableFileNode:
         self._total_shares = default_encoding_parameters["n"]
         self._sharemap = {} # known shares, shnum-to-[nodeids]
         self._cache = ResponseCache()
+        self._most_recent_size = None
 
         # all users of this MutableFileNode go through the serializer. This
         # takes advantage of the fact that Deferreds discard the callbacks
@@ -186,7 +187,14 @@ class MutableFileNode:
     # IFilesystemNode
 
     def get_size(self):
-        return "?" # TODO: this is likely to cause problems, not being an int
+        return self._most_recent_size
+    def get_current_size(self):
+        d = self.get_size_of_best_version()
+        d.addCallback(self._stash_size)
+        return d
+    def _stash_size(self, size):
+        self._most_recent_size = size
+        return size
 
     def get_cap(self):
         return self._uri
@@ -427,7 +435,12 @@ class MutableFileNode:
         r = Retrieve(self, servermap, version, fetch_privkey)
         if self._history:
             self._history.notify_retrieve(r.get_status())
-        return r.download()
+        d = r.download()
+        d.addCallback(self._downloaded_version)
+        return d
+    def _downloaded_version(self, data):
+        self._most_recent_size = len(data)
+        return data
 
     def upload(self, new_contents, servermap):
         return self._do_serialized(self._upload, new_contents, servermap)
@@ -436,4 +449,9 @@ class MutableFileNode:
         p = Publish(self, self._storage_broker, servermap)
         if self._history:
             self._history.notify_publish(p.get_status(), len(new_contents))
-        return p.publish(new_contents)
+        d = p.publish(new_contents)
+        d.addCallback(self._did_upload, len(new_contents))
+        return d
+    def _did_upload(self, res, size):
+        self._most_recent_size = size
+        return res
