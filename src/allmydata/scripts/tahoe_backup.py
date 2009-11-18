@@ -83,21 +83,18 @@ def get_local_metadata(path):
     return metadata
 
 def mkdir(contents, options):
-    url = options['node-url'] + "uri?t=mkdir"
-    resp = do_http("POST", url)
-    if resp.status < 200 or resp.status >= 300:
-        raiseHTTPError("error during mkdir", resp)
-    dircap = str(resp.read().strip())
-    url = options['node-url'] + "uri/%s?t=set_children" % urllib.quote(dircap)
-    body = dict([ (childname, (contents[childname][0],
+    kids = dict([ (childname, (contents[childname][0],
                                {"ro_uri": contents[childname][1],
                                 "metadata": contents[childname][2],
                                 }))
                   for childname in contents
                   ])
-    resp = do_http("POST", url, simplejson.dumps(body))
-    if resp.status != 200:
-        raiseHTTPError("error during set_children", resp)
+    body = simplejson.dumps(kids)
+    url = options['node-url'] + "uri?t=mkdir-immutable"
+    resp = do_http("POST", url, body)
+    if resp.status < 200 or resp.status >= 300:
+        raiseHTTPError("error during mkdir", resp)
+    dircap = str(resp.read().strip())
     return dircap
 
 def put_child(dirurl, childname, childcap):

@@ -336,16 +336,17 @@ tahoe mv tahoe:uploaded.txt fun:uploaded.txt
 tahoe backup ~ work:backups
 
  This command performs a full versioned backup of every file and directory
- underneath your "~" home directory, placing a read-only timestamped snapshot
- in e.g. work:backups/Archives/2009-02-06_04:00:05Z/ (note that the timestamp
- is in UTC, hence the "Z" suffix), and a link to the latest snapshot in
- work:backups/Latest/ . This command will use a small SQLite database known
- as the "backupdb", stored in ~/.tahoe/private/backupdb.sqlite, to remember
- which local files have been backed up already, and will avoid uploading
- files that have already been backed up. It compares timestamps and filesizes
- when making this comparison. The "tahoe backup" command also shares
- directories with the previous backup when nothing has changed, to run faster
- and to reduce the number of directories created.
+ underneath your "~" home directory, placing an immutable timestamped
+ snapshot in e.g. work:backups/Archives/2009-02-06_04:00:05Z/ (note that the
+ timestamp is in UTC, hence the "Z" suffix), and a link to the latest
+ snapshot in work:backups/Latest/ . This command will use a small SQLite
+ database known as the "backupdb", stored in
+ ~/.tahoe/private/backupdb.sqlite, to remember which local files have been
+ backed up already, and will avoid uploading files that have already been
+ backed up. It compares timestamps and filesizes when making this comparison.
+ The "tahoe backup" command also shares directories with the previous backup
+ when nothing has changed, to run faster and to reduce the number of
+ directories created.
 
 tahoe backup --exclude=*~ ~ work:backups
 

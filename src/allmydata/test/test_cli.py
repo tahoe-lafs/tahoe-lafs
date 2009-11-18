@@ -998,11 +998,16 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessEqual(dr, 0)
         d.addCallback(_check0)
 
-        d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups"))
+        d.addCallback(lambda res: self.do_cli("ls", "--uri", "tahoe:backups"))
         def _check1((rc, out, err)):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(sorted(out.split()), ["Archives", "Latest"])
+            lines = out.split("\n")
+            children = dict([line.split() for line in lines if line])
+            latest_uri = children["Latest"]
+            self.failUnless(latest_uri.startswith("URI:DIR2-CHK:"), latest_uri)
+            childnames = children.keys()
+            self.failUnlessEqual(sorted(childnames), ["Archives", "Latest"])
         d.addCallback(_check1)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest"))
         def _check2((rc, out, err)):
