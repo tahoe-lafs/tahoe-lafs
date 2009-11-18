@@ -1,7 +1,6 @@
 
 import os, urllib
 
-from twisted.internet import defer
 from nevow import rend, tags as T
 from nevow.inevow import IRequest
 
