@@ -362,12 +362,18 @@ class NewDirnode(unittest.TestCase):
 
         u2_verifier = u2.get_verify_cap()
         self.failUnless(isinstance(u2_verifier,
-                                   uri.ImmutableDirectoryURIVerifier), u2_verifier)
+                                   uri.ImmutableDirectoryURIVerifier),
+                        u2_verifier)
         self.failUnless(IVerifierURI.providedBy(u2_verifier))
+        u2vs = u2_verifier.to_string()
+        # URI:DIR2-CHK-Verifier:$key:$ueb:$k:$n:$size
+        self.failUnless(u2vs.startswith("URI:DIR2-CHK-Verifier:"), u2vs)
         u2_verifier_fileuri = u2_verifier.get_filenode_cap()
         self.failUnless(IVerifierURI.providedBy(u2_verifier_fileuri))
-        self.failUnlessEqual(u2_verifier_fileuri.to_string(),
-                             fnuri.get_verify_cap().to_string())
+        u2vfs = u2_verifier_fileuri.to_string()
+        # URI:CHK-Verifier:$key:$ueb:$k:$n:$size
+        self.failUnlessEqual(u2vfs, fnuri.get_verify_cap().to_string())
+        self.failUnlessEqual(u2vs[len("URI:DIR2-"):], u2vfs[len("URI:"):])
         self.failUnless(str(u2_verifier))
 
     def test_literal(self):

@@ -115,6 +115,7 @@ class CHKFileURI(_BaseURI):
 class CHKFileVerifierURI(_BaseURI):
     implements(IVerifierURI)
 
+    BASE_STRING='URI:CHK-Verifier:'
     STRING_RE=re.compile('^URI:CHK-Verifier:'+BASE32STR_128bits+':'+
                          BASE32STR_256bits+':'+NUMBER+':'+NUMBER+':'+NUMBER)
     HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'CHK-Verifier'+SEP+
