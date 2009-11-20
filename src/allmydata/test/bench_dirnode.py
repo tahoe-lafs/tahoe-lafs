@@ -2,14 +2,17 @@ import hotshot.stats, os, random, sys
 
 from pyutil import benchutil, randutil # http://allmydata.org/trac/pyutil
 
+from zope.interface import implements
 from allmydata import dirnode, uri
-from allmydata.mutable import filenode as mut_filenode
-from allmydata.immutable import filenode as immut_filenode
+from allmydata.interfaces import IFileNode
+from allmydata.mutable.filenode import MutableFileNode
+from allmydata.immutable.filenode import ImmutableFileNode
 
 children = [] # tuples of (k, v) (suitable for passing to dict())
 packstr = None
 
 class ContainerNode:
+    implements(IFileNode)
     # dirnodes sit on top of a "container" filenode, from which it extracts a
     # writekey
     def __init__(self):
@@ -18,6 +21,8 @@ class ContainerNode:
         self._cap = uri.WriteableSSKFileURI(self._writekey, self._fingerprint)
     def get_writekey(self):
         return self._writekey
+    def get_cap(self):
+        return self._cap
     def get_uri(self):
         return self._cap.to_string()
     def is_readonly(self):
@@ -45,17 +50,17 @@ def random_fsnode():
                              random.randrange(1, 5),
                              random.randrange(6, 15),
                              random.randrange(99, 1000000000000))
-        return immut_filenode.FileNode(cap, None, None, None, None, None)
+        return ImmutableFileNode(cap, None, None, None, None, None)
     elif coin == 1:
         cap = uri.WriteableSSKFileURI(randutil.insecurerandstr(16),
                                       randutil.insecurerandstr(32))
-        n = mut_filenode.MutableFileNode(None, None, encoding_parameters, None)
+        n = MutableFileNode(None, None, encoding_parameters, None)
         return n.init_from_cap(cap)
     else:
         assert coin == 2
         cap = uri.WriteableSSKFileURI(randutil.insecurerandstr(16),
                                       randutil.insecurerandstr(32))
-        n = mut_filenode.MutableFileNode(None, None, encoding_parameters, None)
+        n = MutableFileNode(None, None, encoding_parameters, None)
         n.init_from_cap(cap)
         return dirnode.DirectoryNode(n, nodemaker, uploader=None)
 

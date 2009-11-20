@@ -11,7 +11,8 @@ import allmydata
 from allmydata import uri
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.server import si_a2b
-from allmydata.immutable import download, filenode, offloaded, upload
+from allmydata.immutable import download, offloaded, upload
+from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.scripts import runner
@@ -1770,7 +1771,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         d.addCallback(lambda res: self._personal_node.get(u"big file"))
         def _got_chk_filenode(n):
-            self.failUnless(isinstance(n, filenode.FileNode))
+            self.failUnless(isinstance(n, ImmutableFileNode))
             d = n.check(Monitor())
             def _check_filenode_results(r):
                 self.failUnless(r.is_healthy())
@@ -1782,7 +1783,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         d.addCallback(lambda res: self._personal_node.get(u"sekrit data"))
         def _got_lit_filenode(n):
-            self.failUnless(isinstance(n, filenode.LiteralFileNode))
+            self.failUnless(isinstance(n, LiteralFileNode))
             d = n.check(Monitor())
             def _check_lit_filenode_results(r):
                 self.failUnlessEqual(r, None)

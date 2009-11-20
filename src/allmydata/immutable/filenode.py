@@ -72,9 +72,9 @@ class DownloadCache:
         self.cachefile = None
         self.download_in_progress = False
         # five states:
-        #  new FileNode, no downloads ever performed
-        #  new FileNode, leftover file (partial)
-        #  new FileNode, leftover file (whole)
+        #  new ImmutableFileNode, no downloads ever performed
+        #  new ImmutableFileNode, leftover file (partial)
+        #  new ImmutableFileNode, leftover file (whole)
         #  download in progress, not yet complete
         #  download complete
 
@@ -178,7 +178,7 @@ class DownloadCache:
         pass
 
 
-class FileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
+class ImmutableFileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
     def __init__(self, filecap, storage_broker, secret_holder,
                  downloader, history, cachedirectorymanager):
         assert isinstance(filecap, CHKFileURI)

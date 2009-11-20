@@ -956,9 +956,9 @@ class IDirectoryNode(IMutableFilesystemNode):
 
     def add_file(name, uploadable, metadata=None, overwrite=True):
         """I upload a file (using the given IUploadable), then attach the
-        resulting FileNode to the directory at the given name. I set metadata
-        the same way as set_uri and set_node. The child name must be a
-        unicode string.
+        resulting ImmutableFileNode to the directory at the given name. I set
+        metadata the same way as set_uri and set_node. The child name must be
+        a unicode string.
 
         I return a Deferred that fires (with the IFileNode of the uploaded
         file) when the operation completes."""
@@ -2069,7 +2069,7 @@ class IClient(Interface):
         @return: an instance that provides IFilesystemNode (or more usefully
                  one of its subclasses). File-specifying URIs will result in
                  IFileNode or IMutableFileNode -providing instances, like
-                 FileNode, LiteralFileNode, or MutableFileNode.
+                 ImmutableFileNode, LiteralFileNode, or MutableFileNode.
                  Directory-specifying URIs will result in
                  IDirectoryNode-providing instances, like DirectoryNode.
         """

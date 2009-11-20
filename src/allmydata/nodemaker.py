@@ -2,7 +2,7 @@ import weakref
 from zope.interface import implements
 from allmydata.util.assertutil import precondition
 from allmydata.interfaces import INodeMaker, NotDeepImmutableError
-from allmydata.immutable.filenode import FileNode, LiteralFileNode
+from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
 from allmydata.immutable.upload import Data
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.dirnode import DirectoryNode, pack_children
@@ -33,9 +33,9 @@ class NodeMaker:
     def _create_lit(self, cap):
         return LiteralFileNode(cap)
     def _create_immutable(self, cap):
-        return FileNode(cap, self.storage_broker, self.secret_holder,
-                        self.downloader, self.history,
-                        self.download_cache_dirman)
+        return ImmutableFileNode(cap, self.storage_broker, self.secret_holder,
+                                 self.downloader, self.history,
+                                 self.download_cache_dirman)
     def _create_mutable(self, cap):
         n = MutableFileNode(self.storage_broker, self.secret_holder,
                             self.default_encoding_parameters,

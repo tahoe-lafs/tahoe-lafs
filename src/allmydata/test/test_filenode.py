@@ -2,7 +2,8 @@
 from twisted.trial import unittest
 from allmydata import uri, client
 from allmydata.monitor import Monitor
-from allmydata.immutable import filenode, download
+from allmydata.immutable import download
+from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.util import hashutil, cachedir
 from allmydata.test.common import download_to_data
@@ -32,8 +33,8 @@ class Node(unittest.TestCase):
                            size=1000)
         c = FakeClient()
         cf = cachedir.CacheFile("none")
-        fn1 = filenode.FileNode(u, None, None, None, None, cf)
-        fn2 = filenode.FileNode(u, None, None, None, None, cf)
+        fn1 = ImmutableFileNode(u, None, None, None, None, cf)
+        fn2 = ImmutableFileNode(u, None, None, None, None, cf)
         self.failUnlessEqual(fn1, fn2)
         self.failIfEqual(fn1, "I am not a filenode")
         self.failIfEqual(fn1, NotANode())
@@ -56,8 +57,8 @@ class Node(unittest.TestCase):
         DATA = "I am a short file."
         u = uri.LiteralFileURI(data=DATA)
         c = None
-        fn1 = filenode.LiteralFileNode(u)
-        fn2 = filenode.LiteralFileNode(u)
+        fn1 = LiteralFileNode(u)
+        fn2 = LiteralFileNode(u)
         self.failUnlessEqual(fn1, fn2)
         self.failIfEqual(fn1, "I am not a filenode")
         self.failIfEqual(fn1, NotANode())
@@ -151,7 +152,7 @@ class LiteralChecker(unittest.TestCase):
     def test_literal_filenode(self):
         DATA = "I am a short file."
         u = uri.LiteralFileURI(data=DATA)
-        fn1 = filenode.LiteralFileNode(u)
+        fn1 = LiteralFileNode(u)
 
         d = fn1.check(Monitor())
         def _check_checker_results(cr):
