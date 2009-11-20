@@ -14,8 +14,8 @@ from foolscap.api import fireEventually
 
 from allmydata.util import base32, time_format
 from allmydata.uri import from_string_dirnode
-from allmydata.interfaces import IDirectoryNode, IFileNode, IMutableFileNode, \
-     IFilesystemNode, ExistingChildError, NoSuchChildError
+from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
+     IImmutableFileNode, IMutableFileNode, ExistingChildError, NoSuchChildError
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata import dirnode
 from allmydata.web.common import text_plain, WebError, \
@@ -40,8 +40,6 @@ class BlockingFileError(Exception):
 def make_handler_for(node, client, parentnode=None, name=None):
     if parentnode:
         assert IDirectoryNode.providedBy(parentnode)
-    if IMutableFileNode.providedBy(node):
-        return FileNodeHandler(client, node, parentnode, name)
     if IFileNode.providedBy(node):
         return FileNodeHandler(client, node, parentnode, name)
     if IDirectoryNode.providedBy(node):
@@ -687,7 +685,7 @@ class DirectoryAsHTML(rend.Page):
 
             info_link = "%s/uri/%s?t=info" % (root, quoted_uri)
 
-        elif IFileNode.providedBy(target):
+        elif IImmutableFileNode.providedBy(target):
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
 
             ctx.fillSlots("filename",
@@ -789,17 +787,16 @@ def DirectoryJSONMetadata(ctx, dirnode):
             assert IFilesystemNode.providedBy(childnode), childnode
             rw_uri = childnode.get_uri()
             ro_uri = childnode.get_readonly_uri()
-            if (IDirectoryNode.providedBy(childnode)
-                or IFileNode.providedBy(childnode)):
+            if IFileNode.providedBy(childnode):
                 if childnode.is_readonly():
                     rw_uri = None
-            if IFileNode.providedBy(childnode):
                 kiddata = ("filenode", {'size': childnode.get_size(),
                                         'mutable': childnode.is_mutable(),
                                         })
             elif IDirectoryNode.providedBy(childnode):
-                kiddata = ("dirnode", {'mutable': childnode.is_mutable(),
-                                       })
+                if childnode.is_readonly():
+                    rw_uri = None
+                kiddata = ("dirnode", {'mutable': childnode.is_mutable()})
             else:
                 kiddata = ("unknown", {})
             kiddata[1]["metadata"] = metadata

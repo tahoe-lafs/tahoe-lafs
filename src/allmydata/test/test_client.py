@@ -9,7 +9,8 @@ from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import base32, fileutil
-from allmydata.interfaces import IFilesystemNode, IFileNode, IDirectoryNode
+from allmydata.interfaces import IFilesystemNode, IFileNode, \
+     IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
 import common_util as testutil
 
@@ -247,13 +248,44 @@ class NodeMaker(unittest.TestCase):
         n = c.create_node_from_uri("URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failUnless(IFileNode.providedBy(n))
+        self.failUnless(IImmutableFileNode.providedBy(n))
+        self.failIf(IMutableFileNode.providedBy(n))
         self.failIf(IDirectoryNode.providedBy(n))
         self.failUnless(n.is_readonly())
         self.failIf(n.is_mutable())
 
+        n = c.create_node_from_uri("URI:LIT:n5xgk")
+        self.failUnless(IFilesystemNode.providedBy(n))
+        self.failUnless(IFileNode.providedBy(n))
+        self.failUnless(IImmutableFileNode.providedBy(n))
+        self.failIf(IMutableFileNode.providedBy(n))
+        self.failIf(IDirectoryNode.providedBy(n))
+        self.failUnless(n.is_readonly())
+        self.failIf(n.is_mutable())
+
+        n = c.create_node_from_uri("URI:SSK:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        self.failUnless(IFilesystemNode.providedBy(n))
+        self.failUnless(IFileNode.providedBy(n))
+        self.failIf(IImmutableFileNode.providedBy(n))
+        self.failUnless(IMutableFileNode.providedBy(n))
+        self.failIf(IDirectoryNode.providedBy(n))
+        self.failIf(n.is_readonly())
+        self.failUnless(n.is_mutable())
+
+        n = c.create_node_from_uri("URI:SSK-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
+        self.failUnless(IFilesystemNode.providedBy(n))
+        self.failUnless(IFileNode.providedBy(n))
+        self.failIf(IImmutableFileNode.providedBy(n))
+        self.failUnless(IMutableFileNode.providedBy(n))
+        self.failIf(IDirectoryNode.providedBy(n))
+        self.failUnless(n.is_readonly())
+        self.failUnless(n.is_mutable())
+
         n = c.create_node_from_uri("URI:DIR2:n6x24zd3seu725yluj75q5boaa:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failIf(IFileNode.providedBy(n))
+        self.failIf(IImmutableFileNode.providedBy(n))
+        self.failIf(IMutableFileNode.providedBy(n))
         self.failUnless(IDirectoryNode.providedBy(n))
         self.failIf(n.is_readonly())
         self.failUnless(n.is_mutable())
@@ -261,6 +293,8 @@ class NodeMaker(unittest.TestCase):
         n = c.create_node_from_uri("URI:DIR2-RO:b7sr5qsifnicca7cbk3rhrhbvq:mm6yoqjhl6ueh7iereldqxue4nene4wl7rqfjfybqrehdqmqskvq")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failIf(IFileNode.providedBy(n))
+        self.failIf(IImmutableFileNode.providedBy(n))
+        self.failIf(IMutableFileNode.providedBy(n))
         self.failUnless(IDirectoryNode.providedBy(n))
         self.failUnless(n.is_readonly())
         self.failUnless(n.is_mutable())
@@ -269,5 +303,7 @@ class NodeMaker(unittest.TestCase):
         n = c.create_node_from_uri(future)
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failIf(IFileNode.providedBy(n))
+        self.failIf(IImmutableFileNode.providedBy(n))
+        self.failIf(IMutableFileNode.providedBy(n))
         self.failIf(IDirectoryNode.providedBy(n))
         self.failUnlessEqual(n.get_uri(), future)

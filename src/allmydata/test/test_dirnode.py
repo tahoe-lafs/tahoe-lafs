@@ -6,7 +6,7 @@ from twisted.internet import defer
 from allmydata import uri, dirnode
 from allmydata.client import Client
 from allmydata.immutable import upload
-from allmydata.interfaces import IFileNode, IMutableFileNode, \
+from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, NotDeepImmutableError, \
      IDeepCheckResults, IDeepCheckAndRepairResults, CannotPackUnknownNodeError
 from allmydata.mutable.filenode import MutableFileNode
@@ -762,7 +762,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             uploadable1 = upload.Data("some data", convergence="converge")
             d.addCallback(lambda res: n.add_file(u"newfile", uploadable1))
             d.addCallback(lambda newnode:
-                          self.failUnless(IFileNode.providedBy(newnode)))
+                          self.failUnless(IImmutableFileNode.providedBy(newnode)))
             uploadable2 = upload.Data("some data", convergence="stuff")
             d.addCallback(lambda res:
                           self.shouldFail(ExistingChildError, "add_file-no",
@@ -784,7 +784,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                  uploadable3,
                                                  {"key": "value"}))
             d.addCallback(lambda newnode:
-                          self.failUnless(IFileNode.providedBy(newnode)))
+                          self.failUnless(IImmutableFileNode.providedBy(newnode)))
             d.addCallback(lambda res: n.get_metadata_for(u"newfile-metadata"))
             d.addCallback(lambda metadata:
                               self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and

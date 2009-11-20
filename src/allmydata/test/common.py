@@ -8,7 +8,7 @@ from twisted.web.error import Error as WebError
 from foolscap.api import flushEventualQueue, fireEventually
 from allmydata import uri, dirnode, client
 from allmydata.introducer.server import IntroducerNode
-from allmydata.interfaces import IMutableFileNode, IFileNode, \
+from allmydata.interfaces import IMutableFileNode, IImmutableFileNode, \
      FileTooLargeError, NotEnoughSharesError, ICheckable
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
@@ -32,9 +32,9 @@ def flush_but_dont_ignore(res):
     return d
 
 class FakeCHKFileNode:
-    """I provide IFileNode, but all of my data is stored in a class-level
-    dictionary."""
-    implements(IFileNode)
+    """I provide IImmutableFileNode, but all of my data is stored in a
+    class-level dictionary."""
+    implements(IImmutableFileNode)
     all_contents = {}
     bad_shares = {}
 

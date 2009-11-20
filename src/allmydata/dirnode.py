@@ -8,8 +8,8 @@ import simplejson
 from allmydata.mutable.common import NotMutableError
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.unknown import UnknownNode
-from allmydata.interfaces import IMutableFileNode, IDirectoryNode,\
-     IFileNode, IFilesystemNode, \
+from allmydata.interfaces import IFilesystemNode, IDirectoryNode, IFileNode, \
+     IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable, \
      CannotPackUnknownNodeError
 from allmydata.check_results import DeepCheckResults, \
@@ -687,7 +687,7 @@ class DeepStats:
             self.add("count-mutable-files")
             # TODO: update the servermap, compute a size, add it to
             # size-mutable-files, max it into "largest-mutable-file"
-        elif IFileNode.providedBy(node): # CHK and LIT
+        elif IImmutableFileNode.providedBy(node): # CHK and LIT
             self.add("count-files")
             size = node.get_size()
             self.histogram("size-files-histogram", size)

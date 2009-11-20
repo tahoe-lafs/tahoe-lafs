@@ -483,6 +483,13 @@ class UnhandledCapTypeError(Exception):
 class NotDeepImmutableError(Exception):
     """Deep-immutable directories can only contain deep-immutable children"""
 
+# The hierarchy looks like this:
+#  IFilesystemNode
+#   IFileNode
+#    IMutableFileNode
+#    IImmutableFileNode
+#   IDirectoryNode
+
 class IFilesystemNode(Interface):
     def get_cap():
         """Return the strongest 'cap instance' associated with this node.
@@ -563,10 +570,11 @@ class IFilesystemNode(Interface):
         data this node represents.
         """
 
-class IMutableFilesystemNode(IFilesystemNode):
-    pass
-
 class IFileNode(IFilesystemNode):
+    """I am a node which represents a file: a sequence of bytes. I am not a
+    container, like IDirectoryNode."""
+
+class IImmutableFileNode(IFileNode):
     def download(target):
         """Download the file's contents to a given IDownloadTarget"""
 
@@ -626,7 +634,7 @@ class IFileNode(IFilesystemNode):
 
         """
 
-class IMutableFileNode(IFileNode, IMutableFilesystemNode):
+class IMutableFileNode(IFileNode):
     """I provide access to a 'mutable file', which retains its identity
     regardless of what contents are put in it.
 
@@ -819,10 +827,11 @@ class ExistingChildError(Exception):
 class NoSuchChildError(Exception):
     """A directory node was asked to fetch a child which does not exist."""
 
-class IDirectoryNode(IMutableFilesystemNode):
-    """I represent a name-to-child mapping, holding the tahoe equivalent of a
-    directory. All child names are unicode strings, and all children are some
-    sort of IFilesystemNode (either files or subdirectories).
+class IDirectoryNode(IFilesystemNode):
+    """I represent a filesystem node that is a container, with a
+    name-to-child mapping, holding the tahoe equivalent of a directory. All
+    child names are unicode strings, and all children are some sort of
+    IFilesystemNode (either files or subdirectories).
     """
 
     def get_uri():
@@ -846,8 +855,8 @@ class IDirectoryNode(IMutableFilesystemNode):
     def list():
         """I return a Deferred that fires with a dictionary mapping child
         name (a unicode string) to (node, metadata_dict) tuples, in which
-        'node' is either an IFileNode or IDirectoryNode, and 'metadata_dict'
-        is a dictionary of metadata."""
+        'node' is an IFilesystemNode (either IFileNode or IDirectoryNode),
+        and 'metadata_dict' is a dictionary of metadata."""
 
     def has_child(name):
         """I return a Deferred that fires with a boolean, True if there
@@ -877,7 +886,7 @@ class IDirectoryNode(IMutableFilesystemNode):
         name."""
 
     def get_child_at_path(path):
-        """Transform a child path into an IDirectoryNode or IFileNode.
+        """Transform a child path into an IFilesystemNode.
 
         I perform a recursive series of 'get' operations to find the named
         descendant node. I return a Deferred that fires with the node, or
@@ -888,8 +897,7 @@ class IDirectoryNode(IMutableFilesystemNode):
         """
 
     def get_child_and_metadata_at_path(path):
-        """Transform a child path into an IDirectoryNode/IFileNode and
-        metadata.
+        """Transform a child path into an IFilesystemNode and metadata.
 
         I am like get_child_at_path(), but my Deferred fires with a tuple of
         (node, metadata). The metadata comes from the last edge. If the path
@@ -934,7 +942,7 @@ class IDirectoryNode(IMutableFilesystemNode):
         when the operation finishes. This Deferred will fire with the child
         node that was just added. I will replace any existing child of the
         same name. The child name must be a unicode string. The 'child'
-        instance must be an instance providing IDirectoryNode or IFileNode.
+        instance must be an instance providing IFilesystemNode.
 
         If metadata= is provided, I will use it as the metadata for the named
         edge. This will replace any existing metadata. If metadata= is left
@@ -2068,10 +2076,10 @@ class IClient(Interface):
 
         @return: an instance that provides IFilesystemNode (or more usefully
                  one of its subclasses). File-specifying URIs will result in
-                 IFileNode or IMutableFileNode -providing instances, like
-                 ImmutableFileNode, LiteralFileNode, or MutableFileNode.
-                 Directory-specifying URIs will result in
-                 IDirectoryNode-providing instances, like DirectoryNode.
+                 IFileNode-providing instances, like ImmutableFileNode,
+                 LiteralFileNode, or MutableFileNode. Directory-specifying
+                 URIs will result in IDirectoryNode-providing instances, like
+                 DirectoryNode.
         """
 
 class INodeMaker(Interface):
@@ -2083,7 +2091,7 @@ class INodeMaker(Interface):
     or modify its contents.
 
     The NodeMaker encapsulates all the authorities that these
-    IfilesystemNodes require (like references to the StorageFarmBroker). Each
+    IFilesystemNodes require (like references to the StorageFarmBroker). Each
     Tahoe process will typically have a single NodeMaker, but unit tests may
     create simplified/mocked forms for testing purposes.
     """

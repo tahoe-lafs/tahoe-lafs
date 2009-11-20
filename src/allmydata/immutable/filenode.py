@@ -5,7 +5,7 @@ from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from twisted.protocols import basic
 from foolscap.api import eventually
-from allmydata.interfaces import IFileNode, ICheckable, \
+from allmydata.interfaces import IImmutableFileNode, ICheckable, \
      IDownloadTarget, IUploadResults
 from allmydata.util import dictutil, log, base32
 from allmydata.uri import CHKFileURI, LiteralFileURI
@@ -15,7 +15,7 @@ from allmydata.immutable.repairer import Repairer
 from allmydata.immutable import download
 
 class _ImmutableFileNodeBase(object):
-    implements(IFileNode, ICheckable)
+    implements(IImmutableFileNode, ICheckable)
 
     def get_readonly_uri(self):
         return self.get_uri()
@@ -29,12 +29,12 @@ class _ImmutableFileNodeBase(object):
     def __hash__(self):
         return self.u.__hash__()
     def __eq__(self, other):
-        if IFileNode.providedBy(other):
+        if isinstance(other, _ImmutableFileNodeBase):
             return self.u.__eq__(other.u)
         else:
             return False
     def __ne__(self, other):
-        if IFileNode.providedBy(other):
+        if isinstance(other, _ImmutableFileNodeBase):
             return self.u.__eq__(other.u)
         else:
             return True
