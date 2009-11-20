@@ -259,7 +259,7 @@ class Mutable(unittest.TestCase):
         self.failUnlessEqual(u5, u5_h)
 
 
-class NewDirnode(unittest.TestCase):
+class Dirnode(unittest.TestCase):
     def test_pack(self):
         writekey = "\x01" * 16
         fingerprint = "\x02" * 32
