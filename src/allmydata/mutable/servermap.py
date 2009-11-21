@@ -1008,7 +1008,7 @@ class ServermapUpdater:
         self._status.set_finished(now)
         self._status.timings["total"] = elapsed
         self._status.set_progress(1.0)
-        self._status.set_status("Done")
+        self._status.set_status("Finished")
         self._status.set_active(False)
 
         self._servermap.last_update_mode = self.mode

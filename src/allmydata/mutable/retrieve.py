@@ -537,7 +537,7 @@ class Retrieve:
             self._status.set_status("Failed")
         else:
             self.log("Retrieve done, success!")
-            self._status.set_status("Done")
+            self._status.set_status("Finished")
             self._status.set_progress(1.0)
             # remember the encoding parameters, use them again next time
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,

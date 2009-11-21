@@ -820,7 +820,7 @@ class Publish:
             # TODO: recovery
         else:
             self.log("Publish done, success")
-            self._status.set_status("Done")
+            self._status.set_status("Finished")
             self._status.set_progress(1.0)
         eventually(self.done_deferred.callback, res)
 

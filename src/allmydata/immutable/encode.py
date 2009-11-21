@@ -637,7 +637,7 @@ class Encoder(object):
 
     def done(self, res):
         self.log("upload done", level=log.OPERATIONAL)
-        self.set_status("Done")
+        self.set_status("Finished")
         self.set_encode_and_push_progress(extra=1.0) # done
         now = time.time()
         h_and_c_elapsed = now - self._start_hashing_and_close_timestamp

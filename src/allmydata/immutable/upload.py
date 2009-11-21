@@ -838,7 +838,7 @@ class LiteralUploader:
 
     def _build_results(self, uri):
         self._results.uri = uri
-        self._status.set_status("Done")
+        self._status.set_status("Finished")
         self._status.set_progress(1, 1.0)
         self._status.set_progress(2, 1.0)
         return self._results
@@ -1038,7 +1038,7 @@ class AssistedUploader:
         if "total" in r.timings:
             r.timings["helper_total"] = r.timings["total"]
         r.timings["total"] = now - self._started
-        self._upload_status.set_status("Done")
+        self._upload_status.set_status("Finished")
         self._upload_status.set_results(r)
         return r
 
