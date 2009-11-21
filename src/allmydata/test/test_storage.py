@@ -228,8 +228,9 @@ class BucketProxy(unittest.TestCase):
                                        0x44, WriteBucketProxy_v2, ReadBucketProxy)
 
 class FakeDiskStorageServer(StorageServer):
-    def stat_disk(self, d):
-        return self.DISKAVAIL
+    DISKAVAIL = 0
+    def get_disk_stats(self):
+        return { 'free_for_nonroot': self.DISKAVAIL, 'avail': max(self.DISKAVAIL - self.reserved_space, 0), }
 
 class Server(unittest.TestCase):
 
@@ -412,7 +413,7 @@ class Server(unittest.TestCase):
     def test_reserved_space(self):
         ss = self.create("test_reserved_space", reserved_space=10000,
                          klass=FakeDiskStorageServer)
-        # the FakeDiskStorageServer doesn't do real statvfs() calls
+        # the FakeDiskStorageServer doesn't do real calls to get_disk_stats
         ss.DISKAVAIL = 15000
         # 15k available, 10k reserved, leaves 5k for shares
 
@@ -467,6 +468,23 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(ss._active_writers), 0)
         ss.disownServiceParent()
         del ss
+
+    def test_disk_stats(self):
+        # This will spuriously fail if there is zero disk space left (but so will other tests).
+        ss = self.create("test_disk_stats", reserved_space=0)
+
+        disk = ss.get_disk_stats()
+        self.failUnless(disk['total'] > 0, disk['total'])
+        self.failUnless(disk['used'] > 0, disk['used'])
+        self.failUnless(disk['free_for_root'] > 0, disk['free_for_root'])
+        self.failUnless(disk['free_for_nonroot'] > 0, disk['free_for_nonroot'])
+        self.failUnless(disk['avail'] > 0, disk['avail'])
+
+    def test_disk_stats_avail_nonnegative(self):
+        ss = self.create("test_disk_stats_avail_nonnegative", reserved_space=2**64)
+
+        disk = ss.get_disk_stats()
+        self.failUnlessEqual(disk['avail'], 0)
 
     def test_seek(self):
         basedir = self.workdir("test_seek_behavior")
@@ -624,12 +642,10 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(writers, {})
 
         stats = ss.get_stats()
-        self.failUnlessEqual(stats["storage_server.accepting_immutable_shares"],
-                             False)
+        self.failUnlessEqual(stats["storage_server.accepting_immutable_shares"], 0)
         if "storage_server.disk_avail" in stats:
-            # windows does not have os.statvfs, so it doesn't give us disk
-            # stats. But if there are stats, readonly_storage means
-            # disk_avail=0
+            # Some platforms may not have an API to get disk stats.
+            # But if there are stats, readonly_storage means disk_avail=0
             self.failUnlessEqual(stats["storage_server.disk_avail"], 0)
 
     def test_discard(self):
@@ -2405,9 +2421,13 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d = self.render1(page, args={"t": ["json"]})
         return d
 
-class NoStatvfsServer(StorageServer):
-    def do_statvfs(self):
+class NoDiskStatsServer(StorageServer):
+    def get_disk_stats(self):
         raise AttributeError
+
+class BadDiskStatsServer(StorageServer):
+    def get_disk_stats(self):
+        raise OSError
 
 class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
@@ -2450,12 +2470,12 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d = self.render1(page, args={"t": ["json"]})
         return d
 
-    def test_status_no_statvfs(self):
-        # windows has no os.statvfs . Make sure the code handles that even on
-        # unix.
-        basedir = "storage/WebStatus/status_no_statvfs"
+    def test_status_no_disk_stats(self):
+        # Some platforms may have no disk stats API. Make sure the code can handle that
+        # (test runs on all platforms).
+        basedir = "storage/WebStatus/status_no_disk_stats"
         fileutil.make_dirs(basedir)
-        ss = NoStatvfsServer(basedir, "\x00" * 20)
+        ss = NoDiskStatsServer(basedir, "\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
@@ -2463,6 +2483,24 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         s = remove_tags(html)
         self.failUnless("Accepting new shares: Yes" in s, s)
         self.failUnless("Total disk space: ?" in s, s)
+        self.failUnless("Space Available to Tahoe: ?" in s, s)
+        self.failUnless(ss.get_available_space() is None)
+
+    def test_status_bad_disk_stats(self):
+        # If the API to get disk stats exists but a call to it fails, then the status should
+        # show that no shares will be accepted, and get_available_space() should be 0.
+        basedir = "storage/WebStatus/status_bad_disk_stats"
+        fileutil.make_dirs(basedir)
+        ss = BadDiskStatsServer(basedir, "\x00" * 20)
+        ss.setServiceParent(self.s)
+        w = StorageStatus(ss)
+        html = w.renderSynchronously()
+        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        s = remove_tags(html)
+        self.failUnless("Accepting new shares: No" in s, s)
+        self.failUnless("Total disk space: ?" in s, s)
+        self.failUnless("Space Available to Tahoe: ?" in s, s)
+        self.failUnless(ss.get_available_space() == 0)
 
     def test_readonly(self):
         basedir = "storage/WebStatus/readonly"

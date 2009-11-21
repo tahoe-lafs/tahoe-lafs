@@ -37,19 +37,18 @@ if sys.version_info < (2, 5):
     install_requires.append("pysqlite >= 2.0.5")
 
 ## The following block is commented-out because there is not currently a pywin32 package which
-## can be easy_install'ed and also which actually makes "import win32api" succeed.  Users have
-## to manually install pywin32 on Windows before installing Tahoe.
+## can be easy_install'ed and also which actually makes "import win32api" succeed.
+## See http://sourceforge.net/tracker/index.php?func=detail&aid=1799934&group_id=78018&atid=551954
+## Users have to manually install pywin32 on Windows before installing Tahoe.
 ##import platform
 ##if platform.system() == "Windows":
 ##    # Twisted requires pywin32 if it is going to offer process management functionality, or if
 ##    # it is going to offer iocp reactor.  We currently require process management.  It would be
 ##    # better if Twisted would declare that it requires pywin32 if it is going to offer process
-##    # management.  Then the specification and the evolution of Twisted's reliance on pywin32 can
-##    # be confined to the Twisted setup data, and Tahoe can remain blissfully ignorant about such
-##    # things as if a future version of Twisted requires a different version of pywin32, or if a
-##    # future version of Twisted implements process management without using pywin32 at all,
-##    # etc..  That is twisted ticket #3238 -- http://twistedmatrix.com/trac/ticket/3238 .  But
-##    # until Twisted does that, Tahoe needs to be non-ignorant of the following requirement:
+##    # management.  That is twisted ticket #3238 -- http://twistedmatrix.com/trac/ticket/3238 .
+##    # On the other hand, Tahoe also depends on pywin32 for getting free disk space statistics
+##    # (although that is not a hard requirement: if win32api can't be imported then we don't
+##    # rely on having the disk stats).
 ##    install_requires.append('pywin32')
 
 if hasattr(sys, 'frozen'): # for py2exe

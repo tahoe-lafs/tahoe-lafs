@@ -36,6 +36,16 @@ class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer, IStatsProducer)
     name = 'storage'
     LeaseCheckerClass = LeaseCheckingCrawler
+    windows = False
+
+    try:
+        import win32api, win32con
+        windows = True
+        # <http://msdn.microsoft.com/en-us/library/ms680621%28VS.85%29.aspx>
+        win32api.SetErrorMode(win32con.SEM_FAILCRITICALERRORS |
+                              win32con.SEM_NOOPENFILEERRORBOX)
+    except ImportError:
+        pass
 
     def __init__(self, storedir, nodeid, reserved_space=0,
                  discard_storage=False, readonly_storage=False,
@@ -70,7 +80,7 @@ class StorageServer(service.MultiService, Referenceable):
 
         if reserved_space:
             if self.get_available_space() is None:
-                log.msg("warning: [storage]reserved_space= is set, but this platform does not support statvfs(2), so this reservation cannot be honored",
+                log.msg("warning: [storage]reserved_space= is set, but this platform does not support an API to get disk statistics (statvfs(2) or GetDiskFreeSpaceEx), so this reservation cannot be honored",
                         umin="0wZ27w", level=log.UNUSUAL)
 
         self.latencies = {"allocate": [], # immutable
@@ -147,22 +157,35 @@ class StorageServer(service.MultiService, Referenceable):
     def _clean_incomplete(self):
         fileutil.rm_dir(self.incomingdir)
 
-    def do_statvfs(self):
-        return os.statvfs(self.storedir)
+    def get_disk_stats(self):
+        """Return disk statistics for the storage disk, in the form of a dict
+        with the following fields.
+          total:            total bytes on disk
+          free_for_root:    bytes actually free on disk
+          free_for_nonroot: bytes free for "a non-privileged user" [Unix] or
+                              the current user [Windows]; might take into
+                              account quotas depending on platform
+          used:             bytes used on disk
+          avail:            bytes available excluding reserved space
+        An AttributeError can occur if the OS has no API to get disk information.
+        An EnvironmentError can occur if the OS call fails."""
 
-    def get_stats(self):
-        # remember: RIStatsProvider requires that our return dict
-        # contains numeric values.
-        stats = { 'storage_server.allocated': self.allocated_size(), }
-        stats["storage_server.reserved_space"] = self.reserved_space
-        for category,ld in self.get_latencies().items():
-            for name,v in ld.items():
-                stats['storage_server.latencies.%s.%s' % (category, name)] = v
-        writeable = True
-        if self.readonly_storage:
-            writeable = False
-        try:
-            s = self.do_statvfs()
+        if self.windows:
+            # For Windows systems, where os.statvfs is not available, use GetDiskFreeSpaceEx.
+            # <http://docs.activestate.com/activepython/2.5/pywin32/win32api__GetDiskFreeSpaceEx_meth.html>
+            #
+            # Although the docs say that the argument should be the root directory
+            # of a disk, GetDiskFreeSpaceEx actually accepts any path on that disk
+            # (like its Win32 equivalent).
+
+            (free_for_nonroot, total, free_for_root) = self.win32api.GetDiskFreeSpaceEx(self.storedir)
+        else:
+            # For Unix-like systems.
+            # <http://docs.python.org/library/os.html#os.statvfs>
+            # <http://opengroup.org/onlinepubs/7990989799/xsh/fstatvfs.html>
+            # <http://opengroup.org/onlinepubs/7990989799/xsh/sysstatvfs.h.html>
+            s = os.statvfs(self.storedir)
+
             # on my mac laptop:
             #  statvfs(2) is a wrapper around statfs(2).
             #    statvfs.f_frsize = statfs.f_bsize :
@@ -173,55 +196,67 @@ class StorageServer(service.MultiService, Referenceable):
             # wrong, and s.f_blocks*s.f_frsize is twice the size of my disk,
             # but s.f_bavail*s.f_frsize is correct
 
-            disk_total = s.f_frsize * s.f_blocks
-            disk_used = s.f_frsize * (s.f_blocks - s.f_bfree)
-            # spacetime predictors should look at the slope of disk_used.
-            disk_free_for_root = s.f_frsize * s.f_bfree
-            disk_free_for_nonroot = s.f_frsize * s.f_bavail
+            total = s.f_frsize * s.f_blocks
+            free_for_root = s.f_frsize * s.f_bfree
+            free_for_nonroot = s.f_frsize * s.f_bavail
 
-            # include our local policy here: if we stop accepting shares when
-            # the available space drops below 1GB, then include that fact in
-            # disk_avail.
-            disk_avail = disk_free_for_nonroot - self.reserved_space
-            disk_avail = max(disk_avail, 0)
-            if self.readonly_storage:
-                disk_avail = 0
-            if disk_avail == 0:
-                writeable = False
+        # valid for all platforms:
+        used = total - free_for_root
+        avail = max(free_for_nonroot - self.reserved_space, 0)
+
+        return { 'total': total, 'free_for_root': free_for_root,
+                 'free_for_nonroot': free_for_nonroot,
+                 'used': used, 'avail': avail, }
+
+    def get_stats(self):
+        # remember: RIStatsProvider requires that our return dict
+        # contains numeric values.
+        stats = { 'storage_server.allocated': self.allocated_size(), }
+        stats['storage_server.reserved_space'] = self.reserved_space
+        for category,ld in self.get_latencies().items():
+            for name,v in ld.items():
+                stats['storage_server.latencies.%s.%s' % (category, name)] = v
+
+        try:
+            disk = self.get_disk_stats()
+            writeable = disk['avail'] > 0
 
             # spacetime predictors should use disk_avail / (d(disk_used)/dt)
-            stats["storage_server.disk_total"] = disk_total
-            stats["storage_server.disk_used"] = disk_used
-            stats["storage_server.disk_free_for_root"] = disk_free_for_root
-            stats["storage_server.disk_free_for_nonroot"] = disk_free_for_nonroot
-            stats["storage_server.disk_avail"] = disk_avail
+            stats['storage_server.disk_total'] = disk['total']
+            stats['storage_server.disk_used'] = disk['used']
+            stats['storage_server.disk_free_for_root'] = disk['free_for_root']
+            stats['storage_server.disk_free_for_nonroot'] = disk['free_for_nonroot']
+            stats['storage_server.disk_avail'] = disk['avail']
         except AttributeError:
-            # os.statvfs is available only on unix
-            pass
-        stats["storage_server.accepting_immutable_shares"] = int(writeable)
+            writeable = True
+        except EnvironmentError:
+            log.msg("OS call to get disk statistics failed", level=log.UNUSUAL)
+            writeable = False
+
+        if self.readonly_storage:
+            stats['storage_server.disk_avail'] = 0
+            writeable = False
+
+        stats['storage_server.accepting_immutable_shares'] = int(writeable)
         s = self.bucket_counter.get_state()
         bucket_count = s.get("last-complete-bucket-count")
         if bucket_count:
-            stats["storage_server.total_bucket_count"] = bucket_count
+            stats['storage_server.total_bucket_count'] = bucket_count
         return stats
 
-
-    def stat_disk(self, d):
-        s = os.statvfs(d)
-        # s.f_bavail: available to non-root users
-        disk_avail = s.f_frsize * s.f_bavail
-        return disk_avail
-
     def get_available_space(self):
-        # returns None if it cannot be measured (windows)
-        try:
-            disk_avail = self.stat_disk(self.storedir)
-            disk_avail -= self.reserved_space
-        except AttributeError:
-            disk_avail = None
+        """Returns available space for share storage in bytes, or None if no
+        API to get this information is available."""
+
         if self.readonly_storage:
-            disk_avail = 0
-        return disk_avail
+            return 0
+        try:
+            return self.get_disk_stats()['avail']
+        except AttributeError:
+            return None
+        except EnvironmentError:
+            log.msg("OS call to get disk statistics failed", level=log.UNUSUAL)
+            return 0
 
     def allocated_size(self):
         space = 0
@@ -232,9 +267,9 @@ class StorageServer(service.MultiService, Referenceable):
     def remote_get_version(self):
         remaining_space = self.get_available_space()
         if remaining_space is None:
-            # we're on a platform that doesn't have 'df', so make a vague
-            # guess.
+            # We're on a platform that has no API to get disk stats.
             remaining_space = 2**64
+
         version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
                     { "maximum-immutable-share-size": remaining_space,
                       "tolerates-immutable-read-overrun": True,
@@ -288,7 +323,7 @@ class StorageServer(service.MultiService, Referenceable):
             sf = ShareFile(fn)
             sf.add_or_renew_lease(lease_info)
 
-        # self.readonly_storage causes remaining_space=0
+        # self.readonly_storage causes remaining_space <= 0
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
