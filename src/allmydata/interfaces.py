@@ -805,11 +805,13 @@ class IMutableFileNode(IFileNode):
         """
 
 class NotEnoughSharesError(Exception):
-    """Download was unable to get enough shares, or upload was unable to
-    place 'servers_of_happiness' shares."""
+    """Download was unable to get enough shares"""
 
 class NoSharesError(Exception):
-    """Upload or Download was unable to get any shares at all."""
+    """Download was unable to get any shares at all."""
+
+class UploadHappinessError(Exception):
+    """Upload was unable to satisfy 'servers_of_happiness'"""
 
 class UnableToFetchCriticalDownloadDataError(Exception):
     """I was unable to fetch some piece of critical data which is supposed to

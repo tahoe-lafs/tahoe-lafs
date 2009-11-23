@@ -11,7 +11,8 @@ from allmydata.util import mathutil, hashutil, base32, log
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
-     IEncryptedUploadable, IUploadStatus, NotEnoughSharesError, NoSharesError
+     IEncryptedUploadable, IUploadStatus, UploadHappinessError
+
 
 """
 The goal of the encoder is to turn the original file into a series of
@@ -494,10 +495,7 @@ class Encoder(object):
             msg = "lost too many servers during upload (still have %d, want %d): %s" % \
                   (len(servers_left),
                    self.servers_of_happiness, why)
-            if servers_left:
-                raise NotEnoughSharesError(msg)
-            else:
-                raise NoSharesError(msg)
+            raise UploadHappinessError(msg)
         self.log("but we can still continue with %s shares, we'll be happy "
                  "with at least %s" % (len(servers_left),
                                        self.servers_of_happiness),
@@ -507,12 +505,12 @@ class Encoder(object):
         d = defer.DeferredList(dl, fireOnOneErrback=True)
         def _eatNotEnoughSharesError(f):
             # all exceptions that occur while talking to a peer are handled
-            # in _remove_shareholder. That might raise NotEnoughSharesError,
+            # in _remove_shareholder. That might raise UploadHappinessError,
             # which will cause the DeferredList to errback but which should
-            # otherwise be consumed. Allow non-NotEnoughSharesError exceptions
+            # otherwise be consumed. Allow non-UploadHappinessError exceptions
             # to pass through as an unhandled errback. We use this in lieu of
             # consumeErrors=True to allow coding errors to be logged.
-            f.trap(NotEnoughSharesError, NoSharesError)
+            f.trap(UploadHappinessError)
             return None
         for d0 in dl:
             d0.addErrback(_eatNotEnoughSharesError)
