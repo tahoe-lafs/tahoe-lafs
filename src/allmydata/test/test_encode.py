@@ -9,7 +9,7 @@ from allmydata.util import hashutil
 from allmydata.util.assertutil import _assert
 from allmydata.util.consumer import MemoryConsumer
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
-     NotEnoughSharesError, IStorageBroker
+     NotEnoughSharesError, IStorageBroker, UploadHappinessError
 from allmydata.monitor import Monitor
 import common_util as testutil
 
@@ -791,7 +791,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(NotEnoughSharesError), res)
+            self.failUnless(res.check(UploadHappinessError), res)
         d.addBoth(_done)
         return d
 
@@ -802,6 +802,6 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.send_and_recover((4,8,10), bucket_modes=modemap)
         def _done(res):
             self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(NotEnoughSharesError))
+            self.failUnless(res.check(UploadHappinessError))
         d.addBoth(_done)
         return d
