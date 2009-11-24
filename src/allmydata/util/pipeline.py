@@ -11,7 +11,9 @@ class PipelineError(Exception):
         self.error = error
 
     def __repr__(self):
-        return "<PipelineError error=(%r)>" % self.error
+        return "<PipelineError error=(%r)>" % (self.error,)
+    def __str__(self):
+        return "<PipelineError error=(%s)>" % (self.error,)
 
 class SingleFileError(Exception):
     """You are not permitted to add a job to a full pipeline."""

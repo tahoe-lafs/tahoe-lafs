@@ -1426,6 +1426,8 @@ class Pipeline(unittest.TestCase):
         f = finished[0]
         self.failUnless(isinstance(f, Failure))
         self.failUnless(f.check(pipeline.PipelineError))
+        self.failUnlessIn("PipelineError", str(f.value))
+        self.failUnlessIn("ValueError", str(f.value))
         r = repr(f.value)
         self.failUnless("ValueError" in r, r)
         f2 = f.value.error
