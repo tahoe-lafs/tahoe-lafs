@@ -21,7 +21,24 @@ class BackupDB(unittest.TestCase):
         dbfile = os.path.join(basedir, "dbfile")
         bdb = self.create_or_skip(dbfile)
         self.failUnless(bdb)
-        self.failUnlessEqual(bdb.VERSION, 1)
+        self.failUnlessEqual(bdb.VERSION, 2)
+
+    def test_upgrade_v1_v2(self):
+        self.basedir = basedir = os.path.join("backupdb", "upgrade_v1_v2")
+        fileutil.make_dirs(basedir)
+        dbfile = os.path.join(basedir, "dbfile")
+        stderr = StringIO()
+        created = backupdb.get_backupdb(dbfile, stderr=stderr,
+                                        create_version=(backupdb.SCHEMA_v1, 1),
+                                        just_create=True)
+        if not created:
+            if "I was unable to import a python sqlite library" in stderr.getvalue():
+                raise unittest.SkipTest("sqlite unavailable, skipping test")
+            self.fail("unable to create v1 backupdb")
+        # now we should have a v1 database on disk
+        bdb = self.create_or_skip(dbfile)
+        self.failUnless(bdb)
+        self.failUnlessEqual(bdb.VERSION, 2)
 
     def test_fail(self):
         self.basedir = basedir = os.path.join("backupdb", "fail")
@@ -87,6 +104,7 @@ class BackupDB(unittest.TestCase):
 
         r = bdb.check_file(foo_fn)
         self.failUnlessEqual(r.was_uploaded(), "foo-cap")
+        self.failUnlessEqual(type(r.was_uploaded()), str)
         self.failUnlessEqual(r.should_check(), False)
 
         time.sleep(1.0) # make sure the timestamp changes
@@ -149,3 +167,64 @@ class BackupDB(unittest.TestCase):
         stderr = stderr_f.getvalue()
         self.failUnlessEqual(stderr.strip(),
                              "Unable to handle backupdb version 0")
+
+    def test_directory(self):
+        self.basedir = basedir = os.path.join("backupdb", "directory")
+        fileutil.make_dirs(basedir)
+        dbfile = os.path.join(basedir, "dbfile")
+        bdb = self.create_or_skip(dbfile)
+        self.failUnless(bdb)
+
+        contents = {u"file1": "URI:CHK:blah1",
+                    u"file2": "URI:CHK:blah2",
+                    u"dir1": "URI:DIR2-CHK:baz2"}
+        r = bdb.check_directory(contents)
+        self.failUnless(isinstance(r, backupdb.DirectoryResult))
+        self.failIf(r.was_created())
+        dircap = "URI:DIR2-CHK:foo1"
+        r.did_create(dircap)
+
+        r = bdb.check_directory(contents)
+        self.failUnless(r.was_created())
+        self.failUnlessEqual(r.was_created(), dircap)
+        self.failUnlessEqual(r.should_check(), False)
+
+        # if we spontaneously decide to upload it anyways, nothing should
+        # break
+        r.did_create(dircap)
+        r = bdb.check_directory(contents)
+        self.failUnless(r.was_created())
+        self.failUnlessEqual(r.was_created(), dircap)
+        self.failUnlessEqual(type(r.was_created()), str)
+        self.failUnlessEqual(r.should_check(), False)
+
+        bdb.NO_CHECK_BEFORE = 0
+        bdb.ALWAYS_CHECK_AFTER = 0.1
+        time.sleep(1.0)
+
+        r = bdb.check_directory(contents)
+        self.failUnless(r.was_created())
+        self.failUnlessEqual(r.was_created(), dircap)
+        self.failUnlessEqual(r.should_check(), True)
+        r.did_check_healthy("results")
+
+        bdb.NO_CHECK_BEFORE = 200
+        bdb.ALWAYS_CHECK_AFTER = 400
+
+        r = bdb.check_directory(contents)
+        self.failUnless(r.was_created())
+        self.failUnlessEqual(r.was_created(), dircap)
+        self.failUnlessEqual(r.should_check(), False)
+
+
+        contents2 = {u"file1": "URI:CHK:blah1",
+                     u"dir1": "URI:DIR2-CHK:baz2"}
+        r = bdb.check_directory(contents2)
+        self.failIf(r.was_created())
+
+        contents3 = {u"file1": "URI:CHK:blah1",
+                     u"file2": "URI:CHK:blah3",
+                     u"dir1": "URI:DIR2-CHK:baz2"}
+        r = bdb.check_directory(contents3)
+        self.failIf(r.was_created())
+

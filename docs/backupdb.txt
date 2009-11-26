@@ -9,14 +9,15 @@ single-file database. It is used by the "tahoe backup" command. In the future,
 it will also be used by "tahoe mirror", and by "tahoe cp" when the
 --use-backupdb option is included.
 
-The purpose of this database is specifically to manage the file-to-cap
-translation (the "upload" step). It does not address directory updates. A
-future version will include a directory cache.
+The purpose of this database is twofold: to manage the file-to-cap
+translation (the "upload" step) and the directory-to-cap translation (the
+"mkdir-immutable" step).
 
 The overall goal of optimizing backup is to reduce the work required when the
-source disk has not changed since the last backup. In the ideal case, running
-"tahoe backup" twice in a row, with no intervening changes to the disk, will
-not require any network traffic.
+source disk has not changed (much) since the last backup. In the ideal case,
+running "tahoe backup" twice in a row, with no intervening changes to the
+disk, will not require any network traffic. Minimal changes to the source
+disk should result in minimal traffic.
 
 This database is optional. If it is deleted, the worst effect is that a
 subsequent backup operation may use more effort (network bandwidth, CPU
@@ -62,18 +63,15 @@ CREATE TABLE last_upload
  last_checked TIMESTAMP
 );
 
-Notes: if we extend the backupdb to assist with directory maintenance (see
-below), we may need paths in multiple places, so it would make sense to
-create a table for them, and change the last_upload table to refer to a
-pathid instead of an absolute path:
-
-CREATE TABLE paths
+CREATE TABLE directories
 (
- path varchar(1024) UNIQUE,  -- index
- pathid integer PRIMARY KEY AUTOINCREMENT
+ dirhash varchar(256) PRIMARY KEY,
+ dircap varchar(256),
+ last_uploaded TIMESTAMP,
+ last_checked TIMESTAMP
 );
 
-== Operation ==
+== Upload Operation ==
 
 The upload process starts with a pathname (like ~/.emacs) and wants to end up
 with a file-cap (like URI:CHK:...).
@@ -113,7 +111,7 @@ the client always re-uploads the file), and it may be allowed to skip the
 upload. For safety, however, we require the client periodically perform a
 filecheck on these probably-already-uploaded files, and re-upload anything
 that doesn't look healthy. The client looks the fileid up in the
-'last_upload' table, to see how long it has been since the file was last
+'last_checked' table, to see how long it has been since the file was last
 checked.
 
 A "random early check" algorithm should be used, in which a check is
@@ -141,25 +139,36 @@ unmodified, and the "tahoe backup" command will not copy the new contents
 into the grid. The --no-timestamps can be used to disable this optimization,
 forcing every byte of the file to be hashed and encoded.
 
-== DIRECTORY CACHING ==
+== Directory Operations ==
 
-A future version of the backupdb will also record a secure hash of the most
-recent contents of each tahoe directory that was used in the last backup run.
-The directories created by the "tahoe backup" command are all read-only, so
-it should be difficult to violate the assumption that these directories are
-unmodified since the previous pass. In the future, Tahoe will provide truly
-immutable directories, making this assumption even more solid.
-
-In the current implementation, when the backup algorithm is faced with the
-decision to either create a new directory or share an old one, it must read
-the contents of the old directory to compare it against the desired new
-contents. This means that a "null backup" (performing a backup when nothing
-has been changed) must still read every Tahoe directory from the previous
+Once the contents of a directory are known (a filecap for each file, and a
+dircap for each directory), the backup process must find or create a tahoe
+directory node with the same contents. The contents are hashed, and the hash
+is queried in the 'directories' table. If found, the last-checked timestamp
+is used to perform the same random-early-check algorithm described for files
+above, but no new upload is performed. Since "tahoe backup" creates immutable
+directories, it is perfectly safe to re-use a directory from a previous
 backup.
 
-With a directory-caching backupdb, these directory reads will be bypassed,
-and the null backup will use minimal network bandwidth: one directory read
-and two modifies. The Archives/ directory must be read to locate the latest
-backup, and must be modified to add a new snapshot, and the Latest/ directory
-will be updated to point to that same snapshot.
+If not found, the webapi "mkdir-immutable" operation is used to create a new
+directory, and an entry is stored in the table.
+
+The comparison operation ignores timestamps and metadata, and pays attention
+solely to the file names and contents.
+
+By using a directory-contents hash, the "tahoe backup" command is able to
+re-use directories from other places in the backed up data, or from old
+backups. This means that renaming a directory and moving a subdirectory to a
+new parent both count as "minor changes" and will result in minimal Tahoe
+operations and subsequent network traffic (new directories will be created
+for the modified directory and all of its ancestors). It also means that you
+can perform a backup ("#1"), delete a file or directory, perform a backup
+("#2"), restore it, and then the next backup ("#3") will re-use the
+directories from backup #1.
+
+The best case is a null backup, in which nothing has changed. This will
+result in minimal network bandwidth: one directory read and two modifies. The
+Archives/ directory must be read to locate the latest backup, and must be
+modified to add a new snapshot, and the Latest/ directory will be updated to
+point to that same snapshot.
 

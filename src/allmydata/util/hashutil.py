@@ -197,3 +197,7 @@ def ssk_storage_index_hash(readkey):
 def constant_time_compare(a, b):
     n = os.urandom(8)
     return bool(tagged_hash(n, a) == tagged_hash(n, b))
+
+BACKUPDB_DIRHASH_TAG = "allmydata_backupdb_dirhash_v1"
+def backupdb_dirhash(contents):
+    return tagged_hash(BACKUPDB_DIRHASH_TAG, contents)

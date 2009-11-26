@@ -948,7 +948,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         return [int(s) for s in mo.groups()]
 
     def count_output2(self, out):
-        mo = re.search(r"(\d)+ files checked, (\d+) directories checked, (\d+) directories read", out)
+        mo = re.search(r"(\d)+ files checked, (\d+) directories checked", out)
         return [int(s) for s in mo.groups()]
 
     def test_backup(self):
@@ -1062,6 +1062,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
                 self.failUnless(os.path.exists(dbfile), dbfile)
                 bdb = backupdb.get_backupdb(dbfile)
                 bdb.cursor.execute("UPDATE last_upload SET last_checked=0")
+                bdb.cursor.execute("UPDATE directories SET last_checked=0")
                 bdb.connection.commit()
 
             d.addCallback(_reset_last_checked)
@@ -1070,18 +1071,16 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             d.addCallback(lambda res: do_backup(verbose=True))
             def _check4b((rc, out, err)):
                 # we should check all files, and re-use all of them. None of
-                # the directories should have been changed.
+                # the directories should have been changed, so we should
+                # re-use all of them too.
                 self.failUnlessEqual(err, "")
                 self.failUnlessEqual(rc, 0)
                 fu, fr, dc, dr = self.count_output(out)
-                fchecked, dchecked, dread = self.count_output2(out)
+                fchecked, dchecked = self.count_output2(out)
                 self.failUnlessEqual(fchecked, 3)
                 self.failUnlessEqual(fu, 0)
                 self.failUnlessEqual(fr, 3)
-                # TODO: backupdb doesn't do dirs yet; when it does, this will
-                # change to dchecked=4, and maybe dread=0
-                self.failUnlessEqual(dchecked, 0)
-                self.failUnlessEqual(dread, 4)
+                self.failUnlessEqual(dchecked, 4)
                 self.failUnlessEqual(dc, 0)
                 self.failUnlessEqual(dr, 4)
             d.addCallback(_check4b)
