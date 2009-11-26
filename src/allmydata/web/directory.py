@@ -26,7 +26,8 @@ from allmydata.web.common import text_plain, WebError, \
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.check_results import CheckResults, \
-     CheckAndRepairResults, DeepCheckResults, DeepCheckAndRepairResults
+     CheckAndRepairResults, DeepCheckResults, DeepCheckAndRepairResults, \
+     LiteralCheckResults
 from allmydata.web.info import MoreInfo
 from allmydata.web.operations import ReloadMixin
 from allmydata.web.check_results import json_check_results, \
@@ -397,6 +398,11 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d.addCallback(lambda res: "thing renamed")
         return d
 
+    def _maybe_literal(self, res, Results_Class):
+        if res:
+            return Results_Class(self.client, res)
+        return LiteralCheckResults(self.client)
+
     def _POST_check(self, req):
         # check this directory
         verify = boolean_of_arg(get_arg(req, "verify", "false"))
@@ -404,10 +410,10 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         add_lease = boolean_of_arg(get_arg(req, "add-lease", "false"))
         if repair:
             d = self.node.check_and_repair(Monitor(), verify, add_lease)
-            d.addCallback(lambda res: CheckAndRepairResults(self.client, res))
+            d.addCallback(self._maybe_literal, CheckAndRepairResults)
         else:
             d = self.node.check(Monitor(), verify, add_lease)
-            d.addCallback(lambda res: CheckResults(self.client, res))
+            d.addCallback(self._maybe_literal, CheckResults)
         return d
 
     def _start_operation(self, monitor, renderer, ctx):

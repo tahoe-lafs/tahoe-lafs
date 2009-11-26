@@ -9,7 +9,6 @@ from nevow.inevow import IRequest
 from allmydata.interfaces import ExistingChildError, CannotPackUnknownNodeError
 from allmydata.monitor import Monitor
 from allmydata.immutable.upload import FileHandle
-from allmydata.immutable.filenode import LiteralFileNode
 from allmydata.unknown import UnknownNode
 from allmydata.util import log, base32
 
@@ -260,18 +259,21 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d.addCallback(lambda res: url.URL.fromString(when_done))
         return d
 
+    def _maybe_literal(self, res, Results_Class):
+        if res:
+            return Results_Class(self.client, res)
+        return LiteralCheckResults(self.client)
+
     def _POST_check(self, req):
         verify = boolean_of_arg(get_arg(req, "verify", "false"))
         repair = boolean_of_arg(get_arg(req, "repair", "false"))
         add_lease = boolean_of_arg(get_arg(req, "add-lease", "false"))
-        if isinstance(self.node, LiteralFileNode):
-            return defer.succeed(LiteralCheckResults(self.client))
         if repair:
             d = self.node.check_and_repair(Monitor(), verify, add_lease)
-            d.addCallback(lambda res: CheckAndRepairResults(self.client, res))
+            d.addCallback(self._maybe_literal, CheckAndRepairResults)
         else:
             d = self.node.check(Monitor(), verify, add_lease)
-            d.addCallback(lambda res: CheckResults(self.client, res))
+            d.addCallback(self._maybe_literal, CheckResults)
         return d
 
     def render_DELETE(self, ctx):

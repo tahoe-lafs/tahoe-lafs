@@ -2782,6 +2782,8 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ign:
                       c0.upload(upload.Data("literal", convergence="")))
         d.addCallback(_stash_uri, "small")
+        d.addCallback(lambda ign: c0.create_immutable_dirnode({}))
+        d.addCallback(_stash_mutable_uri, "smalldir")
 
         def _compute_fileurls(ignored):
             self.fileurls = {}
@@ -2843,6 +2845,18 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(r["storage-index"], "")
             self.failUnless(r["results"]["healthy"])
         d.addCallback(_got_json_small)
+
+        d.addCallback(self.CHECK, "smalldir", "t=check")
+        def _got_html_smalldir(res):
+            self.failUnless("Literal files are always healthy" in res, res)
+            self.failIf("Not Healthy" in res, res)
+        d.addCallback(_got_html_smalldir)
+        d.addCallback(self.CHECK, "smalldir", "t=check&output=json")
+        def _got_json_smalldir(res):
+            r = simplejson.loads(res)
+            self.failUnlessEqual(r["storage-index"], "")
+            self.failUnless(r["results"]["healthy"])
+        d.addCallback(_got_json_smalldir)
 
         d.addCallback(self.CHECK, "sick", "t=check")
         def _got_html_sick(res):
