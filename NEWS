@@ -1,5 +1,70 @@
 User visible changes in Tahoe-LAFS.  -*- outline -*-
 
+* Release ?.?.? (?)
+
+** New Features
+
+*** Immutable Directories
+
+Tahoe can now create and handle immutable directories. These are read just
+like normal directories, but are "deep-immutable", meaning that all their
+children (and everything reachable from those children) must be immutable
+objects (i.e. immutable/literal files, and other immutable directories).
+
+These directories must be created in a single webapi call, which provides all
+of the children at once (instead of the usual create/add/add sequence, since
+they cannot be changed after creation). They have URIs that start with
+"URI:DIR2-CHK:" or "URI:DIR2-LIT:", and are described on the human-facing web
+interface (aka the "WUI") with a "DIR-IMM" abbreviation (as opposed to "DIR"
+for the usual read-write directories and "DIR-RO" for read-only directories).
+
+Tahoe releases before 1.6.0 cannot read the contents of an immutable
+directory. 1.5.0 will tolerate their presence in a directory listing (and
+display it as an "unknown node"). 1.4.1 and earlier cannot tolerate them: a
+DIR-IMM child in any directory will prevent the listing of that directory.
+
+Immutable directories are repairable, just like normal immutable files.
+
+The webapi "POST t=mkdir-immutable" call is used to create immutable
+directories. See docs/frontends/webapi.txt for details.
+
+*** "tahoe backup" now creates immutable directories, backupdb has dircache
+
+The "tahoe backup" command has been enhanced to create immutable directories
+(in previous releases, it created read-only mutable directories). This is
+significantly faster, since it does not need to create an RSA keypair for
+each new directory. In addition, "DIR-IMM" immutable directories are
+repairable, unlike "DIR-RO" read-only mutable directories (at least in this
+release; a future Tahoe release should be able to repair DIR-RO).
+
+In addition, the backupdb (used by "tahoe backup" to remember what it has
+already copied) has been enhanced to store information about existing
+immutable directories. This allows it to re-use directories that have moved
+but still contain identical contents, or which have been deleted and later
+replaced. (the 1.5.0 "tahoe backup" command could only re-use directories
+that were in the same place as they were in the previous backup). With this
+change, the backup process no longer needs to read the previous snapshot out
+of the Tahoe grid, reducing the network load considerably.
+
+As noted above, Tahoe versions earlier than 1.5.0 cannot read immutable
+directories.
+
+** Minor Changes
+
+The webapi acquired a new "t=mkdir-with-children" command, to create and
+populate a directory in a single call. This is significantly faster than
+using separate "t=mkdir" and "t=set_children" operations (it uses one
+gateway-to-grid roundtrip, instead of three or four).
+
+The t=set_children operation is now documented in docs/frontends/webapi.txt .
+
+Several small packaging improvements were made to facilitate the "tahoe-lafs"
+package being added to Ubuntu's "Karmic Koala" 9.10 release. Several
+mac/win32 binary libraries were removed, some figleaf code-coverage files
+were removed, a bundled copy of darcsver-1.2.1 was removed, and additional
+licensing text was added.
+
+
 * Release 1.5.0 (2009-08-01)
 
 ** Improvements
