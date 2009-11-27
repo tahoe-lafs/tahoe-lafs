@@ -359,12 +359,13 @@ POST /uri?t=mkdir-with-children
  Initial children are provided as the body of the POST form (this is more
  efficient than doing separate mkdir and set_children operations). If the
  body is empty, the new directory will be empty. If not empty, the body will
- be interpreted as a JSON-encoded dictionary of children with which the new
- directory should be populated, using the same format as would be returned in
- the 'children' value of the t=json GET request, described below. Each
- dictionary key should be a child name, and each value should be a list of
- [TYPE, PROPDICT], where PROPDICT contains "rw_uri", "ro_uri", and "metadata"
- keys (all others are ignored). For example, the PUT request body could be:
+ be interpreted as a UTF-8 JSON-encoded dictionary of children with which the
+ new directory should be populated, using the same format as would be
+ returned in the 'children' value of the t=json GET request, described below.
+ Each dictionary key should be a child name, and each value should be a list
+ of [TYPE, PROPDICT], where PROPDICT contains "rw_uri", "ro_uri", and
+ "metadata" keys (all others are ignored). For example, the PUT request body
+ could be:
 
   {
     "Fran\u00e7ais": [ "filenode", {
@@ -393,6 +394,11 @@ POST /uri?t=mkdir-with-children
  "Content-Type: multipart/form-data" header that usually accompanies HTML
  form submissions, since the body is not formatted this way. Doing so will
  cause a server error as the lower-level code misparses the request body.
+
+ Child file names should each be expressed as a unicode string, then used as
+ keys of the dictionary. The dictionary should then be converted into JSON,
+ and the resulting string encoded into UTF-8. This UTF-8 bytestring should
+ then be used as the POST body.
 
 POST /uri?t=mkdir-immutable
 

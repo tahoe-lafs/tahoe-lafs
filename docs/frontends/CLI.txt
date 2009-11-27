@@ -339,14 +339,17 @@ tahoe backup ~ work:backups
  underneath your "~" home directory, placing an immutable timestamped
  snapshot in e.g. work:backups/Archives/2009-02-06_04:00:05Z/ (note that the
  timestamp is in UTC, hence the "Z" suffix), and a link to the latest
- snapshot in work:backups/Latest/ . This command will use a small SQLite
- database known as the "backupdb", stored in
- ~/.tahoe/private/backupdb.sqlite, to remember which local files have been
- backed up already, and will avoid uploading files that have already been
- backed up. It compares timestamps and filesizes when making this comparison.
- The "tahoe backup" command also shares directories with the previous backup
- when nothing has changed, to run faster and to reduce the number of
- directories created.
+ snapshot in work:backups/Latest/ . This command uses a small SQLite database
+ known as the "backupdb", stored in ~/.tahoe/private/backupdb.sqlite, to
+ remember which local files have been backed up already, and will avoid
+ uploading files that have already been backed up. It compares timestamps and
+ filesizes when making this comparison. It also re-uses existing directories
+ which have identical contents. This lets it run faster and reduces the
+ number of directories created.
+
+ If you reconfigure your client node to switch to a different grid, you
+ should delete the stale backupdb.sqlite file, to force "tahoe backup" to
+ upload all files to the new grid.
 
 tahoe backup --exclude=*~ ~ work:backups
 
