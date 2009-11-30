@@ -441,13 +441,13 @@ class Copier:
         self.caps_only = options["caps-only"]
         self.cache = {}
         try:
-            self.try_copy()
+            status = self.try_copy()
+            return status
         except TahoeError, te:
             Failure().printTraceback(self.stderr)
             print >>self.stderr
             te.display(self.stderr)
             return 1
-        return 0
 
     def try_copy(self):
         source_specs = self.options.sources
@@ -498,6 +498,13 @@ class Copier:
             return self.copy_file(source, target)
 
         if isinstance(target, (LocalDirectoryTarget, TahoeDirectoryTarget)):
+            # We're copying to an existing directory -- make sure that we 
+            # have target names for everything
+            for (name, source) in sources:
+                if name is None and isinstance(source, TahoeFileSource):
+                    self.to_stderr(
+                        "error: you must specify a destination filename")
+                    return 1
             return self.copy_to_directory(sources, target)
 
         self.to_stderr("unknown target")
@@ -587,6 +594,8 @@ class Copier:
                 writecap = ascii_or_none(d.get("rw_uri"))
                 readcap = ascii_or_none(d.get("ro_uri"))
                 mutable = d.get("mutable", False) # older nodes don't provide it
+                if source_spec.rfind('/') != -1:
+                    name = source_spec[source_spec.rfind('/')+1:]
                 t = TahoeFileSource(self.nodeurl, mutable, writecap, readcap)
         return name, t
 

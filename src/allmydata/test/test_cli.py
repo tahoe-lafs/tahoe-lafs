@@ -934,6 +934,66 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                                               dn, "tahoe:"))
         return d
 
+    def test_copy_using_filecap(self):
+        self.basedir = "cli/Cp/test_copy_using_filecap"
+        self.set_up_grid()
+        outdir = os.path.join(self.basedir, "outdir")
+        os.mkdir(outdir)
+        self.do_cli("create-alias", "tahoe")
+        fn1 = os.path.join(self.basedir, "Metallica")
+        fn2 = os.path.join(outdir, "Not Metallica")
+        fn3 = os.path.join(outdir, "test2")
+        DATA1 = "puppies" * 10000
+        open(fn1, "wb").write(DATA1)
+        d = self.do_cli("put", fn1)
+        def _put_file((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            # keep track of the filecap
+            self.filecap = out.strip()
+        d.addCallback(_put_file)
+        # Let's try copying this to the disk using the filecap
+        #  cp FILECAP filename
+        d.addCallback(lambda res: self.do_cli("cp", self.filecap, fn2))
+        def _copy_file((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            results = open(fn2, "r").read()
+            self.failUnlessEqual(results, DATA1)
+        # Test with ./ (see #761)
+        #  cp FILECAP localdir
+        d.addCallback(lambda res: self.do_cli("cp", self.filecap, outdir))
+        def _resp((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error: you must specify a destination filename",
+                              err)
+        d.addCallback(_resp)
+        # Create a directory, linked at tahoe:test
+        d.addCallback(lambda res: self.do_cli("mkdir", "tahoe:test"))
+        def _get_dir((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.dircap = out.strip()
+        d.addCallback(_get_dir)
+        # Upload a file to the directory
+        d.addCallback(lambda res:
+            self.do_cli("put", fn1, "tahoe:test/test_file"))
+        d.addCallback(lambda (rc, out, err): self.failUnlessEqual(rc, 0))
+        #  cp DIRCAP/filename localdir
+        d.addCallback(lambda res:
+                      self.do_cli("cp",  self.dircap + "/test_file", outdir))
+        def _get_resp((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            results = open(os.path.join(outdir, "test_file"), "r").read()
+            self.failUnlessEqual(results, DATA1)
+        d.addCallback(_get_resp)
+        #  cp -r DIRCAP/filename filename2
+        d.addCallback(lambda res:
+                      self.do_cli("cp",  self.dircap + "/test_file", fn3))
+        def _get_resp2((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            results = open(fn3, "r").read()
+            self.failUnlessEqual(results, DATA1)
+        d.addCallback(_get_resp2)
+        return d
+
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
     def writeto(self, path, data):
