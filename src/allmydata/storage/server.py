@@ -323,7 +323,7 @@ class StorageServer(service.MultiService, Referenceable):
             sf = ShareFile(fn)
             sf.add_or_renew_lease(lease_info)
 
-        # self.readonly_storage causes remaining_space <= 0
+        # self.readonly_storage causes remaining_space=0
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
