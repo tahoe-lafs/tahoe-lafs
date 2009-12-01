@@ -270,6 +270,8 @@ class FakeMutableFileNode:
         return d
 
     def download_best_version(self):
+        if self.storage_index not in self.all_contents:
+            return defer.fail(NotEnoughSharesError(None, 0, 3))
         return defer.succeed(self.all_contents[self.storage_index])
     def overwrite(self, new_contents):
         if len(new_contents) > self.MUTABLE_SIZELIMIT:
@@ -287,22 +289,6 @@ class FakeMutableFileNode:
         old_contents = self.all_contents[self.storage_index]
         self.all_contents[self.storage_index] = modifier(old_contents, None, True)
         return None
-
-    def download(self, target):
-        if self.storage_index not in self.all_contents:
-            f = failure.Failure(NotEnoughSharesError(None, 0, 3))
-            target.fail(f)
-            return defer.fail(f)
-        data = self.all_contents[self.storage_index]
-        target.open(len(data))
-        target.write(data)
-        target.close()
-        return defer.maybeDeferred(target.finish)
-    def download_to_data(self):
-        if self.storage_index not in self.all_contents:
-            return defer.fail(NotEnoughSharesError(None, 0, 3))
-        data = self.all_contents[self.storage_index]
-        return defer.succeed(data)
 
 def make_mutable_file_cap():
     return uri.WriteableSSKFileURI(writekey=os.urandom(16),

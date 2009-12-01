@@ -278,21 +278,6 @@ class MutableFileNode:
     #################################
     # IMutableFileNode
 
-    # allow the use of IDownloadTarget
-    def download(self, target):
-        # fake it. TODO: make this cleaner.
-        d = self.download_best_version()
-        def _done(data):
-            target.open(len(data))
-            target.write(data)
-            target.close()
-            return target.finish()
-        d.addCallback(_done)
-        return d
-
-
-    # new API
-
     def download_best_version(self):
         return self._do_serialized(self._download_best_version)
     def _download_best_version(self):
