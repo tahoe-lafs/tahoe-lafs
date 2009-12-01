@@ -313,6 +313,7 @@ class StorageServer(service.MultiService, Referenceable):
             # has already been written to disk, where it will show up in
             # get_available_space.
             remaining_space -= self.allocated_size()
+        # self.readonly_storage causes remaining_space <= 0
 
         # fill alreadygot with all shares that we have, not just the ones
         # they asked about: this will save them a lot of work. Add or update
@@ -322,8 +323,6 @@ class StorageServer(service.MultiService, Referenceable):
             alreadygot.add(shnum)
             sf = ShareFile(fn)
             sf.add_or_renew_lease(lease_info)
-
-        # self.readonly_storage causes remaining_space=0
 
         for shnum in sharenums:
             incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
