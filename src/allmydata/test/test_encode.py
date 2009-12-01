@@ -1,13 +1,13 @@
 from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
-from twisted.internet.interfaces import IConsumer
 from twisted.python.failure import Failure
 from foolscap.api import fireEventually
 from allmydata import hashtree, uri
 from allmydata.immutable import encode, upload, download
 from allmydata.util import hashutil
 from allmydata.util.assertutil import _assert
+from allmydata.util.consumer import MemoryConsumer
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      NotEnoughSharesError, IStorageBroker
 from allmydata.monitor import Monitor
@@ -384,10 +384,9 @@ class Encode(unittest.TestCase):
         # 5 segments: 25, 25, 25, 25, 1
         return self.do_encode(25, 101, 100, 5, 15, 8)
 
-class PausingTarget(download.Data):
-    implements(IConsumer)
+class PausingConsumer(MemoryConsumer):
     def __init__(self):
-        download.Data.__init__(self)
+        MemoryConsumer.__init__(self)
         self.size = 0
         self.writes = 0
     def write(self, data):
@@ -398,22 +397,18 @@ class PausingTarget(download.Data):
             # last one (since then the _unpause timer will still be running)
             self.producer.pauseProducing()
             reactor.callLater(0.1, self._unpause)
-        return download.Data.write(self, data)
+        return MemoryConsumer.write(self, data)
     def _unpause(self):
         self.producer.resumeProducing()
-    def registerProducer(self, producer, streaming):
-        self.producer = producer
-    def unregisterProducer(self):
-        self.producer = None
 
-class PausingAndStoppingTarget(PausingTarget):
+class PausingAndStoppingConsumer(PausingConsumer):
     def write(self, data):
         self.producer.pauseProducing()
         reactor.callLater(0.5, self._stop)
     def _stop(self):
         self.producer.stopProducing()
 
-class StoppingTarget(PausingTarget):
+class StoppingConsumer(PausingConsumer):
     def write(self, data):
         self.producer.stopProducing()
 
@@ -425,7 +420,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                          max_segment_size=25,
                          bucket_modes={},
                          recover_mode="recover",
-                         target=None,
+                         consumer=None,
                          ):
         if AVAILABLE_SHARES is None:
             AVAILABLE_SHARES = k_and_happy_and_n[2]
@@ -434,7 +429,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                       max_segment_size, bucket_modes, data)
         # that fires with (uri_extension_hash, e, shareholders)
         d.addCallback(self.recover, AVAILABLE_SHARES, recover_mode,
-                      target=target)
+                      consumer=consumer)
         # that fires with newdata
         def _downloaded((newdata, fd)):
             self.failUnless(newdata == data, str((len(newdata), len(data))))
@@ -478,7 +473,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
     def recover(self, (res, key, shareholders), AVAILABLE_SHARES,
-                recover_mode, target=None):
+                recover_mode, consumer=None):
         verifycap = res
 
         if "corrupt_key" in recover_mode:
@@ -495,9 +490,10 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
                            size=verifycap.size)
 
         sb = FakeStorageBroker()
-        if not target:
-            target = download.Data()
-        target = download.DecryptingTarget(target, u.key)
+        if not consumer:
+            consumer = MemoryConsumer()
+        innertarget = download.ConsumerAdapter(consumer)
+        target = download.DecryptingTarget(innertarget, u.key)
         fd = download.CiphertextDownloader(sb, u.get_verify_cap(), target, monitor=Monitor())
 
         # we manually cycle the CiphertextDownloader through a number of steps that
@@ -544,7 +540,8 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
 
         d.addCallback(fd._download_all_segments)
         d.addCallback(fd._done)
-        def _done(newdata):
+        def _done(t):
+            newdata = "".join(consumer.chunks)
             return (newdata, fd)
         d.addCallback(_done)
         return d
@@ -582,26 +579,26 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         return self.send_and_recover(datalen=101)
 
     def test_pause(self):
-        # use a DownloadTarget that does pauseProducing/resumeProducing a few
-        # times, then finishes
-        t = PausingTarget()
-        d = self.send_and_recover(target=t)
+        # use a download target that does pauseProducing/resumeProducing a
+        # few times, then finishes
+        c = PausingConsumer()
+        d = self.send_and_recover(consumer=c)
         return d
 
     def test_pause_then_stop(self):
-        # use a DownloadTarget that pauses, then stops.
-        t = PausingAndStoppingTarget()
+        # use a download target that pauses, then stops.
+        c = PausingAndStoppingConsumer()
         d = self.shouldFail(download.DownloadStopped, "test_pause_then_stop",
                             "our Consumer called stopProducing()",
-                            self.send_and_recover, target=t)
+                            self.send_and_recover, consumer=c)
         return d
 
     def test_stop(self):
-        # use a DownloadTarget that does an immediate stop (ticket #473)
-        t = StoppingTarget()
+        # use a download targetthat does an immediate stop (ticket #473)
+        c = StoppingConsumer()
         d = self.shouldFail(download.DownloadStopped, "test_stop",
                             "our Consumer called stopProducing()",
-                            self.send_and_recover, target=t)
+                            self.send_and_recover, consumer=c)
         return d
 
     # the following tests all use 4-out-of-10 encoding

@@ -8,6 +8,7 @@ from twisted.trial import unittest
 from allmydata import uri
 from allmydata.storage.server import storage_index_to_dir
 from allmydata.util import base32, fileutil
+from allmydata.util.consumer import download_to_data
 from allmydata.immutable import upload
 from allmydata.test.no_network import GridTestMixin
 
@@ -173,7 +174,7 @@ class DownloadTest(GridTestMixin, unittest.TestCase):
 
     def download_immutable(self, ignored=None):
         n = self.c0.create_node_from_uri(immutable_uri)
-        d = n.download_to_data()
+        d = download_to_data(n)
         def _got_data(data):
             self.failUnlessEqual(data, plaintext)
         d.addCallback(_got_data)

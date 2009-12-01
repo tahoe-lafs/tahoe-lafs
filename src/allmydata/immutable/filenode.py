@@ -2,7 +2,7 @@ import copy, os.path, stat
 from cStringIO import StringIO
 from zope.interface import implements
 from twisted.internet import defer
-from twisted.internet.interfaces import IPushProducer, IConsumer
+from twisted.internet.interfaces import IPushProducer
 from twisted.protocols import basic
 from foolscap.api import eventually
 from allmydata.interfaces import IImmutableFileNode, ICheckable, \
@@ -284,6 +284,8 @@ class ImmutableFileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
         return v.start()
 
     def read(self, consumer, offset=0, size=None):
+        self.log("read", offset=offset, size=size,
+                 umid="UPP8FA", level=log.OPERATIONAL)
         if size is None:
             size = self.get_size() - offset
         size = min(size, self.get_size() - offset)
@@ -291,23 +293,15 @@ class ImmutableFileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
         if offset == 0 and size == self.get_size():
             # don't use the cache, just do a normal streaming download
             self.log("doing normal full download", umid="VRSBwg", level=log.OPERATIONAL)
-            return self.download(download.ConsumerAdapter(consumer))
+            target = download.ConsumerAdapter(consumer)
+            return self._downloader.download(self.get_cap(), target,
+                                             self._parentmsgid,
+                                             history=self._history)
 
         d = self.download_cache.when_range_available(offset, size)
         d.addCallback(lambda res:
                       self.download_cache.read(consumer, offset, size))
         return d
-
-    def download(self, target):
-        return self._downloader.download(self.get_cap(), target,
-                                         self._parentmsgid,
-                                         history=self._history)
-
-    def download_to_data(self):
-        return self._downloader.download_to_data(self.get_cap(),
-                                                 history=self._history)
-    def download_to_filename(self, filename):
-        return self._downloader.download_to_filename(self.get_cap(), filename)
 
 class LiteralProducer:
     implements(IPushProducer)
@@ -367,19 +361,3 @@ class LiteralFileNode(_ImmutableFileNodeBase):
         d = basic.FileSender().beginFileTransfer(StringIO(data), consumer)
         d.addCallback(lambda lastSent: consumer)
         return d
-
-    def download(self, target):
-        # note that this does not update the stats_provider
-        data = self.u.data
-        if IConsumer.providedBy(target):
-            target.registerProducer(LiteralProducer(), True)
-        target.open(len(data))
-        target.write(data)
-        if IConsumer.providedBy(target):
-            target.unregisterProducer()
-        target.close()
-        return defer.maybeDeferred(target.finish)
-
-    def download_to_data(self):
-        data = self.u.data
-        return defer.succeed(data)

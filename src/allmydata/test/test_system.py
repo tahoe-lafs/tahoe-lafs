@@ -1,20 +1,19 @@
 from base64 import b32encode
 import os, sys, time, simplejson
 from cStringIO import StringIO
-from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.internet.error import ConnectionDone, ConnectionLost
-from twisted.internet.interfaces import IConsumer, IPushProducer
 import allmydata
 from allmydata import uri
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.server import si_a2b
-from allmydata.immutable import download, offloaded, upload
+from allmydata.immutable import offloaded, upload
 from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
+from allmydata.util.consumer import MemoryConsumer, download_to_data
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
      NoSuchChildError, NoSharesError
@@ -26,8 +25,7 @@ from twisted.python.failure import Failure
 from twisted.web.client import getPage
 from twisted.web.error import Error
 
-from allmydata.test.common import SystemTestMixin, MemoryConsumer, \
-     download_to_data
+from allmydata.test.common import SystemTestMixin
 
 LARGE_DATA = """
 This is some data to publish to the virtual drive, which needs to be large
@@ -46,22 +44,6 @@ class CountingDataUploadable(upload.Data):
                 self.interrupt_after = None
                 self.interrupt_after_d.callback(self)
         return upload.Data.read(self, length)
-
-class GrabEverythingConsumer:
-    implements(IConsumer)
-
-    def __init__(self):
-        self.contents = ""
-
-    def registerProducer(self, producer, streaming):
-        assert streaming
-        assert IPushProducer.providedBy(producer)
-
-    def write(self, data):
-        self.contents += data
-
-    def unregisterProducer(self):
-        pass
 
 class SystemTest(SystemTestMixin, unittest.TestCase):
     timeout = 3600 # It takes longer than 960 seconds on Zandr's ARM box.
@@ -137,7 +119,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             self.uri = theuri
             assert isinstance(self.uri, str), self.uri
             self.cap = uri.from_string(self.uri)
-            self.downloader = self.clients[1].downloader
+            self.n = self.clients[1].create_node_from_uri(self.uri)
         d.addCallback(_upload_done)
 
         def _upload_again(res):
@@ -153,41 +135,12 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         def _download_to_data(res):
             log.msg("DOWNLOADING")
-            return self.downloader.download_to_data(self.cap)
+            return download_to_data(self.n)
         d.addCallback(_download_to_data)
         def _download_to_data_done(data):
             log.msg("download finished")
             self.failUnlessEqual(data, DATA)
         d.addCallback(_download_to_data_done)
-
-        target_filename = os.path.join(self.basedir, "download.target")
-        def _download_to_filename(res):
-            return self.downloader.download_to_filename(self.cap,
-                                                        target_filename)
-        d.addCallback(_download_to_filename)
-        def _download_to_filename_done(res):
-            newdata = open(target_filename, "rb").read()
-            self.failUnlessEqual(newdata, DATA)
-        d.addCallback(_download_to_filename_done)
-
-        target_filename2 = os.path.join(self.basedir, "download.target2")
-        def _download_to_filehandle(res):
-            fh = open(target_filename2, "wb")
-            return self.downloader.download_to_filehandle(self.cap, fh)
-        d.addCallback(_download_to_filehandle)
-        def _download_to_filehandle_done(fh):
-            fh.close()
-            newdata = open(target_filename2, "rb").read()
-            self.failUnlessEqual(newdata, DATA)
-        d.addCallback(_download_to_filehandle_done)
-
-        consumer = GrabEverythingConsumer()
-        ct = download.ConsumerAdapter(consumer)
-        d.addCallback(lambda res:
-                      self.downloader.download(self.cap, ct))
-        def _download_to_consumer_done(ign):
-            self.failUnlessEqual(consumer.contents, DATA)
-        d.addCallback(_download_to_consumer_done)
 
         def _test_read(res):
             n = self.clients[1].create_node_from_uri(self.uri)
@@ -228,9 +181,10 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         def _download_nonexistent_uri(res):
             baduri = self.mangle_uri(self.uri)
+            badnode = self.clients[1].create_node_from_uri(baduri)
             log.msg("about to download non-existent URI", level=log.UNUSUAL,
                     facility="tahoe.tests")
-            d1 = self.downloader.download_to_data(uri.from_string(baduri))
+            d1 = download_to_data(badnode)
             def _baduri_should_fail(res):
                 log.msg("finished downloading non-existend URI",
                         level=log.UNUSUAL, facility="tahoe.tests")
@@ -255,8 +209,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             u = upload.Data(HELPER_DATA, convergence=convergence)
             d = self.extra_node.upload(u)
             def _uploaded(results):
-                cap = uri.from_string(results.uri)
-                return self.downloader.download_to_data(cap)
+                n = self.clients[1].create_node_from_uri(results.uri)
+                return download_to_data(n)
             d.addCallback(_uploaded)
             def _check(newdata):
                 self.failUnlessEqual(newdata, HELPER_DATA)
@@ -269,8 +223,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             u.debug_stash_RemoteEncryptedUploadable = True
             d = self.extra_node.upload(u)
             def _uploaded(results):
-                cap = uri.from_string(results.uri)
-                return self.downloader.download_to_data(cap)
+                n = self.clients[1].create_node_from_uri(results.uri)
+                return download_to_data(n)
             d.addCallback(_uploaded)
             def _check(newdata):
                 self.failUnlessEqual(newdata, HELPER_DATA)
@@ -357,7 +311,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             d.addCallback(lambda res: self.extra_node.upload(u2))
 
             def _uploaded(results):
-                cap = uri.from_string(results.uri)
+                cap = results.uri
                 log.msg("Second upload complete", level=log.NOISY,
                         facility="tahoe.test.test_system")
 
@@ -385,7 +339,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                                 "resumption saved us some work even though we were using random keys:"
                                 " read %d bytes out of %d total" %
                                 (bytes_sent, len(DATA)))
-                return self.downloader.download_to_data(cap)
+                n = self.clients[1].create_node_from_uri(cap)
+                return download_to_data(n)
             d.addCallback(_uploaded)
 
             def _check(newdata):
@@ -885,7 +840,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(self.log, "check_publish1 got /")
         d.addCallback(lambda root: root.get(u"subdir1"))
         d.addCallback(lambda subdir1: subdir1.get(u"mydata567"))
-        d.addCallback(lambda filenode: filenode.download_to_data())
+        d.addCallback(lambda filenode: download_to_data(filenode))
         d.addCallback(self.log, "get finished")
         def _get_done(data):
             self.failUnlessEqual(data, self.data)
@@ -899,7 +854,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(lambda dirnode:
                       self.failUnless(IDirectoryNode.providedBy(dirnode)))
         d.addCallback(lambda res: rootnode.get_child_at_path(u"subdir1/mydata567"))
-        d.addCallback(lambda filenode: filenode.download_to_data())
+        d.addCallback(lambda filenode: download_to_data(filenode))
         d.addCallback(lambda data: self.failUnlessEqual(data, self.data))
 
         d.addCallback(lambda res: rootnode.get_child_at_path(u"subdir1/mydata567"))
@@ -925,7 +880,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             return self._private_node.get_child_at_path(path)
 
         d.addCallback(lambda res: get_path(u"personal/sekrit data"))
-        d.addCallback(lambda filenode: filenode.download_to_data())
+        d.addCallback(lambda filenode: download_to_data(filenode))
         d.addCallback(lambda data: self.failUnlessEqual(data, self.smalldata))
         d.addCallback(lambda res: get_path(u"s2-rw"))
         d.addCallback(lambda dirnode: self.failUnless(dirnode.is_mutable()))

@@ -4,6 +4,7 @@ from allmydata.monitor import Monitor
 from allmydata import check_results
 from allmydata.interfaces import NotEnoughSharesError
 from allmydata.immutable import repairer, upload
+from allmydata.util.consumer import download_to_data
 from twisted.internet import defer
 from twisted.trial import unittest
 import random
@@ -428,7 +429,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         d.addCallback(lambda ignored:
                       self.shouldFail(NotEnoughSharesError, "then_download",
                                       None,
-                                      self.c1_filenode.download_to_data))
+                                      download_to_data, self.c1_filenode))
 
         d.addCallback(lambda ignored:
                       self.shouldFail(NotEnoughSharesError, "then_repair",
@@ -499,7 +500,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
 
         d.addCallback(lambda ignored:
                       self.delete_shares_numbered(self.uri, range(3, 10+1)))
-        d.addCallback(lambda ignored: self.c1_filenode.download_to_data())
+        d.addCallback(lambda ignored: download_to_data(self.c1_filenode))
         d.addCallback(lambda newdata:
                       self.failUnlessEqual(newdata, common.TEST_DATA))
         return d
@@ -544,7 +545,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
 
         d.addCallback(lambda ignored:
                       self.delete_shares_numbered(self.uri, range(3, 10+1)))
-        d.addCallback(lambda ignored: self.c1_filenode.download_to_data())
+        d.addCallback(lambda ignored: download_to_data(self.c1_filenode))
         d.addCallback(lambda newdata:
                       self.failUnlessEqual(newdata, common.TEST_DATA))
         return d

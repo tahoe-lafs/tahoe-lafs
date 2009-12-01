@@ -575,13 +575,6 @@ class IFileNode(IFilesystemNode):
     container, like IDirectoryNode."""
 
 class IImmutableFileNode(IFileNode):
-    def download(target):
-        """Download the file's contents to a given IDownloadTarget"""
-
-    def download_to_data():
-        """Download the file's contents. Return a Deferred that fires
-        with those contents."""
-
     def read(consumer, offset=0, size=None):
         """Download a portion (possibly all) of the file's contents, making
         them available to the given IConsumer. Return a Deferred that fires
@@ -613,25 +606,8 @@ class IImmutableFileNode(IFileNode):
         p.stopProducing(), which will result in an exception being delivered
         via deferred.errback().
 
-        A simple download-to-memory consumer example would look like this::
-
-         class MemoryConsumer:
-           implements(IConsumer)
-           def __init__(self):
-             self.chunks = []
-             self.done = False
-           def registerProducer(self, p, streaming):
-             assert streaming == False
-             while not self.done:
-               p.resumeProducing()
-           def write(self, data):
-             self.chunks.append(data)
-           def unregisterProducer(self):
-             self.done = True
-         d = filenode.read(MemoryConsumer())
-         d.addCallback(lambda mc: "".join(mc.chunks))
-         return d
-
+        See src/allmydata/util/consumer.py for an example of a simple
+        download-to-memory consumer.
         """
 
 class IMutableFileNode(IFileNode):

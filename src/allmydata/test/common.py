@@ -1,7 +1,7 @@
 import os, random, struct
 from zope.interface import implements
 from twisted.internet import defer
-from twisted.internet.interfaces import IConsumer
+from twisted.internet.interfaces import IPullProducer
 from twisted.python import failure
 from twisted.application import service
 from twisted.web.error import Error as WebError
@@ -18,6 +18,7 @@ from allmydata.storage.server import storage_index_to_dir
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.util import hashutil, log, fileutil, pollmixin
 from allmydata.util.assertutil import precondition
+from allmydata.util.consumer import download_to_data
 from allmydata.stats import StatsGathererService
 from allmydata.key_generator import KeyGeneratorService
 import common_util as testutil
@@ -30,6 +31,11 @@ def flush_but_dont_ignore(res):
         return res
     d.addCallback(_done)
     return d
+
+class DummyProducer:
+    implements(IPullProducer)
+    def resumeProducing(self):
+        pass
 
 class FakeCHKFileNode:
     """I provide IImmutableFileNode, but all of my data is stored in a
@@ -98,39 +104,35 @@ class FakeCHKFileNode:
     def is_readonly(self):
         return True
 
-    def download(self, target):
-        if self.my_uri.to_string() not in self.all_contents:
-            f = failure.Failure(NotEnoughSharesError(None, 0, 3))
-            target.fail(f)
-            return defer.fail(f)
-        data = self.all_contents[self.my_uri.to_string()]
-        target.open(len(data))
-        target.write(data)
-        target.close()
-        return defer.maybeDeferred(target.finish)
-    def download_to_data(self):
-        if self.my_uri.to_string() not in self.all_contents:
-            return defer.fail(NotEnoughSharesError(None, 0, 3))
-        data = self.all_contents[self.my_uri.to_string()]
-        return defer.succeed(data)
     def get_size(self):
         try:
             data = self.all_contents[self.my_uri.to_string()]
         except KeyError, le:
             raise NotEnoughSharesError(le, 0, 3)
         return len(data)
+
     def read(self, consumer, offset=0, size=None):
-        d = self.download_to_data()
-        def _got(data):
-            start = offset
-            if size is not None:
-                end = offset + size
-            else:
-                end = len(data)
-            consumer.write(data[start:end])
-            return consumer
-        d.addCallback(_got)
+        # we don't bother to call registerProducer/unregisterProducer,
+        # because it's a hassle to write a dummy Producer that does the right
+        # thing (we have to make sure that DummyProducer.resumeProducing
+        # writes the data into the consumer immediately, otherwise it will
+        # loop forever).
+
+        d = defer.succeed(None)
+        d.addCallback(self._read, consumer, offset, size)
         return d
+
+    def _read(self, ignored, consumer, offset, size):
+        if self.my_uri.to_string() not in self.all_contents:
+            raise NotEnoughSharesError(None, 0, 3)
+        data = self.all_contents[self.my_uri.to_string()]
+        start = offset
+        if size is not None:
+            end = offset + size
+        else:
+            end = len(data)
+        consumer.write(data[start:end])
+        return consumer
 
 def make_chk_file_cap(size):
     return uri.CHKFileURI(key=os.urandom(16),
@@ -927,6 +929,7 @@ class ShareManglingMixin(SystemTestMixin):
             d2 = cl0.upload(immutable.upload.Data(TEST_DATA, convergence=""))
             def _after_upload(u):
                 filecap = u.uri
+                self.n = self.clients[1].create_node_from_uri(filecap)
                 self.uri = uri.CHKFileURI.init_from_string(filecap)
                 return cl0.create_node_from_uri(filecap)
             d2.addCallback(_after_upload)
@@ -1045,8 +1048,7 @@ class ShareManglingMixin(SystemTestMixin):
         return sum_of_write_counts
 
     def _download_and_check_plaintext(self, unused=None):
-        d = self.clients[1].downloader.download_to_data(self.uri)
-
+        d = download_to_data(self.n)
         def _after_download(result):
             self.failUnlessEqual(result, TEST_DATA)
         d.addCallback(_after_download)
@@ -1139,28 +1141,6 @@ class ErrorMixin(WebErrorMixin):
         if f.check(defer.FirstError):
             print "First Error:", f.value.subFailure
         return f
-
-class MemoryConsumer:
-    implements(IConsumer)
-    def __init__(self):
-        self.chunks = []
-        self.done = False
-    def registerProducer(self, p, streaming):
-        if streaming:
-            # call resumeProducing once to start things off
-            p.resumeProducing()
-        else:
-            while not self.done:
-                p.resumeProducing()
-    def write(self, data):
-        self.chunks.append(data)
-    def unregisterProducer(self):
-        self.done = True
-
-def download_to_data(n, offset=0, size=None):
-    d = n.read(MemoryConsumer(), offset, size)
-    d.addCallback(lambda mc: "".join(mc.chunks))
-    return d
 
 def corrupt_field(data, offset, size, debug=False):
     if random.random() < 0.5:

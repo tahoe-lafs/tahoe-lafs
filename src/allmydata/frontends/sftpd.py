@@ -4,7 +4,6 @@ from zope.interface import implements
 from twisted.python import components
 from twisted.application import service, strports
 from twisted.internet import defer
-from twisted.internet.interfaces import IConsumer
 from twisted.conch.ssh import factory, keys, session
 from twisted.conch.interfaces import ISFTPServer, ISFTPFile, IConchUser
 from twisted.conch.avatar import ConchUser
@@ -15,28 +14,7 @@ from twisted.cred import portal
 from allmydata.interfaces import IDirectoryNode, ExistingChildError, \
      NoSuchChildError
 from allmydata.immutable.upload import FileHandle
-
-class MemoryConsumer:
-    implements(IConsumer)
-    def __init__(self):
-        self.chunks = []
-        self.done = False
-    def registerProducer(self, p, streaming):
-        if streaming:
-            # call resumeProducing once to start things off
-            p.resumeProducing()
-        else:
-            while not self.done:
-                p.resumeProducing()
-    def write(self, data):
-        self.chunks.append(data)
-    def unregisterProducer(self):
-        self.done = True
-
-def download_to_data(n, offset=0, size=None):
-    d = n.read(MemoryConsumer(), offset, size)
-    d.addCallback(lambda mc: "".join(mc.chunks))
-    return d
+from allmydata.util.consumer import download_to_data
 
 class ReadFile:
     implements(ISFTPFile)

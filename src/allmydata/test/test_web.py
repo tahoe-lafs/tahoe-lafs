@@ -17,6 +17,7 @@ from allmydata.unknown import UnknownNode
 from allmydata.web import status, common
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.util import fileutil, base32
+from allmydata.util.consumer import download_to_data
 from allmydata.test.common import FakeCHKFileNode, FakeMutableFileNode, \
      create_chk_filenode, WebErrorMixin, ShouldFailMixin, make_mutable_file_uri
 from allmydata.interfaces import IMutableFileNode
@@ -1292,7 +1293,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def failUnlessChildContentsAre(self, node, name, expected_contents):
         assert isinstance(name, unicode)
         d = node.get_child_at_path(name)
-        d.addCallback(lambda node: node.download_to_data())
+        d.addCallback(lambda node: download_to_data(node))
         def _check(contents):
             self.failUnlessEqual(contents, expected_contents)
         d.addCallback(_check)

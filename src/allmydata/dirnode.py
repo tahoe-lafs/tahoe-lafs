@@ -18,6 +18,7 @@ from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log
 from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
+from allmydata.util.consumer import download_to_data
 from allmydata.uri import LiteralFileURI, from_string, wrap_dirnode_cap
 from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
@@ -217,7 +218,7 @@ class DirectoryNode:
             # use the IMutableFileNode API.
             d = self._node.download_best_version()
         else:
-            d = self._node.download_to_data()
+            d = download_to_data(self._node)
         d.addCallback(self._unpack_contents)
         return d
 

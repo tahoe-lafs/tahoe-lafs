@@ -9,7 +9,6 @@ from twisted.protocols import ftp
 
 from allmydata.interfaces import IDirectoryNode, ExistingChildError, \
      NoSuchChildError
-from allmydata.immutable.download import ConsumerAdapter
 from allmydata.immutable.upload import FileHandle
 
 class ReadFile:
@@ -17,8 +16,7 @@ class ReadFile:
     def __init__(self, node):
         self.node = node
     def send(self, consumer):
-        ad = ConsumerAdapter(consumer)
-        d = self.node.download(ad)
+        d = self.node.read(consumer)
         return d # when consumed
 
 class FileWriter:

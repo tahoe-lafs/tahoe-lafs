@@ -3,10 +3,11 @@ import os, time
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer
+from twisted.internet.interfaces import IConsumer
 from foolscap.api import Referenceable
 from allmydata.interfaces import RIControlClient
 from allmydata.util import fileutil, mathutil
-from allmydata.immutable import upload, download
+from allmydata.immutable import upload
 from twisted.python import log
 
 def get_memory_usage():
@@ -35,6 +36,22 @@ def log_memory_usage(where=""):
                                               stats["VmPeak"],
                                               where))
 
+class FileWritingConsumer:
+    implements(IConsumer)
+    def __init__(self, filename):
+        self.done = False
+        self.f = open(filename, "wb")
+    def registerProducer(self, p, streaming):
+        if streaming:
+            p.resumeProducing()
+        else:
+            while not self.done:
+                p.resumeProducing()
+    def write(self, data):
+        self.f.write(data)
+    def unregisterProducer(self):
+        self.done = True
+        self.f.close()
 
 class ControlServer(Referenceable, service.Service):
     implements(RIControlClient)
@@ -51,7 +68,8 @@ class ControlServer(Referenceable, service.Service):
 
     def remote_download_from_uri_to_file(self, uri, filename):
         filenode = self.parent.create_node_from_uri(uri)
-        d = filenode.download_to_filename(filename)
+        c = FileWritingConsumer(filename)
+        d = filenode.read(c)
         d.addCallback(lambda res: filename)
         return d
 
@@ -181,7 +199,7 @@ class SpeedTest:
             if i >= self.count:
                 return
             n = self.parent.create_node_from_uri(self.uris[i])
-            d1 = n.download(download.FileHandle(Discard()))
+            d1 = n.read(DiscardingConsumer())
             d1.addCallback(_download_one_file, i+1)
             return d1
         d.addCallback(_download_one_file, 0)
@@ -197,10 +215,17 @@ class SpeedTest:
             os.unlink(fn)
         return res
 
-class Discard:
+class DiscardingConsumer:
+    implements(IConsumer)
+    def __init__(self):
+        self.done = False
+    def registerProducer(self, p, streaming):
+        if streaming:
+            p.resumeProducing()
+        else:
+            while not self.done:
+                p.resumeProducing()
     def write(self, data):
         pass
-    # download_to_filehandle explicitly does not close the filehandle it was
-    # given: that is reserved for the provider of the filehandle. Therefore
-    # the lack of a close() method on this otherwise filehandle-like object
-    # is a part of the test.
+    def unregisterProducer(self):
+        self.done = True

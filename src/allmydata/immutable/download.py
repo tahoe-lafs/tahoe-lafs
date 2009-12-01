@@ -1,4 +1,4 @@
-import os, random, weakref, itertools, time
+import random, weakref, itertools, time
 from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer, IConsumer
@@ -1196,93 +1196,6 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         return self._status
 
 
-class FileName:
-    implements(IDownloadTarget)
-    def __init__(self, filename):
-        self._filename = filename
-        self.f = None
-    def open(self, size):
-        self.f = open(self._filename, "wb")
-        return self.f
-    def write(self, data):
-        self.f.write(data)
-    def close(self):
-        if self.f:
-            self.f.close()
-    def fail(self, why):
-        if self.f:
-            self.f.close()
-            os.unlink(self._filename)
-    def register_canceller(self, cb):
-        pass # we won't use it
-    def finish(self):
-        pass
-    # The following methods are just because the target might be a
-    # repairer.DownUpConnector, and just because the current CHKUpload object
-    # expects to find the storage index and encoding parameters in its
-    # Uploadable.
-    def set_storageindex(self, storageindex):
-        pass
-    def set_encodingparams(self, encodingparams):
-        pass
-
-class Data:
-    implements(IDownloadTarget)
-    def __init__(self):
-        self._data = []
-    def open(self, size):
-        pass
-    def write(self, data):
-        self._data.append(data)
-    def close(self):
-        self.data = "".join(self._data)
-        del self._data
-    def fail(self, why):
-        del self._data
-    def register_canceller(self, cb):
-        pass # we won't use it
-    def finish(self):
-        return self.data
-    # The following methods are just because the target might be a
-    # repairer.DownUpConnector, and just because the current CHKUpload object
-    # expects to find the storage index and encoding parameters in its
-    # Uploadable.
-    def set_storageindex(self, storageindex):
-        pass
-    def set_encodingparams(self, encodingparams):
-        pass
-
-class FileHandle:
-    """Use me to download data to a pre-defined filehandle-like object. I
-    will use the target's write() method. I will *not* close the filehandle:
-    I leave that up to the originator of the filehandle. The download process
-    will return the filehandle when it completes.
-    """
-    implements(IDownloadTarget)
-    def __init__(self, filehandle):
-        self._filehandle = filehandle
-    def open(self, size):
-        pass
-    def write(self, data):
-        self._filehandle.write(data)
-    def close(self):
-        # the originator of the filehandle reserves the right to close it
-        pass
-    def fail(self, why):
-        pass
-    def register_canceller(self, cb):
-        pass
-    def finish(self):
-        return self._filehandle
-    # The following methods are just because the target might be a
-    # repairer.DownUpConnector, and just because the current CHKUpload object
-    # expects to find the storage index and encoding parameters in its
-    # Uploadable.
-    def set_storageindex(self, storageindex):
-        pass
-    def set_encodingparams(self, encodingparams):
-        pass
-
 class ConsumerAdapter:
     implements(IDownloadTarget, IConsumer)
     def __init__(self, consumer):
@@ -1351,11 +1264,3 @@ class Downloader:
             history.add_download(dl.get_download_status())
         d = dl.start()
         return d
-
-    # utility functions
-    def download_to_data(self, uri, _log_msg_id=None, history=None):
-        return self.download(uri, Data(), _log_msg_id=_log_msg_id, history=history)
-    def download_to_filename(self, uri, filename, _log_msg_id=None):
-        return self.download(uri, FileName(filename), _log_msg_id=_log_msg_id)
-    def download_to_filehandle(self, uri, filehandle, _log_msg_id=None):
-        return self.download(uri, FileHandle(filehandle), _log_msg_id=_log_msg_id)

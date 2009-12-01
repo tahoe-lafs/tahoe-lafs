@@ -5,7 +5,7 @@ from twisted.trial import unittest
 from twisted.application import service
 from allmydata.test.no_network import NoNetworkGrid
 from allmydata.immutable.upload import Data
-
+from allmydata.util.consumer import download_to_data
 
 class Harness(unittest.TestCase):
     def setUp(self):
@@ -32,7 +32,7 @@ class Harness(unittest.TestCase):
         d = c0.upload(data)
         def _uploaded(res):
             n = c0.create_node_from_uri(res.uri)
-            return n.download_to_data()
+            return download_to_data(n)
         d.addCallback(_uploaded)
         def _check(res):
             self.failUnlessEqual(res, DATA)

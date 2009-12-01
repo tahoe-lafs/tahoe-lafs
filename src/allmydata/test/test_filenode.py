@@ -2,11 +2,10 @@
 from twisted.trial import unittest
 from allmydata import uri, client
 from allmydata.monitor import Monitor
-from allmydata.immutable import download
 from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.util import hashutil, cachedir
-from allmydata.test.common import download_to_data
+from allmydata.util.consumer import download_to_data
 
 class NotANode:
     pass
@@ -77,15 +76,9 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(v, None)
         self.failUnlessEqual(fn1.get_repair_cap(), None)
 
-        d = fn1.download(download.Data())
+        d = download_to_data(fn1)
         def _check(res):
             self.failUnlessEqual(res, DATA)
-        d.addCallback(_check)
-
-        d.addCallback(lambda res: fn1.download_to_data())
-        d.addCallback(_check)
-
-        d.addCallback(lambda res: download_to_data(fn1))
         d.addCallback(_check)
 
         d.addCallback(lambda res: download_to_data(fn1, 1, 5))

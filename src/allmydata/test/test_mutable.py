@@ -5,7 +5,6 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from allmydata import uri, client
 from allmydata.nodemaker import NodeMaker
-from allmydata.immutable import download
 from allmydata.util import base32
 from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash, ssk_writekey_hash, \
@@ -264,8 +263,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.overwrite("contents 2"))
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
-            d.addCallback(lambda res: n.download(download.Data()))
-            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             d.addCallback(lambda res: n.get_servermap(MODE_WRITE))
             d.addCallback(lambda smap: n.upload("contents 3", smap))
             d.addCallback(lambda res: n.download_best_version())
@@ -494,8 +491,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
             d.addCallback(lambda res: n.overwrite("contents 2"))
             d.addCallback(lambda res: n.download_best_version())
-            d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
-            d.addCallback(lambda res: n.download(download.Data()))
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             d.addCallback(lambda res: n.get_servermap(MODE_WRITE))
             d.addCallback(lambda smap: n.upload("contents 3", smap))
