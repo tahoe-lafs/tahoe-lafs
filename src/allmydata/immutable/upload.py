@@ -17,7 +17,7 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
-     NoServersError, InsufficientVersionError, UploadHappinessError
+     NoServersError, InsufficientVersionError, UploadUnhappinessError
 from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
@@ -362,7 +362,7 @@ class Tahoe2PeerSelector:
                             items.append((servernum, sharelist))
                     return self._loop()
                 else:
-                    raise UploadHappinessError("shares could only be placed "
+                    raise UploadUnhappinessError("shares could only be placed "
                                    "on %d servers (%d were requested)" %
                                    (len(effective_happiness),
                                    self.servers_of_happiness))
@@ -434,7 +434,7 @@ class Tahoe2PeerSelector:
                 if self.last_failure_msg:
                     msg += " (%s)" % (self.last_failure_msg,)
                 log.msg(msg, level=log.UNUSUAL, parent=self._log_parent)
-                raise UploadHappinessError(msg)
+                raise UploadUnhappinessError(msg)
             else:
                 # we placed enough to be happy, so we're done
                 if self._status:
