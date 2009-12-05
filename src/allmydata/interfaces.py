@@ -1272,7 +1272,7 @@ class IEncoder(Interface):
     def set_params(params):
         """Override the default encoding parameters. 'params' is a tuple of
         (k,d,n), where 'k' is the number of required shares, 'd' is the
-        shares_of_happiness, and 'n' is the total number of shares that will
+        servers_of_happiness, and 'n' is the total number of shares that will
         be created.
 
         Encoding parameters can be set in three ways. 1: The Encoder class
