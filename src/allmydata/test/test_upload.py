@@ -10,7 +10,7 @@ from foolscap.api import fireEventually
 import allmydata # for __full_version__
 from allmydata import uri, monitor, client
 from allmydata.immutable import upload, encode
-from allmydata.interfaces import FileTooLargeError, UploadHappinessError
+from allmydata.interfaces import FileTooLargeError, UploadUnhappinessError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from no_network import GridTestMixin
@@ -399,7 +399,7 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
 
     def test_first_error_all(self):
         self.make_node("first-fail")
-        d = self.shouldFail(UploadHappinessError, "first_error_all",
+        d = self.shouldFail(UploadUnhappinessError, "first_error_all",
                             "peer selection failed",
                             upload_data, self.u, DATA)
         def _check((f,)):
@@ -431,7 +431,7 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
 
     def test_second_error_all(self):
         self.make_node("second-fail")
-        d = self.shouldFail(UploadHappinessError, "second_error_all",
+        d = self.shouldFail(UploadUnhappinessError, "second_error_all",
                             "peer selection failed",
                             upload_data, self.u, DATA)
         def _check((f,)):
@@ -449,7 +449,7 @@ class FullServer(unittest.TestCase):
         self.u.parent = self.node
 
     def _should_fail(self, f):
-        self.failUnless(isinstance(f, Failure) and f.check(UploadHappinessError), f)
+        self.failUnless(isinstance(f, Failure) and f.check(UploadUnhappinessError), f)
 
     def test_data_large(self):
         data = DATA
@@ -814,7 +814,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # These parameters are unsatisfiable with the client that we've made
         # -- we'll use them to test that the semnatics work correctly.
         self.set_encoding_parameters(k=3, happy=5, n=10)
-        d = self.shouldFail(UploadHappinessError, "test_happy_semantics",
+        d = self.shouldFail(UploadUnhappinessError, "test_happy_semantics",
                             "shares could only be placed on 2 servers "
                             "(5 were requested)",
                             self.u.upload, DATA)
@@ -885,7 +885,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             _prepare())
         # Uploading data should fail
         d.addCallback(lambda client:
-            self.shouldFail(UploadHappinessError, "test_happy_semantics",
+            self.shouldFail(UploadUnhappinessError, "test_happy_semantics",
                             "shares could only be placed on 2 servers "
                             "(4 were requested)",
                             client.upload, upload.Data("data" * 10000,
@@ -915,7 +915,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             _prepare2())
         d.addCallback(lambda client:
-            self.shouldFail(UploadHappinessError, "test_happy_sematics",
+            self.shouldFail(UploadUnhappinessError, "test_happy_sematics",
                             "shares could only be placed on 2 servers "
                             "(3 were requested)",
                             client.upload, upload.Data("data" * 10000,
@@ -1121,7 +1121,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_do_server_setup)
         d.addCallback(_remove_server)
         d.addCallback(lambda ign:
-            self.shouldFail(UploadHappinessError,
+            self.shouldFail(UploadUnhappinessError,
                             "test_dropped_servers_in_encoder",
                             "lost too many servers during upload "
                             "(still have 3, want 4)",
@@ -1148,7 +1148,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_do_server_setup_2)
         d.addCallback(_remove_server)
         d.addCallback(lambda ign:
-            self.shouldFail(UploadHappinessError,
+            self.shouldFail(UploadUnhappinessError,
                             "test_dropped_servers_in_encoder",
                             "lost too many servers during upload "
                             "(still have 3, want 4)",
@@ -1300,7 +1300,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            self.shouldFail(UploadHappinessError, "test_selection_exceptions",
+            self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
                             "peer selection failed for <Tahoe2PeerSelector "
                             "for upload dglev>: placed 0 shares out of 10 "
                             "total (10 homeless), want to place on 4 servers,"
@@ -1347,7 +1347,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
-            self.shouldFail(UploadHappinessError, "test_selection_exceptions",
+            self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
                             "peer selection failed for <Tahoe2PeerSelector "
                             "for upload dglev>: placed 0 shares out of 10 "
                             "total (10 homeless), want to place on 4 servers,"
