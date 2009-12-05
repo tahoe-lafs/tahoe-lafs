@@ -272,11 +272,11 @@ shares.happy = (int, optional) k <= happy <= N
  larger than 256, because of the 8-bit erasure-coding algorithm that Tahoe
  uses.
 
- If servers are lost during an upload, shares.happy determines whether the
- upload is considered successful or not. If at least "shares.happy" shares
- were placed, the upload is declared a success, otherwise it is declared a
- failure. The default value is 7. This value must not be smaller than k nor
- larger than N.
+ shares.happy allows you control over the distribution of your file. An upload
+ is only considered successful if shares are placed on at least 'shares.happy'
+ distinct servers, the correct functioning of at least k of which is sufficient
+ to guarantee the availability of the uploaded file. This value should not be
+ larger than the number of servers on your grid.
 
 
 == Storage Server Configuration ==
