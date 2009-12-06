@@ -30,9 +30,8 @@ make-version:
 #	$(MAKE) make-version
 #
 # since that would update the embedded version string each time new darcs
-# patches were pulled, but 1) this would break non-darcs trees (i.e. building
-# from an exported tarball), and 2) without an obligatory 'build' step this
-# rule wouldn't be run frequently enought anyways.
+# patches were pulled, but without an obligatory 'build' step this rule
+# wouldn't be run frequently enough anyways.
 #
 # So instead, I'll just make sure that we update the version at least once
 # when we first start using the tree, and again whenever an explicit
@@ -236,10 +235,10 @@ test-darcs-boringfile:
 	$(PYTHON) misc/test-darcs-boringfile.py
 
 test-clean:
-	find . |grep -vEe "allfiles.tmp|src/allmydata/_(version|auto_deps|appname).py" |sort >allfiles.tmp.old
+	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|auto_deps|appname).py" |sort >allfiles.tmp.old
 	$(MAKE)
 	$(MAKE) clean
-	find . |grep -vEe "allfiles.tmp|src/allmydata/_(version|auto_deps|appname).py" |sort >allfiles.tmp.new
+	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|auto_deps|appname).py" |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
 clean:
@@ -247,7 +246,7 @@ clean:
 	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
 	rm -rf src/allmydata_tahoe.egg-info
 	rm -rf support dist
-	rm -rf setuptools*.egg *.pyc darcsver*.egg pyutil*.egg
+	rm -rf *.egg *.pyc
 	rm -rf misc/dependencies/build misc/dependencies/temp
 	rm -rf misc/dependencies/tahoe_deps.egg-info
 	rm -f bin/tahoe bin/tahoe-script.py
