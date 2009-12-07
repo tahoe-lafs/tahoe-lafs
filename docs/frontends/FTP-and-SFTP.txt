@@ -100,7 +100,7 @@ the opportunity for man-in-the-middle attacks to just the first connection.
 
 You will use directives in the tahoe.cfg file to tell the SFTP code where to
 find these keys. To create one, use the ssh-keygen tool (which comes with the
-normal openssl client distribution):
+standard openssh client distribution):
 
 % cd BASEDIR
 % ssh-keygen -f private/ssh_host_rsa_key
