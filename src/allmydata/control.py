@@ -199,7 +199,10 @@ class SpeedTest:
             if i >= self.count:
                 return
             n = self.parent.create_node_from_uri(self.uris[i])
-            d1 = n.read(DiscardingConsumer())
+            if n.is_mutable():
+                d1 = n.download_best_version()
+            else:
+                d1 = n.read(DiscardingConsumer())
             d1.addCallback(_download_one_file, i+1)
             return d1
         d.addCallback(_download_one_file, 0)
