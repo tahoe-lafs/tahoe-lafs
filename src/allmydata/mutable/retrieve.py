@@ -83,9 +83,9 @@ class Retrieve:
 
     def __init__(self, filenode, servermap, verinfo, fetch_privkey=False):
         self._node = filenode
-        assert self._node._pubkey
+        assert self._node.get_pubkey()
         self._storage_index = filenode.get_storage_index()
-        assert self._node._readkey
+        assert self._node.get_readkey()
         self._last_failure = None
         prefix = si_b2a(self._storage_index)[:5]
         self._log_number = log.msg("Retrieve(%s): starting" % prefix)
@@ -95,13 +95,13 @@ class Retrieve:
         self._bad_shares = set()
 
         self.servermap = servermap
-        assert self._node._pubkey
+        assert self._node.get_pubkey()
         self.verinfo = verinfo
         # during repair, we may be called upon to grab the private key, since
         # it wasn't picked up during a verify=False checker run, and we'll
         # need it for repair to generate the a new version.
         self._need_privkey = fetch_privkey
-        if self._node._privkey:
+        if self._node.get_privkey():
             self._need_privkey = False
 
         self._status = RetrieveStatus()
@@ -198,8 +198,8 @@ class Retrieve:
         got_from_cache = False
         datavs = []
         for (offset, length) in readv:
-            (data, timestamp) = self._node._cache.read(self.verinfo, shnum,
-                                                       offset, length)
+            (data, timestamp) = self._node._read_from_cache(self.verinfo, shnum,
+                                                            offset, length)
             if data is not None:
                 datavs.append(data)
         if len(datavs) == len(readv):
@@ -395,7 +395,7 @@ class Retrieve:
         self._status.timings["fetch"] = elapsed
 
         d = defer.maybeDeferred(self._decode)
-        d.addCallback(self._decrypt, IV, self._node._readkey)
+        d.addCallback(self._decrypt, IV, self._node.get_readkey())
         d.addBoth(self._done)
         return d # purely for test convenience
 

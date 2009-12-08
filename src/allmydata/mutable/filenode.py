@@ -151,6 +151,8 @@ class MutableFileNode:
         self._encprivkey = encprivkey
     def _add_to_cache(self, verinfo, shnum, offset, data, timestamp):
         self._cache.add(verinfo, shnum, offset, data, timestamp)
+    def _read_from_cache(self, verinfo, shnum, offset, length):
+        return self._cache.read(verinfo, shnum, offset, length)
 
     def get_write_enabler(self, peerid):
         assert len(peerid) == 20
