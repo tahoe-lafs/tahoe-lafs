@@ -379,7 +379,7 @@ class ServermapUpdater:
             # we use unpack_prefix_and_signature, so we need 1k
             self._read_size = 1000
         self._need_privkey = False
-        if mode == MODE_WRITE and not self._node._privkey:
+        if mode == MODE_WRITE and not self._node.get_privkey():
             self._need_privkey = True
         # check+repair: repair requires the privkey, so if we didn't happen
         # to ask for it during the check, we'll have problems doing the
@@ -595,7 +595,7 @@ class ServermapUpdater:
                 verinfo = self._got_results_one_share(shnum, data, peerid, lp)
                 last_verinfo = verinfo
                 last_shnum = shnum
-                self._node._cache.add(verinfo, shnum, 0, data, now)
+                self._node._add_to_cache(verinfo, shnum, 0, data, now)
             except CorruptShareError, e:
                 # log it and give the other shares a chance to be processed
                 f = failure.Failure()
@@ -657,7 +657,7 @@ class ServermapUpdater:
         if not self._node.get_pubkey():
             fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
             assert len(fingerprint) == 32
-            if fingerprint != self._node._fingerprint:
+            if fingerprint != self._node.get_fingerprint():
                 raise CorruptShareError(peerid, shnum,
                                         "pubkey doesn't match fingerprint")
             self._node._populate_pubkey(self._deserialize_pubkey(pubkey_s))
@@ -674,7 +674,7 @@ class ServermapUpdater:
 
         if verinfo not in self._valid_versions:
             # it's a new pair. Verify the signature.
-            valid = self._node._pubkey.verify(prefix, signature)
+            valid = self._node.get_pubkey().verify(prefix, signature)
             if not valid:
                 raise CorruptShareError(peerid, shnum, "signature is invalid")
 

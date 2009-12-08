@@ -149,7 +149,8 @@ class MutableFileNode:
         self._privkey = privkey
     def _populate_encprivkey(self, encprivkey):
         self._encprivkey = encprivkey
-
+    def _add_to_cache(self, verinfo, shnum, offset, data, timestamp):
+        self._cache.add(verinfo, shnum, offset, data, timestamp)
 
     def get_write_enabler(self, peerid):
         assert len(peerid) == 20
@@ -171,6 +172,8 @@ class MutableFileNode:
         return self._readkey
     def get_storage_index(self):
         return self._storage_index
+    def get_fingerprint(self):
+        return self._fingerprint
     def get_privkey(self):
         return self._privkey
     def get_encprivkey(self):

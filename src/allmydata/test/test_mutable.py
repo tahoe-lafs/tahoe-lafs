@@ -714,7 +714,7 @@ class Servermap(unittest.TestCase, PublishMixin):
         d.addCallback(lambda res: ms(mode=MODE_WRITE))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 10))
         d.addCallback(lambda res: ms(mode=MODE_READ))
-        # this more stops at k+epsilon, and epsilon=k, so 6 shares
+        # this mode stops at k+epsilon, and epsilon=k, so 6 shares
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
         d.addCallback(lambda res: ms(mode=MODE_ANYTHING))
         # this mode stops at 'k' shares
