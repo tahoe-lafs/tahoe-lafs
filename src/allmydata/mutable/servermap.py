@@ -434,7 +434,7 @@ class ServermapUpdater:
         if k is None:
             # make a guess
             k = 3
-        N = self._node.get_required_shares()
+        N = self._node.get_total_shares()
         if N is None:
             N = 10
         self.EPSILON = k
