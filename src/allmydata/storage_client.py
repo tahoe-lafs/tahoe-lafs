@@ -28,7 +28,15 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
-import sha, time
+try:
+    from hashlib import sha1
+except ImportError:
+    # hashlib was added in Python 2.5
+    import sha
+    def sha1(x):
+        return sha.new(x)
+
+import time
 from zope.interface import implements, Interface
 from foolscap.api import eventually
 from allmydata.interfaces import IStorageBroker
@@ -119,7 +127,7 @@ class StorageFarmBroker:
         assert self.permute_peers == True
         servers = self.get_all_servers()
         key = peer_selection_index
-        return sorted(servers, key=lambda x: sha.new(key+x[0]).digest())
+        return sorted(servers, key=lambda x: sha1(key+x[0]).digest())
 
     def get_all_servers(self):
         # return a frozenset of (peerid, versioned-rref) tuples
