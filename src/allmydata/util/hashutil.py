@@ -2,6 +2,14 @@ from pycryptopp.hash.sha256 import SHA256
 import os
 from allmydata.util.netstring import netstring
 
+try:
+    import hashlib
+    sha1 = hashlib.sha1
+except ImportError:
+    # hashlib was added in Python 2.5
+    import sha
+    sha1 = sha.new
+
 # Be very very cautious when modifying this file. Almost any change will
 # cause a compatibility break, invalidating all outstanding URIs and making
 # any previously uploaded files become inaccessible. BE CONSERVATIVE AND TEST

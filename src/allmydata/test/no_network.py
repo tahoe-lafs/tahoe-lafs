@@ -14,7 +14,6 @@
 # or the control.furl .
 
 import os.path
-import sha
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import reactor
@@ -25,6 +24,7 @@ from allmydata import uri as tahoe_uri
 from allmydata.client import Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
+from allmydata.util.hashutil import sha1
 from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker
 
@@ -105,7 +105,7 @@ class NoNetworkStorageBroker:
     implements(IStorageBroker)
     def get_servers_for_index(self, key):
         return sorted(self.client._servers,
-                      key=lambda x: sha.new(key+x[0]).digest())
+                      key=lambda x: sha1(key+x[0]).digest())
     def get_all_servers(self):
         return frozenset(self.client._servers)
     def get_nickname_for_serverid(self, serverid):

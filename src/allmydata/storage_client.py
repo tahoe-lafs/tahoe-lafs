@@ -28,13 +28,6 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 #
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
-try:
-    from hashlib import sha1
-except ImportError:
-    # hashlib was added in Python 2.5
-    import sha
-    def sha1(x):
-        return sha.new(x)
 
 import time
 from zope.interface import implements, Interface
@@ -43,6 +36,7 @@ from allmydata.interfaces import IStorageBroker
 from allmydata.util import idlib, log
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.rrefutil import add_version_to_remote_reference
+from allmydata.util.hashutil import sha1
 
 # who is responsible for de-duplication?
 #  both?
