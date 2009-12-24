@@ -65,10 +65,10 @@ What sorts of machines are good candidates for running a helper?
    much free disk space as there will be simultaneous uploads. When an upload
    is interrupted, that space will be used for a longer period of time.
 
-To turn a Tahoe client node into a helper (i.e. to run a helper service in
-addition to whatever else that node is doing), just create a file in your
-node's base directory named "run_helper", and put any non-empty string in it.
-Then restart the node:
+To turn a Tahoe-LAFS node into a helper (i.e. to run a helper service in
+addition to whatever else that node is doing), edit the tahoe.cfg file in your
+node's base directory and set "enabled = true" in the section named 
+"[helper]". Then restart the node:
 
  echo "yes" >$BASEDIR/run_helper
  tahoe restart $BASEDIR

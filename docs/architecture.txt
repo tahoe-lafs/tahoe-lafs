@@ -1,5 +1,7 @@
 
-   Allmydata "Tahoe" Architecture
+   Tahoe-LAFS Architecture
+
+(See the docs/specifications directory for more details.)
 
 OVERVIEW
 
