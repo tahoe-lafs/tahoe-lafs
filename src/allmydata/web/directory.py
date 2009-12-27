@@ -15,7 +15,8 @@ from foolscap.api import fireEventually
 from allmydata.util import base32, time_format
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
-     IImmutableFileNode, IMutableFileNode, ExistingChildError, NoSuchChildError
+     IImmutableFileNode, IMutableFileNode, ExistingChildError, \
+     NoSuchChildError, EmptyPathnameComponentError
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata import dirnode
 from allmydata.web.common import text_plain, WebError, \
@@ -61,6 +62,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def childFactory(self, ctx, name):
         req = IRequest(ctx)
         name = name.decode("utf-8")
+        if not name:
+            raise EmptyPathnameComponentError()
         d = self.node.get(name)
         d.addBoth(self.got_child, ctx, name)
         # got_child returns a handler resource: FileNodeHandler or

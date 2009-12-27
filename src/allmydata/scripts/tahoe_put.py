@@ -31,8 +31,10 @@ def put(options):
         #  <none> : unlinked upload
         #  foo : TAHOE_ALIAS/foo
         #  subdir/foo : TAHOE_ALIAS/subdir/foo
+        #  /oops/subdir/foo : DISALLOWED
         #  ALIAS:foo  : aliases[ALIAS]/foo
         #  ALIAS:subdir/foo  : aliases[ALIAS]/subdir/foo
+        #  ALIAS:/oops/subdir/foo : DISALLOWED
         #  DIRCAP:./foo        : DIRCAP/foo
         #  DIRCAP:./subdir/foo : DIRCAP/subdir/foo
         #  MUTABLE-FILE-WRITECAP : filecap
@@ -41,6 +43,11 @@ def put(options):
             url = nodeurl + "uri/%s" % urllib.quote(to_file)
         else:
             rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
+            if path.startswith("/"):
+                suggestion = to_file.replace("/", "", 1)
+                print >>stderr, "ERROR: The VDRIVE filename must not start with a slash"
+                print >>stderr, "Please try again, perhaps with:", suggestion
+                return 1
             url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
             if path:
                 url += escape_path(path)

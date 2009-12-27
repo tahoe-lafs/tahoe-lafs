@@ -836,6 +836,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                   "Unable to create directory 'blockingfile': a file was in the way")
         return d
 
+    def test_PUT_NEWFILEURL_emptyname(self):
+        # an empty pathname component (i.e. a double-slash) is disallowed
+        d = self.shouldFail2(error.Error, "test_PUT_NEWFILEURL_emptyname",
+                             "400 Bad Request",
+                             "The webapi does not allow empty pathname components",
+                             self.PUT, self.public_url + "/foo//new.txt", "")
+        return d
+
     def test_DELETE_FILEURL(self):
         d = self.DELETE(self.public_url + "/foo/bar.txt")
         d.addCallback(lambda res:
@@ -1126,6 +1134,22 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, [])
+        return d
+
+    def test_POST_NEWDIRURL(self):
+        d = self.POST2(self.public_url + "/foo/newdir?t=mkdir", "")
+        d.addCallback(lambda res:
+                      self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessNodeKeysAre, [])
+        return d
+
+    def test_POST_NEWDIRURL_emptyname(self):
+        # an empty pathname component (i.e. a double-slash) is disallowed
+        d = self.shouldFail2(error.Error, "test_POST_NEWDIRURL_emptyname",
+                             "400 Bad Request",
+                             "The webapi does not allow empty pathname components, i.e. a double slash",
+                             self.POST, self.public_url + "//?t=mkdir")
         return d
 
     def test_POST_NEWDIRURL_initial_children(self):

@@ -2374,3 +2374,6 @@ class InsufficientVersionError(Exception):
     def __repr__(self):
         return "InsufficientVersionError(need '%s', got %s)" % (self.needed,
                                                                 self.got)
+
+class EmptyPathnameComponentError(Exception):
+    """The webapi disallows empty pathname components."""

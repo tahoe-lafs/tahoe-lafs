@@ -8,7 +8,7 @@ from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      FileTooLargeError, NotEnoughSharesError, NoSharesError, \
-     NotDeepImmutableError
+     NotDeepImmutableError, EmptyPathnameComponentError
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate # TODO: consolidate
 
@@ -147,6 +147,9 @@ def should_create_intermediate_directories(req):
 
 def humanize_failure(f):
     # return text, responsecode
+    if f.check(EmptyPathnameComponentError):
+        return ("The webapi does not allow empty pathname components, "
+                "i.e. a double slash", http.BAD_REQUEST)
     if f.check(ExistingChildError):
         return ("There was already a child by that name, and you asked me "
                 "to not replace it.", http.CONFLICT)
