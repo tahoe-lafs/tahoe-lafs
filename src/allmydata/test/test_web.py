@@ -3693,29 +3693,48 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         w = c0.getServiceNamed("webish")
         w.root.putChild("ERRORBOOM", ErrorBoom())
 
+        # "Accept: */*" :        should get a text/html stack trace
+        # "Accept: text/plain" : should get a text/plain stack trace
+        # "Accept: text/plain, application/octet-stream" : text/plain (CLI)
+        # no Accept header:      should get a text/html stack trace
+
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET errorboom_html",
                                            500, "Internal Server Error", None,
-                                           self.GET, "ERRORBOOM"))
-        def _internal_error_html(body):
-            # test that a weird exception during a webapi operation with
-            # Accept:*/* results in a text/html stack trace, while one
-            # without that Accept: line gets us a text/plain stack trace
+                                           self.GET, "ERRORBOOM",
+                                           headers={"accept": ["*/*"]}))
+        def _internal_error_html1(body):
             self.failUnless("<html>" in body, "expected HTML, not '%s'" % body)
-        d.addCallback(_internal_error_html)
+        d.addCallback(_internal_error_html1)
 
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("GET errorboom_text",
                                            500, "Internal Server Error", None,
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": ["text/plain"]}))
-        def _internal_error_text(body):
-            # test that a weird exception during a webapi operation with
-            # Accept:*/* results in a text/html stack trace, while one
-            # without that Accept: line gets us a text/plain stack trace
+        def _internal_error_text2(body):
             self.failIf("<html>" in body, body)
             self.failUnless(body.startswith("Traceback "), body)
-        d.addCallback(_internal_error_text)
+        d.addCallback(_internal_error_text2)
+
+        CLI_accepts = "text/plain, application/octet-stream"
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError("GET errorboom_text",
+                                           500, "Internal Server Error", None,
+                                           self.GET, "ERRORBOOM",
+                                           headers={"accept": [CLI_accepts]}))
+        def _internal_error_text3(body):
+            self.failIf("<html>" in body, body)
+            self.failUnless(body.startswith("Traceback "), body)
+        d.addCallback(_internal_error_text3)
+
+        d.addCallback(lambda ignored:
+                      self.shouldHTTPError("GET errorboom_text",
+                                           500, "Internal Server Error", None,
+                                           self.GET, "ERRORBOOM"))
+        def _internal_error_html4(body):
+            self.failUnless("<html>" in body, "expected HTML, not '%s'" % body)
+        d.addCallback(_internal_error_html4)
 
         def _flush_errors(res):
             # Trial: please ignore the CompletelyUnhandledError in the logs

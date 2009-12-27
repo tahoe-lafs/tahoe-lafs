@@ -45,6 +45,7 @@ def do_http(method, url, body=""):
     c.putrequest(method, path)
     c.putheader("Hostname", host)
     c.putheader("User-Agent", allmydata.__full_version__ + " (tahoe-client)")
+    c.putheader("Accept", "text/plain, application/octet-stream")
     c.putheader("Connection", "close")
 
     old = body.tell()
