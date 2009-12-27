@@ -279,7 +279,7 @@ tarballs:
 
 upload-tarballs:
 	for f in dist/allmydata-tahoe-*; do \
-	 xfer-client --furlfile ~/.tahoe-tarball-upload.furl $$f; \
+	 flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; \
 	done
 
 # DEBIAN PACKAGING
