@@ -186,7 +186,12 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d.addCallback(lambda dn: FileDownloader(dn, filename))
             return d
         if t == "json":
-            return FileJSONMetadata(ctx, self.node)
+            if self.parentnode and self.name:
+                d = self.parentnode.get_metadata_for(self.name)
+            else:
+                d = defer.succeed(None)
+            d.addCallback(lambda md: FileJSONMetadata(ctx, self.node, md))
+            return d
         if t == "info":
             return MoreInfo(self.node)
         if t == "uri":
@@ -421,7 +426,7 @@ class FileDownloader(rend.Page):
         return req.deferred
 
 
-def FileJSONMetadata(ctx, filenode):
+def FileJSONMetadata(ctx, filenode, edge_metadata=None):
     if filenode.is_readonly():
         rw_uri = None
         ro_uri = filenode.get_uri()
@@ -438,6 +443,8 @@ def FileJSONMetadata(ctx, filenode):
     if verifycap:
         data[1]['verify_uri'] = verifycap.to_string()
     data[1]['mutable'] = filenode.is_mutable()
+    if edge_metadata:
+        data[1]["metadata"] = edge_metadata
     return text_plain(simplejson.dumps(data, indent=1) + "\n", ctx)
 
 def FileURI(ctx, filenode):

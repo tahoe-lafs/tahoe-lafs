@@ -785,6 +785,11 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check3)
         d.addCallback(lambda ign: self.do_cli("ls", "0share"))
         d.addCallback(_check3)
+        def _check4((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessIn("good", out)
+        d.addCallback(lambda ign: self.do_cli("ls", "good"))
+        d.addCallback(_check4)
         return d
 
 class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):

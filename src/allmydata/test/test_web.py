@@ -860,13 +860,26 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addBoth(self.should404, "test_DELETE_FILEURL_missing2")
         return d
 
+    def failUnlessHasBarDotTxtMetadata(self, res):
+        data = simplejson.loads(res)
+        self.failUnless(isinstance(data, list))
+        self.failUnless(data[1].has_key("metadata"))
+        self.failUnless(data[1]["metadata"].has_key("ctime"))
+        self.failUnless(data[1]["metadata"].has_key("mtime"))
+        self.failUnlessEqual(data[1]["metadata"]["ctime"],
+                             self._bar_txt_metadata["ctime"])
+
     def test_GET_FILEURL_json(self):
         # twisted.web.http.parse_qs ignores any query args without an '=', so
         # I can't do "GET /path?json", I have to do "GET /path/t=json"
         # instead. This may make it tricky to emulate the S3 interface
         # completely.
         d = self.GET(self.public_url + "/foo/bar.txt?t=json")
-        d.addCallback(self.failUnlessIsBarJSON)
+        def _check1(data):
+            self.failUnlessIsBarJSON(data)
+            self.failUnlessHasBarDotTxtMetadata(data)
+            return
+        d.addCallback(_check1)
         return d
 
     def test_GET_FILEURL_json_missing(self):

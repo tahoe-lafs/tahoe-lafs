@@ -52,7 +52,7 @@ def list(options):
         children = d['children']
     elif nodetype == "filenode":
         childname = path.split("/")[-1]
-        children = {childname: d}
+        children = {childname: (nodetype, d)}
     childnames = sorted(children.keys())
     now = time.time()
 
