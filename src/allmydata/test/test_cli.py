@@ -1602,8 +1602,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
 class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
-    def test_check(self):
-        self.basedir = "cli/Check/check"
+    def test_get(self):
+        self.basedir = "cli/Errors/get"
         self.set_up_grid()
         c0 = self.g.clients[0]
         self.fileurls = {}
@@ -1621,6 +1621,16 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("NotEnoughSharesError: ", err)
             self.failUnlessIn("Failed to get enough shareholders: have 1, need 3", err)
         d.addCallback(_check1)
+
+        targetf = os.path.join(self.basedir, "output")
+        d.addCallback(lambda ign: self.do_cli("get", self.uri_1share, targetf))
+        def _check2((rc, out, err)):
+            self.failIfEqual(rc, 0)
+            self.failUnless("410 Gone" in err, err)
+            self.failUnlessIn("NotEnoughSharesError: ", err)
+            self.failUnlessIn("Failed to get enough shareholders: have 1, need 3", err)
+            self.failIf(os.path.exists(targetf))
+        d.addCallback(_check2)
 
         return d
 
