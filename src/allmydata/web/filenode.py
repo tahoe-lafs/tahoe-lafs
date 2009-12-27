@@ -426,7 +426,7 @@ class FileDownloader(rend.Page):
         return req.deferred
 
 
-def FileJSONMetadata(ctx, filenode, edge_metadata=None):
+def FileJSONMetadata(ctx, filenode, edge_metadata):
     if filenode.is_readonly():
         rw_uri = None
         ro_uri = filenode.get_uri()
@@ -443,8 +443,8 @@ def FileJSONMetadata(ctx, filenode, edge_metadata=None):
     if verifycap:
         data[1]['verify_uri'] = verifycap.to_string()
     data[1]['mutable'] = filenode.is_mutable()
-    if edge_metadata:
-        data[1]["metadata"] = edge_metadata
+    if edge_metadata is not None:
+        data[1]['metadata'] = edge_metadata
     return text_plain(simplejson.dumps(data, indent=1) + "\n", ctx)
 
 def FileURI(ctx, filenode):

@@ -53,6 +53,8 @@ def list(options):
     elif nodetype == "filenode":
         childname = path.split("/")[-1]
         children = {childname: (nodetype, d)}
+        if "metadata" not in d:
+            d["metadata"] = {}
     childnames = sorted(children.keys())
     now = time.time()
 

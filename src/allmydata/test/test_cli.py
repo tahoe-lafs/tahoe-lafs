@@ -748,12 +748,16 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/List/list"
         self.set_up_grid()
         c0 = self.g.clients[0]
+        small = "small"
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturi = n.get_uri()
-            return n.add_file(u"good", upload.Data("small", convergence=""))
+            return n.add_file(u"good", upload.Data(small, convergence=""))
         d.addCallback(_stash_root_and_create_file)
+        def _stash_goodcap(n):
+            self.goodcap = n.get_uri()
+        d.addCallback(_stash_goodcap)
         d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"1share"))
         d.addCallback(lambda n:
                       self.delete_shares_numbered(n.get_uri(), range(1,10)))
@@ -786,10 +790,21 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("ls", "0share"))
         d.addCallback(_check3)
         def _check4((rc, out, err)):
+            # listing a file (as dir/filename) should have the edge metadata,
+            # including the filename
             self.failUnlessEqual(rc, 0)
             self.failUnlessIn("good", out)
-        d.addCallback(lambda ign: self.do_cli("ls", "good"))
+            self.failIfIn("-r-- %d -" % len(small), out,
+                          "trailing hyphen means unknown date")
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", "good"))
         d.addCallback(_check4)
+        def _check5((rc, out, err)):
+            # listing a raw filecap should not explode, but it will have no
+            # metadata, just the size
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual("-r-- %d -" % len(small), out.strip())
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.goodcap))
+        d.addCallback(_check5)
         return d
 
 class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
