@@ -170,12 +170,12 @@ directives to the [storage] section that define an age limit for shares. The
 default configuration will not delete any shares.
 
 Both servers and clients should be upgraded to this release to make the
-garbage-collection as pleasant as possible. 1.2.0 servers do not have the
-code to perform the update-lease operation, while 1.3.0 servers have
-update-lease but will return an exception for unknown storage indices,
-causing clients to emit an Incident for each exception, slowing the add-lease
-process down to a crawl. 1.3.0 clients did not have the add-lease operation
-at all.
+garbage-collection as pleasant as possible. 1.2.0 servers have code to
+perform the update-lease operation but it suffers from a fatal bug, while
+1.3.0 servers have update-lease but will return an exception for unknown
+storage indices, causing clients to emit an Incident for each exception,
+slowing the add-lease process down to a crawl. 1.1.0 servers did not have the
+add-lease operation at all.
 
 ** Security/Usability Problems Fixed
 
