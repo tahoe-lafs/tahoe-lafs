@@ -1,11 +1,10 @@
 from foolscap.api import DeadReferenceError, RemoteException
-from twisted.internet import defer
 from allmydata.hashtree import IncompleteHashTree
 from allmydata.check_results import CheckResults
 from allmydata.immutable import download
 from allmydata.uri import CHKFileVerifierURI
 from allmydata.util.assertutil import precondition
-from allmydata.util import base32, deferredutil, dictutil, log
+from allmydata.util import base32, idlib, deferredutil, dictutil, log
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash
