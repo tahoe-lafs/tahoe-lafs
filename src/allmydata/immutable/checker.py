@@ -71,33 +71,14 @@ class Checker(log.PrefixingLogMixin):
         that we want to track and report whether or not each server
         responded.)"""
 
-        d = server.callRemote("get_buckets", storageindex)
         if self._add_lease:
             renew_secret = self._get_renewal_secret(serverid)
             cancel_secret = self._get_cancel_secret(serverid)
             d2 = server.callRemote("add_lease", storageindex,
                                    renew_secret, cancel_secret)
-            dl = defer.DeferredList([d, d2], consumeErrors=True)
-            def _done(res):
-                [(get_success, get_result),
-                 (addlease_success, addlease_result)] = res
-                # ignore remote IndexError on the add_lease call. Propagate
-                # local errors and remote non-IndexErrors
-                if addlease_success:
-                    return get_result
-                if not addlease_result.check(RemoteException):
-                    # Propagate local errors
-                    return addlease_result
-                if addlease_result.value.failure.check(IndexError):
-                    # tahoe=1.3.0 raised IndexError on non-existant
-                    # buckets, which we ignore
-                    return get_result
-                # propagate remote errors that aren't IndexError, including
-                # the unfortunate internal KeyError bug that <1.3.0 had.
-                return addlease_result
-            dl.addCallback(_done)
-            d = dl
+            d2.addErrback(self._add_lease_failed, serverid, storageindex)
 
+        d = server.callRemote("get_buckets", storageindex)
         def _wrap_results(res):
             return (res, serverid, True)
 
@@ -110,6 +91,38 @@ class Checker(log.PrefixingLogMixin):
 
         d.addCallbacks(_wrap_results, _trap_errs)
         return d
+
+    def _add_lease_failed(self, f, peerid, storage_index):
+        # Older versions of Tahoe didn't handle the add-lease message very
+        # well: <=1.1.0 throws a NameError because it doesn't implement
+        # remote_add_lease(), 1.2.0/1.3.0 throw IndexError on unknown buckets
+        # (which is most of them, since we send add-lease to everybody,
+        # before we know whether or not they have any shares for us), and
+        # 1.2.0 throws KeyError even on known buckets due to an internal bug
+        # in the latency-measuring code.
+
+        # we want to ignore the known-harmless errors and log the others. In
+        # particular we want to log any local errors caused by coding
+        # problems.
+
+        if f.check(RemoteException):
+            if f.value.failure.check(KeyError, IndexError, NameError):
+                # this may ignore a bit too much, but that only hurts us
+                # during debugging
+                return
+            self.log(format="error in add_lease from [%(peerid)s]: %(f_value)s",
+                     peerid=idlib.shortnodeid_b2a(peerid),
+                     f_value=str(f.value),
+                     failure=f,
+                     level=log.WEIRD, umid="atbAxw")
+            return
+        # local errors are cause for alarm
+        log.err(format="local error in add_lease to [%(peerid)s]: %(f_value)s",
+                peerid=idlib.shortnodeid_b2a(peerid),
+                f_value=str(f.value),
+                failure=f,
+                level=log.WEIRD, umid="hEGuQg")
+
 
     def _download_and_verify(self, serverid, sharenum, bucket):
         """Start an attempt to download and verify every block in this bucket

@@ -4,6 +4,9 @@ from twisted.trial import unittest
 from allmydata import check_results, uri
 from allmydata.web import check_results as web_check_results
 from allmydata.storage_client import StorageFarmBroker, NativeStorageClientDescriptor
+from allmydata.monitor import Monitor
+from allmydata.test.no_network import GridTestMixin
+from allmydata.immutable.upload import Data
 from common_web import WebRenderingMixin
 
 class FakeClient:
@@ -269,3 +272,49 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         d.addCallback(_got_lit_results)
         return d
 
+class AddLease(GridTestMixin, unittest.TestCase):
+    # test for #875, in which failures in the add-lease call cause
+    # false-negatives in the checker
+
+    def test_875(self):
+        self.basedir = "checker/AddLease/875"
+        self.set_up_grid(num_servers=1)
+        c0 = self.g.clients[0]
+        self.uris = {}
+        DATA = "data" * 100
+        d = c0.upload(Data(DATA, convergence=""))
+        def _stash_immutable(ur):
+            self.imm = c0.create_node_from_uri(ur.uri)
+        d.addCallback(_stash_immutable)
+        d.addCallback(lambda ign: c0.create_mutable_file("contents"))
+        def _stash_mutable(node):
+            self.mut = node
+        d.addCallback(_stash_mutable)
+
+        def _check_cr(cr, which):
+            self.failUnless(cr.is_healthy(), which)
+
+        # these two should work normally
+        d.addCallback(lambda ign: self.imm.check(Monitor(), add_lease=True))
+        d.addCallback(_check_cr, "immutable-normal")
+        d.addCallback(lambda ign: self.mut.check(Monitor(), add_lease=True))
+        d.addCallback(_check_cr, "mutable-normal")
+
+        really_did_break = []
+        # now break the server's remote_add_lease call
+        def _break_add_lease(ign):
+            def broken_add_lease(*args, **kwargs):
+                really_did_break.append(1)
+                raise KeyError("intentional failure, should be ignored")
+            assert self.g.servers_by_number[0].remote_add_lease
+            self.g.servers_by_number[0].remote_add_lease = broken_add_lease
+        d.addCallback(_break_add_lease)
+
+        # and confirm that the files still look healthy
+        d.addCallback(lambda ign: self.mut.check(Monitor(), add_lease=True))
+        d.addCallback(_check_cr, "mutable-broken")
+        d.addCallback(lambda ign: self.imm.check(Monitor(), add_lease=True))
+        d.addCallback(_check_cr, "immutable-broken")
+
+        d.addCallback(lambda ign: self.failUnless(really_did_break))
+        return d

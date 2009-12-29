@@ -536,32 +536,19 @@ class ServermapUpdater:
         return d
 
     def _do_read(self, ss, peerid, storage_index, shnums, readv):
-        d = ss.callRemote("slot_readv", storage_index, shnums, readv)
         if self._add_lease:
+            # send an add-lease message in parallel. The results are handled
+            # separately. This is sent before the slot_readv() so that we can
+            # be sure the add_lease is retired by the time slot_readv comes
+            # back (this relies upon our knowledge that the server code for
+            # add_lease is synchronous).
             renew_secret = self._node.get_renewal_secret(peerid)
             cancel_secret = self._node.get_cancel_secret(peerid)
             d2 = ss.callRemote("add_lease", storage_index,
                                renew_secret, cancel_secret)
-            dl = defer.DeferredList([d, d2], consumeErrors=True)
-            def _done(res):
-                [(readv_success, readv_result),
-                 (addlease_success, addlease_result)] = res
-                # ignore remote IndexError on the add_lease call. Propagate
-                # local errors and remote non-IndexErrors
-                if addlease_success:
-                    return readv_result
-                if not addlease_result.check(RemoteException):
-                    # Propagate local errors
-                    return addlease_result
-                if addlease_result.value.failure.check(IndexError):
-                    # tahoe=1.3.0 raised IndexError on non-existant
-                    # buckets, which we ignore
-                    return readv_result
-                # propagate remote errors that aren't IndexError, including
-                # the unfortunate internal KeyError bug that <1.3.0 had.
-                return addlease_result
-            dl.addCallback(_done)
-            return dl
+            # we ignore success
+            d2.addErrback(self._add_lease_failed, peerid, storage_index)
+        d = ss.callRemote("slot_readv", storage_index, shnums, readv)
         return d
 
     def _got_results(self, datavs, peerid, readsize, stuff, started):
@@ -755,6 +742,37 @@ class ServermapUpdater:
         self._need_privkey = False
         self._status.set_privkey_from(peerid)
 
+
+    def _add_lease_failed(self, f, peerid, storage_index):
+        # Older versions of Tahoe didn't handle the add-lease message very
+        # well: <=1.1.0 throws a NameError because it doesn't implement
+        # remote_add_lease(), 1.2.0/1.3.0 throw IndexError on unknown buckets
+        # (which is most of them, since we send add-lease to everybody,
+        # before we know whether or not they have any shares for us), and
+        # 1.2.0 throws KeyError even on known buckets due to an internal bug
+        # in the latency-measuring code.
+
+        # we want to ignore the known-harmless errors and log the others. In
+        # particular we want to log any local errors caused by coding
+        # problems.
+
+        if f.check(RemoteException):
+            if f.value.failure.check(KeyError, IndexError, NameError):
+                # this may ignore a bit too much, but that only hurts us
+                # during debugging
+                return
+            self.log(format="error in add_lease from [%(peerid)s]: %(f_value)s",
+                     peerid=idlib.shortnodeid_b2a(peerid),
+                     f_value=str(f.value),
+                     failure=f,
+                     level=log.WEIRD, umid="iqg3mw")
+            return
+        # local errors are cause for alarm
+        log.err(format="local error in add_lease to [%(peerid)s]: %(f_value)s",
+                peerid=idlib.shortnodeid_b2a(peerid),
+                f_value=str(f.value),
+                failure=f,
+                level=log.WEIRD, umid="ZWh6HA")
 
     def _query_failed(self, f, peerid):
         if not self._running:
