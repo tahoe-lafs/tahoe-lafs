@@ -306,7 +306,7 @@ class MutableCheckAndRepairer(MutableChecker):
         self.cr_results.repair_attempted = True
         d = self._node.repair(self.results)
         def _repair_finished(repair_results):
-            self.cr_results.repair_successful = True
+            self.cr_results.repair_successful = repair_results.get_successful()
             r = CheckResults(from_string(self._node.get_uri()), self._storage_index)
             self.cr_results.post_repair_results = r
             self._fill_checker_results(repair_results.servermap, r)

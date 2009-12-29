@@ -1296,6 +1296,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         d.addCallback(lambda check_results: self._fn.repair(check_results))
         def _check_results(rres):
             self.failUnless(IRepairResults.providedBy(rres))
+            self.failUnless(rres.get_successful())
             # TODO: examine results
 
             self.copy_shares()
@@ -1338,6 +1339,36 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         current_shares = self.old_shares[-1]
         self.failUnlessEqual(old_shares, current_shares)
 
+    def test_unrepairable_0shares(self):
+        d = self.publish_one()
+        def _delete_all_shares(ign):
+            shares = self._storage._peers
+            for peerid in shares:
+                shares[peerid] = {}
+        d.addCallback(_delete_all_shares)
+        d.addCallback(lambda ign: self._fn.check(Monitor()))
+        d.addCallback(lambda check_results: self._fn.repair(check_results))
+        def _check(crr):
+            self.failUnlessEqual(crr.get_successful(), False)
+        d.addCallback(_check)
+        return d
+
+    def test_unrepairable_1share(self):
+        d = self.publish_one()
+        def _delete_all_shares(ign):
+            shares = self._storage._peers
+            for peerid in shares:
+                for shnum in list(shares[peerid]):
+                    if shnum > 0:
+                        del shares[peerid][shnum]
+        d.addCallback(_delete_all_shares)
+        d.addCallback(lambda ign: self._fn.check(Monitor()))
+        d.addCallback(lambda check_results: self._fn.repair(check_results))
+        def _check(crr):
+            self.failUnlessEqual(crr.get_successful(), False)
+        d.addCallback(_check)
+        return d
+
     def test_merge(self):
         self.old_shares = []
         d = self.publish_multiple()
@@ -1361,6 +1392,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
                       self._fn.repair(check_results, force=True))
         # this should give us 10 shares of the highest roothash
         def _check_repair_results(rres):
+            self.failUnless(rres.get_successful())
             pass # TODO
         d.addCallback(_check_repair_results)
         d.addCallback(lambda res: self._fn.get_servermap(MODE_CHECK))
@@ -1395,6 +1427,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         d.addCallback(lambda check_results: self._fn.repair(check_results))
         # this should give us 10 shares of v3
         def _check_repair_results(rres):
+            self.failUnless(rres.get_successful())
             pass # TODO
         d.addCallback(_check_repair_results)
         d.addCallback(lambda res: self._fn.get_servermap(MODE_CHECK))

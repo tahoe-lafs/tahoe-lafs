@@ -2002,6 +2002,10 @@ class IRepairable(Interface):
 
 class IRepairResults(Interface):
     """I contain the results of a repair operation."""
+    def get_successful(self):
+        """Returns a boolean: True if the repair made the file healthy, False
+        if not. Repair failure generally indicates a file that has been
+        damaged beyond repair."""
 
 
 class IClient(Interface):

@@ -1,5 +1,6 @@
 
 from zope.interface import implements
+from twisted.internet import defer
 from allmydata.interfaces import IRepairResults, ICheckResults
 
 class RepairResults:
@@ -7,7 +8,10 @@ class RepairResults:
 
     def __init__(self, smap):
         self.servermap = smap
-
+    def set_successful(self, successful):
+        self.successful = successful
+    def get_successful(self):
+        return self.successful
     def to_string(self):
         return ""
 
@@ -52,6 +56,13 @@ class Repairer:
 
         smap = self.check_results.get_servermap()
 
+        best_version = smap.best_recoverable_version()
+        if not best_version:
+            # the file is damaged beyond repair
+            rr = RepairResults(smap)
+            rr.set_successful(False)
+            return defer.succeed(rr)
+
         if smap.unrecoverable_newer_versions():
             if not force:
                 raise MustForceRepairError("There were unrecoverable newer "
@@ -92,11 +103,12 @@ class Repairer:
         if not self.node.get_writekey():
             raise RepairRequiresWritecapError("Sorry, repair currently requires a writecap, to set the write-enabler properly.")
 
-        best_version = smap.best_recoverable_version()
         d = self.node.download_version(smap, best_version, fetch_privkey=True)
         d.addCallback(self.node.upload, smap)
         d.addCallback(self.get_results, smap)
         return d
 
     def get_results(self, res, smap):
-        return RepairResults(smap)
+        rr = RepairResults(smap)
+        rr.set_successful(True)
+        return rr
