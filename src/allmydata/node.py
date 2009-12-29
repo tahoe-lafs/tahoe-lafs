@@ -121,7 +121,7 @@ class Node(service.MultiService):
         cfg_tubport = self.get_config("node", "tub.port", "")
         if not cfg_tubport:
             # For 'tub.port', tahoe.cfg overrides the individual file on
-            # disk. So only read self._portnumfile is tahoe.cfg doesn't
+            # disk. So only read self._portnumfile if tahoe.cfg doesn't
             # provide a value.
             try:
                 file_tubport = open(self._portnumfile, "rU").read().strip()

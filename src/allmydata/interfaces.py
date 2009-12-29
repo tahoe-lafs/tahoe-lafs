@@ -2014,7 +2014,7 @@ class IClient(Interface):
 
     def create_mutable_file(contents=""):
         """Create a new mutable file (with initial) contents, get back the
-        URI string.
+        new node instance.
 
         @param contents: (bytestring, callable, or None): this provides the
         initial contents of the mutable file. If 'contents' is a bytestring,
@@ -2027,8 +2027,7 @@ class IClient(Interface):
         content_maker= is more efficient than creating a mutable file and
         setting its contents in two separate operations.
 
-        @return: a Deferred that fires with tne (string) SSK URI for the new
-                 file.
+        @return: a Deferred that fires with an IMutableFileNode instance.
         """
 
     def create_dirnode(initial_children={}):
