@@ -197,7 +197,8 @@ class Tahoe2PeerSelector:
 
     def get_shareholders(self, storage_broker, secret_holder,
                          storage_index, share_size, block_size,
-                         num_segments, total_shares, servers_of_happiness):
+                         num_segments, total_shares, needed_shares,
+                         servers_of_happiness):
         """
         @return: (used_peers, already_peers), where used_peers is a set of
                  PeerTracker instances that have agreed to hold some shares
@@ -211,6 +212,7 @@ class Tahoe2PeerSelector:
 
         self.total_shares = total_shares
         self.servers_of_happiness = servers_of_happiness
+        self.needed_shares = needed_shares
 
         self.homeless_shares = range(total_shares)
         # self.uncontacted_peers = list() # peers we haven't asked yet
@@ -225,6 +227,9 @@ class Tahoe2PeerSelector:
         # existing shares for this storage index, which we want to know
         # about for accurate servers_of_happiness accounting
         self.readonly_peers = []
+        # These peers have shares -- any shares -- for our SI. We keep track
+        # of these to write an error message with them later.
+        self.peers_with_shares = []
 
         peers = storage_broker.get_servers_for_index(storage_index)
         if not peers:
@@ -309,6 +314,8 @@ class Tahoe2PeerSelector:
             self.bad_query_count += 1
         else:
             buckets = res
+            if buckets:
+                self.peers_with_shares.append(peer)
             log.msg("response from peer %s: alreadygot=%s"
                     % (idlib.shortnodeid_b2a(peer), tuple(sorted(buckets))),
                     level=log.NOISY, parent=self._log_parent)
@@ -321,22 +328,35 @@ class Tahoe2PeerSelector:
             self.bad_query_count += 1
         return self._existing_shares()
 
+    def _get_progress_message(self):
+        if not self.homeless_shares:
+            msg = "placed all %d shares, " % (self.total_shares)
+        else:
+            msg = ("placed %d shares out of %d total (%d homeless), " %
+                   (self.total_shares - len(self.homeless_shares),
+                    self.total_shares,
+                    len(self.homeless_shares)))
+        return (msg + "want to place shares on at least %d servers such that "
+                      "any %d of them have enough shares to recover the file, "
+                      "sent %d queries to %d peers, "
+                      "%d queries placed some shares, %d placed none "
+                      "(of which %d placed none due to the server being"
+                      " full and %d placed none due to an error)" %
+                        (self.servers_of_happiness, self.needed_shares,
+                         self.query_count, self.num_peers_contacted,
+                         self.good_query_count, self.bad_query_count,
+                         self.full_count, self.error_count))
+
+
     def _loop(self):
         if not self.homeless_shares:
             effective_happiness = servers_with_unique_shares(
                                                    self.preexisting_shares,
                                                    self.use_peers)
             if self.servers_of_happiness <= len(effective_happiness):
-                msg = ("placed all %d shares, "
-                       "sent %d queries to %d peers, "
-                       "%d queries placed some shares, %d placed none, "
-                       "got %d errors" %
-                       (self.total_shares,
-                        self.query_count, self.num_peers_contacted,
-                        self.good_query_count, self.bad_query_count,
-                        self.error_count))
-                log.msg("peer selection successful for %s: %s" % (self, msg),
-                    parent=self._log_parent)
+                msg = ("peer selection successful for %s: %s" % (self,
+                            self._get_progress_message()))
+                log.msg(msg, parent=self._log_parent)
                 return (self.use_peers, self.preexisting_shares)
             else:
                 delta = self.servers_of_happiness - len(effective_happiness)
@@ -352,6 +372,9 @@ class Tahoe2PeerSelector:
                 if delta <= len(self.uncontacted_peers) and \
                    shares_to_spread >= delta:
                     # Loop through the allocated shares, removing 
+                    # one from each server that has more than one and putting
+                    # it back into self.homeless_shares until we've done
+                    # this delta times.
                     items = shares.items()
                     while len(self.homeless_shares) < delta:
                         servernum, sharelist = items.pop()
@@ -362,10 +385,46 @@ class Tahoe2PeerSelector:
                             items.append((servernum, sharelist))
                     return self._loop()
                 else:
-                    raise UploadUnhappinessError("shares could only be placed "
-                                   "on %d servers (%d were requested)" %
-                                   (len(effective_happiness),
-                                   self.servers_of_happiness))
+                    peer_count = len(list(set(self.peers_with_shares)))
+                    # If peer_count < needed_shares, then the second error
+                    # message is nonsensical, so we use this one.
+                    if peer_count < self.needed_shares:
+                        msg = ("shares could only be placed or found on %d "
+                               "server(s). "
+                               "We were asked to place shares on at least %d "
+                               "server(s) such that any %d of them have "
+                               "enough shares to recover the file." %
+                               (peer_count,
+                                self.servers_of_happiness,
+                                self.needed_shares))
+                    # Otherwise, if we've placed on at least needed_shares
+                    # peers, but there isn't an x-happy subset of those peers
+                    # for x < needed_shares, we use this error message.
+                    elif len(effective_happiness) < self.needed_shares:
+                        msg = ("shares could be placed or found on %d "
+                               "server(s), but they are not spread out evenly "
+                               "enough to ensure that any %d of these servers "
+                               "would have enough shares to recover the file. "
+                               "We were asked to place "
+                               "shares on at least %d servers such that any "
+                               "%d of them have enough shares to recover the "
+                               "file." %
+                               (peer_count,
+                                self.needed_shares,
+                                self.servers_of_happiness,
+                                self.needed_shares))
+                    # Otherwise, if there is an x-happy subset of peers where
+                    # x >= needed_shares, but x < shares_of_happiness, then 
+                    # we use this message.
+                    else:
+                        msg = ("shares could only be placed on %d server(s) "
+                               "such that any %d of them have enough shares "
+                               "to recover the file, but we were asked to use "
+                               "at least %d such servers." %
+                                               (len(effective_happiness),
+                                                self.needed_shares,
+                                                self.servers_of_happiness))
+                    raise UploadUnhappinessError(msg)
 
         if self.uncontacted_peers:
             peer = self.uncontacted_peers.pop(0)
@@ -418,19 +477,8 @@ class Tahoe2PeerSelector:
                                                    self.preexisting_shares,
                                                    self.use_peers)
             if len(effective_happiness) < self.servers_of_happiness:
-                msg = ("placed %d shares out of %d total (%d homeless), "
-                       "want to place on %d servers, "
-                       "sent %d queries to %d peers, "
-                       "%d queries placed some shares, %d placed none "
-                       "(of which %d placed none due to the server being"
-                       " full and %d placed none due to an error)" %
-                       (self.total_shares - len(self.homeless_shares),
-                        self.total_shares, len(self.homeless_shares),
-                        self.servers_of_happiness,
-                        self.query_count, self.num_peers_contacted,
-                        self.good_query_count, self.bad_query_count,
-                        self.full_count, self.error_count))
-                msg = "peer selection failed for %s: %s" % (self, msg)
+                msg = ("peer selection failed for %s: %s" % (self,
+                                self._get_progress_message()))
                 if self.last_failure_msg:
                     msg += " (%s)" % (self.last_failure_msg,)
                 log.msg(msg, level=log.UNUSUAL, parent=self._log_parent)
@@ -482,6 +530,9 @@ class Tahoe2PeerSelector:
             if allocated:
                 self.use_peers.add(peer)
                 progress = True
+
+            if allocated or alreadygot:
+                self.peers_with_shares.append(peer.peerid)
 
             not_yet_present = set(shares_to_ask) - set(alreadygot)
             still_homeless = not_yet_present - set(allocated)
@@ -877,7 +928,7 @@ class CHKUploader:
         d = peer_selector.get_shareholders(storage_broker, secret_holder,
                                            storage_index,
                                            share_size, block_size,
-                                           num_segments, n, desired)
+                                           num_segments, n, k, desired)
         def _done(res):
             self._peer_selection_elapsed = time.time() - peer_selection_started
             return res
