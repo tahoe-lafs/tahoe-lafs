@@ -10,7 +10,7 @@ from allmydata.util import base32, hashutil, mathutil, idlib, log
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
-from foolscap.api import eventually
+from foolscap.api import eventually, fireEventually
 
 from common import MODE_WRITE, MODE_CHECK, DictOfSets, \
      UncoordinatedWriteError, NotEnoughServersError
@@ -636,6 +636,8 @@ class Publish:
             d.addCallbacks(self._got_write_answer, self._got_write_error,
                            callbackArgs=(peerid, shnums, started),
                            errbackArgs=(peerid, shnums, started))
+            # tolerate immediate errback, like with DeadReferenceError
+            d.addBoth(fireEventually)
             d.addCallback(self.loop)
             d.addErrback(self._fatal_error)
 
