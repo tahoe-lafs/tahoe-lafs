@@ -175,7 +175,7 @@ class FakeBucketWriter:
 
 class FakeClient:
     DEFAULT_ENCODING_PARAMETERS = {"k":25,
-                                   "happy": 75,
+                                   "happy": 25,
                                    "n": 100,
                                    "max_segment_size": 1*MiB,
                                    }
@@ -313,7 +313,7 @@ class GoodServer(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
         data = self.get_data(SIZE_LARGE)
         segsize = int(SIZE_LARGE / 2.5)
         # we want 3 segments, since that's not a power of two
-        self.set_encoding_parameters(25, 75, 100, segsize)
+        self.set_encoding_parameters(25, 25, 100, segsize)
         d = upload_data(self.u, data)
         d.addCallback(extract_uri)
         d.addCallback(self._check_large, SIZE_LARGE)
@@ -392,6 +392,7 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
     def test_first_error(self):
         mode = dict([(0,"good")] + [(i,"first-fail") for i in range(1,10)])
         self.make_node(mode)
+        self.set_encoding_parameters(k=25, happy=1, n=50)
         d = upload_data(self.u, DATA)
         d.addCallback(extract_uri)
         d.addCallback(self._check_large, SIZE_LARGE)
@@ -509,7 +510,8 @@ class PeerSelection(unittest.TestCase):
 
         self.make_client()
         data = self.get_data(SIZE_LARGE)
-        self.set_encoding_parameters(50, 75, 100)
+        # if there are 50 peers, then happy needs to be <= 50
+        self.set_encoding_parameters(50, 50, 100)
         d = upload_data(self.u, data)
         d.addCallback(extract_uri)
         d.addCallback(self._check_large, SIZE_LARGE)
@@ -555,7 +557,9 @@ class PeerSelection(unittest.TestCase):
 
         self.make_client()
         data = self.get_data(SIZE_LARGE)
-        self.set_encoding_parameters(100, 150, 200)
+        # if there are 50 peers, then happy should be no more than 50 if
+        # we want this to work.
+        self.set_encoding_parameters(100, 50, 200)
         d = upload_data(self.u, data)
         d.addCallback(extract_uri)
         d.addCallback(self._check_large, SIZE_LARGE)
@@ -573,7 +577,7 @@ class PeerSelection(unittest.TestCase):
 
         self.make_client(3)
         data = self.get_data(SIZE_LARGE)
-        self.set_encoding_parameters(3, 5, 10)
+        self.set_encoding_parameters(3, 3, 10)
         d = upload_data(self.u, data)
         d.addCallback(extract_uri)
         d.addCallback(self._check_large, SIZE_LARGE)

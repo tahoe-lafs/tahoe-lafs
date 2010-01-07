@@ -90,6 +90,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d = self.set_up_nodes()
         def _check_connections(res):
             for c in self.clients:
+                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 5
                 all_peerids = c.get_storage_broker().get_all_serverids()
                 self.failUnlessEqual(len(all_peerids), self.numclients)
                 sb = c.storage_broker
@@ -201,6 +202,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                                                       add_to_sparent=True))
         def _added(extra_node):
             self.extra_node = extra_node
+            self.extra_node.DEFAULT_ENCODING_PARAMETERS['happy'] = 5
         d.addCallback(_added)
 
         HELPER_DATA = "Data that needs help to upload" * 1000
@@ -700,6 +702,10 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
         d = self.set_up_nodes(use_stats_gatherer=True)
+        def _new_happy_semantics(ign):
+            for c in self.clients:
+                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+        d.addCallback(_new_happy_semantics)
         d.addCallback(self._test_introweb)
         d.addCallback(self.log, "starting publish")
         d.addCallback(self._do_publish1)
@@ -1120,6 +1126,11 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(self.failUnlessEqual, "new.txt contents")
         # and again with something large enough to use multiple segments,
         # and hopefully trigger pauseProducing too
+        def _new_happy_semantics(ign):
+            for c in self.clients:
+                # these get reset somewhere? Whatever.
+                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+        d.addCallback(_new_happy_semantics)
         d.addCallback(lambda res: self.PUT(public + "/subdir3/big.txt",
                                            "big" * 500000)) # 1.5MB
         d.addCallback(lambda res: self.GET(public + "/subdir3/big.txt"))

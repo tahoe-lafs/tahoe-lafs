@@ -280,6 +280,7 @@ class AddLease(GridTestMixin, unittest.TestCase):
         self.basedir = "checker/AddLease/875"
         self.set_up_grid(num_servers=1)
         c0 = self.g.clients[0]
+        c0.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
         self.uris = {}
         DATA = "data" * 100
         d = c0.upload(Data(DATA, convergence=""))

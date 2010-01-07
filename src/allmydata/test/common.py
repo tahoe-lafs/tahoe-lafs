@@ -938,6 +938,9 @@ class ShareManglingMixin(SystemTestMixin):
             # We need multiple segments to test crypttext hash trees that are
             # non-trivial (i.e. they have more than just one hash in them).
             cl0.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
+            # Tests that need to test servers of happiness using this should
+            # set their own value for happy -- the default (7) breaks stuff.
+            cl0.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
             d2 = cl0.upload(immutable.upload.Data(TEST_DATA, convergence=""))
             def _after_upload(u):
                 filecap = u.uri
