@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #-----------------------------------------------------------------------------------------------
-from allmydata.uri import CHKFileURI, NewDirectoryURI, LiteralFileURI
+from allmydata.uri import CHKFileURI, DirectoryURI, LiteralFileURI
 from allmydata.scripts.common_http import do_http as do_http_req
 from allmydata.util.hashutil import tagged_hash
 from allmydata.util.assertutil import precondition
@@ -1093,7 +1093,7 @@ class TFS(object):
 
         cachedir = os.path.expanduser(os.path.join(nodedir, '_cache'))
         self.cache = FileCache(nodeurl, cachedir)
-        ro_uri = NewDirectoryURI.init_from_string(self.root_uri).get_readonly()
+        ro_uri = DirectoryURI.init_from_string(self.root_uri).get_readonly()
         self.root = Directory(self, ro_uri, self.root_uri)
         self.root.maybe_refresh('<root>')
 
@@ -1183,7 +1183,7 @@ class TFS(object):
         url = self.compose_url("uri?t=mkdir")
         new_dir_cap = do_http('PUT', url)
 
-        ro_uri = NewDirectoryURI.init_from_string(new_dir_cap).get_readonly()
+        ro_uri = DirectoryURI.init_from_string(new_dir_cap).get_readonly()
         child = Directory(self, ro_uri, new_dir_cap)
         parent.add_child(name, child, {})
 
@@ -1599,7 +1599,7 @@ def main(argv):
         root_name = 'uri_' + base32.b2a(tagged_hash('root_name', root_uri))[:12]
         # test the uri for structural validity:
         try:
-            NewDirectoryURI.init_from_string(root_uri)
+            DirectoryURI.init_from_string(root_uri)
         except:
             raise usage.error('root-uri must be a valid directory uri (not %r)' % (root_uri,))
     else:
