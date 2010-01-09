@@ -897,7 +897,7 @@ def wrap_os_error(meth, *args):
 
 
 ExpectedCreationOutput = r'(introducer|client) created in (?P<path>.*?)\n'
-ExpectedStartOutput = r'STARTING (?P<path>.*?)\n(introducer|client) node probably started'
+ExpectedStartOutput = r'(.*\n)*STARTING (?P<path>.*?)\n(introducer|client) node probably started'
 
 
 if __name__ == '__main__':
