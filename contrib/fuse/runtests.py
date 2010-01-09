@@ -283,6 +283,14 @@ class SystemTest (object):
             print 'Stopping introducer node.'
             self.stop_node(introbase)
 
+    def set_tahoe_option(self, base, key, value):
+        import re
+
+        filename = os.path.join(base, 'tahoe.cfg')
+        content = open(filename).read()
+        content = re.sub('%s = (.+)' % key, '%s = %s' % (key, value), content)
+        open(filename, 'w').write(content)
+
     TotalClientsNeeded = 3
     def launch_clients_layer(self, introbase, clientnum = 0):
         if clientnum >= self.TotalClientsNeeded:
@@ -300,26 +308,22 @@ class SystemTest (object):
         output = self.run_tahoe('create-client', '--basedir', base)
         self.check_tahoe_output(output, ExpectedCreationOutput, base)
 
-        webportpath = os.path.join(base, 'webport')
         if clientnum == 0:
             # The first client is special:
             self.clientbase = base
             self.port = random.randrange(1024, 2**15)
 
-            f = open(webportpath, 'w')
-            f.write('tcp:%d:interface=127.0.0.1\n' % self.port)
-            f.close()
+            self.set_tahoe_option(base, 'web.port', 'tcp:%d:interface=127.0.0.1' % self.port)
+
             self.weburl = "http://127.0.0.1:%d/" % (self.port,)
             print self.weburl
         else:
-            if os.path.exists(webportpath):
-                os.remove(webportpath)
+            self.set_tahoe_option(base, 'web.port', '')
 
         introfurl = os.path.join(introbase, 'introducer.furl')
 
-        self.polling_operation(lambda : os.path.isfile(introfurl),
-                               'introducer.furl creation')
-        shutil.copy(introfurl, base)
+        furl = open(introfurl).read().strip()
+        self.set_tahoe_option(base, 'introducer.furl', furl)
 
         # NOTE: We assume if tahoe exist with non-zero status, no separate
         # tahoe child process is still running.
@@ -852,7 +856,7 @@ class ImplProcessManager(object):
 
         if self.mount_wait:
             exitcode, output = gather_output(args)
-            if exitcode != 0 or output:
+            if exitcode != 0:
                 tmpl = '%r failed to launch:\n'
                 tmpl += 'Exit Status: %r\n'
                 tmpl += 'Output:\n%s\n'
