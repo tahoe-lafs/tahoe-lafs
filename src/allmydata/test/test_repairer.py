@@ -138,22 +138,22 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.failUnless(len(data['list-corrupt-shares']) == 0, data)
 
     def test_ok_no_corruption(self):
-        self.basedir = "repairer/Verify/ok_no_corruption"
+        self.basedir = "repairer/Verifier/ok_no_corruption"
         return self._help_test_verify(common._corrupt_nothing,
                                       self.judge_no_problem)
 
     def test_ok_filedata_size(self):
-        self.basedir = "repairer/Verify/ok_filedatasize"
+        self.basedir = "repairer/Verifier/ok_filedatasize"
         return self._help_test_verify(common._corrupt_size_of_file_data,
                                       self.judge_no_problem)
 
     def test_ok_sharedata_size(self):
-        self.basedir = "repairer/Verify/ok_sharedata_size"
+        self.basedir = "repairer/Verifier/ok_sharedata_size"
         return self._help_test_verify(common._corrupt_size_of_sharedata,
                                       self.judge_no_problem)
 
     def test_ok_segment_size(self):
-        self.basedir = "repairer/Verify/test_ok_segment_size"
+        self.basedir = "repairer/Verifier/test_ok_segment_size"
         return self._help_test_verify(common._corrupt_segment_size,
                                       self.judge_no_problem)
 
@@ -174,7 +174,7 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.failUnless(len(data['list-corrupt-shares']) == 0, data)
 
     def test_corrupt_file_verno(self):
-        self.basedir = "repairer/Verify/corrupt_file_verno"
+        self.basedir = "repairer/Verifier/corrupt_file_verno"
         return self._help_test_verify(common._corrupt_file_version_number,
                                       self.judge_visible_corruption)
 
@@ -198,7 +198,7 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.failUnlessEqual(data['count-incompatible-shares'], 1)
 
     def test_corrupt_share_verno(self):
-        self.basedir = "repairer/Verify/corrupt_share_verno"
+        self.basedir = "repairer/Verifier/corrupt_share_verno"
         return self._help_test_verify(common._corrupt_sharedata_version_number,
                                       self.judge_share_version_incompatibility)
 
@@ -220,80 +220,80 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.failUnlessEqual(len(data['sharemap']), 9)
 
     def test_corrupt_sharedata_offset(self):
-        self.basedir = "repairer/Verify/corrupt_sharedata_offset"
+        self.basedir = "repairer/Verifier/corrupt_sharedata_offset"
         return self._help_test_verify(common._corrupt_offset_of_sharedata,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_ueb_offset(self):
-        self.basedir = "repairer/Verify/corrupt_ueb_offset"
+        self.basedir = "repairer/Verifier/corrupt_ueb_offset"
         return self._help_test_verify(common._corrupt_offset_of_uri_extension,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_ueb_offset_shortread(self):
-        self.basedir = "repairer/Verify/corrupt_ueb_offset_shortread"
+        self.basedir = "repairer/Verifier/corrupt_ueb_offset_shortread"
         return self._help_test_verify(common._corrupt_offset_of_uri_extension_to_force_short_read,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_sharedata(self):
-        self.basedir = "repairer/Verify/corrupt_sharedata"
+        self.basedir = "repairer/Verifier/corrupt_sharedata"
         return self._help_test_verify(common._corrupt_share_data,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_ueb_length(self):
-        self.basedir = "repairer/Verify/corrupt_ueb_length"
+        self.basedir = "repairer/Verifier/corrupt_ueb_length"
         return self._help_test_verify(common._corrupt_length_of_uri_extension,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_ueb(self):
-        self.basedir = "repairer/Verify/corrupt_ueb"
+        self.basedir = "repairer/Verifier/corrupt_ueb"
         return self._help_test_verify(common._corrupt_uri_extension,
                                       self.judge_invisible_corruption)
 
     def test_truncate_crypttext_hashtree(self):
         # change the start of the block hashtree, to truncate the preceding
         # crypttext hashtree
-        self.basedir = "repairer/Verify/truncate_crypttext_hashtree"
+        self.basedir = "repairer/Verifier/truncate_crypttext_hashtree"
         return self._help_test_verify(common._corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_block_hashtree_offset(self):
-        self.basedir = "repairer/Verify/corrupt_block_hashtree_offset"
+        self.basedir = "repairer/Verifier/corrupt_block_hashtree_offset"
         return self._help_test_verify(common._corrupt_offset_of_block_hashes,
                                       self.judge_invisible_corruption)
 
     def test_wrong_share_verno(self):
-        self.basedir = "repairer/Verify/wrong_share_verno"
+        self.basedir = "repairer/Verifier/wrong_share_verno"
         return self._help_test_verify(common._corrupt_sharedata_version_number_to_plausible_version,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_share_hashtree_offset(self):
-        self.basedir = "repairer/Verify/corrupt_share_hashtree_offset"
+        self.basedir = "repairer/Verifier/corrupt_share_hashtree_offset"
         return self._help_test_verify(common._corrupt_offset_of_share_hashes,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_crypttext_hashtree_offset(self):
-        self.basedir = "repairer/Verify/corrupt_crypttext_hashtree_offset"
+        self.basedir = "repairer/Verifier/corrupt_crypttext_hashtree_offset"
         return self._help_test_verify(common._corrupt_offset_of_ciphertext_hash_tree,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_crypttext_hashtree(self):
-        self.basedir = "repairer/Verify/corrupt_crypttext_hashtree"
+        self.basedir = "repairer/Verifier/corrupt_crypttext_hashtree"
         return self._help_test_verify(common._corrupt_crypttext_hash_tree,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_crypttext_hashtree_byte_9_bit_7(self):
-        self.basedir = "repairer/Verify/corrupt_crypttext_hashtree"
+        self.basedir = "repairer/Verifier/corrupt_crypttext_hashtree_byte_9_bit_7"
         return self._help_test_verify(common._corrupt_crypttext_hash_tree_byte_9_bit_7,
                                       self.judge_invisible_corruption, debug=False)
     test_corrupt_crypttext_hashtree_byte_9_bit_7.todo = "fix this please! This is #819. (Brian or Zooko probably) (You can start by setting debug=True.)"
 
     def test_corrupt_block_hashtree(self):
-        self.basedir = "repairer/Verify/corrupt_block_hashtree"
+        self.basedir = "repairer/Verifier/corrupt_block_hashtree"
         return self._help_test_verify(common._corrupt_block_hashes,
                                       self.judge_invisible_corruption)
 
     def test_corrupt_share_hashtree(self):
-        self.basedir = "repairer/Verify/corrupt_share_hashtree"
+        self.basedir = "repairer/Verifier/corrupt_share_hashtree"
         return self._help_test_verify(common._corrupt_share_hashes,
                                       self.judge_invisible_corruption)
 
@@ -513,7 +513,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
 
     def test_repair_from_deletion_of_7(self):
         """ Repair replaces seven shares that got deleted. """
-        self.basedir = "repairer/Repairer/repair_from_deletion_of_1"
+        self.basedir = "repairer/Repairer/repair_from_deletion_of_7"
         self.set_up_grid(num_clients=2)
         d = self.upload_and_stash()
         d.addCallback(lambda ignored:
