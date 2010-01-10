@@ -1140,21 +1140,21 @@ def corrupt_field(data, offset, size, debug=False):
             log.msg("testing: corrupting offset %d, size %d randomizing field, orig: %r, newval: %r" % (offset, size, data[offset:offset+size], newval))
         return data[:offset]+newval+data[offset+size:]
 
-def _corrupt_nothing(data):
+def _corrupt_nothing(data, debug=False):
     """Leave the data pristine. """
     return data
 
-def _corrupt_file_version_number(data):
+def _corrupt_file_version_number(data, debug=False):
     """Scramble the file data -- the share file version number have one bit
     flipped or else will be changed to a random value."""
     return corrupt_field(data, 0x00, 4)
 
-def _corrupt_size_of_file_data(data):
+def _corrupt_size_of_file_data(data, debug=False):
     """Scramble the file data -- the field showing the size of the share data
     within the file will be set to one smaller."""
     return corrupt_field(data, 0x04, 4)
 
-def _corrupt_sharedata_version_number(data):
+def _corrupt_sharedata_version_number(data, debug=False):
     """Scramble the file data -- the share data version number will have one
     bit flipped or else will be changed to a random value, but not 1 or 2."""
     return corrupt_field(data, 0x0c, 4)
@@ -1166,7 +1166,7 @@ def _corrupt_sharedata_version_number(data):
     newsharevernumbytes = struct.pack(">L", newsharevernum)
     return data[:0x0c] + newsharevernumbytes + data[0x0c+4:]
 
-def _corrupt_sharedata_version_number_to_plausible_version(data):
+def _corrupt_sharedata_version_number_to_plausible_version(data, debug=False):
     """Scramble the file data -- the share data version number will be
     changed to 2 if it is 1 or else to 1 if it is 2."""
     sharevernum = struct.unpack(">L", data[0x0c:0x0c+4])[0]
@@ -1178,7 +1178,7 @@ def _corrupt_sharedata_version_number_to_plausible_version(data):
     newsharevernumbytes = struct.pack(">L", newsharevernum)
     return data[:0x0c] + newsharevernumbytes + data[0x0c+4:]
 
-def _corrupt_segment_size(data):
+def _corrupt_segment_size(data, debug=False):
     """Scramble the file data -- the field showing the size of the segment
     will have one bit flipped or else be changed to a random value."""
     sharevernum = struct.unpack(">L", data[0x0c:0x0c+4])[0]
@@ -1188,7 +1188,7 @@ def _corrupt_segment_size(data):
     else:
         return corrupt_field(data, 0x0c+0x04, 8, debug=False)
 
-def _corrupt_size_of_sharedata(data):
+def _corrupt_size_of_sharedata(data, debug=False):
     """Scramble the file data -- the field showing the size of the data
     within the share data will have one bit flipped or else will be changed
     to a random value."""
@@ -1199,7 +1199,7 @@ def _corrupt_size_of_sharedata(data):
     else:
         return corrupt_field(data, 0x0c+0x0c, 8)
 
-def _corrupt_offset_of_sharedata(data):
+def _corrupt_offset_of_sharedata(data, debug=False):
     """Scramble the file data -- the field showing the offset of the data
     within the share data will have one bit flipped or else be changed to a
     random value."""
@@ -1210,7 +1210,7 @@ def _corrupt_offset_of_sharedata(data):
     else:
         return corrupt_field(data, 0x0c+0x14, 8)
 
-def _corrupt_offset_of_ciphertext_hash_tree(data):
+def _corrupt_offset_of_ciphertext_hash_tree(data, debug=False):
     """Scramble the file data -- the field showing the offset of the
     ciphertext hash tree within the share data will have one bit flipped or
     else be changed to a random value.
@@ -1222,7 +1222,7 @@ def _corrupt_offset_of_ciphertext_hash_tree(data):
     else:
         return corrupt_field(data, 0x0c+0x24, 8, debug=False)
 
-def _corrupt_offset_of_block_hashes(data):
+def _corrupt_offset_of_block_hashes(data, debug=False):
     """Scramble the file data -- the field showing the offset of the block
     hash tree within the share data will have one bit flipped or else will be
     changed to a random value."""
@@ -1233,7 +1233,7 @@ def _corrupt_offset_of_block_hashes(data):
     else:
         return corrupt_field(data, 0x0c+0x2c, 8)
 
-def _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes(data):
+def _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes(data, debug=False):
     """Scramble the file data -- the field showing the offset of the block
     hash tree within the share data will have a multiple of hash size
     subtracted from it, thus causing the downloader to download an incomplete
@@ -1251,7 +1251,7 @@ def _corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes(data):
         newvalstr = struct.pack(">Q", newval)
         return data[:0x0c+0x2c]+newvalstr+data[0x0c+0x2c+8:]
 
-def _corrupt_offset_of_share_hashes(data):
+def _corrupt_offset_of_share_hashes(data, debug=False):
     """Scramble the file data -- the field showing the offset of the share
     hash tree within the share data will have one bit flipped or else will be
     changed to a random value."""
@@ -1262,7 +1262,7 @@ def _corrupt_offset_of_share_hashes(data):
     else:
         return corrupt_field(data, 0x0c+0x34, 8)
 
-def _corrupt_offset_of_uri_extension(data):
+def _corrupt_offset_of_uri_extension(data, debug=False):
     """Scramble the file data -- the field showing the offset of the uri
     extension will have one bit flipped or else will be changed to a random
     value."""
@@ -1292,7 +1292,7 @@ def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
             log.msg("testing: corrupting offset %d, size %d, changing %d to %d (len(data) == %d)" % (0x48, 8, struct.unpack(">Q", data[0x48:0x48+8])[0], len(data)-0x0c-3, len(data)))
         return data[:0x48] + struct.pack(">Q", len(data)-0x0c-3) + data[0x48+8:]
 
-def _corrupt_mutable_share_data(data):
+def _corrupt_mutable_share_data(data, debug=False):
     prefix = data[:32]
     assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
     data_offset = MutableShareFile.DATA_OFFSET
@@ -1305,7 +1305,7 @@ def _corrupt_mutable_share_data(data):
     length = data_offset + offsets["enc_privkey"] - start
     return corrupt_field(data, start, length)
 
-def _corrupt_share_data(data):
+def _corrupt_share_data(data, debug=False):
     """Scramble the file data -- the field containing the share data itself
     will have one bit flipped or else will be changed to a random value."""
     sharevernum = struct.unpack(">L", data[0x0c:0x0c+4])[0]
@@ -1319,7 +1319,7 @@ def _corrupt_share_data(data):
 
         return corrupt_field(data, 0x0c+0x44, sharedatasize)
 
-def _corrupt_crypttext_hash_tree(data):
+def _corrupt_crypttext_hash_tree(data, debug=False):
     """Scramble the file data -- the field containing the crypttext hash tree
     will have one bit flipped or else will be changed to a random value.
     """
@@ -1332,9 +1332,26 @@ def _corrupt_crypttext_hash_tree(data):
         crypttexthashtreeoffset = struct.unpack(">Q", data[0x0c+0x24:0x0c+0x24+8])[0]
         blockhashesoffset = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
 
-    return corrupt_field(data, crypttexthashtreeoffset, blockhashesoffset-crypttexthashtreeoffset)
+    return corrupt_field(data, crypttexthashtreeoffset, blockhashesoffset-crypttexthashtreeoffset, debug=debug)
 
-def _corrupt_block_hashes(data):
+def _corrupt_crypttext_hash_tree_byte_9_bit_7(data, debug=False):
+    """Scramble the file data -- the field containing the crypttext hash tree
+    will have the 7th bit of the 9th byte flipped.
+    """
+    sharevernum = struct.unpack(">L", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
+    if sharevernum == 1:
+        crypttexthashtreeoffset = struct.unpack(">L", data[0x0c+0x14:0x0c+0x14+4])[0]
+        blockhashesoffset = struct.unpack(">L", data[0x0c+0x18:0x0c+0x18+4])[0]
+    else:
+        crypttexthashtreeoffset = struct.unpack(">Q", data[0x0c+0x24:0x0c+0x24+8])[0]
+        blockhashesoffset = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
+
+    if debug:
+        log.msg("original data: %r" % (data,))
+    return data[:9] + chr(ord(data[9])^0x02) + data[10:]
+
+def _corrupt_block_hashes(data, debug=False):
     """Scramble the file data -- the field containing the block hash tree
     will have one bit flipped or else will be changed to a random value.
     """
@@ -1349,7 +1366,7 @@ def _corrupt_block_hashes(data):
 
     return corrupt_field(data, blockhashesoffset, sharehashesoffset-blockhashesoffset)
 
-def _corrupt_share_hashes(data):
+def _corrupt_share_hashes(data, debug=False):
     """Scramble the file data -- the field containing the share hash chain
     will have one bit flipped or else will be changed to a random value.
     """
@@ -1364,7 +1381,7 @@ def _corrupt_share_hashes(data):
 
     return corrupt_field(data, sharehashesoffset, uriextoffset-sharehashesoffset)
 
-def _corrupt_length_of_uri_extension(data):
+def _corrupt_length_of_uri_extension(data, debug=False):
     """Scramble the file data -- the field showing the length of the uri
     extension will have one bit flipped or else will be changed to a random
     value."""
@@ -1377,7 +1394,7 @@ def _corrupt_length_of_uri_extension(data):
         uriextoffset = struct.unpack(">Q", data[0x0c+0x3c:0x0c+0x3c+8])[0]
         return corrupt_field(data, uriextoffset, 8)
 
-def _corrupt_uri_extension(data):
+def _corrupt_uri_extension(data, debug=False):
     """Scramble the file data -- the field containing the uri extension will
     have one bit flipped or else will be changed to a random value."""
     sharevernum = struct.unpack(">L", data[0x0c:0x0c+4])[0]
