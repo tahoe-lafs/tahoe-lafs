@@ -303,6 +303,60 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
     # crypttext-hash-tree but then the ciphertext should show up as invalid.
     # Normally this could only be triggered by a bug in FEC decode.
 
+    def OFF_test_each_byte(self):
+        # this test takes 140s to run on my laptop, and doesn't have any
+        # actual asserts, so it's commented out. It corrupts each byte of the
+        # share in sequence, and checks to see which ones the Verifier
+        # catches and which it misses. Ticket #819 contains details: there
+        # are several portions of the share that are unused, for which
+        # corruption is not supposed to be caught.
+        #
+        # If the test ran quickly, we could use the share size to compute the
+        # offsets of these unused portions and assert that everything outside
+        # of them was detected. We could then replace the rest of
+        # Verifier.test_* (which takes 16s to run on my laptop) with this
+        # one.
+        self.basedir = "repairer/Verifier/each_byte"
+        self.set_up_grid(num_clients=2)
+        d = self.upload_and_stash()
+        def _grab_sh0(res):
+            self.sh0_file = [sharefile
+                             for (shnum, serverid, sharefile)
+                             in self.find_shares(self.uri)
+                             if shnum == 0][0]
+            self.sh0_orig = open(self.sh0_file, "rb").read()
+        d.addCallback(_grab_sh0)
+        def _fix_sh0(res):
+            f = open(self.sh0_file, "wb")
+            f.write(self.sh0_orig)
+            f.close()
+        def _corrupt(ign, which):
+            def _corruptor(s, debug=False):
+                return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
+            self.corrupt_shares_numbered(self.uri, [0], _corruptor)
+        results = {}
+        def _did_check(vr, i):
+            #print "corrupt %d: healthy=%s" % (i, vr.is_healthy())
+            results[i] = vr.is_healthy()
+        def _start(ign):
+            d = defer.succeed(None)
+            for i in range(len(self.sh0_orig)):
+                d.addCallback(_corrupt, i)
+                d.addCallback(lambda ign:
+                              self.c1_filenode.check(Monitor(), verify=True))
+                d.addCallback(_did_check, i)
+                d.addCallback(_fix_sh0)
+            return d
+        d.addCallback(_start)
+        def _show_results(ign):
+            f = open("test_each_byte_output", "w")
+            for i in sorted(results.keys()):
+                print >>f, "%d: %s" % (i, results[i])
+            f.close()
+            print "Please look in _trial_temp/test_each_byte_output for results"
+        d.addCallback(_show_results)
+        return d
+
 # We'll allow you to pass this test even if you trigger thirty-five times as
 # many block sends and disk writes as would be optimal.
 WRITE_LEEWAY = 35
