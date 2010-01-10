@@ -281,11 +281,10 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         return self._help_test_verify(common._corrupt_crypttext_hash_tree,
                                       self.judge_invisible_corruption)
 
-    def test_corrupt_crypttext_hashtree_byte_9_bit_7(self):
+    def test_corrupt_crypttext_hashtree_byte_x221(self):
         self.basedir = "repairer/Verifier/corrupt_crypttext_hashtree_byte_9_bit_7"
-        return self._help_test_verify(common._corrupt_crypttext_hash_tree_byte_9_bit_7,
-                                      self.judge_invisible_corruption, debug=False)
-    test_corrupt_crypttext_hashtree_byte_9_bit_7.todo = "fix this please! This is #819. (Brian or Zooko probably) (You can start by setting debug=True.)"
+        return self._help_test_verify(common._corrupt_crypttext_hash_tree_byte_x221,
+                                      self.judge_invisible_corruption, debug=True)
 
     def test_corrupt_block_hashtree(self):
         self.basedir = "repairer/Verifier/corrupt_block_hashtree"

@@ -1332,9 +1332,9 @@ def _corrupt_crypttext_hash_tree(data, debug=False):
         crypttexthashtreeoffset = struct.unpack(">Q", data[0x0c+0x24:0x0c+0x24+8])[0]
         blockhashesoffset = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
 
-    return corrupt_field(data, crypttexthashtreeoffset, blockhashesoffset-crypttexthashtreeoffset, debug=debug)
+    return corrupt_field(data, 0x0c+crypttexthashtreeoffset, blockhashesoffset-crypttexthashtreeoffset, debug=debug)
 
-def _corrupt_crypttext_hash_tree_byte_9_bit_7(data, debug=False):
+def _corrupt_crypttext_hash_tree_byte_x221(data, debug=False):
     """Scramble the file data -- the field containing the crypttext hash tree
     will have the 7th bit of the 9th byte flipped.
     """
@@ -1349,7 +1349,7 @@ def _corrupt_crypttext_hash_tree_byte_9_bit_7(data, debug=False):
 
     if debug:
         log.msg("original data: %r" % (data,))
-    return data[:9] + chr(ord(data[9])^0x02) + data[10:]
+    return data[:0x0c+0x221] + chr(ord(data[0x0c+0x221])^0x02) + data[0x0c+0x2210+1:]
 
 def _corrupt_block_hashes(data, debug=False):
     """Scramble the file data -- the field containing the block hash tree
@@ -1364,7 +1364,7 @@ def _corrupt_block_hashes(data, debug=False):
         blockhashesoffset = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
         sharehashesoffset = struct.unpack(">Q", data[0x0c+0x34:0x0c+0x34+8])[0]
 
-    return corrupt_field(data, blockhashesoffset, sharehashesoffset-blockhashesoffset)
+    return corrupt_field(data, 0x0c+blockhashesoffset, sharehashesoffset-blockhashesoffset)
 
 def _corrupt_share_hashes(data, debug=False):
     """Scramble the file data -- the field containing the share hash chain
@@ -1379,7 +1379,7 @@ def _corrupt_share_hashes(data, debug=False):
         sharehashesoffset = struct.unpack(">Q", data[0x0c+0x34:0x0c+0x34+8])[0]
         uriextoffset = struct.unpack(">Q", data[0x0c+0x3c:0x0c+0x3c+8])[0]
 
-    return corrupt_field(data, sharehashesoffset, uriextoffset-sharehashesoffset)
+    return corrupt_field(data, 0x0c+sharehashesoffset, uriextoffset-sharehashesoffset)
 
 def _corrupt_length_of_uri_extension(data, debug=False):
     """Scramble the file data -- the field showing the length of the uri
@@ -1392,7 +1392,7 @@ def _corrupt_length_of_uri_extension(data, debug=False):
         return corrupt_field(data, uriextoffset, 4)
     else:
         uriextoffset = struct.unpack(">Q", data[0x0c+0x3c:0x0c+0x3c+8])[0]
-        return corrupt_field(data, uriextoffset, 8)
+        return corrupt_field(data, 0x0c+uriextoffset, 8)
 
 def _corrupt_uri_extension(data, debug=False):
     """Scramble the file data -- the field containing the uri extension will
@@ -1406,4 +1406,4 @@ def _corrupt_uri_extension(data, debug=False):
         uriextoffset = struct.unpack(">Q", data[0x0c+0x3c:0x0c+0x3c+8])[0]
         uriextlen = struct.unpack(">Q", data[0x0c+uriextoffset:0x0c+uriextoffset+8])[0]
 
-    return corrupt_field(data, uriextoffset, uriextlen)
+    return corrupt_field(data, 0x0c+uriextoffset, uriextlen)
