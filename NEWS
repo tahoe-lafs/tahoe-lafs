@@ -33,18 +33,31 @@ directories. See docs/frontends/webapi.txt for details.
 The "tahoe backup" command has been enhanced to create immutable directories
 (in previous releases, it created read-only mutable directories). This is
 significantly faster, since it does not need to create an RSA keypair for
-each new directory. In addition, "DIR-IMM" immutable directories are
-repairable, unlike "DIR-RO" read-only mutable directories (at least in this
-release; a future Tahoe release should be able to repair DIR-RO).
+each new directory. Also "DIR-IMM" immutable directories are repairable,
+unlike "DIR-RO" read-only mutable directories (at least in this release: a
+future Tahoe release should be able to repair DIR-RO).
 
 In addition, the backupdb (used by "tahoe backup" to remember what it has
 already copied) has been enhanced to store information about existing
 immutable directories. This allows it to re-use directories that have moved
 but still contain identical contents, or which have been deleted and later
 replaced. (the 1.5.0 "tahoe backup" command could only re-use directories
-that were in the same place as they were in the previous backup). With this
-change, the backup process no longer needs to read the previous snapshot out
-of the Tahoe grid, reducing the network load considerably.
+that were in the same place as they were in the immediately previous backup).
+With this change, the backup process no longer needs to read the previous
+snapshot out of the Tahoe grid, reducing the network load considerably.
+
+A "null backup" (in which nothing has changed since the previous backup) will
+require only two Tahoe-side operations: one to add an Archives/$TIMESTAMP
+entry, and a second to update the Latest/ link. On the local disk side, it
+will readdir() all your local directories and stat() all your local files.
+
+If you've been using "tahoe backup" for a while, you will notice that your
+first use of it after upgrading to 1.6.0 may take a long time: it must create
+proper immutable versions of all the old read-only mutable directories. This
+process won't take as long as the initial backup (where all the file contents
+had to be uploaded too): it will require time proportional to the number and
+size of your directories. After this initial pass, all subsequent passes
+should take a tiny fraction of the time.
 
 As noted above, Tahoe versions earlier than 1.5.0 cannot read immutable
 directories.
