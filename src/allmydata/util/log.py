@@ -20,11 +20,11 @@ msg = log.msg
 # thing happens that is nevertheless handled, use log.msg(failure=f,
 # level=WEIRD) instead.
 
-def err(*args, **kwargs):
-    tw_log.err(*args, **kwargs)
+def err(failure=None, _why=None, **kwargs):
+    tw_log.err(failure, _why, **kwargs)
     if 'level' not in kwargs:
         kwargs['level'] = log.UNUSUAL
-    return log.err(*args, **kwargs)
+    return log.err(failure, _why, **kwargs)
 
 class LogMixin(object):
     """ I remember a msg id and a facility and pass them to log.msg() """

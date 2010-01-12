@@ -12,6 +12,7 @@ from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin, cachedir
 from allmydata.util import statistics, dictutil, pipeline
+from allmydata.util import log as tahoe_log
 
 class Base32(unittest.TestCase):
     def test_b2a_matches_Pythons(self):
@@ -1492,3 +1493,21 @@ class Pipeline(unittest.TestCase):
 
         self.calls[1][0].callback("two-result")
         self.calls[2][0].errback(ValueError("three-error"))
+
+class SampleError(Exception):
+    pass
+
+class Log(unittest.TestCase):
+    def test_err(self):
+        if not hasattr(self, "flushLoggedErrors"):
+            # without flushLoggedErrors, we can't get rid of the
+            # twisted.log.err that tahoe_log records, so we can't keep this
+            # test from [ERROR]ing
+            raise unittest.SkipTest("needs flushLoggedErrors from Twisted-2.5.0")
+        try:
+            raise SampleError("simple sample")
+        except:
+            f = Failure()
+        tahoe_log.err(format="intentional sample error",
+                      failure=f, level=tahoe_log.OPERATIONAL, umid="wO9UoQ")
+        self.flushLoggedErrors(SampleError)

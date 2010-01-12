@@ -162,7 +162,7 @@ class FakeBucketWriter:
         self.closed = True
 
     def remote_abort(self):
-        log.err("uh oh, I was asked to abort")
+        log.err(RuntimeError("uh oh, I was asked to abort"))
 
 class FakeClient:
     DEFAULT_ENCODING_PARAMETERS = {"k":25,

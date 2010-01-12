@@ -770,10 +770,10 @@ class ServermapUpdater:
                      level=log.WEIRD, umid="iqg3mw")
             return
         # local errors are cause for alarm
-        log.err(format="local error in add_lease to [%(peerid)s]: %(f_value)s",
+        log.err(f,
+                format="local error in add_lease to [%(peerid)s]: %(f_value)s",
                 peerid=idlib.shortnodeid_b2a(peerid),
                 f_value=str(f.value),
-                failure=f,
                 level=log.WEIRD, umid="ZWh6HA")
 
     def _query_failed(self, f, peerid):
