@@ -22,5 +22,4 @@ def trap_and_discard(f, *errorTypes):
     pass
 
 def trap_deadref(f):
-    f.trap(DeadReferenceError)
-    pass
+    return trap_and_discard(f, DeadReferenceError)

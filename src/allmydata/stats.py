@@ -10,7 +10,6 @@ from twisted.application import service
 from twisted.application.internet import TimerService
 from zope.interface import implements
 from foolscap.api import eventually, DeadReferenceError, Referenceable, Tub
-from twisted.internet.error import ConnectionDone, ConnectionLost
 
 from allmydata.util import log
 from allmydata.interfaces import RIStatsProvider, RIStatsGatherer, IStatsProducer
@@ -218,7 +217,7 @@ class StatsGatherer(Referenceable, service.MultiService):
         # this is called lazily, when a get_stats request fails
         del self.clients[tubid]
         del self.nicknames[tubid]
-        f.trap(DeadReferenceError, ConnectionDone, ConnectionLost)
+        f.trap(DeadReferenceError)
 
     def log_client_error(self, f, tubid):
         log.msg("StatsGatherer: error in get_stats(), peerid=%s" % tubid,

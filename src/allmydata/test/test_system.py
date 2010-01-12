@@ -4,7 +4,6 @@ from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet import threads # CLI tests use deferToThread
-from twisted.internet.error import ConnectionDone, ConnectionLost
 import allmydata
 from allmydata import uri
 from allmydata.storage.mutable import MutableShareFile
@@ -262,7 +261,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 self.fail("interrupted upload should have failed, not finished"
                           " with result %s" % (res,))
             def _interrupted(f):
-                f.trap(ConnectionLost, ConnectionDone, DeadReferenceError)
+                f.trap(DeadReferenceError)
 
                 # make sure we actually interrupted it before finishing the
                 # file

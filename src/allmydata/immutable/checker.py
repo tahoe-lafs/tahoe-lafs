@@ -104,6 +104,8 @@ class Checker(log.PrefixingLogMixin):
         # particular we want to log any local errors caused by coding
         # problems.
 
+        if f.check(DeadReferenceError):
+            return
         if f.check(RemoteException):
             if f.value.failure.check(KeyError, IndexError, NameError):
                 # this may ignore a bit too much, but that only hurts us
