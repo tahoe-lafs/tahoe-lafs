@@ -52,6 +52,10 @@ class SecretHolder:
         return self._convergence_secret
 
 class KeyGenerator:
+    """I create RSA keys for mutable files. Each call to generate() returns a
+    single keypair. The keysize is specified first by the keysize= argument
+    to generate(), then with a default set by set_default_keysize(), then
+    with a built-in default of 2048 bits."""
     def __init__(self):
         self._remote = None
         self.default_keysize = 2048
@@ -60,11 +64,20 @@ class KeyGenerator:
         self._remote = keygen
     def set_default_keysize(self, keysize):
         """Call this to override the size of the RSA keys created for new
-        mutable files. The default of None means to let mutable.filenode
-        choose its own size, which means 2048 bits."""
+        mutable files which don't otherwise specify a size. This will affect
+        all subsequent calls to generate() without a keysize= argument. The
+        default size is 2048 bits. Test cases should call this method once
+        during setup, to cause me to create smaller (522 bit) keys, so the
+        unit tests run faster."""
         self.default_keysize = keysize
 
     def generate(self, keysize=None):
+        """I return a Deferred that fires with a (verifyingkey, signingkey)
+        pair. I accept a keysize in bits (522 bit keys are fast for testing,
+        2048 bit keys are standard). If you do not provide a keysize, I will
+        use my default, which is set by a call to set_default_keysize(). If
+        set_default_keysize() has never been called, I will create 2048 bit
+        keys."""
         keysize = keysize or self.default_keysize
         if self._remote:
             d = self._remote.callRemote('get_rsa_key_pair', keysize)
