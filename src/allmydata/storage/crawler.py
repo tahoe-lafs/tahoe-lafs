@@ -258,7 +258,6 @@ class ShareCrawler(service.MultiService):
         self.current_sleep_time = None
         self.next_wake_time = None
         try:
-            s = self.last_complete_prefix_index
             self.start_current_prefix(start_slice)
             finished_cycle = True
         except TimeSliceExceeded:

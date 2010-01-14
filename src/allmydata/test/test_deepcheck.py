@@ -38,7 +38,6 @@ class MutableChecker(GridTestMixin, unittest.TestCase, ErrorMixin):
         def _created(node):
             self.node = node
             self.fileurl = "uri/" + urllib.quote(node.get_uri())
-            si = self.node.get_storage_index()
         d.addCallback(_created)
         # now make sure the webapi verifier sees no problems
         d.addCallback(lambda ign: self.GET(self.fileurl+"?t=check&verify=true",
@@ -395,13 +394,14 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         self.check_stats_good(stats)
 
     def do_web_stream_check(self, ignored):
+        # TODO
         return
         d = self.web(self.root, t="stream-deep-check")
         def _check(res):
             units = list(self.parse_streamed_json(res))
-            files = [u for u in units if u["type"] in ("file", "directory")]
+            #files = [u for u in units if u["type"] in ("file", "directory")]
             assert units[-1]["type"] == "stats"
-            stats = units[-1]["stats"]
+            #stats = units[-1]["stats"]
             # ...
         d.addCallback(_check)
         return d

@@ -72,14 +72,11 @@ class BackerUpper:
     def run(self):
         options = self.options
         nodeurl = options['node-url']
-        from_dir = options.from_dir
-        to_dir = options.to_dir
         self.verbosity = 1
         if options['quiet']:
             self.verbosity = 0
         if options['verbose']:
             self.verbosity = 2
-        stdin = options.stdin
         stdout = options.stdout
         stderr = options.stderr
 
@@ -101,7 +98,6 @@ class BackerUpper:
             to_url += "/"
 
         archives_url = to_url + "Archives/"
-        latest_url = to_url + "Latest"
 
         # first step: make sure the target directory exists, as well as the
         # Archives/ subdirectory.
@@ -112,11 +108,6 @@ class BackerUpper:
                 print >>stderr, "Unable to create target directory: %s %s %s" % \
                       (resp.status, resp.reason, resp.read())
                 return 1
-            archives_dir = {}
-        else:
-            jdata = simplejson.load(resp)
-            (otype, attrs) = jdata
-            archives_dir = attrs["children"]
 
         # second step: process the tree
         new_backup_dircap = self.process(options.from_dir)

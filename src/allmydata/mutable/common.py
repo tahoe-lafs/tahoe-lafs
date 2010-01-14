@@ -121,7 +121,6 @@ class ResponseCache:
         # we have a fragment that contains the whole request
 
         index = (verinfo, shnum)
-        end = offset+length
         for entry in self.cache.get(index, set()):
             (e_start, e_data, e_timestamp) = entry
             if self._inside(offset, length, e_start, len(e_data)):

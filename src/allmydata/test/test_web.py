@@ -438,6 +438,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         try:
             from allmydata import reliability
             _hush_pyflakes = reliability
+            del _hush_pyflakes
         except:
             raise unittest.SkipTest("reliability tool requires NumPy")
 
@@ -483,7 +484,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         def _check_json(res):
             data = simplejson.loads(res)
             self.failUnless(isinstance(data, dict))
-            active = data["active"]
+            #active = data["active"]
             # TODO: test more. We need a way to fake an active operation
             # here.
         d.addCallback(_check_json)

@@ -1335,18 +1335,11 @@ def _corrupt_crypttext_hash_tree(data, debug=False):
     return corrupt_field(data, 0x0c+crypttexthashtreeoffset, blockhashesoffset-crypttexthashtreeoffset, debug=debug)
 
 def _corrupt_crypttext_hash_tree_byte_x221(data, debug=False):
-    """Scramble the file data -- the field containing the crypttext hash tree
-    will have the 7th bit of the 9th byte flipped.
+    """Scramble the file data -- the byte at offset 0x221 will have its 7th
+    (b1) bit flipped.
     """
     sharevernum = struct.unpack(">L", data[0x0c:0x0c+4])[0]
     assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways."
-    if sharevernum == 1:
-        crypttexthashtreeoffset = struct.unpack(">L", data[0x0c+0x14:0x0c+0x14+4])[0]
-        blockhashesoffset = struct.unpack(">L", data[0x0c+0x18:0x0c+0x18+4])[0]
-    else:
-        crypttexthashtreeoffset = struct.unpack(">Q", data[0x0c+0x24:0x0c+0x24+8])[0]
-        blockhashesoffset = struct.unpack(">Q", data[0x0c+0x2c:0x0c+0x2c+8])[0]
-
     if debug:
         log.msg("original data: %r" % (data,))
     return data[:0x0c+0x221] + chr(ord(data[0x0c+0x221])^0x02) + data[0x0c+0x2210+1:]

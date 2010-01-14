@@ -27,7 +27,6 @@ g.setServiceParent(application)
 """
 
 def create_stats_gatherer(config):
-    out = config.stdout
     err = config.stderr
     basedir = config['basedir']
     if not basedir:

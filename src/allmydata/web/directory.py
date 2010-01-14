@@ -60,7 +60,6 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         self.name = name
 
     def childFactory(self, ctx, name):
-        req = IRequest(ctx)
         name = name.decode("utf-8")
         if not name:
             raise EmptyPathnameComponentError()

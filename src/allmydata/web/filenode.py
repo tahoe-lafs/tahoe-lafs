@@ -355,7 +355,6 @@ class FileDownloader(rend.Page):
         if encoding:
             req.setHeader("content-encoding", encoding)
 
-        save_to_filename = None
         if boolean_of_arg(get_arg(req, "save", "False")):
             # tell the browser to save the file rather display it we don't
             # try to encode the filename, instead we echo back the exact same

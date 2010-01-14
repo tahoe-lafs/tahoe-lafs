@@ -30,7 +30,6 @@ class Node(unittest.TestCase):
                            needed_shares=3,
                            total_shares=10,
                            size=1000)
-        c = FakeClient()
         cf = cachedir.CacheFile("none")
         fn1 = ImmutableFileNode(u, None, None, None, None, cf)
         fn2 = ImmutableFileNode(u, None, None, None, None, cf)
@@ -55,7 +54,6 @@ class Node(unittest.TestCase):
     def test_literal_filenode(self):
         DATA = "I am a short file."
         u = uri.LiteralFileURI(data=DATA)
-        c = None
         fn1 = LiteralFileNode(u)
         fn2 = LiteralFileNode(u)
         self.failUnlessEqual(fn1, fn2)
@@ -91,7 +89,6 @@ class Node(unittest.TestCase):
     def test_mutable_filenode(self):
         client = FakeClient()
         wk = "\x00"*16
-        fp = "\x00"*32
         rk = hashutil.ssk_readkey_hash(wk)
         si = hashutil.ssk_storage_index_hash(rk)
 

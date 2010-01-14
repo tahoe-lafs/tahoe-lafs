@@ -176,7 +176,7 @@ class Statistics(unittest.TestCase):
         try:
             func(*args, **kwargs)
             self.fail(msg)
-        except AssertionError, e:
+        except AssertionError:
             pass
 
     def failUnlessListEqual(self, a, b, msg = None):
@@ -320,9 +320,6 @@ class Asserts(unittest.TestCase):
         self.fail("assert was not caught")
 
     def should_not_assert(self, func, *args, **kwargs):
-        if "re" in kwargs:
-            regexp = kwargs["re"]
-            del kwargs["re"]
         try:
             func(*args, **kwargs)
         except AssertionError, e:

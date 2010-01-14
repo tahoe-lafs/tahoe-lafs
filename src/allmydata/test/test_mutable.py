@@ -6,7 +6,6 @@ from twisted.internet import defer, reactor
 from allmydata import uri, client
 from allmydata.nodemaker import NodeMaker
 from allmydata.util import base32
-from allmydata.util.idlib import shortnodeid_b2a
 from allmydata.util.hashutil import tagged_hash, ssk_writekey_hash, \
      ssk_pubkey_fingerprint_hash
 from allmydata.interfaces import IRepairResults, ICheckAndRepairResults, \
@@ -71,7 +70,6 @@ class FakeStorage:
         self._pending_timer = None
         pending = self._pending
         self._pending = {}
-        extra = []
         for peerid in self._sequence:
             if peerid in pending:
                 d, shares = pending.pop(peerid)
@@ -602,7 +600,6 @@ class PublishMixin:
         # publish a file and create shares, which can then be manipulated
         # later.
         self.CONTENTS = "New contents go here" * 1000
-        num_peers = 20
         self._storage = FakeStorage()
         self._nodemaker = make_nodemaker(self._storage)
         self._storage_broker = self._nodemaker.storage_broker
@@ -620,7 +617,6 @@ class PublishMixin:
                          "Contents 3a",
                          "Contents 3b"]
         self._copied_shares = {}
-        num_peers = 20
         self._storage = FakeStorage()
         self._nodemaker = make_nodemaker(self._storage)
         d = self._nodemaker.create_mutable_file(self.CONTENTS[0]) # seqnum=1
@@ -757,7 +753,6 @@ class Servermap(unittest.TestCase, PublishMixin):
     def test_mark_bad(self):
         d = defer.succeed(None)
         ms = self.make_servermap
-        us = self.update_servermap
 
         d.addCallback(lambda res: ms(mode=MODE_READ))
         d.addCallback(lambda sm: self.failUnlessOneRecoverable(sm, 6))
@@ -1435,7 +1430,6 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
             self.failUnlessEqual(len(smap.recoverable_versions()), 1)
             self.failIf(smap.unrecoverable_versions())
             # now, which should have won?
-            roothash_s4a = self.get_roothash_for(3)
             expected_contents = self.CONTENTS[3]
             new_versionid = smap.best_recoverable_version()
             self.failUnlessEqual(new_versionid[0], 5) # seqnum 5
@@ -1586,7 +1580,6 @@ class MultipleEncodings(unittest.TestCase):
             sb = self._storage_broker
 
             for peerid in sorted(sb.get_all_serverids()):
-                peerid_s = shortnodeid_b2a(peerid)
                 for shnum in self._shares1.get(peerid, {}):
                     if shnum < len(places):
                         which = places[shnum]
@@ -1596,7 +1589,6 @@ class MultipleEncodings(unittest.TestCase):
                     in_1 = shnum in self._shares1[peerid]
                     in_2 = shnum in self._shares2.get(peerid, {})
                     in_3 = shnum in self._shares3.get(peerid, {})
-                    #print peerid_s, shnum, which, in_1, in_2, in_3
                     if which == 1:
                         if in_1:
                             peers[shnum] = self._shares1[peerid][shnum]

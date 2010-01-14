@@ -457,7 +457,6 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         def _ready(res):
             k,happy,n = e.get_param("share_counts")
             assert n == NUM_SHARES # else we'll be completely confused
-            all_peers = []
             for shnum in range(NUM_SHARES):
                 mode = bucket_modes.get(shnum, "good")
                 peer = FakeBucketReaderWriterProxy(mode)

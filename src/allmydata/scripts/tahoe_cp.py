@@ -530,7 +530,6 @@ class Copier:
             url = self.nodeurl + "uri/%s" % urllib.quote(rootcap)
             if path:
                 url += "/" + escape_path(path)
-                last_slash = path.rfind("/")
 
             resp = do_http("GET", url + "?t=json")
             if resp.status == 404:

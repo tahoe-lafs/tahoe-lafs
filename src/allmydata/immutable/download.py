@@ -82,9 +82,9 @@ class ValidatedThingObtainer:
         self._log_id = log_id
 
     def _bad(self, f, validatedthingproxy):
-        failtype = f.trap(RemoteException, DeadReferenceError,
-                          IntegrityCheckReject, layout.LayoutInvalid,
-                          layout.ShareVersionIncompatible)
+        f.trap(RemoteException, DeadReferenceError,
+               IntegrityCheckReject, layout.LayoutInvalid,
+               layout.ShareVersionIncompatible)
         level = log.WEIRD
         if f.check(DeadReferenceError):
             level = log.UNUSUAL
@@ -598,9 +598,9 @@ class BlockDownloader(log.PrefixingLogMixin):
         self.parent.hold_block(self.blocknum, data)
 
     def _got_block_error(self, f):
-        failtype = f.trap(RemoteException, DeadReferenceError,
-                          IntegrityCheckReject,
-                          layout.LayoutInvalid, layout.ShareVersionIncompatible)
+        f.trap(RemoteException, DeadReferenceError,
+               IntegrityCheckReject, layout.LayoutInvalid,
+               layout.ShareVersionIncompatible)
         if f.check(RemoteException, DeadReferenceError):
             level = log.UNUSUAL
         else:

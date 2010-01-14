@@ -184,7 +184,6 @@ class StorageStatus(rend.Page):
         ecr = ec["space-recovered"]
 
         p = T.ul()
-        pieces = []
         def add(*pieces):
             p[T.li[pieces]]
 
@@ -243,7 +242,6 @@ class StorageStatus(rend.Page):
                 ]
 
         p = T.ul()
-        pieces = []
         def add(*pieces):
             p[T.li[pieces]]
 

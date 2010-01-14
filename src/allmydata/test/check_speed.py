@@ -95,7 +95,6 @@ class SpeedTest:
 
     def do_test(self):
         print "doing test"
-        rr = self.client_rref
         d = defer.succeed(None)
         d.addCallback(self.one_test, "startup", 1, 1000, False) #ignore this one
         d.addCallback(self.measure_rtt)

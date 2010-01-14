@@ -79,7 +79,6 @@ class ReliabilityModel:
         #print "DIFF:", (old_post_repair - decay * repair)
 
         START = array([0]*N + [1])
-        ALIVE = array([0]*k + [1]*(1+N-k))
         DEAD = array([1]*k + [0]*(1+N-k))
         REPAIRp = array([0]*k + [1]*(R-k) + [0]*(1+N-R))
         REPAIR_newshares = array([0]*k +
@@ -87,7 +86,6 @@ class ReliabilityModel:
                                  [0]*(1+N-R))
         assert REPAIR_newshares.shape[0] == N+1
         #print "START", START
-        #print "ALIVE", ALIVE
         #print "REPAIRp", REPAIRp
         #print "REPAIR_newshares", REPAIR_newshares
 

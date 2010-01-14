@@ -166,7 +166,7 @@ def pack_offsets(verification_key_length, signature_length,
     o3 = offsets['block_hash_tree'] = o2 + share_hash_chain_length
     o4 = offsets['share_data'] = o3 + block_hash_tree_length
     o5 = offsets['enc_privkey'] = o4 + share_data_length
-    o6 = offsets['EOF'] = o5 + encprivkey_length
+    offsets['EOF'] = o5 + encprivkey_length
 
     return struct.pack(">LLLLQQ",
                        offsets['signature'],

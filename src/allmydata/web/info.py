@@ -53,7 +53,6 @@ class MoreInfo(rend.Page):
 
     def render_size(self, ctx, data):
         node = self.original
-        si = node.get_storage_index()
         d = node.get_current_size()
         def _no_size(size):
             if size is None:

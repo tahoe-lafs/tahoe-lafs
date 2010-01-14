@@ -294,7 +294,6 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         return d
 
     def _mark_file_bad(self, rootnode):
-        si = rootnode.get_storage_index()
         self.delete_shares_numbered(rootnode.get_uri(), [0])
         return rootnode
 
@@ -976,25 +975,25 @@ class Packing(unittest.TestCase):
         self.failUnlessIn("lit", packed)
 
         kids = self._make_kids(nm, ["imm", "lit", "write"])
-        e = self.failUnlessRaises(dirnode.MustBeDeepImmutable,
-                                  dirnode.pack_children,
-                                  fn, kids, deep_immutable=True)
+        self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+                              dirnode.pack_children,
+                              fn, kids, deep_immutable=True)
 
         # read-only is not enough: all children must be immutable
         kids = self._make_kids(nm, ["imm", "lit", "read"])
-        e = self.failUnlessRaises(dirnode.MustBeDeepImmutable,
-                                  dirnode.pack_children,
-                                  fn, kids, deep_immutable=True)
+        self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+                              dirnode.pack_children,
+                              fn, kids, deep_immutable=True)
 
         kids = self._make_kids(nm, ["imm", "lit", "dirwrite"])
-        e = self.failUnlessRaises(dirnode.MustBeDeepImmutable,
-                                  dirnode.pack_children,
-                                  fn, kids, deep_immutable=True)
+        self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+                              dirnode.pack_children,
+                              fn, kids, deep_immutable=True)
 
         kids = self._make_kids(nm, ["imm", "lit", "dirread"])
-        e = self.failUnlessRaises(dirnode.MustBeDeepImmutable,
-                                  dirnode.pack_children,
-                                  fn, kids, deep_immutable=True)
+        self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+                              dirnode.pack_children,
+                              fn, kids, deep_immutable=True)
 
 class FakeMutableFile:
     implements(IMutableFileNode)

@@ -500,7 +500,6 @@ class ServermapUpdater:
         self._status.set_status("Sending %d initial queries" % len(peerlist))
         self._queries_outstanding = set()
         self._sharemap = DictOfSets() # shnum -> [(peerid, seqnum, R)..]
-        dl = []
         for (peerid, ss) in peerlist.items():
             self._queries_outstanding.add(peerid)
             self._do_query(ss, peerid, self._storage_index, self._read_size)

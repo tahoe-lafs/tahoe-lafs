@@ -57,7 +57,6 @@ class ProvisioningTool(rend.Page):
             i_select = T.select(name=name)
             for (count, description) in options:
                 count = astype(count)
-                selected = False
                 if ((current_value is not None and count == current_value) or
                     (current_value is None and count == default)):
                     o = T.option(value=str(count), selected="true")[description]
@@ -340,7 +339,6 @@ class ProvisioningTool(rend.Page):
             add_output("Users",
                        T.div["Average file size: ", number(file_size)])
             total_files = num_users * files_per_user / sharing_ratio
-            user_file_check_interval = file_check_interval / files_per_user
 
             add_output("Grid",
                        T.div["Total number of files in grid: ",
@@ -711,6 +709,7 @@ class ProvisioningTool(rend.Page):
             from allmydata import reliability
             # we import this just to test to see if the page is available
             _hush_pyflakes = reliability
+            del _hush_pyflakes
             f = [T.div[T.a(href="../reliability")["Reliability Math"]], f]
         except ImportError:
             pass

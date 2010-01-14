@@ -1,5 +1,5 @@
 
-from nevow import rend, inevow, tags as T
+from nevow import rend, tags as T
 reliability = None # might not be usable
 try:
     from allmydata import reliability # requires NumPy
@@ -58,7 +58,6 @@ class ReliabilityTool(rend.Page):
         return "%d" % s
 
     def get_parameters(self, ctx):
-        req = inevow.IRequest(ctx)
         parameters = {}
         for (name,default,argtype,description) in self.DEFAULT_PARAMETERS:
             v = get_arg(ctx, name, default)

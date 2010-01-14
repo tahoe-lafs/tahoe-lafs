@@ -177,7 +177,6 @@ class ResultsBase:
 
     def _render_si_link(self, ctx, storage_index):
         si_s = base32.b2a(storage_index)
-        root = get_root(ctx)
         req = inevow.IRequest(ctx)
         ophandle = req.prepath[-1]
         target = "%s/operations/%s/%s" % (get_root(ctx), ophandle, si_s)

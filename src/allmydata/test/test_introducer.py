@@ -129,7 +129,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             log.msg("creating client %d: %s" % (i, tub.getShortTubID()))
             c = IntroducerClient(tub, self.introducer_furl, u"nickname-%d" % i,
                                  "version", "oldest")
-            received_announcements[c] = ra = {}
+            received_announcements[c] = {}
             def got(serverid, ann_d, announcements):
                 announcements[serverid] = ann_d
             c.subscribe_to("storage", got, received_announcements[c])

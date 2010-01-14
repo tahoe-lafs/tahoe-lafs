@@ -247,7 +247,6 @@ def a2b_l(cs, lengthinbits):
     octets = []
     pos = 2048
     num = qs[0] * pos
-    readybits = 5
     i = 1
     while len(octets) < numoctets:
         while pos > 256:

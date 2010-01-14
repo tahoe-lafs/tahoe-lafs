@@ -5,17 +5,11 @@ from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
 
 def rm(options):
     """
-    @param verbosity: 0, 1, or 2, meaning quiet, verbose, or very verbose
-
     @return: a Deferred which eventually fires with the exit code
     """
     nodeurl = options['node-url']
     aliases = options.aliases
     where = options.where
-    if options['quiet']:
-        verbosity = 0
-    else:
-        verbosity = 2
     stdout = options.stdout
     stderr = options.stderr
 

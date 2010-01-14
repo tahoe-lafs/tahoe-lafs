@@ -465,7 +465,6 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             def _done(res):
                 log.msg("DONE: %s" % (res,))
                 self._mutable_node_1 = res
-                uri = res.get_uri()
             d1.addCallback(_done)
             return d1
         d.addCallback(_create_mutable)
@@ -1364,13 +1363,11 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         # network calls)
 
         private_uri = self._private_node.get_uri()
-        some_uri = self._root_directory_uri
         client0_basedir = self.getdir("client0")
 
         nodeargs = [
             "--node-directory", client0_basedir,
             ]
-        TESTDATA = "I will not write the same thing over and over.\n" * 100
 
         d = defer.succeed(None)
 

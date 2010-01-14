@@ -413,7 +413,6 @@ class DirectoryNode:
     def set_children(self, entries, overwrite=True):
         # this takes URIs
         a = Adder(self, overwrite=overwrite)
-        node_entries = []
         for (name, e) in entries.iteritems():
             assert isinstance(name, unicode)
             if len(e) == 2:

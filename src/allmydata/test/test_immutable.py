@@ -78,7 +78,7 @@ class Test(common.ShareManglingMixin, unittest.TestCase):
             random.shuffle(shnums)
             for i in shnums[:7]:
                 self._corrupt_a_share(None, common._corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes, i)
-        before_download_reads = self._count_reads()
+        #before_download_reads = self._count_reads()
         d.addCallback(_then_corrupt_7)
         d.addCallback(self._download_and_check_plaintext)
         return d

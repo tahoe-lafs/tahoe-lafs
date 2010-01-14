@@ -529,7 +529,7 @@ def from_string(s):
 
 def is_uri(s):
     try:
-        uri = from_string(s)
+        from_string(s)
         return True
     except (TypeError, AssertionError):
         return False

@@ -380,7 +380,6 @@ class Dirnode(unittest.TestCase):
         u0 = uri.LiteralFileURI("data")
         u1 = uri.LiteralDirectoryURI(u0)
         self.failUnless(str(u1))
-        u1s = u1.to_string()
         self.failUnlessEqual(u1.to_string(), "URI:DIR2-LIT:mrqxiyi")
         self.failUnless(u1.is_readonly())
         self.failIf(u1.is_mutable())

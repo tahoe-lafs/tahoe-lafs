@@ -341,7 +341,8 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
-        sis = [self.write(i, ss, serverid) for i in range(10)]
+        for i in range(10):
+            self.write(i, ss, serverid)
 
         statefile = os.path.join(self.basedir, "statefile")
         c = ConsumingCrawler(ss, statefile)
@@ -385,7 +386,8 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
-        sis = [self.write(i, ss, serverid) for i in range(10)]
+        for i in range(10):
+            self.write(i, ss, serverid)
 
         statefile = os.path.join(self.basedir, "statefile")
         c = ShareCrawler(ss, statefile)
@@ -412,7 +414,8 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
         ss = StorageServer(self.basedir, serverid)
         ss.setServiceParent(self.s)
 
-        sis = [self.write(i, ss, serverid) for i in range(30)]
+        for i in range(30):
+            self.write(i, ss, serverid)
 
         statefile = os.path.join(self.basedir, "statefile")
         c = OneShotCrawler(ss, statefile)

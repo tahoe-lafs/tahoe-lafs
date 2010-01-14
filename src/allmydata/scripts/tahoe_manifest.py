@@ -93,7 +93,6 @@ class StatsGrabber(SlowOperationRunner):
 
     def write_results(self, data):
         stdout = self.options.stdout
-        stderr = self.options.stderr
         keys = ("count-immutable-files",
                 "count-mutable-files",
                 "count-literal-files",

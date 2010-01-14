@@ -76,7 +76,7 @@ class StorageServer(service.MultiService, Referenceable):
         self._clean_incomplete()
         fileutil.make_dirs(self.incomingdir)
         self._active_writers = weakref.WeakKeyDictionary()
-        lp = log.msg("StorageServer created", facility="tahoe.storage")
+        log.msg("StorageServer created", facility="tahoe.storage")
 
         if reserved_space:
             if self.get_available_space() is None:
@@ -479,7 +479,7 @@ class StorageServer(service.MultiService, Referenceable):
         start = time.time()
         self.count("writev")
         si_s = si_b2a(storage_index)
-        lp = log.msg("storage: slot_writev %s" % si_s)
+        log.msg("storage: slot_writev %s" % si_s)
         si_dir = storage_index_to_dir(storage_index)
         (write_enabler, renew_secret, cancel_secret) = secrets
         # shares exist if there is a file for them

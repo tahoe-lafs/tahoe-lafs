@@ -553,10 +553,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         # mutable share
         m = MutableShareFile(abs_sharefile)
         WE, nodeid = m._read_write_enabler_and_nodeid(f)
-        num_extra_leases = m._read_num_extra_leases(f)
         data_length = m._read_data_length(f)
-        extra_lease_offset = m._read_extra_lease_offset(f)
-        container_size = extra_lease_offset - m.DATA_OFFSET
         expiration_time = min( [lease.expiration_time
                                 for (i,lease) in m._enumerate_leases(f)] )
         expiration = max(0, expiration_time - now)

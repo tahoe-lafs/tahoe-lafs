@@ -81,7 +81,7 @@ class Incomplete(unittest.TestCase):
         self.failUnlessEqual(ht.needed_hashes(5, True), set([12, 11, 6, 1]))
 
     def test_depth_of(self):
-        ht = hashtree.IncompleteHashTree(8)
+        hashtree.IncompleteHashTree(8)
         self.failUnlessEqual(hashtree.depth_of(0), 0)
         for i in [1,2]:
             self.failUnlessEqual(hashtree.depth_of(i), 1, "i=%d"%i)

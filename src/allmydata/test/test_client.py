@@ -32,7 +32,7 @@ class Basic(unittest.TestCase):
         basedir = "test_client.Basic.test_loadable"
         os.mkdir(basedir)
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
-        c = client.Client(basedir)
+        client.Client(basedir)
 
     def test_loadable_old_config_bits(self):
         basedir = "test_client.Basic.test_loadable_old_config_bits"
@@ -190,7 +190,7 @@ class Run(unittest.TestCase, testutil.StallMixin):
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
         open(os.path.join(basedir, "introducer.furl"), "w").write(dummy)
         open(os.path.join(basedir, "suicide_prevention_hotline"), "w")
-        c = client.Client(basedir)
+        client.Client(basedir)
 
     def test_reloadable(self):
         basedir = "test_client.Run.test_reloadable"

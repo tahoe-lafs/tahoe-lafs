@@ -374,7 +374,6 @@ class Publish:
                                         str(self._first_write_error),
                                         self._first_write_error)
 
-        new_assignments = []
         # we then index this peerlist with an integer, because we may have to
         # wrap. We update the goal as we go.
         i = 0
@@ -465,7 +464,7 @@ class Publish:
             # build the block hash tree. SDMF has only one leaf.
             leaves = [hashutil.block_hash(share_data)]
             t = hashtree.HashTree(leaves)
-            block_hash_trees[shnum] = block_hash_tree = list(t)
+            block_hash_trees[shnum] = list(t)
             share_hash_leaves[shnum] = t[0]
         for leaf in share_hash_leaves:
             assert leaf is not None

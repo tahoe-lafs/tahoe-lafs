@@ -33,7 +33,6 @@ def next_power_of_k(n, k):
         x = 0
     else:
         x = int(math.log(n, k) + 0.5)
-    r = k**x
     if k**x < n:
         return k**(x+1)
     else:

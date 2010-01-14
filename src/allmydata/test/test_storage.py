@@ -253,7 +253,7 @@ class Server(unittest.TestCase):
         return ss
 
     def test_create(self):
-        ss = self.create("test_create")
+        self.create("test_create")
 
     def allocate(self, ss, storage_index, sharenums, size, canary=None):
         renew_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
@@ -326,7 +326,6 @@ class Server(unittest.TestCase):
 
         self.failUnlessEqual(ss.remote_get_buckets("allocate"), {})
 
-        canary = FakeCanary()
         already,writers = self.allocate(ss, "allocate", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
@@ -387,7 +386,7 @@ class Server(unittest.TestCase):
         f.write(struct.pack(">L", 0)) # this is invalid: minimum used is v1
         f.close()
 
-        b = ss.remote_get_buckets("allocate")
+        ss.remote_get_buckets("allocate")
 
         e = self.failUnlessRaises(UnknownImmutableContainerVersionError,
                                   ss.remote_get_buckets, "si1")
@@ -654,7 +653,6 @@ class Server(unittest.TestCase):
         ss = StorageServer(workdir, "\x00" * 20, discard_storage=True)
         ss.setServiceParent(self.sparent)
 
-        canary = FakeCanary()
         already,writers = self.allocate(ss, "vid", [0,1,2], 75)
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
@@ -733,7 +731,7 @@ class MutableServer(unittest.TestCase):
         return ss
 
     def test_create(self):
-        ss = self.create("test_create")
+        self.create("test_create")
 
     def write_enabler(self, we_tag):
         return hashutil.tagged_hash("we_blah", we_tag)

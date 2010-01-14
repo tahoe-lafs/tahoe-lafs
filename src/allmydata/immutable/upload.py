@@ -777,7 +777,6 @@ class CHKUploader:
         for shnum in self._encoder.get_shares_placed():
             peer_tracker = self._peer_trackers[shnum]
             peerid = peer_tracker.peerid
-            peerid_s = idlib.shortnodeid_b2a(peerid)
             r.sharemap.add(shnum, peerid)
             r.servermap.add(peerid, shnum)
         r.pushed_shares = len(self._encoder.get_shares_placed())
