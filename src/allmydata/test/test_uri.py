@@ -1,7 +1,7 @@
 
 from twisted.trial import unittest
 from allmydata import uri
-from allmydata.util import hashutil
+from allmydata.util import hashutil, base32
 from allmydata.interfaces import IURI, IFileURI, IDirnodeURI, IMutableFileURI, \
     IVerifierURI
 
@@ -171,6 +171,13 @@ class Extension(unittest.TestCase):
         self.failUnlessEqual(d["big_hash"], hashutil.tagged_hash("foo", "bar"))
 
         readable = uri.unpack_extension_readable(ext)
+        self.failUnlessEqual(readable["needed_shares"], 3)
+        self.failUnlessEqual(readable["stuff"], "value")
+        self.failUnlessEqual(readable["size"], 12)
+        self.failUnlessEqual(readable["big_hash"],
+                             base32.b2a(hashutil.tagged_hash("foo", "bar")))
+        self.failUnlessEqual(readable["UEB_hash"],
+                             base32.b2a(hashutil.uri_extension_hash(ext)))
 
 class Invalid(unittest.TestCase):
     def test_from_future(self):

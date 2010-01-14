@@ -28,6 +28,7 @@ class Provisioning(unittest.TestCase):
         #ctx = RequestContext()
         #unfilled = pt.renderSynchronously(ctx)
         lots_of_stan = pt.do_forms(self.getarg)
+        self.failUnlessEqual(type(lots_of_stan), list)
 
         self.fields = {'filled': True,
                        "num_users": 50e3,
@@ -44,6 +45,7 @@ class Provisioning(unittest.TestCase):
                        }
         #filled = pt.renderSynchronously(ctx)
         more_stan = pt.do_forms(self.getarg)
+        self.failUnlessEqual(type(more_stan), list)
 
         # trigger the wraparound configuration
         self.fields["num_servers"] = 5

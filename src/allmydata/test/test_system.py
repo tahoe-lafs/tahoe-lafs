@@ -129,7 +129,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             log.msg("UPLOADING AGAIN")
             up = upload.Data(DATA, convergence=convergence)
             up.max_segment_size = 1024
-            d1 = self.uploader.upload(up)
+            return self.uploader.upload(up)
         d.addCallback(_upload_again)
 
         def _download_to_data(res):

@@ -43,6 +43,7 @@ class LocalWrapper:
 
     def callRemoteOnly(self, methname, *args, **kwargs):
         d = self.callRemote(methname, *args, **kwargs)
+        del d # explicitly ignored
         return None
 
     def callRemote(self, methname, *args, **kwargs):

@@ -84,6 +84,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         basedir = "test_node/test_secrets_dir"
         fileutil.make_dirs(basedir)
         n = TestNode(basedir)
+        self.failUnless(isinstance(n, TestNode))
         self.failUnless(os.path.exists(os.path.join(basedir, "private")))
 
     def test_secrets_dir_protected(self):
@@ -95,6 +96,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         basedir = "test_node/test_secrets_dir_protected"
         fileutil.make_dirs(basedir)
         n = TestNode(basedir)
+        self.failUnless(isinstance(n, TestNode))
         privdir = os.path.join(basedir, "private")
         st = os.stat(privdir)
         bits = stat.S_IMODE(st[stat.ST_MODE])

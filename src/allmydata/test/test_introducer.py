@@ -48,6 +48,7 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
                               "my_version", "oldest_version")
+        self.failUnless(isinstance(ic, IntroducerClient))
 
     def test_listen(self):
         i = IntroducerService()

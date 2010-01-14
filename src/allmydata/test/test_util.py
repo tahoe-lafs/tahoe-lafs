@@ -917,6 +917,7 @@ class CacheDir(unittest.TestCase):
         _failIfExists("a")
         _failUnlessExists("b")
         _failUnlessExists("c")
+        del b2
 
 ctr = [0]
 class EqButNotIs:
@@ -1490,6 +1491,8 @@ class Pipeline(unittest.TestCase):
 
         self.calls[1][0].callback("two-result")
         self.calls[2][0].errback(ValueError("three-error"))
+
+        del d1,d2,d3,d4
 
 class SampleError(Exception):
     pass

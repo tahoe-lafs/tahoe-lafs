@@ -12,6 +12,7 @@ class Observer(unittest.TestCase):
     def test_oneshot(self):
         ol = observer.OneShotObserverList()
         rep = repr(ol)
+        self.failUnlessEqual(rep, "<OneShotObserverList [[]]>")
         d1 = ol.when_fired()
         d2 = ol.when_fired()
         def _addmore(res):
@@ -22,6 +23,7 @@ class Observer(unittest.TestCase):
         d1.addCallback(_addmore)
         ol.fire("result")
         rep = repr(ol)
+        self.failUnlessEqual(rep, "<OneShotObserverList -> result>")
         d4 = ol.when_fired()
         dl = defer.DeferredList([d1,d2,d4])
         return dl

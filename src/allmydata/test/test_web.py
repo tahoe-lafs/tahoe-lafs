@@ -3375,8 +3375,8 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
                      if u["type"] == "file" and u["path"] == [u"good"]][0]
             self.failUnlessEqual(ugood["cap"], self.uris["good"])
             ugoodcrr = ugood["check-and-repair-results"]
-            self.failUnlessEqual(u0crr["repair-attempted"], False)
-            self.failUnlessEqual(u0crr["pre-repair-results"]["results"]["count-shares-good"], 10)
+            self.failUnlessEqual(ugoodcrr["repair-attempted"], False)
+            self.failUnlessEqual(ugoodcrr["pre-repair-results"]["results"]["count-shares-good"], 10)
 
             usick = [u for u in units
                      if u["type"] == "file" and u["path"] == [u"sick"]][0]
