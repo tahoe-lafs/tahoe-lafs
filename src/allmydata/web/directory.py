@@ -265,7 +265,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             # which created the final directory (i.e. us)
             return defer.succeed(self.node.get_uri()) # TODO: urlencode
         name = name.decode("utf-8")
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
+        # TODO: decide on replace= behavior, see #903
+        #replace = boolean_of_arg(get_arg(req, "replace", "true"))
         req.content.seek(0)
         kids_json = req.content.read()
         kids = convert_children_json(self.client.nodemaker, kids_json)
