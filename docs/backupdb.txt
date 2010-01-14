@@ -46,7 +46,7 @@ CREATE TABLE local_files
  path  varchar(1024),  PRIMARY KEY -- index, this is os.path.abspath(fn)
  size  integer,         -- os.stat(fn)[stat.ST_SIZE]
  mtime number,          -- os.stat(fn)[stat.ST_MTIME]
- ctime number,          -- os.stat(fn)[stat.ST_MTIME]
+ ctime number,          -- os.stat(fn)[stat.ST_CTIME]
  fileid integer
 );
 
