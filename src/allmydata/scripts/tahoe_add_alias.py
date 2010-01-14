@@ -3,6 +3,7 @@ import os.path
 from allmydata import uri
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases
+from allmydata.util.fileutil import move_into_place
 
 def add_alias(options):
     nodedir = options['node-directory']
@@ -19,9 +20,24 @@ def add_alias(options):
         return 1
     aliasfile = os.path.join(nodedir, "private", "aliases")
     cap = uri.from_string_dirnode(cap).to_string()
-    f = open(aliasfile, "a")
-    f.write("%s: %s\n" % (alias, cap))
+
+    # we use os.path.exists, rather than catching EnvironmentError, to avoid
+    # clobbering the valuable alias file in case of spurious or transient
+    # filesystem errors.
+    if os.path.exists(aliasfile):
+        f = open(aliasfile, "r")
+        aliases = f.read()
+        f.close()
+        if not aliases.endswith("\n"):
+            aliases += "\n"
+    else:
+        aliases = ""
+    aliases += "%s: %s\n" % (alias, cap)
+    f = open(aliasfile+".tmp", "w")
+    f.write(aliases)
     f.close()
+    move_into_place(aliasfile+".tmp", aliasfile)
+
     print >>stdout, "Alias '%s' added" % (alias,)
     return 0
 
@@ -52,16 +68,28 @@ def create_alias(options):
     new_uri = resp.read().strip()
 
     # probably check for others..
-    f = open(aliasfile, "a")
-    f.write("%s: %s\n" % (alias, new_uri))
+
+    # see above about EnvironmentError
+    if os.path.exists(aliasfile):
+        f = open(aliasfile, "r")
+        aliases = f.read()
+        f.close()
+        if not aliases.endswith("\n"):
+            aliases += "\n"
+    else:
+        aliases = ""
+    aliases += "%s: %s\n" % (alias, new_uri)
+    f = open(aliasfile+".tmp", "w")
+    f.write(aliases)
     f.close()
+    move_into_place(aliasfile+".tmp", aliasfile)
+
     print >>stdout, "Alias '%s' created" % (alias,)
     return 0
 
 def list_aliases(options):
     nodedir = options['node-directory']
     stdout = options.stdout
-    stderr = options.stderr
     aliases = get_aliases(nodedir)
     alias_names = sorted(aliases.keys())
     max_width = max([len(name) for name in alias_names] + [0])

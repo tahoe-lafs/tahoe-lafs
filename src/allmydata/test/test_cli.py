@@ -98,7 +98,6 @@ class CLI(unittest.TestCase):
 
     def test_dump_cap_chk(self):
         key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
-        storage_index = hashutil.storage_index_hash(key)
         uri_extension_hash = hashutil.uri_extension_hash("stuff")
         needed_shares = 25
         total_shares = 100
@@ -460,6 +459,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_create(self):
         self.basedir = "cli/CreateAlias/create"
         self.set_up_grid()
+        aliasfile = os.path.join(self.get_clientdir(), "private", "aliases")
 
         d = self.do_cli("create-alias", "tahoe")
         def _done((rc,stdout,stderr)):
@@ -521,6 +521,56 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self._test_webopen(["tahoe:subdir/file/"], self.tahoe_subdir_url + '/file/')
             self._test_webopen(["two:"], self.two_url)
         d.addCallback(_test_urls)
+
+        def _remove_trailing_newline_and_create_alias(ign):
+            f = open(aliasfile, "r")
+            old = f.read()
+            f.close()
+            # ticket #741 is about a manually-edited alias file (which
+            # doesn't end in a newline) being corrupted by a subsequent
+            # "tahoe create-alias"
+            f = open(aliasfile, "w")
+            f.write(old.rstrip())
+            f.close()
+            return self.do_cli("create-alias", "un-corrupted1")
+        d.addCallback(_remove_trailing_newline_and_create_alias)
+        def _check_not_corrupted1((rc,stdout,stderr)):
+            self.failUnless("Alias 'un-corrupted1' created" in stdout, stdout)
+            self.failIf(stderr)
+            # the old behavior was to simply append the new record, causing a
+            # line that looked like "NAME1: CAP1NAME2: CAP2". This won't look
+            # like a valid dircap, so get_aliases() will raise an exception.
+            aliases = get_aliases(self.get_clientdir())
+            self.failUnless("added" in aliases)
+            self.failUnless(aliases["added"].startswith("URI:DIR2:"))
+            # to be safe, let's confirm that we don't see "NAME2:" in CAP1.
+            # No chance of a false-negative, because the hyphen in
+            # "un-corrupted1" is not a valid base32 character.
+            self.failIfIn("un-corrupted1:", aliases["added"])
+            self.failUnless("un-corrupted1" in aliases)
+            self.failUnless(aliases["un-corrupted1"].startswith("URI:DIR2:"))
+        d.addCallback(_check_not_corrupted1)
+
+        def _remove_trailing_newline_and_add_alias(ign):
+            # same thing, but for "tahoe add-alias"
+            f = open(aliasfile, "r")
+            old = f.read()
+            f.close()
+            f = open(aliasfile, "w")
+            f.write(old.rstrip())
+            f.close()
+            return self.do_cli("add-alias", "un-corrupted2", self.two_uri)
+        d.addCallback(_remove_trailing_newline_and_add_alias)
+        def _check_not_corrupted((rc,stdout,stderr)):
+            self.failUnless("Alias 'un-corrupted2' added" in stdout, stdout)
+            self.failIf(stderr)
+            aliases = get_aliases(self.get_clientdir())
+            self.failUnless("un-corrupted1" in aliases)
+            self.failUnless(aliases["un-corrupted1"].startswith("URI:DIR2:"))
+            self.failIfIn("un-corrupted2:", aliases["un-corrupted1"])
+            self.failUnless("un-corrupted2" in aliases)
+            self.failUnless(aliases["un-corrupted2"].startswith("URI:DIR2:"))
+        d.addCallback(_check_not_corrupted)
 
         return d
 
@@ -592,7 +642,6 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
 
         rel_fn = os.path.join(self.basedir, "DATAFILE")
-        abs_fn = os.path.abspath(rel_fn)
         # we make the file small enough to fit in a LIT file, for speed
         DATA = "short file"
         DATA2 = "short file two"
@@ -676,7 +725,6 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         DATA = "data" * 100
         DATA2 = "two" * 100
         rel_fn = os.path.join(self.basedir, "DATAFILE")
-        abs_fn = os.path.abspath(rel_fn)
         DATA3 = "three" * 100
         f = open(rel_fn, "w")
         f.write(DATA3)
