@@ -69,10 +69,10 @@ class CreateAliasOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s create-alias ALIAS" % (os.path.basename(sys.argv[0]),)
 
-    longdesc = """Creates a new directory and adds an alias for it."""
+    longdesc = """Create a new directory and add an alias for it."""
 
 class ListAliasOptions(VDriveOptions):
-    longdesc = """Displays a table of all configured aliases."""
+    longdesc = """Display a table of all configured aliases."""
 
 class ListOptions(VDriveOptions):
     optFlags = [
@@ -85,7 +85,7 @@ class ListOptions(VDriveOptions):
     def parseArgs(self, where=""):
         self.where = where
 
-    longdesc = """List the contents of some portion of the virtual drive."""
+    longdesc = """List the contents of some portion of the grid."""
 
 class GetOptions(VDriveOptions):
     def parseArgs(self, arg1, arg2=None):
@@ -100,11 +100,12 @@ class GetOptions(VDriveOptions):
             self.to_file = None
 
     def getSynopsis(self):
-        return "%s get VDRIVE_FILE LOCAL_FILE" % (os.path.basename(sys.argv[0]),)
+        return "%s get REMOTE_FILE LOCAL_FILE" % (os.path.basename(sys.argv[0]),)
 
-    longdesc = """Retrieve a file from the virtual drive and write it to the
-    local filesystem. If LOCAL_FILE is omitted or '-', the contents of the file
-    will be written to stdout."""
+    longdesc = """
+    Retrieve a file from the grid and write it to the local filesystem. If
+    LOCAL_FILE is omitted or '-', the contents of the file will be written to
+    stdout."""
 
     def getUsage(self, width=None):
         t = VDriveOptions.getUsage(self, width)
@@ -123,12 +124,7 @@ class PutOptions(VDriveOptions):
         ]
 
     def parseArgs(self, arg1=None, arg2=None):
-        # cat FILE | tahoe put           # create unlinked file from stdin
-        # cat FILE | tahoe put -         # same
-        # tahoe put bar                  # create unlinked file from local 'bar'
-        # cat FILE | tahoe put - FOO     # create tahoe:FOO from stdin
-        # tahoe put bar FOO              # copy local 'bar' to tahoe:FOO
-        # tahoe put bar tahoe:FOO        # same
+        # see Examples below
 
         if arg1 is not None and arg2 is not None:
             self.from_file = arg1
@@ -143,13 +139,14 @@ class PutOptions(VDriveOptions):
             self.from_file = None
 
     def getSynopsis(self):
-        return "%s put LOCAL_FILE VDRIVE_FILE" % (os.path.basename(sys.argv[0]),)
+        return "%s put LOCAL_FILE REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
 
-    longdesc = """Put a file into the virtual drive (copying the file's
-    contents from the local filesystem). If VDRIVE_FILE is missing, upload
-    the file but do not link it into a directory: prints the new filecap to
-    stdout. If LOCAL_FILE is missing or '-', data will be copied from stdin.
-    VDRIVE_FILE is assumed to start with tahoe: unless otherwise specified."""
+    longdesc = """
+    Put a file into the grid, copying its contents from the local filesystem.
+    If REMOTE_FILE is missing, upload the file but do not link it into a
+    directory; also print the new filecap to stdout. If LOCAL_FILE is missing
+    or '-', data will be copied from stdin. REMOTE_FILE is assumed to start
+    with tahoe: unless otherwise specified."""
 
     def getUsage(self, width=None):
         t = VDriveOptions.getUsage(self, width)
@@ -171,7 +168,7 @@ class CpOptions(VDriveOptions):
         ("verbose", "v", "Be noisy about what is happening."),
         ("caps-only", None,
          "When copying to local files, write out filecaps instead of actual "
-         "data. (only useful for debugging and tree-comparison purposes)"),
+         "data (only useful for debugging and tree-comparison purposes)."),
         ]
     def parseArgs(self, *args):
         if len(args) < 2:
@@ -181,12 +178,12 @@ class CpOptions(VDriveOptions):
     def getSynopsis(self):
         return "Usage: tahoe [options] cp FROM.. TO"
     longdesc = """
-    Use 'tahoe cp' to copy files between a local filesystem and a Tahoe
-    virtual filesystem. Any FROM/TO arguments that begin with an alias
-    indicate Tahoe-side files, and arguments which do not indicate local
-    files. Directories will be copied recursively. New Tahoe-side directories
-    will be created when necessary. Assuming that you have previously set up
-    an alias 'home' with 'tahoe create-alias home', here are some examples:
+    Use 'tahoe cp' to copy files between a local filesystem and a Tahoe grid.
+    Any FROM/TO arguments that begin with an alias indicate Tahoe-side
+    files or non-file arguments. Directories will be copied recursively.
+    New Tahoe-side directories will be created when necessary. Assuming that
+    you have previously set up an alias 'home' with 'tahoe create-alias home',
+    here are some examples:
 
     tahoe cp ~/foo.txt home:  # creates tahoe-side home:foo.txt
 
@@ -210,7 +207,7 @@ class RmOptions(VDriveOptions):
         self.where = where
 
     def getSynopsis(self):
-        return "%s rm VDRIVE_FILE" % (os.path.basename(sys.argv[0]),)
+        return "%s rm REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
 
 class MvOptions(VDriveOptions):
     def parseArgs(self, frompath, topath):
@@ -220,11 +217,15 @@ class MvOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s mv FROM TO" % (os.path.basename(sys.argv[0]),)
     longdesc = """
-    Use 'tahoe mv' to move files that are already on the grid elsewhere on the grid, e.g., 'tahoe mv alias:some_file alias:new_file'.
+    Use 'tahoe mv' to move files that are already on the grid elsewhere on
+    the grid, e.g., 'tahoe mv alias:some_file alias:new_file'.
 
-    If moving a remote file into a remote directory, you'll need to append a '/' to the name of the remote directory, e.g., 'tahoe mv tahoe:file1 tahoe:dir/', not 'tahoe mv tahoe:file1 tahoe:dir'.
+    If moving a remote file into a remote directory, you'll need to append a
+    '/' to the name of the remote directory, e.g., 'tahoe mv tahoe:file1
+    tahoe:dir/', not 'tahoe mv tahoe:file1 tahoe:dir'.
 
-    Note that it is not possible to use this command to move local files to the grid -- use 'tahoe cp' for that.
+    Note that it is not possible to use this command to move local files to
+    the grid -- use 'tahoe cp' for that.
     """
 
 class LnOptions(VDriveOptions):
@@ -241,12 +242,13 @@ class BackupConfigurationError(Exception):
 class BackupOptions(VDriveOptions):
     optFlags = [
         ("verbose", "v", "Be noisy about what is happening."),
-        ("ignore-timestamps", None, "Do not use backupdb timestamps to decide if a local file is unchanged."),
+        ("ignore-timestamps", None, "Do not use backupdb timestamps to decide whether a local file is unchanged."),
         ]
 
-    vcs_patterns = ('CVS', 'RCS', 'SCCS', '.git', '.gitignore', '.cvsignore', '.svn',
-                   '.arch-ids','{arch}', '=RELEASE-ID', '=meta-update', '=update',
-                   '.bzr', '.bzrignore', '.bzrtags', '.hg', '.hgignore', '_darcs')
+    vcs_patterns = ('CVS', 'RCS', 'SCCS', '.git', '.gitignore', '.cvsignore',
+                    '.svn', '.arch-ids','{arch}', '=RELEASE-ID',
+                    '=meta-update', '=update', '.bzr', '.bzrignore',
+                    '.bzrtags', '.hg', '.hgignore', '_darcs')
 
     def __init__(self):
         super(BackupOptions, self).__init__()
@@ -298,7 +300,13 @@ class BackupOptions(VDriveOptions):
             else:
                 yield filename
 
-    longdesc = """Add a versioned backup of the local FROM directory to a timestamped subdir of the (tahoe) TO/Archives directory, sharing as many files and directories as possible with the previous backup. Creates TO/Latest as a reference to the latest backup. Behaves somewhat like 'rsync -a --link-dest=TO/Archives/(previous) FROM TO/Archives/(new); ln -sf TO/Archives/(new) TO/Latest'."""
+    longdesc = """
+    Add a versioned backup of the local FROM directory to a timestamped
+    subdirectory of the TO/Archives directory on the grid, sharing as many
+    files and directories as possible with earlier backups. Create TO/Latest
+    as a reference to the latest backup. Behaves somewhat like 'rsync -a
+    --link-dest=TO/Archives/(previous) FROM TO/Archives/(new); ln -sf
+    TO/Archives/(new) TO/Latest'."""
 
 class WebopenOptions(VDriveOptions):
     def parseArgs(self, where=''):
@@ -307,7 +315,8 @@ class WebopenOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s webopen [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
-    longdesc = """Opens a webbrowser to the contents of some portion of the virtual drive. When called without arguments, opens to the Welcome page."""
+    longdesc = """Open a web browser to the contents of some file or
+    directory on the grid."""
 
 class ManifestOptions(VDriveOptions):
     optFlags = [
@@ -322,7 +331,8 @@ class ManifestOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s manifest [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
-    longdesc = """Print a list of all files/directories reachable from the given starting point."""
+    longdesc = """Print a list of all files and directories reachable from
+    the given starting point."""
 
 class StatsOptions(VDriveOptions):
     optFlags = [
@@ -334,7 +344,8 @@ class StatsOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s stats [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
-    longdesc = """Print statistics about of all files/directories reachable from the given starting point."""
+    longdesc = """Print statistics about of all files and directories
+    reachable from the given starting point."""
 
 class CheckOptions(VDriveOptions):
     optFlags = [
@@ -349,7 +360,10 @@ class CheckOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s check [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
-    longdesc = """Check a single file or directory: count how many shares are available, verify their hashes. Optionally repair the file if any problems were found."""
+    longdesc = """
+    Check a single file or directory: count how many shares are available and
+    verify their hashes. Optionally repair the file if any problems were
+    found."""
 
 class DeepCheckOptions(VDriveOptions):
     optFlags = [
@@ -365,7 +379,10 @@ class DeepCheckOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s deep-check [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
-    longdesc = """Check all files/directories reachable from the given starting point (which must be a directory), like 'tahoe check' but for multiple files. Optionally repair any problems found."""
+    longdesc = """
+    Check all files and directories reachable from the given starting point
+    (which must be a directory), like 'tahoe check' but for multiple files.
+    Optionally repair any problems found."""
 
 subCommands = [
     ["mkdir", None, MakeDirectoryOptions, "Create a new directory"],
@@ -373,16 +390,16 @@ subCommands = [
     ["create-alias", None, CreateAliasOptions, "Create a new alias cap"],
     ["list-aliases", None, ListAliasOptions, "List all alias caps"],
     ["ls", None, ListOptions, "List a directory"],
-    ["get", None, GetOptions, "Retrieve a file from the virtual drive."],
-    ["put", None, PutOptions, "Upload a file into the virtual drive."],
+    ["get", None, GetOptions, "Retrieve a file from the grid."],
+    ["put", None, PutOptions, "Upload a file into the grid."],
     ["cp", None, CpOptions, "Copy one or more files."],
-    ["rm", None, RmOptions, "Unlink a file or directory in the virtual drive."],
-    ["mv", None, MvOptions, "Move a file within the virtual drive."],
+    ["rm", None, RmOptions, "Unlink a file or directory on the grid."],
+    ["mv", None, MvOptions, "Move a file within the grid."],
     ["ln", None, LnOptions, "Make an additional link to an existing file."],
     ["backup", None, BackupOptions, "Make target dir look like local dir."],
-    ["webopen", None, WebopenOptions, "Open a webbrowser to the root_dir"],
-    ["manifest", None, ManifestOptions, "List all files/dirs in a subtree"],
-    ["stats", None, StatsOptions, "Print statistics about all files/dirs in a subtree"],
+    ["webopen", None, WebopenOptions, "Open a web browser to a grid file or directory."],
+    ["manifest", None, ManifestOptions, "List all files/directories in a subtree"],
+    ["stats", None, StatsOptions, "Print statistics about all files/directories in a subtree"],
     ["check", None, CheckOptions, "Check a single file or directory"],
     ["deep-check", None, DeepCheckOptions, "Check all files/directories reachable from a starting point"],
     ]

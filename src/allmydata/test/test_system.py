@@ -27,7 +27,7 @@ from twisted.web.error import Error
 from allmydata.test.common import SystemTestMixin
 
 LARGE_DATA = """
-This is some data to publish to the virtual drive, which needs to be large
+This is some data to publish to the remote grid.., which needs to be large
 enough to not fit inside a LIT uri.
 """
 
@@ -697,8 +697,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
     # the key, which should cause the download to fail the post-download
     # plaintext_hash check.
 
-    def test_vdrive(self):
-        self.basedir = "system/SystemTest/test_vdrive"
+    def test_filesystem(self):
+        self.basedir = "system/SystemTest/test_filesystem"
         self.data = LARGE_DATA
         d = self.set_up_nodes(use_stats_gatherer=True)
         d.addCallback(self._test_introweb)

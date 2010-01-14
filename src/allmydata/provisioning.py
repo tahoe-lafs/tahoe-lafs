@@ -128,7 +128,7 @@ class ProvisioningTool(rend.Page):
                                                        files_per_user_counts,
                                                        1000)
         add_input("Users",
-                  "How many files in each user's vdrive? (avg)",
+                  "How many files for each user? (avg)",
                   i_files_per_user)
 
         space_per_user_sizes = [(1e6, "1MB"),
@@ -147,7 +147,7 @@ class ProvisioningTool(rend.Page):
                                                        space_per_user_sizes,
                                                        200e6)
         add_input("Users",
-                  "How much data is in each user's vdrive? (avg)",
+                  "How much data for each user? (avg)",
                   i_space_per_user)
 
         sharing_ratios = [(1.0, "1.0x"),

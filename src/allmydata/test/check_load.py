@@ -97,12 +97,12 @@ bytes_downloaded = 0
 directories_read = 0
 directories_written = 0
 
-def listdir(nodeurl, root, vdrive_pathname):
+def listdir(nodeurl, root, remote_pathname):
     if nodeurl[-1] != "/":
         nodeurl += "/"
     url = nodeurl + "uri/%s/" % urllib.quote(root)
-    if vdrive_pathname:
-        url += urllib.quote(vdrive_pathname)
+    if remote_pathname:
+        url += urllib.quote(remote_pathname)
     url += "?t=json"
     data = urllib.urlopen(url).read()
     try:
@@ -203,11 +203,11 @@ def parse_url(url, defaultPort=None):
         path = "/"
     return scheme, host, port, path
 
-def generate_and_put(nodeurl, root, vdrive_fname, size):
+def generate_and_put(nodeurl, root, remote_filename, size):
     if nodeurl[-1] != "/":
         nodeurl += "/"
     url = nodeurl + "uri/%s/" % urllib.quote(root)
-    url += urllib.quote(vdrive_fname)
+    url += urllib.quote(remote_filename)
 
     scheme, host, port, path = parse_url(url)
     if scheme == "http":

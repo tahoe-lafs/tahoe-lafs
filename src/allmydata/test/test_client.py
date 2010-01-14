@@ -32,20 +32,12 @@ class Basic(unittest.TestCase):
         basedir = "test_client.Basic.test_loadable"
         os.mkdir(basedir)
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
-        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
-        c = client.Client(basedir)
-
-    def test_loadable_without_vdrive(self):
-        basedir = "test_client.Basic.test_loadable_without_vdrive"
-        os.mkdir(basedir)
-        open(os.path.join(basedir, "introducer.furl"), "w").write("")
         c = client.Client(basedir)
 
     def test_loadable_old_config_bits(self):
         basedir = "test_client.Basic.test_loadable_old_config_bits"
         os.mkdir(basedir)
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
-        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         open(os.path.join(basedir, "no_storage"), "w").write("")
         open(os.path.join(basedir, "readonly_storage"), "w").write("")
         open(os.path.join(basedir, "debug_discard_storage"), "w").write("")
@@ -60,7 +52,6 @@ class Basic(unittest.TestCase):
         basedir = "test_client.Basic.test_loadable_old_storage_config_bits"
         os.mkdir(basedir)
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
-        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         open(os.path.join(basedir, "readonly_storage"), "w").write("")
         open(os.path.join(basedir, "debug_discard_storage"), "w").write("")
         c = client.Client(basedir)
@@ -72,7 +63,6 @@ class Basic(unittest.TestCase):
         basedir = "test_client.Basic.test_secrets"
         os.mkdir(basedir)
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
-        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         c = client.Client(basedir)
         secret_fname = os.path.join(basedir, "private", "secret")
         self.failUnless(os.path.exists(secret_fname), secret_fname)
@@ -161,7 +151,6 @@ class Basic(unittest.TestCase):
         basedir = "test_client.Basic.test_versions"
         os.mkdir(basedir)
         open(os.path.join(basedir, "introducer.furl"), "w").write("")
-        open(os.path.join(basedir, "vdrive.furl"), "w").write("")
         c = client.Client(basedir)
         ss = c.getServiceNamed("storage")
         verdict = ss.remote_get_version()

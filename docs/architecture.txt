@@ -5,14 +5,15 @@
 
 OVERVIEW
 
-At a high-level this system consists of three layers: the grid, the
-filesystem, and the application.
+At a high-level this system consists of three layers: the key-value store,
+the filesystem, and the application.
 
-The lowest layer is the "grid", a key-value store mapping from capabilities to
-data.  The capabilities are relatively short ascii strings, each used as a
-reference to an arbitrary-length sequence of data bytes, and are like a URI
-for that data. This data is encrypted and distributed across a number of
-nodes, such that it will survive the loss of most of the nodes.
+The lowest layer is the key-value store, which is a distributed hashtable
+mapping from capabilities to data.  The capabilities are relatively short
+ASCII strings, each used as a reference to an arbitrary-length sequence of
+data bytes, and are like a URI for that data. This data is encrypted and
+distributed across a number of nodes, such that it will survive the loss of
+most of the nodes.
 
 The middle layer is the decentralized filesystem: a directed graph in which
 the intermediate nodes are directories and the leaf nodes are files. The leaf
@@ -31,19 +32,21 @@ filesystem can be used by other applications, too.
 
 THE GRID OF STORAGE SERVERS
 
-The grid is composed of peer nodes -- processes running on computers.  They
-establish TCP connections to each other using Foolscap, a secure remote
-message passing library.
+A key-value store is implemented by a collection of peer nodes -- processes
+running on computers -- called a "grid". (The term "grid" is also used
+loosely for the filesystem supported by these nodes.) The nodes in a grid
+establish TCP connections to each other using Foolscap, a secure
+remote-message-passing library.
 
-Each peer offers certain services to the others. The primary service is that
+Each node offers certain services to the others. The primary service is that
 of the storage server, which holds data in the form of "shares".  Shares are
 encoded pieces of files.  There are a configurable number of shares for each
 file, 10 by default.  Normally, each share is stored on a separate server, but
 a single server can hold multiple shares for a single file.
 
-Peers learn about each other through an "introducer". Each peer connects to a
-central introducer at startup, and receives a list of all other peers from
-it. Each peer then connects to all other peers, creating a fully-connected
+Nodes learn about each other through an "introducer". Each node connects to a
+central introducer at startup, and receives a list of all other nodes from
+it. Each node then connects to all other nodes, creating a fully-connected
 topology.  In the current release, nodes behind NAT boxes will connect to all
 nodes that they can open connections to, but they cannot open connections to
 other nodes behind NAT boxes.  Therefore, the more nodes behind NAT boxes, the
@@ -62,16 +65,17 @@ node to tell a new client about all the others. With decentralized
 "gossip-based" introduction, simply knowing how to contact any one node will
 be enough to contact all of them.
 
+
 FILE ENCODING
 
-When a peer stores a file on the grid, it first encrypts the file, using a key
+When a node stores a file on its grid, it first encrypts the file, using a key
 that is optionally derived from the hash of the file itself.  It then segments
 the encrypted file into small pieces, in order to reduce the memory footprint,
 and to decrease the lag between initiating a download and receiving the first
 part of the file; for example the lag between hitting "play" and a movie
 actually starting.
 
-The peer then erasure-codes each segment, producing blocks such that only a
+The node then erasure-codes each segment, producing blocks such that only a
 subset of them are needed to reconstruct the segment. It sends one block from
 each segment to a given server. The set of blocks on a given server
 constitutes a "share". Only a subset of the shares (3 out of 10, by default)
@@ -79,7 +83,7 @@ are needed to reconstruct the file.
 
 A tagged hash of the encryption key is used to form the "storage index", which
 is used for both server selection (described below) and to index shares within
-the Storage Servers on the selected peers.
+the Storage Servers on the selected nodes.
 
 Hashes are computed while the shares are being produced, to validate the
 ciphertext and the shares themselves. Merkle hash trees are used to enable
@@ -135,17 +139,17 @@ public/private key pair created when the mutable file is created, and the
 read-only capability to that file includes a secure hash of the public key.
 
 Read-write capabilities to mutable files represent the ability to read the
-file (just like a read-only capability) and also to write a new version of the
-file, overwriting any extant version.  Read-write capabilities are unique --
-each one includes the secure hash of the private key associated with that
+file (just like a read-only capability) and also to write a new version of
+the file, overwriting any extant version. Read-write capabilities are unique
+-- each one includes the secure hash of the private key associated with that
 mutable file.
 
 The capability provides both "location" and "identification": you can use it
 to retrieve a set of bytes, and then you can use it to validate ("identify")
 that these potential bytes are indeed the ones that you were looking for.
 
-The "grid" layer is insufficient to provide a virtual drive: an actual
-filesystem requires human-meaningful names.  Capabilities sit on the
+The "key-value store" layer is insufficient to provide a usable filesystem,
+which requires human-meaningful names. Capabilities sit on the
 "global+secure" edge of Zooko's Triangle[1]. They are self-authenticating,
 meaning that nobody can trick you into using a file that doesn't match the
 capability you used to refer to that file.
@@ -153,40 +157,40 @@ capability you used to refer to that file.
 
 SERVER SELECTION
 
-When a file is uploaded, the encoded shares are sent to other peers. But to
+When a file is uploaded, the encoded shares are sent to other nodes. But to
 which ones? The "server selection" algorithm is used to make this choice.
 
 In the current version, the storage index is used to consistently-permute the
-set of all peers (by sorting the peers by HASH(storage_index+peerid)). Each
-file gets a different permutation, which (on average) will evenly distribute
-shares among the grid and avoid hotspots.
+set of all peer nodes (by sorting the peer nodes by
+HASH(storage_index+peerid)). Each file gets a different permutation, which
+(on average) will evenly distribute shares among the grid and avoid hotspots.
 
-We use this permuted list of peers to ask each peer, in turn, if it will hold
+We use this permuted list of nodes to ask each node, in turn, if it will hold
 a share for us, by sending an 'allocate_buckets() query' to each one. Some
-will say yes, others (those who are full) will say no: when a peer refuses our
-request, we just take that share to the next peer on the list. We keep going
+will say yes, others (those who are full) will say no: when a node refuses our
+request, we just take that share to the next node on the list. We keep going
 until we run out of shares to place. At the end of the process, we'll have a
-table that maps each share number to a peer, and then we can begin the
+table that maps each share number to a node, and then we can begin the
 encode+push phase, using the table to decide where each share should be sent.
 
-Most of the time, this will result in one share per peer, which gives us
+Most of the time, this will result in one share per node, which gives us
 maximum reliability (since it disperses the failures as widely as possible).
-If there are fewer useable peers than there are shares, we'll be forced to
-loop around, eventually giving multiple shares to a single peer. This reduces
+If there are fewer useable nodes than there are shares, we'll be forced to
+loop around, eventually giving multiple shares to a single node. This reduces
 reliability, so it isn't the sort of thing we want to happen all the time, and
 either indicates that the default encoding parameters are set incorrectly
-(creating more shares than you have peers), or that the grid does not have
-enough space (many peers are full). But apart from that, it doesn't hurt. If
-we have to loop through the peer list a second time, we accelerate the query
-process, by asking each peer to hold multiple shares on the second pass. In
+(creating more shares than you have nodes), or that the grid does not have
+enough space (many nodes are full). But apart from that, it doesn't hurt. If
+we have to loop through the node list a second time, we accelerate the query
+process, by asking each node to hold multiple shares on the second pass. In
 most cases, this means we'll never send more than two queries to any given
-peer.
+node.
 
-If a peer is unreachable, or has an error, or refuses to accept any of our
+If a node is unreachable, or has an error, or refuses to accept any of our
 shares, we remove them from the permuted list, so we won't query them a second
-time for this file. If a peer already has shares for the file we're uploading
+time for this file. If a node already has shares for the file we're uploading
 (or if someone else is currently sending them shares), we add that information
-to the share-to-peer table. This lets us do less work for files which have
+to the share-to-peer-node table. This lets us do less work for files which have
 been uploaded once before, while making sure we still wind up with as many
 shares as we desire.
 
@@ -197,10 +201,10 @@ If we cannot place at least this many, the upload is declared a failure.
 The current defaults use k=3, shares_of_happiness=7, and N=10, meaning that
 we'll try to place 10 shares, we'll be happy if we can place 7, and we need to
 get back any 3 to recover the file. This results in a 3.3x expansion
-factor. In general, you should set N about equal to the number of peers in
+factor. In general, you should set N about equal to the number of nodes in
 your grid, then set N/k to achieve your desired availability goals.
 
-When downloading a file, the current release just asks all known peers for any
+When downloading a file, the current release just asks all known nodes for any
 shares they might have, chooses the minimal necessary subset, then starts
 downloading and processing those shares. A later release will use the full
 algorithm to reduce the number of queries that must be sent out. This
@@ -209,26 +213,26 @@ after it has located k shares (instead of all N). This reduces the number of
 queries that must be sent before downloading can begin.
 
 The actual number of queries is directly related to the availability of the
-peers and the degree of overlap between the peerlist used at upload and at
+nodes and the degree of overlap between the node list used at upload and at
 download. For stable grids, this overlap is very high, and usually the first k
 queries will result in shares. The number of queries grows as the stability
 decreases. Some limits may be imposed in large grids to avoid querying a
-million peers; this provides a tradeoff between the work spent to discover
+million nodes; this provides a tradeoff between the work spent to discover
 that a file is unrecoverable and the probability that a retrieval will fail
 when it could have succeeded if we had just tried a little bit harder. The
 appropriate value of this tradeoff will depend upon the size of the grid, and
 will change over time.
 
-Other peer selection algorithms are possible. One earlier version (known as
-"tahoe 3") used the permutation to place the peers around a large ring,
+Other peer-node selection algorithms are possible. One earlier version (known
+as "Tahoe 3") used the permutation to place the nodes around a large ring,
 distributed shares evenly around the same ring, then walks clockwise from 0
 with a basket: each time we encounter a share, put it in the basket, each time
-we encounter a peer, give them as many shares from our basket as they'll
+we encounter a node, give them as many shares from our basket as they'll
 accept. This reduced the number of queries (usually to 1) for small grids
-(where N is larger than the number of peers), but resulted in extremely
+(where N is larger than the number of nodes), but resulted in extremely
 non-uniform share distribution, which significantly hurt reliability
 (sometimes the permutation resulted in most of the shares being dumped on a
-single peer).
+single node).
 
 Another algorithm (known as "denver airport"[2]) uses the permuted hash to
 decide on an approximate target for each share, then sends lease requests via
@@ -243,12 +247,12 @@ the expense of complexity, latency, and reliability.
 SWARMING DOWNLOAD, TRICKLING UPLOAD
 
 Because the shares being downloaded are distributed across a large number of
-peers, the download process will pull from many of them at the same time. The
+nodes, the download process will pull from many of them at the same time. The
 current encoding parameters require 3 shares to be retrieved for each segment,
-which means that up to 3 peers will be used simultaneously. For larger
-networks, 8-of-22 encoding could be used, meaning 8 peers can be used
+which means that up to 3 nodes will be used simultaneously. For larger
+networks, 8-of-22 encoding could be used, meaning 8 nodes can be used
 simultaneously. This allows the download process to use the sum of the
-available peers' upload bandwidths, resulting in downloads that take full
+available nodes' upload bandwidths, resulting in downloads that take full
 advantage of the common 8x disparity between download and upload bandwith on
 modern ADSL lines.
 
@@ -301,105 +305,25 @@ links to spaces that are shared with specific other users, and other spaces
 that are globally visible.
 
 
-LEASES, REFRESHING, GARBAGE COLLECTION, QUOTAS
+LEASES, REFRESHING, GARBAGE COLLECTION
 
-THIS SECTION IS OUT OF DATE.  Since we wrote this we've changed our minds
-about how we intend to implement these features.  Neither the old design,
-documented below, nor the new one, documented on the tahoe-dev mailing list
-and the wiki and the issue tracker, have actually been implemented yet.
+When a file or directory in the virtual filesystem is no longer referenced,
+the space that its shares occupied on each storage server can be freed,
+making room for other shares. Tahoe currently uses a garbage collection
+("GC") mechanism to implement this space-reclamation process. Each share has
+one or more "leases", which are managed by clients who want the
+file/directory to be retained. The storage server accepts each share for a
+pre-defined period of time, and is allowed to delete the share if all of the
+leases are cancelled or allowed to expire.
 
-Shares are uploaded to a storage server, but they do not necessarily stay
-there forever. We are anticipating three main share-lifetime management modes
-for Tahoe: 1) per-share leases which expire, 2) per-account timers which
-expire and cancel all leases for the account, and 3) centralized account
-management without expiration timers.
+Garbage collection is not enabled by default: storage servers will not delete
+shares without being explicitly configured to do so. When GC is enabled,
+clients are responsible for renewing their leases on a periodic basis at
+least frequently enough to prevent any of the leases from expiring before the
+next renewal pass.
 
-To be clear, none of these have been implemented yet. The
-http://allmydata.org/trac/tahoe/wiki/QuotaManagement "Quota Management" wiki
-page describes some of our plans for managing data lifetime and limited-space
-user accounts.
-
-Multiple clients may be interested in a given share, for example if two
-clients uploaded the same file, or if two clients are sharing a directory and
-both want to make sure the files therein remain available. Consequently, each
-share (technically each "bucket", which may contain multiple shares for a
-single storage index) has a set of leases, one per client. One way to
-visualize this is with a large table, with shares (i.e. buckets, or storage
-indices, or files) as the rows, and accounts as columns. Each square of this
-table might hold a lease.
-
-Using limited-duration leases reduces the storage consumed by clients who have
-(for whatever reason) forgotten about the share they once cared about.
-Clients are supposed to explicitly cancel leases for every file that they
-remove from their vdrive, and when the last lease is removed on a share, the
-storage server deletes that share. However, the storage server might be
-offline when the client deletes the file, or the client might experience a bug
-or a race condition that results in forgetting about the file. Using leases
-that expire unless otherwise renewed ensures that these lost files will not
-consume storage space forever. On the other hand, they require periodic
-maintenance, which can become prohibitively expensive for large grids. In
-addition, clients who go offline for a while are then obligated to get someone
-else to keep their files alive for them.
-
-
-In the first mode, each client holds a limited-duration lease on each share
-(typically one month), and clients are obligated to periodically renew these
-leases to keep them from expiring (typically once a week). In this mode, the
-storage server does not know anything about which client is which: it only
-knows about leases.
-
-In the second mode, each server maintains a list of clients and which leases
-they hold. This is called the "account list", and each time a client wants to
-upload a share or establish a lease, it provides credentials to allow the
-server to know which Account it will be using. Rather than putting individual
-timers on each lease, the server puts a timer on the Account. When the account
-expires, all of the associated leases are cancelled.
-
-In this mode, clients are obligated to renew the Account periodically, but not
-the (thousands of) individual share leases. Clients which forget about files
-are still incurring a storage cost for those files. An occasional
-reconcilliation process (in which the client presents the storage server with
-a list of all the files it cares about, and the server removes leases for
-anything that isn't on the list) can be used to free this storage, but the
-effort involved is large, so reconcilliation must be done very infrequently.
-
-Our plan is to have the clients create their own Accounts, based upon the
-possession of a private key. Clients can create as many accounts as they wish,
-but they are responsible for their own maintenance. Servers can add up all the
-leases for each account and present a report of usage, in bytes per
-account. This is intended for friendnet scenarios where it would be nice to
-know how much space your friends are consuming on your disk.
-
-In the third mode, the Account objects are centrally managed, and are not
-expired by the storage servers. In this mode, the client presents credentials
-that are issued by a central authority, such as a signed message which the
-storage server can verify. The storage used by this account is not freed
-unless and until the central account manager says so.
-
-This mode is more appropriate for a commercial offering, in which use of the
-storage servers is contingent upon a monthly fee, or other membership
-criteria. Being able to ask the storage usage for each account (or establish
-limits on it) helps to enforce whatever kind of membership policy is desired.
-
-
-Each lease is created with a pair of secrets: the "renew secret" and the
-"cancel secret". These are just random-looking strings, derived by hashing
-other higher-level secrets, starting with a per-client master secret. Anyone
-who knows the secret is allowed to restart the expiration timer, or cancel the
-lease altogether. Having these be individual values allows the original
-uploading node to delegate these capabilities to others.
-
-In the current release, clients provide lease secrets to the storage server,
-and each lease contains an expiration time, but there is no facility to
-actually expire leases, nor are there explicit owners (the "ownerid" field of
-each lease is always set to zero). In addition, many features have not been
-implemented yet: the client should claim leases on files which are added to
-the vdrive by linking (as opposed to uploading), and the client should cancel
-leases on files which are removed from the vdrive, but neither has been
-written yet. This means that shares are not ever deleted in this
-release. (Note, however, that if read-cap to a file is deleted then it will no
-longer be possible to decrypt that file, even if the shares which contain the
-erasure-coded ciphertext still exist.)
+See docs/garbage-collection.txt for further information, and how to configure
+garbage collection.
 
 
 FILE REPAIRER
@@ -423,10 +347,10 @@ practice they will be closely related, and may run in the same process.
 The repairer process does not get the full capability of the file to be
 maintained: it merely gets the "repairer capability" subset, which does not
 include the decryption key. The File Verifier uses that data to find out which
-peers ought to hold shares for this file, and to see if those peers are still
+nodes ought to hold shares for this file, and to see if those nodes are still
 around and willing to provide the data. If the file is not healthy enough, the
 File Repairer is invoked to download the ciphertext, regenerate any missing
-shares, and upload them to new peers. The goal of the File Repairer is to
+shares, and upload them to new nodes. The goal of the File Repairer is to
 finish up with a full set of "N" shares.
 
 There are a number of engineering issues to be resolved here. The bandwidth,
@@ -439,13 +363,13 @@ the resources consumed. In some cases, verification of multiple files can be
 performed at the same time, and repair of files can be delegated off to other
 nodes.
 
-The security model we are currently using assumes that peers who claim to hold
+The security model we are currently using assumes that nodes who claim to hold
 a share will actually provide it when asked. (We validate the data they
-provide before using it in any way, but if enough peers claim to hold the data
+provide before using it in any way, but if enough nodes claim to hold the data
 and are wrong, the file will not be repaired, and may decay beyond
 recoverability). There are several interesting approaches to mitigate this
 threat, ranging from challenges to provide a keyed hash of the allegedly-held
-data (using "buddy nodes", in which two peers hold the same block, and check
+data (using "buddy nodes", in which two nodes hold the same block, and check
 up on each other), to reputation systems, or even the original Mojo Nation
 economic model.
 
@@ -475,20 +399,20 @@ node failure and overall file recovery failure, and by the erasure-coding
 technique used to generate shares.
 
 Many of these security properties depend upon the usual cryptographic
-assumptions: the resistance of AES and RSA to attack, the resistance of SHA256
-to pre-image attacks, and upon the proximity of 2^-128 and 2^-256 to zero. A
-break in AES would allow a confidentiality violation, a pre-image break in
-SHA256 would allow a consistency violation, and a break in RSA would allow a
-mutability violation. The discovery of a collision in SHA256 is unlikely to
-allow much, but could conceivably allow a consistency violation in data that
-was uploaded by the attacker. If SHA256 is threatened, further analysis will
-be warranted.
+assumptions: the resistance of AES and RSA to attack, the resistance of
+SHA-256 to pre-image attacks, and upon the proximity of 2^-128 and 2^-256 to
+zero. A break in AES would allow a confidentiality violation, a pre-image
+break in SHA-256 would allow a consistency violation, and a break in RSA
+would allow a mutability violation. The discovery of a collision in SHA-256
+is unlikely to allow much, but could conceivably allow a consistency
+violation in data that was uploaded by the attacker. If SHA-256 is
+threatened, further analysis will be warranted.
 
 There is no attempt made to provide anonymity, neither of the origin of a
 piece of data nor the identity of the subsequent downloaders. In general,
 anyone who already knows the contents of a file will be in a strong position
 to determine who else is uploading or downloading it. Also, it is quite easy
-for a sufficiently-large coalition of nodes to correlate the set of peers who
+for a sufficiently large coalition of nodes to correlate the set of nodes who
 are all uploading or downloading the same file, even if the attacker does not
 know the contents of the file in question.
 
@@ -522,18 +446,18 @@ capabilities).
 
 RELIABILITY
 
-File encoding and peer selection parameters can be adjusted to achieve
+File encoding and peer-node selection parameters can be adjusted to achieve
 different goals. Each choice results in a number of properties; there are many
 tradeoffs.
 
 First, some terms: the erasure-coding algorithm is described as K-out-of-N
 (for this release, the default values are K=3 and N=10). Each grid will have
-some number of peers; this number will rise and fall over time as peers join,
+some number of nodes; this number will rise and fall over time as nodes join,
 drop out, come back, and leave forever. Files are of various sizes, some are
-popular, others are rare. Peers have various capacities, variable
+popular, others are rare. Nodes have various capacities, variable
 upload/download bandwidths, and network latency. Most of the mathematical
-models that look at peer failure assume some average (and independent)
-probability 'P' of a given peer being available: this can be high (servers
+models that look at node failure assume some average (and independent)
+probability 'P' of a given node being available: this can be high (servers
 tend to be online and available >90% of the time) or low (laptops tend to be
 turned on for an hour then disappear for several days). Files are encoded in
 segments of a given maximum size, which affects memory usage.
@@ -549,24 +473,24 @@ better reliability (for P=99%, 50-out-of-100 is much much better than 5-of-10,
 roughly 10^50 times better), because there are more shares that can be lost
 without losing the file.
 
-Likewise, the total number of peers in the network affects the same
-granularity: having only one peer means a single point of failure, no matter
-how many copies of the file you make. Independent peers (with uncorrelated
+Likewise, the total number of nodes in the network affects the same
+granularity: having only one node means a single point of failure, no matter
+how many copies of the file you make. Independent nodes (with uncorrelated
 failures) are necessary to hit the mathematical ideals: if you have 100 nodes
 but they are all in the same office building, then a single power failure will
 take out all of them at once. The "Sybil Attack" is where a single attacker
 convinces you that they are actually multiple servers, so that you think you
-are using a large number of independent peers, but in fact you have a single
+are using a large number of independent nodes, but in fact you have a single
 point of failure (where the attacker turns off all their machines at
-once). Large grids, with lots of truly-independent peers, will enable the use
+once). Large grids, with lots of truly independent nodes, will enable the use
 of lower expansion factors to achieve the same reliability, but will increase
-overhead because each peer needs to know something about every other, and the
-rate at which peers come and go will be higher (requiring network maintenance
+overhead because each node needs to know something about every other, and the
+rate at which nodes come and go will be higher (requiring network maintenance
 traffic). Also, the File Repairer work will increase with larger grids,
-although then the job can be distributed out to more peers.
+although then the job can be distributed out to more nodes.
 
 Higher values of N increase overhead: more shares means more Merkle hashes
-that must be included with the data, and more peers to contact to retrieve the
+that must be included with the data, and more nodes to contact to retrieve the
 shares. Smaller segment sizes reduce memory usage (since each segment must be
 held in memory while erasure coding runs) and improves "alacrity" (since
 downloading can validate a smaller piece of data faster, delivering it to the
@@ -592,9 +516,9 @@ This tool will continue to evolve as our analysis improves.
 
 [2]: all of these names are derived from the location where they were
      concocted, in this case in a car ride from Boulder to DEN. To be
-     precise, "tahoe 1" was an unworkable scheme in which everyone who holds
+     precise, "Tahoe 1" was an unworkable scheme in which everyone who holds
      shares for a given file would form a sort of cabal which kept track of
-     all the others, "tahoe 2" is the first-100-peers in the permuted hash
-     described in this document, and "tahoe 3" (or perhaps "potrero hill 1")
+     all the others, "Tahoe 2" is the first-100-nodes in the permuted hash
+     described in this document, and "Tahoe 3" (or perhaps "Potrero hill 1")
      was the abandoned ring-with-many-hands approach.
 

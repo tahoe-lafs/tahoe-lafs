@@ -376,17 +376,17 @@ class Help(unittest.TestCase):
 
     def test_get(self):
         help = str(cli.GetOptions())
-        self.failUnless("get VDRIVE_FILE LOCAL_FILE" in help, help)
+        self.failUnless("get REMOTE_FILE LOCAL_FILE" in help, help)
         self.failUnless("% tahoe get FOO |less" in help, help)
 
     def test_put(self):
         help = str(cli.PutOptions())
-        self.failUnless("put LOCAL_FILE VDRIVE_FILE" in help, help)
+        self.failUnless("put LOCAL_FILE REMOTE_FILE" in help, help)
         self.failUnless("% cat FILE | tahoe put" in help, help)
 
     def test_rm(self):
         help = str(cli.RmOptions())
-        self.failUnless("rm VDRIVE_FILE" in help, help)
+        self.failUnless("rm REMOTE_FILE" in help, help)
 
     def test_mv(self):
         help = str(cli.MvOptions())
