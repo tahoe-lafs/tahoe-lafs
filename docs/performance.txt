@@ -1,0 +1,30 @@
+= Performance =
+
+== performance issues with mutable files ==
+
+Tahoe-LAFS can create mutable files of arbitrary size. There are good
+reasons to not overuse these.
+
+When you first create a mutable file, Tahoe-LAFS generates an RSA
+keypair to associate with the file. This takes about a second on an
+ordinary desktop PC (and possibly considerably longer on specialized or
+embedded hardware). The cost of key generation is probably irrelevant if
+you only use a few mutable files, but can quickly add up if you want to
+create a lot of them.
+
+Part of the process of encrypting, encoding, and uploading a mutable
+file to a Tahoe-LAFS grid requires that the entire file be loaded into
+memory at once. For larger files, this may cause Tahoe-LAFS to have an
+unacceptably large memory footprint (at least when uploading your
+mutable file).
+
+As currently implemented, small modifications to mutable files are no
+less expensive than large modifications; in both cases, the process
+described above (with the performance concerns described above) must be
+repeated for the entire file. 
+
+We are exploring ways to address at least some of these problems. In the
+meantime, however, it is a good practice to not overuse mutable files,
+and to not create exceptionally large mutable files. For more
+information on how mutable files are currently implemented, see the
+mutable file specification, in docs/specifications/mutable.txt.
