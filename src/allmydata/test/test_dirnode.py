@@ -1045,8 +1045,8 @@ class FakeClient2(Client):
 
 class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
     def setUp(self):
-        self.client = FakeClient2()
-        self.nodemaker = self.client.nodemaker
+        client = FakeClient2()
+        self.nodemaker = client.nodemaker
 
     def test_from_future(self):
         # create a dirnode that contains unknown URI types, and make sure we
