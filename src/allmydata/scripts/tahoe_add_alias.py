@@ -5,22 +5,7 @@ from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases
 from allmydata.util.fileutil import move_into_place
 
-def add_alias(options):
-    nodedir = options['node-directory']
-    alias = options.alias
-    cap = options.cap
-    stdout = options.stdout
-    stderr = options.stderr
-    assert ":" not in alias
-    assert " " not in alias
-
-    old_aliases = get_aliases(nodedir)
-    if alias in old_aliases:
-        print >>stderr, "Alias '%s' already exists!" % alias
-        return 1
-    aliasfile = os.path.join(nodedir, "private", "aliases")
-    cap = uri.from_string_dirnode(cap).to_string()
-
+def add_line_to_aliasfile(aliasfile, alias, cap):
     # we use os.path.exists, rather than catching EnvironmentError, to avoid
     # clobbering the valuable alias file in case of spurious or transient
     # filesystem errors.
@@ -37,6 +22,24 @@ def add_alias(options):
     f.write(aliases)
     f.close()
     move_into_place(aliasfile+".tmp", aliasfile)
+
+def add_alias(options):
+    nodedir = options['node-directory']
+    alias = options.alias
+    cap = options.cap
+    stdout = options.stdout
+    stderr = options.stderr
+    assert ":" not in alias
+    assert " " not in alias
+
+    old_aliases = get_aliases(nodedir)
+    if alias in old_aliases:
+        print >>stderr, "Alias '%s' already exists!" % alias
+        return 1
+    aliasfile = os.path.join(nodedir, "private", "aliases")
+    cap = uri.from_string_dirnode(cap).to_string()
+
+    add_line_to_aliasfile(aliasfile, alias, cap)
 
     print >>stdout, "Alias '%s' added" % (alias,)
     return 0
@@ -69,20 +72,7 @@ def create_alias(options):
 
     # probably check for others..
 
-    # see above about EnvironmentError
-    if os.path.exists(aliasfile):
-        f = open(aliasfile, "r")
-        aliases = f.read()
-        f.close()
-        if not aliases.endswith("\n"):
-            aliases += "\n"
-    else:
-        aliases = ""
-    aliases += "%s: %s\n" % (alias, new_uri)
-    f = open(aliasfile+".tmp", "w")
-    f.write(aliases)
-    f.close()
-    move_into_place(aliasfile+".tmp", aliasfile)
+    add_line_to_aliasfile(aliasfile, alias, new_uri)
 
     print >>stdout, "Alias '%s' created" % (alias,)
     return 0
