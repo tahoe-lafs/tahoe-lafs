@@ -42,7 +42,7 @@ class TheRightCode(common_util.SignalMixin, unittest.TestCase,
         return d
 
 class CreateNode(unittest.TestCase):
-    # exercise "tahoe create-client", create-introducer,
+    # exercise "tahoe create-node", create-introducer,
     # create-key-generator, and create-stats-gatherer, by calling the
     # corresponding code as a subroutine.
 
@@ -56,16 +56,26 @@ class CreateNode(unittest.TestCase):
         rc = runner.runner(argv, stdout=out, stderr=err)
         return rc, out.getvalue(), err.getvalue()
 
-    def test_client(self):
-        basedir = self.workdir("test_client")
-        c1 = os.path.join(basedir, "c1")
-        argv = ["--quiet", "create-client", "--basedir", c1]
+    def test_node(self, command="create-node"):
+        basedir = self.workdir("test_node")
+        c1 = os.path.join(basedir, command + "-c1")
+        argv = ["--quiet", command, "--basedir", c1]
         rc, out, err = self.run_tahoe(argv)
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
         self.failUnlessEqual(rc, 0)
         self.failUnless(os.path.exists(c1))
         self.failUnless(os.path.exists(os.path.join(c1, "tahoe-client.tac")))
+        
+        # tahoe.cfg should exist, and should have storage enabled for
+        # 'create-node', and disabled for 'create-client'.
+        tahoe_cfg = os.path.join(c1, "tahoe.cfg")
+        self.failUnless(os.path.exists(tahoe_cfg))
+        content = open(tahoe_cfg).read()
+        if command == "create-client":
+            self.failUnless("\n[storage]\nenabled = false\n" in content)
+        else:
+            self.failUnless("\n[storage]\nenabled = true\n" in content)
 
         # creating the client a second time should be rejected
         rc, out, err = self.run_tahoe(argv)
@@ -79,17 +89,21 @@ class CreateNode(unittest.TestCase):
             self.failIf(re.search("[\S][^\.!?]$", line), (line,))
 
         # test that the non --basedir form works too
-        c2 = os.path.join(basedir, "c2")
-        argv = ["--quiet", "create-client", c2]
+        c2 = os.path.join(basedir, command + "c2")
+        argv = ["--quiet", command, c2]
         rc, out, err = self.run_tahoe(argv)
         self.failUnless(os.path.exists(c2))
         self.failUnless(os.path.exists(os.path.join(c2, "tahoe-client.tac")))
 
         # make sure it rejects too many arguments
-        argv = ["create-client", "basedir", "extraarg"]
+        argv = [command, "basedir", "extraarg"]
         self.failUnlessRaises(usage.UsageError,
                               runner.runner, argv,
                               run_by_human=False)
+
+    def test_client(self):
+        # create-client should behave like create-node --no-storage.
+        self.test_node(command="create-client")
 
     def test_introducer(self):
         basedir = self.workdir("test_introducer")
@@ -347,7 +361,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         PORTNUMFILE = os.path.join(c1, "client.port")
 
-        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-client", "--basedir", c1, "--webport", "0"], env=os.environ)
+        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-node", "--basedir", c1, "--webport", "0"], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)

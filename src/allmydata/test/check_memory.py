@@ -228,7 +228,7 @@ this file are ignored.
         log.msg("MAKING CLIENT")
         clientdir = self.clientdir = os.path.join(self.testdir, "client")
         quiet = StringIO()
-        create_node.create_client(clientdir, {}, out=quiet)
+        create_node.create_node(clientdir, {}, out=quiet)
         log.msg("DONE MAKING CLIENT")
         f = open(os.path.join(clientdir, "introducer.furl"), "w")
         f.write(self.introducer_furl + "\n")

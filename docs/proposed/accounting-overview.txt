@@ -239,7 +239,7 @@ to be set by end users.
 The process starts with Bob the storage server operator, who has just created
 a new Storage Server:
 
- tahoe create-client
+ tahoe create-node
  --> creates ~/.tahoe
  # edit ~/.tahoe/tahoe.cfg, add introducer.furl, configure storage, etc
 

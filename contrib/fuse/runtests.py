@@ -187,7 +187,7 @@ class SystemTest (object):
         self.clientbase = None
 
     ## Top-level flow control:
-    # These "*_layer" methods call eachother in a linear fashion, using
+    # These "*_layer" methods call each other in a linear fashion, using
     # exception unwinding to do cleanup properly.  Each "layer" invokes
     # a deeper layer, and each layer does its own cleanup upon exit.
 
@@ -305,7 +305,7 @@ class SystemTest (object):
 
         base = os.path.join(self.testroot, 'client_%d' % (clientnum,))
 
-        output = self.run_tahoe('create-client', '--basedir', base)
+        output = self.run_tahoe('create-node', '--basedir', base)
         self.check_tahoe_output(output, ExpectedCreationOutput, base)
 
         if clientnum == 0:

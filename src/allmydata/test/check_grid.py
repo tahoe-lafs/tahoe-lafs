@@ -23,7 +23,6 @@ down the node after the test finishes.
 To set up the client node, do the following:
 
   tahoe create-client DIR
-  touch DIR/no_storage
   populate DIR/introducer.furl
   tahoe start DIR
   tahoe add-alias -d DIR testgrid `tahoe mkdir -d DIR`

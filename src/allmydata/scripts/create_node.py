@@ -5,8 +5,8 @@ from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
 
 class CreateClientOptions(BasedirMixin, usage.Options):
     optParameters = [
-        ("basedir", "C", None, "which directory to create the client in"),
-        # we provide create-client -time options for the most common
+        ("basedir", "C", None, "which directory to create the node in"),
+        # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
         ("nickname", "n", None, "nickname for this node"),
@@ -14,6 +14,8 @@ class CreateClientOptions(BasedirMixin, usage.Options):
         ("webport", "p", "tcp:3456:interface=127.0.0.1",
          "which TCP port to run the HTTP interface on. Use 'none' to disable."),
         ]
+
+class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "do not offer storage service to other nodes"),
         ]
@@ -81,7 +83,7 @@ def write_node_config(c, config):
     c.write("\n")
 
 
-def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
+def create_node(basedir, config, out=sys.stdout, err=sys.stderr):
     if os.path.exists(basedir):
         if os.listdir(basedir):
             print >>err, "The base directory \"%s\", which is \"%s\" is not empty." % (basedir, os.path.abspath(basedir))
@@ -127,12 +129,18 @@ def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
 
     from allmydata.util import fileutil
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
-    print >>out, "client created in %s" % basedir
+    print >>out, "Node created in %s" % basedir
     if not config.get("introducer", ""):
         print >>out, " Please set [client]introducer.furl= in tahoe.cfg!"
         print >>out, " The node cannot connect to a grid without it."
     if not config.get("nickname", ""):
         print >>out, " Please set [node]nickname= in tahoe.cfg"
+
+
+def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
+    config['no-storage'] = True
+    return create_node(basedir, config, out=out, err=err)
+
 
 def create_introducer(basedir, config, out=sys.stdout, err=sys.stderr):
     if os.path.exists(basedir):
@@ -152,15 +160,18 @@ def create_introducer(basedir, config, out=sys.stdout, err=sys.stderr):
     write_node_config(c, config)
     c.close()
 
-    print >>out, "introducer created in %s" % basedir
+    print >>out, "Introducer created in %s" % basedir
+
 
 subCommands = [
-    ["create-client", None, CreateClientOptions, "Create a client node."],
-    ["create-introducer", None, CreateIntroducerOptions, "Create a introducer node."],
+    ["create-node", None, CreateNodeOptions, "Create a node that acts as a client, server or both."],
+    ["create-client", None, CreateClientOptions, "Create a client node (with storage initially disabled)."],
+    ["create-introducer", None, CreateIntroducerOptions, "Create an introducer."],
 
 ]
 
 dispatch = {
+    "create-node": create_node,
     "create-client": create_client,
     "create-introducer": create_introducer,
     }
