@@ -13,20 +13,27 @@ from allmydata.test import common_util
 import allmydata
 
 bintahoe = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(allmydata.__file__))), 'bin', 'tahoe')
-if sys.platform == "win32":
+if sys.platform == "win32":  # TODO: should this include cygwin?
     bintahoe += ".exe"
 
-class SkipOnCygwinMixin:
-    def skip_on_cygwin(self):
+
+class SkipMixin:
+    def skip_if_cannot_run_bintahoe(self):
         if "cygwin" in sys.platform.lower():
             raise unittest.SkipTest("We don't know how to make this test work on cygwin: spawnProcess seems to hang forever. We don't know if 'bin/tahoe start' can be run on cygwin.")
-
-class TheRightCode(common_util.SignalMixin, unittest.TestCase,
-                   SkipOnCygwinMixin):
-    def test_path(self):
-        self.skip_on_cygwin()
         if not os.path.exists(bintahoe):
-            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
+            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location (%s), and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of Tahoe. Perhaps running 'setup.py build' again will help." % (bintahoe,))
+
+    def skip_if_cannot_daemonize(self):
+        self.skip_if_cannot_run_bintahoe()
+        if runtime.platformType == "win32":
+            # twistd on windows doesn't daemonize. cygwin should work normally.
+            raise unittest.SkipTest("twistd does not fork under windows")
+
+
+class TheRightCode(common_util.SignalMixin, unittest.TestCase, SkipMixin):
+    def test_path(self):
+        self.skip_if_cannot_run_bintahoe()
         d = utils.getProcessOutputAndValue(bintahoe, args=["--version-and-path"], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
@@ -40,6 +47,7 @@ class TheRightCode(common_util.SignalMixin, unittest.TestCase,
                             (out, err, rc_or_sig, required_ver_and_path))
         d.addCallback(_cb)
         return d
+
 
 class CreateNode(unittest.TestCase):
     # exercise "tahoe create-node", create-introducer,
@@ -227,7 +235,7 @@ class CreateNode(unittest.TestCase):
 
 
 class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
-              SkipOnCygwinMixin):
+              SkipMixin):
     # exercise "tahoe start", for both introducer, client node, and
     # key-generator, by spawning "tahoe start" as a subprocess. This doesn't
     # get us figleaf-based line-level coverage, but it does a better job of
@@ -246,12 +254,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         return basedir
 
     def test_introducer(self):
-        self.skip_on_cygwin()
-        if not os.path.exists(bintahoe):
-            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
-        if runtime.platformType == "win32":
-            # twistd on windows doesn't daemonize. cygwin works normally.
-            raise unittest.SkipTest("twistd does not fork under windows")
+        self.skip_if_cannot_daemonize()
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
@@ -349,12 +352,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
     test_introducer.timeout = 480 # This hit the 120-second timeout on "François Lenny-armv5tel", then it hit a 240-second timeout on our feisty2.5 buildslave: http://allmydata.org/buildbot/builders/feisty2.5/builds/2381/steps/test/logs/test.log
 
     def test_client(self):
-        self.skip_on_cygwin()
-        if not os.path.exists(bintahoe):
-            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
-        if runtime.platformType == "win32":
-            # twistd on windows doesn't daemonize. cygwin works normally.
-            raise unittest.SkipTest("twistd does not fork under windows")
+        self.skip_if_cannot_daemonize()
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
@@ -452,9 +450,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         return d
 
     def test_baddir(self):
-        self.skip_on_cygwin()
-        if not os.path.exists(bintahoe):
-            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
+        self.skip_if_cannot_daemonize()
         basedir = self.workdir("test_baddir")
         fileutil.make_dirs(basedir)
 
@@ -488,12 +484,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         return d
 
     def test_keygen(self):
-        self.skip_on_cygwin()
-        if not os.path.exists(bintahoe):
-            raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location, and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of tahoe.")
-        if runtime.platformType == "win32":
-            # twistd on windows doesn't daemonize. cygwin works normally.
-            raise unittest.SkipTest("twistd does not fork under windows")
+        self.skip_if_cannot_daemonize()
         basedir = self.workdir("test_keygen")
         c1 = os.path.join(basedir, "c1")
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
