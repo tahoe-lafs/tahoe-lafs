@@ -65,9 +65,11 @@ class BackerUpper:
         self.files_uploaded = 0
         self.files_reused = 0
         self.files_checked = 0
+        self.files_skipped = 0
         self.directories_created = 0
         self.directories_reused = 0
         self.directories_checked = 0
+        self.directories_skipped = 0
 
     def run(self):
         options = self.options
@@ -123,16 +125,25 @@ class BackerUpper:
 
         if self.verbosity >= 1:
             print >>stdout, (" %d files uploaded (%d reused), "
-                             "%d directories created (%d reused)"
+                             "%d files skipped, "
+                             "%d directories created (%d reused), "
+                             "%d directories skipped"
                              % (self.files_uploaded,
                                 self.files_reused,
+                                self.files_skipped,
                                 self.directories_created,
-                                self.directories_reused))
+                                self.directories_reused,
+                                self.directories_skipped))
             if self.verbosity >= 2:
                 print >>stdout, (" %d files checked, %d directories checked"
                                  % (self.files_checked,
                                     self.directories_checked))
             print >>stdout, " backup done, elapsed time: %s" % elapsed_time
+
+        # The command exits with code 2 if files or directories were skipped
+        if self.files_skipped or self.directories_skipped:
+            return 2
+
         # done!
         return 0
 
@@ -140,13 +151,24 @@ class BackerUpper:
         if self.verbosity >= 2:
             print >>self.options.stdout, msg
 
+    def warn(self, msg):
+        print >>self.options.stderr, msg
+
     def process(self, localpath):
         # returns newdircap
 
         self.verboseprint("processing %s" % localpath)
         create_contents = {} # childname -> (type, rocap, metadata)
         compare_contents = {} # childname -> rocap
-        for child in self.options.filter_listdir(os.listdir(localpath)):
+
+        try:
+            children = os.listdir(localpath)
+        except EnvironmentError:
+            self.directories_skipped += 1
+            self.warn("WARNING: permission denied on directory %s" % localpath)
+            children = []
+
+        for child in self.options.filter_listdir(children):
             childpath = os.path.join(localpath, child)
             child = unicode(child)
             if os.path.isdir(childpath):
@@ -157,12 +179,17 @@ class BackerUpper:
                 create_contents[child] = ("dirnode", childcap, metadata)
                 compare_contents[child] = childcap
             elif os.path.isfile(childpath):
-                childcap, metadata = self.upload(childpath)
-                assert isinstance(childcap, str)
-                create_contents[child] = ("filenode", childcap, metadata)
-                compare_contents[child] = childcap
+                try:
+                    childcap, metadata = self.upload(childpath)
+                    assert isinstance(childcap, str)
+                    create_contents[child] = ("filenode", childcap, metadata)
+                    compare_contents[child] = childcap
+                except EnvironmentError:
+                    self.files_skipped += 1
+                    self.warn("WARNING: permission denied on file %s" % childpath)
             else:
-                raise BackupProcessingError("Cannot backup child %r" % childpath)
+                self.files_skipped += 1
+                self.warn("WARNING: cannot backup special file %s" % childpath)
 
         must_create, r = self.check_backupdb_directory(compare_contents)
         if must_create:
@@ -245,6 +272,7 @@ class BackerUpper:
         r.did_check_healthy(cr)
         return False, r
 
+    # This function will raise an IOError exception when called on an unreadable file
     def upload(self, childpath):
         #self.verboseprint("uploading %s.." % childpath)
         metadata = get_local_metadata(childpath)

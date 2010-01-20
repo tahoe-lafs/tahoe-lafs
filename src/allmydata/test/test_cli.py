@@ -1072,7 +1072,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         f.close()
 
     def count_output(self, out):
-        mo = re.search(r"(\d)+ files uploaded \((\d+) reused\), (\d+) directories created \((\d+) reused\)", out)
+        mo = re.search(r"(\d)+ files uploaded \((\d+) reused\), "
+                        "(\d)+ files skipped, "
+                        "(\d+) directories created \((\d+) reused\), "
+                        "(\d+) directories skipped", out)
         return [int(s) for s in mo.groups()]
 
     def count_output2(self, out):
@@ -1117,13 +1120,15 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         def _check0((rc, out, err)):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
-            fu, fr, dc, dr = self.count_output(out)
+            fu, fr, fs, dc, dr, ds = self.count_output(out)
             # foo.txt, bar.txt, blah.txt
             self.failUnlessEqual(fu, 3)
             self.failUnlessEqual(fr, 0)
+            self.failUnlessEqual(fs, 0)
             # empty, home, home/parent, home/parent/subdir
             self.failUnlessEqual(dc, 4)
             self.failUnlessEqual(dr, 0)
+            self.failUnlessEqual(ds, 0)
         d.addCallback(_check0)
 
         d.addCallback(lambda res: self.do_cli("ls", "--uri", "tahoe:backups"))
@@ -1172,13 +1177,15 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             if have_bdb:
-                fu, fr, dc, dr = self.count_output(out)
+                fu, fr, fs, dc, dr, ds = self.count_output(out)
                 # foo.txt, bar.txt, blah.txt
                 self.failUnlessEqual(fu, 0)
                 self.failUnlessEqual(fr, 3)
+                self.failUnlessEqual(fs, 0)
                 # empty, home, home/parent, home/parent/subdir
                 self.failUnlessEqual(dc, 0)
                 self.failUnlessEqual(dr, 4)
+                self.failUnlessEqual(ds, 0)
         d.addCallback(_check4a)
 
         if have_bdb:
@@ -1203,14 +1210,16 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
                 # re-use all of them too.
                 self.failUnlessEqual(err, "")
                 self.failUnlessEqual(rc, 0)
-                fu, fr, dc, dr = self.count_output(out)
+                fu, fr, fs, dc, dr, ds = self.count_output(out)
                 fchecked, dchecked = self.count_output2(out)
                 self.failUnlessEqual(fchecked, 3)
                 self.failUnlessEqual(fu, 0)
                 self.failUnlessEqual(fr, 3)
+                self.failUnlessEqual(fs, 0)
                 self.failUnlessEqual(dchecked, 4)
                 self.failUnlessEqual(dc, 0)
                 self.failUnlessEqual(dr, 4)
+                self.failUnlessEqual(ds, 0)
             d.addCallback(_check4b)
 
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
@@ -1247,14 +1256,16 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             if have_bdb:
-                fu, fr, dc, dr = self.count_output(out)
+                fu, fr, fs, dc, dr, ds = self.count_output(out)
                 # new foo.txt, surprise file, subfile, empty
                 self.failUnlessEqual(fu, 4)
                 # old bar.txt
                 self.failUnlessEqual(fr, 1)
+                self.failUnlessEqual(fs, 0)
                 # home, parent, subdir, blah.txt, surprisedir
                 self.failUnlessEqual(dc, 5)
                 self.failUnlessEqual(dr, 0)
+                self.failUnlessEqual(ds, 0)
         d.addCallback(_check5a)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check6((rc, out, err)):
@@ -1355,6 +1366,107 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         filtered = list(backup_options.filter_listdir(iter(root_listdir)))
         _check_filtering(filtered, root_listdir, ('lib.a', '_darcs', 'subdir'),
                          ('nice_doc.lyx',))
+
+    def test_ignore_symlinks(self):
+        if not hasattr(os, 'symlink'):
+            raise unittest.SkipTest("There is no symlink on this platform.")
+
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+
+        source = os.path.join(self.basedir, "home")
+        self.writeto("foo.txt", "foo")
+        os.symlink(os.path.join(source, "foo.txt"), os.path.join(source, "foo2.txt"))
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda res: self.do_cli("backup", "--verbose", source, "tahoe:test"))
+
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 2)
+            self.failUnlessEqual(err, "WARNING: cannot backup special file %s\n" % os.path.join(source, "foo2.txt"))
+
+            fu, fr, fs, dc, dr, ds = self.count_output(out)
+            # foo.txt
+            self.failUnlessEqual(fu, 1)
+            self.failUnlessEqual(fr, 0)
+            # foo2.txt
+            self.failUnlessEqual(fs, 1)
+            # home
+            self.failUnlessEqual(dc, 1)
+            self.failUnlessEqual(dr, 0)
+            self.failUnlessEqual(ds, 0)
+
+        d.addCallback(_check)
+        return d
+
+    def test_ignore_unreadable_file(self):
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+
+        source = os.path.join(self.basedir, "home")
+        self.writeto("foo.txt", "foo")
+        os.chmod(os.path.join(source, "foo.txt"), 0000)
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:test"))
+
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 2)
+            self.failUnlessEqual(err, "WARNING: permission denied on file %s\n" % os.path.join(source, "foo.txt"))
+
+            fu, fr, fs, dc, dr, ds = self.count_output(out)
+            self.failUnlessEqual(fu, 0)
+            self.failUnlessEqual(fr, 0)
+            # foo.txt
+            self.failUnlessEqual(fs, 1)
+            # home
+            self.failUnlessEqual(dc, 1)
+            self.failUnlessEqual(dr, 0)
+            self.failUnlessEqual(ds, 0)
+        d.addCallback(_check)
+
+        # This is necessary for the temp files to be correctly removed
+        def _cleanup(self):
+            os.chmod(os.path.join(source, "foo.txt"), 0644)
+        d.addCallback(_cleanup)
+        d.addErrback(_cleanup)
+
+        return d
+
+    def test_ignore_unreadable_directory(self):
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+
+        source = os.path.join(self.basedir, "home")
+        os.mkdir(source)
+        os.mkdir(os.path.join(source, "test"))
+        os.chmod(os.path.join(source, "test"), 0000)
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:test"))
+
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 2)
+            self.failUnlessEqual(err, "WARNING: permission denied on directory %s\n" % os.path.join(source, "test"))
+
+            fu, fr, fs, dc, dr, ds = self.count_output(out)
+            self.failUnlessEqual(fu, 0)
+            self.failUnlessEqual(fr, 0)
+            self.failUnlessEqual(fs, 0)
+            # home, test
+            self.failUnlessEqual(dc, 2)
+            self.failUnlessEqual(dr, 0)
+            # test
+            self.failUnlessEqual(ds, 1)
+        d.addCallback(_check)
+
+        # This is necessary for the temp files to be correctly removed
+        def _cleanup(self):
+            os.chmod(os.path.join(source, "test"), 0655)
+        d.addCallback(_cleanup)
+        d.addErrback(_cleanup)
+        return d
+
 
 class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
