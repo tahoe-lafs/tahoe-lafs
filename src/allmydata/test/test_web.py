@@ -2040,6 +2040,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(_after_mkdir)
         return d
 
+    def test_POST_mkdir_no_parentdir_noredirect2(self):
+        # make sure form-based arguments (as on the welcome page) still work
+        d = self.POST("/uri", t="mkdir")
+        def _after_mkdir(res):
+            uri.DirectoryURI.init_from_string(res)
+        d.addCallback(_after_mkdir)
+        d.addErrback(self.explain_web_error)
+        return d
+
     def test_POST_mkdir_no_parentdir_redirect(self):
         d = self.POST("/uri?t=mkdir&redirect_to_result=true")
         d.addBoth(self.shouldRedirect, None, statuscode='303')
@@ -2047,6 +2056,16 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             target = urllib.unquote(target)
             self.failUnless(target.startswith("uri/URI:DIR2:"), target)
         d.addCallback(_check_target)
+        return d
+
+    def test_POST_mkdir_no_parentdir_redirect2(self):
+        d = self.POST("/uri", t="mkdir", redirect_to_result="true")
+        d.addBoth(self.shouldRedirect, None, statuscode='303')
+        def _check_target(target):
+            target = urllib.unquote(target)
+            self.failUnless(target.startswith("uri/URI:DIR2:"), target)
+        d.addCallback(_check_target)
+        d.addErrback(self.explain_web_error)
         return d
 
     def _create_initial_children(self):

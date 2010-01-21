@@ -91,12 +91,19 @@ def POSTUnlinkedSSK(req, client):
 
 def POSTUnlinkedCreateDirectory(req, client):
     # "POST /uri?t=mkdir", to create an unlinked directory.
-    req.content.seek(0)
-    kids_json = req.content.read()
-    if kids_json:
-        raise WebError("t=mkdir does not accept children=, "
-                       "try t=mkdir-with-children instead",
-                       http.BAD_REQUEST)
+    ct = req.getHeader("content-type") or ""
+    if not ct.startswith("multipart/form-data"):
+        # guard against accidental attempts to call t=mkdir as if it were
+        # t=mkdir-with-children, but make sure we tolerate the usual HTML
+        # create-directory form (in which the t=mkdir and redirect_to_result=
+        # and other arguments can be passed encoded as multipath/form-data,
+        # in the request body).
+        req.content.seek(0)
+        kids_json = req.content.read()
+        if kids_json:
+            raise WebError("t=mkdir does not accept children=, "
+                           "try t=mkdir-with-children instead",
+                           http.BAD_REQUEST)
     d = client.create_dirnode()
     redirect = get_arg(req, "redirect_to_result", "false")
     if boolean_of_arg(redirect):
