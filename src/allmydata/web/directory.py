@@ -220,7 +220,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d = self._POST_start_deep_stats(ctx)
         elif t == "stream-manifest":
             d = self._POST_stream_manifest(ctx)
-        elif t == "set_children":
+        elif t == "set_children" or t == "set-children":
             d = self._POST_set_children(req)
         else:
             raise WebError("POST to a directory with bad t=%s" % t)

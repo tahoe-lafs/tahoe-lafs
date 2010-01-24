@@ -2236,7 +2236,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                              self.POST, self.public_url + "/foo", t="BOGUS")
         return d
 
-    def test_POST_set_children(self):
+    def test_POST_set_children(self, command_name="set_children"):
         contents9, n9, newuri9 = self.makefile(9)
         contents10, n10, newuri10 = self.makefile(10)
         contents11, n11, newuri11 = self.makefile(11)
@@ -2265,7 +2265,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                                } ]
                     }""" % (newuri9, newuri10, newuri11)
 
-        url = self.webish_url + self.public_url + "/foo" + "?t=set_children"
+        url = self.webish_url + self.public_url + "/foo" + "?t=" + command_name
 
         d = client.getPage(url, method="POST", postdata=reqbody)
         def _then(res):
@@ -2276,6 +2276,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(_then)
         d.addErrback(self.dump_error)
         return d
+
+    def test_POST_set_children_with_hyphen(self):
+        return self.test_POST_set_children(command_name="set-children")
 
     def test_POST_put_uri(self):
         contents, n, newuri = self.makefile(8)

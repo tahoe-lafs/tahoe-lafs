@@ -666,6 +666,7 @@ PUT /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri
 === Adding multiple files or directories to a parent directory at once ===
 
 POST /uri/$DIRCAP/[SUBDIRS..]?t=set_children
+POST /uri/$DIRCAP/[SUBDIRS..]?t=set-children    (Tahoe >= v1.6)
 
   This command adds multiple children to a directory in a single operation.
   It reads the request body and interprets it as a JSON-encoded description
@@ -694,6 +695,11 @@ POST /uri/$DIRCAP/[SUBDIRS..]?t=set_children
   currently placed here are "linkcrtime" and "linkmotime". For details, see
   the section above entitled "Get Information About A File Or Directory (as
   JSON)", in the "About the metadata" subsection.
+  
+  Note that this command was introduced with the name "set_children", which
+  uses an underscore rather than a hyphen as other multi-word command names
+  do. The variant with a hyphen is now accepted, but clients that desire
+  backward compatibility should continue to use "set_children".
 
 
 === Deleting a File or Directory ===
