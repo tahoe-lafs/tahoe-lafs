@@ -250,11 +250,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             # which created the final directory (i.e. us)
             return defer.succeed(self.node.get_uri()) # TODO: urlencode
         name = name.decode("utf-8")
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
+        # TODO: decide on replace= behavior, see #903
+        #replace = boolean_of_arg(get_arg(req, "replace", "false"))
         req.content.seek(0)
         kids_json = req.content.read()
         kids = convert_children_json(self.client.nodemaker, kids_json)
-        d = self.node.create_subdirectory(name, kids, overwrite=replace)
+        d = self.node.create_subdirectory(name, kids, overwrite=False)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 
@@ -266,11 +267,11 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             return defer.succeed(self.node.get_uri()) # TODO: urlencode
         name = name.decode("utf-8")
         # TODO: decide on replace= behavior, see #903
-        #replace = boolean_of_arg(get_arg(req, "replace", "true"))
+        #replace = boolean_of_arg(get_arg(req, "replace", "false"))
         req.content.seek(0)
         kids_json = req.content.read()
         kids = convert_children_json(self.client.nodemaker, kids_json)
-        d = self.node.create_subdirectory(name, kids, mutable=False)
+        d = self.node.create_subdirectory(name, kids, overwrite=False, mutable=False)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 
