@@ -224,6 +224,9 @@ but a few notes are worth stating here:
 
 == Log Messages During Unit Tests ==
 
+*** WARNING: setting the environment variables below may cause some tests to   ***
+*** fail spuriously. See ticket #923 for the status of a fix for this problem. ***
+
 If a test is failing and you aren't sure why, start by enabling
 FLOGTOTWISTED=1 like this:
 
