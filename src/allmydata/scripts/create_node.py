@@ -164,9 +164,9 @@ def create_introducer(basedir, config, out=sys.stdout, err=sys.stderr):
 
 
 subCommands = [
-    ["create-client", None, CreateClientOptions, "Create a client node."],
-    ["create-introducer", None, CreateIntroducerOptions, "Create a introducer node."],
-
+    ["create-node", None, CreateNodeOptions, "Create a node that acts as a client, server or both."],
+    ["create-client", None, CreateClientOptions, "Create a client node (with storage initially disabled)."],
+    ["create-introducer", None, CreateIntroducerOptions, "Create an introducer node."],
 ]
 
 dispatch = {
