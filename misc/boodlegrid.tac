@@ -79,7 +79,8 @@ class Listener:
             #self.sound("mech/metal-clash.aiff")
         if ("web: %(clientip)s" in format
             and m.get("method") == "POST"
-            and "t=set_children" in m.get("uri", "")):
+            and ("t=set_children" in m.get("uri", "")       # FIXME: may give false-positives
+                 or "t=set-children" in m.get("uri", ""))):
             self.sound("mech/clock-clang.aiff")
 
         # generic messages
