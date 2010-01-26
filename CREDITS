@@ -69,7 +69,7 @@ D: mathematical analysis, code review, Win32 documentation
 
 N: Nils Durner
 E: ndurner@googlemail.com
-D: security bug report (cleartext login allmydata.com), darcsver bugfix
+D: security bug report, darcsver fix, Windows build docs, ftpd docs, bzr patch
 
 N: Kevin Reid
 E: kpreid@mac.com
@@ -86,7 +86,7 @@ D: patch Makefile to build .debs for Ubuntu Intrepid
 
 N: Kevan Carstensen
 E: kevan@isnotajoke.com
-D: optimize mutable files and directories, safer "tahoe mv", code review
+D: optimize mutable files and directories, safer "tahoe mv", code review, docs
 
 N: Marc Tooley
 W: http://rune.ca
@@ -99,4 +99,4 @@ D: edited docs/running.html
 N: David-Sarah Hopwood
 E: david-sarah@jacaranda.org
 P: 12F8 A95C C90B B68E 369C 003D 5947 3C63 3CB3 A807
-D: ticket gardening, Windows, crypto and usability, code review
+D: ticket gardening, Windows, crypto, usability, cli, wui, code review, docs
