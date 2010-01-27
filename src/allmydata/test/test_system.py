@@ -17,7 +17,7 @@ from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
      NoSuchChildError, NoSharesError
 from allmydata.monitor import Monitor
-from allmydata.mutable.common import NotMutableError
+from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
 from foolscap.api import DeadReferenceError
 from twisted.python.failure import Failure
@@ -890,11 +890,11 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             d1.addCallback(lambda res: dirnode.list())
             d1.addCallback(self.log, "dirnode.list")
 
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mkdir(nope)", None, dirnode.create_subdirectory, u"nope"))
+            d1.addCallback(lambda res: self.shouldFail2(NotWriteableError, "mkdir(nope)", None, dirnode.create_subdirectory, u"nope"))
 
             d1.addCallback(self.log, "doing add_file(ro)")
             ut = upload.Data("I will disappear, unrecorded and unobserved. The tragedy of my demise is made more poignant by its silence, but this beauty is not for you to ever know.", convergence="99i-p1x4-xd4-18yc-ywt-87uu-msu-zo -- completely and totally unguessable string (unless you read this)")
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "add_file(nope)", None, dirnode.add_file, u"hope", ut))
+            d1.addCallback(lambda res: self.shouldFail2(NotWriteableError, "add_file(nope)", None, dirnode.add_file, u"hope", ut))
 
             d1.addCallback(self.log, "doing get(ro)")
             d1.addCallback(lambda res: dirnode.get(u"mydata992"))
@@ -902,17 +902,17 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                            self.failUnless(IFileNode.providedBy(filenode)))
 
             d1.addCallback(self.log, "doing delete(ro)")
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "delete(nope)", None, dirnode.delete, u"mydata992"))
+            d1.addCallback(lambda res: self.shouldFail2(NotWriteableError, "delete(nope)", None, dirnode.delete, u"mydata992"))
 
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "set_uri(nope)", None, dirnode.set_uri, u"hopeless", self.uri, self.uri))
+            d1.addCallback(lambda res: self.shouldFail2(NotWriteableError, "set_uri(nope)", None, dirnode.set_uri, u"hopeless", self.uri, self.uri))
 
             d1.addCallback(lambda res: self.shouldFail2(NoSuchChildError, "get(missing)", "missing", dirnode.get, u"missing"))
 
             personal = self._personal_node
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mv from readonly", None, dirnode.move_child_to, u"mydata992", personal, u"nope"))
+            d1.addCallback(lambda res: self.shouldFail2(NotWriteableError, "mv from readonly", None, dirnode.move_child_to, u"mydata992", personal, u"nope"))
 
             d1.addCallback(self.log, "doing move_child_to(ro)2")
-            d1.addCallback(lambda res: self.shouldFail2(NotMutableError, "mv to readonly", None, personal.move_child_to, u"sekrit data", dirnode, u"nope"))
+            d1.addCallback(lambda res: self.shouldFail2(NotWriteableError, "mv to readonly", None, personal.move_child_to, u"sekrit data", dirnode, u"nope"))
 
             d1.addCallback(self.log, "finished with _got_s2ro")
             return d1

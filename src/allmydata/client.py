@@ -471,13 +471,16 @@ class Client(node.Node, pollmixin.PollMixin):
     # dirnodes. The first takes a URI and produces a filenode or (new-style)
     # dirnode. The other three create brand-new filenodes/dirnodes.
 
-    def create_node_from_uri(self, writecap, readcap=None):
-        # this returns synchronously.
-        return self.nodemaker.create_from_cap(writecap, readcap)
+    def create_node_from_uri(self, write_uri, read_uri=None, deep_immutable=False, name="<unknown name>"):
+        # This returns synchronously.
+        # Note that it does *not* validate the write_uri and read_uri; instead we
+        # may get an opaque node if there were any problems.
+        return self.nodemaker.create_from_cap(write_uri, read_uri, deep_immutable=deep_immutable, name=name)
 
     def create_dirnode(self, initial_children={}):
         d = self.nodemaker.create_new_mutable_directory(initial_children)
         return d
+
     def create_immutable_dirnode(self, children, convergence=None):
         return self.nodemaker.create_immutable_directory(children, convergence)
 

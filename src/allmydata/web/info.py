@@ -21,6 +21,8 @@ class MoreInfo(rend.Page):
     def get_type(self):
         node = self.original
         if IDirectoryNode.providedBy(node):
+            if not node.is_mutable():
+                return "immutable directory"
             return "directory"
         if IFileNode.providedBy(node):
             si = node.get_storage_index()
@@ -28,7 +30,7 @@ class MoreInfo(rend.Page):
                 if node.is_mutable():
                     return "mutable file"
                 return "immutable file"
-            return "LIT file"
+            return "immutable LIT file"
         return "unknown"
 
     def render_title(self, ctx, data):
@@ -68,9 +70,9 @@ class MoreInfo(rend.Page):
 
     def render_directory_writecap(self, ctx, data):
         node = self.original
-        if node.is_readonly():
-            return ""
         if not IDirectoryNode.providedBy(node):
+            return ""
+        if node.is_readonly():
             return ""
         return ctx.tag[node.get_uri()]
 
@@ -86,27 +88,23 @@ class MoreInfo(rend.Page):
             return ""
         return ctx.tag[node.get_verify_cap().to_string()]
 
-
     def render_file_writecap(self, ctx, data):
         node = self.original
         if IDirectoryNode.providedBy(node):
             node = node._node
-        if ((IDirectoryNode.providedBy(node) or IFileNode.providedBy(node))
-            and node.is_readonly()):
+        write_uri = node.get_write_uri()
+        if not write_uri:
             return ""
-        writecap = node.get_uri()
-        if not writecap:
-            return ""
-        return ctx.tag[writecap]
+        return ctx.tag[write_uri]
 
     def render_file_readcap(self, ctx, data):
         node = self.original
         if IDirectoryNode.providedBy(node):
             node = node._node
-        readcap = node.get_readonly_uri()
-        if not readcap:
+        read_uri = node.get_readonly_uri()
+        if not read_uri:
             return ""
-        return ctx.tag[readcap]
+        return ctx.tag[read_uri]
 
     def render_file_verifycap(self, ctx, data):
         node = self.original

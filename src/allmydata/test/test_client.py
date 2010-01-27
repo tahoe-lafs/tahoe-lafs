@@ -288,11 +288,15 @@ class NodeMaker(unittest.TestCase):
         self.failUnless(n.is_readonly())
         self.failUnless(n.is_mutable())
 
-        future = "x-tahoe-crazy://future_cap_format."
-        n = c.create_node_from_uri(future)
+        unknown_rw = "lafs://from_the_future"
+        unknown_ro = "lafs://readonly_from_the_future"
+        n = c.create_node_from_uri(unknown_rw, unknown_ro)
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failIf(IFileNode.providedBy(n))
         self.failIf(IImmutableFileNode.providedBy(n))
         self.failIf(IMutableFileNode.providedBy(n))
         self.failIf(IDirectoryNode.providedBy(n))
-        self.failUnlessEqual(n.get_uri(), future)
+        self.failUnless(n.is_unknown())
+        self.failUnlessEqual(n.get_uri(), unknown_rw)
+        self.failUnlessEqual(n.get_write_uri(), unknown_rw)
+        self.failUnlessEqual(n.get_readonly_uri(), "ro." + unknown_ro)

@@ -5,7 +5,7 @@ from twisted.application import service
 from twisted.internet import defer
 from twisted.internet.interfaces import IConsumer
 from foolscap.api import Referenceable
-from allmydata.interfaces import RIControlClient
+from allmydata.interfaces import RIControlClient, IFileNode
 from allmydata.util import fileutil, mathutil
 from allmydata.immutable import upload
 from twisted.python import log
@@ -67,7 +67,9 @@ class ControlServer(Referenceable, service.Service):
         return d
 
     def remote_download_from_uri_to_file(self, uri, filename):
-        filenode = self.parent.create_node_from_uri(uri)
+        filenode = self.parent.create_node_from_uri(uri, name=filename)
+        if not IFileNode.providedBy(filenode):
+            raise AssertionError("The URI does not reference a file.")
         c = FileWritingConsumer(filename)
         d = filenode.read(c)
         d.addCallback(lambda res: filename)
@@ -199,6 +201,8 @@ class SpeedTest:
             if i >= self.count:
                 return
             n = self.parent.create_node_from_uri(self.uris[i])
+            if not IFileNode.providedBy(n):
+                raise AssertionError("The URI does not reference a file.")
             if n.is_mutable():
                 d1 = n.download_best_version()
             else:

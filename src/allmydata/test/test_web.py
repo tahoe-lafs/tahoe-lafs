@@ -7,7 +7,7 @@ from twisted.internet import defer, reactor
 from twisted.web import client, error, http
 from twisted.python import failure, log
 from nevow import rend
-from allmydata import interfaces, uri, webish
+from allmydata import interfaces, uri, webish, dirnode
 from allmydata.storage.shares import get_share_file
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.immutable import upload, download
@@ -18,6 +18,7 @@ from allmydata.web import status, common
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.util import fileutil, base32
 from allmydata.util.consumer import download_to_data
+from allmydata.util.netstring import split_netstring
 from allmydata.test.common import FakeCHKFileNode, FakeMutableFileNode, \
      create_chk_filenode, WebErrorMixin, ShouldFailMixin, make_mutable_file_uri
 from allmydata.interfaces import IMutableFileNode
@@ -735,7 +736,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d = self.PUT(self.public_url + "/foo/new.txt", self.NEWFILE_CONTENTS)
         # TODO: we lose the response code, so we can't check this
         #self.failUnlessEqual(responsecode, 201)
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"new.txt")
+        d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"new.txt")
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(self._foo_node, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
@@ -746,7 +747,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                      self.NEWFILE_CONTENTS)
         # TODO: we lose the response code, so we can't check this
         #self.failUnlessEqual(responsecode, 201)
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"new.txt")
+        d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"new.txt")
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(self._foo_node, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
@@ -776,7 +777,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             self.failIf(u.is_readonly())
             return res
         d.addCallback(_check_uri)
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"new.txt")
+        d.addCallback(self.failUnlessURIMatchesRWChild, self._foo_node, u"new.txt")
         d.addCallback(lambda res:
                       self.failUnlessMutableChildContentsAre(self._foo_node,
                                                              u"new.txt",
@@ -796,7 +797,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d = self.PUT(self.public_url + "/foo/bar.txt", self.NEWFILE_CONTENTS)
         # TODO: we lose the response code, so we can't check this
         #self.failUnlessEqual(responsecode, 200)
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"bar.txt")
+        d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"bar.txt")
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(self._foo_node, u"bar.txt",
                                                       self.NEWFILE_CONTENTS))
@@ -821,7 +822,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_PUT_NEWFILEURL_mkdirs(self):
         d = self.PUT(self.public_url + "/foo/newdir/new.txt", self.NEWFILE_CONTENTS)
         fn = self._foo_node
-        d.addCallback(self.failUnlessURIMatchesChild, fn, u"newdir/new.txt")
+        d.addCallback(self.failUnlessURIMatchesROChild, fn, u"newdir/new.txt")
         d.addCallback(lambda res: self.failIfNodeHasChild(fn, u"new.txt"))
         d.addCallback(lambda res: self.failUnlessNodeHasChild(fn, u"newdir"))
         d.addCallback(lambda res:
@@ -954,7 +955,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless(re.search(get_sub, res), res)
         d.addCallback(_check)
 
-        # look at a directory which is readonly
+        # look at a readonly directory 
         d.addCallback(lambda res:
                       self.GET(self.public_url + "/reedownlee", followRedirect=True))
         def _check2(res):
@@ -1167,23 +1168,33 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_POST_NEWDIRURL_initial_children(self):
-        (newkids, filecap1, filecap2, filecap3,
-         dircap) = self._create_initial_children()
+        (newkids, caps) = self._create_initial_children()
         d = self.POST2(self.public_url + "/foo/newdir?t=mkdir-with-children",
                        simplejson.dumps(newkids))
         def _check(uri):
             n = self.s.create_node_from_uri(uri.strip())
             d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-imm", filecap1))
+                           self.failUnlessROChildURIIs(n, u"child-imm",
+                                                       caps['filecap1']))
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-mutable",
-                                                     filecap2))
+                           self.failUnlessRWChildURIIs(n, u"child-mutable",
+                                                       caps['filecap2']))
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-mutable-ro",
-                                                     filecap3))
+                           self.failUnlessROChildURIIs(n, u"child-mutable-ro",
+                                                       caps['filecap3']))
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"dirchild", dircap))
+                           self.failUnlessROChildURIIs(n, u"unknownchild-ro",
+                                                       caps['unknown_rocap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessRWChildURIIs(n, u"unknownchild-rw",
+                                                       caps['unknown_rwcap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"unknownchild-imm",
+                                                       caps['unknown_immcap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessRWChildURIIs(n, u"dirchild",
+                                                       caps['dircap']))
             return d2
         d.addCallback(_check)
         d.addCallback(lambda res:
@@ -1191,21 +1202,25 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessChildURIIs, u"child-imm", filecap1)
+        d.addCallback(self.failUnlessROChildURIIs, u"child-imm", caps['filecap1'])
         return d
 
     def test_POST_NEWDIRURL_immutable(self):
-        (newkids, filecap1, immdircap) = self._create_immutable_children()
+        (newkids, caps) = self._create_immutable_children()
         d = self.POST2(self.public_url + "/foo/newdir?t=mkdir-immutable",
                        simplejson.dumps(newkids))
         def _check(uri):
             n = self.s.create_node_from_uri(uri.strip())
             d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-imm", filecap1))
+                           self.failUnlessROChildURIIs(n, u"child-imm",
+                                                       caps['filecap1']))
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"dirchild-imm",
-                                                     immdircap))
+                           self.failUnlessROChildURIIs(n, u"unknownchild-imm",
+                                                       caps['unknown_immcap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"dirchild-imm",
+                                                       caps['immdircap']))
             return d2
         d.addCallback(_check)
         d.addCallback(lambda res:
@@ -1213,18 +1228,19 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessChildURIIs, u"child-imm", filecap1)
+        d.addCallback(self.failUnlessROChildURIIs, u"child-imm", caps['filecap1'])
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessChildURIIs, u"dirchild-imm", immdircap)
+        d.addCallback(self.failUnlessROChildURIIs, u"unknownchild-imm", caps['unknown_immcap'])
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessROChildURIIs, u"dirchild-imm", caps['immdircap'])
         d.addErrback(self.explain_web_error)
         return d
 
     def test_POST_NEWDIRURL_immutable_bad(self):
-        (newkids, filecap1, filecap2, filecap3,
-         dircap) = self._create_initial_children()
+        (newkids, caps) = self._create_initial_children()
         d = self.shouldFail2(error.Error, "test_POST_NEWDIRURL_immutable_bad",
                              "400 Bad Request",
-                             "a mkdir-immutable operation was given a child that was not itself immutable",
+                             "needed to be immutable but was not",
                              self.POST2,
                              self.public_url + "/foo/newdir?t=mkdir-immutable",
                              simplejson.dumps(newkids))
@@ -1346,19 +1362,51 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def failUnlessChildURIIs(self, node, name, expected_uri):
+    def failUnlessRWChildURIIs(self, node, name, expected_uri):
         assert isinstance(name, unicode)
         d = node.get_child_at_path(name)
         def _check(child):
+            self.failUnless(child.is_unknown() or not child.is_readonly())
             self.failUnlessEqual(child.get_uri(), expected_uri.strip())
+            self.failUnlessEqual(child.get_write_uri(), expected_uri.strip())
+            expected_ro_uri = self._make_readonly(expected_uri)
+            if expected_ro_uri:
+                self.failUnlessEqual(child.get_readonly_uri(), expected_ro_uri.strip())
         d.addCallback(_check)
         return d
 
-    def failUnlessURIMatchesChild(self, got_uri, node, name):
+    def failUnlessROChildURIIs(self, node, name, expected_uri):
         assert isinstance(name, unicode)
         d = node.get_child_at_path(name)
         def _check(child):
+            self.failUnless(child.is_unknown() or child.is_readonly())
+            self.failUnlessEqual(child.get_write_uri(), None)
+            self.failUnlessEqual(child.get_uri(), expected_uri.strip())
+            self.failUnlessEqual(child.get_readonly_uri(), expected_uri.strip())
+        d.addCallback(_check)
+        return d
+
+    def failUnlessURIMatchesRWChild(self, got_uri, node, name):
+        assert isinstance(name, unicode)
+        d = node.get_child_at_path(name)
+        def _check(child):
+            self.failUnless(child.is_unknown() or not child.is_readonly())
+            self.failUnlessEqual(child.get_uri(), got_uri.strip())
+            self.failUnlessEqual(child.get_write_uri(), got_uri.strip())
+            expected_ro_uri = self._make_readonly(got_uri)
+            if expected_ro_uri:
+                self.failUnlessEqual(child.get_readonly_uri(), expected_ro_uri.strip())
+        d.addCallback(_check)
+        return d
+
+    def failUnlessURIMatchesROChild(self, got_uri, node, name):
+        assert isinstance(name, unicode)
+        d = node.get_child_at_path(name)
+        def _check(child):
+            self.failUnless(child.is_unknown() or child.is_readonly())
+            self.failUnlessEqual(child.get_write_uri(), None)
             self.failUnlessEqual(got_uri.strip(), child.get_uri())
+            self.failUnlessEqual(got_uri.strip(), child.get_readonly_uri())
         d.addCallback(_check)
         return d
 
@@ -1369,7 +1417,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo", t="upload",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         fn = self._foo_node
-        d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
+        d.addCallback(self.failUnlessURIMatchesROChild, fn, u"new.txt")
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
@@ -1380,7 +1428,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo", t="upload",
                       file=(filename, self.NEWFILE_CONTENTS))
         fn = self._foo_node
-        d.addCallback(self.failUnlessURIMatchesChild, fn, filename)
+        d.addCallback(self.failUnlessURIMatchesROChild, fn, filename)
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, filename,
                                                       self.NEWFILE_CONTENTS))
@@ -1397,7 +1445,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                       name=filename,
                       file=("overridden", self.NEWFILE_CONTENTS))
         fn = self._foo_node
-        d.addCallback(self.failUnlessURIMatchesChild, fn, filename)
+        d.addCallback(self.failUnlessURIMatchesROChild, fn, filename)
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, filename,
                                                       self.NEWFILE_CONTENTS))
@@ -1499,7 +1547,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo", t="upload", mutable="true",
                       file=("new.txt", self.NEWFILE_CONTENTS))
         fn = self._foo_node
-        d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
+        d.addCallback(self.failUnlessURIMatchesRWChild, fn, u"new.txt")
         d.addCallback(lambda res:
                       self.failUnlessMutableChildContentsAre(fn, u"new.txt",
                                                              self.NEWFILE_CONTENTS))
@@ -1518,7 +1566,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                       self.POST(self.public_url + "/foo", t="upload",
                                 mutable="true",
                                 file=("new.txt", NEWER_CONTENTS)))
-        d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
+        d.addCallback(self.failUnlessURIMatchesRWChild, fn, u"new.txt")
         d.addCallback(lambda res:
                       self.failUnlessMutableChildContentsAre(fn, u"new.txt",
                                                              NEWER_CONTENTS))
@@ -1534,7 +1582,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         NEW2_CONTENTS = NEWER_CONTENTS + "overwrite with PUT\n"
         d.addCallback(lambda res:
                       self.PUT(self.public_url + "/foo/new.txt", NEW2_CONTENTS))
-        d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
+        d.addCallback(self.failUnlessURIMatchesRWChild, fn, u"new.txt")
         d.addCallback(lambda res:
                       self.failUnlessMutableChildContentsAre(fn, u"new.txt",
                                                              NEW2_CONTENTS))
@@ -1663,7 +1711,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d = self.POST(self.public_url + "/foo", t="upload",
                       file=("bar.txt", self.NEWFILE_CONTENTS))
         fn = self._foo_node
-        d.addCallback(self.failUnlessURIMatchesChild, fn, u"bar.txt")
+        d.addCallback(self.failUnlessURIMatchesROChild, fn, u"bar.txt")
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, u"bar.txt",
                                                       self.NEWFILE_CONTENTS))
@@ -1714,7 +1762,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         fn = self._foo_node
         d = self.POST(self.public_url + "/foo", t="upload",
                       name="new.txt", file=self.NEWFILE_CONTENTS)
-        d.addCallback(self.failUnlessURIMatchesChild, fn, u"new.txt")
+        d.addCallback(self.failUnlessURIMatchesROChild, fn, u"new.txt")
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(fn, u"new.txt",
                                                       self.NEWFILE_CONTENTS))
@@ -1977,7 +2025,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_POST_mkdir_initial_children(self):
-        newkids, filecap1, ign, ign, ign = self._create_initial_children()
+        (newkids, caps) = self._create_initial_children()
         d = self.POST2(self.public_url +
                        "/foo?t=mkdir-with-children&name=newdir",
                        simplejson.dumps(newkids))
@@ -1986,11 +2034,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessChildURIIs, u"child-imm", filecap1)
+        d.addCallback(self.failUnlessROChildURIIs, u"child-imm", caps['filecap1'])
         return d
 
     def test_POST_mkdir_immutable(self):
-        (newkids, filecap1, immdircap) = self._create_immutable_children()
+        (newkids, caps) = self._create_immutable_children()
         d = self.POST2(self.public_url +
                        "/foo?t=mkdir-immutable&name=newdir",
                        simplejson.dumps(newkids))
@@ -1999,17 +2047,18 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessNodeKeysAre, newkids.keys())
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessChildURIIs, u"child-imm", filecap1)
+        d.addCallback(self.failUnlessROChildURIIs, u"child-imm", caps['filecap1'])
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
-        d.addCallback(self.failUnlessChildURIIs, u"dirchild-imm", immdircap)
+        d.addCallback(self.failUnlessROChildURIIs, u"unknownchild-imm", caps['unknown_immcap'])
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessROChildURIIs, u"dirchild-imm", caps['immdircap'])
         return d
 
     def test_POST_mkdir_immutable_bad(self):
-        (newkids, filecap1, filecap2, filecap3,
-         dircap) = self._create_initial_children()
+        (newkids, caps) = self._create_initial_children()
         d = self.shouldFail2(error.Error, "test_POST_mkdir_immutable_bad",
                              "400 Bad Request",
-                             "a mkdir-immutable operation was given a child that was not itself immutable",
+                             "needed to be immutable but was not",
                              self.POST2,
                              self.public_url +
                              "/foo?t=mkdir-immutable&name=newdir",
@@ -2068,21 +2117,43 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addErrback(self.explain_web_error)
         return d
 
+    def _make_readonly(self, u):
+        ro_uri = uri.from_string(u).get_readonly()
+        if ro_uri is None:
+            return None
+        return ro_uri.to_string()
+
     def _create_initial_children(self):
         contents, n, filecap1 = self.makefile(12)
         md1 = {"metakey1": "metavalue1"}
         filecap2 = make_mutable_file_uri()
         node3 = self.s.create_node_from_uri(make_mutable_file_uri())
         filecap3 = node3.get_readonly_uri()
+        unknown_rwcap = "lafs://from_the_future"
+        unknown_rocap = "ro.lafs://readonly_from_the_future"
+        unknown_immcap = "imm.lafs://immutable_from_the_future"
         node4 = self.s.create_node_from_uri(make_mutable_file_uri())
         dircap = DirectoryNode(node4, None, None).get_uri()
-        newkids = {u"child-imm": ["filenode", {"ro_uri": filecap1,
-                                               "metadata": md1, }],
-                   u"child-mutable": ["filenode", {"rw_uri": filecap2}],
+        newkids = {u"child-imm":        ["filenode", {"rw_uri": filecap1,
+                                                      "ro_uri": self._make_readonly(filecap1),
+                                                      "metadata": md1, }],
+                   u"child-mutable":    ["filenode", {"rw_uri": filecap2,
+                                                      "ro_uri": self._make_readonly(filecap2)}],
                    u"child-mutable-ro": ["filenode", {"ro_uri": filecap3}],
-                   u"dirchild": ["dirnode", {"rw_uri": dircap}],
+                   u"unknownchild-rw":  ["unknown",  {"rw_uri": unknown_rwcap,
+                                                      "ro_uri": unknown_rocap}],
+                   u"unknownchild-ro":  ["unknown",  {"ro_uri": unknown_rocap}],
+                   u"unknownchild-imm": ["unknown",  {"ro_uri": unknown_immcap}],
+                   u"dirchild":         ["dirnode",  {"rw_uri": dircap,
+                                                      "ro_uri": self._make_readonly(dircap)}],
                    }
-        return newkids, filecap1, filecap2, filecap3, dircap
+        return newkids, {'filecap1': filecap1,
+                         'filecap2': filecap2,
+                         'filecap3': filecap3,
+                         'unknown_rwcap': unknown_rwcap,
+                         'unknown_rocap': unknown_rocap,
+                         'unknown_immcap': unknown_immcap,
+                         'dircap': dircap}
 
     def _create_immutable_children(self):
         contents, n, filecap1 = self.makefile(12)
@@ -2090,31 +2161,45 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         tnode = create_chk_filenode("immutable directory contents\n"*10)
         dnode = DirectoryNode(tnode, None, None)
         assert not dnode.is_mutable()
+        unknown_immcap = "imm.lafs://immutable_from_the_future"
         immdircap = dnode.get_uri()
-        newkids = {u"child-imm": ["filenode", {"ro_uri": filecap1,
-                                               "metadata": md1, }],
-                   u"dirchild-imm": ["dirnode", {"ro_uri": immdircap}],
+        newkids = {u"child-imm":        ["filenode", {"ro_uri": filecap1,
+                                                      "metadata": md1, }],
+                   u"unknownchild-imm": ["unknown",  {"ro_uri": unknown_immcap}],
+                   u"dirchild-imm":     ["dirnode",  {"ro_uri": immdircap}],
                    }
-        return newkids, filecap1, immdircap
+        return newkids, {'filecap1': filecap1,
+                         'unknown_immcap': unknown_immcap,
+                         'immdircap': immdircap}
 
     def test_POST_mkdir_no_parentdir_initial_children(self):
-        (newkids, filecap1, filecap2, filecap3,
-         dircap) = self._create_initial_children()
+        (newkids, caps) = self._create_initial_children()
         d = self.POST2("/uri?t=mkdir-with-children", simplejson.dumps(newkids))
         def _after_mkdir(res):
             self.failUnless(res.startswith("URI:DIR"), res)
             n = self.s.create_node_from_uri(res)
             d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-imm", filecap1))
+                           self.failUnlessROChildURIIs(n, u"child-imm",
+                                                       caps['filecap1']))
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-mutable",
-                                                     filecap2))
+                           self.failUnlessRWChildURIIs(n, u"child-mutable",
+                                                       caps['filecap2']))
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-mutable-ro",
-                                                     filecap3))
+                           self.failUnlessROChildURIIs(n, u"child-mutable-ro",
+                                                       caps['filecap3']))
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"dirchild", dircap))
+                           self.failUnlessRWChildURIIs(n, u"unknownchild-rw",
+                                                       caps['unknown_rwcap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"unknownchild-ro",
+                                                       caps['unknown_rocap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"unknownchild-imm",
+                                                       caps['unknown_immcap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessRWChildURIIs(n, u"dirchild",
+                                                       caps['dircap']))
             return d2
         d.addCallback(_after_mkdir)
         return d
@@ -2122,8 +2207,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_POST_mkdir_no_parentdir_unexpected_children(self):
         # the regular /uri?t=mkdir operation is specified to ignore its body.
         # Only t=mkdir-with-children pays attention to it.
-        (newkids, filecap1, filecap2, filecap3,
-         dircap) = self._create_initial_children()
+        (newkids, caps) = self._create_initial_children()
         d = self.shouldHTTPError("POST t=mkdir unexpected children",
                                  400, "Bad Request",
                                  "t=mkdir does not accept children=, "
@@ -2140,28 +2224,31 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_POST_mkdir_no_parentdir_immutable(self):
-        (newkids, filecap1, immdircap) = self._create_immutable_children()
+        (newkids, caps) = self._create_immutable_children()
         d = self.POST2("/uri?t=mkdir-immutable", simplejson.dumps(newkids))
         def _after_mkdir(res):
             self.failUnless(res.startswith("URI:DIR"), res)
             n = self.s.create_node_from_uri(res)
             d2 = self.failUnlessNodeKeysAre(n, newkids.keys())
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"child-imm", filecap1))
+                           self.failUnlessROChildURIIs(n, u"child-imm",
+                                                          caps['filecap1']))
             d2.addCallback(lambda ign:
-                           self.failUnlessChildURIIs(n, u"dirchild-imm",
-                                                     immdircap))
+                           self.failUnlessROChildURIIs(n, u"unknownchild-imm",
+                                                          caps['unknown_immcap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"dirchild-imm",
+                                                          caps['immdircap']))
             return d2
         d.addCallback(_after_mkdir)
         return d
 
     def test_POST_mkdir_no_parentdir_immutable_bad(self):
-        (newkids, filecap1, filecap2, filecap3,
-         dircap) = self._create_initial_children()
+        (newkids, caps) = self._create_initial_children()
         d = self.shouldFail2(error.Error,
                              "test_POST_mkdir_no_parentdir_immutable_bad",
                              "400 Bad Request",
-                             "a mkdir-immutable operation was given a child that was not itself immutable",
+                             "needed to be immutable but was not",
                              self.POST2,
                              "/uri?t=mkdir-immutable",
                              simplejson.dumps(newkids))
@@ -2269,9 +2356,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
         d = client.getPage(url, method="POST", postdata=reqbody)
         def _then(res):
-            self.failUnlessURIMatchesChild(newuri9, self._foo_node, u"atomic_added_1")
-            self.failUnlessURIMatchesChild(newuri10, self._foo_node, u"atomic_added_2")
-            self.failUnlessURIMatchesChild(newuri11, self._foo_node, u"atomic_added_3")
+            self.failUnlessURIMatchesROChild(newuri9, self._foo_node, u"atomic_added_1")
+            self.failUnlessURIMatchesROChild(newuri10, self._foo_node, u"atomic_added_2")
+            self.failUnlessURIMatchesROChild(newuri11, self._foo_node, u"atomic_added_3")
 
         d.addCallback(_then)
         d.addErrback(self.dump_error)
@@ -2283,7 +2370,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_POST_put_uri(self):
         contents, n, newuri = self.makefile(8)
         d = self.POST(self.public_url + "/foo", t="uri", name="new.txt", uri=newuri)
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"new.txt")
+        d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"new.txt")
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(self._foo_node, u"new.txt",
                                                       contents))
@@ -2292,7 +2379,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_POST_put_uri_replace(self):
         contents, n, newuri = self.makefile(8)
         d = self.POST(self.public_url + "/foo", t="uri", name="bar.txt", uri=newuri)
-        d.addCallback(self.failUnlessURIMatchesChild, self._foo_node, u"bar.txt")
+        d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"bar.txt")
         d.addCallback(lambda res:
                       self.failUnlessChildContentsAre(self._foo_node, u"bar.txt",
                                                       contents))
@@ -2521,9 +2608,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             d.addCallback(lambda res:
                           self.failUnlessEqual(res.strip(), new_uri))
             d.addCallback(lambda res:
-                          self.failUnlessChildURIIs(self.public_root,
-                                                    u"foo",
-                                                    new_uri))
+                          self.failUnlessRWChildURIIs(self.public_root,
+                                                      u"foo",
+                                                      new_uri))
             return d
         d.addCallback(_made_dir)
         return d
@@ -2540,9 +2627,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                  self.public_url + "/foo?t=uri&replace=false",
                                  new_uri)
             d.addCallback(lambda res:
-                          self.failUnlessChildURIIs(self.public_root,
-                                                    u"foo",
-                                                    self._foo_uri))
+                          self.failUnlessRWChildURIIs(self.public_root,
+                                                      u"foo",
+                                                      self._foo_uri))
             return d
         d.addCallback(_made_dir)
         return d
@@ -2552,9 +2639,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                  "400 Bad Request", "PUT to a directory",
                                  self.PUT, self.public_url + "/foo?t=BOGUS", "")
         d.addCallback(lambda res:
-                      self.failUnlessChildURIIs(self.public_root,
-                                                u"foo",
-                                                self._foo_uri))
+                      self.failUnlessRWChildURIIs(self.public_root,
+                                                  u"foo",
+                                                  self._foo_uri))
         return d
 
     def test_PUT_NEWFILEURL_uri(self):
@@ -3081,71 +3168,246 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         d.addErrback(self.explain_web_error)
         return d
 
-    def test_unknown(self):
+    def test_unknown(self, immutable=False):
         self.basedir = "web/Grid/unknown"
+        if immutable:
+            self.basedir = "web/Grid/unknown-immutable"
+
         self.set_up_grid()
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
 
-        future_writecap = "x-tahoe-crazy://I_am_from_the_future."
-        future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
+        future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
+        future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
         # the future cap format may contain slashes, which must be tolerated
-        expected_info_url = "uri/%s?t=info" % urllib.quote(future_writecap,
+        expected_info_url = "uri/%s?t=info" % urllib.quote(future_write_uri,
                                                            safe="")
-        future_node = UnknownNode(future_writecap, future_readcap)
 
-        d = c0.create_dirnode()
+        if immutable:
+            name = u"future-imm"
+            future_node = UnknownNode(None, future_read_uri, deep_immutable=True)
+            d = c0.create_immutable_dirnode({name: (future_node, {})})
+        else:
+            name = u"future"
+            future_node = UnknownNode(future_write_uri, future_read_uri)
+            d = c0.create_dirnode()
+
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturl = "uri/" + urllib.quote(n.get_uri()) + "/"
             self.rourl = "uri/" + urllib.quote(n.get_readonly_uri()) + "/"
-            return self.rootnode.set_node(u"future", future_node)
+            if not immutable:
+                return self.rootnode.set_node(name, future_node)
         d.addCallback(_stash_root_and_create_file)
+
         # make sure directory listing tolerates unknown nodes
         d.addCallback(lambda ign: self.GET(self.rooturl))
-        def _check_html(res):
-            self.failUnlessIn("<td>future</td>", res)
-            # find the More Info link for "future", should be relative
+        def _check_directory_html(res):
+            self.failUnlessIn("<td>%s</td>" % (str(name),), res)
+            # find the More Info link for name, should be relative
             mo = re.search(r'<a href="([^"]+)">More Info</a>', res)
             info_url = mo.group(1)
-            self.failUnlessEqual(info_url, "future?t=info")
+            self.failUnlessEqual(info_url, "%s?t=info" % (str(name),))
+        d.addCallback(_check_directory_html)
 
-        d.addCallback(_check_html)
         d.addCallback(lambda ign: self.GET(self.rooturl+"?t=json"))
-        def _check_json(res, expect_writecap):
+        def _check_directory_json(res, expect_rw_uri):
             data = simplejson.loads(res)
             self.failUnlessEqual(data[0], "dirnode")
-            f = data[1]["children"]["future"]
+            f = data[1]["children"][name]
             self.failUnlessEqual(f[0], "unknown")
-            if expect_writecap:
-                self.failUnlessEqual(f[1]["rw_uri"], future_writecap)
+            if expect_rw_uri:
+                self.failUnlessEqual(f[1]["rw_uri"], future_write_uri)
             else:
                 self.failIfIn("rw_uri", f[1])
-            self.failUnlessEqual(f[1]["ro_uri"], future_readcap)
+            self.failUnlessEqual(f[1]["ro_uri"],
+                                 ("imm." if immutable else "ro.") + future_read_uri)
             self.failUnless("metadata" in f[1])
-        d.addCallback(_check_json, expect_writecap=True)
-        d.addCallback(lambda ign: self.GET(expected_info_url))
-        def _check_info(res, expect_readcap):
+        d.addCallback(_check_directory_json, expect_rw_uri=not immutable)
+
+        def _check_info(res, expect_rw_uri, expect_ro_uri):
             self.failUnlessIn("Object Type: <span>unknown</span>", res)
-            self.failUnlessIn(future_writecap, res)
-            if expect_readcap:
-                self.failUnlessIn(future_readcap, res)
+            if expect_rw_uri:
+                self.failUnlessIn(future_write_uri, res)
+            if expect_ro_uri:
+                self.failUnlessIn(future_read_uri, res)
+            else:
+                self.failIfIn(future_read_uri, res)
             self.failIfIn("Raw data as", res)
             self.failIfIn("Directory writecap", res)
             self.failIfIn("Checker Operations", res)
             self.failIfIn("Mutable File Operations", res)
             self.failIfIn("Directory Operations", res)
-        d.addCallback(_check_info, expect_readcap=False)
-        d.addCallback(lambda ign: self.GET(self.rooturl+"future?t=info"))
-        d.addCallback(_check_info, expect_readcap=True)
+
+        # FIXME: these should have expect_rw_uri=not immutable; I don't know
+        # why they fail. Possibly related to ticket #922.
+
+        d.addCallback(lambda ign: self.GET(expected_info_url))
+        d.addCallback(_check_info, expect_rw_uri=False, expect_ro_uri=False)
+        d.addCallback(lambda ign: self.GET("%s%s?t=info" % (self.rooturl, str(name))))
+        d.addCallback(_check_info, expect_rw_uri=False, expect_ro_uri=True)
+
+        def _check_json(res, expect_rw_uri):
+            data = simplejson.loads(res)
+            self.failUnlessEqual(data[0], "unknown")
+            if expect_rw_uri:
+                self.failUnlessEqual(data[1]["rw_uri"], future_write_uri)
+            else:
+                self.failIfIn("rw_uri", data[1])
+            self.failUnlessEqual(data[1]["ro_uri"],
+                                 ("imm." if immutable else "ro.") + future_read_uri)
+            # TODO: check metadata contents
+            self.failUnless("metadata" in data[1])
+
+        d.addCallback(lambda ign: self.GET("%s%s?t=json" % (self.rooturl, str(name))))
+        d.addCallback(_check_json, expect_rw_uri=not immutable)
 
         # and make sure that a read-only version of the directory can be
-        # rendered too. This version will not have future_writecap
+        # rendered too. This version will not have future_write_uri, whether
+        # or not future_node was immutable.
         d.addCallback(lambda ign: self.GET(self.rourl))
-        d.addCallback(_check_html)
+        d.addCallback(_check_directory_html)
         d.addCallback(lambda ign: self.GET(self.rourl+"?t=json"))
-        d.addCallback(_check_json, expect_writecap=False)
+        d.addCallback(_check_directory_json, expect_rw_uri=False)
+
+        d.addCallback(lambda ign: self.GET("%s%s?t=json" % (self.rourl, str(name))))
+        d.addCallback(_check_json, expect_rw_uri=False)
+        
+        # TODO: check that getting t=info from the Info link in the ro directory
+        # works, and does not include the writecap URI.
+        return d
+
+    def test_immutable_unknown(self):
+        return self.test_unknown(immutable=True)
+
+    def test_mutant_dirnodes_are_omitted(self):
+        self.basedir = "web/Grid/mutant_dirnodes_are_omitted"
+
+        self.set_up_grid()
+        c = self.g.clients[0]
+        nm = c.nodemaker
+        self.uris = {}
+        self.fileurls = {}
+
+        lonely_uri = "URI:LIT:n5xgk" # LIT for "one"
+        mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+        mut_read_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        
+        # This method tests mainly dirnode, but we'd have to duplicate code in order to
+        # test the dirnode and web layers separately.
+        
+        # 'lonely' is a valid LIT child, 'ro' is a mutant child with an SSK-RO readcap,
+        # and 'write-in-ro' is a mutant child with an SSK writecap in the ro_uri field. 
+        # When the directory is read, the mutants should be silently disposed of, leaving
+        # their lonely sibling.
+        # We don't test the case of a retrieving a cap from the encrypted rw_uri field,
+        # because immutable directories don't have a writecap and therefore that field
+        # isn't (and can't be) decrypted.
+        # TODO: The field still exists in the netstring. Technically we should check what
+        # happens if something is put there (it should be ignored), but that can wait.
+
+        lonely_child = nm.create_from_cap(lonely_uri)
+        mutant_ro_child = nm.create_from_cap(mut_read_uri)
+        mutant_write_in_ro_child = nm.create_from_cap(mut_write_uri)
+
+        def _by_hook_or_by_crook():
+            return True
+        for n in [mutant_ro_child, mutant_write_in_ro_child]:
+            n.is_allowed_in_immutable_directory = _by_hook_or_by_crook
+
+        mutant_write_in_ro_child.get_write_uri    = lambda: None
+        mutant_write_in_ro_child.get_readonly_uri = lambda: mut_write_uri
+
+        kids = {u"lonely":      (lonely_child, {}),
+                u"ro":          (mutant_ro_child, {}),
+                u"write-in-ro": (mutant_write_in_ro_child, {}),
+                }
+        d = c.create_immutable_dirnode(kids)
+        
+        def _created(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            self.failIf(dn.is_mutable())
+            self.failUnless(dn.is_readonly())
+            # This checks that if we somehow ended up calling dn._decrypt_rwcapdata, it would fail.
+            self.failIf(hasattr(dn._node, 'get_writekey'))
+            rep = str(dn)
+            self.failUnless("RO-IMM" in rep)
+            cap = dn.get_cap()
+            self.failUnlessIn("CHK", cap.to_string())
+            self.cap = cap
+            self.rootnode = dn
+            self.rooturl = "uri/" + urllib.quote(dn.get_uri()) + "/"
+            return download_to_data(dn._node)
+        d.addCallback(_created)
+
+        def _check_data(data):
+            # Decode the netstring representation of the directory to check that all children
+            # are present. This is a bit of an abstraction violation, but there's not really
+            # any other way to do it given that the real DirectoryNode._unpack_contents would
+            # strip the mutant children out (which is what we're trying to test, later).
+            position = 0
+            numkids = 0
+            while position < len(data):
+                entries, position = split_netstring(data, 1, position)
+                entry = entries[0]
+                (name, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
+                name = name.decode("utf-8")
+                self.failUnless(rwcapdata == "")
+                ro_uri = ro_uri.strip()
+                if name in kids:
+                    self.failIfEqual(ro_uri, "")
+                    (expected_child, ign) = kids[name]
+                    self.failUnlessEqual(ro_uri, expected_child.get_readonly_uri())
+                    numkids += 1
+
+            self.failUnlessEqual(numkids, 3)
+            return self.rootnode.list()
+        d.addCallback(_check_data)
+        
+        # Now when we use the real directory listing code, the mutants should be absent.
+        def _check_kids(children):
+            self.failUnlessEqual(sorted(children.keys()), [u"lonely"])
+            lonely_node, lonely_metadata = children[u"lonely"]
+
+            self.failUnlessEqual(lonely_node.get_write_uri(), None)
+            self.failUnlessEqual(lonely_node.get_readonly_uri(), lonely_uri)
+        d.addCallback(_check_kids)
+
+        d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
+        d.addCallback(lambda n: n.list())
+        d.addCallback(_check_kids)  # again with dirnode recreated from cap
+
+        # Make sure the lonely child can be listed in HTML...
+        d.addCallback(lambda ign: self.GET(self.rooturl))
+        def _check_html(res):
+            self.failIfIn("URI:SSK", res)
+            get_lonely = "".join([r'<td>FILE</td>',
+                                  r'\s+<td>',
+                                  r'<a href="[^"]+%s[^"]+">lonely</a>' % (urllib.quote(lonely_uri),),
+                                  r'</td>',
+                                  r'\s+<td>%d</td>' % len("one"),
+                                  ])
+            self.failUnless(re.search(get_lonely, res), res)
+
+            # find the More Info link for name, should be relative
+            mo = re.search(r'<a href="([^"]+)">More Info</a>', res)
+            info_url = mo.group(1)
+            self.failUnless(info_url.endswith(urllib.quote(lonely_uri) + "?t=info"), info_url)
+        d.addCallback(_check_html)
+
+        # ... and in JSON.
+        d.addCallback(lambda ign: self.GET(self.rooturl+"?t=json"))
+        def _check_json(res):
+            data = simplejson.loads(res)
+            self.failUnlessEqual(data[0], "dirnode")
+            listed_children = data[1]["children"]
+            self.failUnlessEqual(sorted(listed_children.keys()), [u"lonely"])
+            ll_type, ll_data = listed_children[u"lonely"]
+            self.failUnlessEqual(ll_type, "filenode")
+            self.failIf("rw_uri" in ll_data)
+            self.failUnlessEqual(ll_data["ro_uri"], lonely_uri)
+        d.addCallback(_check_json)
         return d
 
     def test_deep_check(self):
@@ -3178,10 +3440,10 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
 
         # this tests that deep-check and stream-manifest will ignore
         # UnknownNode instances. Hopefully this will also cover deep-stats.
-        future_writecap = "x-tahoe-crazy://I_am_from_the_future."
-        future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
-        future_node = UnknownNode(future_writecap, future_readcap)
-        d.addCallback(lambda ign: self.rootnode.set_node(u"future",future_node))
+        future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
+        future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
+        future_node = UnknownNode(future_write_uri, future_read_uri)
+        d.addCallback(lambda ign: self.rootnode.set_node(u"future", future_node))
 
         def _clobber_shares(ignored):
             self.delete_shares_numbered(self.uris["sick"], [0,1])

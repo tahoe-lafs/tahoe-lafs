@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #-----------------------------------------------------------------------------------------------
-from allmydata.uri import CHKFileURI, DirectoryURI, LiteralFileURI
+from allmydata.uri import CHKFileURI, DirectoryURI, LiteralFileURI, is_literal_file_uri
 from allmydata.scripts.common_http import do_http as do_http_req
 from allmydata.util.hashutil import tagged_hash
 from allmydata.util.assertutil import precondition
@@ -335,7 +335,7 @@ class TahoeFuseFile(object):
                 self.fname = self.tfs.cache.tmp_file(os.urandom(20))
                 if self.fnode is None:
                     log('TFF: [%s] open() for write: no file node, creating new File %s' % (self.name, self.fname, ))
-                    self.fnode = File(0, 'URI:LIT:')
+                    self.fnode = File(0, LiteralFileURI.BASE_STRING)
                     self.fnode.tmp_fname = self.fname # XXX kill this
                     self.parent.add_child(self.name, self.fnode, {})
                 elif hasattr(self.fnode, 'tmp_fname'):
@@ -362,7 +362,7 @@ class TahoeFuseFile(object):
                     self.fname = self.fnode.tmp_fname
                     log('TFF: reopening(%s) for reading' % self.fname)
                 else:
-                    if uri.startswith("URI:LIT") or not self.tfs.async:
+                    if is_literal_file_uri(uri) or not self.tfs.async:
                         log('TFF: synchronously fetching file from cache for reading')
                         self.fname = self.tfs.cache.get_file(uri)
                     else:
@@ -1237,7 +1237,7 @@ class FileCache(object):
 
     def get_file(self, uri):
         self.log('get_file(%s)' % (uri,))
-        if uri.startswith("URI:LIT"):
+        if is_literal_file_uri(uri):
             return self.get_literal(uri)
         else:
             return self.get_chk(uri, async=False)

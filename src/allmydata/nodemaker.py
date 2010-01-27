@@ -1,7 +1,7 @@
 import weakref
 from zope.interface import implements
 from allmydata.util.assertutil import precondition
-from allmydata.interfaces import INodeMaker, NotDeepImmutableError
+from allmydata.interfaces import INodeMaker, MustBeDeepImmutableError
 from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
 from allmydata.immutable.upload import Data
 from allmydata.mutable.filenode import MutableFileNode
@@ -44,28 +44,33 @@ class NodeMaker:
     def _create_dirnode(self, filenode):
         return DirectoryNode(filenode, self, self.uploader)
 
-    def create_from_cap(self, writecap, readcap=None):
+    def create_from_cap(self, writecap, readcap=None, deep_immutable=False, name=u"<unknown name>"):
         # this returns synchronously. It starts with a "cap string".
         assert isinstance(writecap, (str, type(None))), type(writecap)
         assert isinstance(readcap,  (str, type(None))), type(readcap)
+        
         bigcap = writecap or readcap
         if not bigcap:
             # maybe the writecap was hidden because we're in a readonly
             # directory, and the future cap format doesn't have a readcap, or
             # something.
-            return UnknownNode(writecap, readcap)
-        if bigcap in self._node_cache:
-            return self._node_cache[bigcap]
-        cap = uri.from_string(bigcap)
-        node = self._create_from_cap(cap)
+            return UnknownNode(None, None)  # deep_immutable and name not needed
+
+        # The name doesn't matter for caching since it's only used in the error
+        # attribute of an UnknownNode, and we don't cache those.
+        memokey = ("I" if deep_immutable else "M") + bigcap
+        if memokey in self._node_cache:
+            return self._node_cache[memokey]
+        cap = uri.from_string(bigcap, deep_immutable=deep_immutable, name=name)
+        node = self._create_from_single_cap(cap)
         if node:
-            self._node_cache[bigcap] = node  # note: WeakValueDictionary
+            self._node_cache[memokey] = node  # note: WeakValueDictionary
         else:
-            node = UnknownNode(writecap, readcap) # don't cache UnknownNode
+            # don't cache UnknownNode
+            node = UnknownNode(writecap, readcap, deep_immutable=deep_immutable, name=name)
         return node
 
-    def _create_from_cap(self, cap):
-        # This starts with a "cap instance"
+    def _create_from_single_cap(self, cap):
         if isinstance(cap, uri.LiteralFileURI):
             return self._create_lit(cap)
         if isinstance(cap, uri.CHKFileURI):
@@ -76,7 +81,7 @@ class NodeMaker:
                             uri.ReadonlyDirectoryURI,
                             uri.ImmutableDirectoryURI,
                             uri.LiteralDirectoryURI)):
-            filenode = self._create_from_cap(cap.get_filenode_cap())
+            filenode = self._create_from_single_cap(cap.get_filenode_cap())
             return self._create_dirnode(filenode)
         return None
 
@@ -89,13 +94,11 @@ class NodeMaker:
         return d
 
     def create_new_mutable_directory(self, initial_children={}):
-        # initial_children must have metadata (i.e. {} instead of None), and
-        # should not contain UnknownNodes
+        # initial_children must have metadata (i.e. {} instead of None)
         for (name, (node, metadata)) in initial_children.iteritems():
-            precondition(not isinstance(node, UnknownNode),
-                         "create_new_mutable_directory does not accept UnknownNode", node)
             precondition(isinstance(metadata, dict),
                          "create_new_mutable_directory requires metadata to be a dict, not None", metadata)
+            node.raise_error()
         d = self.create_mutable_file(lambda n:
                                      pack_children(n, initial_children))
         d.addCallback(self._create_dirnode)
@@ -105,19 +108,15 @@ class NodeMaker:
         if convergence is None:
             convergence = self.secret_holder.get_convergence_secret()
         for (name, (node, metadata)) in children.iteritems():
-            precondition(not isinstance(node, UnknownNode),
-                         "create_immutable_directory does not accept UnknownNode", node)
             precondition(isinstance(metadata, dict),
                          "create_immutable_directory requires metadata to be a dict, not None", metadata)
-            if node.is_mutable():
-                raise NotDeepImmutableError("%s is not immutable" % (node,))
+            node.raise_error()
+            if not node.is_allowed_in_immutable_directory():
+                raise MustBeDeepImmutableError("%s is not immutable" % (node,), name)
         n = DummyImmutableFileNode() # writekey=None
         packed = pack_children(n, children)
         uploadable = Data(packed, convergence)
         d = self.uploader.upload(uploadable, history=self.history)
-        def _uploaded(results):
-            filecap = self.create_from_cap(results.uri)
-            return filecap
-        d.addCallback(_uploaded)
+        d.addCallback(lambda results: self.create_from_cap(None, results.uri))
         d.addCallback(self._create_dirnode)
         return d

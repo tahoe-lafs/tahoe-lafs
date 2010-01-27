@@ -12,7 +12,7 @@ import allmydata # to display import path
 from allmydata import get_package_versions_string
 from allmydata import provisioning
 from allmydata.util import idlib, log
-from allmydata.interfaces import IFileNode, UnhandledCapTypeError
+from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import reliability, storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
@@ -85,7 +85,7 @@ class URIHandler(RenderMixin, rend.Page):
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
-        except (TypeError, UnhandledCapTypeError, AssertionError):
+        except (TypeError, AssertionError):
             raise WebError("'%s' is not a valid file- or directory- cap"
                            % name)
 
@@ -104,7 +104,7 @@ class FileHandler(rend.Page):
         # 'name' must be a file URI
         try:
             node = self.client.create_node_from_uri(name)
-        except (TypeError, UnhandledCapTypeError, AssertionError):
+        except (TypeError, AssertionError):
             # I think this can no longer be reached
             raise WebError("'%s' is not a valid file- or directory- cap"
                            % name)

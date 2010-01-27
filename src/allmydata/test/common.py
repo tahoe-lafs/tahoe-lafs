@@ -51,6 +51,8 @@ class FakeCHKFileNode:
 
     def get_uri(self):
         return self.my_uri.to_string()
+    def get_write_uri(self):
+        return None
     def get_readonly_uri(self):
         return self.my_uri.to_string()
     def get_cap(self):
@@ -103,6 +105,12 @@ class FakeCHKFileNode:
         return False
     def is_readonly(self):
         return True
+    def is_unknown(self):
+        return False
+    def is_allowed_in_immutable_directory(self):
+        return True
+    def raise_error(self):
+        pass
 
     def get_size(self):
         try:
@@ -190,6 +198,10 @@ class FakeMutableFileNode:
         return self.my_uri.get_readonly()
     def get_uri(self):
         return self.my_uri.to_string()
+    def get_write_uri(self):
+        if self.is_readonly():
+            return None
+        return self.my_uri.to_string()
     def get_readonly(self):
         return self.my_uri.get_readonly()
     def get_readonly_uri(self):
@@ -200,6 +212,12 @@ class FakeMutableFileNode:
         return self.my_uri.is_readonly()
     def is_mutable(self):
         return self.my_uri.is_mutable()
+    def is_unknown(self):
+        return False
+    def is_allowed_in_immutable_directory(self):
+        return not self.my_uri.is_mutable()
+    def raise_error(self):
+        pass
     def get_writekey(self):
         return "\x00"*16
     def get_size(self):

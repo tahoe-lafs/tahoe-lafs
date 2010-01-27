@@ -17,6 +17,9 @@ from allmydata.immutable import download
 class _ImmutableFileNodeBase(object):
     implements(IImmutableFileNode, ICheckable)
 
+    def get_write_uri(self):
+        return None
+
     def get_readonly_uri(self):
         return self.get_uri()
 
@@ -25,6 +28,15 @@ class _ImmutableFileNodeBase(object):
 
     def is_readonly(self):
         return True
+
+    def is_unknown(self):
+        return False
+
+    def is_allowed_in_immutable_directory(self):
+        return True
+
+    def raise_error(self):
+        pass
 
     def __hash__(self):
         return self.u.__hash__()

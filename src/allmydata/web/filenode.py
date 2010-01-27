@@ -6,10 +6,9 @@ from twisted.internet import defer
 from nevow import url, rend
 from nevow.inevow import IRequest
 
-from allmydata.interfaces import ExistingChildError, CannotPackUnknownNodeError
+from allmydata.interfaces import ExistingChildError
 from allmydata.monitor import Monitor
 from allmydata.immutable.upload import FileHandle
-from allmydata.unknown import UnknownNode
 from allmydata.util import log, base32
 
 from allmydata.web.common import text_plain, WebError, RenderMixin, \
@@ -20,7 +19,6 @@ from allmydata.web.check_results import CheckResults, \
 from allmydata.web.info import MoreInfo
 
 class ReplaceMeMixin:
-
     def replace_me_with_a_child(self, req, client, replace):
         # a new file is being uploaded in our place.
         mutable = boolean_of_arg(get_arg(req, "mutable", "false"))
@@ -55,14 +53,7 @@ class ReplaceMeMixin:
     def replace_me_with_a_childcap(self, req, client, replace):
         req.content.seek(0)
         childcap = req.content.read()
-        childnode = client.create_node_from_uri(childcap, childcap+"readonly")
-        if isinstance(childnode, UnknownNode):
-            # don't be willing to pack unknown nodes: we might accidentally
-            # put some write-authority into the rocap slot because we don't
-            # know how to diminish the URI they gave us. We don't even know
-            # if they gave us a readcap or a writecap.
-            msg = "cannot attach unknown node as child %s" % str(self.name)
-            raise CannotPackUnknownNodeError(msg)
+        childnode = client.create_node_from_uri(childcap, None, name=self.name)
         d = self.parentnode.set_node(self.name, childnode, overwrite=replace)
         d.addCallback(lambda res: childnode.get_uri())
         return d
@@ -426,12 +417,8 @@ class FileDownloader(rend.Page):
 
 
 def FileJSONMetadata(ctx, filenode, edge_metadata):
-    if filenode.is_readonly():
-        rw_uri = None
-        ro_uri = filenode.get_uri()
-    else:
-        rw_uri = filenode.get_uri()
-        ro_uri = filenode.get_readonly_uri()
+    rw_uri = filenode.get_write_uri()
+    ro_uri = filenode.get_readonly_uri()
     data = ("filenode", {})
     data[1]['size'] = filenode.get_size()
     if ro_uri:

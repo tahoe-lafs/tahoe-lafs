@@ -150,8 +150,12 @@ server prefix. They will be displayed like this:
 
 === Child Lookup ===
 
-Tahoe directories contain named children, just like directories in a regular
-local filesystem. These children can be either files or subdirectories.
+Tahoe directories contain named child entries, just like directories in a regular
+local filesystem. These child entries, called "dirnodes", consist of a name,
+metadata, a write slot, and a read slot. The write and read slots normally contain
+a write-cap and read-cap referring to the same object, which can be either a file
+or a subdirectory. The write slot may be empty (actually, both may be empty,
+but that is unusual).
 
 If you have a Tahoe URL that refers to a directory, and want to reference a
 named child inside it, just append the child name to the URL. For example, if
@@ -390,6 +394,27 @@ POST /uri?t=mkdir-with-children
           } } } ]
  }
 
+ For forward-compatibility, a mutable directory can also contain caps in
+ a format that is unknown to the webapi server. When such caps are retrieved
+ from a mutable directory in a "ro_uri" field, they will be prefixed with
+ the string "ro.", indicating that they must not be decoded without
+ checking that they are read-only. The "ro." prefix must not be stripped
+ off without performing this check. (Future versions of the webapi server
+ will perform it where necessary.)
+
+ If both the "rw_uri" and "ro_uri" fields are present in a given PROPDICT,
+ and the webapi server recognizes the rw_uri as a write cap, then it will
+ reset the ro_uri to the corresponding read cap and discard the original
+ contents of ro_uri (in order to ensure that the two caps correspond to the
+ same object and that the ro_uri is in fact read-only). However this may not
+ happen for caps in a format unknown to the webapi server. Therefore, when
+ writing a directory the webapi client should ensure that the contents
+ of "rw_uri" and "ro_uri" for a given PROPDICT are a consistent
+ (write cap, read cap) pair if possible. If the webapi client only has
+ one cap and does not know whether it is a write cap or read cap, then
+ it is acceptable to set "rw_uri" to that cap and omit "ro_uri". The
+ client must not put a write cap into a "ro_uri" field.
+ 
  Note that the webapi-using client application must not provide the
  "Content-Type: multipart/form-data" header that usually accompanies HTML
  form submissions, since the body is not formatted this way. Doing so will
@@ -404,59 +429,113 @@ POST /uri?t=mkdir-immutable
 
  Like t=mkdir-with-children above, but the new directory will be
  deep-immutable. This means that the directory itself is immutable, and that
- it can only contain deep-immutable objects, like immutable files, literal
- files, and deep-immutable directories. A non-empty request body is
- mandatory, since after the directory is created, it will not be possible to
- add more children to it.
+ it can only contain objects that are treated as being deep-immutable, like
+ immutable files, literal files, and deep-immutable directories.
+
+ For forward-compatibility, a deep-immutable directory can also contain caps
+ in a format that is unknown to the webapi server. When such caps are retrieved
+ from a deep-immutable directory in a "ro_uri" field, they will be prefixed
+ with the string "imm.", indicating that they must not be decoded without
+ checking that they are immutable. The "imm." prefix must not be stripped
+ off without performing this check. (Future versions of the webapi server
+ will perform it where necessary.)
+ 
+ The cap for each child may be given either in the "rw_uri" or "ro_uri"
+ field of the PROPDICT (not both). If a cap is given in the "rw_uri" field,
+ then the webapi server will check that it is an immutable read-cap of a
+ *known* format, and give an error if it is not. If a cap is given in the
+ "ro_uri" field, then the webapi server will still check whether known
+ caps are immutable, but for unknown caps it will simply assume that the
+ cap can be stored, as described above. Note that an attacker would be
+ able to store any cap in an immutable directory, so this check when
+ creating the directory is only to help non-malicious clients to avoid
+ accidentally giving away more authority than intended.
+
+ A non-empty request body is mandatory, since after the directory is created,
+ it will not be possible to add more children to it.
 
 POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
 PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
 
  Create new directories as necessary to make sure that the named target
  ($DIRCAP/SUBDIRS../SUBDIR) is a directory. This will create additional
- intermediate directories as necessary. If the named target directory already
- exists, this will make no changes to it.
+ intermediate mutable directories as necessary. If the named target directory
+ already exists, this will make no changes to it.
 
  If the final directory is created, it will be empty.
 
- This will return an error if a blocking file is present at any of the parent
- names, preventing the server from creating the necessary parent directory.
+ This operation will return an error if a blocking file is present at any of
+ the parent names, preventing the server from creating the necessary parent
+ directory; or if it would require changing an immutable directory.
 
  The write-cap of the new directory will be returned as the HTTP response
  body.
 
 POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-with-children
 
- Like above, but if the final directory is created, it will be populated with
- initial children from the POST request body, as described above in the
- /uri?t=mkdir-with-children operation.
+ Like /uri?t=mkdir-with-children, but the final directory is created as a
+ child of an existing mutable directory. This will create additional
+ intermediate mutable directories as necessary. If the final directory is
+ created, it will be populated with initial children from the POST request
+ body, as described above.
+ 
+ This operation will return an error if a blocking file is present at any of
+ the parent names, preventing the server from creating the necessary parent
+ directory; or if it would require changing an immutable directory; or if
+ the immediate parent directory already has a a child named SUBDIR.
 
 POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-immutable
 
- Like above, but the final directory will be deep-immutable, with the
- children specified as a JSON dictionary in the POST request body.
+ Like /uri?t=mkdir-immutable, but the final directory is created as a child
+ of an existing mutable directory. The final directory will be deep-immutable,
+ and will be populated with the children specified as a JSON dictionary in
+ the POST request body.
+
+ In Tahoe 1.6 this operation creates intermediate mutable directories if
+ necessary, but that behaviour should not be relied on; see ticket #920.
+
+ This operation will return an error if the parent directory is immutable,
+ or already has a child named SUBDIR.
 
 POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME
 
- Create a new empty directory and attach it to the given existing directory.
- This will create additional intermediate directories as necessary.
+ Create a new empty mutable directory and attach it to the given existing
+ directory. This will create additional intermediate directories as necessary.
 
- The URL of this form points to the parent of the bottom-most new directory,
- whereas the previous form has a URL that points directly to the bottom-most
- new directory.
+ This operation will return an error if a blocking file is present at any of
+ the parent names, preventing the server from creating the necessary parent
+ directory, or if it would require changing any immutable directory.
+
+ The URL of this operation points to the parent of the bottommost new directory,
+ whereas the /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir operation above has a URL
+ that points directly to the bottommost new directory.
 
 POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-with-children&name=NAME
 
- As above, but the new directory will be populated with initial children via
- the POST request body, as described in /uri?t=mkdir-with-children above.
+ Like /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME, but the new directory will
+ be populated with initial children via the POST request body. This command
+ will create additional intermediate mutable directories as necessary.
+ 
+ This operation will return an error if a blocking file is present at any of
+ the parent names, preventing the server from creating the necessary parent
+ directory; or if it would require changing an immutable directory; or if
+ the immediate parent directory already has a a child named NAME.
+
  Note that the name= argument must be passed as a queryarg, because the POST
  request body is used for the initial children JSON.
 
 POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-immutable&name=NAME
 
- As above, but the new directory will be deep-immutable, with the children
- specified as a JSON dictionary in the POST request body. Again, the name=
- argument must be passed as a queryarg.
+ Like /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-with-children&name=NAME, but the
+ final directory will be deep-immutable. The children are specified as a
+ JSON dictionary in the POST request body. Again, the name= argument must be
+ passed as a queryarg.
+
+ In Tahoe 1.6 this operation creates intermediate mutable directories if
+ necessary, but that behaviour should not be relied on; see ticket #920.
+
+ This operation will return an error if the parent directory is immutable,
+ or already has a child named NAME.
 
 === Get Information About A File Or Directory (as JSON) ===
 
@@ -679,7 +758,9 @@ POST /uri/$DIRCAP/[SUBDIRS..]?t=set-children    (Tahoe >= v1.6)
   "childinfo" is a dictionary that contains "rw_uri", "ro_uri", and
   "metadata" keys. You can take the output of "GET /uri/$DIRCAP1?t=json" and
   use it as the input to "POST /uri/$DIRCAP2?t=set_children" to make DIR2
-  look very much like DIR1.
+  look very much like DIR1 (except for any existing children of DIR2 that
+  were not overwritten, and any existing "tahoe" metadata keys as described
+  below).
 
   When the set_children request contains a child name that already exists in
   the target directory, this command defaults to overwriting that child with
@@ -880,9 +961,9 @@ POST /uri?t=upload
 
 POST /uri/$DIRCAP/[SUBDIRS../]?t=upload
 
- This uploads a file, and attaches it as a new child of the given directory.
- The file must be provided as the "file" field of an HTML encoded form body,
- produced in response to an HTML form like this:
+ This uploads a file, and attaches it as a new child of the given directory,
+ which must be mutable. The file must be provided as the "file" field of an
+ HTML-encoded form body, produced in response to an HTML form like this:
   <form action="." method="POST" enctype="multipart/form-data">
    <input type="hidden" name="t" value="upload" />
    <input type="file" name="file" />
@@ -925,9 +1006,10 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=upload
 POST /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=upload
 
  This also uploads a file and attaches it as a new child of the given
- directory. It is a slight variant of the previous operation, as the URL
- refers to the target file rather than the parent directory. It is otherwise
- identical: this accepts mutable= and when_done= arguments too.
+ directory, which must be mutable. It is a slight variant of the previous
+ operation, as the URL refers to the target file rather than the parent
+ directory. It is otherwise identical: this accepts mutable= and when_done=
+ arguments too.
 
 POST /uri/$FILECAP?t=upload
 
@@ -955,20 +1037,21 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=uri&name=CHILDNAME&uri=CHILDCAP
 
 POST /uri/$DIRCAP/[SUBDIRS../]?t=delete&name=CHILDNAME
 
- This instructs the node to delete a child object (file or subdirectory) from
- the given directory. Note that the entire subtree is removed. This is
- somewhat like "rm -rf" (from the point of view of the parent), but other
- references into the subtree will see that the child subdirectories are not
- modified by this operation. Only the link from the given directory to its
- child is severed.
+ This instructs the node to remove a child object (file or subdirectory) from
+ the given directory, which must be mutable. Note that the entire subtree is
+ unlinked from the parent. Unlike deleting a subdirectory in a UNIX local
+ filesystem, the subtree need not be empty; if it isn't, then other references
+ into the subtree will see that the child subdirectories are not modified by
+ this operation. Only the link from the given directory to its child is severed.
 
 === Renaming A Child ===
 
 POST /uri/$DIRCAP/[SUBDIRS../]?t=rename&from_name=OLD&to_name=NEW
 
- This instructs the node to rename a child of the given directory. This is
- exactly the same as removing the child, then adding the same child-cap under
- the new name. This operation cannot move the child to a different directory.
+ This instructs the node to rename a child of the given directory, which must
+ be mutable. This has a similar effect to removing the child, then adding the
+ same child-cap under the new name, except that it preserves metadata. This
+ operation cannot move the child to a different directory.
 
  This operation will replace any existing child of the new name, making it
  behave like the UNIX "mv -f" command.
@@ -1164,9 +1247,11 @@ POST $URL?t=stream-deep-check
 
   "path": a list of strings, with the path that is traversed to reach the
           object
-  "cap": a writecap for the file or directory, if available, else a readcap
-  "verifycap": a verifycap for the file or directory
-  "repaircap": the weakest cap which can still be used to repair the object
+  "cap": a write-cap URI for the file or directory, if available, else a
+         read-cap URI
+  "verifycap": a verify-cap URI for the file or directory
+  "repaircap": an URI for the weakest cap that can still be used to repair
+               the object
   "storage-index": a base32 storage index for the object
   "check-results": a copy of the dictionary which would be returned by
                    t=check&output=json, with three top-level keys:
@@ -1408,9 +1493,11 @@ POST $URL?t=stream-manifest
 
   "path": a list of strings, with the path that is traversed to reach the
           object
-  "cap": a writecap for the file or directory, if available, else a readcap
-  "verifycap": a verifycap for the file or directory
-  "repaircap": the weakest cap which can still be used to repair the object
+  "cap": a write-cap URI for the file or directory, if available, else a
+         read-cap URI
+  "verifycap": a verify-cap URI for the file or directory
+  "repaircap": an URI for the weakest cap that can still be used to repair
+               the object
   "storage-index": a base32 storage index for the object
 
  Note that non-distributed files (i.e. LIT files) will have values of None
@@ -1640,6 +1727,17 @@ If your recursive algorithm uses the uri of the child instead of the name of
 the child, then those kinds of mistakes just can't happen. Note that both the
 child's name and the child's URI are included in the results of listing the
 parent directory, so it isn't any harder to use the URI for this purpose.
+
+The read and write caps in a given directory node are separate URIs, and
+can't be assumed to point to the same object even if they were retrieved in
+the same operation (although the webapi server attempts to ensure this
+in most cases). If you need to rely on that property, you should explicitly
+verify it. More generally, you should not make assumptions about the
+internal consistency of the contents of mutable directories. As a result
+of the signatures on mutable object versions, it is guaranteed that a given
+version was written in a single update, but -- as in the case of a file --
+the contents may have been chosen by a malicious writer in a way that is
+designed to confuse applications that rely on their consistency.
 
 In general, use names if you want "whatever object (whether file or
 directory) is found by following this name (or sequence of names) when my

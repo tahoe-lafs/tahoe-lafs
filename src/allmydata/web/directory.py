@@ -352,7 +352,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         charset = get_arg(req, "_charset", "utf-8")
         name = name.decode(charset)
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        d = self.node.set_uri(name, childcap, childcap, overwrite=replace)
+        
+        # We mustn't pass childcap for the readcap argument because we don't
+        # know whether it is a read cap. Passing a read cap as the writecap
+        # argument will work (it ends up calling NodeMaker.create_from_cap,
+        # which derives a readcap if necessary and possible).
+        d = self.node.set_uri(name, childcap, None, overwrite=replace)
         d.addCallback(lambda res: childcap)
         return d
 
@@ -363,9 +368,9 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             # won't show up in the resulting encoded form.. the 'name'
             # field is completely missing. So to allow deletion of an
             # empty file, we have to pretend that None means ''. The only
-            # downide of this is a slightly confusing error message if
+            # downside of this is a slightly confusing error message if
             # someone does a POST without a name= field. For our own HTML
-            # thisn't a big deal, because we create the 'delete' POST
+            # this isn't a big deal, because we create the 'delete' POST
             # buttons ourselves.
             name = ''
         charset = get_arg(req, "_charset", "utf-8")
@@ -585,7 +590,11 @@ class DirectoryAsHTML(rend.Page):
     def render_title(self, ctx, data):
         si_s = abbreviated_dirnode(self.node)
         header = ["Tahoe-LAFS - Directory SI=%s" % si_s]
-        if self.node.is_readonly():
+        if self.node.is_unknown():
+            header.append(" (unknown)")
+        elif not self.node.is_mutable():
+            header.append(" (immutable)")
+        elif self.node.is_readonly():
             header.append(" (read-only)")
         else:
             header.append(" (modifiable)")
@@ -594,7 +603,11 @@ class DirectoryAsHTML(rend.Page):
     def render_header(self, ctx, data):
         si_s = abbreviated_dirnode(self.node)
         header = ["Tahoe-LAFS Directory SI=", T.span(class_="data-chars")[si_s]]
-        if self.node.is_readonly():
+        if self.node.is_unknown():
+            header.append(" (unknown)")
+        elif not self.node.is_mutable():
+            header.append(" (immutable)")
+        elif self.node.is_readonly():
             header.append(" (read-only)")
         return ctx.tag[header]
 
@@ -603,7 +616,7 @@ class DirectoryAsHTML(rend.Page):
         return T.div[T.a(href=link)["Return to Welcome page"]]
 
     def render_show_readonly(self, ctx, data):
-        if self.node.is_readonly():
+        if self.node.is_unknown() or self.node.is_readonly():
             return ""
         rocap = self.node.get_readonly_uri()
         root = get_root(ctx)
@@ -630,7 +643,7 @@ class DirectoryAsHTML(rend.Page):
 
         root = get_root(ctx)
         here = "%s/uri/%s/" % (root, urllib.quote(self.node.get_uri()))
-        if self.node.is_readonly():
+        if self.node.is_unknown() or self.node.is_readonly():
             delete = "-"
             rename = "-"
         else:
@@ -678,8 +691,8 @@ class DirectoryAsHTML(rend.Page):
         ctx.fillSlots("times", times)
 
         assert IFilesystemNode.providedBy(target), target
-        writecap = target.get_uri() or ""
-        quoted_uri = urllib.quote(writecap, safe="") # escape slashes too
+        target_uri = target.get_uri() or ""
+        quoted_uri = urllib.quote(target_uri, safe="") # escape slashes too
 
         if IMutableFileNode.providedBy(target):
             # to prevent javascript in displayed .html files from stealing a
@@ -708,7 +721,7 @@ class DirectoryAsHTML(rend.Page):
 
         elif IDirectoryNode.providedBy(target):
             # directory
-            uri_link = "%s/uri/%s/" % (root, urllib.quote(writecap))
+            uri_link = "%s/uri/%s/" % (root, urllib.quote(target_uri))
             ctx.fillSlots("filename",
                           T.a(href=uri_link)[html.escape(name)])
             if not target.is_mutable():
@@ -795,35 +808,30 @@ def DirectoryJSONMetadata(ctx, dirnode):
         kids = {}
         for name, (childnode, metadata) in children.iteritems():
             assert IFilesystemNode.providedBy(childnode), childnode
-            rw_uri = childnode.get_uri()
+            rw_uri = childnode.get_write_uri()
             ro_uri = childnode.get_readonly_uri()
             if IFileNode.providedBy(childnode):
-                if childnode.is_readonly():
-                    rw_uri = None
                 kiddata = ("filenode", {'size': childnode.get_size(),
                                         'mutable': childnode.is_mutable(),
                                         })
             elif IDirectoryNode.providedBy(childnode):
-                if childnode.is_readonly():
-                    rw_uri = None
                 kiddata = ("dirnode", {'mutable': childnode.is_mutable()})
             else:
                 kiddata = ("unknown", {})
+
             kiddata[1]["metadata"] = metadata
-            if ro_uri:
-                kiddata[1]["ro_uri"] = ro_uri
             if rw_uri:
                 kiddata[1]["rw_uri"] = rw_uri
+            if ro_uri:
+                kiddata[1]["ro_uri"] = ro_uri
             verifycap = childnode.get_verify_cap()
             if verifycap:
                 kiddata[1]['verify_uri'] = verifycap.to_string()
+
             kids[name] = kiddata
-        if dirnode.is_readonly():
-            drw_uri = None
-            dro_uri = dirnode.get_uri()
-        else:
-            drw_uri = dirnode.get_uri()
-            dro_uri = dirnode.get_readonly_uri()
+
+        drw_uri = dirnode.get_write_uri()
+        dro_uri = dirnode.get_readonly_uri()
         contents = { 'children': kids }
         if dro_uri:
             contents['ro_uri'] = dro_uri
@@ -834,11 +842,11 @@ def DirectoryJSONMetadata(ctx, dirnode):
             contents['verify_uri'] = verifycap.to_string()
         contents['mutable'] = dirnode.is_mutable()
         data = ("dirnode", contents)
-        return simplejson.dumps(data, indent=1) + "\n"
+        json = simplejson.dumps(data, indent=1) + "\n"
+        return json
     d.addCallback(_got)
     d.addCallback(text_plain, ctx)
     return d
-
 
 
 def DirectoryURI(ctx, dirnode):
@@ -1132,18 +1140,39 @@ class DeepCheckStreamer(dirnode.DeepStats):
         self.req.write(j+"\n")
         return ""
 
-class UnknownNodeHandler(RenderMixin, rend.Page):
 
+class UnknownNodeHandler(RenderMixin, rend.Page):
     def __init__(self, client, node, parentnode=None, name=None):
         rend.Page.__init__(self)
         assert node
         self.node = node
+        self.parentnode = parentnode
+        self.name = name
 
     def render_GET(self, ctx):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
         if t == "info":
             return MoreInfo(self.node)
-        raise WebError("GET unknown URI type: can only do t=info, not t=%s" % t)
+        if t == "json":
+            if self.parentnode and self.name:
+                d = self.parentnode.get_metadata_for(self.name)
+            else:
+                d = defer.succeed(None)
+            d.addCallback(lambda md: UnknownJSONMetadata(ctx, self.node, md))
+            return d
+        raise WebError("GET unknown URI type: can only do t=info and t=json, not t=%s.\n"
+                       "Using a webapi server that supports a later version of Tahoe "
+                       "may help." % t)
 
-
+def UnknownJSONMetadata(ctx, filenode, edge_metadata):
+    rw_uri = filenode.get_write_uri()
+    ro_uri = filenode.get_readonly_uri()
+    data = ("unknown", {})
+    if ro_uri:
+        data[1]['ro_uri'] = ro_uri
+    if rw_uri:
+        data[1]['rw_uri'] = rw_uri
+    if edge_metadata is not None:
+        data[1]['metadata'] = edge_metadata
+    return text_plain(simplejson.dumps(data, indent=1) + "\n", ctx)

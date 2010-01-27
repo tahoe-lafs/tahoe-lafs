@@ -40,6 +40,7 @@ def put(options):
         #  DIRCAP:./subdir/foo : DIRCAP/subdir/foo
         #  MUTABLE-FILE-WRITECAP : filecap
 
+        # FIXME: this shouldn't rely on a particular prefix.
         if to_file.startswith("URI:SSK:"):
             url = nodeurl + "uri/%s" % urllib.quote(to_file)
         else:

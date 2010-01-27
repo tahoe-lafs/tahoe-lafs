@@ -128,12 +128,14 @@ class UnknownAliasError(Exception):
     pass
 
 def get_alias(aliases, path, default):
+    from allmydata import uri
     # transform "work:path/filename" into (aliases["work"], "path/filename").
     # If default=None, then an empty alias is indicated by returning
-    # DefaultAliasMarker. We special-case "URI:" to make it easy to access
-    # specific files/directories by their read-cap.
+    # DefaultAliasMarker. We special-case strings with a recognized cap URI
+    # prefix, to make it easy to access specific files/directories by their
+    # caps.
     path = path.strip()
-    if path.startswith("URI:"):
+    if uri.has_uri_prefix(path):
         # The only way to get a sub-path is to use URI:blah:./foo, and we
         # strip out the :./ sequence.
         sep = path.find(":./")

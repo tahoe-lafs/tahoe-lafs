@@ -214,6 +214,12 @@ class MutableFileNode:
 
     def get_uri(self):
         return self._uri.to_string()
+
+    def get_write_uri(self):
+        if self.is_readonly():
+            return None
+        return self._uri.to_string()
+
     def get_readonly_uri(self):
         return self._uri.get_readonly().to_string()
 
@@ -227,8 +233,18 @@ class MutableFileNode:
 
     def is_mutable(self):
         return self._uri.is_mutable()
+
     def is_readonly(self):
         return self._uri.is_readonly()
+
+    def is_unknown(self):
+        return False
+
+    def is_allowed_in_immutable_directory(self):
+        return not self._uri.is_mutable()
+
+    def raise_error(self):
+        pass
 
     def __hash__(self):
         return hash((self.__class__, self._uri))

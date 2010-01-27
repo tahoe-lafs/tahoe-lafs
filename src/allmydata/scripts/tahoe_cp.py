@@ -258,8 +258,7 @@ class TahoeDirectorySource:
                 readcap = ascii_or_none(data[1].get("ro_uri"))
                 self.children[name] = TahoeFileSource(self.nodeurl, mutable,
                                                       writecap, readcap)
-            else:
-                assert data[0] == "dirnode"
+            elif data[0] == "dirnode":
                 writecap = ascii_or_none(data[1].get("rw_uri"))
                 readcap = ascii_or_none(data[1].get("ro_uri"))
                 if writecap and writecap in self.cache:
@@ -277,6 +276,11 @@ class TahoeDirectorySource:
                     if recurse:
                         child.populate(True)
                 self.children[name] = child
+            else:
+                # TODO: there should be an option to skip unknown nodes.
+                raise TahoeError("Cannot copy unknown nodes (ticket #839). "
+                                 "You probably need to use a later version of "
+                                 "Tahoe-LAFS to copy this directory.")
 
 class TahoeMissingTarget:
     def __init__(self, url):
@@ -353,8 +357,7 @@ class TahoeDirectoryTarget:
                                                    urllib.quote(name.encode('utf-8'))])
                 self.children[name] = TahoeFileTarget(self.nodeurl, mutable,
                                                       writecap, readcap, url)
-            else:
-                assert data[0] == "dirnode"
+            elif data[0] == "dirnode":
                 writecap = ascii_or_none(data[1].get("rw_uri"))
                 readcap = ascii_or_none(data[1].get("ro_uri"))
                 if writecap and writecap in self.cache:
@@ -372,6 +375,11 @@ class TahoeDirectoryTarget:
                     if recurse:
                         child.populate(True)
                 self.children[name] = child
+            else:
+                # TODO: there should be an option to skip unknown nodes.
+                raise TahoeError("Cannot copy unknown nodes (ticket #839). "
+                                 "You probably need to use a later version of "
+                                 "Tahoe-LAFS to copy this directory.")
 
     def get_child_target(self, name):
         # return a new target for a named subdirectory of this dir
@@ -407,9 +415,11 @@ class TahoeDirectoryTarget:
         set_data = {}
         for (name, filecap) in self.new_children.items():
             # it just so happens that ?t=set_children will accept both file
-            # read-caps and write-caps as ['rw_uri'], and will handle eithe
+            # read-caps and write-caps as ['rw_uri'], and will handle either
             # correctly. So don't bother trying to figure out whether the one
             # we have is read-only or read-write.
+            # TODO: think about how this affects forward-compatibility for
+            # unknown caps
             set_data[name] = ["filenode", {"rw_uri": filecap}]
         body = simplejson.dumps(set_data)
         POST(url, body)
@@ -770,6 +780,7 @@ def copy(options):
 #  local-file-in-the-way
 #   touch proposed
 #   tahoe cp -r my:docs/proposed/denver.txt proposed/denver.txt
+#  handling of unknown nodes
 
 # things that maybe should be errors but aren't
 #  local-dir-in-the-way

@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from allmydata import uri
 from allmydata.util import hashutil, base32
 from allmydata.interfaces import IURI, IFileURI, IDirnodeURI, IMutableFileURI, \
-    IVerifierURI
+    IVerifierURI, CapConstraintError
 
 class Literal(unittest.TestCase):
     def _help_test(self, data):
@@ -22,8 +22,16 @@ class Literal(unittest.TestCase):
         self.failIf(IDirnodeURI.providedBy(u2))
         self.failUnlessEqual(u2.data, data)
         self.failUnlessEqual(u2.get_size(), len(data))
-        self.failUnless(u.is_readonly())
-        self.failIf(u.is_mutable())
+        self.failUnless(u2.is_readonly())
+        self.failIf(u2.is_mutable())
+
+        u2i = uri.from_string(u.to_string(), deep_immutable=True)
+        self.failUnless(IFileURI.providedBy(u2i))
+        self.failIf(IDirnodeURI.providedBy(u2i))
+        self.failUnlessEqual(u2i.data, data)
+        self.failUnlessEqual(u2i.get_size(), len(data))
+        self.failUnless(u2i.is_readonly())
+        self.failIf(u2i.is_mutable())
 
         u3 = u.get_readonly()
         self.failUnlessIdentical(u, u3)
@@ -51,17 +59,35 @@ class Compare(unittest.TestCase):
         fileURI = 'URI:CHK:f5ahxa25t4qkktywz6teyfvcx4:opuioq7tj2y6idzfp6cazehtmgs5fdcebcz3cygrxyydvcozrmeq:3:10:345834'
         chk1 = uri.CHKFileURI.init_from_string(fileURI)
         chk2 = uri.CHKFileURI.init_from_string(fileURI)
+        unk = uri.UnknownURI("lafs://from_the_future")
         self.failIfEqual(lit1, chk1)
         self.failUnlessEqual(chk1, chk2)
         self.failIfEqual(chk1, "not actually a URI")
         # these should be hashable too
-        s = set([lit1, chk1, chk2])
-        self.failUnlessEqual(len(s), 2) # since chk1==chk2
+        s = set([lit1, chk1, chk2, unk])
+        self.failUnlessEqual(len(s), 3) # since chk1==chk2
 
     def test_is_uri(self):
         lit1 = uri.LiteralFileURI("some data").to_string()
         self.failUnless(uri.is_uri(lit1))
         self.failIf(uri.is_uri(None))
+
+    def test_is_literal_file_uri(self):
+        lit1 = uri.LiteralFileURI("some data").to_string()
+        self.failUnless(uri.is_literal_file_uri(lit1))
+        self.failIf(uri.is_literal_file_uri(None))
+        self.failIf(uri.is_literal_file_uri("foo"))
+        self.failIf(uri.is_literal_file_uri("ro.foo"))
+        self.failIf(uri.is_literal_file_uri("URI:LITfoo"))
+        self.failUnless(uri.is_literal_file_uri("ro.URI:LIT:foo"))
+        self.failUnless(uri.is_literal_file_uri("imm.URI:LIT:foo"))
+
+    def test_has_uri_prefix(self):
+        self.failUnless(uri.has_uri_prefix("URI:foo"))
+        self.failUnless(uri.has_uri_prefix("ro.URI:foo"))
+        self.failUnless(uri.has_uri_prefix("imm.URI:foo"))
+        self.failIf(uri.has_uri_prefix(None))
+        self.failIf(uri.has_uri_prefix("foo"))
 
 class CHKFile(unittest.TestCase):
     def test_pack(self):
@@ -88,8 +114,7 @@ class CHKFile(unittest.TestCase):
         self.failUnless(IFileURI.providedBy(u))
         self.failIf(IDirnodeURI.providedBy(u))
         self.failUnlessEqual(u.get_size(), 1234)
-        self.failUnless(u.is_readonly())
-        self.failIf(u.is_mutable())
+
         u_ro = u.get_readonly()
         self.failUnlessIdentical(u, u_ro)
         he = u.to_human_encoding()
@@ -109,11 +134,19 @@ class CHKFile(unittest.TestCase):
         self.failUnless(IFileURI.providedBy(u2))
         self.failIf(IDirnodeURI.providedBy(u2))
         self.failUnlessEqual(u2.get_size(), 1234)
-        self.failUnless(u2.is_readonly())
-        self.failIf(u2.is_mutable())
+
+        u2i = uri.from_string(u.to_string(), deep_immutable=True)
+        self.failUnlessEqual(u.to_string(), u2i.to_string())
+        u2ro = uri.from_string(uri.ALLEGED_READONLY_PREFIX + u.to_string())
+        self.failUnlessEqual(u.to_string(), u2ro.to_string())
+        u2imm = uri.from_string(uri.ALLEGED_IMMUTABLE_PREFIX + u.to_string())
+        self.failUnlessEqual(u.to_string(), u2imm.to_string())
 
         v = u.get_verify_cap()
         self.failUnless(isinstance(v.to_string(), str))
+        self.failUnless(v.is_readonly())
+        self.failIf(v.is_mutable())
+
         v2 = uri.from_string(v.to_string())
         self.failUnlessEqual(v, v2)
         he = v.to_human_encoding()
@@ -126,6 +159,8 @@ class CHKFile(unittest.TestCase):
                                     total_shares=10,
                                     size=1234)
         self.failUnless(isinstance(v3.to_string(), str))
+        self.failUnless(v3.is_readonly())
+        self.failIf(v3.is_mutable())
 
     def test_pack_badly(self):
         key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
@@ -179,13 +214,20 @@ class Extension(unittest.TestCase):
         self.failUnlessEqual(readable["UEB_hash"],
                              base32.b2a(hashutil.uri_extension_hash(ext)))
 
-class Invalid(unittest.TestCase):
+class Unknown(unittest.TestCase):
     def test_from_future(self):
         # any URI type that we don't recognize should be treated as unknown
         future_uri = "I am a URI from the future. Whatever you do, don't "
         u = uri.from_string(future_uri)
         self.failUnless(isinstance(u, uri.UnknownURI))
         self.failUnlessEqual(u.to_string(), future_uri)
+        self.failUnless(u.get_readonly() is None)
+        self.failUnless(u.get_error() is None)
+
+        u2 = uri.UnknownURI(future_uri, error=CapConstraintError("..."))
+        self.failUnlessEqual(u.to_string(), future_uri)
+        self.failUnless(u2.get_readonly() is None)
+        self.failUnless(isinstance(u2.get_error(), CapConstraintError))
 
 class Constraint(unittest.TestCase):
     def test_constraint(self):
@@ -226,6 +268,13 @@ class Mutable(unittest.TestCase):
         self.failUnless(IMutableFileURI.providedBy(u2))
         self.failIf(IDirnodeURI.providedBy(u2))
 
+        u2i = uri.from_string(u.to_string(), deep_immutable=True)
+        self.failUnless(isinstance(u2i, uri.UnknownURI), u2i)
+        u2ro = uri.from_string(uri.ALLEGED_READONLY_PREFIX + u.to_string())
+        self.failUnless(isinstance(u2ro, uri.UnknownURI), u2ro)
+        u2imm = uri.from_string(uri.ALLEGED_IMMUTABLE_PREFIX + u.to_string())
+        self.failUnless(isinstance(u2imm, uri.UnknownURI), u2imm)
+
         u3 = u2.get_readonly()
         readkey = hashutil.ssk_readkey_hash(writekey)
         self.failUnlessEqual(u3.fingerprint, fingerprint)
@@ -235,6 +284,13 @@ class Mutable(unittest.TestCase):
         self.failUnless(IURI.providedBy(u3))
         self.failUnless(IMutableFileURI.providedBy(u3))
         self.failIf(IDirnodeURI.providedBy(u3))
+
+        u3i = uri.from_string(u3.to_string(), deep_immutable=True)
+        self.failUnless(isinstance(u3i, uri.UnknownURI), u3i)
+        u3ro = uri.from_string(uri.ALLEGED_READONLY_PREFIX + u3.to_string())
+        self.failUnlessEqual(u3.to_string(), u3ro.to_string())
+        u3imm = uri.from_string(uri.ALLEGED_IMMUTABLE_PREFIX + u3.to_string())
+        self.failUnless(isinstance(u3imm, uri.UnknownURI), u3imm)
 
         he = u3.to_human_encoding()
         u3_h = uri.ReadonlySSKFileURI.init_from_human_encoding(he)
@@ -248,6 +304,13 @@ class Mutable(unittest.TestCase):
         self.failUnless(IURI.providedBy(u4))
         self.failUnless(IMutableFileURI.providedBy(u4))
         self.failIf(IDirnodeURI.providedBy(u4))
+
+        u4i = uri.from_string(u4.to_string(), deep_immutable=True)
+        self.failUnless(isinstance(u4i, uri.UnknownURI), u4i)
+        u4ro = uri.from_string(uri.ALLEGED_READONLY_PREFIX + u4.to_string())
+        self.failUnlessEqual(u4.to_string(), u4ro.to_string())
+        u4imm = uri.from_string(uri.ALLEGED_IMMUTABLE_PREFIX + u4.to_string())
+        self.failUnless(isinstance(u4imm, uri.UnknownURI), u4imm)
 
         u4a = uri.from_string(u4.to_string())
         self.failUnlessEqual(u4a, u4)
@@ -291,12 +354,19 @@ class Dirnode(unittest.TestCase):
         self.failIf(IFileURI.providedBy(u2))
         self.failUnless(IDirnodeURI.providedBy(u2))
 
+        u2i = uri.from_string(u1.to_string(), deep_immutable=True)
+        self.failUnless(isinstance(u2i, uri.UnknownURI))
+
         u3 = u2.get_readonly()
         self.failUnless(u3.is_readonly())
         self.failUnless(u3.is_mutable())
         self.failUnless(IURI.providedBy(u3))
         self.failIf(IFileURI.providedBy(u3))
         self.failUnless(IDirnodeURI.providedBy(u3))
+
+        u3i = uri.from_string(u2.to_string(), deep_immutable=True)
+        self.failUnless(isinstance(u3i, uri.UnknownURI))
+
         u3n = u3._filenode_uri
         self.failUnless(u3n.is_readonly())
         self.failUnless(u3n.is_mutable())
@@ -363,9 +433,15 @@ class Dirnode(unittest.TestCase):
         self.failIf(IFileURI.providedBy(u2))
         self.failUnless(IDirnodeURI.providedBy(u2))
 
+        u2i = uri.from_string(u1.to_string(), deep_immutable=True)
+        self.failUnlessEqual(u1.to_string(), u2i.to_string())
+
         u3 = u2.get_readonly()
         self.failUnlessEqual(u3.to_string(), u2.to_string())
         self.failUnless(str(u3))
+
+        u3i = uri.from_string(u2.to_string(), deep_immutable=True)
+        self.failUnlessEqual(u2.to_string(), u3i.to_string())
 
         u2_verifier = u2.get_verify_cap()
         self.failUnless(isinstance(u2_verifier,

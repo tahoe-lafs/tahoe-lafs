@@ -8,7 +8,7 @@ MODE_WRITE = "MODE_WRITE" # replace all shares, probably.. not for initial
                           # creation
 MODE_READ = "MODE_READ"
 
-class NotMutableError(Exception):
+class NotWriteableError(Exception):
     pass
 
 class NeedMoreDataError(Exception):

@@ -7,8 +7,9 @@ from allmydata import uri, dirnode
 from allmydata.client import Client
 from allmydata.immutable import upload
 from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
-     ExistingChildError, NoSuchChildError, NotDeepImmutableError, \
-     IDeepCheckResults, IDeepCheckAndRepairResults, CannotPackUnknownNodeError
+     ExistingChildError, NoSuchChildError, MustNotBeUnknownRWError, \
+     MustBeDeepImmutableError, MustBeReadonlyError, \
+     IDeepCheckResults, IDeepCheckAndRepairResults
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.mutable.common import UncoordinatedWriteError
 from allmydata.util import hashutil, base32
@@ -16,7 +17,7 @@ from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      ErrorMixin
 from allmydata.test.no_network import GridTestMixin
-from allmydata.unknown import UnknownNode
+from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
 import common_util as testutil
@@ -32,6 +33,11 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d = c.create_dirnode()
         def _done(res):
             self.failUnless(isinstance(res, dirnode.DirectoryNode))
+            self.failUnless(res.is_mutable())
+            self.failIf(res.is_readonly())
+            self.failIf(res.is_unknown())
+            self.failIf(res.is_allowed_in_immutable_directory())
+            res.raise_error()
             rep = str(res)
             self.failUnless("RW-MUT" in rep)
         d.addCallback(_done)
@@ -44,36 +50,74 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         nm = c.nodemaker
         setup_py_uri = "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
         one_uri = "URI:LIT:n5xgk" # LIT for "one"
+        mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+        mut_read_uri = "URI:SSK-RO:jf6wkflosyvntwxqcdo7a54jvm:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+        future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
+        future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
         kids = {u"one": (nm.create_from_cap(one_uri), {}),
                 u"two": (nm.create_from_cap(setup_py_uri),
                          {"metakey": "metavalue"}),
+                u"mut": (nm.create_from_cap(mut_write_uri, mut_read_uri), {}),
+                u"fut": (nm.create_from_cap(future_write_uri, future_read_uri), {}),
+                u"fro": (nm.create_from_cap(None, future_read_uri), {}),
                 }
         d = c.create_dirnode(kids)
+        
         def _created(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            self.failUnless(dn.is_mutable())
+            self.failIf(dn.is_readonly())
+            self.failIf(dn.is_unknown())
+            self.failIf(dn.is_allowed_in_immutable_directory())
+            dn.raise_error()
             rep = str(dn)
             self.failUnless("RW-MUT" in rep)
             return dn.list()
         d.addCallback(_created)
+        
         def _check_kids(children):
-            self.failUnlessEqual(sorted(children.keys()), [u"one", u"two"])
+            self.failUnlessEqual(sorted(children.keys()),
+                                 [u"fro", u"fut", u"mut", u"one", u"two"])
             one_node, one_metadata = children[u"one"]
             two_node, two_metadata = children[u"two"]
+            mut_node, mut_metadata = children[u"mut"]
+            fut_node, fut_metadata = children[u"fut"]
+            fro_node, fro_metadata = children[u"fro"]
+            
             self.failUnlessEqual(one_node.get_size(), 3)
-            self.failUnlessEqual(two_node.get_size(), 14861)
+            self.failUnlessEqual(one_node.get_uri(), one_uri)
+            self.failUnlessEqual(one_node.get_readonly_uri(), one_uri)
             self.failUnless(isinstance(one_metadata, dict), one_metadata)
+            
+            self.failUnlessEqual(two_node.get_size(), 14861)
+            self.failUnlessEqual(two_node.get_uri(), setup_py_uri)
+            self.failUnlessEqual(two_node.get_readonly_uri(), setup_py_uri)
             self.failUnlessEqual(two_metadata["metakey"], "metavalue")
+            
+            self.failUnlessEqual(mut_node.get_uri(), mut_write_uri)
+            self.failUnlessEqual(mut_node.get_readonly_uri(), mut_read_uri)
+            self.failUnless(isinstance(mut_metadata, dict), mut_metadata)
+            
+            self.failUnless(fut_node.is_unknown())
+            self.failUnlessEqual(fut_node.get_uri(), future_write_uri)
+            self.failUnlessEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnless(isinstance(fut_metadata, dict), fut_metadata)
+            
+            self.failUnless(fro_node.is_unknown())
+            self.failUnlessEqual(fro_node.get_uri(), "ro." + future_read_uri)
+            self.failUnlessEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnless(isinstance(fro_metadata, dict), fro_metadata)
         d.addCallback(_check_kids)
+
         d.addCallback(lambda ign: nm.create_new_mutable_directory(kids))
         d.addCallback(lambda dn: dn.list())
         d.addCallback(_check_kids)
-        future_writecap = "x-tahoe-crazy://I_am_from_the_future."
-        future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
-        future_node = UnknownNode(future_writecap, future_readcap)
-        bad_kids1 = {u"one": (future_node, {})}
+
+        bad_future_node = UnknownNode(future_write_uri, None)
+        bad_kids1 = {u"one": (bad_future_node, {})}
         d.addCallback(lambda ign:
-                      self.shouldFail(AssertionError, "bad_kids1",
-                                      "does not accept UnknownNode",
+                      self.shouldFail(MustNotBeUnknownRWError, "bad_kids1",
+                                      "cannot attach unknown",
                                       nm.create_new_mutable_directory,
                                       bad_kids1))
         bad_kids2 = {u"one": (nm.create_from_cap(one_uri), None)}
@@ -91,17 +135,24 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         nm = c.nodemaker
         setup_py_uri = "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
         one_uri = "URI:LIT:n5xgk" # LIT for "one"
-        mut_readcap = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
-        mut_writecap = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+        mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+        mut_read_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
+        future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
         kids = {u"one": (nm.create_from_cap(one_uri), {}),
                 u"two": (nm.create_from_cap(setup_py_uri),
                          {"metakey": "metavalue"}),
+                u"fut": (nm.create_from_cap(None, future_read_uri), {}),
                 }
         d = c.create_immutable_dirnode(kids)
+        
         def _created(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
             self.failIf(dn.is_mutable())
             self.failUnless(dn.is_readonly())
+            self.failIf(dn.is_unknown())
+            self.failUnless(dn.is_allowed_in_immutable_directory())
+            dn.raise_error()
             rep = str(dn)
             self.failUnless("RO-IMM" in rep)
             cap = dn.get_cap()
@@ -109,50 +160,73 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.cap = cap
             return dn.list()
         d.addCallback(_created)
+        
         def _check_kids(children):
-            self.failUnlessEqual(sorted(children.keys()), [u"one", u"two"])
+            self.failUnlessEqual(sorted(children.keys()), [u"fut", u"one", u"two"])
             one_node, one_metadata = children[u"one"]
             two_node, two_metadata = children[u"two"]
+            fut_node, fut_metadata = children[u"fut"]
+
             self.failUnlessEqual(one_node.get_size(), 3)
-            self.failUnlessEqual(two_node.get_size(), 14861)
+            self.failUnlessEqual(one_node.get_uri(), one_uri)
+            self.failUnlessEqual(one_node.get_readonly_uri(), one_uri)
             self.failUnless(isinstance(one_metadata, dict), one_metadata)
+
+            self.failUnlessEqual(two_node.get_size(), 14861)
+            self.failUnlessEqual(two_node.get_uri(), setup_py_uri)
+            self.failUnlessEqual(two_node.get_readonly_uri(), setup_py_uri)
             self.failUnlessEqual(two_metadata["metakey"], "metavalue")
+
+            self.failUnless(fut_node.is_unknown())
+            self.failUnlessEqual(fut_node.get_uri(), "imm." + future_read_uri)
+            self.failUnlessEqual(fut_node.get_readonly_uri(), "imm." + future_read_uri)
+            self.failUnless(isinstance(fut_metadata, dict), fut_metadata)
         d.addCallback(_check_kids)
+        
         d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
         d.addCallback(lambda dn: dn.list())
         d.addCallback(_check_kids)
-        future_writecap = "x-tahoe-crazy://I_am_from_the_future."
-        future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
-        future_node = UnknownNode(future_writecap, future_readcap)
-        bad_kids1 = {u"one": (future_node, {})}
+
+        bad_future_node1 = UnknownNode(future_write_uri, None)
+        bad_kids1 = {u"one": (bad_future_node1, {})}
         d.addCallback(lambda ign:
-                      self.shouldFail(AssertionError, "bad_kids1",
-                                      "does not accept UnknownNode",
+                      self.shouldFail(MustNotBeUnknownRWError, "bad_kids1",
+                                      "cannot attach unknown",
                                       c.create_immutable_dirnode,
                                       bad_kids1))
-        bad_kids2 = {u"one": (nm.create_from_cap(one_uri), None)}
+        bad_future_node2 = UnknownNode(future_write_uri, future_read_uri)
+        bad_kids2 = {u"one": (bad_future_node2, {})}
         d.addCallback(lambda ign:
-                      self.shouldFail(AssertionError, "bad_kids2",
-                                      "requires metadata to be a dict",
-                                      c.create_immutable_dirnode,
-                                      bad_kids2))
-        bad_kids3 = {u"one": (nm.create_from_cap(mut_writecap), {})}
-        d.addCallback(lambda ign:
-                      self.shouldFail(NotDeepImmutableError, "bad_kids3",
+                      self.shouldFail(MustBeDeepImmutableError, "bad_kids2",
                                       "is not immutable",
                                       c.create_immutable_dirnode,
-                                      bad_kids3))
-        bad_kids4 = {u"one": (nm.create_from_cap(mut_readcap), {})}
+                                      bad_kids2))
+        bad_kids3 = {u"one": (nm.create_from_cap(one_uri), None)}
         d.addCallback(lambda ign:
-                      self.shouldFail(NotDeepImmutableError, "bad_kids4",
+                      self.shouldFail(AssertionError, "bad_kids3",
+                                      "requires metadata to be a dict",
+                                      c.create_immutable_dirnode,
+                                      bad_kids3))
+        bad_kids4 = {u"one": (nm.create_from_cap(mut_write_uri), {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(MustBeDeepImmutableError, "bad_kids4",
                                       "is not immutable",
                                       c.create_immutable_dirnode,
                                       bad_kids4))
+        bad_kids5 = {u"one": (nm.create_from_cap(mut_read_uri), {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(MustBeDeepImmutableError, "bad_kids5",
+                                      "is not immutable",
+                                      c.create_immutable_dirnode,
+                                      bad_kids5))
         d.addCallback(lambda ign: c.create_immutable_dirnode({}))
         def _created_empty(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
             self.failIf(dn.is_mutable())
             self.failUnless(dn.is_readonly())
+            self.failIf(dn.is_unknown())
+            self.failUnless(dn.is_allowed_in_immutable_directory())
+            dn.raise_error()
             rep = str(dn)
             self.failUnless("RO-IMM" in rep)
             cap = dn.get_cap()
@@ -168,6 +242,9 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
             self.failIf(dn.is_mutable())
             self.failUnless(dn.is_readonly())
+            self.failIf(dn.is_unknown())
+            self.failUnless(dn.is_allowed_in_immutable_directory())
+            dn.raise_error()
             rep = str(dn)
             self.failUnless("RO-IMM" in rep)
             cap = dn.get_cap()
@@ -193,16 +270,15 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(_check_kids)
             d.addCallback(lambda ign: n.get(u"subdir"))
             d.addCallback(lambda sd: self.failIf(sd.is_mutable()))
-            bad_kids = {u"one": (nm.create_from_cap(mut_writecap), {})}
+            bad_kids = {u"one": (nm.create_from_cap(mut_write_uri), {})}
             d.addCallback(lambda ign:
-                          self.shouldFail(NotDeepImmutableError, "YZ",
+                          self.shouldFail(MustBeDeepImmutableError, "YZ",
                                           "is not immutable",
                                           n.create_subdirectory,
                                           u"sub2", bad_kids, mutable=False))
             return d
         d.addCallback(_made_parent)
         return d
-
 
     def test_check(self):
         self.basedir = "dirnode/Dirnode/test_check"
@@ -337,24 +413,27 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             ro_dn = c.create_node_from_uri(ro_uri)
             self.failUnless(ro_dn.is_readonly())
             self.failUnless(ro_dn.is_mutable())
+            self.failIf(ro_dn.is_unknown())
+            self.failIf(ro_dn.is_allowed_in_immutable_directory())
+            ro_dn.raise_error()
 
-            self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
                             ro_dn.set_uri, u"newchild", filecap, filecap)
-            self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
                             ro_dn.set_node, u"newchild", filenode)
-            self.shouldFail(dirnode.NotMutableError, "set_nodes ro", None,
+            self.shouldFail(dirnode.NotWriteableError, "set_nodes ro", None,
                             ro_dn.set_nodes, { u"newchild": (filenode, None) })
-            self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
                             ro_dn.add_file, u"newchild", uploadable)
-            self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
                             ro_dn.delete, u"child")
-            self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
                             ro_dn.create_subdirectory, u"newchild")
-            self.shouldFail(dirnode.NotMutableError, "set_metadata_for ro", None,
+            self.shouldFail(dirnode.NotWriteableError, "set_metadata_for ro", None,
                             ro_dn.set_metadata_for, u"child", {})
-            self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
                             ro_dn.move_child_to, u"child", rw_dn)
-            self.shouldFail(dirnode.NotMutableError, "set_uri ro", None,
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
                             rw_dn.move_child_to, u"child", ro_dn)
             return ro_dn.list()
         d.addCallback(_ready)
@@ -901,8 +980,8 @@ class Packing(unittest.TestCase):
         nodemaker = NodeMaker(None, None, None,
                               None, None, None,
                               {"k": 3, "n": 10}, None)
-        writecap = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
-        filenode = nodemaker.create_from_cap(writecap)
+        write_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
+        filenode = nodemaker.create_from_cap(write_uri)
         node = dirnode.DirectoryNode(filenode, nodemaker, None)
         children = node._unpack_contents(known_tree)
         self._check_children(children)
@@ -975,23 +1054,23 @@ class Packing(unittest.TestCase):
         self.failUnlessIn("lit", packed)
 
         kids = self._make_kids(nm, ["imm", "lit", "write"])
-        self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+        self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
                               fn, kids, deep_immutable=True)
 
         # read-only is not enough: all children must be immutable
         kids = self._make_kids(nm, ["imm", "lit", "read"])
-        self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+        self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
                               fn, kids, deep_immutable=True)
 
         kids = self._make_kids(nm, ["imm", "lit", "dirwrite"])
-        self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+        self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
                               fn, kids, deep_immutable=True)
 
         kids = self._make_kids(nm, ["imm", "lit", "dirread"])
-        self.failUnlessRaises(dirnode.MustBeDeepImmutable,
+        self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
                               fn, kids, deep_immutable=True)
 
@@ -1017,16 +1096,31 @@ class FakeMutableFile:
 
     def get_cap(self):
         return self.uri
+
     def get_uri(self):
         return self.uri.to_string()
+
+    def get_write_uri(self):
+        return self.uri.to_string()
+
     def download_best_version(self):
         return defer.succeed(self.data)
+
     def get_writekey(self):
         return "writekey"
+
     def is_readonly(self):
         return False
+
     def is_mutable(self):
         return True
+
+    def is_unknown(self):
+        return False
+
+    def is_allowed_in_immutable_directory(self):
+        return False
+
     def modify(self, modifier):
         self.data = modifier(self.data, None, True)
         return defer.succeed(None)
@@ -1049,49 +1143,185 @@ class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
         self.nodemaker = client.nodemaker
 
     def test_from_future(self):
-        # create a dirnode that contains unknown URI types, and make sure we
-        # tolerate them properly. Since dirnodes aren't allowed to add
-        # unknown node types, we have to be tricky.
+        # Create a mutable directory that contains unknown URI types, and make sure
+        # we tolerate them properly.
         d = self.nodemaker.create_new_mutable_directory()
-        future_writecap = "x-tahoe-crazy://I_am_from_the_future."
-        future_readcap = "x-tahoe-crazy-readonly://I_am_from_the_future."
-        future_node = UnknownNode(future_writecap, future_readcap)
+        future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
+        future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
+        future_imm_uri = "x-tahoe-crazy-immutable://I_am_from_the_future."
+        future_node = UnknownNode(future_write_uri, future_read_uri)
         def _then(n):
             self._node = n
             return n.set_node(u"future", future_node)
         d.addCallback(_then)
 
-        # we should be prohibited from adding an unknown URI to a directory,
-        # since we don't know how to diminish the cap to a readcap (for the
-        # dirnode's rocap slot), and we don't want to accidentally grant
-        # write access to a holder of the dirnode's readcap.
+        # We should be prohibited from adding an unknown URI to a directory
+        # just in the rw_uri slot, since we don't know how to diminish the cap
+        # to a readcap (for the ro_uri slot).
         d.addCallback(lambda ign:
-             self.shouldFail(CannotPackUnknownNodeError,
+             self.shouldFail(MustNotBeUnknownRWError,
                              "copy unknown",
-                             "cannot pack unknown node as child add",
+                             "cannot attach unknown rw cap as child",
                              self._node.set_uri, u"add",
-                             future_writecap, future_readcap))
+                             future_write_uri, None))
+
+        # However, we should be able to add both rw_uri and ro_uri as a pair of
+        # unknown URIs.
+        d.addCallback(lambda ign: self._node.set_uri(u"add-pair",
+                                                     future_write_uri, future_read_uri))
+
+        # and to add an URI prefixed with "ro." or "imm." when it is given in a
+        # write slot (or URL parameter).
+        d.addCallback(lambda ign: self._node.set_uri(u"add-ro",
+                                                     "ro." + future_read_uri, None))
+        d.addCallback(lambda ign: self._node.set_uri(u"add-imm",
+                                                     "imm." + future_imm_uri, None))
+
         d.addCallback(lambda ign: self._node.list())
         def _check(children):
-            self.failUnlessEqual(len(children), 1)
+            self.failUnlessEqual(len(children), 4)
             (fn, metadata) = children[u"future"]
             self.failUnless(isinstance(fn, UnknownNode), fn)
-            self.failUnlessEqual(fn.get_uri(), future_writecap)
-            self.failUnlessEqual(fn.get_readonly_uri(), future_readcap)
-            # but we *should* be allowed to copy this node, because the
-            # UnknownNode contains all the information that was in the
-            # original directory (readcap and writecap), so we're preserving
-            # everything.
+            self.failUnlessEqual(fn.get_uri(), future_write_uri)
+            self.failUnlessEqual(fn.get_write_uri(), future_write_uri)
+            self.failUnlessEqual(fn.get_readonly_uri(), "ro." + future_read_uri)
+
+            (fn2, metadata2) = children[u"add-pair"]
+            self.failUnless(isinstance(fn2, UnknownNode), fn2)
+            self.failUnlessEqual(fn2.get_uri(), future_write_uri)
+            self.failUnlessEqual(fn2.get_write_uri(), future_write_uri)
+            self.failUnlessEqual(fn2.get_readonly_uri(), "ro." + future_read_uri)
+
+            (fn3, metadata3) = children[u"add-ro"]
+            self.failUnless(isinstance(fn3, UnknownNode), fn3)
+            self.failUnlessEqual(fn3.get_uri(), "ro." + future_read_uri)
+            self.failUnlessEqual(fn3.get_write_uri(), None)
+            self.failUnlessEqual(fn3.get_readonly_uri(), "ro." + future_read_uri)
+
+            (fn4, metadata4) = children[u"add-imm"]
+            self.failUnless(isinstance(fn4, UnknownNode), fn4)
+            self.failUnlessEqual(fn4.get_uri(), "imm." + future_imm_uri)
+            self.failUnlessEqual(fn4.get_write_uri(), None)
+            self.failUnlessEqual(fn4.get_readonly_uri(), "imm." + future_imm_uri)
+
+            # We should also be allowed to copy the "future" UnknownNode, because
+            # it contains all the information that was in the original directory
+            # (readcap and writecap), so we're preserving everything.
             return self._node.set_node(u"copy", fn)
         d.addCallback(_check)
+
         d.addCallback(lambda ign: self._node.list())
         def _check2(children):
-            self.failUnlessEqual(len(children), 2)
+            self.failUnlessEqual(len(children), 5)
             (fn, metadata) = children[u"copy"]
             self.failUnless(isinstance(fn, UnknownNode), fn)
-            self.failUnlessEqual(fn.get_uri(), future_writecap)
-            self.failUnlessEqual(fn.get_readonly_uri(), future_readcap)
+            self.failUnlessEqual(fn.get_uri(), future_write_uri)
+            self.failUnlessEqual(fn.get_write_uri(), future_write_uri)
+            self.failUnlessEqual(fn.get_readonly_uri(), "ro." + future_read_uri)
+        d.addCallback(_check2)
         return d
+
+    def test_unknown_strip_prefix_for_ro(self):
+        self.failUnlessEqual(strip_prefix_for_ro("foo",     False), "foo")
+        self.failUnlessEqual(strip_prefix_for_ro("ro.foo",  False), "foo")
+        self.failUnlessEqual(strip_prefix_for_ro("imm.foo", False), "imm.foo")
+        self.failUnlessEqual(strip_prefix_for_ro("foo",     True),  "foo")
+        self.failUnlessEqual(strip_prefix_for_ro("ro.foo",  True),  "foo")
+        self.failUnlessEqual(strip_prefix_for_ro("imm.foo", True),  "foo")
+
+    def test_unknownnode(self):
+        mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+        mut_read_uri = "URI:SSK-RO:jf6wkflosyvntwxqcdo7a54jvm:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+        lit_uri = "URI:LIT:n5xgk"
+
+        # This does not attempt to be exhaustive.
+        no_no        = [# Opaque node, but not an error.
+                        ( 0, UnknownNode(None, None)),
+                        ( 1, UnknownNode(None, None, deep_immutable=True)),
+                       ]
+        unknown_rw   = [# These are errors because we're only given a rw_uri, and we can't
+                        # diminish it.
+                        ( 2, UnknownNode("foo", None)),
+                        ( 3, UnknownNode("foo", None, deep_immutable=True)),
+                        ( 4, UnknownNode("ro.foo", None, deep_immutable=True)),
+                        ( 5, UnknownNode("ro." + mut_read_uri, None, deep_immutable=True)),
+                        ( 6, UnknownNode("URI:SSK-RO:foo", None, deep_immutable=True)),
+                        ( 7, UnknownNode("URI:SSK:foo", None)),
+                       ]
+        must_be_ro   = [# These are errors because a readonly constraint is not met.
+                        ( 8, UnknownNode("ro." + mut_write_uri, None)),
+                        ( 9, UnknownNode(None, "ro." + mut_write_uri)),
+                       ]
+        must_be_imm  = [# These are errors because an immutable constraint is not met.
+                        (10, UnknownNode(None, "ro.URI:SSK-RO:foo", deep_immutable=True)),
+                        (11, UnknownNode(None, "imm.URI:SSK:foo")),
+                        (12, UnknownNode(None, "imm.URI:SSK-RO:foo")),
+                        (13, UnknownNode("bar", "ro.foo", deep_immutable=True)),
+                        (14, UnknownNode("bar", "imm.foo", deep_immutable=True)),
+                        (15, UnknownNode("bar", "imm." + lit_uri, deep_immutable=True)),
+                        (16, UnknownNode("imm." + mut_write_uri, None)),
+                        (17, UnknownNode("imm." + mut_read_uri, None)),
+                        (18, UnknownNode("bar", "imm.foo")),
+                       ]
+        bad_uri      = [# These are errors because the URI is bad once we've stripped the prefix.
+                        (19, UnknownNode("ro.URI:SSK-RO:foo", None)),
+                        (20, UnknownNode("imm.URI:CHK:foo", None, deep_immutable=True)),
+                       ]
+        ro_prefixed  = [# These are valid, and the readcap should end up with a ro. prefix.
+                        (21, UnknownNode(None, "foo")),
+                        (22, UnknownNode(None, "ro.foo")),
+                        (32, UnknownNode(None, "ro." + lit_uri)),
+                        (23, UnknownNode("bar", "foo")),
+                        (24, UnknownNode("bar", "ro.foo")),
+                        (32, UnknownNode("bar", "ro." + lit_uri)),
+                        (25, UnknownNode("ro.foo", None)),
+                        (30, UnknownNode("ro." + lit_uri, None)),
+                       ]
+        imm_prefixed = [# These are valid, and the readcap should end up with an imm. prefix.
+                        (26, UnknownNode(None, "foo", deep_immutable=True)),
+                        (27, UnknownNode(None, "ro.foo", deep_immutable=True)),
+                        (28, UnknownNode(None, "imm.foo")),
+                        (29, UnknownNode(None, "imm.foo", deep_immutable=True)),
+                        (31, UnknownNode("imm." + lit_uri, None)),
+                        (31, UnknownNode("imm." + lit_uri, None, deep_immutable=True)),
+                        (33, UnknownNode(None, "imm." + lit_uri)),
+                        (33, UnknownNode(None, "imm." + lit_uri, deep_immutable=True)),
+                       ]
+        error = unknown_rw + must_be_ro + must_be_imm + bad_uri
+        ok = ro_prefixed + imm_prefixed
+
+        for (i, n) in no_no + error + ok:
+            self.failUnless(n.is_unknown(), i)
+
+        for (i, n) in no_no + error:
+            self.failUnless(n.get_uri() is None, i)
+            self.failUnless(n.get_write_uri() is None, i)
+            self.failUnless(n.get_readonly_uri() is None, i)
+
+        for (i, n) in no_no + ok:
+            n.raise_error()
+
+        for (i, n) in unknown_rw:
+            self.failUnlessRaises(MustNotBeUnknownRWError, lambda: n.raise_error())
+
+        for (i, n) in must_be_ro:
+            self.failUnlessRaises(MustBeReadonlyError, lambda: n.raise_error())
+
+        for (i, n) in must_be_imm:
+            self.failUnlessRaises(MustBeDeepImmutableError, lambda: n.raise_error())
+
+        for (i, n) in bad_uri:
+            self.failUnlessRaises(uri.BadURIError, lambda: n.raise_error())
+
+        for (i, n) in ok:
+            self.failIf(n.get_readonly_uri() is None, i)
+
+        for (i, n) in ro_prefixed:
+            self.failUnless(n.get_readonly_uri().startswith("ro."), i)
+
+        for (i, n) in imm_prefixed:
+            self.failUnless(n.get_readonly_uri().startswith("imm."), i)
+
 
 class DeepStats(unittest.TestCase):
     timeout = 240 # It takes longer than 120 seconds on Francois's arm box.

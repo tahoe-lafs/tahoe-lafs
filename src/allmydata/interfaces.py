@@ -456,7 +456,6 @@ class IVerifierURI(Interface, IURI):
 class IDirnodeURI(Interface):
     """I am a URI which represents a dirnode."""
 
-
 class IFileURI(Interface):
     """I am a URI which represents a filenode."""
     def get_size():
@@ -467,21 +466,28 @@ class IImmutableFileURI(IFileURI):
 
 class IMutableFileURI(Interface):
     """I am a URI which represents a mutable filenode."""
+
 class IDirectoryURI(Interface):
     pass
+
 class IReadonlyDirectoryURI(Interface):
     pass
 
-class CannotPackUnknownNodeError(Exception):
-    """UnknownNodes (using filecaps from the future that we don't understand)
-    cannot yet be copied safely, so I refuse to copy them."""
+class CapConstraintError(Exception):
+    """A constraint on a cap was violated."""
 
-class UnhandledCapTypeError(Exception):
-    """I recognize the cap/URI, but I cannot create an IFilesystemNode for
-    it."""
+class MustBeDeepImmutableError(CapConstraintError):
+    """Mutable children cannot be added to an immutable directory.
+    Also, caps obtained from an immutable directory can trigger this error
+    if they are later found to refer to a mutable object and then used."""
 
-class NotDeepImmutableError(Exception):
-    """Deep-immutable directories can only contain deep-immutable children"""
+class MustBeReadonlyError(CapConstraintError):
+    """Known write caps cannot be specified in a ro_uri field. Also,
+    caps obtained from a ro_uri field can trigger this error if they
+    are later found to be write caps and then used."""
+
+class MustNotBeUnknownRWError(CapConstraintError):
+    """Cannot add an unknown child cap specified in a rw_uri field."""
 
 # The hierarchy looks like this:
 #  IFilesystemNode
@@ -518,15 +524,19 @@ class IFilesystemNode(Interface):
         """
 
     def get_uri():
-        """
-        Return the URI string that can be used by others to get access to
-        this node. If this node is read-only, the URI will only offer
+        """Return the URI string corresponding to the strongest cap associated
+        with this node. If this node is read-only, the URI will only offer
         read-only access. If this node is read-write, the URI will offer
         read-write access.
 
         If you have read-write access to a node and wish to share merely
         read-only access with others, use get_readonly_uri().
         """
+
+    def get_write_uri(n):
+        """Return the URI string that can be used by others to get write
+        access to this node, if it is writeable. If this is a read-only node,
+        return None."""
 
     def get_readonly_uri():
         """Return the URI string that can be used by others to get read-only
@@ -556,6 +566,18 @@ class IFilesystemNode(Interface):
         will be read-only; there are no read-write references to an immutable
         file.
         """
+
+    def is_unknown():
+        """Return True if this is an unknown node."""
+
+    def is_allowed_in_immutable_directory():
+        """Return True if this node is allowed as a child of a deep-immutable
+        directory. This is true if either the node is of a known-immutable type,
+        or it is unknown and read-only.
+        """
+
+    def raise_error():
+        """Raise any error associated with this node."""
 
     def get_size():
         """Return the length (in bytes) of the data this node represents. For
@@ -902,7 +924,7 @@ class IDirectoryNode(IFilesystemNode):
         ctime/mtime semantics of traditional filesystems.
 
         If this directory node is read-only, the Deferred will errback with a
-        NotMutableError."""
+        NotWriteableError."""
 
     def set_children(entries, overwrite=True):
         """Add multiple children (by writecap+readcap) to a directory node.
@@ -928,7 +950,7 @@ class IDirectoryNode(IFilesystemNode):
         ctime/mtime semantics of traditional filesystems.
 
         If this directory node is read-only, the Deferred will errback with a
-        NotMutableError."""
+        NotWriteableError."""
 
     def set_nodes(entries, overwrite=True):
         """Add multiple children to a directory node. Takes a dict mapping
@@ -2074,7 +2096,7 @@ class INodeMaker(Interface):
     Tahoe process will typically have a single NodeMaker, but unit tests may
     create simplified/mocked forms for testing purposes.
     """
-    def create_from_cap(writecap, readcap=None):
+    def create_from_cap(writecap, readcap=None, **kwargs):
         """I create an IFilesystemNode from the given writecap/readcap. I can
         only provide nodes for existing file/directory objects: use my other
         methods to create new objects. I return synchronously."""

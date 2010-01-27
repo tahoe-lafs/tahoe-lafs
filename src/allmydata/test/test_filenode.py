@@ -41,14 +41,21 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(fn1.get_readcap(), u)
         self.failUnlessEqual(fn1.is_readonly(), True)
         self.failUnlessEqual(fn1.is_mutable(), False)
+        self.failUnlessEqual(fn1.is_unknown(), False)
+        self.failUnlessEqual(fn1.is_allowed_in_immutable_directory(), True)
+        self.failUnlessEqual(fn1.get_write_uri(), None)
         self.failUnlessEqual(fn1.get_readonly_uri(), u.to_string())
         self.failUnlessEqual(fn1.get_size(), 1000)
         self.failUnlessEqual(fn1.get_storage_index(), u.storage_index)
+        fn1.raise_error()
+        fn2.raise_error()
         d = {}
         d[fn1] = 1 # exercise __hash__
         v = fn1.get_verify_cap()
         self.failUnless(isinstance(v, uri.CHKFileVerifierURI))
         self.failUnlessEqual(fn1.get_repair_cap(), v)
+        self.failUnlessEqual(v.is_readonly(), True)
+        self.failUnlessEqual(v.is_mutable(), False)
 
 
     def test_literal_filenode(self):
@@ -64,9 +71,14 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(fn1.get_readcap(), u)
         self.failUnlessEqual(fn1.is_readonly(), True)
         self.failUnlessEqual(fn1.is_mutable(), False)
+        self.failUnlessEqual(fn1.is_unknown(), False)
+        self.failUnlessEqual(fn1.is_allowed_in_immutable_directory(), True)
+        self.failUnlessEqual(fn1.get_write_uri(), None)
         self.failUnlessEqual(fn1.get_readonly_uri(), u.to_string())
         self.failUnlessEqual(fn1.get_size(), len(DATA))
         self.failUnlessEqual(fn1.get_storage_index(), None)
+        fn1.raise_error()
+        fn2.raise_error()
         d = {}
         d[fn1] = 1 # exercise __hash__
 
@@ -99,24 +111,29 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(n.get_writekey(), wk)
         self.failUnlessEqual(n.get_readkey(), rk)
         self.failUnlessEqual(n.get_storage_index(), si)
-        # these itmes are populated on first read (or create), so until that
+        # these items are populated on first read (or create), so until that
         # happens they'll be None
         self.failUnlessEqual(n.get_privkey(), None)
         self.failUnlessEqual(n.get_encprivkey(), None)
         self.failUnlessEqual(n.get_pubkey(), None)
 
         self.failUnlessEqual(n.get_uri(), u.to_string())
+        self.failUnlessEqual(n.get_write_uri(), u.to_string())
         self.failUnlessEqual(n.get_readonly_uri(), u.get_readonly().to_string())
         self.failUnlessEqual(n.get_cap(), u)
         self.failUnlessEqual(n.get_readcap(), u.get_readonly())
         self.failUnlessEqual(n.is_mutable(), True)
         self.failUnlessEqual(n.is_readonly(), False)
+        self.failUnlessEqual(n.is_unknown(), False)
+        self.failUnlessEqual(n.is_allowed_in_immutable_directory(), False)
+        n.raise_error()
 
         n2 = MutableFileNode(None, None, client.get_encoding_parameters(),
                              None).init_from_cap(u)
         self.failUnlessEqual(n, n2)
         self.failIfEqual(n, "not even the right type")
         self.failIfEqual(n, u) # not the right class
+        n.raise_error()
         d = {n: "can these be used as dictionary keys?"}
         d[n2] = "replace the old one"
         self.failUnlessEqual(len(d), 1)
@@ -127,12 +144,16 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(nro.get_readonly(), nro)
         self.failUnlessEqual(nro.get_cap(), u.get_readonly())
         self.failUnlessEqual(nro.get_readcap(), u.get_readonly())
+        self.failUnlessEqual(nro.is_mutable(), True)
+        self.failUnlessEqual(nro.is_readonly(), True)
+        self.failUnlessEqual(nro.is_unknown(), False)
+        self.failUnlessEqual(nro.is_allowed_in_immutable_directory(), False)
         nro_u = nro.get_uri()
         self.failUnlessEqual(nro_u, nro.get_readonly_uri())
         self.failUnlessEqual(nro_u, u.get_readonly().to_string())
-        self.failUnlessEqual(nro.is_mutable(), True)
-        self.failUnlessEqual(nro.is_readonly(), True)
+        self.failUnlessEqual(nro.get_write_uri(), None)
         self.failUnlessEqual(nro.get_repair_cap(), None) # RSAmut needs writecap
+        nro.raise_error()
 
         v = n.get_verify_cap()
         self.failUnless(isinstance(v, uri.SSKVerifierURI))

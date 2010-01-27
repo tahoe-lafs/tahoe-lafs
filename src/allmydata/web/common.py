@@ -8,7 +8,8 @@ from nevow.inevow import IRequest
 from nevow.util import resource_filename
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      FileTooLargeError, NotEnoughSharesError, NoSharesError, \
-     NotDeepImmutableError, EmptyPathnameComponentError
+     EmptyPathnameComponentError, MustBeDeepImmutableError, \
+     MustBeReadonlyError, MustNotBeUnknownRWError
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate # TODO: consolidate
 
@@ -181,9 +182,42 @@ def humanize_failure(f):
              "failure, or disk corruption. You should perform a filecheck on "
              "this object to learn more.")
         return (t, http.GONE)
-    if f.check(NotDeepImmutableError):
-        t = ("NotDeepImmutableError: a mkdir-immutable operation was given "
-             "a child that was not itself immutable: %s" % (f.value,))
+    if f.check(MustNotBeUnknownRWError):
+        name = f.value.args[1]
+        immutable = f.value.args[2]
+        if immutable:
+            t = ("MustNotBeUnknownRWError: an operation to add a child named "
+                 "'%s' to a directory was given an unknown cap in a write slot.\n"
+                 "If the cap is actually an immutable readcap, then using a "
+                 "webapi server that supports a later version of Tahoe may help.\n\n"
+                 "If you are using the webapi directly, then specifying an immutable "
+                 "readcap in the read slot (ro_uri) of the JSON PROPDICT, and "
+                 "omitting the write slot (rw_uri), would also work in this "
+                 "case.") % name.encode("utf-8")
+        else:
+            t = ("MustNotBeUnknownRWError: an operation to add a child named "
+                 "'%s' to a directory was given an unknown cap in a write slot.\n"
+                 "Using a webapi server that supports a later version of Tahoe "
+                 "may help.\n\n"
+                 "If you are using the webapi directly, specifying a readcap in "
+                 "the read slot (ro_uri) of the JSON PROPDICT, as well as a "
+                 "writecap in the write slot if desired, would also work in this "
+                 "case.") % name.encode("utf-8")
+        return (t, http.BAD_REQUEST)
+    if f.check(MustBeDeepImmutableError):
+        name = f.value.args[1]
+        t = ("MustBeDeepImmutableError: a cap passed to this operation for "
+             "the child named '%s', needed to be immutable but was not. Either "
+             "the cap is being added to an immutable directory, or it was "
+             "originally retrieved from an immutable directory as an unknown "
+             "cap." % name.encode("utf-8"))
+        return (t, http.BAD_REQUEST)
+    if f.check(MustBeReadonlyError):
+        name = f.value.args[1]
+        t = ("MustBeReadonlyError: a cap passed to this operation for "
+             "the child named '%s', needed to be read-only but was not. "
+             "The cap is being passed in a read slot (ro_uri), or was retrieved "
+             "from a read slot as an unknown cap." % name.encode("utf-8"))
         return (t, http.BAD_REQUEST)
     if f.check(WebError):
         return (f.value.text, f.value.code)

@@ -5,9 +5,10 @@ from twisted.python.components import registerAdapter
 from allmydata.storage.server import si_a2b, si_b2a
 from allmydata.util import base32, hashutil
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IImmutableFileURI, \
-    IVerifierURI, IMutableFileURI, IDirectoryURI, IReadonlyDirectoryURI
+    IVerifierURI, IMutableFileURI, IDirectoryURI, IReadonlyDirectoryURI, \
+    MustBeDeepImmutableError, MustBeReadonlyError, CapConstraintError
 
-class BadURIError(Exception):
+class BadURIError(CapConstraintError):
     pass
 
 # the URI shall be an ascii representation of the file. It shall contain
@@ -71,7 +72,7 @@ class CHKFileURI(_BaseURI):
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         if not mo:
-            raise BadURIError("%s doesn't look like a cap" % (uri,))
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
@@ -79,7 +80,7 @@ class CHKFileURI(_BaseURI):
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("%s doesn't look like a cap" % (uri,))
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
@@ -97,8 +98,10 @@ class CHKFileURI(_BaseURI):
 
     def is_readonly(self):
         return True
+
     def is_mutable(self):
         return False
+
     def get_readonly(self):
         return self
 
@@ -134,14 +137,16 @@ class CHKFileVerifierURI(_BaseURI):
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
-        assert mo, uri
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
-        assert mo, (uri, cls, cls.STRING_RE)
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)),
                    int(mo.group(3)), int(mo.group(4)), int(mo.group(5)))
 
@@ -156,6 +161,18 @@ class CHKFileVerifierURI(_BaseURI):
                  self.needed_shares,
                  self.total_shares,
                  self.size))
+
+    def is_readonly(self):
+        return True
+
+    def is_mutable(self):
+        return False
+
+    def get_readonly(self):
+        return self
+
+    def get_verify_cap(self):
+        return self
 
 
 class LiteralFileURI(_BaseURI):
@@ -173,13 +190,15 @@ class LiteralFileURI(_BaseURI):
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
-        assert mo, uri
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
-        assert mo, uri
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)))
 
     def to_string(self):
@@ -187,10 +206,13 @@ class LiteralFileURI(_BaseURI):
 
     def is_readonly(self):
         return True
+
     def is_mutable(self):
         return False
+
     def get_readonly(self):
         return self
+
     def get_storage_index(self):
         return None
 
@@ -200,6 +222,7 @@ class LiteralFileURI(_BaseURI):
 
     def get_size(self):
         return len(self.data)
+
 
 class WriteableSSKFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
@@ -221,7 +244,7 @@ class WriteableSSKFileURI(_BaseURI):
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a cap" % (uri,))
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
@@ -242,17 +265,22 @@ class WriteableSSKFileURI(_BaseURI):
 
     def abbrev(self):
         return base32.b2a(self.writekey[:5])
+
     def abbrev_si(self):
         return base32.b2a(self.storage_index)[:5]
 
     def is_readonly(self):
         return False
+
     def is_mutable(self):
         return True
+
     def get_readonly(self):
         return ReadonlySSKFileURI(self.readkey, self.fingerprint)
+
     def get_verify_cap(self):
         return SSKVerifierURI(self.storage_index, self.fingerprint)
+
 
 class ReadonlySSKFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
@@ -271,14 +299,14 @@ class ReadonlySSKFileURI(_BaseURI):
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a cap" % (uri,))
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
-            raise BadURIError("'%s' doesn't look like a cap" % (uri,))
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
@@ -292,17 +320,22 @@ class ReadonlySSKFileURI(_BaseURI):
 
     def abbrev(self):
         return base32.b2a(self.readkey[:5])
+
     def abbrev_si(self):
         return base32.b2a(self.storage_index)[:5]
 
     def is_readonly(self):
         return True
+
     def is_mutable(self):
         return True
+
     def get_readonly(self):
         return self
+
     def get_verify_cap(self):
         return SSKVerifierURI(self.storage_index, self.fingerprint)
+
 
 class SSKVerifierURI(_BaseURI):
     implements(IVerifierURI)
@@ -319,13 +352,15 @@ class SSKVerifierURI(_BaseURI):
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
-        assert mo, uri
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
-        assert mo, (uri, cls)
+        if not mo:
+            raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
         return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
@@ -333,6 +368,18 @@ class SSKVerifierURI(_BaseURI):
         assert isinstance(self.fingerprint, str)
         return 'URI:SSK-Verifier:%s:%s' % (si_b2a(self.storage_index),
                                            base32.b2a(self.fingerprint))
+
+    def is_readonly(self):
+        return True
+
+    def is_mutable(self):
+        return False
+
+    def get_readonly(self):
+        return self
+
+    def get_verify_cap(self):
+        return self
 
 class _DirectoryBaseURI(_BaseURI):
     implements(IURI, IDirnodeURI)
@@ -373,14 +420,15 @@ class _DirectoryBaseURI(_BaseURI):
 
     def abbrev(self):
         return self._filenode_uri.to_string().split(':')[2][:5]
+
     def abbrev_si(self):
         return base32.b2a(self._filenode_uri.storage_index)[:5]
 
-    def get_filenode_cap(self):
-        return self._filenode_uri
-
     def is_mutable(self):
         return True
+
+    def get_filenode_cap(self):
+        return self._filenode_uri
 
     def get_verify_cap(self):
         return DirectoryURIVerifier(self._filenode_uri.get_verify_cap())
@@ -407,6 +455,7 @@ class DirectoryURI(_DirectoryBaseURI):
     def get_readonly(self):
         return ReadonlyDirectoryURI(self._filenode_uri.get_readonly())
 
+
 class ReadonlyDirectoryURI(_DirectoryBaseURI):
     implements(IReadonlyDirectoryURI)
 
@@ -426,26 +475,30 @@ class ReadonlyDirectoryURI(_DirectoryBaseURI):
     def get_readonly(self):
         return self
 
+
 class _ImmutableDirectoryBaseURI(_DirectoryBaseURI):
     def __init__(self, filenode_uri=None):
         if filenode_uri:
             assert isinstance(filenode_uri, self.INNER_URI_CLASS), filenode_uri
+            assert not filenode_uri.is_mutable()
         _DirectoryBaseURI.__init__(self, filenode_uri)
-
-    def is_mutable(self):
-        return False
 
     def is_readonly(self):
         return True
 
+    def is_mutable(self):
+        return False
+
     def get_readonly(self):
         return self
+
 
 class ImmutableDirectoryURI(_ImmutableDirectoryBaseURI):
     BASE_STRING='URI:DIR2-CHK:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
     BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-CHK'+SEP)
     INNER_URI_CLASS=CHKFileURI
+
     def get_verify_cap(self):
         vcap = self._filenode_uri.get_verify_cap()
         return ImmutableDirectoryURIVerifier(vcap)
@@ -456,9 +509,11 @@ class LiteralDirectoryURI(_ImmutableDirectoryBaseURI):
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
     BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-LIT'+SEP)
     INNER_URI_CLASS=LiteralFileURI
+
     def get_verify_cap(self):
         # LIT caps have no verifier, since they aren't distributed
         return None
+
 
 def wrap_dirnode_cap(filecap):
     if isinstance(filecap, WriteableSSKFileURI):
@@ -469,7 +524,8 @@ def wrap_dirnode_cap(filecap):
         return ImmutableDirectoryURI(filecap)
     if isinstance(filecap, LiteralFileURI):
         return LiteralDirectoryURI(filecap)
-    assert False, "cannot wrap a dirnode around %s" % filecap.__class__
+    assert False, "cannot interpret as a directory cap: %s" % filecap.__class__
+
 
 class DirectoryURIVerifier(_DirectoryBaseURI):
     implements(IVerifierURI)
@@ -487,6 +543,10 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
     def get_filenode_cap(self):
         return self._filenode_uri
 
+    def is_mutable(self):
+        return False
+
+
 class ImmutableDirectoryURIVerifier(DirectoryURIVerifier):
     implements(IVerifierURI)
     BASE_STRING='URI:DIR2-CHK-Verifier:'
@@ -494,68 +554,146 @@ class ImmutableDirectoryURIVerifier(DirectoryURIVerifier):
     BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-CHK-VERIFIER'+SEP)
     INNER_URI_CLASS=CHKFileVerifierURI
 
+
 class UnknownURI:
-    def __init__(self, uri):
+    def __init__(self, uri, error=None):
         self._uri = uri
+        self._error = error
+
     def to_string(self):
         return self._uri
 
-def from_string(s):
-    if not isinstance(s, str):
-        raise TypeError("unknown URI type: %s.." % str(s)[:100])
-    elif s.startswith('URI:CHK:'):
-        return CHKFileURI.init_from_string(s)
-    elif s.startswith('URI:CHK-Verifier:'):
-        return CHKFileVerifierURI.init_from_string(s)
-    elif s.startswith('URI:LIT:'):
-        return LiteralFileURI.init_from_string(s)
-    elif s.startswith('URI:SSK:'):
-        return WriteableSSKFileURI.init_from_string(s)
-    elif s.startswith('URI:SSK-RO:'):
-        return ReadonlySSKFileURI.init_from_string(s)
-    elif s.startswith('URI:SSK-Verifier:'):
-        return SSKVerifierURI.init_from_string(s)
-    elif s.startswith('URI:DIR2:'):
-        return DirectoryURI.init_from_string(s)
-    elif s.startswith('URI:DIR2-RO:'):
-        return ReadonlyDirectoryURI.init_from_string(s)
-    elif s.startswith('URI:DIR2-Verifier:'):
-        return DirectoryURIVerifier.init_from_string(s)
-    elif s.startswith('URI:DIR2-CHK:'):
-        return ImmutableDirectoryURI.init_from_string(s)
-    elif s.startswith('URI:DIR2-LIT:'):
-        return LiteralDirectoryURI.init_from_string(s)
-    return UnknownURI(s)
+    def get_readonly(self):
+        return None
+
+    def get_error(self):
+        return self._error
+
+    def get_verify_cap(self):
+        return None
+
+
+ALLEGED_READONLY_PREFIX = 'ro.'
+ALLEGED_IMMUTABLE_PREFIX = 'imm.'
+
+def from_string(u, deep_immutable=False, name=u"<unknown name>"):
+    if not isinstance(u, str):
+        raise TypeError("unknown URI type: %s.." % str(u)[:100])
+
+    # We allow and check ALLEGED_READONLY_PREFIX or ALLEGED_IMMUTABLE_PREFIX
+    # on all URIs, even though we would only strictly need to do so for caps of
+    # new formats (post Tahoe-LAFS 1.6). URIs that are not consistent with their
+    # prefix are treated as unknown. This should be revisited when we add the
+    # new cap formats. See <http://allmydata.org/trac/tahoe/ticket/833#comment:31>.
+    s = u
+    can_be_mutable = can_be_writeable = not deep_immutable
+    if s.startswith(ALLEGED_IMMUTABLE_PREFIX):
+        can_be_mutable = can_be_writeable = False
+        s = s[len(ALLEGED_IMMUTABLE_PREFIX):]
+    elif s.startswith(ALLEGED_READONLY_PREFIX):
+        can_be_writeable = False
+        s = s[len(ALLEGED_READONLY_PREFIX):]
+
+    error = None
+    kind = "cap"
+    try:
+        if s.startswith('URI:CHK:'):
+            return CHKFileURI.init_from_string(s)
+        elif s.startswith('URI:CHK-Verifier:'):
+            return CHKFileVerifierURI.init_from_string(s)
+        elif s.startswith('URI:LIT:'):
+            return LiteralFileURI.init_from_string(s)
+        elif s.startswith('URI:SSK:'):
+            if can_be_writeable:
+                return WriteableSSKFileURI.init_from_string(s)
+            kind = "URI:SSK file writecap"
+        elif s.startswith('URI:SSK-RO:'):
+            if can_be_mutable:
+                return ReadonlySSKFileURI.init_from_string(s)
+            kind = "URI:SSK-RO readcap to a mutable file"
+        elif s.startswith('URI:SSK-Verifier:'):
+            return SSKVerifierURI.init_from_string(s)
+        elif s.startswith('URI:DIR2:'):
+            if can_be_writeable:
+                return DirectoryURI.init_from_string(s)
+            kind = "URI:DIR2 directory writecap"
+        elif s.startswith('URI:DIR2-RO:'):
+            if can_be_mutable:
+                return ReadonlyDirectoryURI.init_from_string(s)
+            kind = "URI:DIR2-RO readcap to a mutable directory"
+        elif s.startswith('URI:DIR2-Verifier:'):
+            return DirectoryURIVerifier.init_from_string(s)
+        elif s.startswith('URI:DIR2-CHK:'):
+            return ImmutableDirectoryURI.init_from_string(s)
+        elif s.startswith('URI:DIR2-LIT:'):
+            return LiteralDirectoryURI.init_from_string(s)
+        elif s.startswith('x-tahoe-future-test-writeable:') and not can_be_writeable:
+            # For testing how future writeable caps would behave in read-only contexts.
+            kind = "x-tahoe-future-test-writeable: testing cap"
+        elif s.startswith('x-tahoe-future-test-mutable:') and not can_be_mutable:
+            # For testing how future mutable readcaps would behave in immutable contexts.
+            kind = "x-tahoe-future-test-mutable: testing cap"
+        else:
+            return UnknownURI(u)
+
+        # We fell through because a constraint was not met.
+        # Prefer to report the most specific constraint.
+        if not can_be_mutable:
+            error = MustBeDeepImmutableError(kind + " used in an immutable context", name)
+        else:
+            error = MustBeReadonlyError(kind + " used in a read-only context", name)
+            
+    except BadURIError, e:
+        error = e
+
+    return UnknownURI(u, error=error)
 
 def is_uri(s):
     try:
-        from_string(s)
+        from_string(s, deep_immutable=False)
         return True
     except (TypeError, AssertionError):
         return False
 
-def from_string_dirnode(s):
-    u = from_string(s)
+def is_literal_file_uri(s):
+    if not isinstance(s, str):
+        return False
+    return (s.startswith('URI:LIT:') or
+            s.startswith(ALLEGED_READONLY_PREFIX + 'URI:LIT:') or
+            s.startswith(ALLEGED_IMMUTABLE_PREFIX + 'URI:LIT:'))
+
+def has_uri_prefix(s):
+    if not isinstance(s, str):
+        return False
+    return (s.startswith("URI:") or
+            s.startswith(ALLEGED_READONLY_PREFIX + 'URI:') or
+            s.startswith(ALLEGED_IMMUTABLE_PREFIX + 'URI:'))
+
+
+# These take the same keyword arguments as from_string above.
+
+def from_string_dirnode(s, **kwargs):
+    u = from_string(s, **kwargs)
     assert IDirnodeURI.providedBy(u)
     return u
 
 registerAdapter(from_string_dirnode, str, IDirnodeURI)
 
-def from_string_filenode(s):
-    u = from_string(s)
+def from_string_filenode(s, **kwargs):
+    u = from_string(s, **kwargs)
     assert IFileURI.providedBy(u)
     return u
 
 registerAdapter(from_string_filenode, str, IFileURI)
 
-def from_string_mutable_filenode(s):
-    u = from_string(s)
+def from_string_mutable_filenode(s, **kwargs):
+    u = from_string(s, **kwargs)
     assert IMutableFileURI.providedBy(u)
     return u
 registerAdapter(from_string_mutable_filenode, str, IMutableFileURI)
 
-def from_string_verifier(s):
-    u = from_string(s)
+def from_string_verifier(s, **kwargs):
+    u = from_string(s, **kwargs)
     assert IVerifierURI.providedBy(u)
     return u
 registerAdapter(from_string_verifier, str, IVerifierURI)

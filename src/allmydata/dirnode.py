@@ -5,13 +5,13 @@ from zope.interface import implements
 from twisted.internet import defer
 from foolscap.api import fireEventually
 import simplejson
-from allmydata.mutable.common import NotMutableError
+from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable.filenode import MutableFileNode
-from allmydata.unknown import UnknownNode
+from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.interfaces import IFilesystemNode, IDirectoryNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable, \
-     CannotPackUnknownNodeError
+     MustBeDeepImmutableError, CapConstraintError
 from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
@@ -39,6 +39,7 @@ class Deleter:
         del children[self.name]
         new_contents = self.node._pack_contents(children)
         return new_contents
+
 
 class MetadataSetter:
     def __init__(self, node, name, metadata):
@@ -75,6 +76,11 @@ class Adder:
         for (name, (child, new_metadata)) in self.entries.iteritems():
             precondition(isinstance(name, unicode), name)
             precondition(IFilesystemNode.providedBy(child), child)
+
+            # Strictly speaking this is redundant because we would raise the
+            # error again in pack_children.
+            child.raise_error()
+
             if name in children:
                 if not self.overwrite:
                     raise ExistingChildError("child '%s' already exists" % name)
@@ -123,24 +129,20 @@ class Adder:
         new_contents = self.node._pack_contents(children)
         return new_contents
 
-def _encrypt_rwcap(filenode, rwcap):
-    assert isinstance(rwcap, str)
+def _encrypt_rw_uri(filenode, rw_uri):
+    assert isinstance(rw_uri, str)
     writekey = filenode.get_writekey()
     if not writekey:
         return ""
-    salt = hashutil.mutable_rwcap_salt_hash(rwcap)
+    salt = hashutil.mutable_rwcap_salt_hash(rw_uri)
     key = hashutil.mutable_rwcap_key_hash(salt, writekey)
     cryptor = AES(key)
-    crypttext = cryptor.process(rwcap)
+    crypttext = cryptor.process(rw_uri)
     mac = hashutil.hmac(key, salt + crypttext)
     assert len(mac) == 32
     return salt + crypttext + mac
     # The MAC is not checked by readers in Tahoe >= 1.3.0, but we still
     # produce it for the sake of older readers.
-
-class MustBeDeepImmutable(Exception):
-    """You tried to add a non-deep-immutable node to a deep-immutable
-    directory."""
 
 def pack_children(filenode, children, deep_immutable=False):
     """Take a dict that maps:
@@ -152,7 +154,7 @@ def pack_children(filenode, children, deep_immutable=False):
     time.
 
     If deep_immutable is True, I will require that all my children are deeply
-    immutable, and will raise a MustBeDeepImmutable exception if not.
+    immutable, and will raise a MustBeDeepImmutableError if not.
     """
 
     has_aux = isinstance(children, AuxValueDict)
@@ -161,25 +163,29 @@ def pack_children(filenode, children, deep_immutable=False):
         assert isinstance(name, unicode)
         entry = None
         (child, metadata) = children[name]
-        if deep_immutable and child.is_mutable():
-            # TODO: consider adding IFileSystemNode.is_deep_immutable()
-            raise MustBeDeepImmutable("child '%s' is mutable" % (name,))
+        child.raise_error()
+        if deep_immutable and not child.is_allowed_in_immutable_directory():
+            raise MustBeDeepImmutableError("child '%s' is not allowed in an immutable directory" % (name,), name)
         if has_aux:
             entry = children.get_aux(name)
         if not entry:
             assert IFilesystemNode.providedBy(child), (name,child)
             assert isinstance(metadata, dict)
-            rwcap = child.get_uri() # might be RO if the child is not writeable
-            if rwcap is None:
-                rwcap = ""
-            assert isinstance(rwcap, str), rwcap
-            rocap = child.get_readonly_uri()
-            if rocap is None:
-                rocap = ""
-            assert isinstance(rocap, str), rocap
+            rw_uri = child.get_write_uri()
+            if rw_uri is None:
+                rw_uri = ""
+            assert isinstance(rw_uri, str), rw_uri
+            
+            # should be prevented by MustBeDeepImmutableError check above
+            assert not (rw_uri and deep_immutable)
+
+            ro_uri = child.get_readonly_uri()
+            if ro_uri is None:
+                ro_uri = ""
+            assert isinstance(ro_uri, str), ro_uri
             entry = "".join([netstring(name.encode("utf-8")),
-                             netstring(rocap),
-                             netstring(_encrypt_rwcap(filenode, rwcap)),
+                             netstring(strip_prefix_for_ro(ro_uri, deep_immutable)),
+                             netstring(_encrypt_rw_uri(filenode, rw_uri)),
                              netstring(simplejson.dumps(metadata))])
         entries.append(netstring(entry))
     return "".join(entries)
@@ -230,38 +236,64 @@ class DirectoryNode:
         plaintext = cryptor.process(crypttext)
         return plaintext
 
-    def _create_node(self, rwcap, rocap):
-        return self._nodemaker.create_from_cap(rwcap, rocap)
+    def _create_and_validate_node(self, rw_uri, ro_uri, name):
+        node = self._nodemaker.create_from_cap(rw_uri, ro_uri,
+                                               deep_immutable=not self.is_mutable(),
+                                               name=name)
+        node.raise_error()
+        return node
 
     def _unpack_contents(self, data):
         # the directory is serialized as a list of netstrings, one per child.
-        # Each child is serialized as a list of four netstrings: (name,
-        # rocap, rwcap, metadata), in which the name,rocap,metadata are in
-        # cleartext. The 'name' is UTF-8 encoded. The rwcap is formatted as:
-        # pack("16ss32s", iv, AES(H(writekey+iv), plaintextrwcap), mac)
+        # Each child is serialized as a list of four netstrings: (name, ro_uri,
+        # rwcapdata, metadata), in which the name, ro_uri, metadata are in
+        # cleartext. The 'name' is UTF-8 encoded. The rwcapdata is formatted as:
+        # pack("16ss32s", iv, AES(H(writekey+iv), plaintext_rw_uri), mac)
         assert isinstance(data, str), (repr(data), type(data))
         # an empty directory is serialized as an empty string
         if data == "":
             return AuxValueDict()
         writeable = not self.is_readonly()
+        mutable = self.is_mutable()
         children = AuxValueDict()
         position = 0
         while position < len(data):
             entries, position = split_netstring(data, 1, position)
             entry = entries[0]
-            (name, rocap, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
+            (name, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
+            if not mutable and len(rwcapdata) > 0:
+                raise ValueError("the rwcapdata field of a dirnode in an immutable directory was not empty")
             name = name.decode("utf-8")
-            rwcap = None
+            rw_uri = ""
             if writeable:
-                rwcap = self._decrypt_rwcapdata(rwcapdata)
-            if not rwcap:
-                rwcap = None # rwcap is None or a non-empty string
-            if not rocap:
-                rocap = None # rocap is None or a non-empty string
-            child = self._create_node(rwcap, rocap)
-            metadata = simplejson.loads(metadata_s)
-            assert isinstance(metadata, dict)
-            children.set_with_aux(name, (child, metadata), auxilliary=entry)
+                rw_uri = self._decrypt_rwcapdata(rwcapdata)
+
+            # Since the encryption uses CTR mode, it currently leaks the length of the
+            # plaintext rw_uri -- and therefore whether it is present, i.e. whether the
+            # dirnode is writeable (ticket #925). By stripping spaces in Tahoe >= 1.6.0,
+            # we may make it easier for future versions to plug this leak.
+            # ro_uri is treated in the same way for consistency.
+            # rw_uri and ro_uri will be either None or a non-empty string.
+
+            rw_uri = rw_uri.strip(' ') or None
+            ro_uri = ro_uri.strip(' ') or None
+
+            try:
+                child = self._create_and_validate_node(rw_uri, ro_uri, name)
+                if mutable or child.is_allowed_in_immutable_directory():
+                    metadata = simplejson.loads(metadata_s)
+                    assert isinstance(metadata, dict)
+                    children[name] = (child, metadata)
+                    children.set_with_aux(name, (child, metadata), auxilliary=entry)
+                else:
+                    log.msg(format="mutable cap for child '%(name)s' unpacked from an immutable directory",
+                                   name=name.encode("utf-8"),
+                                   facility="tahoe.webish", level=log.UNUSUAL)
+            except CapConstraintError, e:
+                log.msg(format="unmet constraint on cap for child '%(name)s' unpacked from a directory:\n"
+                               "%(message)s", message=e.args[0], name=name.encode("utf-8"),
+                               facility="tahoe.webish", level=log.UNUSUAL)
+
         return children
 
     def _pack_contents(self, children):
@@ -270,10 +302,25 @@ class DirectoryNode:
 
     def is_readonly(self):
         return self._node.is_readonly()
+
     def is_mutable(self):
         return self._node.is_mutable()
 
+    def is_unknown(self):
+        return False
+
+    def is_allowed_in_immutable_directory(self):
+        return not self._node.is_mutable()
+
+    def raise_error(self):
+        pass
+
     def get_uri(self):
+        return self._uri.to_string()
+
+    def get_write_uri(self):
+        if self.is_readonly():
+            return None
         return self._uri.to_string()
 
     def get_readonly_uri(self):
@@ -281,10 +328,13 @@ class DirectoryNode:
 
     def get_cap(self):
         return self._uri
+
     def get_readcap(self):
         return self._uri.get_readonly()
+
     def get_verify_cap(self):
         return self._uri.get_verify_cap()
+
     def get_repair_cap(self):
         if self._node.is_readonly():
             return None # readonly (mutable) dirnodes are not yet repairable
@@ -350,7 +400,7 @@ class DirectoryNode:
     def set_metadata_for(self, name, metadata):
         assert isinstance(name, unicode)
         if self.is_readonly():
-            return defer.fail(NotMutableError())
+            return defer.fail(NotWriteableError())
         assert isinstance(metadata, dict)
         s = MetadataSetter(self, name, metadata)
         d = self._node.modify(s.modify)
@@ -398,14 +448,10 @@ class DirectoryNode:
         precondition(isinstance(name, unicode), name)
         precondition(isinstance(writecap, (str,type(None))), writecap)
         precondition(isinstance(readcap, (str,type(None))), readcap)
-        child_node = self._create_node(writecap, readcap)
-        if isinstance(child_node, UnknownNode):
-            # don't be willing to pack unknown nodes: we might accidentally
-            # put some write-authority into the rocap slot because we don't
-            # know how to diminish the URI they gave us. We don't even know
-            # if they gave us a readcap or a writecap.
-            msg = "cannot pack unknown node as child %s" % str(name)
-            raise CannotPackUnknownNodeError(msg)
+            
+        # We now allow packing unknown nodes, provided they are valid
+        # for this type of directory.
+        child_node = self._create_and_validate_node(writecap, readcap, name)
         d = self.set_node(name, child_node, metadata, overwrite)
         d.addCallback(lambda res: child_node)
         return d
@@ -423,10 +469,10 @@ class DirectoryNode:
                 writecap, readcap, metadata = e
             precondition(isinstance(writecap, (str,type(None))), writecap)
             precondition(isinstance(readcap, (str,type(None))), readcap)
-            child_node = self._create_node(writecap, readcap)
-            if isinstance(child_node, UnknownNode):
-                msg = "cannot pack unknown node as child %s" % str(name)
-                raise CannotPackUnknownNodeError(msg)
+            
+            # We now allow packing unknown nodes, provided they are valid
+            # for this type of directory.
+            child_node = self._create_and_validate_node(writecap, readcap, name)
             a.set_node(name, child_node, metadata)
         d = self._node.modify(a.modify)
         d.addCallback(lambda ign: self)
@@ -439,12 +485,12 @@ class DirectoryNode:
         same name.
 
         If this directory node is read-only, the Deferred will errback with a
-        NotMutableError."""
+        NotWriteableError."""
 
         precondition(IFilesystemNode.providedBy(child), child)
 
         if self.is_readonly():
-            return defer.fail(NotMutableError())
+            return defer.fail(NotWriteableError())
         assert isinstance(name, unicode)
         assert IFilesystemNode.providedBy(child), child
         a = Adder(self, overwrite=overwrite)
@@ -456,7 +502,7 @@ class DirectoryNode:
     def set_nodes(self, entries, overwrite=True):
         precondition(isinstance(entries, dict), entries)
         if self.is_readonly():
-            return defer.fail(NotMutableError())
+            return defer.fail(NotWriteableError())
         a = Adder(self, entries, overwrite=overwrite)
         d = self._node.modify(a.modify)
         d.addCallback(lambda res: self)
@@ -470,10 +516,10 @@ class DirectoryNode:
         the operation completes."""
         assert isinstance(name, unicode)
         if self.is_readonly():
-            return defer.fail(NotMutableError())
+            return defer.fail(NotWriteableError())
         d = self._uploader.upload(uploadable)
-        d.addCallback(lambda results: results.uri)
-        d.addCallback(self._nodemaker.create_from_cap)
+        d.addCallback(lambda results:
+                      self._create_and_validate_node(results.uri, None, name))
         d.addCallback(lambda node:
                       self.set_node(name, node, metadata, overwrite))
         return d
@@ -483,7 +529,7 @@ class DirectoryNode:
         fires (with the node just removed) when the operation finishes."""
         assert isinstance(name, unicode)
         if self.is_readonly():
-            return defer.fail(NotMutableError())
+            return defer.fail(NotWriteableError())
         deleter = Deleter(self, name)
         d = self._node.modify(deleter.modify)
         d.addCallback(lambda res: deleter.old_child)
@@ -493,7 +539,7 @@ class DirectoryNode:
                             mutable=True):
         assert isinstance(name, unicode)
         if self.is_readonly():
-            return defer.fail(NotMutableError())
+            return defer.fail(NotWriteableError())
         if mutable:
             d = self._nodemaker.create_new_mutable_directory(initial_children)
         else:
@@ -515,7 +561,7 @@ class DirectoryNode:
         Deferred that fires when the operation finishes."""
         assert isinstance(current_child_name, unicode)
         if self.is_readonly() or new_parent.is_readonly():
-            return defer.fail(NotMutableError())
+            return defer.fail(NotWriteableError())
         if new_child_name is None:
             new_child_name = current_child_name
         assert isinstance(new_child_name, unicode)
