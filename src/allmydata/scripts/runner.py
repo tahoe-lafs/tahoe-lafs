@@ -10,39 +10,34 @@ pkg_resources.require('allmydata-tahoe')
 from allmydata.scripts.common import BaseOptions
 import debug, create_node, startstop_node, cli, keygen, stats_gatherer
 
-def group(s):
-    return [["\n" + s, None, None, None]]
+def GROUP(s):
+    # Usage.parseOptions compares argv[1] against command[0], so it will
+    # effectively ignore any "subcommand" that starts with a newline. We use
+    # these to insert section headers into the --help output.
+    return [("\n" + s, None, None, None)]
 
-_commandUsage = ( group("Administration")
-                +   create_node.subCommands
-                +   keygen.subCommands
-                +   stats_gatherer.subCommands
-                + group("Controlling a node")
-                +   startstop_node.subCommands
-                + group("Debugging")
-                +   debug.subCommands
-                + group("Using the filesystem")
-                +   cli.subCommands
-                )
-
-_subCommands = filter(lambda (a, b, c, d): not a.startswith("\n"), _commandUsage)
-_synopsis = "Usage:  tahoe <command> [command options]"
 
 class Options(BaseOptions, usage.Options):
-    synopsis = _synopsis
-    subCommands = _subCommands
+    synopsis = "Usage:  tahoe <command> [command options]"
+    subCommands = ( GROUP("Administration")
+                    +   create_node.subCommands
+                    +   keygen.subCommands
+                    +   stats_gatherer.subCommands
+                    + GROUP("Controlling a node")
+                    +   startstop_node.subCommands
+                    + GROUP("Debugging")
+                    +   debug.subCommands
+                    + GROUP("Using the filesystem")
+                    +   cli.subCommands
+                    )
 
     def getUsage(self, **kwargs):
-        t = _Usage().getUsage(**kwargs)
+        t = usage.Options.getUsage(self, **kwargs)
         return t + "\nPlease run 'tahoe <command> --help' for more details on each command.\n"
 
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a command")
-
-class _Usage(BaseOptions, usage.Options):
-    synopsis = _synopsis
-    subCommands = _commandUsage
 
 def runner(argv,
            run_by_human=True,
