@@ -509,7 +509,7 @@ introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
 helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@helper.tahoe.example:7054/kk8lhr
 
 [storage]
-no_storage = False
+enabled = True
 readonly_storage = True
 sizelimit = 10000000000
 
