@@ -64,8 +64,7 @@ class CreateNode(unittest.TestCase):
         rc = runner.runner(argv, stdout=out, stderr=err)
         return rc, out.getvalue(), err.getvalue()
 
-    def test_node(self, command="create-node"):
-        basedir = self.workdir("test_node")
+    def do_create(self, command, basedir):
         c1 = os.path.join(basedir, command + "-c1")
         argv = ["--quiet", command, "--basedir", c1]
         rc, out, err = self.run_tahoe(argv)
@@ -74,7 +73,7 @@ class CreateNode(unittest.TestCase):
         self.failUnlessEqual(rc, 0)
         self.failUnless(os.path.exists(c1))
         self.failUnless(os.path.exists(os.path.join(c1, "tahoe-client.tac")))
-        
+
         # tahoe.cfg should exist, and should have storage enabled for
         # 'create-node', and disabled for 'create-client'.
         tahoe_cfg = os.path.join(c1, "tahoe.cfg")
@@ -109,9 +108,14 @@ class CreateNode(unittest.TestCase):
                               runner.runner, argv,
                               run_by_human=False)
 
+    def test_node(self):
+        basedir = self.workdir("test_node")
+        self.do_create("create-node", basedir)
+
     def test_client(self):
         # create-client should behave like create-node --no-storage.
-        self.test_node(command="create-client")
+        basedir = self.workdir("test_client")
+        self.do_create("create-client", basedir)
 
     def test_introducer(self):
         basedir = self.workdir("test_introducer")
