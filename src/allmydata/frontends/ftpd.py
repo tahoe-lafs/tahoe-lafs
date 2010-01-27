@@ -289,7 +289,8 @@ class FTPServer(service.MultiService):
         # make sure we're using a patched Twisted that uses IWriteFile.close:
         # see docs/frontends/FTP-and-SFTP.txt and
         # http://twistedmatrix.com/trac/ticket/3462 for details.
-        assert "close" in ftp.IWriteFile.names(), "your twisted is lacking a vital patch, see docs/frontends/FTP-and-SFTP.txt"
+        if "close" not in ftp.IWriteFile.names():
+            raise AssertionError("your twisted is lacking a vital patch, see docs/frontends/FTP-and-SFTP.txt")
 
         r = Dispatcher(client)
         p = portal.Portal(r)
