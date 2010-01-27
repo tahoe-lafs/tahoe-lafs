@@ -171,14 +171,15 @@ class BackerUpper:
         for child in self.options.filter_listdir(children):
             childpath = os.path.join(localpath, child)
             child = unicode(child)
-            if os.path.isdir(childpath):
+            # note: symlinks to directories are both islink() and isdir()
+            if os.path.isdir(childpath) and not os.path.islink(childpath):
                 metadata = get_local_metadata(childpath)
                 # recurse on the child directory
                 childcap = self.process(childpath)
                 assert isinstance(childcap, str)
                 create_contents[child] = ("dirnode", childcap, metadata)
                 compare_contents[child] = childcap
-            elif os.path.isfile(childpath):
+            elif os.path.isfile(childpath) and not os.path.islink(childpath):
                 try:
                     childcap, metadata = self.upload(childpath)
                     assert isinstance(childcap, str)
@@ -189,7 +190,10 @@ class BackerUpper:
                     self.warn("WARNING: permission denied on file %s" % childpath)
             else:
                 self.files_skipped += 1
-                self.warn("WARNING: cannot backup special file %s" % childpath)
+                if os.path.islink(childpath):
+                    self.warn("WARNING: cannot backup symlink %s" % childpath)
+                else:
+                    self.warn("WARNING: cannot backup special file %s" % childpath)
 
         must_create, r = self.check_backupdb_directory(compare_contents)
         if must_create:

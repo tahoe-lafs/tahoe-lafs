@@ -1383,7 +1383,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         def _check((rc, out, err)):
             self.failUnlessEqual(rc, 2)
-            self.failUnlessEqual(err, "WARNING: cannot backup special file %s\n" % os.path.join(source, "foo2.txt"))
+            foo2 = os.path.join(source, "foo2.txt")
+            self.failUnlessEqual(err, "WARNING: cannot backup symlink %s\n" % foo2)
 
             fu, fr, fs, dc, dr, ds = self.count_output(out)
             # foo.txt
