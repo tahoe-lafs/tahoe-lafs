@@ -1,7 +1,7 @@
-ANNOUNCING Tahoe, the Lofty-Atmospheric Filesystem, v1.5
+ANNOUNCING Tahoe, the Lofty-Atmospheric Filesystem, v1.6
 
 The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.5 of Tahoe, the Lofty Atmospheric
+availability of version 1.6 of Tahoe, the Lofty Atmospheric
 File System.
 
 Tahoe-LAFS is the first cloud storage technology which offers
@@ -29,15 +29,20 @@ and more. See the Related Projects page on the wiki [3].
 
 COMPATIBILITY
 
-Version 1.5 is fully compatible with the version 1 series of
-Tahoe-LAFS. Files written by v1.5 clients can be read by
-clients of all versions back to v1.0. v1.5 clients can read
-files produced by clients of all versions since v1.0.  v1.5
-servers can serve clients of all versions back to v1.0 and v1.5
+Version 1.6 is fully compatible with the version 1 series of
+Tahoe-LAFS. Files written by v1.6 clients can be read by
+clients of all versions back to v1.0. v1.6 clients can read
+files produced by clients of all versions since v1.0.  v1.6
+servers can serve clients of all versions back to v1.0 and v1.6
 clients can use servers of all versions back to v1.0.
 
-This is the sixth release in the version 1 series. The version
-1 series of Tahoe-LAFS will be actively supported and
+In addition, version 1.6 improves forward-compatibility with
+planned future cap formats, allowing updates to a directory
+containing both current and future caps, without loss of
+information.
+
+This is the seventh major release in the version 1 series. The
+version 1 series of Tahoe-LAFS will be actively supported and
 maintained for the forseeable future, and future versions of
 Tahoe-LAFS will retain the ability to read and write files
 compatible with Tahoe-LAFS v1.

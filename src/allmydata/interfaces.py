@@ -426,6 +426,7 @@ class IURI(Interface):
         """Return True if the data can be modified by *somebody* (perhaps
         someone who has a more powerful URI than this one)."""
 
+    # TODO: rename to get_read_cap()
     def get_readonly():
         """Return another IURI instance, which represents a read-only form of
         this one. If is_readonly() is True, this returns self."""

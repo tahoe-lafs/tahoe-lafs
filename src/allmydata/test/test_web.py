@@ -700,11 +700,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                              self.PUT, base, "")
         return d
 
+    # TODO: version of this with a Unicode filename
     def test_GET_FILEURL_save(self):
-        d = self.GET(self.public_url + "/foo/bar.txt?filename=bar.txt&save=true")
-        # TODO: look at the headers, expect a Content-Disposition: attachment
-        # header.
-        d.addCallback(self.failUnlessIsBarDotTxt)
+        d = self.GET(self.public_url + "/foo/bar.txt?filename=bar.txt&save=true",
+                     return_response=True)
+        def _got((res, statuscode, headers)):
+            content_disposition = headers["content-disposition"][0]
+            self.failUnless(content_disposition == 'attachment; filename="bar.txt"', content_disposition)
+            self.failUnlessIsBarDotTxt(res)
+        d.addCallback(_got)
         return d
 
     def test_GET_FILEURL_missing(self):
@@ -2258,7 +2262,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         # Fetch the welcome page.
         d = self.GET("/")
         def _after_get_welcome_page(res):
-            MKDIR_BUTTON_RE=re.compile('<form action="([^"]*)" method="post".*?<input type="hidden" name="t" value="([^"]*)" /><input type="hidden" name="([^"]*)" value="([^"]*)" /><input type="submit" value="Create a directory" />', re.I)
+            MKDIR_BUTTON_RE = re.compile(
+                '<form action="([^"]*)" method="post".*?'
+                '<input type="hidden" name="t" value="([^"]*)" />'
+                '<input type="hidden" name="([^"]*)" value="([^"]*)" />'
+                '<input type="submit" value="Create a directory" />',
+                re.I)
             mo = MKDIR_BUTTON_RE.search(res)
             formaction = mo.group(1)
             formt = mo.group(2)

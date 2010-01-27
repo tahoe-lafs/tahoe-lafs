@@ -23,6 +23,11 @@ from allmydata.uri import LiteralFileURI, from_string, wrap_dirnode_cap
 from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
 
+
+# TODO: {Deleter,MetadataSetter,Adder}.modify all start by unpacking the
+# contents and end by repacking them. It might be better to apply them to
+# the unpacked contents.
+
 class Deleter:
     def __init__(self, node, name, must_exist=True):
         self.node = node

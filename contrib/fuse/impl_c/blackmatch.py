@@ -906,7 +906,7 @@ def stat_to_dict(statobj, fields=None):
 
 class TStat(fuse.Stat):
     # in fuse 0.2, these are set by fuse.Stat.__init__
-    # in fuse 0.2-pre3 (hardy) they are not. badness unsues if they're missing
+    # in fuse 0.2-pre3 (hardy) they are not. badness ensues if they're missing
     st_mode  = None
     st_ino   = 0
     st_dev   = 0
@@ -1019,6 +1019,7 @@ class Directory(object):
     def get_uri(self):
         return self.rw_uri or self.ro_uri
 
+    # TODO: rename to 'is_writeable', or switch sense to 'is_readonly', for consistency with Tahoe code
     def writable(self):
         return self.rw_uri and self.rw_uri != self.ro_uri
 

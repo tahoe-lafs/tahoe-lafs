@@ -11,9 +11,16 @@ from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IImmutableFileURI,
 class BadURIError(CapConstraintError):
     pass
 
-# the URI shall be an ascii representation of the file. It shall contain
-# enough information to retrieve and validate the contents. It shall be
-# expressed in a limited character set (namely [TODO]).
+# The URI shall be an ASCII representation of a reference to the file/directory.
+# It shall contain enough information to retrieve and validate the contents.
+# It shall be expressed in a limited character set (currently base32 plus ':' and
+# capital letters, but future URIs might use a larger charset).
+
+# TODO:
+#  - rename all of the *URI classes/interfaces to *Cap
+#  - make variable and method names consistently use _uri for an URI string,
+#    and _cap for a Cap object (decoded URI)
+#  - remove the human_encoding methods?
 
 BASE32STR_128bits = '(%s{25}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_3bits)
 BASE32STR_256bits = '(%s{51}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_1bits)
@@ -22,29 +29,34 @@ SEP='(?::|%3A)'
 NUMBER='([0-9]+)'
 NUMBER_IGNORE='(?:[0-9]+)'
 
-# URIs (soon to be renamed "caps") are always allowed to come with a leading
+# "human-encoded" URIs are allowed to come with a leading
 # 'http://127.0.0.1:(8123|3456)/uri/' that will be ignored.
+# Note that nothing in the Tahoe code currently uses the human encoding.
 OPTIONALHTTPLEAD=r'(?:https?://(?:[^:/]+)(?::%s)?/uri/)?' % NUMBER_IGNORE
 
 
 class _BaseURI:
     def __hash__(self):
         return self.to_string().__hash__()
+
     def __eq__(self, them):
         if isinstance(them, _BaseURI):
             return self.to_string() == them.to_string()
         else:
             return False
+
     def __ne__(self, them):
         if isinstance(them, _BaseURI):
             return self.to_string() != them.to_string()
         else:
             return True
+
     def to_human_encoding(self):
         return 'http://127.0.0.1:3456/uri/'+self.to_string()
 
     def get_storage_index(self):
         return self.storage_index
+
 
 class CHKFileURI(_BaseURI):
     implements(IURI, IImmutableFileURI)
