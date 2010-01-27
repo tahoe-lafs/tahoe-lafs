@@ -2376,7 +2376,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_POST_set_children_with_hyphen(self):
         return self.test_POST_set_children(command_name="set-children")
 
-    def test_POST_put_uri(self):
+    def test_POST_link_uri(self):
         contents, n, newuri = self.makefile(8)
         d = self.POST(self.public_url + "/foo", t="uri", name="new.txt", uri=newuri)
         d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"new.txt")
@@ -2385,7 +2385,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                                       contents))
         return d
 
-    def test_POST_put_uri_replace(self):
+    def test_POST_link_uri_replace(self):
         contents, n, newuri = self.makefile(8)
         d = self.POST(self.public_url + "/foo", t="uri", name="bar.txt", uri=newuri)
         d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"bar.txt")
@@ -2394,12 +2394,33 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                                       contents))
         return d
 
-    def test_POST_put_uri_no_replace_queryarg(self):
+    def test_POST_link_uri_unknown_bad(self):
+        newuri = "lafs://from_the_future"
+        d = self.POST(self.public_url + "/foo", t="uri", name="future.txt", uri=newuri)
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_link_uri_unknown_bad",
+                  "400 Bad Request",
+                  "unknown cap in a write slot")
+        return d
+
+    def test_POST_link_uri_unknown_ro_good(self):
+        newuri = "ro.lafs://readonly_from_the_future"
+        d = self.POST(self.public_url + "/foo", t="uri", name="future-ro.txt", uri=newuri)
+        d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"future-ro.txt")
+        return d
+
+    def test_POST_link_uri_unknown_imm_good(self):
+        newuri = "imm.lafs://immutable_from_the_future"
+        d = self.POST(self.public_url + "/foo", t="uri", name="future-imm.txt", uri=newuri)
+        d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"future-imm.txt")
+        return d
+
+    def test_POST_link_uri_no_replace_queryarg(self):
         contents, n, newuri = self.makefile(8)
         d = self.POST(self.public_url + "/foo?replace=false", t="uri",
                       name="bar.txt", uri=newuri)
         d.addBoth(self.shouldFail, error.Error,
-                  "POST_put_uri_no_replace_queryarg",
+                  "POST_link_uri_no_replace_queryarg",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
@@ -2407,12 +2428,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
-    def test_POST_put_uri_no_replace_field(self):
+    def test_POST_link_uri_no_replace_field(self):
         contents, n, newuri = self.makefile(8)
         d = self.POST(self.public_url + "/foo", t="uri", replace="false",
                       name="bar.txt", uri=newuri)
         d.addBoth(self.shouldFail, error.Error,
-                  "POST_put_uri_no_replace_field",
+                  "POST_link_uri_no_replace_field",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
@@ -2678,6 +2699,29 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
+        return d
+
+    def test_PUT_NEWFILEURL_uri_unknown_bad(self):
+        new_uri = "lafs://from_the_future"
+        d = self.PUT(self.public_url + "/foo/put-future.txt?t=uri", new_uri)
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_put_uri_unknown_bad",
+                  "400 Bad Request",
+                  "unknown cap in a write slot")
+        return d
+
+    def test_PUT_NEWFILEURL_uri_unknown_ro_good(self):
+        new_uri = "ro.lafs://readonly_from_the_future"
+        d = self.PUT(self.public_url + "/foo/put-future-ro.txt?t=uri", new_uri)
+        d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node,
+                      u"put-future-ro.txt")
+        return d
+
+    def test_PUT_NEWFILEURL_uri_unknown_imm_good(self):
+        new_uri = "imm.lafs://immutable_from_the_future"
+        d = self.PUT(self.public_url + "/foo/put-future-imm.txt?t=uri", new_uri)
+        d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node,
+                      u"put-future-imm.txt")
         return d
 
     def test_PUT_NEWFILE_URI(self):
@@ -3360,15 +3404,13 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
             while position < len(data):
                 entries, position = split_netstring(data, 1, position)
                 entry = entries[0]
-                (name, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
-                name = name.decode("utf-8")
+                (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
+                name = name_utf8.decode("utf-8")
                 self.failUnless(rwcapdata == "")
-                ro_uri = ro_uri.strip()
-                if name in kids:
-                    self.failIfEqual(ro_uri, "")
-                    (expected_child, ign) = kids[name]
-                    self.failUnlessEqual(ro_uri, expected_child.get_readonly_uri())
-                    numkids += 1
+                self.failUnless(name in kids)
+                (expected_child, ign) = kids[name]
+                self.failUnlessEqual(ro_uri, expected_child.get_readonly_uri())
+                numkids += 1
 
             self.failUnlessEqual(numkids, 3)
             return self.rootnode.list()

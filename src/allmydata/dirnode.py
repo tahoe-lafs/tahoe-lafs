@@ -265,23 +265,23 @@ class DirectoryNode:
         while position < len(data):
             entries, position = split_netstring(data, 1, position)
             entry = entries[0]
-            (name, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
+            (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
             if not mutable and len(rwcapdata) > 0:
                 raise ValueError("the rwcapdata field of a dirnode in an immutable directory was not empty")
-            name = name.decode("utf-8")
+            name = name_utf8.decode("utf-8")
             rw_uri = ""
             if writeable:
                 rw_uri = self._decrypt_rwcapdata(rwcapdata)
 
             # Since the encryption uses CTR mode, it currently leaks the length of the
             # plaintext rw_uri -- and therefore whether it is present, i.e. whether the
-            # dirnode is writeable (ticket #925). By stripping spaces in Tahoe >= 1.6.0,
-            # we may make it easier for future versions to plug this leak.
+            # dirnode is writeable (ticket #925). By stripping trailing spaces in
+            # Tahoe >= 1.6.0, we may make it easier for future versions to plug this leak.
             # ro_uri is treated in the same way for consistency.
             # rw_uri and ro_uri will be either None or a non-empty string.
 
-            rw_uri = rw_uri.strip(' ') or None
-            ro_uri = ro_uri.strip(' ') or None
+            rw_uri = rw_uri.rstrip(' ') or None
+            ro_uri = ro_uri.rstrip(' ') or None
 
             try:
                 child = self._create_and_validate_node(rw_uri, ro_uri, name)
@@ -292,11 +292,11 @@ class DirectoryNode:
                     children.set_with_aux(name, (child, metadata), auxilliary=entry)
                 else:
                     log.msg(format="mutable cap for child '%(name)s' unpacked from an immutable directory",
-                                   name=name.encode("utf-8"),
+                                   name=name_utf8,
                                    facility="tahoe.webish", level=log.UNUSUAL)
             except CapConstraintError, e:
                 log.msg(format="unmet constraint on cap for child '%(name)s' unpacked from a directory:\n"
-                               "%(message)s", message=e.args[0], name=name.encode("utf-8"),
+                               "%(message)s", message=e.args[0], name=name_utf8,
                                facility="tahoe.webish", level=log.UNUSUAL)
 
         return children

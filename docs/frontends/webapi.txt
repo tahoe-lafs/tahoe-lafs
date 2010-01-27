@@ -743,8 +743,14 @@ PUT /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri
   
   Note that this operation does not take its child cap in the form of
   separate "rw_uri" and "ro_uri" fields. Therefore, it cannot accept a
-  child cap in a format unknown to the webapi server, because the server
-  is not able to attenuate an unknown write cap to a read cap.
+  child cap in a format unknown to the webapi server, unless its URI
+  starts with "ro." or "imm.". This restriction is necessary because the
+  server is not able to attenuate an unknown write cap to a read cap.
+  Unknown URIs starting with "ro." or "imm.", on the other hand, are
+  assumed to represent read caps. The client should not prefix a write
+  cap with "ro." or "imm." and pass it to this operation, since that
+  would result in granting the cap's write authority to holders of the
+  directory read cap.
 
 === Adding multiple files or directories to a parent directory at once ===
 
@@ -1028,7 +1034,9 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=uri&name=CHILDNAME&uri=CHILDCAP
 
  This attaches a given read- or write- cap "CHILDCAP" to the designated
  directory, with a specified child name. This behaves much like the PUT t=uri
- operation, and is a lot like a UNIX hardlink.
+ operation, and is a lot like a UNIX hardlink. It is subject to the same
+ restrictions as that operation on the use of cap formats unknown to the
+ webapi server.
 
  This will create additional intermediate directories as necessary, although
  since it is expected to be triggered by a form that was retrieved by "GET

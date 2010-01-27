@@ -13,6 +13,7 @@ from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.mutable.common import UncoordinatedWriteError
 from allmydata.util import hashutil, base32
+from allmydata.util.netstring import split_netstring
 from allmydata.monitor import Monitor
 from allmydata.test.common import make_chk_file_uri, make_mutable_file_uri, \
      ErrorMixin
@@ -48,6 +49,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.set_up_grid()
         c = self.g.clients[0]
         nm = c.nodemaker
+
         setup_py_uri = "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
         one_uri = "URI:LIT:n5xgk" # LIT for "one"
         mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
@@ -115,6 +117,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
         bad_future_node = UnknownNode(future_write_uri, None)
         bad_kids1 = {u"one": (bad_future_node, {})}
+        # This should fail because we don't know how to diminish the future_write_uri
+        # cap (given in a write slot and not prefixed with "ro." or "imm.") to a readcap.
         d.addCallback(lambda ign:
                       self.shouldFail(MustNotBeUnknownRWError, "bad_kids1",
                                       "cannot attach unknown",
@@ -133,6 +137,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.set_up_grid()
         c = self.g.clients[0]
         nm = c.nodemaker
+
         setup_py_uri = "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
         one_uri = "URI:LIT:n5xgk" # LIT for "one"
         mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
@@ -278,6 +283,75 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                           u"sub2", bad_kids, mutable=False))
             return d
         d.addCallback(_made_parent)
+        return d
+
+    def test_spaces_are_stripped_on_the_way_out(self):
+        self.basedir = "dirnode/Dirnode/test_spaces_are_stripped_on_the_way_out"
+        self.set_up_grid()
+        c = self.g.clients[0]
+        nm = c.nodemaker
+
+        # This test checks that any trailing spaces in URIs are retained in the
+        # encoded directory, but stripped when we get them out of the directory.
+        # See ticket #925 for why we want that.
+
+        stripped_write_uri = "lafs://from_the_future\t"
+        stripped_read_uri = "lafs://readonly_from_the_future\t"
+        spacedout_write_uri = stripped_write_uri + "  "
+        spacedout_read_uri = stripped_read_uri + "  "
+
+        child = nm.create_from_cap(spacedout_write_uri, spacedout_read_uri)
+        self.failUnlessEqual(child.get_write_uri(), spacedout_write_uri)
+        self.failUnlessEqual(child.get_readonly_uri(), "ro." + spacedout_read_uri)
+
+        kids = {u"child": (child, {})}
+        d = c.create_dirnode(kids)
+        
+        def _created(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            self.failUnless(dn.is_mutable())
+            self.failIf(dn.is_readonly())
+            dn.raise_error()
+            self.cap = dn.get_cap()
+            self.rootnode = dn
+            return dn._node.download_best_version()
+        d.addCallback(_created)
+
+        def _check_data(data):
+            # Decode the netstring representation of the directory to check that the
+            # spaces are retained when the URIs are stored.
+            position = 0
+            numkids = 0
+            while position < len(data):
+                entries, position = split_netstring(data, 1, position)
+                entry = entries[0]
+                (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
+                name = name_utf8.decode("utf-8")
+                rw_uri = self.rootnode._decrypt_rwcapdata(rwcapdata)
+                self.failUnless(name in kids)
+                (expected_child, ign) = kids[name]
+                self.failUnlessEqual(rw_uri, expected_child.get_write_uri())
+                self.failUnlessEqual("ro." + ro_uri, expected_child.get_readonly_uri())
+                numkids += 1
+
+            self.failUnlessEqual(numkids, 1)
+            return self.rootnode.list()
+        d.addCallback(_check_data)
+        
+        # Now when we use the real directory listing code, the trailing spaces
+        # should have been stripped (and "ro." should have been prepended to the
+        # ro_uri, since it's unknown).
+        def _check_kids(children):
+            self.failUnlessEqual(sorted(children.keys()), [u"child"])
+            child_node, child_metadata = children[u"child"]
+
+            self.failUnlessEqual(child_node.get_write_uri(), stripped_write_uri)
+            self.failUnlessEqual(child_node.get_readonly_uri(), "ro." + stripped_read_uri)
+        d.addCallback(_check_kids)
+
+        d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
+        d.addCallback(lambda n: n.list())
+        d.addCallback(_check_kids)  # again with dirnode recreated from cap
         return d
 
     def test_check(self):
@@ -1120,6 +1194,9 @@ class FakeMutableFile:
 
     def is_allowed_in_immutable_directory(self):
         return False
+
+    def raise_error(self):
+        pass
 
     def modify(self, modifier):
         self.data = modifier(self.data, None, True)
