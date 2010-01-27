@@ -62,20 +62,77 @@ should take a tiny fraction of the time.
 As noted above, Tahoe versions earlier than 1.5.0 cannot read immutable
 directories.
 
+The "tahoe backup" command has been improved to skip over unreadable objects
+(like device files, named pipes, and files with permissions that prevent the
+command from reading their contents), instead of throwing an exception and
+terminating the backup process. It also skips over symlinks, because these
+cannot be represented faithfully in the Tahoe-side filesystem. A warning
+message will be emitted each time something is skipped. (#729, #850, #641)
+
+*** "create-node" command added, "create-client" now implies --no-storage
+
+The basic idea behind Tahoe's client+server and client-only processes is that
+you are creating a general-purpose Tahoe "node" process, which has several
+components activated (or not). Storage service is one of these optional
+components, as is the Helper, FTP server, and SFTP server. (Client/webapi
+functionality is nominally on this list, but it is always active: a future
+release will make it optional). The special-purpose servers remain separate
+(introducer, key-generator, stats-gatherer).
+
+So now "tahoe create-node" will create a Tahoe node process, and after
+creation you can edit its tahoe.cfg to enable or disable the desired
+services. It is a more general-purpose replacement for "tahoe create-client".
+The default configuration has storage service enabled. For convenience, the
+"--no-storage" argument makes a tahoe.cfg file that disables storage service.
+
+"tahoe create-client" has been changed to create a Tahoe node without a
+storage service. It is equivalent to "tahoe create-node --no-storage". This
+helps to reduce the confusion surrounding the use of a command with "client"
+in its name to create a storage *server*. Use "tahoe create-client" to create
+a purely client-side node. If you want to offer storage to the grid, use
+"tahoe create-node" instead.
+
+In the future, other services will be added to the node, and they will be
+controlled through options in tahoe.cfg . The most important of these
+services may get additional --enable-XYZ or --disable-XYZ arguments to "tahoe
+create-node".
+
 ** Minor Changes
 
 The webapi acquired a new "t=mkdir-with-children" command, to create and
 populate a directory in a single call. This is significantly faster than
-using separate "t=mkdir" and "t=set_children" operations (it uses one
+using separate "t=mkdir" and "t=set-children" operations (it uses one
 gateway-to-grid roundtrip, instead of three or four).
 
-The t=set_children operation is now documented in docs/frontends/webapi.txt .
+The t=set-children (note the hyphen) operation is now documented in
+docs/frontends/webapi.txt, and is the new preferred spelling of the old
+t=set_children (with an underscore). The underscore version remains for
+backwards compatibility.
 
-Several small packaging improvements were made to facilitate the "tahoe-lafs"
+The tracebacks produced by errors in CLI tools should now be in plain text,
+instead of HTML (which is unreadable outside of a browser). (#646)
+
+The [storage]reserved_space configuration knob (which causes the storage
+server to refuse shares when available disk space drops below a threshold)
+should work on windows now, not just unix. (#637)
+
+"tahoe cp" should now exit with status "1" if it cannot figure out a suitable
+target filename, such as when you copy from a bare filecap. (#761)
+
+"tahoe get" no longer creates a zero-length file upon error. (#121)
+
+"tahoe ls" can now list single files. (#457)
+
+"tahoe deep-check --repair" should tolerate repair failures now, instead of
+halting traversal. (#874, #786)
+
+Many small packaging improvements were made to facilitate the "tahoe-lafs"
 package being added to Ubuntu's "Karmic Koala" 9.10 release. Several
 mac/win32 binary libraries were removed, some figleaf code-coverage files
 were removed, a bundled copy of darcsver-1.2.1 was removed, and additional
 licensing text was added.
+
+Several DeprecationWarnings for python2.6 were silenced. (#859)
 
 
 * Release 1.5.0 (2009-08-01)
