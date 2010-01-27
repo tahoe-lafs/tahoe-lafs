@@ -283,9 +283,9 @@ class BackupOptions(VDriveOptions):
             exclude_file.close()
 
     def opt_exclude_vcs(self):
-        """Exclude files and directories used by following version
-        control systems: 'CVS', 'RCS', 'SCCS', 'SVN', 'Arch',
-        'Bazaar', 'Mercurial', and 'Darcs'."""
+        """Exclude files and directories used by following version control
+        systems: CVS, RCS, SCCS, Git, SVN, Arch, Bazaar(bzr), Mercurial,
+        Darcs."""
         for pattern in self.vcs_patterns:
             self.opt_exclude(pattern)
 
