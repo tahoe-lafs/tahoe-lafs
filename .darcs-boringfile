@@ -52,10 +52,10 @@
 ^build($|/)
 ^build-stamp$
 ^python-build-stamp-2.[45]$
-^\.figleaf$
+^\.coverage$
 ^coverage-html($|/)
 ^twisted/plugins/dropin\.cache$
-^\.figleaf\.el$
+^\.coverage\.el$
 ^_test_memory($|/)
 
 # _version.py is generated at build time, and never checked in

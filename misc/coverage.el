@@ -1,52 +1,33 @@
 
-;(require 'gnus-start)
+(defvar coverage-annotation-file ".coverage.el")
+(defvar coverage-annotations nil)
 
-; (defun gnus-load (file)
-;   "Load FILE, but in such a way that read errors can be reported."
-;   (with-temp-buffer
-;     (insert-file-contents file)
-;     (while (not (eobp))
-;       (condition-case type
-; 	  (let ((form (read (current-buffer))))
-; 	    (eval form))
-; 	(error
-; 	 (unless (eq (car type) 'end-of-file)
-; 	   (let ((error (format "Error in %s line %d" file
-; 				(count-lines (point-min) (point)))))
-; 	     (ding)
-; 	     (unless (gnus-yes-or-no-p (concat error "; continue? "))
-; 	       (error "%s" error)))))))))
-
-(defvar figleaf-annotation-file ".figleaf.el")
-(defvar figleaf-annotations nil)
-
-(defun find-figleaf-annotation-file ()
+(defun find-coverage-annotation-file ()
   (let ((dir (file-name-directory buffer-file-name))
         (olddir "/"))
     (while (and (not (equal dir olddir))
-                (not (file-regular-p (concat dir figleaf-annotation-file))))
+                (not (file-regular-p (concat dir coverage-annotation-file))))
       (setq olddir dir
             dir (file-name-directory (directory-file-name dir))))
-    (and (not (equal dir olddir)) (concat dir figleaf-annotation-file))
+    (and (not (equal dir olddir)) (concat dir coverage-annotation-file))
 ))
 
-(defun load-figleaf-annotations ()
-  (let* ((annotation-file (find-figleaf-annotation-file))
+(defun load-coverage-annotations ()
+  (let* ((annotation-file (find-coverage-annotation-file))
          (coverage
           (with-temp-buffer
             (insert-file-contents annotation-file)
             (let ((form (read (current-buffer))))
               (eval form)))))
-    (setq figleaf-annotations coverage)
+    (setq coverage-annotations coverage)
     coverage
     ))
 
-(defun figleaf-unannotate ()
-  (interactive)
+(defun coverage-unannotate ()
   (save-excursion
     (dolist (ov (overlays-in (point-min) (point-max)))
       (delete-overlay ov))
-    (setq figleaf-this-buffer-is-annotated nil)
+    (setq coverage-this-buffer-is-annotated nil)
     (message "Removed annotations")
 ))
 
@@ -62,10 +43,9 @@
 ;; overriding actual program text), and to modify the text being displayed
 ;; (by changing its background color, or adding a box around each word).
 
-(defun figleaf-annotate (&optional show-code)
-  (interactive "P")
-  (let ((allcoverage (load-figleaf-annotations))
-        (filename-key buffer-file-name)
+(defun coverage-annotate (show-code)
+  (let ((allcoverage (load-coverage-annotations))
+        (filename-key buffer-file-truename)
         thiscoverage code-lines covered-lines uncovered-code-lines
         )
     (while (and (not (gethash filename-key allcoverage nil))
@@ -76,7 +56,7 @@
     (setq thiscoverage (gethash filename-key allcoverage nil))
     (if thiscoverage
         (progn
-          (setq figleaf-this-buffer-is-annotated t)
+          (setq coverage-this-buffer-is-annotated t)
           (setq code-lines (nth 0 thiscoverage)
                 covered-lines (nth 1 thiscoverage)
                 uncovered-code-lines (nth 2 thiscoverage)
@@ -110,31 +90,31 @@
       (message "unable to find coverage for this file"))
 ))
 
-(defun figleaf-toggle-annotations (show-code)
+(defun coverage-toggle-annotations (show-code)
   (interactive "P")
-  (if figleaf-this-buffer-is-annotated
-      (figleaf-unannotate)
-    (figleaf-annotate show-code))
+  (if coverage-this-buffer-is-annotated
+      (coverage-unannotate)
+    (coverage-annotate show-code))
 )
 
 
-(setq figleaf-this-buffer-is-annotated nil)
-(make-variable-buffer-local 'figleaf-this-buffer-is-annotated)
+(setq coverage-this-buffer-is-annotated nil)
+(make-variable-buffer-local 'coverage-this-buffer-is-annotated)
 
-(define-minor-mode figleaf-annotation-minor-mode
+(define-minor-mode coverage-annotation-minor-mode
   "Minor mode to annotate code-coverage information"
   nil
-  " FA"
+  " CA"
   '(
-    ("\C-c\C-a" . figleaf-toggle-annotations)
+    ("\C-c\C-a" . coverage-toggle-annotations)
     )
 
   () ; forms run on mode entry/exit
 )
 
-(defun maybe-enable-figleaf-mode ()
+(defun maybe-enable-coverage-mode ()
   (if (string-match "/src/allmydata/" (buffer-file-name))
-      (figleaf-annotation-minor-mode t)
+      (coverage-annotation-minor-mode t)
     ))
 
-(add-hook 'python-mode-hook 'maybe-enable-figleaf-mode)
+(add-hook 'python-mode-hook 'maybe-enable-coverage-mode)

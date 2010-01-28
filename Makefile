@@ -81,8 +81,8 @@ endif
 
 # TESTING
 
-.PHONY: signal-error-deps test test-figleaf quicktest quicktest-figleaf
-.PHONY: figleaf-output get-old-figleaf-coverage figleaf-delta-output
+.PHONY: signal-error-deps test test-coverage quicktest quicktest-coverage
+.PHONY: coverage-output get-old-coverage-coverage coverage-delta-output
 
 
 signal-error-deps:
@@ -114,41 +114,55 @@ test: build src/allmydata/_version.py
 fuse-test: .built .checked-deps
 	$(RUNPP) -d contrib/fuse -p -c runtests.py
 
-test-figleaf: build src/allmydata/_version.py
-	rm -f .figleaf
-	$(PYTHON) setup.py trial --reporter=bwverbose-figleaf -s $(TEST)
+test-coverage: build src/allmydata/_version.py
+	rm -f .coverage
+	$(PYTHON) setup.py trial --reporter=bwverbose-coverage -s $(TEST)
 
 quicktest:
 	$(PYTHON) misc/run-with-pythonpath.py trial $(TRIALARGS) $(TEST)
 
-quicktest-figleaf:
-	rm -f .figleaf
-	$(PYTHON) misc/run-with-pythonpath.py trial --reporter=bwverbose-figleaf $(TEST)
+# code-coverage: install the "coverage" package from PyPI, do "make
+# quicktest-coverage" to do a unit test run with coverage-gathering enabled,
+# then use "make coverate-output-text" for a brief report, or "make
+# coverage-output" for a pretty HTML report. Also see "make .coverage.el" and
+# misc/coverage.el for emacs integration.
 
-figleaf-output:
-	$(RUNPP) -p -c "misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes"
-	cp .figleaf coverage-html/figleaf.pickle
+quicktest-coverage:
+	rm -f .coverage
+	$(PYTHON) misc/run-with-pythonpath.py trial --reporter=bwverbose-coverage $(TEST)
+# on my laptop, "quicktest" takes 239s, "quicktest-coverage" takes 304s
+
+COVERAGE_OMIT = --omit /System,/Library,/usr/lib,src/allmydata/test,support
+
+# this is like 'coverage report', but includes lines-uncovered
+coverage-output-text:
+	$(PYTHON) misc/coverage2text.py
+
+coverage-output:
+	rm -rf coverage-html
+	coverage html -d coverage-html $(COVERAGE_OMIT)
+	cp .coverage coverage-html/coverage.data
 	@echo "now point your browser at coverage-html/index.html"
 
-# use these two targets to compare this coverage against the previous run.
-# The deltas only work if the old test was run in the same directory, since
-# it compares absolute filenames.
-get-old-figleaf-coverage:
-	wget --progress=dot -O old.figleaf http://allmydata.org/tahoe-figleaf/current/figleaf.pickle
+## use these two targets to compare this coverage against the previous run.
+## The deltas only work if the old test was run in the same directory, since
+## it compares absolute filenames.
+#get-old-figleaf-coverage:
+#	wget --progress=dot -O old.figleaf http://allmydata.org/tahoe-figleaf/current/figleaf.pickle
+#
+#figleaf-delta-output:
+#	$(RUNPP) -p -c "misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes -o old.figleaf"
+#	cp .figleaf coverage-html/figleaf.pickle
+#	@echo "now point your browser at coverage-html/index.html"
 
-figleaf-delta-output:
-	$(RUNPP) -p -c "misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes -o old.figleaf"
-	cp .figleaf coverage-html/figleaf.pickle
-	@echo "now point your browser at coverage-html/index.html"
-
-# after doing test-figleaf and figleaf-output, point your browser at
-# coverage-html/index.html
-
-.PHONY: upload-figleaf .figleaf.el pyflakes count-lines
+.PHONY: upload-coverage .coverage.el pyflakes count-lines
 .PHONY: check-memory check-memory-once check-speed check-grid
 .PHONY: repl test-darcs-boringfile test-clean clean find-trailing-spaces
 
-# 'upload-figleaf' is meant to be run with an UPLOAD_TARGET=host:/dir setting
+.coverage.el: .coverage
+	$(PYTHON) misc/coverage2el.py
+
+# 'upload-coverage' is meant to be run with an UPLOAD_TARGET=host:/dir setting
 ifdef UPLOAD_TARGET
 
 ifndef UPLOAD_HOST
@@ -158,17 +172,15 @@ ifndef COVERAGEDIR
 $(error COVERAGEDIR must be set when using UPLOAD_TARGET)
 endif
 
-upload-figleaf:
+upload-coverage:
 	rsync -a coverage-html/ $(UPLOAD_TARGET)
-	ssh $(UPLOAD_HOST) make update-tahoe-figleaf COVERAGEDIR=$(COVERAGEDIR)
+	ssh $(UPLOAD_HOST) make update-tahoe-coverage COVERAGEDIR=$(COVERAGEDIR)
 else
-upload-figleaf:
+upload-coverage:
 	echo "this target is meant to be run with UPLOAD_TARGET=host:/path/"
 	false
 endif
 
-.figleaf.el: .figleaf
-	$(RUNPP) -p -c "misc/figleaf2el.py .figleaf src"
 
 pyflakes:
 	$(PYTHON) -OOu `which pyflakes` src/allmydata |sort |uniq
