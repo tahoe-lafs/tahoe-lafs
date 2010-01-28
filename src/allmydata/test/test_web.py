@@ -3358,7 +3358,8 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         # because immutable directories don't have a writecap and therefore that field
         # isn't (and can't be) decrypted.
         # TODO: The field still exists in the netstring. Technically we should check what
-        # happens if something is put there (it should be ignored), but that can wait.
+        # happens if something is put there (_unpack_contents should raise ValueError),
+        # but that can wait.
 
         lonely_child = nm.create_from_cap(lonely_uri)
         mutant_ro_child = nm.create_from_cap(mut_read_uri)
