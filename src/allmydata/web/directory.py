@@ -13,7 +13,7 @@ from nevow.inevow import IRequest
 from foolscap.api import fireEventually
 
 from allmydata.util import base32, time_format
-from allmydata.uri import from_string_dirnode
+from allmydata.uri import from_string_dirnode, ALLEGED_IMMUTABLE_PREFIX
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
      IImmutableFileNode, IMutableFileNode, ExistingChildError, \
      NoSuchChildError, EmptyPathnameComponentError
@@ -737,7 +737,13 @@ class DirectoryAsHTML(rend.Page):
         else:
             # unknown
             ctx.fillSlots("filename", html.escape(name))
-            ctx.fillSlots("type", "?")
+            if target.get_write_uri() is not None:
+                unknowntype = "?"
+            elif not self.node.is_mutable() or target.get_readonly_uri().startswith(ALLEGED_IMMUTABLE_PREFIX):
+                unknowntype = "?-IMM"
+            else:
+                unknowntype = "?-RO"
+            ctx.fillSlots("type", unknowntype)
             ctx.fillSlots("size", "-")
             # use a directory-relative info link, so we can extract both the
             # writecap and the readcap

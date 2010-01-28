@@ -3256,13 +3256,16 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
 
         # make sure directory listing tolerates unknown nodes
         d.addCallback(lambda ign: self.GET(self.rooturl))
-        def _check_directory_html(res):
-            self.failUnlessIn("<td>%s</td>" % (str(name),), res)
+        def _check_directory_html(res, expected_type_suffix):
+            pattern = re.compile(r'<td>\?%s</td>[ \t\n\r]*'
+                                  '<td>%s</td>' % (expected_type_suffix, str(name)),
+                                 re.DOTALL)
+            self.failUnless(re.search(pattern, res), res)
             # find the More Info link for name, should be relative
             mo = re.search(r'<a href="([^"]+)">More Info</a>', res)
             info_url = mo.group(1)
             self.failUnlessEqual(info_url, "%s?t=info" % (str(name),))
-        d.addCallback(_check_directory_html)
+        d.addCallback(_check_directory_html, "-IMM" if immutable else "")
 
         d.addCallback(lambda ign: self.GET(self.rooturl+"?t=json"))
         def _check_directory_json(res, expect_rw_uri):
@@ -3320,7 +3323,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         # rendered too. This version will not have future_write_uri, whether
         # or not future_node was immutable.
         d.addCallback(lambda ign: self.GET(self.rourl))
-        d.addCallback(_check_directory_html)
+        d.addCallback(_check_directory_html, "-IMM" if immutable else "-RO")
         d.addCallback(lambda ign: self.GET(self.rourl+"?t=json"))
         d.addCallback(_check_directory_json, expect_rw_uri=False)
 
