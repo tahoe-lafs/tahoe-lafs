@@ -556,7 +556,7 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
       "ro_uri": file_uri,
       "verify_uri": verify_uri,
       "size": bytes,
-      "mutable": false,
+      "mutable": false
       } ]
 
   If it is a capability to a directory followed by a path from that directory
@@ -575,7 +575,7 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
         "mtime": 1202777696.7564139,
         "tahoe": {
           "linkcrtime": 1202777696.7564139,
-          "linkmotime": 1202777696.7564139,
+          "linkmotime": 1202777696.7564139
           } } } ]
 
   If it is a directory, then it includes information about the children of
@@ -602,7 +602,7 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
               "mtime": 1202777696.7564139,
               "tahoe": {
                 "linkcrtime": 1202777696.7564139,
-                "linkmotime": 1202777696.7564139,
+                "linkmotime": 1202777696.7564139
                 } } } ],
         "subdir":  [ "dirnode", {
             "rw_uri": rwuri,
@@ -612,7 +612,7 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
               "mtime": 1202778111.2160511,
               "tahoe": {
                 "linkcrtime": 1202777696.7564139,
-                "linkmotime": 1202777696.7564139,
+                "linkmotime": 1202777696.7564139
               } } } ]
       } } ]
 
@@ -623,10 +623,39 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
   entry of the child is omitted, and the directory view includes the metadata
   that is stored on the directory edge).
 
-  Then the rw_uri field will be present in the information about a directory
+  The rw_uri field will be present in the information about a directory
   if and only if you have read-write access to that directory. The verify_uri
   field will be present if and only if the object has a verify-cap
   (non-distributed LIT files do not have verify-caps).
+  
+  If the cap is of an unknown format, then the file size and verify_uri will
+  not be available:
+
+   GET /uri/$UNKNOWNCAP?t=json :
+
+    [ "unknown", {
+      "rw_uri": unknown_write_uri,
+      "ro_uri": unknown_read_uri
+      } ]
+
+   GET /uri/$DIRCAP/[SUBDIRS../]UNKNOWNCHILDNAME?t=json :
+
+    [ "unknown", {
+      "rw_uri": unknown_write_uri,
+      "ro_uri": unknown_read_uri,
+      "mutable": true,
+      "metadata": {
+        "ctime": 1202777696.7564139,
+        "mtime": 1202777696.7564139,
+        "tahoe": {
+          "linkcrtime": 1202777696.7564139,
+          "linkmotime": 1202777696.7564139
+          } } } ]
+
+  As in the case of file nodes, the metadata will only be present when the
+  capability is to a directory followed by a path. The "mutable" field is also
+  not always present; when it is absent, the mutability of the object is not
+  known.
 
 ==== About the metadata ====
 

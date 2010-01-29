@@ -13,7 +13,7 @@ from nevow.inevow import IRequest
 from foolscap.api import fireEventually
 
 from allmydata.util import base32, time_format
-from allmydata.uri import from_string_dirnode, ALLEGED_IMMUTABLE_PREFIX
+from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
      IImmutableFileNode, IMutableFileNode, ExistingChildError, \
      NoSuchChildError, EmptyPathnameComponentError
@@ -739,7 +739,7 @@ class DirectoryAsHTML(rend.Page):
             ctx.fillSlots("filename", html.escape(name))
             if target.get_write_uri() is not None:
                 unknowntype = "?"
-            elif not self.node.is_mutable() or target.get_readonly_uri().startswith(ALLEGED_IMMUTABLE_PREFIX):
+            elif not self.node.is_mutable() or target.is_alleged_immutable():
                 unknowntype = "?-IMM"
             else:
                 unknowntype = "?-RO"
@@ -1096,8 +1096,10 @@ class DeepCheckStreamer(dirnode.DeepStats):
 
         if IDirectoryNode.providedBy(node):
             data["type"] = "directory"
-        else:
+        elif IFileNode.providedBy(node):
             data["type"] = "file"
+        else:
+            data["type"] = "unknown"
 
         v = node.get_verify_cap()
         if v:
@@ -1161,24 +1163,30 @@ class UnknownNodeHandler(RenderMixin, rend.Page):
         if t == "info":
             return MoreInfo(self.node)
         if t == "json":
+            is_parent_known_immutable = self.parentnode and not self.parentnode.is_mutable()
             if self.parentnode and self.name:
                 d = self.parentnode.get_metadata_for(self.name)
             else:
                 d = defer.succeed(None)
-            d.addCallback(lambda md: UnknownJSONMetadata(ctx, self.node, md))
+            d.addCallback(lambda md: UnknownJSONMetadata(ctx, self.node, md, is_parent_known_immutable))
             return d
         raise WebError("GET unknown URI type: can only do t=info and t=json, not t=%s.\n"
                        "Using a webapi server that supports a later version of Tahoe "
                        "may help." % t)
 
-def UnknownJSONMetadata(ctx, filenode, edge_metadata):
-    rw_uri = filenode.get_write_uri()
-    ro_uri = filenode.get_readonly_uri()
+def UnknownJSONMetadata(ctx, node, edge_metadata, is_parent_known_immutable):
+    rw_uri = node.get_write_uri()
+    ro_uri = node.get_readonly_uri()
     data = ("unknown", {})
     if ro_uri:
         data[1]['ro_uri'] = ro_uri
     if rw_uri:
         data[1]['rw_uri'] = rw_uri
+        data[1]['mutable'] = True
+    elif is_parent_known_immutable or node.is_alleged_immutable():
+        data[1]['mutable'] = False
+    # else we don't know whether it is mutable.
+
     if edge_metadata is not None:
         data[1]['metadata'] = edge_metadata
     return text_plain(simplejson.dumps(data, indent=1) + "\n", ctx)

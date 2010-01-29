@@ -146,6 +146,9 @@ class UnknownNode:
         # immutable (or even read-only), provided that no error was detected.
         return not self.error and not self.rw_uri
 
+    def is_alleged_immutable(self):
+        return not self.error and not self.rw_uri and (not self.ro_uri or self.ro_uri.startswith(ALLEGED_IMMUTABLE_PREFIX))
+
     def raise_error(self):
         if self.error is not None:
             raise self.error
