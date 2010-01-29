@@ -16,7 +16,7 @@
 import os.path
 from zope.interface import implements
 from twisted.application import service
-from twisted.internet import reactor
+from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 from foolscap.api import Referenceable, fireEventually, RemoteException
 from base64 import b32encode
@@ -38,6 +38,7 @@ class LocalWrapper:
     def __init__(self, original):
         self.original = original
         self.broken = False
+        self.hung_until = None
         self.post_call_notifier = None
         self.disconnectors = {}
 
@@ -57,11 +58,25 @@ class LocalWrapper:
                 return a
         args = tuple([wrap(a) for a in args])
         kwargs = dict([(k,wrap(kwargs[k])) for k in kwargs])
+
+        def _really_call():
+            meth = getattr(self.original, "remote_" + methname)
+            return meth(*args, **kwargs)
+
         def _call():
             if self.broken:
                 raise IntentionalError("I was asked to break")
-            meth = getattr(self.original, "remote_" + methname)
-            return meth(*args, **kwargs)
+            if self.hung_until:
+                d2 = defer.Deferred()
+                self.hung_until.addCallback(lambda ign: _really_call())
+                self.hung_until.addCallback(lambda res: d2.callback(res))
+                def _err(res):
+                    d2.errback(res)
+                    return res
+                self.hung_until.addErrback(_err)
+                return d2
+            return _really_call()
+
         d = fireEventually()
         d.addCallback(lambda res: _call())
         def _wrap_exception(f):
@@ -239,6 +254,11 @@ class NoNetworkGrid(service.MultiService):
         # mark the given server as broken, so it will throw exceptions when
         # asked to hold a share
         self.servers_by_id[serverid].broken = True
+
+    def hang_server(self, serverid, until=defer.Deferred()):
+        # hang the given server until 'until' fires
+        self.servers_by_id[serverid].hung_until = until
+
 
 class GridTestMixin:
     def setUp(self):

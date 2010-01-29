@@ -1,6 +1,6 @@
 import random, weakref, itertools, time
 from zope.interface import implements
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.internet.interfaces import IPushProducer, IConsumer
 from foolscap.api import DeadReferenceError, RemoteException, eventually
 
@@ -835,7 +835,7 @@ class CiphertextDownloader(log.PrefixingLogMixin):
 
         # first step: who should we download from?
         d = defer.maybeDeferred(self._get_all_shareholders)
-        d.addCallback(self._got_all_shareholders)
+        d.addBoth(self._got_all_shareholders)
         # now get the uri_extension block from somebody and integrity check
         # it and parse and validate its contents
         d.addCallback(self._obtain_uri_extension)
@@ -872,46 +872,55 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         """ Once the number of buckets that I know about is >= K then I
         callback the Deferred that I return.
 
-        If all of the get_buckets deferreds have fired (whether callback or
-        errback) and I still don't have enough buckets then I'll callback the
-        Deferred that I return.
+        If all of the get_buckets deferreds have fired (whether callback
+        or errback) and I still don't have enough buckets then I'll also
+        callback -- not errback -- the Deferred that I return.
         """
-        self._wait_for_enough_buckets_d = defer.Deferred()
+        wait_for_enough_buckets_d = defer.Deferred()
+        self._wait_for_enough_buckets_d = wait_for_enough_buckets_d
 
-        self._queries_sent = 0
-        self._responses_received = 0
-        self._queries_failed = 0
         sb = self._storage_broker
         servers = sb.get_servers_for_index(self._storage_index)
         if not servers:
             raise NoServersError("broker gave us no servers!")
+
+        self._total_queries = len(servers)
+        self._responses_received = 0
+        self._queries_failed = 0
         for (peerid,ss) in servers:
             self.log(format="sending DYHB to [%(peerid)s]",
                      peerid=idlib.shortnodeid_b2a(peerid),
                      level=log.NOISY, umid="rT03hg")
-            self._queries_sent += 1
             d = ss.callRemote("get_buckets", self._storage_index)
             d.addCallbacks(self._got_response, self._got_error,
                            callbackArgs=(peerid,))
+            d.addBoth(self._check_got_all_responses)
+
         if self._status:
             self._status.set_status("Locating Shares (%d/%d)" %
-                                    (self._responses_received,
-                                     self._queries_sent))
-        return self._wait_for_enough_buckets_d
+                                    (len(self._share_buckets),
+                                     self._verifycap.needed_shares))
+        return wait_for_enough_buckets_d
+
+    def _check_got_all_responses(self, ignored=None):
+        assert (self._responses_received+self._queries_failed) <= self._total_queries
+        if self._wait_for_enough_buckets_d and (self._responses_received+self._queries_failed) == self._total_queries:
+            reactor.callLater(0, self._wait_for_enough_buckets_d.callback, False)
+            self._wait_for_enough_buckets_d = None
 
     def _got_response(self, buckets, peerid):
+        self._responses_received += 1
         self.log(format="got results from [%(peerid)s]: shnums %(shnums)s",
                  peerid=idlib.shortnodeid_b2a(peerid),
                  shnums=sorted(buckets.keys()),
                  level=log.NOISY, umid="o4uwFg")
-        self._responses_received += 1
         if self._results:
             elapsed = time.time() - self._started
             self._results.timings["servers_peer_selection"][peerid] = elapsed
         if self._status:
             self._status.set_status("Locating Shares (%d/%d)" %
                                     (self._responses_received,
-                                     self._queries_sent))
+                                     self._total_queries))
         for sharenum, bucket in buckets.iteritems():
             b = layout.ReadBucketProxy(bucket, peerid, self._storage_index)
             self.add_share_bucket(sharenum, b)
@@ -919,14 +928,7 @@ class CiphertextDownloader(log.PrefixingLogMixin):
             # deferred. Then remove it from self so that we don't fire it
             # again.
             if self._wait_for_enough_buckets_d and len(self._share_buckets) >= self._verifycap.needed_shares:
-                self._wait_for_enough_buckets_d.callback(True)
-                self._wait_for_enough_buckets_d = None
-
-            # Else, if we ran out of outstanding requests then fire it and
-            # remove it from self.
-            assert (self._responses_received+self._queries_failed) <= self._queries_sent
-            if self._wait_for_enough_buckets_d and (self._responses_received+self._queries_failed) == self._queries_sent:
-                self._wait_for_enough_buckets_d.callback(False)
+                reactor.callLater(0, self._wait_for_enough_buckets_d.callback, True)
                 self._wait_for_enough_buckets_d = None
 
             if self._results:
@@ -939,18 +941,12 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         self._share_buckets.setdefault(sharenum, []).append(bucket)
 
     def _got_error(self, f):
+        self._queries_failed += 1
         level = log.WEIRD
         if f.check(DeadReferenceError):
             level = log.UNUSUAL
         self.log("Error during get_buckets", failure=f, level=level,
                          umid="3uuBUQ")
-        # If we ran out of outstanding requests then errback it and remove it
-        # from self.
-        self._queries_failed += 1
-        assert (self._responses_received+self._queries_failed) <= self._queries_sent
-        if self._wait_for_enough_buckets_d and self._responses_received == self._queries_sent:
-            self._wait_for_enough_buckets_d.errback()
-            self._wait_for_enough_buckets_d = None
 
     def bucket_failed(self, vbucket):
         shnum = vbucket.sharenum
