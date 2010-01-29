@@ -804,6 +804,11 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         # self._current_segnum = 0
         # self._vup # ValidatedExtendedURIProxy
 
+        # _get_all_shareholders() will create the following:
+        # self._total_queries
+        # self._responses_received = 0
+        # self._queries_failed = 0
+
     def pauseProducing(self):
         if self._paused:
             return

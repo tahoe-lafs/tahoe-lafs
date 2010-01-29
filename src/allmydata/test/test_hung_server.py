@@ -51,7 +51,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
          (sharenum, sharefile) = share
          (id, ss) = to_server
          # FIXME: this doesn't work because we only have a LocalWrapper
-         shares_dir = os.path.join(ss.storedir, "shares")
+         shares_dir = os.path.join(ss.original.storedir, "shares")
          si = uri.from_string(self.uri).get_storage_index()
          si_dir = os.path.join(shares_dir, storage_index_to_dir(si))
          if not os.path.exists(si_dir):
@@ -60,7 +60,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
          shutil.copy(sharefile, new_sharefile)
          self.shares = self.find_shares(self.uri)
          # Make sure that the storage server has the share.
-         self.failUnless((sharenum, ss.my_nodeid, new_sharefile)
+         self.failUnless((sharenum, ss.original.my_nodeid, new_sharefile)
                          in self.shares)
 
     # untested
