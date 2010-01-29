@@ -3265,7 +3265,10 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
             mo = re.search(r'<a href="([^"]+)">More Info</a>', res)
             info_url = mo.group(1)
             self.failUnlessEqual(info_url, "%s?t=info" % (str(name),))
-        d.addCallback(_check_directory_html, "-IMM" if immutable else "")
+        if immutable:
+            d.addCallback(_check_directory_html, "-IMM")
+        else:
+            d.addCallback(_check_directory_html, "")
 
         d.addCallback(lambda ign: self.GET(self.rooturl+"?t=json"))
         def _check_directory_json(res, expect_rw_uri):
@@ -3277,8 +3280,10 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
                 self.failUnlessEqual(f[1]["rw_uri"], future_write_uri)
             else:
                 self.failIfIn("rw_uri", f[1])
-            self.failUnlessEqual(f[1]["ro_uri"],
-                                 ("imm." if immutable else "ro.") + future_read_uri)
+            if immutable:
+                self.failUnlessEqual(f[1]["ro_uri"], "imm." + future_read_uri)
+            else:
+                self.failUnlessEqual(f[1]["ro_uri"], "ro." + future_read_uri)
             self.failUnless("metadata" in f[1])
         d.addCallback(_check_directory_json, expect_rw_uri=not immutable)
 
@@ -3311,8 +3316,17 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
                 self.failUnlessEqual(data[1]["rw_uri"], future_write_uri)
             else:
                 self.failIfIn("rw_uri", data[1])
-            self.failUnlessEqual(data[1]["ro_uri"],
-                                 ("imm." if immutable else "ro.") + future_read_uri)
+
+            if immutable:
+                self.failUnlessEqual(data[1]["ro_uri"], "imm." + future_read_uri)
+                self.failUnlessEqual(data[1]["mutable"], False)
+            elif expect_rw_uri:
+                self.failUnlessEqual(data[1]["ro_uri"], "ro." + future_read_uri)
+                self.failUnlessEqual(data[1]["mutable"], True)
+            else:
+                self.failUnlessEqual(data[1]["ro_uri"], "ro." + future_read_uri)
+                self.failIf("mutable" in data[1], data[1])
+
             # TODO: check metadata contents
             self.failUnless("metadata" in data[1])
 
@@ -3323,7 +3337,11 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         # rendered too. This version will not have future_write_uri, whether
         # or not future_node was immutable.
         d.addCallback(lambda ign: self.GET(self.rourl))
-        d.addCallback(_check_directory_html, "-IMM" if immutable else "-RO")
+        if immutable:
+            d.addCallback(_check_directory_html, "-IMM")
+        else:
+            d.addCallback(_check_directory_html, "-RO")
+
         d.addCallback(lambda ign: self.GET(self.rourl+"?t=json"))
         d.addCallback(_check_directory_json, expect_rw_uri=False)
 

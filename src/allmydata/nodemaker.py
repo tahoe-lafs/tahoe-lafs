@@ -58,7 +58,10 @@ class NodeMaker:
 
         # The name doesn't matter for caching since it's only used in the error
         # attribute of an UnknownNode, and we don't cache those.
-        memokey = ("I" if deep_immutable else "M") + bigcap
+        if deep_immutable:
+            memokey = "I" + bigcap
+        else:
+            memokey = "M" + bigcap
         if memokey in self._node_cache:
             return self._node_cache[memokey]
         cap = uri.from_string(bigcap, deep_immutable=deep_immutable, name=name)
