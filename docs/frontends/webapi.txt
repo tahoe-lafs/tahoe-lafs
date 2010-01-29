@@ -634,7 +634,6 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
    GET /uri/$UNKNOWNCAP?t=json :
 
     [ "unknown", {
-      "rw_uri": unknown_write_uri,
       "ro_uri": unknown_read_uri
       } ]
 
