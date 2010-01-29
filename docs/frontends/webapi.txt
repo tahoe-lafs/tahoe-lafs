@@ -380,7 +380,7 @@ POST /uri?t=mkdir-with-children
           "mtime": 1202777696.7564139,
           "tahoe": {
             "linkcrtime": 1202777696.7564139,
-            "linkmotime": 1202777696.7564139,
+            "linkmotime": 1202777696.7564139
             } } } ],
     "subdir":  [ "dirnode", {
         "rw_uri": "URI:DIR2:...",
@@ -390,7 +390,7 @@ POST /uri?t=mkdir-with-children
           "mtime": 1202778111.2160511,
           "tahoe": {
             "linkcrtime": 1202777696.7564139,
-            "linkmotime": 1202777696.7564139,
+            "linkmotime": 1202777696.7564139
           } } } ]
   }
 
