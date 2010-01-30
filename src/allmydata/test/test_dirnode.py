@@ -1343,26 +1343,28 @@ class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
         bad_uri      = [# These are errors because the URI is bad once we've stripped the prefix.
                         (19, UnknownNode("ro.URI:SSK-RO:foo", None)),
                         (20, UnknownNode("imm.URI:CHK:foo", None, deep_immutable=True)),
+                        (21, UnknownNode(None, "URI:CHK:foo")),
+                        (22, UnknownNode(None, "URI:CHK:foo", deep_immutable=True)),
                        ]
         ro_prefixed  = [# These are valid, and the readcap should end up with a ro. prefix.
-                        (21, UnknownNode(None, "foo")),
-                        (22, UnknownNode(None, "ro.foo")),
-                        (32, UnknownNode(None, "ro." + lit_uri)),
-                        (23, UnknownNode("bar", "foo")),
-                        (24, UnknownNode("bar", "ro.foo")),
-                        (32, UnknownNode("bar", "ro." + lit_uri)),
-                        (25, UnknownNode("ro.foo", None)),
+                        (23, UnknownNode(None, "foo")),
+                        (24, UnknownNode(None, "ro.foo")),
+                        (25, UnknownNode(None, "ro." + lit_uri)),
+                        (26, UnknownNode("bar", "foo")),
+                        (27, UnknownNode("bar", "ro.foo")),
+                        (28, UnknownNode("bar", "ro." + lit_uri)),
+                        (29, UnknownNode("ro.foo", None)),
                         (30, UnknownNode("ro." + lit_uri, None)),
                        ]
         imm_prefixed = [# These are valid, and the readcap should end up with an imm. prefix.
-                        (26, UnknownNode(None, "foo", deep_immutable=True)),
-                        (27, UnknownNode(None, "ro.foo", deep_immutable=True)),
-                        (28, UnknownNode(None, "imm.foo")),
-                        (29, UnknownNode(None, "imm.foo", deep_immutable=True)),
-                        (31, UnknownNode("imm." + lit_uri, None)),
-                        (31, UnknownNode("imm." + lit_uri, None, deep_immutable=True)),
-                        (33, UnknownNode(None, "imm." + lit_uri)),
-                        (33, UnknownNode(None, "imm." + lit_uri, deep_immutable=True)),
+                        (31, UnknownNode(None, "foo", deep_immutable=True)),
+                        (32, UnknownNode(None, "ro.foo", deep_immutable=True)),
+                        (33, UnknownNode(None, "imm.foo")),
+                        (34, UnknownNode(None, "imm.foo", deep_immutable=True)),
+                        (35, UnknownNode("imm." + lit_uri, None)),
+                        (36, UnknownNode("imm." + lit_uri, None, deep_immutable=True)),
+                        (37, UnknownNode(None, "imm." + lit_uri)),
+                        (38, UnknownNode(None, "imm." + lit_uri, deep_immutable=True)),
                        ]
         error = unknown_rw + must_be_ro + must_be_imm + bad_uri
         ok = ro_prefixed + imm_prefixed
