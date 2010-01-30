@@ -903,8 +903,8 @@ class CiphertextDownloader(log.PrefixingLogMixin):
 
         if self._status:
             self._status.set_status("Locating Shares (%d/%d)" %
-                                    (len(self._share_buckets),
-                                     self._verifycap.needed_shares))
+                                    (self._responses_received,
+                                     self._total_queries))
         return wait_for_enough_buckets_d
 
     def _check_got_all_responses(self, ignored=None):
@@ -914,6 +914,8 @@ class CiphertextDownloader(log.PrefixingLogMixin):
             self._wait_for_enough_buckets_d = None
 
     def _got_response(self, buckets, peerid):
+        # Note that this can continue to receive responses after _wait_for_enough_buckets_d
+        # has fired.
         self._responses_received += 1
         self.log(format="got results from [%(peerid)s]: shnums %(shnums)s",
                  peerid=idlib.shortnodeid_b2a(peerid),
