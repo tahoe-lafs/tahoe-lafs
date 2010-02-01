@@ -252,12 +252,21 @@ class NoNetworkGrid(service.MultiService):
 
     def break_server(self, serverid):
         # mark the given server as broken, so it will throw exceptions when
-        # asked to hold a share
+        # asked to hold a share or serve a share
         self.servers_by_id[serverid].broken = True
 
-    def hang_server(self, serverid, until=defer.Deferred()):
-        # hang the given server until 'until' fires
-        self.servers_by_id[serverid].hung_until = until
+    def hang_server(self, serverid):
+        # hang the given server
+        ss = self.servers_by_id[serverid]
+        assert ss.hung_until is None
+        ss.hung_until = defer.Deferred()
+
+    def unhang_server(self, serverid):
+        # unhang the given server
+        ss = self.servers_by_id[serverid]
+        assert ss.hung_until is not None
+        ss.hung_until.callback(None)
+        ss.hung_until = None
 
 
 class GridTestMixin:

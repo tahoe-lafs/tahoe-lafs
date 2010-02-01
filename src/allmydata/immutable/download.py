@@ -789,7 +789,10 @@ class CiphertextDownloader(log.PrefixingLogMixin):
 
         self.active_buckets = {} # k: shnum, v: bucket
         self._share_buckets = {} # k: sharenum, v: list of buckets
-        self._share_vbuckets = {} # k: shnum, v: set of ValidatedBuckets
+
+        # _download_all_segments() will set this to:
+        # self._share_vbuckets = {} # k: shnum, v: set of ValidatedBuckets
+        self._share_vbuckets = None
 
         self._fetch_failures = {"uri_extension": 0, "crypttext_hash_tree": 0, }
 
@@ -808,6 +811,10 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         # self._total_queries
         # self._responses_received = 0
         # self._queries_failed = 0
+
+        # This is solely for the use of unit tests. It will be triggered when
+        # we start downloading shares.
+        self._stage_4_d = defer.Deferred()
 
     def pauseProducing(self):
         if self._paused:
@@ -937,6 +944,10 @@ class CiphertextDownloader(log.PrefixingLogMixin):
             if self._wait_for_enough_buckets_d and len(self._share_buckets) >= self._verifycap.needed_shares:
                 reactor.callLater(0, self._wait_for_enough_buckets_d.callback, True)
                 self._wait_for_enough_buckets_d = None
+
+            if self._share_vbuckets is not None:
+                vbucket = ValidatedReadBucketProxy(sharenum, b, self._share_hash_tree, self._vup.num_segments, self._vup.block_size, self._vup.share_size)
+                self._share_vbuckets.setdefault(sharenum, set()).add(vbucket)
 
             if self._results:
                 if peerid not in self._results.servermap:
@@ -1088,6 +1099,13 @@ class CiphertextDownloader(log.PrefixingLogMixin):
 
 
     def _download_all_segments(self, res):
+        # From now on if new buckets are received then I will notice that
+        # self._share_vbuckets is not None and generate a vbucket for that new
+        # bucket and add it in to _share_vbuckets. (We had to wait because we
+        # didn't have self._vup and self._share_hash_tree earlier. We didn't
+        # need validated buckets until now -- now that we are ready to download
+        # shares.)
+        self._share_vbuckets = {}
         for sharenum, buckets in self._share_buckets.iteritems():
             for bucket in buckets:
                 vbucket = ValidatedReadBucketProxy(sharenum, bucket, self._share_hash_tree, self._vup.num_segments, self._vup.block_size, self._vup.share_size)
@@ -1109,6 +1127,8 @@ class CiphertextDownloader(log.PrefixingLogMixin):
             # this pause, at the end of write, prevents pre-fetch from
             # happening until the consumer is ready for more data.
             d.addCallback(self._check_for_pause)
+
+        self._stage_4_d.callback(None)
         return d
 
     def _check_for_pause(self, res):
