@@ -2,40 +2,40 @@ ANNOUNCING Tahoe, the Least-Authority File System, v1.6
 
 The Tahoe-LAFS team is pleased to announce the immediate
 availability of version 1.6 of Tahoe-LAFS, an extremely
-reliable distributed key-value store and cloud storage system.
+reliable distributed key-value store and cloud filesystem.
 
 Tahoe-LAFS is the first cloud storage system which offers
-"provider-independent security" -- meaning the privacy and
-security of your data is not dependent on the behavior of your
-cloud service provider. Here is the one-page explanation of its
-unique security and fault-tolerance properties:
+"provider-independent security" -- meaning that not even your
+cloud service provider can read or alter your data without your
+consent.  Here is the one-page explanation of its unique
+security and fault-tolerance properties:
 
 http://allmydata.org/source/tahoe/trunk/docs/about.html
 
 Tahoe-LAFS v1.6.0 is the successor to v1.5.0, which was
-released August 1, 2009 [1]. In this major new release, we've
-added deep-immutable directories (i.e. permanent snapshots),
-greatly increased performance for some common operations, and
-improved the help text, documentation, command-line options,
-and web user interface. The FUSE plugin has been fixed. We also
-fixed a few bugs. See the NEWS file [2] for details.
-
-In addition to the core storage system itself, a crop of
-related projects have sprung up to extend it and to integrate
-it into operating systems and applications. These include
-frontends for Windows, Macintosh, JavaScript, and iPhone, and
-plugins for Hadoop, bzr, duplicity, TiddlyWiki, and more. See
-the Related Projects page on the wiki [3].
+released August 1, 2009 [1]. This release offers major
+performance improvements, usability improvements, and one major
+new feature: deep-immutable directories (cryptographically
+unalterable permanent snapshots), See the NEWS file [2] for
+details.
 
 
 WHAT IS IT GOOD FOR?
 
-With Tahoe-LAFS, you distribute your filesystem across multiple
+With Tahoe-LAFS, you spread your filesystem across multiple
 servers, and even if some of the servers fail or are taken over
 by an attacker, the entire filesystem continues to work
 correctly, and continues to preserve your privacy and
 security. You can easily and securely share chosen files and
 directories with others.
+
+In addition to the core storage system itself, volunteers have
+developed related projects to integrate it with other
+tools. These include frontends for Windows, Macintosh,
+JavaScript, and iPhone, and plugins for Hadoop, bzr, duplicity,
+TiddlyWiki, and more. As of this release, contributors have
+added an Android frontend and a working read-only FUSE
+frontend. See the Related Projects page on the wiki [3].
 
 We believe that the combination of erasure coding, strong
 encryption, Free/Open Source Software and careful engineering
@@ -112,17 +112,18 @@ SPONSORSHIP
 
 Tahoe-LAFS was originally developed thanks to the sponsorship
 of Allmydata, Inc. [12], a provider of commercial backup
-services. Allmydata, Inc. created the Tahoe-LAFS project and
+services. Allmydata founded the Tahoe-LAFS project and
 contributed hardware, software, ideas, bug reports,
-suggestions, demands, and money (employing several Tahoe-LAFS
-hackers and instructing them to spend part of their work time
-on this Free Software project). Also they awarded customized
+suggestions, demands, and they employedg several Tahoe-LAFS
+hackers and instructed them to spend part of their work time on
+this Free Software project. Also they awarded customized
 t-shirts to hackers who found security flaws in Tahoe-LAFS (see
-http://hacktahoe.org ). After discontinuing funding of
+the Hack Tahoe-LAFS Hall Of Fame [13]). After discontinuing funding of
 Tahoe-LAFS R&D in early 2009, Allmydata, Inc. has continued to
-provide servers, co-lo space, bandwidth, and thank-you gifts to
-the open source project. Thank you to Allmydata, Inc. for their
-generous and public-spirited support.
+provide servers, co-lo space, bandwidth, and small personal
+gifts as tokens of appreciation. (Also they continue to provide
+bug reports.) Thank you to Allmydata, Inc. for their generous
+and public-spirited support.
 
 This is the third release of Tahoe-LAFS to be created solely as
 a labor of love by volunteers. Thank you very much to the
@@ -132,11 +133,11 @@ Tahoe-LAFS possible.
 Zooko Wilcox-O'Hearn
 on behalf of the Tahoe-LAFS team
 
-January 31 2010
+February 1, 2010
 Boulder, Colorado, USA
 
 [1] http://allmydata.org/trac/tahoe/browser/relnotes.txt?rev=4042
-[2] http://allmydata.org/trac/tahoe/browser/NEWS?rev=4033
+[2] http://allmydata.org/trac/tahoe/browser/NEWS?rev=4189
 [3] http://allmydata.org/trac/tahoe/wiki/RelatedProjects
 [4] http://allmydata.org/trac/tahoe/browser/docs/known_issues.txt
 [5] http://allmydata.org/trac/tahoe/browser/COPYING.GPL
@@ -144,6 +145,7 @@ Boulder, Colorado, USA
 [7] http://allmydata.org/source/tahoe/trunk/docs/install.html
 [8] http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev
 [9] http://allmydata.org/trac/tahoe/roadmap
-[10] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=4035
+[10] http://allmydata.org/trac/tahoe/browser/CREDITS?rev=4186
 [11] http://allmydata.org/trac/tahoe/wiki/Dev
 [12] http://allmydata.com
+[13] http://hacktahoe.org

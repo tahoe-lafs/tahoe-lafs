@@ -67,11 +67,8 @@ What sorts of machines are good candidates for running a helper?
 
 To turn a Tahoe-LAFS node into a helper (i.e. to run a helper service in
 addition to whatever else that node is doing), edit the tahoe.cfg file in your
-node's base directory and set "enabled = true" in the section named 
-"[helper]". Then restart the node:
-
- echo "yes" >$BASEDIR/run_helper
- tahoe restart $BASEDIR
+node's base directory and set "enabled = true" in the section named
+"[helper]".
 
 Then restart the node. This will signal the node to create a Helper service
 and listen for incoming requests. Once the node has started, there will be a

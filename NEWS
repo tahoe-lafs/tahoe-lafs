@@ -1,14 +1,14 @@
 User visible changes in Tahoe-LAFS.  -*- outline -*-
 
-* Release ?.?.? (?)
+* Release 1.6.0 (2010-02-01)
 
 ** New Features
 
 *** Immutable Directories
 
-Tahoe can now create and handle immutable directories. These are read just
-like normal directories, but are "deep-immutable", meaning that all their
-children (and everything reachable from those children) must be immutable
+Tahoe-LAFS can now create and handle immutable directories (#XXX). These are
+read just like normal directories, but are "deep-immutable", meaning that all
+their children (and everything reachable from those children) must be immutable
 objects (i.e. immutable/literal files, and other immutable directories).
 
 These directories must be created in a single webapi call, which provides all
@@ -18,10 +18,10 @@ they cannot be changed after creation). They have URIs that start with
 interface (aka the "WUI") with a "DIR-IMM" abbreviation (as opposed to "DIR"
 for the usual read-write directories and "DIR-RO" for read-only directories).
 
-Tahoe releases before 1.6.0 cannot read the contents of an immutable
+Tahoe-LAFS releases before 1.6.0 cannot read the contents of an immutable
 directory. 1.5.0 will tolerate their presence in a directory listing (and
-display it as an "unknown node"). 1.4.1 and earlier cannot tolerate them: a
-DIR-IMM child in any directory will prevent the listing of that directory.
+display it as "unknown"). 1.4.1 and earlier cannot tolerate them: a DIR-IMM
+child in any directory will prevent the listing of that directory.
 
 Immutable directories are repairable, just like normal immutable files.
 
@@ -31,20 +31,20 @@ directories. See docs/frontends/webapi.txt for details.
 *** "tahoe backup" now creates immutable directories, backupdb has dircache
 
 The "tahoe backup" command has been enhanced to create immutable directories
-(in previous releases, it created read-only mutable directories). This is
-significantly faster, since it does not need to create an RSA keypair for
-each new directory. Also "DIR-IMM" immutable directories are repairable,
-unlike "DIR-RO" read-only mutable directories (at least in this release: a
-future Tahoe release should be able to repair DIR-RO).
+(in previous releases, it created read-only mutable directories) (#XXX). This
+is significantly faster, since it does not need to create an RSA keypair for
+each new directory. Also "DIR-IMM" immutable directories are repairable, unlike
+"DIR-RO" read-only mutable directories (at least in this release: a future
+Tahoe-LAFS release should be able to repair DIR-RO).
 
 In addition, the backupdb (used by "tahoe backup" to remember what it has
-already copied) has been enhanced to store information about existing
-immutable directories. This allows it to re-use directories that have moved
-but still contain identical contents, or which have been deleted and later
-replaced. (the 1.5.0 "tahoe backup" command could only re-use directories
-that were in the same place as they were in the immediately previous backup).
-With this change, the backup process no longer needs to read the previous
-snapshot out of the Tahoe grid, reducing the network load considerably.
+already copied) has been enhanced to store information about existing immutable
+directories. This allows it to re-use directories that have moved but still
+contain identical contents, or which have been deleted and later replaced. (the
+1.5.0 "tahoe backup" command could only re-use directories that were in the
+same place as they were in the immediately previous backup).  With this change,
+the backup process no longer needs to read the previous snapshot out of the
+Tahoe-LAFS grid, reducing the network load considerably.
 
 A "null backup" (in which nothing has changed since the previous backup) will
 require only two Tahoe-side operations: one to add an Archives/$TIMESTAMP
@@ -59,7 +59,7 @@ had to be uploaded too): it will require time proportional to the number and
 size of your directories. After this initial pass, all subsequent passes
 should take a tiny fraction of the time.
 
-As noted above, Tahoe versions earlier than 1.5.0 cannot read immutable
+As noted above, Tahoe-LAFS versions earlier than 1.5.0 cannot read immutable
 directories.
 
 The "tahoe backup" command has been improved to skip over unreadable objects
@@ -67,35 +67,57 @@ The "tahoe backup" command has been improved to skip over unreadable objects
 command from reading their contents), instead of throwing an exception and
 terminating the backup process. It also skips over symlinks, because these
 cannot be represented faithfully in the Tahoe-side filesystem. A warning
-message will be emitted each time something is skipped. (#729, #850, #641)
+message will be emitted each time something is skipped. (#729, #850, #641) XXX
 
 *** "create-node" command added, "create-client" now implies --no-storage
 
-The basic idea behind Tahoe's client+server and client-only processes is that
-you are creating a general-purpose Tahoe "node" process, which has several
-components activated (or not). Storage service is one of these optional
-components, as is the Helper, FTP server, and SFTP server. (Client/webapi
+The basic idea behind Tahoe-LAFS's client+server and client-only processes is
+that you are creating a general-purpose Tahoe-LAFS "node" process, which has
+several components that can be activated. Storage service is one of these
+optional components, as is the Helper, FTP server, and SFTP server. Web gateway
 functionality is nominally on this list, but it is always active: a future
-release will make it optional). The special-purpose servers remain separate
-(introducer, key-generator, stats-gatherer).
+release will make it optional. There are three special purpose servers that
+can't currently be run as a component in a node: introducer, key-generator,
+stats-gatherer.
 
-So now "tahoe create-node" will create a Tahoe node process, and after
+So now "tahoe create-node" will create a Tahoe-LAFS node process, and after
 creation you can edit its tahoe.cfg to enable or disable the desired
 services. It is a more general-purpose replacement for "tahoe create-client".
 The default configuration has storage service enabled. For convenience, the
-"--no-storage" argument makes a tahoe.cfg file that disables storage service.
+"--no-storage" argument makes a tahoe.cfg file that disables storage
+service. (#XXX)
 
-"tahoe create-client" has been changed to create a Tahoe node without a
+"tahoe create-client" has been changed to create a Tahoe-LAFS node without a
 storage service. It is equivalent to "tahoe create-node --no-storage". This
-helps to reduce the confusion surrounding the use of a command with "client"
-in its name to create a storage *server*. Use "tahoe create-client" to create
-a purely client-side node. If you want to offer storage to the grid, use
-"tahoe create-node" instead.
+helps to reduce the confusion surrounding the use of a command with "client" in
+its name to create a storage *server*. Use "tahoe create-client" to create a
+purely client-side node. If you want to offer storage to the grid, use "tahoe
+create-node" instead.
 
 In the future, other services will be added to the node, and they will be
-controlled through options in tahoe.cfg . The most important of these
-services may get additional --enable-XYZ or --disable-XYZ arguments to "tahoe
+controlled through options in tahoe.cfg . The most important of these services
+may get additional --enable-XYZ or --disable-XYZ arguments to "tahoe
 create-node".
+
+** Performance Improvements
+
+Download of immutable files begins as soon as the downloader has located the K
+necessary shares (#XXX). In both the previous and current releases, a
+downloader will first issue queries to all storage servers on the grid to
+locate shares before it begins downloading the shares. In previous releases of
+Tahoe-LAFS, download would not begin until all storage servers on the grid had
+replied to the query, at which point K shares would be chosen for download from
+among the shares that were located. In this release, download begins as soon as
+any K shares are located. This means that downloads start sooner, which is
+particularly important if there is a server on the grid that is extremely slow
+or even hung in such a way that it will never respond. In previous releases
+such a server would have a negative impact on all downloads from that grid. In
+this release, such a server will have no impact on downloads (as long as K
+shares can be found on other, quicker, servers.)  This also means that
+downloads now use the "best-alacrity" servers that they talk to, as measured by
+how quickly the servers reply to the initial query. This might cause downloads
+to go faster, especially on grids with heterogeneous servers or geographical
+dispersion.
 
 ** Minor Changes
 
@@ -127,10 +149,9 @@ target filename, such as when you copy from a bare filecap. (#761)
 halting traversal. (#874, #786)
 
 Many small packaging improvements were made to facilitate the "tahoe-lafs"
-package being added to Ubuntu's "Karmic Koala" 9.10 release. Several
-mac/win32 binary libraries were removed, some figleaf code-coverage files
-were removed, a bundled copy of darcsver-1.2.1 was removed, and additional
-licensing text was added.
+package being included in Ubuntu. Several mac/win32 binary libraries were
+removed, some figleaf code-coverage files were removed, a bundled copy of
+darcsver-1.2.1 was removed, and additional licensing text was added.
 
 Several DeprecationWarnings for python2.6 were silenced. (#859)
 

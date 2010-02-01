@@ -1,28 +1,37 @@
-ANNOUNCING the immediate availability of version 1.5 of Tahoe-LAFS.
+ANNOUNCING v1.6 of Tahoe-LAFS
 
-Tahoe-LAFS is the first cloud storage technology which offers security and
-privacy in the sense that the cloud storage service provider itself can't read
-or alter your data. Here is the one-page explanation of Tahoe's unique security
-and fault-tolerance properties:
+The Tahoe-LAFS team is pleased to announce the immediate
+availability of version 1.6 of Tahoe-LAFS, an extremely
+reliable distributed key-value store and cloud filesystem.
+
+Tahoe-LAFS is the first cloud storage system which offers
+"provider-independent security" -- meaning that not even your
+cloud service provider can read or alter your data without your
+consent.  Here is the one-page explanation of its unique
+security and fault-tolerance properties:
 
 http://allmydata.org/source/tahoe/trunk/docs/about.html
 
-This is the successor to v1.4.1, which was released April 13, 2009. This is a
-major new release, improving the user interface, increasing performance, and
-fixing a few bugs.  See the release notes for details:
+Tahoe-LAFS v1.6.0 is the successor to v1.5.0, which was
+released August 1, 2009. In this major new release, we've added
+deep-immutable directories (cryptographically unalterable
+permanent snapshots), greatly increased performance for some
+common operations, and improved the help text, documentation,
+command-line options, and web user interface. The FUSE plugin
+has been fixed. We also fixed a few bugs. See the release notes
+for details:
 
 http://allmydata.org/source/tahoe/trunk/relnotes.txt
 
-In addition to the functionality of Tahoe-LAFS itself, a crop of related
-projects have sprung up to extend it and to integrate it into other tools.
-These include frontends for Windows, Macintosh, JavaScript, and iPhone, and
-plugins for duplicity, bzr, Hadoop, and TiddlyWiki, and more. See the Related
-Projects page on the wiki:
+In addition to the core storage system itself, a crop of
+related projects have sprung up to extend it and to integrate
+it into operating systems and applications. These include
+frontends for Windows, Macintosh, JavaScript, and iPhone, and
+plugins for Hadoop, bzr, duplicity, TiddlyWiki, and more. See
+the Related Projects page:
 
 http://allmydata.org/trac/tahoe/wiki/RelatedProjects
 
-Tahoe is the basis of the consumer backup product from Allmydata, Inc. --
-http://allmydata.com .
-
-We believe that erasure coding, strong encryption, Free/Open Source Software
-and good engineering make Tahoe-LAFS safer than other storage technologies.
+We believe that erasure coding, strong encryption, Free/Open
+Source Software and careful engineering make Tahoe-LAFS safer
+than other storage technologies.

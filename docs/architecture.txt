@@ -5,123 +5,104 @@
 
 OVERVIEW
 
-At a high-level this system consists of three layers: the key-value store,
-the filesystem, and the application.
+There are three layers: the key-value store, the filesystem, and the
+application.
 
-The lowest layer is the key-value store, which is a distributed hashtable
-mapping from capabilities to data.  The capabilities are relatively short
-ASCII strings, each used as a reference to an arbitrary-length sequence of
-data bytes, and are like a URI for that data. This data is encrypted and
-distributed across a number of nodes, such that it will survive the loss of
-most of the nodes.
+The lowest layer is the key-value store. The keys are "capabilities" -- short
+ascii strings -- and the values are sequences of data bytes. This data is
+encrypted and distributed across a number of nodes, such that it will survive
+the loss of most of the nodes. There are no hard limits on the size of the
+values, but there may be performance issues with extremely large values (just
+due to the limitation of network bandwidth). In practice, values as small as a
+few bytes and as large as tens of gigabytes are in common use.
 
 The middle layer is the decentralized filesystem: a directed graph in which
 the intermediate nodes are directories and the leaf nodes are files. The leaf
-nodes contain only the file data -- they contain no metadata about the file
-other than the length in bytes.  The edges leading to leaf nodes have metadata
-attached to them about the file they point to.  Therefore, the same file may
-be associated with different metadata if it is dereferenced through different
-edges.
+nodes contain only the data -- they contain no metadata other than the length
+in bytes.  The edges leading to leaf nodes have metadata attached to them
+about the file they point to.  Therefore, the same file may be associated with
+different metadata if it is referred to through different edges.
 
 The top layer consists of the applications using the filesystem.
 Allmydata.com uses it for a backup service: the application periodically
 copies files from the local disk onto the decentralized filesystem.  We later
-provide read-only access to those files, allowing users to recover them.  The
-filesystem can be used by other applications, too.
+provide read-only access to those files, allowing users to recover them.
+There are several other applications built on top of the Tahoe-LAFS filesystem
+(see the RelatedProjects page of the wiki for a list).
 
 
-THE GRID OF STORAGE SERVERS
+THE KEY-VALUE STORE
 
-A key-value store is implemented by a collection of peer nodes -- processes
-running on computers -- called a "grid". (The term "grid" is also used
-loosely for the filesystem supported by these nodes.) The nodes in a grid
-establish TCP connections to each other using Foolscap, a secure
-remote-message-passing library.
+The key-value store is implemented by a grid of Tahoe-LAFS storage servers --
+user-space processes.  Tahoe-LAFS storage clients communicate with the storage
+servers over TCP.
 
-Each node offers certain services to the others. The primary service is that
-of the storage server, which holds data in the form of "shares".  Shares are
-encoded pieces of files.  There are a configurable number of shares for each
-file, 10 by default.  Normally, each share is stored on a separate server, but
-a single server can hold multiple shares for a single file.
+Storage servers hold data in the form of "shares".  Shares are encoded pieces
+of files.  There are a configurable number of shares for each file, 10 by
+default.  Normally, each share is stored on a separate server, but in some
+cases a single server can hold multiple shares of a file.
 
-Nodes learn about each other through an "introducer". Each node connects to a
-central introducer at startup, and receives a list of all other nodes from
-it. Each node then connects to all other nodes, creating a fully-connected
-topology.  In the current release, nodes behind NAT boxes will connect to all
-nodes that they can open connections to, but they cannot open connections to
-other nodes behind NAT boxes.  Therefore, the more nodes behind NAT boxes, the
-less the topology resembles the intended fully-connected topology.
+Nodes learn about each other through an "introducer". Each server connects to
+the introducer at startup and announces its presence. Each client connects to
+the introducer at startup, and receives a list of all servers from it. Each
+client then connects to every server, creating a "bi-clique" topology. In the
+current release, nodes behind NAT boxes will connect to all nodes that they
+can open connections to, but they cannot open connections to other nodes
+behind NAT boxes.  Therefore, the more nodes behind NAT boxes, the less the
+topology resembles the intended bi-clique topology.
 
-The introducer in nominally a single point of failure, in that clients who
-never see the introducer will be unable to connect to any storage servers.
-But once a client has been introduced to everybody, they do not need the
-introducer again until they are restarted. The danger of a SPOF is further
-reduced in other ways. First, the introducer is defined by a hostname and a
+The introducer is a Single Point of Failure ("SPoF"), in that clients who
+never connect to the introducer will be unable to connect to any storage
+servers, but once a client has been introduced to everybody, it does not need
+the introducer again until it is restarted. The danger of a SPoF is further
+reduced in two ways. First, the introducer is defined by a hostname and a
 private key, which are easy to move to a new host in case the original one
 suffers an unrecoverable hardware problem. Second, even if the private key is
-lost, clients can be reconfigured with a new introducer.furl that points to a
-new one. Finally, we have plans to decentralize introduction, allowing any
-node to tell a new client about all the others. With decentralized
-"gossip-based" introduction, simply knowing how to contact any one node will
-be enough to contact all of them.
+lost, clients can be reconfigured to use a new introducer.
+
+For future releases, we have plans to decentralize introduction, allowing any
+server to tell a new client about all the others.
 
 
 FILE ENCODING
 
-When a node stores a file on its grid, it first encrypts the file, using a key
-that is optionally derived from the hash of the file itself.  It then segments
-the encrypted file into small pieces, in order to reduce the memory footprint,
-and to decrease the lag between initiating a download and receiving the first
-part of the file; for example the lag between hitting "play" and a movie
-actually starting.
+When a client stores a file on the grid, it first encrypts the file. It then
+breaks the encrypted file into small segments, in order to reduce the memory
+footprint, and to decrease the lag between initiating a download and receiving
+the first part of the file; for example the lag between hitting "play" and a
+movie actually starting.
 
-The node then erasure-codes each segment, producing blocks such that only a
-subset of them are needed to reconstruct the segment. It sends one block from
-each segment to a given server. The set of blocks on a given server
-constitutes a "share". Only a subset of the shares (3 out of 10, by default)
-are needed to reconstruct the file.
+The client then erasure-codes each segment, producing blocks of which only a
+subset are needed to reconstruct the segment (3 out of 10, with the default
+settings).
 
-A tagged hash of the encryption key is used to form the "storage index", which
-is used for both server selection (described below) and to index shares within
-the Storage Servers on the selected nodes.
+It sends one block from each segment to a given server. The set of blocks on a
+given server constitutes a "share". Therefore a subset f the shares (3 out of 10,
+by default) are needed to reconstruct the file.
 
-Hashes are computed while the shares are being produced, to validate the
-ciphertext and the shares themselves. Merkle hash trees are used to enable
-validation of individual segments of ciphertext without requiring the
-download/decoding of the whole file. These hashes go into the "Capability
-Extension Block", which will be stored with each share.
+A hash of the encryption key is used to form the "storage index", which is used
+for both server selection (described below) and to index shares within the
+Storage Servers on the selected nodes.
+
+The client computes secure hashes of the ciphertext and of the shares. It uses
+Merkle Trees so that it is possible to verify the correctness of a subset of
+the data without requiring all of the data.  For example, this allows you to
+verify the correctness of the first segment of a movie file and then begin
+playing the movie file in your movie viewer before the entire movie file has
+been downloaded.
+
+These hashes are stored in a small datastructure named the Capability
+Extension Block which is stored on the storage servers alongside each share.
 
 The capability contains the encryption key, the hash of the Capability
 Extension Block, and any encoding parameters necessary to perform the eventual
 decoding process.  For convenience, it also contains the size of the file
 being stored.
 
-
-On the download side, the node that wishes to turn a capability into a
-sequence of bytes will obtain the necessary shares from remote nodes, break
-them into blocks, use erasure-decoding to turn them into segments of
-ciphertext, use the decryption key to convert that into plaintext, then emit
-the plaintext bytes to the output target (which could be a file on disk, or it
-could be streamed directly to a web browser or media player).
-
-All hashes use SHA-256, and a different tag is used for each purpose.
-Netstrings are used where necessary to insure these tags cannot be confused
-with the data to be hashed. All encryption uses AES in CTR mode. The erasure
-coding is performed with zfec.
-
-A Merkle Hash Tree is used to validate the encoded blocks before they are fed
-into the decode process, and a transverse tree is used to validate the shares
-as they are retrieved. A third merkle tree is constructed over the plaintext
-segments, and a fourth is constructed over the ciphertext segments.  All
-necessary hashes are stored with the shares, and the hash tree roots are put
-in the Capability Extension Block. The final hash of the extension block goes
-into the capability itself.
-
-Note that the number of shares created is fixed at the time the file is
-uploaded: it is not possible to create additional shares later. The use of a
-top-level hash tree also requires that nodes create all shares at once, even
-if they don't intend to upload some of them, otherwise the hashroot cannot be
-calculated correctly.
+To download, the client that wishes to turn a capability into a sequence of
+bytes will obtain the blocks from storage servers, use erasure-decoding to
+turn them into segments of ciphertext, use the decryption key to convert that
+into plaintext, then emit the plaintext bytes to the output target.
 
 
 CAPABILITIES
@@ -148,11 +129,12 @@ The capability provides both "location" and "identification": you can use it
 to retrieve a set of bytes, and then you can use it to validate ("identify")
 that these potential bytes are indeed the ones that you were looking for.
 
-The "key-value store" layer is insufficient to provide a usable filesystem,
-which requires human-meaningful names. Capabilities sit on the
-"global+secure" edge of Zooko's Triangle[1]. They are self-authenticating,
-meaning that nobody can trick you into using a file that doesn't match the
-capability you used to refer to that file.
+The "key-value store" layer doesn't include human-meaningful
+names. Capabilities sit on the "global+secure" edge of Zooko's
+Triangle[1]. They are self-authenticating, meaning that nobody can trick you
+into accepting a file that doesn't match the capability you used to refer to
+that file. The filesystem layer (described below) adds human-meaningful names
+atop the key-value layer.
 
 
 SERVER SELECTION
@@ -204,13 +186,15 @@ get back any 3 to recover the file. This results in a 3.3x expansion
 factor. In general, you should set N about equal to the number of nodes in
 your grid, then set N/k to achieve your desired availability goals.
 
-When downloading a file, the current release just asks all known nodes for any
-shares they might have, chooses the minimal necessary subset, then starts
-downloading and processing those shares. A later release will use the full
-algorithm to reduce the number of queries that must be sent out. This
-algorithm uses the same consistent-hashing permutation as on upload, but stops
-after it has located k shares (instead of all N). This reduces the number of
-queries that must be sent before downloading can begin.
+When downloading a file, the current version just asks all known servers for
+any shares they might have.  and then downloads the shares from the first servers that
+
+chooses the minimal necessary subset, then starts
+change downloading and processing those shares. A future release will use the
+server selection algorithm to reduce the number of queries that must be sent
+out. This algorithm uses the same consistent-hashing permutation as on upload,
+but stops after it has located k shares (instead of all N). This reduces the
+number of queries that must be sent before downloading can begin.
 
 The actual number of queries is directly related to the availability of the
 nodes and the degree of overlap between the node list used at upload and at

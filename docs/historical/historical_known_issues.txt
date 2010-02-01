@@ -5,15 +5,13 @@ manage them.  The current version of this file can be found at
 
 http://allmydata.org/source/tahoe/trunk/docs/historical/historical_known_issues.txt
 
-Newer versions of this document describing issues in newer releases of
-Tahoe-LAFS can be found at:
+Issues in newer releases of Tahoe-LAFS can be found at:
 
 http://allmydata.org/source/tahoe/trunk/docs/known_issues.txt
 
 == issues in Tahoe v1.1.0, released 2008-06-11 ==
 
-(Tahoe v1.1.0 was superceded by v1.2.0 which was released 2008-07-21,
-and then by v1.3.0 which was released 2009-02-13.)
+(Tahoe v1.1.0 was superceded by v1.2.0 which was released 2008-07-21.)
 
 === more than one file can match an immutable file cap ===
 
