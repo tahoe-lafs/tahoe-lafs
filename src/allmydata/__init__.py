@@ -6,6 +6,34 @@ maintainer web site: U{http://allmydata.com/}
 community web site: U{http://allmydata.org/}
 """
 
+# This is just to suppress DeprecationWarnings from nevow and twisted.
+# See http://allmydata.org/trac/tahoe/ticket/859 and
+# http://divmod.org/trac/ticket/2994 .
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning,
+    message="object.__new__\(\) takes no parameters",
+    append=True)
+warnings.filterwarnings("ignore", category=DeprecationWarning,
+    message="The popen2 module is deprecated.  Use the subprocess module.",
+    append=True)
+warnings.filterwarnings("ignore", category=DeprecationWarning,
+    message="the md5 module is deprecated; use hashlib instead",
+    append=True)
+warnings.filterwarnings("ignore", category=DeprecationWarning,
+    message="the sha module is deprecated; use the hashlib module instead",
+    append=True)
+try:
+    import nevow
+    from twisted.persisted import sob
+    from twisted.python import filepath
+    hush_pyflakes = (nevow, sob, filepath)
+    del hush_pyflakes
+finally:
+    warnings.filters.pop()
+    warnings.filters.pop()
+    warnings.filters.pop()
+    warnings.filters.pop()
+
 __version__ = "unknown"
 try:
     from _version import __version__
@@ -26,9 +54,6 @@ except ImportError:
 # "application" part of the Tahoe versioning scheme:
 # http://allmydata.org/trac/tahoe/wiki/Versioning
 __full_version__ = __appname__ + '/' + str(__version__)
-
-hush_pyflakes = __version__
-del hush_pyflakes
 
 import _auto_deps
 _auto_deps.require_auto_deps()
