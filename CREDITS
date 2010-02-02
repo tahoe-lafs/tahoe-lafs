@@ -52,7 +52,7 @@ D: packaging, buildbot
 E: cgalvan@enthought.com
 
 N: François Deppierraz
-D: unicode bug fix, testing, duplicity plugin, skip symlinks in backup
+D: unicode bug fix, testing, duplicity plugin, skip symlinks in backup, FUSE
 E: francois@ctrlaltdel.ch
 
 N: Larry Hosken
@@ -99,4 +99,4 @@ D: edited docs/running.html
 N: David-Sarah Hopwood
 E: david-sarah@jacaranda.org
 P: 12F8 A95C C90B B68E 369C 003D 5947 3C63 3CB3 A807
-D: ticket gardening, Windows, crypto, usability, cli, wui, code review, docs
+D: ticket gardening, Windows, security/crypto/usability/api, code review, docs
