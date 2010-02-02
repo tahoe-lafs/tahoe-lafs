@@ -350,7 +350,11 @@ to other nodes.
   require much less network and CPU but it could make it extremely unlikely
   that any sort of corruption -- even malicious corruption intended to evade
   detection -- would evade detection. This would be an instance of a
-  cryptographic notion called "Proof of Retrievability".
+  cryptographic notion called "Proof of Retrievability". Note that to implement
+  this requires no change to the server or to the cryptographic data structure
+  -- with the current data structure and the current protocol it is up to the
+  client which blocks they choose to download, so this would be solely a change
+  in client behavior.
 
 
 SECURITY
