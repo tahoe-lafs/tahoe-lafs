@@ -67,9 +67,9 @@ Tahoe-LAFS will retain the ability to read and write files
 compatible with Tahoe-LAFS v1.
 
 In addition, version 1.6 improves forward-compatibility with
-planned future cap formats, allowing updates to a directory
-containing both current and future caps, without loss of
-information.
+planned future directory formats, allowing updates to a
+directory containing both current and future links, without
+loss of information.
 
 
 LICENCE

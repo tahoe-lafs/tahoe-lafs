@@ -13,7 +13,7 @@ security and fault-tolerance properties:
 http://allmydata.org/source/tahoe/trunk/docs/about.html
 
 Tahoe-LAFS v1.6.0 is the successor to v1.5.0, which was
-released August 1, 2009 [1]. This release includes major
+released August 1, 2009. This release includes major
 performance improvements, usability improvements, and one major
 new feature: deep-immutable directories (cryptographically
 unalterable permanent snapshots). See the release notes for
