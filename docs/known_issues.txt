@@ -11,7 +11,7 @@ want to read the "historical known issues" document:
 
 http://allmydata.org/source/tahoe/trunk/docs/historical/historical_known_issues.txt
 
-== issues in Tahoe-LAFS v1.5.0, released 2009-08-01 ==
+== issues in Tahoe-LAFS v1.6.0, released 2010-02-01 ==
 
 === potential unauthorized access by JavaScript in unrelated files ===
 
@@ -89,3 +89,41 @@ other processes on the system can still see your filenames and other
 arguments you type there, but not the caps that Tahoe uses to permit
 access to your files and directories.  Starting in Tahoe-LAFS v1.3.0,
 there is a "tahoe create-alias" command that does this for you.
+
+
+=== capabilities may be leaked to web browser phishing filter servers === 
+
+Internet Explorer includes a "phishing filter", which is turned on by
+default, and which sends any URLs that it deems suspicious to a central
+server (Microsoft gives a brief description of its operation at
+<http://blogs.msdn.com/ie/archive/2005/09/09/463204.aspx>).
+This of course has implications for the privacy of general web browsing,
+but when using the Tahoe web user interface, it could also affect
+confidentiality and integrity by leaking capabilities to the filter server.
+Since IE's filter sends URLs by SSL/TLS, the exposure of caps is limited
+to the filter server operators (or anyone able to hack the filter server)
+rather than to network eavesdroppers.
+
+We are not aware of any other widely used current browser besides IE that
+has such a facility enabled by default (Opera has one that is disabled by
+default). Firefox briefly included a phishing filter in previous versions,
+but abandoned it.
+
+==== how to manage it ====
+
+If you use Internet Explorer's phishing filter or a similar add-on
+for another browser, consider either disabling it, or not using the WUI
+via that browser. Phishing filters have very limited effectiveness (see
+<http://lorrie.cranor.org/pubs/ndss-phish-tools-final.pdf>), and phishing
+site operators have learnt how to bypass them.
+
+To disable the filter in IE7 or IE8:
+ - Click Internet Options from the Tools menu.
+ - Click the Advanced tab.
+ - If an "Enable SmartScreen Filter" option is present, uncheck it.
+   If a "Use Phishing Filter" or "Phishing Filter" option is present,
+   set it to Disable.
+ - Confirm (click OK or Yes) out of all dialogs.
+
+If you have a version of IE that splits the settings between security
+zones, do this for all zones. Alternatively, don't use IE.
