@@ -187,45 +187,35 @@ factor. In general, you should set N about equal to the number of nodes in
 your grid, then set N/k to achieve your desired availability goals.
 
 When downloading a file, the current version just asks all known servers for
-any shares they might have.  and then downloads the shares from the first servers that
+any shares they might have. Once it has received enough responses that it knows
+where to find the needed k shares, it downloads the shares from those
+servers. (This means that it tends to download shares from the fastest
+servers.)
 
-chooses the minimal necessary subset, then starts
-change downloading and processing those shares. A future release will use the
-server selection algorithm to reduce the number of queries that must be sent
-out. This algorithm uses the same consistent-hashing permutation as on upload,
-but stops after it has located k shares (instead of all N). This reduces the
-number of queries that must be sent before downloading can begin.
+  *future work*
 
-The actual number of queries is directly related to the availability of the
-nodes and the degree of overlap between the node list used at upload and at
-download. For stable grids, this overlap is very high, and usually the first k
-queries will result in shares. The number of queries grows as the stability
-decreases. Some limits may be imposed in large grids to avoid querying a
-million nodes; this provides a tradeoff between the work spent to discover
-that a file is unrecoverable and the probability that a retrieval will fail
-when it could have succeeded if we had just tried a little bit harder. The
-appropriate value of this tradeoff will depend upon the size of the grid, and
-will change over time.
+  A future release will use the server selection algorithm to reduce the number
+  of queries that must be sent out.
 
-Other peer-node selection algorithms are possible. One earlier version (known
-as "Tahoe 3") used the permutation to place the nodes around a large ring,
-distributed shares evenly around the same ring, then walks clockwise from 0
-with a basket: each time we encounter a share, put it in the basket, each time
-we encounter a node, give them as many shares from our basket as they'll
-accept. This reduced the number of queries (usually to 1) for small grids
-(where N is larger than the number of nodes), but resulted in extremely
-non-uniform share distribution, which significantly hurt reliability
-(sometimes the permutation resulted in most of the shares being dumped on a
-single node).
+  Other peer-node selection algorithms are possible. One earlier version (known
+  as "Tahoe 3") used the permutation to place the nodes around a large ring,
+  distributed shares evenly around the same ring, then walks clockwise from 0
+  with a basket: each time we encounter a share, put it in the basket, each
+  time we encounter a node, give them as many shares from our basket as they'll
+  accept. This reduced the number of queries (usually to 1) for small grids
+  (where N is larger than the number of nodes), but resulted in extremely
+  non-uniform share distribution, which significantly hurt reliability
+  (sometimes the permutation resulted in most of the shares being dumped on a
+  single node).
 
-Another algorithm (known as "denver airport"[2]) uses the permuted hash to
-decide on an approximate target for each share, then sends lease requests via
-Chord routing. The request includes the contact information of the uploading
-node, and asks that the node which eventually accepts the lease should contact
-the uploader directly. The shares are then transferred over direct connections
-rather than through multiple Chord hops. Download uses the same approach. This
-allows nodes to avoid maintaining a large number of long-term connections, at
-the expense of complexity, latency, and reliability.
+  Another algorithm (known as "denver airport"[2]) uses the permuted hash to
+  decide on an approximate target for each share, then sends lease requests via
+  Chord routing. The request includes the contact information of the uploading
+  node, and asks that the node which eventually accepts the lease should
+  contact the uploader directly. The shares are then transferred over direct
+  connections rather than through multiple Chord hops. Download uses the same
+  approach. This allows nodes to avoid maintaining a large number of long-term
+  connections, at the expense of complexity and latency.
 
 
 SWARMING DOWNLOAD, TRICKLING UPLOAD
@@ -247,7 +237,7 @@ means that on a typical 8x ADSL line, uploading a file will take about 32
 times longer than downloading it again later.
 
 Smaller expansion ratios can reduce this upload penalty, at the expense of
-reliability. See RELIABILITY, below. By using an "upload helper", this penalty
+reliability (see RELIABILITY, below). By using an "upload helper", this penalty
 is eliminated: the client does a 1x upload of encrypted data to the helper,
 then the helper performs encoding and pushes the shares to the storage
 servers. This is an improvement if the helper has significantly higher upload
@@ -291,14 +281,14 @@ that are globally visible.
 
 LEASES, REFRESHING, GARBAGE COLLECTION
 
-When a file or directory in the virtual filesystem is no longer referenced,
-the space that its shares occupied on each storage server can be freed,
-making room for other shares. Tahoe currently uses a garbage collection
-("GC") mechanism to implement this space-reclamation process. Each share has
-one or more "leases", which are managed by clients who want the
-file/directory to be retained. The storage server accepts each share for a
-pre-defined period of time, and is allowed to delete the share if all of the
-leases are cancelled or allowed to expire.
+When a file or directory in the virtual filesystem is no longer referenced, the
+space that its shares occupied on each storage server can be freed, making room
+for other shares. Tahoe-LAFS uses a garbage collection ("GC") mechanism to
+implement this space-reclamation process. Each share has one or more "leases",
+which are managed by clients who want the file/directory to be retained. The
+storage server accepts each share for a pre-defined period of time, and is
+allowed to delete the share if all of the leases are cancelled or allowed to
+expire.
 
 Garbage collection is not enabled by default: storage servers will not delete
 shares without being explicitly configured to do so. When GC is enabled,
@@ -314,7 +304,7 @@ FILE REPAIRER
 
 Shares may go away because the storage server hosting them has suffered a
 failure: either temporary downtime (affecting availability of the file), or a
-permanent data loss (affecting the reliability of the file). Hard drives
+permanent data loss (affecting the preservation of the file). Hard drives
 crash, power supplies explode, coffee spills, and asteroids strike. The goal
 of a robust distributed filesystem is to survive these setbacks.
 
@@ -347,15 +337,19 @@ the resources consumed. In some cases, verification of multiple files can be
 performed at the same time, and repair of files can be delegated off to other
 nodes.
 
-The security model we are currently using assumes that nodes who claim to hold
-a share will actually provide it when asked. (We validate the data they
-provide before using it in any way, but if enough nodes claim to hold the data
-and are wrong, the file will not be repaired, and may decay beyond
-recoverability). There are several interesting approaches to mitigate this
-threat, ranging from challenges to provide a keyed hash of the allegedly-held
-data (using "buddy nodes", in which two nodes hold the same block, and check
-up on each other), to reputation systems, or even the original Mojo Nation
-economic model.
+  *future work*
+
+  Currently there are two modes of checking on the health of your file:
+  "Checker" simply asks storage servers which shares they have and does nothing
+  to try to verify that they aren't lying. "Verifier" downloads and
+  cryptographically verifies every bit of every share of the file from every
+  server, which costs a lot of network and CPU. A future improvement would be
+  to make a random-sampling verifier which downloads and cryptographically
+  verifies only a few randomly-chosen blocks from each server. This would
+  require much less network and CPU but it could make it extremely unlikely
+  that any sort of corruption -- even malicious corruption intended to evade
+  detection -- would evade detection. This would be an instance of a
+  cryptographic notion called "Proof of Retrievability".
 
 
 SECURITY
@@ -366,31 +360,29 @@ but can accomplish none of the following three attacks:
 
  1) violate confidentiality: the attacker gets to view data to which you have
     not granted them access
- 2) violate consistency: the attacker convinces you that the wrong data is
+ 2) violate integrity: the attacker convinces you that the wrong data is
     actually the data you were intending to retrieve
- 3) violate mutability: the attacker gets to modify a directory (either the
-    pathnames or the file contents) to which you have not given them
-    mutability rights
+ 3) violate unforgeability: the attacker gets to modify a mutable file or 
+    directory (either the pathnames or the file contents) to which you have 
+    not given them write permission
 
-Data validity and consistency (the promise that the downloaded data will match
-the originally uploaded data) is provided by the hashes embedded in the
-capability. Data confidentiality (the promise that the data is only readable
-by people with the capability) is provided by the encryption key embedded in
-the capability. Data availability (the hope that data which has been uploaded
-in the past will be downloadable in the future) is provided by the grid, which
+Integrity (the promise that the downloaded data will match the uploaded data)
+is provided by the hashes embedded in the capability (for immutable files) or
+the digital signature (for mutable files). Confidentiality (the promise that
+the data is only readable by people with the capability) is provided by the
+encryption key embedded in the capability (for both immutable and mutable
+files). Data availability (the hope that data which has been uploaded in the
+past will be downloadable in the future) is provided by the grid, which
 distributes failures in a way that reduces the correlation between individual
 node failure and overall file recovery failure, and by the erasure-coding
 technique used to generate shares.
 
 Many of these security properties depend upon the usual cryptographic
-assumptions: the resistance of AES and RSA to attack, the resistance of
-SHA-256 to pre-image attacks, and upon the proximity of 2^-128 and 2^-256 to
-zero. A break in AES would allow a confidentiality violation, a pre-image
-break in SHA-256 would allow a consistency violation, and a break in RSA
-would allow a mutability violation. The discovery of a collision in SHA-256
-is unlikely to allow much, but could conceivably allow a consistency
-violation in data that was uploaded by the attacker. If SHA-256 is
-threatened, further analysis will be warranted.
+assumptions: the resistance of AES and RSA to attack, the resistance of SHA-256
+to collision attacks and pre-image attacks, and upon the proximity of 2^-128
+and 2^-256 to zero. A break in AES would allow a confidentiality violation, a
+collision break in SHA-256 would allow a consistency violation, and a break in
+RSA would allow a mutability violation.
 
 There is no attempt made to provide anonymity, neither of the origin of a
 piece of data nor the identity of the subsequent downloaders. In general,
@@ -406,10 +398,6 @@ file you are accessing, and if they already know the contents of a given file,
 they will be able to determine that you are uploading or downloading the same
 one.
 
-A likely enhancement is the ability to use distinct encryption keys for each
-file, avoiding the file-correlation attacks at the expense of increased
-storage consumption. This is known as "non-convergent" encoding.
-
 The capability-based security model is used throughout this project. Directory
 operations are expressed in terms of distinct read- and write- capabilities.
 Knowing the read-capability of a file is equivalent to the ability to read the
@@ -421,11 +409,10 @@ transferring the relevant secrets.
 
 The application layer can provide whatever access model is desired, built on
 top of this capability access model.  The first big user of this system so far
-is allmydata.com.  The allmydata.com access model currently works like a
-normal web site, using username and password to give a user access to her
-virtual drive.  In addition, allmydata.com users can share individual files
-(using a file sharing interface built on top of the immutable file read
-capabilities).
+is allmydata.com.  The allmydata.com access model currently works like a normal
+web site, using username and password to give a user access to her "virtual
+drive".  In addition, allmydata.com users can share individual files (using a
+file sharing interface built on top of the immutable file read capabilities).
 
 
 RELIABILITY
@@ -434,17 +421,17 @@ File encoding and peer-node selection parameters can be adjusted to achieve
 different goals. Each choice results in a number of properties; there are many
 tradeoffs.
 
-First, some terms: the erasure-coding algorithm is described as K-out-of-N
-(for this release, the default values are K=3 and N=10). Each grid will have
-some number of nodes; this number will rise and fall over time as nodes join,
-drop out, come back, and leave forever. Files are of various sizes, some are
-popular, others are rare. Nodes have various capacities, variable
+First, some terms: the erasure-coding algorithm is described as K-out-of-N (for
+this release, the default values are K=3 and N=10). Each grid will have some
+number of nodes; this number will rise and fall over time as nodes join, drop
+out, come back, and leave forever. Files are of various sizes, some are
+popular, others are unpopular. Nodes have various capacities, variable
 upload/download bandwidths, and network latency. Most of the mathematical
 models that look at node failure assume some average (and independent)
-probability 'P' of a given node being available: this can be high (servers
-tend to be online and available >90% of the time) or low (laptops tend to be
-turned on for an hour then disappear for several days). Files are encoded in
-segments of a given maximum size, which affects memory usage.
+probability 'P' of a given node being available: this can be high (servers tend
+to be online and available >90% of the time) or low (laptops tend to be turned
+on for an hour then disappear for several days). Files are encoded in segments
+of a given maximum size, which affects memory usage.
 
 The ratio of N/K is the "expansion factor". Higher expansion factors improve
 reliability very quickly (the binomial distribution curve is very sharp), but
@@ -488,9 +475,9 @@ retaining high reliability, but large unstable grids (where nodes are coming
 and going very quickly) may require more repair/verification bandwidth than
 actual upload/download traffic.
 
-Tahoe nodes that run a webserver have a page dedicated to provisioning
-decisions: this tool may help you evaluate different expansion factors and
-view the disk consumption of each. It is also acquiring some sections with
+Tahoe-LAFS nodes that run a webserver have a page dedicated to provisioning
+decisions: this tool may help you evaluate different expansion factors and view
+the disk consumption of each. It is also acquiring some sections with
 availability/reliability numbers, as well as preliminary cost analysis data.
 This tool will continue to evolve as our analysis improves.
 
