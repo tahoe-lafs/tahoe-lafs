@@ -199,9 +199,9 @@ servers.)
 
   Other peer-node selection algorithms are possible. One earlier version (known
   as "Tahoe 3") used the permutation to place the nodes around a large ring,
-  distributed shares evenly around the same ring, then walks clockwise from 0
-  with a basket: each time we encounter a share, put it in the basket, each
-  time we encounter a node, give them as many shares from our basket as they'll
+  distributed the shares evenly around the same ring, then walked clockwise from 0
+  with a basket. Each time it encountered a share, it put it in the basket, each
+  time it encountered a server, give it as many shares from the basket as they'd
   accept. This reduced the number of queries (usually to 1) for small grids
   (where N is larger than the number of nodes), but resulted in extremely
   non-uniform share distribution, which significantly hurt reliability

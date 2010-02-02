@@ -4,10 +4,10 @@
 
 cost:  O(A)
 
-notes: An immutable file uploaded using convergent encryption will
-       require an additional I/O pass over the entire source file before
-       the upload process can start, since convergent encryption derives
-       the encryption key in part from the contents of the source file.
+notes: An immutable file upload requires an additional I/O pass over the entire
+       source file before the upload process can start, since convergent
+       encryption derives the encryption key in part from the contents of the
+       source file.
 
 === Publishing an A-byte mutable file ===
 
@@ -38,14 +38,14 @@ notes: When asked to read an arbitrary range of an immutable file,
        file actually has to downloaded from the grid, reading part of an
        immutable file will result in downloading all of the immutable
        file. Ticket #798 is a proposal to change this behavior.
-       
+
        Tahoe-LAFS will cache files that are read in this manner for a
        short while, so subsequent reads of the same file may be served
        entirely from cache, depending on what part of the file they need
        to read, what part of the file was read by previous reads, and
        how much time has elapsed since the last read.
 
-=== Downloading B bytes of an A-byte mutable file === 
+=== Downloading B bytes of an A-byte mutable file ===
 
 cost:  O(A)
 
@@ -87,7 +87,7 @@ notes: In Tahoe-LAFS, directories are implemented as specialized mutable
 
 === Listing an A entry directory ===
 
-cost:  O(A) 
+cost:  O(A)
 
 notes: Listing a directory requires that the mutable file storing the
        directory be downloaded from the grid. So listing an A entry
