@@ -1,8 +1,8 @@
 ANNOUNCING Tahoe, the Least-Authority File System, v1.6
 
-The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.6 of Tahoe-LAFS, an extremely
-reliable distributed key-value store and cloud filesystem.
+We are pleased to announce the immediate availability of
+version 1.6 of Tahoe-LAFS, an extremely reliable distributed
+data store.
 
 Tahoe-LAFS is the first cloud storage system which offers
 "provider-independent security" -- meaning that not even your
@@ -13,10 +13,10 @@ security and fault-tolerance properties:
 http://allmydata.org/source/tahoe/trunk/docs/about.html
 
 Tahoe-LAFS v1.6.0 is the successor to v1.5.0, which was
-released August 1, 2009 [1]. This release offers major
+released August 1, 2009 [1]. This release includes major
 performance improvements, usability improvements, and one major
 new feature: deep-immutable directories (cryptographically
-unalterable permanent snapshots), See the NEWS file [2] for
+unalterable permanent snapshots). See the NEWS file [2] for
 details.
 
 
@@ -114,16 +114,16 @@ Tahoe-LAFS was originally developed thanks to the sponsorship
 of Allmydata, Inc. [12], a provider of commercial backup
 services. Allmydata founded the Tahoe-LAFS project and
 contributed hardware, software, ideas, bug reports,
-suggestions, demands, and they employedg several Tahoe-LAFS
+suggestions, demands, and they employed several Tahoe-LAFS
 hackers and instructed them to spend part of their work time on
 this Free Software project. Also they awarded customized
 t-shirts to hackers who found security flaws in Tahoe-LAFS (see
-the Hack Tahoe-LAFS Hall Of Fame [13]). After discontinuing funding of
-Tahoe-LAFS R&D in early 2009, Allmydata, Inc. has continued to
-provide servers, co-lo space, bandwidth, and small personal
-gifts as tokens of appreciation. (Also they continue to provide
-bug reports.) Thank you to Allmydata, Inc. for their generous
-and public-spirited support.
+the Hack Tahoe-LAFS Hall Of Fame [13]). After discontinuing
+funding of Tahoe-LAFS R&D in early 2009, Allmydata, Inc. has
+continued to provide servers, co-lo space, bandwidth, and small
+personal gifts as tokens of appreciation. (Also they continue
+to provide bug reports.) Thank you to Allmydata, Inc. for their
+generous and public-spirited support.
 
 This is the third release of Tahoe-LAFS to be created solely as
 a labor of love by volunteers. Thank you very much to the

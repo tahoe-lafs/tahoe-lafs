@@ -6,7 +6,7 @@ User visible changes in Tahoe-LAFS.  -*- outline -*-
 
 *** Immutable Directories
 
-Tahoe-LAFS can now create and handle immutable directories (#XXX). These are
+Tahoe-LAFS can now create and handle immutable directories (#607). These are
 read just like normal directories, but are "deep-immutable", meaning that all
 their children (and everything reachable from those children) must be immutable
 objects (i.e. immutable/literal files, and other immutable directories).
@@ -31,7 +31,7 @@ directories. See docs/frontends/webapi.txt for details.
 *** "tahoe backup" now creates immutable directories, backupdb has dircache
 
 The "tahoe backup" command has been enhanced to create immutable directories
-(in previous releases, it created read-only mutable directories) (#XXX). This
+(in previous releases, it created read-only mutable directories) (#828). This
 is significantly faster, since it does not need to create an RSA keypair for
 each new directory. Also "DIR-IMM" immutable directories are repairable, unlike
 "DIR-RO" read-only mutable directories (at least in this release: a future
@@ -67,7 +67,7 @@ The "tahoe backup" command has been improved to skip over unreadable objects
 command from reading their contents), instead of throwing an exception and
 terminating the backup process. It also skips over symlinks, because these
 cannot be represented faithfully in the Tahoe-side filesystem. A warning
-message will be emitted each time something is skipped. (#729, #850, #641) XXX
+message will be emitted each time something is skipped. (#729, #850, #641)
 
 *** "create-node" command added, "create-client" now implies --no-storage
 
@@ -85,7 +85,7 @@ creation you can edit its tahoe.cfg to enable or disable the desired
 services. It is a more general-purpose replacement for "tahoe create-client".
 The default configuration has storage service enabled. For convenience, the
 "--no-storage" argument makes a tahoe.cfg file that disables storage
-service. (#XXX)
+service. (#760)
 
 "tahoe create-client" has been changed to create a Tahoe-LAFS node without a
 storage service. It is equivalent to "tahoe create-node --no-storage". This
@@ -102,7 +102,7 @@ create-node".
 ** Performance Improvements
 
 Download of immutable files begins as soon as the downloader has located the K
-necessary shares (#XXX). In both the previous and current releases, a
+necessary shares (#928, #287). In both the previous and current releases, a
 downloader will first issue queries to all storage servers on the grid to
 locate shares before it begins downloading the shares. In previous releases of
 Tahoe-LAFS, download would not begin until all storage servers on the grid had

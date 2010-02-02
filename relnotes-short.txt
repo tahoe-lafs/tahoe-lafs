@@ -1,8 +1,8 @@
 ANNOUNCING v1.6 of Tahoe-LAFS
 
-The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.6 of Tahoe-LAFS, an extremely
-reliable distributed key-value store and cloud filesystem.
+We are pleased to announce the immediate availability of
+version 1.6 of Tahoe-LAFS, an extremely reliable distributed
+data store.
 
 Tahoe-LAFS is the first cloud storage system which offers
 "provider-independent security" -- meaning that not even your
@@ -13,22 +13,21 @@ security and fault-tolerance properties:
 http://allmydata.org/source/tahoe/trunk/docs/about.html
 
 Tahoe-LAFS v1.6.0 is the successor to v1.5.0, which was
-released August 1, 2009. In this major new release, we've added
-deep-immutable directories (cryptographically unalterable
-permanent snapshots), greatly increased performance for some
-common operations, and improved the help text, documentation,
-command-line options, and web user interface. The FUSE plugin
-has been fixed. We also fixed a few bugs. See the release notes
-for details:
+released August 1, 2009 [1]. This release includes major
+performance improvements, usability improvements, and one major
+new feature: deep-immutable directories (cryptographically
+unalterable permanent snapshots). See the release notes for
+details.
 
 http://allmydata.org/source/tahoe/trunk/relnotes.txt
 
-In addition to the core storage system itself, a crop of
-related projects have sprung up to extend it and to integrate
-it into operating systems and applications. These include
-frontends for Windows, Macintosh, JavaScript, and iPhone, and
-plugins for Hadoop, bzr, duplicity, TiddlyWiki, and more. See
-the Related Projects page:
+In addition to the core storage system itself, volunteers have
+developed related projects to integrate it with other
+tools. These include frontends for Windows, Macintosh,
+JavaScript, and iPhone, and plugins for Hadoop, bzr, duplicity,
+TiddlyWiki, and more. As of this release, contributors have
+added an Android frontend and a working read-only FUSE
+frontend. See the Related Projects page on the wiki:
 
 http://allmydata.org/trac/tahoe/wiki/RelatedProjects
 
