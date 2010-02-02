@@ -1,30 +1,127 @@
-= Performance =
+= Performance costs for some common operations =
 
-== performance issues with mutable files ==
+=== Publishing an A-byte immutable file ===
 
-Tahoe-LAFS can create mutable files of arbitrary size. There are good
-reasons to not overuse these.
+cost:  O(A)
 
-When you first create a mutable file, Tahoe-LAFS generates an RSA
-keypair to associate with the file. This takes about a second on an
-ordinary desktop PC (and possibly considerably longer on specialized or
-embedded hardware). The cost of key generation is probably irrelevant if
-you only use a few mutable files, but can quickly add up if you want to
-create a lot of them.
+notes: An immutable file uploaded using convergent encryption will
+       require an additional I/O pass over the entire source file before
+       the upload process can start, since convergent encryption derives
+       the encryption key in part from the contents of the source file.
 
-Part of the process of encrypting, encoding, and uploading a mutable
-file to a Tahoe-LAFS grid requires that the entire file be loaded into
-memory at once. For larger files, this may cause Tahoe-LAFS to have an
-unacceptably large memory footprint (at least when uploading your
-mutable file).
+=== Publishing an A-byte mutable file ===
 
-As currently implemented, small modifications to mutable files are no
-less expensive than large modifications; in both cases, the process
-described above (with the performance concerns described above) must be
-repeated for the entire file. 
+cost:  O(A) + a large constant for RSA + memory usage.
 
-We are exploring ways to address at least some of these problems. In the
-meantime, however, it is a good practice to not overuse mutable files,
-and to not create exceptionally large mutable files. For more
-information on how mutable files are currently implemented, see the
-mutable file specification, in docs/specifications/mutable.txt.
+notes: Tahoe-LAFS generates a new RSA keypair for each mutable file that
+       it publishes to a grid. This takes up to 1 or 2 seconds on a
+       typical desktop PC.
+
+       Part of the process of encrypting, encoding, and uploading a
+       mutable file to a Tahoe-LAFS grid requires that the entire file
+       be in memory at once. For larger files, this may cause
+       Tahoe-LAFS to have an unacceptably large memory footprint (at
+       least when uploading a mutable file).
+
+=== Downloading B bytes of an A-byte immutable file ===
+
+time/cost until the read is satisfied: variable; up to O(A).
+cost of the entire operation:          O(A) if the file isn't cached.
+
+notes: When asked to read an arbitrary range of an immutable file,
+       Tahoe-LAFS will download from the beginning of the file up until
+       it has enough of the file to satisfy the requested read.
+       Depending on where in the file the requested range is, this can
+       mean that the entire file is downloaded before the request is
+       satisfied. Tahoe-LAFS will continue to download the rest of the
+       file even after the request is satisfied, so in any case where the
+       file actually has to downloaded from the grid, reading part of an
+       immutable file will result in downloading all of the immutable
+       file. Ticket #798 is a proposal to change this behavior.
+       
+       Tahoe-LAFS will cache files that are read in this manner for a
+       short while, so subsequent reads of the same file may be served
+       entirely from cache, depending on what part of the file they need
+       to read, what part of the file was read by previous reads, and
+       how much time has elapsed since the last read.
+
+=== Downloading B bytes of an A-byte mutable file === 
+
+cost:  O(A)
+
+notes: As currently implemented, mutable files must be downloaded in
+       their entirety before any part of them can be read. We are
+       exploring fixes for this; see ticket #393 for more information.
+
+=== Modifying B bytes of an A-byte mutable file ===
+
+cost:  O(A)
+
+notes: If you upload a changed version of a mutable file that you
+       earlier put onto your grid with, say, 'tahoe put --mutable',
+       Tahoe-LAFS will replace the old file with the new file on the
+       grid, rather than attempting to modify only those portions of the
+       file that have changed. Modifying a file in this manner is
+       essentially uploading the file over again, except that it re-uses
+       the existing RSA keypair instead of generating a new one.
+
+=== Adding/Removing B bytes in an A-byte mutable file ===
+
+cost:  O(A)
+
+notes: Modifying any part of a mutable file in Tahoe-LAFS requires that
+       the entire file be downloaded, modified, held in memory while it
+       is encrypted and encoded, and then re-uploaded. Note that this
+       sort of modification is mostly used internally for directories,
+       and isn't something that the WUI, CLI, or other interfaces will
+       do -- instead, they will simply overwrite the file to be
+       modified, as described in "Modifying B bytes of an A-byte mutable
+       file".
+
+=== Adding an entry to an A-entry directory ===
+
+cost:  O(A) (roughly)
+notes: In Tahoe-LAFS, directories are implemented as specialized mutable
+       files. So adding an entry to a directory is essentially adding B
+       (actually, 300-330) bytes somewhere in an existing mutable file.
+
+=== Listing an A entry directory ===
+
+cost:  O(A) 
+
+notes: Listing a directory requires that the mutable file storing the
+       directory be downloaded from the grid. So listing an A entry
+       directory requires downloading a (roughly) 330 * A byte mutable
+       file, since each directory entry is about 300-330 bytes in size.
+
+=== Checking an A-byte file ===
+
+cost:  variable; between O(N) and O(S), where N is the number of shares
+       generated when the file was initially uploaded, and S is the
+       number of servers on your grid.
+
+notes: To check a file, Tahoe-LAFS queries the servers that it knows
+       about until it either runs out of servers, or finds all of the
+       shares that were originally uploaded. Note that neither of these
+       values directly depend on the size of the file. This is
+       relatively inexpensive, compared to the verify and repair
+       operations.
+
+=== Verifying an A-byte file ===
+
+cost: O(A)
+
+notes: To verify a file, Tahoe-LAFS downloads all of the ciphertext
+       shares that were originally uploaded to the grid and integrity
+       checks them. This is, for well-behaved grids, likely to be more
+       expensive than downloading an A-byte file, since only a fraction
+       of these shares are necessary to recover the file.
+
+=== Repairing an A-byte file (mutable or immutable) ===
+
+cost:  variable; up to around O(A)
+
+notes: To repair a file, Tahoe-LAFS generates and uploads missing shares
+       in the same way as when it initially uploads the file. So,
+       depending on how many shares are missing, this can be about as
+       expensive as initially uploading the file in the first place.
