@@ -27,6 +27,9 @@ install_requires=[
                   # http://sourceforge.net/tracker/?func=detail&aid=2805976&group_id=2435&atid=302435
                   # .
                   "pycryptopp >= 0.5.15",
+
+                  # Used for SFTP
+                  "pycrypto >= 2.0.1",
                   ]
 
 # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
