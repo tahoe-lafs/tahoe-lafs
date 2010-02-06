@@ -28,6 +28,7 @@ from twisted.python import usage
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
+
 class CLI(unittest.TestCase):
     # this test case only looks at argument-processing and simple stuff.
     def test_options(self):
@@ -158,9 +159,7 @@ class CLI(unittest.TestCase):
         self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
 
         fileutil.make_dirs("cli/test_dump_cap/private")
-        f = open("cli/test_dump_cap/private/secret", "w")
-        f.write("5s33nk3qpvnj2fw3z4mnm2y6fa\n")
-        f.close()
+        fileutil.write("cli/test_dump_cap/private/secret", "5s33nk3qpvnj2fw3z4mnm2y6fa\n")
         output = self._dump_cap("--client-dir", "cli/test_dump_cap",
                                 u.to_string())
         self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
@@ -252,15 +251,14 @@ class CLI(unittest.TestCase):
         nodedir1 = "cli/test_catalog_shares/node1"
         sharedir = os.path.join(nodedir1, "storage", "shares", "mq", "mqfblse6m5a6dh45isu2cg7oji")
         fileutil.make_dirs(sharedir)
-        f = open(os.path.join(sharedir, "8"), "wb")
-        open("cli/test_catalog_shares/node1/storage/shares/mq/not-a-dir", "wb").close()
+        fileutil.write("cli/test_catalog_shares/node1/storage/shares/mq/not-a-dir", "")
         # write a bogus share that looks a little bit like CHK
-        f.write("\x00\x00\x00\x01" + "\xff" * 200) # this triggers an assert
-        f.close()
+        fileutil.write(os.path.join(sharedir, "8"),
+                       "\x00\x00\x00\x01" + "\xff" * 200) # this triggers an assert
 
         nodedir2 = "cli/test_catalog_shares/node2"
         fileutil.make_dirs(nodedir2)
-        open("cli/test_catalog_shares/node1/storage/shares/not-a-dir", "wb").close()
+        fileutil.write("cli/test_catalog_shares/node1/storage/shares/not-a-dir", "")
 
         # now make sure that the 'catalog-shares' commands survives the error
         out, err = self._catalog_shares(nodedir1, nodedir2)
@@ -491,7 +489,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _stash_urls(res):
             aliases = get_aliases(self.get_clientdir())
             node_url_file = os.path.join(self.get_clientdir(), "node.url")
-            nodeurl = open(node_url_file, "r").read().strip()
+            nodeurl = fileutil.read(node_url_file).strip()
             self.welcome_url = nodeurl
             uribase = nodeurl + "uri/"
             self.tahoe_url = uribase + urllib.quote(aliases["tahoe"])
@@ -540,15 +538,11 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_test_urls)
 
         def _remove_trailing_newline_and_create_alias(ign):
-            f = open(aliasfile, "r")
-            old = f.read()
-            f.close()
             # ticket #741 is about a manually-edited alias file (which
             # doesn't end in a newline) being corrupted by a subsequent
             # "tahoe create-alias"
-            f = open(aliasfile, "w")
-            f.write(old.rstrip())
-            f.close()
+            old = fileutil.read(aliasfile)
+            fileutil.write(aliasfile, old.rstrip())
             return self.do_cli("create-alias", "un-corrupted1")
         d.addCallback(_remove_trailing_newline_and_create_alias)
         def _check_not_corrupted1((rc,stdout,stderr)):
@@ -570,12 +564,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         def _remove_trailing_newline_and_add_alias(ign):
             # same thing, but for "tahoe add-alias"
-            f = open(aliasfile, "r")
-            old = f.read()
-            f.close()
-            f = open(aliasfile, "w")
-            f.write(old.rstrip())
-            f.close()
+            old = fileutil.read(aliasfile)
+            fileutil.write(aliasfile, old.rstrip())
             return self.do_cli("add-alias", "un-corrupted2", self.two_uri)
         d.addCallback(_remove_trailing_newline_and_add_alias)
         def _check_not_corrupted((rc,stdout,stderr)):
@@ -680,9 +670,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         rel_fn = os.path.join(self.basedir, "DATAFILE")
         abs_fn = os.path.abspath(rel_fn)
         # we make the file small enough to fit in a LIT file, for speed
-        f = open(rel_fn, "w")
-        f.write("short file")
-        f.close()
+        fileutil.write(rel_fn, "short file")
         d = self.do_cli("put", rel_fn)
         def _uploaded((rc,stdout,stderr)):
             readcap = stdout
@@ -713,9 +701,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # we make the file small enough to fit in a LIT file, for speed
         DATA = "short file"
         DATA2 = "short file two"
-        f = open(rel_fn, "w")
-        f.write(DATA)
-        f.close()
+        fileutil.write(rel_fn, DATA)
 
         d = self.do_cli("create-alias", "tahoe")
 
@@ -794,9 +780,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         DATA2 = "two" * 100
         rel_fn = os.path.join(self.basedir, "DATAFILE")
         DATA3 = "three" * 100
-        f = open(rel_fn, "w")
-        f.write(DATA3)
-        f.close()
+        fileutil.write(rel_fn, DATA3)
 
         d = self.do_cli("put", "--mutable", stdin=DATA)
         def _created(res):
@@ -840,14 +824,10 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         DATA1 = "data" * 100
         fn1 = os.path.join(self.basedir, "DATA1")
-        f = open(fn1, "w")
-        f.write(DATA1)
-        f.close()
+        fileutil.write(fn1, DATA1)
         DATA2 = "two" * 100
         fn2 = os.path.join(self.basedir, "DATA2")
-        f = open(fn2, "w")
-        f.write(DATA2)
-        f.close()
+        fileutil.write(fn2, DATA2)
 
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res:
@@ -1184,47 +1164,52 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             # keep track of the filecap
             self.filecap = out.strip()
         d.addCallback(_put_file)
+
         # Let's try copying this to the disk using the filecap
         #  cp FILECAP filename
-        d.addCallback(lambda res: self.do_cli("cp", self.filecap, fn2))
+        d.addCallback(lambda ign: self.do_cli("cp", self.filecap, fn2))
         def _copy_file((rc, out, err)):
             self.failUnlessEqual(rc, 0)
-            results = open(fn2, "r").read()
+            results = fileutil.read(fn2)
             self.failUnlessEqual(results, DATA1)
         d.addCallback(_copy_file)
 
         # Test with ./ (see #761)
         #  cp FILECAP localdir
-        d.addCallback(lambda res: self.do_cli("cp", self.filecap, outdir))
+        d.addCallback(lambda ign: self.do_cli("cp", self.filecap, outdir))
         def _resp((rc, out, err)):
             self.failUnlessEqual(rc, 1)
             self.failUnlessIn("error: you must specify a destination filename",
                               err)
         d.addCallback(_resp)
+
         # Create a directory, linked at tahoe:test
-        d.addCallback(lambda res: self.do_cli("mkdir", "tahoe:test"))
+        d.addCallback(lambda ign: self.do_cli("mkdir", "tahoe:test"))
         def _get_dir((rc, out, err)):
             self.failUnlessEqual(rc, 0)
             self.dircap = out.strip()
         d.addCallback(_get_dir)
+
         # Upload a file to the directory
-        d.addCallback(lambda res:
-            self.do_cli("put", fn1, "tahoe:test/test_file"))
+        d.addCallback(lambda ign:
+                      self.do_cli("put", fn1, "tahoe:test/test_file"))
         d.addCallback(lambda (rc, out, err): self.failUnlessEqual(rc, 0))
+
         #  cp DIRCAP/filename localdir
-        d.addCallback(lambda res:
+        d.addCallback(lambda ign:
                       self.do_cli("cp",  self.dircap + "/test_file", outdir))
         def _get_resp((rc, out, err)):
             self.failUnlessEqual(rc, 0)
-            results = open(os.path.join(outdir, "test_file"), "r").read()
+            results = fileutil.read(os.path.join(outdir, "test_file"))
             self.failUnlessEqual(results, DATA1)
         d.addCallback(_get_resp)
+
         #  cp -r DIRCAP/filename filename2
-        d.addCallback(lambda res:
+        d.addCallback(lambda ign:
                       self.do_cli("cp",  self.dircap + "/test_file", fn3))
         def _get_resp2((rc, out, err)):
             self.failUnlessEqual(rc, 0)
-            results = open(fn3, "r").read()
+            results = fileutil.read(fn3)
             self.failUnlessEqual(results, DATA1)
         d.addCallback(_get_resp2)
         return d
@@ -1252,11 +1237,9 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
     def writeto(self, path, data):
-        d = os.path.dirname(os.path.join(self.basedir, "home", path))
-        fileutil.make_dirs(d)
-        f = open(os.path.join(self.basedir, "home", path), "w")
-        f.write(data)
-        f.close()
+        full_path = os.path.join(self.basedir, "home", path)
+        fileutil.make_dirs(os.path.dirname(full_path))
+        fileutil.write(full_path, data)
 
     def count_output(self, out):
         mo = re.search(r"(\d)+ files uploaded \((\d+) reused\), "
@@ -1495,9 +1478,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         basedir = "cli/Backup/exclude_options"
         fileutil.make_dirs(basedir)
         nodeurl_path = os.path.join(basedir, 'node.url')
-        nodeurl = file(nodeurl_path, 'w')
-        nodeurl.write('http://example.net:2357/')
-        nodeurl.close()
+        fileutil.write(nodeurl_path, 'http://example.net:2357/')
 
         def _check_filtering(filtered, all, included, excluded):
             filtered = set(filtered)
@@ -1531,9 +1512,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         # read exclude patterns from file
         exclusion_string = "_darcs\n*py\n.svn"
         excl_filepath = os.path.join(basedir, 'exclusion')
-        excl_file = file(excl_filepath, 'w')
-        excl_file.write(exclusion_string)
-        excl_file.close()
+        fileutil.write(excl_filepath, exclusion_string)
         backup_options = cli.BackupOptions()
         backup_options.parseOptions(['--exclude-from', excl_filepath, '--node-directory',
                                      basedir, 'from', 'to'])
