@@ -34,11 +34,11 @@ class CLI(unittest.TestCase):
         fileutil.rm_dir("cli/test_options")
         fileutil.make_dirs("cli/test_options")
         fileutil.make_dirs("cli/test_options/private")
-        open("cli/test_options/node.url","w").write("http://localhost:8080/\n")
+        fileutil.write("cli/test_options/node.url", "http://localhost:8080/\n")
         filenode_uri = uri.WriteableSSKFileURI(writekey="\x00"*16,
                                                fingerprint="\x00"*32)
         private_uri = uri.DirectoryURI(filenode_uri).to_string()
-        open("cli/test_options/private/root_dir.cap", "w").write(private_uri + "\n")
+        fileutil.write("cli/test_options/private/root_dir.cap", private_uri + "\n")
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options"])
         self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
@@ -968,10 +968,10 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         fn1 = os.path.join(self.basedir, "file1")
         DATA1 = "Nuclear launch codes"
-        open(fn1, "wb").write(DATA1)
+        fileutil.write(fn1, DATA1)
         fn2 = os.path.join(self.basedir, "file2")
         DATA2 = "UML diagrams"
-        open(fn2, "wb").write(DATA2)
+        fileutil.write(fn2, DATA2)
         # copy both files to the grid
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res:
@@ -1127,11 +1127,11 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         fn1 = os.path.join(self.basedir, "Ärtonwall")
         DATA1 = "unicode file content"
-        open(fn1, "wb").write(DATA1)
+        fileutil.write(fn1, DATA1)
 
         fn2 = os.path.join(self.basedir, "Metallica")
         DATA2 = "non-unicode file content"
-        open(fn2, "wb").write(DATA2)
+        fileutil.write(fn2, DATA2)
 
         # Bug #534
         # Assure that uploading a file whose name contains unicode character doesn't
@@ -1171,13 +1171,14 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         outdir = os.path.join(self.basedir, "outdir")
         os.mkdir(outdir)
-        self.do_cli("create-alias", "tahoe")
         fn1 = os.path.join(self.basedir, "Metallica")
         fn2 = os.path.join(outdir, "Not Metallica")
         fn3 = os.path.join(outdir, "test2")
         DATA1 = "puppies" * 10000
-        open(fn1, "wb").write(DATA1)
-        d = self.do_cli("put", fn1)
+        fileutil.write(fn1, DATA1)
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda ign: self.do_cli("put", fn1))
         def _put_file((rc, out, err)):
             self.failUnlessEqual(rc, 0)
             # keep track of the filecap
@@ -1190,6 +1191,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(rc, 0)
             results = open(fn2, "r").read()
             self.failUnlessEqual(results, DATA1)
+        d.addCallback(_copy_file)
+
         # Test with ./ (see #761)
         #  cp FILECAP localdir
         d.addCallback(lambda res: self.do_cli("cp", self.filecap, outdir))

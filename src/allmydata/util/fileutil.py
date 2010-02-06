@@ -194,3 +194,17 @@ def move_into_place(source, dest):
     if "win32" in sys.platform.lower():
         remove_if_possible(dest)
     os.rename(source, dest)
+
+def write(path, data):
+    wf = open(path, "wb")
+    try:
+        wf.write(data)
+    finally:
+        wf.close()
+
+def read(path):
+    rf = open(path, "rb")
+    try:
+        return rf.read()
+    finally:
+        rf.close()
