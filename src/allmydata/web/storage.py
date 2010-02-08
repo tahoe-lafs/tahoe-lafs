@@ -245,6 +245,9 @@ class StorageStatus(rend.Page):
         def add(*pieces):
             p[T.li[pieces]]
 
+        saw = self.format_recovered(last["space-recovered"], "examined")
+        add("and saw a total of ", saw)
+
         if not last["expiration-enabled"]:
             rec = self.format_recovered(last["space-recovered"], "configured")
             add("but expiration was not enabled. If it had been, "

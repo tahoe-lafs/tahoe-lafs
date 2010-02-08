@@ -1742,8 +1742,10 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         def _check_html(html):
             s = remove_tags(html)
             self.failUnlessIn("recovered: 0 shares, 0 buckets "
-                              "(0 mutable / 0 immutable), 0 B (0 B / 0 B) "
-                              "but expiration was not enabled", s)
+                              "(0 mutable / 0 immutable), 0 B (0 B / 0 B) ", s)
+            self.failUnlessIn("and saw a total of 4 shares, 4 buckets "
+                              "(2 mutable / 2 immutable),", s)
+            self.failUnlessIn("but expiration was not enabled", s)
         d.addCallback(_check_html)
         d.addCallback(lambda ign: self.render_json(webstatus))
         def _check_json(json):
