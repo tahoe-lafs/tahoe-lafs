@@ -1,6 +1,7 @@
 
 import os, time
-from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
+from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
+                                     UnknownAliasError
 from allmydata.scripts.common_http import do_http
 from allmydata.util import base32
 import urllib
@@ -17,7 +18,11 @@ class SlowOperationRunner:
             nodeurl += "/"
         self.nodeurl = nodeurl
         where = options.where
-        rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
+        try:
+            rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
+        except UnknownAliasError, e:
+            print >>stderr, "error: %s" % e.args[0]
+            return 1
         if path == '/':
             path = ''
         url = nodeurl + "uri/%s" % urllib.quote(rootcap)

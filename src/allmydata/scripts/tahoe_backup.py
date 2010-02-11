@@ -4,7 +4,8 @@ import time
 import urllib
 import simplejson
 import datetime
-from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS
+from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
+                                     UnknownAliasError
 from allmydata.scripts.common_http import do_http
 from allmydata.util import time_format
 from allmydata.scripts import backupdb
@@ -92,7 +93,11 @@ class BackerUpper:
             print >>stderr, "ERROR: Unable to load backup db."
             return 1
 
-        rootcap, path = get_alias(options.aliases, options.to_dir, DEFAULT_ALIAS)
+        try:
+            rootcap, path = get_alias(options.aliases, options.to_dir, DEFAULT_ALIAS)
+        except UnknownAliasError, e:
+            print >>stderr, "error: %s" % e.args[0]
+            return 1
         to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
         if path:
             to_url += escape_path(path)

@@ -134,6 +134,9 @@ def get_alias(aliases, path, default):
     # DefaultAliasMarker. We special-case strings with a recognized cap URI
     # prefix, to make it easy to access specific files/directories by their
     # caps.
+    # If the transformed alias is either not found in aliases, or is blank
+    # and default is not found in aliases, an UnknownAliasError is
+    # raised.
     path = path.strip()
     if uri.has_uri_prefix(path):
         # The only way to get a sub-path is to use URI:blah:./foo, and we
@@ -147,6 +150,10 @@ def get_alias(aliases, path, default):
         # no alias
         if default == None:
             return DefaultAliasMarker, path
+        if default not in aliases:
+            raise UnknownAliasError("No alias specified, and the default "
+                                    "'tahoe' alias doesn't exist. To create "
+                                    "it, use 'tahoe create-alias tahoe'.")
         return aliases[default], path
     if colon == 1 and default == None and platform_uses_lettercolon_drivename():
         # treat C:\why\must\windows\be\so\weird as a local path, not a tahoe
@@ -158,6 +165,10 @@ def get_alias(aliases, path, default):
         # "foo/bar:7"
         if default == None:
             return DefaultAliasMarker, path
+        if default not in aliases:
+            raise UnknownAliasError("No alias specified, and the default "
+                                    "'tahoe' alias doesn't exist. To create "
+                                    "it, use 'tahoe create-alias tahoe'.")
         return aliases[default], path
     if alias not in aliases:
         raise UnknownAliasError("Unknown alias '%s', please create it with 'tahoe add-alias' or 'tahoe create-alias'." % alias)

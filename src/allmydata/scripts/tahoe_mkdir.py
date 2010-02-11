@@ -1,7 +1,7 @@
 
 import urllib
 from allmydata.scripts.common_http import do_http, check_http_error
-from allmydata.scripts.common import get_alias, DEFAULT_ALIAS
+from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, UnknownAliasError
 
 def mkdir(options):
     nodeurl = options['node-url']
@@ -12,7 +12,11 @@ def mkdir(options):
     if not nodeurl.endswith("/"):
         nodeurl += "/"
     if where:
-        rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
+        try:
+            rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
+        except UnknownAliasError, e:
+            print >>stderr, "error: %s" % e.args[0]
+            return 1
 
     if not where or not path:
         # create a new unlinked directory

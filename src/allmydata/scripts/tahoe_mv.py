@@ -2,7 +2,8 @@
 import re
 import urllib
 import simplejson
-from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
+from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
+                                     UnknownAliasError
 from allmydata.scripts.common_http import do_http
 
 # this script is used for both 'mv' and 'ln'
@@ -17,7 +18,11 @@ def mv(options, mode="move"):
 
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    rootcap, from_path = get_alias(aliases, from_file, DEFAULT_ALIAS)
+    try:
+        rootcap, from_path = get_alias(aliases, from_file, DEFAULT_ALIAS)
+    except UnknownAliasError, e:
+        print >>stderr, "error: %s" % e.args[0]
+        return 1
     from_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
     if from_path:
         from_url += "/" + escape_path(from_path)
@@ -30,7 +35,11 @@ def mv(options, mode="move"):
     cap = str(cap)
 
     # now get the target
-    rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
+    try:
+        rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
+    except UnknownAliasError, e:
+        print >>stderr, "error: %s" % e.args[0]
+        return 1
     to_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
     if path:
         to_url += "/" + escape_path(path)

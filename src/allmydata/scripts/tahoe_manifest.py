@@ -3,7 +3,8 @@ import urllib, simplejson
 from twisted.protocols.basic import LineOnlyReceiver
 from allmydata.util.abbreviate import abbreviate_space_both
 from allmydata.scripts.slow_operation import SlowOperationRunner
-from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
+from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
+                                     UnknownAliasError
 from allmydata.scripts.common_http import do_http
 
 class FakeTransport:
@@ -25,7 +26,11 @@ class ManifestStreamer(LineOnlyReceiver):
             nodeurl += "/"
         self.nodeurl = nodeurl
         where = options.where
-        rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
+        try:
+            rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
+        except UnknownAliasError, e:
+            print >>stderr, "error: %s" % e.args[0]
+            return 1
         if path == '/':
             path = ''
         url = nodeurl + "uri/%s" % urllib.quote(rootcap)

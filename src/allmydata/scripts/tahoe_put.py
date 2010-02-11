@@ -3,7 +3,8 @@ from cStringIO import StringIO
 import os.path
 import urllib
 from allmydata.scripts.common_http import do_http
-from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
+from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
+                                     UnknownAliasError
 
 def put(options):
     """
@@ -34,7 +35,7 @@ def put(options):
         #  /oops/subdir/foo : DISALLOWED
         #  ALIAS:foo  : aliases[ALIAS]/foo
         #  ALIAS:subdir/foo  : aliases[ALIAS]/subdir/foo
-        
+
         #  ALIAS:/oops/subdir/foo : DISALLOWED
         #  DIRCAP:./foo        : DIRCAP/foo
         #  DIRCAP:./subdir/foo : DIRCAP/subdir/foo
@@ -44,7 +45,11 @@ def put(options):
         if to_file.startswith("URI:SSK:"):
             url = nodeurl + "uri/%s" % urllib.quote(to_file)
         else:
-            rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
+            try:
+                rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
+            except UnknownAliasError, e:
+                print >>stderr, "error: %s" % e.args[0]
+                return 1
             if path.startswith("/"):
                 suggestion = to_file.replace("/", "", 1)
                 print >>stderr, "ERROR: The remote filename must not start with a slash"

@@ -1,7 +1,8 @@
 
 import urllib, time
 import simplejson
-from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
+from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
+                                     UnknownAliasError
 from allmydata.scripts.common_http import do_http
 
 def list(options):
@@ -15,7 +16,11 @@ def list(options):
         nodeurl += "/"
     if where.endswith("/"):
         where = where[:-1]
-    rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
+    try:
+        rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
+    except UnknownAliasError, e:
+        print >>stderr, "error: %s" % e.args[0]
+        return 1
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)
     if path:
         # move where.endswith check here?

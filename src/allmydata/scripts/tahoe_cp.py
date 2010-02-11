@@ -4,7 +4,8 @@ import urllib
 import simplejson
 from cStringIO import StringIO
 from twisted.python.failure import Failure
-from allmydata.scripts.common import get_alias, escape_path, DefaultAliasMarker
+from allmydata.scripts.common import get_alias, escape_path, \
+                                     DefaultAliasMarker, UnknownAliasError
 from allmydata.scripts.common_http import do_http
 from allmydata import uri
 
@@ -464,7 +465,11 @@ class Copier:
         destination_spec = self.options.destination
         recursive = self.options["recursive"]
 
-        target = self.get_target_info(destination_spec)
+        try:
+            target = self.get_target_info(destination_spec)
+        except UnknownAliasError, e:
+            self.to_stderr("error: %s" % e.args[0])
+            return 1
 
         try:
             sources = [] # list of (name, source object)
@@ -473,6 +478,9 @@ class Copier:
                 sources.append( (name, source) )
         except MissingSourceError, e:
             self.to_stderr("No such file or directory %s" % e.args[0])
+            return 1
+        except UnknownAliasError, e:
+            self.to_stderr("error: %s" % e.args[0])
             return 1
 
         have_source_dirs = bool([s for (name,s) in sources

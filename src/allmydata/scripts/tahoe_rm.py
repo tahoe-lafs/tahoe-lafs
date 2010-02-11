@@ -1,7 +1,8 @@
 
 import urllib
 from allmydata.scripts.common_http import do_http
-from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path
+from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
+                                     UnknownAliasError
 
 def rm(options):
     """
@@ -15,7 +16,11 @@ def rm(options):
 
     if nodeurl[-1] != "/":
         nodeurl += "/"
-    rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
+    try:
+        rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
+    except UnknownAliasError, e:
+        print >>stderr, "error: %s" % e.args[0]
+        return 1
     assert path
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)
     url += "/" + escape_path(path)
