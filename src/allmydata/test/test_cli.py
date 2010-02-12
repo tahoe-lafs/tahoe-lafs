@@ -369,6 +369,23 @@ class CLI(unittest.TestCase):
         self.failUnlessRaises(common.UnknownAliasError, ga3, "missing:")
         self.failUnlessRaises(common.UnknownAliasError, ga3, "missing:dir")
         self.failUnlessRaises(common.UnknownAliasError, ga3, "missing:dir/file")
+        # calling get_alias with a path that doesn't include an alias and
+        # default set to something that isn't in the aliases argument should
+        # raise an UnknownAliasError.
+        def ga4(path):
+            return get_alias(aliases, path, "badddefault:")
+        self.failUnlessRaises(common.UnknownAliasError, ga4, "afile")
+        self.failUnlessRaises(common.UnknownAliasError, ga4, "a/dir/path/")
+
+        def ga5(path):
+            old = common.pretend_platform_uses_lettercolon
+            try:
+                common.pretend_platform_uses_lettercolon = True
+                retval = get_alias(aliases, path, "baddefault:")
+            finally:
+                common.pretend_platform_uses_lettercolon = old
+            return retval
+        self.failUnlessRaises(common.UnknownAliasError, ga5, "C:\\Windows")
 
 
 class Help(unittest.TestCase):
@@ -573,6 +590,57 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_not_corrupted)
 
         return d
+
+
+class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def _create_test_file(self):
+        data = "puppies" * 1000
+        path = os.path.join(self.basedir, "datafile")
+        f = open(path, 'wb')
+        f.write(data)
+        f.close()
+        self.datafile = path
+
+    def test_ln_without_alias(self):
+        # if invoked without an alias when the 'tahoe' alias doesn't
+        # exist, 'tahoe ln' should output a useful error message and not
+        # a stack trace
+        self.basedir = "cli/Ln/ln_without_alias"
+        self.set_up_grid()
+        d = self.do_cli("ln", "from", "to")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        # Make sure that validation extends to the "to" parameter
+        d.addCallback(lambda ign: self.do_cli("create-alias", "havasu"))
+        d.addCallback(lambda ign: self._create_test_file())
+        d.addCallback(lambda ign: self.do_cli("put", self.datafile,
+                                              "havasu:from"))
+        d.addCallback(lambda ign: self.do_cli("ln", "havasu:from", "to"))
+        d.addCallback(_check)
+        return d
+
+    def test_ln_with_nonexistent_alias(self):
+        # If invoked with aliases that don't exist, 'tahoe ln' should 
+        # output a useful error message and not a stack trace.
+        self.basedir = "cli/Ln/ln_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("ln", "havasu:from", "havasu:to")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        # Make sure that validation occurs on the to parameter if the
+        # from parameter passes.
+        d.addCallback(lambda ign: self.do_cli("create-alias", "havasu"))
+        d.addCallback(lambda ign: self._create_test_file())
+        d.addCallback(lambda ign: self.do_cli("put", self.datafile,
+                                              "havasu:from"))
+        d.addCallback(lambda ign: self.do_cli("ln", "havasu:from", "huron:to"))
+        d.addCallback(_check)
+        return d
+
 
 class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
@@ -791,6 +859,19 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
         return d
 
+    def test_put_with_nonexistent_alias(self):
+        # when invoked with an alias that doesn't exist, 'tahoe put'
+        # should output a useful error message, not a stack trace
+        self.basedir = "cli/Put/put_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("put", "somefile", "fake:afile")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        return d
+
+
 class List(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_list(self):
         self.basedir = "cli/List/list"
@@ -854,6 +935,32 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("ls", "-l", self.goodcap))
         d.addCallback(_check5)
         return d
+
+    def test_list_without_alias(self):
+        # doing just 'tahoe ls' without specifying an alias or first
+        # doing 'tahoe create-alias tahoe' should fail gracefully.
+        self.basedir = "cli/List/list_without_alias"
+        self.set_up_grid()
+        d = self.do_cli("ls")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        return d
+
+    def test_list_with_nonexistent_alias(self):
+        # doing 'tahoe ls' while specifying an alias that doesn't already
+        # exist should fail with an informative error message
+        self.basedir = "cli/List/list_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("ls", "nonexistent:")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+            self.failUnlessIn("nonexistent", err)
+        d.addCallback(_check)
+        return d
+
 
 class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_mv_behavior(self):
@@ -949,6 +1056,63 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("404", err,
                               "mv moved the wrong thing"))
         return d
+
+    def test_mv_without_alias(self):
+        # doing 'tahoe mv' without explicitly specifying an alias or 
+        # creating the default 'tahoe' alias should fail with a useful
+        # error message.
+        self.basedir = "cli/Mv/mv_without_alias"
+        self.set_up_grid()
+        d = self.do_cli("mv", "afile", "anotherfile")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        # check to see that the validation extends to the
+        # target argument by making an alias that will work with the first
+        # one.
+        d.addCallback(lambda ign: self.do_cli("create-alias", "havasu"))
+        def _create_a_test_file(ign):
+            self.test_file_path = os.path.join(self.basedir, "afile")
+            f = open(self.test_file_path, "wb")
+            f.write("puppies" * 100)
+            f.close()
+        d.addCallback(_create_a_test_file)
+        d.addCallback(lambda ign: self.do_cli("put", self.test_file_path,
+                                              "havasu:afile"))
+        d.addCallback(lambda ign: self.do_cli("mv", "havasu:afile",
+                                              "anotherfile"))
+        d.addCallback(_check)
+        return d
+
+    def test_mv_with_nonexistent_alias(self):
+        # doing 'tahoe mv' with an alias that doesn't exist should fail 
+        # with an informative error message.
+        self.basedir = "cli/Mv/mv_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("mv", "fake:afile", "fake:anotherfile")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+            self.failUnlessIn("fake", err)
+        d.addCallback(_check)
+        # check to see that the validation extends to the
+        # target argument by making an alias that will work with the first
+        # one.
+        d.addCallback(lambda ign: self.do_cli("create-alias", "havasu"))
+        def _create_a_test_file(ign):
+            self.test_file_path = os.path.join(self.basedir, "afile")
+            f = open(self.test_file_path, "wb")
+            f.write("puppies" * 100)
+            f.close()
+        d.addCallback(_create_a_test_file)
+        d.addCallback(lambda ign: self.do_cli("put", self.test_file_path,
+                                              "havasu:afile"))
+        d.addCallback(lambda ign: self.do_cli("mv", "havasu:afile",
+                                              "fake:anotherfile"))
+        d.addCallback(_check)
+        return d
+
 
 class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
@@ -1061,6 +1225,26 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(results, DATA1)
         d.addCallback(_get_resp2)
         return d
+
+    def test_cp_with_nonexistent_alias(self):
+        # when invoked with an alias or aliases that don't exist, 'tahoe cp'
+        # should output a sensible error message rather than a stack trace.
+        self.basedir = "cli/Cp/cp_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("cp", "fake:file1", "fake:file2")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        # 'tahoe cp' actually processes the target argument first, so we 
+        # need to check to make sure that validation extends to the 
+        # source argument.
+        d.addCallback(lambda ign: self.do_cli("create-alias", "tahoe"))
+        d.addCallback(lambda ign: self.do_cli("cp", "fake:file1",
+                                              "tahoe:file2"))
+        d.addCallback(_check)
+        return d
+
 
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
@@ -1468,6 +1652,33 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addErrback(_cleanup)
         return d
 
+    def test_backup_without_alias(self):
+        # 'tahoe backup' should output a sensible error message when invoked
+        # without an alias instead of a stack trace.
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+        source = os.path.join(self.basedir, "file1")
+        d = self.do_cli('backup', source, source)
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        return d
+
+    def test_backup_with_nonexistent_alias(self):
+        # 'tahoe backup' should output a sensible error message when invoked
+        # with a nonexistent alias.
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+        source = os.path.join(self.basedir, "file1")
+        d = self.do_cli("backup", source, "nonexistent:" + source)
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+            self.failUnlessIn("nonexistent", err)
+        d.addCallback(_check)
+        return d
+
 
 class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
@@ -1762,6 +1973,34 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         return d
 
+    def test_check_without_alias(self):
+        # 'tahoe check' should output a sensible error message if it needs to
+        # find the default alias and can't
+        self.basedir = "cli/Check/check_without_alias"
+        self.set_up_grid()
+        d = self.do_cli("check")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        d.addCallback(lambda ign: self.do_cli("deep-check"))
+        d.addCallback(_check)
+        return d
+
+    def test_check_with_nonexistent_alias(self):
+        # 'tahoe check' should output a sensible error message if it needs to
+        # find an alias and can't.
+        self.basedir = "cli/Check/check_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("check", "nonexistent:")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+            self.failUnlessIn("nonexistent", err)
+        d.addCallback(_check)
+        return d
+
+
 class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_get(self):
         self.basedir = "cli/Errors/get"
@@ -1795,6 +2034,105 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         return d
 
+
+class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_get_without_alias(self):
+        # 'tahoe get' should output a useful error message when invoked
+        # without an explicit alias and when the default 'tahoe' alias
+        # hasn't been created yet.
+        self.basedir = "cli/Get/get_without_alias"
+        self.set_up_grid()
+        d = self.do_cli('get', 'file')
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        return d
+
+    def test_get_with_nonexistent_alias(self):
+        # 'tahoe get' should output a useful error message when invoked with
+        # an explicit alias that doesn't exist.
+        self.basedir = "cli/Get/get_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("get", "nonexistent:file")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+            self.failUnlessIn("nonexistent", err)
+        d.addCallback(_check)
+        return d
+
+
+class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_manifest_without_alias(self):
+        # 'tahoe manifest' should output a useful error message when invoked
+        # without an explicit alias when the default 'tahoe' alias is
+        # missing.
+        self.basedir = "cli/Manifest/manifest_without_alias"
+        self.set_up_grid()
+        d = self.do_cli("manifest")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        return d
+
+    def test_manifest_with_nonexistent_alias(self):
+        # 'tahoe manifest' should output a useful error message when invoked
+        # with an explicit alias that doesn't exist.
+        self.basedir = "cli/Manifest/manifest_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("manifest", "nonexistent:")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+            self.failUnlessIn("nonexistent", err)
+        d.addCallback(_check)
+        return d
+
+
+class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_mkdir_with_nonexistent_alias(self):
+        # when invoked with an alias that doesn't exist, 'tahoe mkdir'
+        # should output a sensible error message rather than a stack 
+        # trace.
+        self.basedir = "cli/Mkdir/mkdir_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("mkdir", "havasu:")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        return d
+
+
+class Rm(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_rm_without_alias(self):
+        # 'tahoe rm' should behave sensibly when invoked without an explicit
+        # alias before the default 'tahoe' alias has been created.
+        self.basedir = "cli/Rm/rm_without_alias"
+        self.set_up_grid()
+        d = self.do_cli("rm", "afile")
+        def _check((rc, out, err)):
+            self.failUnlessIn("error:", err)
+            self.failUnlessEqual(rc, 1)
+        d.addCallback(_check)
+        return d
+
+    def test_rm_with_nonexistent_alias(self):
+        # 'tahoe rm' should behave sensibly when invoked with an explicit
+        # alias that doesn't exist.
+        self.basedir = "cli/Rm/rm_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("rm", "nonexistent:afile")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+            self.failUnlessIn("nonexistent", err)
+        d.addCallback(_check)
+        return d
+
+
 class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_empty_directory(self):
         self.basedir = "cli/Stats/empty_directory"
@@ -1821,4 +2159,44 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIfIn("Size Histogram:", lines)
         d.addCallback(_check_stats)
 
+        return d
+
+    def test_stats_without_alias(self):
+        # when invoked with no explicit alias and before the default 'tahoe'
+        # alias is created, 'tahoe stats' should output an informative error
+        # message, not a stack trace.
+        self.basedir = "cli/Stats/stats_without_alias"
+        self.set_up_grid()
+        d = self.do_cli("stats")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        return d
+
+    def test_stats_with_nonexistent_alias(self):
+        # when invoked with an explicit alias that doesn't exist, 
+        # 'tahoe stats' should output a useful error message.
+        self.basedir = "cli/Stats/stats_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("stats", "havasu:")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
+        return d
+
+
+class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_webopen_with_nonexistent_alias(self):
+        # when invoked with an alias that doesn't exist, 'tahoe webopen'
+        # should output an informative error message instead of a stack 
+        # trace.
+        self.basedir = "cli/Webopen/webopen_with_nonexistent_alias"
+        self.set_up_grid()
+        d = self.do_cli("webopen", "fake:")
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("error:", err)
+        d.addCallback(_check)
         return d
