@@ -28,8 +28,8 @@ install_requires=[
                   # .
                   "pycryptopp >= 0.5.15",
 
-                  # Used for SFTP
-                  "pycrypto >= 2.0.1",
+                  # Needed for SFTP. Commented-out pending tests, see #953.
+                  # "pycrypto >= 2.0.1",
                   ]
 
 # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
