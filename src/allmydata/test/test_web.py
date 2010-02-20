@@ -4,6 +4,7 @@ from StringIO import StringIO
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
+from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
 from nevow import rend
@@ -119,7 +120,9 @@ class WebMixin(object):
         self.s = FakeClient()
         self.s.startService()
         self.staticdir = self.mktemp()
-        self.ws = webish.WebishServer(self.s, "0", staticdir=self.staticdir)
+        self.clock = Clock()
+        self.ws = webish.WebishServer(self.s, "0", staticdir=self.staticdir,
+                                      clock=self.clock)
         self.ws.setServiceParent(self.s)
         self.webish_port = port = self.ws.listener._port.getHost().port
         self.webish_url = "http://localhost:%d" % port
@@ -2873,7 +2876,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless("finished" in data, res)
         d.addCallback(_check1)
         # the retain-for=0 will cause the handle to be expired very soon
-        d.addCallback(self.stall, 2.0)
+        d.addCallback(lambda ign:
+            self.clock.advance(2.0))
         d.addCallback(lambda ignored:
                       self.shouldHTTPError("test_ophandle_retainfor",
                                            404, "404 Not Found",

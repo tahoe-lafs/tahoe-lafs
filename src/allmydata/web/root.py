@@ -145,10 +145,12 @@ class Root(rend.Page):
     addSlash = True
     docFactory = getxmlfile("welcome.xhtml")
 
-    def __init__(self, client):
+    def __init__(self, client, clock=None):
         rend.Page.__init__(self, client)
         self.client = client
-        self.child_operations = operations.OphandleTable()
+        # If set, clock is a twisted.internet.task.Clock that the tests
+        # use to test ophandle expiration.
+        self.child_operations = operations.OphandleTable(clock)
         try:
             s = client.getServiceNamed("storage")
         except KeyError:

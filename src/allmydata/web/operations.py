@@ -24,10 +24,15 @@ class OphandleTable(rend.Page, service.Service):
     UNCOLLECTED_HANDLE_LIFETIME = 4*DAY
     COLLECTED_HANDLE_LIFETIME = 1*DAY
 
-    def __init__(self):
+    def __init__(self, clock=None):
         # both of these are indexed by ophandle
         self.handles = {} # tuple of (monitor, renderer, when_added)
         self.timers = {}
+        # The tests will provide a deterministic clock
+        # (twisted.internet.task.Clock) that they can control so that
+        # they can test ophandle expiration. If this is provided, I'll
+        # use it schedule the expiration of ophandles.
+        self.clock = clock
 
     def stopService(self):
         for t in self.timers.values():
@@ -103,7 +108,10 @@ class OphandleTable(rend.Page, service.Service):
     def _set_timer(self, ophandle, when):
         if ophandle in self.timers and self.timers[ophandle].active():
             self.timers[ophandle].cancel()
-        t = reactor.callLater(when, self._release_ophandle, ophandle)
+        if self.clock:
+            t = self.clock.callLater(when, self._release_ophandle, ophandle)
+        else:
+            t = reactor.callLater(when, self._release_ophandle, ophandle)
         self.timers[ophandle] = t
 
     def _release_ophandle(self, ophandle):
