@@ -55,7 +55,7 @@ def list(options):
     children = {}
     if nodetype == "dirnode":
         children = d['children']
-    elif nodetype == "filenode":
+    else:
         childname = path.split("/")[-1]
         children = {childname: (nodetype, d)}
         if "metadata" not in d:
@@ -67,6 +67,7 @@ def list(options):
     # maxwidth so we can format them tightly. Size, filename, and URI are the
     # variable-width ones.
     rows = []
+    has_unknowns = False
 
     for name in childnames:
         name = unicode(name)
@@ -101,11 +102,12 @@ def list(options):
             classify = "/"
         elif childtype == "filenode":
             t0 = "-"
-            size = str(child[1]['size'])
+            size = str(child[1].get("size", "?"))
             classify = ""
             if rw_uri:
                 classify = "*"
         else:
+            has_unknowns = True
             t0 = "?"
             size = "?"
             classify = "?"
@@ -160,6 +162,10 @@ def list(options):
     fmt = " ".join(fmt_pieces)
     for row in rows:
         print >>stdout, (fmt % tuple(row)).rstrip()
+
+    if has_unknowns:
+        print >>stderr, "\nThis listing included unknown objects. Using a webapi server that supports" \
+                        "\na later version of Tahoe may help."
 
     return 0
 

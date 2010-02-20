@@ -85,7 +85,29 @@ class ListOptions(VDriveOptions):
     def parseArgs(self, where=""):
         self.where = where
 
-    longdesc = """List the contents of some portion of the grid."""
+    longdesc = """
+    List the contents of some portion of the grid.
+
+    When the -l or --long option is used, each line is shown in the
+    following format:
+
+    drwx <size> <date/time> <name in this directory>
+
+    where each of the letters on the left may be replaced by '-'.
+    If 'd' is present, it indicates that the object is a directory.
+    If the 'd' is replaced by a '?', the object type is unknown.
+    'rwx' is a Unix-like permissions mask: if the mask includes 'w',
+    then the object is writable through its link in this directory.
+    The 'x' is a legacy of Unix filesystems. In Tahoe it is used
+    only to indicate that the contents of a directory can be listed.
+
+    Directories have no size, so their size field is shown as '-'.
+    Otherwise the size of the file, when known, is given in bytes.
+    The size of mutable files or unknown objects is shown as '?'.
+
+    The date/time shows when this link in the Tahoe filesystem was
+    last modified.
+    """
 
 class GetOptions(VDriveOptions):
     def parseArgs(self, arg1, arg2=None):

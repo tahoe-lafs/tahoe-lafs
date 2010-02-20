@@ -139,11 +139,15 @@ def get_alias(aliases, path, default):
     # raised.
     path = path.strip()
     if uri.has_uri_prefix(path):
-        # The only way to get a sub-path is to use URI:blah:./foo, and we
-        # strip out the :./ sequence.
+        # We used to require "URI:blah:./foo" in order to get a subpath,
+        # stripping out the ":./" sequence. We still allow that for compatibility,
+        # but now also allow just "URI:blah/foo".
         sep = path.find(":./")
         if sep != -1:
             return path[:sep], path[sep+3:]
+        sep = path.find("/")
+        if sep != -1:
+            return path[:sep], path[sep+1:]
         return path, ""
     colon = path.find(":")
     if colon == -1:
