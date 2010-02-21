@@ -14,14 +14,15 @@ from allmydata.web.common import IOpHandleTable, WebError, \
 
 MINUTE = 60
 HOUR = 60*MINUTE
+DAY = 24*HOUR
 
 (MONITOR, RENDERER, WHEN_ADDED) = range(3)
 
 class OphandleTable(rend.Page, service.Service):
     implements(IOpHandleTable)
 
-    UNCOLLECTED_HANDLE_LIFETIME = 1*HOUR
-    COLLECTED_HANDLE_LIFETIME = 10*MINUTE
+    UNCOLLECTED_HANDLE_LIFETIME = 4*DAY
+    COLLECTED_HANDLE_LIFETIME = 1*DAY
 
     def __init__(self):
         # both of these are indexed by ophandle
