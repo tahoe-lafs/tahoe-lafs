@@ -367,6 +367,14 @@ class WebMixin(object):
             self.fail("%s was supposed to Error(404), not get '%s'" %
                       (which, res))
 
+    def should302(self, res, which):
+        if isinstance(res, failure.Failure):
+            res.trap(error.Error)
+            self.failUnlessEqual(res.value.status, "302")
+        else:
+            self.fail("%s was supposed to Error(302), not get '%s'" %
+                        (which, res))
+
 
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_create(self):
@@ -2887,6 +2895,82 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                            "unknown/expired handle '130'",
                                            self.GET,
                                            "/operations/130?t=status&output=JSON"))
+        return d
+
+    def test_uncollected_ophandle_expiration(self):
+        # uncollected ophandles should expire after 4 days
+        def _make_uncollected_ophandle(ophandle):
+            d = self.POST(self.public_url +
+                          "/foo/?t=start-manifest&ophandle=%d" % ophandle,
+                          followRedirect=False)
+            # When we start the operation, the webapi server will want
+            # to redirect us to the page for the ophandle, so we get
+            # confirmation that the operation has started. If the
+            # manifest operation has finished by the time we get there,
+            # following that redirect (by setting followRedirect=True
+            # above) has the side effect of collecting the ophandle that
+            # we've just created, which means that we can't use the
+            # ophandle to test the uncollected timeout anymore. So,
+            # instead, catch the 302 here and don't follow it.
+            d.addBoth(self.should302, "uncollected_ophandle_creation")
+            return d
+        # Create an ophandle, don't collect it, then advance the clock by
+        # 4 days - 1 second and make sure that the ophandle is still there.
+        d = _make_uncollected_ophandle(131)
+        d.addCallback(lambda ign:
+            self.clock.advance((96*60*60) - 1)) # 96 hours = 4 days
+        d.addCallback(lambda ign:
+            self.GET("/operations/131?t=status&output=JSON"))
+        def _check1(res):
+            data = simplejson.loads(res)
+            self.failUnless("finished" in data, res)
+        d.addCallback(_check1)
+        # Create an ophandle, don't collect it, then try to collect it
+        # after 4 days. It should be gone.
+        d.addCallback(lambda ign:
+            _make_uncollected_ophandle(132))
+        d.addCallback(lambda ign:
+            self.clock.advance(96*60*60))
+        d.addCallback(lambda ign:
+            self.shouldHTTPError("test_uncollected_ophandle_expired_after_100_hours",
+                                 404, "404 Not Found",
+                                 "unknown/expired handle '132'",
+                                 self.GET,
+                                 "/operations/132?t=status&output=JSON"))
+        return d
+
+    def test_collected_ophandle_expiration(self):
+        # collected ophandles should expire after 1 day
+        def _make_collected_ophandle(ophandle):
+            d = self.POST(self.public_url +
+                          "/foo/?t=start-manifest&ophandle=%d" % ophandle,
+                          followRedirect=True)
+            # By following the initial redirect, we collect the ophandle 
+            # we've just created.
+            return d
+        # Create a collected ophandle, then collect it after 23 hours 
+        # and 59 seconds to make sure that it is still there.
+        d = _make_collected_ophandle(133)
+        d.addCallback(lambda ign:
+            self.clock.advance((24*60*60) - 1))
+        d.addCallback(lambda ign:
+            self.GET("/operations/133?t=status&output=JSON"))
+        def _check1(res):
+            data = simplejson.loads(res)
+            self.failUnless("finished" in data, res)
+        d.addCallback(_check1)
+        # Create another uncollected ophandle, then try to collect it
+        # after 24 hours to make sure that it is gone.
+        d.addCallback(lambda ign:
+            _make_collected_ophandle(134))
+        d.addCallback(lambda ign:
+            self.clock.advance(24*60*60))
+        d.addCallback(lambda ign:
+            self.shouldHTTPError("test_collected_ophandle_expired_after_1000_minutes",
+                                 404, "404 Not Found",
+                                 "unknown/expired handle '134'",
+                                 self.GET,
+                                 "/operations/134?t=status&output=JSON"))
         return d
 
     def test_incident(self):
