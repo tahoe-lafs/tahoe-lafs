@@ -267,12 +267,12 @@ immediately.
 If a retain-for= argument is not used, the default handle lifetimes are:
 
  * handles will remain valid at least until their operation finishes
- * uncollected handles for finished operations (i.e. handles for operations
-   which have finished but for which the GET page has not been accessed since
-   completion) will remain valid for one hour, or for the total time consumed
-   by the operation, whichever is greater.
+ * uncollected handles for finished operations (i.e. handles for
+   operations that have finished but for which the GET page has not been
+   accessed since completion) will remain valid for four days, or for
+   the total time consumed by the operation, whichever is greater.
  * collected handles (i.e. the GET page has been retrieved at least once
-   since the operation completed) will remain valid for ten minutes.
+   since the operation completed) will remain valid for one day.
 
 Many "slow" operations can begin to use unacceptable amounts of memory when
 operating on large directory structures. The memory usage increases when the
