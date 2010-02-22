@@ -39,7 +39,7 @@ class Checker(log.PrefixingLogMixin):
         for (serverid, serverrref) in servers:
             assert precondition(isinstance(serverid, str))
 
-        prefix = "%s" % base32.b2a_l(verifycap.storage_index[:8], 60)
+        prefix = "%s" % base32.b2a_l(verifycap.get_storage_index()[:8], 60)
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.checker", prefix=prefix)
 
         self._verifycap = verifycap
@@ -50,10 +50,10 @@ class Checker(log.PrefixingLogMixin):
         self._add_lease = add_lease
 
         frs = file_renewal_secret_hash(secret_holder.get_renewal_secret(),
-                                       self._verifycap.storage_index)
+                                       self._verifycap.get_storage_index())
         self.file_renewal_secret = frs
         fcs = file_cancel_secret_hash(secret_holder.get_cancel_secret(),
-                                      self._verifycap.storage_index)
+                                      self._verifycap.get_storage_index())
         self.file_cancel_secret = fcs
 
     def _get_renewal_secret(self, peerid):
@@ -145,7 +145,7 @@ class Checker(log.PrefixingLogMixin):
         results."""
 
         vcap = self._verifycap
-        b = layout.ReadBucketProxy(bucket, serverid, vcap.storage_index)
+        b = layout.ReadBucketProxy(bucket, serverid, vcap.get_storage_index())
         veup = download.ValidatedExtendedURIProxy(b, vcap)
         d = veup.start()
 
@@ -249,7 +249,7 @@ class Checker(log.PrefixingLogMixin):
         then disconnected and ceased responding, or returned a failure, it is
         still marked with the True flag for 'success'.
         """
-        d = self._get_buckets(ss, self._verifycap.storage_index, serverid)
+        d = self._get_buckets(ss, self._verifycap.get_storage_index(), serverid)
 
         def _got_buckets(result):
             bucketdict, serverid, success = result
@@ -296,12 +296,12 @@ class Checker(log.PrefixingLogMixin):
         def _curry_empty_corrupted(res):
             buckets, serverid, responded = res
             return (set(buckets), serverid, set(), set(), responded)
-        d = self._get_buckets(ss, self._verifycap.storage_index, serverid)
+        d = self._get_buckets(ss, self._verifycap.get_storage_index(), serverid)
         d.addCallback(_curry_empty_corrupted)
         return d
 
     def _format_results(self, results):
-        cr = CheckResults(self._verifycap, self._verifycap.storage_index)
+        cr = CheckResults(self._verifycap, self._verifycap.get_storage_index())
         d = {}
         d['count-shares-needed'] = self._verifycap.needed_shares
         d['count-shares-expected'] = self._verifycap.total_shares
@@ -316,9 +316,9 @@ class Checker(log.PrefixingLogMixin):
             for sharenum in theseverifiedshares:
                 verifiedshares.setdefault(sharenum, set()).add(thisserverid)
             for sharenum in thesecorruptshares:
-                corruptsharelocators.append((thisserverid, self._verifycap.storage_index, sharenum))
+                corruptsharelocators.append((thisserverid, self._verifycap.get_storage_index(), sharenum))
             for sharenum in theseincompatibleshares:
-                incompatiblesharelocators.append((thisserverid, self._verifycap.storage_index, sharenum))
+                incompatiblesharelocators.append((thisserverid, self._verifycap.get_storage_index(), sharenum))
 
         d['count-shares-good'] = len(verifiedshares)
         d['count-good-share-hosts'] = len([s for s in servers.keys() if servers[s]])

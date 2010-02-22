@@ -46,7 +46,7 @@ class Repairer(log.PrefixingLogMixin):
     def __init__(self, storage_broker, secret_holder, verifycap, monitor):
         assert precondition(isinstance(verifycap, CHKFileVerifierURI))
 
-        logprefix = si_b2a(verifycap.storage_index)[:5]
+        logprefix = si_b2a(verifycap.get_storage_index())[:5]
         log.PrefixingLogMixin.__init__(self, "allmydata.immutable.repairer",
                                        prefix=logprefix)
 

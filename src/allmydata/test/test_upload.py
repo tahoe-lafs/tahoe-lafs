@@ -257,8 +257,8 @@ class GoodServer(unittest.TestCase, ShouldFailMixin):
     def _check_large(self, newuri, size):
         u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
-        self.failUnless(isinstance(u.storage_index, str))
-        self.failUnlessEqual(len(u.storage_index), 16)
+        self.failUnless(isinstance(u.get_storage_index(), str))
+        self.failUnlessEqual(len(u.get_storage_index()), 16)
         self.failUnless(isinstance(u.key, str))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)
@@ -382,8 +382,8 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin):
     def _check_large(self, newuri, size):
         u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
-        self.failUnless(isinstance(u.storage_index, str))
-        self.failUnlessEqual(len(u.storage_index), 16)
+        self.failUnless(isinstance(u.get_storage_index(), str))
+        self.failUnlessEqual(len(u.get_storage_index()), 16)
         self.failUnless(isinstance(u.key, str))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)
@@ -470,8 +470,8 @@ class PeerSelection(unittest.TestCase):
     def _check_large(self, newuri, size):
         u = uri.from_string(newuri)
         self.failUnless(isinstance(u, uri.CHKFileURI))
-        self.failUnless(isinstance(u.storage_index, str))
-        self.failUnlessEqual(len(u.storage_index), 16)
+        self.failUnless(isinstance(u.get_storage_index(), str))
+        self.failUnlessEqual(len(u.get_storage_index()), 16)
         self.failUnless(isinstance(u.key, str))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)

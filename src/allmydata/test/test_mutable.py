@@ -1923,7 +1923,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             privkey_s = privkey.serialize()
             u = uri.WriteableSSKFileURI(ssk_writekey_hash(privkey_s),
                                         ssk_pubkey_fingerprint_hash(pubkey_s))
-            self._storage_index = u.storage_index
+            self._storage_index = u.get_storage_index()
         d.addCallback(_got_key)
         def _break_peer0(res):
             si = self._storage_index

@@ -657,7 +657,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             return res
         d.addCallback(_stash_it)
         def _put_it_all_back(ignored):
-            self.replace_shares(stash[0], storage_index=self.uri.storage_index)
+            self.replace_shares(stash[0], storage_index=self.uri.get_storage_index())
             return ignored
 
         def _repair_from_corruption(shnum, corruptor_func):

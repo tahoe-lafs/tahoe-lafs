@@ -21,7 +21,7 @@ class Test(common.ShareManglingMixin, unittest.TestCase):
         # The following process of deleting 8 of the shares and asserting that you can't
         # download it is more to test this test code than to test the Tahoe code...
         def _then_delete_8(unused=None):
-            self.replace_shares(stash[0], storage_index=self.uri.storage_index)
+            self.replace_shares(stash[0], storage_index=self.uri.get_storage_index())
             for i in range(8):
                 self._delete_a_share()
         d.addCallback(_then_delete_8)

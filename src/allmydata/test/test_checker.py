@@ -68,7 +68,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         serverid_1 = "\x00"*20
         serverid_f = "\xff"*20
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
-        cr = check_results.CheckResults(u, u.storage_index)
+        cr = check_results.CheckResults(u, u.get_storage_index())
         cr.set_healthy(True)
         cr.set_needs_rebalancing(False)
         cr.set_summary("groovy")
@@ -108,7 +108,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         cr.set_healthy(False)
         cr.set_recoverable(False)
         cr.set_summary("rather dead")
-        data["list-corrupt-shares"] = [(serverid_1, u.storage_index, 2)]
+        data["list-corrupt-shares"] = [(serverid_1, u.get_storage_index(), 2)]
         cr.set_data(data)
         html = self.render2(w)
         s = self.remove_tags(html)
@@ -167,7 +167,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         serverid_f = "\xff"*20
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
 
-        pre_cr = check_results.CheckResults(u, u.storage_index)
+        pre_cr = check_results.CheckResults(u, u.get_storage_index())
         pre_cr.set_healthy(False)
         pre_cr.set_recoverable(True)
         pre_cr.set_needs_rebalancing(False)
@@ -185,7 +185,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  }
         pre_cr.set_data(data)
 
-        post_cr = check_results.CheckResults(u, u.storage_index)
+        post_cr = check_results.CheckResults(u, u.get_storage_index())
         post_cr.set_healthy(True)
         post_cr.set_recoverable(True)
         post_cr.set_needs_rebalancing(False)
@@ -203,7 +203,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  }
         post_cr.set_data(data)
 
-        crr = check_results.CheckAndRepairResults(u.storage_index)
+        crr = check_results.CheckAndRepairResults(u.get_storage_index())
         crr.pre_repair_results = pre_cr
         crr.post_repair_results = post_cr
         crr.repair_attempted = False

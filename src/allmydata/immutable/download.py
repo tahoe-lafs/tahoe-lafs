@@ -751,13 +751,13 @@ class CiphertextDownloader(log.PrefixingLogMixin):
         precondition(IVerifierURI.providedBy(v), v)
         precondition(IDownloadTarget.providedBy(target), target)
 
-        prefix=base32.b2a_l(v.storage_index[:8], 60)
-        log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.download", prefix=prefix)
         self._storage_broker = storage_broker
-
         self._verifycap = v
-        self._storage_index = v.storage_index
+        self._storage_index = v.get_storage_index()
         self._uri_extension_hash = v.uri_extension_hash
+
+        prefix=base32.b2a_l(self._storage_index[:8], 60)
+        log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.download", prefix=prefix)
 
         self._started = time.time()
         self._status = s = DownloadStatus()

@@ -102,7 +102,7 @@ class CHKFile(unittest.TestCase):
                            needed_shares=needed_shares,
                            total_shares=total_shares,
                            size=size)
-        self.failUnlessEqual(u.storage_index, storage_index)
+        self.failUnlessEqual(u.get_storage_index(), storage_index)
         self.failUnlessEqual(u.key, key)
         self.failUnlessEqual(u.uri_extension_hash, uri_extension_hash)
         self.failUnlessEqual(u.needed_shares, needed_shares)
@@ -122,7 +122,7 @@ class CHKFile(unittest.TestCase):
         self.failUnlessEqual(uri.CHKFileURI.init_from_human_encoding(he), u)
 
         u2 = uri.from_string(u.to_string())
-        self.failUnlessEqual(u2.storage_index, storage_index)
+        self.failUnlessEqual(u2.get_storage_index(), storage_index)
         self.failUnlessEqual(u2.key, key)
         self.failUnlessEqual(u2.uri_extension_hash, uri_extension_hash)
         self.failUnlessEqual(u2.needed_shares, needed_shares)
@@ -319,10 +319,10 @@ class Mutable(unittest.TestCase):
 
         u5 = u4.get_verify_cap()
         self.failUnless(IVerifierURI.providedBy(u5))
-        self.failUnlessEqual(u5.storage_index, u.storage_index)
+        self.failUnlessEqual(u5.get_storage_index(), u.get_storage_index())
         u7 = u.get_verify_cap()
         self.failUnless(IVerifierURI.providedBy(u7))
-        self.failUnlessEqual(u7.storage_index, u.storage_index)
+        self.failUnlessEqual(u7.get_storage_index(), u.get_storage_index())
 
         he = u5.to_human_encoding()
         u5_h = uri.SSKVerifierURI.init_from_human_encoding(he)

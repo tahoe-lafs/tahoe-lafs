@@ -346,7 +346,7 @@ class DirectoryNode:
         return self._uri
 
     def get_storage_index(self):
-        return self._uri._filenode_uri.storage_index
+        return self._uri.get_storage_index()
 
     def check(self, monitor, verify=False, add_lease=False):
         """Perform a file check. See IChecker.check for details."""

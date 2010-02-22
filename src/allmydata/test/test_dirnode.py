@@ -549,7 +549,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.expected_verifycaps.add(u_v)
             si = n.get_storage_index()
             self.expected_storage_indexes.add(base32.b2a(si))
-            expected_si = n._uri._filenode_uri.storage_index
+            expected_si = n._uri.get_storage_index()
             self.failUnlessEqual(si, expected_si)
 
             d = n.list()

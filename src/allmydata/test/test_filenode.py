@@ -46,7 +46,7 @@ class Node(unittest.TestCase):
         self.failUnlessEqual(fn1.get_write_uri(), None)
         self.failUnlessEqual(fn1.get_readonly_uri(), u.to_string())
         self.failUnlessEqual(fn1.get_size(), 1000)
-        self.failUnlessEqual(fn1.get_storage_index(), u.storage_index)
+        self.failUnlessEqual(fn1.get_storage_index(), u.get_storage_index())
         fn1.raise_error()
         fn2.raise_error()
         d = {}

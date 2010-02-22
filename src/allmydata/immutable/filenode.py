@@ -225,7 +225,7 @@ class ImmutableFileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
         return self.u.to_string()
 
     def get_storage_index(self):
-        return self.u.storage_index
+        return self.u.get_storage_index()
 
     def check_and_repair(self, monitor, verify=False, add_lease=False):
         verifycap = self.get_verify_cap()
@@ -238,7 +238,7 @@ class ImmutableFileNode(_ImmutableFileNodeBase, log.PrefixingLogMixin):
                     monitor=monitor)
         d = c.start()
         def _maybe_repair(cr):
-            crr = CheckAndRepairResults(self.u.storage_index)
+            crr = CheckAndRepairResults(self.u.get_storage_index())
             crr.pre_repair_results = cr
             if cr.is_healthy():
                 crr.post_repair_results = cr

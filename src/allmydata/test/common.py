@@ -45,9 +45,9 @@ class FakeCHKFileNode:
     bad_shares = {}
 
     def __init__(self, filecap):
-        precondition(isinstance(filecap, uri.CHKFileURI), filecap)
+        precondition(isinstance(filecap, (uri.CHKFileURI, uri.LiteralFileURI)), filecap)
         self.my_uri = filecap
-        self.storage_index = self.my_uri.storage_index
+        self.storage_index = self.my_uri.get_storage_index()
 
     def get_uri(self):
         return self.my_uri.to_string()
@@ -190,7 +190,7 @@ class FakeMutableFileNode:
         assert isinstance(filecap, (uri.WriteableSSKFileURI,
                                     uri.ReadonlySSKFileURI))
         self.my_uri = filecap
-        self.storage_index = self.my_uri.storage_index
+        self.storage_index = self.my_uri.get_storage_index()
         return self
     def get_cap(self):
         return self.my_uri
@@ -1002,7 +1002,7 @@ class ShareManglingMixin(SystemTestMixin):
         else:
             k = random.choice(ks)
         del shares[k]
-        self.replace_shares(shares, storage_index=self.uri.storage_index)
+        self.replace_shares(shares, storage_index=self.uri.get_storage_index())
 
         return unused
 
@@ -1012,7 +1012,7 @@ class ShareManglingMixin(SystemTestMixin):
         assert ks, (shares.keys(), sharenum)
         k = ks[0]
         shares[k] = corruptor_func(shares[k])
-        self.replace_shares(shares, storage_index=self.uri.storage_index)
+        self.replace_shares(shares, storage_index=self.uri.get_storage_index())
         return corruptor_func
 
     def _corrupt_all_shares(self, unused, corruptor_func):

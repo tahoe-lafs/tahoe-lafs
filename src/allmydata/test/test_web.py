@@ -1529,7 +1529,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless(filecap.startswith("URI:SSK:"), filecap)
             self.filecap = filecap
             u = uri.WriteableSSKFileURI.init_from_string(filecap)
-            self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
+            self.failUnless(u.get_storage_index() in FakeMutableFileNode.all_contents)
             n = self.s.create_node_from_uri(filecap)
             return n.download_best_version()
         d.addCallback(_check)
@@ -2781,7 +2781,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless(filecap.startswith("URI:SSK:"), filecap)
             self.filecap = filecap
             u = uri.WriteableSSKFileURI.init_from_string(filecap)
-            self.failUnless(u.storage_index in FakeMutableFileNode.all_contents)
+            self.failUnless(u.get_storage_index() in FakeMutableFileNode.all_contents)
             n = self.s.create_node_from_uri(filecap)
             return n.download_best_version()
         d.addCallback(_check1)

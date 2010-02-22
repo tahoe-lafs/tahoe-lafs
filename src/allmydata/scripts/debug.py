@@ -389,15 +389,15 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
         print >>out, " UEB hash:", base32.b2a(u.uri_extension_hash)
         print >>out, " size:", u.size
         print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
-        print >>out, " storage index:", si_b2a(u.storage_index)
-        _dump_secrets(u.storage_index, secret, nodeid, out)
+        print >>out, " storage index:", si_b2a(u.get_storage_index())
+        _dump_secrets(u.get_storage_index(), secret, nodeid, out)
     elif isinstance(u, uri.CHKFileVerifierURI):
         if show_header:
             print >>out, "CHK Verifier URI:"
         print >>out, " UEB hash:", base32.b2a(u.uri_extension_hash)
         print >>out, " size:", u.size
         print >>out, " k/N: %d/%d" % (u.needed_shares, u.total_shares)
-        print >>out, " storage index:", si_b2a(u.storage_index)
+        print >>out, " storage index:", si_b2a(u.get_storage_index())
 
     elif isinstance(u, uri.LiteralFileURI):
         if show_header:
@@ -409,25 +409,25 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
             print >>out, "SSK Writeable URI:"
         print >>out, " writekey:", base32.b2a(u.writekey)
         print >>out, " readkey:", base32.b2a(u.readkey)
-        print >>out, " storage index:", si_b2a(u.storage_index)
+        print >>out, " storage index:", si_b2a(u.get_storage_index())
         print >>out, " fingerprint:", base32.b2a(u.fingerprint)
         print >>out
         if nodeid:
             we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
             print >>out, " write_enabler:", base32.b2a(we)
             print >>out
-        _dump_secrets(u.storage_index, secret, nodeid, out)
+        _dump_secrets(u.get_storage_index(), secret, nodeid, out)
 
     elif isinstance(u, uri.ReadonlySSKFileURI):
         if show_header:
             print >>out, "SSK Read-only URI:"
         print >>out, " readkey:", base32.b2a(u.readkey)
-        print >>out, " storage index:", si_b2a(u.storage_index)
+        print >>out, " storage index:", si_b2a(u.get_storage_index())
         print >>out, " fingerprint:", base32.b2a(u.fingerprint)
     elif isinstance(u, uri.SSKVerifierURI):
         if show_header:
             print >>out, "SSK Verifier URI:"
-        print >>out, " storage index:", si_b2a(u.storage_index)
+        print >>out, " storage index:", si_b2a(u.get_storage_index())
         print >>out, " fingerprint:", base32.b2a(u.fingerprint)
 
     elif isinstance(u, uri.DirectoryURI):
