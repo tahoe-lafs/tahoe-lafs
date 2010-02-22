@@ -470,3 +470,5 @@ class Dirnode(unittest.TestCase):
         self.failIf(IFileURI.providedBy(u1))
         self.failUnless(IDirnodeURI.providedBy(u1))
         self.failUnlessEqual(u1.get_verify_cap(), None)
+        self.failUnlessEqual(u1.get_storage_index(), None)
+        self.failUnlessEqual(u1.abbrev_si(), "<LIT>")

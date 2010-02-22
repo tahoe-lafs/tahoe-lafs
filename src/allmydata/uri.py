@@ -434,7 +434,10 @@ class _DirectoryBaseURI(_BaseURI):
         return self._filenode_uri.to_string().split(':')[2][:5]
 
     def abbrev_si(self):
-        return base32.b2a(self._filenode_uri.get_storage_index())[:5]
+        si = self._filenode_uri.get_storage_index()
+        if si is None:
+            return "<LIT>"
+        return base32.b2a(si)[:5]
 
     def is_mutable(self):
         return True
