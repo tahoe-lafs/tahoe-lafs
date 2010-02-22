@@ -1210,6 +1210,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             d2.addCallback(lambda ign:
                            self.failUnlessRWChildURIIs(n, u"dirchild",
                                                        caps['dircap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"dirchild-lit",
+                                                       caps['litdircap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"dirchild-empty",
+                                                       caps['emptydircap']))
             return d2
         d.addCallback(_check)
         d.addCallback(lambda res:
@@ -1236,6 +1242,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             d2.addCallback(lambda ign:
                            self.failUnlessROChildURIIs(n, u"dirchild-imm",
                                                        caps['immdircap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"dirchild-lit",
+                                                       caps['litdircap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"dirchild-empty",
+                                                       caps['emptydircap']))
             return d2
         d.addCallback(_check)
         d.addCallback(lambda res:
@@ -1248,6 +1260,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(self.failUnlessROChildURIIs, u"unknownchild-imm", caps['unknown_immcap'])
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessROChildURIIs, u"dirchild-imm", caps['immdircap'])
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessROChildURIIs, u"dirchild-lit", caps['litdircap'])
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessROChildURIIs, u"dirchild-empty", caps['emptydircap'])
         d.addErrback(self.explain_web_error)
         return d
 
@@ -2067,6 +2083,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(self.failUnlessROChildURIIs, u"unknownchild-imm", caps['unknown_immcap'])
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(self.failUnlessROChildURIIs, u"dirchild-imm", caps['immdircap'])
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessROChildURIIs, u"dirchild-lit", caps['litdircap'])
+        d.addCallback(lambda res: self._foo_node.get(u"newdir"))
+        d.addCallback(self.failUnlessROChildURIIs, u"dirchild-empty", caps['emptydircap'])
         return d
 
     def test_POST_mkdir_immutable_bad(self):
@@ -2149,6 +2169,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         unknown_immcap = "imm.lafs://immutable_from_the_future"
         node4 = self.s.create_node_from_uri(make_mutable_file_uri())
         dircap = DirectoryNode(node4, None, None).get_uri()
+        litdircap = "URI:DIR2-LIT:ge3dumj2mewdcotyfqydulbshj5x2lbm"
+        emptydircap = "URI:DIR2-LIT:"
         newkids = {u"child-imm":        ["filenode", {"rw_uri": filecap1,
                                                       "ro_uri": self._make_readonly(filecap1),
                                                       "metadata": md1, }],
@@ -2161,6 +2183,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                    u"unknownchild-imm": ["unknown",  {"ro_uri": unknown_immcap}],
                    u"dirchild":         ["dirnode",  {"rw_uri": dircap,
                                                       "ro_uri": self._make_readonly(dircap)}],
+                   u"dirchild-lit":     ["dirnode",  {"ro_uri": litdircap}],
+                   u"dirchild-empty":   ["dirnode",  {"ro_uri": emptydircap}],
                    }
         return newkids, {'filecap1': filecap1,
                          'filecap2': filecap2,
@@ -2168,7 +2192,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                          'unknown_rwcap': unknown_rwcap,
                          'unknown_rocap': unknown_rocap,
                          'unknown_immcap': unknown_immcap,
-                         'dircap': dircap}
+                         'dircap': dircap,
+                         'litdircap': litdircap,
+                         'emptydircap': emptydircap}
 
     def _create_immutable_children(self):
         contents, n, filecap1 = self.makefile(12)
@@ -2178,14 +2204,20 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         assert not dnode.is_mutable()
         unknown_immcap = "imm.lafs://immutable_from_the_future"
         immdircap = dnode.get_uri()
+        litdircap = "URI:DIR2-LIT:ge3dumj2mewdcotyfqydulbshj5x2lbm"
+        emptydircap = "URI:DIR2-LIT:"
         newkids = {u"child-imm":        ["filenode", {"ro_uri": filecap1,
                                                       "metadata": md1, }],
                    u"unknownchild-imm": ["unknown",  {"ro_uri": unknown_immcap}],
                    u"dirchild-imm":     ["dirnode",  {"ro_uri": immdircap}],
+                   u"dirchild-lit":     ["dirnode",  {"ro_uri": litdircap}],
+                   u"dirchild-empty":   ["dirnode",  {"ro_uri": emptydircap}],
                    }
         return newkids, {'filecap1': filecap1,
                          'unknown_immcap': unknown_immcap,
-                         'immdircap': immdircap}
+                         'immdircap': immdircap,
+                         'litdircap': litdircap,
+                         'emptydircap': emptydircap}
 
     def test_POST_mkdir_no_parentdir_initial_children(self):
         (newkids, caps) = self._create_initial_children()
@@ -2254,6 +2286,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             d2.addCallback(lambda ign:
                            self.failUnlessROChildURIIs(n, u"dirchild-imm",
                                                           caps['immdircap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"dirchild-lit",
+                                                          caps['litdircap']))
+            d2.addCallback(lambda ign:
+                           self.failUnlessROChildURIIs(n, u"dirchild-empty",
+                                                          caps['emptydircap']))
             return d2
         d.addCallback(_after_mkdir)
         return d
