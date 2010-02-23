@@ -145,70 +145,9 @@ library that is frequently installed as /usr/lib/libcryptopp.a, to avoid
 problems with non-alphanumerics in filenames).
 
 The FTP server requires code in Twisted that enables asynchronous closing of
-file-upload operations. This code was not in the Twisted-8.2.0 release, and
-has not been committed to SVN trunk as of r27213 (see
-http://twistedmatrix.com/trac/ticket/3462 for details). So it may be
-necessary to apply the following patch. The Tahoe node will refuse to start
-the FTP server if it detects that this patch has not been applied.
-
-Index: twisted/protocols/ftp.py
-===================================================================
---- twisted/protocols/ftp.py	(revision 24956)
-+++ twisted/protocols/ftp.py	(working copy)
-@@ -1049,7 +1049,6 @@
-                 cons = ASCIIConsumerWrapper(cons)
- 
-             d = self.dtpInstance.registerConsumer(cons)
--            d.addCallbacks(cbSent, ebSent)
- 
-             # Tell them what to doooo
-             if self.dtpInstance.isConnected:
-@@ -1062,6 +1061,8 @@
-         def cbOpened(file):
-             d = file.receive()
-             d.addCallback(cbConsumer)
-+            d.addCallback(lambda ignored: file.close())
-+            d.addCallbacks(cbSent, ebSent)
-             return d
- 
-         def ebOpened(err):
-@@ -1434,7 +1435,14 @@
-         @rtype: C{Deferred} of C{IConsumer}
-         """
- 
-+    def close():
-+        """
-+        Perform any post-write work that needs to be done. This method may
-+        only be invoked once on each provider, and will always be invoked
-+        after receive().
- 
-+        @rtype: C{Deferred} of anything: the value is ignored
-+        """
- 
- def _getgroups(uid):
-     """Return the primary and supplementary groups for the given UID.
-@@ -1795,6 +1803,8 @@
-         # FileConsumer will close the file object
-         return defer.succeed(FileConsumer(self.fObj))
- 
-+    def close(self):
-+        return defer.succeed(None)
- 
- 
- class FTPRealm:
-Index: twisted/vfs/adapters/ftp.py
-===================================================================
---- twisted/vfs/adapters/ftp.py	(revision 24956)
-+++ twisted/vfs/adapters/ftp.py	(working copy)
-@@ -295,6 +295,11 @@
-         """
-         return defer.succeed(IConsumer(self.node))
- 
-+    def close(self):
-+        """
-+        Perform post-write actions.
-+        """
-+        return defer.succeed(None)
- 
- 
- class _FileToConsumerAdapter(object):
+file-upload operations. This code was landed to Twisted's SVN trunk in r28453
+on 23-Feb-2010, slightly too late for the Twisted-10.0 release, but it should
+be present in the next release after that. To use Tahoe's FTP server with
+Twisted-10.0 or earlier, you will need to apply the patch attached to
+http://twistedmatrix.com/trac/ticket/3462 . The Tahoe node will refuse to
+start the FTP server unless it detects the necessary support code in Twisted.
