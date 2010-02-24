@@ -86,7 +86,10 @@ class MoreInfo(rend.Page):
         node = self.original
         if not IDirectoryNode.providedBy(node):
             return ""
-        return ctx.tag[node.get_verify_cap().to_string()]
+        verifier = node.get_verify_cap()
+        if verifier:
+            return ctx.tag[node.get_verify_cap().to_string()]
+        return ""
 
     def render_file_writecap(self, ctx, data):
         node = self.original

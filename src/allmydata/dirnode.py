@@ -356,7 +356,7 @@ class DirectoryNode:
 
     def list(self):
         """I return a Deferred that fires with a dictionary mapping child
-        name to a tuple of (IFileNode or IDirectoryNode, metadata)."""
+        name to a tuple of (IFilesystemNode, metadata)."""
         return self._read()
 
     def has_child(self, name):
@@ -381,7 +381,7 @@ class DirectoryNode:
 
     def get(self, name):
         """I return a Deferred that fires with the named child node,
-        which is either an IFileNode or an IDirectoryNode."""
+        which is an IFilesystemNode."""
         assert isinstance(name, unicode)
         d = self._read()
         d.addCallback(self._get, name)
@@ -389,8 +389,8 @@ class DirectoryNode:
 
     def get_child_and_metadata(self, name):
         """I return a Deferred that fires with the (node, metadata) pair for
-        the named child. The node is either an IFileNode or an
-        IDirectoryNode, and the metadata is a dictionary."""
+        the named child. The node is an IFilesystemNode, and the metadata
+        is a dictionary."""
         assert isinstance(name, unicode)
         d = self._read()
         d.addCallback(self._get_with_metadata, name)
@@ -413,7 +413,7 @@ class DirectoryNode:
         return d
 
     def get_child_at_path(self, path):
-        """Transform a child path into an IDirectoryNode or IFileNode.
+        """Transform a child path into an IFilesystemNode.
 
         I perform a recursive series of 'get' operations to find the named
         descendant node. I return a Deferred that fires with the node, or
@@ -427,7 +427,7 @@ class DirectoryNode:
         return d
 
     def get_child_and_metadata_at_path(self, path):
-        """Transform a child path into an IDirectoryNode or IFileNode and
+        """Transform a child path into an IFilesystemNode and
         a metadata dictionary from the last edge that was traversed.
         """
 
@@ -832,7 +832,7 @@ class DeepChecker:
         root_si = root.get_storage_index()
         self._lp = log.msg(format="deep-check starting (%(si)s),"
                            " verify=%(verify)s, repair=%(repair)s",
-                           si=base32.b2a(root_si), verify=verify, repair=repair)
+                           si=base32.b2a(root_si or ""), verify=verify, repair=repair)
         self._verify = verify
         self._repair = repair
         self._add_lease = add_lease

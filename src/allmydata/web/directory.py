@@ -925,7 +925,7 @@ class ManifestResults(rend.Page, ReloadMixin):
 
         status = { "stats": s["stats"],
                    "finished": m.is_finished(),
-                   "origin": base32.b2a(m.origin_si),
+                   "origin": base32.b2a(m.origin_si or ""),
                    }
         if m.is_finished():
             # don't return manifest/verifycaps/SIs unless the operation is
@@ -946,7 +946,10 @@ class ManifestResults(rend.Page, ReloadMixin):
         return simplejson.dumps(status, indent=1)
 
     def _si_abbrev(self):
-        return base32.b2a(self.monitor.origin_si)[:6]
+        si = self.monitor.origin_si
+        if not si:
+            return "<LIT>"
+        return base32.b2a(si)[:6]
 
     def render_title(self, ctx):
         return T.title["Manifest of SI=%s" % self._si_abbrev()]
@@ -1044,17 +1047,17 @@ class ManifestStreamer(dirnode.DeepStats):
         v = node.get_verify_cap()
         if v:
             v = v.to_string()
-        d["verifycap"] = v
+        d["verifycap"] = v or ""
 
         r = node.get_repair_cap()
         if r:
             r = r.to_string()
-        d["repaircap"] = r
+        d["repaircap"] = r or ""
 
         si = node.get_storage_index()
         if si:
             si = base32.b2a(si)
-        d["storage-index"] = si
+        d["storage-index"] = si or ""
 
         j = simplejson.dumps(d, ensure_ascii=True)
         assert "\n" not in j
@@ -1104,17 +1107,17 @@ class DeepCheckStreamer(dirnode.DeepStats):
         v = node.get_verify_cap()
         if v:
             v = v.to_string()
-        data["verifycap"] = v
+        data["verifycap"] = v or ""
 
         r = node.get_repair_cap()
         if r:
             r = r.to_string()
-        data["repaircap"] = r
+        data["repaircap"] = r or ""
 
         si = node.get_storage_index()
         if si:
             si = base32.b2a(si)
-        data["storage-index"] = si
+        data["storage-index"] = si or ""
 
         if self.repair:
             d = node.check_and_repair(self.monitor, self.verify, self.add_lease)

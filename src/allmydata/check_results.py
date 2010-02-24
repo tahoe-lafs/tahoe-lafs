@@ -99,7 +99,7 @@ class DeepResultsBase:
     def __init__(self, root_storage_index):
         self.root_storage_index = root_storage_index
         if root_storage_index is None:
-            self.root_storage_index_s = "<none>"
+            self.root_storage_index_s = "<none>"  # is this correct?
         else:
             self.root_storage_index_s = base32.b2a(root_storage_index)
 
