@@ -4,15 +4,21 @@ User visible changes in Tahoe-LAFS.  -*- outline -*-
 
 ** Bugfixes
 
-*** Correct handling of Immutable Directories
+*** Correct handling of Small Immutable Directories
 
-Immutable directories can now be deep-checked (in v1.6.0 running deep-check on
-a system which included immutable directories would result in an exception
-which caused the deep-check operation to abort). (#948)
+Immutable directories can now be deep-checked and listed in the web UI in
+all cases. (In v1.6.0, some operations, such as deep-check, on a directory
+graph that included very small immutable directories, would result in an
+exception causing the whole operation to abort.) (#948)
 
 ** Usability Improvements
 
-Improved user interface messages (#681, #837, #939).
+Improved user interface messages and error reporting. (#681, #837, #939)
+
+The timeouts for operation handles have been greatly increased, so that
+you can view the results of an operation up to 4 days after it has
+completed. After viewing them for the first time, the results are
+retained for a further day. (#577)
 
 * Release 1.6.0 (2010-02-01)
 
