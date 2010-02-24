@@ -296,9 +296,10 @@ class CLI(unittest.TestCase):
         self.failUnlessEqual(ga1("c:file"), ("CA", "file"))
         self.failUnlessEqual(ga1("c:dir/file"), ("CA", "dir/file"))
         self.failUnlessEqual(ga1("URI:stuff"), ("URI:stuff", ""))
+        self.failUnlessEqual(ga1("URI:stuff/file"), ("URI:stuff", "file"))
         self.failUnlessEqual(ga1("URI:stuff:./file"), ("URI:stuff", "file"))
-        self.failUnlessEqual(ga1("URI:stuff:./dir/file"),
-                             ("URI:stuff", "dir/file"))
+        self.failUnlessEqual(ga1("URI:stuff/dir/file"), ("URI:stuff", "dir/file"))
+        self.failUnlessEqual(ga1("URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
         self.failUnlessRaises(common.UnknownAliasError, ga1, "missing:")
         self.failUnlessRaises(common.UnknownAliasError, ga1, "missing:dir")
         self.failUnlessRaises(common.UnknownAliasError, ga1, "missing:dir/file")
@@ -330,7 +331,9 @@ class CLI(unittest.TestCase):
         self.failUnlessEqual(ga2("work:file"), ("WA", "file"))
         self.failUnlessEqual(ga2("work:dir/file"), ("WA", "dir/file"))
         self.failUnlessEqual(ga2("URI:stuff"), ("URI:stuff", ""))
+        self.failUnlessEqual(ga2("URI:stuff/file"), ("URI:stuff", "file"))
         self.failUnlessEqual(ga2("URI:stuff:./file"), ("URI:stuff", "file"))
+        self.failUnlessEqual(ga2("URI:stuff/dir/file"), ("URI:stuff", "dir/file"))
         self.failUnlessEqual(ga2("URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
         self.failUnlessRaises(common.UnknownAliasError, ga2, "missing:")
         self.failUnlessRaises(common.UnknownAliasError, ga2, "missing:dir")
@@ -907,6 +910,12 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
                           "trailing hyphen means unknown date")
         d.addCallback(lambda ign: self.do_cli("ls", "-l", "good"))
         d.addCallback(_check4)
+        # listing a file as $DIRCAP/filename should work just like dir/filename
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + "/good"))
+        d.addCallback(_check4)
+        # and similarly for $DIRCAP:./filename
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + ":./good"))
+        d.addCallback(_check4)
         def _check5((rc, out, err)):
             # listing a raw filecap should not explode, but it will have no
             # metadata, just the size
@@ -914,6 +923,31 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual("-r-- %d -" % len(small), out.strip())
         d.addCallback(lambda ign: self.do_cli("ls", "-l", self.goodcap))
         d.addCallback(_check5)
+        unknown_immcap = "imm.URI:unknown"
+        def _create_unknown(ign):
+            nm = c0.nodemaker
+            kids = {u"unknownchild-imm": (nm.create_from_cap(unknown_immcap), {})}
+            return self.rootnode.create_subdirectory(u"unknown", initial_children=kids,
+                                                     mutable=False)
+        d.addCallback(_create_unknown)
+        def _check6((rc, out, err)):
+            # listing a directory referencing an unknown object should print
+            # an extra message to stderr
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessIn("?r-- ? - unknownchild-imm\n", out)
+            self.failUnlessIn("included unknown objects", err)
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", "unknown"))
+        d.addCallback(_check6)
+        def _check7((rc, out, err)):
+            # listing an unknown cap directly should print an extra message
+            # to stderr (currently this only works if the URI starts with 'URI:'
+            # after any 'ro.' or 'imm.' prefix, otherwise it will be confused
+            # with an alias).
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessIn("?r-- ? -\n", out)
+            self.failUnlessIn("included unknown objects", err)
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", unknown_immcap))
+        d.addCallback(_check7)
         return d
 
     def test_list_without_alias(self):
