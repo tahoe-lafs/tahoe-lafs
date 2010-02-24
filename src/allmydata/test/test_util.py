@@ -855,6 +855,32 @@ class TimeFormat(unittest.TestCase):
         self.failUnlessEqual(thatmomentinmarch, 1237585742.226536)
         self.failUnlessEqual(origtzname, time.tzname)
 
+    def test_iso_utc(self):
+        when = 1266760143.7841301
+        out = time_format.iso_utc_date(when)
+        self.failUnlessEqual(out, "2010-02-21")
+        out = time_format.iso_utc_date(t=lambda: when)
+        self.failUnlessEqual(out, "2010-02-21")
+        out = time_format.iso_utc(when)
+        self.failUnlessEqual(out, "2010-02-21_13:49:03.784130")
+        out = time_format.iso_utc(when, sep="-")
+        self.failUnlessEqual(out, "2010-02-21-13:49:03.784130")
+
+    def test_parse_duration(self):
+        p = time_format.parse_duration
+        DAY = 24*60*60
+        self.failUnlessEqual(p("1 day"), DAY)
+        self.failUnlessEqual(p("2 days"), 2*DAY)
+        self.failUnlessEqual(p("3 months"), 3*31*DAY)
+        self.failUnlessEqual(p("4 mo"), 4*31*DAY)
+        self.failUnlessEqual(p("5 years"), 5*365*DAY)
+        e = self.failUnlessRaises(ValueError, p, "123")
+        self.failUnlessIn("no unit (like day, month, or year) in '123'",
+                          str(e))
+
+    def test_parse_date(self):
+        self.failUnlessEqual(time_format.parse_date("2010-02-21"), 1266710400)
+
 class CacheDir(unittest.TestCase):
     def test_basic(self):
         basedir = "test_util/CacheDir/test_basic"
