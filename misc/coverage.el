@@ -45,7 +45,7 @@
 
 (defun coverage-annotate (show-code)
   (let ((allcoverage (load-coverage-annotations))
-        (filename-key buffer-file-truename)
+        (filename-key (expand-file-name buffer-file-truename))
         thiscoverage code-lines covered-lines uncovered-code-lines
         )
     (while (and (not (gethash filename-key allcoverage nil))
