@@ -97,7 +97,9 @@ class ListOptions(VDriveOptions):
     If 'd' is present, it indicates that the object is a directory.
     If the 'd' is replaced by a '?', the object type is unknown.
     'rwx' is a Unix-like permissions mask: if the mask includes 'w',
-    then the object is writable through its link in this directory.
+    then the object is writeable through its link in this directory
+    (note that the link might be replaceable even if the object is
+    not writeable through the current link).
     The 'x' is a legacy of Unix filesystems. In Tahoe it is used
     only to indicate that the contents of a directory can be listed.
 
