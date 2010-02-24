@@ -1,5 +1,19 @@
 User visible changes in Tahoe-LAFS.  -*- outline -*-
 
+* Release 1.6.1 (2010-02-27)
+
+** Bugfixes
+
+*** Correct handling of Immutable Directories
+
+Immutable directories can now be deep-checked (in v1.6.0 running deep-check on
+a system which included immutable directories would result in an exception
+which caused the deep-check operation to abort). (#948)
+
+** Usability Improvements
+
+Improved user interface messages (#681, #837, #939).
+
 * Release 1.6.0 (2010-02-01)
 
 ** New Features

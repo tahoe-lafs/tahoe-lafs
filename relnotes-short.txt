@@ -1,7 +1,7 @@
-ANNOUNCING v1.6 of Tahoe-LAFS
+ANNOUNCING v1.6.1 of Tahoe-LAFS
 
 We are pleased to announce the immediate availability of
-version 1.6 of Tahoe-LAFS, an extremely reliable distributed
+version 1.6.1 of Tahoe-LAFS, an extremely reliable distributed
 data store.
 
 Tahoe-LAFS is the first cloud storage system which offers
@@ -12,25 +12,26 @@ security and fault-tolerance properties:
 
 http://allmydata.org/source/tahoe/trunk/docs/about.html
 
-Tahoe-LAFS v1.6.0 is the successor to v1.5.0, which was
-released August 1, 2009. This release includes major
-performance improvements, usability improvements, and one major
-new feature: deep-immutable directories (cryptographically
-unalterable permanent snapshots). See the release notes for
-details.
+Tahoe-LAFS v1.6.1 is the successor to v1.6.0, which was
+released February 2, 2010. This is a bugfix release which
+fixes a few small regressions in v1.6.0.
+
+The v1.6 release includes major performance improvements,
+usability improvements, and one major new feature:
+deep-immutable directories (cryptographically unalterable
+permanent snapshots). See the release notes for details.
 
 http://allmydata.org/source/tahoe/trunk/relnotes.txt
 
 In addition to the core storage system itself, volunteers have
 developed related projects to integrate it with other
-tools. These include frontends for Windows, Macintosh,
-JavaScript, and iPhone, and plugins for Hadoop, bzr, duplicity,
-TiddlyWiki, and more. As of this release, contributors have
-added an Android frontend and a working read-only FUSE
+tools. These include plugins for Hadoop, bzr, duplicity,
+TiddlyWiki, and much more. As of this release, contributors
+have added an Android frontend and a working read-only FUSE
 frontend. See the Related Projects page on the wiki:
 
 http://allmydata.org/trac/tahoe/wiki/RelatedProjects
 
-We believe that erasure coding, strong encryption, Free/Open
-Source Software and careful engineering make Tahoe-LAFS safer
-than other storage technologies.
+We believe that strong encryption, Free/Open Source Software,
+erasure coding, and careful engineering practices make
+Tahoe-LAFS safer than other storage technologies.
