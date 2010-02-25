@@ -113,6 +113,8 @@ class FakeCHKFileNode:
         pass
 
     def get_size(self):
+        if isinstance(self.my_uri, uri.LiteralFileURI):
+            return self.my_uri.get_size()
         try:
             data = self.all_contents[self.my_uri.to_string()]
         except KeyError, le:
@@ -131,9 +133,12 @@ class FakeCHKFileNode:
         return d
 
     def _read(self, ignored, consumer, offset, size):
-        if self.my_uri.to_string() not in self.all_contents:
-            raise NotEnoughSharesError(None, 0, 3)
-        data = self.all_contents[self.my_uri.to_string()]
+        if isinstance(self.my_uri, uri.LiteralFileURI):
+            data = self.my_uri.data
+        else:
+            if self.my_uri.to_string() not in self.all_contents:
+                raise NotEnoughSharesError(None, 0, 3)
+            data = self.all_contents[self.my_uri.to_string()]
         start = offset
         if size is not None:
             end = offset + size
@@ -288,9 +293,12 @@ class FakeMutableFileNode:
         return d
 
     def download_best_version(self):
+        if isinstance(self.my_uri, uri.LiteralFileURI):
+            return defer.succeed(self.my_uri.data)
         if self.storage_index not in self.all_contents:
             return defer.fail(NotEnoughSharesError(None, 0, 3))
         return defer.succeed(self.all_contents[self.storage_index])
+
     def overwrite(self, new_contents):
         if len(new_contents) > self.MUTABLE_SIZELIMIT:
             raise FileTooLargeError("SDMF is limited to one segment, and "
@@ -464,7 +472,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             if self.stats_gatherer_furl:
                 write("stats_gatherer.furl", self.stats_gatherer_furl)
 
-        # give subclasses a chance to append liens to the node's tahoe.cfg
+        # give subclasses a chance to append lines to the node's tahoe.cfg
         # files before they are launched.
         self._set_up_nodes_extra_config()
 

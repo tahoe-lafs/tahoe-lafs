@@ -994,6 +994,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
             self.failUnless(MKDIR_BUTTON_RE.search(res), res)
         d.addCallback(_check4)
 
+        # and at a literal directory
+        tiny_litdir_uri = "URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm" # contains one child which is itself also LIT
+        d.addCallback(lambda res:
+                      self.GET("/uri/" + tiny_litdir_uri + "/", followRedirect=True))
+        def _check5(res):
+            self.failUnless('(immutable)' in res, res)
+            self.failUnless(re.search('<td>FILE</td>'
+                                      r'\s+<td><a href="[\.\/]+/file/URI%3ALIT%3Akrugkidfnzsc4/@@named=/short">short</a></td>', res), res)
+        d.addCallback(_check5)
         return d
 
     def test_GET_DIRURL_badtype(self):
