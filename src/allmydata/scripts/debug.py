@@ -771,7 +771,8 @@ class ConsolidateOptions(VDriveOptions):
         self.where = where
 
 def consolidate(options):
-    from consolidate import main; return main(options)
+    from allmydata.scripts.consolidate import main
+    return main(options)
 
 
 class DebugCommand(usage.Options):

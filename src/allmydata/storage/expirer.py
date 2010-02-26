@@ -1,7 +1,7 @@
 import time, os, pickle, struct
-from crawler import ShareCrawler
-from shares import get_share_file
-from common import UnknownMutableContainerVersionError, \
+from allmydata.storage.crawler import ShareCrawler
+from allmydata.storage.shares import get_share_file
+from allmydata.storage.common import UnknownMutableContainerVersionError, \
      UnknownImmutableContainerVersionError
 from twisted.python import log as twlog
 

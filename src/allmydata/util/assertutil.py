@@ -2,7 +2,7 @@
 Tests useful in assertion checking, prints out nicely formated messages too.
 """
 
-from humanreadable import hr
+from allmydata.util.humanreadable import hr
 
 def _assert(___cond=False, *___args, **___kwargs):
     if ___cond:

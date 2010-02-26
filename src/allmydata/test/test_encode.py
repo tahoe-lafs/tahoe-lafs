@@ -11,7 +11,7 @@ from allmydata.util.consumer import MemoryConsumer
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      NotEnoughSharesError, IStorageBroker, UploadUnhappinessError
 from allmydata.monitor import Monitor
-import common_util as testutil
+import allmydata.test.common_util as testutil
 
 class LostPeerError(Exception):
     pass

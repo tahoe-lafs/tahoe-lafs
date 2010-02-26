@@ -1,4 +1,4 @@
-import dictutil
+from allmydata.util import dictutil
 
 class NummedObj(object):
     """

@@ -8,7 +8,7 @@ from allmydata.util.consumer import download_to_data
 from twisted.internet import defer
 from twisted.trial import unittest
 import random
-from no_network import GridTestMixin
+from allmydata.test.no_network import GridTestMixin
 
 # We'll allow you to pass this test even if you trigger eighteen times as
 # many disk reads and block fetches as would be optimal.

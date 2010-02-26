@@ -12,8 +12,8 @@ from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
 from pycryptopp.publickey import rsa
 
-from common import DictOfSets, CorruptShareError, UncoordinatedWriteError
-from layout import SIGNED_PREFIX, unpack_share_data
+from allmydata.mutable.common import DictOfSets, CorruptShareError, UncoordinatedWriteError
+from allmydata.mutable.layout import SIGNED_PREFIX, unpack_share_data
 
 class RetrieveStatus:
     implements(IRetrieveStatus)

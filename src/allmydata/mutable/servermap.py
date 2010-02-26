@@ -10,9 +10,9 @@ from allmydata.storage.server import si_b2a
 from allmydata.interfaces import IServermapUpdaterStatus
 from pycryptopp.publickey import rsa
 
-from common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
+from allmydata.mutable.common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
      DictOfSets, CorruptShareError, NeedMoreDataError
-from layout import unpack_prefix_and_signature, unpack_header, unpack_share, \
+from allmydata.mutable.layout import unpack_prefix_and_signature, unpack_header, unpack_share, \
      SIGNED_PREFIX_LENGTH
 
 class UpdateStatus:

@@ -1,6 +1,6 @@
 
 import struct
-from common import NeedMoreDataError, UnknownVersionError
+from allmydata.mutable.common import NeedMoreDataError, UnknownVersionError
 
 PREFIX = ">BQ32s16s" # each version has a different prefix
 SIGNED_PREFIX = ">BQ32s16s BBQQ" # this is covered by the signature

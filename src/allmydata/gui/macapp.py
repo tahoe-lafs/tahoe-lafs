@@ -18,8 +18,7 @@ import allmydata
 from allmydata import client
 from allmydata.gui.confwiz import ConfWizApp, ACCOUNT_PAGE, DEFAULT_SERVER_URL
 from allmydata.scripts.common import get_aliases
-import amdicon
-import amdlogo
+from allmydata.gui import amdicon, amdlogo
 
 DEFAULT_FUSE_TIMEOUT = 300
 

@@ -12,10 +12,10 @@ from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
 from foolscap.api import eventually, fireEventually
 
-from common import MODE_WRITE, MODE_CHECK, DictOfSets, \
+from allmydata.mutable.common import MODE_WRITE, MODE_CHECK, DictOfSets, \
      UncoordinatedWriteError, NotEnoughServersError
-from servermap import ServerMap
-from layout import pack_prefix, pack_share, unpack_header, pack_checkstring, \
+from allmydata.mutable.servermap import ServerMap
+from allmydata.mutable.layout import pack_prefix, pack_share, unpack_header, pack_checkstring, \
      unpack_checkstring, SIGNED_PREFIX
 
 class PublishStatus:

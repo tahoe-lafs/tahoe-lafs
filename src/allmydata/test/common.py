@@ -21,7 +21,7 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
 from allmydata.stats import StatsGathererService
 from allmydata.key_generator import KeyGeneratorService
-import common_util as testutil
+import allmydata.test.common_util as testutil
 from allmydata import immutable
 
 

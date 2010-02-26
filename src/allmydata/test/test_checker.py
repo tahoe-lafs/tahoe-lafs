@@ -7,7 +7,7 @@ from allmydata.storage_client import StorageFarmBroker, NativeStorageClientDescr
 from allmydata.monitor import Monitor
 from allmydata.test.no_network import GridTestMixin
 from allmydata.immutable.upload import Data
-from common_web import WebRenderingMixin
+from allmydata.test.common_web import WebRenderingMixin
 
 class FakeClient:
     def get_storage_broker(self):

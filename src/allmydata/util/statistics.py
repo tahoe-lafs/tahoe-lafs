@@ -6,7 +6,7 @@
 # Transitive Grace Period Public License, version 1 or later.
 
 from __future__ import division
-from mathutil import round_sigfigs
+from allmydata.util.mathutil import round_sigfigs
 import math
 import sys
 

@@ -265,7 +265,7 @@ class Handler:
         d.addCallback(_got_parent)
         return d
 
-from auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
+from allmydata.frontends.auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
 
 
 class Dispatcher:

@@ -13,8 +13,6 @@ from allmydata.immutable import upload, encode
 from allmydata.interfaces import FileTooLargeError, UploadUnhappinessError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
-from allmydata.util.happinessutil import servers_of_happiness, \
-                                         shares_by_server, merge_peers
 from no_network import GridTestMixin
 from common_util import ShouldFailMixin
 from allmydata.storage_client import StorageFarmBroker

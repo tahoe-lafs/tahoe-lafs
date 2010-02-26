@@ -8,7 +8,7 @@ from foolscap.api import flushEventualQueue
 from twisted.application import service
 from allmydata.node import Node, formatTimeTahoeStyle
 from allmydata.util import fileutil
-import common_util as testutil
+import allmydata.test.common_util as testutil
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):

@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from twisted.application import service
 from allmydata.stats import CPUUsageMonitor
 from allmydata.util import pollmixin
-import common_util as testutil
+import allmydata.test.common_util as testutil
 
 class FasterMonitor(CPUUsageMonitor):
     POLL_INTERVAL = 0.1

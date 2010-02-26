@@ -9,8 +9,7 @@ from twisted.internet.utils import getProcessOutput
 from twisted.python.procutils import which
 from twisted.python import log
 
-# from allmydata.util
-import observer
+from allmydata.util import observer
 
 try:
     import resource

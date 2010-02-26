@@ -5,7 +5,7 @@ Tools to mess with dicts.
 import copy, operator
 from bisect import bisect_left, insort_left
 
-from assertutil import _assert, precondition
+from allmydata.util.assertutil import _assert, precondition
 
 def move(k, d1, d2, strict=False):
     """

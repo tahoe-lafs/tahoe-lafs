@@ -7,7 +7,7 @@ import allmydata
 import simplejson
 from allmydata import get_package_versions_string
 from allmydata.util import idlib
-from common import getxmlfile, get_arg
+from allmydata.web.common import getxmlfile, get_arg
 
 class IntroducerRoot(rend.Page):
 

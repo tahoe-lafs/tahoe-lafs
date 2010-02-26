@@ -8,7 +8,7 @@ from twisted.python import usage
 
 pkg_resources.require('allmydata-tahoe')
 from allmydata.scripts.common import BaseOptions
-import debug, create_node, startstop_node, cli, keygen, stats_gatherer
+from allmydata.scripts import debug, create_node, startstop_node, cli, keygen, stats_gatherer
 
 def GROUP(s):
     # Usage.parseOptions compares argv[1] against command[0], so it will

@@ -39,7 +39,7 @@ finally:
 
 __version__ = "unknown"
 try:
-    from _version import __version__
+    from allmydata._version import __version__
 except ImportError:
     # We're running in a tree that hasn't run "./setup.py darcsver", and didn't
     # come with a _version.py, so we don't know what our version is. This should
@@ -48,7 +48,7 @@ except ImportError:
 
 __appname__ = "unknown"
 try:
-    from _appname import __appname__
+    from allmydata._appname import __appname__
 except ImportError:
     # We're running in a tree that hasn't run "./setup.py".  This shouldn't happen.
     pass
@@ -58,7 +58,7 @@ except ImportError:
 # http://allmydata.org/trac/tahoe/wiki/Versioning
 __full_version__ = __appname__ + '/' + str(__version__)
 
-import _auto_deps
+from allmydata import _auto_deps
 _auto_deps.require_auto_deps()
 
 import os, platform, re, subprocess, sys

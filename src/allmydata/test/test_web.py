@@ -24,7 +24,7 @@ from allmydata.test.common import FakeCHKFileNode, FakeMutableFileNode, \
      create_chk_filenode, WebErrorMixin, ShouldFailMixin, make_mutable_file_uri
 from allmydata.interfaces import IMutableFileNode
 from allmydata.mutable import servermap, publish, retrieve
-import common_util as testutil
+import allmydata.test.common_util as testutil
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_web import HTTPClientGETFactory, \
      HTTPClientHEADFactory

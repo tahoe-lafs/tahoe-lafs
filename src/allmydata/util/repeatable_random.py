@@ -35,7 +35,7 @@ def force_repeatability():
     time.faketime = faketime
     time.time = faketime
 
-    from idlib import i2b
+    from allmydata.util.idlib import i2b
     def fakeurandom(n):
         if n > 20:
             z = i2b(random.getrandbits(20*8))

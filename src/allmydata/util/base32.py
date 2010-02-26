@@ -1,7 +1,7 @@
 # from the Python Standard Library
 import string
 
-from assertutil import precondition
+from allmydata.util.assertutil import precondition
 
 z_base_32_alphabet = "ybndrfg8ejkmcpqxot1uwisza345h769" # Zooko's choice, rationale in "DESIGN" doc
 rfc3548_alphabet = "abcdefghijklmnopqrstuvwxyz234567" # RFC3548 standard used by Gnutella, Content-Addressable Web, THEX, Bitzi, Web-Calculus...

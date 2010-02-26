@@ -12,7 +12,7 @@ from allmydata.util import base32, fileutil
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
-import common_util as testutil
+import allmydata.test.common_util as testutil
 
 class FakeIntroducerClient(IntroducerClient):
     def __init__(self):

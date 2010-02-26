@@ -22,7 +22,7 @@ from allmydata.test.no_network import GridTestMixin
 from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
-import common_util as testutil
+import allmydata.test.common_util as testutil
 
 class MemAccum:
     implements(IConsumer)

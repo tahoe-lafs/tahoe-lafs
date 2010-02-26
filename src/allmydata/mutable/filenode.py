@@ -12,13 +12,13 @@ from allmydata.uri import WriteableSSKFileURI, ReadonlySSKFileURI
 from allmydata.monitor import Monitor
 from pycryptopp.cipher.aes import AES
 
-from publish import Publish
-from common import MODE_READ, MODE_WRITE, UnrecoverableFileError, \
+from allmydata.mutable.publish import Publish
+from allmydata.mutable.common import MODE_READ, MODE_WRITE, UnrecoverableFileError, \
      ResponseCache, UncoordinatedWriteError
-from servermap import ServerMap, ServermapUpdater
-from retrieve import Retrieve
-from checker import MutableChecker, MutableCheckAndRepairer
-from repairer import Repairer
+from allmydata.mutable.servermap import ServerMap, ServermapUpdater
+from allmydata.mutable.retrieve import Retrieve
+from allmydata.mutable.checker import MutableChecker, MutableCheckAndRepairer
+from allmydata.mutable.repairer import Repairer
 
 
 class BackoffAgent:

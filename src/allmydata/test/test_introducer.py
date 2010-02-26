@@ -14,7 +14,7 @@ from allmydata.introducer.server import IntroducerService
 # test compatibility with old introducer .tac files
 from allmydata.introducer import IntroducerNode
 from allmydata.util import pollmixin
-import common_util as testutil
+import allmydata.test.common_util as testutil
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):

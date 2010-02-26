@@ -28,7 +28,7 @@ from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from allmydata.mutable.layout import unpack_header, unpack_share
 from allmydata.mutable.repairer import MustForceRepairError
 
-import common_util as testutil
+import allmydata.test.common_util as testutil
 
 # this "FakeStorage" exists to put the share data in RAM and avoid using real
 # network connections, both to speed up the tests and to reduce the amount of

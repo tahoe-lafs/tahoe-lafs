@@ -6,9 +6,9 @@ from allmydata.uri import from_string
 from allmydata.util import hashutil, base32, idlib, log
 from allmydata.check_results import CheckAndRepairResults, CheckResults
 
-from common import MODE_CHECK, CorruptShareError
-from servermap import ServerMap, ServermapUpdater
-from layout import unpack_share, SIGNED_PREFIX_LENGTH
+from allmydata.mutable.common import MODE_CHECK, CorruptShareError
+from allmydata.mutable.servermap import ServerMap, ServermapUpdater
+from allmydata.mutable.layout import unpack_share, SIGNED_PREFIX_LENGTH
 
 class MutableChecker:
 

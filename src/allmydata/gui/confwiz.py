@@ -24,9 +24,7 @@ from allmydata.util.assertutil import precondition
 from allmydata.util import hashutil, base32
 from allmydata import uri
 import allmydata
-
-#import amdicon
-import amdlogo
+from allmydata.gui import amdlogo
 
 from foolscap.api import Tub
 from twisted.python import usage

@@ -402,7 +402,7 @@ class SFTPHandler:
 # then you get SFTPHandler(user)
 components.registerAdapter(SFTPHandler, SFTPUser, ISFTPServer)
 
-from auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
+from allmydata.frontends.auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
 
 class Dispatcher:
     implements(portal.IRealm)
