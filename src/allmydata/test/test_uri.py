@@ -231,14 +231,14 @@ class Unknown(unittest.TestCase):
 
 class Constraint(unittest.TestCase):
     def test_constraint(self):
-       good="http://127.0.0.1:3456/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
-       uri.DirectoryURI.init_from_human_encoding(good)
-       self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, good)
-       bad = good + '==='
-       self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_human_encoding, bad)
-       self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, bad)
-       fileURI = 'URI:CHK:gh3l5rbvnv2333mrfvalmjfr4i:lz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma:3:10:345834'
-       uri.CHKFileURI.init_from_string(fileURI)
+        good="http://127.0.0.1:3456/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
+        uri.DirectoryURI.init_from_human_encoding(good)
+        self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, good)
+        bad = good + '==='
+        self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_human_encoding, bad)
+        self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, bad)
+        fileURI = 'URI:CHK:gh3l5rbvnv2333mrfvalmjfr4i:lz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma:3:10:345834'
+        uri.CHKFileURI.init_from_string(fileURI)
 
 class Mutable(unittest.TestCase):
     def test_pack(self):

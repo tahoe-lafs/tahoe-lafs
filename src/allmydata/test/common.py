@@ -79,16 +79,16 @@ class FakeCHKFileNode:
         data["count-recoverable-versions"] = 1
         data["count-unrecoverable-versions"] = 0
         if is_bad:
-             r.set_healthy(False)
-             r.set_recoverable(True)
-             data["count-shares-good"] = 9
-             data["list-corrupt-shares"] = [(nodeid, self.storage_index, 0)]
-             r.problems = failure.Failure(CorruptShareError(is_bad))
+            r.set_healthy(False)
+            r.set_recoverable(True)
+            data["count-shares-good"] = 9
+            data["list-corrupt-shares"] = [(nodeid, self.storage_index, 0)]
+            r.problems = failure.Failure(CorruptShareError(is_bad))
         else:
-             r.set_healthy(True)
-             r.set_recoverable(True)
-             data["count-shares-good"] = 10
-             r.problems = []
+            r.set_healthy(True)
+            r.set_recoverable(True)
+            data["count-shares-good"] = 10
+            r.problems = []
         r.set_data(data)
         r.set_needs_rebalancing(False)
         return defer.succeed(r)
@@ -250,17 +250,17 @@ class FakeMutableFileNode:
         data["count-recoverable-versions"] = 1
         data["count-unrecoverable-versions"] = 0
         if is_bad:
-             r.set_healthy(False)
-             r.set_recoverable(True)
-             data["count-shares-good"] = 9
-             r.problems = failure.Failure(CorruptShareError("peerid",
-                                                            0, # shnum
-                                                            is_bad))
+            r.set_healthy(False)
+            r.set_recoverable(True)
+            data["count-shares-good"] = 9
+            r.problems = failure.Failure(CorruptShareError("peerid",
+                                                           0, # shnum
+                                                           is_bad))
         else:
-             r.set_healthy(True)
-             r.set_recoverable(True)
-             data["count-shares-good"] = 10
-             r.problems = []
+            r.set_healthy(True)
+            r.set_recoverable(True)
+            data["count-shares-good"] = 10
+            r.problems = []
         r.set_data(data)
         r.set_needs_rebalancing(False)
         return defer.succeed(r)

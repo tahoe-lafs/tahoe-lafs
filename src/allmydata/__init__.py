@@ -119,7 +119,7 @@ def get_linux_distro():
                 if _distname and _version:
                     return (_distname, _version)
     except EnvironmentError:
-            pass
+        pass
 
     (_distname, _version) = platform.dist()[:2]
     if _distname and _version:

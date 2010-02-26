@@ -51,19 +51,19 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
                 self._copy_share((i_shnum, i_sharefile), to_server)
 
     def _copy_share(self, share, to_server):
-         (sharenum, sharefile) = share
-         (id, ss) = to_server
-         shares_dir = os.path.join(ss.original.storedir, "shares")
-         si = uri.from_string(self.uri).get_storage_index()
-         si_dir = os.path.join(shares_dir, storage_index_to_dir(si))
-         if not os.path.exists(si_dir):
-             os.makedirs(si_dir)
-         new_sharefile = os.path.join(si_dir, str(sharenum))
-         shutil.copy(sharefile, new_sharefile)
-         self.shares = self.find_shares(self.uri)
-         # Make sure that the storage server has the share.
-         self.failUnless((sharenum, ss.original.my_nodeid, new_sharefile)
-                         in self.shares)
+        (sharenum, sharefile) = share
+        (id, ss) = to_server
+        shares_dir = os.path.join(ss.original.storedir, "shares")
+        si = uri.from_string(self.uri).get_storage_index()
+        si_dir = os.path.join(shares_dir, storage_index_to_dir(si))
+        if not os.path.exists(si_dir):
+            os.makedirs(si_dir)
+        new_sharefile = os.path.join(si_dir, str(sharenum))
+        shutil.copy(sharefile, new_sharefile)
+        self.shares = self.find_shares(self.uri)
+        # Make sure that the storage server has the share.
+        self.failUnless((sharenum, ss.original.my_nodeid, new_sharefile)
+                        in self.shares)
 
     def _corrupt_share(self, share, corruptor_func):
         (sharenum, sharefile) = share
