@@ -923,9 +923,13 @@ class ManifestResults(rend.Page, ReloadMixin):
         m = self.monitor
         s = m.get_status()
 
+        if m.origin_si:
+            origin_base32 = base32.b2a(m.origin_si)
+        else:
+            origin_base32 = ""
         status = { "stats": s["stats"],
                    "finished": m.is_finished(),
-                   "origin": base32.b2a(m.origin_si or ""),
+                   "origin": origin_base32,
                    }
         if m.is_finished():
             # don't return manifest/verifycaps/SIs unless the operation is

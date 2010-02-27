@@ -830,9 +830,13 @@ class ManifestWalker(DeepStats):
 class DeepChecker:
     def __init__(self, root, verify, repair, add_lease):
         root_si = root.get_storage_index()
+        if root_si:
+            root_si_base32 = base32.b2a(root_si)
+        else:
+            root_si_base32 = ""
         self._lp = log.msg(format="deep-check starting (%(si)s),"
                            " verify=%(verify)s, repair=%(repair)s",
-                           si=base32.b2a(root_si or ""), verify=verify, repair=repair)
+                           si=root_si_base32, verify=verify, repair=repair)
         self._verify = verify
         self._repair = repair
         self._add_lease = add_lease
