@@ -51,7 +51,7 @@ notes: When asked to read an arbitrary range of an immutable file,
 === Downloading B bytes of an A-byte mutable file ===
 
 network: A
-memory footprint: N/k*A
+memory footprint: A
 
 notes: As currently implemented, mutable files must be downloaded in
        their entirety before any part of them can be read. We are
