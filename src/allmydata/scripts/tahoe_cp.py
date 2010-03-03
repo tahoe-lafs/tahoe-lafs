@@ -212,7 +212,7 @@ class TahoeFileTarget:
         PUT(self.url, inf)
         # TODO: this always creates immutable files. We might want an option
         # to always create mutable files, or to copy mutable files into new
-        # mutable files.
+        # mutable files. ticket #835
 
 class TahoeDirectorySource:
     def __init__(self, nodeurl, cache, progressfunc):

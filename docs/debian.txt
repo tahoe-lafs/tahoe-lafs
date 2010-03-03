@@ -1,7 +1,7 @@
 
 = Debian Support =
 
-One convenient way to deploy a Tahoe grid is via debian packages.
+One convenient way to install Tahoe-LAFS is with debian packages.
 
 == Building Debian Packages ==
 
