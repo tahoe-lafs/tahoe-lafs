@@ -43,19 +43,34 @@ Now we're ready to build and install the zfec Debian package:
     dpkg-buildpackage -rfakeroot -uc -us
     sudo dpkg -i ../python-zfec_1.4.6-r333-1_amd64.deb
 
+We need to build a pyutil package:
+
+    wget http://pypi.python.org/packages/source/p/pyutil/pyutil-1.6.1.tar.gz
+    tar -xvzf pyutil-1.6.1.tar.gz 
+    cd pyutil-1.6.1/
+    python setup.py --command-packages=stdeb.command sdist_dsc
+    cd deb_dist/pyutil-1.6.1/
+    dpkg-buildpackage -rfakeroot -uc -us
+    sudo dpkg -i ../python-pyutil_1.6.1-1_all.deb
+
+We also need to install argparse and zbase32:
+
+    easy_install argparse
+    easy_install zbase32
+
 Finally, we'll fetch, unpack, build and install foolscap:
 
-   # You may not already have Brian's key:
-   # gpg --recv-key 0x1514A7BD
-   wget http://foolscap.lothar.com/releases/foolscap-0.5.0.tar.gz.asc
-   wget http://foolscap.lothar.com/releases/foolscap-0.5.0.tar.gz
-   gpg --verify foolscap-0.5.0.tar.gz.asc
-   tar -xvzf foolscap-0.5.0.tar.gz 
-   cd foolscap-0.5.0/
-   python setup.py --command-packages=stdeb.command sdist_dsc
-   cd deb_dist/foolscap-0.5.0/
-   dpkg-buildpackage -rfakeroot -uc -us
-   sudo dpkg -i ../python-foolscap_0.5.0-1_all.deb 
+    # You may not already have Brian's key:
+    # gpg --recv-key 0x1514A7BD
+    wget http://foolscap.lothar.com/releases/foolscap-0.5.0.tar.gz.asc
+    wget http://foolscap.lothar.com/releases/foolscap-0.5.0.tar.gz
+    gpg --verify foolscap-0.5.0.tar.gz.asc
+    tar -xvzf foolscap-0.5.0.tar.gz 
+    cd foolscap-0.5.0/
+    python setup.py --command-packages=stdeb.command sdist_dsc
+    cd deb_dist/foolscap-0.5.0/
+    dpkg-buildpackage -rfakeroot -uc -us
+    sudo dpkg -i ../python-foolscap_0.5.0-1_all.deb 
 
 == TL;DR package building instructions for Tahoe ==
 
