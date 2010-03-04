@@ -3,6 +3,69 @@
 
 One convenient way to install Tahoe-LAFS is with debian packages.
 
+== TL;DR supporting package building instructions ==
+
+There are only two supporting packages that are currently not available from
+the debian apt repositories in Debian Lenny: python-foolscap python-zfec
+
+First, we'll install some common packages for development:
+
+    apt-get install -y build-essential debhelper cdbs python-central \
+                    python-setuptools python python-dev python-twisted-core \
+                    fakeroot darcs python-twisted python-nevow \
+                    python-simplejson  python-pycryptopp devscripts
+
+
+To create packages for Lenny, we'll also install stdeb:    
+
+    apt-get install python-all-dev
+    STDEB_VERSION="0.3.2"
+    http://pypi.python.org/packages/source/s/stdeb/stdeb-$STDEB_VERSION.tar.gz
+    tar xzf stdeb-$STDEB_VERSION.tar.gz
+    cd stdeb-$STDEB_VERSION
+    python setup.py --command-packages=stdeb.command bdist_deb
+    sudo dpkg -i deb_dist/python-stdeb_$STDEB_VERSION-1_all.deb
+
+Now we're ready to build and install the zfec Debian package:
+
+    darcs get http://allmydata.org/source/zfec/trunk zfac
+    cd zfac/zfec/
+    python setup.py sdist_dsc
+    cd `find deb_dist -mindepth 1 -maxdepth 1 -type d` && \
+    dpkg-buildpackage -rfakeroot -uc -us
+    sudo dpkg -i ../python-zfec_1.4.6-r333-1_amd64.deb
+
+Finally, we'll fetch, unpack, build and install foolscap:
+
+   # You may not already have Brian's key:
+   # gpg --recv-key 0x1514A7BD
+   wget http://foolscap.lothar.com/releases/foolscap-0.5.0.tar.gz.asc
+   wget http://foolscap.lothar.com/releases/foolscap-0.5.0.tar.gz
+   gpg --verify foolscap-0.5.0.tar.gz.asc
+   tar -xvzf foolscap-0.5.0.tar.gz 
+   cd foolscap-0.5.0/
+   python setup.py --command-packages=stdeb.command sdist_dsc
+   cd deb_dist/foolscap-0.5.0/
+   dpkg-buildpackage -rfakeroot -uc -us
+   sudo dpkg -i ../python-foolscap_0.5.0-1_all.deb 
+
+== TL;DR package building instructions for Tahoe ==
+
+If you want to build your own Debian packages from the darcs tree or from 
+a source release, do the following:
+
+    cd ~/
+    mkdir src && cd src/
+    darcs get --lazy http://allmydata.org/source/tahoe-lafs/trunk tahoe-lafs
+    cd tahoe-lafs
+    # set this for your Debian release name (lenny, sid, etc)
+    make deb-lenny-head
+    # You must have your dependency issues worked out by hand for this to work
+    sudo dpkg -i ../allmydata-tahoe_1.6.1-r4262_all.deb
+
+You should now have a functional desert island build of Tahoe with all of the
+supported libraries as .deb packages.
+
 == Building Debian Packages ==
 
 The Tahoe source tree comes with limited support for building debian packages
