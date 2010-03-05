@@ -10,25 +10,32 @@
 = Overview ==
 
 One convenient way to install Tahoe-LAFS is with debian packages.
+This document attempts to explain how to complete a desert island build for
+people in a hurry. It also attempts to explain more about our Debian packaging
+for those willing to read beyond the simple pragmatic packaging exercises.
 
 == TL;DR supporting package building instructions ==
 
-There are only two supporting packages that are currently not available from
-the debian apt repositories in Debian Lenny: python-foolscap python-zfec
+There are only four supporting packages that are currently not available from
+the debian apt repositories in Debian Lenny:
+
+    python-foolscap python-zfec argparse zbase32
 
 First, we'll install some common packages for development:
 
-    apt-get install -y build-essential debhelper cdbs python-central \
+    sudo apt-get install -y build-essential debhelper cdbs python-central \
                     python-setuptools python python-dev python-twisted-core \
                     fakeroot darcs python-twisted python-nevow \
-                    python-simplejson  python-pycryptopp devscripts
+                    python-simplejson  python-pycryptopp devscripts \
+                    apt-file
+    sudo apt-file update
 
 
 To create packages for Lenny, we'll also install stdeb:    
 
-    apt-get install python-all-dev
-    STDEB_VERSION="0.3.2"
-    http://pypi.python.org/packages/source/s/stdeb/stdeb-$STDEB_VERSION.tar.gz
+    sudo apt-get install python-all-dev
+    STDEB_VERSION="0.5.1"
+    wget http://pypi.python.org/packages/source/s/stdeb/stdeb-$STDEB_VERSION.tar.gz
     tar xzf stdeb-$STDEB_VERSION.tar.gz
     cd stdeb-$STDEB_VERSION
     python setup.py --command-packages=stdeb.command bdist_deb
@@ -55,8 +62,8 @@ We need to build a pyutil package:
 
 We also need to install argparse and zbase32:
 
-    easy_install argparse
-    easy_install zbase32
+    sudo easy_install argparse # argparse won't install with stdeb (!) :-(
+    sudo easy_install zbase32 # XXX TODO: package with stdeb
 
 Finally, we'll fetch, unpack, build and install foolscap:
 
@@ -87,7 +94,9 @@ a source release, do the following:
     sudo dpkg -i ../allmydata-tahoe_1.6.1-r4262_all.deb
 
 You should now have a functional desert island build of Tahoe with all of the
-supported libraries as .deb packages.
+supported libraries as .deb packages. You'll need to edit the Debian specific
+/etc/defaults/allmydata-tahoe file to get Tahoe started. Data is by default
+stored in /var/lib/tahoelafsd/ and Tahoe runs as the 'tahoelafsd' user.
 
 == Building Debian Packages ==
 
