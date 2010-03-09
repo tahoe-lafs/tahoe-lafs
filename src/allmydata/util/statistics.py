@@ -1,9 +1,9 @@
 # Copyright (c) 2009 Shawn Willden
 # mailto:shawn@willden.org
-# I hereby license all patches I have contributed or will contribute to
-# the Allmydata Tahoe-LAFS project, including the file 'statistics.py',
-# under both the GNU General Public License, version 2 or later, and
-# under the Transitive Grace Period Public License, version 1 or later.
+# I hereby license all patches I have contributed or will contribute to the
+# Allmydata Tahoe-LAFS project, including the file 'statistics.py', under
+# either the GNU General Public License, version 2 or later, or under the
+# Transitive Grace Period Public License, version 1 or later.
 
 from __future__ import division
 from mathutil import round_sigfigs
