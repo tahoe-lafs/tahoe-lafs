@@ -1,0 +1,7 @@
+Setuptools is available under either the 
+
+You may use setuptools under the Zope Public License version 2.1 or, at your option, any later version. See the file COPYING.ZPL.txt for the terms of the Zope Public License version 2.1.
+
+You may use this package under the Python Software Foundation License version 2 or, at your option, any later version. See the file COPYING.PSFL.txt for the terms of the Python Software Foundation Licence version 2.
+
+(You may choose to use this package under the terms of either licence, at your option.)
