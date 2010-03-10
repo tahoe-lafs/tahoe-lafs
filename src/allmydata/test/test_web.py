@@ -583,6 +583,30 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(_got)
         return d
 
+    def test_GET_FILEURL_partial_end_range(self):
+        headers = {"range": "bytes=-5"}
+        length  = len(self.BAR_CONTENTS)
+        d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
+                     return_response=True)
+        def _got((res, status, headers)):
+            self.failUnlessEqual(int(status), 206)
+            self.failUnless(headers.has_key("content-range"))
+            self.failUnlessEqual(headers["content-range"][0],
+                                 "bytes %d-%d/%d" % (length-5, length-1, length))
+            self.failUnlessEqual(res, self.BAR_CONTENTS[-5:])
+        d.addCallback(_got)
+        return d
+
+    def test_GET_FILEURL_partial_range_overrun(self):
+        headers = {"range": "bytes=100-200"}
+        length  = len(self.BAR_CONTENTS)
+        d = self.shouldFail2(error.Error, "test_GET_FILEURL_range_overrun",
+                             "416 Requested Range not satisfiable",
+                             "First beyond end of file",
+                             self.GET, self.public_url + "/foo/bar.txt",
+                             headers=headers)
+        return d
+
     def test_HEAD_FILEURL_range(self):
         headers = {"range": "bytes=1-10"}
         d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
@@ -609,13 +633,38 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addCallback(_got)
         return d
 
+    def test_HEAD_FILEURL_partial_end_range(self):
+        headers = {"range": "bytes=-5"}
+        length  = len(self.BAR_CONTENTS)
+        d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
+                     return_response=True)
+        def _got((res, status, headers)):
+            self.failUnlessEqual(int(status), 206)
+            self.failUnless(headers.has_key("content-range"))
+            self.failUnlessEqual(headers["content-range"][0],
+                                 "bytes %d-%d/%d" % (length-5, length-1, length))
+        d.addCallback(_got)
+        return d
+
+    def test_HEAD_FILEURL_partial_range_overrun(self):
+        headers = {"range": "bytes=100-200"}
+        length  = len(self.BAR_CONTENTS)
+        d = self.shouldFail2(error.Error, "test_HEAD_FILEURL_range_overrun",
+                             "416 Requested Range not satisfiable",
+                             "",
+                             self.HEAD, self.public_url + "/foo/bar.txt",
+                             headers=headers)
+        return d
+
     def test_GET_FILEURL_range_bad(self):
         headers = {"range": "BOGUS=fizbop-quarnak"}
-        d = self.shouldFail2(error.Error, "test_GET_FILEURL_range_bad",
-                             "400 Bad Request",
-                             "Syntactically invalid http range header",
-                             self.GET, self.public_url + "/foo/bar.txt",
-                             headers=headers)
+        d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
+                     return_response=True)
+        def _got((res, status, headers)):
+            self.failUnlessEqual(int(status), 200)
+            self.failUnless(not headers.has_key("content-range"))
+            self.failUnlessEqual(res, self.BAR_CONTENTS)
+        d.addCallback(_got)
         return d
 
     def test_HEAD_FILEURL(self):

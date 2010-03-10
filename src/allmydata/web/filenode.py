@@ -335,6 +335,54 @@ class FileDownloader(rend.Page):
         self.filenode = filenode
         self.filename = filename
 
+    def parse_range_header(self, range):
+        # Parse a byte ranges according to RFC 2616 "14.35.1 Byte
+        # Ranges".  Returns None if the range doesn't make sense so it
+        # can be ignored (per the spec).  When successful, returns a
+        # list of (first,last) inclusive range tuples.
+
+        filesize = self.filenode.get_size()
+        assert isinstance(filesize, (int,long)), filesize
+
+        try:
+            # byte-ranges-specifier
+            units, rangeset = range.split('=', 1)
+            if units != 'bytes':
+                return None     # nothing else supported
+
+            def parse_range(r):
+                first, last = r.split('-', 1)
+
+                if first is '':
+                    # suffix-byte-range-spec
+                    first = filesize - long(last)
+                    last = filesize - 1
+                else:
+                    # byte-range-spec
+
+                    # first-byte-pos
+                    first = long(first)
+
+                    # last-byte-pos
+                    if last is '':
+                        last = filesize - 1
+                    else:
+                        last = long(last)
+
+                if last < first:
+                    raise ValueError
+
+                return (first, last)
+
+            # byte-range-set
+            #
+            # Note: the spec uses "1#" for the list of ranges, which
+            # implicitly allows whitespace around the ',' separators,
+            # so strip it.
+            return [ parse_range(r.strip()) for r in rangeset.split(',') ]
+        except ValueError:
+            return None
+
     def renderHTTP(self, ctx):
         req = IRequest(ctx)
         gte = static.getTypeAndEncoding
@@ -356,7 +404,7 @@ class FileDownloader(rend.Page):
 
         filesize = self.filenode.get_size()
         assert isinstance(filesize, (int,long)), filesize
-        offset, size = 0, None
+        first, size = 0, None
         contentsize = filesize
         req.setHeader("accept-ranges", "bytes")
         if not self.filenode.is_mutable():
@@ -370,30 +418,33 @@ class FileDownloader(rend.Page):
         # or maybe just use the URI for CHK and LIT.
         rangeheader = req.getHeader('range')
         if rangeheader:
-            # adapted from nevow.static.File
-            bytesrange = rangeheader.split('=')
-            if bytesrange[0] != 'bytes':
-                raise WebError("Syntactically invalid http range header!")
-            start, end = bytesrange[1].split('-')
-            if start:
-                offset = int(start)
-                if not end:
-                    # RFC 2616 says:
-                    #
-                    # "If the last-byte-pos value is absent, or if the value is
-                    # greater than or equal to the current length of the
-                    # entity-body, last-byte-pos is taken to be equal to one less
-                    # than the current length of the entity- body in bytes."
-                    end = filesize - 1
-                size = int(end) - offset + 1
-            req.setResponseCode(http.PARTIAL_CONTENT)
-            req.setHeader('content-range',"bytes %s-%s/%s" %
-                          (str(offset), str(offset+size-1), str(filesize)))
-            contentsize = size
+            ranges = self.parse_range_header(rangeheader)
+
+            # ranges = None means the header didn't parse, so ignore
+            # the header as if it didn't exist.  If is more than one
+            # range, then just return the first for now, until we can
+            # generate multipart/byteranges.
+            if ranges is not None:
+                first, last = ranges[0]
+
+                if first >= filesize:
+                    raise WebError('First beyond end of file',
+                                   http.REQUESTED_RANGE_NOT_SATISFIABLE)
+                else:
+                    first = max(0, first)
+                    last = min(filesize-1, last)
+
+                    req.setResponseCode(http.PARTIAL_CONTENT)
+                    req.setHeader('content-range',"bytes %s-%s/%s" %
+                                  (str(first), str(last),
+                                   str(filesize)))
+                    contentsize = last - first + 1
+                    size = contentsize
+
         req.setHeader("content-length", str(contentsize))
         if req.method == "HEAD":
             return ""
-        d = self.filenode.read(req, offset, size)
+        d = self.filenode.read(req, first, size)
         def _error(f):
             if req.startedWriting:
                 # The content-type is already set, and the response code has
