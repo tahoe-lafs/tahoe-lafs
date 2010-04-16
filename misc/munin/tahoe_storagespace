@@ -6,7 +6,7 @@
 # consumed by the entire mesh will be about N times the space reported by
 # this plugin.
 
-# Copy this plugin into /etc/munun/plugins/tahoe-storagespace and then put
+# Copy this plugin into /etc/munun/plugins/tahoe_storagespace and then put
 # the following in your /etc/munin/plugin-conf.d/foo file to let it know
 # where to find the basedirectory for each node:
 #
