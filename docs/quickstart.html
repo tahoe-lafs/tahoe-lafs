@@ -1,0 +1,50 @@
+<!DOCtype HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+  <head>
+    <title>Getting Tahoe-LAFS</title>
+    <link rev="made" class="mailto" href="mailto:zooko[at]zooko[dot]com">
+    <meta name="description" content="how to get Tahoe-LAFS">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="keywords" content="tahoe-lafs secure decentralized filesystem installation">
+  </head>
+
+  <body>
+    <h1>About Tahoe-LAFS</h1>
+    <p>Welcome to <a href="http://tahoe-lafs.org">the Tahoe-LAFS project</a>, a secure, decentralized, fault-tolerant filesystem. <a href="about.html">About Tahoe-LAFS.</a>
+
+    <h1>How To Get Tahoe-LAFS</h1>
+
+    <p>This procedure has been verified to work on Windows, Cygwin, Mac, many flavors of Linux, Solaris, FreeBSD, OpenBSD, and NetBSD.  It's likely to work on other platforms.  If you have trouble getting Tahoe-LAFS running this way, please write to <a href="http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev">the tahoe-dev mailing list</a>, where friendly hackers will help you out.</p>
+
+    <h2>Install Python</h2>
+
+    <p>Check if you already have an adequate version of Python installed by running <cite>python -V</cite>.  Python v2.4 (v2.4.2 or greater), Python v2.5 or Python v2.6 will work. Python v3 does not work. If you don't have one of these versions of Python installed, then follow the instructions on <a href="http://www.python.org/download/releases/2.5.5/">the Python download page</a> to download and install Python v2.5.</p>
+    <p>(If you are on Windows, you now must manually install the pywin32 package from <a href="http://sourceforge.net/projects/pywin32/">the pywin32 site</a> before getting Tahoe-LAFS.)</p>
+
+    <h2>Get Tahoe-LAFS</h2>
+
+      <p>Download the 1.6.1 release zip file:</p>
+
+      <pre><a
+      href="http://tahoe-lafs.org/source/tahoe-lafs/releases/allmydata-tahoe-1.6.1.zip">http://allmydata.org/source/tahoe-lafs/releases/allmydata-tahoe-1.6.1.zip</a></pre>
+
+    <h2>Set Up Tahoe-LAFS</h2>
+
+    <p>Unpack the zip file and cd into the top-level directory.</p>
+
+    <p>Run <cite>python setup.py build</cite> to generate the <cite>tahoe</cite> executable in a subdirectory of the current directory named <cite>bin</cite>.</p>
+
+    <p>Optionally run <cite>python setup.py test</cite> to verify that it passes all of its self-tests.</p>
+
+    <p>Run <cite>bin/tahoe --version</cite> to verify that the executable tool prints out the right version number.</p>
+
+    <h2>Run Tahoe-LAFS</h2>
+
+    <p>Now you are ready to deploy a decentralized filesystem.  The <cite>tahoe</cite> executable in the <cite>bin</cite> directory can configure and launch your Tahoe-LAFS nodes.  See <a href="running.html">running.html</a> for instructions on how to do that.</p>
+
+
+    <h2>Advanced Installation</h2>
+
+    <p>For optional features such as tighter integration with your operating system's package manager, you can see the <a href="http://allmydata.org/trac/tahoe/wiki/AdvancedInstall">AdvancedInstall</a> wiki page. The options on that page are not necessary to use Tahoe-LAFS and can be complicated, so we do not recommend following that page unless you have unusual requirements for advanced optional features. For most people, you should first follow the instructions on this page, and if that doesn't work then ask for help by writing to <a href="http://allmydata.org/cgi-bin/mailman/listinfo/tahoe-dev">the tahoe-dev mailing list</a>.</p>
+  </body>
+</html>
