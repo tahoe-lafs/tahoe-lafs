@@ -1,5 +1,13 @@
-
 = Debian Support =
+
+1.  Overview 
+2.  TL;DR supporting package building instructions
+3.  TL;DR package building instructions for Tahoe
+4.  Building Debian Packages
+5.  Using Pre-Built Debian Packages
+6.  Building From Source on Debian Systems
+
+= Overview ==
 
 One convenient way to install Tahoe-LAFS is with debian packages.
 
