@@ -1,5 +1,6 @@
 = The Tahoe BackupDB =
 
+== Overview ==
 To speed up backup operations, Tahoe maintains a small database known as the
 "backupdb". This is used to avoid re-uploading files which have already been
 uploaded recently.
