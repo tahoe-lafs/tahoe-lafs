@@ -1,5 +1,11 @@
-
 = The Tahoe Upload Helper =
+
+1. Overview
+2. Setting Up A Helper
+3. Using a Helper
+4. Other Helper Modes
+
+== Overview ==
 
 As described in the "SWARMING DOWNLOAD, TRICKLING UPLOAD" section of
 architecture.txt, Tahoe uploads require more bandwidth than downloads: you
