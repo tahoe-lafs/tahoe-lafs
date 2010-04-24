@@ -1,5 +1,12 @@
 = Tahoe FTP/SFTP Frontend =
 
+1.  FTP/SFTP Background
+2.  Tahoe Support
+3.  Creating an Account File
+4.  Configuring FTP Access
+5.  Configuring SFTP Access
+6.  Dependencies
+
 == FTP/SFTP Background ==
 
 FTP is the venerable internet file-transfer protocol, first developed in
