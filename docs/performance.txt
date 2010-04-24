@@ -1,6 +1,18 @@
 = Performance costs for some common operations =
 
-=== Publishing an A-byte immutable file ===
+1.  Publishing an A-byte immutable file
+2.  Publishing an A-byte mutable file
+3.  Downloading B bytes of an A-byte immutable file
+4.  Downloading B bytes of an A-byte mutable file 
+5.  Modifying B bytes of an A-byte mutable file
+6.  Inserting/Removing B bytes in an A-byte mutable file
+7.  Adding an entry to an A-entry directory
+8.  Listing an A entry directory
+9.  Performing a file-check on an A-byte file
+10. Performing a file-verify on an A-byte file
+11. Repairing an A-byte file (mutable or immutable)
+
+== Publishing an A-byte immutable file ==
 
 network: A
 memory footprint: N/k*128KiB
@@ -10,7 +22,7 @@ notes: An immutable file upload requires an additional I/O pass over the entire
        encryption derives the encryption key in part from the contents of the
        source file.
 
-=== Publishing an A-byte mutable file ===
+== Publishing an A-byte mutable file ==
 
 network: A
 memory footprint: N/k*A
@@ -26,7 +38,7 @@ notes: Tahoe-LAFS generates a new RSA keypair for each mutable file that
        Tahoe-LAFS to have an unacceptably large memory footprint (at
        least when uploading a mutable file).
 
-=== Downloading B bytes of an A-byte immutable file ===
+== Downloading B bytes of an A-byte immutable file ==
 
 network: A
 memory footprint: 128KiB
@@ -48,7 +60,7 @@ notes: When asked to read an arbitrary range of an immutable file,
        to read, what part of the file was read by previous reads, and
        how much time has elapsed since the last read.
 
-=== Downloading B bytes of an A-byte mutable file ===
+== Downloading B bytes of an A-byte mutable file ==
 
 network: A
 memory footprint: A
@@ -57,7 +69,7 @@ notes: As currently implemented, mutable files must be downloaded in
        their entirety before any part of them can be read. We are
        exploring fixes for this; see ticket #393 for more information.
 
-=== Modifying B bytes of an A-byte mutable file ===
+== Modifying B bytes of an A-byte mutable file ==
 
 network: A
 memory footprint: N/k*A
@@ -70,7 +82,7 @@ notes: If you upload a changed version of a mutable file that you
        essentially uploading the file over again, except that it re-uses
        the existing RSA keypair instead of generating a new one.
 
-=== Inserting/Removing B bytes in an A-byte mutable file ===
+== Inserting/Removing B bytes in an A-byte mutable file ==
 
 network: A
 memory footprint: N/k*A
@@ -85,7 +97,7 @@ notes: Modifying any part of a mutable file in Tahoe-LAFS requires that
        be modified, as described in "Modifying B bytes of an A-byte mutable
        file".
 
-=== Adding an entry to an A-entry directory ===
+== Adding an entry to an A-entry directory ==
 
 network: O(A)
 memory footprint: N/k*A
@@ -94,7 +106,7 @@ notes: In Tahoe-LAFS, directories are implemented as specialized mutable
        files. So adding an entry to a directory is essentially adding B
        (actually, 300-330) bytes somewhere in an existing mutable file.
 
-=== Listing an A entry directory ===
+== Listing an A entry directory ==
 
 network: O(A)
 memory footprint: N/k*A
@@ -104,7 +116,7 @@ notes: Listing a directory requires that the mutable file storing the
        directory requires downloading a (roughly) 330 * A byte mutable
        file, since each directory entry is about 300-330 bytes in size.
 
-=== Performing a file-check on an A-byte file ===
+== Performing a file-check on an A-byte file ==
 
 network: O(S), where S is the number of servers on your grid
 memory footprint: negligible
@@ -114,7 +126,7 @@ notes: To check a file, Tahoe-LAFS queries all the servers that it knows
        of the file. This is relatively inexpensive, compared to the verify
        and repair operations.
 
-=== Performing a file-verify on an A-byte file ===
+== Performing a file-verify on an A-byte file ==
 
 network: N/k*A
 memory footprint: N/k*128KiB
@@ -125,7 +137,7 @@ notes: To verify a file, Tahoe-LAFS downloads all of the ciphertext
        expensive than downloading an A-byte file, since only a fraction
        of these shares are necessary to recover the file.
 
-=== Repairing an A-byte file (mutable or immutable) ===
+== Repairing an A-byte file (mutable or immutable) ==
 
 network: variable; up to around O(A)
 memory footprint: from 128KiB to (1+N/k)*128KiB
