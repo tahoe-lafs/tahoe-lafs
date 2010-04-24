@@ -333,6 +333,9 @@ class BackupOptions(VDriveOptions):
     TO/Archives/(new) TO/Latest'."""
 
 class WebopenOptions(VDriveOptions):
+    optFlags = [
+        ("info", "i", "Open the t=info page for the file"),
+        ]
     def parseArgs(self, where=''):
         self.where = where
 
@@ -340,7 +343,8 @@ class WebopenOptions(VDriveOptions):
         return "%s webopen [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Open a web browser to the contents of some file or
-    directory on the grid."""
+    directory on the grid. When run without arguments, open the Welcome
+    page."""
 
 class ManifestOptions(VDriveOptions):
     optFlags = [

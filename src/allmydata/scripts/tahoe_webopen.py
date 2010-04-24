@@ -22,6 +22,8 @@ def webopen(options, opener=None):
             url += "/" + escape_path(path)
     else:
         url = nodeurl
+    if options['info']:
+        url += "?t=info"
     if not opener:
         import webbrowser
         opener = webbrowser.open

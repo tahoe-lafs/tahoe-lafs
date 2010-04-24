@@ -11,8 +11,8 @@ from allmydata.util import fileutil, hashutil, base32
 from allmydata import uri
 from allmydata.immutable import upload
 
-# Test that the scripts can be imported -- although the actual tests of their functionality are
-# done by invoking them in a subprocess.
+# Test that the scripts can be imported -- although the actual tests of their
+# functionality are done by invoking them in a subprocess.
 from allmydata.scripts import tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp
 _hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp]
 
@@ -530,8 +530,13 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self._test_webopen(["tahoe:"], self.tahoe_url)
             self._test_webopen(["tahoe:/"], self.tahoe_url)
             self._test_webopen(["tahoe:subdir"], self.tahoe_subdir_url)
+            self._test_webopen(["-i", "tahoe:subdir"],
+                               self.tahoe_subdir_url+"?t=info")
             self._test_webopen(["tahoe:subdir/"], self.tahoe_subdir_url + '/')
-            self._test_webopen(["tahoe:subdir/file"], self.tahoe_subdir_url + '/file')
+            self._test_webopen(["tahoe:subdir/file"],
+                               self.tahoe_subdir_url + '/file')
+            self._test_webopen(["--info", "tahoe:subdir/file"],
+                               self.tahoe_subdir_url + '/file?t=info')
             # if "file" is indeed a file, then the url produced by webopen in
             # this case is disallowed by the webui. but by design, webopen
             # passes through the mistake from the user to the resultant
@@ -615,7 +620,7 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
     def test_ln_with_nonexistent_alias(self):
-        # If invoked with aliases that don't exist, 'tahoe ln' should 
+        # If invoked with aliases that don't exist, 'tahoe ln' should
         # output a useful error message and not a stack trace.
         self.basedir = "cli/Ln/ln_with_nonexistent_alias"
         self.set_up_grid()
@@ -1072,7 +1077,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
     def test_mv_without_alias(self):
-        # doing 'tahoe mv' without explicitly specifying an alias or 
+        # doing 'tahoe mv' without explicitly specifying an alias or
         # creating the default 'tahoe' alias should fail with a useful
         # error message.
         self.basedir = "cli/Mv/mv_without_alias"
@@ -1100,7 +1105,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
     def test_mv_with_nonexistent_alias(self):
-        # doing 'tahoe mv' with an alias that doesn't exist should fail 
+        # doing 'tahoe mv' with an alias that doesn't exist should fail
         # with an informative error message.
         self.basedir = "cli/Mv/mv_with_nonexistent_alias"
         self.set_up_grid()
@@ -1148,8 +1153,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         fileutil.write(fn2, DATA2)
 
         # Bug #534
-        # Assure that uploading a file whose name contains unicode character doesn't
-        # prevent further uploads in the same directory
+        # Assure that uploading a file whose name contains unicode character
+        # doesn't prevent further uploads in the same directory
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("cp", fn1, "tahoe:"))
         d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
@@ -1258,9 +1263,9 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(rc, 1)
             self.failUnlessIn("error:", err)
         d.addCallback(_check)
-        # 'tahoe cp' actually processes the target argument first, so we 
-        # need to check to make sure that validation extends to the 
-        # source argument.
+        # 'tahoe cp' actually processes the target argument first, so we need
+        # to check to make sure that validation extends to the source
+        # argument.
         d.addCallback(lambda ign: self.do_cli("create-alias", "tahoe"))
         d.addCallback(lambda ign: self.do_cli("cp", "fake:file1",
                                               "tahoe:file2"))
@@ -2109,9 +2114,8 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
 
 class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_mkdir_with_nonexistent_alias(self):
-        # when invoked with an alias that doesn't exist, 'tahoe mkdir'
-        # should output a sensible error message rather than a stack 
-        # trace.
+        # when invoked with an alias that doesn't exist, 'tahoe mkdir' should
+        # output a sensible error message rather than a stack trace.
         self.basedir = "cli/Mkdir/mkdir_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("mkdir", "havasu:")
@@ -2191,7 +2195,7 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
     def test_stats_with_nonexistent_alias(self):
-        # when invoked with an explicit alias that doesn't exist, 
+        # when invoked with an explicit alias that doesn't exist,
         # 'tahoe stats' should output a useful error message.
         self.basedir = "cli/Stats/stats_with_nonexistent_alias"
         self.set_up_grid()
@@ -2206,7 +2210,7 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
 class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_webopen_with_nonexistent_alias(self):
         # when invoked with an alias that doesn't exist, 'tahoe webopen'
-        # should output an informative error message instead of a stack 
+        # should output an informative error message instead of a stack
         # trace.
         self.basedir = "cli/Webopen/webopen_with_nonexistent_alias"
         self.set_up_grid()
