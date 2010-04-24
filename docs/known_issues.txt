@@ -1,5 +1,18 @@
 = Known Issues =
 
+1.  Overview
+2.  Issues in Tahoe-LAFS v1.6.0, released 2010-02-01
+  2.1.  Potential unauthorized access by JavaScript in unrelated files
+    2.1.1.  How to manage it
+  2.2.  Potential disclosure of file through embedded hyperlinks or JavaScript in that file
+    2.2.1.  How to manage it
+  2.3.  Command-line arguments are leaked to other local users
+    2.3.1.  How to manage it
+  2.4.  Capabilities may be leaked to web browser phishing filter servers
+    2.4.1.  How to manage it
+
+== Overview ==
+
 Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
 manage them.  The current version of this file can be found at
 
@@ -11,9 +24,9 @@ want to read the "historical known issues" document:
 
 http://allmydata.org/source/tahoe/trunk/docs/historical/historical_known_issues.txt
 
-== issues in Tahoe-LAFS v1.6.0, released 2010-02-01 ==
+== Issues in Tahoe-LAFS v1.6.0, released 2010-02-01 ==
 
-=== potential unauthorized access by JavaScript in unrelated files ===
+=== Potential unauthorized access by JavaScript in unrelated files ===
 
 If you view a file stored in Tahoe-LAFS through a web user interface,
 JavaScript embedded in that file might be able to access other files or
@@ -23,7 +36,7 @@ those other files or directories to the author of the script, and if you
 have the ability to modify the contents of those files or directories,
 then that script could modify or delete those files or directories.
 
-==== how to manage it ====
+==== How to manage it ====
 
 For future versions of Tahoe-LAFS, we are considering ways to close off
 this leakage of authority while preserving ease of use -- the discussion
@@ -35,8 +48,7 @@ doing so, or limit your viewing to files which you know don't contain
 malicious JavaScript.
 
 
-=== potential disclosure of file through embedded
-hyperlinks or JavaScript in that file ===
+=== Potential disclosure of file through embedded hyperlinks or JavaScript in that file ===
 
 If there is a file stored on a Tahoe-LAFS storage grid, and that file
 gets downloaded and displayed in a web browser, then JavaScript or
@@ -52,7 +64,7 @@ file. Note that IMG tags are typically followed automatically by web
 browsers, so being careful which hyperlinks you click on is not
 sufficient to prevent this from happening.
 
-==== how to manage it ====
+==== How to manage it ====
 
 For future versions of Tahoe-LAFS, we are considering ways to close off
 this leakage of authority while preserving ease of use -- the discussion
@@ -65,7 +77,7 @@ and remove any JavaScript unless you are sure that the JavaScript is not
 written to maliciously leak access.
 
 
-=== command-line arguments are leaked to other local users ===
+=== Command-line arguments are leaked to other local users ===
 
 Remember that command-line arguments are visible to other users (through
 the 'ps' command, or the windows Process Explorer tool), so if you are
@@ -74,7 +86,7 @@ be able to see (and copy) any caps that you pass as command-line
 arguments.  This includes directory caps that you set up with the "tahoe
 add-alias" command.  Use "tahoe create-alias" for that purpose instead.
 
-==== how to manage it ====
+==== How to manage it ====
 
 Bypass add-alias and edit the NODEDIR/private/aliases file directly, by
 adding a line like this:
@@ -91,7 +103,7 @@ access to your files and directories.  Starting in Tahoe-LAFS v1.3.0,
 there is a "tahoe create-alias" command that does this for you.
 
 
-=== capabilities may be leaked to web browser phishing filter servers === 
+=== Capabilities may be leaked to web browser phishing filter servers ===
 
 Internet Explorer includes a "phishing filter", which is turned on by
 default, and which sends any URLs that it deems suspicious to a central
@@ -109,7 +121,7 @@ has such a facility enabled by default (Opera has one that is disabled by
 default). Firefox briefly included a phishing filter in previous versions,
 but abandoned it.
 
-==== how to manage it ====
+==== How to manage it ====
 
 If you use Internet Explorer's phishing filter or a similar add-on
 for another browser, consider either disabling it, or not using the WUI
