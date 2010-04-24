@@ -1,5 +1,13 @@
 = Garbage Collection in Tahoe =
 
+1. Overview
+2. Client-side Renewal
+3. Server Side Expiration
+4. Expiration Progress
+5. Future Directions
+
+== Overview ==
+
 When a file or directory in the virtual filesystem is no longer referenced,
 the space that its shares occupied on each storage server can be freed,
 making room for other shares. Tahoe currently uses a garbage collection
