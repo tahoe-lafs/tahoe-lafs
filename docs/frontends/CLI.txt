@@ -1,5 +1,18 @@
 = The Tahoe CLI commands =
 
+1.  Overview
+2.  CLI Command Overview
+3.  Node Management
+4.  Virtual Drive Manipulation
+  4.1.  Starting Directories
+    4.1.1.  SECURITY NOTE: For users of shared systems
+  4.2.  Command Syntax Summary
+  4.3.  Command Examples
+5.  Virtual Drive Maintenance
+6.  Debugging 
+
+== Overview ==
+
 Tahoe provides a single executable named "tahoe", which can be used to create
 and manage client/server nodes, manipulate the filesystem, and perform
 several debugging/maintenance tasks.
