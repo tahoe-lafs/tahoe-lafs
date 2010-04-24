@@ -1,5 +1,18 @@
 = Tahoe Logging =
 
+1.  Overview
+2.  Realtime Logging
+3.  Incidents
+4.  Working with flogfiles
+5.  Gatherers
+  5.1.  Incident Gatherer
+  5.2.  Log Gatherer
+6.  Local twistd.log files
+7.  Adding log messages
+8.  Log Messages During Unit Tests 
+
+== Overview ==
+
 Tahoe uses the Foolscap logging mechanism (known as the "flog" subsystem) to
 record information about what is happening inside the Tahoe node. This is
 primarily for use by programmers and grid operators who want to find out what
