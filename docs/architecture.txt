@@ -1,9 +1,19 @@
+= Tahoe-LAFS Architecture =
 
-   Tahoe-LAFS Architecture
+2.  The Key-Value Store
+3.  File Encoding
+4.  Capabilities
+5.  Server Selection
+6.  Swarming Download, Trickling Upload
+7.  The Filesystem Layer
+8.  Leases, Refreshing, Garbage Collection
+9.  File Repairer
+10. Security
+11. Reliability
+
+== Overview  ==
 
 (See the docs/specifications directory for more details.)
-
-OVERVIEW
 
 There are three layers: the key-value store, the filesystem, and the
 application.
@@ -31,7 +41,7 @@ There are several other applications built on top of the Tahoe-LAFS
 filesystem (see the RelatedProjects page of the wiki for a list).
 
 
-THE KEY-VALUE STORE
+== The Key-Value Store ==
 
 The key-value store is implemented by a grid of Tahoe-LAFS storage servers --
 user-space processes. Tahoe-LAFS storage clients communicate with the storage
@@ -64,7 +74,7 @@ For future releases, we have plans to decentralize introduction, allowing any
 server to tell a new client about all the others.
 
 
-FILE ENCODING
+== File Encoding ==
 
 When a client stores a file on the grid, it first encrypts the file. It then
 breaks the encrypted file into small segments, in order to reduce the memory
@@ -105,7 +115,7 @@ turn them into segments of ciphertext, use the decryption key to convert that
 into plaintext, then emit the plaintext bytes to the output target.
 
 
-CAPABILITIES
+== Capabilities ==
 
 Capabilities to immutable files represent a specific set of bytes. Think of
 it like a hash function: you feed in a bunch of bytes, and you get out a
@@ -137,7 +147,7 @@ filesystem layer (described below) adds human-meaningful names atop the
 key-value layer.
 
 
-SERVER SELECTION
+== Server Selection ==
 
 When a file is uploaded, the encoded shares are sent to some servers. But to
 which ones? The "server selection" algorithm is used to make this choice.
@@ -238,7 +248,7 @@ servers.)
   long-term connections, at the expense of complexity and latency.
 
 
-SWARMING DOWNLOAD, TRICKLING UPLOAD
+== Swarming Download, Trickling Upload ==
 
 Because the shares being downloaded are distributed across a large number of
 nodes, the download process will pull from many of them at the same time. The
@@ -269,7 +279,7 @@ in the same facility, so the helper-to-storage-server bandwidth is huge.
 See "helper.txt" for details about the upload helper.
 
 
-THE FILESYSTEM LAYER
+== The Filesystem Layer ==
 
 The "filesystem" layer is responsible for mapping human-meaningful pathnames
 (directories and filenames) to pieces of data. The actual bytes inside these
@@ -299,7 +309,7 @@ links to spaces that are shared with specific other users, and other spaces
 that are globally visible.
 
 
-LEASES, REFRESHING, GARBAGE COLLECTION
+== Leases, Refreshing, Garbage Collection ==
 
 When a file or directory in the virtual filesystem is no longer referenced,
 the space that its shares occupied on each storage server can be freed,
@@ -320,7 +330,7 @@ See docs/garbage-collection.txt for further information, and how to configure
 garbage collection.
 
 
-FILE REPAIRER
+== File Repairer ==
 
 Shares may go away because the storage server hosting them has suffered a
 failure: either temporary downtime (affecting availability of the file), or a
@@ -377,7 +387,7 @@ to other nodes.
   in client behavior.
 
 
-SECURITY
+== Security ==
 
 The design goal for this project is that an attacker may be able to deny
 service (i.e. prevent you from recovering a file that was uploaded earlier)
@@ -441,7 +451,7 @@ normal web site, using username and password to give a user access to her
 capabilities).
 
 
-RELIABILITY
+== Reliability ==
 
 File encoding and peer-node selection parameters can be adjusted to achieve
 different goals. Each choice results in a number of properties; there are
