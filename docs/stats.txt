@@ -1,11 +1,11 @@
 = Tahoe Statistics =
 
-1. Tahoe Stats Overview
+1. Overview
 2. Statistics Categories
 3. Running a Tahoe Stats-Gatherer Service
 4. Using Munin To Graph Stats Values
 
-== Tahoe Stats Overview ==
+== Overview ==
 
 Each Tahoe node collects and publishes statistics about its operations as it
 runs. These include counters of how many files have been uploaded and
