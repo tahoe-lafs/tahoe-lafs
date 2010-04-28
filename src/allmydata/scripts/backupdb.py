@@ -353,14 +353,11 @@ class BackupDB_v2:
 
     def did_create_directory(self, dircap, dirhash):
         now = time.time()
-        try:
-            self.cursor.execute("INSERT INTO directories VALUES (?,?,?,?)",
-                                (dirhash, dircap, now, now))
-        except (self.sqlite_module.IntegrityError,
-                self.sqlite_module.OperationalError):
-            # dirhash was already added: maybe they did mkdir and called us
-            # even though we told them the didn't have to
-            pass
+        # if the dirhash is already present (i.e. we've re-uploaded an
+        # existing directory, possibly replacing the dircap with a new one),
+        # update the record in place. Otherwise create a new record.)
+        self.cursor.execute("REPLACE INTO directories VALUES (?,?,?,?)",
+                            (dirhash, dircap, now, now))
         self.connection.commit()
 
     def did_check_directory_healthy(self, dircap, results):
