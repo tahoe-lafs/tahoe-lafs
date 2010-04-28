@@ -177,14 +177,24 @@ files which have been uploaded once before, while making sure we still wind
 up with as many shares as we desire.
 
 If we are unable to place every share that we want, but we still managed to
-place a quantity known as "shares of happiness", we'll do the upload anyways.
-If we cannot place at least this many, the upload is declared a failure.
+place a quantity known as "servers of happiness" that each map to a unique
+server, we'll do the upload anyways. If we cannot place at least this many
+in this way, the upload is declared a failure.
 
 The current defaults use k=3, shares_of_happiness=7, and N=10, meaning that
-we'll try to place 10 shares, we'll be happy if we can place 7, and we need
-to get back any 3 to recover the file. This results in a 3.3x expansion
-factor. In general, you should set N about equal to the number of nodes in
-your grid, then set N/k to achieve your desired availability goals.
+we'll try to place 10 shares, we'll be happy if we can place shares on enough
+servers that there are 7 different servers, the correct functioning of any 3 of
+which guarantee the availability of the file, and we need to get back any 3 to
+recover the file. This results in a 3.3x expansion factor. On a small grid, you
+should set N about equal to the number of storage servers in your grid; on a
+large grid, you might set it to something smaller to avoid the overhead of
+contacting every server to place a file. In either case, you should then set k
+such that N/k reflects your desired availability goals. The correct value for
+servers_of_happiness will depend on how you use Tahoe-LAFS. In a friendnet with
+a variable number of servers, it might make sense to set it to the smallest
+number of servers that you expect to have online and accepting shares at any
+given time. In a stable environment without much server churn, it may make
+sense to set servers_of_happiness = N.
 
 When downloading a file, the current version just asks all known servers for
 any shares they might have. Once it has received enough responses that it
