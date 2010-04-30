@@ -88,6 +88,11 @@ class CLI(unittest.TestCase):
                         "--node-url", "http://localhost:8080"])
         self.failUnlessEqual(o["node-url"], "http://localhost:8080/")
 
+        o = cli.ListOptions()
+        o.parseOptions(["--node-directory", "cli/test_options",
+                        "--node-url", "https://localhost/"])
+        self.failUnlessEqual(o["node-url"], "https://localhost/")
+
     def _dump_cap(self, *args):
         config = debug.DumpCapOptions()
         config.stdout,config.stderr = StringIO(), StringIO()

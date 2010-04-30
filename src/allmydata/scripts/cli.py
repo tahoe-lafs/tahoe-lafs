@@ -2,7 +2,7 @@ import os.path, re, sys, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import BaseOptions, get_aliases
 
-NODEURL_RE=re.compile("http://([^:]*)(:([1-9][0-9]*))?")
+NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 
 class VDriveOptions(BaseOptions, usage.Options):
     optParameters = [
