@@ -1,9 +1,9 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Allmydata Tahoe -- secure, distributed storage grid
+# Tahoe-LAFS -- secure, distributed storage grid
 #
-# Copyright © 2008-2009 Allmydata, Inc.
+# Copyright © 2008-2010 Allmydata, Inc.
 #
 # This file is part of Tahoe-LAFS.
 #
@@ -96,16 +96,6 @@ trove_classifiers=[
     "Topic :: System :: Archiving :: Mirroring",
     "Topic :: System :: Archiving",
     ]
-
-
-LONG_DESCRIPTION=\
-"""Welcome to the Tahoe project, a secure, decentralized, fault-tolerant
-filesystem.  All of the source code is available under a Free Software, Open
-Source licence.
-
-This filesystem is encrypted and spread over multiple peers in such a way that
-it remains available even when some of the peers are unavailable,
-malfunctioning, or malicious."""
 
 
 setup_requires = []
@@ -359,11 +349,11 @@ if version:
 
 setup(name=APPNAME,
       description='secure, decentralized, fault-tolerant filesystem',
-      long_description=LONG_DESCRIPTION,
-      author='the allmydata.org Tahoe project',
+      long_description=open('README.txt', 'rU').read(),
+      author='the Tahoe-LAFS project',
       author_email='tahoe-dev@allmydata.org',
-      url='http://allmydata.org/',
-      license='GNU GPL',
+      url='http://tahoe-lafs.org/',
+      license='GNU GPL', # see README.txt -- there is an alternative licence
       cmdclass={"show_supportlib": ShowSupportLib,
                 "show_pythonpath": ShowPythonPath,
                 "run_with_pythonpath": RunWithPythonPath,
