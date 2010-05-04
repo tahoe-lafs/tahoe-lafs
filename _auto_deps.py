@@ -31,8 +31,8 @@ install_requires=[
                   # Needed for SFTP. Commented-out pending tests, see #953.
                   # "pycrypto >= 2.0.1",
 
-                  # Needed to test web apps, see #1001.
-                  "windmill >= 1.3",
+                  # Will be needed to test web apps, but not yet. See #1001.
+                  #"windmill >= 1.3",
                   ]
 
 # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
