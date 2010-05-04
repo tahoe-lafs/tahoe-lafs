@@ -274,7 +274,7 @@ find-trailing-spaces:
 fetch-and-unpack-deps:
 	test -f tahoe-deps.tar.gz || wget http://allmydata.org/source/tahoe/deps/tahoe-deps.tar.gz
 	rm -rf tahoe-deps
-	tar xf tahoe-deps.tar.gz
+	tar xzf tahoe-deps.tar.gz
 
 test-desert-island:
 	$(MAKE) fetch-and-unpack-deps
