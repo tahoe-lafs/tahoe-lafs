@@ -3046,6 +3046,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
 
 class Util(unittest.TestCase, ShouldFailMixin):
+    def test_load_file(self):
+        # This will raise an exception unless a well-formed XML file is found under that name.
+        common.getxmlfile('directory.xhtml').load()
+
     def test_parse_replace_arg(self):
         self.failUnlessEqual(common.parse_replace_arg("true"), True)
         self.failUnlessEqual(common.parse_replace_arg("false"), False)
