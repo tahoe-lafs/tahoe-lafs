@@ -82,7 +82,7 @@ try:
 except (ImportError, EnvironmentError), le:
     sys.stderr.write("Got exception using 'pkg_resources' to get the version of coverage: %s" % (le,))
     pass
- except pkg_resources.DistributionNotFound, le:
+except pkg_resources.DistributionNotFound, le:
     sys.stderr.write("pkg_resources reported no trialcoverage package installed: %s" % (le,))
     pass
 
@@ -94,7 +94,7 @@ try:
 except (ImportError, EnvironmentError), le:
     sys.stderr.write("Got exception using 'pkg_resources' to get the version of trialcoverage: %s" % (le,))
     pass
- except pkg_resources.DistributionNotFound, le:
+except pkg_resources.DistributionNotFound, le:
     sys.stderr.write("pkg_resources reported no trialcoverage package installed: %s" % (le,))
     pass
 
