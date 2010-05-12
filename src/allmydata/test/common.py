@@ -1090,8 +1090,8 @@ class ShouldFailMixin:
         error message, if any, because Deferred chains frequently make it
         difficult to tell which assertion was tripped.
 
-        The substring= argument, if not None, must appear inside the
-        stringified Failure, or the test will fail.
+        The substring= argument, if not None, must appear in the 'repr'
+        of the message wrapped by this Failure, or the test will fail.
         """
 
         assert substring is None or isinstance(substring, str)
@@ -1100,9 +1100,10 @@ class ShouldFailMixin:
             if isinstance(res, failure.Failure):
                 res.trap(expected_failure)
                 if substring:
-                    self.failUnless(substring in str(res),
+                    message = repr(res.value.args[0])
+                    self.failUnless(substring in message,
                                     "substring '%s' not in '%s'"
-                                    % (substring, str(res)))
+                                    % (substring, message))
             else:
                 self.fail("%s was supposed to raise %s, not get '%s'" %
                           (which, expected_failure, res))
