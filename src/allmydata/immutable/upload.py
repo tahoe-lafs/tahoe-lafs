@@ -351,8 +351,6 @@ class Tahoe2PeerSelector:
                 else:
                     # Redistribution won't help us; fail.
                     peer_count = len(self.peers_with_shares)
-                    # If peer_count < needed_shares, then the second error
-                    # message is nonsensical, so we use this one.
                     msg = failure_message(peer_count,
                                           self.needed_shares,
                                           self.servers_of_happiness,
