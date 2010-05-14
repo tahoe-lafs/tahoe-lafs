@@ -7,7 +7,7 @@ from foolscap.api import fireEventually
 from allmydata import uri
 from allmydata.storage.server import si_b2a
 from allmydata.hashtree import HashTree
-from allmydata.util import mathutil, hashutil, base32, log
+from allmydata.util import mathutil, hashutil, base32, log, happinessutil
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
@@ -198,6 +198,8 @@ class Encoder(object):
             assert IStorageBucketWriter.providedBy(landlords[k])
         self.landlords = landlords.copy()
         assert isinstance(servermap, dict)
+        for v in servermap.itervalues():
+            assert isinstance(v, set)
         self.servermap = servermap.copy()
 
     def start(self):
@@ -484,26 +486,33 @@ class Encoder(object):
                       level=log.UNUSUAL, failure=why)
         if shareid in self.landlords:
             self.landlords[shareid].abort()
+            peerid = self.landlords[shareid].get_peerid()
+            assert peerid
             del self.landlords[shareid]
+            self.servermap[shareid].remove(peerid)
+            if not self.servermap[shareid]:
+                del self.servermap[shareid]
         else:
             # even more UNUSUAL
             self.log("they weren't in our list of landlords", parent=ln,
                      level=log.WEIRD, umid="TQGFRw")
-        del(self.servermap[shareid])
-        servers_left = list(set(self.servermap.values()))
-        if len(servers_left) < self.servers_of_happiness:
-            msg = "lost too many servers during upload (still have %d, want %d): %s" % \
-                  (len(servers_left),
-                   self.servers_of_happiness, why)
+        happiness = happinessutil.servers_of_happiness(self.servermap)
+        if happiness < self.servers_of_happiness:
+            peerids = set(happinessutil.shares_by_server(self.servermap).keys())
+            msg = happinessutil.failure_message(len(peerids),
+                                                self.required_shares,
+                                                self.servers_of_happiness,
+                                                happiness)
+            msg = "%s: %s" % (msg, why)
             raise UploadUnhappinessError(msg)
         self.log("but we can still continue with %s shares, we'll be happy "
-                 "with at least %s" % (len(servers_left),
+                 "with at least %s" % (happiness,
                                        self.servers_of_happiness),
                  parent=ln)
 
     def _gather_responses(self, dl):
         d = defer.DeferredList(dl, fireOnOneErrback=True)
-        def _eatNotEnoughSharesError(f):
+        def _eatUploadUnhappinessError(f):
             # all exceptions that occur while talking to a peer are handled
             # in _remove_shareholder. That might raise UploadUnhappinessError,
             # which will cause the DeferredList to errback but which should
@@ -513,7 +522,7 @@ class Encoder(object):
             f.trap(UploadUnhappinessError)
             return None
         for d0 in dl:
-            d0.addErrback(_eatNotEnoughSharesError)
+            d0.addErrback(_eatUploadUnhappinessError)
         return d
 
     def finish_hashing(self):

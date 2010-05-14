@@ -242,6 +242,12 @@ class WriteBucketProxy:
     def abort(self):
         return self._rref.callRemoteOnly("abort")
 
+
+    def get_peerid(self):
+        if self._nodeid:
+            return self._nodeid
+        return None
+
 class WriteBucketProxy_v2(WriteBucketProxy):
     fieldsize = 8
     fieldstruct = ">Q"

@@ -1345,7 +1345,8 @@ class IEncoder(Interface):
         must be a dictionary that maps share number (an integer ranging from
         0 to n-1) to an instance that provides IStorageBucketWriter.
         'servermap' is a dictionary that maps share number (as defined above)
-        to a peerid. This must be performed before start() can be called."""
+        to a set of peerids. This must be performed before start() can be
+        called."""
 
     def start():
         """Begin the encode/upload process. This involves reading encrypted
