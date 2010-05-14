@@ -139,63 +139,67 @@ key-value layer.
 
 SERVER SELECTION
 
-When a file is uploaded, the encoded shares are sent to other nodes. But to
+When a file is uploaded, the encoded shares are sent to some servers. But to
 which ones? The "server selection" algorithm is used to make this choice.
 
-In the current version, the storage index is used to consistently-permute the
-set of all peer nodes (by sorting the peer nodes by
-HASH(storage_index+peerid)). Each file gets a different permutation, which
-(on average) will evenly distribute shares among the grid and avoid hotspots.
-We first remove any peer nodes that cannot hold an encoded share for our file,
-and then ask some of the peers that we have removed if they are already
-holding encoded shares for our file; we use this information later. This step
-helps conserve space, time, and bandwidth by making the upload process less
-likely to upload encoded shares that already exist.
+The storage index is used to consistently-permute the set of all servers nodes
+(by sorting them by HASH(storage_index+nodeid)). Each file gets a different
+permutation, which (on average) will evenly distribute shares among the grid
+and avoid hotspots. Each server has announced its available space when it
+connected to the introducer, and we use that available space information to
+remove any servers that cannot hold an encoded share for our file. Then we ask
+some of the servers thus removed if they are already holding any encoded shares
+for our file; we use this information later. (We ask any servers which are in
+the first 2*N elements of the permuted list.)
 
-We then use this permuted list of nodes to ask each node, in turn, if it will
-hold a share for us, by sending an 'allocate_buckets() query' to each one.
-Some will say yes, others (those who have become full since the start of peer
-selection) will say no: when a node refuses our request, we just take that
-share to the next node on the list. We keep going until we run out of shares
-to place. At the end of the process, we'll have a table that maps each share
-number to a node, and then we can begin the encode+push phase, using the table
-to decide where each share should be sent.
+We then use the permuted list of servers to ask each server, in turn, if it
+will hold a share for us (a share that was not reported as being already
+present when we talked to the full servers earlier, and that we have not
+already planned to upload to a different server). We plan to send a share to a
+server by sending an 'allocate_buckets() query' to the server with the number
+of that share. Some will say yes they can hold that share, others (those who
+have become full since they announced their available space) will say no; when
+a server refuses our request, we take that share to the next server on the
+list. In the response to allocate_buckets() the server will also inform us of
+any shares of that file that it already has. We keep going until we run out of
+shares that need to be stored. At the end of the process, we'll have a table
+that maps each share number to a server, and then we can begin the encode and
+push phase, using the table to decide where each share should be sent.
 
-Most of the time, this will result in one share per node, which gives us
-maximum reliability (since it disperses the failures as widely as possible).
-If there are fewer useable nodes than there are shares, we'll be forced to
-loop around, eventually giving multiple shares to a single node. This reduces
-reliability, so it isn't the sort of thing we want to happen all the time,
-and either indicates that the default encoding parameters are set incorrectly
-(creating more shares than you have nodes), or that the grid does not have
-enough space (many nodes are full). But apart from that, it doesn't hurt. If
-we have to loop through the node list a second time, we accelerate the query
+Most of the time, this will result in one share per server, which gives us
+maximum reliability.  If there are fewer writable servers than there are
+unstored shares, we'll be forced to loop around, eventually giving multiple
+shares to a single server.
+
+If we have to loop through the node list a second time, we accelerate the query
 process, by asking each node to hold multiple shares on the second pass. In
 most cases, this means we'll never send more than two queries to any given
 node.
 
-If a node is unreachable, or has an error, or refuses to accept any of our
-shares, we remove them from the permuted list, so we won't query them a
-second time for this file. If a node already has shares for the file we're
-uploading (or if someone else is currently sending them shares), we add that
-information to the share-to-peer-node table. This lets us do less work for
-files which have been uploaded once before, while making sure we still wind
-up with as many shares as we desire.
+If a server is unreachable, or has an error, or refuses to accept any of our
+shares, we remove it from the permuted list, so we won't query it again for
+this file. If a server already has shares for the file we're uploading, we add
+that information to the share-to-server table. This lets us do less work for
+files which have been uploaded once before, while making sure we still wind up
+with as many shares as we desire.
 
 If we are unable to place every share that we want, but we still managed to
-place a quantity known as "servers of happiness" that each map to a unique
-server, we'll do the upload anyways. If we cannot place at least this many
-in this way, the upload is declared a failure.
+place enough shares on enough servers to achieve a condition called "servers of
+happiness" then we'll do the upload anyways. If we cannot achieve "servers of
+happiness", the upload is declared a failure.
 
-The current defaults use k=3, servers_of_happiness=7, and N=10, meaning that
-we'll try to place 10 shares, we'll be happy if we can place shares on enough
-servers that there are 7 different servers, the correct functioning of any 3 of
-which guarantee the availability of the file, and we need to get back any 3 to
-recover the file. This results in a 3.3x expansion factor. On a small grid, you
+The current defaults use k=3, servers_of_happiness=7, and N=10. N=10 means that
+we'll try to place 10 shares. k=3 means that we need any three shares to
+recover the file. servers_of_happiness=7 means that we'll consider the upload
+to be successful if we can place shares on enough servers that there are 7
+different servers, the correct functioning of any k of which guarantee the
+availability of the file.
+
+N=10 and k=3 means there is a 3.3x expansion factor. On a small grid, you
 should set N about equal to the number of storage servers in your grid; on a
 large grid, you might set it to something smaller to avoid the overhead of
 contacting every server to place a file. In either case, you should then set k
-such that N/k reflects your desired availability goals. The correct value for
+such that N/k reflects your desired availability goals. The best value for
 servers_of_happiness will depend on how you use Tahoe-LAFS. In a friendnet with
 a variable number of servers, it might make sense to set it to the smallest
 number of servers that you expect to have online and accepting shares at any
