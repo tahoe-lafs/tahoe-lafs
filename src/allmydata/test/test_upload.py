@@ -13,6 +13,8 @@ from allmydata.immutable import upload, encode
 from allmydata.interfaces import FileTooLargeError, UploadUnhappinessError
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
+from allmydata.util.happinessutil import servers_of_happiness, \
+                                         shares_by_server, merge_peers
 from no_network import GridTestMixin
 from common_util import ShouldFailMixin
 from allmydata.storage_client import StorageFarmBroker
@@ -703,7 +705,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         num_segments = encoder.get_param("num_segments")
         d = selector.get_shareholders(broker, sh, storage_index,
                                       share_size, block_size, num_segments,
-                                      10, 4)
+                                      10, 3, 4)
         def _have_shareholders((used_peers, already_peers)):
             assert servers_to_break <= len(used_peers)
             for index in xrange(servers_to_break):
@@ -715,7 +717,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             for peer in used_peers:
                 buckets.update(peer.buckets)
                 for bucket in peer.buckets:
-                    servermap[bucket] = peer.peerid
+                    servermap.setdefault(bucket, set()).add(peer.peerid)
             encoder.set_shareholders(buckets, servermap)
             d = encoder.start()
             return d
@@ -725,7 +727,6 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
     def _add_server(self, server_number, readonly=False):
         assert self.g, "I tried to find a grid at self.g, but failed"
-        assert self.shares, "I tried to find shares at self.shares, but failed"
         ss = self.g.make_server(server_number, readonly)
         self.g.add_server(server_number, ss)
 
@@ -759,16 +760,24 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.failUnless((share_number, ss.my_nodeid, new_share_location)
                         in shares)
 
+    def _setup_grid(self):
+        """
+        I set up a NoNetworkGrid with a single server and client.
+        """
+        self.set_up_grid(num_clients=1, num_servers=1)
 
-    def _setup_and_upload(self):
+    def _setup_and_upload(self, **kwargs):
         """
         I set up a NoNetworkGrid with a single server and client,
         upload a file to it, store its uri in self.uri, and store its
         sharedata in self.shares.
         """
-        self.set_up_grid(num_clients=1, num_servers=1)
+        self._setup_grid()
         client = self.g.clients[0]
         client.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+        if "n" in kwargs and "k" in kwargs:
+            client.DEFAULT_ENCODING_PARAMETERS['k'] = kwargs['k']
+            client.DEFAULT_ENCODING_PARAMETERS['n'] = kwargs['n']
         data = upload.Data("data" * 10000, convergence="")
         self.data = data
         d = client.upload(data)
@@ -804,7 +813,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
 
     def _setUp(self, ns):
-        # Used by test_happy_semantics and test_prexisting_share_behavior
+        # Used by test_happy_semantics and test_preexisting_share_behavior
         # to set up the grid.
         self.node = FakeClient(mode="good", num_servers=ns)
         self.u = upload.Uploader()
@@ -815,31 +824,29 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
     def test_happy_semantics(self):
         self._setUp(2)
         DATA = upload.Data("kittens" * 10000, convergence="")
-        # These parameters are unsatisfiable with the client that we've made
-        # -- we'll use them to test that the semnatics work correctly.
+        # These parameters are unsatisfiable with only 2 servers.
         self.set_encoding_parameters(k=3, happy=5, n=10)
         d = self.shouldFail(UploadUnhappinessError, "test_happy_semantics",
-                            "shares could only be placed on 2 servers "
-                            "(5 were requested)",
+                            "shares could be placed or found on only 2 "
+                            "server(s). We were asked to place shares on "
+                            "at least 5 server(s) such that any 3 of them "
+                            "have enough shares to recover the file",
                             self.u.upload, DATA)
         # Let's reset the client to have 10 servers
         d.addCallback(lambda ign:
             self._setUp(10))
-        # These parameters are satisfiable with the client we've made.
+        # These parameters are satisfiable with 10 servers.
         d.addCallback(lambda ign:
             self.set_encoding_parameters(k=3, happy=5, n=10))
-        # this should work
         d.addCallback(lambda ign:
             self.u.upload(DATA))
         # Let's reset the client to have 7 servers
         # (this is less than n, but more than h)
         d.addCallback(lambda ign:
             self._setUp(7))
-        # These encoding parameters should still be satisfiable with our 
-        # client setup
+        # These parameters are satisfiable with 7 servers.
         d.addCallback(lambda ign:
             self.set_encoding_parameters(k=3, happy=5, n=10))
-        # This, then, should work.
         d.addCallback(lambda ign:
             self.u.upload(DATA))
         return d
@@ -854,32 +861,36 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         #
         # The scenario in comment:52 proposes that we have a layout
         # like:
-        # server 1: share 1
-        # server 2: share 1
-        # server 3: share 1
-        # server 4: shares 2 - 10
+        # server 0: shares 1 - 9
+        # server 1: share 0, read-only
+        # server 2: share 0, read-only
+        # server 3: share 0, read-only
         # To get access to the shares, we will first upload to one 
-        # server, which will then have shares 1 - 10. We'll then 
+        # server, which will then have shares 0 - 9. We'll then 
         # add three new servers, configure them to not accept any new
-        # shares, then write share 1 directly into the serverdir of each.
-        # Then each of servers 1 - 3 will report that they have share 1, 
-        # and will not accept any new share, while server 4 will report that
-        # it has shares 2 - 10 and will accept new shares.
+        # shares, then write share 0 directly into the serverdir of each,
+        # and then remove share 0 from server 0 in the same way.
+        # Then each of servers 1 - 3 will report that they have share 0, 
+        # and will not accept any new share, while server 0 will report that
+        # it has shares 1 - 9 and will accept new shares.
         # We'll then set 'happy' = 4, and see that an upload fails
         # (as it should)
         d = self._setup_and_upload()
         d.addCallback(lambda ign:
-            self._add_server_with_share(1, 0, True))
+            self._add_server_with_share(server_number=1, share_number=0,
+                                        readonly=True))
         d.addCallback(lambda ign:
-            self._add_server_with_share(2, 0, True))
+            self._add_server_with_share(server_number=2, share_number=0,
+                                        readonly=True))
         d.addCallback(lambda ign:
-            self._add_server_with_share(3, 0, True))
+            self._add_server_with_share(server_number=3, share_number=0,
+                                        readonly=True))
         # Remove the first share from server 0.
-        def _remove_share_0():
+        def _remove_share_0_from_server_0():
             share_location = self.shares[0][2]
             os.remove(share_location)
         d.addCallback(lambda ign:
-            _remove_share_0())
+            _remove_share_0_from_server_0())
         # Set happy = 4 in the client.
         def _prepare():
             client = self.g.clients[0]
@@ -889,9 +900,15 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             _prepare())
         # Uploading data should fail
         d.addCallback(lambda client:
-            self.shouldFail(UploadUnhappinessError, "test_happy_semantics",
-                            "shares could only be placed on 2 servers "
-                            "(4 were requested)",
+            self.shouldFail(UploadUnhappinessError,
+                            "test_problem_layout_comment_52_test_1",
+                            "shares could be placed or found on 4 server(s), "
+                            "but they are not spread out evenly enough to "
+                            "ensure that any 3 of these servers would have "
+                            "enough shares to recover the file. "
+                            "We were asked to place shares on at "
+                            "least 4 servers such that any 3 of them have "
+                            "enough shares to recover the file",
                             client.upload, upload.Data("data" * 10000,
                                                        convergence="")))
 
@@ -905,7 +922,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._setup_and_upload())
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=2))
+            self._add_server(server_number=2))
         d.addCallback(lambda ign:
             self._add_server_with_share(server_number=3, share_number=0,
                                         readonly=True))
@@ -914,14 +931,17 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                         readonly=True))
         def _prepare2():
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 3
+            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
             return client
         d.addCallback(lambda ign:
             _prepare2())
         d.addCallback(lambda client:
-            self.shouldFail(UploadUnhappinessError, "test_happy_sematics",
-                            "shares could only be placed on 2 servers "
-                            "(3 were requested)",
+            self.shouldFail(UploadUnhappinessError,
+                            "test_problem_layout_comment_52_test_2",
+                            "shares could be placed on only 3 server(s) such "
+                            "that any 3 of them have enough shares to recover "
+                            "the file, but we were asked to place shares on "
+                            "at least 4 such servers.",
                             client.upload, upload.Data("data" * 10000,
                                                        convergence="")))
         return d
@@ -935,15 +955,14 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         def _change_basedir(ign):
             self.basedir = self.mktemp()
         _change_basedir(None)
-        d = self._setup_and_upload()
-        # We start by uploading all of the shares to one server (which has 
-        # already been done above).
+        # We start by uploading all of the shares to one server.
         # Next, we'll add three new servers to our NoNetworkGrid. We'll add
         # one share from our initial upload to each of these.
         # The counterintuitive ordering of the share numbers is to deal with 
         # the permuting of these servers -- distributing the shares this 
         # way ensures that the Tahoe2PeerSelector sees them in the order 
-        # described above.
+        # described below.
+        d = self._setup_and_upload()
         d.addCallback(lambda ign:
             self._add_server_with_share(server_number=1, share_number=2))
         d.addCallback(lambda ign:
@@ -955,7 +974,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # server 1: share 2
         # server 2: share 0
         # server 3: share 1
-        # We want to change the 'happy' parameter in the client to 4. 
+        # We change the 'happy' parameter in the client to 4. 
         # The Tahoe2PeerSelector will see the peers permuted as:
         # 2, 3, 1, 0
         # Ideally, a reupload of our original data should work.
@@ -968,12 +987,19 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             client.upload(upload.Data("data" * 10000, convergence="")))
 
 
-        # This scenario is basically comment:53, but with the order reversed;
-        # this means that the Tahoe2PeerSelector sees
-        # server 2: shares 1-10
-        # server 3: share 1
-        # server 1: share 2
-        # server 4: share 3
+        # This scenario is basically comment:53, but changed so that the 
+        # Tahoe2PeerSelector sees the server with all of the shares before
+        # any of the other servers.
+        # The layout is:
+        # server 2: shares 0 - 9
+        # server 3: share 0 
+        # server 1: share 1 
+        # server 4: share 2
+        # The Tahoe2PeerSelector sees the peers permuted as:
+        # 2, 3, 1, 4
+        # Note that server 0 has been replaced by server 4; this makes it 
+        # easier to ensure that the last server seen by Tahoe2PeerSelector
+        # has only one share. 
         d.addCallback(_change_basedir)
         d.addCallback(lambda ign:
             self._setup_and_upload())
@@ -985,7 +1011,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=1, share_number=2))
         # Copy all of the other shares to server number 2
         def _copy_shares(ign):
-            for i in xrange(1, 10):
+            for i in xrange(0, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         # Remove the first server, and add a placeholder with share 0
@@ -997,9 +1023,16 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+
+
         # Try the same thing, but with empty servers after the first one
         # We want to make sure that Tahoe2PeerSelector will redistribute
         # shares as necessary, not simply discover an existing layout.
+        # The layout is:
+        # server 2: shares 0 - 9
+        # server 3: empty
+        # server 1: empty
+        # server 4: empty
         d.addCallback(_change_basedir)
         d.addCallback(lambda ign:
             self._setup_and_upload())
@@ -1009,14 +1042,18 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server(server_number=3))
         d.addCallback(lambda ign:
             self._add_server(server_number=1))
+        d.addCallback(lambda ign:
+            self._add_server(server_number=4))
         d.addCallback(_copy_shares)
         d.addCallback(lambda ign:
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
-        d.addCallback(lambda ign:
-            self._add_server(server_number=4))
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+        # Make sure that only as many shares as necessary to satisfy
+        # servers of happiness were pushed.
+        d.addCallback(lambda results:
+            self.failUnlessEqual(results.pushed_shares, 3))
         return d
 
 
@@ -1095,17 +1132,24 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
 
     def test_dropped_servers_in_encoder(self):
+        # The Encoder does its own "servers_of_happiness" check if it 
+        # happens to lose a bucket during an upload (it assumes that 
+        # the layout presented to it satisfies "servers_of_happiness"
+        # until a failure occurs)
+        # 
+        # This test simulates an upload where servers break after peer
+        # selection, but before they are written to.
         def _set_basedir(ign=None):
             self.basedir = self.mktemp()
         _set_basedir()
         d = self._setup_and_upload();
         # Add 5 servers
         def _do_server_setup(ign):
-            self._add_server_with_share(1)
-            self._add_server_with_share(2)
-            self._add_server_with_share(3)
-            self._add_server_with_share(4)
-            self._add_server_with_share(5)
+            self._add_server(server_number=1)
+            self._add_server(server_number=2)
+            self._add_server(server_number=3)
+            self._add_server(server_number=4)
+            self._add_server(server_number=5)
         d.addCallback(_do_server_setup)
         # remove the original server
         # (necessary to ensure that the Tahoe2PeerSelector will distribute
@@ -1114,11 +1158,13 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             server = self.g.servers_by_number[0]
             self.g.remove_server(server.my_nodeid)
         d.addCallback(_remove_server)
-        # This should succeed.
+        # This should succeed; we still have 4 servers, and the 
+        # happiness of the upload is 4.
         d.addCallback(lambda ign:
             self._do_upload_with_broken_servers(1))
         # Now, do the same thing over again, but drop 2 servers instead
-        # of 1. This should fail.
+        # of 1. This should fail, because servers_of_happiness is 4 and 
+        # we can't satisfy that.
         d.addCallback(_set_basedir)
         d.addCallback(lambda ign:
             self._setup_and_upload())
@@ -1127,8 +1173,10 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self.shouldFail(UploadUnhappinessError,
                             "test_dropped_servers_in_encoder",
-                            "lost too many servers during upload "
-                            "(still have 3, want 4)",
+                            "shares could be placed on only 3 server(s) "
+                            "such that any 3 of them have enough shares to "
+                            "recover the file, but we were asked to place "
+                            "shares on at least 4",
                             self._do_upload_with_broken_servers, 2))
         # Now do the same thing over again, but make some of the servers
         # readonly, break some of the ones that aren't, and make sure that
@@ -1137,9 +1185,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._setup_and_upload())
         def _do_server_setup_2(ign):
-            self._add_server_with_share(1)
-            self._add_server_with_share(2)
-            self._add_server_with_share(3)
+            self._add_server(1)
+            self._add_server(2)
+            self._add_server(3)
             self._add_server_with_share(4, 7, readonly=True)
             self._add_server_with_share(5, 8, readonly=True)
         d.addCallback(_do_server_setup_2)
@@ -1154,34 +1202,27 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self.shouldFail(UploadUnhappinessError,
                             "test_dropped_servers_in_encoder",
-                            "lost too many servers during upload "
-                            "(still have 3, want 4)",
+                            "shares could be placed on only 3 server(s) "
+                            "such that any 3 of them have enough shares to "
+                            "recover the file, but we were asked to place "
+                            "shares on at least 4",
                             self._do_upload_with_broken_servers, 2))
         return d
 
 
-    def test_servers_with_unique_shares(self):
-        # servers_with_unique_shares expects a dict of 
-        # shnum => peerid as a preexisting shares argument.
-        test1 = {
-                 1 : "server1",
-                 2 : "server2",
-                 3 : "server3",
-                 4 : "server4"
-                }
-        unique_servers = upload.servers_with_unique_shares(test1)
-        self.failUnlessEqual(4, len(unique_servers))
-        for server in ["server1", "server2", "server3", "server4"]:
-            self.failUnlessIn(server, unique_servers)
-        test1[4] = "server1"
-        # Now there should only be 3 unique servers.
-        unique_servers = upload.servers_with_unique_shares(test1)
-        self.failUnlessEqual(3, len(unique_servers))
-        for server in ["server1", "server2", "server3"]:
-            self.failUnlessIn(server, unique_servers)
-        # servers_with_unique_shares expects to receive some object with
-        # a peerid attribute. So we make a FakePeerTracker whose only
-        # job is to have a peerid attribute.
+    def test_merge_peers(self):
+        # merge_peers merges a list of used_peers and a dict of 
+        # shareid -> peerid mappings.
+        shares = {
+                    1 : set(["server1"]),
+                    2 : set(["server2"]),
+                    3 : set(["server3"]),
+                    4 : set(["server4", "server5"]),
+                    5 : set(["server1", "server2"]),
+                 }
+        # if not provided with a used_peers argument, it should just
+        # return the first argument unchanged.
+        self.failUnlessEqual(shares, merge_peers(shares, set([])))
         class FakePeerTracker:
             pass
         trackers = []
@@ -1190,52 +1231,184 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             t.peerid = server
             t.buckets = [i]
             trackers.append(t)
-        # Recall that there are 3 unique servers in test1. Since none of
-        # those overlap with the ones in trackers, we should get 7 back
-        unique_servers = upload.servers_with_unique_shares(test1, set(trackers))
-        self.failUnlessEqual(7, len(unique_servers))
-        expected_servers = ["server" + str(i) for i in xrange(1, 9)]
-        expected_servers.remove("server4")
-        for server in expected_servers:
-            self.failUnlessIn(server, unique_servers)
-        # Now add an overlapping server to trackers.
+        expected = {
+                    1 : set(["server1"]),
+                    2 : set(["server2"]),
+                    3 : set(["server3"]),
+                    4 : set(["server4", "server5"]),
+                    5 : set(["server1", "server2", "server5"]),
+                    6 : set(["server6"]),
+                    7 : set(["server7"]),
+                    8 : set(["server8"]),
+                   }
+        self.failUnlessEqual(expected, merge_peers(shares, set(trackers)))
+        shares2 = {}
+        expected = {
+                    5 : set(["server5"]),
+                    6 : set(["server6"]),
+                    7 : set(["server7"]),
+                    8 : set(["server8"]),
+                   }
+        self.failUnlessEqual(expected, merge_peers(shares2, set(trackers)))
+        shares3 = {}
+        trackers = []
+        expected = {}
+        for (i, server) in [(i, "server%d" % i) for i in xrange(10)]:
+            shares3[i] = set([server])
+            t = FakePeerTracker()
+            t.peerid = server
+            t.buckets = [i]
+            trackers.append(t)
+            expected[i] = set([server])
+        self.failUnlessEqual(expected, merge_peers(shares3, set(trackers)))
+
+
+    def test_servers_of_happiness_utility_function(self):
+        # These tests are concerned with the servers_of_happiness()
+        # utility function, and its underlying matching algorithm. Other
+        # aspects of the servers_of_happiness behavior are tested
+        # elsehwere These tests exist to ensure that
+        # servers_of_happiness doesn't under or overcount the happiness
+        # value for given inputs.
+
+        # servers_of_happiness expects a dict of 
+        # shnum => set(peerids) as a preexisting shares argument.
+        test1 = {
+                 1 : set(["server1"]),
+                 2 : set(["server2"]),
+                 3 : set(["server3"]),
+                 4 : set(["server4"])
+                }
+        happy = servers_of_happiness(test1)
+        self.failUnlessEqual(4, happy)
+        test1[4] = set(["server1"])
+        # We've added a duplicate server, so now servers_of_happiness
+        # should be 3 instead of 4.
+        happy = servers_of_happiness(test1)
+        self.failUnlessEqual(3, happy)
+        # The second argument of merge_peers should be a set of 
+        # objects with peerid and buckets as attributes. In actual use, 
+        # these will be PeerTracker instances, but for testing it is fine 
+        # to make a FakePeerTracker whose job is to hold those instance
+        # variables to test that part.
+        class FakePeerTracker:
+            pass
+        trackers = []
+        for (i, server) in [(i, "server%d" % i) for i in xrange(5, 9)]:
+            t = FakePeerTracker()
+            t.peerid = server
+            t.buckets = [i]
+            trackers.append(t)
+        # Recall that test1 is a server layout with servers_of_happiness
+        # = 3.  Since there isn't any overlap between the shnum ->
+        # set([peerid]) correspondences in test1 and those in trackers,
+        # the result here should be 7.
+        test2 = merge_peers(test1, set(trackers))
+        happy = servers_of_happiness(test2)
+        self.failUnlessEqual(7, happy)
+        # Now add an overlapping server to trackers. This is redundant,
+        # so it should not cause the previously reported happiness value
+        # to change.
         t = FakePeerTracker()
         t.peerid = "server1"
         t.buckets = [1]
         trackers.append(t)
-        unique_servers = upload.servers_with_unique_shares(test1, set(trackers))
-        self.failUnlessEqual(7, len(unique_servers))
-        for server in expected_servers:
-            self.failUnlessIn(server, unique_servers)
+        test2 = merge_peers(test1, set(trackers))
+        happy = servers_of_happiness(test2)
+        self.failUnlessEqual(7, happy)
         test = {}
-        unique_servers = upload.servers_with_unique_shares(test)
-        self.failUnlessEqual(0, len(test))
+        happy = servers_of_happiness(test)
+        self.failUnlessEqual(0, happy)
+        # Test a more substantial overlap between the trackers and the 
+        # existing assignments.
+        test = {
+            1 : set(['server1']),
+            2 : set(['server2']),
+            3 : set(['server3']),
+            4 : set(['server4']),
+        }
+        trackers = []
+        t = FakePeerTracker()
+        t.peerid = 'server5'
+        t.buckets = [4]
+        trackers.append(t)
+        t = FakePeerTracker()
+        t.peerid = 'server6'
+        t.buckets = [3, 5]
+        trackers.append(t)
+        # The value returned by servers_of_happiness is the size 
+        # of a maximum matching in the bipartite graph that
+        # servers_of_happiness() makes between peerids and share
+        # numbers. It should find something like this:
+        # (server 1, share 1)
+        # (server 2, share 2)
+        # (server 3, share 3)
+        # (server 5, share 4)
+        # (server 6, share 5)
+        # 
+        # and, since there are 5 edges in this matching, it should
+        # return 5.
+        test2 = merge_peers(test, set(trackers))
+        happy = servers_of_happiness(test2)
+        self.failUnlessEqual(5, happy)
+        # Zooko's first puzzle: 
+        # (from http://allmydata.org/trac/tahoe-lafs/ticket/778#comment:156)
+        #
+        # server 1: shares 0, 1
+        # server 2: shares 1, 2
+        # server 3: share 2
+        #
+        # This should yield happiness of 3.
+        test = {
+            0 : set(['server1']),
+            1 : set(['server1', 'server2']),
+            2 : set(['server2', 'server3']),
+        }
+        self.failUnlessEqual(3, servers_of_happiness(test))
+        # Zooko's second puzzle:        
+        # (from http://allmydata.org/trac/tahoe-lafs/ticket/778#comment:158)
+        # 
+        # server 1: shares 0, 1
+        # server 2: share 1
+        # 
+        # This should yield happiness of 2.
+        test = {
+            0 : set(['server1']),
+            1 : set(['server1', 'server2']),
+        }
+        self.failUnlessEqual(2, servers_of_happiness(test))
 
 
     def test_shares_by_server(self):
-        test = dict([(i, "server%d" % i) for i in xrange(1, 5)])
-        shares_by_server = upload.shares_by_server(test)
-        self.failUnlessEqual(set([1]), shares_by_server["server1"])
-        self.failUnlessEqual(set([2]), shares_by_server["server2"])
-        self.failUnlessEqual(set([3]), shares_by_server["server3"])
-        self.failUnlessEqual(set([4]), shares_by_server["server4"])
+        test = dict([(i, set(["server%d" % i])) for i in xrange(1, 5)])
+        sbs = shares_by_server(test)
+        self.failUnlessEqual(set([1]), sbs["server1"])
+        self.failUnlessEqual(set([2]), sbs["server2"])
+        self.failUnlessEqual(set([3]), sbs["server3"])
+        self.failUnlessEqual(set([4]), sbs["server4"])
         test1 = {
-                    1 : "server1",
-                    2 : "server1",
-                    3 : "server1",
-                    4 : "server2",
-                    5 : "server2"
+                    1 : set(["server1"]),
+                    2 : set(["server1"]),
+                    3 : set(["server1"]),
+                    4 : set(["server2"]),
+                    5 : set(["server2"])
                 }
-        shares_by_server = upload.shares_by_server(test1)
-        self.failUnlessEqual(set([1, 2, 3]), shares_by_server["server1"])
-        self.failUnlessEqual(set([4, 5]), shares_by_server["server2"])
+        sbs = shares_by_server(test1)
+        self.failUnlessEqual(set([1, 2, 3]), sbs["server1"])
+        self.failUnlessEqual(set([4, 5]), sbs["server2"])
+        # This should fail unless the peerid part of the mapping is a set
+        test2 = {1: "server1"}
+        self.shouldFail(AssertionError,
+                       "test_shares_by_server",
+                       "",
+                       shares_by_server, test2)
 
 
     def test_existing_share_detection(self):
         self.basedir = self.mktemp()
         d = self._setup_and_upload()
         # Our final setup should look like this:
-        # server 1: shares 1 - 10, read-only
+        # server 1: shares 0 - 9, read-only
         # server 2: empty
         # server 3: empty
         # server 4: empty
@@ -1246,11 +1419,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._add_server_with_share(1, 0, True))
         d.addCallback(lambda ign:
-            self._add_server_with_share(2))
+            self._add_server(2))
         d.addCallback(lambda ign:
-            self._add_server_with_share(3))
+            self._add_server(3))
         d.addCallback(lambda ign:
-            self._add_server_with_share(4))
+            self._add_server(4))
         def _copy_shares(ign):
             for i in xrange(1, 10):
                 self._copy_share_to_server(i, 1)
@@ -1267,35 +1440,127 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         return d
 
 
-    def test_should_add_server(self):
-        shares = dict([(i, "server%d" % i) for i in xrange(10)])
-        self.failIf(upload.should_add_server(shares, "server1", 4))
-        shares[4] = "server1"
-        self.failUnless(upload.should_add_server(shares, "server4", 4))
-        shares = {}
-        self.failUnless(upload.should_add_server(shares, "server1", 1))
+    def test_query_counting(self):
+        # If peer selection fails, Tahoe2PeerSelector prints out a lot
+        # of helpful diagnostic information, including query stats.
+        # This test helps make sure that that information is accurate.
+        self.basedir = self.mktemp()
+        d = self._setup_and_upload()
+        def _setup(ign):
+            for i in xrange(1, 11):
+                self._add_server(server_number=i)
+            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            c = self.g.clients[0]
+            # We set happy to an unsatisfiable value so that we can check the 
+            # counting in the exception message. The same progress message
+            # is also used when the upload is successful, but in that case it
+            # only gets written to a log, so we can't see what it says.
+            c.DEFAULT_ENCODING_PARAMETERS['happy'] = 45
+            return c
+        d.addCallback(_setup)
+        d.addCallback(lambda c:
+            self.shouldFail(UploadUnhappinessError, "test_query_counting",
+                            "10 queries placed some shares",
+                            c.upload, upload.Data("data" * 10000,
+                                                  convergence="")))
+        # Now try with some readonly servers. We want to make sure that
+        # the readonly peer share discovery phase is counted correctly.
+        def _reset(ign):
+            self.basedir = self.mktemp()
+            self.g = None
+        d.addCallback(_reset)
+        d.addCallback(lambda ign:
+            self._setup_and_upload())
+        def _then(ign):
+            for i in xrange(1, 11):
+                self._add_server(server_number=i)
+            self._add_server(server_number=11, readonly=True)
+            self._add_server(server_number=12, readonly=True)
+            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            c = self.g.clients[0]
+            c.DEFAULT_ENCODING_PARAMETERS['happy'] = 45
+            return c
+        d.addCallback(_then)
+        d.addCallback(lambda c:
+            self.shouldFail(UploadUnhappinessError, "test_query_counting",
+                            "2 placed none (of which 2 placed none due to "
+                            "the server being full",
+                            c.upload, upload.Data("data" * 10000,
+                                                  convergence="")))
+        # Now try the case where the upload process finds a bunch of the
+        # shares that it wants to place on the first server, including
+        # the one that it wanted to allocate there. Though no shares will
+        # be allocated in this request, it should still be called
+        # productive, since it caused some homeless shares to be 
+        # removed.
+        d.addCallback(_reset)
+        d.addCallback(lambda ign:
+            self._setup_and_upload())
+
+        def _next(ign):
+            for i in xrange(1, 11):
+                self._add_server(server_number=i)
+            # Copy all of the shares to server 9, since that will be
+            # the first one that the selector sees.
+            for i in xrange(10):
+                self._copy_share_to_server(i, 9)
+            # Remove server 0, and its contents
+            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            # Make happiness unsatisfiable
+            c = self.g.clients[0]
+            c.DEFAULT_ENCODING_PARAMETERS['happy'] = 45
+            return c
+        d.addCallback(_next)
+        d.addCallback(lambda c:
+            self.shouldFail(UploadUnhappinessError, "test_query_counting",
+                            "1 queries placed some shares",
+                            c.upload, upload.Data("data" * 10000,
+                                                  convergence="")))
+        return d
+
+
+    def test_upper_limit_on_readonly_queries(self):
+        self.basedir = self.mktemp()
+        d = self._setup_and_upload()
+        def _then(ign):
+            for i in xrange(1, 11):
+                self._add_server(server_number=i, readonly=True)
+            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            c = self.g.clients[0]
+            c.DEFAULT_ENCODING_PARAMETERS['k'] = 2
+            c.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            c.DEFAULT_ENCODING_PARAMETERS['n'] = 4
+            return c
+        d.addCallback(_then)
+        d.addCallback(lambda client:
+            self.shouldFail(UploadUnhappinessError,
+                            "test_upper_limit_on_readonly_queries",
+                            "sent 8 queries to 8 peers",
+                            client.upload,
+                            upload.Data('data' * 10000, convergence="")))
+        return d
 
 
     def test_exception_messages_during_peer_selection(self):
-        # server 1: readonly, no shares
-        # server 2: readonly, no shares
-        # server 3: readonly, no shares
-        # server 4: readonly, no shares
-        # server 5: readonly, no shares
+        # server 1: read-only, no shares
+        # server 2: read-only, no shares
+        # server 3: read-only, no shares
+        # server 4: read-only, no shares
+        # server 5: read-only, no shares
         # This will fail, but we want to make sure that the log messages
         # are informative about why it has failed.
         self.basedir = self.mktemp()
         d = self._setup_and_upload()
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=1, readonly=True))
+            self._add_server(server_number=1, readonly=True))
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=2, readonly=True))
+            self._add_server(server_number=2, readonly=True))
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=3, readonly=True))
+            self._add_server(server_number=3, readonly=True))
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=4, readonly=True))
+            self._add_server(server_number=4, readonly=True))
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=5, readonly=True))
+            self._add_server(server_number=5, readonly=True))
         d.addCallback(lambda ign:
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
         def _reset_encoding_parameters(ign):
@@ -1305,10 +1570,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
-                            "peer selection failed for <Tahoe2PeerSelector "
-                            "for upload dglev>: placed 0 shares out of 10 "
-                            "total (10 homeless), want to place on 4 servers,"
-                            " sent 5 queries to 5 peers, 0 queries placed "
+                            "placed 0 shares out of 10 "
+                            "total (10 homeless), want to place shares on at "
+                            "least 4 servers such that any 3 of them have "
+                            "enough shares to recover the file, "
+                            "sent 5 queries to 5 peers, 0 queries placed "
                             "some shares, 5 placed none "
                             "(of which 5 placed none due to the server being "
                             "full and 0 placed none due to an error)",
@@ -1316,52 +1582,161 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             upload.Data("data" * 10000, convergence="")))
 
 
-        # server 1: readonly, no shares
+        # server 1: read-only, no shares
         # server 2: broken, no shares
-        # server 3: readonly, no shares
-        # server 4: readonly, no shares
-        # server 5: readonly, no shares
+        # server 3: read-only, no shares
+        # server 4: read-only, no shares
+        # server 5: read-only, no shares
         def _reset(ign):
             self.basedir = self.mktemp()
         d.addCallback(_reset)
         d.addCallback(lambda ign:
             self._setup_and_upload())
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=1, readonly=True))
+            self._add_server(server_number=1, readonly=True))
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=2))
+            self._add_server(server_number=2))
         def _break_server_2(ign):
             server = self.g.servers_by_number[2].my_nodeid
             # We have to break the server in servers_by_id, 
-            # because the ones in servers_by_number isn't wrapped,
-            # and doesn't look at its broken attribute
+            # because the one in servers_by_number isn't wrapped,
+            # and doesn't look at its broken attribute when answering
+            # queries.
             self.g.servers_by_id[server].broken = True
         d.addCallback(_break_server_2)
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=3, readonly=True))
+            self._add_server(server_number=3, readonly=True))
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=4, readonly=True))
+            self._add_server(server_number=4, readonly=True))
         d.addCallback(lambda ign:
-            self._add_server_with_share(server_number=5, readonly=True))
+            self._add_server(server_number=5, readonly=True))
         d.addCallback(lambda ign:
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
-        def _reset_encoding_parameters(ign):
+        def _reset_encoding_parameters(ign, happy=4):
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            client.DEFAULT_ENCODING_PARAMETERS['happy'] = happy
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
-                            "peer selection failed for <Tahoe2PeerSelector "
-                            "for upload dglev>: placed 0 shares out of 10 "
-                            "total (10 homeless), want to place on 4 servers,"
-                            " sent 5 queries to 5 peers, 0 queries placed "
+                            "placed 0 shares out of 10 "
+                            "total (10 homeless), want to place shares on at "
+                            "least 4 servers such that any 3 of them have "
+                            "enough shares to recover the file, "
+                            "sent 5 queries to 5 peers, 0 queries placed "
                             "some shares, 5 placed none "
                             "(of which 4 placed none due to the server being "
                             "full and 1 placed none due to an error)",
                             client.upload,
                             upload.Data("data" * 10000, convergence="")))
+        # server 0, server 1 = empty, accepting shares
+        # This should place all of the shares, but still fail with happy=4.
+        # We want to make sure that the exception message is worded correctly.
+        d.addCallback(_reset)
+        d.addCallback(lambda ign:
+            self._setup_grid())
+        d.addCallback(lambda ign:
+            self._add_server(server_number=1))
+        d.addCallback(_reset_encoding_parameters)
+        d.addCallback(lambda client:
+            self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
+                            "shares could be placed or found on only 2 "
+                            "server(s). We were asked to place shares on at "
+                            "least 4 server(s) such that any 3 of them have "
+                            "enough shares to recover the file.",
+                            client.upload, upload.Data("data" * 10000,
+                                                       convergence="")))
+        # servers 0 - 4 = empty, accepting shares
+        # This too should place all the shares, and this too should fail,
+        # but since the effective happiness is more than the k encoding
+        # parameter, it should trigger a different error message than the one
+        # above.
+        d.addCallback(_reset)
+        d.addCallback(lambda ign:
+            self._setup_grid())
+        d.addCallback(lambda ign:
+            self._add_server(server_number=1))
+        d.addCallback(lambda ign:
+            self._add_server(server_number=2))
+        d.addCallback(lambda ign:
+            self._add_server(server_number=3))
+        d.addCallback(lambda ign:
+            self._add_server(server_number=4))
+        d.addCallback(_reset_encoding_parameters, happy=7)
+        d.addCallback(lambda client:
+            self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
+                            "shares could be placed on only 5 server(s) such "
+                            "that any 3 of them have enough shares to recover "
+                            "the file, but we were asked to place shares on "
+                            "at least 7 such servers.",
+                            client.upload, upload.Data("data" * 10000,
+                                                       convergence="")))
+        # server 0: shares 0 - 9
+        # server 1: share 0, read-only
+        # server 2: share 0, read-only
+        # server 3: share 0, read-only
+        # This should place all of the shares, but fail with happy=4.
+        # Since the number of servers with shares is more than the number
+        # necessary to reconstitute the file, this will trigger a different
+        # error message than either of those above. 
+        d.addCallback(_reset)
+        d.addCallback(lambda ign:
+            self._setup_and_upload())
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=1, share_number=0,
+                                        readonly=True))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=2, share_number=0,
+                                        readonly=True))
+        d.addCallback(lambda ign:
+            self._add_server_with_share(server_number=3, share_number=0,
+                                        readonly=True))
+        d.addCallback(_reset_encoding_parameters, happy=7)
+        d.addCallback(lambda client:
+            self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
+                            "shares could be placed or found on 4 server(s), "
+                            "but they are not spread out evenly enough to "
+                            "ensure that any 3 of these servers would have "
+                            "enough shares to recover the file. We were asked "
+                            "to place shares on at least 7 servers such that "
+                            "any 3 of them have enough shares to recover the "
+                            "file",
+                            client.upload, upload.Data("data" * 10000,
+                                                       convergence="")))
         return d
+
+
+    def test_problem_layout_comment_187(self):
+        # #778 comment 187 broke an initial attempt at a share
+        # redistribution algorithm. This test is here to demonstrate the
+        # breakage, and to test that subsequent algorithms don't also
+        # break in the same way.
+        self.basedir = self.mktemp()
+        d = self._setup_and_upload(k=2, n=3)
+
+        # server 1: shares 0, 1, 2, readonly
+        # server 2: share 0, readonly
+        # server 3: share 0
+        def _setup(ign):
+            self._add_server_with_share(server_number=1, share_number=0,
+                                        readonly=True)
+            self._add_server_with_share(server_number=2, share_number=0,
+                                        readonly=True)
+            self._add_server_with_share(server_number=3, share_number=0)
+            # Copy shares
+            self._copy_share_to_server(1, 1)
+            self._copy_share_to_server(2, 1)
+            # Remove server 0
+            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            client = self.g.clients[0]
+            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 3
+            return client
+
+        d.addCallback(_setup)
+        d.addCallback(lambda client:
+            client.upload(upload.Data("data" * 10000, convergence="")))
+        return d
+    test_problem_layout_comment_187.todo = "this isn't fixed yet"
 
 
     def _set_up_nodes_extra_config(self, clientdir):

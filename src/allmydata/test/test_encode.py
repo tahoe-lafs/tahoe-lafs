@@ -25,7 +25,7 @@ class FakeStorageBroker:
 class FakeBucketReaderWriterProxy:
     implements(IStorageBucketWriter, IStorageBucketReader)
     # these are used for both reading and writing
-    def __init__(self, mode="good"):
+    def __init__(self, mode="good", peerid="peer"):
         self.mode = mode
         self.blocks = {}
         self.plaintext_hashes = []
@@ -33,9 +33,10 @@ class FakeBucketReaderWriterProxy:
         self.block_hashes = None
         self.share_hashes = None
         self.closed = False
+        self.peerid = peerid
 
     def get_peerid(self):
-        return "peerid"
+        return self.peerid
 
     def _start(self):
         if self.mode == "lost-early":
@@ -302,7 +303,7 @@ class Encode(unittest.TestCase):
             for shnum in range(NUM_SHARES):
                 peer = FakeBucketReaderWriterProxy()
                 shareholders[shnum] = peer
-                servermap[shnum] = str(shnum)
+                servermap.setdefault(shnum, set()).add(peer.get_peerid())
                 all_shareholders.append(peer)
             e.set_shareholders(shareholders, servermap)
             return e.start()
@@ -459,12 +460,12 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
         def _ready(res):
             k,happy,n = e.get_param("share_counts")
             assert n == NUM_SHARES # else we'll be completely confused
-            all_peers = []
+            servermap = {}
             for shnum in range(NUM_SHARES):
                 mode = bucket_modes.get(shnum, "good")
-                peer = FakeBucketReaderWriterProxy(mode)
+                peer = FakeBucketReaderWriterProxy(mode, "peer%d" % shnum)
                 shareholders[shnum] = peer
-                servermap[shnum] = str(shnum)
+                servermap.setdefault(shnum, set()).add(peer.get_peerid())
             e.set_shareholders(shareholders, servermap)
             return e.start()
         d.addCallback(_ready)
