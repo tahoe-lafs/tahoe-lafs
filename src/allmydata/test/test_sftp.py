@@ -24,9 +24,10 @@ if have_pycrypto:
 #from twisted.internet.base import DelayedCall
 #DelayedCall.debug = True
 
-import sys, traceback
+import traceback
 
 """
+import sys
 def trace_exceptions(frame, event, arg):
     if event != 'exception':
         return
@@ -70,15 +71,19 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         def _done(res):
             if isinstance(res, Failure):
                 res.trap(sftp.SFTPError)
-                self.failUnlessEqual(res.value.code, expected_code,
-                                     "%s was supposed to raise SFTPError(%d), not SFTPError(%d): %s" %
-                                     (which, expected_code, res.value.code, res))
+                self.failUnlessReallyEqual(res.value.code, expected_code,
+                                         "%s was supposed to raise SFTPError(%d), not SFTPError(%d): %s" %
+                                         (which, expected_code, res.value.code, res))
             else:
                 print '@' + '@'.join(s)
                 self.fail("%s was supposed to raise SFTPError(%d), not get '%s'" %
                           (which, expected_code, res))
         d.addBoth(_done)
         return d
+
+    def failUnlessReallyEqual(self, a, b, msg=None):
+        self.failUnlessEqual(a, b, msg=msg)
+        self.failUnlessEqual(type(a), type(b), msg=msg)
 
     def _set_up(self, basedir, num_clients=1, num_servers=10):
         self.basedir = "sftp/" + basedir
@@ -175,43 +180,43 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             version = self.handler.gotVersion(3, {})
             self.failUnless(isinstance(version, dict))
 
-            self.failUnlessEqual(self.handler._path_from_string(""), [])
-            self.failUnlessEqual(self.handler._path_from_string("/"), [])
-            self.failUnlessEqual(self.handler._path_from_string("."), [])
-            self.failUnlessEqual(self.handler._path_from_string("//"), [])
-            self.failUnlessEqual(self.handler._path_from_string("/."), [])
-            self.failUnlessEqual(self.handler._path_from_string("/./"), [])
-            self.failUnlessEqual(self.handler._path_from_string("foo"), [u"foo"])
-            self.failUnlessEqual(self.handler._path_from_string("/foo"), [u"foo"])
-            self.failUnlessEqual(self.handler._path_from_string("foo/"), [u"foo"])
-            self.failUnlessEqual(self.handler._path_from_string("/foo/"), [u"foo"])
-            self.failUnlessEqual(self.handler._path_from_string("foo/bar"), [u"foo", u"bar"])
-            self.failUnlessEqual(self.handler._path_from_string("/foo/bar"), [u"foo", u"bar"])
-            self.failUnlessEqual(self.handler._path_from_string("foo/bar//"), [u"foo", u"bar"])
-            self.failUnlessEqual(self.handler._path_from_string("/foo/bar//"), [u"foo", u"bar"])
-            self.failUnlessEqual(self.handler._path_from_string("foo/../bar"), [u"bar"])
-            self.failUnlessEqual(self.handler._path_from_string("/foo/../bar"), [u"bar"])
-            self.failUnlessEqual(self.handler._path_from_string("../bar"), [u"bar"])
-            self.failUnlessEqual(self.handler._path_from_string("/../bar"), [u"bar"])
+            self.failUnlessReallyEqual(self.handler._path_from_string(""), [])
+            self.failUnlessReallyEqual(self.handler._path_from_string("/"), [])
+            self.failUnlessReallyEqual(self.handler._path_from_string("."), [])
+            self.failUnlessReallyEqual(self.handler._path_from_string("//"), [])
+            self.failUnlessReallyEqual(self.handler._path_from_string("/."), [])
+            self.failUnlessReallyEqual(self.handler._path_from_string("/./"), [])
+            self.failUnlessReallyEqual(self.handler._path_from_string("foo"), [u"foo"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("/foo"), [u"foo"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("foo/"), [u"foo"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("/foo/"), [u"foo"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("foo/bar"), [u"foo", u"bar"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("/foo/bar"), [u"foo", u"bar"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("foo/bar//"), [u"foo", u"bar"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("/foo/bar//"), [u"foo", u"bar"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("foo/../bar"), [u"bar"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("/foo/../bar"), [u"bar"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("../bar"), [u"bar"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("/../bar"), [u"bar"])
 
-            self.failUnlessEqual(self.handler.realPath(""), "/")
-            self.failUnlessEqual(self.handler.realPath("/"), "/")
-            self.failUnlessEqual(self.handler.realPath("."), "/")
-            self.failUnlessEqual(self.handler.realPath("//"), "/")
-            self.failUnlessEqual(self.handler.realPath("/."), "/")
-            self.failUnlessEqual(self.handler.realPath("/./"), "/")
-            self.failUnlessEqual(self.handler.realPath("foo"), "/foo")
-            self.failUnlessEqual(self.handler.realPath("/foo"), "/foo")
-            self.failUnlessEqual(self.handler.realPath("foo/"), "/foo")
-            self.failUnlessEqual(self.handler.realPath("/foo/"), "/foo")
-            self.failUnlessEqual(self.handler.realPath("foo/bar"), "/foo/bar")
-            self.failUnlessEqual(self.handler.realPath("/foo/bar"), "/foo/bar")
-            self.failUnlessEqual(self.handler.realPath("foo/bar//"), "/foo/bar")
-            self.failUnlessEqual(self.handler.realPath("/foo/bar//"), "/foo/bar")
-            self.failUnlessEqual(self.handler.realPath("foo/../bar"), "/bar")
-            self.failUnlessEqual(self.handler.realPath("/foo/../bar"), "/bar")
-            self.failUnlessEqual(self.handler.realPath("../bar"), "/bar")
-            self.failUnlessEqual(self.handler.realPath("/../bar"), "/bar")
+            self.failUnlessReallyEqual(self.handler.realPath(""), "/")
+            self.failUnlessReallyEqual(self.handler.realPath("/"), "/")
+            self.failUnlessReallyEqual(self.handler.realPath("."), "/")
+            self.failUnlessReallyEqual(self.handler.realPath("//"), "/")
+            self.failUnlessReallyEqual(self.handler.realPath("/."), "/")
+            self.failUnlessReallyEqual(self.handler.realPath("/./"), "/")
+            self.failUnlessReallyEqual(self.handler.realPath("foo"), "/foo")
+            self.failUnlessReallyEqual(self.handler.realPath("/foo"), "/foo")
+            self.failUnlessReallyEqual(self.handler.realPath("foo/"), "/foo")
+            self.failUnlessReallyEqual(self.handler.realPath("/foo/"), "/foo")
+            self.failUnlessReallyEqual(self.handler.realPath("foo/bar"), "/foo/bar")
+            self.failUnlessReallyEqual(self.handler.realPath("/foo/bar"), "/foo/bar")
+            self.failUnlessReallyEqual(self.handler.realPath("foo/bar//"), "/foo/bar")
+            self.failUnlessReallyEqual(self.handler.realPath("/foo/bar//"), "/foo/bar")
+            self.failUnlessReallyEqual(self.handler.realPath("foo/../bar"), "/bar")
+            self.failUnlessReallyEqual(self.handler.realPath("/foo/../bar"), "/bar")
+            self.failUnlessReallyEqual(self.handler.realPath("../bar"), "/bar")
+            self.failUnlessReallyEqual(self.handler.realPath("/../bar"), "/bar")
         d.addCallback(_check)
 
         d.addCallback(lambda ign:
@@ -224,7 +229,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         return d
 
     def test_raise_error(self):
-        self.failUnlessEqual(sftpd._raise_error(None), None)
+        self.failUnlessReallyEqual(sftpd._raise_error(None), None)
         
         d = defer.succeed(None)
         d.addCallback(lambda ign:
@@ -273,20 +278,20 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
     def _compareDirLists(self, actual, expected):
        actual_list = sorted(actual)
        expected_list = sorted(expected)
-       self.failUnlessEqual(len(actual_list), len(expected_list),
+       self.failUnlessReallyEqual(len(actual_list), len(expected_list),
                             "%r is wrong length, expecting %r" % (actual_list, expected_list))
        for (a, b) in zip(actual_list, expected_list):
            (name, text, attrs) = a
            (expected_name, expected_text_re, expected_attrs) = b
-           self.failUnlessEqual(name, expected_name)
+           self.failUnlessReallyEqual(name, expected_name)
            self.failUnless(re.match(expected_text_re, text), "%r does not match %r" % (text, expected_text_re))
            # it is ok for there to be extra actual attributes
            # TODO: check times
            for e in expected_attrs:
-               self.failUnlessEqual(attrs[e], expected_attrs[e])
+               self.failUnlessReallyEqual(attrs[e], expected_attrs[e])
 
     def test_openDirectory_and_attrs(self):
-        d = self._set_up("openDirectory")
+        d = self._set_up("openDirectory_and_attrs")
         d.addCallback(lambda ign: self._set_up_tree())
 
         d.addCallback(lambda ign:
@@ -336,12 +341,12 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
 
         d.addCallback(lambda ign: self.handler.getAttrs("small", True))
         def _check_attrs(attrs):
-            self.failUnlessEqual(attrs['permissions'], S_IFREG | 0440) #FIXME
-            self.failUnlessEqual(attrs['size'], 10)
+            self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0440) #FIXME
+            self.failUnlessReallyEqual(attrs['size'], 10)
         d.addCallback(_check_attrs)
 
         d.addCallback(lambda ign:
-            self.failUnlessEqual(self.handler.setAttrs("small", {}), None))
+            self.failUnlessReallyEqual(self.handler.setAttrs("small", {}), None))
 
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "setAttrs size",
@@ -350,7 +355,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         return d
 
     def test_openFile_read(self):
-        d = self._set_up("openFile")
+        d = self._set_up("openFile_read")
         d.addCallback(lambda ign: self._set_up_tree())
 
         d.addCallback(lambda ign:
@@ -377,18 +382,25 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir uri READ denied",
                                          self.handler.openFile, "uri/"+self.tiny_lit_dir_uri, sftp.FXF_READ, {}))
+        # FIXME: should be FX_NO_SUCH_FILE?
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile noexist uri READ denied",
+                                         self.handler.openFile, "uri/URI:noexist", sftp.FXF_READ, {}))
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile invalid UTF-8 uri READ denied",
+                                         self.handler.openFile, "uri/URI:\xFF", sftp.FXF_READ, {}))
 
         # reading an existing file should succeed
         d.addCallback(lambda ign: self.handler.openFile("small", sftp.FXF_READ, {}))
         def _read_small(rf):
             d2 = rf.readChunk(0, 10)
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
 
             d2.addCallback(lambda ign: rf.readChunk(2, 6))
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "234567"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "234567"))
 
             d2.addCallback(lambda ign: rf.readChunk(8, 4))  # read that starts before EOF is OK
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "89"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "89"))
 
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_EOF, "readChunk starting at EOF (0-byte)",
@@ -402,8 +414,8 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
 
             d2.addCallback(lambda ign: rf.getAttrs())
             def _check_attrs(attrs):
-                self.failUnlessEqual(attrs['permissions'], S_IFREG | 0440) #FIXME
-                self.failUnlessEqual(attrs['size'], 10)
+                self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0440) #FIXME
+                self.failUnlessReallyEqual(attrs['size'], 10)
             d2.addCallback(_check_attrs)
 
             d2.addCallback(lambda ign:
@@ -431,13 +443,13 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.handler.openFile(gross, sftp.FXF_READ, {}))
         def _read_gross(rf):
             d2 = rf.readChunk(0, 10)
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
 
             d2.addCallback(lambda ign: rf.readChunk(2, 6))
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "234567"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "234567"))
 
             d2.addCallback(lambda ign: rf.readChunk(1008, 4))  # read that starts before EOF is OK
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "89"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "89"))
 
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_EOF, "readChunk starting at EOF (0-byte)",
@@ -451,8 +463,8 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
 
             d2.addCallback(lambda ign: rf.getAttrs())
             def _check_attrs(attrs):
-                self.failUnlessEqual(attrs['permissions'], S_IFREG | 0440) #FIXME
-                self.failUnlessEqual(attrs['size'], 1010)
+                self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0440) #FIXME
+                self.failUnlessReallyEqual(attrs['size'], 1010)
             d2.addCallback(_check_attrs)
 
             d2.addCallback(lambda ign:
@@ -479,7 +491,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.handler.openFile("uri/"+self.small_uri, sftp.FXF_READ, {}))
         def _read_small_uri(rf):
             d2 = rf.readChunk(0, 10)
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
             d2.addCallback(lambda ign: rf.close())
             return d2
         d.addCallback(_read_small_uri)
@@ -488,7 +500,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.handler.openFile("uri/"+self.gross_uri, sftp.FXF_READ, {}))
         def _read_gross_uri(rf):
             d2 = rf.readChunk(0, 10)
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
             d2.addCallback(lambda ign: rf.close())
             return d2
         d.addCallback(_read_gross_uri)
@@ -497,20 +509,29 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.handler.openFile("uri/"+self.mutable_uri, sftp.FXF_READ, {}))
         def _read_mutable_uri(rf):
             d2 = rf.readChunk(0, 100)
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "mutable file contents"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable file contents"))
             d2.addCallback(lambda ign: rf.close())
             return d2
         d.addCallback(_read_mutable_uri)
 
+        # repeat for a file within a directory referenced by URI
+        d.addCallback(lambda ign: self.handler.openFile("uri/"+self.tiny_lit_dir_uri+"/short", sftp.FXF_READ, {}))
+        def _read_short(rf):
+            d2 = rf.readChunk(0, 100)
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "The end."))
+            d2.addCallback(lambda ign: rf.close())
+            return d2
+        d.addCallback(_read_short)
+
         return d
 
     def test_openFile_write(self):
-        d = self._set_up("openFile")
+        d = self._set_up("openFile_write")
         d.addCallback(lambda ign: self._set_up_tree())
 
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile '' WRITE|CREAT|TRUNC",
-                                             self.handler.openFile, "", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
+                                         self.handler.openFile, "", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "openFile newfile WRITE|TRUNC",
                                          self.handler.openFile, "newfile", sftp.FXF_WRITE | sftp.FXF_TRUNC, {}))
@@ -560,15 +581,15 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
                       self.handler.openFile("newfile", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
         def _write(wf):
             d2 = wf.writeChunk(0, "0123456789")
-            d2.addCallback(lambda res: self.failUnlessEqual(res, None))
+            d2.addCallback(lambda res: self.failUnlessReallyEqual(res, None))
 
             d2.addCallback(lambda ign: wf.writeChunk(8, "0123"))
             d2.addCallback(lambda ign: wf.writeChunk(13, "abc"))
 
             d2.addCallback(lambda ign: wf.getAttrs())
             def _check_attrs(attrs):
-                self.failUnlessEqual(attrs['permissions'], S_IFREG | 0440) #FIXME
-                self.failUnlessEqual(attrs['size'], 16)
+                self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0440) #FIXME
+                self.failUnlessReallyEqual(attrs['size'], 16)
             d2.addCallback(_check_attrs)
 
             d2.addCallback(lambda ign: wf.setAttrs({}))
@@ -579,7 +600,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
 
             d2.addCallback(lambda ign: wf.setAttrs({'size': 14}))
             d2.addCallback(lambda ign: wf.getAttrs())
-            d2.addCallback(lambda attrs: self.failUnlessEqual(attrs['size'], 14))
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['size'], 14))
 
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "readChunk on write-only handle denied",
@@ -599,7 +620,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(_write)
         d.addCallback(lambda ign: self.root.get(u"newfile"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessEqual(data, "012345670123\x00a"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123\x00a"))
 
         # test APPEND flag, and also replacing an existing file ("newfile")
         d.addCallback(lambda ign:
@@ -613,7 +634,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(_write_append)
         d.addCallback(lambda ign: self.root.get(u"newfile"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessEqual(data, "01234567890123"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234567890123"))
 
         # test EXCL flag
         d.addCallback(lambda ign:
@@ -622,7 +643,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         def _write_excl(wf):
             d2 = self.root.get(u"excl")
             d2.addCallback(lambda node: download_to_data(node))
-            d2.addCallback(lambda data: self.failUnlessEqual(data, ""))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
 
             d2.addCallback(lambda ign: wf.writeChunk(0, "0123456789"))
             d2.addCallback(lambda ign: wf.close())
@@ -630,7 +651,31 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(_write_excl)
         d.addCallback(lambda ign: self.root.get(u"excl"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessEqual(data, "0123456789"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+
+        """
+        # test that writing a zero-length file with EXCL only updates the directory once
+        d.addCallback(lambda ign:
+                      self.handler.openFile("zerolength", sftp.FXF_WRITE | sftp.FXF_CREAT |
+                                                          sftp.FXF_EXCL, {}))
+        def _write_excl_zerolength(wf):
+            d2 = self.root.get(u"zerolength")
+            d2.addCallback(lambda node: download_to_data(node))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
+
+            # FIXME: no API to get the best version number exists (fix as part of #993)
+            #stash = {}
+            #d2.addCallback(lambda ign: self.root.get_best_version_number())
+            #d2.addCallback(lambda version: stash['version'] = version)
+            d2.addCallback(lambda ign: wf.close())
+            #d2.addCallback(lambda ign: self.root.get_best_version_number())
+            #d2.addCallback(lambda new_version: self.failUnlessReallyEqual(new_version, stash['version'])
+            return d2
+        d.addCallback(_write_excl_zerolength)
+        d.addCallback(lambda ign: self.root.get(u"zerolength"))
+        d.addCallback(lambda node: download_to_data(node))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
+        """
 
         # test WRITE | CREAT without TRUNC
         d.addCallback(lambda ign:
@@ -642,7 +687,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(_write_notrunc)
         d.addCallback(lambda ign: self.root.get(u"newfile2"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessEqual(data, "0123456789"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
 
         # test writing to a mutable file
         d.addCallback(lambda ign:
@@ -655,10 +700,10 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.root.get(u"mutable"))
         def _check_same_file(node):
             self.failUnless(node.is_mutable())
-            self.failUnlessEqual(node.get_uri(), self.mutable_uri)
+            self.failUnlessReallyEqual(node.get_uri(), self.mutable_uri)
             return node.download_best_version()
         d.addCallback(_check_same_file)
-        d.addCallback(lambda data: self.failUnlessEqual(data, "mutable new! contents"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable new! contents"))
 
         """
         # test READ | WRITE without CREAT or TRUNC
@@ -667,13 +712,13 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         def _read_write(rwf):
             d2 =  rwf.writeChunk(8, "0123")
             d2.addCallback(lambda ign: rwf.readChunk(0, 100))
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "012345670123"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123"))
             d2.addCallback(lambda ign: rwf.close())
             return d2
         d.addCallback(_read_write)
         d.addCallback(lambda ign: self.root.get(u"small"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessEqual(data, "012345670123"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123"))
         """
         return d
 
@@ -721,7 +766,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
                            self.shouldFail(NoSuchChildError, "removeFile small", "small",
                                            self.root.get, u"small"))
             d2.addCallback(lambda ign: rf.readChunk(0, 10))
-            d2.addCallback(lambda data: self.failUnlessEqual(data, "0123456789"))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
             d2.addCallback(lambda ign: rf.close())
             return d2
         d.addCallback(_remove_and_read_small)
@@ -807,23 +852,23 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         # renaming a file to a correct path should succeed
         d.addCallback(lambda ign: self.handler.renameFile("small", "new_small"))
         d.addCallback(lambda ign: self.root.get(u"new_small"))
-        d.addCallback(lambda node: self.failUnlessEqual(node.get_uri(), self.small_uri))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.small_uri))
 
         # renaming a file into a subdirectory should succeed (also tests Unicode names)
         d.addCallback(lambda ign: self.handler.renameFile(u"gro\u00DF".encode('utf-8'),
                                                           u"loop/neue_gro\u00DF".encode('utf-8')))
         d.addCallback(lambda ign: self.root.get(u"neue_gro\u00DF"))
-        d.addCallback(lambda node: self.failUnlessEqual(node.get_uri(), self.gross_uri))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.gross_uri))
 
         # renaming a directory to a correct path should succeed
         d.addCallback(lambda ign: self.handler.renameFile("tiny_lit_dir", "new_tiny_lit_dir"))
         d.addCallback(lambda ign: self.root.get(u"new_tiny_lit_dir"))
-        d.addCallback(lambda node: self.failUnlessEqual(node.get_uri(), self.tiny_lit_dir_uri))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.tiny_lit_dir_uri))
 
         # renaming an unknown to a correct path should succeed
         d.addCallback(lambda ign: self.handler.renameFile("unknown", "new_unknown"))
         d.addCallback(lambda ign: self.root.get(u"new_unknown"))
-        d.addCallback(lambda node: self.failUnlessEqual(node.get_uri(), self.unknown_uri))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.unknown_uri))
 
         return d
 
@@ -840,9 +885,9 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             self.failUnless(child.is_mutable())
             # FIXME
             #self.failUnless('ctime' in metadata, metadata)
-            #self.failUnlessEqual(metadata['ctime'], 42)
+            #self.failUnlessReallyEqual(metadata['ctime'], 42)
             #self.failUnless('ext_foo' in metadata, metadata)
-            #self.failUnlessEqual(metadata['ext_foo'], 'bar')
+            #self.failUnlessReallyEqual(metadata['ext_foo'], 'bar')
             # TODO: child should be empty
         d.addCallback(_got)
 

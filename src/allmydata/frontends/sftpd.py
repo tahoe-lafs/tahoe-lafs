@@ -1,6 +1,7 @@
 
-import os, tempfile, heapq, binascii, traceback, sys
+import os, tempfile, heapq, binascii, traceback, array, stat
 from stat import S_IFREG, S_IFDIR
+from time import time, strftime, localtime
 
 from zope.interface import implements
 from twisted.python import components
@@ -17,7 +18,6 @@ from twisted.conch.openssh_compat import primes
 from twisted.cred import portal
 
 from twisted.internet import defer
-from twisted.python.failure import Failure
 from twisted.internet.interfaces import IFinishableConsumer
 from foolscap.api import eventually
 from allmydata.util import deferredutil
@@ -37,20 +37,37 @@ warnings.filterwarnings("ignore", category=DeprecationWarning,
     message="BaseException.message has been deprecated as of Python 2.6",
     module=".*filetransfer", append=True)
 
-debug = False
+noisy = True
+use_foolscap_logging = True
 
-if debug:
+if use_foolscap_logging:
+    from allmydata.util.log import msg as logmsg, err as logerr, \
+        NOISY, OPERATIONAL, SCARY, PrefixingLogMixin
+else:
+    def logmsg(s, level=None):
+        print s
+    def logerr(s, level=None):
+        print s
+    NOISY = None
+    OPERATIONAL = None
+    SCARY = None
+    class PrefixingLogMixin:
+        def __init__(self, facility=None):
+            pass
+        def log(self, s, level=None):
+            print s
+
+if noisy:
     def eventually_callback(d):
         s = traceback.format_stack()
         def _cb(res):
             try:
-                print "CALLBACK %r %r" % (d, res)
+                if noisy: logmsg("CALLBACK %r %r" % (d, res), level=NOISY)
                 d.callback(res)
             except:  # pragma: no cover
-                print "Failed to callback %r" % (d,)
-                print "with %r" % (res,)
-                print "Original stack:"
-                print '!' + '!'.join(s)
+                logerr("Failed to callback %r with %r\n"
+                       "Original stack:\n!%s" %
+                       (d, res, '!'.join(s)), level=SCARY)
                 traceback.print_exc()
                 raise
         return lambda res: eventually(_cb, res)
@@ -59,13 +76,12 @@ if debug:
         s = traceback.format_stack()
         def _eb(err):
             try:
-                print "ERRBACK", d, err
+                if noisy: logmsg("ERRBACK %r %r" % (d, err), level=NOISY)
                 d.errback(err)
             except:  # pragma: no cover
-                print "Failed to errback %r" % (d,)
-                print "with %r" % (err,)
-                print "Original stack:"
-                print '!' + '!'.join(s)
+                logerr("Failed to errback %r with %r\n"
+                       "Original stack:\n!%s" %
+                       (d, err, '!'.join(s)), level=SCARY)
                 traceback.print_exc()
                 raise
         return lambda err: eventually(_eb, err)
@@ -80,9 +96,8 @@ else:
 def _raise_error(err):
     if err is None:
         return None
-    if debug:
-        print "TRACEBACK %r" % (err,)
-        #traceback.print_exc(err)
+    if noisy: logmsg("RAISE %r" % (err,), level=NOISY)
+    #traceback.print_exc(err)
 
     # The message argument to SFTPError must not reveal information that
     # might compromise anonymity.
@@ -93,11 +108,8 @@ def _raise_error(err):
     if err.check(NoSuchChildError):
         childname = err.value.args[0].encode('utf-8')
         raise SFTPError(FX_NO_SUCH_FILE, childname)
-    if err.check(ExistingChildError):
-        msg = err.value.args[0].encode('utf-8')
+    if err.check(ExistingChildError) or err.check(NotWriteableError):
         # later versions of SFTP define FX_FILE_ALREADY_EXISTS, but version 3 doesn't
-        raise SFTPError(FX_PERMISSION_DENIED, msg)
-    if err.check(NotWriteableError):
         msg = err.value.args[0].encode('utf-8')
         raise SFTPError(FX_PERMISSION_DENIED, msg)
     if err.check(NotImplementedError):
@@ -120,6 +132,64 @@ def _repr_flags(flags):
                       (flags & FXF_EXCL) and "FXF_EXCL" or None,
                      ]
                      if f])
+
+def _lsLine(name, attrs):
+    st_uid = "tahoe"
+    st_gid = "tahoe"
+    st_mtime = attrs.get("mtime", 0)
+    st_mode = attrs["permissions"]
+    # TODO: check that clients are okay with this being a "?".
+    # (They should be because the longname is intended for human
+    # consumption.)
+    st_size = attrs.get("size", "?")
+    # We don't know how many links there really are to this object.
+    st_nlink = 1
+
+    # From <http://twistedmatrix.com/trac/browser/trunk/twisted/conch/ls.py?rev=25412>.
+    # We can't call the version in Twisted because we might have a version earlier than
+    # <http://twistedmatrix.com/trac/changeset/25412> (released in Twisted 8.2).
+
+    mode = st_mode
+    perms = array.array('c', '-'*10)
+    ft = stat.S_IFMT(mode)
+    if stat.S_ISDIR(ft): perms[0] = 'd'
+    elif stat.S_ISCHR(ft): perms[0] = 'c'
+    elif stat.S_ISBLK(ft): perms[0] = 'b'
+    elif stat.S_ISREG(ft): perms[0] = '-'
+    elif stat.S_ISFIFO(ft): perms[0] = 'f'
+    elif stat.S_ISLNK(ft): perms[0] = 'l'
+    elif stat.S_ISSOCK(ft): perms[0] = 's'
+    else: perms[0] = '?'
+    # user
+    if mode&stat.S_IRUSR:perms[1] = 'r'
+    if mode&stat.S_IWUSR:perms[2] = 'w'
+    if mode&stat.S_IXUSR:perms[3] = 'x'
+    # group
+    if mode&stat.S_IRGRP:perms[4] = 'r'
+    if mode&stat.S_IWGRP:perms[5] = 'w'
+    if mode&stat.S_IXGRP:perms[6] = 'x'
+    # other
+    if mode&stat.S_IROTH:perms[7] = 'r'
+    if mode&stat.S_IWOTH:perms[8] = 'w'
+    if mode&stat.S_IXOTH:perms[9] = 'x'
+    # suid/sgid never set
+
+    l = perms.tostring()
+    l += str(st_nlink).rjust(5) + ' '
+    un = str(st_uid)
+    l += un.ljust(9)
+    gr = str(st_gid)
+    l += gr.ljust(9)
+    sz = str(st_size)
+    l += sz.rjust(8)
+    l += ' '
+    sixmo = 60 * 60 * 24 * 7 * 26
+    if st_mtime + sixmo < time(): # last edited more than 6mo ago
+        l += strftime("%b %d  %Y ", localtime(st_mtime))
+    else:
+        l += strftime("%b %d %H:%M ", localtime(st_mtime))
+    l += name
+    return l
 
 def _populate_attrs(childnode, metadata, writeable, size=None):
     attrs = {}
@@ -179,9 +249,13 @@ def _populate_attrs(childnode, metadata, writeable, size=None):
 
     return attrs
 
-
-class EncryptedTemporaryFile:
+class EncryptedTemporaryFile(PrefixingLogMixin):
     # not implemented: next, readline, readlines, xreadlines, writelines
+
+    def __init__(self):
+        PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
+        self.file = tempfile.TemporaryFile()
+        self.key = os.urandom(16)  # AES-128
 
     def _crypt(self, offset, data):
         # FIXME: use random-access AES (pycryptopp ticket #18)
@@ -192,10 +266,6 @@ class EncryptedTemporaryFile:
         cipher.process("\x00"*offset_small)
         return cipher.process(data)
 
-    def __init__(self):
-        self.file = tempfile.TemporaryFile()
-        self.key = os.urandom(16)  # AES-128
-
     def close(self):
         self.file.close()
 
@@ -203,33 +273,33 @@ class EncryptedTemporaryFile:
         self.file.flush()
 
     def seek(self, offset, whence=os.SEEK_SET):
-        if debug: print ".seek(%r, %r)" % (offset, whence)
+        if noisy: self.log(".seek(%r, %r)" % (offset, whence), level=NOISY)
         self.file.seek(offset, whence)
 
     def tell(self):
         offset = self.file.tell()
-        if debug: print ".offset = %r" % (offset,)
+        if noisy: self.log(".tell() = %r" % (offset,), level=NOISY)
         return offset
 
     def read(self, size=-1):
-        if debug: print ".read(%r)" % (size,)
+        if noisy: self.log(".read(%r)" % (size,), level=NOISY)
         index = self.file.tell()
         ciphertext = self.file.read(size)
         plaintext = self._crypt(index, ciphertext)
         return plaintext
 
     def write(self, plaintext):
-        if debug: print ".write(%r)" % (plaintext,)
+        if noisy: self.log(".write(%r)" % (plaintext,), level=NOISY)
         index = self.file.tell()
         ciphertext = self._crypt(index, plaintext)
         self.file.write(ciphertext)
 
     def truncate(self, newsize):
-        if debug: print ".truncate(%r)" % (newsize,)
+        if noisy: self.log(".truncate(%r)" % (newsize,), level=NOISY)
         self.file.truncate(newsize)
 
 
-class OverwriteableFileConsumer:
+class OverwriteableFileConsumer(PrefixingLogMixin):
     implements(IFinishableConsumer)
     """I act both as a consumer for the download of the original file contents, and as a
     wrapper for a temporary file that records the downloaded data and any overwrites.
@@ -248,6 +318,7 @@ class OverwriteableFileConsumer:
     useful for other frontends."""
 
     def __init__(self, check_abort, download_size, tempfile_maker):
+        PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
         self.check_abort = check_abort
         self.download_size = download_size
         self.current_size = download_size
@@ -265,7 +336,8 @@ class OverwriteableFileConsumer:
         return self.current_size
 
     def set_current_size(self, size):
-        if debug: print "set_current_size(%r), current_size = %r, downloaded = %r" % (size, self.current_size, self.downloaded)
+        if noisy: self.log(".set_current_size(%r), current_size = %r, downloaded = %r" %
+                           (size, self.current_size, self.downloaded), level=NOISY)
         if size < self.current_size or size < self.downloaded:
             self.f.truncate(size)
         self.current_size = size
@@ -284,7 +356,7 @@ class OverwriteableFileConsumer:
                 p.resumeProducing()
 
     def write(self, data):
-        if debug: print "write(%r)" % (data,)
+        if noisy: self.log(".write(%r)" % (data,), level=NOISY)
         if self.check_abort():
             self.close()
             return
@@ -344,7 +416,7 @@ class OverwriteableFileConsumer:
             (next, d) = self.milestones[0]
             if next > milestone:
                 return
-            if debug: print "MILESTONE %r %r" % (next, d)
+            if noisy: self.log("MILESTONE %r %r" % (next, d), level=NOISY)
             heapq.heappop(self.milestones)
             eventually_callback(d)(None)
 
@@ -352,7 +424,7 @@ class OverwriteableFileConsumer:
             self.finish()
 
     def overwrite(self, offset, data):
-        if debug: print "overwrite(%r, %r)" % (offset, data)
+        if noisy: self.log(".overwrite(%r, %r)" % (offset, data), level=NOISY)
         if offset > self.download_size and offset > self.current_size:
             # Normally writing at an offset beyond the current end-of-file
             # would leave a hole that appears filled with zeroes. However, an
@@ -376,7 +448,7 @@ class OverwriteableFileConsumer:
         Otherwise errback the Deferred that we return.
         The caller must perform no more overwrites until the Deferred has fired."""
 
-        if debug: print "read(%r, %r), current_size = %r" % (offset, length, self.current_size)
+        if noisy: self.log(".read(%r, %r), current_size = %r" % (offset, length, self.current_size), level=NOISY)
         if offset >= self.current_size:
             def _eof(): raise EOFError("read past end of file")
             return defer.execute(_eof)
@@ -392,20 +464,20 @@ class OverwriteableFileConsumer:
             # then extended.
 
             assert self.current_size >= offset + length, (self.current_size, offset, length)
-            if debug: print "!!! %r" % (self.f,)
+            if noisy: self.log("self.f = %r" % (self.f,), level=NOISY)
             self.f.seek(offset)
             return self.f.read(length)
         d.addCallback(_reached)
         return d
 
     def when_reached(self, index):
-        if debug: print "when_reached(%r)" % (index,)
+        if noisy: self.log(".when_reached(%r)" % (index,), level=NOISY)
         if index <= self.downloaded:  # already reached
-            if debug: print "already reached %r" % (index,)
+            if noisy: self.log("already reached %r" % (index,), level=NOISY)
             return defer.succeed(None)
         d = defer.Deferred()
         def _reached(ign):
-            if debug: print "reached %r" % (index,)
+            if noisy: self.log("reached %r" % (index,), level=NOISY)
             return ign
         d.addCallback(_reached)
         heapq.heappush(self.milestones, (index, d))
@@ -417,7 +489,7 @@ class OverwriteableFileConsumer:
     def finish(self):
         while len(self.milestones) > 0:
             (next, d) = self.milestones[0]
-            if debug: print "MILESTONE FINISH %r %r" % (next, d)
+            if noisy: self.log("MILESTONE FINISH %r %r" % (next, d), level=NOISY)
             heapq.heappop(self.milestones)
             # The callback means that the milestone has been reached if
             # it is ever going to be. Note that the file may have been
@@ -440,6 +512,9 @@ class OverwriteableFileConsumer:
 SIZE_THRESHOLD = 1000
 
 def _make_sftp_file(check_abort, flags, convergence, parent=None, childname=None, filenode=None, metadata=None):
+    if noisy: logmsg("_make_sftp_file(%r, %r, %r, parent=%r, childname=%r, filenode=%r, metadata=%r" %
+                      (check_abort, flags, convergence, parent, childname, filenode, metadata), NOISY)
+
     if not (flags & (FXF_WRITE | FXF_CREAT)) and (flags & FXF_READ) and filenode and \
        not filenode.is_mutable() and filenode.get_size() <= SIZE_THRESHOLD:
         return ShortReadOnlySFTPFile(filenode, metadata)
@@ -448,13 +523,16 @@ def _make_sftp_file(check_abort, flags, convergence, parent=None, childname=None
                                parent=parent, childname=childname, filenode=filenode, metadata=metadata)
 
 
-class ShortReadOnlySFTPFile:
+class ShortReadOnlySFTPFile(PrefixingLogMixin):
     implements(ISFTPFile)
     """I represent a file handle to a particular file on an SFTP connection.
     I am used only for short immutable files opened in read-only mode.
     The file contents are downloaded to memory when I am created."""
 
     def __init__(self, filenode, metadata):
+        PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
+        if noisy: self.log(".__init__(%r, %r)" % (filenode, metadata), level=NOISY)
+
         assert IFileNode.providedBy(filenode), filenode
         self.filenode = filenode
         self.metadata = metadata
@@ -462,13 +540,15 @@ class ShortReadOnlySFTPFile:
         self.closed = False
 
     def readChunk(self, offset, length):
+        self.log(".readChunk(%r, %r)" % (offset, length), level=OPERATIONAL)
+
         if self.closed:
             def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot read from a closed file handle")
             return defer.execute(_closed)
 
         d = defer.Deferred()
         def _read(data):
-            if debug: print "_read(%r) in readChunk(%r, %r)" % (data, offset, length)
+            if noisy: self.log("_read(%r) in readChunk(%r, %r)" % (data, offset, length), level=NOISY)
 
             # "In response to this request, the server will read as many bytes as it
             #  can from the file (up to 'len'), and return them in a SSH_FXP_DATA
@@ -488,15 +568,20 @@ class ShortReadOnlySFTPFile:
         return d
 
     def writeChunk(self, offset, data):
+        self.log(".writeChunk(%r, <data of length %r>)" % (offset, len(data)), level=OPERATIONAL)
+
         def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
         return defer.execute(_denied)
 
     def close(self):
+        self.log(".close()", level=OPERATIONAL)
+
         self.closed = True
         return defer.succeed(None)
 
     def getAttrs(self):
-        if debug: print "GETATTRS(file)"
+        self.log(".getAttrs()", level=OPERATIONAL)
+
         if self.closed:
             def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot get attributes for a closed file handle")
             return defer.execute(_closed)
@@ -504,12 +589,12 @@ class ShortReadOnlySFTPFile:
         return defer.succeed(_populate_attrs(self.filenode, self.metadata, False))
 
     def setAttrs(self, attrs):
-        if debug: print "SETATTRS(file) %r" % (attrs,)
+        self.log(".setAttrs(%r)" % (attrs,), level=OPERATIONAL)
         def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
         return defer.execute(_denied)
 
 
-class GeneralSFTPFile:
+class GeneralSFTPFile(PrefixingLogMixin):
     implements(ISFTPFile)
     """I represent a file handle to a particular file on an SFTP connection.
     I wrap an instance of OverwriteableFileConsumer, which is responsible for
@@ -519,6 +604,10 @@ class GeneralSFTPFile:
     implemented by the callback chain of self.async."""
 
     def __init__(self, check_abort, flags, convergence, parent=None, childname=None, filenode=None, metadata=None):
+        PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
+        if noisy: self.log(".__init__(%r, %r, %r, parent=%r, childname=%r, filenode=%r, metadata=%r)" %
+                           (check_abort, flags, convergence, parent, childname, filenode, metadata), level=NOISY)
+
         self.check_abort = check_abort
         self.flags = flags
         self.convergence = convergence
@@ -532,12 +621,12 @@ class GeneralSFTPFile:
         # self.consumer should only be relied on in callbacks for self.async, since it might
         # not be set before then.
         self.consumer = None
+        tempfile_maker = EncryptedTemporaryFile
 
         if (flags & FXF_TRUNC) or not filenode:
             # We're either truncating or creating the file, so we don't need the old contents.
             assert flags & FXF_CREAT, flags
-            self.consumer = OverwriteableFileConsumer(self.check_abort, 0,
-                                                      tempfile_maker=EncryptedTemporaryFile)
+            self.consumer = OverwriteableFileConsumer(self.check_abort, 0, tempfile_maker)
             self.consumer.finish()
         else:
             assert IFileNode.providedBy(filenode), filenode
@@ -546,8 +635,7 @@ class GeneralSFTPFile:
             if filenode.is_mutable():
                 self.async.addCallback(lambda ign: filenode.download_best_version())
                 def _downloaded(data):
-                    self.consumer = OverwriteableFileConsumer(self.check_abort, len(data),
-                                                              tempfile_maker=tempfile.TemporaryFile)
+                    self.consumer = OverwriteableFileConsumer(self.check_abort, len(data), tempfile_maker)
                     self.consumer.write(data)
                     self.consumer.finish()
                     return None
@@ -555,14 +643,15 @@ class GeneralSFTPFile:
             else:
                 download_size = filenode.get_size()
                 assert download_size is not None
-                self.consumer = OverwriteableFileConsumer(self.check_abort, download_size,
-                                                          tempfile_maker=tempfile.TemporaryFile)
+                self.consumer = OverwriteableFileConsumer(self.check_abort, download_size, tempfile_maker)
                 self.async.addCallback(lambda ign: filenode.read(self.consumer, 0, None))
 
-
     def readChunk(self, offset, length):
+        self.log(".readChunk(%r, %r)" % (offset, length), level=OPERATIONAL)
+
         if not (self.flags & FXF_READ):
-            return defer.fail(SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for reading"))
+            def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for reading")
+            return defer.execute(_denied)
 
         if self.closed:
             def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot read from a closed file handle")
@@ -570,7 +659,7 @@ class GeneralSFTPFile:
 
         d = defer.Deferred()
         def _read(ign):
-            if debug: print "_read in readChunk(%r, %r)" % (offset, length)
+            if noisy: self.log("_read in readChunk(%r, %r)" % (offset, length), level=NOISY)
             d2 = self.consumer.read(offset, length)
             d2.addErrback(_raise_error)
             d2.addCallbacks(eventually_callback(d), eventually_errback(d))
@@ -580,7 +669,8 @@ class GeneralSFTPFile:
         return d
 
     def writeChunk(self, offset, data):
-        if debug: print "writeChunk(%r, %r)" % (offset, data)
+        self.log(".writeChunk(%r, <data of length %r>)" % (offset, len(data)), level=OPERATIONAL)
+
         if not (self.flags & FXF_WRITE):
             def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
             return defer.execute(_denied)
@@ -611,6 +701,8 @@ class GeneralSFTPFile:
         return defer.succeed(None)
 
     def close(self):
+        self.log(".close()", level=OPERATIONAL)
+
         if self.closed:
             return defer.succeed(None)
 
@@ -626,8 +718,13 @@ class GeneralSFTPFile:
                 d2.addCallback(lambda ign: self.consumer.get_current_size())
                 d2.addCallback(lambda size: self.consumer.read(0, size))
                 d2.addCallback(lambda new_contents: self.filenode.overwrite(new_contents))
+            #elif (self.flags & FXF_EXCL) and self.consumer.get_current_size() == 0:
+            #    # The file will already have been written by the open call, so we can
+            #    # optimize out the extra directory write (useful for zero-length lockfiles).
+            #    pass
             else:
                 def _add_file(ign):
+                    self.log("_add_file childname=%r" % (self.childname,), level=OPERATIONAL)
                     u = FileHandle(self.consumer.get_file(), self.convergence)
                     return self.parent.add_file(self.childname, u)
                 d2.addCallback(_add_file)
@@ -641,7 +738,7 @@ class GeneralSFTPFile:
         return d
 
     def getAttrs(self):
-        if debug: print "GETATTRS(file)"
+        self.log(".getAttrs()", level=OPERATIONAL)
 
         if self.closed:
             def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot get attributes for a closed file handle")
@@ -663,7 +760,8 @@ class GeneralSFTPFile:
         return d
 
     def setAttrs(self, attrs):
-        if debug: print "SETATTRS(file) %r" % (attrs,)
+        self.log(".setAttrs(attrs) %r" % (attrs,), level=OPERATIONAL)
+
         if not (self.flags & FXF_WRITE):
             def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
             return defer.execute(_denied)
@@ -688,18 +786,6 @@ class GeneralSFTPFile:
         self.async.addCallbacks(_resize, eventually_errback(d))
         return d
 
-class SFTPUser(ConchUser):
-    def __init__(self, check_abort, client, rootnode, username, convergence):
-        ConchUser.__init__(self)
-        self.channelLookup["session"] = session.SSHSession
-        self.subsystemLookup["sftp"] = FileTransferServer
-
-        self.check_abort = check_abort
-        self.client = client
-        self.root = rootnode
-        self.username = username
-        self.convergence = convergence
-
 class StoppableList:
     def __init__(self, items):
         self.items = items
@@ -709,74 +795,13 @@ class StoppableList:
     def close(self):
         pass
 
-import array
-import stat
 
-from time import time, strftime, localtime
-
-def lsLine(name, attrs):
-    st_uid = "tahoe"
-    st_gid = "tahoe"
-    st_mtime = attrs.get("mtime", 0)
-    st_mode = attrs["permissions"]
-    # TODO: check that clients are okay with this being a "?".
-    # (They should be because the longname is intended for human
-    # consumption.)
-    st_size = attrs.get("size", "?")
-    # We don't know how many links there really are to this object.
-    st_nlink = 1
-
-    # From <http://twistedmatrix.com/trac/browser/trunk/twisted/conch/ls.py?rev=25412>.
-    # We can't call the version in Twisted because we might have a version earlier than
-    # <http://twistedmatrix.com/trac/changeset/25412> (released in Twisted 8.2).
-
-    mode = st_mode
-    perms = array.array('c', '-'*10)
-    ft = stat.S_IFMT(mode)
-    if stat.S_ISDIR(ft): perms[0] = 'd'
-    elif stat.S_ISCHR(ft): perms[0] = 'c'
-    elif stat.S_ISBLK(ft): perms[0] = 'b'
-    elif stat.S_ISREG(ft): perms[0] = '-'
-    elif stat.S_ISFIFO(ft): perms[0] = 'f'
-    elif stat.S_ISLNK(ft): perms[0] = 'l'
-    elif stat.S_ISSOCK(ft): perms[0] = 's'
-    else: perms[0] = '?'
-    # user
-    if mode&stat.S_IRUSR:perms[1] = 'r'
-    if mode&stat.S_IWUSR:perms[2] = 'w'
-    if mode&stat.S_IXUSR:perms[3] = 'x'
-    # group
-    if mode&stat.S_IRGRP:perms[4] = 'r'
-    if mode&stat.S_IWGRP:perms[5] = 'w'
-    if mode&stat.S_IXGRP:perms[6] = 'x'
-    # other
-    if mode&stat.S_IROTH:perms[7] = 'r'
-    if mode&stat.S_IWOTH:perms[8] = 'w'
-    if mode&stat.S_IXOTH:perms[9] = 'x'
-    # suid/sgid never set
-
-    l = perms.tostring()
-    l += str(st_nlink).rjust(5) + ' '
-    un = str(st_uid)
-    l += un.ljust(9)
-    gr = str(st_gid)
-    l += gr.ljust(9)
-    sz = str(st_size)
-    l += sz.rjust(8)
-    l += ' '
-    sixmo = 60 * 60 * 24 * 7 * 26
-    if st_mtime + sixmo < time(): # last edited more than 6mo ago
-        l += strftime("%b %d  %Y ", localtime(st_mtime))
-    else:
-        l += strftime("%b %d %H:%M ", localtime(st_mtime))
-    l += name
-    return l
-
-
-class SFTPHandler:
+class SFTPHandler(PrefixingLogMixin):
     implements(ISFTPServer)
     def __init__(self, user):
-        if debug: print "Creating SFTPHandler from", user
+        PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
+        if noisy: self.log(".__init__(%r)" % (user,), level=NOISY)
+
         self.check_abort = user.check_abort
         self.client = user.client
         self.root = user.root
@@ -784,13 +809,13 @@ class SFTPHandler:
         self.convergence = user.convergence
 
     def gotVersion(self, otherVersion, extData):
-        if debug: print "GOTVERSION %r %r" % (otherVersion, extData)
+        self.log(".gotVersion(%r, %r)" % (otherVersion, extData), level=OPERATIONAL)
         return {}
 
     def openFile(self, pathstring, flags, attrs):
-        if debug: print "OPENFILE %r %r %r %r" % (pathstring, flags, _repr_flags(flags), attrs)
-        # this is used for both reading and writing.
+        self.log(".openFile(%r, %r = %r, %r)" % (pathstring, flags, _repr_flags(flags), attrs), level=OPERATIONAL)
 
+        # This is used for both reading and writing.
         # First exclude invalid combinations of flags.
 
         # /usr/bin/sftp 'get' gives us FXF_READ, while 'put' on a new file
@@ -847,6 +872,7 @@ class SFTPHandler:
                                 "Upgrading the gateway to a later Tahoe-LAFS version may help")
             if not path:
                 # case 1
+                if noisy: self.log("case 1: root = %r, path[:-1] = %r" % (root, path[:-1]), level=NOISY)
                 if not IFileNode.providedBy(root):
                     raise SFTPError(FX_PERMISSION_DENIED,
                                     "cannot open a directory cap")
@@ -861,10 +887,11 @@ class SFTPHandler:
             else:
                 # case 2
                 childname = path[-1]
-                if debug: print "case 2: childname = %r, path[:-1] = %r" % (childname, path[:-1])
+                if noisy: self.log("case 2: root = %r, childname = %r, path[:-1] = %r" %
+                                   (root, childname, path[:-1]), level=NOISY)
                 d2 = root.get_child_at_path(path[:-1])
                 def _got_parent(parent):
-                    if debug: print "_got_parent(%r)" % (parent,)
+                    if noisy: self.log("_got_parent(%r)" % (parent,), level=NOISY)
                     stash['parent'] = parent
 
                     if flags & FXF_EXCL:
@@ -881,7 +908,8 @@ class SFTPHandler:
 
                         # 'overwrite=False' ensures failure if the link already exists.
                         # FIXME: should use a single call to set_uri and return (child, metadata) (#1035)
-                        d3 = parent.set_uri(childname, None, "URI:LIT:", overwrite=False)
+                        zero_length_lit = "URI:LIT:"
+                        d3 = parent.set_uri(childname, None, zero_length_lit, overwrite=False)
                         def _seturi_done(child):
                             stash['child'] = child
                             return parent.get_metadata_for(childname)
@@ -889,12 +917,12 @@ class SFTPHandler:
                         d3.addCallback(lambda metadata: (stash['child'], metadata))
                         return d3
                     else:
-                        if debug: print "get_child_and_metadata"
+                        if noisy: self.log("get_child_and_metadata(%r)" % (childname,), level=NOISY)
                         return parent.get_child_and_metadata(childname)
                 d2.addCallback(_got_parent)
 
                 def _got_child( (filenode, metadata) ):
-                    if debug: print "_got_child((%r, %r))" % (filenode, metadata)
+                    if noisy: self.log("_got_child( (%r, %r) )" % (filenode, metadata), level=NOISY)
                     parent = stash['parent']
                     if filenode.is_unknown():
                         raise SFTPError(FX_PERMISSION_DENIED,
@@ -913,7 +941,7 @@ class SFTPHandler:
                     return _make_sftp_file(self.check_abort, flags, self.convergence, parent=parent,
                                            childname=childname, filenode=filenode, metadata=metadata)
                 def _no_child(f):
-                    if debug: print "_no_child(%r)" % (f,)
+                    if noisy: self.log("_no_child(%r)" % (f,), level=NOISY)
                     f.trap(NoSuchChildError)
                     parent = stash['parent']
                     if parent is None:
@@ -934,12 +962,14 @@ class SFTPHandler:
         return d
 
     def removeFile(self, pathstring):
-        if debug: print "REMOVEFILE %r" % (pathstring,)
+        self.log(".removeFile(%r)" % (pathstring,), level=OPERATIONAL)
+
         path = self._path_from_string(pathstring)
         return self._remove_object(path, must_be_file=True)
 
     def renameFile(self, oldpathstring, newpathstring):
-        if debug: print "RENAMEFILE %r %r" % (oldpathstring, newpathstring)
+        self.log(".renameFile(%r, %r)" % (oldpathstring, newpathstring), level=OPERATIONAL)
+
         fromPath = self._path_from_string(oldpathstring)
         toPath = self._path_from_string(newpathstring)
 
@@ -947,6 +977,8 @@ class SFTPHandler:
         d = deferredutil.gatherResults([self._get_parent(fromPath),
                                         self._get_parent(toPath)])
         def _got( (fromPair, toPair) ):
+            if noisy: self.log("_got( (%r, %r) ) in .renameFile(%r, %r)" %
+                               (fromPair, toPair, oldpathstring, newpathstring), level=NOISY)
             (fromParent, fromChildname) = fromPair
             (toParent, toChildname) = toPair
 
@@ -963,11 +995,12 @@ class SFTPHandler:
         return d
 
     def makeDirectory(self, pathstring, attrs):
-        if debug: print "MAKEDIRECTORY %r %r" % (pathstring, attrs)
+        self.log(".makeDirectory(%r, %r)" % (pathstring, attrs), level=OPERATIONAL)
+
         path = self._path_from_string(pathstring)
         metadata = self._attrs_to_metadata(attrs)
         d = self._get_root(path)
-        d.addCallback(lambda (root,path):
+        d.addCallback(lambda (root, path):
                       self._get_or_create_directories(root, path, metadata))
         d.addErrback(_raise_error)
         return d
@@ -991,7 +1024,8 @@ class SFTPHandler:
         return d
 
     def removeDirectory(self, pathstring):
-        if debug: print "REMOVEDIRECTORY %r" % (pathstring,)
+        self.log(".removeDirectory(%r)" % (pathstring,), level=OPERATIONAL)
+
         path = self._path_from_string(pathstring)
         return self._remove_object(path, must_be_directory=True)
 
@@ -1013,9 +1047,9 @@ class SFTPHandler:
         return d
 
     def openDirectory(self, pathstring):
-        if debug: print "OPENDIRECTORY %r" % (pathstring,)
+        self.log(".openDirectory(%r)" % (pathstring,), level=OPERATIONAL)
+
         path = self._path_from_string(pathstring)
-        if debug: print " PATH %r" % (path,)
         d = self._get_node_and_metadata_for_path(path)
         def _list( (dirnode, metadata) ):
             if dirnode.is_unknown():
@@ -1035,7 +1069,7 @@ class SFTPHandler:
                                                       not (node.is_mutable() and node.is_readonly()))
                     attrs = _populate_attrs(node, metadata, writeable)
                     filename_utf8 = filename.encode('utf-8')
-                    longname = lsLine(filename_utf8, attrs)
+                    longname = _lsLine(filename_utf8, attrs)
                     results.append( (filename_utf8, longname, attrs) )
                 return StoppableList(results)
             d2.addCallback(_render)
@@ -1045,7 +1079,8 @@ class SFTPHandler:
         return d
 
     def getAttrs(self, pathstring, followLinks):
-        if debug: print "GETATTRS %r %r" % (pathstring, followLinks)
+        self.log(".getAttrs(%r, followLinks=%r)" % (pathstring, followLinks), level=OPERATIONAL)
+
         d = self._get_node_and_metadata_for_path(self._path_from_string(pathstring))
         def _render( (node, metadata) ):
             # When asked about a specific file, report its current size.
@@ -1061,14 +1096,11 @@ class SFTPHandler:
             return d2
         d.addCallback(_render)
         d.addErrback(_raise_error)
-        def _done(res):
-            if debug: print " DONE %r" % (res,)
-            return res
-        d.addBoth(_done)
         return d
 
     def setAttrs(self, pathstring, attrs):
-        if debug: print "SETATTRS %r %r" % (pathstring, attrs)
+        self.log(".setAttrs(%r, %r)" % (pathstring, attrs), level=OPERATIONAL)
+
         if "size" in attrs:
             # this would require us to download and re-upload the truncated/extended
             # file contents
@@ -1076,26 +1108,31 @@ class SFTPHandler:
         return None
 
     def readLink(self, pathstring):
-        if debug: print "READLINK %r" % (pathstring,)
+        self.log(".readLink(%r)" % (pathstring,), level=OPERATIONAL)
+
         raise SFTPError(FX_OP_UNSUPPORTED, "readLink")
 
     def makeLink(self, linkPathstring, targetPathstring):
-        if debug: print "MAKELINK %r %r" % (linkPathstring, targetPathstring)
+        self.log(".makeLink(%r, %r)" % (linkPathstring, targetPathstring), level=OPERATIONAL)
+
         raise SFTPError(FX_OP_UNSUPPORTED, "makeLink")
 
     def extendedRequest(self, extendedName, extendedData):
-        if debug: print "EXTENDEDREQUEST %r %r" % (extendedName, extendedData)
-        # Client 'df' command requires 'statvfs@openssh.com' extension
-        # (but there's little point to implementing that since we would only
-        # have faked values to report).
+        self.log(".extendedRequest(%r, %r)" % (extendedName, extendedData), level=OPERATIONAL)
+
+        # A client 'df' command requires the 'statvfs@openssh.com' extension,
+        # but there's little point to implementing that since we would only
+        # have faked values to report.
         raise SFTPError(FX_OP_UNSUPPORTED, "extendedRequest %r" % extendedName)
 
     def realPath(self, pathstring):
-        if debug: print "REALPATH %r" % (pathstring,)
-        return "/" + "/".join(self._path_from_string(pathstring))
+        self.log(".realPath(%r)" % (pathstring,), level=OPERATIONAL)
+
+        path_utf8 = [p.encode('utf-8') for p in self._path_from_string(pathstring)]
+        return "/" + "/".join(path_utf8)
 
     def _path_from_string(self, pathstring):
-        if debug: print "CONVERT %r" % (pathstring,)
+        if noisy: self.log("CONVERT %r" % (pathstring,), level=NOISY)
 
         # The home directory is the root directory.
         pathstring = pathstring.strip("/")
@@ -1120,29 +1157,27 @@ class SFTPHandler:
                     raise SFTPError(FX_NO_SUCH_FILE, "path could not be decoded as UTF-8")
                 path.append(p)
 
-        if debug: print " PATH %r" % (path,)
+        if noisy: self.log(" PATH %r" % (path,), level=NOISY)
         return path
 
     def _get_node_and_metadata_for_path(self, path):
         d = self._get_root(path)
         def _got_root( (root, path) ):
-            if debug: print " ROOT %r" % (root,)
-            if debug: print " PATH %r" % (path,)
+            if noisy: self.log("_got_root( (%r, %r) )" % (root, path), level=NOISY)
             if path:
                 return root.get_child_and_metadata_at_path(path)
             else:
-                return (root,{})
+                return (root, {})
         d.addCallback(_got_root)
         return d
 
     def _get_root(self, path):
         # return (root, remaining_path)
         if path and path[0] == u"uri":
-            d = defer.maybeDeferred(self.client.create_node_from_uri,
-                                    str(path[1]))
+            d = defer.maybeDeferred(self.client.create_node_from_uri, path[1].encode('utf-8'))
             d.addCallback(lambda root: (root, path[2:]))
         else:
-            d = defer.succeed((self.root,path))
+            d = defer.succeed((self.root, path))
         return d
 
     def _get_parent(self, path):
@@ -1175,6 +1210,18 @@ class SFTPHandler:
 
         return metadata
 
+
+class SFTPUser(ConchUser):
+    def __init__(self, check_abort, client, rootnode, username, convergence):
+        ConchUser.__init__(self)
+        self.channelLookup["session"] = session.SSHSession
+        self.subsystemLookup["sftp"] = FileTransferServer
+
+        self.check_abort = check_abort
+        self.client = client
+        self.root = rootnode
+        self.username = username
+        self.convergence = convergence
 
 # if you have an SFTPUser, and you want something that provides ISFTPServer,
 # then you get SFTPHandler(user)
@@ -1234,4 +1281,3 @@ class SFTPServer(service.MultiService):
 
         s = strports.service(sftp_portstr, f)
         s.setServiceParent(self)
-
