@@ -146,14 +146,20 @@ In the current version, the storage index is used to consistently-permute the
 set of all peer nodes (by sorting the peer nodes by
 HASH(storage_index+peerid)). Each file gets a different permutation, which
 (on average) will evenly distribute shares among the grid and avoid hotspots.
+We first remove any peer nodes that cannot hold an encoded share for our file,
+and then ask some of the peers that we have removed if they are already
+holding encoded shares for our file; we use this information later. This step
+helps conserve space, time, and bandwidth by making the upload process less
+likely to upload encoded shares that already exist.
 
-We use this permuted list of nodes to ask each node, in turn, if it will hold
-a share for us, by sending an 'allocate_buckets() query' to each one. Some
-will say yes, others (those who are full) will say no: when a node refuses
-our request, we just take that share to the next node on the list. We keep
-going until we run out of shares to place. At the end of the process, we'll
-have a table that maps each share number to a node, and then we can begin the
-encode+push phase, using the table to decide where each share should be sent.
+We then use this permuted list of nodes to ask each node, in turn, if it will
+hold a share for us, by sending an 'allocate_buckets() query' to each one.
+Some will say yes, others (those who have become full since the start of peer
+selection) will say no: when a node refuses our request, we just take that
+share to the next node on the list. We keep going until we run out of shares
+to place. At the end of the process, we'll have a table that maps each share
+number to a node, and then we can begin the encode+push phase, using the table
+to decide where each share should be sent.
 
 Most of the time, this will result in one share per node, which gives us
 maximum reliability (since it disperses the failures as widely as possible).
