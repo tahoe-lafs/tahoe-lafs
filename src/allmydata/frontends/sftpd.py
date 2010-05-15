@@ -12,7 +12,7 @@ from twisted.conch.ssh.filetransfer import FileTransferServer, SFTPError, \
      FX_BAD_MESSAGE, FX_FAILURE
 from twisted.conch.ssh.filetransfer import FXF_READ, FXF_WRITE, FXF_APPEND, \
      FXF_CREAT, FXF_TRUNC, FXF_EXCL
-from twisted.conch.interfaces import ISFTPServer, ISFTPFile, IConchUser
+from twisted.conch.interfaces import ISFTPServer, ISFTPFile, IConchUser, ISession
 from twisted.conch.avatar import ConchUser
 from twisted.conch.openssh_compat import primes
 from twisted.cred import portal
@@ -1211,9 +1211,12 @@ class SFTPHandler(PrefixingLogMixin):
         return metadata
 
 
-class SFTPUser(ConchUser):
+class SFTPUser(ConchUser, PrefixingLogMixin):
+    implements(ISession)
     def __init__(self, check_abort, client, rootnode, username, convergence):
         ConchUser.__init__(self)
+        PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
+
         self.channelLookup["session"] = session.SSHSession
         self.subsystemLookup["sftp"] = FileTransferServer
 
@@ -1222,6 +1225,28 @@ class SFTPUser(ConchUser):
         self.root = rootnode
         self.username = username
         self.convergence = convergence
+
+    def getPty(self, terminal, windowSize, attrs):
+        self.log(".getPty(%r, %r, %r)" % (terminal, windowSize, attrs), level=log.OPERATIONAL)
+        raise NotImplementedError
+
+    def openShell(self, protocol):
+        self.log(".openShell(%r)" % (protocol,), level=log.OPERATIONAL)
+        raise NotImplementedError
+
+    def execCommand(self, protocol, cmd):
+        self.log(".execCommand(%r, %r)" % (protocol, cmd), level=log.OPERATIONAL)
+        raise NotImplementedError
+
+    def windowChanged(self, newWindowSize):
+        self.log(".windowChanged(%r)" % (newWindowSize,), level=log.OPERATIONAL)
+
+    def eofReceived():
+        self.log(".eofReceived()", level=log.OPERATIONAL)
+
+    def closed(self):
+        self.log(".closed()", level=log.OPERATIONAL)
+
 
 # if you have an SFTPUser, and you want something that provides ISFTPServer,
 # then you get SFTPHandler(user)
