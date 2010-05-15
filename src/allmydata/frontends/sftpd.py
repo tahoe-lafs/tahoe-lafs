@@ -1227,25 +1227,25 @@ class SFTPUser(ConchUser, PrefixingLogMixin):
         self.convergence = convergence
 
     def getPty(self, terminal, windowSize, attrs):
-        self.log(".getPty(%r, %r, %r)" % (terminal, windowSize, attrs), level=log.OPERATIONAL)
+        self.log(".getPty(%r, %r, %r)" % (terminal, windowSize, attrs), level=OPERATIONAL)
         raise NotImplementedError
 
     def openShell(self, protocol):
-        self.log(".openShell(%r)" % (protocol,), level=log.OPERATIONAL)
+        self.log(".openShell(%r)" % (protocol,), level=OPERATIONAL)
         raise NotImplementedError
 
     def execCommand(self, protocol, cmd):
-        self.log(".execCommand(%r, %r)" % (protocol, cmd), level=log.OPERATIONAL)
+        self.log(".execCommand(%r, %r)" % (protocol, cmd), level=OPERATIONAL)
         raise NotImplementedError
 
     def windowChanged(self, newWindowSize):
-        self.log(".windowChanged(%r)" % (newWindowSize,), level=log.OPERATIONAL)
+        self.log(".windowChanged(%r)" % (newWindowSize,), level=OPERATIONAL)
 
     def eofReceived():
-        self.log(".eofReceived()", level=log.OPERATIONAL)
+        self.log(".eofReceived()", level=OPERATIONAL)
 
     def closed(self):
-        self.log(".closed()", level=log.OPERATIONAL)
+        self.log(".closed()", level=OPERATIONAL)
 
 
 # if you have an SFTPUser, and you want something that provides ISFTPServer,
