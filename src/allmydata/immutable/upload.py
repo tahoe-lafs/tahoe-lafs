@@ -404,7 +404,6 @@ class Tahoe2PeerSelector:
             return self._loop()
         else:
             # no more peers. If we haven't placed enough shares, we fail.
-            placed_shares = self.total_shares - len(self.homeless_shares)
             merged = merge_peers(self.preexisting_shares, self.use_peers)
             effective_happiness = servers_of_happiness(merged)
             if effective_happiness < self.servers_of_happiness:

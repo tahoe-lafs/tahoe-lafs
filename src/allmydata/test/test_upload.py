@@ -1563,9 +1563,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server(server_number=5, readonly=True))
         d.addCallback(lambda ign:
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
-        def _reset_encoding_parameters(ign):
+        def _reset_encoding_parameters(ign, happy=4):
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            client.DEFAULT_ENCODING_PARAMETERS['happy'] = happy
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
@@ -1612,10 +1612,6 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server(server_number=5, readonly=True))
         d.addCallback(lambda ign:
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
-        def _reset_encoding_parameters(ign, happy=4):
-            client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = happy
-            return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
