@@ -1739,6 +1739,70 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
     test_problem_layout_comment_187.todo = "this isn't fixed yet"
 
 
+    def test_upload_succeeds_with_some_homeless_shares(self):
+        # If the upload is forced to stop trying to place shares before
+        # it has placed (or otherwise accounted) for all of them, but it
+        # has placed enough to satisfy the upload health criteria that
+        # we're using, it should still succeed.
+        self.basedir = self.mktemp()
+        d = self._setup_and_upload()
+        def _server_setup(ign):
+            # Add four servers so that we have a layout like this:
+            # server 1: share 0, read-only
+            # server 2: share 1, read-only
+            # server 3: share 2, read-only
+            # server 4: share 3, read-only
+            # If we set happy = 4, the upload will manage to satisfy
+            # servers of happiness, but not place all of the shares; we
+            # want to test that the upload is declared successful in
+            # this case.
+            self._add_server_with_share(server_number=1, share_number=0,
+                                        readonly=True)
+            self._add_server_with_share(server_number=2, share_number=1,
+                                        readonly=True)
+            self._add_server_with_share(server_number=3, share_number=2,
+                                        readonly=True)
+            self._add_server_with_share(server_number=4, share_number=3,
+                                        readonly=True)
+            # Remove server 0.
+            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            # Set the client appropriately
+            c = self.g.clients[0]
+            c.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            return c
+        d.addCallback(_server_setup)
+        d.addCallback(lambda client:
+            client.upload(upload.Data("data" * 10000, convergence="")))
+        return d
+
+
+    def test_uploader_skips_over_servers_with_only_one_share(self):
+        # We want to make sure that the redistribution logic ignores
+        # servers with only one share, since placing these shares
+        # elsewhere will at best keep happiness the same as it was, and
+        # at worst hurt it.
+        self.basedir = self.mktemp()
+        d = self._setup_and_upload()
+        def _server_setup(ign):
+            # Add some servers so that the upload will need to
+            # redistribute, but will first pass over a couple of servers
+            # that don't have enough shares to redistribute before
+            # finding one that does have shares to redistribute. 
+            self._add_server_with_share(server_number=1, share_number=0)
+            self._add_server_with_share(server_number=2, share_number=2)
+            self._add_server_with_share(server_number=3, share_number=1)
+            self._add_server_with_share(server_number=8, share_number=4)
+            self._add_server_with_share(server_number=5, share_number=5)
+            self._add_server_with_share(server_number=10, share_number=7)
+            for i in xrange(4):
+                self._copy_share_to_server(i, 2)
+            return self.g.clients[0]
+        d.addCallback(_server_setup)
+        d.addCallback(lambda client:
+            client.upload(upload.Data("data" * 10000, convergence="")))
+        return d
+
+
     def _set_up_nodes_extra_config(self, clientdir):
         cfgfn = os.path.join(clientdir, "tahoe.cfg")
         oldcfg = open(cfgfn, "r").read()
