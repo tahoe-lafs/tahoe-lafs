@@ -266,9 +266,6 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "makeLink link file",
                                          self.handler.makeLink, "link", "file"))
-        d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "extendedRequest foo bar",
-                                         self.handler.extendedRequest, "foo", "bar"))
 
         return d
 
@@ -913,7 +910,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
                                          self.handler.makeDirectory, "small", {}))
         return d
 
-    def test_execCommand(self):
+    def test_execCommand_and_openShell(self):
         class FakeProtocol:
             def __init__(self):
                 self.output = ""
@@ -923,20 +920,43 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             def processEnded(self, reason):
                 self.reason = reason
 
-        protocol_ok = FakeProtocol()
+        protocol_df = FakeProtocol()
         protocol_error = FakeProtocol()
+        protocol_shell = FakeProtocol()
 
-        d = self._set_up("execCommand")
+        d = self._set_up("execCommand_and_openShell")
 
-        d.addCallback(lambda ign: self.handler.execCommand(protocol_ok, "df -P -k /"))
-        d.addCallback(lambda ign: self.failUnlessIn("1024-blocks", protocol_ok.output))
-        d.addCallback(lambda ign: self.failUnless(isinstance(protocol_ok.reason.value, ProcessDone)))
+        d.addCallback(lambda ign: self.handler.execCommand(protocol_df, "df -P -k /"))
+        d.addCallback(lambda ign: self.failUnlessIn("1024-blocks", protocol_df.output))
+        d.addCallback(lambda ign: self.failUnless(isinstance(protocol_df.reason.value, ProcessDone)))
         d.addCallback(lambda ign: self.handler.eofReceived())
         d.addCallback(lambda ign: self.handler.closed())
 
         d.addCallback(lambda ign: self.handler.execCommand(protocol_error, "error"))
-        d.addCallback(lambda ign: self.failUnlessEqual(protocol_error.output, ""))
+        d.addCallback(lambda ign: self.failUnlessEqual("", protocol_error.output))
         d.addCallback(lambda ign: self.failUnless(isinstance(protocol_error.reason.value, ProcessTerminated)))
         d.addCallback(lambda ign: self.failUnlessEqual(protocol_error.reason.value.exitCode, 1))
+        d.addCallback(lambda ign: self.handler.closed())
+
+        d.addCallback(lambda ign: self.handler.openShell(protocol_shell))
+        d.addCallback(lambda ign: self.failUnlessIn("only SFTP", protocol_shell.output))
+        d.addCallback(lambda ign: self.failUnless(isinstance(protocol_shell.reason.value, ProcessTerminated)))
+        d.addCallback(lambda ign: self.failUnlessEqual(protocol_shell.reason.value.exitCode, 1))
+        d.addCallback(lambda ign: self.handler.closed())
+
+        return d
+
+    def test_extendedRequest(self):
+        d = self._set_up("extendedRequest")
+
+        d.addCallback(lambda ign: self.handler.extendedRequest("statvfs@openssh.com", "/"))
+        def _check(res):
+            self.failUnless(isinstance(res, str))
+            self.failUnlessEqual(len(res), 8*11)
+        d.addCallback(_check)
+
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "extendedRequest foo bar",
+                                         self.handler.extendedRequest, "foo", "bar"))
 
         return d

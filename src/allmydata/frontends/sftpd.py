@@ -1,5 +1,5 @@
 
-import os, tempfile, heapq, binascii, traceback, array, stat
+import os, tempfile, heapq, binascii, traceback, array, stat, struct
 from stat import S_IFREG, S_IFDIR
 from time import time, strftime, localtime
 
@@ -41,17 +41,15 @@ warnings.filterwarnings("ignore", category=DeprecationWarning,
 noisy = True
 use_foolscap_logging = True
 
+from allmydata.util.log import NOISY, OPERATIONAL, SCARY
+
 if use_foolscap_logging:
-    from allmydata.util.log import msg as logmsg, err as logerr, \
-        NOISY, OPERATIONAL, SCARY, PrefixingLogMixin
+    from allmydata.util.log import msg as logmsg, err as logerr, PrefixingLogMixin
 else:
     def logmsg(s, level=None):
         print s
     def logerr(s, level=None):
         print s
-    NOISY = None
-    OPERATIONAL = None
-    SCARY = None
     class PrefixingLogMixin:
         def __init__(self, facility=None):
             pass
@@ -290,7 +288,7 @@ class EncryptedTemporaryFile(PrefixingLogMixin):
         return plaintext
 
     def write(self, plaintext):
-        if noisy: self.log(".write(%r)" % (plaintext,), level=NOISY)
+        if noisy: self.log(".write(<data of length %r>)" % (len(plaintext),), level=NOISY)
         index = self.file.tell()
         ciphertext = self._crypt(index, plaintext)
         self.file.write(ciphertext)
@@ -357,7 +355,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
                 p.resumeProducing()
 
     def write(self, data):
-        if noisy: self.log(".write(%r)" % (data,), level=NOISY)
+        if noisy: self.log(".write(<data of length %r>)" % (len(data),), level=NOISY)
         if self.check_abort():
             self.close()
             return
@@ -833,7 +831,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
     def openShell(self, protocol):
         self.log(".openShell(%r)" % (protocol,), level=OPERATIONAL)
-        raise NotImplementedError
+        protocol.write("This server supports only SFTP, not shell sessions.\n")
+        protocol.processEnded(Reason(ProcessTerminated(exitCode=1)))
 
     def execCommand(self, protocol, cmd):
         self.log(".execCommand(%r, %r)" % (protocol, cmd), level=OPERATIONAL)
@@ -1167,9 +1166,22 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def extendedRequest(self, extendedName, extendedData):
         self.log(".extendedRequest(%r, %r)" % (extendedName, extendedData), level=OPERATIONAL)
 
-        # A client 'df' command requires the 'statvfs@openssh.com' extension,
-        # but there's little point to implementing that since we would only
-        # have faked values to report.
+        if extendedName == 'statvfs@openssh.com' or extendedName == 'fstatvfs@openssh.com':
+            # <http://dev.libssh.org/ticket/11>
+            return struct.pack('>QQQQQQQQQQQ',
+                1024,         # uint64  f_bsize     /* file system block size */
+                1024,         # uint64  f_frsize    /* fundamental fs block size */
+                628318530,    # uint64  f_blocks    /* number of blocks (unit f_frsize) */
+                314159265,    # uint64  f_bfree     /* free blocks in file system */
+                314159265,    # uint64  f_bavail    /* free blocks for non-root */
+                200000000,    # uint64  f_files     /* total file inodes */
+                100000000,    # uint64  f_ffree     /* free file inodes */
+                100000000,    # uint64  f_favail    /* free file inodes for non-root */
+                0x1AF5,       # uint64  f_fsid      /* file system id */
+                2,            # uint64  f_flag      /* bit mask = ST_NOSUID; not ST_RDONLY */
+                65535,        # uint64  f_namemax   /* maximum filename length */
+                )
+
         raise SFTPError(FX_OP_UNSUPPORTED, "extendedRequest %r" % extendedName)
 
     def realPath(self, pathstring):
