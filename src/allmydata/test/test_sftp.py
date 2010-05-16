@@ -90,7 +90,6 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         self.basedir = "sftp/" + basedir
         self.set_up_grid(num_clients=num_clients, num_servers=num_servers)
 
-        self.check_abort = lambda: False
         self.client = self.g.clients[0]
         self.username = "alice"
 
@@ -98,7 +97,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         def _created_root(node):
             self.root = node
             self.root_uri = node.get_uri()
-            self.handler = sftpd.SFTPUserHandler(self.check_abort, self.client, self.root, self.username)
+            self.handler = sftpd.SFTPUserHandler(self.client, self.root, self.username)
         d.addCallback(_created_root)
         return d
 

@@ -805,11 +805,10 @@ class Reason:
 
 class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     implements(ISFTPServer, ISession)
-    def __init__(self, check_abort, client, rootnode, username):
+    def __init__(self, client, rootnode, username):
         ConchUser.__init__(self)
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
-        if noisy: self.log(".__init__(%r, %r, %r, %r)" %
-                           (check_abort, client, rootnode, username), level=NOISY)
+        if noisy: self.log(".__init__(%r, %r, %r)" % (client, rootnode, username), level=NOISY)
 
         self.channelLookup["session"] = session.SSHSession
         self.subsystemLookup["sftp"] = FileTransferServer
