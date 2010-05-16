@@ -5,6 +5,7 @@ from stat import S_IFREG, S_IFDIR
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.python.failure import Failure
+from twisted.internet.error import ProcessDone, ProcessTerminated
 
 sftp = None
 sftpd = None
@@ -89,18 +90,15 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         self.basedir = "sftp/" + basedir
         self.set_up_grid(num_clients=num_clients, num_servers=num_servers)
 
-        def check_abort():
-            pass
+        self.check_abort = lambda: False
         self.client = self.g.clients[0]
         self.username = "alice"
-        self.convergence = "convergence"
 
         d = self.client.create_dirnode()
         def _created_root(node):
             self.root = node
             self.root_uri = node.get_uri()
-            self.user = sftpd.SFTPUser(check_abort, self.client, self.root, self.username, self.convergence)
-            self.handler = sftpd.SFTPHandler(self.user)
+            self.handler = sftpd.SFTPUserHandler(self.check_abort, self.client, self.root, self.username)
         d.addCallback(_created_root)
         return d
 
@@ -914,4 +912,32 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "makeDirectory small",
                                          self.handler.makeDirectory, "small", {}))
+        return d
+
+    def test_execCommand(self):
+        class FakeProtocol:
+            def __init__(self):
+                self.output = ""
+                self.reason = None
+            def write(self, data):
+                self.output += data
+            def processEnded(self, reason):
+                self.reason = reason
+
+        protocol_ok = FakeProtocol()
+        protocol_error = FakeProtocol()
+
+        d = self._set_up("execCommand")
+
+        d.addCallback(lambda ign: self.handler.execCommand(protocol_ok, "df -P -k /"))
+        d.addCallback(lambda ign: self.failUnlessIn("1024-blocks", protocol_ok.output))
+        d.addCallback(lambda ign: self.failUnless(isinstance(protocol_ok.reason.value, ProcessDone)))
+        d.addCallback(lambda ign: self.handler.eofReceived())
+        d.addCallback(lambda ign: self.handler.closed())
+
+        d.addCallback(lambda ign: self.handler.execCommand(protocol_error, "error"))
+        d.addCallback(lambda ign: self.failUnlessEqual(protocol_error.output, ""))
+        d.addCallback(lambda ign: self.failUnless(isinstance(protocol_error.reason.value, ProcessTerminated)))
+        d.addCallback(lambda ign: self.failUnlessEqual(protocol_error.reason.value.exitCode, 1))
+
         return d

@@ -16,6 +16,7 @@ from twisted.conch.interfaces import ISFTPServer, ISFTPFile, IConchUser, ISessio
 from twisted.conch.avatar import ConchUser
 from twisted.conch.openssh_compat import primes
 from twisted.cred import portal
+from twisted.internet.error import ProcessDone, ProcessTerminated
 
 from twisted.internet import defer
 from twisted.internet.interfaces import IFinishableConsumer
@@ -786,6 +787,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.async.addCallbacks(_resize, eventually_errback(d))
         return d
 
+
 class StoppableList:
     def __init__(self, items):
         self.items = items
@@ -796,17 +798,63 @@ class StoppableList:
         pass
 
 
-class SFTPHandler(PrefixingLogMixin):
-    implements(ISFTPServer)
-    def __init__(self, user):
-        PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
-        if noisy: self.log(".__init__(%r)" % (user,), level=NOISY)
+class Reason:
+    def __init__(self, value):
+        self.value = value
 
-        self.check_abort = user.check_abort
-        self.client = user.client
-        self.root = user.root
-        self.username = user.username
-        self.convergence = user.convergence
+
+class SFTPUserHandler(ConchUser, PrefixingLogMixin):
+    implements(ISFTPServer, ISession)
+    def __init__(self, check_abort, client, rootnode, username):
+        ConchUser.__init__(self)
+        PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
+        if noisy: self.log(".__init__(%r, %r, %r, %r)" %
+                           (check_abort, client, rootnode, username), level=NOISY)
+
+        self.channelLookup["session"] = session.SSHSession
+        self.subsystemLookup["sftp"] = FileTransferServer
+
+        self.client = client
+        self.root = rootnode
+        self.username = username
+        self.convergence = client.convergence
+        self.logged_out = False
+
+    def logout(self):
+        self.logged_out = True
+
+    def check_abort(self):
+        return self.logged_out
+
+    # ISession
+    # This is needed because some clients may try to issue a 'df' command.
+
+    def getPty(self, terminal, windowSize, attrs):
+        self.log(".getPty(%r, %r, %r)" % (terminal, windowSize, attrs), level=OPERATIONAL)
+
+    def openShell(self, protocol):
+        self.log(".openShell(%r)" % (protocol,), level=OPERATIONAL)
+        raise NotImplementedError
+
+    def execCommand(self, protocol, cmd):
+        self.log(".execCommand(%r, %r)" % (protocol, cmd), level=OPERATIONAL)
+        if cmd == "df -P -k /":
+            protocol.write("Filesystem         1024-blocks      Used Available Capacity Mounted on\n"
+                           "tahoe                628318530 314159265 314159265      50% /\n")
+            protocol.processEnded(Reason(ProcessDone(None)))
+        else:
+            protocol.processEnded(Reason(ProcessTerminated(exitCode=1)))
+
+    def windowChanged(self, newWindowSize):
+        self.log(".windowChanged(%r)" % (newWindowSize,), level=OPERATIONAL)
+
+    def eofReceived(self):
+        self.log(".eofReceived()", level=OPERATIONAL)
+
+    def closed(self):
+        self.log(".closed()", level=OPERATIONAL)
+
+    # ISFTPServer
 
     def gotVersion(self, otherVersion, extData):
         self.log(".gotVersion(%r, %r)" % (otherVersion, extData), level=OPERATIONAL)
@@ -1262,14 +1310,9 @@ class Dispatcher:
     def requestAvatar(self, avatarID, mind, interface):
         assert interface == IConchUser
         rootnode = self.client.create_node_from_uri(avatarID.rootcap)
-        convergence = self.client.convergence
-        logged_out = {'flag': False}
-        def check_abort():
-            return logged_out['flag']
-        def logout():
-            logged_out['flag'] = True
-        s = SFTPUser(check_abort, self.client, rootnode, avatarID.username, convergence)
-        return (interface, s, logout)
+        handler = SFTPUserHandler(self.client, rootnode, avatarID.username)
+        return (interface, handler, handler.logout)
+
 
 class SFTPServer(service.MultiService):
     def __init__(self, client, accountfile, accounturl,
@@ -1287,7 +1330,7 @@ class SFTPServer(service.MultiService):
             p.registerChecker(c)
         if not accountfile and not accounturl:
             # we could leave this anonymous, with just the /uri/CAP form
-            raise NeedRootcapLookupScheme("must provide some translation")
+            raise NeedRootcapLookupScheme("must provide an account file or URL")
 
         pubkey = keys.Key.fromFile(pubkey_file)
         privkey = keys.Key.fromFile(privkey_file)
