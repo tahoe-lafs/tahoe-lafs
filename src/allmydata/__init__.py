@@ -22,6 +22,9 @@ warnings.filterwarnings("ignore", category=DeprecationWarning,
 warnings.filterwarnings("ignore", category=DeprecationWarning,
     message="the sha module is deprecated; use the hashlib module instead",
     append=True)
+warnings.filterwarnings("ignore", category=DeprecationWarning,
+    message="twisted.web.error.NoResource is deprecated since Twisted 9.0.  See twisted.web.resource.NoResource.",
+    append=True)
 try:
     import nevow
     from twisted.persisted import sob
