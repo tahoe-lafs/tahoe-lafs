@@ -2,99 +2,86 @@
 
 import os, subprocess, sys
 
-try:
-    import platform
-    out = platform.platform()
-    print
-    print "platform:", out.replace("\n", " ")
-except EnvironmentError, le:
-    sys.stderr.write("Got exception using 'platform': %s" % (le,))
-    pass
+def print_platform():
+    try:
+        import platform
+        out = platform.platform()
+        print
+        print "platform:", out.replace("\n", " ")
+    except EnvironmentError, le:
+         sys.stderr.write("Got exception using 'platform': %s\n" % (le,))
+         pass
 
-print "python:", sys.version.replace("\n", " ") + ', maxunicode: ' + str(sys.maxunicode)
+def print_python_ver():
+    print "python:", sys.version.replace("\n", " ") + ', maxunicode: ' + str(sys.maxunicode)
 
-try:
-    import pkg_resources
-    out = str(pkg_resources.require("setuptools"))
-    print
-    print "setuptools:", out.replace("\n", " ")
-except (ImportError, EnvironmentError), le:
-    sys.stderr.write("Got exception using 'pkg_resources' to get the version of setuptools: %s" % (le,))
-    pass
+def print_cmd_ver(cmdlist, label=None):
+    try:
+        res = subprocess.Popen(cmdlist, stdin=open(os.devnull),
+                               stdout=subprocess.PIPE).communicate()[0]
+        if label is None:
+            label = cmdlist[0]
+        print
+        print label + ': ' + res.replace("\n", " ")
+    except EnvironmentError, le:
+        sys.stderr.write("Got exception invoking '%s': %s\n" % (cmdlist[0], le,))
+        pass
 
-try:
-    out = subprocess.Popen(["buildbot", "--version"],
-                           stdout=subprocess.PIPE).communicate()[0]
-    print "buildbot:", out.replace("\n", " ")
-except EnvironmentError, le:
-    sys.stderr.write("Got exception invoking 'buildbot': %s" % (le,))
-    pass
+def print_as_ver():
+    if os.path.exists('a.out'):
+        print
+        print "WARNING: a file named a.out exists, and getting the version of the 'as' assembler writes to that filename, so I'm not attempting to get the version of 'as'."
+        return
+    try:
+        res = subprocess.Popen(['as', '-version'], stdin=open(os.devnull),
+                               stderr=subprocess.PIPE).communicate()[1]
+        print
+        print 'as: ' + res.replace("\n", " ")
+        os.remove('a.out')
+    except EnvironmentError, le:
+        sys.stderr.write("Got exception invoking '%s': %s\n" % ('as', le,))
+        pass
 
-try:
-    out = subprocess.Popen(["cl"],
-                           stdout=subprocess.PIPE).communicate()[0]
-    print "cl:", out.replace("\n", " ")
-except EnvironmentError, le:
-    sys.stderr.write("Got exception invoking 'cl': %s" % (le,))
-    pass
+def print_setuptools_ver():
+    try:
+        import pkg_resources
+        out = str(pkg_resources.require("setuptools"))
+        print
+        print "setuptools:", out.replace("\n", " ")
+    except (ImportError, EnvironmentError), le:
+        sys.stderr.write("Got exception using 'pkg_resources' to get the version of setuptools: %s\n" % (le,))
+        pass
 
-try:
-    out = subprocess.Popen(["g++", "--version"],
-                           stdout=subprocess.PIPE).communicate()[0]
-    print "g++:", out.replace("\n", " ")
-except EnvironmentError, le:
-    sys.stderr.write("Got exception invoking 'g++': %s" % (le,))
-    pass
+def print_py_pkg_ver(pkgname):
+    try:
+        import pkg_resources
+        out = str(pkg_resources.require(pkgname))
+        print
+        print pkgname + ': ' + out.replace("\n", " ")
+    except (ImportError, EnvironmentError), le:
+        sys.stderr.write("Got exception using 'pkg_resources' to get the version of %s: %s\n" % (pkgname, le,))
+        pass
+    except pkg_resources.DistributionNotFound, le:
+        sys.stderr.write("pkg_resources reported no %s package installed: %s\n" % (pkgname, le,))
+        pass
 
-try:
-    out = subprocess.Popen(["gcc", "--version"],
-                           stdout=subprocess.PIPE).communicate()[0]
-    print "gcc:", out.replace("\n", " ")
-except EnvironmentError, le:
-    sys.stderr.write("Got exception invoking 'gcc': %s" % (le,))
-    pass
+print_platform()
 
-try:
-    out = subprocess.Popen(["as", "-version"], stdin=open(os.devnull),
-                           stdout=subprocess.PIPE).communicate()[0]
-    print "as:", out.replace("\n", " ")
-except EnvironmentError, le:
-    sys.stderr.write("Got exception invoking 'as': %s" % (le,))
-    pass
+print_python_ver()
 
-try:
-    out = subprocess.Popen(["darcs", "--version"],
-                           stdout=subprocess.PIPE).communicate()[0]
-    full = subprocess.Popen(["darcs", "--exact-version"],
-                            stdout=subprocess.PIPE).communicate()[0]
-    print
-    print "darcs:", out.replace("\n", " ")
-    print full.rstrip()
-except EnvironmentError, le:
-    sys.stderr.write("Got exception invoking 'darcs': %s" % (le,))
-    pass
+print_cmd_ver(['buildbot', '--version'])
+print_cmd_ver(['cl'])
+print_cmd_ver(['gcc', '--version'])
+print_cmd_ver(['g++', '--version'])
+print_cmd_ver(['cryptest', 'V'])
+print_cmd_ver(['darcs', '--version'])
+print_cmd_ver(['darcs', '--exact-version'], label='darcs-exact-version')
+print_cmd_ver(['7za'])
 
-try:
-    import pkg_resources
-    out = str(pkg_resources.require("coverage"))
-    print
-    print "coverage:", out.replace("\n", " ")
-except (ImportError, EnvironmentError), le:
-    sys.stderr.write("Got exception using 'pkg_resources' to get the version of coverage: %s" % (le,))
-    pass
-except pkg_resources.DistributionNotFound, le:
-    sys.stderr.write("pkg_resources reported no trialcoverage package installed: %s" % (le,))
-    pass
+print_as_ver()
 
-try:
-    import pkg_resources
-    out = str(pkg_resources.require("trialcoverage"))
-    print
-    print "trialcoverage:", out.replace("\n", " ")
-except (ImportError, EnvironmentError), le:
-    sys.stderr.write("Got exception using 'pkg_resources' to get the version of trialcoverage: %s" % (le,))
-    pass
-except pkg_resources.DistributionNotFound, le:
-    sys.stderr.write("pkg_resources reported no trialcoverage package installed: %s" % (le,))
-    pass
+print_setuptools_ver()
 
+print_py_pkg_ver('coverage')
+print_py_pkg_ver('trialcoverage')
+print_py_pkg_ver('setuptools_trial')
