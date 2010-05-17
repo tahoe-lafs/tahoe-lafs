@@ -7,6 +7,7 @@ from twisted.internet import defer
 from twisted.python.failure import Failure
 from twisted.internet.error import ProcessDone, ProcessTerminated
 
+conch_interfaces = None
 sftp = None
 sftpd = None
 have_pycrypto = False
@@ -18,6 +19,7 @@ except ImportError:
     pass
 
 if have_pycrypto:
+    from twisted.conch import interfaces as conch_interfaces
     from twisted.conch.ssh import filetransfer as sftp
     from allmydata.frontends import sftpd
 
@@ -669,6 +671,24 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.root.get(u"zerolength"))
         d.addCallback(lambda node: download_to_data(node))
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
+
+        # test WRITE | CREAT | EXCL | APPEND
+        d.addCallback(lambda ign:
+                      self.handler.openFile("exclappend", sftp.FXF_WRITE | sftp.FXF_CREAT |
+                                                          sftp.FXF_EXCL | sftp.FXF_APPEND, {}))
+        def _write_excl_append(wf):
+            d2 = self.root.get(u"exclappend")
+            d2.addCallback(lambda node: download_to_data(node))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
+
+            d2 = wf.writeChunk(10, "0123456789")
+            d2.addCallback(wf.writeChunk(5, "01234"))
+            d2.addCallback(lambda ign: wf.close())
+            return d2
+        d.addCallback(_write_excl_append)
+        d.addCallback(lambda ign: self.root.get(u"exclappend"))
+        d.addCallback(lambda node: download_to_data(node))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345678901234"))
         """
 
         # test WRITE | CREAT without TRUNC
@@ -917,32 +937,45 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
                 self.reason = None
             def write(self, data):
                 self.output += data
+                return defer.succeed(None)
             def processEnded(self, reason):
                 self.reason = reason
-
-        protocol_df = FakeProtocol()
-        protocol_error = FakeProtocol()
-        protocol_shell = FakeProtocol()
+                return defer.succeed(None)
 
         d = self._set_up("execCommand_and_openShell")
 
-        d.addCallback(lambda ign: self.handler.execCommand(protocol_df, "df -P -k /"))
-        d.addCallback(lambda ign: self.failUnlessIn("1024-blocks", protocol_df.output))
-        d.addCallback(lambda ign: self.failUnless(isinstance(protocol_df.reason.value, ProcessDone)))
-        d.addCallback(lambda ign: self.handler.eofReceived())
-        d.addCallback(lambda ign: self.handler.closed())
+        d.addCallback(lambda ign: conch_interfaces.ISession(self.handler))
+        def _exec_df(session):
+            protocol = FakeProtocol()
+            d2 = session.execCommand(protocol, "df -P -k /")
+            d2.addCallback(lambda ign: self.failUnlessIn("1024-blocks", protocol.output))
+            d2.addCallback(lambda ign: self.failUnless(isinstance(protocol.reason.value, ProcessDone)))
+            d2.addCallback(lambda ign: session.eofReceived())
+            d2.addCallback(lambda ign: session.closed())
+            return d2
+        d.addCallback(_exec_df)
 
-        d.addCallback(lambda ign: self.handler.execCommand(protocol_error, "error"))
-        d.addCallback(lambda ign: self.failUnlessEqual("", protocol_error.output))
-        d.addCallback(lambda ign: self.failUnless(isinstance(protocol_error.reason.value, ProcessTerminated)))
-        d.addCallback(lambda ign: self.failUnlessEqual(protocol_error.reason.value.exitCode, 1))
-        d.addCallback(lambda ign: self.handler.closed())
+        d.addCallback(lambda ign: conch_interfaces.ISession(self.handler))
+        def _exec_error(session):
+            protocol = FakeProtocol()
+            d2 = session.execCommand(protocol, "error")
+            d2.addCallback(lambda ign: self.failUnlessEqual("", protocol.output))
+            d2.addCallback(lambda ign: self.failUnless(isinstance(protocol.reason.value, ProcessTerminated)))
+            d2.addCallback(lambda ign: self.failUnlessEqual(protocol.reason.value.exitCode, 1))
+            d2.addCallback(lambda ign: session.closed())
+            return d2
+        d.addCallback(_exec_error)
 
-        d.addCallback(lambda ign: self.handler.openShell(protocol_shell))
-        d.addCallback(lambda ign: self.failUnlessIn("only SFTP", protocol_shell.output))
-        d.addCallback(lambda ign: self.failUnless(isinstance(protocol_shell.reason.value, ProcessTerminated)))
-        d.addCallback(lambda ign: self.failUnlessEqual(protocol_shell.reason.value.exitCode, 1))
-        d.addCallback(lambda ign: self.handler.closed())
+        d.addCallback(lambda ign: conch_interfaces.ISession(self.handler))
+        def _openShell(session):
+            protocol = FakeProtocol()
+            d2 = session.openShell(protocol)
+            d2.addCallback(lambda ign: self.failUnlessIn("only SFTP", protocol.output))
+            d2.addCallback(lambda ign: self.failUnless(isinstance(protocol.reason.value, ProcessTerminated)))
+            d2.addCallback(lambda ign: self.failUnlessEqual(protocol.reason.value.exitCode, 1))
+            d2.addCallback(lambda ign: session.closed())
+            return d2
+        d.addCallback(_exec_error)
 
         return d
 

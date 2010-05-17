@@ -118,8 +118,8 @@ def _raise_error(err):
     if err.check(defer.FirstError):
         _raise_error(err.value.subFailure)
 
-    # We assume that the type of error is not anonymity-sensitive.
-    raise SFTPError(FX_FAILURE, str(err.type))
+    # We assume that the error message is not anonymity-sensitive.
+    raise SFTPError(FX_FAILURE, str(err.value))
 
 def _repr_flags(flags):
     return "|".join([f for f in
@@ -512,7 +512,7 @@ SIZE_THRESHOLD = 1000
 
 def _make_sftp_file(check_abort, flags, convergence, parent=None, childname=None, filenode=None, metadata=None):
     if noisy: logmsg("_make_sftp_file(%r, %r, %r, parent=%r, childname=%r, filenode=%r, metadata=%r" %
-                      (check_abort, flags, convergence, parent, childname, filenode, metadata), NOISY)
+                      (check_abort, flags, convergence, parent, childname, filenode, metadata), level=NOISY)
 
     if not (flags & (FXF_WRITE | FXF_CREAT)) and (flags & FXF_READ) and filenode and \
        not filenode.is_mutable() and filenode.get_size() <= SIZE_THRESHOLD:
@@ -802,7 +802,7 @@ class Reason:
 
 
 class SFTPUserHandler(ConchUser, PrefixingLogMixin):
-    implements(ISFTPServer, ISession)
+    implements(ISFTPServer)
     def __init__(self, client, rootnode, username):
         ConchUser.__init__(self)
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
@@ -811,48 +811,17 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         self.channelLookup["session"] = session.SSHSession
         self.subsystemLookup["sftp"] = FileTransferServer
 
-        self.client = client
-        self.root = rootnode
-        self.username = username
-        self.convergence = client.convergence
-        self.logged_out = False
+        self._client = client
+        self._root = rootnode
+        self._username = username
+        self._convergence = client.convergence
+        self._logged_out = False
 
     def logout(self):
-        self.logged_out = True
+        self._logged_out = True
 
     def check_abort(self):
-        return self.logged_out
-
-    # ISession
-    # This is needed because some clients may try to issue a 'df' command.
-
-    def getPty(self, terminal, windowSize, attrs):
-        self.log(".getPty(%r, %r, %r)" % (terminal, windowSize, attrs), level=OPERATIONAL)
-
-    def openShell(self, protocol):
-        self.log(".openShell(%r)" % (protocol,), level=OPERATIONAL)
-        protocol.write("This server supports only SFTP, not shell sessions.\n")
-        protocol.processEnded(Reason(ProcessTerminated(exitCode=1)))
-
-    def execCommand(self, protocol, cmd):
-        self.log(".execCommand(%r, %r)" % (protocol, cmd), level=OPERATIONAL)
-        if cmd == "df -P -k /":
-            protocol.write("Filesystem         1024-blocks      Used Available Capacity Mounted on\n"
-                           "tahoe                628318530 314159265 314159265      50% /\n")
-            protocol.processEnded(Reason(ProcessDone(None)))
-        else:
-            protocol.processEnded(Reason(ProcessTerminated(exitCode=1)))
-
-    def windowChanged(self, newWindowSize):
-        self.log(".windowChanged(%r)" % (newWindowSize,), level=OPERATIONAL)
-
-    def eofReceived(self):
-        self.log(".eofReceived()", level=OPERATIONAL)
-
-    def closed(self):
-        self.log(".closed()", level=OPERATIONAL)
-
-    # ISFTPServer
+        return self._logged_out
 
     def gotVersion(self, otherVersion, extData):
         self.log(".gotVersion(%r, %r)" % (otherVersion, extData), level=OPERATIONAL)
@@ -929,7 +898,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                     raise SFTPError(FX_PERMISSION_DENIED,
                                     "cannot create a file exclusively when it already exists")
 
-                return _make_sftp_file(self.check_abort, flags, self.convergence, filenode=root)
+                return _make_sftp_file(self.check_abort, flags, self._convergence, filenode=root)
             else:
                 # case 2
                 childname = path[-1]
@@ -984,7 +953,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         raise SFTPError(FX_PERMISSION_DENIED,
                                         "cannot open a file for writing when the parent directory is read-only")
 
-                    return _make_sftp_file(self.check_abort, flags, self.convergence, parent=parent,
+                    return _make_sftp_file(self.check_abort, flags, self._convergence, parent=parent,
                                            childname=childname, filenode=filenode, metadata=metadata)
                 def _no_child(f):
                     if noisy: self.log("_no_child(%r)" % (f,), level=NOISY)
@@ -999,7 +968,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         raise SFTPError(FX_PERMISSION_DENIED,
                                         "cannot create a file when the parent directory is read-only")
 
-                    return _make_sftp_file(self.check_abort, flags, self.convergence, parent=parent,
+                    return _make_sftp_file(self.check_abort, flags, self._convergence, parent=parent,
                                            childname=childname)
                 d2.addCallbacks(_got_child, _no_child)
                 return d2
@@ -1168,7 +1137,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         if extendedName == 'statvfs@openssh.com' or extendedName == 'fstatvfs@openssh.com':
             # <http://dev.libssh.org/ticket/11>
-            return struct.pack('>QQQQQQQQQQQ',
+            return struct.pack('>11Q',
                 1024,         # uint64  f_bsize     /* file system block size */
                 1024,         # uint64  f_frsize    /* fundamental fs block size */
                 628318530,    # uint64  f_blocks    /* number of blocks (unit f_frsize) */
@@ -1233,10 +1202,10 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _get_root(self, path):
         # return (root, remaining_path)
         if path and path[0] == u"uri":
-            d = defer.maybeDeferred(self.client.create_node_from_uri, path[1].encode('utf-8'))
+            d = defer.maybeDeferred(self._client.create_node_from_uri, path[1].encode('utf-8'))
             d.addCallback(lambda root: (root, path[2:]))
         else:
-            d = defer.succeed((self.root, path))
+            d = defer.succeed((self._root, path))
         return d
 
     def _get_parent(self, path):
@@ -1316,12 +1285,12 @@ from auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
 class Dispatcher:
     implements(portal.IRealm)
     def __init__(self, client):
-        self.client = client
+        self._client = client
 
     def requestAvatar(self, avatarID, mind, interface):
         assert interface == IConchUser
-        rootnode = self.client.create_node_from_uri(avatarID.rootcap)
-        handler = SFTPUserHandler(self.client, rootnode, avatarID.username)
+        rootnode = self._client.create_node_from_uri(avatarID.rootcap)
+        handler = SFTPUserHandler(self._client, rootnode, avatarID.username)
         return (interface, handler, handler.logout)
 
 
