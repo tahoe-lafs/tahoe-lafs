@@ -23,10 +23,6 @@ if have_pycrypto:
     from twisted.conch.ssh import filetransfer as sftp
     from allmydata.frontends import sftpd
 
-# FIXME remove this
-#from twisted.internet.base import DelayedCall
-#DelayedCall.debug = True
-
 import traceback
 
 """
@@ -649,7 +645,6 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda node: download_to_data(node))
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
 
-        """
         # test that writing a zero-length file with EXCL only updates the directory once
         d.addCallback(lambda ign:
                       self.handler.openFile("zerolength", sftp.FXF_WRITE | sftp.FXF_CREAT |
@@ -681,15 +676,14 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             d2.addCallback(lambda node: download_to_data(node))
             d2.addCallback(lambda data: self.failUnlessReallyEqual(data, ""))
 
-            d2 = wf.writeChunk(10, "0123456789")
-            d2.addCallback(wf.writeChunk(5, "01234"))
+            d2.addCallback(lambda ign: wf.writeChunk(10, "0123456789"))
+            d2.addCallback(lambda ign: wf.writeChunk(5, "01234"))
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_excl_append)
         d.addCallback(lambda ign: self.root.get(u"exclappend"))
         d.addCallback(lambda node: download_to_data(node))
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345678901234"))
-        """
 
         # test WRITE | CREAT without TRUNC
         d.addCallback(lambda ign:
@@ -719,12 +713,11 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(_check_same_file)
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable new! contents"))
 
-        """
         # test READ | WRITE without CREAT or TRUNC
         d.addCallback(lambda ign:
                       self.handler.openFile("small", sftp.FXF_READ | sftp.FXF_WRITE, {}))
         def _read_write(rwf):
-            d2 =  rwf.writeChunk(8, "0123")
+            d2 = rwf.writeChunk(8, "0123")
             d2.addCallback(lambda ign: rwf.readChunk(0, 100))
             d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123"))
             d2.addCallback(lambda ign: rwf.close())
@@ -733,7 +726,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.root.get(u"small"))
         d.addCallback(lambda node: download_to_data(node))
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123"))
-        """
+
         return d
 
     def test_removeFile(self):
