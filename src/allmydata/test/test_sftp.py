@@ -234,7 +234,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "_raise_error NoSuchChildError",
                                          sftpd._raise_error, Failure(NoSuchChildError("foo"))))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "_raise_error ExistingChildError",
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_raise_error ExistingChildError",
                                          sftpd._raise_error, Failure(ExistingChildError("foo"))))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "_raise_error NotWriteableError",

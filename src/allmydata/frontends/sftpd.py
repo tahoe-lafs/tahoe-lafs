@@ -107,10 +107,18 @@ def _raise_error(err):
     if err.check(NoSuchChildError):
         childname = err.value.args[0].encode('utf-8')
         raise SFTPError(FX_NO_SUCH_FILE, childname)
-    if err.check(ExistingChildError) or err.check(NotWriteableError):
-        # later versions of SFTP define FX_FILE_ALREADY_EXISTS, but version 3 doesn't
+    if err.check(NotWriteableError):
         msg = err.value.args[0].encode('utf-8')
         raise SFTPError(FX_PERMISSION_DENIED, msg)
+    if err.check(ExistingChildError):
+        # Versions of SFTP after v3 (which is what twisted.conch implements)
+        # define a specific error code for this case: FX_FILE_ALREADY_EXISTS.
+        # However v3 doesn't; instead, other servers such as sshd return
+        # FX_FAILURE. The gvfs SFTP backend, for example, depends on this
+        # to translate the error to the equivalent of POSIX EEXIST, which is
+        # necessary for some picky programs (such as gedit).
+        msg = err.value.args[0].encode('utf-8')
+        raise SFTPError(FX_FAILURE, msg)
     if err.check(NotImplementedError):
         raise SFTPError(FX_OP_UNSUPPORTED, str(err.value))
     if err.check(EOFError):
