@@ -17,6 +17,7 @@ from twisted.conch.avatar import ConchUser
 from twisted.conch.openssh_compat import primes
 from twisted.cred import portal
 from twisted.internet.error import ProcessDone, ProcessTerminated
+from twisted.internet.interfaces import ITransport
 
 from twisted.internet import defer
 from twisted.internet.interfaces import IFinishableConsumer
@@ -96,7 +97,7 @@ def _raise_error(err):
     if err is None:
         return None
     if noisy: logmsg("RAISE %r" % (err,), level=NOISY)
-    #traceback.print_exc(err)
+    if noisy and not use_foolscap_logging: traceback.print_exc(err)
 
     # The message argument to SFTPError must not reveal information that
     # might compromise anonymity.
@@ -129,6 +130,7 @@ def _raise_error(err):
     # We assume that the error message is not anonymity-sensitive.
     raise SFTPError(FX_FAILURE, str(err.value))
 
+
 def _repr_flags(flags):
     return "|".join([f for f in
                      [(flags & FXF_READ) and "FXF_READ" or None,
@@ -139,6 +141,7 @@ def _repr_flags(flags):
                       (flags & FXF_EXCL) and "FXF_EXCL" or None,
                      ]
                      if f])
+
 
 def _lsLine(name, attrs):
     st_uid = "tahoe"
@@ -159,26 +162,26 @@ def _lsLine(name, attrs):
     mode = st_mode
     perms = array.array('c', '-'*10)
     ft = stat.S_IFMT(mode)
-    if stat.S_ISDIR(ft): perms[0] = 'd'
-    elif stat.S_ISCHR(ft): perms[0] = 'c'
-    elif stat.S_ISBLK(ft): perms[0] = 'b'
-    elif stat.S_ISREG(ft): perms[0] = '-'
+    if stat.S_ISDIR(ft):    perms[0] = 'd'
+    elif stat.S_ISCHR(ft):  perms[0] = 'c'
+    elif stat.S_ISBLK(ft):  perms[0] = 'b'
+    elif stat.S_ISREG(ft):  perms[0] = '-'
     elif stat.S_ISFIFO(ft): perms[0] = 'f'
-    elif stat.S_ISLNK(ft): perms[0] = 'l'
+    elif stat.S_ISLNK(ft):  perms[0] = 'l'
     elif stat.S_ISSOCK(ft): perms[0] = 's'
     else: perms[0] = '?'
     # user
-    if mode&stat.S_IRUSR:perms[1] = 'r'
-    if mode&stat.S_IWUSR:perms[2] = 'w'
-    if mode&stat.S_IXUSR:perms[3] = 'x'
+    if mode&stat.S_IRUSR: perms[1] = 'r'
+    if mode&stat.S_IWUSR: perms[2] = 'w'
+    if mode&stat.S_IXUSR: perms[3] = 'x'
     # group
-    if mode&stat.S_IRGRP:perms[4] = 'r'
-    if mode&stat.S_IWGRP:perms[5] = 'w'
-    if mode&stat.S_IXGRP:perms[6] = 'x'
+    if mode&stat.S_IRGRP: perms[4] = 'r'
+    if mode&stat.S_IWGRP: perms[5] = 'w'
+    if mode&stat.S_IXGRP: perms[6] = 'x'
     # other
-    if mode&stat.S_IROTH:perms[7] = 'r'
-    if mode&stat.S_IWOTH:perms[8] = 'w'
-    if mode&stat.S_IXOTH:perms[9] = 'x'
+    if mode&stat.S_IROTH: perms[7] = 'r'
+    if mode&stat.S_IWOTH: perms[8] = 'w'
+    if mode&stat.S_IXOTH: perms[9] = 'x'
     # suid/sgid never set
 
     l = perms.tostring()
@@ -198,63 +201,73 @@ def _lsLine(name, attrs):
     l += name
     return l
 
-def _populate_attrs(childnode, metadata, writeable, size=None):
+
+def _is_readonly(parent_readonly, child):
+    """Whether child should be treated as having read-only permissions when listed
+    in parent."""
+
+    if child.is_unknown():
+        return True
+    elif child.is_mutable():
+        return child.is_readonly()
+    else:
+        return parent_readonly
+
+
+def _populate_attrs(childnode, metadata, size=None):
     attrs = {}
 
-    # see webapi.txt for what these times mean
-    if metadata:
-        if "linkmotime" in metadata.get("tahoe", {}):
-            attrs["mtime"] = int(metadata["tahoe"]["linkmotime"])
-        elif "mtime" in metadata:
-            attrs["mtime"] = int(metadata["mtime"])
-
-        if "linkcrtime" in metadata.get("tahoe", {}):
-            attrs["createtime"] = int(metadata["tahoe"]["linkcrtime"])
-
-        if "ctime" in metadata:
-            attrs["ctime"] = int(metadata["ctime"])
-
-        # We would prefer to omit atime, but SFTP version 3 can only
-        # accept mtime if atime is also set.
-        attrs["atime"] = attrs["mtime"]
-
-    # The permissions must have the extra bits (040000 or 0100000),
-    # otherwise the client will not call openDirectory.
-
+    # The permissions must have the S_IFDIR (040000) or S_IFREG (0100000)
+    # bits, otherwise the client may refuse to open a directory.
+    # Also, sshfs run as a non-root user requires files and directories
+    # to be world-readable/writeable.
+    #
     # Directories and unknown nodes have no size, and SFTP doesn't
     # require us to make one up.
+    #
     # childnode might be None, meaning that the file doesn't exist yet,
     # but we're going to write it later.
 
     if childnode and childnode.is_unknown():
         perms = 0
     elif childnode and IDirectoryNode.providedBy(childnode):
-        perms = S_IFDIR | 0770 
+        perms = S_IFDIR | 0777
     else:
         # For files, omit the size if we don't immediately know it.
         if childnode and size is None:
             size = childnode.get_size()
         if size is not None:
-            assert isinstance(size, (int, long)), repr(size)
-            attrs["size"] = size
-        perms = S_IFREG | 0660
+            assert isinstance(size, (int, long)) and not isinstance(size, bool), repr(size)
+            attrs['size'] = size
+        perms = S_IFREG | 0666
 
-    if not writeable:
-        perms &= S_IFDIR | S_IFREG | 0555  # clear 'w' bits
+    if metadata:
+        assert 'readonly' in metadata, metadata
+        if metadata['readonly']:
+            perms &= S_IFDIR | S_IFREG | 0555  # clear 'w' bits
 
-    attrs["permissions"] = perms
+        # see webapi.txt for what these times mean
+        if 'linkmotime' in metadata.get('tahoe', {}):
+            attrs['mtime'] = int(metadata['tahoe']['linkmotime'])
+        elif 'mtime' in metadata:
+            # We would prefer to omit atime, but SFTP version 3 can only
+            # accept mtime if atime is also set.
+            attrs['mtime'] = int(metadata['mtime'])
+            attrs['atime'] = attrs['mtime']
 
-    # We could set the SSH_FILEXFER_ATTR_FLAGS here:
-    # ENCRYPTED would always be true ("The file is stored on disk
-    # using file-system level transparent encryption.")
-    # SYSTEM, HIDDEN, ARCHIVE and SYNC would always be false.
-    # READONLY and IMMUTABLE would be set according to
-    # childnode.is_readonly() and childnode.is_immutable()
-    # for known nodes.
-    # However, twisted.conch.ssh.filetransfer only implements
-    # SFTP version 3, which doesn't include these flags.
+        if 'linkcrtime' in metadata.get('tahoe', {}):
+            attrs['createtime'] = int(metadata['tahoe']['linkcrtime'])
+
+        if 'ctime' in metadata:
+            attrs['ctime'] = int(metadata['ctime'])
+
+    attrs['permissions'] = perms
+
+    # twisted.conch.ssh.filetransfer only implements SFTP version 3,
+    # which doesn't include SSH_FILEXFER_ATTR_FLAGS.
 
     return attrs
+
 
 class EncryptedTemporaryFile(PrefixingLogMixin):
     # not implemented: next, readline, readlines, xreadlines, writelines
@@ -533,6 +546,7 @@ def _make_sftp_file(check_abort, flags, convergence, parent=None, childname=None
     if noisy: logmsg("_make_sftp_file(%r, %r, <convergence censored>, parent=%r, childname=%r, filenode=%r, metadata=%r" %
                       (check_abort, flags, parent, childname, filenode, metadata), level=NOISY)
 
+    assert metadata is None or 'readonly' in metadata, metadata
     if not (flags & (FXF_WRITE | FXF_CREAT)) and (flags & FXF_READ) and filenode and \
        not filenode.is_mutable() and filenode.get_size() <= SIZE_THRESHOLD:
         return ShortReadOnlySFTPFile(filenode, metadata)
@@ -604,7 +618,7 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
             def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot get attributes for a closed file handle")
             return defer.execute(_closed)
 
-        return defer.succeed(_populate_attrs(self.filenode, self.metadata, False))
+        return defer.succeed(_populate_attrs(self.filenode, self.metadata))
 
     def setAttrs(self, attrs):
         self.log(".setAttrs(%r)" % (attrs,), level=OPERATIONAL)
@@ -660,7 +674,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
                 self.async.addCallback(_downloaded)
             else:
                 download_size = filenode.get_size()
-                assert download_size is not None
+                assert download_size is not None, "download_size is None"
                 self.consumer = OverwriteableFileConsumer(self.check_abort, download_size, tempfile_maker)
                 def _read(ign):
                     if noisy: self.log("_read immutable", level=NOISY)
@@ -741,10 +755,10 @@ class GeneralSFTPFile(PrefixingLogMixin):
                 d2.addCallback(lambda ign: self.consumer.get_current_size())
                 d2.addCallback(lambda size: self.consumer.read(0, size))
                 d2.addCallback(lambda new_contents: self.filenode.overwrite(new_contents))
-            #elif (self.flags & FXF_EXCL) and self.consumer.get_current_size() == 0:
-            #    # The file will already have been written by the open call, so we can
-            #    # optimize out the extra directory write (useful for zero-length lockfiles).
-            #    pass
+            elif (self.flags & FXF_EXCL) and self.consumer.get_current_size() == 0:
+                # The file will already have been written by the open call, so we can
+                # optimize out the extra directory write (useful for zero-length lockfiles).
+                pass
             else:
                 def _add_file(ign):
                     self.log("_add_file childname=%r" % (self.childname,), level=OPERATIONAL)
@@ -769,14 +783,12 @@ class GeneralSFTPFile(PrefixingLogMixin):
 
         # Optimization for read-only handles, when we already know the metadata.
         if not(self.flags & (FXF_WRITE | FXF_CREAT)) and self.metadata and self.filenode and not self.filenode.is_mutable():
-            return defer.succeed(_populate_attrs(self.filenode, self.metadata, False))
+            return defer.succeed(_populate_attrs(self.filenode, self.metadata))
 
         d = defer.Deferred()
         def _get(ign):
-            # FIXME: pass correct value for writeable
             # self.filenode might be None, but that's ok.
-            attrs = _populate_attrs(self.filenode, self.metadata, False,
-                                    size=self.consumer.get_current_size())
+            attrs = _populate_attrs(self.filenode, self.metadata, size=self.consumer.get_current_size())
             eventually_callback(d)(attrs)
             return None
         self.async.addCallbacks(_get, eventually_errback(d))
@@ -902,7 +914,6 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # Note that the permission checks below are for more precise error reporting on
         # the open call; later operations would fail even if we did not make these checks.
 
-        stash = {'parent': None}
         d = self._get_root(path)
         def _got_root((root, path)):
             if root.is_unknown():
@@ -919,7 +930,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                     raise SFTPError(FX_PERMISSION_DENIED,
                                     "cannot write to a non-writeable filecap without a parent directory")
                 if flags & FXF_EXCL:
-                    raise SFTPError(FX_PERMISSION_DENIED,
+                    raise SFTPError(FX_FAILURE,
                                     "cannot create a file exclusively when it already exists")
 
                 return _make_sftp_file(self.check_abort, flags, self._convergence, filenode=root)
@@ -931,8 +942,13 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 d2 = root.get_child_at_path(path[:-1])
                 def _got_parent(parent):
                     if noisy: self.log("_got_parent(%r)" % (parent,), level=NOISY)
-                    stash['parent'] = parent
+                    if parent.is_unknown():
+                        raise SFTPError(FX_PERMISSION_DENIED,
+                                        "cannot open an unknown cap (or child of an unknown directory). "
+                                        "Upgrading the gateway to a later Tahoe-LAFS version may help")
 
+                    parent_readonly = parent.is_readonly()
+                    d3 = defer.succeed(None)
                     if flags & FXF_EXCL:
                         # FXF_EXCL means that the link to the file (not the file itself) must
                         # be created atomically wrt updates by this storage client.
@@ -941,60 +957,64 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         # case). We make the link initially point to a zero-length LIT file,
                         # which is consistent with what might happen on a POSIX filesystem.
 
-                        if parent.is_readonly():
-                            raise SFTPError(FX_PERMISSION_DENIED,
+                        if parent_readonly:
+                            raise SFTPError(FX_FAILURE,
                                             "cannot create a file exclusively when the parent directory is read-only")
 
                         # 'overwrite=False' ensures failure if the link already exists.
                         # FIXME: should use a single call to set_uri and return (child, metadata) (#1035)
+
                         zero_length_lit = "URI:LIT:"
-                        d3 = parent.set_uri(childname, None, zero_length_lit, overwrite=False)
+                        if noisy: self.log("%r.set_uri(%r, None, readcap=%r, overwrite=False)" %
+                                           (parent, zero_length_lit, childname), level=NOISY)
+                        d3.addCallback(lambda ign: parent.set_uri(childname, None, readcap=zero_length_lit, overwrite=False))
                         def _seturi_done(child):
-                            stash['child'] = child
-                            return parent.get_metadata_for(childname)
+                            if noisy: self.log("%r.get_metadata_for(%r)" % (parent, childname), level=NOISY)
+                            d4 = parent.get_metadata_for(childname)
+                            d4.addCallback(lambda metadata: (child, metadata))
+                            return d4
                         d3.addCallback(_seturi_done)
-                        d3.addCallback(lambda metadata: (stash['child'], metadata))
-                        return d3
                     else:
-                        if noisy: self.log("get_child_and_metadata(%r)" % (childname,), level=NOISY)
-                        return parent.get_child_and_metadata(childname)
+                        if noisy: self.log("%r.get_child_and_metadata(%r)" % (parent, childname), level=NOISY)
+                        d3.addCallback(lambda ign: parent.get_child_and_metadata(childname))
+
+                    def _got_child( (filenode, metadata) ):
+                        if noisy: self.log("_got_child( (%r, %r) )" % (filenode, metadata), level=NOISY)
+
+                        if filenode.is_unknown():
+                            raise SFTPError(FX_PERMISSION_DENIED,
+                                            "cannot open an unknown cap. Upgrading the gateway "
+                                            "to a later Tahoe-LAFS version may help")
+                        if not IFileNode.providedBy(filenode):
+                            raise SFTPError(FX_PERMISSION_DENIED,
+                                            "cannot open a directory as if it were a file")
+                        if (flags & FXF_WRITE) and filenode.is_mutable() and filenode.is_readonly():
+                            raise SFTPError(FX_PERMISSION_DENIED,
+                                            "cannot open a read-only mutable file for writing")
+                        if (flags & FXF_WRITE) and parent_readonly:
+                            raise SFTPError(FX_PERMISSION_DENIED,
+                                            "cannot open a file for writing when the parent directory is read-only")
+
+                        metadata['readonly'] = _is_readonly(parent_readonly, filenode)
+                        return _make_sftp_file(self.check_abort, flags, self._convergence, parent=parent,
+                                              childname=childname, filenode=filenode, metadata=metadata)
+                    def _no_child(f):
+                        if noisy: self.log("_no_child(%r)" % (f,), level=NOISY)
+                        f.trap(NoSuchChildError)
+
+                        if not (flags & FXF_CREAT):
+                            raise SFTPError(FX_NO_SUCH_FILE,
+                                            "the file does not exist, and was not opened with the creation (CREAT) flag")
+                        if parent_readonly:
+                            raise SFTPError(FX_PERMISSION_DENIED,
+                                            "cannot create a file when the parent directory is read-only")
+
+                        return _make_sftp_file(self.check_abort, flags, self._convergence, parent=parent,
+                                              childname=childname)
+                    d3.addCallbacks(_got_child, _no_child)
+                    return d3
+
                 d2.addCallback(_got_parent)
-
-                def _got_child( (filenode, metadata) ):
-                    if noisy: self.log("_got_child( (%r, %r) )" % (filenode, metadata), level=NOISY)
-                    parent = stash['parent']
-                    if filenode.is_unknown():
-                        raise SFTPError(FX_PERMISSION_DENIED,
-                                        "cannot open an unknown cap. Upgrading the gateway "
-                                        "to a later Tahoe-LAFS version may help")
-                    if not IFileNode.providedBy(filenode):
-                        raise SFTPError(FX_PERMISSION_DENIED,
-                                        "cannot open a directory as if it were a file")
-                    if (flags & FXF_WRITE) and filenode.is_mutable() and filenode.is_readonly():
-                        raise SFTPError(FX_PERMISSION_DENIED,
-                                        "cannot open a read-only mutable file for writing")
-                    if (flags & FXF_WRITE) and parent.is_readonly():
-                        raise SFTPError(FX_PERMISSION_DENIED,
-                                        "cannot open a file for writing when the parent directory is read-only")
-
-                    return _make_sftp_file(self.check_abort, flags, self._convergence, parent=parent,
-                                           childname=childname, filenode=filenode, metadata=metadata)
-                def _no_child(f):
-                    if noisy: self.log("_no_child(%r)" % (f,), level=NOISY)
-                    f.trap(NoSuchChildError)
-                    parent = stash['parent']
-                    if parent is None:
-                        return f
-                    if not (flags & FXF_CREAT):
-                        raise SFTPError(FX_NO_SUCH_FILE,
-                                        "the file does not exist, and was not opened with the creation (CREAT) flag")
-                    if parent.is_readonly():
-                        raise SFTPError(FX_PERMISSION_DENIED,
-                                        "cannot create a file when the parent directory is read-only")
-
-                    return _make_sftp_file(self.check_abort, flags, self._convergence, parent=parent,
-                                           childname=childname)
-                d2.addCallbacks(_got_child, _no_child)
                 return d2
         d.addCallback(_got_root)
         d.addErrback(_raise_error)
@@ -1013,13 +1033,18 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         toPath = self._path_from_string(newpathstring)
 
         # the target directory must already exist
-        d = deferredutil.gatherResults([self._get_parent(fromPath),
-                                        self._get_parent(toPath)])
+        d = deferredutil.gatherResults([self._get_parent_or_node(fromPath),
+                                        self._get_parent_or_node(toPath)])
         def _got( (fromPair, toPair) ):
             if noisy: self.log("_got( (%r, %r) ) in .renameFile(%r, %r)" %
                                (fromPair, toPair, oldpathstring, newpathstring), level=NOISY)
             (fromParent, fromChildname) = fromPair
             (toParent, toChildname) = toPair
+            
+            if fromChildname is None:
+                raise SFTPError(FX_NO_SUCH_FILE, "cannot rename a source object specified by URI")
+            if toChildname is None:
+                raise SFTPError(FX_NO_SUCH_FILE, "cannot rename to a destination specified by URI")
 
             # <http://tools.ietf.org/html/draft-ietf-secsh-filexfer-02#section-6.5>
             # "It is an error if there already exists a file with the name specified
@@ -1046,9 +1071,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
     def _get_or_create_directories(self, node, path, metadata):
         if not IDirectoryNode.providedBy(node):
-            # unfortunately it is too late to provide the name of the
-            # blocking file in the error message.
-            raise SFTPError(FX_PERMISSION_DENIED,
+            # TODO: provide the name of the blocking file in the error message.
+            raise SFTPError(FX_FAILURE,
                             "cannot create directory because there "
                             "is a file in the way") # close enough
         if not path:
@@ -1069,8 +1093,15 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         return self._remove_object(path, must_be_directory=True)
 
     def _remove_object(self, path, must_be_directory=False, must_be_file=False):
-        d = defer.maybeDeferred(self._get_parent, path)
+        d = defer.maybeDeferred(self._get_parent_or_node, path)
         def _got_parent( (parent, childname) ):
+            # FIXME (minor): there is a race condition between the 'get' and 'delete',
+            # so it is possible that the must_be_directory or must_be_file restrictions
+            # might not be enforced correctly if the type has just changed.
+
+            if childname is None:
+                raise SFTPError(FX_NO_SUCH_FILE, "cannot delete an object specified by URI")
+
             d2 = parent.get(childname)
             def _got_child(child):
                 # Unknown children can be removed by either removeFile or removeDirectory.
@@ -1098,15 +1129,15 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             if not IDirectoryNode.providedBy(dirnode):
                 raise SFTPError(FX_PERMISSION_DENIED,
                                 "cannot list a file as if it were a directory")
+
             d2 = dirnode.list()
             def _render(children):
-                parent_writeable = not dirnode.is_readonly()
+                parent_readonly = dirnode.is_readonly()
                 results = []
-                for filename, (node, metadata) in children.iteritems():
+                for filename, (child, metadata) in children.iteritems():
                     # The file size may be cached or absent.
-                    writeable = parent_writeable and (node.is_unknown() or
-                                                      not (node.is_mutable() and node.is_readonly()))
-                    attrs = _populate_attrs(node, metadata, writeable)
+                    metadata['readonly'] = _is_readonly(parent_readonly, child)
+                    attrs = _populate_attrs(child, metadata)
                     filename_utf8 = filename.encode('utf-8')
                     longname = _lsLine(filename_utf8, attrs)
                     results.append( (filename_utf8, longname, attrs) )
@@ -1126,12 +1157,9 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             # TODO: the modification time for a mutable file should be
             # reported as the update time of the best version. But that
             # information isn't currently stored in mutable shares, I think.
+
             d2 = node.get_current_size()
-            def _got_size(size):
-                # FIXME: pass correct value for writeable
-                attrs = _populate_attrs(node, metadata, False, size=size)
-                return attrs
-            d2.addCallback(_got_size)
+            d2.addCallback(lambda size: _populate_attrs(node, metadata, size=size))
             return d2
         d.addCallback(_render)
         d.addErrback(_raise_error)
@@ -1212,19 +1240,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         if noisy: self.log(" PATH %r" % (path,), level=NOISY)
         return path
 
-    def _get_node_and_metadata_for_path(self, path):
-        d = self._get_root(path)
-        def _got_root( (root, path) ):
-            if noisy: self.log("_got_root( (%r, %r) )" % (root, path), level=NOISY)
-            if path:
-                return root.get_child_and_metadata_at_path(path)
-            else:
-                return (root, {})
-        d.addCallback(_got_root)
-        return d
-
     def _get_root(self, path):
-        # return (root, remaining_path)
+        # return Deferred (root, remaining_path)
         if path and path[0] == u"uri":
             d = defer.maybeDeferred(self._client.create_node_from_uri, path[1].encode('utf-8'))
             d.addCallback(lambda root: (root, path[2:]))
@@ -1232,23 +1249,38 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             d = defer.succeed((self._root, path))
         return d
 
-    def _get_parent(self, path):
-        # fire with (parentnode, childname)
-        if not path:
-            def _nosuch(): raise SFTPError(FX_NO_SUCH_FILE, "path does not exist")
-            return defer.execute(_nosuch)
-
-        childname = path[-1]
-        assert isinstance(childname, unicode), repr(childname)
+    def _get_parent_or_node(self, path):
+        # return Deferred (parent, childname) or (node, None)
         d = self._get_root(path)
-        def _got_root( (root, path) ):
-            if not path:
-                raise SFTPError(FX_NO_SUCH_FILE, "path does not exist")
-            return root.get_child_at_path(path[:-1])
+        def _got_root( (root, remaining_path) ):
+            if not remaining_path:
+                return (root, None)
+            else:
+                d2 = root.get_child_at_path(remaining_path[:-1])
+                d2.addCallback(lambda parent: (parent, remaining_path[-1]))
+                return d2
         d.addCallback(_got_root)
-        def _got_parent(parent):
-            return (parent, childname)
-        d.addCallback(_got_parent)
+        return d
+
+    def _get_node_and_metadata_for_path(self, path):
+        # return Deferred (node, metadata)
+        # where metadata always has a 'readonly' key
+        d = self._get_parent_or_node(path)
+        def _got_parent_or_node( (parent_or_node, childname) ):
+            if noisy: self.log("_got_parent_or_node( (%r, %r) )" % (parent_or_node, childname), level=NOISY)
+            if childname is None:
+                node = parent_or_node
+                return (node, {'readonly': node.is_unknown() or node.is_readonly()})
+            else:
+                parent = parent_or_node
+                d2 = parent.get_child_and_metadata_at_path([childname])
+                def _got( (child, metadata) ):
+                    assert IDirectoryNode.providedBy(parent), parent
+                    metadata['readonly'] = _is_readonly(parent.is_readonly(), child)
+                    return (child, metadata)
+                d2.addCallback(_got)
+                return d2
+        d.addCallback(_got_parent_or_node)
         return d
 
     def _attrs_to_metadata(self, attrs):
@@ -1312,7 +1344,7 @@ class Dispatcher:
         self._client = client
 
     def requestAvatar(self, avatarID, mind, interface):
-        assert interface == IConchUser
+        assert interface == IConchUser, interface
         rootnode = self._client.create_node_from_uri(avatarID.rootcap)
         handler = SFTPUserHandler(self._client, rootnode, avatarID.username)
         return (interface, handler, handler.logout)
