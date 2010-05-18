@@ -12,7 +12,13 @@ To get started please see `quickstart.html`_.
 LICENCE
 =======
 
-You may use this package under the GNU General Public License, version 2 or, at your option, any later version.  You may use this package under the Transitive Grace Period Public Licence, version 1.0, or at your option, any later version. (You may choose to use this package under the terms of either licence, at your option.)  See the file `COPYING.GPL`_ for the terms of the GNU General Public License, version 2.  See the file `COPYING.TGPPL.html`_ for the terms of the Transitive Grace Period Public Licence, version 1.0.
+You may use this package under the GNU General Public License, version 2 or, at
+your option, any later version.  You may use this package under the Transitive
+Grace Period Public Licence, version 1.0, or at your option, any later
+version. (You may choose to use this package under the terms of either licence,
+at your option.)  See the file `COPYING.GPL`_ for the terms of the GNU General
+Public License, version 2.  See the file `COPYING.TGPPL.html`_ for the terms of
+the Transitive Grace Period Public Licence, version 1.0.
 
 See `TGPPL.PDF`_ for why the TGPPL exists, graphically illustrated on three slides.
 
