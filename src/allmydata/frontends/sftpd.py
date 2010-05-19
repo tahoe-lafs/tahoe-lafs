@@ -876,10 +876,9 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             raise SFTPError(FX_BAD_MESSAGE,
                             "invalid file open flags: at least one of FXF_READ and FXF_WRITE must be set")
 
-        if not (flags & FXF_CREAT):
-            if flags & FXF_EXCL:
-                raise SFTPError(FX_BAD_MESSAGE,
-                                "invalid file open flags: FXF_EXCL cannot be set without FXF_CREAT")
+        if (flags & FXF_EXCL) and not (flags & FXF_CREAT):
+            raise SFTPError(FX_BAD_MESSAGE,
+                            "invalid file open flags: FXF_EXCL cannot be set without FXF_CREAT")
 
         path = self._path_from_string(pathstring)
         if not path:
@@ -993,7 +992,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
                         metadata['readonly'] = _is_readonly(parent_readonly, filenode)
                         return _make_sftp_file(self.check_abort, flags, self._convergence, parent=parent,
-                                              childname=childname, filenode=filenode, metadata=metadata)
+                                               childname=childname, filenode=filenode, metadata=metadata)
                     def _no_child(f):
                         if noisy: self.log("_no_child(%r)" % (f,), level=NOISY)
                         f.trap(NoSuchChildError)
@@ -1006,7 +1005,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                                             "cannot create a file when the parent directory is read-only")
 
                         return _make_sftp_file(self.check_abort, flags, self._convergence, parent=parent,
-                                              childname=childname)
+                                               childname=childname)
                     d3.addCallbacks(_got_child, _no_child)
                     return d3
 

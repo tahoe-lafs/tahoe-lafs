@@ -747,17 +747,56 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda node: download_to_data(node))
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345678901234"))
 
-        # test WRITE | CREAT without TRUNC
+        # test WRITE | CREAT | APPEND when the file does not already exist
+        d.addCallback(lambda ign:
+                      self.handler.openFile("creatappend", sftp.FXF_WRITE | sftp.FXF_CREAT |
+                                                           sftp.FXF_APPEND, {}))
+        def _write_creat_append_new(wf):
+            d2 = wf.writeChunk(10, "0123456789")
+            d2.addCallback(lambda ign: wf.writeChunk(5, "01234"))
+            d2.addCallback(lambda ign: wf.close())
+            return d2
+        d.addCallback(_write_creat_append_new)
+        d.addCallback(lambda ign: self.root.get(u"creatappend"))
+        d.addCallback(lambda node: download_to_data(node))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345678901234"))
+
+        # ... and when it does exist
+        d.addCallback(lambda ign:
+                      self.handler.openFile("creatappend", sftp.FXF_WRITE | sftp.FXF_CREAT |
+                                                           sftp.FXF_APPEND, {}))
+        def _write_creat_append_existing(wf):
+            d2 = wf.writeChunk(5, "01234")
+            d2.addCallback(lambda ign: wf.close())
+            return d2
+        d.addCallback(_write_creat_append_existing)
+        d.addCallback(lambda ign: self.root.get(u"creatappend"))
+        d.addCallback(lambda node: download_to_data(node))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234567890123401234"))
+
+        # test WRITE | CREAT without TRUNC, when the file does not already exist
         d.addCallback(lambda ign:
                       self.handler.openFile("newfile2", sftp.FXF_WRITE | sftp.FXF_CREAT, {}))
-        def _write_notrunc(wf):
+        def _write_creat_new(wf):
             d2 =  wf.writeChunk(0, "0123456789")
             d2.addCallback(lambda ign: wf.close())
             return d2
-        d.addCallback(_write_notrunc)
+        d.addCallback(_write_creat_new)
         d.addCallback(lambda ign: self.root.get(u"newfile2"))
         d.addCallback(lambda node: download_to_data(node))
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "0123456789"))
+
+        # ... and when it does exist
+        d.addCallback(lambda ign:
+                      self.handler.openFile("newfile2", sftp.FXF_WRITE | sftp.FXF_CREAT, {}))
+        def _write_creat_existing(wf):
+            d2 =  wf.writeChunk(0, "abcde")
+            d2.addCallback(lambda ign: wf.close())
+            return d2
+        d.addCallback(_write_creat_existing)
+        d.addCallback(lambda ign: self.root.get(u"newfile2"))
+        d.addCallback(lambda node: download_to_data(node))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcde56789"))
 
         # test writing to a mutable file
         d.addCallback(lambda ign:
