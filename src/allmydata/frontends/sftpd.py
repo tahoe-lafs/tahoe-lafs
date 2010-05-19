@@ -62,7 +62,7 @@ if noisy:
         s = traceback.format_stack()
         def _cb(res):
             try:
-                if noisy: logmsg("CALLBACK %r %r" % (d, res), level=NOISY)
+                if noisy: logmsg("CALLBACK %r" % (d,), level=NOISY)
                 d.callback(res)
             except:  # pragma: no cover
                 logerr("Failed to callback %r with %r\n"
