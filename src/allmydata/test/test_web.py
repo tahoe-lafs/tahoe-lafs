@@ -35,6 +35,10 @@ from allmydata.client import Client, SecretHolder
 
 timeout = 480 # Most of these take longer than 240 seconds on Francois's arm box.
 
+unknown_rwcap = "lafs://from_the_future"
+unknown_rocap = "ro.lafs://readonly_from_the_future"
+unknown_immcap = "imm.lafs://immutable_from_the_future"
+
 class FakeStatsProvider:
     def get_stats(self):
         stats = {'stats': {}, 'counters': {}}
@@ -2173,9 +2177,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         filecap2 = make_mutable_file_uri()
         node3 = self.s.create_node_from_uri(make_mutable_file_uri())
         filecap3 = node3.get_readonly_uri()
-        unknown_rwcap = "lafs://from_the_future"
-        unknown_rocap = "ro.lafs://readonly_from_the_future"
-        unknown_immcap = "imm.lafs://immutable_from_the_future"
         node4 = self.s.create_node_from_uri(make_mutable_file_uri())
         dircap = DirectoryNode(node4, None, None).get_uri()
         litdircap = "URI:DIR2-LIT:ge3dumj2mewdcotyfqydulbshj5x2lbm"
@@ -2211,7 +2212,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         tnode = create_chk_filenode("immutable directory contents\n"*10)
         dnode = DirectoryNode(tnode, None, None)
         assert not dnode.is_mutable()
-        unknown_immcap = "imm.lafs://immutable_from_the_future"
         immdircap = dnode.get_uri()
         litdircap = "URI:DIR2-LIT:ge3dumj2mewdcotyfqydulbshj5x2lbm"
         emptydircap = "URI:DIR2-LIT:"
@@ -2453,8 +2453,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_POST_link_uri_unknown_bad(self):
-        newuri = "lafs://from_the_future"
-        d = self.POST(self.public_url + "/foo", t="uri", name="future.txt", uri=newuri)
+        d = self.POST(self.public_url + "/foo", t="uri", name="future.txt", uri=unknown_rwcap)
         d.addBoth(self.shouldFail, error.Error,
                   "POST_link_uri_unknown_bad",
                   "400 Bad Request",
@@ -2462,14 +2461,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_POST_link_uri_unknown_ro_good(self):
-        newuri = "ro.lafs://readonly_from_the_future"
-        d = self.POST(self.public_url + "/foo", t="uri", name="future-ro.txt", uri=newuri)
+        d = self.POST(self.public_url + "/foo", t="uri", name="future-ro.txt", uri=unknown_rocap)
         d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"future-ro.txt")
         return d
 
     def test_POST_link_uri_unknown_imm_good(self):
-        newuri = "imm.lafs://immutable_from_the_future"
-        d = self.POST(self.public_url + "/foo", t="uri", name="future-imm.txt", uri=newuri)
+        d = self.POST(self.public_url + "/foo", t="uri", name="future-imm.txt", uri=unknown_immcap)
         d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node, u"future-imm.txt")
         return d
 
@@ -2760,8 +2757,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_PUT_NEWFILEURL_uri_unknown_bad(self):
-        new_uri = "lafs://from_the_future"
-        d = self.PUT(self.public_url + "/foo/put-future.txt?t=uri", new_uri)
+        d = self.PUT(self.public_url + "/foo/put-future.txt?t=uri", unknown_rwcap)
         d.addBoth(self.shouldFail, error.Error,
                   "POST_put_uri_unknown_bad",
                   "400 Bad Request",
@@ -2769,15 +2765,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         return d
 
     def test_PUT_NEWFILEURL_uri_unknown_ro_good(self):
-        new_uri = "ro.lafs://readonly_from_the_future"
-        d = self.PUT(self.public_url + "/foo/put-future-ro.txt?t=uri", new_uri)
+        d = self.PUT(self.public_url + "/foo/put-future-ro.txt?t=uri", unknown_rocap)
         d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node,
                       u"put-future-ro.txt")
         return d
 
     def test_PUT_NEWFILEURL_uri_unknown_imm_good(self):
-        new_uri = "imm.lafs://immutable_from_the_future"
-        d = self.PUT(self.public_url + "/foo/put-future-imm.txt?t=uri", new_uri)
+        d = self.PUT(self.public_url + "/foo/put-future-imm.txt?t=uri", unknown_immcap)
         d.addCallback(self.failUnlessURIMatchesROChild, self._foo_node,
                       u"put-future-imm.txt")
         return d
@@ -3370,19 +3364,17 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         self.uris = {}
         self.fileurls = {}
 
-        future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
-        future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
         # the future cap format may contain slashes, which must be tolerated
-        expected_info_url = "uri/%s?t=info" % urllib.quote(future_write_uri,
+        expected_info_url = "uri/%s?t=info" % urllib.quote(unknown_rwcap,
                                                            safe="")
 
         if immutable:
             name = u"future-imm"
-            future_node = UnknownNode(None, future_read_uri, deep_immutable=True)
+            future_node = UnknownNode(None, unknown_immcap, deep_immutable=True)
             d = c0.create_immutable_dirnode({name: (future_node, {})})
         else:
             name = u"future"
-            future_node = UnknownNode(future_write_uri, future_read_uri)
+            future_node = UnknownNode(unknown_rwcap, unknown_rocap)
             d = c0.create_dirnode()
 
         def _stash_root_and_create_file(n):
@@ -3416,24 +3408,27 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
             f = data[1]["children"][name]
             self.failUnlessEqual(f[0], "unknown")
             if expect_rw_uri:
-                self.failUnlessEqual(f[1]["rw_uri"], future_write_uri)
+                self.failUnlessEqual(f[1]["rw_uri"], unknown_rwcap)
             else:
                 self.failIfIn("rw_uri", f[1])
             if immutable:
-                self.failUnlessEqual(f[1]["ro_uri"], "imm." + future_read_uri)
+                self.failUnlessEqual(f[1]["ro_uri"], unknown_immcap, data)
             else:
-                self.failUnlessEqual(f[1]["ro_uri"], "ro." + future_read_uri)
+                self.failUnlessEqual(f[1]["ro_uri"], unknown_rocap)
             self.failUnless("metadata" in f[1])
         d.addCallback(_check_directory_json, expect_rw_uri=not immutable)
 
         def _check_info(res, expect_rw_uri, expect_ro_uri):
             self.failUnlessIn("Object Type: <span>unknown</span>", res)
             if expect_rw_uri:
-                self.failUnlessIn(future_write_uri, res)
+                self.failUnlessIn(unknown_rwcap, res)
             if expect_ro_uri:
-                self.failUnlessIn(future_read_uri, res)
+                if immutable:
+                    self.failUnlessIn(unknown_immcap, res)
+                else:
+                    self.failUnlessIn(unknown_rocap, res)
             else:
-                self.failIfIn(future_read_uri, res)
+                self.failIfIn(unknown_rocap, res)
             self.failIfIn("Raw data as", res)
             self.failIfIn("Directory writecap", res)
             self.failIfIn("Checker Operations", res)
@@ -3452,18 +3447,18 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
             data = simplejson.loads(res)
             self.failUnlessEqual(data[0], "unknown")
             if expect_rw_uri:
-                self.failUnlessEqual(data[1]["rw_uri"], future_write_uri)
+                self.failUnlessEqual(data[1]["rw_uri"], unknown_rwcap)
             else:
                 self.failIfIn("rw_uri", data[1])
 
             if immutable:
-                self.failUnlessEqual(data[1]["ro_uri"], "imm." + future_read_uri)
+                self.failUnlessEqual(data[1]["ro_uri"], unknown_immcap)
                 self.failUnlessEqual(data[1]["mutable"], False)
             elif expect_rw_uri:
-                self.failUnlessEqual(data[1]["ro_uri"], "ro." + future_read_uri)
+                self.failUnlessEqual(data[1]["ro_uri"], unknown_rocap)
                 self.failUnlessEqual(data[1]["mutable"], True)
             else:
-                self.failUnlessEqual(data[1]["ro_uri"], "ro." + future_read_uri)
+                self.failUnlessEqual(data[1]["ro_uri"], unknown_rocap)
                 self.failIf("mutable" in data[1], data[1])
 
             # TODO: check metadata contents
@@ -3473,7 +3468,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
         d.addCallback(_check_json, expect_rw_uri=not immutable)
 
         # and make sure that a read-only version of the directory can be
-        # rendered too. This version will not have future_write_uri, whether
+        # rendered too. This version will not have unknown_rwcap, whether
         # or not future_node was immutable.
         d.addCallback(lambda ign: self.GET(self.rourl))
         if immutable:
@@ -3652,9 +3647,7 @@ class Grid(GridTestMixin, WebErrorMixin, unittest.TestCase, ShouldFailMixin):
 
         # this tests that deep-check and stream-manifest will ignore
         # UnknownNode instances. Hopefully this will also cover deep-stats.
-        future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
-        future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
-        future_node = UnknownNode(future_write_uri, future_read_uri)
+        future_node = UnknownNode(unknown_rwcap, unknown_rocap)
         d.addCallback(lambda ign: self.rootnode.set_node(u"future", future_node))
 
         def _clobber_shares(ignored):
