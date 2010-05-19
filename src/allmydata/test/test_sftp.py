@@ -534,9 +534,9 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile '' WRITE|CREAT|TRUNC",
                                          self.handler.openFile, "", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
 
-        # TRUNC is not valid without CREAT
+        # TRUNC is not valid without CREAT if the file does not already exist
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "openFile newfile WRITE|TRUNC",
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile newfile WRITE|TRUNC",
                                          self.handler.openFile, "newfile", sftp.FXF_WRITE | sftp.FXF_TRUNC, {}))
 
         # EXCL is not valid without CREAT
@@ -671,6 +671,20 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.root.get(u"newfile"))
         d.addCallback(lambda node: download_to_data(node))
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234567890123"))
+
+        # test WRITE | TRUNC without CREAT, when the file already exists
+        # This is invalid according to section 6.3 of the SFTP spec, but required for interoperability,
+        # since POSIX does allow O_WRONLY | O_TRUNC.
+        d.addCallback(lambda ign:
+                      self.handler.openFile("newfile", sftp.FXF_WRITE | sftp.FXF_TRUNC, {}))
+        def _write_trunc(wf):
+            d2 = wf.writeChunk(0, "01234")
+            d2.addCallback(lambda ign: wf.close())
+            return d2
+        d.addCallback(_write_trunc)
+        d.addCallback(lambda ign: self.root.get(u"newfile"))
+        d.addCallback(lambda node: download_to_data(node))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234"))
 
         # test EXCL flag
         d.addCallback(lambda ign:

@@ -657,7 +657,6 @@ class GeneralSFTPFile(PrefixingLogMixin):
 
         if (flags & FXF_TRUNC) or not filenode:
             # We're either truncating or creating the file, so we don't need the old contents.
-            assert flags & FXF_CREAT, flags
             self.consumer = OverwriteableFileConsumer(self.check_abort, 0, tempfile_maker)
             self.consumer.finish()
         else:
@@ -878,9 +877,6 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                             "invalid file open flags: at least one of FXF_READ and FXF_WRITE must be set")
 
         if not (flags & FXF_CREAT):
-            if flags & FXF_TRUNC:
-                raise SFTPError(FX_BAD_MESSAGE,
-                                "invalid file open flags: FXF_TRUNC cannot be set without FXF_CREAT")
             if flags & FXF_EXCL:
                 raise SFTPError(FX_BAD_MESSAGE,
                                 "invalid file open flags: FXF_EXCL cannot be set without FXF_CREAT")
