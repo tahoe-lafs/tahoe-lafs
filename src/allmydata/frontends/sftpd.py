@@ -454,7 +454,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             self.finish()
 
     def overwrite(self, offset, data):
-        if noisy: self.log(".overwrite(%r, %r)" % (offset, data), level=NOISY)
+        if noisy: self.log(".overwrite(%r, <data of length %r>)" % (offset, len(data)), level=NOISY)
         if offset > self.download_size and offset > self.current_size:
             # Normally writing at an offset beyond the current end-of-file
             # would leave a hole that appears filled with zeroes. However, an
