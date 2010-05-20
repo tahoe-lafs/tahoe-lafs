@@ -326,8 +326,9 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.handler.openDirectory("empty_lit_dir"))
         d.addCallback(lambda res: self._compareDirLists(res, []))
 
+        # The UTC epoch may either be in Jan 1 1970 or Dec 31 1969 depending on the gateway's timezone.
         expected_tiny_lit = [
-            ('short', r'-r--r--r-- .* 8 Jan 01  1970 short$', {'permissions': S_IFREG | 0444, 'size': 8}),
+            ('short', r'-r--r--r-- .* 8 (Jan 01  1970|Dec 31  1969) short$', {'permissions': S_IFREG | 0444, 'size': 8}),
         ]
 
         d.addCallback(lambda ign: self.handler.openDirectory("tiny_lit_dir"))
