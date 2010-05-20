@@ -415,6 +415,9 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
                 self.failUnlessReallyEqual(attrs['size'], 10, repr(attrs))
             d2.addCallback(_check_attrs)
 
+            d2.addCallback(lambda ign: self.handler.getAttrs("small", followLinks=0))
+            d2.addCallback(_check_attrs)
+
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "writeChunk on read-only handle denied",
                                              rf.writeChunk, 0, "a"))
@@ -465,6 +468,9 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             def _check_attrs(attrs):
                 self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666)
                 self.failUnlessReallyEqual(attrs['size'], 1010)
+            d2.addCallback(_check_attrs)
+
+            d2.addCallback(lambda ign: self.handler.getAttrs(gross, followLinks=0))
             d2.addCallback(_check_attrs)
 
             d2.addCallback(lambda ign:
@@ -623,10 +629,15 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             d2.addCallback(lambda ign: wf.writeChunk(13, "abc"))
 
             d2.addCallback(lambda ign: wf.getAttrs())
-            def _check_attrs(attrs):
-                self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666)
-                self.failUnlessReallyEqual(attrs['size'], 16)
-            d2.addCallback(_check_attrs)
+            def _check_attrs(attrs, expected_size):
+                self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666, repr(attrs))
+                self.failUnlessReallyEqual(attrs['size'], expected_size)
+            d2.addCallback(_check_attrs, 16)
+
+            # The file does not actually exist as a Tahoe file at this point, but getAttrs should
+            # use the global_open_files dict to see that it has been opened for creation.
+            d2.addCallback(lambda ign: self.handler.getAttrs("newfile", followLinks=0))
+            d2.addCallback(_check_attrs, 0)
 
             d2.addCallback(lambda ign: wf.setAttrs({}))
 

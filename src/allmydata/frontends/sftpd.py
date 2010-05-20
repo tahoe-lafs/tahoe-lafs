@@ -548,16 +548,16 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
 
 SIZE_THRESHOLD = 1000
 
-def _make_sftp_file(check_abort, flags, convergence, parent=None, childname=None, filenode=None, metadata=None):
-    if noisy: logmsg("_make_sftp_file(%r, %r, <convergence censored>, parent=%r, childname=%r, filenode=%r, metadata=%r" %
-                      (check_abort, flags, parent, childname, filenode, metadata), level=NOISY)
+def _make_sftp_file(close_notify, check_abort, flags, convergence, parent=None, childname=None, filenode=None, metadata=None):
+    if noisy: logmsg("_make_sftp_file(%r, %r, %r, <convergence censored>, parent=%r, childname=%r, filenode=%r, metadata=%r" %
+                      (close_notify, check_abort, flags, parent, childname, filenode, metadata), level=NOISY)
 
     assert metadata is None or 'readonly' in metadata, metadata
     if not (flags & (FXF_WRITE | FXF_CREAT)) and (flags & FXF_READ) and filenode and \
        not filenode.is_mutable() and filenode.get_size() <= SIZE_THRESHOLD:
         return ShortReadOnlySFTPFile(filenode, metadata)
     else:
-        return GeneralSFTPFile(check_abort, flags, convergence,
+        return GeneralSFTPFile(close_notify, check_abort, flags, convergence,
                                parent=parent, childname=childname, filenode=filenode, metadata=metadata)
 
 
@@ -646,11 +646,12 @@ class GeneralSFTPFile(PrefixingLogMixin):
     file handle, and requests to my OverwriteableFileConsumer. This queue is
     implemented by the callback chain of self.async."""
 
-    def __init__(self, check_abort, flags, convergence, parent=None, childname=None, filenode=None, metadata=None):
+    def __init__(self, close_notify, check_abort, flags, convergence, parent=None, childname=None, filenode=None, metadata=None):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
-        if noisy: self.log(".__init__(%r, %r, <convergence censored>, parent=%r, childname=%r, filenode=%r, metadata=%r)" %
-                           (check_abort, flags, parent, childname, filenode, metadata), level=NOISY)
+        if noisy: self.log(".__init__(%r, %r, %r, <convergence censored>, parent=%r, childname=%r, filenode=%r, metadata=%r)" %
+                           (close_notify, check_abort, flags, parent, childname, filenode, metadata), level=NOISY)
 
+        self.close_notify = close_notify
         self.check_abort = check_abort
         self.flags = flags
         self.convergence = convergence
@@ -788,6 +789,11 @@ class GeneralSFTPFile(PrefixingLogMixin):
 
         d = defer.Deferred()
         self.async.addCallbacks(eventually_callback(d), eventually_errback(d))
+
+        def _closed(res):
+            self.close_notify()
+            return res
+        d.addBoth(_closed)
         d.addBoth(_convert_error, request)
         return d
 
@@ -858,6 +864,8 @@ class Reason:
         self.value = value
 
 
+global_open_files = {}
+
 class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     implements(ISFTPServer)
     def __init__(self, client, rootnode, username):
@@ -873,9 +881,48 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         self._username = username
         self._convergence = client.convergence
         self._logged_out = False
+        self._open_files = {}
+
+    def add_open_file(self, canonpath):
+        if canonpath in self._open_files:
+            count = self._open_files[canonpath]
+            self._open_files[canonpath] = count+1
+        else:
+            self._open_files[canonpath] = 1
+
+        if canonpath in global_open_files:
+            (gcount, times) = global_open_files[canonpath]
+            global_open_files[canonpath] = (gcount+1, times)
+        else:
+            global_open_files[canonpath] = (1, time())
+
+    def remove_open_file(self, canonpath):
+        if not self._logged_out:
+            assert canonpath in self._open_files, (canonpath, self._open_files)
+            count = self._open_files[canonpath]
+            if count > 1:
+                self._open_files[canonpath] = count-1
+            else:
+                del self._open_files[canonpath]
+
+            assert canonpath in global_open_files, (canonpath, global_open_files)
+            (gcount, times) = global_open_files[canonpath]
+            if count > 1:
+                global_open_files[canonpath] = (gcount-1, times)
+            else:
+                del global_open_files[canonpath]
 
     def logout(self):
-        self._logged_out = True
+        if not self._logged_out:
+            self._logged_out = True
+            for canonpath in self._open_files:
+                assert canonpath in global_open_files, (canonpath, global_open_files)
+                count = self._open_files[canonpath]
+                (gcount, times) = global_open_files[canonpath]
+                if gcount > count:
+                    global_open_files[canonpath] = (gcount - count, times)
+                else:
+                    del global_open_files[canonpath]
 
     def check_abort(self):
         return self._logged_out
@@ -906,6 +953,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         path = self._path_from_string(pathstring)
         if not path:
             raise SFTPError(FX_NO_SUCH_FILE, "path cannot be empty")
+
+        canonpath = u"/" + u"/".join(path)
 
         # The combination of flags is potentially valid. Now there are two major cases:
         #
@@ -951,7 +1000,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                     raise SFTPError(FX_FAILURE,
                                     "cannot create a file exclusively when it already exists")
 
-                return _make_sftp_file(self.check_abort, flags, self._convergence, filenode=root)
+                return _make_sftp_file(lambda: None, self.check_abort, flags, self._convergence, filenode=root)
             else:
                 # case 2
                 childname = path[-1]
@@ -1014,7 +1063,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                                             "cannot open a file for writing when the parent directory is read-only")
 
                         metadata['readonly'] = _is_readonly(parent_readonly, filenode)
-                        return _make_sftp_file(self.check_abort, flags, self._convergence, parent=parent,
+                        return _make_sftp_file(lambda: None, self.check_abort, flags, self._convergence, parent=parent,
                                                childname=childname, filenode=filenode, metadata=metadata)
                     def _no_child(f):
                         if noisy: self.log("_no_child(%r)" % (f,), level=NOISY)
@@ -1027,13 +1076,17 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                             raise SFTPError(FX_PERMISSION_DENIED,
                                             "cannot create a file when the parent directory is read-only")
 
-                        return _make_sftp_file(self.check_abort, flags, self._convergence, parent=parent,
+                        file = _make_sftp_file(lambda: self.remove_open_file(canonpath),
+                                               self.check_abort, flags, self._convergence, parent=parent,
                                                childname=childname)
+                        self.add_open_file(canonpath)
+                        return file
                     d3.addCallbacks(_got_child, _no_child)
                     return d3
 
                 d2.addCallback(_got_parent)
                 return d2
+
         d.addCallback(_got_root)
         d.addBoth(_convert_error, request)
         return d
@@ -1178,7 +1231,10 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = ".getAttrs(%r, followLinks=%r)" % (pathstring, followLinks)
         self.log(request, level=OPERATIONAL)
 
-        d = self._get_node_and_metadata_for_path(self._path_from_string(pathstring))
+        path = self._path_from_string(pathstring)
+        canonpath = u"/" + u"/".join(path)
+
+        d = self._get_node_and_metadata_for_path(path)
         def _render( (node, metadata) ):
             # When asked about a specific file, report its current size.
             # TODO: the modification time for a mutable file should be
@@ -1188,7 +1244,20 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             d2 = node.get_current_size()
             d2.addCallback(lambda size: _populate_attrs(node, metadata, size=size))
             return d2
-        d.addCallback(_render)
+        def _noexist(err):
+            err.trap(NoSuchChildError)
+            if canonpath in global_open_files:
+                (count, times) = global_open_files[canonpath]
+                # A file that has been opened for creation necessarily has permissions rw-rw-rw-.
+                return {'permissions': S_IFREG | 0666,
+                        'size': 0,
+                        'createtime': times,
+                        'ctime': times,
+                        'mtime': times,
+                        'atime': times,
+                       }
+            return err
+        d.addCallbacks(_render, _noexist)
         d.addBoth(_convert_error, request)
         return d
 
