@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import os, shutil
 from twisted.trial import unittest
@@ -15,7 +16,9 @@ immutable_plaintext = "data" * 10000
 mutable_plaintext = "muta" * 10000
 
 class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
-    timeout = 30
+    # Many of these tests take around 60 seconds on François's ARM buildslave:
+    # http://tahoe-lafs.org/buildbot/builders/FranXois%20lenny-armv5tel
+    timeout = 120
 
     def _break(self, servers):
         for (id, ss) in servers:
