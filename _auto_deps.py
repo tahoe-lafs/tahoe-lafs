@@ -30,7 +30,7 @@ install_requires=[
 
                   # Needed for SFTP. pyasn1 is needed by twisted.conch in Twisted >= 9.0.
                   "pycrypto >= 2.0.1",
-                  "pyasn1 >= 0.0.11a",
+                  "pyasn1 >= 0.0.8a",
 
                   # Will be needed to test web apps, but not yet. See #1001.
                   #"windmill >= 1.3",
