@@ -17,6 +17,7 @@ from twisted.conch.avatar import ConchUser
 from twisted.conch.openssh_compat import primes
 from twisted.cred import portal
 from twisted.internet.error import ProcessDone, ProcessTerminated
+from twisted.python.failure import Failure
 from twisted.internet.interfaces import ITransport
 
 from twisted.internet import defer
@@ -93,10 +94,15 @@ else:
         return lambda err: eventually(d.errback, err)
 
 
-def _raise_error(err):
-    if err is None:
-        return None
-    if noisy: logmsg("RAISE %r" % (err,), level=NOISY)
+def _convert_error(res, request):
+    if not isinstance(res, Failure):
+        logged_res = res
+        if isinstance(res, str): logged_res = "<data of length %r>" % (len(res),)
+        logmsg("SUCCESS %r %r" % (request, logged_res,), level=OPERATIONAL)
+        return res
+
+    err = res
+    logmsg("RAISE %r %r" % (request, err,), level=OPERATIONAL)
     if noisy and not use_foolscap_logging: traceback.print_exc(err)
 
     # The message argument to SFTPError must not reveal information that
@@ -125,7 +131,7 @@ def _raise_error(err):
     if err.check(EOFError):
         raise SFTPError(FX_EOF, "end of file reached")
     if err.check(defer.FirstError):
-        _raise_error(err.value.subFailure)
+        _convert_error(err.value.subFailure, request)
 
     # We assume that the error message is not anonymity-sensitive.
     raise SFTPError(FX_FAILURE, str(err.value))
@@ -572,7 +578,8 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
         self.closed = False
 
     def readChunk(self, offset, length):
-        self.log(".readChunk(%r, %r)" % (offset, length), level=OPERATIONAL)
+        request = ".readChunk(%r, %r)" % (offset, length)
+        self.log(request, level=OPERATIONAL)
 
         if self.closed:
             def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot read from a closed file handle")
@@ -597,10 +604,11 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
                 eventually_callback(d)(data[offset:min(offset+length, len(data))])
             return data
         self.async.addCallbacks(_read, eventually_errback(d))
+        d.addBoth(_convert_error, request)
         return d
 
     def writeChunk(self, offset, data):
-        self.log(".writeChunk(%r, <data of length %r>)" % (offset, len(data)), level=OPERATIONAL)
+        self.log(".writeChunk(%r, <data of length %r>) denied" % (offset, len(data)), level=OPERATIONAL)
 
         def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
         return defer.execute(_denied)
@@ -612,16 +620,19 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
         return defer.succeed(None)
 
     def getAttrs(self):
-        self.log(".getAttrs()", level=OPERATIONAL)
+        request = ".getAttrs()"
+        self.log(request, level=OPERATIONAL)
 
         if self.closed:
             def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot get attributes for a closed file handle")
             return defer.execute(_closed)
 
-        return defer.succeed(_populate_attrs(self.filenode, self.metadata))
+        d = defer.execute(_populate_attrs, self.filenode, self.metadata)
+        d.addBoth(_convert_error, request)
+        return d
 
     def setAttrs(self, attrs):
-        self.log(".setAttrs(%r)" % (attrs,), level=OPERATIONAL)
+        self.log(".setAttrs(%r) denied" % (attrs,), level=OPERATIONAL)
         def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
         return defer.execute(_denied)
 
@@ -680,8 +691,11 @@ class GeneralSFTPFile(PrefixingLogMixin):
                     filenode.read(self.consumer, 0, None)
                 self.async.addCallback(_read)
 
+        if noisy: logmsg("__init__ done", level=NOISY)
+
     def readChunk(self, offset, length):
-        self.log(".readChunk(%r, %r)" % (offset, length), level=OPERATIONAL)
+        request = ".readChunk(%r, %r)" % (offset, length)
+        self.log(request, level=OPERATIONAL)
 
         if not (self.flags & FXF_READ):
             def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for reading")
@@ -695,11 +709,12 @@ class GeneralSFTPFile(PrefixingLogMixin):
         def _read(ign):
             if noisy: self.log("_read in readChunk(%r, %r)" % (offset, length), level=NOISY)
             d2 = self.consumer.read(offset, length)
-            d2.addErrback(_raise_error)
+            d2.addErrback(_convert_error, request)
             d2.addCallbacks(eventually_callback(d), eventually_errback(d))
             # It is correct to drop d2 here.
             return None
         self.async.addCallbacks(_read, eventually_errback(d))
+        d.addBoth(_convert_error, request)
         return d
 
     def writeChunk(self, offset, data):
@@ -731,13 +746,15 @@ class GeneralSFTPFile(PrefixingLogMixin):
                 write_offset = self.consumer.get_current_size()
 
             self.consumer.overwrite(write_offset, data)
+            if noisy: self.log("overwrite done", level=NOISY)
             return None
         self.async.addCallback(_write)
         # don't addErrback to self.async, just allow subsequent async ops to fail.
         return defer.succeed(None)
 
     def close(self):
-        self.log(".close()", level=OPERATIONAL)
+        request = ".close()"
+        self.log(request, level=OPERATIONAL)
 
         if self.closed:
             return defer.succeed(None)
@@ -771,10 +788,12 @@ class GeneralSFTPFile(PrefixingLogMixin):
 
         d = defer.Deferred()
         self.async.addCallbacks(eventually_callback(d), eventually_errback(d))
+        d.addBoth(_convert_error, request)
         return d
 
     def getAttrs(self):
-        self.log(".getAttrs()", level=OPERATIONAL)
+        request = ".getAttrs()"
+        self.log(request, level=OPERATIONAL)
 
         if self.closed:
             def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot get attributes for a closed file handle")
@@ -791,10 +810,12 @@ class GeneralSFTPFile(PrefixingLogMixin):
             eventually_callback(d)(attrs)
             return None
         self.async.addCallbacks(_get, eventually_errback(d))
+        d.addBoth(_convert_error, request)
         return d
 
     def setAttrs(self, attrs):
-        self.log(".setAttrs(attrs) %r" % (attrs,), level=OPERATIONAL)
+        request = ".setAttrs(attrs) %r" % (attrs,)
+        self.log(request, level=OPERATIONAL)
 
         if not (self.flags & FXF_WRITE):
             def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "file handle was not opened for writing")
@@ -818,6 +839,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
             eventually_callback(d)(None)
             return None
         self.async.addCallbacks(_resize, eventually_errback(d))
+        d.addBoth(_convert_error, request)
         return d
 
 
@@ -863,7 +885,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         return {}
 
     def openFile(self, pathstring, flags, attrs):
-        self.log(".openFile(%r, %r = %r, %r)" % (pathstring, flags, _repr_flags(flags), attrs), level=OPERATIONAL)
+        request = ".openFile(%r, %r = %r, %r)" % (pathstring, flags, _repr_flags(flags), attrs)
+        self.log(request, level=OPERATIONAL)
 
         # This is used for both reading and writing.
         # First exclude invalid combinations of flags.
@@ -910,7 +933,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # the open call; later operations would fail even if we did not make these checks.
 
         d = self._get_root(path)
-        def _got_root((root, path)):
+        def _got_root( (root, path) ):
             if root.is_unknown():
                 raise SFTPError(FX_PERMISSION_DENIED,
                                 "cannot open an unknown cap (or child of an unknown directory). "
@@ -1012,17 +1035,12 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 d2.addCallback(_got_parent)
                 return d2
         d.addCallback(_got_root)
-        d.addErrback(_raise_error)
+        d.addBoth(_convert_error, request)
         return d
 
-    def removeFile(self, pathstring):
-        self.log(".removeFile(%r)" % (pathstring,), level=OPERATIONAL)
-
-        path = self._path_from_string(pathstring)
-        return self._remove_object(path, must_be_file=True)
-
     def renameFile(self, oldpathstring, newpathstring):
-        self.log(".renameFile(%r, %r)" % (oldpathstring, newpathstring), level=OPERATIONAL)
+        request = ".renameFile(%r, %r)" % (oldpathstring, newpathstring)
+        self.log(request, level=OPERATIONAL)
 
         fromPath = self._path_from_string(oldpathstring)
         toPath = self._path_from_string(newpathstring)
@@ -1050,26 +1068,28 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             #                              toPath[-1], overwrite=False)
             return d
         d.addCallback(_got)
-        d.addErrback(_raise_error)
+        d.addBoth(_convert_error, request)
         return d
 
     def makeDirectory(self, pathstring, attrs):
-        self.log(".makeDirectory(%r, %r)" % (pathstring, attrs), level=OPERATIONAL)
+        request = ".makeDirectory(%r, %r)" % (pathstring, attrs)
+        self.log(request, level=OPERATIONAL)
 
         path = self._path_from_string(pathstring)
         metadata = self._attrs_to_metadata(attrs)
         d = self._get_root(path)
         d.addCallback(lambda (root, path):
                       self._get_or_create_directories(root, path, metadata))
-        d.addErrback(_raise_error)
+        d.addBoth(_convert_error, request)
         return d
 
     def _get_or_create_directories(self, node, path, metadata):
         if not IDirectoryNode.providedBy(node):
             # TODO: provide the name of the blocking file in the error message.
-            raise SFTPError(FX_FAILURE,
-                            "cannot create directory because there "
-                            "is a file in the way") # close enough
+            def _blocked(): raise SFTPError(FX_FAILURE, "cannot create directory because there "
+                                                        "is a file in the way") # close enough
+            return defer.execute(_blocked)
+
         if not path:
             return defer.succeed(node)
         d = node.get(path[0])
@@ -1078,14 +1098,25 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             return node.create_subdirectory(path[0])
         d.addErrback(_maybe_create)
         d.addCallback(self._get_or_create_directories, path[1:], metadata)
-        d.addErrback(_raise_error)
+        return d
+
+    def removeFile(self, pathstring):
+        request = ".removeFile(%r)" % (pathstring,)
+        self.log(request, level=OPERATIONAL)
+
+        path = self._path_from_string(pathstring)
+        d = self._remove_object(path, must_be_file=True)
+        d.addBoth(_convert_error, request)
         return d
 
     def removeDirectory(self, pathstring):
-        self.log(".removeDirectory(%r)" % (pathstring,), level=OPERATIONAL)
+        request = ".removeDirectory(%r)" % (pathstring,)
+        self.log(request, level=OPERATIONAL)
 
         path = self._path_from_string(pathstring)
-        return self._remove_object(path, must_be_directory=True)
+        d = self._remove_object(path, must_be_directory=True)
+        d.addBoth(_convert_error, request)
+        return d
 
     def _remove_object(self, path, must_be_directory=False, must_be_file=False):
         d = defer.maybeDeferred(self._get_parent_or_node, path)
@@ -1108,11 +1139,11 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             d2.addCallback(_got_child)
             return d2
         d.addCallback(_got_parent)
-        d.addErrback(_raise_error)
         return d
 
     def openDirectory(self, pathstring):
-        self.log(".openDirectory(%r)" % (pathstring,), level=OPERATIONAL)
+        request = ".openDirectory(%r)" % (pathstring,)
+        self.log(request, level=OPERATIONAL)
 
         path = self._path_from_string(pathstring)
         d = self._get_node_and_metadata_for_path(path)
@@ -1140,11 +1171,12 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             d2.addCallback(_render)
             return d2
         d.addCallback(_list)
-        d.addErrback(_raise_error)
+        d.addBoth(_convert_error, request)
         return d
 
     def getAttrs(self, pathstring, followLinks):
-        self.log(".getAttrs(%r, followLinks=%r)" % (pathstring, followLinks), level=OPERATIONAL)
+        request = ".getAttrs(%r, followLinks=%r)" % (pathstring, followLinks)
+        self.log(request, level=OPERATIONAL)
 
         d = self._get_node_and_metadata_for_path(self._path_from_string(pathstring))
         def _render( (node, metadata) ):
@@ -1157,7 +1189,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             d2.addCallback(lambda size: _populate_attrs(node, metadata, size=size))
             return d2
         d.addCallback(_render)
-        d.addErrback(_raise_error)
+        d.addBoth(_convert_error, request)
         return d
 
     def setAttrs(self, pathstring, attrs):
@@ -1166,25 +1198,28 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         if "size" in attrs:
             # this would require us to download and re-upload the truncated/extended
             # file contents
-            raise SFTPError(FX_OP_UNSUPPORTED, "setAttrs wth size attribute")
-        return None
+            def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "setAttrs wth size attribute")
+            return defer.execute(_unsupported)
+        return defer.succeed(None)
 
     def readLink(self, pathstring):
         self.log(".readLink(%r)" % (pathstring,), level=OPERATIONAL)
 
-        raise SFTPError(FX_OP_UNSUPPORTED, "readLink")
+        def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "readLink")
+        return defer.execute(_unsupported)
 
     def makeLink(self, linkPathstring, targetPathstring):
         self.log(".makeLink(%r, %r)" % (linkPathstring, targetPathstring), level=OPERATIONAL)
 
-        raise SFTPError(FX_OP_UNSUPPORTED, "makeLink")
+        def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "makeLink")
+        return defer.execute(_unsupported)
 
     def extendedRequest(self, extendedName, extendedData):
         self.log(".extendedRequest(%r, %r)" % (extendedName, extendedData), level=OPERATIONAL)
 
         if extendedName == 'statvfs@openssh.com' or extendedName == 'fstatvfs@openssh.com':
             # <http://dev.libssh.org/ticket/11>
-            return struct.pack('>11Q',
+            return defer.succeed(struct.pack('>11Q',
                 1024,         # uint64  f_bsize     /* file system block size */
                 1024,         # uint64  f_frsize    /* fundamental fs block size */
                 628318530,    # uint64  f_blocks    /* number of blocks (unit f_frsize) */
@@ -1196,9 +1231,10 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 0x1AF5,       # uint64  f_fsid      /* file system id */
                 2,            # uint64  f_flag      /* bit mask = ST_NOSUID; not ST_RDONLY */
                 65535,        # uint64  f_namemax   /* maximum filename length */
-                )
+                ))
 
-        raise SFTPError(FX_OP_UNSUPPORTED, "extendedRequest %r" % extendedName)
+        def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "extendedRequest %r" % extendedName)
+        return defer.execute(_unsupported)
 
     def realPath(self, pathstring):
         self.log(".realPath(%r)" % (pathstring,), level=OPERATIONAL)

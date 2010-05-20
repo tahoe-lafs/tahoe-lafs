@@ -223,35 +223,35 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
 
         return d
 
-    def test_raise_error(self):
-        self.failUnlessReallyEqual(sftpd._raise_error(None), None)
+    def test_convert_error(self):
+        self.failUnlessReallyEqual(sftpd._convert_error(None, "request"), None)
         
         d = defer.succeed(None)
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_raise_error SFTPError",
-                                         sftpd._raise_error, Failure(sftp.SFTPError(sftp.FX_FAILURE, "foo"))))
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_convert_error SFTPError",
+                                         sftpd._convert_error, Failure(sftp.SFTPError(sftp.FX_FAILURE, "foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "_raise_error NoSuchChildError",
-                                         sftpd._raise_error, Failure(NoSuchChildError("foo"))))
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "_convert_error NoSuchChildError",
+                                         sftpd._convert_error, Failure(NoSuchChildError("foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_raise_error ExistingChildError",
-                                         sftpd._raise_error, Failure(ExistingChildError("foo"))))
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_convert_error ExistingChildError",
+                                         sftpd._convert_error, Failure(ExistingChildError("foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "_raise_error NotWriteableError",
-                                         sftpd._raise_error, Failure(NotWriteableError("foo"))))
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "_convert_error NotWriteableError",
+                                         sftpd._convert_error, Failure(NotWriteableError("foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "_raise_error NotImplementedError",
-                                         sftpd._raise_error, Failure(NotImplementedError("foo"))))
+            self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "_convert_error NotImplementedError",
+                                         sftpd._convert_error, Failure(NotImplementedError("foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_EOF, "_raise_error EOFError",
-                                         sftpd._raise_error, Failure(EOFError("foo"))))
+            self.shouldFailWithSFTPError(sftp.FX_EOF, "_convert_error EOFError",
+                                         sftpd._convert_error, Failure(EOFError("foo")), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_EOF, "_raise_error defer.FirstError",
-                                         sftpd._raise_error, Failure(defer.FirstError(
-                                                               Failure(sftp.SFTPError(sftp.FX_EOF, "foo")), 0))))
+            self.shouldFailWithSFTPError(sftp.FX_EOF, "_convert_error defer.FirstError",
+                                         sftpd._convert_error, Failure(defer.FirstError(
+                                                                 Failure(sftp.SFTPError(sftp.FX_EOF, "foo")), 0)), "request"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_raise_error AssertionError",
-                                         sftpd._raise_error, Failure(AssertionError("foo"))))
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_convert_error AssertionError",
+                                         sftpd._convert_error, Failure(AssertionError("foo")), "request"))
 
         return d
 
@@ -339,8 +339,8 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             self.failUnlessReallyEqual(attrs['size'], 10, repr(attrs))
         d.addCallback(_check_attrs)
 
-        d.addCallback(lambda ign:
-            self.failUnlessReallyEqual(self.handler.setAttrs("small", {}), None))
+        d.addCallback(lambda ign: self.handler.setAttrs("small", {}))
+        d.addCallback(lambda res: self.failUnlessReallyEqual(res, None))
 
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "setAttrs size",
