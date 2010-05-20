@@ -32,6 +32,13 @@ from allmydata.util.stringutils import listdir_unicode, open_unicode, \
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
+def skip_non_unicode_fs():
+    if sys.getfilesystemencoding() not in ('UTF-8', 'mbcs'):
+        raise unittest.SkipTest("Arbitrary filenames are not supported by this platform")
+
+def skip_non_unicode_stdout():
+    if not sys.stdout.encoding or sys.stdout.encoding not in ('UTF-8'):
+        raise unittest.SkipTest("Arbitrary command-line arguments (argv) are not supported by this platform")
 
 class CLI(unittest.TestCase):
     # this test case only looks at argument-processing and simple stuff.
@@ -630,11 +637,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
 
     def test_create_unicode(self):
-        if sys.getfilesystemencoding() not in ('UTF-8', 'mbcs'):
-            raise unittest.SkipTest("Arbitrary filenames are not supported by this platform")
-
-        if sys.stdout.encoding not in ('UTF-8'):
-            raise unittest.SkipTest("Arbitrary command-line arguments (argv) are not supported by this platform")
+        skip_non_unicode_fs()
+        skip_non_unicode_stdout()
 
         self.basedir = "cli/CreateAlias/create_unicode"
         self.set_up_grid()
@@ -967,8 +971,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
 
     def test_immutable_from_file_unicode(self):
-        if sys.stdout.encoding not in ('UTF-8'):
-            raise unittest.SkipTest("Arbitrary command-line arguments (argv) are not supported by this platform")
+        skip_non_unicode_stdout()
       
         # tahoe put file.txt "à trier.txt"
         self.basedir = os.path.dirname(self.mktemp())
@@ -1281,11 +1284,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                               o.parseOptions, ["onearg"])
 
     def test_unicode_filename(self):
-        if sys.getfilesystemencoding() not in ('UTF-8', 'mbcs'):
-            raise unittest.SkipTest("Arbitrary filenames are not supported by this platform")
-
-        if sys.stdout.encoding not in ('UTF-8'):
-            raise unittest.SkipTest("Arbitrary command-line arguments (argv) are not supported by this platform")
+        skip_non_unicode_fs()
+        skip_non_unicode_stdout()
 
         self.basedir = "cli/Cp/unicode_filename"
         self.set_up_grid()
