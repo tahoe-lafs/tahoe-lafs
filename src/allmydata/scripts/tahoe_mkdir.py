@@ -2,6 +2,7 @@
 import urllib
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, UnknownAliasError
+from allmydata.util.stringutils import unicode_to_url
 
 def mkdir(options):
     nodeurl = options['node-url']
@@ -35,7 +36,7 @@ def mkdir(options):
         path = path[:-1]
     # path (in argv) must be "/".join([s.encode("utf-8") for s in segments])
     url = nodeurl + "uri/%s/%s?t=mkdir" % (urllib.quote(rootcap),
-                                           urllib.quote(path))
+                                           urllib.quote(unicode_to_url(path)))
     resp = do_http("POST", url)
     check_http_error(resp, stderr)
     new_uri = resp.read().strip()

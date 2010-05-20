@@ -1,7 +1,9 @@
 
 import os, sys, urllib
+import codecs
 from twisted.python import usage
-
+from allmydata.util.stringutils import unicode_to_url
+from allmydata.util.assertutil import precondition
 
 class BaseOptions:
     # unit tests can override these to point at StringIO instances
@@ -100,14 +102,14 @@ def get_aliases(nodedir):
     except EnvironmentError:
         pass
     try:
-        f = open(aliasfile, "r")
+        f = codecs.open(aliasfile, "r", "utf-8")
         for line in f.readlines():
             line = line.strip()
             if line.startswith("#") or not line:
                 continue
             name, cap = line.split(":", 1)
             # normalize it: remove http: prefix, urldecode
-            cap = cap.strip()
+            cap = cap.strip().encode('utf-8')
             aliases[name] = uri.from_string_dirnode(cap).to_string()
     except EnvironmentError:
         pass
@@ -138,7 +140,7 @@ def get_alias(aliases, path, default):
     # and default is not found in aliases, an UnknownAliasError is
     # raised.
     path = path.strip()
-    if uri.has_uri_prefix(path):
+    if uri.has_uri_prefix(path.encode('utf-8')):
         # We used to require "URI:blah:./foo" in order to get a subpath,
         # stripping out the ":./" sequence. We still allow that for compatibility,
         # but now also allow just "URI:blah/foo".
@@ -180,4 +182,4 @@ def get_alias(aliases, path, default):
 
 def escape_path(path):
     segments = path.split("/")
-    return "/".join([urllib.quote(s) for s in segments])
+    return "/".join([urllib.quote(unicode_to_url(s)) for s in segments])

@@ -85,7 +85,7 @@ class ManifestStreamer(LineOnlyReceiver):
                 try:
                     print >>stdout, d["cap"], "/".join(d["path"])
                 except UnicodeEncodeError:
-                    print >>stdout, d["cap"], "/".join([p.encode("utf-8")
+                    print >>stdout, d["cap"], "/".join([unicode_to_stdout(p)
                                                         for p in d["path"]])
 
 def manifest(options):

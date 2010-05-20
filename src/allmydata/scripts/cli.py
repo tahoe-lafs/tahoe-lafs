@@ -1,6 +1,7 @@
 import os.path, re, sys, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import BaseOptions, get_aliases
+from allmydata.util.stringutils import argv_to_unicode
 
 NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 
@@ -49,12 +50,12 @@ class VDriveOptions(BaseOptions, usage.Options):
 
 class MakeDirectoryOptions(VDriveOptions):
     def parseArgs(self, where=""):
-        self.where = where
+        self.where = argv_to_unicode(where)
     longdesc = """Create a new directory, either unlinked or as a subdirectory."""
 
 class AddAliasOptions(VDriveOptions):
     def parseArgs(self, alias, cap):
-        self.alias = alias
+        self.alias = argv_to_unicode(alias)
         self.cap = cap
 
     def getSynopsis(self):
@@ -64,7 +65,7 @@ class AddAliasOptions(VDriveOptions):
 
 class CreateAliasOptions(VDriveOptions):
     def parseArgs(self, alias):
-        self.alias = alias
+        self.alias = argv_to_unicode(alias)
 
     def getSynopsis(self):
         return "%s create-alias ALIAS" % (os.path.basename(sys.argv[0]),)
@@ -83,7 +84,7 @@ class ListOptions(VDriveOptions):
         ("json", None, "Show the raw JSON output"),
         ]
     def parseArgs(self, where=""):
-        self.where = where
+        self.where = argv_to_unicode(where)
 
     longdesc = """
     List the contents of some portion of the grid.
@@ -118,8 +119,13 @@ class GetOptions(VDriveOptions):
         # tahoe get FOO bar              # write to local file
         # tahoe get tahoe:FOO bar        # same
 
-        self.from_file = arg1
-        self.to_file = arg2
+        self.from_file = argv_to_unicode(arg1)
+
+        if arg2:
+            self.to_file = argv_to_unicode(arg2)
+        else:
+            self.to_file = None
+
         if self.to_file == "-":
             self.to_file = None
 
@@ -151,15 +157,15 @@ class PutOptions(VDriveOptions):
         # see Examples below
 
         if arg1 is not None and arg2 is not None:
-            self.from_file = arg1
-            self.to_file = arg2
+            self.from_file = argv_to_unicode(arg1)
+            self.to_file =  argv_to_unicode(arg2)
         elif arg1 is not None and arg2 is None:
-            self.from_file = arg1 # might be "-"
+            self.from_file = argv_to_unicode(arg1) # might be "-"
             self.to_file = None
         else:
             self.from_file = None
             self.to_file = None
-        if self.from_file == "-":
+        if self.from_file == u"-":
             self.from_file = None
 
     def getSynopsis(self):
@@ -197,8 +203,8 @@ class CpOptions(VDriveOptions):
     def parseArgs(self, *args):
         if len(args) < 2:
             raise usage.UsageError("cp requires at least two arguments")
-        self.sources = args[:-1]
-        self.destination = args[-1]
+        self.sources = map(argv_to_unicode, args[:-1])
+        self.destination = argv_to_unicode(args[-1])
     def getSynopsis(self):
         return "Usage: tahoe [options] cp FROM.. TO"
     longdesc = """
@@ -228,15 +234,15 @@ class CpOptions(VDriveOptions):
 
 class RmOptions(VDriveOptions):
     def parseArgs(self, where):
-        self.where = where
+        self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
         return "%s rm REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
 
 class MvOptions(VDriveOptions):
     def parseArgs(self, frompath, topath):
-        self.from_file = frompath
-        self.to_file = topath
+        self.from_file = argv_to_unicode(frompath)
+        self.to_file = argv_to_unicode(topath)
 
     def getSynopsis(self):
         return "%s mv FROM TO" % (os.path.basename(sys.argv[0]),)
@@ -254,8 +260,8 @@ class MvOptions(VDriveOptions):
 
 class LnOptions(VDriveOptions):
     def parseArgs(self, frompath, topath):
-        self.from_file = frompath
-        self.to_file = topath
+        self.from_file = argv_to_unicode(frompath)
+        self.to_file = argv_to_unicode(topath)
 
     def getSynopsis(self):
         return "%s ln FROM TO" % (os.path.basename(sys.argv[0]),)
@@ -279,8 +285,8 @@ class BackupOptions(VDriveOptions):
         self['exclude'] = set()
 
     def parseArgs(self, localdir, topath):
-        self.from_dir = localdir
-        self.to_dir = topath
+        self.from_dir = argv_to_unicode(localdir)
+        self.to_dir = argv_to_unicode(topath)
 
     def getSynopsis(Self):
         return "%s backup FROM ALIAS:TO" % os.path.basename(sys.argv[0])
@@ -337,7 +343,7 @@ class WebopenOptions(VDriveOptions):
         ("info", "i", "Open the t=info page for the file"),
         ]
     def parseArgs(self, where=''):
-        self.where = where
+        self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
         return "%s webopen [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
@@ -354,7 +360,7 @@ class ManifestOptions(VDriveOptions):
         ("raw", "r", "Display raw JSON data instead of parsed"),
         ]
     def parseArgs(self, where=''):
-        self.where = where
+        self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
         return "%s manifest [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
@@ -367,7 +373,7 @@ class StatsOptions(VDriveOptions):
         ("raw", "r", "Display raw JSON data instead of parsed"),
         ]
     def parseArgs(self, where=''):
-        self.where = where
+        self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
         return "%s stats [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
@@ -383,7 +389,7 @@ class CheckOptions(VDriveOptions):
         ("add-lease", None, "Add/renew lease on all shares"),
         ]
     def parseArgs(self, where=''):
-        self.where = where
+        self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
         return "%s check [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
@@ -402,7 +408,7 @@ class DeepCheckOptions(VDriveOptions):
         ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, where=''):
-        self.where = where
+        self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
         return "%s deep-check [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)

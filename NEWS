@@ -1,5 +1,26 @@
 User visible changes in Tahoe-LAFS.  -*- outline -*-
 
+* Release 1.7.0
+
+** Bugfixes
+
+*** Unicode filenames handling
+
+Tahoe CLI commands working on local files, for instance 'tahoe cp' or 'tahoe
+backup', have been improved to correctly handle filenames containing non-ASCII
+characters.
+
+In the case where Tahoe encounters a filename which cannot be decoded using the
+system encoding, an error will be returned and the operation will fail.  Under
+Linux, this typically happens when the filesystem contains filenames encoded
+with another encoding, for instance latin1, than the system locale, for
+instance UTF-8.  In such case, you'll need to fix your system with tools such
+as 'convmv' before using Tahoe CLI.
+
+All CLI commands have been improved to support non-ASCII parameters such as
+filenames and aliases on all supported Operating Systems except Windows as of
+now.
+
 * Release 1.6.1 (2010-02-27)
 
 ** Bugfixes

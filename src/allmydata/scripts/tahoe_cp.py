@@ -2,12 +2,17 @@
 import os.path
 import urllib
 import simplejson
+import sys
 from cStringIO import StringIO
 from twisted.python.failure import Failure
 from allmydata.scripts.common import get_alias, escape_path, \
                                      DefaultAliasMarker, UnknownAliasError
 from allmydata.scripts.common_http import do_http
 from allmydata import uri
+from twisted.python import usage
+from allmydata.util.stringutils import unicode_to_url, listdir_unicode, open_unicode
+from allmydata.util.assertutil import precondition
+
 
 def ascii_or_none(s):
     if s is None:
@@ -70,6 +75,7 @@ def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
 
 class LocalFileSource:
     def __init__(self, pathname):
+        precondition(isinstance(pathname, unicode), pathname)
         self.pathname = pathname
 
     def need_to_copy_bytes(self):
@@ -80,6 +86,7 @@ class LocalFileSource:
 
 class LocalFileTarget:
     def __init__(self, pathname):
+        precondition(isinstance(pathname, unicode), pathname)
         self.pathname = pathname
     def put_file(self, inf):
         outf = open(self.pathname, "wb")
@@ -92,6 +99,7 @@ class LocalFileTarget:
 
 class LocalMissingTarget:
     def __init__(self, pathname):
+        precondition(isinstance(pathname, unicode), pathname)
         self.pathname = pathname
 
     def put_file(self, inf):
@@ -105,6 +113,8 @@ class LocalMissingTarget:
 
 class LocalDirectorySource:
     def __init__(self, progressfunc, pathname):
+        precondition(isinstance(pathname, unicode), pathname)
+
         self.progressfunc = progressfunc
         self.pathname = pathname
         self.children = None
@@ -113,7 +123,7 @@ class LocalDirectorySource:
         if self.children is not None:
             return
         self.children = {}
-        children = os.listdir(self.pathname)
+        children = listdir_unicode(self.pathname)
         for i,n in enumerate(children):
             self.progressfunc("examining %d of %d" % (i, len(children)))
             pn = os.path.join(self.pathname, n)
@@ -130,6 +140,8 @@ class LocalDirectorySource:
 
 class LocalDirectoryTarget:
     def __init__(self, progressfunc, pathname):
+        precondition(isinstance(pathname, unicode), pathname)
+
         self.progressfunc = progressfunc
         self.pathname = pathname
         self.children = None
@@ -138,7 +150,7 @@ class LocalDirectoryTarget:
         if self.children is not None:
             return
         self.children = {}
-        children = os.listdir(self.pathname)
+        children = listdir_unicode(self.pathname)
         for i,n in enumerate(children):
             self.progressfunc("examining %d of %d" % (i, len(children)))
             pn = os.path.join(self.pathname, n)
@@ -161,8 +173,9 @@ class LocalDirectoryTarget:
         return LocalDirectoryTarget(self.progressfunc, pathname)
 
     def put_file(self, name, inf):
+        precondition(isinstance(name, unicode), name)
         pathname = os.path.join(self.pathname, name)
-        outf = open(pathname, "wb")
+        outf = open_unicode(pathname, "wb")
         while True:
             data = inf.read(32768)
             if not data:
@@ -355,7 +368,7 @@ class TahoeDirectoryTarget:
                 if self.writecap:
                     url = self.nodeurl + "/".join(["uri",
                                                    urllib.quote(self.writecap),
-                                                   urllib.quote(name.encode('utf-8'))])
+                                                   urllib.quote(unicode_to_url(name))])
                 self.children[name] = TahoeFileTarget(self.nodeurl, mutable,
                                                       writecap, readcap, url)
             elif data[0] == "dirnode":

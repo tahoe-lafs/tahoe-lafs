@@ -4,6 +4,7 @@ import simplejson
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http
+from allmydata.util.stringutils import unicode_to_stdout
 
 def list(options):
     nodeurl = options['node-url']
@@ -130,7 +131,7 @@ def list(options):
             line.append(ctime_s)
         if not options["classify"]:
             classify = ""
-        line.append(name + classify)
+        line.append(unicode_to_stdout(name) + classify)
         if options["uri"]:
             line.append(uri)
         if options["readonly-uri"]:

@@ -136,13 +136,13 @@ starting directory provides a different, possibly overlapping
 perspective on the graph of files and directories.
 
 Each tahoe node remembers a list of starting points, named "aliases",
-in a file named ~/.tahoe/private/aliases . These aliases are short
-strings that stand in for a directory read- or write- cap. If you use
-the command line "ls" without any "[STARTING_DIR]:" argument, then it
-will use the default alias, which is "tahoe", therefore "tahoe ls" has
-the same effect as "tahoe ls tahoe:".  The same goes for the other
-commands which can reasonably use a default alias: get, put, mkdir,
-mv, and rm.
+in a file named ~/.tahoe/private/aliases . These aliases are short UTF-8
+encoded strings that stand in for a directory read- or write- cap. If
+you use the command line "ls" without any "[STARTING_DIR]:" argument,
+then it will use the default alias, which is "tahoe", therefore "tahoe
+ls" has the same effect as "tahoe ls tahoe:".  The same goes for the
+other commands which can reasonably use a default alias: get, put,
+mkdir, mv, and rm.
 
 For backwards compatibility with Tahoe-1.0, if the "tahoe": alias is not
 found in ~/.tahoe/private/aliases, the CLI will use the contents of

@@ -1,16 +1,20 @@
 
 import os.path
+import codecs
+import sys
 from allmydata import uri
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases
 from allmydata.util.fileutil import move_into_place
+from allmydata.util.stringutils import unicode_to_stdout
+
 
 def add_line_to_aliasfile(aliasfile, alias, cap):
     # we use os.path.exists, rather than catching EnvironmentError, to avoid
     # clobbering the valuable alias file in case of spurious or transient
     # filesystem errors.
     if os.path.exists(aliasfile):
-        f = open(aliasfile, "r")
+        f = codecs.open(aliasfile, "r", "utf-8")
         aliases = f.read()
         f.close()
         if not aliases.endswith("\n"):
@@ -18,7 +22,7 @@ def add_line_to_aliasfile(aliasfile, alias, cap):
     else:
         aliases = ""
     aliases += "%s: %s\n" % (alias, cap)
-    f = open(aliasfile+".tmp", "w")
+    f = codecs.open(aliasfile+".tmp", "w", "utf-8")
     f.write(aliases)
     f.close()
     move_into_place(aliasfile+".tmp", aliasfile)
@@ -41,7 +45,7 @@ def add_alias(options):
 
     add_line_to_aliasfile(aliasfile, alias, cap)
 
-    print >>stdout, "Alias '%s' added" % (alias,)
+    print >>stdout, "Alias '%s' added" % (unicode_to_stdout(alias),)
     return 0
 
 def create_alias(options):
@@ -74,7 +78,7 @@ def create_alias(options):
 
     add_line_to_aliasfile(aliasfile, alias, new_uri)
 
-    print >>stdout, "Alias '%s' created" % (alias,)
+    print >>stdout, "Alias '%s' created" % (unicode_to_stdout(alias),)
     return 0
 
 def list_aliases(options):

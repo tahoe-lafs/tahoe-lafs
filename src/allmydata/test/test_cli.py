@@ -6,6 +6,7 @@ from cStringIO import StringIO
 import urllib
 import re
 import simplejson
+import sys
 
 from allmydata.util import fileutil, hashutil, base32
 from allmydata import uri
@@ -25,6 +26,9 @@ from allmydata.test.common_util import StallMixin
 from allmydata.test.no_network import GridTestMixin
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.python import usage
+
+from allmydata.util.stringutils import listdir_unicode, open_unicode, \
+     unicode_platform, FilenameEncodingError
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
@@ -284,7 +288,7 @@ class CLI(unittest.TestCase):
                    "work": "WA",
                    "c": "CA"}
         def ga1(path):
-            return get_alias(aliases, path, "tahoe")
+            return get_alias(aliases, path, u"tahoe")
         uses_lettercolon = common.platform_uses_lettercolon_drivename()
         self.failUnlessEqual(ga1("bare"), ("TA", "bare"))
         self.failUnlessEqual(ga1("baredir/file"), ("TA", "baredir/file"))
@@ -379,7 +383,7 @@ class CLI(unittest.TestCase):
         # default set to something that isn't in the aliases argument should
         # raise an UnknownAliasError.
         def ga4(path):
-            return get_alias(aliases, path, "badddefault:")
+            return get_alias(aliases, path, u"badddefault:")
         self.failUnlessRaises(common.UnknownAliasError, ga4, "afile")
         self.failUnlessRaises(common.UnknownAliasError, ga4, "a/dir/path/")
 
@@ -387,12 +391,44 @@ class CLI(unittest.TestCase):
             old = common.pretend_platform_uses_lettercolon
             try:
                 common.pretend_platform_uses_lettercolon = True
-                retval = get_alias(aliases, path, "baddefault:")
+                retval = get_alias(aliases, path, u"baddefault:")
             finally:
                 common.pretend_platform_uses_lettercolon = old
             return retval
         self.failUnlessRaises(common.UnknownAliasError, ga5, "C:\\Windows")
 
+    def test_listdir_unicode_good(self):
+        basedir = u"cli/common/listdir_unicode_good"
+        fileutil.make_dirs(basedir)
+
+        files = (u'Lôzane', u'Bern', u'Genève')
+
+        for file in files:
+            open(os.path.join(basedir, file), "w").close()
+
+        for file in listdir_unicode(basedir):
+            self.failUnlessEqual(file in files, True)
+
+    def test_listdir_unicode_bad(self):
+        if unicode_platform():
+            raise unittest.SkipTest("This test doesn't make any sense on architecture which handle filenames natively as Unicode entities.")
+
+        basedir = u"cli/common/listdir_unicode_bad"
+        fileutil.make_dirs(basedir)
+
+        files = (u'Lôzane', u'Bern', u'Genève')
+
+        # We use a wrong encoding on purpose
+        if sys.getfilesystemencoding() == 'UTF-8':
+            encoding = 'latin1'
+        else:
+            encoding = 'UTF-8'
+
+        for file in files:
+            path = os.path.join(basedir, file).encode(encoding)
+            open(path, "w").close()
+
+        self.failUnlessRaises(FilenameEncodingError, listdir_unicode, basedir)
 
 class Help(unittest.TestCase):
 
@@ -592,8 +628,73 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(aliases["un-corrupted2"].startswith("URI:DIR2:"))
         d.addCallback(_check_not_corrupted)
 
-        return d
 
+    def test_create_unicode(self):
+        if sys.getfilesystemencoding() not in ('UTF-8', 'mbcs'):
+            raise unittest.SkipTest("Arbitrary filenames are not supported by this platform")
+
+        if sys.stdout.encoding not in ('UTF-8'):
+            raise unittest.SkipTest("Arbitrary command-line arguments (argv) are not supported by this platform")
+
+        self.basedir = "cli/CreateAlias/create_unicode"
+        self.set_up_grid()
+        aliasfile = os.path.join(self.get_clientdir(), "private", "aliases")
+
+        d = self.do_cli("create-alias", "études")
+        def _check_create_unicode((rc,stdout,stderr)):
+            self.failUnlessEqual(rc, 0)
+            self.failIf(stderr)
+
+            # If stdout only supports ascii, accentuated characters are
+            # being replaced by '?'
+            if sys.stdout.encoding == "ANSI_X3.4-1968":
+                self.failUnless("Alias '?tudes' created" in stdout)
+            else:
+                self.failUnless("Alias 'études' created" in stdout)
+
+            aliases = get_aliases(self.get_clientdir())
+            self.failUnless(aliases[u"études"].startswith("URI:DIR2:"))
+        d.addCallback(_check_create_unicode)
+
+        d.addCallback(lambda res: self.do_cli("ls", "études:"))
+        def _check_ls1((rc, stdout, stderr)):
+            self.failUnlessEqual(rc, 0)
+            self.failIf(stderr)
+
+            self.failUnlessEqual(stdout, "")
+        d.addCallback(_check_ls1)
+
+        d.addCallback(lambda res: self.do_cli("put", "-", "études:uploaded.txt",
+          stdin="Blah blah blah"))
+
+        d.addCallback(lambda res: self.do_cli("ls", "études:"))
+        def _check_ls2((rc, stdout, stderr)):
+            self.failUnlessEqual(rc, 0)
+            self.failIf(stderr)
+
+            self.failUnlessEqual(stdout, "uploaded.txt\n")
+        d.addCallback(_check_ls2)
+
+        d.addCallback(lambda res: self.do_cli("get", "études:uploaded.txt"))
+        def _check_get((rc, stdout, stderr)):
+            self.failUnlessEqual(rc, 0)
+            self.failIf(stderr)
+            self.failUnlessEqual(stdout, "Blah blah blah")
+        d.addCallback(_check_get)
+
+        # Ensure that an Unicode filename in an Unicode alias works as expected
+        d.addCallback(lambda res: self.do_cli("put", "-", "études:lumière.txt",
+          stdin="Let the sunshine In!"))
+
+        d.addCallback(lambda res: self.do_cli("get",
+                      get_aliases(self.get_clientdir())[u"études"] + "/lumière.txt"))
+        def _check_get((rc, stdout, stderr)):
+            self.failUnlessEqual(rc, 0)
+            self.failIf(stderr)
+            self.failUnlessEqual(stdout, "Let the sunshine In!")
+        d.addCallback(_check_get)
+
+        return d
 
 class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
     def _create_test_file(self):
@@ -864,6 +965,40 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+
+    def test_immutable_from_file_unicode(self):
+        if sys.stdout.encoding not in ('UTF-8'):
+            raise unittest.SkipTest("Arbitrary command-line arguments (argv) are not supported by this platform")
+      
+        # tahoe put file.txt "à trier.txt"
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+
+        rel_fn = os.path.join(self.basedir, "DATAFILE")
+        abs_fn = os.path.abspath(rel_fn)
+        # we make the file small enough to fit in a LIT file, for speed
+        DATA = "short file"
+        f = open(rel_fn, "w")
+        f.write(DATA)
+        f.close()
+
+        d = self.do_cli("create-alias", "tahoe")
+
+        d.addCallback(lambda res:
+                      self.do_cli("put", rel_fn, "à trier.txt"))
+        def _uploaded((rc,stdout,stderr)):
+            readcap = stdout.strip()
+            self.failUnless(readcap.startswith("URI:LIT:"))
+            self.failUnless("201 Created" in stderr, stderr)
+            self.readcap = readcap
+        d.addCallback(_uploaded)
+
+        d.addCallback(lambda res:
+                      self.do_cli("get", "tahoe:à trier.txt"))
+        d.addCallback(lambda (rc,stdout,stderr):
+                      self.failUnlessEqual(stdout, DATA))
+
+        return d
 
 class List(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_list(self):
@@ -1146,32 +1281,39 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                               o.parseOptions, ["onearg"])
 
     def test_unicode_filename(self):
+        if sys.getfilesystemencoding() not in ('UTF-8', 'mbcs'):
+            raise unittest.SkipTest("Arbitrary filenames are not supported by this platform")
+
+        if sys.stdout.encoding not in ('UTF-8'):
+            raise unittest.SkipTest("Arbitrary command-line arguments (argv) are not supported by this platform")
+
         self.basedir = "cli/Cp/unicode_filename"
         self.set_up_grid()
+        d = self.do_cli("create-alias", "tahoe")
 
-        fn1 = os.path.join(self.basedir, "Ärtonwall")
+        # Use unicode strings when calling os functions
+        fn1 = os.path.join(self.basedir, u"Ärtonwall")
         DATA1 = "unicode file content"
         fileutil.write(fn1, DATA1)
 
-        fn2 = os.path.join(self.basedir, "Metallica")
-        DATA2 = "non-unicode file content"
-        fileutil.write(fn2, DATA2)
-
-        # Bug #534
-        # Assure that uploading a file whose name contains unicode character
-        # doesn't prevent further uploads in the same directory
-        d = self.do_cli("create-alias", "tahoe")
-        d.addCallback(lambda res: self.do_cli("cp", fn1, "tahoe:"))
-        d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
+        d.addCallback(lambda res: self.do_cli("cp", fn1.encode('utf-8'), "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:Ärtonwall"))
         d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA1))
 
+        fn2 = os.path.join(self.basedir, u"Metallica")
+        DATA2 = "non-unicode file content"
+        fileutil.write(fn2, DATA2)
+
+        d.addCallback(lambda res: self.do_cli("cp", fn2.encode('utf-8'), "tahoe:"))
+
         d.addCallback(lambda res: self.do_cli("get", "tahoe:Metallica"))
         d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
 
+        d.addCallback(lambda res: self.do_cli("ls", "tahoe:"))
+        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, "Metallica\nÄrtonwall\n"))
+
         return d
-    test_unicode_filename.todo = "This behavior is not yet supported, although it does happen to work (for reasons that are ill-understood) on many platforms.  See issue ticket #534."
 
     def test_dangling_symlink_vs_recursion(self):
         if not hasattr(os, 'symlink'):
@@ -1277,6 +1419,17 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+
+class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_unicode_mkdir(self):
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda res: self.do_cli("mkdir", "tahoe:Motörhead"))
+
+        return d
+ 
 
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 

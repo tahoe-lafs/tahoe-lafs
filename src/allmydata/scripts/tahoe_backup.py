@@ -9,6 +9,11 @@ from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
 from allmydata.scripts.common_http import do_http
 from allmydata.util import time_format
 from allmydata.scripts import backupdb
+import sys
+from allmydata.util.stringutils import unicode_to_stdout, listdir_unicode, open_unicode
+from allmydata.util.assertutil import precondition
+from twisted.python import usage
+
 
 class HTTPError(Exception):
     pass
@@ -154,12 +159,16 @@ class BackerUpper:
 
     def verboseprint(self, msg):
         if self.verbosity >= 2:
+            if isinstance(msg, unicode):
+                msg = unicode_to_stdout(msg)
+
             print >>self.options.stdout, msg
 
     def warn(self, msg):
         print >>self.options.stderr, msg
 
     def process(self, localpath):
+        precondition(isinstance(localpath, unicode), localpath)
         # returns newdircap
 
         self.verboseprint("processing %s" % localpath)
@@ -167,7 +176,7 @@ class BackerUpper:
         compare_contents = {} # childname -> rocap
 
         try:
-            children = os.listdir(localpath)
+            children = listdir_unicode(localpath)
         except EnvironmentError:
             self.directories_skipped += 1
             self.warn("WARNING: permission denied on directory %s" % localpath)
@@ -283,6 +292,8 @@ class BackerUpper:
 
     # This function will raise an IOError exception when called on an unreadable file
     def upload(self, childpath):
+        precondition(isinstance(childpath, unicode), childpath)
+
         #self.verboseprint("uploading %s.." % childpath)
         metadata = get_local_metadata(childpath)
 
@@ -291,7 +302,7 @@ class BackerUpper:
 
         if must_upload:
             self.verboseprint("uploading %s.." % childpath)
-            infileobj = open(os.path.expanduser(childpath), "rb")
+            infileobj = open_unicode(os.path.expanduser(childpath), "rb")
             url = self.options['node-url'] + "uri"
             resp = do_http("PUT", url, infileobj)
             if resp.status not in (200, 201):
