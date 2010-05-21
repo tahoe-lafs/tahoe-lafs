@@ -405,10 +405,18 @@ class CLI(unittest.TestCase):
         self.failUnlessRaises(common.UnknownAliasError, ga5, "C:\\Windows")
 
     def test_listdir_unicode_good(self):
+        files = (u'Lôzane', u'Bern', u'Genève')
+        enc = sys.getfilesystemencoding() or 'ascii'
+
+        # Ensure that our test filenames can actually be represented by the
+        # current filesystem encoding
+        try:
+            [f.encode(enc) for f in files]
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("Cannot represent non-ASCII filenames on this filesystem")
+
         basedir = u"cli/common/listdir_unicode_good"
         fileutil.make_dirs(basedir)
-
-        files = (u'Lôzane', u'Bern', u'Genève')
 
         for file in files:
             open(os.path.join(basedir, file), "w").close()
