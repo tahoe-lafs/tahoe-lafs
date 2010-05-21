@@ -133,6 +133,11 @@ setup_requires.extend(['setuptools_trial >= 0.5'])
 # to setup_requires. http://pypi.python.org/pypi/setuptools_darcs
 setup_requires.append('setuptools_darcs >= 1.1.0')
 
+# trialcoverage is required if you want the "trial" unit test runner to have a
+# "--reporter=bwverbose-coverage" option which produces code-coverage results.
+if "--reporter=bwverbose-coverage" in sys.argv:
+    setup_requires.append('trialcoverage >= 0.3.10')
+
 # stdeb is required to produce Debian files with the "sdist_dsc" command.
 if "sdist_dsc" in sys.argv:
     setup_requires.append('stdeb >= 0.3')
