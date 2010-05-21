@@ -166,6 +166,7 @@ class StringUtils:
     def test_unicode_platform(self):
         matrix = {
           'linux2': False,
+          'openbsd4': False,
           'win32':  True,
           'darwin': True,
         }
@@ -270,3 +271,11 @@ class MacOSXLeopard7bit(StringUtils, unittest.TestCase):
     filesystemencoding = 'utf-8'
     stdoutencoding = 'US-ASCII'
     dirlist = [u'A\u0308rtonwall.mp3', u'Blah blah.txt', u'test_file']
+
+class OpenBSD(StringUtils, unittest.TestCase):
+    uname = 'OpenBSD 4.1 GENERIC#187 i386 Intel(R) Celeron(R) CPU 2.80GHz ("GenuineIntel" 686-class)'
+    #argv = 'lumiere'
+    platform = 'openbsd4'
+    filesystemencoding = '646'
+    stdoutencoding = '646'
+    # Oops, I cannot write filenames containing non-ascii characters
