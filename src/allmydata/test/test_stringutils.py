@@ -131,7 +131,7 @@ class StringUtilsNonUnicodePlatform(unittest.TestCase):
                               open_unicode,
                               u'lumière')
 
-class StringUtils():
+class StringUtils:
     def setUp(self):
         # Mock sys.platform because unicode_platform() uses it
         self.original_platform = sys.platform
