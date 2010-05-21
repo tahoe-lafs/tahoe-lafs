@@ -1,15 +1,12 @@
 import hotshot.stats, os, random, sys
 
-from pyutil import benchutil, randutil # http://allmydata.org/trac/pyutil
+from pyutil import benchutil, randutil # http://tahoe-lafs.org/trac/pyutil
 
 from zope.interface import implements
 from allmydata import dirnode, uri
 from allmydata.interfaces import IFileNode
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.immutable.filenode import ImmutableFileNode
-
-children = [] # tuples of (k, v) (suitable for passing to dict())
-packstr = None
 
 class ContainerNode:
     implements(IFileNode)
@@ -30,9 +27,6 @@ class ContainerNode:
 class FakeNodeMaker:
     def create_from_cap(self, writecap, readcap=None):
         return None
-
-nodemaker = FakeNodeMaker()
-testdirnode = dirnode.DirectoryNode(ContainerNode(), nodemaker, uploader=None)
 
 def random_unicode(l):
     while True:
@@ -76,24 +70,31 @@ def random_metadata():
 def random_child():
     return random_fsnode(), random_metadata()
 
-def init_for_pack(N):
-    for i in xrange(len(children), N):
-        name = random_unicode(random.randrange(1, 9))
-        children.append( (name, random_child()) )
+class B(object):
+    def __init__(self):
+        self.children = [] # tuples of (k, v) (suitable for passing to dict())
+        self.packstr = None
+        self.nodemaker = FakeNodeMaker()
+        self.testdirnode = dirnode.DirectoryNode(ContainerNode(), self.nodemaker, uploader=None)
 
-def init_for_unpack(N):
-    global packstr
-    init_for_pack(N)
-    packstr = pack(N)
+    def init_for_pack(self, N):
+        for i in xrange(len(self.children), N):
+            name = random_unicode(random.randrange(1, 9))
+            self.children.append( (name, random_child()) )
 
-def pack(N):
-    return testdirnode._pack_contents(dict(children[:N]))
+    def init_for_unpack(self, N):
+        global packstr
+        self.init_for_pack(N)
+        packstr = pack(N)
 
-def unpack(N):
-    return testdirnode._unpack_contents(packstr)
+    def pack(self, N):
+        return self.testdirnode._pack_contents(dict(self.children[:N]))
 
-def unpack_and_repack(N):
-    return testdirnode._pack_contents(testdirnode._unpack_contents(packstr))
+    def unpack(self, N):
+        return self.testdirnode._unpack_contents(self.packstr)
+
+    def unpack_and_repack(self, N):
+        return self.testdirnode._pack_contents(self.testdirnode._unpack_contents(packstr))
 
 PROF_FILE_NAME="bench_dirnode.prof"
 

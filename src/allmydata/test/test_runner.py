@@ -524,7 +524,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnless("does not look like a node directory" in err)
+            self.failUnless("does not look like a node directory" in err, err)
         d.addCallback(_cb)
 
         def _then_stop_it(res):
