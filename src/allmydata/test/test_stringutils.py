@@ -187,13 +187,26 @@ class StringUtils:
             if fname not in filenames:
                 self.fail("Cannot find %r in %r" % (fname, filenames))
 
-    @patch('os.open')
-    def test_open_unicode(self, mock):
+    @patch('sys.getfilesystemencoding')
+    @patch('__builtin__.open')
+    def test_open_unicode(self, mock_open, mock_getfilesystemencoding):
+        mock_getfilesystemencoding.return_value = self.filesystemencoding
 
-        self.failUnlessRaises(IOError,
-                              open_unicode,
-                              u'/dummy_directory/lumière.txt')
+        fn = u'/dummy_directory/lumière.txt'
 
+        try:
+            open_unicode(fn)
+        except FilenameEncodingError:
+            raise unittest.SkipTest("Cannot represent test filename on this (mocked) platform")
+
+        # Pass Unicode string to open() on Unicode platforms
+        if unicode_platform():
+            mock_open.assert_called_with(fn, 'r')
+
+        # Pass correctly encoded bytestrings to open() on non-Unicode platforms
+        else:
+            fn_bytestring = fn.encode(self.filesystemencoding)
+            mock_open.assert_called_with(fn_bytestring, 'r')
 
 class UbuntuKarmicUTF8(StringUtils, unittest.TestCase):
     uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
