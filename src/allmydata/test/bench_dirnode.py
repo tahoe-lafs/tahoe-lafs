@@ -36,28 +36,6 @@ def random_unicode(l):
             pass
 
 encoding_parameters = {"k": 3, "n": 10}
-def random_fsnode():
-    coin = random.randrange(0, 3)
-    if coin == 0:
-        cap = uri.CHKFileURI(randutil.insecurerandstr(16),
-                             randutil.insecurerandstr(32),
-                             random.randrange(1, 5),
-                             random.randrange(6, 15),
-                             random.randrange(99, 1000000000000))
-        return ImmutableFileNode(cap, None, None, None, None, None)
-    elif coin == 1:
-        cap = uri.WriteableSSKFileURI(randutil.insecurerandstr(16),
-                                      randutil.insecurerandstr(32))
-        n = MutableFileNode(None, None, encoding_parameters, None)
-        return n.init_from_cap(cap)
-    else:
-        assert coin == 2
-        cap = uri.WriteableSSKFileURI(randutil.insecurerandstr(16),
-                                      randutil.insecurerandstr(32))
-        n = MutableFileNode(None, None, encoding_parameters, None)
-        n.init_from_cap(cap)
-        return dirnode.DirectoryNode(n, nodemaker, uploader=None)
-
 def random_metadata():
     d = {}
     d['ctime'] = random.random()
@@ -67,8 +45,7 @@ def random_metadata():
     d['tahoe']['linkmotime'] = random.random()
     return d
 
-def random_child():
-    return random_fsnode(), random_metadata()
+PROF_FILE_NAME="bench_dirnode.prof"
 
 class B(object):
     def __init__(self):
@@ -77,15 +54,39 @@ class B(object):
         self.nodemaker = FakeNodeMaker()
         self.testdirnode = dirnode.DirectoryNode(ContainerNode(), self.nodemaker, uploader=None)
 
+    def random_fsnode(self):
+        coin = random.randrange(0, 3)
+        if coin == 0:
+            cap = uri.CHKFileURI(randutil.insecurerandstr(16),
+                                 randutil.insecurerandstr(32),
+                                 random.randrange(1, 5),
+                                 random.randrange(6, 15),
+                                 random.randrange(99, 1000000000000))
+            return ImmutableFileNode(cap, None, None, None, None, None)
+        elif coin == 1:
+            cap = uri.WriteableSSKFileURI(randutil.insecurerandstr(16),
+                                          randutil.insecurerandstr(32))
+            n = MutableFileNode(None, None, encoding_parameters, None)
+            return n.init_from_cap(cap)
+        else:
+            assert coin == 2
+            cap = uri.WriteableSSKFileURI(randutil.insecurerandstr(16),
+                                          randutil.insecurerandstr(32))
+            n = MutableFileNode(None, None, encoding_parameters, None)
+            n.init_from_cap(cap)
+            return dirnode.DirectoryNode(n, self.nodemaker, uploader=None)
+
+    def random_child(self):
+        return self.random_fsnode(), random_metadata()
+
     def init_for_pack(self, N):
         for i in xrange(len(self.children), N):
             name = random_unicode(random.randrange(1, 9))
-            self.children.append( (name, random_child()) )
+            self.children.append( (name, self.random_child()) )
 
     def init_for_unpack(self, N):
-        global packstr
         self.init_for_pack(N)
-        packstr = pack(N)
+        self.packstr = self.pack(N)
 
     def pack(self, N):
         return self.testdirnode._pack_contents(dict(self.children[:N]))
@@ -94,31 +95,31 @@ class B(object):
         return self.testdirnode._unpack_contents(self.packstr)
 
     def unpack_and_repack(self, N):
-        return self.testdirnode._pack_contents(self.testdirnode._unpack_contents(packstr))
+        return self.testdirnode._pack_contents(self.testdirnode._unpack_contents(self.packstr))
 
-PROF_FILE_NAME="bench_dirnode.prof"
+    def run_benchmarks(self, profile=False):
+        for (initfunc, func) in [(self.init_for_unpack, self.unpack),
+                                 (self.init_for_pack, self.pack),
+                                 (self.init_for_unpack, self.unpack_and_repack)]:
+            print "benchmarking %s" % (func,)
+            benchutil.bench(self.unpack_and_repack, initfunc=self.init_for_unpack,
+                            TOPXP=12)#, profile=profile, profresults=PROF_FILE_NAME)
 
-def run_benchmarks(profile=False):
-    for (initfunc, func) in [(init_for_unpack, unpack),
-                             (init_for_pack, pack),
-                             (init_for_unpack, unpack_and_repack)]:
-        print "benchmarking %s" % (func,)
-        benchutil.bench(unpack_and_repack, initfunc=init_for_unpack,
-                        TOPXP=12)#, profile=profile, profresults=PROF_FILE_NAME)
+    def prof_benchmarks(self):
+        # This requires pyutil >= v1.3.34.
+        self.run_benchmarks(profile=True)
 
-def print_stats():
-    s = hotshot.stats.load(PROF_FILE_NAME)
-    s.strip_dirs().sort_stats("time").print_stats(32)
-
-def prof_benchmarks():
-    # This requires pyutil >= v1.3.34.
-    run_benchmarks(profile=True)
+    def print_stats(self):
+        s = hotshot.stats.load(PROF_FILE_NAME)
+        s.strip_dirs().sort_stats("time").print_stats(32)
 
 if __name__ == "__main__":
     if '--profile' in sys.argv:
         if os.path.exists(PROF_FILE_NAME):
             print "WARNING: profiling results file '%s' already exists -- the profiling results from this run will be added into the profiling results stored in that file and then the sum of them will be printed out after this run." % (PROF_FILE_NAME,)
-        prof_benchmarks()
-        print_stats()
+        b = B()
+        b.prof_benchmarks()
+        b.print_stats()
     else:
-        run_benchmarks()
+        b = B()
+        b.run_benchmarks()
