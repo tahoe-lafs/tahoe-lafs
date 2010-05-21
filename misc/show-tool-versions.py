@@ -13,7 +13,11 @@ def print_platform():
          pass
 
 def print_python_ver():
-    print "python:", sys.version.replace("\n", " ") + ', maxunicode: ' + str(sys.maxunicode)
+    print "python:", sys.version.replace("\n", " "),
+    print ', maxunicode: ' + str(sys.maxunicode),
+    print ', stdout.encoding: ' + str(sys.stdout.encoding),
+    print ', stdin.encoding: ' + str(sys.stdin.encoding),
+    print ', filesystem.encoding: ' + str(sys.getfilesystemencoding())
 
 def print_cmd_ver(cmdlist, label=None):
     try:
