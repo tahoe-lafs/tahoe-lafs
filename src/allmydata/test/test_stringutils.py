@@ -176,6 +176,8 @@ class StringUtils:
     @patch('sys.getfilesystemencoding')
     @patch('os.listdir')
     def test_listdir_unicode(self, mock_listdir, mock_getfilesystemencoding):
+        if 'dirlist' not in dir(self):
+            raise unittest.SkipTest("No way to write non-ASCII filenames on this system")
 
         mock_listdir.return_value = self.dirlist
         mock_getfilesystemencoding.return_value = self.filesystemencoding
