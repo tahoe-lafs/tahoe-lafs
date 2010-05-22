@@ -46,7 +46,7 @@ def trace_calls(frame, event, arg):
 sys.settrace(trace_calls)
 """
 
-timeout = 60
+timeout = 240
 
 from allmydata.interfaces import IDirectoryNode, ExistingChildError, NoSuchChildError
 from allmydata.mutable.common import NotWriteableError
