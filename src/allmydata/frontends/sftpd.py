@@ -548,18 +548,6 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
 
 SIZE_THRESHOLD = 1000
 
-def _make_sftp_file(close_notify, check_abort, flags, convergence, parent=None, childname=None, filenode=None, metadata=None):
-    if noisy: logmsg("_make_sftp_file(%r, %r, %r, <convergence censored>, parent=%r, childname=%r, filenode=%r, metadata=%r" %
-                      (close_notify, check_abort, flags, parent, childname, filenode, metadata), level=NOISY)
-
-    assert metadata is None or 'readonly' in metadata, metadata
-    if not (flags & (FXF_WRITE | FXF_CREAT)) and (flags & FXF_READ) and filenode and \
-       not filenode.is_mutable() and filenode.get_size() <= SIZE_THRESHOLD:
-        return ShortReadOnlySFTPFile(filenode, metadata)
-    else:
-        return GeneralSFTPFile(close_notify, check_abort, flags, convergence,
-                               parent=parent, childname=childname, filenode=filenode, metadata=metadata)
-
 
 class ShortReadOnlySFTPFile(PrefixingLogMixin):
     implements(ISFTPFile)
@@ -660,6 +648,8 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.filenode = filenode
         self.metadata = metadata
         self.async = defer.succeed(None)
+        # Creating or truncating the file is a change, but if FXF_EXCL is set, a zero-length file has already been created.
+        self.has_changed = (flags & (FXF_CREAT | FXF_TRUNC)) and not (flags & FXF_EXCL)
         self.closed = False
         
         # self.consumer should only be relied on in callbacks for self.async, since it might
@@ -692,7 +682,11 @@ class GeneralSFTPFile(PrefixingLogMixin):
                     filenode.read(self.consumer, 0, None)
                 self.async.addCallback(_read)
 
-        if noisy: logmsg("__init__ done", level=NOISY)
+        if noisy: self.log("__init__ done", level=NOISY)
+
+    def rename(self, new_parent, new_childname):
+        self.parent = new_parent
+        self.childname = new_childname
 
     def readChunk(self, offset, length):
         request = ".readChunk(%r, %r)" % (offset, length)
@@ -728,6 +722,8 @@ class GeneralSFTPFile(PrefixingLogMixin):
         if self.closed:
             def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot write to a closed file handle")
             return defer.execute(_closed)
+
+        self.has_changed = True
 
         # Note that we return without waiting for the write to occur. Reads and
         # close wait for prior writes, and will fail if any prior operation failed.
@@ -767,21 +763,19 @@ class GeneralSFTPFile(PrefixingLogMixin):
             return defer.execute(self.consumer.close)
 
         def _close(ign):
-            d2 = self.consumer.when_done()
-            if self.filenode and self.filenode.is_mutable():
-                d2.addCallback(lambda ign: self.consumer.get_current_size())
-                d2.addCallback(lambda size: self.consumer.read(0, size))
-                d2.addCallback(lambda new_contents: self.filenode.overwrite(new_contents))
-            elif (self.flags & FXF_EXCL) and self.consumer.get_current_size() == 0:
-                # The file will already have been written by the open call, so we can
-                # optimize out the extra directory write (useful for zero-length lockfiles).
-                pass
-            else:
-                def _add_file(ign):
-                    self.log("_add_file childname=%r" % (self.childname,), level=OPERATIONAL)
-                    u = FileHandle(self.consumer.get_file(), self.convergence)
-                    return self.parent.add_file(self.childname, u)
-                d2.addCallback(_add_file)
+            d2 = defer.succeed(None)
+            if self.has_changed:
+                d2.addCallback(lambda ign: self.consumer.when_done())
+                if self.filenode and self.filenode.is_mutable():
+                    d2.addCallback(lambda ign: self.consumer.get_current_size())
+                    d2.addCallback(lambda size: self.consumer.read(0, size))
+                    d2.addCallback(lambda new_contents: self.filenode.overwrite(new_contents))
+                else:
+                    def _add_file(ign):
+                        self.log("_add_file childname=%r" % (self.childname,), level=OPERATIONAL)
+                        u = FileHandle(self.consumer.get_file(), self.convergence)
+                        return self.parent.add_file(self.childname, u)
+                    d2.addCallback(_add_file)
 
             d2.addCallback(lambda ign: self.consumer.close())
             return d2
@@ -791,7 +785,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.async.addCallbacks(eventually_callback(d), eventually_errback(d))
 
         def _closed(res):
-            self.close_notify()
+            self.close_notify(self.parent, self.childname, self)
             return res
         d.addBoth(_closed)
         d.addBoth(_convert_error, request)
@@ -864,7 +858,12 @@ class Reason:
         self.value = value
 
 
-global_open_files = {}
+# For each immutable file that has been opened with write flags
+# (FXF_WRITE and/or FXF_CREAT) and is still open, this maps from
+# parent_write_uri + "/" + childname_utf8, to (list_of_ISFTPFile, open_time_utc).
+# Updates to this dict are single-threaded.
+
+all_open_files = {}
 
 class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     implements(ISFTPServer)
@@ -881,55 +880,104 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         self._username = username
         self._convergence = client.convergence
         self._logged_out = False
-        self._open_files = {}
+        self._open_files = {}  # files created by this user handler and still open
 
-    def add_open_file(self, canonpath):
-        if canonpath in self._open_files:
-            count = self._open_files[canonpath]
-            self._open_files[canonpath] = count+1
-        else:
-            self._open_files[canonpath] = 1
+    def gotVersion(self, otherVersion, extData):
+        self.log(".gotVersion(%r, %r)" % (otherVersion, extData), level=OPERATIONAL)
 
-        if canonpath in global_open_files:
-            (gcount, times) = global_open_files[canonpath]
-            global_open_files[canonpath] = (gcount+1, times)
-        else:
-            global_open_files[canonpath] = (1, time())
+        # advertise the same extensions as the OpenSSH SFTP server
+        # <http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/PROTOCOL?rev=1.15>
+        return {'extposix-rename@openssh.com': '1',
+                'statvfs@openssh.com': '2',
+                'fstatvfs@openssh.com': '2',
+               }
 
-    def remove_open_file(self, canonpath):
-        if not self._logged_out:
-            assert canonpath in self._open_files, (canonpath, self._open_files)
-            count = self._open_files[canonpath]
-            if count > 1:
-                self._open_files[canonpath] = count-1
+    def _add_open_files(self, direntry, files_to_add):
+        if direntry:
+            if direntry in all_open_files:
+                (old_files, opentime) = all_open_files[direntry]
+                all_open_files[direntry] = (old_files + files_to_add, opentime)
             else:
-                del self._open_files[canonpath]
+                all_open_files[direntry] = (files_to_add, time())
 
-            assert canonpath in global_open_files, (canonpath, global_open_files)
-            (gcount, times) = global_open_files[canonpath]
-            if count > 1:
-                global_open_files[canonpath] = (gcount-1, times)
+            if direntry in self._open_files:
+                self._open_files[direntry] += files_to_add
             else:
-                del global_open_files[canonpath]
+                self._open_files[direntry] = files_to_add
+
+    def _remove_open_files(self, direntry, files_to_remove):
+        if direntry and not self._logged_out:
+            assert direntry in self._open_files, (direntry, self._open_files)
+            assert direntry in all_open_files, (direntry, all_open_files)
+
+            (old_files, opentime) = all_open_files[direntry]
+            new_files = [f for f in old_files if f not in files_to_remove]
+            if len(new_files) > 0:
+                all_open_files[direntry] = (new_files, opentime)
+            else:
+                del all_open_files[direntry]
+
+            files = [f for f in self._open_files[direntry] if f not in files_to_remove]
+            if len(files) > 0:
+                self._open_files[direntry] = files
+            else:
+                del self._open_files[direntry]
+
+    def _rename_open_files(self, from_parent, from_childname, to_parent, to_childname):
+        """When an direntry is renamed, any open files for that direntry are also renamed.
+        Return True if there were any open files at from_direntry."""
+
+        from_direntry = self._direntry_for(from_parent, from_childname)
+        to_direntry = self._direntry_for(to_parent, to_childname)
+
+        if from_direntry in all_open_files:
+            (from_files, opentime) = all_open_files[from_direntry]
+            del all_open_files[from_direntry]
+            for file in from_files:
+                file.rename(to_parent, to_childname)
+            self._add_open_files(to_direntry, from_files)
+            return True
+        else:
+            return False
+
+    def _direntry_for(self, parent, childname):
+        if parent and childname:
+            rw_uri = parent.get_write_uri()
+            if rw_uri:
+                return rw_uri + "/" + childname.encode('utf-8')
+
+        return None
 
     def logout(self):
         if not self._logged_out:
             self._logged_out = True
-            for canonpath in self._open_files:
-                assert canonpath in global_open_files, (canonpath, global_open_files)
-                count = self._open_files[canonpath]
-                (gcount, times) = global_open_files[canonpath]
-                if gcount > count:
-                    global_open_files[canonpath] = (gcount - count, times)
-                else:
-                    del global_open_files[canonpath]
+            for (direntry, files_at_direntry) in enumerate(self._open_files):
+                self._remove_open_files(direntry, files_at_direntry)
 
-    def check_abort(self):
+    def _check_abort(self):
         return self._logged_out
 
-    def gotVersion(self, otherVersion, extData):
-        self.log(".gotVersion(%r, %r)" % (otherVersion, extData), level=OPERATIONAL)
-        return {}
+    def _close_notify(self, parent, childname, f):
+        self._remove_open_files(self._direntry_for(parent, childname), [f])
+
+    def _make_file(self, flags, parent=None, childname=None, filenode=None, metadata=None):
+        if noisy: self.log("._make_file(%r = %r, parent=%r, childname=%r, filenode=%r, metadata=%r" %
+                           (flags, _repr_flags(flags), parent, childname, filenode, metadata), level=NOISY)
+
+        assert metadata is None or 'readonly' in metadata, metadata
+        writing = (flags & (FXF_WRITE | FXF_CREAT)) != 0
+
+        if not writing and (flags & FXF_READ) and filenode and not filenode.is_mutable() and filenode.get_size() <= SIZE_THRESHOLD:
+            return ShortReadOnlySFTPFile(filenode, metadata)
+        else:
+            direntry = None
+            if writing:
+                direntry = self._direntry_for(parent, childname)
+
+            file = GeneralSFTPFile(self._close_notify, self._check_abort, flags, self._convergence,
+                                   parent=parent, childname=childname, filenode=filenode, metadata=metadata)
+            self._add_open_files(direntry, [file])
+            return file
 
     def openFile(self, pathstring, flags, attrs):
         request = ".openFile(%r, %r = %r, %r)" % (pathstring, flags, _repr_flags(flags), attrs)
@@ -953,8 +1001,6 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         path = self._path_from_string(pathstring)
         if not path:
             raise SFTPError(FX_NO_SUCH_FILE, "path cannot be empty")
-
-        canonpath = u"/" + u"/".join(path)
 
         # The combination of flags is potentially valid. Now there are two major cases:
         #
@@ -1000,7 +1046,10 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                     raise SFTPError(FX_FAILURE,
                                     "cannot create a file exclusively when it already exists")
 
-                return _make_sftp_file(lambda: None, self.check_abort, flags, self._convergence, filenode=root)
+                # The file does not need to be added to all_open_files, because it is not
+                # associated with a directory entry that needs to be updated.
+
+                return self._make_file(flags, filenode=root)
             else:
                 # case 2
                 childname = path[-1]
@@ -1063,8 +1112,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                                             "cannot open a file for writing when the parent directory is read-only")
 
                         metadata['readonly'] = _is_readonly(parent_readonly, filenode)
-                        return _make_sftp_file(lambda: None, self.check_abort, flags, self._convergence, parent=parent,
-                                               childname=childname, filenode=filenode, metadata=metadata)
+                        return self._make_file(flags, parent=parent, childname=childname, filenode=filenode, metadata=metadata)
                     def _no_child(f):
                         if noisy: self.log("_no_child(%r)" % (f,), level=NOISY)
                         f.trap(NoSuchChildError)
@@ -1076,11 +1124,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                             raise SFTPError(FX_PERMISSION_DENIED,
                                             "cannot create a file when the parent directory is read-only")
 
-                        file = _make_sftp_file(lambda: self.remove_open_file(canonpath),
-                                               self.check_abort, flags, self._convergence, parent=parent,
-                                               childname=childname)
-                        self.add_open_file(canonpath)
-                        return file
+                        return self._make_file(flags, parent=parent, childname=childname)
                     d3.addCallbacks(_got_child, _no_child)
                     return d3
 
@@ -1091,35 +1135,47 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         d.addBoth(_convert_error, request)
         return d
 
-    def renameFile(self, oldpathstring, newpathstring):
-        request = ".renameFile(%r, %r)" % (oldpathstring, newpathstring)
+    def renameFile(self, from_pathstring, to_pathstring, overwrite=False):
+        request = ".renameFile(%r, %r)" % (from_pathstring, to_pathstring)
         self.log(request, level=OPERATIONAL)
 
-        fromPath = self._path_from_string(oldpathstring)
-        toPath = self._path_from_string(newpathstring)
+        from_path = self._path_from_string(from_pathstring)
+        to_path = self._path_from_string(to_pathstring)
 
         # the target directory must already exist
-        d = deferredutil.gatherResults([self._get_parent_or_node(fromPath),
-                                        self._get_parent_or_node(toPath)])
-        def _got( (fromPair, toPair) ):
+        d = deferredutil.gatherResults([self._get_parent_or_node(from_path),
+                                        self._get_parent_or_node(to_path)])
+        def _got( (from_pair, to_pair) ):
             if noisy: self.log("_got( (%r, %r) ) in .renameFile(%r, %r)" %
-                               (fromPair, toPair, oldpathstring, newpathstring), level=NOISY)
-            (fromParent, fromChildname) = fromPair
-            (toParent, toChildname) = toPair
+                               (from_pair, to_pair, from_pathstring, to_pathstring), level=NOISY)
+            (from_parent, from_childname) = from_pair
+            (to_parent, to_childname) = to_pair
             
-            if fromChildname is None:
+            if from_childname is None:
                 raise SFTPError(FX_NO_SUCH_FILE, "cannot rename a source object specified by URI")
-            if toChildname is None:
+            if to_childname is None:
                 raise SFTPError(FX_NO_SUCH_FILE, "cannot rename to a destination specified by URI")
 
             # <http://tools.ietf.org/html/draft-ietf-secsh-filexfer-02#section-6.5>
             # "It is an error if there already exists a file with the name specified
             #  by newpath."
             # FIXME: use move_child_to_path to avoid possible data loss due to #943
-            d = fromParent.move_child_to(fromChildname, toParent, toChildname, overwrite=False)
-            #d = parent.move_child_to_path(fromChildname, toRoot, toPath[:-1],
-            #                              toPath[-1], overwrite=False)
-            return d
+            #d = parent.move_child_to_path(from_childname, to_root, to_path, overwrite=False)
+
+            d2 = from_parent.move_child_to(from_childname, to_parent, to_childname, overwrite=overwrite)
+            def _handle(err):
+                if err.check(ExistingChildError):
+                    # OpenSSH SFTP server returns FX_PERMISSION_DENIED
+                    raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path /" + "/".join(to_path))
+                if err.check(NoSuchChildError):
+                    # If there are open files to be written at the 'from' direntry, then ensure
+                    # they will now be written at the 'to' direntry instead.
+                    if self._rename_open_files(from_parent, from_childname, to_parent, to_childname):
+                        # suppress the NoSuchChildError if any open files were renamed
+                        return None
+                return err
+            d2.addErrback(_handle)
+            return d2
         d.addCallback(_got)
         d.addBoth(_convert_error, request)
         return d
@@ -1199,8 +1255,16 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         self.log(request, level=OPERATIONAL)
 
         path = self._path_from_string(pathstring)
-        d = self._get_node_and_metadata_for_path(path)
-        def _list( (dirnode, metadata) ):
+        d = self._get_parent_or_node(path)
+        def _got_parent_or_node( (parent_or_node, childname) ):
+            if noisy: self.log("_got_parent_or_node( (%r, %r) ) in openDirectory(%r)" %
+                               (parent_or_node, childname, pathstring), level=NOISY)
+            if childname is None:
+                return parent_or_node
+            else:
+                return parent_or_node.get(childname)
+        d.addCallback(_got_parent_or_node)
+        def _list(dirnode):
             if dirnode.is_unknown():
                 raise SFTPError(FX_PERMISSION_DENIED,
                                 "cannot list an unknown cap as a directory. Upgrading the gateway "
@@ -1231,33 +1295,47 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = ".getAttrs(%r, followLinks=%r)" % (pathstring, followLinks)
         self.log(request, level=OPERATIONAL)
 
+        # When asked about a specific file, report its current size.
+        # TODO: the modification time for a mutable file should be
+        # reported as the update time of the best version. But that
+        # information isn't currently stored in mutable shares, I think.
+
         path = self._path_from_string(pathstring)
-        canonpath = u"/" + u"/".join(path)
-
-        d = self._get_node_and_metadata_for_path(path)
-        def _render( (node, metadata) ):
-            # When asked about a specific file, report its current size.
-            # TODO: the modification time for a mutable file should be
-            # reported as the update time of the best version. But that
-            # information isn't currently stored in mutable shares, I think.
-
-            d2 = node.get_current_size()
-            d2.addCallback(lambda size: _populate_attrs(node, metadata, size=size))
-            return d2
-        def _noexist(err):
-            err.trap(NoSuchChildError)
-            if canonpath in global_open_files:
-                (count, times) = global_open_files[canonpath]
-                # A file that has been opened for creation necessarily has permissions rw-rw-rw-.
-                return {'permissions': S_IFREG | 0666,
-                        'size': 0,
-                        'createtime': times,
-                        'ctime': times,
-                        'mtime': times,
-                        'atime': times,
-                       }
-            return err
-        d.addCallbacks(_render, _noexist)
+        d = self._get_parent_or_node(path)
+        def _got_parent_or_node( (parent_or_node, childname) ):
+            if noisy: self.log("_got_parent_or_node( (%r, %r) )" % (parent_or_node, childname), level=NOISY)
+            if childname is None:
+                node = parent_or_node
+                d2 = node.get_current_size()
+                d2.addCallback(lambda size:
+                               _populate_attrs(node, {'readonly': node.is_unknown() or node.is_readonly()}, size=size))
+                return d2
+            else:
+                parent = parent_or_node
+                d2 = parent.get_child_and_metadata_at_path([childname])
+                def _got( (child, metadata) ):
+                    assert IDirectoryNode.providedBy(parent), parent
+                    metadata['readonly'] = _is_readonly(parent.is_readonly(), child)
+                    d3 = child.get_current_size()
+                    d3.addCallback(lambda size: _populate_attrs(child, metadata, size=size))
+                    return d3
+                def _nosuch(err):
+                    err.trap(NoSuchChildError)
+                    direntry = self._direntry_for(parent, childname)
+                    if direntry in all_open_files:
+                        (files, opentime) = all_open_files[direntry]
+                        # A file that has been opened for writing necessarily has permissions rw-rw-rw-.
+                        return {'permissions': S_IFREG | 0666,
+                                'size': 0,
+                                'createtime': opentime,
+                                'ctime': opentime,
+                                'mtime': opentime,
+                                'atime': opentime,
+                               }
+                    return err
+                d2.addCallbacks(_got, _nosuch)
+                return d2
+        d.addCallback(_got_parent_or_node)
         d.addBoth(_convert_error, request)
         return d
 
@@ -1280,14 +1358,32 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def makeLink(self, linkPathstring, targetPathstring):
         self.log(".makeLink(%r, %r)" % (linkPathstring, targetPathstring), level=OPERATIONAL)
 
+        # If this is implemented, note the reversal of arguments described in point 7 of
+        # <http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/PROTOCOL?rev=1.15>.
+
         def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "makeLink")
         return defer.execute(_unsupported)
 
-    def extendedRequest(self, extendedName, extendedData):
-        self.log(".extendedRequest(%r, %r)" % (extendedName, extendedData), level=OPERATIONAL)
+    def extendedRequest(self, extensionName, extensionData):
+        self.log(".extendedRequest(%r, <data of length %r>)" % (extensionName, len(extensionData)), level=OPERATIONAL)
 
-        if extendedName == 'statvfs@openssh.com' or extendedName == 'fstatvfs@openssh.com':
-            # <http://dev.libssh.org/ticket/11>
+        # We implement the three main OpenSSH SFTP extensions; see
+        # <http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/PROTOCOL?rev=1.15>
+
+        if extensionName == 'extposix-rename@openssh.com':
+            def _bad(): raise SFTPError(FX_BAD_MESSAGE, "could not parse extposix-rename@openssh.com request")
+
+            (fromPathLen,) = struct.unpack('>L', extensionData[0:4])
+            if 8 + fromPathLen > len(extensionData): return defer.execute(_bad)
+
+            (toPathLen,) = struct.unpack('>L', extensionData[(4 + fromPathLen):(8 + fromPathLen)])
+            if 8 + fromPathLen + toPathLen != len(extensionData): return defer.execute(_bad)
+
+            fromPathstring = extensionData[4:(4 + fromPathLen)]
+            toPathstring = extensionData[(8 + fromPathLen):]
+            return self.renameFile(fromPathstring, toPathstring, overwrite=True)
+
+        if extensionName == 'statvfs@openssh.com' or extensionName == 'fstatvfs@openssh.com':
             return defer.succeed(struct.pack('>11Q',
                 1024,         # uint64  f_bsize     /* file system block size */
                 1024,         # uint64  f_frsize    /* fundamental fs block size */
@@ -1302,7 +1398,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 65535,        # uint64  f_namemax   /* maximum filename length */
                 ))
 
-        def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "extendedRequest %r" % extendedName)
+        def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "unsupported %r request <data of length %r>" %
+                                                               (extensionName, len(extensionData)))
         return defer.execute(_unsupported)
 
     def realPath(self, pathstring):
@@ -1360,27 +1457,6 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 d2.addCallback(lambda parent: (parent, remaining_path[-1]))
                 return d2
         d.addCallback(_got_root)
-        return d
-
-    def _get_node_and_metadata_for_path(self, path):
-        # return Deferred (node, metadata)
-        # where metadata always has a 'readonly' key
-        d = self._get_parent_or_node(path)
-        def _got_parent_or_node( (parent_or_node, childname) ):
-            if noisy: self.log("_got_parent_or_node( (%r, %r) )" % (parent_or_node, childname), level=NOISY)
-            if childname is None:
-                node = parent_or_node
-                return (node, {'readonly': node.is_unknown() or node.is_readonly()})
-            else:
-                parent = parent_or_node
-                d2 = parent.get_child_and_metadata_at_path([childname])
-                def _got( (child, metadata) ):
-                    assert IDirectoryNode.providedBy(parent), parent
-                    metadata['readonly'] = _is_readonly(parent.is_readonly(), child)
-                    return (child, metadata)
-                d2.addCallback(_got)
-                return d2
-        d.addCallback(_got_parent_or_node)
         return d
 
     def _attrs_to_metadata(self, attrs):

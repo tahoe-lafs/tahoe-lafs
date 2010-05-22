@@ -1,5 +1,5 @@
 
-import re
+import re, struct
 from stat import S_IFREG, S_IFDIR
 
 from twisted.trial import unittest
@@ -636,7 +636,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             d2.addCallback(_check_attrs, 16)
 
             # The file does not actually exist as a Tahoe file at this point, but getAttrs should
-            # use the global_open_files dict to see that it has been opened for creation.
+            # use the all_open_files dict to see that it has been opened for creation.
             d2.addCallback(lambda ign: self.handler.getAttrs("newfile", followLinks=0))
             d2.addCallback(_check_attrs, 0)
 
@@ -959,14 +959,16 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
                                          self.handler.renameFile, "small", "uri/fake_uri"))
 
         # renaming a file onto an existing file, directory or unknown should fail
+        # The SFTP spec isn't clear about what error should be returned, but sshfs depends on
+        # it being FX_PERMISSION_DENIED.
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "renameFile small small2",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "renameFile small small2",
                                          self.handler.renameFile, "small", "small2"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "renameFile small tiny_lit_dir",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "renameFile small tiny_lit_dir",
                                          self.handler.renameFile, "small", "tiny_lit_dir"))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "renameFile small unknown",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "renameFile small unknown",
                                          self.handler.renameFile, "small", "unknown"))
 
         # renaming a file to a correct path should succeed
@@ -987,6 +989,80 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
 
         # renaming an unknown to a correct path should succeed
         d.addCallback(lambda ign: self.handler.renameFile("unknown", "new_unknown"))
+        d.addCallback(lambda ign: self.root.get(u"new_unknown"))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.unknown_uri))
+
+        return d
+
+    def test_renameFile_posix(self):
+        def _renameFile(fromPathstring, toPathstring):
+            extData = (struct.pack('>L', len(fromPathstring)) + fromPathstring +
+                       struct.pack('>L', len(toPathstring))   + toPathstring)
+            return self.handler.extendedRequest('extposix-rename@openssh.com', extData)
+
+        d = self._set_up("renameFile_posix")
+        d.addCallback(lambda ign: self._set_up_tree())
+
+        d.addCallback(lambda ign: self.root.set_node(u"loop2", self.root))
+        d.addCallback(lambda ign: self.root.set_node(u"unknown2", self.unknown))
+
+        # POSIX-renaming a non-existent file should fail
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix nofile newfile",
+                                         _renameFile, "nofile", "newfile"))
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix '' newfile",
+                                         _renameFile, "", "newfile"))
+
+        # POSIX-renaming a file to a non-existent path should fail
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix small nodir/small",
+                                         _renameFile, "small", "nodir/small"))
+
+        # POSIX-renaming a file to an invalid UTF-8 name should fail
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix small invalid",
+                                         _renameFile, "small", "\xFF"))
+
+        # POSIX-renaming a file to or from an URI should fail
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix small from uri",
+                                         _renameFile, "uri/"+self.small_uri, "new"))
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "renameFile_posix small to uri",
+                                         _renameFile, "small", "uri/fake_uri"))
+
+        # POSIX-renaming a file onto an existing file, directory or unknown should succeed
+        d.addCallback(lambda ign: _renameFile("small", "small2"))
+        d.addCallback(lambda ign: self.root.get(u"small2"))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.small_uri))
+
+        d.addCallback(lambda ign: _renameFile("small2", "loop2"))
+        d.addCallback(lambda ign: self.root.get(u"loop2"))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.small_uri))
+
+        d.addCallback(lambda ign: _renameFile("loop2", "unknown2"))
+        d.addCallback(lambda ign: self.root.get(u"unknown2"))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.small_uri))
+
+        # POSIX-renaming a file to a correct new path should succeed
+        d.addCallback(lambda ign: _renameFile("unknown2", "new_small"))
+        d.addCallback(lambda ign: self.root.get(u"new_small"))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.small_uri))
+
+        # POSIX-renaming a file into a subdirectory should succeed (also tests Unicode names)
+        d.addCallback(lambda ign: _renameFile(u"gro\u00DF".encode('utf-8'),
+                                              u"loop/neue_gro\u00DF".encode('utf-8')))
+        d.addCallback(lambda ign: self.root.get(u"neue_gro\u00DF"))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.gross_uri))
+
+        # POSIX-renaming a directory to a correct path should succeed
+        d.addCallback(lambda ign: _renameFile("tiny_lit_dir", "new_tiny_lit_dir"))
+        d.addCallback(lambda ign: self.root.get(u"new_tiny_lit_dir"))
+        d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.tiny_lit_dir_uri))
+
+        # POSIX-renaming an unknown to a correct path should succeed
+        d.addCallback(lambda ign: _renameFile("unknown", "new_unknown"))
         d.addCallback(lambda ign: self.root.get(u"new_unknown"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.unknown_uri))
 

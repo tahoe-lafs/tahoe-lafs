@@ -551,7 +551,7 @@ class IFilesystemNode(Interface):
     def get_storage_index():
         """Return a string with the (binary) storage index in use on this
         download. This may be None if there is no storage index (i.e. LIT
-        files)."""
+        files and directories)."""
 
     def is_readonly():
         """Return True if this reference provides mutable access to the given
