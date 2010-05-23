@@ -1309,14 +1309,18 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 parent = parent_or_node
                 d2 = parent.get_child_and_metadata_at_path([childname])
                 def _got( (child, metadata) ):
+                    if noisy: self.log("_got( (%r, %r) )" % (child, metadata), level=NOISY)
                     assert IDirectoryNode.providedBy(parent), parent
                     metadata['readonly'] = _is_readonly(parent.is_readonly(), child)
                     d3 = child.get_current_size()
                     d3.addCallback(lambda size: _populate_attrs(child, metadata, size=size))
                     return d3
                 def _nosuch(err):
+                    if noisy: self.log("_nosuch(%r)" % (err,), level=NOISY)
                     err.trap(NoSuchChildError)
                     direntry = self._direntry_for(parent, childname)
+                    if noisy: self.log("checking open files:\nself._open_files = %r\nall_open_files = %r, direntry=%r" %
+                                       (self._open_files, all_open_files, direntry), level=NOISY)
                     if direntry in all_open_files:
                         (files, opentime) = all_open_files[direntry]
                         # A file that has been opened for writing necessarily has permissions rw-rw-rw-.
