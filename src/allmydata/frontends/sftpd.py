@@ -336,6 +336,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         self.downloaded = 0
         self.milestones = []  # empty heap of (offset, d)
         self.overwrites = []  # empty heap of (start, end)
+        self.is_closed = False
         self.done = self.when_reached(download_size)  # adds a milestone
         self.is_done = False
         def _signal_done(ign):
@@ -376,6 +377,8 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
 
     def write(self, data):
         if noisy: self.log(".write(<data of length %r>)" % (len(data),), level=NOISY)
+        if self.is_closed:
+            return
         if self.check_abort():
             self.close()
             return
@@ -520,6 +523,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         #self.unregisterProducer()
 
     def close(self):
+        self.is_closed = True
         self.finish()
         self.f.close()
 
