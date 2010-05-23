@@ -83,8 +83,11 @@ def _convert_error(res, request):
         return res
 
     err = res
-    logmsg("RAISE %r %r" % (request, err,), level=OPERATIONAL)
-    if noisy and not use_foolscap_logging: traceback.print_exc(err)
+    logmsg("RAISE %r %r" % (request, err.value), level=OPERATIONAL)
+    try:
+        if noisy: logmsg(traceback.format_exc(err.value), level=NOISY)
+    except:
+        pass
 
     # The message argument to SFTPError must not reveal information that
     # might compromise anonymity.
@@ -1319,7 +1322,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                     if noisy: self.log("_nosuch(%r)" % (err,), level=NOISY)
                     err.trap(NoSuchChildError)
                     direntry = self._direntry_for(parent, childname)
-                    if noisy: self.log("checking open files:\nself._open_files = %r\nall_open_files = %r, direntry=%r" %
+                    if noisy: self.log("checking open files:\nself._open_files = %r\nall_open_files = %r\ndirentry=%r" %
                                        (self._open_files, all_open_files, direntry), level=NOISY)
                     if direntry in all_open_files:
                         (files, opentime) = all_open_files[direntry]
