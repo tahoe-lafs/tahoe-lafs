@@ -9,7 +9,7 @@
 #
 # See the docs/about.html file for licensing information.
 
-import os, shutil, stat, subprocess, sys, zipfile, re
+import glob, os, shutil, stat, subprocess, sys, zipfile, re
 
 ##### sys.path management
 
@@ -38,23 +38,13 @@ def read_version_py(infname):
 
 version = read_version_py("src/allmydata/_version.py")
 
-try:
-    from ez_setup import use_setuptools
-except ImportError:
-    pass
-else:
-    # This invokes our own customized version of ez_setup.py to make sure
-    # that setuptools v0.6c12dev (which is our own toothpick of setuptools)
-    # is used to build. Note that we can use any version of setuptools >=
-    # 0.6c6 to *run* -- see _auto_deps.py for run-time dependencies (a.k.a.
-    # "install_requires") -- this is only for build-time dependencies (a.k.a.
-    # "setup_requires").
-    use_setuptools(download_delay=0, min_version="0.6c12dev")
+egg = os.path.realpath(glob.glob('setuptools-*.egg')[0])
+sys.path.insert(0, egg)
+import setuptools; setuptools.bootstrap_install_from = egg
 
 from setuptools import find_packages, setup
 from setuptools.command import sdist
 from setuptools import Command
-from pkg_resources import require
 
 # Make the dependency-version-requirement, which is used by the Makefile at
 # build-time, also available to the app at runtime:
@@ -255,6 +245,7 @@ class MakeExecutable(Command):
             f.write(line)
         f.close()
         if sys.platform == "win32":
+            from pkg_resources import require
             setuptools_egg = require("setuptools")[0].location
             if os.path.isfile(setuptools_egg):
                 z = zipfile.ZipFile(setuptools_egg, 'r')

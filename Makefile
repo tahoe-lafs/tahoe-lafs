@@ -255,10 +255,11 @@ test-clean:
 
 clean:
 	rm -rf build _trial_temp _test_memory .checked-deps .built
-	rm -f `find src/allmydata -name '*.so' -or -name '*.pyc'`
+	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
 	rm -rf src/allmydata_tahoe.egg-info
 	rm -rf support dist
-	rm -rf *.egg *.pyc
+	rm -rf `ls -d *.egg | grep -v setuptools-`
+	rm -rf *.pyc
 	rm -rf misc/dependencies/build misc/dependencies/temp
 	rm -rf misc/dependencies/tahoe_deps.egg-info
 	rm -f bin/tahoe bin/tahoe-script.py
