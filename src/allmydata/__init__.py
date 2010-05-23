@@ -35,6 +35,12 @@ finally:
     warnings.filters.pop()
     warnings.filters.pop()
 
+
+warnings.filterwarnings("ignore", category=DeprecationWarning,
+    message="integer argument expected, got float",
+    append=True)
+
+
 __version__ = "unknown"
 try:
     from allmydata._version import __version__
