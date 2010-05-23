@@ -840,6 +840,40 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda node: download_to_data(node))
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123"))
 
+        # test WRITE and rename while still open
+        d.addCallback(lambda ign:
+                      self.handler.openFile("small", sftp.FXF_WRITE, {}))
+        def _write_rename(wf):
+            d2 = wf.writeChunk(0, "abcd")
+            d2.addCallback(lambda ign: self.handler.renameFile("small", "renamed"))
+            d2.addCallback(lambda ign: wf.writeChunk(4, "efgh"))
+            d2.addCallback(lambda ign: wf.close())
+            return d2
+        d.addCallback(_write_rename)
+        d.addCallback(lambda ign: self.root.get(u"renamed"))
+        d.addCallback(lambda node: download_to_data(node))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcdefgh0123"))
+        d.addCallback(lambda ign:
+                      self.shouldFail(NoSuchChildError, "rename small while open", "small",
+                                      self.root.get, u"small"))
+
+        # test WRITE | CREAT | EXCL and rename while still open
+        d.addCallback(lambda ign:
+                      self.handler.openFile("newexcl", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
+        def _write_creat_excl_rename(wf):
+            d2 = wf.writeChunk(0, "abcd")
+            d2.addCallback(lambda ign: self.handler.renameFile("newexcl", "renamedexcl"))
+            d2.addCallback(lambda ign: wf.writeChunk(4, "efgh"))
+            d2.addCallback(lambda ign: wf.close())
+            return d2
+        d.addCallback(_write_creat_excl_rename)
+        d.addCallback(lambda ign: self.root.get(u"renamedexcl"))
+        d.addCallback(lambda node: download_to_data(node))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcdefgh"))
+        d.addCallback(lambda ign:
+                      self.shouldFail(NoSuchChildError, "rename newexcl while open", "newexcl",
+                                      self.root.get, u"newexcl"))
+
         return d
 
     def test_removeFile(self):

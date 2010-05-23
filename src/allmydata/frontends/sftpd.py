@@ -685,6 +685,8 @@ class GeneralSFTPFile(PrefixingLogMixin):
         if noisy: self.log("__init__ done", level=NOISY)
 
     def rename(self, new_parent, new_childname):
+        self.log(".rename(%r, %r)" % (new_parent, new_childname), level=OPERATIONAL)
+
         self.parent = new_parent
         self.childname = new_childname
 
@@ -894,34 +896,35 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
     def _add_open_files(self, direntry, files_to_add):
         if direntry:
+            if direntry in self._open_files:
+                self._open_files[direntry] += files_to_add
+            else:
+                self._open_files[direntry] = files_to_add
+
             if direntry in all_open_files:
                 (old_files, opentime) = all_open_files[direntry]
                 all_open_files[direntry] = (old_files + files_to_add, opentime)
             else:
                 all_open_files[direntry] = (files_to_add, time())
 
-            if direntry in self._open_files:
-                self._open_files[direntry] += files_to_add
-            else:
-                self._open_files[direntry] = files_to_add
-
     def _remove_open_files(self, direntry, files_to_remove):
         if direntry and not self._logged_out:
             assert direntry in self._open_files, (direntry, self._open_files)
             assert direntry in all_open_files, (direntry, all_open_files)
 
-            (old_files, opentime) = all_open_files[direntry]
+            old_files = self._open_files[direntry]
             new_files = [f for f in old_files if f not in files_to_remove]
             if len(new_files) > 0:
-                all_open_files[direntry] = (new_files, opentime)
-            else:
-                del all_open_files[direntry]
-
-            files = [f for f in self._open_files[direntry] if f not in files_to_remove]
-            if len(files) > 0:
-                self._open_files[direntry] = files
+                self._open_files[direntry] = new_files
             else:
                 del self._open_files[direntry]
+
+            (all_old_files, opentime) = all_open_files[direntry]
+            all_new_files = [f for f in all_old_files if f not in files_to_remove]
+            if len(all_new_files) > 0:
+                all_open_files[direntry] = (all_new_files, opentime)
+            else:
+                del all_open_files[direntry]
 
     def _rename_open_files(self, from_parent, from_childname, to_parent, to_childname):
         """When an direntry is renamed, any open files for that direntry are also renamed.
@@ -932,6 +935,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         if from_direntry in all_open_files:
             (from_files, opentime) = all_open_files[from_direntry]
+            del self._open_files[from_direntry]
             del all_open_files[from_direntry]
             for file in from_files:
                 file.rename(to_parent, to_childname)
@@ -1159,22 +1163,33 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             # <http://tools.ietf.org/html/draft-ietf-secsh-filexfer-02#section-6.5>
             # "It is an error if there already exists a file with the name specified
             #  by newpath."
+            # For the standard SSH_FXP_RENAME operation, overwrite=False.
+            # We also support the extposix-rename@openssh.com extension, which uses overwrite=True.
+
             # FIXME: use move_child_to_path to avoid possible data loss due to #943
-            #d = parent.move_child_to_path(from_childname, to_root, to_path, overwrite=False)
+            #d2 = from_parent.move_child_to_path(from_childname, to_root, to_path, overwrite=overwrite)
 
             d2 = from_parent.move_child_to(from_childname, to_parent, to_childname, overwrite=overwrite)
-            def _handle(err):
-                if err.check(ExistingChildError):
-                    # OpenSSH SFTP server returns FX_PERMISSION_DENIED
-                    raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path /" + "/".join(to_path))
-                if err.check(NoSuchChildError):
+            def _check(err):
+                if noisy: self.log("_check(%r) in .renameFile(%r, %r)" %
+                                   (err, from_pathstring, to_pathstring), level=NOISY)
+
+                if not isinstance(err, Failure) or err.check(NoSuchChildError):
                     # If there are open files to be written at the 'from' direntry, then ensure
                     # they will now be written at the 'to' direntry instead.
+                    if noisy: self.log("checking open files:\nself._open_files = %r\nall_open_files = %r" %
+                                       (self._open_files, all_open_files), level=NOISY)
                     if self._rename_open_files(from_parent, from_childname, to_parent, to_childname):
                         # suppress the NoSuchChildError if any open files were renamed
+                        if noisy: self.log("after renaming:\nself._open_files = %r\nall_open_files = %r" %
+                                           (self._open_files, all_open_files), level=NOISY)
                         return None
+                elif err.check(ExistingChildError):
+                    # OpenSSH SFTP server returns FX_PERMISSION_DENIED
+                    raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_pathstring)
+
                 return err
-            d2.addErrback(_handle)
+            d2.addBoth(_check)
             return d2
         d.addCallback(_got)
         d.addBoth(_convert_error, request)
