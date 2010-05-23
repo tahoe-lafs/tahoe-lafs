@@ -1,5 +1,5 @@
 
-import re, struct
+import re, struct, traceback
 from stat import S_IFREG, S_IFDIR
 
 from twisted.trial import unittest
@@ -23,31 +23,6 @@ if have_pycrypto:
     from twisted.conch.ssh import filetransfer as sftp
     from allmydata.frontends import sftpd
 
-import traceback
-
-"""
-import sys
-def trace_exceptions(frame, event, arg):
-    if event != 'exception':
-        return
-    co = frame.f_code
-    func_name = co.co_name
-    line_no = frame.f_lineno
-    filename = co.co_filename
-    exc_type, exc_value, exc_traceback = arg
-    print 'Tracing exception: %r %r on line %r of %r in %r' % \
-        (exc_type.__name__, exc_value, line_no, func_name, filename)
-
-def trace_calls(frame, event, arg):
-    if event != 'call':
-        return
-    return trace_exceptions
-
-sys.settrace(trace_calls)
-"""
-
-timeout = 240
-
 from allmydata.interfaces import IDirectoryNode, ExistingChildError, NoSuchChildError
 from allmydata.mutable.common import NotWriteableError
 
@@ -55,6 +30,8 @@ from allmydata.util.consumer import download_to_data
 from allmydata.immutable import upload
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common import ShouldFailMixin
+
+timeout = 240
 
 class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
     """This is a no-network unit test of the SFTPHandler class."""
