@@ -37,7 +37,7 @@ class TheRightCode(common_util.SignalMixin, unittest.TestCase, SkipMixin):
         d = utils.getProcessOutputAndValue(bintahoe, args=["--version-and-path"], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0)
+            self.failUnlessEqual(rc_or_sig, 0, str((out, err, rc_or_sig)))
 
             # Fail unless the allmydata-tahoe package is *this* version *and*
             # was loaded from *this* source directory.
