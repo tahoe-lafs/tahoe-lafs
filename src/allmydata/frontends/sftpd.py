@@ -876,7 +876,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         # advertise the same extensions as the OpenSSH SFTP server
         # <http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/PROTOCOL?rev=1.15>
-        return {'extposix-rename@openssh.com': '1',
+        return {'posix-rename@openssh.com': '1',
                 'statvfs@openssh.com': '2',
                 'fstatvfs@openssh.com': '2',
                }
@@ -1151,7 +1151,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             # "It is an error if there already exists a file with the name specified
             #  by newpath."
             # For the standard SSH_FXP_RENAME operation, overwrite=False.
-            # We also support the extposix-rename@openssh.com extension, which uses overwrite=True.
+            # We also support the posix-rename@openssh.com extension, which uses overwrite=True.
 
             # FIXME: use move_child_to_path to avoid possible data loss due to #943
             #d2 = from_parent.move_child_to_path(from_childname, to_root, to_path, overwrite=overwrite)
@@ -1376,8 +1376,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # We implement the three main OpenSSH SFTP extensions; see
         # <http://www.openbsd.org/cgi-bin/cvsweb/src/usr.bin/ssh/PROTOCOL?rev=1.15>
 
-        if extensionName == 'extposix-rename@openssh.com':
-            def _bad(): raise SFTPError(FX_BAD_MESSAGE, "could not parse extposix-rename@openssh.com request")
+        if extensionName == 'posix-rename@openssh.com':
+            def _bad(): raise SFTPError(FX_BAD_MESSAGE, "could not parse posix-rename@openssh.com request")
 
             (fromPathLen,) = struct.unpack('>L', extensionData[0:4])
             if 8 + fromPathLen > len(extensionData): return defer.execute(_bad)
