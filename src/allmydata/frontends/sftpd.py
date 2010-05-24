@@ -75,6 +75,13 @@ def _utf8(x):
     return repr(x)
 
 
+def _to_sftp_time(t):
+    """SFTP times are unsigned 32-bit integers representing UTC seconds
+    (ignoring leap seconds) since the Unix epoch, January 1 1970 00:00 UTC.
+    A Tahoe time is the corresponding float."""
+    return long(t) & 0xFFFFFFFFL
+
+
 def _convert_error(res, request):
     if not isinstance(res, Failure):
         logged_res = res
@@ -183,8 +190,11 @@ def _lsLine(name, attrs):
     sz = str(st_size)
     l += sz.rjust(8)
     l += ' '
-    sixmo = 60 * 60 * 24 * 7 * 26
-    if st_mtime + sixmo < time(): # last edited more than 6mo ago
+    day = 60 * 60 * 24
+    sixmo = day * 7 * 26
+    now = time()
+    if st_mtime + sixmo < now or st_mtime > now + day:
+        # mtime is more than 6 months ago, or more than one day in the future
         l += strftime("%b %d  %Y ", localtime(st_mtime))
     else:
         l += strftime("%b %d %H:%M ", localtime(st_mtime))
@@ -237,18 +247,18 @@ def _populate_attrs(childnode, metadata, size=None):
 
         # see webapi.txt for what these times mean
         if 'linkmotime' in metadata.get('tahoe', {}):
-            attrs['mtime'] = int(metadata['tahoe']['linkmotime'])
+            attrs['mtime'] = _to_sftp_time(metadata['tahoe']['linkmotime'])
         elif 'mtime' in metadata:
             # We would prefer to omit atime, but SFTP version 3 can only
             # accept mtime if atime is also set.
-            attrs['mtime'] = int(metadata['mtime'])
+            attrs['mtime'] = _to_sftp_time(metadata['mtime'])
             attrs['atime'] = attrs['mtime']
 
         if 'linkcrtime' in metadata.get('tahoe', {}):
-            attrs['createtime'] = int(metadata['tahoe']['linkcrtime'])
+            attrs['createtime'] = _to_sftp_time(metadata['tahoe']['linkcrtime'])
 
         if 'ctime' in metadata:
-            attrs['ctime'] = int(metadata['ctime'])
+            attrs['ctime'] = _to_sftp_time(metadata['ctime'])
 
     attrs['permissions'] = perms
 
@@ -1330,13 +1340,14 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                                        (self._open_files, all_open_files, direntry), level=NOISY)
                     if direntry in all_open_files:
                         (files, opentime) = all_open_files[direntry]
+                        sftptime = _to_sftp_time(opentime)
                         # A file that has been opened for writing necessarily has permissions rw-rw-rw-.
                         return {'permissions': S_IFREG | 0666,
                                 'size': 0,
-                                'createtime': opentime,
-                                'ctime': opentime,
-                                'mtime': opentime,
-                                'atime': opentime,
+                                'createtime': sftptime,
+                                'ctime': sftptime,
+                                'mtime': sftptime,
+                                'atime': sftptime,
                                }
                     return err
                 d2.addCallbacks(_got, _nosuch)
