@@ -126,7 +126,7 @@ setup_requires.append('setuptools_darcs >= 1.1.0')
 # trialcoverage is required if you want the "trial" unit test runner to have a
 # "--reporter=bwverbose-coverage" option which produces code-coverage results.
 if "--reporter=bwverbose-coverage" in sys.argv:
-    setup_requires.append('trialcoverage >= 0.3.10')
+    setup_requires.append('trialcoverage >= 0.3.3')
 
 # stdeb is required to produce Debian files with the "sdist_dsc" command.
 if "sdist_dsc" in sys.argv:
