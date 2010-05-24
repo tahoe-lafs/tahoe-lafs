@@ -195,17 +195,28 @@ that information to the share-to-server table. This lets us do less work for
 files which have been uploaded once before, while making sure we still wind up
 with as many shares as we desire.
 
-If we are unable to place every share that we want, but we still managed to
-place enough shares on enough servers to achieve a condition called "servers of
-happiness" then we'll do the upload anyways. If we cannot achieve "servers of
-happiness", the upload is declared a failure.
+Before a file upload is called successful, it has to pass an upload health
+check. For immutable files, we check to see that a condition called
+'servers-of-happiness' is satisfied. When satisfied, 'servers-of-happiness'
+assures us that enough pieces of the file are distributed across enough
+servers on the grid to ensure that the availability of the file will not be
+affected if a few of those servers later fail. For mutable files and
+directories, we check to see that all of the encoded shares generated during
+the upload process were successfully placed on the grid. This is a weaker
+check than 'servers-of-happiness'; it does not consider any information about
+how the encoded shares are placed on the grid, and cannot detect situations in
+which all or a majority of the encoded shares generated during the upload
+process reside on only one storage server. We hope to extend
+'servers-of-happiness' to mutable files in a future release of Tahoe-LAFS. If,
+at the end of the upload process, the appropriate upload health check fails,
+the upload is considered a failure.
 
 The current defaults use k=3, servers_of_happiness=7, and N=10. N=10 means that
 we'll try to place 10 shares. k=3 means that we need any three shares to
-recover the file. servers_of_happiness=7 means that we'll consider the upload
-to be successful if we can place shares on enough servers that there are 7
-different servers, the correct functioning of any k of which guarantee the
-availability of the file.
+recover the file. servers_of_happiness=7 means that we'll consider an immutable
+file upload to be successful if we can place shares on enough servers that
+there are 7 different servers, the correct functioning of any k of which
+guarantee the availability of the immutable file.
 
 N=10 and k=3 means there is a 3.3x expansion factor. On a small grid, you
 should set N about equal to the number of storage servers in your grid; on a

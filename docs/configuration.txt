@@ -272,11 +272,14 @@ shares.happy = (int, optional) k <= happy <= N
  larger than 256, because of the 8-bit erasure-coding algorithm that Tahoe
  uses.
 
- shares.happy allows you control over the distribution of your file. An upload
- is only considered successful if shares are placed on at least 'shares.happy'
- distinct servers, the correct functioning of at least k of which is sufficient
- to guarantee the availability of the uploaded file. This value should not be
- larger than the number of servers on your grid.
+ shares.happy allows you control over the distribution of your immutable file.
+ An upload is only considered successful if shares are placed on at least
+ 'shares.happy' distinct servers, the correct functioning of at least k of
+ which is sufficient to guarantee the availability of the uploaded file. This
+ value should not be larger than the number of servers on your grid.
+
+ (Mutable files use a different share placement algorithm that does not 
+  consider this parameter.)
 
 
 == Storage Server Configuration ==
