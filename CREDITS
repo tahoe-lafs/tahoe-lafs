@@ -106,3 +106,6 @@ E: jacob@appelbaum.com
 W: http://www.appelbaum.net/
 P: 12E4 04FF D3C9 31F9 3405  2D06 B884 1A91 9D0F ACE4
 D: Debian packaging including init scripts
+
+N: Jeremy Visser
+D: Ubuntu packaging, usability testing
