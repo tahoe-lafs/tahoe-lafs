@@ -52,7 +52,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
                                            (which, expected_code, res.value.code, res))
             else:
                 print '@' + '@'.join(s)
-                self.fail("%s was supposed to raise SFTPError(%d), not get '%s'" %
+                self.fail("%s was supposed to raise SFTPError(%d), not get %r" %
                           (which, expected_code, res))
         d.addBoth(_done)
         return d
@@ -1009,8 +1009,16 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         def _renameFile(fromPathstring, toPathstring):
             extData = (struct.pack('>L', len(fromPathstring)) + fromPathstring +
                        struct.pack('>L', len(toPathstring))   + toPathstring)
+
             d2 = self.handler.extendedRequest('posix-rename@openssh.com', extData)
-            d2.addCallback(lambda res: self.failUnlessReallyEqual(res, ""))
+            def _check(res):
+                res.trap(sftp.SFTPError)
+                if res.value.code == sftp.FX_OK:
+                    return None
+                return res
+            d2.addCallbacks(lambda res: self.fail("posix-rename request was supposed to "
+                                                  "raise an SFTPError, not get '%r'" % (res,)),
+                            _check)
             return d2
 
         d = self._set_up("renameFile_posix")

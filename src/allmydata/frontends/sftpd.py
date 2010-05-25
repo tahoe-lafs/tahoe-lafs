@@ -9,7 +9,7 @@ from twisted.application import service, strports
 from twisted.conch.ssh import factory, keys, session
 from twisted.conch.ssh.filetransfer import FileTransferServer, SFTPError, \
      FX_NO_SUCH_FILE, FX_OP_UNSUPPORTED, FX_PERMISSION_DENIED, FX_EOF, \
-     FX_BAD_MESSAGE, FX_FAILURE
+     FX_BAD_MESSAGE, FX_FAILURE, FX_OK
 from twisted.conch.ssh.filetransfer import FXF_READ, FXF_WRITE, FXF_APPEND, \
      FXF_CREAT, FXF_TRUNC, FXF_EXCL
 from twisted.conch.interfaces import ISFTPServer, ISFTPFile, IConchUser, ISession
@@ -1399,7 +1399,13 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             fromPathstring = extensionData[4:(4 + fromPathLen)]
             toPathstring = extensionData[(8 + fromPathLen):]
             d = self.renameFile(fromPathstring, toPathstring, overwrite=True)
-            d.addCallback(lambda ign: "")
+
+            # Twisted conch assumes that the response from an extended request is either
+            # an error, or an FXP_EXTENDED_REPLY. But it happens to do the right thing
+            # (respond with an FXP_STATUS message) if we return a Failure with code FX_OK.
+            def _succeeded(ign):
+                raise SFTPError(FX_OK, "request succeeded")
+            d.addCallback(_succeeded)
             return d
 
         if extensionName == 'statvfs@openssh.com' or extensionName == 'fstatvfs@openssh.com':
