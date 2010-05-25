@@ -93,7 +93,7 @@ def _convert_error(res, request):
     logmsg("RAISE %r %r" % (request, err.value), level=OPERATIONAL)
     try:
         if noisy: logmsg(traceback.format_exc(err.value), level=NOISY)
-    except:
+    except:  # pragma: no cover
         pass
 
     # The message argument to SFTPError must not reveal information that
@@ -1398,7 +1398,9 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
             fromPathstring = extensionData[4:(4 + fromPathLen)]
             toPathstring = extensionData[(8 + fromPathLen):]
-            return self.renameFile(fromPathstring, toPathstring, overwrite=True)
+            d = self.renameFile(fromPathstring, toPathstring, overwrite=True)
+            d.addCallback(lambda ign: "")
+            return d
 
         if extensionName == 'statvfs@openssh.com' or extensionName == 'fstatvfs@openssh.com':
             return defer.succeed(struct.pack('>11Q',

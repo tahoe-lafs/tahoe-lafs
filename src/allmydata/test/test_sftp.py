@@ -1009,7 +1009,9 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         def _renameFile(fromPathstring, toPathstring):
             extData = (struct.pack('>L', len(fromPathstring)) + fromPathstring +
                        struct.pack('>L', len(toPathstring))   + toPathstring)
-            return self.handler.extendedRequest('posix-rename@openssh.com', extData)
+            d2 = self.handler.extendedRequest('posix-rename@openssh.com', extData)
+            d2.addCallback(lambda res: self.failUnlessReallyEqual(res, ""))
+            return d2
 
         d = self._set_up("renameFile_posix")
         d.addCallback(lambda ign: self._set_up_tree())
