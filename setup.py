@@ -125,6 +125,8 @@ setup_requires.append('setuptools_darcs >= 1.1.0')
 
 # trialcoverage is required if you want the "trial" unit test runner to have a
 # "--reporter=bwverbose-coverage" option which produces code-coverage results.
+# The required version is 0.3.3, because that is the latest version that only
+# depends on a version of pycoverage for which binary packages are available.
 if "--reporter=bwverbose-coverage" in sys.argv:
     setup_requires.append('trialcoverage >= 0.3.3')
 
