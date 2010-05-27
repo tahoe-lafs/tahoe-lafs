@@ -828,6 +828,9 @@ class ExistingChildError(Exception):
 class NoSuchChildError(Exception):
     """A directory node was asked to fetch a child which does not exist."""
 
+class ChildOfWrongTypeError(Exception):
+    """An operation was attempted on a child of the wrong type (file or directory)."""
+
 class IDirectoryNode(IFilesystemNode):
     """I represent a filesystem node that is a container, with a
     name-to-child mapping, holding the tahoe equivalent of a directory. All
@@ -974,11 +977,13 @@ class IDirectoryNode(IFilesystemNode):
         I return a Deferred that fires (with the IFileNode of the uploaded
         file) when the operation completes."""
 
-    def delete(name):
+    def delete(name, must_exist=True, must_be_directory=False, must_be_file=False):
         """I remove the child at the specific name. I return a Deferred that
         fires when the operation finishes. The child name must be a unicode
-        string. I raise NoSuchChildError if I do not have a child by that
-        name."""
+        string. If must_exist is True and I do not have a child by that name,
+        I raise NoSuchChildError. If must_be_directory is True and the child
+        is a file, or if must_be_file is True and the child is a directory,
+        I raise ChildOfWrongTypeError."""
 
     def create_subdirectory(name, initial_children={}, overwrite=True):
         """I create and attach a directory at the given name. The new

@@ -11,7 +11,7 @@ from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.interfaces import IFilesystemNode, IDirectoryNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, ICheckable, IDeepCheckable, \
-     MustBeDeepImmutableError, CapConstraintError
+     MustBeDeepImmutableError, CapConstraintError, ChildOfWrongTypeError
 from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
@@ -81,10 +81,13 @@ def update_metadata(metadata, new_metadata, now):
 # the unpacked contents.
 
 class Deleter:
-    def __init__(self, node, name, must_exist=True):
+    def __init__(self, node, name, must_exist=True, must_be_directory=False, must_be_file=False):
         self.node = node
         self.name = name
-        self.must_exist = True
+        self.must_exist = must_exist
+        self.must_be_directory = must_be_directory
+        self.must_be_file = must_be_file
+
     def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         if self.name not in children:
@@ -93,6 +96,13 @@ class Deleter:
             self.old_child = None
             return None
         self.old_child, metadata = children[self.name]
+
+        # Unknown children can be removed regardless of must_be_directory or must_be_file.
+        if self.must_be_directory and IFileNode.providedBy(self.old_child):
+            raise ChildOfWrongTypeError("delete required a directory, not a file")
+        if self.must_be_file and IDirectoryNode.providedBy(self.old_child):
+            raise ChildOfWrongTypeError("delete required a file, not a directory")
+
         del children[self.name]
         new_contents = self.node._pack_contents(children)
         return new_contents
@@ -568,13 +578,14 @@ class DirectoryNode:
                       self.set_node(name, node, metadata, overwrite))
         return d
 
-    def delete(self, name):
+    def delete(self, name, must_exist=True, must_be_directory=False, must_be_file=False):
         """I remove the child at the specific name. I return a Deferred that
         fires (with the node just removed) when the operation finishes."""
         assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
-        deleter = Deleter(self, name)
+        deleter = Deleter(self, name, must_exist=must_exist,
+                          must_be_directory=must_be_directory, must_be_file=must_be_file)
         d = self._node.modify(deleter.modify)
         d.addCallback(lambda res: deleter.old_child)
         return d
