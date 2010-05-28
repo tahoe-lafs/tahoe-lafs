@@ -832,7 +832,7 @@ class IDirectoryNode(IFilesystemNode):
     """I represent a filesystem node that is a container, with a
     name-to-child mapping, holding the tahoe equivalent of a directory. All
     child names are unicode strings, and all children are some sort of
-    IFilesystemNode (either files or subdirectories).
+    IFilesystemNode (a file, subdirectory, or unknown node).
     """
 
     def get_uri():
@@ -856,8 +856,8 @@ class IDirectoryNode(IFilesystemNode):
     def list():
         """I return a Deferred that fires with a dictionary mapping child
         name (a unicode string) to (node, metadata_dict) tuples, in which
-        'node' is an IFilesystemNode (either IFileNode or IDirectoryNode),
-        and 'metadata_dict' is a dictionary of metadata."""
+        'node' is an IFilesystemNode and 'metadata_dict' is a dictionary of
+        metadata."""
 
     def has_child(name):
         """I return a Deferred that fires with a boolean, True if there
@@ -866,25 +866,23 @@ class IDirectoryNode(IFilesystemNode):
 
     def get(name):
         """I return a Deferred that fires with a specific named child node,
-        either an IFileNode or an IDirectoryNode. The child name must be a
-        unicode string. I raise NoSuchChildError if I do not have a child by
-        that name."""
+        which is an IFilesystemNode. The child name must be a unicode string.
+        I raise NoSuchChildError if I do not have a child by that name."""
 
     def get_metadata_for(name):
-        """I return a Deferred that fires with the metadata dictionary for a
-        specific named child node. This metadata is stored in the *edge*, not
-        in the child, so it is attached to the parent dirnode rather than the
-        child dir-or-file-node. The child name must be a unicode string. I
-        raise NoSuchChildError if I do not have a child by that name."""
+        """I return a Deferred that fires with the metadata dictionary for
+        a specific named child node. The child name must be a unicode string.
+        This metadata is stored in the *edge*, not in the child, so it is
+        attached to the parent dirnode rather than the child node.
+        I raise NoSuchChildError if I do not have a child by that name."""
 
     def set_metadata_for(name, metadata):
         """I replace any existing metadata for the named child with the new
         metadata. The child name must be a unicode string. This metadata is
         stored in the *edge*, not in the child, so it is attached to the
-        parent dirnode rather than the child dir-or-file-node. I return a
-        Deferred (that fires with this dirnode) when the operation is
-        complete. I raise NoSuchChildError if I do not have a child by that
-        name."""
+        parent dirnode rather than the child node. I return a Deferred
+        (that fires with this dirnode) when the operation is complete.
+        I raise NoSuchChildError if I do not have a child by that name."""
 
     def get_child_at_path(path):
         """Transform a child path into an IFilesystemNode.
@@ -912,10 +910,12 @@ class IDirectoryNode(IFilesystemNode):
         an existing child will cause me to return ExistingChildError. The
         child name must be a unicode string.
 
-        The child caps could be for a file, or for a directory. If the new
-        child is read/write, you will provide both writecap and readcap. If
-        the child is read-only, you will provide the readcap write (i.e. the
-        writecap= and readcap= arguments will both be the child's readcap).
+        The child caps could be for a file, or for a directory. If you have
+        both the writecap and readcap, you should provide both arguments.
+        If you have only one cap and don't know whether it is read-only,
+        provide it as the writecap argument and leave the readcap as None.
+        If you have only one cap that is known to be read-only, provide it
+        as the readcap argument and leave the writecap as None.
         The filecaps are typically obtained from an IFilesystemNode with
         get_uri() and get_readonly_uri().
 
@@ -924,7 +924,8 @@ class IDirectoryNode(IFilesystemNode):
         as the default value of None, I will set ['mtime'] to the current
         time, and I will set ['ctime'] to the current time if there was not
         already a child by this name present. This roughly matches the
-        ctime/mtime semantics of traditional filesystems.
+        ctime/mtime semantics of traditional filesystems.  See the
+        "About the metadata" section of webapi.txt for futher information.
 
         If this directory node is read-only, the Deferred will errback with a
         NotWriteableError."""
@@ -950,7 +951,8 @@ class IDirectoryNode(IFilesystemNode):
         as the default value of None, I will set ['mtime'] to the current
         time, and I will set ['ctime'] to the current time if there was not
         already a child by this name present. This roughly matches the
-        ctime/mtime semantics of traditional filesystems.
+        ctime/mtime semantics of traditional filesystems. See the
+        "About the metadata" section of webapi.txt for futher information.
 
         If this directory node is read-only, the Deferred will errback with a
         NotWriteableError."""
