@@ -33,13 +33,6 @@ from allmydata.immutable.upload import FileHandle
 
 from pycryptopp.cipher.aes import AES
 
-# twisted.conch.ssh.filetransfer generates this warning, but not when it is imported,
-# only on an error.
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning,
-    message="BaseException.message has been deprecated as of Python 2.6",
-    module=".*filetransfer", append=True)
-
 noisy = True
 use_foolscap_logging = True
 
