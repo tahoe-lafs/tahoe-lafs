@@ -34,7 +34,7 @@ from allmydata.test.common import ShouldFailMixin
 timeout = 240
 
 class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
-    """This is a no-network unit test of the SFTPHandler class."""
+    """This is a no-network unit test of the SFTPUserHandler and the abstractions it uses."""
 
     if not have_pycrypto:
         skip = "SFTP support requires pycrypto, which is not installed"
