@@ -1092,7 +1092,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             if f is not ignore:
                 def _sync(ign):
                     if noisy: self.log("_sync %r in %r" % (f, request), level=NOISY)
-                    f.sync()
+                    return f.sync()
                 d.addBoth(_sync)
 
         def _done(ign):
