@@ -1085,10 +1085,15 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         if userpath in self._heisenfiles:
             files += self._heisenfiles[userpath]
 
+        if noisy: self.log("files = %r in %r" % (files, request), level=NOISY)
+
         d = defer.succeed(None)
         for f in files:
             if f is not ignore:
-                d.addBoth(lambda ign: f.sync())
+                def _sync(ign):
+                    if noisy: self.log("_sync %r in %r" % (f, request), level=NOISY)
+                    f.sync()
+                d.addBoth(_sync)
 
         def _done(ign):
             self.log("done %r" % (request,), level=OPERATIONAL)
@@ -1097,7 +1102,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         return d
 
     def _remove_heisenfile(self, userpath, parent, childname, file_to_remove):
-        if noisy: self.log("._remove_file(%r, %r, %r, %r)" % (userpath, parent, childname, file_to_remove), level=NOISY)
+        if noisy: self.log("._remove_heisenfile(%r, %r, %r, %r)" % (userpath, parent, childname, file_to_remove), level=NOISY)
 
         direntry = self._direntry_for(parent, childname)
         if direntry in all_heisenfiles:
