@@ -714,6 +714,10 @@ class GeneralSFTPFile(PrefixingLogMixin):
 
         d = defer.Deferred()
         self.async.addBoth(eventually_callback(d))
+        def _done(res):
+            if noisy: self.log("_done(%r) in .sync()" % (res,), level=NOISY)
+            return res
+        d.addBoth(_done)
         return d
 
     def readChunk(self, offset, length):
