@@ -1093,7 +1093,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         d = defer.succeed(None)
         for f in files:
-            if f is not ignore:
+            if not (f is ignore):
                 def _sync(ign):
                     if noisy: self.log("_sync %r in %r" % (f, request), level=NOISY)
                     return f.sync()
