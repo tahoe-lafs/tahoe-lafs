@@ -1094,10 +1094,10 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         d = defer.succeed(None)
         for f in files:
             if not (f is ignore):
-                def _sync(ign):
-                    if noisy: self.log("_sync %r in %r" % (f, request), level=NOISY)
-                    return f.sync()
-                d.addBoth(_sync)
+                def _sync(ign, current_f):
+                    if noisy: self.log("_sync %r in %r" % (current_f, request), level=NOISY)
+                    return current_f.sync()
+                d.addBoth(_sync, f)
 
         def _done(ign):
             self.log("done %r" % (request,), level=OPERATIONAL)
