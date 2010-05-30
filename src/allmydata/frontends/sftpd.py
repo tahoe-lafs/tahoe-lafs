@@ -1014,7 +1014,9 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         d = defer.succeed(None)
         for f in files:
-            d.addBoth(lambda ign: f.sync())
+            def _sync(ign, current_f):
+                return current_f.sync()
+            d.addBoth(_sync, f)
 
         d.addBoth(lambda ign: len(files) > 0)
         return d
@@ -1074,7 +1076,9 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         d = defer.succeed(None)
         for f in from_files:
-            d.addBoth(lambda ign: f.sync())
+            def _sync(ign, current_f):
+                return current_f.sync()
+            d.addBoth(_sync, f)
 
         d.addBoth(lambda ign: len(from_files) > 0)
         return d
