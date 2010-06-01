@@ -24,6 +24,50 @@ from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
 
 
+def update_metadata(metadata, new_metadata, now):
+    """Updates 'metadata' in-place with the information in 'new_metadata'.
+    Timestamps are set according to the time 'now'."""
+
+    if metadata is None:
+        metadata = {"ctime": now,
+                    "mtime": now,
+                    "tahoe": {
+                        "linkcrtime": now,
+                        "linkmotime": now,
+                        }
+                    }
+
+    if new_metadata is not None:
+        # Overwrite all metadata.
+        newmd = new_metadata.copy()
+
+        # Except 'tahoe'.
+        if newmd.has_key('tahoe'):
+            del newmd['tahoe']
+        if metadata.has_key('tahoe'):
+            newmd['tahoe'] = metadata['tahoe']
+
+        metadata = newmd
+    else:
+        # For backwards compatibility with Tahoe < 1.4.0:
+        if "ctime" not in metadata:
+            metadata["ctime"] = now
+        metadata["mtime"] = now
+
+    # update timestamps
+    sysmd = metadata.get('tahoe', {})
+    if not 'linkcrtime' in sysmd:
+        if "ctime" in metadata:
+            # In Tahoe < 1.4.0 we used the word "ctime" to mean what Tahoe >= 1.4.0
+            # calls "linkcrtime".
+            sysmd["linkcrtime"] = metadata["ctime"]
+        else:
+            sysmd["linkcrtime"] = now
+    sysmd["linkmotime"] = now
+
+    return metadata
+
+
 # TODO: {Deleter,MetadataSetter,Adder}.modify all start by unpacking the
 # contents and end by repacking them. It might be better to apply them to
 # the unpacked contents.
@@ -47,28 +91,38 @@ class Deleter:
 
 
 class MetadataSetter:
-    def __init__(self, node, name, metadata):
+    def __init__(self, node, name, metadata, create_readonly_node=None):
         self.node = node
         self.name = name
         self.metadata = metadata
+        self.create_readonly_node = create_readonly_node
 
     def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
-        if self.name not in children:
-            raise NoSuchChildError(self.name)
-        children[self.name] = (children[self.name][0], self.metadata)
+        name = self.name
+        if name not in children:
+            raise NoSuchChildError(name)
+
+        now = time.time()
+        metadata = update_metadata(children[name][1].copy(), self.metadata, now)
+        child = children[name][0]
+        if self.create_readonly_node and metadata and metadata.get('no-write', False):
+            child = self.create_readonly_node(child, name)
+
+        children[name] = (child, metadata)
         new_contents = self.node._pack_contents(children)
         return new_contents
 
 
 class Adder:
-    def __init__(self, node, entries=None, overwrite=True):
+    def __init__(self, node, entries=None, overwrite=True, create_readonly_node=None):
         self.node = node
         if entries is None:
             entries = {}
         precondition(isinstance(entries, dict), entries)
         self.entries = entries
         self.overwrite = overwrite
+        self.create_readonly_node = create_readonly_node
 
     def set_node(self, name, node, metadata):
         precondition(isinstance(name, unicode), name)
@@ -86,6 +140,7 @@ class Adder:
             # error again in pack_children.
             child.raise_error()
 
+            metadata = None
             if name in children:
                 if not self.overwrite:
                     raise ExistingChildError("child '%s' already exists" % name)
@@ -93,44 +148,11 @@ class Adder:
                 if self.overwrite == "only-files" and IDirectoryNode.providedBy(children[name][0]):
                     raise ExistingChildError("child '%s' already exists" % name)
                 metadata = children[name][1].copy()
-            else:
-                metadata = {"ctime": now,
-                            "mtime": now,
-                            "tahoe": {
-                                "linkcrtime": now,
-                                "linkmotime": now,
-                                }
-                            }
 
-            if new_metadata is not None:
-                # Overwrite all metadata.
-                newmd = new_metadata.copy()
+            if self.create_readonly_node and metadata and metadata.get('no-write', False):
+                child = self.create_readonly_node(child, name)
 
-                # Except 'tahoe'.
-                if newmd.has_key('tahoe'):
-                    del newmd['tahoe']
-                if metadata.has_key('tahoe'):
-                    newmd['tahoe'] = metadata['tahoe']
-
-                metadata = newmd
-            else:
-                # For backwards compatibility with Tahoe < 1.4.0:
-                if "ctime" not in metadata:
-                    metadata["ctime"] = now
-                metadata["mtime"] = now
-
-            # update timestamps
-            sysmd = metadata.get('tahoe', {})
-            if not 'linkcrtime' in sysmd:
-                if "ctime" in metadata:
-                    # In Tahoe < 1.4.0 we used the word "ctime" to mean what Tahoe >= 1.4.0
-                    # calls "linkcrtime".
-                    sysmd["linkcrtime"] = metadata["ctime"]
-                else:
-                    sysmd["linkcrtime"] = now
-            sysmd["linkmotime"] = now
-
-            children[name] = (child, metadata)
+            children[name] = (child, update_metadata(metadata, new_metadata, now))
         new_contents = self.node._pack_contents(children)
         return new_contents
 
@@ -247,6 +269,11 @@ class DirectoryNode:
                                                name=name)
         node.raise_error()
         return node
+
+    def _create_readonly_node(self, node, name):
+        if not node.is_unknown() and node.is_readonly():
+            return node
+        return self._create_and_validate_node(None, node.get_readonly_uri(), name=name)
 
     def _unpack_contents(self, data):
         # the directory is serialized as a list of netstrings, one per child.
@@ -407,7 +434,8 @@ class DirectoryNode:
         if self.is_readonly():
             return defer.fail(NotWriteableError())
         assert isinstance(metadata, dict)
-        s = MetadataSetter(self, name, metadata)
+        s = MetadataSetter(self, name, metadata,
+                           create_readonly_node=self._create_readonly_node)
         d = self._node.modify(s.modify)
         d.addCallback(lambda res: self)
         return d
@@ -453,7 +481,7 @@ class DirectoryNode:
         precondition(isinstance(name, unicode), name)
         precondition(isinstance(writecap, (str,type(None))), writecap)
         precondition(isinstance(readcap, (str,type(None))), readcap)
-            
+
         # We now allow packing unknown nodes, provided they are valid
         # for this type of directory.
         child_node = self._create_and_validate_node(writecap, readcap, name)
@@ -463,7 +491,8 @@ class DirectoryNode:
 
     def set_children(self, entries, overwrite=True):
         # this takes URIs
-        a = Adder(self, overwrite=overwrite)
+        a = Adder(self, overwrite=overwrite,
+                  create_readonly_node=self._create_readonly_node)
         for (name, e) in entries.iteritems():
             assert isinstance(name, unicode)
             if len(e) == 2:
@@ -498,7 +527,8 @@ class DirectoryNode:
             return defer.fail(NotWriteableError())
         assert isinstance(name, unicode)
         assert IFilesystemNode.providedBy(child), child
-        a = Adder(self, overwrite=overwrite)
+        a = Adder(self, overwrite=overwrite,
+                  create_readonly_node=self._create_readonly_node)
         a.set_node(name, child, metadata)
         d = self._node.modify(a.modify)
         d.addCallback(lambda res: child)
@@ -508,7 +538,8 @@ class DirectoryNode:
         precondition(isinstance(entries, dict), entries)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
-        a = Adder(self, entries, overwrite=overwrite)
+        a = Adder(self, entries, overwrite=overwrite,
+                  create_readonly_node=self._create_readonly_node)
         d = self._node.modify(a.modify)
         d.addCallback(lambda res: self)
         return d
@@ -551,7 +582,8 @@ class DirectoryNode:
             d = self._nodemaker.create_immutable_directory(initial_children)
         def _created(child):
             entries = {name: (child, None)}
-            a = Adder(self, entries, overwrite=overwrite)
+            a = Adder(self, entries, overwrite=overwrite,
+                      create_readonly_node=self._create_readonly_node)
             d = self._node.modify(a.modify)
             d.addCallback(lambda res: child)
             return d

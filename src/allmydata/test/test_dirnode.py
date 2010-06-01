@@ -894,11 +894,14 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
             d.addCallback(lambda res:
                           n.set_metadata_for(u"child",
-                                             {"tags": ["web2.0-compatible"]}))
+                                             {"tags": ["web2.0-compatible"], "tahoe": {"bad": "mojo"}}))
             d.addCallback(lambda n1: n1.get_metadata_for(u"child"))
-            d.addCallback(lambda metadata:
-                          self.failUnlessEqual(metadata,
-                                               {"tags": ["web2.0-compatible"]}))
+            def _check_metadata(md):
+                self.failUnless("tags" in md, md)
+                self.failUnlessEqual(md["tags"], ["web2.0-compatible"])
+                self.failUnless("tahoe" in md, md)
+                self.failIf("bad" in md["tahoe"], md)
+            d.addCallback(_check_metadata)
 
             def _start(res):
                 self._start_timestamp = time.time()
