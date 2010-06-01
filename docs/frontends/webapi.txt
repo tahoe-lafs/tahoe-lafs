@@ -414,7 +414,11 @@ POST /uri?t=mkdir-with-children
  one cap and does not know whether it is a write cap or read cap, then
  it is acceptable to set "rw_uri" to that cap and omit "ro_uri". The
  client must not put a write cap into a "ro_uri" field.
- 
+
+ A file may have a "no-write" metadata field that affects how writes to
+ it are handled via the SFTP frontend; see docs/frontends/FTP-and-SFTP.txt
+ for details.
+
  Note that the webapi-using client application must not provide the
  "Content-Type: multipart/form-data" header that usually accompanies HTML
  form submissions, since the body is not formatted this way. Doing so will

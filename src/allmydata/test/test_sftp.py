@@ -1,5 +1,5 @@
 
-import re, struct, traceback
+import re, struct, traceback, gc, time, calendar
 from stat import S_IFREG, S_IFDIR
 
 from twisted.trial import unittest
@@ -141,7 +141,9 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             self.root.set_node(u"unknown", n)
         d.addCallback(_created_unknown)
 
-        d.addCallback(lambda ign: self.root.set_node(u"loop", self.root))
+        fall_of_the_Berlin_wall = calendar.timegm(time.strptime("1989-11-09 20:00:00 UTC", "%Y-%m-%d %H:%M:%S %Z"))
+        md = {'mtime': fall_of_the_Berlin_wall, 'tahoe': {'linkmotime': fall_of_the_Berlin_wall}}
+        d.addCallback(lambda ign: self.root.set_node(u"loop", self.root, metadata=md))
         return d
 
     def test_basic(self):
@@ -255,11 +257,15 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
            self.failUnlessReallyEqual(name, expected_name)
            self.failUnless(re.match(expected_text_re, text),
                            "%r does not match %r in\n%r" % (text, expected_text_re, actual_list))
-           # it is ok for there to be extra actual attributes
-           # TODO: check times
-           for e in expected_attrs:
-               self.failUnlessReallyEqual(attrs[e], expected_attrs[e],
-                                          "%r:%r is not %r in\n%r" % (e, attrs[e], expected_attrs[e], attrs))
+           self._compareAttributes(attrs, expected_attrs)
+
+    def _compareAttributes(self, attrs, expected_attrs):
+        # It is ok for there to be extra actual attributes.
+        # TODO: check times
+        for e in expected_attrs:
+            self.failUnless(e in attrs, "%r is not in\n%r" % (e, attrs))
+            self.failUnlessReallyEqual(attrs[e], expected_attrs[e],
+                                       "%r:%r is not %r in\n%r" % (e, attrs[e], expected_attrs[e], attrs))
 
     def test_openDirectory_and_attrs(self):
         d = self._set_up("openDirectory_and_attrs")
@@ -280,15 +286,17 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
 
         gross = u"gro\u00DF".encode("utf-8")
         expected_root = [
-            ('empty_lit_dir', r'drwxrwxrwx .* \? .* empty_lit_dir$', {'permissions': S_IFDIR | 0777}),
-            (gross,           r'-rw-rw-rw- .* 1010 .* '+gross+'$',   {'permissions': S_IFREG | 0666, 'size': 1010}),
-            ('loop',          r'drwxrwxrwx .* \? .* loop$',          {'permissions': S_IFDIR | 0777}),
-            ('mutable',       r'-rw-rw-rw- .* \? .* mutable$',       {'permissions': S_IFREG | 0666}),
-            ('readonly',      r'-r--r--r-- .* \? .* readonly$',      {'permissions': S_IFREG | 0444}),
-            ('small',         r'-rw-rw-rw- .* 10 .* small$',         {'permissions': S_IFREG | 0666, 'size': 10}),
-            ('small2',        r'-rw-rw-rw- .* 26 .* small2$',        {'permissions': S_IFREG | 0666, 'size': 26}),
-            ('tiny_lit_dir',  r'drwxrwxrwx .* \? .* tiny_lit_dir$',  {'permissions': S_IFDIR | 0777}),
-            ('unknown',       r'\?--------- .* \? .* unknown$',      {'permissions': 0}),
+            ('empty_lit_dir', r'dr-xr-xr-x .* \? .* empty_lit_dir$',      {'permissions': S_IFDIR | 0555}),
+            (gross,           r'-rw-rw-rw- .* 1010 .* '+gross+'$',        {'permissions': S_IFREG | 0666, 'size': 1010}),
+            # The fall of the Berlin wall may have been on 9th or 10th November 1989 depending on the gateway's timezone.
+            #('loop',          r'drwxrwxrwx .* \? Nov (09|10)  1989 loop$', {'permissions': S_IFDIR | 0777}),
+            ('loop',          r'drwxrwxrwx .* \? .* loop$',               {'permissions': S_IFDIR | 0777}),
+            ('mutable',       r'-rw-rw-rw- .* \? .* mutable$',            {'permissions': S_IFREG | 0666}),
+            ('readonly',      r'-r--r--r-- .* \? .* readonly$',           {'permissions': S_IFREG | 0444}),
+            ('small',         r'-rw-rw-rw- .* 10 .* small$',              {'permissions': S_IFREG | 0666, 'size': 10}),
+            ('small2',        r'-rw-rw-rw- .* 26 .* small2$',             {'permissions': S_IFREG | 0666, 'size': 26}),
+            ('tiny_lit_dir',  r'dr-xr-xr-x .* \? .* tiny_lit_dir$',       {'permissions': S_IFDIR | 0555}),
+            ('unknown',       r'\?--------- .* \? .* unknown$',           {'permissions': 0}),
         ]
 
         d.addCallback(lambda ign: self.handler.openDirectory(""))
@@ -312,13 +320,13 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda res: self._compareDirLists(res, expected_tiny_lit))
 
         d.addCallback(lambda ign: self.handler.getAttrs("small", True))
-        def _check_attrs(attrs):
-            self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666)
-            self.failUnlessReallyEqual(attrs['size'], 10, repr(attrs))
-        d.addCallback(_check_attrs)
+        d.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 10}))
 
         d.addCallback(lambda ign: self.handler.setAttrs("small", {}))
         d.addCallback(lambda res: self.failUnlessReallyEqual(res, None))
+
+        d.addCallback(lambda ign: self.handler.getAttrs("small", True))
+        d.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 10}))
 
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "setAttrs size",
@@ -388,13 +396,10 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
                                              rf.readChunk, 11, 1))
 
             d2.addCallback(lambda ign: rf.getAttrs())
-            def _check_attrs(attrs):
-                self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666)
-                self.failUnlessReallyEqual(attrs['size'], 10, repr(attrs))
-            d2.addCallback(_check_attrs)
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 10}))
 
             d2.addCallback(lambda ign: self.handler.getAttrs("small", followLinks=0))
-            d2.addCallback(_check_attrs)
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 10}))
 
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "writeChunk on read-only handle denied",
@@ -443,13 +448,10 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
                                              rf.readChunk, 1011, 1))
 
             d2.addCallback(lambda ign: rf.getAttrs())
-            def _check_attrs(attrs):
-                self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666)
-                self.failUnlessReallyEqual(attrs['size'], 1010)
-            d2.addCallback(_check_attrs)
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 1010}))
 
             d2.addCallback(lambda ign: self.handler.getAttrs(gross, followLinks=0))
-            d2.addCallback(_check_attrs)
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 1010}))
 
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "writeChunk on read-only handle denied",
@@ -607,15 +609,10 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             d2.addCallback(lambda ign: wf.writeChunk(13, "abc"))
 
             d2.addCallback(lambda ign: wf.getAttrs())
-            def _check_attrs(attrs, expected_size):
-                self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666, repr(attrs))
-                self.failUnlessReallyEqual(attrs['size'], expected_size)
-            d2.addCallback(_check_attrs, 16)
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 16}))
 
-            # The file does not actually exist as a Tahoe file at this point, but getAttrs should
-            # use the all_open_files dict to see that it has been opened for creation.
             d2.addCallback(lambda ign: self.handler.getAttrs("newfile", followLinks=0))
-            d2.addCallback(_check_attrs, 0)
+            d2.addCallback(lambda attrs: self._compareAttributes(attrs, {'permissions': S_IFREG | 0666, 'size': 16}))
 
             d2.addCallback(lambda ign: wf.setAttrs({}))
 
@@ -1196,6 +1193,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         def _exec_error(session):
             protocol = FakeProtocol()
             d2 = session.execCommand(protocol, "error")
+            d2.addCallback(lambda ign: session.windowChanged(None))
             d2.addCallback(lambda ign: self.failUnlessEqual("", protocol.output))
             d2.addCallback(lambda ign: self.failUnless(isinstance(protocol.reason.value, ProcessTerminated)))
             d2.addCallback(lambda ign: self.failUnlessEqual(protocol.reason.value.exitCode, 1))

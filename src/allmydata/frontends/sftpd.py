@@ -30,6 +30,7 @@ from allmydata.interfaces import IFileNode, IDirectoryNode, ExistingChildError, 
      NoSuchChildError, ChildOfWrongTypeError
 from allmydata.mutable.common import NotWriteableError
 from allmydata.immutable.upload import FileHandle
+from allmydata.dirnode import update_metadata
 
 from pycryptopp.cipher.aes import AES
 
@@ -152,8 +153,8 @@ def _lsLine(name, attrs):
     mode = st_mode
     perms = array.array('c', '-'*10)
     ft = stat.S_IFMT(mode)
-    if   stat.S_ISDIR(ft):  perms[0] = 'd'
-    elif stat.S_ISREG(ft):  perms[0] = '-'
+    if   stat.S_ISDIR(ft): perms[0] = 'd'
+    elif stat.S_ISREG(ft): perms[0] = '-'
     else: perms[0] = '?'
     # user
     if mode&stat.S_IRUSR: perms[1] = 'r'
@@ -190,15 +191,17 @@ def _lsLine(name, attrs):
     return l
 
 
-def _is_readonly(parent_readonly, child):
+def _no_write(parent_readonly, child, metadata):
     """Whether child should be listed as having read-only permissions in parent."""
 
     if child.is_unknown():
         return True
     elif child.is_mutable():
         return child.is_readonly()
+    elif parent_readonly or IDirectoryNode.providedBy(child):
+        return True
     else:
-        return parent_readonly
+        return metadata.get('no-write', False)
 
 
 def _populate_attrs(childnode, metadata, size=None):
@@ -208,6 +211,7 @@ def _populate_attrs(childnode, metadata, size=None):
     # bits, otherwise the client may refuse to open a directory.
     # Also, sshfs run as a non-root user requires files and directories
     # to be world-readable/writeable.
+    # It is important that we never set the executable bits on files.
     #
     # Directories and unknown nodes have no size, and SFTP doesn't
     # require us to make one up.
@@ -229,8 +233,7 @@ def _populate_attrs(childnode, metadata, size=None):
         perms = S_IFREG | 0666
 
     if metadata:
-        assert 'readonly' in metadata, metadata
-        if metadata['readonly']:
+        if metadata.get('no-write', False):
             perms &= S_IFDIR | S_IFREG | 0555  # clear 'w' bits
 
         # see webapi.txt for what these times mean
@@ -254,6 +257,36 @@ def _populate_attrs(childnode, metadata, size=None):
     # which doesn't include SSH_FILEXFER_ATTR_FLAGS.
 
     return attrs
+
+
+def _attrs_to_metadata(attrs):
+    metadata = {}
+
+    for key in attrs:
+        if key == "mtime" or key == "ctime" or key == "createtime":
+            metadata[key] = long(attrs[key])
+        elif key.startswith("ext_"):
+            metadata[key] = str(attrs[key])
+
+    perms = attrs.get('permissions', stat.S_IWUSR)
+    if not (perms & stat.S_IWUSR):
+        metadata['no-write'] = True
+
+    return metadata
+
+
+def _direntry_for(filenode_or_parent, childname, filenode=None):
+    if childname is None:
+        filenode_or_parent = filenode
+
+    if filenode_or_parent:
+        rw_uri = filenode_or_parent.get_write_uri()
+        if rw_uri and childname:
+            return rw_uri + "/" + childname.encode('utf-8')
+        else:
+            return rw_uri
+
+    return None
 
 
 class EncryptedTemporaryFile(PrefixingLogMixin):
@@ -709,7 +742,8 @@ class GeneralSFTPFile(PrefixingLogMixin):
 
         self.abandoned = True
 
-    def sync(self):
+    def sync(self, ign=None):
+        # The ign argument allows some_file.sync to be used as a callback.
         self.log(".sync()", level=OPERATIONAL)
 
         d = defer.Deferred()
@@ -719,6 +753,9 @@ class GeneralSFTPFile(PrefixingLogMixin):
             return res
         d.addBoth(_done)
         return d
+
+    def get_metadata(self):
+        return self.metadata
 
     def readChunk(self, offset, length):
         request = ".readChunk(%r, %r)" % (offset, length)
@@ -799,6 +836,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         # We must capture the abandoned, parent, and childname variables synchronously
         # at the close call. This is needed by the correctness arguments in the comments
         # for _abandon_any_heisenfiles and _rename_heisenfiles.
+        # Note that the file must have been opened before it can be closed.
         abandoned = self.abandoned
         parent = self.parent
         childname = self.childname
@@ -820,7 +858,11 @@ class GeneralSFTPFile(PrefixingLogMixin):
         def _close(ign):
             d2 = self.consumer.when_done()
             if self.filenode and self.filenode.is_mutable():
-                self.log("update mutable file %r childname=%r" % (self.filenode, self.childname,), level=OPERATIONAL)
+                self.log("update mutable file %r childname=%r" % (self.filenode, childname), level=OPERATIONAL)
+                if self.metadata.get('no-write', False) and not self.filenode.is_readonly():
+                    assert parent and childname, (parent, childname, self.metadata)
+                    d2.addCallback(lambda ign: parent.set_metadata_for(childname, self.metadata))
+
                 d2.addCallback(lambda ign: self.consumer.get_current_size())
                 d2.addCallback(lambda size: self.consumer.read(0, size))
                 d2.addCallback(lambda new_contents: self.filenode.overwrite(new_contents))
@@ -828,7 +870,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
                 def _add_file(ign):
                     self.log("_add_file childname=%r" % (childname,), level=OPERATIONAL)
                     u = FileHandle(self.consumer.get_file(), self.convergence)
-                    return parent.add_file(childname, u)
+                    return parent.add_file(childname, u, metadata=self.metadata)
                 d2.addCallback(_add_file)
 
             d2.addBoth(_committed)
@@ -858,11 +900,13 @@ class GeneralSFTPFile(PrefixingLogMixin):
             return defer.execute(_closed)
 
         # Optimization for read-only handles, when we already know the metadata.
-        if not(self.flags & (FXF_WRITE | FXF_CREAT)) and self.metadata and self.filenode and not self.filenode.is_mutable():
+        if not (self.flags & (FXF_WRITE | FXF_CREAT)) and self.metadata and self.filenode and not self.filenode.is_mutable():
             return defer.succeed(_populate_attrs(self.filenode, self.metadata))
 
         d = defer.Deferred()
         def _get(ign):
+            if noisy: self.log("_get(%r) in %r, filenode = %r, metadata = %r" % (ign, request, self.filenode, self.metadata), level=NOISY)
+
             # self.filenode might be None, but that's ok.
             attrs = _populate_attrs(self.filenode, self.metadata, size=self.consumer.get_current_size())
             eventually_callback(d)(attrs)
@@ -871,8 +915,8 @@ class GeneralSFTPFile(PrefixingLogMixin):
         d.addBoth(_convert_error, request)
         return d
 
-    def setAttrs(self, attrs):
-        request = ".setAttrs(attrs) %r" % (attrs,)
+    def setAttrs(self, attrs, only_if_at=None):
+        request = ".setAttrs(%r, only_if_at=%r)" % (attrs, only_if_at)
         self.log(request, level=OPERATIONAL)
 
         if not (self.flags & FXF_WRITE):
@@ -883,20 +927,24 @@ class GeneralSFTPFile(PrefixingLogMixin):
             def _closed(): raise SFTPError(FX_BAD_MESSAGE, "cannot set attributes for a closed file handle")
             return defer.execute(_closed)
 
-        if not "size" in attrs:
-            return defer.succeed(None)
-
-        size = attrs["size"]
-        if not isinstance(size, (int, long)) or size < 0:
+        size = attrs.get("size", None)
+        if size is not None and (not isinstance(size, (int, long)) or size < 0):
             def _bad(): raise SFTPError(FX_BAD_MESSAGE, "new size is not a valid nonnegative integer")
             return defer.execute(_bad)
 
         d = defer.Deferred()
-        def _resize(ign):
-            self.consumer.set_current_size(size)
+        def _set(ign):
+            if noisy: self.log("_set(%r) in %r" % (ign, request), level=NOISY)
+            if only_if_at and only_if_at != _direntry_for(self.parent, self.childname, self.filenode):
+                return None
+
+            now = time()
+            self.metadata = update_metadata(self.metadata, _attrs_to_metadata(attrs), now)
+            if size is not None:
+                self.consumer.set_current_size(size)
             eventually_callback(d)(None)
             return None
-        self.async.addCallbacks(_resize, eventually_errback(d))
+        self.async.addCallbacks(_set, eventually_errback(d))
         d.addBoth(_convert_error, request)
         return d
 
@@ -918,8 +966,9 @@ class Reason:
 
 # A "heisenfile" is a file that has been opened with write flags
 # (FXF_WRITE and/or FXF_CREAT) and not yet close-notified.
-# 'all_heisenfiles' maps from a direntry string to
-# (list_of_GeneralSFTPFile, open_time_utc).
+# 'all_heisenfiles' maps from a direntry string to a list of
+# GeneralSFTPFile.
+#
 # A direntry string is parent_write_uri + "/" + childname_utf8 for
 # an immutable file, or file_write_uri for a mutable file.
 # Updates to this dict are single-threaded.
@@ -962,26 +1011,26 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             for f in files:
                 f.abandon()
 
-    def _add_heisenfiles_by_path(self, userpath, files):
-        if noisy: self.log("._add_heisenfiles_by_path(%r, %r)" % (userpath, files), level=NOISY)
+    def _add_heisenfiles_by_path(self, userpath, files_to_add):
+        self.log("._add_heisenfiles_by_path(%r, %r)" % (userpath, files_to_add), level=OPERATIONAL)
 
         if userpath in self._heisenfiles:
-            self._heisenfiles[userpath] += files
+            self._heisenfiles[userpath] += files_to_add
         else:
-            self._heisenfiles[userpath] = files
+            self._heisenfiles[userpath] = files_to_add
 
     def _add_heisenfiles_by_direntry(self, direntry, files_to_add):
-        if noisy: self.log("._add_heisenfiles_by_direntry(%r, %r)" % (direntry, files_to_add), level=NOISY)
+        self.log("._add_heisenfiles_by_direntry(%r, %r)" % (direntry, files_to_add), level=OPERATIONAL)
 
         if direntry:
             if direntry in all_heisenfiles:
-                (old_files, opentime) = all_heisenfiles[direntry]
-                all_heisenfiles[direntry] = (old_files + files_to_add, opentime)
+                all_heisenfiles[direntry] += files_to_add
             else:
-                all_heisenfiles[direntry] = (files_to_add, time())
+                all_heisenfiles[direntry] = files_to_add
 
     def _abandon_any_heisenfiles(self, userpath, direntry):
-        if noisy: self.log("._abandon_any_heisenfiles(%r, %r)" % (userpath, direntry), level=NOISY)
+        request = "._abandon_any_heisenfiles(%r, %r)" % (userpath, direntry)
+        self.log(request, level=OPERATIONAL)
 
         # First we synchronously mark all heisenfiles matching the userpath or direntry
         # as abandoned, and remove them from the two heisenfile dicts. Then we .sync()
@@ -1003,29 +1052,32 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         files = []
         if direntry in all_heisenfiles:
-            (files, opentime) = all_heisenfiles[direntry]
+            files = all_heisenfiles[direntry]
             del all_heisenfiles[direntry]
         if userpath in self._heisenfiles:
             files += self._heisenfiles[userpath]
             del self._heisenfiles[userpath]
+
+        if noisy: self.log("files = %r in %r" % (files, request), level=NOISY)
 
         for f in files:
             f.abandon()
 
         d = defer.succeed(None)
         for f in files:
-            def _sync(ign, current_f):
-                return current_f.sync()
-            d.addBoth(_sync, f)
+            d.addBoth(f.sync)
 
-        d.addBoth(lambda ign: len(files) > 0)
+        def _done(ign):
+            self.log("done %r" % (request,), level=OPERATIONAL)
+            return len(files) > 0
+        d.addBoth(_done)
         return d
 
     def _rename_heisenfiles(self, from_userpath, from_parent, from_childname,
                             to_userpath, to_parent, to_childname, overwrite=True):
-        if noisy: self.log("._rename_heisenfiles(%r, %r, %r, %r, %r, %r, overwrite=%r)" %
-                           (from_userpath, from_parent, from_childname,
-                            to_userpath, to_parent, to_childname, overwrite), level=NOISY)
+        request = ("._rename_heisenfiles(%r, %r, %r, %r, %r, %r, overwrite=%r)" %
+                   (from_userpath, from_parent, from_childname, to_userpath, to_parent, to_childname, overwrite))
+        self.log(request, level=OPERATIONAL)
 
         # First we synchronously rename all heisenfiles matching the userpath or direntry.
         # Then we .sync() each file that we renamed.
@@ -1053,8 +1105,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # is False and there were already heisenfiles at the destination userpath or
         # direntry, we return a Deferred that fails with SFTPError(FX_PERMISSION_DENIED).
 
-        from_direntry = self._direntry_for(from_parent, from_childname)
-        to_direntry = self._direntry_for(to_parent, to_childname)
+        from_direntry = _direntry_for(from_parent, from_childname)
+        to_direntry = _direntry_for(to_parent, to_childname)
 
         if not overwrite and (to_userpath in self._heisenfiles or to_direntry in all_heisenfiles):
             def _existing(): raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_userpath)
@@ -1062,11 +1114,13 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         from_files = []
         if from_direntry in all_heisenfiles:
-            (from_files, opentime) = all_heisenfiles[from_direntry]
+            from_files = all_heisenfiles[from_direntry]
             del all_heisenfiles[from_direntry]
         if from_userpath in self._heisenfiles:
             from_files += self._heisenfiles[from_userpath]
             del self._heisenfiles[from_userpath]
+
+        if noisy: self.log("from_files = %r in %r" % (from_files, request), level=NOISY)
 
         self._add_heisenfiles_by_direntry(to_direntry, from_files)
         self._add_heisenfiles_by_path(to_userpath, from_files)
@@ -1076,11 +1130,41 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         d = defer.succeed(None)
         for f in from_files:
-            def _sync(ign, current_f):
-                return current_f.sync()
-            d.addBoth(_sync, f)
+            d.addBoth(f.sync)
 
-        d.addBoth(lambda ign: len(from_files) > 0)
+        def _done(ign):
+            self.log("done %r" % (request,), level=OPERATIONAL)
+            return len(from_files) > 0
+        d.addBoth(_done)
+        return d
+
+    def _update_attrs_for_heisenfiles(self, userpath, direntry, attrs):
+        request = "._update_attrs_for_heisenfiles(%r, %r, %r)" % (userpath, direntry, attrs)
+        self.log(request, level=OPERATIONAL)
+
+        files = []
+        if direntry in all_heisenfiles:
+            files = all_heisenfiles[direntry]
+        if userpath in self._heisenfiles:
+            files += self._heisenfiles[userpath]
+
+        if noisy: self.log("files = %r in %r" % (files, request), level=NOISY)
+
+        # We set the metadata for all heisenfiles at this path or direntry.
+        # Since a direntry includes a write URI, we must have authority to
+        # change the metadata of heisenfiles found in the all_heisenfiles dict.
+        # However that's not necessarily the case for heisenfiles found by
+        # path. Therefore we tell the setAttrs method of each file to only
+        # perform the update if the file is at the correct direntry.
+
+        d = defer.succeed(None)
+        for f in files:
+            d.addBoth(f.setAttrs, attrs, only_if_at=direntry)
+
+        def _done(ign):
+            self.log("done %r" % (request,), level=OPERATIONAL)
+            return len(files) > 0
+        d.addBoth(_done)
         return d
 
     def _sync_heisenfiles(self, userpath, direntry, ignore=None):
@@ -1089,7 +1173,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         files = []
         if direntry in all_heisenfiles:
-            (files, opentime) = all_heisenfiles[direntry]
+            files = all_heisenfiles[direntry]
         if userpath in self._heisenfiles:
             files += self._heisenfiles[userpath]
 
@@ -1097,11 +1181,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         d = defer.succeed(None)
         for f in files:
-            if not (f is ignore):
-                def _sync(ign, current_f):
-                    if noisy: self.log("_sync %r in %r" % (current_f, request), level=NOISY)
-                    return current_f.sync()
-                d.addBoth(_sync, f)
+            if f is not ignore:
+                d.addBoth(f.sync)
 
         def _done(ign):
             self.log("done %r" % (request,), level=OPERATIONAL)
@@ -1112,12 +1193,12 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _remove_heisenfile(self, userpath, parent, childname, file_to_remove):
         if noisy: self.log("._remove_heisenfile(%r, %r, %r, %r)" % (userpath, parent, childname, file_to_remove), level=NOISY)
 
-        direntry = self._direntry_for(parent, childname)
+        direntry = _direntry_for(parent, childname)
         if direntry in all_heisenfiles:
-            (all_old_files, opentime) = all_heisenfiles[direntry]
+            all_old_files = all_heisenfiles[direntry]
             all_new_files = [f for f in all_old_files if f is not file_to_remove]
             if len(all_new_files) > 0:
-                all_heisenfiles[direntry] = (all_new_files, opentime)
+                all_heisenfiles[direntry] = all_new_files
             else:
                 del all_heisenfiles[direntry]
 
@@ -1129,28 +1210,15 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             else:
                 del self._heisenfiles[userpath]
 
-    def _direntry_for(self, filenode_or_parent, childname=None):
-        if filenode_or_parent:
-            rw_uri = filenode_or_parent.get_write_uri()
-            if rw_uri and childname:
-                return rw_uri + "/" + childname.encode('utf-8')
-            else:
-                return rw_uri
-
-        return None
-
     def _make_file(self, existing_file, userpath, flags, parent=None, childname=None, filenode=None, metadata=None):
         if noisy: self.log("._make_file(%r, %r, %r = %r, parent=%r, childname=%r, filenode=%r, metadata=%r)" %
                            (existing_file, userpath, flags, _repr_flags(flags), parent, childname, filenode, metadata),
                            level=NOISY)
 
-        assert metadata is None or 'readonly' in metadata, metadata
+        assert metadata is None or 'no-write' in metadata, metadata
 
         writing = (flags & (FXF_WRITE | FXF_CREAT)) != 0
-        if childname:
-            direntry = self._direntry_for(parent, childname)
-        else:
-            direntry = self._direntry_for(filenode)
+        direntry = _direntry_for(parent, childname, filenode)
 
         d = self._sync_heisenfiles(userpath, direntry, ignore=existing_file)
 
@@ -1163,9 +1231,10 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
             d.addCallback(lambda ign: existing_file or GeneralSFTPFile(userpath, flags, close_notify, self._convergence))
             def _got_file(file):
+                file.open(parent=parent, childname=childname, filenode=filenode, metadata=metadata)
                 if writing:
                     self._add_heisenfiles_by_direntry(direntry, [file])
-                return file.open(parent=parent, childname=childname, filenode=filenode, metadata=metadata)
+                return file
             d.addCallback(_got_file)
         return d
 
@@ -1209,6 +1278,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         else:
             # We haven't decided which file implementation to use yet.
             file = None
+
+        desired_metadata = _attrs_to_metadata(attrs)
 
         # Now there are two major cases:
         #
@@ -1255,6 +1326,10 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 if (flags & FXF_WRITE) and root.is_readonly():
                     raise SFTPError(FX_PERMISSION_DENIED,
                                     "cannot write to a non-writeable filecap without a parent directory")
+                if (flags & FXF_WRITE) and root.is_mutable() and desired_metadata.get('no-write', False):
+                    raise SFTPError(FX_PERMISSION_DENIED,
+                                    "cannot write to a mutable filecap without a parent directory, when the "
+                                    "specified permissions would require the link from the parent to be made read-only")
                 if flags & FXF_EXCL:
                     raise SFTPError(FX_FAILURE,
                                     "cannot create a file exclusively when it already exists")
@@ -1262,12 +1337,23 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 # The file does not need to be added to all_heisenfiles, because it is not
                 # associated with a directory entry that needs to be updated.
 
-                return self._make_file(file, userpath, flags, filenode=root)
+                metadata = update_metadata(None, desired_metadata, time())
+
+                # We have to decide what to pass for the 'parent_readonly' argument to _no_write,
+                # given that we don't actually have a parent. This only affects the permissions
+                # reported by a getAttrs on this file handle in the case of an immutable file.
+                # We choose 'parent_readonly=True' since that will cause the permissions to be
+                # reported as r--r--r--, which is appropriate because an immutable file can't be
+                # written via this path.
+
+                metadata['no-write'] = _no_write(True, root, metadata)
+                return self._make_file(file, userpath, flags, filenode=root, metadata=metadata)
             else:
                 # case 2
                 childname = path[-1]
-                if noisy: self.log("case 2: root = %r, childname = %r, path[:-1] = %r" %
-                                   (root, childname, path[:-1]), level=NOISY)
+
+                if noisy: self.log("case 2: root = %r, childname = %r, desired_metadata = %r, path[:-1] = %r" %
+                                   (root, childname, desired_metadata, path[:-1]), level=NOISY)
                 d2 = root.get_child_at_path(path[:-1])
                 def _got_parent(parent):
                     if noisy: self.log("_got_parent(%r)" % (parent,), level=NOISY)
@@ -1296,7 +1382,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         zero_length_lit = "URI:LIT:"
                         if noisy: self.log("%r.set_uri(%r, None, readcap=%r, overwrite=False)" %
                                            (parent, zero_length_lit, childname), level=NOISY)
-                        d3.addCallback(lambda ign: parent.set_uri(childname, None, readcap=zero_length_lit, overwrite=False))
+                        d3.addCallback(lambda ign: parent.set_uri(childname, None, readcap=zero_length_lit,
+                                                                  metadata=desired_metadata, overwrite=False))
                         def _seturi_done(child):
                             if noisy: self.log("%r.get_metadata_for(%r)" % (parent, childname), level=NOISY)
                             d4 = parent.get_metadata_for(childname)
@@ -1307,8 +1394,11 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         if noisy: self.log("%r.get_child_and_metadata(%r)" % (parent, childname), level=NOISY)
                         d3.addCallback(lambda ign: parent.get_child_and_metadata(childname))
 
-                    def _got_child( (filenode, metadata) ):
-                        if noisy: self.log("_got_child( (%r, %r) )" % (filenode, metadata), level=NOISY)
+                    def _got_child( (filenode, current_metadata) ):
+                        if noisy: self.log("_got_child( (%r, %r) )" % (filenode, current_metadata), level=NOISY)
+
+                        metadata = update_metadata(current_metadata, desired_metadata, time())
+                        metadata['no-write'] = _no_write(parent_readonly, filenode, metadata)
 
                         if filenode.is_unknown():
                             raise SFTPError(FX_PERMISSION_DENIED,
@@ -1320,11 +1410,13 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         if (flags & FXF_WRITE) and filenode.is_mutable() and filenode.is_readonly():
                             raise SFTPError(FX_PERMISSION_DENIED,
                                             "cannot open a read-only mutable file for writing")
+                        if (flags & FXF_WRITE) and not filenode.is_mutable() and metadata['no-write']:
+                            raise SFTPError(FX_PERMISSION_DENIED,
+                                            "cannot open an immutable file entry with the no-write flag for writing")
                         if (flags & FXF_WRITE) and parent_readonly:
                             raise SFTPError(FX_PERMISSION_DENIED,
                                             "cannot open a file for writing when the parent directory is read-only")
 
-                        metadata['readonly'] = _is_readonly(parent_readonly, filenode)
                         return self._make_file(file, userpath, flags, parent=parent, childname=childname,
                                                filenode=filenode, metadata=metadata)
                     def _no_child(f):
@@ -1431,7 +1523,10 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         self.log(request, level=OPERATIONAL)
 
         path = self._path_from_string(pathstring)
-        metadata = self._attrs_to_metadata(attrs)
+        metadata = _attrs_to_metadata(attrs)
+        if 'no-write' in metadata:
+            del metadata['no-write']
+
         d = self._get_root(path)
         d.addCallback(lambda (root, path):
                       self._get_or_create_directories(root, path, metadata))
@@ -1480,7 +1575,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             if childname is None:
                 raise SFTPError(FX_NO_SUCH_FILE, "cannot remove an object specified by URI")
 
-            direntry = self._direntry_for(parent, childname)
+            direntry = _direntry_for(parent, childname)
             d2 = defer.succeed(False)
             if not must_be_directory:
                 d2.addCallback(lambda ign: self._abandon_any_heisenfiles(userpath, direntry))
@@ -1521,7 +1616,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 results = []
                 for filename, (child, metadata) in children.iteritems():
                     # The file size may be cached or absent.
-                    metadata['readonly'] = _is_readonly(parent_readonly, child)
+                    metadata['no-write'] = _no_write(parent_readonly, child, metadata)
                     attrs = _populate_attrs(child, metadata)
                     filename_utf8 = filename.encode('utf-8')
                     longname = _lsLine(filename_utf8, attrs)
@@ -1542,52 +1637,47 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # reported as the update time of the best version. But that
         # information isn't currently stored in mutable shares, I think.
 
-        # Some clients will incorrectly try to get the attributes
-        # of a file immediately after opening it, before it has been put
-        # into the all_heisenfiles table. This is a race condition bug in
-        # the client, but we probably need to handle it anyway.
-
         path = self._path_from_string(pathstring)
         userpath = self._path_to_utf8(path)
         d = self._get_parent_or_node(path)
         def _got_parent_or_node( (parent_or_node, childname) ):
             if noisy: self.log("_got_parent_or_node( (%r, %r) )" % (parent_or_node, childname), level=NOISY)
 
-            direntry = self._direntry_for(parent_or_node, childname)
+            # Some clients will incorrectly try to get the attributes
+            # of a file immediately after opening it, before it has been put
+            # into the all_heisenfiles table. This is a race condition bug in
+            # the client, but we handle it anyway by calling .sync() on all
+            # files matching either the path or the direntry.
+
+            direntry = _direntry_for(parent_or_node, childname)
             d2 = self._sync_heisenfiles(userpath, direntry)
 
             if childname is None:
                 node = parent_or_node
                 d2.addCallback(lambda ign: node.get_current_size())
                 d2.addCallback(lambda size:
-                               _populate_attrs(node, {'readonly': node.is_unknown() or node.is_readonly()}, size=size))
+                               _populate_attrs(node, {'no-write': node.is_unknown() or node.is_readonly()}, size=size))
             else:
                 parent = parent_or_node
                 d2.addCallback(lambda ign: parent.get_child_and_metadata_at_path([childname]))
                 def _got( (child, metadata) ):
                     if noisy: self.log("_got( (%r, %r) )" % (child, metadata), level=NOISY)
                     assert IDirectoryNode.providedBy(parent), parent
-                    metadata['readonly'] = _is_readonly(parent.is_readonly(), child)
+                    metadata['no-write'] = _no_write(parent.is_readonly(), child, metadata)
                     d3 = child.get_current_size()
                     d3.addCallback(lambda size: _populate_attrs(child, metadata, size=size))
                     return d3
                 def _nosuch(err):
                     if noisy: self.log("_nosuch(%r)" % (err,), level=NOISY)
                     err.trap(NoSuchChildError)
-                    direntry = self._direntry_for(parent, childname)
                     if noisy: self.log("checking open files:\nself._heisenfiles = %r\nall_heisenfiles = %r\ndirentry=%r" %
                                        (self._heisenfiles, all_heisenfiles, direntry), level=NOISY)
                     if direntry in all_heisenfiles:
-                        (files, opentime) = all_heisenfiles[direntry]
-                        sftptime = _to_sftp_time(opentime)
-                        # A file that has been opened for writing necessarily has permissions rw-rw-rw-.
-                        return {'permissions': S_IFREG | 0666,
-                                'size': 0,
-                                'createtime': sftptime,
-                                'ctime': sftptime,
-                                'mtime': sftptime,
-                                'atime': sftptime,
-                               }
+                        files = all_heisenfiles[direntry]
+                        if len(files) == 0:  # pragma: no cover
+                            return err
+                        # use the heisenfile that was most recently opened
+                        return files[-1].getAttrs()
                     return err
                 d2.addCallbacks(_got, _nosuch)
             return d2
@@ -1596,14 +1686,40 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         return d
 
     def setAttrs(self, pathstring, attrs):
-        self.log(".setAttrs(%r, %r)" % (pathstring, attrs), level=OPERATIONAL)
+        request = ".setAttrs(%r, %r)" % (pathstring, attrs)
+        self.log(request, level=OPERATIONAL)
 
         if "size" in attrs:
             # this would require us to download and re-upload the truncated/extended
             # file contents
             def _unsupported(): raise SFTPError(FX_OP_UNSUPPORTED, "setAttrs wth size attribute unsupported")
             return defer.execute(_unsupported)
-        return defer.succeed(None)
+
+        path = self._path_from_string(pathstring)
+        userpath = self._path_to_utf8(path)
+        d = self._get_parent_or_node(path)
+        def _got_parent_or_node( (parent_or_node, childname) ):
+            if noisy: self.log("_got_parent_or_node( (%r, %r) )" % (parent_or_node, childname), level=NOISY)
+
+            direntry = _direntry_for(parent_or_node, childname)
+            d2 = self._update_attrs_for_heisenfiles(userpath, direntry, attrs)
+
+            def _update(updated_heisenfiles):
+                if childname is None:
+                    if updated_heisenfiles:
+                        return None
+                    raise SFTPError(FX_NO_SUCH_FILE, userpath)
+                else:
+                    desired_metadata = _attrs_to_metadata(attrs)
+                    if noisy: self.log("desired_metadata = %r" % (desired_metadata,), level=NOISY)
+
+                    return parent_or_node.set_metadata_for(childname, desired_metadata)
+            d2.addCallback(_update)
+            d2.addCallback(lambda ign: None)
+            return d2
+        d.addCallback(_got_parent_or_node)
+        d.addBoth(_convert_error, request)
+        return d
 
     def readLink(self, pathstring):
         self.log(".readLink(%r)" % (pathstring,), level=OPERATIONAL)
@@ -1725,17 +1841,6 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 return d2
         d.addCallback(_got_root)
         return d
-
-    def _attrs_to_metadata(self, attrs):
-        metadata = {}
-
-        for key in attrs:
-            if key == "mtime" or key == "ctime" or key == "createtime":
-                metadata[key] = long(attrs[key])
-            elif key.startswith("ext_"):
-                metadata[key] = str(attrs[key])
-
-        return metadata
 
 
 class SFTPUser(ConchUser, PrefixingLogMixin):
