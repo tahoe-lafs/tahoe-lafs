@@ -557,13 +557,13 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         #self.unregisterProducer()
 
     def close(self):
-        self.is_closed = True
-        self.finish()
         if not self.is_closed:
+            self.is_closed = True
             try:
                 self.f.close()
             except BaseException as e:
                 self.log("suppressed %r from close of temporary file %r" % (e, self.f), level=WEIRD)
+        self.finish()
 
     def unregisterProducer(self):
         if self.producer:
