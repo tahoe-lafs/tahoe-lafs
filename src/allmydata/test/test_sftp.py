@@ -339,20 +339,23 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign: self._set_up_tree())
 
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "openFile small 0",
+            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "openFile small 0 bad",
                                          self.handler.openFile, "small", 0, {}))
 
         # attempting to open a non-existent file should fail
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile nofile READ",
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile nofile READ nosuch",
                                          self.handler.openFile, "nofile", sftp.FXF_READ, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile nodir/file READ",
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile nodir/file READ nosuch",
                                          self.handler.openFile, "nodir/file", sftp.FXF_READ, {}))
 
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile unknown READ denied",
                                          self.handler.openFile, "unknown", sftp.FXF_READ, {}))
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile unknown/file READ denied",
+                                         self.handler.openFile, "unknown/file", sftp.FXF_READ, {}))
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir READ denied",
                                          self.handler.openFile, "tiny_lit_dir", sftp.FXF_READ, {}))
@@ -411,10 +414,10 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             d2.addCallback(lambda ign: rf.close())
 
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "readChunk on closed file",
+                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "readChunk on closed file bad",
                                              rf.readChunk, 0, 1))
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "getAttrs on closed file",
+                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "getAttrs on closed file bad",
                                              rf.getAttrs))
 
             d2.addCallback(lambda ign: rf.close()) # should be no-op
@@ -517,88 +520,100 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
 
         # '' is an invalid filename
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile '' WRITE|CREAT|TRUNC",
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile '' WRITE|CREAT|TRUNC nosuch",
                                          self.handler.openFile, "", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
 
         # TRUNC is not valid without CREAT if the file does not already exist
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile newfile WRITE|TRUNC",
+            self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "openFile newfile WRITE|TRUNC nosuch",
                                          self.handler.openFile, "newfile", sftp.FXF_WRITE | sftp.FXF_TRUNC, {}))
 
         # EXCL is not valid without CREAT
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "openFile small WRITE|EXCL",
+            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "openFile small WRITE|EXCL bad",
                                          self.handler.openFile, "small", sftp.FXF_WRITE | sftp.FXF_EXCL, {}))
 
         # cannot write to an existing directory
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir WRITE",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir WRITE denied",
                                          self.handler.openFile, "tiny_lit_dir", sftp.FXF_WRITE, {}))
 
         # cannot write to an existing unknown
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile unknown WRITE",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile unknown WRITE denied",
                                          self.handler.openFile, "unknown", sftp.FXF_WRITE, {}))
+
+        # cannot create a child of an unknown
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile unknown/newfile WRITE|CREAT denied",
+                                         self.handler.openFile, "unknown/newfile",
+                                         sftp.FXF_WRITE | sftp.FXF_CREAT, {}))
 
         # cannot write to a new file in an immutable directory
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir/newfile WRITE|CREAT|TRUNC",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir/newfile WRITE|CREAT|TRUNC denied",
                                          self.handler.openFile, "tiny_lit_dir/newfile",
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
 
         # cannot write to an existing immutable file in an immutable directory (with or without CREAT and EXCL)
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir/short WRITE",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir/short WRITE denied",
                                          self.handler.openFile, "tiny_lit_dir/short", sftp.FXF_WRITE, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir/short WRITE|CREAT",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile tiny_lit_dir/short WRITE|CREAT denied",
                                          self.handler.openFile, "tiny_lit_dir/short",
                                          sftp.FXF_WRITE | sftp.FXF_CREAT, {}))
 
         # cannot write to a mutable file via a readonly cap (by path or uri)
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile readonly WRITE",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile readonly WRITE denied",
                                          self.handler.openFile, "readonly", sftp.FXF_WRITE, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile readonly uri WRITE",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile readonly uri WRITE denied",
                                          self.handler.openFile, "uri/"+self.readonly_uri, sftp.FXF_WRITE, {}))
+
+        # cannot write to a mutable file by uri when no-write permissions are specified
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile mutable uri permissions:0444 WRITE denied",
+                                         self.handler.openFile, "uri/"+self.mutable_uri, sftp.FXF_WRITE,
+                                         {'permissions': 0444}))
 
         # cannot create a file with the EXCL flag if it already exists
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "openFile small WRITE|CREAT|EXCL",
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "openFile small WRITE|CREAT|EXCL failure",
                                          self.handler.openFile, "small",
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "openFile mutable WRITE|CREAT|EXCL",
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "openFile mutable WRITE|CREAT|EXCL failure",
                                          self.handler.openFile, "mutable",
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "openFile mutable uri WRITE|CREAT|EXCL",
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "openFile mutable uri WRITE|CREAT|EXCL failure",
                                          self.handler.openFile, "uri/"+self.mutable_uri,
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "openFile tiny_lit_dir/short WRITE|CREAT|EXCL",
+            self.shouldFailWithSFTPError(sftp.FX_FAILURE, "openFile tiny_lit_dir/short WRITE|CREAT|EXCL failure",
                                          self.handler.openFile, "tiny_lit_dir/short",
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
 
         # cannot write to an immutable file if we don't have its parent (with or without CREAT, TRUNC, or EXCL)
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE denied",
                                          self.handler.openFile, "uri/"+self.small_uri, sftp.FXF_WRITE, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE|CREAT",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE|CREAT denied",
                                          self.handler.openFile, "uri/"+self.small_uri,
                                          sftp.FXF_WRITE | sftp.FXF_CREAT, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE|CREAT|TRUNC",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE|CREAT|TRUNC denied",
                                          self.handler.openFile, "uri/"+self.small_uri,
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
         d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE|CREAT|EXCL",
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile small uri WRITE|CREAT|EXCL denied",
                                          self.handler.openFile, "uri/"+self.small_uri,
                                          sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_EXCL, {}))
 
-        # test creating a new file with truncation
+        # test creating a new file with truncation and extension
         d.addCallback(lambda ign:
                       self.handler.openFile("newfile", sftp.FXF_WRITE | sftp.FXF_CREAT | sftp.FXF_TRUNC, {}))
         def _write(wf):
@@ -617,12 +632,20 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             d2.addCallback(lambda ign: wf.setAttrs({}))
 
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "setAttrs with negative size",
+                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "setAttrs with negative size bad",
                                              wf.setAttrs, {'size': -1}))
 
             d2.addCallback(lambda ign: wf.setAttrs({'size': 14}))
             d2.addCallback(lambda ign: wf.getAttrs())
             d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['size'], 14))
+
+            d2.addCallback(lambda ign: wf.setAttrs({'size': 14}))
+            d2.addCallback(lambda ign: wf.getAttrs())
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['size'], 14))
+
+            d2.addCallback(lambda ign: wf.setAttrs({'size': 17}))
+            d2.addCallback(lambda ign: wf.getAttrs())
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['size'], 17))
 
             d2.addCallback(lambda ign:
                 self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "readChunk on write-only handle denied",
@@ -631,10 +654,10 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             d2.addCallback(lambda ign: wf.close())
 
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "writeChunk on closed file",
+                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "writeChunk on closed file bad",
                                              wf.writeChunk, 0, "a"))
             d2.addCallback(lambda ign:
-                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "setAttrs on closed file",
+                self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "setAttrs on closed file bad",
                                              wf.setAttrs, {'size': 0}))
 
             d2.addCallback(lambda ign: wf.close()) # should be no-op
@@ -642,7 +665,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(_write)
         d.addCallback(lambda ign: self.root.get(u"newfile"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123\x00a"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123\x00a\x00\x00\x00"))
 
         # test APPEND flag, and also replacing an existing file ("newfile" created by the previous test)
         d.addCallback(lambda ign:
@@ -1123,7 +1146,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
     def test_makeDirectory(self):
         d = self._set_up("makeDirectory")
         d.addCallback(lambda ign: self._set_up_tree())
-            
+
         # making a directory at a correct path should succeed
         d.addCallback(lambda ign: self.handler.makeDirectory("newdir", {'ext_foo': 'bar', 'ctime': 42}))
 
@@ -1162,6 +1185,13 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_FAILURE, "makeDirectory small",
                                          self.handler.makeDirectory, "small", {}))
+
+        # directories cannot be created read-only via SFTP
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "makeDirectory newdir2 permissions:0444 denied",
+                                         self.handler.makeDirectory, "newdir2",
+                                         {'permissions': 0444}))
+
         return d
 
     def test_execCommand_and_openShell(self):

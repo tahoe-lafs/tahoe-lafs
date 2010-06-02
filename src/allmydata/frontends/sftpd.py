@@ -1315,7 +1315,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         def _got_root( (root, path) ):
             if root.is_unknown():
                 raise SFTPError(FX_PERMISSION_DENIED,
-                                "cannot open an unknown cap (or child of an unknown directory). "
+                                "cannot open an unknown cap (or child of an unknown object). "
                                 "Upgrading the gateway to a later Tahoe-LAFS version may help")
             if not path:
                 # case 1
@@ -1359,7 +1359,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                     if noisy: self.log("_got_parent(%r)" % (parent,), level=NOISY)
                     if parent.is_unknown():
                         raise SFTPError(FX_PERMISSION_DENIED,
-                                        "cannot open an unknown cap (or child of an unknown directory). "
+                                        "cannot open a child of an unknown object. "
                                         "Upgrading the gateway to a later Tahoe-LAFS version may help")
 
                     parent_readonly = parent.is_readonly()
@@ -1407,15 +1407,9 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         if not IFileNode.providedBy(filenode):
                             raise SFTPError(FX_PERMISSION_DENIED,
                                             "cannot open a directory as if it were a file")
-                        if (flags & FXF_WRITE) and filenode.is_mutable() and filenode.is_readonly():
+                        if (flags & FXF_WRITE) and metadata['no-write']:
                             raise SFTPError(FX_PERMISSION_DENIED,
-                                            "cannot open a read-only mutable file for writing")
-                        if (flags & FXF_WRITE) and not filenode.is_mutable() and metadata['no-write']:
-                            raise SFTPError(FX_PERMISSION_DENIED,
-                                            "cannot open an immutable file entry with the no-write flag for writing")
-                        if (flags & FXF_WRITE) and parent_readonly:
-                            raise SFTPError(FX_PERMISSION_DENIED,
-                                            "cannot open a file for writing when the parent directory is read-only")
+                                            "cannot open a non-writeable file for writing")
 
                         return self._make_file(file, userpath, flags, parent=parent, childname=childname,
                                                filenode=filenode, metadata=metadata)
@@ -1525,7 +1519,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         path = self._path_from_string(pathstring)
         metadata = _attrs_to_metadata(attrs)
         if 'no-write' in metadata:
-            del metadata['no-write']
+            def _denied(): raise SFTPError(FX_PERMISSION_DENIED, "cannot create a directory that is initially read-only")
+            return defer.execute(_denied)
 
         d = self._get_root(path)
         d.addCallback(lambda (root, path):
@@ -1764,6 +1759,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             return d
 
         if extensionName == 'statvfs@openssh.com' or extensionName == 'fstatvfs@openssh.com':
+            # f_bsize and f_frsize should be the same to avoid a bug in 'df'
             return defer.succeed(struct.pack('>11Q',
                 1024,         # uint64  f_bsize     /* file system block size */
                 1024,         # uint64  f_frsize    /* fundamental fs block size */
