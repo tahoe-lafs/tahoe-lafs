@@ -754,7 +754,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                 fake_file_uri, fake_file_uri,
                                                 {}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
-            d.addCallback(lambda metadata: self.failUnlessEqual(metadata.keys(), ['tahoe']))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe", "ctime", "mtime"])))
 
             # You can't override the link timestamps.
             d.addCallback(lambda res: n.set_uri(u"c2",
@@ -772,8 +773,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                 fake_file_uri, fake_file_uri))
             d.addCallback(lambda res: n.get_metadata_for(u"c3"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()),
-                                               set(["tahoe", "ctime", "mtime"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe", "ctime", "mtime"])))
 
             # or we can add specific metadata at set_uri() time, which
             # overrides the timestamps
@@ -782,7 +782,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                 {"key": "value"}))
             d.addCallback(lambda res: n.get_metadata_for(u"c4"))
             d.addCallback(lambda metadata:
-                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
+                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe", "ctime", "mtime"])) and
                                               (metadata['key'] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"c2"))
@@ -799,14 +799,14 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                           n.set_node, u"d2", n2,
                                           overwrite=False))
             d.addCallback(lambda res: n.get_metadata_for(u"d2"))
-            d.addCallback(lambda metadata: self.failUnlessEqual(metadata.keys(), ['tahoe']))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe", "ctime", "mtime"])))
 
             # if we don't set any defaults, the child should get timestamps
             d.addCallback(lambda res: n.set_node(u"d3", n))
             d.addCallback(lambda res: n.get_metadata_for(u"d3"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()),
-                                               set(["tahoe", "ctime", "mtime"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe", "ctime", "mtime"])))
 
             # or we can add specific metadata at set_node() time, which
             # overrides the timestamps
@@ -814,8 +814,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                 {"key": "value"}))
             d.addCallback(lambda res: n.get_metadata_for(u"d4"))
             d.addCallback(lambda metadata:
-                          self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
-                                          (metadata['key'] == "value"), metadata))
+                          self.failUnless((set(metadata.keys()) == set(["key", "tahoe", "ctime", "mtime"])) and
+                                          (metadata["key"] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"d2"))
             d.addCallback(lambda res: n.delete(u"d3"))
@@ -845,15 +845,14 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda children: self.failIf(u"new" in children))
             d.addCallback(lambda res: n.get_metadata_for(u"e1"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()),
-                                               set(["tahoe", "ctime", "mtime"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe", "ctime", "mtime"])))
             d.addCallback(lambda res: n.get_metadata_for(u"e2"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()), set(['tahoe'])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe", "ctime", "mtime"])))
             d.addCallback(lambda res: n.get_metadata_for(u"e3"))
             d.addCallback(lambda metadata:
-                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"]))
-                                              and (metadata['key'] == "value"), metadata))
+                          self.failUnless((set(metadata.keys()) == set(["key", "tahoe", "ctime", "mtime"])) and
+                                          (metadata["key"] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"e1"))
             d.addCallback(lambda res: n.delete(u"e2"))
@@ -877,15 +876,14 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda children: self.failIf(u"new" in children))
             d.addCallback(lambda res: n.get_metadata_for(u"f1"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()),
-                                               set(["tahoe", "ctime", "mtime"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe", "ctime", "mtime"])))
             d.addCallback(lambda res: n.get_metadata_for(u"f2"))
-            d.addCallback(
-                lambda metadata: self.failUnlessEqual(set(metadata.keys()), set(['tahoe'])))
+            d.addCallback(lambda metadata:
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe", "ctime", "mtime"])))
             d.addCallback(lambda res: n.get_metadata_for(u"f3"))
             d.addCallback(lambda metadata:
-                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
-                                              (metadata['key'] == "value"), metadata))
+                          self.failUnless((set(metadata.keys()) == set(["key", "tahoe", "ctime", "mtime"])) and
+                                          (metadata["key"] == "value"), metadata))
 
             d.addCallback(lambda res: n.delete(u"f1"))
             d.addCallback(lambda res: n.delete(u"f2"))
@@ -896,12 +894,10 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                           n.set_metadata_for(u"child",
                                              {"tags": ["web2.0-compatible"], "tahoe": {"bad": "mojo"}}))
             d.addCallback(lambda n1: n1.get_metadata_for(u"child"))
-            def _check_metadata(md):
-                self.failUnless("tags" in md, md)
-                self.failUnlessEqual(md["tags"], ["web2.0-compatible"])
-                self.failUnless("tahoe" in md, md)
-                self.failIf("bad" in md["tahoe"], md)
-            d.addCallback(_check_metadata)
+            d.addCallback(lambda metadata:
+                          self.failUnless((set(metadata.keys()) == set(["tags", "tahoe", "ctime", "mtime"])) and
+                                          metadata["tags"] == ["web2.0-compatible"] and
+                                          "bad" not in metadata["tahoe"], metadata))
 
             def _start(res):
                 self._start_timestamp = time.time()
@@ -996,7 +992,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                           self.failUnless(IImmutableFileNode.providedBy(newnode)))
             d.addCallback(lambda res: n.get_metadata_for(u"newfile-metadata"))
             d.addCallback(lambda metadata:
-                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
+                              self.failUnless((set(metadata.keys()) == set(["key", "tahoe", "ctime", "mtime"])) and
                                               (metadata['key'] == "value"), metadata))
             d.addCallback(lambda res: n.delete(u"newfile-metadata"))
 
@@ -1057,6 +1053,21 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
         d.addErrback(self.explain_error)
         return d
+
+    def test_update_metadata(self):
+        (t1, t2, t3) = (626644800, 634745640, 892226160)
+
+        md1 = dirnode.update_metadata({}, {"ctime": t1}, t2)
+        self.failUnlessEqual(md1, {"ctime": t1, "mtime": t2,
+                                   "tahoe":{"linkcrtime": t1, "linkmotime": t2}})
+
+        md2 = dirnode.update_metadata(md1, {"key": "value", "tahoe": {"bad": "mojo"}}, t3)
+        self.failUnlessEqual(md2, {"key": "value", "ctime": t1, "mtime": t3,
+                                   "tahoe":{"linkcrtime": t1, "linkmotime": t3}})
+
+        md3 = dirnode.update_metadata({}, None, t3)
+        self.failUnlessEqual(md3, {"ctime": t3, "mtime": t3,
+                                   "tahoe":{"linkcrtime": t3, "linkmotime": t3}})
 
     def test_create_subdirectory(self):
         self.basedir = "dirnode/Dirnode/test_create_subdirectory"

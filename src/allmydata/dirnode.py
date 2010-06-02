@@ -29,11 +29,11 @@ def update_metadata(metadata, new_metadata, now):
     Timestamps are set according to the time 'now'."""
 
     if metadata is None:
-        metadata = {"ctime": now,
-                    "mtime": now,
-                    "tahoe": {
-                        "linkcrtime": now,
-                        "linkmotime": now,
+        metadata = {'ctime': now,
+                    'mtime': now,
+                    'tahoe': {
+                        'linkcrtime': now,
+                        'linkmotime': now,
                         }
                     }
 
@@ -42,28 +42,36 @@ def update_metadata(metadata, new_metadata, now):
         newmd = new_metadata.copy()
 
         # Except 'tahoe'.
-        if newmd.has_key('tahoe'):
+        if 'tahoe' in newmd:
             del newmd['tahoe']
-        if metadata.has_key('tahoe'):
+        if 'tahoe' in metadata:
             newmd['tahoe'] = metadata['tahoe']
+
+        # For backwards compatibility with Tahoe < 1.4.0:
+        if 'ctime' not in newmd:
+            if 'ctime' in metadata:
+                newmd['ctime'] = metadata['ctime']
+            else:
+                newmd['ctime'] = now
+        if 'mtime' not in newmd:
+            newmd['mtime'] = now
 
         metadata = newmd
     else:
         # For backwards compatibility with Tahoe < 1.4.0:
-        if "ctime" not in metadata:
-            metadata["ctime"] = now
-        metadata["mtime"] = now
+        if 'ctime' not in metadata:
+            metadata['ctime'] = now
+        metadata['mtime'] = now
 
     # update timestamps
     sysmd = metadata.get('tahoe', {})
-    if not 'linkcrtime' in sysmd:
-        if "ctime" in metadata:
-            # In Tahoe < 1.4.0 we used the word "ctime" to mean what Tahoe >= 1.4.0
-            # calls "linkcrtime".
-            sysmd["linkcrtime"] = metadata["ctime"]
-        else:
-            sysmd["linkcrtime"] = now
-    sysmd["linkmotime"] = now
+    if 'linkcrtime' not in sysmd:
+        # In Tahoe < 1.4.0 we used the word 'ctime' to mean what Tahoe >= 1.4.0
+        # calls 'linkcrtime'.
+        assert 'ctime' in metadata
+        sysmd['linkcrtime'] = metadata['ctime']
+    sysmd['linkmotime'] = now
+    metadata['tahoe'] = sysmd
 
     return metadata
 
