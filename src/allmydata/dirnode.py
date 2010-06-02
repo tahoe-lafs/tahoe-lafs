@@ -122,9 +122,10 @@ class MetadataSetter:
             raise NoSuchChildError(name)
 
         now = time.time()
-        metadata = update_metadata(children[name][1].copy(), self.metadata, now)
         child = children[name][0]
-        if self.create_readonly_node and metadata and metadata.get('no-write', False):
+
+        metadata = update_metadata(children[name][1].copy(), self.metadata, now)
+        if self.create_readonly_node and metadata.get('no-write', False):
             child = self.create_readonly_node(child, name)
 
         children[name] = (child, metadata)
@@ -167,10 +168,11 @@ class Adder:
                     raise ExistingChildError("child '%s' already exists" % name)
                 metadata = children[name][1].copy()
 
-            if self.create_readonly_node and metadata and metadata.get('no-write', False):
+            metadata = update_metadata(metadata, new_metadata, now)
+            if self.create_readonly_node and metadata.get('no-write', False):
                 child = self.create_readonly_node(child, name)
 
-            children[name] = (child, update_metadata(metadata, new_metadata, now))
+            children[name] = (child, metadata)
         new_contents = self.node._pack_contents(children)
         return new_contents
 
@@ -591,7 +593,7 @@ class DirectoryNode:
         return d
 
     def create_subdirectory(self, name, initial_children={}, overwrite=True,
-                            mutable=True):
+                            mutable=True, metadata=None):
         assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
@@ -600,7 +602,7 @@ class DirectoryNode:
         else:
             d = self._nodemaker.create_immutable_directory(initial_children)
         def _created(child):
-            entries = {name: (child, None)}
+            entries = {name: (child, metadata)}
             a = Adder(self, entries, overwrite=overwrite,
                       create_readonly_node=self._create_readonly_node)
             d = self._node.modify(a.modify)

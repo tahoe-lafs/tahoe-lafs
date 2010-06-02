@@ -775,8 +775,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda metadata:
                           self.failUnlessEqual(set(metadata.keys()), set(["tahoe", "ctime", "mtime"])))
 
-            # or we can add specific metadata at set_uri() time, which
-            # overrides the timestamps
+            # we can also add specific metadata at set_uri() time
             d.addCallback(lambda res: n.set_uri(u"c4",
                                                 fake_file_uri, fake_file_uri,
                                                 {"key": "value"}))
@@ -790,7 +789,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda res: n.delete(u"c4"))
 
             # set_node + metadata
-            # it should be possible to add a child without any metadata
+            # it should be possible to add a child without any metadata except for timestamps
             d.addCallback(lambda res: n.set_node(u"d2", n, {}))
             d.addCallback(lambda res: c.create_dirnode())
             d.addCallback(lambda n2:
@@ -808,8 +807,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda metadata:
                           self.failUnlessEqual(set(metadata.keys()), set(["tahoe", "ctime", "mtime"])))
 
-            # or we can add specific metadata at set_node() time, which
-            # overrides the timestamps
+            # we can also add specific metadata at set_node() time
             d.addCallback(lambda res: n.set_node(u"d4", n,
                                                 {"key": "value"}))
             d.addCallback(lambda res: n.get_metadata_for(u"d4"))
@@ -898,6 +896,11 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                           self.failUnless((set(metadata.keys()) == set(["tags", "tahoe", "ctime", "mtime"])) and
                                           metadata["tags"] == ["web2.0-compatible"] and
                                           "bad" not in metadata["tahoe"], metadata))
+
+            d.addCallback(lambda res:
+                          self.shouldFail(NoSuchChildError, "set_metadata_for-nosuch", "",
+                                          n.set_metadata_for, u"nosuch", {}))
+
 
             def _start(res):
                 self._start_timestamp = time.time()
@@ -1046,6 +1049,35 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda child:
                           self.failUnlessEqual(child.get_uri(),
                                                other_file_uri))
+
+
+            # Setting the no-write field should diminish a mutable cap to read-only
+            # (for both files and directories).
+
+            d.addCallback(lambda ign: n.set_uri(u"mutable", other_file_uri, other_file_uri))
+            d.addCallback(lambda ign: n.get(u"mutable"))
+            d.addCallback(lambda mutable: self.failIf(mutable.is_readonly(), mutable))
+            d.addCallback(lambda ign: n.set_metadata_for(u"mutable", {"no-write": True}))
+            d.addCallback(lambda ign: n.get(u"mutable"))
+            d.addCallback(lambda mutable: self.failUnless(mutable.is_readonly(), mutable))
+            d.addCallback(lambda ign: n.set_metadata_for(u"mutable", {"no-write": True}))
+            d.addCallback(lambda ign: n.get(u"mutable"))
+            d.addCallback(lambda mutable: self.failUnless(mutable.is_readonly(), mutable))
+
+            d.addCallback(lambda ign: n.get(u"subdir2"))
+            d.addCallback(lambda subdir2: self.failIf(subdir2.is_readonly()))
+            d.addCallback(lambda ign: n.set_metadata_for(u"subdir2", {"no-write": True}))
+            d.addCallback(lambda ign: n.get(u"subdir2"))
+            d.addCallback(lambda subdir2: self.failUnless(subdir2.is_readonly(), subdir2))
+
+            d.addCallback(lambda ign: n.set_uri(u"mutable_ro", other_file_uri, other_file_uri,
+                                                metadata={"no-write": True}))
+            d.addCallback(lambda ign: n.get(u"mutable_ro"))
+            d.addCallback(lambda mutable_ro: self.failUnless(mutable_ro.is_readonly(), mutable_ro))
+
+            d.addCallback(lambda ign: n.create_subdirectory(u"subdir_ro", metadata={"no-write": True}))
+            d.addCallback(lambda ign: n.get(u"subdir_ro"))
+            d.addCallback(lambda subdir_ro: self.failUnless(subdir_ro.is_readonly(), subdir_ro))
 
             return d
 
