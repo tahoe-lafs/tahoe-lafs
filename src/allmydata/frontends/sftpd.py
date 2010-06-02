@@ -236,14 +236,13 @@ def _populate_attrs(childnode, metadata, size=None):
         if metadata.get('no-write', False):
             perms &= S_IFDIR | S_IFREG | 0555  # clear 'w' bits
 
-        # see webapi.txt for what these times mean
+        # See webapi.txt for what these times mean.
+        # We would prefer to omit atime, but SFTP version 3 can only
+        # accept mtime if atime is also set.
         if 'linkmotime' in metadata.get('tahoe', {}):
-            attrs['mtime'] = _to_sftp_time(metadata['tahoe']['linkmotime'])
+            attrs['mtime'] = attrs['atime'] = _to_sftp_time(metadata['tahoe']['linkmotime'])
         elif 'mtime' in metadata:
-            # We would prefer to omit atime, but SFTP version 3 can only
-            # accept mtime if atime is also set.
-            attrs['mtime'] = _to_sftp_time(metadata['mtime'])
-            attrs['atime'] = attrs['mtime']
+            attrs['mtime'] = attrs['atime'] = _to_sftp_time(metadata['mtime'])
 
         if 'linkcrtime' in metadata.get('tahoe', {}):
             attrs['createtime'] = _to_sftp_time(metadata['tahoe']['linkcrtime'])
