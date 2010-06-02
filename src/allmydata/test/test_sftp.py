@@ -3,7 +3,7 @@ import re, struct, traceback, gc, time, calendar
 from stat import S_IFREG, S_IFDIR
 
 from twisted.trial import unittest
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 from twisted.internet.error import ProcessDone, ProcessTerminated
 
@@ -870,6 +870,28 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.shouldFail(NoSuchChildError, "rename newexcl while open", "newexcl",
                                       self.root.get, u"newexcl"))
+
+        # it should be possible to rename even before the open has completed
+        def _open_and_rename_race(ign):
+            slow_open = defer.Deferred()
+            reactor.callLater(1, slow_open.callback, None)
+            d2 = self.handler.openFile("new", sftp.FXF_WRITE | sftp.FXF_CREAT, {}, delay=slow_open)
+
+            # deliberate race between openFile and renameFile
+            d3 = self.handler.renameFile("new", "new2")
+            return d2
+        d.addCallback(_open_and_rename_race)
+        def _write_rename_race(wf):
+            d2 = wf.writeChunk(0, "abcd")
+            d2.addCallback(lambda ign: wf.close())
+            return d2
+        d.addCallback(_write_rename_race)
+        d.addCallback(lambda ign: self.root.get(u"new2"))
+        d.addCallback(lambda node: download_to_data(node))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcd"))
+        d.addCallback(lambda ign:
+                      self.shouldFail(NoSuchChildError, "rename new while open", "new",
+                                      self.root.get, u"new"))
 
         return d
 

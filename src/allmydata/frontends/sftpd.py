@@ -697,33 +697,33 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.filenode = filenode
         self.metadata = metadata
 
-        if not self.closed:
-            tempfile_maker = EncryptedTemporaryFile
+        assert not self.closed
+        tempfile_maker = EncryptedTemporaryFile
 
-            if (self.flags & FXF_TRUNC) or not filenode:
-                # We're either truncating or creating the file, so we don't need the old contents.
-                self.consumer = OverwriteableFileConsumer(0, tempfile_maker)
-                self.consumer.finish()
+        if (self.flags & FXF_TRUNC) or not filenode:
+            # We're either truncating or creating the file, so we don't need the old contents.
+            self.consumer = OverwriteableFileConsumer(0, tempfile_maker)
+            self.consumer.finish()
+        else:
+            assert IFileNode.providedBy(filenode), filenode
+
+            # TODO: use download interface described in #993 when implemented.
+            if filenode.is_mutable():
+                self.async.addCallback(lambda ign: filenode.download_best_version())
+                def _downloaded(data):
+                    self.consumer = OverwriteableFileConsumer(len(data), tempfile_maker)
+                    self.consumer.write(data)
+                    self.consumer.finish()
+                    return None
+                self.async.addCallback(_downloaded)
             else:
-                assert IFileNode.providedBy(filenode), filenode
-
-                # TODO: use download interface described in #993 when implemented.
-                if filenode.is_mutable():
-                    self.async.addCallback(lambda ign: filenode.download_best_version())
-                    def _downloaded(data):
-                        self.consumer = OverwriteableFileConsumer(len(data), tempfile_maker)
-                        self.consumer.write(data)
-                        self.consumer.finish()
-                        return None
-                    self.async.addCallback(_downloaded)
-                else:
-                    download_size = filenode.get_size()
-                    assert download_size is not None, "download_size is None"
-                    self.consumer = OverwriteableFileConsumer(download_size, tempfile_maker)
-                    def _read(ign):
-                        if noisy: self.log("_read immutable", level=NOISY)
-                        filenode.read(self.consumer, 0, None)
-                    self.async.addCallback(_read)
+                download_size = filenode.get_size()
+                assert download_size is not None, "download_size is None"
+                self.consumer = OverwriteableFileConsumer(download_size, tempfile_maker)
+                def _read(ign):
+                    if noisy: self.log("_read immutable", level=NOISY)
+                    filenode.read(self.consumer, 0, None)
+                self.async.addCallback(_read)
 
         eventually_callback(self.async)(None)
 
@@ -1238,8 +1238,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             d.addCallback(_got_file)
         return d
 
-    def openFile(self, pathstring, flags, attrs):
-        request = ".openFile(%r, %r = %r, %r)" % (pathstring, flags, _repr_flags(flags), attrs)
+    def openFile(self, pathstring, flags, attrs, delay=None):
+        request = ".openFile(%r, %r = %r, %r, delay=%r)" % (pathstring, flags, _repr_flags(flags), attrs, delay)
         self.log(request, level=OPERATIONAL)
 
         # This is used for both reading and writing.
@@ -1311,7 +1311,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         # Note that the permission checks below are for more precise error reporting on
         # the open call; later operations would fail even if we did not make these checks.
 
-        d = self._get_root(path)
+        d = delay or defer.succeed(None)
+        d.addCallback(lambda ign: self._get_root(path))
         def _got_root( (root, path) ):
             if root.is_unknown():
                 raise SFTPError(FX_PERMISSION_DENIED,
