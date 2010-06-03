@@ -402,7 +402,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def test_provisioning(self):
         d = self.GET("/provisioning/")
         def _check(res):
-            self.failUnless('Tahoe Provisioning Tool' in res)
+            self.failUnless('Provisioning Tool' in res)
             fields = {'filled': True,
                       "num_users": int(50e3),
                       "files_per_user": 1000,
@@ -420,7 +420,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
         d.addCallback(_check)
         def _check2(res):
-            self.failUnless('Tahoe Provisioning Tool' in res)
+            self.failUnless('Provisioning Tool' in res)
             self.failUnless("Share space consumed: 167.01TB" in res)
 
             fields = {'filled': True,
@@ -460,7 +460,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
         d = self.GET("/reliability/")
         def _check(res):
-            self.failUnless('Tahoe Reliability Tool' in res)
+            self.failUnless('Reliability Tool' in res)
             fields = {'drive_lifetime': "8Y",
                       "k": "3",
                       "R": "7",
@@ -474,7 +474,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
         d.addCallback(_check)
         def _check2(res):
-            self.failUnless('Tahoe Reliability Tool' in res)
+            self.failUnless('Reliability Tool' in res)
             r = r'Probability of loss \(no maintenance\):\s+<span>0.033591'
             self.failUnless(re.search(r, res), res)
         d.addCallback(_check2)
