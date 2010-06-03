@@ -1,4 +1,4 @@
-= Tahoe FTP/SFTP Frontend =
+= Tahoe FTP and SFTP Frontends =
 
 1.  FTP/SFTP Background
 2.  Tahoe Support
@@ -6,6 +6,8 @@
 4.  Configuring FTP Access
 5.  Configuring SFTP Access
 6.  Dependencies
+7.  Immutable and mutable files
+
 
 == FTP/SFTP Background ==
 
@@ -23,6 +25,7 @@ server usually listens on port 22. All connections are encrypted.
 Both FTP and SFTP were developed assuming a UNIX-like server, with accounts
 and passwords, octal file modes (user/group/other, read/write/execute), and
 ctime/mtime timestamps.
+
 
 == Tahoe Support ==
 
@@ -49,6 +52,7 @@ HTTP-based login mechanism, backed by simple PHP script and a database. The
 latter form is used by allmydata.com to provide secure access to customer
 rootcaps.
 
+
 == Creating an Account File ==
 
 To use the first form, create a file (probably in
@@ -71,6 +75,7 @@ either of these strings.
 
 Then add an 'accounts.file' directive to your tahoe.cfg file, as described
 in the next sections.
+
 
 == Configuring FTP Access ==
 
@@ -95,6 +100,7 @@ that server in an "accounts.url" directive:
 
 You can provide both accounts.file and accounts.url, although it probably
 isn't very useful except for testing.
+
 
 == Configuring SFTP Access ==
 
