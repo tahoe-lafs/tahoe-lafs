@@ -1,9 +1,7 @@
 """
 Decentralized storage grid.
 
-maintainer web site: U{http://allmydata.com/}
-
-community web site: U{http://allmydata.org/}
+community web site: U{http://tahoe-lafs.org/}
 """
 
 # This is just to suppress DeprecationWarnings from nevow and twisted.
