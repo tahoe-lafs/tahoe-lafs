@@ -1839,48 +1839,71 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         return d
 
 
-class SFTPUser(ConchUser, PrefixingLogMixin):
+class FakeTransport:
+    implements(ITransport)
+    def write(self, data):
+        logmsg("FakeTransport.write(<data of length %r>)" % (len(data),), level=NOISY)
+
+    def writeSequence(self, data):
+        logmsg("FakeTransport.writeSequence(...)", level=NOISY)
+
+    def loseConnection(self):
+        logmsg("FakeTransport.loseConnection()", level=NOISY)
+
+    # getPeer and getHost can just raise errors, since we don't know what to return
+
+
+class ShellSession(PrefixingLogMixin):
     implements(ISession)
-    def __init__(self, check_abort, client, rootnode, username, convergence):
-        ConchUser.__init__(self)
+    def __init__(self, userHandler):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
-
-        self.channelLookup["session"] = session.SSHSession
-        self.subsystemLookup["sftp"] = FileTransferServer
-
-        self.check_abort = check_abort
-        self.client = client
-        self.root = rootnode
-        self.username = username
-        self.convergence = convergence
+        if noisy: self.log(".__init__(%r)" % (userHandler), level=NOISY)
 
     def getPty(self, terminal, windowSize, attrs):
         self.log(".getPty(%r, %r, %r)" % (terminal, windowSize, attrs), level=OPERATIONAL)
-        raise NotImplementedError
 
     def openShell(self, protocol):
         self.log(".openShell(%r)" % (protocol,), level=OPERATIONAL)
-        raise NotImplementedError
+        if hasattr(protocol, 'transport') and protocol.transport is None:
+            protocol.transport = FakeTransport()  # work around Twisted bug
+
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: protocol.write("This server supports only SFTP, not shell sessions.\n"))
+        d.addCallback(lambda ign: protocol.processEnded(Reason(ProcessTerminated(exitCode=1))))
+        return d
 
     def execCommand(self, protocol, cmd):
         self.log(".execCommand(%r, %r)" % (protocol, cmd), level=OPERATIONAL)
-        raise NotImplementedError
+        if hasattr(protocol, 'transport') and protocol.transport is None:
+            protocol.transport = FakeTransport()  # work around Twisted bug
+
+        d = defer.succeed(None)
+        if cmd == "df -P -k /":
+            d.addCallback(lambda ign: protocol.write(
+                          "Filesystem         1024-blocks      Used Available Capacity Mounted on\n"
+                          "tahoe                628318530 314159265 314159265      50% /\n"))
+            d.addCallback(lambda ign: protocol.processEnded(Reason(ProcessDone(None))))
+        else:
+            d.addCallback(lambda ign: protocol.processEnded(Reason(ProcessTerminated(exitCode=1))))
+        return d
 
     def windowChanged(self, newWindowSize):
         self.log(".windowChanged(%r)" % (newWindowSize,), level=OPERATIONAL)
 
-    def eofReceived():
+    def eofReceived(self):
         self.log(".eofReceived()", level=OPERATIONAL)
 
     def closed(self):
         self.log(".closed()", level=OPERATIONAL)
 
 
-# if you have an SFTPUser, and you want something that provides ISFTPServer,
-# then you get SFTPHandler(user)
-components.registerAdapter(SFTPHandler, SFTPUser, ISFTPServer)
+# If you have an SFTPUserHandler and want something that provides ISession, you get
+# ShellSession(userHandler).
+# We use adaptation because this must be a different object to the SFTPUserHandler.
+components.registerAdapter(ShellSession, SFTPUserHandler, ISession)
 
-from auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
+
+from allmydata.frontends.auth import AccountURLChecker, AccountFileChecker, NeedRootcapLookupScheme
 
 class Dispatcher:
     implements(portal.IRealm)
