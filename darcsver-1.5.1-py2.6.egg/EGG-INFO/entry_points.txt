@@ -1,0 +1,6 @@
+[console_scripts]
+darcsver = scripts.darcsverscript:main
+
+[distutils.commands]
+darcsver = darcsver.setuptools_command:DarcsVer
+
