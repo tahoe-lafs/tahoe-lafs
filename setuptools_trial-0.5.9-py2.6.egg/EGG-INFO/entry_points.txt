@@ -1,0 +1,3 @@
+[distutils.commands]
+trial = setuptools_trial.setuptools_trial:TrialTest
+
