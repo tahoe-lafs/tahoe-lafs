@@ -41,7 +41,6 @@ class BasedirMixin:
         self['basedirs'] = [os.path.abspath(os.path.expanduser(b)) for b in self.basedirs]
 
     def parseArgs(self, *args):
-        from allmydata.util.assertutil import precondition
         self.basedirs = []
         if self['basedir']:
             precondition(isinstance(self['basedir'], (str, unicode)), self['basedir'])
@@ -68,7 +67,6 @@ class BasedirMixin:
 
 class NoDefaultBasedirMixin(BasedirMixin):
     def parseArgs(self, *args):
-        from allmydata.util.assertutil import precondition
         # create-client won't default to --basedir=~/.tahoe
         self.basedirs = []
         if self['basedir']:

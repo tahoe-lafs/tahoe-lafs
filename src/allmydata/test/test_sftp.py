@@ -1,5 +1,5 @@
 
-import re, struct, traceback, gc, time, calendar
+import re, struct, traceback, time, calendar
 from stat import S_IFREG, S_IFDIR
 
 from twisted.trial import unittest
@@ -879,6 +879,7 @@ class Handler(GridTestMixin, ShouldFailMixin, unittest.TestCase):
 
             # deliberate race between openFile and renameFile
             d3 = self.handler.renameFile("new", "new2")
+            del d3
             return d2
         d.addCallback(_open_and_rename_race)
         def _write_rename_race(wf):

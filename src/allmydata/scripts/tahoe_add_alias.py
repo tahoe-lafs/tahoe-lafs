@@ -1,7 +1,6 @@
 
 import os.path
 import codecs
-import sys
 from allmydata import uri
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases

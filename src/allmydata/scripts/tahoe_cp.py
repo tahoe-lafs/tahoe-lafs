@@ -2,14 +2,12 @@
 import os.path
 import urllib
 import simplejson
-import sys
 from cStringIO import StringIO
 from twisted.python.failure import Failure
 from allmydata.scripts.common import get_alias, escape_path, \
                                      DefaultAliasMarker, UnknownAliasError
 from allmydata.scripts.common_http import do_http
 from allmydata import uri
-from twisted.python import usage
 from allmydata.util.stringutils import unicode_to_url, listdir_unicode, open_unicode
 from allmydata.util.assertutil import precondition
 

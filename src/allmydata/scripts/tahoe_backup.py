@@ -9,10 +9,8 @@ from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
 from allmydata.scripts.common_http import do_http
 from allmydata.util import time_format
 from allmydata.scripts import backupdb
-import sys
 from allmydata.util.stringutils import unicode_to_stdout, listdir_unicode, open_unicode
 from allmydata.util.assertutil import precondition
-from twisted.python import usage
 
 
 class HTTPError(Exception):
