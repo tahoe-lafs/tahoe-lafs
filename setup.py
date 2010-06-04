@@ -240,7 +240,7 @@ class MakeExecutable(Command):
         f = open(bin_tahoe_template, "rU")
         script_lines = f.readlines()
         f.close()
-        script_lines[0] = '#!"%s"\n' % sys.executable
+        script_lines[0] = "#!%s\n" % sys.executable
         tahoe_script = os.path.join("bin", "tahoe-script.py")
         f = open(tahoe_script, "w")
         for line in script_lines:
