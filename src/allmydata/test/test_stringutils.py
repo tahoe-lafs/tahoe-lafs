@@ -48,7 +48,7 @@ if __name__ == "__main__":
 
 from twisted.trial import unittest
 from mock import patch
-import sys
+import locale, sys
 
 from allmydata.util.stringutils import argv_to_unicode, unicode_to_url, \
     unicode_to_stdout, unicode_platform, listdir_unicode, open_unicode, \
