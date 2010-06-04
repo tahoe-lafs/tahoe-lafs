@@ -59,8 +59,8 @@ class StringUtilsErrors(unittest.TestCase):
     @patch('sys.stdout')
     def test_get_term_encoding(self, mock):
         mock.encoding = None
-        
-        self.failUnlessEqual(get_term_encoding(), 'ascii')
+
+        self.failUnlessEqual(get_term_encoding().lower(), locale.getpreferredencoding().lower())
 
     @patch('sys.stdout')
     def test_argv_to_unicode(self, mock):

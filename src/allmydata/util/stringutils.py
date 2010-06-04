@@ -8,6 +8,7 @@ import os
 import unicodedata
 from allmydata.util.assertutil import precondition
 from twisted.python import usage
+import locale
 
 def get_term_encoding():
     """
@@ -15,10 +16,10 @@ def get_term_encoding():
     arguments from the command-line.
     """
 
-    if sys.stdout.encoding == None:
-        return 'ascii'
-    else:
+    if sys.stdout.encoding:
         return sys.stdout.encoding
+    else:
+        return locale.getpreferredencoding()
 
 def argv_to_unicode(s):
     """

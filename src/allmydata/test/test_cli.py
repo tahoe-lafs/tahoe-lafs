@@ -3,12 +3,10 @@
 import os.path
 from twisted.trial import unittest
 from cStringIO import StringIO
-import urllib
-import re
+import locale, urllib, re, sys
 import simplejson
-import sys
 
-from allmydata.util import fileutil, hashutil, base32
+from allmydata.util import fileutil, hashutil, base32, stringutils
 from allmydata import uri
 from allmydata.immutable import upload
 
@@ -32,11 +30,11 @@ from allmydata.util.stringutils import listdir_unicode, unicode_platform, Filena
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
 def skip_non_unicode_fs():
-    if sys.getfilesystemencoding() not in ('UTF-8', 'mbcs'):
+    if sys.getfilesystemencoding().lower() not in ('utf-8', 'mbcs', 'utf_16', 'utf_16_be', 'utf_16_le', 'utf_32', 'utf_32_be', 'utf_32_le', 'utf_7', 'utf_8', 'utf_8_sig',):
         raise unittest.SkipTest("Arbitrary filenames are not supported by this platform")
 
 def skip_non_unicode_stdout():
-    if not sys.stdout.encoding or sys.stdout.encoding not in ('UTF-8'):
+    if stringutils.get_term_encoding().lower() not in ('utf-8', 'mbcs', 'utf_16', 'utf_16_be', 'utf_16_le', 'utf_32', 'utf_32_be', 'utf_32_le', 'utf_7', 'utf_8', 'utf_8_sig',):
         raise unittest.SkipTest("Arbitrary command-line arguments (argv) are not supported by this platform")
 
 class CLI(unittest.TestCase):
@@ -1035,7 +1033,9 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check1((rc,out,err)):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(out.splitlines(), ["0share", "1share", "gööd"])
+            outstrs = out.splitlines()
+            outunics = [ outstr.decode(stringutils.get_term_encoding()) for outstr in outstrs ]
+            self.failUnlessEqual(outunics, [u"0share", u"1share", u"gööd"])
         d.addCallback(_check1)
         d.addCallback(lambda ign: self.do_cli("ls", "missing"))
         def _check2((rc,out,err)):
@@ -1058,16 +1058,16 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             # listing a file (as dir/filename) should have the edge metadata,
             # including the filename
             self.failUnlessEqual(rc, 0)
-            self.failUnlessIn("gööd", out)
+            self.failUnlessIn(u"gööd", out.decode(stringutils.get_term_encoding()))
             self.failIfIn("-r-- %d -" % len(small), out,
                           "trailing hyphen means unknown date")
-        d.addCallback(lambda ign: self.do_cli("ls", "-l", "gööd"))
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", u"gööd".encode(locale.getpreferredencoding())))
         d.addCallback(_check4)
         # listing a file as $DIRCAP/filename should work just like dir/filename
-        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + "/gööd"))
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + u"/gööd".encode(locale.getpreferredencoding())))
         d.addCallback(_check4)
         # and similarly for $DIRCAP:./filename
-        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + ":./gööd"))
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + u":./gööd".encode(locale.getpreferredencoding())))
         d.addCallback(_check4)
         def _check5((rc, out, err)):
             # listing a raw filecap should not explode, but it will have no
@@ -1964,10 +1964,10 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _stash_uri(fn, which):
             self.uris[which] = fn.get_uri()
             return fn
-        d.addCallback(_stash_uri, "gööd")
+        d.addCallback(_stash_uri, u"gööd")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
-                                             upload.Data("literal",
+                                           upload.Data("literal",
                                                         convergence="")))
         d.addCallback(_stash_uri, "small")
         d.addCallback(lambda ign: c0.create_mutable_file(DATA+"1"))
@@ -1994,9 +1994,10 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             lines = out.splitlines()
+            linesu = [ line.decode(stringutils.get_term_encoding()) for line in lines]
             self.failUnless("<root>: Healthy" in lines, out)
             self.failUnless("small: Healthy (LIT)" in lines, out)
-            self.failUnless("gööd: Healthy" in lines, out)
+            self.failUnless(u"gööd: Healthy" in linesu, out)
             self.failUnless("mutable: Healthy" in lines, out)
             self.failUnless("done: 4 objects checked, 4 healthy, 0 unhealthy"
                             in lines, out)
@@ -2018,7 +2019,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_stats)
 
         def _clobber_shares(ignored):
-            shares = self.find_shares(self.uris["gööd"])
+            shares = self.find_shares(self.uris[u"gööd"])
             self.failUnlessEqual(len(shares), 10)
             os.unlink(shares[0][2])
 
@@ -2045,11 +2046,11 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             lines = out.splitlines()
+            linesu = [ line.decode(stringutils.get_term_encoding()) for line in lines]
             self.failUnless("<root>: Healthy" in lines, out)
             self.failUnless("small: Healthy (LIT)" in lines, out)
             self.failUnless("mutable: Healthy" in lines, out) # needs verifier
-            self.failUnless("gööd: Not Healthy: 9 shares (enc 3-of-10)"
-                            in lines, out)
+            self.failUnless(u"gööd: Not Healthy: 9 shares (enc 3-of-10)" in linesu, out)
             self.failIf(self._corrupt_share_line in lines, out)
             self.failUnless("done: 4 objects checked, 3 healthy, 1 unhealthy"
                             in lines, out)
@@ -2062,14 +2063,14 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             lines = out.splitlines()
+            linesu = [ line.decode(stringutils.get_term_encoding()) for line in lines]
             self.failUnless("<root>: Healthy" in lines, out)
             self.failUnless("small: Healthy (LIT)" in lines, out)
             mutable = [l for l in lines if l.startswith("mutable")][0]
             self.failUnless(mutable.startswith("mutable: Unhealthy: 9 shares (enc 3-of-10)"),
                             mutable)
             self.failUnless(self._corrupt_share_line in lines, out)
-            self.failUnless("gööd: Not Healthy: 9 shares (enc 3-of-10)"
-                            in lines, out)
+            self.failUnless(u"gööd: Not Healthy: 9 shares (enc 3-of-10)" in linesu, out)
             self.failUnless("done: 4 objects checked, 2 healthy, 2 unhealthy"
                             in lines, out)
         d.addCallback(_check4)
@@ -2094,11 +2095,12 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
             lines = out.splitlines()
+            linesu = [ line.decode(stringutils.get_term_encoding()) for line in lines]
             self.failUnless("<root>: healthy" in lines, out)
             self.failUnless("small: healthy" in lines, out)
             self.failUnless("mutable: not healthy" in lines, out)
             self.failUnless(self._corrupt_share_line in lines, out)
-            self.failUnless("gööd: not healthy" in lines, out)
+            self.failUnless(u"gööd: not healthy" in linesu, out)
             self.failUnless("done: 4 objects checked" in lines, out)
             self.failUnless(" pre-repair: 2 healthy, 2 unhealthy" in lines, out)
             self.failUnless(" 2 repairs attempted, 2 successful, 0 failed"
