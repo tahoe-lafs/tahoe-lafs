@@ -1018,7 +1018,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturi = n.get_uri()
-            return n.add_file(u"good", upload.Data(small, convergence=""))
+            return n.add_file(u"gööd", upload.Data(small, convergence=""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_goodcap(n):
             self.goodcap = n.get_uri()
@@ -1035,7 +1035,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check1((rc,out,err)):
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(out.splitlines(), ["0share", "1share", "good"])
+            self.failUnlessEqual(out.splitlines(), ["0share", "1share", "gööd"])
         d.addCallback(_check1)
         d.addCallback(lambda ign: self.do_cli("ls", "missing"))
         def _check2((rc,out,err)):
@@ -1058,16 +1058,16 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             # listing a file (as dir/filename) should have the edge metadata,
             # including the filename
             self.failUnlessEqual(rc, 0)
-            self.failUnlessIn("good", out)
+            self.failUnlessIn("gööd", out)
             self.failIfIn("-r-- %d -" % len(small), out,
                           "trailing hyphen means unknown date")
-        d.addCallback(lambda ign: self.do_cli("ls", "-l", "good"))
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", "gööd"))
         d.addCallback(_check4)
         # listing a file as $DIRCAP/filename should work just like dir/filename
-        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + "/good"))
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + "/gööd"))
         d.addCallback(_check4)
         # and similarly for $DIRCAP:./filename
-        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + ":./good"))
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + ":./gööd"))
         d.addCallback(_check4)
         def _check5((rc, out, err)):
             # listing a raw filecap should not explode, but it will have no
@@ -1959,12 +1959,12 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturi = n.get_uri()
-            return n.add_file(u"good", upload.Data(DATA, convergence=""))
+            return n.add_file(u"gööd", upload.Data(DATA, convergence=""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
             self.uris[which] = fn.get_uri()
             return fn
-        d.addCallback(_stash_uri, "good")
+        d.addCallback(_stash_uri, "gööd")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
                                              upload.Data("literal",
@@ -1984,7 +1984,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check1)
 
         # root
-        # root/good
+        # root/gööd
         # root/small
         # root/mutable
 
@@ -1996,7 +1996,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             lines = out.splitlines()
             self.failUnless("<root>: Healthy" in lines, out)
             self.failUnless("small: Healthy (LIT)" in lines, out)
-            self.failUnless("good: Healthy" in lines, out)
+            self.failUnless("gööd: Healthy" in lines, out)
             self.failUnless("mutable: Healthy" in lines, out)
             self.failUnless("done: 4 objects checked, 4 healthy, 0 unhealthy"
                             in lines, out)
@@ -2018,7 +2018,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_stats)
 
         def _clobber_shares(ignored):
-            shares = self.find_shares(self.uris["good"])
+            shares = self.find_shares(self.uris["gööd"])
             self.failUnlessEqual(len(shares), 10)
             os.unlink(shares[0][2])
 
@@ -2035,7 +2035,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_clobber_shares)
 
         # root
-        # root/good  [9 shares]
+        # root/gööd  [9 shares]
         # root/small
         # root/mutable [1 corrupt share]
 
@@ -2048,7 +2048,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless("<root>: Healthy" in lines, out)
             self.failUnless("small: Healthy (LIT)" in lines, out)
             self.failUnless("mutable: Healthy" in lines, out) # needs verifier
-            self.failUnless("good: Not Healthy: 9 shares (enc 3-of-10)"
+            self.failUnless("gööd: Not Healthy: 9 shares (enc 3-of-10)"
                             in lines, out)
             self.failIf(self._corrupt_share_line in lines, out)
             self.failUnless("done: 4 objects checked, 3 healthy, 1 unhealthy"
@@ -2068,7 +2068,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(mutable.startswith("mutable: Unhealthy: 9 shares (enc 3-of-10)"),
                             mutable)
             self.failUnless(self._corrupt_share_line in lines, out)
-            self.failUnless("good: Not Healthy: 9 shares (enc 3-of-10)"
+            self.failUnless("gööd: Not Healthy: 9 shares (enc 3-of-10)"
                             in lines, out)
             self.failUnless("done: 4 objects checked, 2 healthy, 2 unhealthy"
                             in lines, out)
@@ -2082,7 +2082,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(rc, 0)
             lines = out.splitlines()
             units = [simplejson.loads(line) for line in lines]
-            # root, small, good, mutable,  stats
+            # root, small, gööd, mutable,  stats
             self.failUnlessEqual(len(units), 4+1)
         d.addCallback(_check5)
 
@@ -2098,7 +2098,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless("small: healthy" in lines, out)
             self.failUnless("mutable: not healthy" in lines, out)
             self.failUnless(self._corrupt_share_line in lines, out)
-            self.failUnless("good: not healthy" in lines, out)
+            self.failUnless("gööd: not healthy" in lines, out)
             self.failUnless("done: 4 objects checked" in lines, out)
             self.failUnless(" pre-repair: 2 healthy, 2 unhealthy" in lines, out)
             self.failUnless(" 2 repairs attempted, 2 successful, 0 failed"
@@ -2118,7 +2118,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                                                   range(10)))
 
         # root
-        # root/good
+        # rootgööd/
         # root/small
         # root/mutable
         # root/subdir [unrecoverable: 0 shares]

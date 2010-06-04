@@ -6,6 +6,7 @@ from allmydata.scripts.slow_operation import SlowOperationRunner
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http
+from allmydata.util.stringutils import unicode_to_stdout
 
 class FakeTransport:
     disconnecting = False
@@ -67,7 +68,7 @@ class ManifestStreamer(LineOnlyReceiver):
             print >>stderr, line
             return
 
-        d = simplejson.loads(line)
+        d = simplejson.loads(line.decode('utf-8'))
         if d["type"] in ("file", "directory"):
             if self.options["storage-index"]:
                 si = d["storage-index"]
@@ -82,10 +83,7 @@ class ManifestStreamer(LineOnlyReceiver):
                 if vc:
                     print >>stdout, vc
             else:
-                try:
-                    print >>stdout, d["cap"], "/".join(d["path"])
-                except UnicodeEncodeError:
-                    print >>stdout, d["cap"], "/".join([unicode_to_stdout(p)
+                print >>stdout, d["cap"], "/".join([unicode_to_stdout(p)
                                                         for p in d["path"]])
 
 def manifest(options):
