@@ -18,8 +18,15 @@ instance UTF-8.  In such case, you'll need to fix your system with tools such
 as 'convmv' before using Tahoe CLI.
 
 All CLI commands have been improved to support non-ASCII parameters such as
-filenames and aliases on all supported Operating Systems except Windows as of
-now.
+filenames and aliases on all supported Operating Systems.
+
+** dependency updates
+
+ no python-2.4.2 or 2.4.3 (2.4.4 is ok)
+ pycrypto-2.0.1
+ pyasn1-0.0.8a
+ mock
+
 
 * Release 1.6.1 (2010-02-27)
 

@@ -65,18 +65,19 @@ if sys.version_info < (2, 5):
 if hasattr(sys, 'frozen'): # for py2exe
     install_requires=[]
 
-def require_python_2_with_working_base64():
+def require_python_version():
     import sys
-    if sys.version_info[0] != 2:
-        raise NotImplementedError("Tahoe-LAFS current requires Python v2.4.2 or greater (but less than v3), not %r" % (sys.version_info,))
 
-    # make sure we have a working base64.b32decode. The one in
-    # python2.4.[01] was broken.
-    nodeid_b32 = 't5g7egomnnktbpydbuijt6zgtmw4oqi5'
-    import base64
-    nodeid = base64.b32decode(nodeid_b32.upper())
-    if nodeid != "\x9fM\xf2\x19\xcckU0\xbf\x03\r\x10\x99\xfb&\x9b-\xc7A\x1d":
-        raise NotImplementedError("There is a bug in this base64 module: %r.  This was a known issue in Python v2.4.0 and v2.4.1 (http://bugs.python.org/issue1171487 ).  Tahoe-LAFS current requires Python v2.4.2 or greater (but less than v3).  The current Python version is %r" % (base64, sys.version_info,))
+    # we require 2.4.4 on non-UCS-2 builds to avoid <http://www.python.org/news/security/PSF-2006-001/>
+    # we require at least 2.4.2 in any case to avoid a bug in the base64 module: <http://bugs.python.org/issue1171487>
+    if sys.maxunicode == 65535:
+        if sys.version_info < (2, 4, 2) or sys.version_info[0] > 2:
+            raise NotImplementedError("Tahoe-LAFS current requires Python v2.4.2 or greater for a UCS-2 build (but less than v3), not %r" %
+                                      (sys.version_info,))
+    else:
+        if sys.version_info < (2, 4, 4) or sys.version_info[0] > 2:
+            raise NotImplementedError("Tahoe-LAFS current requires Python v2.4.4 or greater for a non-UCS-2 build (but less than v3), not %r" %
+                                      (sys.version_info,))
 
 def require_auto_deps():
     """
@@ -86,7 +87,7 @@ def require_auto_deps():
     of these packages and gets an ImportError.  This function gets called from
     src/allmydata/__init__.py .
     """
-    require_python_2_with_working_base64()
+    require_python_version()
 
     import pkg_resources
     for requirement in install_requires:
