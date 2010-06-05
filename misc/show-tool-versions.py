@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import os, subprocess, sys
+import locale, os, subprocess, sys
 
 def print_platform():
     try:
@@ -17,7 +17,11 @@ def print_python_ver():
     print ', maxunicode: ' + str(sys.maxunicode),
     print ', stdout.encoding: ' + str(sys.stdout.encoding),
     print ', stdin.encoding: ' + str(sys.stdin.encoding),
-    print ', filesystem.encoding: ' + str(sys.getfilesystemencoding())
+    print ', filesystem.encoding: ' + str(sys.getfilesystemencoding()),
+    print ', locale.getpreferredencoding: ' + str(locale.getpreferredencoding()),
+    print ', os.path.supports_unicode_filenames: ' + str(os.path.supports_unicode_filenames),
+    print ', locale.defaultlocale: ' + str(locale.getdefaultlocale()),
+    print ', locale.locale: ' + str(locale.getlocale())
 
 def print_cmd_ver(cmdlist, label=None):
     try:
