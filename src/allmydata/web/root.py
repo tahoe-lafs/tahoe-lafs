@@ -273,7 +273,7 @@ class Root(rend.Page):
             since = descriptor.get_last_loss_time()
         announced = descriptor.get_announcement_time()
         announcement = descriptor.get_announcement()
-        version = announcement["version"]
+        version = announcement["my-version"]
         service_name = announcement["service-name"]
 
         TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
