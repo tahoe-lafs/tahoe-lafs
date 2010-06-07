@@ -20,6 +20,11 @@ as 'convmv' before using Tahoe CLI.
 All CLI commands have been improved to support non-ASCII parameters such as
 filenames and aliases on all supported Operating Systems.
 
+** Removals
+
+The 'tahoe debug consolidate' subcommand (for converting old allmydata Windows
+client backups to a newer format) has been removed.
+
 ** dependency updates
 
  no python-2.4.2 or 2.4.3 (2.4.4 is ok)
