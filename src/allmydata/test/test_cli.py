@@ -32,7 +32,7 @@ from twisted.python import usage
 from allmydata.util.assertutil import precondition
 from allmydata.util.stringutils import listdir_unicode, open_unicode, unicode_platform, \
     quote_output, get_output_encoding, get_argv_encoding, get_filesystem_encoding, \
-    unicode_to_output, FilenameEncodingError
+    unicode_to_output
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
@@ -442,35 +442,6 @@ class CLI(CLITestMixin, unittest.TestCase):
 
         for file in listdir_unicode(unicode(basedir)):
             self.failUnlessIn(file, filenames)
-
-    def test_listdir_unicode_bad(self):
-        basedir = "cli/common/listdir_unicode_bad"
-        fileutil.make_dirs(basedir)
-
-        filenames = [name.encode('latin1') for name in [u'Lôzane', u'Bern', u'Genève']]
-        enc = get_filesystem_encoding()
-        def is_decodable(u):
-            try:
-                u.decode(enc)
-                return True
-            except UnicodeDecodeError:
-                return False
-
-        if all(map(is_decodable, filenames)):
-            raise unittest.SkipTest("To perform this test, we must know a filename that is "
-                                    "not decodable in the platform's filesystem encoding.")
-
-        try:
-            for name in filenames:
-                path = os.path.join(basedir, name)
-                open(path, "wb").close()
-        except EnvironmentError:
-            # Maybe the OS or Python wouldn't let us create a file at the badly encoded path,
-            # which is entirely reasonable.
-            raise unittest.SkipTest("This test is only applicable to platforms that allow "
-                                    "creating files at badly encoded paths.")
-
-        self.failUnlessRaises(FilenameEncodingError, listdir_unicode, unicode(basedir))
 
 
 class Help(unittest.TestCase):
