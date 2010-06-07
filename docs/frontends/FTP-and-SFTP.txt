@@ -183,10 +183,10 @@ caps to it will remain valid. (See docs/garbage-collection.txt for how to
 reclaim the space used by files that are no longer needed.)
 
 The 'no-write' metadata field of a directory entry can override this
-behaviour. If the 'no-write' field holds a non-empty string (typically
-"true"), then a permission error will occur when trying to write to the
-file, even if it is in a writeable directory. This does not prevent the
-directory entry from being unlinked or replaced.
+behaviour. If the 'no-write' field holds a true value, then a permission
+error will occur when trying to write to the file, even if it is in a
+writeable directory. This does not prevent the directory entry from being
+unlinked or replaced.
 
 When using sshfs, the 'no-write' field can be set by clearing the 'w'
 bits in the Unix permissions, for example using the command
