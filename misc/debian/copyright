@@ -1,26 +1,19 @@
-This package was debianized by Brian Warner <warner@allmydata.com>
+This package was originally debianized by Brian Warner <warner@allmydata.com>
 
-The upstream source of this project is http://allmydata.org .
+The upstream source of this project is http://tahoe-lafs.org .
 
 Upstream Author:
 
     Brian Warner <warner@lothar.com>
     Zooko Wilcox-O'Hearn <zooko@zooko.com>
-    and dozens of others
+    David-Sarah Hopwood <david-sarah@jacaranda.org>
+    and many others
 
-Copyright © 2006-2009
+Copyright © 2006-2010
 AllMyData, Inc.
 
 You may use this package under the GNU General Public License, version 2 or, at
 your option, any later version.
-
-On Debian GNU/Linux systems, the complete text of the GNU General
-Public License can be found in `/usr/share/common-licenses/GPL'.
-
-This licence also comes with the added permission that you may link this
-program with the OpenSSL library and distribute executables, as long as you
-follow the requirements of this licence in regard to all of the software in
-the executable aside from OpenSSL.
 
 You may use this package under the Transitive Grace Period Public Licence,
 version 1 or, at your option, any later version.  The Transitive Grace Period
@@ -31,6 +24,36 @@ for the terms of the Transitive Grace Period Public Licence, version 1.
 
 (You may choose to use this package under the terms of either licence, at your
 option.)
+
+On Debian GNU/Linux systems, the complete text of the GNU General
+Public License can be found in `/usr/share/common-licenses/GPL'.
+
+This work also comes with the added permission that you may combine it
+with the OpenSSL library and distribute the resulting combined work,
+as long as you follow the requirements of the licences of this work in
+regard to all of the software in the resulting combined work aside
+from OpenSSL.
+
+This work also comes with the added permission that you may combine it
+with software licensed under the Eclipse Public Licence (any version) and distribute
+the resulting combined work, as long as you follow the requirements of
+the licences of this work in regard to all of the software in the
+resulting combined work aside from the software licensed under the
+Eclipse Public Licence.
+
+This work also comes with the added permission that you may combine it
+with software licensed under the Q Public Licence (any version) and distribute
+the resulting combined work, as long as you follow the requirements of
+the licences of this work in regard to all of the software in the
+resulting combined work aside from the software licensed under the
+Q Public Licence.
+
+This work also comes with the added permission that you may combine it
+with software licensed under the Apache Licence (any version) and distribute
+the resulting combined work, as long as you follow the requirements of
+the licences of this work in regard to all of the software in the
+resulting combined work aside from the software licensed under the
+Apache Licence.
 
 ------- begin TGPPL1 licence
             Transitive Grace Period Public Licence ("TGPPL") v. 1.0
