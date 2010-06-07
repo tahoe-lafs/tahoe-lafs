@@ -5,37 +5,38 @@ import simplejson
 from cStringIO import StringIO
 from twisted.python.failure import Failure
 from allmydata.scripts.common import get_alias, escape_path, \
-                                     DefaultAliasMarker, UnknownAliasError
-from allmydata.scripts.common_http import do_http
+                                     DefaultAliasMarker, TahoeError
+from allmydata.scripts.common_http import do_http, HTTPError
 from allmydata import uri
-from allmydata.util.stringutils import unicode_to_url, listdir_unicode, open_unicode
+from allmydata.util.stringutils import unicode_to_url, listdir_unicode, open_unicode, \
+    abspath_expanduser_unicode, quote_output, to_str
 from allmydata.util.assertutil import precondition
 
 
-def ascii_or_none(s):
-    if s is None:
-        return s
-    return str(s)
+def _put_local_file(pathname, inf):
+    # TODO: create temporary file and move into place?
+    # TODO: move this to fileutil.
+    outf = open_unicode(pathname, "wb")
+    try:
+        while True:
+            data = inf.read(32768)
+            if not data:
+                break
+            outf.write(data)
+    finally:
+        outf.close()
 
-class TahoeError(Exception):
-    def __init__(self, msg, resp):
-        self.msg = msg
-        self.status = resp.status
-        self.reason = resp.reason
-        self.body = resp.read()
 
-    def display(self, err):
-        print >>err, "%s: %s %s" % (self.msg, self.status, self.reason)
-        print >>err, self.body
+class MissingSourceError(TahoeError):
+    def __init__(self, name):
+        TahoeError.__init__("No such file or directory %s" % quote_output(name))
 
-class MissingSourceError(Exception):
-    pass
 
 def GET_to_file(url):
     resp = do_http("GET", url)
     if resp.status == 200:
         return resp
-    raise TahoeError("Error during GET", resp)
+    raise HTTPError("Error during GET", resp)
 
 def GET_to_string(url):
     f = GET_to_file(url)
@@ -45,20 +46,20 @@ def PUT(url, data):
     resp = do_http("PUT", url, data)
     if resp.status in (200, 201):
         return resp.read()
-    raise TahoeError("Error during PUT", resp)
+    raise HTTPError("Error during PUT", resp)
 
 def POST(url, data):
     resp = do_http("POST", url, data)
     if resp.status in (200, 201):
         return resp.read()
-    raise TahoeError("Error during POST", resp)
+    raise HTTPError("Error during POST", resp)
 
 def mkdir(targeturl):
     url = targeturl + "?t=mkdir"
     resp = do_http("POST", url)
     if resp.status in (200, 201):
         return resp.read().strip()
-    raise TahoeError("Error during mkdir", resp)
+    raise HTTPError("Error during mkdir", resp)
 
 def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
     url = nodeurl + "/".join(["uri",
@@ -68,7 +69,7 @@ def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
     resp = do_http("POST", url)
     if resp.status in (200, 201):
         return resp.read().strip()
-    raise TahoeError("Error during mkdir", resp)
+    raise HTTPError("Error during mkdir", resp)
 
 
 class LocalFileSource:
@@ -80,20 +81,17 @@ class LocalFileSource:
         return True
 
     def open(self, caps_only):
-        return open(self.pathname, "rb")
+        return open_unicode(self.pathname, "rb")
+
 
 class LocalFileTarget:
     def __init__(self, pathname):
         precondition(isinstance(pathname, unicode), pathname)
         self.pathname = pathname
+
     def put_file(self, inf):
-        outf = open(self.pathname, "wb")
-        while True:
-            data = inf.read(32768)
-            if not data:
-                break
-            outf.write(data)
-        outf.close()
+        _put_local_file(self.pathname, inf)
+
 
 class LocalMissingTarget:
     def __init__(self, pathname):
@@ -101,13 +99,8 @@ class LocalMissingTarget:
         self.pathname = pathname
 
     def put_file(self, inf):
-        outf = open(self.pathname, "wb")
-        while True:
-            data = inf.read(32768)
-            if not data:
-                break
-            outf.write(data)
-        outf.close()
+        _put_local_file(self.pathname, inf)
+
 
 class LocalDirectorySource:
     def __init__(self, progressfunc, pathname):
@@ -134,6 +127,7 @@ class LocalDirectorySource:
                 self.children[n] = LocalFileSource(pn)
             else:
                 # Could be dangling symlink; probably not copy-able.
+                # TODO: output a warning
                 pass
 
 class LocalDirectoryTarget:
@@ -151,6 +145,7 @@ class LocalDirectoryTarget:
         children = listdir_unicode(self.pathname)
         for i,n in enumerate(children):
             self.progressfunc("examining %d of %d" % (i, len(children)))
+            n = unicode(n)
             pn = os.path.join(self.pathname, n)
             if os.path.isdir(pn):
                 child = LocalDirectoryTarget(self.progressfunc, pn)
@@ -173,13 +168,7 @@ class LocalDirectoryTarget:
     def put_file(self, name, inf):
         precondition(isinstance(name, unicode), name)
         pathname = os.path.join(self.pathname, name)
-        outf = open_unicode(pathname, "wb")
-        while True:
-            data = inf.read(32768)
-            if not data:
-                break
-            outf.write(data)
-        outf.close()
+        _put_local_file(pathname, inf)
 
     def set_children(self):
         pass
@@ -238,7 +227,7 @@ class TahoeDirectorySource:
         url = self.nodeurl + "uri/%s" % urllib.quote(bestcap)
         resp = do_http("GET", url + "?t=json")
         if resp.status != 200:
-            raise TahoeError("Error examining source directory", resp)
+            raise HTTPError("Error examining source directory", resp)
         parsed = simplejson.loads(resp.read())
         nodetype, d = parsed
         assert nodetype == "dirnode"
@@ -250,8 +239,8 @@ class TahoeDirectorySource:
 
     def init_from_parsed(self, parsed):
         nodetype, d = parsed
-        self.writecap = ascii_or_none(d.get("rw_uri"))
-        self.readcap = ascii_or_none(d.get("ro_uri"))
+        self.writecap = to_str(d.get("rw_uri"))
+        self.readcap = to_str(d.get("ro_uri"))
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
@@ -266,13 +255,13 @@ class TahoeDirectorySource:
             self.progressfunc("examining %d of %d" % (i, len(self.children_d)))
             if data[0] == "filenode":
                 mutable = data[1].get("mutable", False)
-                writecap = ascii_or_none(data[1].get("rw_uri"))
-                readcap = ascii_or_none(data[1].get("ro_uri"))
+                writecap = to_str(data[1].get("rw_uri"))
+                readcap = to_str(data[1].get("ro_uri"))
                 self.children[name] = TahoeFileSource(self.nodeurl, mutable,
                                                       writecap, readcap)
             elif data[0] == "dirnode":
-                writecap = ascii_or_none(data[1].get("rw_uri"))
-                readcap = ascii_or_none(data[1].get("ro_uri"))
+                writecap = to_str(data[1].get("rw_uri"))
+                readcap = to_str(data[1].get("ro_uri"))
                 if writecap and writecap in self.cache:
                     child = self.cache[writecap]
                 elif readcap and readcap in self.cache:
@@ -320,8 +309,8 @@ class TahoeDirectoryTarget:
 
     def init_from_parsed(self, parsed):
         nodetype, d = parsed
-        self.writecap = ascii_or_none(d.get("rw_uri"))
-        self.readcap = ascii_or_none(d.get("ro_uri"))
+        self.writecap = to_str(d.get("rw_uri"))
+        self.readcap = to_str(d.get("ro_uri"))
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
@@ -335,7 +324,7 @@ class TahoeDirectoryTarget:
         url = self.nodeurl + "uri/%s" % urllib.quote(bestcap)
         resp = do_http("GET", url + "?t=json")
         if resp.status != 200:
-            raise TahoeError("Error examining target directory", resp)
+            raise HTTPError("Error examining target directory", resp)
         parsed = simplejson.loads(resp.read())
         nodetype, d = parsed
         assert nodetype == "dirnode"
@@ -360,8 +349,8 @@ class TahoeDirectoryTarget:
             self.progressfunc("examining %d of %d" % (i, len(self.children_d)))
             if data[0] == "filenode":
                 mutable = data[1].get("mutable", False)
-                writecap = ascii_or_none(data[1].get("rw_uri"))
-                readcap = ascii_or_none(data[1].get("ro_uri"))
+                writecap = to_str(data[1].get("rw_uri"))
+                readcap = to_str(data[1].get("ro_uri"))
                 url = None
                 if self.writecap:
                     url = self.nodeurl + "/".join(["uri",
@@ -370,8 +359,8 @@ class TahoeDirectoryTarget:
                 self.children[name] = TahoeFileTarget(self.nodeurl, mutable,
                                                       writecap, readcap, url)
             elif data[0] == "dirnode":
-                writecap = ascii_or_none(data[1].get("rw_uri"))
-                readcap = ascii_or_none(data[1].get("ro_uri"))
+                writecap = to_str(data[1].get("rw_uri"))
+                readcap = to_str(data[1].get("ro_uri"))
                 if writecap and writecap in self.cache:
                     child = self.cache[writecap]
                 elif readcap and readcap in self.cache:
@@ -466,8 +455,9 @@ class Copier:
             status = self.try_copy()
             return status
         except TahoeError, te:
-            Failure().printTraceback(self.stderr)
-            print >>self.stderr
+            if verbosity >= 2:
+                Failure().printTraceback(self.stderr)
+                print >>self.stderr
             te.display(self.stderr)
             return 1
 
@@ -476,23 +466,12 @@ class Copier:
         destination_spec = self.options.destination
         recursive = self.options["recursive"]
 
-        try:
-            target = self.get_target_info(destination_spec)
-        except UnknownAliasError, e:
-            self.to_stderr("error: %s" % e.args[0])
-            return 1
+        target = self.get_target_info(destination_spec)
 
-        try:
-            sources = [] # list of (name, source object)
-            for ss in source_specs:
-                name, source = self.get_source_info(ss)
-                sources.append( (name, source) )
-        except MissingSourceError, e:
-            self.to_stderr("No such file or directory %s" % e.args[0])
-            return 1
-        except UnknownAliasError, e:
-            self.to_stderr("error: %s" % e.args[0])
-            return 1
+        sources = [] # list of (name, source object)
+        for ss in source_specs:
+            name, source = self.get_source_info(ss)
+            sources.append( (name, source) )
 
         have_source_dirs = bool([s for (name,s) in sources
                                  if isinstance(s, (LocalDirectorySource,
@@ -506,7 +485,7 @@ class Copier:
             # cp STUFF foo.txt, where foo.txt already exists. This limits the
             # possibilities considerably.
             if len(sources) > 1:
-                self.to_stderr("target '%s' is not a directory" % destination_spec)
+                self.to_stderr("target %s is not a directory" % quote_output(destination_spec))
                 return 1
             if have_source_dirs:
                 self.to_stderr("cannot copy directory into a file")
@@ -546,7 +525,7 @@ class Copier:
         rootcap, path = get_alias(self.aliases, destination_spec, None)
         if rootcap == DefaultAliasMarker:
             # no alias, so this is a local file
-            pathname = os.path.abspath(os.path.expanduser(path))
+            pathname = abspath_expanduser_unicode(path.decode('utf-8'))
             if not os.path.exists(pathname):
                 t = LocalMissingTarget(pathname)
             elif os.path.isdir(pathname):
@@ -572,21 +551,21 @@ class Copier:
                                              self.progress)
                     t.init_from_parsed(parsed)
                 else:
-                    writecap = ascii_or_none(d.get("rw_uri"))
-                    readcap = ascii_or_none(d.get("ro_uri"))
+                    writecap = to_str(d.get("rw_uri"))
+                    readcap = to_str(d.get("ro_uri"))
                     mutable = d.get("mutable", False)
                     t = TahoeFileTarget(self.nodeurl, mutable,
                                         writecap, readcap, url)
             else:
-                raise TahoeError("Error examining target '%s'"
-                                 % destination_spec, resp)
+                raise HTTPError("Error examining target %s"
+                                 % quote_output(destination_spec), resp)
         return t
 
     def get_source_info(self, source_spec):
         rootcap, path = get_alias(self.aliases, source_spec, None)
         if rootcap == DefaultAliasMarker:
             # no alias, so this is a local file
-            pathname = os.path.abspath(os.path.expanduser(path))
+            pathname = abspath_expanduser_unicode(path.decode('utf-8'))
             name = os.path.basename(pathname)
             if not os.path.exists(pathname):
                 raise MissingSourceError(source_spec)
@@ -610,8 +589,8 @@ class Copier:
             if resp.status == 404:
                 raise MissingSourceError(source_spec)
             elif resp.status != 200:
-                raise TahoeError("Error examining source '%s'" % source_spec,
-                                 resp)
+                raise HTTPError("Error examining source %s" % quote_output(source_spec),
+                                resp)
             parsed = simplejson.loads(resp.read())
             nodetype, d = parsed
             if nodetype == "dirnode":
@@ -619,8 +598,8 @@ class Copier:
                                          self.progress)
                 t.init_from_parsed(parsed)
             else:
-                writecap = ascii_or_none(d.get("rw_uri"))
-                readcap = ascii_or_none(d.get("ro_uri"))
+                writecap = to_str(d.get("rw_uri"))
+                readcap = to_str(d.get("ro_uri"))
                 mutable = d.get("mutable", False) # older nodes don't provide it
                 if source_spec.rfind('/') != -1:
                     name = source_spec[source_spec.rfind('/')+1:]
@@ -630,7 +609,7 @@ class Copier:
 
     def dump_graph(self, s, indent=" "):
         for name, child in s.children.items():
-            print indent + name + ":" + str(child)
+            print "%s%s: %r" % (indent, quote_output(name), child)
             if isinstance(child, (LocalDirectorySource, TahoeDirectorySource)):
                 self.dump_graph(child, indent+"  ")
 

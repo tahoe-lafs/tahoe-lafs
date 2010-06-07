@@ -4,7 +4,8 @@ import simplejson
 from twisted.protocols.basic import LineOnlyReceiver
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
-from allmydata.scripts.common_http import do_http
+from allmydata.scripts.common_http import do_http, format_http_error
+from allmydata.util.stringutils import quote_output, quote_path
 
 class Checker:
     pass
@@ -19,7 +20,7 @@ def check(options):
     try:
         rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
     except UnknownAliasError, e:
-        print >>stderr, "error: %s" % e.args[0]
+        e.display(stderr)
         return 1
     if path == '/':
         path = ''
@@ -37,7 +38,7 @@ def check(options):
 
     resp = do_http("POST", url)
     if resp.status != 200:
-        print >>stderr, "ERROR", resp.status, resp.reason, resp.read()
+        print >>stderr, format_http_error("ERROR", resp)
         return 1
     jdata = resp.read()
     if options.get("raw"):
@@ -108,12 +109,12 @@ class DeepCheckOutput(LineOnlyReceiver):
 
     def lineReceived(self, line):
         if self.in_error:
-            print >>self.stderr, line
+            print >>self.stderr, quote_output(line, quotemarks=False)
             return
         if line.startswith("ERROR:"):
             self.in_error = True
             self.streamer.rc = 1
-            print >>self.stderr, line
+            print >>self.stderr, quote_output(line, quotemarks=False)
             return
 
         d = simplejson.loads(line)
@@ -135,12 +136,8 @@ class DeepCheckOutput(LineOnlyReceiver):
             if not path:
                 path = ["<root>"]
             summary = cr.get("summary", "Healthy (LIT)")
-            try:
-                print >>stdout, "%s: %s" % ("/".join(path), summary)
-            except UnicodeEncodeError:
-                print >>stdout, "%s: %s" % ("/".join([p.encode("utf-8")
-                                                      for p in path]),
-                                            summary)
+            print >>stdout, "%s: %s" % (quote_path(path), summary)
+
         # always print out corrupt shares
         for shareloc in cr["results"].get("list-corrupt-shares", []):
             (serverid, storage_index, sharenum) = shareloc
@@ -174,12 +171,12 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
 
     def lineReceived(self, line):
         if self.in_error:
-            print >>self.stderr, line
+            print >>self.stderr, quote_output(line, quotemarks=False)
             return
         if line.startswith("ERROR:"):
             self.in_error = True
             self.streamer.rc = 1
-            print >>self.stderr, line
+            print >>self.stderr, quote_output(line, quotemarks=False)
             return
 
         d = simplejson.loads(line)
@@ -221,12 +218,8 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
                 summary = "healthy"
             else:
                 summary = "not healthy"
-            try:
-                print >>stdout, "%s: %s" % ("/".join(path), summary)
-            except UnicodeEncodeError:
-                print >>stdout, "%s: %s" % ("/".join([p.encode("utf-8")
-                                                      for p in path]),
-                                            summary)
+            print >>stdout, "%s: %s" % (quote_path(path), summary)
+
         # always print out corrupt shares
         prr = crr.get("pre-repair-results", {})
         for shareloc in prr.get("results", {}).get("list-corrupt-shares", []):
@@ -272,7 +265,7 @@ class DeepCheckStreamer(LineOnlyReceiver):
         try:
             rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
         except UnknownAliasError, e:
-            print >>stderr, "error: %s" % e.args[0]
+            e.display(stderr)
             return 1
         if path == '/':
             path = ''
@@ -292,7 +285,7 @@ class DeepCheckStreamer(LineOnlyReceiver):
             url += "&add-lease=true"
         resp = do_http("POST", url)
         if resp.status not in (200, 302):
-            print >>stderr, "ERROR", resp.status, resp.reason, resp.read()
+            print >>stderr, format_http_error("ERROR", resp)
             return 1
 
         # use Twisted to split this into lines

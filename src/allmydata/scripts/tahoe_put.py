@@ -1,10 +1,10 @@
 
 from cStringIO import StringIO
-import os.path
 import urllib
-from allmydata.scripts.common_http import do_http
+from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
+from allmydata.util.stringutils import quote_output, open_unicode
 
 def put(options):
     """
@@ -48,12 +48,12 @@ def put(options):
             try:
                 rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
             except UnknownAliasError, e:
-                print >>stderr, "error: %s" % e.args[0]
+                e.display(stderr)
                 return 1
             if path.startswith("/"):
-                suggestion = to_file.replace("/", "", 1)
-                print >>stderr, "ERROR: The remote filename must not start with a slash"
-                print >>stderr, "Please try again, perhaps with:", suggestion
+                suggestion = to_file.replace(u"/", u"", 1)
+                print >>stderr, "Error: The remote filename must not start with a slash"
+                print >>stderr, "Please try again, perhaps with %s" % quote_output(suggestion)
                 return 1
             url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
             if path:
@@ -64,7 +64,7 @@ def put(options):
     if mutable:
         url += "?mutable=true"
     if from_file:
-        infileobj = open(os.path.expanduser(from_file), "rb")
+        infileobj = open_unicode(from_file, "rb")
     else:
         # do_http() can't use stdin directly: for one thing, we need a
         # Content-Length field. So we currently must copy it.
@@ -76,10 +76,9 @@ def put(options):
     resp = do_http("PUT", url, infileobj)
 
     if resp.status in (200, 201,):
-        print >>stderr, "%s %s" % (resp.status, resp.reason)
-        print >>stdout, resp.read()
+        print >>stderr, format_http_success(resp)
+        print >>stdout, quote_output(resp.read(), quotemarks=False)
         return 0
 
-    print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
-    print >>stderr, resp.read()
+    print >>stderr, format_http_error("Error", resp)
     return 1

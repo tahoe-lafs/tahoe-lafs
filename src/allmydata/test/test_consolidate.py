@@ -4,11 +4,22 @@ from cStringIO import StringIO
 import pickle
 from twisted.trial import unittest
 from allmydata.test.no_network import GridTestMixin
+from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.util import fileutil
 from allmydata.scripts import runner, debug
 from allmydata.scripts.common import get_aliases
 from twisted.internet import defer, threads # CLI tests use deferToThread
 from allmydata.interfaces import IDirectoryNode
+
+have_sqlite3 = False
+try:
+    import sqlite3
+    sqlite3  # hush pyflakes
+    have_sqlite3 = True
+except ImportError:
+    pass
+else:
+    from allmydata.scripts import consolidate
 
 
 class CLITestMixin:
@@ -30,7 +41,7 @@ class CLITestMixin:
         d.addCallback(_done)
         return d
 
-class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
+class Consolidate(GridTestMixin, CLITestMixin, ReallyEqualMixin, unittest.TestCase):
 
     def writeto(self, path, data):
         d = os.path.dirname(os.path.join(self.basedir, "home", path))
@@ -46,8 +57,8 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
     def do_cli_good(self, verb, *args, **kwargs):
         d = self.do_cli(verb, *args, **kwargs)
         def _check((rc,out,err)):
-            self.failUnlessEqual(err, "", verb)
-            self.failUnlessEqual(rc, 0, verb)
+            self.failUnlessReallyEqual(err, "", verb)
+            self.failUnlessReallyEqual(rc, 0, verb)
             return out
         d.addCallback(_check)
         return d
@@ -59,29 +70,14 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
         co.parseOptions(["--node-directory", self.get_clientdir(),
                          "--dbfile", "foo.db", "--backupfile", "backup", "--really",
                          "URI:DIR2:foo"])
-        self.failUnlessEqual(co["dbfile"], "foo.db")
-        self.failUnlessEqual(co["backupfile"], "backup")
+        self.failUnlessReallyEqual(co["dbfile"], "foo.db")
+        self.failUnlessReallyEqual(co["backupfile"], "backup")
         self.failUnless(co["really"])
-        self.failUnlessEqual(co.where, "URI:DIR2:foo")
+        self.failUnlessReallyEqual(co.where, u"URI:DIR2:foo")
 
-    def OFF_test_basic(self):
-        # rename this method to enable the test. I've disabled it because, in
-        # my opinion:
-        #
-        #  1: 'tahoe debug consolidate' is useful enough to include in trunk,
-        #     but not useful enough justify a lot of compatibility effort or
-        #     extra test time
-        #  2: it requires sqlite3; I did not bother to make it work with
-        #     pysqlite, nor did I bother making it fail gracefully when
-        #     sqlite3 is not available
-        #  3: this test takes 30 seconds to run on my workstation, and it likely
-        #     to take several minutes on the old slow dapper buildslave
-        #  4: I don't want other folks to see a SkipTest and wonder "oh no, what
-        #     did I do wrong to not allow this test to run"
-        #
-        # These may not be strong arguments: I welcome feedback. In particular,
-        # this command may be more suitable for a plugin of some sort, if we
-        # had plugins of some sort. -warner 12-Mar-09
+    def test_basic(self):
+        if not have_sqlite3:
+            raise unittest.SkipTest("'tahoe debug consolidate' is not supported because sqlite3 is not available.")
 
         self.basedir = "consolidate/Consolidate/basic"
         self.set_up_grid(num_clients=1)
@@ -175,7 +171,7 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check_consolidate_output1(out):
             lines = out.splitlines()
             last = lines[-1]
-            self.failUnlessEqual(last.strip(),
+            self.failUnlessReallyEqual(last.strip(),
                                  "system done, dircounts: "
                                  "25/12 seen/used, 7 created, 2 as-is, 13 reused")
             self.failUnless(os.path.exists(dbfile))
@@ -185,7 +181,7 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(u"fluxx" in backup["archives"])
             adata = backup["archives"]["fluxx"]
             kids = adata[u"children"]
-            self.failUnlessEqual(str(kids[u"2009-03-01 01.01.01"][1][u"rw_uri"]),
+            self.failUnlessReallyEqual(str(kids[u"2009-03-01 01.01.01"][1][u"rw_uri"]),
                                  c("1-b-start"))
         d.addCallback(_check_consolidate_output1)
         d.addCallback(lambda ign:
@@ -196,11 +192,11 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check_consolidate_output2(out):
             lines = out.splitlines()
             last = lines[-1]
-            self.failUnlessEqual(last.strip(),
+            self.failUnlessReallyEqual(last.strip(),
                                  "system done, dircounts: "
                                  "0/0 seen/used, 0 created, 0 as-is, 0 reused")
             backup = pickle.load(open(backupfile, "rb"))
-            self.failUnlessEqual(backup, self.first_backup)
+            self.failUnlessReallyEqual(backup, self.first_backup)
             self.failUnless(os.path.exists(backupfile + ".0"))
         d.addCallback(_check_consolidate_output2)
 
@@ -214,14 +210,13 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
             #                            self.manifests[which][path])
 
             # last snapshot should be untouched
-            self.failUnlessEqual(c("7-b"), c("7-b-start"))
+            self.failUnlessReallyEqual(c("7-b"), c("7-b-start"))
 
             # first snapshot should be a readonly form of the original
-            from allmydata.scripts.tahoe_backup import readonly
-            self.failUnlessEqual(c("1-b-finish"), readonly(c("1-b-start")))
-            self.failUnlessEqual(c("1-bp-finish"), readonly(c("1-bp-start")))
-            self.failUnlessEqual(c("1-bps1-finish"), readonly(c("1-bps1-start")))
-            self.failUnlessEqual(c("1-bps2-finish"), readonly(c("1-bps2-start")))
+            self.failUnlessReallyEqual(c("1-b-finish"), consolidate.readonly(c("1-b-start")))
+            self.failUnlessReallyEqual(c("1-bp-finish"), consolidate.readonly(c("1-bp-start")))
+            self.failUnlessReallyEqual(c("1-bps1-finish"), consolidate.readonly(c("1-bps1-start")))
+            self.failUnlessReallyEqual(c("1-bps2-finish"), consolidate.readonly(c("1-bps2-start")))
 
             # new directories should be different than the old ones
             self.failIfEqual(c("1-b"), c("1-b-start"))
@@ -246,33 +241,33 @@ class Consolidate(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIfEqual(c("5-bps2"), c("5-bps2-start"))
 
             # snapshot 1 and snapshot 2 should be identical
-            self.failUnlessEqual(c("2-b"), c("1-b"))
+            self.failUnlessReallyEqual(c("2-b"), c("1-b"))
 
             # snapshot 3 modified a file underneath parent/
             self.failIfEqual(c("3-b"), c("2-b")) # 3 modified a file
             self.failIfEqual(c("3-bp"), c("2-bp"))
             # but the subdirs are the same
-            self.failUnlessEqual(c("3-bps1"), c("2-bps1"))
-            self.failUnlessEqual(c("3-bps2"), c("2-bps2"))
+            self.failUnlessReallyEqual(c("3-bps1"), c("2-bps1"))
+            self.failUnlessReallyEqual(c("3-bps2"), c("2-bps2"))
 
             # snapshot 4 should be the same as 2
-            self.failUnlessEqual(c("4-b"), c("2-b"))
-            self.failUnlessEqual(c("4-bp"), c("2-bp"))
-            self.failUnlessEqual(c("4-bps1"), c("2-bps1"))
-            self.failUnlessEqual(c("4-bps2"), c("2-bps2"))
+            self.failUnlessReallyEqual(c("4-b"), c("2-b"))
+            self.failUnlessReallyEqual(c("4-bp"), c("2-bp"))
+            self.failUnlessReallyEqual(c("4-bps1"), c("2-bps1"))
+            self.failUnlessReallyEqual(c("4-bps2"), c("2-bps2"))
 
             # snapshot 5 added a file under subdir1
             self.failIfEqual(c("5-b"), c("4-b"))
             self.failIfEqual(c("5-bp"), c("4-bp"))
             self.failIfEqual(c("5-bps1"), c("4-bps1"))
-            self.failUnlessEqual(c("5-bps2"), c("4-bps2"))
+            self.failUnlessReallyEqual(c("5-bps2"), c("4-bps2"))
 
             # snapshot 6 copied a directory-it should be shared
             self.failIfEqual(c("6-b"), c("5-b"))
             self.failIfEqual(c("6-bp"), c("5-bp"))
-            self.failUnlessEqual(c("6-bps1"), c("5-bps1"))
+            self.failUnlessReallyEqual(c("6-bps1"), c("5-bps1"))
             self.failIfEqual(c("6-bps2"), c("5-bps2"))
-            self.failUnlessEqual(c("6-bps2c1"), c("6-bps1"))
+            self.failUnlessReallyEqual(c("6-bps2c1"), c("6-bps1"))
 
         d.addCallback(check_consolidation)
 

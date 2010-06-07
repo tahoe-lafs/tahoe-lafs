@@ -5,8 +5,8 @@ from allmydata.util.abbreviate import abbreviate_space_both
 from allmydata.scripts.slow_operation import SlowOperationRunner
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
-from allmydata.scripts.common_http import do_http
-from allmydata.util.stringutils import unicode_to_stdout
+from allmydata.scripts.common_http import do_http, format_http_error
+from allmydata.util.stringutils import quote_output, quote_path
 
 class FakeTransport:
     disconnecting = False
@@ -30,7 +30,7 @@ class ManifestStreamer(LineOnlyReceiver):
         try:
             rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
         except UnknownAliasError, e:
-            print >>stderr, "error: %s" % e.args[0]
+            e.display(stderr)
             return 1
         if path == '/':
             path = ''
@@ -41,7 +41,7 @@ class ManifestStreamer(LineOnlyReceiver):
         url += "?t=stream-manifest"
         resp = do_http("POST", url)
         if resp.status not in (200, 302):
-            print >>stderr, "ERROR", resp.status, resp.reason, resp.read()
+            print >>stderr, format_http_error("ERROR", resp)
             return 1
         #print "RESP", dir(resp)
         # use Twisted to split this into lines
@@ -60,31 +60,35 @@ class ManifestStreamer(LineOnlyReceiver):
         stdout = self.options.stdout
         stderr = self.options.stderr
         if self.in_error:
-            print >>stderr, line
+            print >>stderr, quote_output(line, quotemarks=False)
             return
         if line.startswith("ERROR:"):
             self.in_error = True
             self.rc = 1
-            print >>stderr, line
+            print >>stderr, quote_output(line, quotemarks=False)
             return
 
-        d = simplejson.loads(line.decode('utf-8'))
-        if d["type"] in ("file", "directory"):
-            if self.options["storage-index"]:
-                si = d["storage-index"]
-                if si:
-                    print >>stdout, si
-            elif self.options["verify-cap"]:
-                vc = d["verifycap"]
-                if vc:
-                    print >>stdout, vc
-            elif self.options["repair-cap"]:
-                vc = d["repaircap"]
-                if vc:
-                    print >>stdout, vc
-            else:
-                print >>stdout, d["cap"], "/".join([unicode_to_stdout(p)
-                                                        for p in d["path"]])
+        try:
+            d = simplejson.loads(line.decode('utf-8'))
+        except Exception, e:
+            print >>stderr, "ERROR could not decode/parse %s\nERROR  %r" % (quote_output(line), e)
+        else:
+            if d["type"] in ("file", "directory"):
+                if self.options["storage-index"]:
+                    si = d.get("storage-index", None)
+                    if si:
+                        print >>stdout, quote_output(si, quotemarks=False)
+                elif self.options["verify-cap"]:
+                    vc = d.get("verifycap", None)
+                    if vc:
+                        print >>stdout, quote_output(vc, quotemarks=False)
+                elif self.options["repair-cap"]:
+                    vc = d.get("repaircap", None)
+                    if vc:
+                        print >>stdout, quote_output(vc, quotemarks=False)
+                else:
+                    print >>stdout, "%s %s" % (quote_output(d["cap"], quotemarks=False),
+                                               quote_path(d["path"], quotemarks=False))
 
 def manifest(options):
     return ManifestStreamer().run(options)

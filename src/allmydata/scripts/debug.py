@@ -5,6 +5,7 @@ import struct, time, os
 from twisted.python import usage, failure
 from twisted.internet import defer
 from allmydata.scripts.cli import VDriveOptions
+from allmydata.util.stringutils import argv_to_unicode
 
 class DumpOptions(usage.Options):
     def getSynopsis(self):
@@ -768,7 +769,7 @@ class ConsolidateOptions(VDriveOptions):
         ("verbose", "v", "Emit a line for every directory examined"),
         ]
     def parseArgs(self, where):
-        self.where = where
+        self.where = argv_to_unicode(where)
 
 def consolidate(options):
     from allmydata.scripts.consolidate import main

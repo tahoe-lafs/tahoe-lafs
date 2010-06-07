@@ -22,6 +22,7 @@ class VDriveOptions(BaseOptions, usage.Options):
         ]
 
     def postOptions(self):
+        # FIXME: allow Unicode node-dir
         # compute a node-url from the existing options, put in self['node-url']
         if self['node-directory']:
             if sys.platform == 'win32' and self['node-directory'] == '~/.tahoe':

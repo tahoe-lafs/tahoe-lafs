@@ -2,7 +2,7 @@
 import urllib
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, UnknownAliasError
-from allmydata.util.stringutils import unicode_to_url
+from allmydata.util.stringutils import quote_output
 
 def mkdir(options):
     nodeurl = options['node-url']
@@ -16,7 +16,7 @@ def mkdir(options):
         try:
             rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
         except UnknownAliasError, e:
-            print >>stderr, "error: %s" % e.args[0]
+            e.display(stderr)
             return 1
 
     if not where or not path:
@@ -28,17 +28,17 @@ def mkdir(options):
             return rc
         new_uri = resp.read().strip()
         # emit its write-cap
-        print >>stdout, new_uri
+        print >>stdout, quote_output(new_uri, quotemarks=False)
         return 0
 
     # create a new directory at the given location
     if path.endswith("/"):
         path = path[:-1]
-    # path (in argv) must be "/".join([s.encode("utf-8") for s in segments])
+    # path must be "/".join([s.encode("utf-8") for s in segments])
     url = nodeurl + "uri/%s/%s?t=mkdir" % (urllib.quote(rootcap),
-                                           urllib.quote(unicode_to_url(path)))
+                                           urllib.quote(path))
     resp = do_http("POST", url)
     check_http_error(resp, stderr)
     new_uri = resp.read().strip()
-    print >>stdout, new_uri
+    print >>stdout, quote_output(new_uri, quotemarks=False)
     return 0

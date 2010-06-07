@@ -1,6 +1,6 @@
 
 import urllib
-from allmydata.scripts.common_http import do_http
+from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 
@@ -19,7 +19,7 @@ def rm(options):
     try:
         rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
     except UnknownAliasError, e:
-        print >>stderr, "error: %s" % e.args[0]
+        e.display(stderr)
         return 1
     assert path
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)
@@ -28,9 +28,8 @@ def rm(options):
     resp = do_http("DELETE", url)
 
     if resp.status in (200,):
-        print >>stdout, "%s %s" % (resp.status, resp.reason)
+        print >>stdout, format_http_success(resp)
         return 0
 
-    print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
-    print >>stderr, resp.read()
+    print >>stderr, format_http_error("ERROR", resp)
     return 1

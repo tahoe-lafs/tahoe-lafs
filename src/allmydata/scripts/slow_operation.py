@@ -2,8 +2,9 @@
 import os, time
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
-from allmydata.scripts.common_http import do_http
+from allmydata.scripts.common_http import do_http, format_http_error
 from allmydata.util import base32
+from allmydata.util.stringutils import quote_output, is_printable_ascii
 import urllib
 import simplejson
 
@@ -21,7 +22,7 @@ class SlowOperationRunner:
         try:
             rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
         except UnknownAliasError, e:
-            print >>stderr, "error: %s" % e.args[0]
+            e.display(stderr)
             return 1
         if path == '/':
             path = ''
@@ -32,7 +33,7 @@ class SlowOperationRunner:
         url = self.make_url(url, ophandle)
         resp = do_http("POST", url)
         if resp.status not in (200, 302):
-            print >>stderr, "ERROR", resp.status, resp.reason, resp.read()
+            print >>stderr, format_http_error("ERROR", resp)
             return 1
         # now we poll for results. We nominally poll at t=1, 5, 10, 30, 60,
         # 90, k*120 seconds, but if the poll takes non-zero time, that will
@@ -65,14 +66,17 @@ class SlowOperationRunner:
         stderr = self.options.stderr
         resp = do_http("GET", url)
         if resp.status != 200:
-            print >>stderr, "ERROR", resp.status, resp.reason, resp.read()
+            print >>stderr, format_http_error("ERROR", resp)
             return True
         jdata = resp.read()
         data = simplejson.loads(jdata)
         if not data["finished"]:
             return False
         if self.options.get("raw"):
-            print >>stdout, jdata
+            if is_printable_ascii(jdata):
+                print >>stdout, jdata
+            else:
+                print >>stderr, "The JSON response contained unprintable characters:\n%s" % quote_output(jdata)
             return True
         self.write_results(data)
         return True

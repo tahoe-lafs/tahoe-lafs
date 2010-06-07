@@ -3,41 +3,68 @@
 import os.path
 from twisted.trial import unittest
 from cStringIO import StringIO
-import locale, urllib, re, sys
+import urllib, re
 import simplejson
 
-from allmydata.util import fileutil, hashutil, base32, stringutils
+from allmydata.util import fileutil, hashutil, base32
 from allmydata import uri
 from allmydata.immutable import upload
 
 # Test that the scripts can be imported -- although the actual tests of their
 # functionality are done by invoking them in a subprocess.
-from allmydata.scripts import tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp
-_hush_pyflakes = [tahoe_ls, tahoe_get, tahoe_put, tahoe_rm, tahoe_cp]
+from allmydata.scripts import create_node, debug, keygen, startstop_node, \
+    tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls, \
+    tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_rm, tahoe_webopen
+_hush_pyflakes = [create_node, debug, keygen, startstop_node,
+    tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls,
+    tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_rm, tahoe_webopen]
 
 from allmydata.scripts import common
 from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
      DefaultAliasMarker
 
 from allmydata.scripts import cli, debug, runner, backupdb
-from allmydata.test.common_util import StallMixin
+from allmydata.test.common_util import StallMixin, ReallyEqualMixin
 from allmydata.test.no_network import GridTestMixin
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.python import usage
 
-from allmydata.util.stringutils import listdir_unicode, unicode_platform, FilenameEncodingError
+from allmydata.util.assertutil import precondition
+from allmydata.util.stringutils import listdir_unicode, open_unicode, unicode_platform, \
+    quote_output, get_output_encoding, get_argv_encoding, get_filesystem_encoding, \
+    unicode_to_output, FilenameEncodingError
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
-def skip_non_unicode_fs():
-    if sys.getfilesystemencoding().lower() not in ('utf-8', 'mbcs', 'utf_16', 'utf_16_be', 'utf_16_le', 'utf_32', 'utf_32_be', 'utf_32_le', 'utf_7', 'utf_8', 'utf_8_sig',):
-        raise unittest.SkipTest("Arbitrary filenames are not supported by this platform")
 
-def skip_non_unicode_stdout():
-    if stringutils.get_term_encoding().lower() not in ('utf-8', 'mbcs', 'utf_16', 'utf_16_be', 'utf_16_le', 'utf_32', 'utf_32_be', 'utf_32_le', 'utf_7', 'utf_8', 'utf_8_sig',):
-        raise unittest.SkipTest("Arbitrary command-line arguments (argv) are not supported by this platform")
+class CLITestMixin(ReallyEqualMixin):
+    def do_cli(self, verb, *args, **kwargs):
+        nodeargs = [
+            "--node-directory", self.get_clientdir(),
+            ]
+        argv = [verb] + nodeargs + list(args)
+        stdin = kwargs.get("stdin", "")
+        stdout, stderr = StringIO(), StringIO()
+        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
+                                  stdin=StringIO(stdin),
+                                  stdout=stdout, stderr=stderr)
+        def _done(rc):
+            return rc, stdout.getvalue(), stderr.getvalue()
+        d.addCallback(_done)
+        return d
 
-class CLI(unittest.TestCase):
+    def skip_if_cannot_represent_filename(self, u):
+        precondition(isinstance(u, unicode))
+
+        enc = get_filesystem_encoding()
+        if not unicode_platform():
+            try:
+                u.encode(enc)
+            except UnicodeEncodeError:
+                raise unittest.SkipTest("A non-ASCII filename %r could not be encoded as %s" (u, enc))
+
+
+class CLI(CLITestMixin, unittest.TestCase):
     # this test case only looks at argument-processing and simple stuff.
     def test_options(self):
         fileutil.rm_dir("cli/test_options")
@@ -50,23 +77,23 @@ class CLI(unittest.TestCase):
         fileutil.write("cli/test_options/private/root_dir.cap", private_uri + "\n")
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options"])
-        self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
-        self.failUnlessEqual(o.where, "")
+        self.failUnlessReallyEqual(o['node-url'], "http://localhost:8080/")
+        self.failUnlessReallyEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessReallyEqual(o.where, u"")
 
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--node-url", "http://example.org:8111/"])
-        self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
-        self.failUnlessEqual(o.where, "")
+        self.failUnlessReallyEqual(o['node-url'], "http://example.org:8111/")
+        self.failUnlessReallyEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessReallyEqual(o.where, u"")
 
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--dir-cap", "root"])
-        self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], "root")
-        self.failUnlessEqual(o.where, "")
+        self.failUnlessReallyEqual(o['node-url'], "http://localhost:8080/")
+        self.failUnlessReallyEqual(o.aliases[DEFAULT_ALIAS], "root")
+        self.failUnlessReallyEqual(o.where, u"")
 
         o = cli.ListOptions()
         other_filenode_uri = uri.WriteableSSKFileURI(writekey="\x11"*16,
@@ -74,16 +101,16 @@ class CLI(unittest.TestCase):
         other_uri = uri.DirectoryURI(other_filenode_uri).to_string()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--dir-cap", other_uri])
-        self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
-        self.failUnlessEqual(o.where, "")
+        self.failUnlessReallyEqual(o['node-url'], "http://localhost:8080/")
+        self.failUnlessReallyEqual(o.aliases[DEFAULT_ALIAS], other_uri)
+        self.failUnlessReallyEqual(o.where, u"")
 
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--dir-cap", other_uri, "subdir"])
-        self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
-        self.failUnlessEqual(o.where, "subdir")
+        self.failUnlessReallyEqual(o['node-url'], "http://localhost:8080/")
+        self.failUnlessReallyEqual(o.aliases[DEFAULT_ALIAS], other_uri)
+        self.failUnlessReallyEqual(o.where, u"subdir")
 
         o = cli.ListOptions()
         self.failUnlessRaises(usage.UsageError,
@@ -94,12 +121,12 @@ class CLI(unittest.TestCase):
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--node-url", "http://localhost:8080"])
-        self.failUnlessEqual(o["node-url"], "http://localhost:8080/")
+        self.failUnlessReallyEqual(o["node-url"], "http://localhost:8080/")
 
         o = cli.ListOptions()
         o.parseOptions(["--node-directory", "cli/test_options",
                         "--node-url", "https://localhost/"])
-        self.failUnlessEqual(o["node-url"], "https://localhost/")
+        self.failUnlessReallyEqual(o["node-url"], "https://localhost/")
 
     def _dump_cap(self, *args):
         config = debug.DumpCapOptions()
@@ -275,7 +302,7 @@ class CLI(unittest.TestCase):
 
         # now make sure that the 'catalog-shares' commands survives the error
         out, err = self._catalog_shares(nodedir1, nodedir2)
-        self.failUnlessEqual(out, "", out)
+        self.failUnlessReallyEqual(out, "", out)
         self.failUnless("Error processing " in err,
                         "didn't see 'error processing' in '%s'" % err)
         #self.failUnless(nodedir1 in err,
@@ -294,63 +321,63 @@ class CLI(unittest.TestCase):
         def ga1(path):
             return get_alias(aliases, path, u"tahoe")
         uses_lettercolon = common.platform_uses_lettercolon_drivename()
-        self.failUnlessEqual(ga1("bare"), ("TA", "bare"))
-        self.failUnlessEqual(ga1("baredir/file"), ("TA", "baredir/file"))
-        self.failUnlessEqual(ga1("baredir/file:7"), ("TA", "baredir/file:7"))
-        self.failUnlessEqual(ga1("tahoe:"), ("TA", ""))
-        self.failUnlessEqual(ga1("tahoe:file"), ("TA", "file"))
-        self.failUnlessEqual(ga1("tahoe:dir/file"), ("TA", "dir/file"))
-        self.failUnlessEqual(ga1("work:"), ("WA", ""))
-        self.failUnlessEqual(ga1("work:file"), ("WA", "file"))
-        self.failUnlessEqual(ga1("work:dir/file"), ("WA", "dir/file"))
+        self.failUnlessReallyEqual(ga1(u"bare"), ("TA", "bare"))
+        self.failUnlessReallyEqual(ga1(u"baredir/file"), ("TA", "baredir/file"))
+        self.failUnlessReallyEqual(ga1(u"baredir/file:7"), ("TA", "baredir/file:7"))
+        self.failUnlessReallyEqual(ga1(u"tahoe:"), ("TA", ""))
+        self.failUnlessReallyEqual(ga1(u"tahoe:file"), ("TA", "file"))
+        self.failUnlessReallyEqual(ga1(u"tahoe:dir/file"), ("TA", "dir/file"))
+        self.failUnlessReallyEqual(ga1(u"work:"), ("WA", ""))
+        self.failUnlessReallyEqual(ga1(u"work:file"), ("WA", "file"))
+        self.failUnlessReallyEqual(ga1(u"work:dir/file"), ("WA", "dir/file"))
         # default != None means we really expect a tahoe path, regardless of
         # whether we're on windows or not. This is what 'tahoe get' uses.
-        self.failUnlessEqual(ga1("c:"), ("CA", ""))
-        self.failUnlessEqual(ga1("c:file"), ("CA", "file"))
-        self.failUnlessEqual(ga1("c:dir/file"), ("CA", "dir/file"))
-        self.failUnlessEqual(ga1("URI:stuff"), ("URI:stuff", ""))
-        self.failUnlessEqual(ga1("URI:stuff/file"), ("URI:stuff", "file"))
-        self.failUnlessEqual(ga1("URI:stuff:./file"), ("URI:stuff", "file"))
-        self.failUnlessEqual(ga1("URI:stuff/dir/file"), ("URI:stuff", "dir/file"))
-        self.failUnlessEqual(ga1("URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
-        self.failUnlessRaises(common.UnknownAliasError, ga1, "missing:")
-        self.failUnlessRaises(common.UnknownAliasError, ga1, "missing:dir")
-        self.failUnlessRaises(common.UnknownAliasError, ga1, "missing:dir/file")
+        self.failUnlessReallyEqual(ga1(u"c:"), ("CA", ""))
+        self.failUnlessReallyEqual(ga1(u"c:file"), ("CA", "file"))
+        self.failUnlessReallyEqual(ga1(u"c:dir/file"), ("CA", "dir/file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff"), ("URI:stuff", ""))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff/file"), ("URI:stuff", "file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff:./file"), ("URI:stuff", "file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff/dir/file"), ("URI:stuff", "dir/file"))
+        self.failUnlessReallyEqual(ga1(u"URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+        self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:")
+        self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:dir")
+        self.failUnlessRaises(common.UnknownAliasError, ga1, u"missing:dir/file")
 
         def ga2(path):
             return get_alias(aliases, path, None)
-        self.failUnlessEqual(ga2("bare"), (DefaultAliasMarker, "bare"))
-        self.failUnlessEqual(ga2("baredir/file"),
+        self.failUnlessReallyEqual(ga2(u"bare"), (DefaultAliasMarker, "bare"))
+        self.failUnlessReallyEqual(ga2(u"baredir/file"),
                              (DefaultAliasMarker, "baredir/file"))
-        self.failUnlessEqual(ga2("baredir/file:7"),
+        self.failUnlessReallyEqual(ga2(u"baredir/file:7"),
                              (DefaultAliasMarker, "baredir/file:7"))
-        self.failUnlessEqual(ga2("baredir/sub:1/file:7"),
+        self.failUnlessReallyEqual(ga2(u"baredir/sub:1/file:7"),
                              (DefaultAliasMarker, "baredir/sub:1/file:7"))
-        self.failUnlessEqual(ga2("tahoe:"), ("TA", ""))
-        self.failUnlessEqual(ga2("tahoe:file"), ("TA", "file"))
-        self.failUnlessEqual(ga2("tahoe:dir/file"), ("TA", "dir/file"))
+        self.failUnlessReallyEqual(ga2(u"tahoe:"), ("TA", ""))
+        self.failUnlessReallyEqual(ga2(u"tahoe:file"), ("TA", "file"))
+        self.failUnlessReallyEqual(ga2(u"tahoe:dir/file"), ("TA", "dir/file"))
         # on windows, we really want c:foo to indicate a local file.
         # default==None is what 'tahoe cp' uses.
         if uses_lettercolon:
-            self.failUnlessEqual(ga2("c:"), (DefaultAliasMarker, "c:"))
-            self.failUnlessEqual(ga2("c:file"), (DefaultAliasMarker, "c:file"))
-            self.failUnlessEqual(ga2("c:dir/file"),
+            self.failUnlessReallyEqual(ga2(u"c:"), (DefaultAliasMarker, "c:"))
+            self.failUnlessReallyEqual(ga2(u"c:file"), (DefaultAliasMarker, "c:file"))
+            self.failUnlessReallyEqual(ga2(u"c:dir/file"),
                                  (DefaultAliasMarker, "c:dir/file"))
         else:
-            self.failUnlessEqual(ga2("c:"), ("CA", ""))
-            self.failUnlessEqual(ga2("c:file"), ("CA", "file"))
-            self.failUnlessEqual(ga2("c:dir/file"), ("CA", "dir/file"))
-        self.failUnlessEqual(ga2("work:"), ("WA", ""))
-        self.failUnlessEqual(ga2("work:file"), ("WA", "file"))
-        self.failUnlessEqual(ga2("work:dir/file"), ("WA", "dir/file"))
-        self.failUnlessEqual(ga2("URI:stuff"), ("URI:stuff", ""))
-        self.failUnlessEqual(ga2("URI:stuff/file"), ("URI:stuff", "file"))
-        self.failUnlessEqual(ga2("URI:stuff:./file"), ("URI:stuff", "file"))
-        self.failUnlessEqual(ga2("URI:stuff/dir/file"), ("URI:stuff", "dir/file"))
-        self.failUnlessEqual(ga2("URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
-        self.failUnlessRaises(common.UnknownAliasError, ga2, "missing:")
-        self.failUnlessRaises(common.UnknownAliasError, ga2, "missing:dir")
-        self.failUnlessRaises(common.UnknownAliasError, ga2, "missing:dir/file")
+            self.failUnlessReallyEqual(ga2(u"c:"), ("CA", ""))
+            self.failUnlessReallyEqual(ga2(u"c:file"), ("CA", "file"))
+            self.failUnlessReallyEqual(ga2(u"c:dir/file"), ("CA", "dir/file"))
+        self.failUnlessReallyEqual(ga2(u"work:"), ("WA", ""))
+        self.failUnlessReallyEqual(ga2(u"work:file"), ("WA", "file"))
+        self.failUnlessReallyEqual(ga2(u"work:dir/file"), ("WA", "dir/file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff"), ("URI:stuff", ""))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff/file"), ("URI:stuff", "file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff:./file"), ("URI:stuff", "file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff/dir/file"), ("URI:stuff", "dir/file"))
+        self.failUnlessReallyEqual(ga2(u"URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+        self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:")
+        self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:dir")
+        self.failUnlessRaises(common.UnknownAliasError, ga2, u"missing:dir/file")
 
         def ga3(path):
             old = common.pretend_platform_uses_lettercolon
@@ -360,36 +387,36 @@ class CLI(unittest.TestCase):
             finally:
                 common.pretend_platform_uses_lettercolon = old
             return retval
-        self.failUnlessEqual(ga3("bare"), (DefaultAliasMarker, "bare"))
-        self.failUnlessEqual(ga3("baredir/file"),
+        self.failUnlessReallyEqual(ga3(u"bare"), (DefaultAliasMarker, "bare"))
+        self.failUnlessReallyEqual(ga3(u"baredir/file"),
                              (DefaultAliasMarker, "baredir/file"))
-        self.failUnlessEqual(ga3("baredir/file:7"),
+        self.failUnlessReallyEqual(ga3(u"baredir/file:7"),
                              (DefaultAliasMarker, "baredir/file:7"))
-        self.failUnlessEqual(ga3("baredir/sub:1/file:7"),
+        self.failUnlessReallyEqual(ga3(u"baredir/sub:1/file:7"),
                              (DefaultAliasMarker, "baredir/sub:1/file:7"))
-        self.failUnlessEqual(ga3("tahoe:"), ("TA", ""))
-        self.failUnlessEqual(ga3("tahoe:file"), ("TA", "file"))
-        self.failUnlessEqual(ga3("tahoe:dir/file"), ("TA", "dir/file"))
-        self.failUnlessEqual(ga3("c:"), (DefaultAliasMarker, "c:"))
-        self.failUnlessEqual(ga3("c:file"), (DefaultAliasMarker, "c:file"))
-        self.failUnlessEqual(ga3("c:dir/file"),
+        self.failUnlessReallyEqual(ga3(u"tahoe:"), ("TA", ""))
+        self.failUnlessReallyEqual(ga3(u"tahoe:file"), ("TA", "file"))
+        self.failUnlessReallyEqual(ga3(u"tahoe:dir/file"), ("TA", "dir/file"))
+        self.failUnlessReallyEqual(ga3(u"c:"), (DefaultAliasMarker, "c:"))
+        self.failUnlessReallyEqual(ga3(u"c:file"), (DefaultAliasMarker, "c:file"))
+        self.failUnlessReallyEqual(ga3(u"c:dir/file"),
                              (DefaultAliasMarker, "c:dir/file"))
-        self.failUnlessEqual(ga3("work:"), ("WA", ""))
-        self.failUnlessEqual(ga3("work:file"), ("WA", "file"))
-        self.failUnlessEqual(ga3("work:dir/file"), ("WA", "dir/file"))
-        self.failUnlessEqual(ga3("URI:stuff"), ("URI:stuff", ""))
-        self.failUnlessEqual(ga3("URI:stuff:./file"), ("URI:stuff", "file"))
-        self.failUnlessEqual(ga3("URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
-        self.failUnlessRaises(common.UnknownAliasError, ga3, "missing:")
-        self.failUnlessRaises(common.UnknownAliasError, ga3, "missing:dir")
-        self.failUnlessRaises(common.UnknownAliasError, ga3, "missing:dir/file")
+        self.failUnlessReallyEqual(ga3(u"work:"), ("WA", ""))
+        self.failUnlessReallyEqual(ga3(u"work:file"), ("WA", "file"))
+        self.failUnlessReallyEqual(ga3(u"work:dir/file"), ("WA", "dir/file"))
+        self.failUnlessReallyEqual(ga3(u"URI:stuff"), ("URI:stuff", ""))
+        self.failUnlessReallyEqual(ga3(u"URI:stuff:./file"), ("URI:stuff", "file"))
+        self.failUnlessReallyEqual(ga3(u"URI:stuff:./dir/file"), ("URI:stuff", "dir/file"))
+        self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:")
+        self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:dir")
+        self.failUnlessRaises(common.UnknownAliasError, ga3, u"missing:dir/file")
         # calling get_alias with a path that doesn't include an alias and
         # default set to something that isn't in the aliases argument should
         # raise an UnknownAliasError.
         def ga4(path):
             return get_alias(aliases, path, u"badddefault:")
-        self.failUnlessRaises(common.UnknownAliasError, ga4, "afile")
-        self.failUnlessRaises(common.UnknownAliasError, ga4, "a/dir/path/")
+        self.failUnlessRaises(common.UnknownAliasError, ga4, u"afile")
+        self.failUnlessRaises(common.UnknownAliasError, ga4, u"a/dir/path/")
 
         def ga5(path):
             old = common.pretend_platform_uses_lettercolon
@@ -399,48 +426,52 @@ class CLI(unittest.TestCase):
             finally:
                 common.pretend_platform_uses_lettercolon = old
             return retval
-        self.failUnlessRaises(common.UnknownAliasError, ga5, "C:\\Windows")
+        self.failUnlessRaises(common.UnknownAliasError, ga5, u"C:\\Windows")
 
     def test_listdir_unicode_good(self):
-        files = (u'Lôzane', u'Bern', u'Genève')
-        enc = sys.getfilesystemencoding() or 'ascii'
+        filenames = [u'Lôzane', u'Bern', u'Genève']
 
-        # Ensure that our test filenames can actually be represented by the
-        # current filesystem encoding
-        try:
-            [f.encode(enc) for f in files]
-        except UnicodeEncodeError:
-            raise unittest.SkipTest("Cannot represent non-ASCII filenames on this filesystem")
+        for name in filenames:
+            self.skip_if_cannot_represent_filename(name)
 
-        basedir = u"cli/common/listdir_unicode_good"
+        basedir = "cli/common/listdir_unicode_good"
         fileutil.make_dirs(basedir)
 
-        for file in files:
-            open(os.path.join(basedir, file), "w").close()
+        for name in filenames:
+            open_unicode(os.path.join(unicode(basedir), name), "wb").close()
 
-        for file in listdir_unicode(basedir):
-            self.failUnlessEqual(file in files, True)
+        for file in listdir_unicode(unicode(basedir)):
+            self.failUnlessIn(file, filenames)
 
     def test_listdir_unicode_bad(self):
-        if unicode_platform():
-            raise unittest.SkipTest("This test doesn't make any sense on architecture which handle filenames natively as Unicode entities.")
-
-        basedir = u"cli/common/listdir_unicode_bad"
+        basedir = "cli/common/listdir_unicode_bad"
         fileutil.make_dirs(basedir)
 
-        files = (u'Lôzane', u'Bern', u'Genève')
+        filenames = [name.encode('latin1') for name in [u'Lôzane', u'Bern', u'Genève']]
+        enc = get_filesystem_encoding()
+        def is_decodable(u):
+            try:
+                u.decode(enc)
+                return True
+            except UnicodeDecodeError:
+                return False
 
-        # We use a wrong encoding on purpose
-        if sys.getfilesystemencoding() == 'UTF-8':
-            encoding = 'latin1'
-        else:
-            encoding = 'UTF-8'
+        if all(map(is_decodable, filenames)):
+            raise unittest.SkipTest("To perform this test, we must know a filename that is "
+                                    "not decodable in the platform's filesystem encoding.")
 
-        for file in files:
-            path = os.path.join(basedir, file).encode(encoding)
-            open(path, "w").close()
+        try:
+            for name in filenames:
+                path = os.path.join(basedir, name)
+                open(path, "wb").close()
+        except EnvironmentError, e:
+            # Maybe the OS or Python wouldn't let us create a file at the badly encoded path,
+            # which is entirely reasonable.
+            raise unittest.SkipTest("This test is only applicable to platforms that allow "
+                                    "creating files at badly encoded paths.\n%r" % (e,))
 
-        self.failUnlessRaises(FilenameEncodingError, listdir_unicode, basedir)
+        self.failUnlessRaises(FilenameEncodingError, listdir_unicode, unicode(basedir))
+
 
 class Help(unittest.TestCase):
 
@@ -499,21 +530,6 @@ class Help(unittest.TestCase):
         help = str(cli.AddAliasOptions())
         self.failUnless("add-alias ALIAS DIRCAP" in help, help)
 
-class CLITestMixin:
-    def do_cli(self, verb, *args, **kwargs):
-        nodeargs = [
-            "--node-directory", self.get_clientdir(),
-            ]
-        argv = [verb] + nodeargs + list(args)
-        stdin = kwargs.get("stdin", "")
-        stdout, stderr = StringIO(), StringIO()
-        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
-                                  stdin=StringIO(stdin),
-                                  stdout=stdout, stderr=stderr)
-        def _done(rc):
-            return rc, stdout.getvalue(), stderr.getvalue()
-        d.addCallback(_done)
-        return d
 
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
@@ -523,9 +539,9 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         woo.parseOptions(all_args)
         urls = []
         rc = cli.webopen(woo, urls.append)
-        self.failUnlessEqual(rc, 0)
-        self.failUnlessEqual(len(urls), 1)
-        self.failUnlessEqual(urls[0], expected_url)
+        self.failUnlessReallyEqual(rc, 0)
+        self.failUnlessReallyEqual(len(urls), 1)
+        self.failUnlessReallyEqual(urls[0], expected_url)
 
     def test_create(self):
         self.basedir = "cli/CreateAlias/create"
@@ -559,12 +575,12 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIfEqual(rc, 0)
             self.failUnless("Alias 'two' already exists!" in stderr)
             aliases = get_aliases(self.get_clientdir())
-            self.failUnlessEqual(aliases["two"], self.two_uri)
+            self.failUnlessReallyEqual(aliases["two"], self.two_uri)
         d.addCallback(_check_create_duplicate)
 
         d.addCallback(lambda res: self.do_cli("add-alias", "added", self.two_uri))
         def _check_add((rc,stdout,stderr)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(rc, 0)
             self.failUnless("Alias 'added' added" in stdout)
         d.addCallback(_check_add)
 
@@ -574,7 +590,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIfEqual(rc, 0)
             self.failUnless("Alias 'two' already exists!" in stderr)
             aliases = get_aliases(self.get_clientdir())
-            self.failUnlessEqual(aliases["two"], self.two_uri)
+            self.failUnlessReallyEqual(aliases["two"], self.two_uri)
         d.addCallback(_check_add_duplicate)
 
         def _test_urls(junk):
@@ -640,77 +656,70 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(aliases["un-corrupted2"].startswith("URI:DIR2:"))
         d.addCallback(_check_not_corrupted)
 
-
     def test_create_unicode(self):
-        skip_non_unicode_fs()
-        skip_non_unicode_stdout()
-
         self.basedir = "cli/CreateAlias/create_unicode"
         self.set_up_grid()
 
-        d = self.do_cli("create-alias", "études")
-        def _check_create_unicode((rc,stdout,stderr)):
-            self.failUnlessEqual(rc, 0)
-            self.failIf(stderr)
+        try:
+            etudes_arg = u"études".encode(get_argv_encoding())
+            lumiere_arg = u"lumière.txt".encode(get_argv_encoding())
+        except UnicodeEncodeError, e:
+            raise unittest.SkipTest("A non-ASCII test argument could not be encoded as %s:\n%r" (get_argv_encoding(), e))
 
-            # If stdout only supports ascii, accentuated characters are
-            # being replaced by '?'
-            if sys.stdout.encoding == "ANSI_X3.4-1968":
-                self.failUnless("Alias '?tudes' created" in stdout)
-            else:
-                self.failUnless("Alias 'études' created" in stdout)
+        d = self.do_cli("create-alias", etudes_arg)
+        def _check_create_unicode((rc, out, err)):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessIn("Alias %s created" % quote_output(u"études"), out)
 
             aliases = get_aliases(self.get_clientdir())
             self.failUnless(aliases[u"études"].startswith("URI:DIR2:"))
         d.addCallback(_check_create_unicode)
 
-        d.addCallback(lambda res: self.do_cli("ls", "études:"))
-        def _check_ls1((rc, stdout, stderr)):
-            self.failUnlessEqual(rc, 0)
-            self.failIf(stderr)
-
-            self.failUnlessEqual(stdout, "")
+        d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
+        def _check_ls1((rc, out, err)):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check_ls1)
 
-        d.addCallback(lambda res: self.do_cli("put", "-", "études:uploaded.txt",
-          stdin="Blah blah blah"))
+        d.addCallback(lambda res: self.do_cli("put", "-", etudes_arg + ":uploaded.txt",
+                                              stdin="Blah blah blah"))
 
-        d.addCallback(lambda res: self.do_cli("ls", "études:"))
-        def _check_ls2((rc, stdout, stderr)):
-            self.failUnlessEqual(rc, 0)
-            self.failIf(stderr)
-
-            self.failUnlessEqual(stdout, "uploaded.txt\n")
+        d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
+        def _check_ls2((rc, out, err)):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(out, "uploaded.txt\n")
         d.addCallback(_check_ls2)
 
-        d.addCallback(lambda res: self.do_cli("get", "études:uploaded.txt"))
-        def _check_get((rc, stdout, stderr)):
-            self.failUnlessEqual(rc, 0)
-            self.failIf(stderr)
-            self.failUnlessEqual(stdout, "Blah blah blah")
+        d.addCallback(lambda res: self.do_cli("get", etudes_arg + ":uploaded.txt"))
+        def _check_get((rc, out, err)):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(out, "Blah blah blah")
         d.addCallback(_check_get)
 
         # Ensure that an Unicode filename in an Unicode alias works as expected
-        d.addCallback(lambda res: self.do_cli("put", "-", "études:lumière.txt",
-          stdin="Let the sunshine In!"))
+        d.addCallback(lambda res: self.do_cli("put", "-", etudes_arg + ":" + lumiere_arg,
+                                              stdin="Let the sunshine In!"))
 
         d.addCallback(lambda res: self.do_cli("get",
-                      get_aliases(self.get_clientdir())[u"études"] + "/lumière.txt"))
-        def _check_get2((rc, stdout, stderr)):
-            self.failUnlessEqual(rc, 0)
-            self.failIf(stderr)
-            self.failUnlessEqual(stdout, "Let the sunshine In!")
+                                              get_aliases(self.get_clientdir())[u"études"] + "/" + lumiere_arg))
+        def _check_get2((rc, out, err)):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(out, "Let the sunshine In!")
         d.addCallback(_check_get2)
 
         return d
+
 
 class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
     def _create_test_file(self):
         data = "puppies" * 1000
         path = os.path.join(self.basedir, "datafile")
-        f = open(path, 'wb')
-        f.write(data)
-        f.close()
+        fileutil.write(path, data)
         self.datafile = path
 
     def test_ln_without_alias(self):
@@ -721,8 +730,9 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("ln", "from", "to")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         # Make sure that validation extends to the "to" parameter
         d.addCallback(lambda ign: self.do_cli("create-alias", "havasu"))
@@ -740,7 +750,7 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("ln", "havasu:from", "havasu:to")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
         d.addCallback(_check)
         # Make sure that validation occurs on the to parameter if the
@@ -764,21 +774,21 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("put", stdin=DATA)
         def _uploaded(res):
-            (rc, stdout, stderr) = res
-            self.failUnless("waiting for file data on stdin.." in stderr)
-            self.failUnless("200 OK" in stderr, stderr)
-            self.readcap = stdout
+            (rc, out, err) = res
+            self.failUnlessIn("waiting for file data on stdin..", err)
+            self.failUnlessIn("200 OK", err)
+            self.readcap = out
             self.failUnless(self.readcap.startswith("URI:CHK:"))
         d.addCallback(_uploaded)
         d.addCallback(lambda res: self.do_cli("get", self.readcap))
         def _downloaded(res):
-            (rc, stdout, stderr) = res
-            self.failUnlessEqual(stderr, "")
-            self.failUnlessEqual(stdout, DATA)
+            (rc, out, err) = res
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(out, DATA)
         d.addCallback(_downloaded)
         d.addCallback(lambda res: self.do_cli("put", "-", stdin=DATA))
-        d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessEqual(stdout, self.readcap))
+        d.addCallback(lambda (rc, out, err):
+                      self.failUnlessReallyEqual(out, self.readcap))
         return d
 
     def test_unlinked_immutable_from_file(self):
@@ -794,17 +804,17 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # we make the file small enough to fit in a LIT file, for speed
         fileutil.write(rel_fn, "short file")
         d = self.do_cli("put", rel_fn)
-        def _uploaded((rc,stdout,stderr)):
-            readcap = stdout
-            self.failUnless(readcap.startswith("URI:LIT:"))
+        def _uploaded((rc, out, err)):
+            readcap = out
+            self.failUnless(readcap.startswith("URI:LIT:"), readcap)
             self.readcap = readcap
         d.addCallback(_uploaded)
         d.addCallback(lambda res: self.do_cli("put", "./" + rel_fn))
         d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessEqual(stdout, self.readcap))
+                      self.failUnlessReallyEqual(stdout, self.readcap))
         d.addCallback(lambda res: self.do_cli("put", abs_fn))
         d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessEqual(stdout, self.readcap))
+                      self.failUnlessReallyEqual(stdout, self.readcap))
         # we just have to assume that ~ is handled properly
         return d
 
@@ -829,43 +839,43 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "uploaded.txt"))
-        def _uploaded((rc,stdout,stderr)):
-            readcap = stdout.strip()
-            self.failUnless(readcap.startswith("URI:LIT:"))
-            self.failUnless("201 Created" in stderr, stderr)
+        def _uploaded((rc, out, err)):
+            readcap = out.strip()
+            self.failUnless(readcap.startswith("URI:LIT:"), readcap)
+            self.failUnlessIn("201 Created", err)
             self.readcap = readcap
         d.addCallback(_uploaded)
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded.txt"))
         d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessEqual(stdout, DATA))
+                      self.failUnlessReallyEqual(stdout, DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", "-", "uploaded.txt", stdin=DATA2))
-        def _replaced((rc,stdout,stderr)):
-            readcap = stdout.strip()
-            self.failUnless(readcap.startswith("URI:LIT:"))
-            self.failUnless("200 OK" in stderr, stderr)
+        def _replaced((rc, out, err)):
+            readcap = out.strip()
+            self.failUnless(readcap.startswith("URI:LIT:"), readcap)
+            self.failUnlessIn("200 OK", err)
         d.addCallback(_replaced)
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "subdir/uploaded2.txt"))
         d.addCallback(lambda res: self.do_cli("get", "subdir/uploaded2.txt"))
         d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessEqual(stdout, DATA))
+                      self.failUnlessReallyEqual(stdout, DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "tahoe:uploaded3.txt"))
         d.addCallback(lambda res: self.do_cli("get", "tahoe:uploaded3.txt"))
         d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessEqual(stdout, DATA))
+                      self.failUnlessReallyEqual(stdout, DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "tahoe:subdir/uploaded4.txt"))
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:subdir/uploaded4.txt"))
         d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessEqual(stdout, DATA))
+                      self.failUnlessReallyEqual(stdout, DATA))
 
         def _get_dircap(res):
             self.dircap = get_aliases(self.get_clientdir())["tahoe"]
@@ -877,7 +887,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded5.txt"))
         d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessEqual(stdout, DATA))
+                      self.failUnlessReallyEqual(stdout, DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn,
@@ -885,7 +895,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:subdir/uploaded6.txt"))
         d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessEqual(stdout, DATA))
+                      self.failUnlessReallyEqual(stdout, DATA))
 
         return d
 
@@ -906,33 +916,33 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d = self.do_cli("put", "--mutable", stdin=DATA)
         def _created(res):
-            (rc, stdout, stderr) = res
-            self.failUnless("waiting for file data on stdin.." in stderr)
-            self.failUnless("200 OK" in stderr)
-            self.filecap = stdout
-            self.failUnless(self.filecap.startswith("URI:SSK:"))
+            (rc, out, err) = res
+            self.failUnlessIn("waiting for file data on stdin..", err)
+            self.failUnlessIn("200 OK", err)
+            self.filecap = out
+            self.failUnless(self.filecap.startswith("URI:SSK:"), self.filecap)
         d.addCallback(_created)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
-        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA))
+        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA))
 
         d.addCallback(lambda res: self.do_cli("put", "-", self.filecap, stdin=DATA2))
         def _replaced(res):
-            (rc, stdout, stderr) = res
-            self.failUnless("waiting for file data on stdin.." in stderr)
-            self.failUnless("200 OK" in stderr)
-            self.failUnlessEqual(self.filecap, stdout)
+            (rc, out, err) = res
+            self.failUnlessIn("waiting for file data on stdin..", err)
+            self.failUnlessIn("200 OK", err)
+            self.failUnlessReallyEqual(self.filecap, out)
         d.addCallback(_replaced)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
-        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
+        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA2))
 
         d.addCallback(lambda res: self.do_cli("put", rel_fn, self.filecap))
         def _replaced2(res):
-            (rc, stdout, stderr) = res
-            self.failUnless("200 OK" in stderr)
-            self.failUnlessEqual(self.filecap, stdout)
+            (rc, out, err) = res
+            self.failUnlessIn("200 OK", err)
+            self.failUnlessReallyEqual(self.filecap, out)
         d.addCallback(_replaced2)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
-        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA3))
+        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA3))
 
         return d
 
@@ -958,7 +968,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("put", fn2, "tahoe:uploaded.txt"))
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded.txt"))
-        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
+        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA2))
         return d
 
     def test_put_with_nonexistent_alias(self):
@@ -968,41 +978,49 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("put", "somefile", "fake:afile")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
-
     def test_immutable_from_file_unicode(self):
-        skip_non_unicode_stdout()
-      
-        # tahoe put file.txt "à trier.txt"
-        self.basedir = os.path.dirname(self.mktemp())
+        # tahoe put "à trier.txt" "à trier.txt"
+
+        try:
+            a_trier_arg = u"à trier.txt".encode(get_argv_encoding())
+        except UnicodeEncodeError, e:
+            raise unittest.SkipTest("A non-ASCII command argument could not be encoded as %s:\n%r" (get_argv_encoding(), e))
+
+        self.skip_if_cannot_represent_filename(u"à trier.txt")
+
+        self.basedir = "cli/Put/immutable_from_file_unicode"
         self.set_up_grid()
 
-        rel_fn = os.path.join(self.basedir, "DATAFILE")
+        rel_fn = os.path.join(unicode(self.basedir), u"à trier.txt")
         # we make the file small enough to fit in a LIT file, for speed
         DATA = "short file"
-        f = open(rel_fn, "w")
-        f.write(DATA)
-        f.close()
+        f = open_unicode(rel_fn, "wb")
+        try:
+            f.write(DATA)
+        finally:
+            f.close()
 
         d = self.do_cli("create-alias", "tahoe")
 
         d.addCallback(lambda res:
-                      self.do_cli("put", rel_fn, "à trier.txt"))
-        def _uploaded((rc,stdout,stderr)):
-            readcap = stdout.strip()
-            self.failUnless(readcap.startswith("URI:LIT:"))
-            self.failUnless("201 Created" in stderr, stderr)
+                      self.do_cli("put", rel_fn.encode(get_argv_encoding()), a_trier_arg))
+        def _uploaded((rc, out, err)):
+            readcap = out.strip()
+            self.failUnless(readcap.startswith("URI:LIT:"), readcap)
+            self.failUnlessIn("201 Created", err)
             self.readcap = readcap
         d.addCallback(_uploaded)
 
         d.addCallback(lambda res:
-                      self.do_cli("get", "tahoe:à trier.txt"))
-        d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessEqual(stdout, DATA))
+                      self.do_cli("get", "tahoe:" + a_trier_arg))
+        d.addCallback(lambda (rc, out, err):
+                      self.failUnlessReallyEqual(out, DATA))
 
         return d
 
@@ -1012,6 +1030,19 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         c0 = self.g.clients[0]
         small = "small"
+
+        # u"gööd" might not be representable in the argv and/or output encodings.
+        # It is initially included in the directory in any case.
+        try:
+            good_arg = u"gööd".encode(get_argv_encoding())
+        except UnicodeEncodeError:
+            good_arg = None
+
+        try:
+            good_out = u"gööd".encode(get_output_encoding())
+        except UnicodeEncodeError:
+            good_out = None
+
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
@@ -1031,51 +1062,92 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("add-alias", "tahoe", self.rooturi))
         d.addCallback(lambda ign: self.do_cli("ls"))
         def _check1((rc,out,err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
-            outstrs = out.splitlines()
-            outunics = [ outstr.decode(stringutils.get_term_encoding()) for outstr in outstrs ]
-            self.failUnlessEqual(outunics, [u"0share", u"1share", u"gööd"])
+            if good_out is None:
+                self.failUnlessReallyEqual(rc, 1)
+                self.failUnlessIn("could not be encoded", err)
+                self.failUnlessReallyEqual(out, "")
+            else:
+                self.failUnlessReallyEqual(rc, 0)
+                self.failUnlessReallyEqual(err, "")
+                outstrs = out.splitlines()
+                self.failUnlessReallyEqual(outstrs, ["0share", "1share", good_out])
         d.addCallback(_check1)
         d.addCallback(lambda ign: self.do_cli("ls", "missing"))
         def _check2((rc,out,err)):
             self.failIfEqual(rc, 0)
-            self.failUnlessEqual(err.strip(), "No such file or directory")
-            self.failUnlessEqual(out, "")
+            self.failUnlessReallyEqual(err.strip(), "No such file or directory")
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check2)
         d.addCallback(lambda ign: self.do_cli("ls", "1share"))
         def _check3((rc,out,err)):
             self.failIfEqual(rc, 0)
-            self.failUnlessIn("Error during GET: 410 Gone ", err)
+            self.failUnlessIn("Error during GET: 410 Gone", err)
             self.failUnlessIn("UnrecoverableFileError:", err)
             self.failUnlessIn("could not be retrieved, because there were "
                               "insufficient good shares.", err)
-            self.failUnlessEqual(out, "")
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check3)
         d.addCallback(lambda ign: self.do_cli("ls", "0share"))
         d.addCallback(_check3)
         def _check4((rc, out, err)):
-            # listing a file (as dir/filename) should have the edge metadata,
-            # including the filename
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessIn(u"gööd", out.decode(stringutils.get_term_encoding()))
-            self.failIfIn("-r-- %d -" % len(small), out,
-                          "trailing hyphen means unknown date")
-        d.addCallback(lambda ign: self.do_cli("ls", "-l", u"gööd".encode(locale.getpreferredencoding())))
-        d.addCallback(_check4)
-        # listing a file as $DIRCAP/filename should work just like dir/filename
-        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + u"/gööd".encode(locale.getpreferredencoding())))
-        d.addCallback(_check4)
-        # and similarly for $DIRCAP:./filename
-        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + u":./gööd".encode(locale.getpreferredencoding())))
-        d.addCallback(_check4)
+            if good_out is None:
+                self.failUnlessReallyEqual(rc, 1)
+                self.failUnlessIn("could not be encoded", err)
+                self.failUnlessReallyEqual(out, "")
+            else:
+                # listing a file (as dir/filename) should have the edge metadata,
+                # including the filename
+                self.failUnlessReallyEqual(rc, 0)
+                self.failUnlessIn(good_out, out)
+                self.failIfIn("-r-- %d -" % len(small), out,
+                              "trailing hyphen means unknown date")
+
+        if good_arg is not None:
+            d.addCallback(lambda ign: self.do_cli("ls", "-l", good_arg))
+            d.addCallback(_check4)
+            # listing a file as $DIRCAP/filename should work just like dir/filename
+            d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + "/" + good_arg))
+            d.addCallback(_check4)
+            # and similarly for $DIRCAP:./filename
+            d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + ":./" + good_arg))
+            d.addCallback(_check4)
+
         def _check5((rc, out, err)):
             # listing a raw filecap should not explode, but it will have no
             # metadata, just the size
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual("-r-- %d -" % len(small), out.strip())
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual("-r-- %d -" % len(small), out.strip())
         d.addCallback(lambda ign: self.do_cli("ls", "-l", self.goodcap))
         d.addCallback(_check5)
+
+        # Now rename 'gööd' to 'good' and repeat the tests that might have been skipped due
+        # to encoding problems.
+        d.addCallback(lambda ign: self.rootnode.move_child_to(u"gööd", self.rootnode, u"good"))
+
+        d.addCallback(lambda ign: self.do_cli("ls"))
+        def _check1_ascii((rc,out,err)):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            outstrs = out.splitlines()
+            self.failUnlessReallyEqual(outstrs, ["0share", "1share", "good"])
+        d.addCallback(_check1_ascii)
+        def _check4_ascii((rc, out, err)):
+            # listing a file (as dir/filename) should have the edge metadata,
+            # including the filename
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessIn("good", out)
+            self.failIfIn("-r-- %d -" % len(small), out,
+                          "trailing hyphen means unknown date")
+
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", "good"))
+        d.addCallback(_check4_ascii)
+        # listing a file as $DIRCAP/filename should work just like dir/filename
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + "/good"))
+        d.addCallback(_check4_ascii)
+        # and similarly for $DIRCAP:./filename
+        d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + ":./good"))
+        d.addCallback(_check4_ascii)
+
         unknown_immcap = "imm.URI:unknown"
         def _create_unknown(ign):
             nm = c0.nodemaker
@@ -1086,7 +1158,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check6((rc, out, err)):
             # listing a directory referencing an unknown object should print
             # an extra message to stderr
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(rc, 0)
             self.failUnlessIn("?r-- ? - unknownchild-imm\n", out)
             self.failUnlessIn("included unknown objects", err)
         d.addCallback(lambda ign: self.do_cli("ls", "-l", "unknown"))
@@ -1096,7 +1168,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             # to stderr (currently this only works if the URI starts with 'URI:'
             # after any 'ro.' or 'imm.' prefix, otherwise it will be confused
             # with an alias).
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(rc, 0)
             self.failUnlessIn("?r-- ? -\n", out)
             self.failUnlessIn("included unknown objects", err)
         d.addCallback(lambda ign: self.do_cli("ls", "-l", unknown_immcap))
@@ -1110,8 +1182,9 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("ls")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1122,9 +1195,10 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("ls", "nonexistent:")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1232,8 +1306,9 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("mv", "afile", "anotherfile")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         # check to see that the validation extends to the
         # target argument by making an alias that will work with the first
@@ -1241,9 +1316,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("create-alias", "havasu"))
         def _create_a_test_file(ign):
             self.test_file_path = os.path.join(self.basedir, "afile")
-            f = open(self.test_file_path, "wb")
-            f.write("puppies" * 100)
-            f.close()
+            fileutil.write(self.test_file_path, "puppies" * 100)
         d.addCallback(_create_a_test_file)
         d.addCallback(lambda ign: self.do_cli("put", self.test_file_path,
                                               "havasu:afile"))
@@ -1259,9 +1332,10 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("mv", "fake:afile", "fake:anotherfile")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("fake", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         # check to see that the validation extends to the
         # target argument by making an alias that will work with the first
@@ -1269,9 +1343,7 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("create-alias", "havasu"))
         def _create_a_test_file(ign):
             self.test_file_path = os.path.join(self.basedir, "afile")
-            f = open(self.test_file_path, "wb")
-            f.write("puppies" * 100)
-            f.close()
+            fileutil.write(self.test_file_path, "puppies" * 100)
         d.addCallback(_create_a_test_file)
         d.addCallback(lambda ign: self.do_cli("put", self.test_file_path,
                                               "havasu:afile"))
@@ -1289,40 +1361,63 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                               o.parseOptions, ["onearg"])
 
     def test_unicode_filename(self):
-        skip_non_unicode_fs()
-        skip_non_unicode_stdout()
-
         self.basedir = "cli/Cp/unicode_filename"
+
+        fn1 = os.path.join(unicode(self.basedir), u"Ärtonwall")
+        try:
+            fn1_arg = fn1.encode(get_argv_encoding())
+            artonwall_arg = u"Ärtonwall".encode(get_argv_encoding())
+        except UnicodeEncodeError, e:
+            raise unittest.SkipTest("A non-ASCII command argument could not be encoded as %s:\n%r" (get_argv_encoding(), e))
+
+        self.skip_if_cannot_represent_filename(fn1)
+
         self.set_up_grid()
-        d = self.do_cli("create-alias", "tahoe")
 
-        # Use unicode strings when calling os functions
-        fn1 = os.path.join(self.basedir, u"Ärtonwall")
         DATA1 = "unicode file content"
-        fileutil.write(fn1, DATA1)
+        f = open_unicode(fn1, "wb")
+        try:
+            f.write(DATA1)
+        finally:
+            f.close()
 
-        d.addCallback(lambda res: self.do_cli("cp", fn1.encode('utf-8'), "tahoe:"))
-
-        d.addCallback(lambda res: self.do_cli("get", "tahoe:Ärtonwall"))
-        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA1))
-
-        fn2 = os.path.join(self.basedir, u"Metallica")
+        fn2 = os.path.join(self.basedir, "Metallica")
         DATA2 = "non-unicode file content"
         fileutil.write(fn2, DATA2)
 
-        d.addCallback(lambda res: self.do_cli("cp", fn2.encode('utf-8'), "tahoe:"))
+        d = self.do_cli("create-alias", "tahoe")
+
+        d.addCallback(lambda res: self.do_cli("cp", fn1_arg, "tahoe:"))
+
+        d.addCallback(lambda res: self.do_cli("get", "tahoe:" + artonwall_arg))
+        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA1))
+
+        d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:Metallica"))
-        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, DATA2))
+        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA2))
 
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:"))
-        d.addCallback(lambda (rc,out,err): self.failUnlessEqual(out, "Metallica\nÄrtonwall\n"))
+        def _check((rc, out, err)):
+            try:
+                unicode_to_output(u"Ärtonwall")
+            except UnicodeEncodeError:
+                self.failUnlessReallyEqual(rc, 1)
+                self.failUnlessReallyEqual(out, "Metallica\n")
+                self.failUnlessIn(quote_output(u"Ärtonwall"), err)
+                self.failUnlessIn("files whose names could not be converted", err)
+            else:
+                self.failUnlessReallyEqual(rc, 0)
+                self.failUnlessReallyEqual(out.decode(get_output_encoding()), u"Metallica\nÄrtonwall\n")
+                self.failUnlessReallyEqual(err, "")
+        d.addCallback(_check)
 
         return d
 
     def test_dangling_symlink_vs_recursion(self):
         if not hasattr(os, 'symlink'):
-            raise unittest.SkipTest("There is no symlink on this platform.")
+            raise unittest.SkipTest("Symlinks are not supported by Python on this platform.")
+
         # cp -r on a directory containing a dangling symlink shouldn't assert
         self.basedir = "cli/Cp/dangling_symlink_vs_recursion"
         self.set_up_grid()
@@ -1351,7 +1446,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda ign: self.do_cli("put", fn1))
         def _put_file((rc, out, err)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessIn("200 OK", err)
             # keep track of the filecap
             self.filecap = out.strip()
         d.addCallback(_put_file)
@@ -1360,48 +1456,49 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         #  cp FILECAP filename
         d.addCallback(lambda ign: self.do_cli("cp", self.filecap, fn2))
         def _copy_file((rc, out, err)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(rc, 0)
             results = fileutil.read(fn2)
-            self.failUnlessEqual(results, DATA1)
+            self.failUnlessReallyEqual(results, DATA1)
         d.addCallback(_copy_file)
 
         # Test with ./ (see #761)
         #  cp FILECAP localdir
         d.addCallback(lambda ign: self.do_cli("cp", self.filecap, outdir))
         def _resp((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error: you must specify a destination filename",
                               err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_resp)
 
         # Create a directory, linked at tahoe:test
         d.addCallback(lambda ign: self.do_cli("mkdir", "tahoe:test"))
         def _get_dir((rc, out, err)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(rc, 0)
             self.dircap = out.strip()
         d.addCallback(_get_dir)
 
         # Upload a file to the directory
         d.addCallback(lambda ign:
                       self.do_cli("put", fn1, "tahoe:test/test_file"))
-        d.addCallback(lambda (rc, out, err): self.failUnlessEqual(rc, 0))
+        d.addCallback(lambda (rc, out, err): self.failUnlessReallyEqual(rc, 0))
 
         #  cp DIRCAP/filename localdir
         d.addCallback(lambda ign:
                       self.do_cli("cp",  self.dircap + "/test_file", outdir))
         def _get_resp((rc, out, err)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(rc, 0)
             results = fileutil.read(os.path.join(outdir, "test_file"))
-            self.failUnlessEqual(results, DATA1)
+            self.failUnlessReallyEqual(results, DATA1)
         d.addCallback(_get_resp)
 
         #  cp -r DIRCAP/filename filename2
         d.addCallback(lambda ign:
                       self.do_cli("cp",  self.dircap + "/test_file", fn3))
         def _get_resp2((rc, out, err)):
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(rc, 0)
             results = fileutil.read(fn3)
-            self.failUnlessEqual(results, DATA1)
+            self.failUnlessReallyEqual(results, DATA1)
         d.addCallback(_get_resp2)
         return d
 
@@ -1412,7 +1509,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("cp", "fake:file1", "fake:file2")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
         d.addCallback(_check)
         # 'tahoe cp' actually processes the target argument first, so we need
@@ -1424,17 +1521,6 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
-
-class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
-    def test_unicode_mkdir(self):
-        self.basedir = os.path.dirname(self.mktemp())
-        self.set_up_grid()
-
-        d = self.do_cli("create-alias", "tahoe")
-        d.addCallback(lambda res: self.do_cli("mkdir", "tahoe:Motörhead"))
-
-        return d
- 
 
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
@@ -1490,54 +1576,54 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         d.addCallback(lambda res: do_backup())
         def _check0((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
             # foo.txt, bar.txt, blah.txt
-            self.failUnlessEqual(fu, 3)
-            self.failUnlessEqual(fr, 0)
-            self.failUnlessEqual(fs, 0)
+            self.failUnlessReallyEqual(fu, 3)
+            self.failUnlessReallyEqual(fr, 0)
+            self.failUnlessReallyEqual(fs, 0)
             # empty, home, home/parent, home/parent/subdir
-            self.failUnlessEqual(dc, 4)
-            self.failUnlessEqual(dr, 0)
-            self.failUnlessEqual(ds, 0)
+            self.failUnlessReallyEqual(dc, 4)
+            self.failUnlessReallyEqual(dr, 0)
+            self.failUnlessReallyEqual(ds, 0)
         d.addCallback(_check0)
 
         d.addCallback(lambda res: self.do_cli("ls", "--uri", "tahoe:backups"))
         def _check1((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.split("\n")
             children = dict([line.split() for line in lines if line])
             latest_uri = children["Latest"]
             self.failUnless(latest_uri.startswith("URI:DIR2-CHK:"), latest_uri)
             childnames = children.keys()
-            self.failUnlessEqual(sorted(childnames), ["Archives", "Latest"])
+            self.failUnlessReallyEqual(sorted(childnames), ["Archives", "Latest"])
         d.addCallback(_check1)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest"))
         def _check2((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(sorted(out.split()), ["empty", "parent"])
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(sorted(out.split()), ["empty", "parent"])
         d.addCallback(_check2)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest/empty"))
         def _check2a((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(out.strip(), "")
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(out.strip(), "")
         d.addCallback(_check2a)
         d.addCallback(lambda res: self.do_cli("get", "tahoe:backups/Latest/parent/subdir/foo.txt"))
         def _check3((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(out, "foo")
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(out, "foo")
         d.addCallback(_check3)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check4((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             self.old_archives = out.split()
-            self.failUnlessEqual(len(self.old_archives), 1)
+            self.failUnlessReallyEqual(len(self.old_archives), 1)
         d.addCallback(_check4)
 
 
@@ -1546,18 +1632,18 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         def _check4a((rc, out, err)):
             # second backup should reuse everything, if the backupdb is
             # available
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             if have_bdb:
                 fu, fr, fs, dc, dr, ds = self.count_output(out)
                 # foo.txt, bar.txt, blah.txt
-                self.failUnlessEqual(fu, 0)
-                self.failUnlessEqual(fr, 3)
-                self.failUnlessEqual(fs, 0)
+                self.failUnlessReallyEqual(fu, 0)
+                self.failUnlessReallyEqual(fr, 3)
+                self.failUnlessReallyEqual(fs, 0)
                 # empty, home, home/parent, home/parent/subdir
-                self.failUnlessEqual(dc, 0)
-                self.failUnlessEqual(dr, 4)
-                self.failUnlessEqual(ds, 0)
+                self.failUnlessReallyEqual(dc, 0)
+                self.failUnlessReallyEqual(dr, 4)
+                self.failUnlessReallyEqual(ds, 0)
         d.addCallback(_check4a)
 
         if have_bdb:
@@ -1580,32 +1666,32 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
                 # we should check all files, and re-use all of them. None of
                 # the directories should have been changed, so we should
                 # re-use all of them too.
-                self.failUnlessEqual(err, "")
-                self.failUnlessEqual(rc, 0)
+                self.failUnlessReallyEqual(err, "")
+                self.failUnlessReallyEqual(rc, 0)
                 fu, fr, fs, dc, dr, ds = self.count_output(out)
                 fchecked, dchecked = self.count_output2(out)
-                self.failUnlessEqual(fchecked, 3)
-                self.failUnlessEqual(fu, 0)
-                self.failUnlessEqual(fr, 3)
-                self.failUnlessEqual(fs, 0)
-                self.failUnlessEqual(dchecked, 4)
-                self.failUnlessEqual(dc, 0)
-                self.failUnlessEqual(dr, 4)
-                self.failUnlessEqual(ds, 0)
+                self.failUnlessReallyEqual(fchecked, 3)
+                self.failUnlessReallyEqual(fu, 0)
+                self.failUnlessReallyEqual(fr, 3)
+                self.failUnlessReallyEqual(fs, 0)
+                self.failUnlessReallyEqual(dchecked, 4)
+                self.failUnlessReallyEqual(dc, 0)
+                self.failUnlessReallyEqual(dr, 4)
+                self.failUnlessReallyEqual(ds, 0)
             d.addCallback(_check4b)
 
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check5((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             self.new_archives = out.split()
             expected_new = 2
             if have_bdb:
                 expected_new += 1
-            self.failUnlessEqual(len(self.new_archives), expected_new, out)
+            self.failUnlessReallyEqual(len(self.new_archives), expected_new, out)
             # the original backup should still be the oldest (i.e. sorts
             # alphabetically towards the beginning)
-            self.failUnlessEqual(sorted(self.new_archives)[0],
+            self.failUnlessReallyEqual(sorted(self.new_archives)[0],
                                  self.old_archives[0])
         d.addCallback(_check5)
 
@@ -1625,44 +1711,44 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         def _check5a((rc, out, err)):
             # second backup should reuse bar.txt (if backupdb is available),
             # and upload the rest. None of the directories can be reused.
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             if have_bdb:
                 fu, fr, fs, dc, dr, ds = self.count_output(out)
                 # new foo.txt, surprise file, subfile, empty
-                self.failUnlessEqual(fu, 4)
+                self.failUnlessReallyEqual(fu, 4)
                 # old bar.txt
-                self.failUnlessEqual(fr, 1)
-                self.failUnlessEqual(fs, 0)
+                self.failUnlessReallyEqual(fr, 1)
+                self.failUnlessReallyEqual(fs, 0)
                 # home, parent, subdir, blah.txt, surprisedir
-                self.failUnlessEqual(dc, 5)
-                self.failUnlessEqual(dr, 0)
-                self.failUnlessEqual(ds, 0)
+                self.failUnlessReallyEqual(dc, 5)
+                self.failUnlessReallyEqual(dr, 0)
+                self.failUnlessReallyEqual(ds, 0)
         d.addCallback(_check5a)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check6((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             self.new_archives = out.split()
             expected_new = 3
             if have_bdb:
                 expected_new += 1
-            self.failUnlessEqual(len(self.new_archives), expected_new)
-            self.failUnlessEqual(sorted(self.new_archives)[0],
+            self.failUnlessReallyEqual(len(self.new_archives), expected_new)
+            self.failUnlessReallyEqual(sorted(self.new_archives)[0],
                                  self.old_archives[0])
         d.addCallback(_check6)
         d.addCallback(lambda res: self.do_cli("get", "tahoe:backups/Latest/parent/subdir/foo.txt"))
         def _check7((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(out, "FOOF!")
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(out, "FOOF!")
             # the old snapshot should not be modified
             return self.do_cli("get", "tahoe:backups/Archives/%s/parent/subdir/foo.txt" % self.old_archives[0])
         d.addCallback(_check7)
         def _check8((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(out, "foo")
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(out, "foo")
         d.addCallback(_check8)
 
         return d
@@ -1687,8 +1773,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             all = set(all)
             included = set(included)
             excluded = set(excluded)
-            self.failUnlessEqual(filtered, included)
-            self.failUnlessEqual(all.difference(filtered), excluded)
+            self.failUnlessReallyEqual(filtered, included)
+            self.failUnlessReallyEqual(all.difference(filtered), excluded)
 
         # test simple exclude
         backup_options = cli.BackupOptions()
@@ -1737,7 +1823,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
     def test_ignore_symlinks(self):
         if not hasattr(os, 'symlink'):
-            raise unittest.SkipTest("There is no symlink on this platform.")
+            raise unittest.SkipTest("Symlinks are not supported by Python on this platform.")
 
         self.basedir = os.path.dirname(self.mktemp())
         self.set_up_grid()
@@ -1750,20 +1836,20 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("backup", "--verbose", source, "tahoe:test"))
 
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 2)
+            self.failUnlessReallyEqual(rc, 2)
             foo2 = os.path.join(source, "foo2.txt")
-            self.failUnlessEqual(err, "WARNING: cannot backup symlink %s\n" % foo2)
+            self.failUnlessReallyEqual(err, "WARNING: cannot backup symlink %s\n" % foo2)
 
             fu, fr, fs, dc, dr, ds = self.count_output(out)
             # foo.txt
-            self.failUnlessEqual(fu, 1)
-            self.failUnlessEqual(fr, 0)
+            self.failUnlessReallyEqual(fu, 1)
+            self.failUnlessReallyEqual(fr, 0)
             # foo2.txt
-            self.failUnlessEqual(fs, 1)
+            self.failUnlessReallyEqual(fs, 1)
             # home
-            self.failUnlessEqual(dc, 1)
-            self.failUnlessEqual(dr, 0)
-            self.failUnlessEqual(ds, 0)
+            self.failUnlessReallyEqual(dc, 1)
+            self.failUnlessReallyEqual(dr, 0)
+            self.failUnlessReallyEqual(ds, 0)
 
         d.addCallback(_check)
         return d
@@ -1780,18 +1866,18 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:test"))
 
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 2)
-            self.failUnlessEqual(err, "WARNING: permission denied on file %s\n" % os.path.join(source, "foo.txt"))
+            self.failUnlessReallyEqual(rc, 2)
+            self.failUnlessReallyEqual(err, "WARNING: permission denied on file %s\n" % os.path.join(source, "foo.txt"))
 
             fu, fr, fs, dc, dr, ds = self.count_output(out)
-            self.failUnlessEqual(fu, 0)
-            self.failUnlessEqual(fr, 0)
+            self.failUnlessReallyEqual(fu, 0)
+            self.failUnlessReallyEqual(fr, 0)
             # foo.txt
-            self.failUnlessEqual(fs, 1)
+            self.failUnlessReallyEqual(fs, 1)
             # home
-            self.failUnlessEqual(dc, 1)
-            self.failUnlessEqual(dr, 0)
-            self.failUnlessEqual(ds, 0)
+            self.failUnlessReallyEqual(dc, 1)
+            self.failUnlessReallyEqual(dr, 0)
+            self.failUnlessReallyEqual(ds, 0)
         d.addCallback(_check)
 
         # This is necessary for the temp files to be correctly removed
@@ -1815,18 +1901,18 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:test"))
 
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 2)
-            self.failUnlessEqual(err, "WARNING: permission denied on directory %s\n" % os.path.join(source, "test"))
+            self.failUnlessReallyEqual(rc, 2)
+            self.failUnlessReallyEqual(err, "WARNING: permission denied on directory %s\n" % os.path.join(source, "test"))
 
             fu, fr, fs, dc, dr, ds = self.count_output(out)
-            self.failUnlessEqual(fu, 0)
-            self.failUnlessEqual(fr, 0)
-            self.failUnlessEqual(fs, 0)
+            self.failUnlessReallyEqual(fu, 0)
+            self.failUnlessReallyEqual(fr, 0)
+            self.failUnlessReallyEqual(fs, 0)
             # home, test
-            self.failUnlessEqual(dc, 2)
-            self.failUnlessEqual(dr, 0)
+            self.failUnlessReallyEqual(dc, 2)
+            self.failUnlessReallyEqual(dr, 0)
             # test
-            self.failUnlessEqual(ds, 1)
+            self.failUnlessReallyEqual(ds, 1)
         d.addCallback(_check)
 
         # This is necessary for the temp files to be correctly removed
@@ -1844,8 +1930,9 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli('backup', source, source)
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1857,9 +1944,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli("backup", source, "nonexistent:" + source)
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -1878,8 +1966,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign: self.do_cli("check", self.uri))
         def _check1((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnless("Summary: Healthy" in lines, out)
             self.failUnless(" good-shares: 10 (encoding is 3-of-10)" in lines, out)
@@ -1887,16 +1975,16 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign: self.do_cli("check", "--raw", self.uri))
         def _check2((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             data = simplejson.loads(out)
-            self.failUnlessEqual(data["summary"], "Healthy")
+            self.failUnlessReallyEqual(data["summary"], "Healthy")
         d.addCallback(_check2)
 
         def _clobber_shares(ignored):
             # delete one, corrupt a second
             shares = self.find_shares(self.uri)
-            self.failUnlessEqual(len(shares), 10)
+            self.failUnlessReallyEqual(len(shares), 10)
             os.unlink(shares[0][2])
             cso = debug.CorruptShareOptions()
             cso.stdout = StringIO()
@@ -1911,8 +1999,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign: self.do_cli("check", "--verify", self.uri))
         def _check3((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             summary = [l for l in lines if l.startswith("Summary")][0]
             self.failUnless("Summary: Unhealthy: 8 shares (enc 3-of-10)"
@@ -1925,8 +2013,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.do_cli("check", "--verify", "--repair", self.uri))
         def _check4((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnless("Summary: not healthy" in lines, out)
             self.failUnless(" good-shares: 8 (encoding is 3-of-10)" in lines, out)
@@ -1938,8 +2026,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.do_cli("check", "--verify", "--repair", self.uri))
         def _check5((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnless("Summary: healthy" in lines, out)
             self.failUnless(" good-shares: 10 (encoding is 3-of-10)" in lines, out)
@@ -1955,6 +2043,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.uris = {}
         self.fileurls = {}
         DATA = "data" * 100
+        quoted_good = quote_output(u"gööd")
+
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
@@ -1976,8 +2066,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
         def _check1((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnless("done: 4 objects checked, 4 healthy, 0 unhealthy"
                             in lines, out)
@@ -1991,22 +2081,21 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("deep-check", "--verbose",
                                               self.rooturi))
         def _check2((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
-            linesu = [ line.decode(stringutils.get_term_encoding()) for line in lines]
-            self.failUnless("<root>: Healthy" in lines, out)
-            self.failUnless("small: Healthy (LIT)" in lines, out)
-            self.failUnless(u"gööd: Healthy" in linesu, out)
-            self.failUnless("mutable: Healthy" in lines, out)
+            self.failUnless("'<root>': Healthy" in lines, out)
+            self.failUnless("'small': Healthy (LIT)" in lines, out)
+            self.failUnless((quoted_good + ": Healthy") in lines, out)
+            self.failUnless("'mutable': Healthy" in lines, out)
             self.failUnless("done: 4 objects checked, 4 healthy, 0 unhealthy"
                             in lines, out)
         d.addCallback(_check2)
 
         d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
         def _check_stats((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnlessIn(" count-immutable-files: 1", lines)
             self.failUnlessIn("   count-mutable-files: 1", lines)
@@ -2020,7 +2109,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         def _clobber_shares(ignored):
             shares = self.find_shares(self.uris[u"gööd"])
-            self.failUnlessEqual(len(shares), 10)
+            self.failUnlessReallyEqual(len(shares), 10)
             os.unlink(shares[0][2])
 
             shares = self.find_shares(self.uris["mutable"])
@@ -2043,14 +2132,13 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.do_cli("deep-check", "--verbose", self.rooturi))
         def _check3((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
-            linesu = [ line.decode(stringutils.get_term_encoding()) for line in lines]
-            self.failUnless("<root>: Healthy" in lines, out)
-            self.failUnless("small: Healthy (LIT)" in lines, out)
-            self.failUnless("mutable: Healthy" in lines, out) # needs verifier
-            self.failUnless(u"gööd: Not Healthy: 9 shares (enc 3-of-10)" in linesu, out)
+            self.failUnless("'<root>': Healthy" in lines, out)
+            self.failUnless("'small': Healthy (LIT)" in lines, out)
+            self.failUnless("'mutable': Healthy" in lines, out) # needs verifier
+            self.failUnless((quoted_good + ": Not Healthy: 9 shares (enc 3-of-10)") in lines, out)
             self.failIf(self._corrupt_share_line in lines, out)
             self.failUnless("done: 4 objects checked, 3 healthy, 1 unhealthy"
                             in lines, out)
@@ -2060,17 +2148,16 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("deep-check", "--verbose", "--verify",
                                   self.rooturi))
         def _check4((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
-            linesu = [ line.decode(stringutils.get_term_encoding()) for line in lines]
-            self.failUnless("<root>: Healthy" in lines, out)
-            self.failUnless("small: Healthy (LIT)" in lines, out)
-            mutable = [l for l in lines if l.startswith("mutable")][0]
-            self.failUnless(mutable.startswith("mutable: Unhealthy: 9 shares (enc 3-of-10)"),
+            self.failUnless("'<root>': Healthy" in lines, out)
+            self.failUnless("'small': Healthy (LIT)" in lines, out)
+            mutable = [l for l in lines if l.startswith("'mutable'")][0]
+            self.failUnless(mutable.startswith("'mutable': Unhealthy: 9 shares (enc 3-of-10)"),
                             mutable)
             self.failUnless(self._corrupt_share_line in lines, out)
-            self.failUnless(u"gööd: Not Healthy: 9 shares (enc 3-of-10)" in linesu, out)
+            self.failUnless((quoted_good + ": Not Healthy: 9 shares (enc 3-of-10)") in lines, out)
             self.failUnless("done: 4 objects checked, 2 healthy, 2 unhealthy"
                             in lines, out)
         d.addCallback(_check4)
@@ -2079,12 +2166,12 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("deep-check", "--raw",
                                   self.rooturi))
         def _check5((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             units = [simplejson.loads(line) for line in lines]
             # root, small, gööd, mutable,  stats
-            self.failUnlessEqual(len(units), 4+1)
+            self.failUnlessReallyEqual(len(units), 4+1)
         d.addCallback(_check5)
 
         d.addCallback(lambda ign:
@@ -2092,15 +2179,14 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                                   "--verbose", "--verify", "--repair",
                                   self.rooturi))
         def _check6((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
-            linesu = [ line.decode(stringutils.get_term_encoding()) for line in lines]
-            self.failUnless("<root>: healthy" in lines, out)
-            self.failUnless("small: healthy" in lines, out)
-            self.failUnless("mutable: not healthy" in lines, out)
+            self.failUnless("'<root>': healthy" in lines, out)
+            self.failUnless("'small': healthy" in lines, out)
+            self.failUnless("'mutable': not healthy" in lines, out)
             self.failUnless(self._corrupt_share_line in lines, out)
-            self.failUnless(u"gööd: not healthy" in linesu, out)
+            self.failUnless((quoted_good + ": not healthy") in lines, out)
             self.failUnless("done: 4 objects checked" in lines, out)
             self.failUnless(" pre-repair: 2 healthy, 2 unhealthy" in lines, out)
             self.failUnless(" 2 repairs attempted, 2 successful, 0 failed"
@@ -2166,8 +2252,9 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("check")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         d.addCallback(lambda ign: self.do_cli("deep-check"))
         d.addCallback(_check)
@@ -2180,9 +2267,10 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("check", "nonexistent:")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -2230,8 +2318,9 @@ class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli('get', 'file')
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -2242,9 +2331,10 @@ class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("get", "nonexistent:file")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -2258,8 +2348,9 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("manifest")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -2270,14 +2361,50 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("manifest", "nonexistent:")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
 
 class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def test_mkdir(self):
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda res: self.do_cli("mkdir", "test"))
+        def _check((rc, out, err)):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            #self.failUnlessIn(..., out)
+        d.addCallback(_check)
+        #d.addCallback(lambda ign: ...)
+
+        return d
+
+    def test_mkdir_unicode(self):
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+
+        try:
+            motorhead_arg = u"tahoe:Motörhead".encode(get_argv_encoding())
+        except UnicodeEncodeError, e:
+            raise unittest.SkipTest("A non-ASCII command argument could not be encoded as %s:\n%r" (get_argv_encoding(), e))
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda res: self.do_cli("mkdir", motorhead_arg))
+        def _check((rc, out, err)):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            #self.failUnlessIn(..., out)
+        d.addCallback(_check)
+        #d.addCallback(lambda ign: ...)
+
+        return d
+
     def test_mkdir_with_nonexistent_alias(self):
         # when invoked with an alias that doesn't exist, 'tahoe mkdir' should
         # output a sensible error message rather than a stack trace.
@@ -2285,8 +2412,9 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("mkdir", "havasu:")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -2299,8 +2427,9 @@ class Rm(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("rm", "afile")
         def _check((rc, out, err)):
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -2311,9 +2440,10 @@ class Rm(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("rm", "nonexistent:afile")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -2333,8 +2463,8 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         # make sure we can get stats on an empty directory too
         d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
         def _check_stats((rc, out, err)):
-            self.failUnlessEqual(err, "")
-            self.failUnlessEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             self.failUnlessIn(" count-immutable-files: 0", lines)
             self.failUnlessIn("   count-mutable-files: 0", lines)
@@ -2354,8 +2484,9 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("stats")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -2366,8 +2497,9 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("stats", "havasu:")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
@@ -2381,7 +2513,8 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         d = self.do_cli("webopen", "fake:")
         def _check((rc, out, err)):
-            self.failUnlessEqual(rc, 1)
+            self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d

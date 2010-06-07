@@ -5,7 +5,7 @@ from allmydata import uri
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases
 from allmydata.util.fileutil import move_into_place
-from allmydata.util.stringutils import unicode_to_stdout
+from allmydata.util.stringutils import unicode_to_output, quote_output
 
 
 def add_line_to_aliasfile(aliasfile, alias, cap):
@@ -37,14 +37,14 @@ def add_alias(options):
 
     old_aliases = get_aliases(nodedir)
     if alias in old_aliases:
-        print >>stderr, "Alias '%s' already exists!" % alias
+        print >>stderr, "Alias %s already exists!" % quote_output(alias)
         return 1
     aliasfile = os.path.join(nodedir, "private", "aliases")
     cap = uri.from_string_dirnode(cap).to_string()
 
     add_line_to_aliasfile(aliasfile, alias, cap)
 
-    print >>stdout, "Alias '%s' added" % (unicode_to_stdout(alias),)
+    print >>stdout, "Alias %s added" % quote_output(alias)
     return 0
 
 def create_alias(options):
@@ -58,7 +58,7 @@ def create_alias(options):
 
     old_aliases = get_aliases(nodedir)
     if alias in old_aliases:
-        print >>stderr, "Alias '%s' already exists!" % alias
+        print >>stderr, "Alias %s already exists!" % quote_output(alias)
         return 1
 
     aliasfile = os.path.join(nodedir, "private", "aliases")
@@ -77,16 +77,26 @@ def create_alias(options):
 
     add_line_to_aliasfile(aliasfile, alias, new_uri)
 
-    print >>stdout, "Alias '%s' created" % (unicode_to_stdout(alias),)
+    print >>stdout, "Alias %s created" % (quote_output(alias),)
     return 0
 
 def list_aliases(options):
     nodedir = options['node-directory']
     stdout = options.stdout
+    stderr = options.stderr
     aliases = get_aliases(nodedir)
     alias_names = sorted(aliases.keys())
-    max_width = max([len(name) for name in alias_names] + [0])
+    max_width = max([len(quote_output(name)) for name in alias_names] + [0])
     fmt = "%" + str(max_width) + "s: %s"
+    rc = 0
     for name in alias_names:
-        print >>stdout, fmt % (name, aliases[name])
+        try:
+            print >>stdout, fmt % (unicode_to_output(name), unicode_to_output(aliases[name].decode('utf-8')))
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            print >>stderr, fmt % (quote_output(name), quote_output(aliases[name]))
+            rc = 1
 
+    if rc == 1:
+        print >>stderr, "\nThis listing included aliases or caps that could not be converted to the terminal" \
+                        "\noutput encoding. These are shown using backslash escapes and in quotes."
+    return rc

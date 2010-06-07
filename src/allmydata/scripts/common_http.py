@@ -3,6 +3,10 @@ from cStringIO import StringIO
 import urlparse, httplib
 import allmydata # for __full_version__
 
+from allmydata.util.stringutils import quote_output
+from allmydata.scripts.common import TahoeError
+
+
 # copied from twisted/web/client.py
 def parse_url(url, defaultPort=None):
     url = url.strip()
@@ -63,7 +67,20 @@ def do_http(method, url, body=""):
 
     return c.getresponse()
 
+
+def format_http_success(resp):
+    return "%s %s" % (resp.status, quote_output(resp.reason, quotemarks=False))
+
+def format_http_error(msg, resp):
+    return "%s: %s %s\n%s" % (msg, resp.status, quote_output(resp.reason, quotemarks=False),
+                              quote_output(resp.read(), quotemarks=False))
+
 def check_http_error(resp, stderr):
     if resp.status < 200 or resp.status >= 300:
-        print >>stderr, "error %d during HTTP request" % resp.status
+        print >>stderr, format_http_error("Error during HTTP request", resp)
         return 1
+
+
+class HTTPError(TahoeError):
+    def __init__(self, msg, resp):
+        TahoeError.__init__(format_http_error(msg, resp))

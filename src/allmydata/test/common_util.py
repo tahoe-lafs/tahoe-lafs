@@ -25,6 +25,13 @@ def flip_one_bit(s, offset=0, size=None):
     assert result != s, "Internal error -- flip_one_bit() produced the same string as its input: %s == %s" % (result, s)
     return result
 
+
+class ReallyEqualMixin:
+    def failUnlessReallyEqual(self, a, b, msg=None):
+        self.failUnlessEqual(a, b, msg=msg)
+        self.failUnlessEqual(type(a), type(b), msg=msg)
+
+
 class SignalMixin:
     # This class is necessary for any code which wants to use Processes
     # outside the usual reactor.run() environment. It is copied from
@@ -131,7 +138,7 @@ class TestMixin(SignalMixin):
             if p.active():
                 p.cancel()
             else:
-                print "WEIRNESS! pending timed call not active+!"
+                print "WEIRDNESS! pending timed call not active!"
         if required_to_quiesce and active:
             self.fail("Reactor was still active when it was required to be quiescent.")
 

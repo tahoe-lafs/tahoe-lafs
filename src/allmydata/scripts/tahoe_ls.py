@@ -3,8 +3,8 @@ import urllib, time
 import simplejson
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
-from allmydata.scripts.common_http import do_http
-from allmydata.util.stringutils import unicode_to_stdout
+from allmydata.scripts.common_http import do_http, format_http_error
+from allmydata.util.stringutils import unicode_to_output, quote_output, is_printable_ascii, to_str
 
 def list(options):
     nodeurl = options['node-url']
@@ -20,7 +20,7 @@ def list(options):
     try:
         rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
     except UnknownAliasError, e:
-        print >>stderr, "error: %s" % e.args[0]
+        e.display(stderr)
         return 1
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)
     if path:
@@ -33,9 +33,7 @@ def list(options):
         print >>stderr, "No such file or directory"
         return 2
     if resp.status != 200:
-        print >>stderr, "Error during GET: %s %s %s" % (resp.status,
-                                                        resp.reason,
-                                                        resp.read())
+        print >>stderr, format_http_error("Error during GET", resp)
         if resp.status == 0:
             return 3
         else:
@@ -44,20 +42,28 @@ def list(options):
     data = resp.read()
 
     if options['json']:
-        print >>stdout, data
-        return
+        # The webapi server should always output printable ASCII.
+        if is_printable_ascii(data):
+            print >>stdout, data
+            return 0
+        else:
+            print >>stderr, "The JSON response contained unprintable characters:\n%s" % quote_output(data)
+            return 1
 
     try:
         parsed = simplejson.loads(data)
-    except Exception, le:
-        le.args = tuple(le.args + (data,))
-        raise
+    except Exception, e:
+        print >>stderr, "error: %s" % quote_output(e.args[0], quotemarks=False)
+        print >>stderr, "Could not parse JSON response:\n%s" % quote_output(data)
+        return 1
+
     nodetype, d = parsed
     children = {}
     if nodetype == "dirnode":
         children = d['children']
     else:
-        childname = path.split("/")[-1]
+        # paths returned from get_alias are always valid UTF-8
+        childname = path.split("/")[-1].decode('utf-8')
         children = {childname: (nodetype, d)}
         if "metadata" not in d:
             d["metadata"] = {}
@@ -71,8 +77,8 @@ def list(options):
     has_unknowns = False
 
     for name in childnames:
-        name = unicode(name)
         child = children[name]
+        name = unicode(name)
         childtype = child[0]
 
         # See webapi.txt for a discussion of the meanings of unix local
@@ -85,8 +91,8 @@ def list(options):
         mtime = child[1].get("metadata", {}).get('tahoe', {}).get("linkmotime")
         if not mtime:
             mtime = child[1]["metadata"].get("mtime")
-        rw_uri = child[1].get("rw_uri")
-        ro_uri = child[1].get("ro_uri")
+        rw_uri = to_str(child[1].get("rw_uri"))
+        ro_uri = to_str(child[1].get("ro_uri"))
         if ctime:
             # match for formatting that GNU 'ls' does
             if (now - ctime) > 6*30*24*60*60:
@@ -131,17 +137,24 @@ def list(options):
             line.append(ctime_s)
         if not options["classify"]:
             classify = ""
-        line.append(unicode_to_stdout(name) + classify)
+
+        encoding_error = False
+        try:
+            line.append(unicode_to_output(name) + classify)
+        except UnicodeEncodeError:
+            encoding_error = True
+            line.append(quote_output(name) + classify)
+
         if options["uri"]:
             line.append(uri)
         if options["readonly-uri"]:
-            line.append(ro_uri or "-")
+            line.append(quote_output(ro_uri or "-", quotemarks=False))
 
-        rows.append(line)
+        rows.append((encoding_error, line))
 
     max_widths = []
     left_justifys = []
-    for row in rows:
+    for (encoding_error, row) in rows:
         for i,cell in enumerate(row):
             while len(max_widths) <= i:
                 max_widths.append(0)
@@ -161,14 +174,20 @@ def list(options):
         piece += "s"
         fmt_pieces.append(piece)
     fmt = " ".join(fmt_pieces)
-    for row in rows:
-        print >>stdout, (fmt % tuple(row)).rstrip()
+    
+    rc = 0
+    for (encoding_error, row) in rows:
+        if encoding_error:
+            print >>stderr, (fmt % tuple(row)).rstrip()
+            rc = 1
+        else:
+            print >>stdout, (fmt % tuple(row)).rstrip()
 
+    if rc == 1:
+        print >>stderr, "\nThis listing included files whose names could not be converted to the terminal" \
+                        "\noutput encoding. Their names are shown using backslash escapes and in quotes."
     if has_unknowns:
         print >>stderr, "\nThis listing included unknown objects. Using a webapi server that supports" \
                         "\na later version of Tahoe may help."
 
-    return 0
-
-# error cases that need improvement:
-#  list-one-file: tahoe ls my:docs/Makefile
+    return rc

@@ -14,7 +14,7 @@ if __name__ == "__main__":
     import tempfile
     import shutil
     import platform
-    
+
     if len(sys.argv) != 2:
         print "Usage: %s lumière" % sys.argv[0]
         sys.exit(1)
@@ -22,10 +22,12 @@ if __name__ == "__main__":
     print
     print "class MyWeirdOS(StringUtils, unittest.TestCase):"
     print "    uname = '%s'" % ' '.join(platform.uname())
-    print "    argv = %s" % repr(sys.argv[1])
+    if sys.platform != "win32":
+        print "    argv = %s" % repr(sys.argv[1])
     print "    platform = '%s'" % sys.platform
-    print "    filesystemencoding = '%s'" % sys.getfilesystemencoding()
-    print "    stdoutencoding = '%s'" % sys.stdout.encoding
+    print "    filesystem_encoding = '%s'" % sys.getfilesystemencoding()
+    print "    output_encoding = '%s'" % sys.stdout.encoding
+    print "    argv_encoding = '%s'" % (sys.platform == "win32" and 'utf-8' or sys.stdout.encoding)
 
     try:
         tmpdir = tempfile.mkdtemp()
@@ -48,47 +50,65 @@ if __name__ == "__main__":
 
 from twisted.trial import unittest
 from mock import patch
-import locale, sys
+import sys
 
+from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.util.stringutils import argv_to_unicode, unicode_to_url, \
-    unicode_to_stdout, unicode_platform, listdir_unicode, open_unicode, \
-    FilenameEncodingError, get_term_encoding
+    unicode_to_output, unicode_platform, listdir_unicode, open_unicode, \
+    FilenameEncodingError, get_output_encoding, _reload
+
 from twisted.python import usage
 
-class StringUtilsErrors(unittest.TestCase):
-    @patch('sys.stdout')
-    def test_get_term_encoding(self, mock):
-        mock.encoding = None
+class StringUtilsErrors(ReallyEqualMixin, unittest.TestCase):
+    def tearDown(self):
+        _reload()
 
-        self.failUnlessEqual(get_term_encoding().lower(), locale.getpreferredencoding().lower())
+    @patch('sys.stdout')
+    def test_get_output_encoding(self, mock_stdout):
+        mock_stdout.encoding = 'UTF-8'
+        _reload()
+        self.failUnlessReallyEqual(get_output_encoding(), 'utf-8')
+
+        mock_stdout.encoding = 'cp65001'
+        _reload()
+        self.failUnlessReallyEqual(get_output_encoding(), 'utf-8')
+
+        mock_stdout.encoding = 'koi8-r'
+        _reload()
+        self.failUnlessReallyEqual(get_output_encoding(), 'koi8-r')
+
+        mock_stdout.encoding = 'nonexistent_encoding'
+        self.failUnlessRaises(AssertionError, _reload)
+
+        # TODO: mock_stdout.encoding = None
 
     @patch('sys.stdout')
     def test_argv_to_unicode(self, mock):
         mock.encoding = 'utf-8'
+        _reload()
 
         self.failUnlessRaises(usage.UsageError,
                               argv_to_unicode,
                               u'lumière'.encode('latin1'))
 
-    def test_unicode_to_url(self):
-        pass
-
     @patch('sys.stdout')
-    def test_unicode_to_stdout(self, mock):
+    def test_unicode_to_output(self, mock):
         # Encoding koi8-r cannot represent 'è'
         mock.encoding = 'koi8-r'
-        self.failUnlessEqual(unicode_to_stdout(u'lumière'), 'lumi?re')
+        _reload()
+        self.failUnlessRaises(UnicodeEncodeError, unicode_to_output, u'lumière')
 
     @patch('os.listdir')
     def test_unicode_normalization(self, mock):
-        # Pretend to run on an Unicode platform such as Windows
+        # Pretend to run on an Unicode platform
         orig_platform = sys.platform
-        sys.platform = 'win32'
-
-        mock.return_value = [u'A\u0308rtonwall.mp3']
-        self.failUnlessEqual(listdir_unicode(u'/dummy'), [u'\xc4rtonwall.mp3'])
-
-        sys.platform = orig_platform
+        try:
+            sys.platform = 'darwin'
+            mock.return_value = [u'A\u0308rtonwall.mp3']
+            _reload()
+            self.failUnlessReallyEqual(listdir_unicode(u'/dummy'), [u'\xc4rtonwall.mp3'])
+        finally:
+            sys.platform = orig_platform
 
 # The following tests applies only to platforms which don't store filenames as
 # Unicode entities on the filesystem.
@@ -100,18 +120,19 @@ class StringUtilsNonUnicodePlatform(unittest.TestCase):
 
     def tearDown(self):
         sys.platform = self.original_platform
+        _reload()
 
     @patch('sys.getfilesystemencoding')
     @patch('os.listdir')
     def test_listdir_unicode(self, mock_listdir, mock_getfilesystemencoding):
-        # What happen if a latin1-encoded filenames is encountered on an UTF-8
+        # What happens if latin1-encoded filenames are encountered on an UTF-8
         # filesystem?
         mock_listdir.return_value = [
             u'lumière'.encode('utf-8'),
             u'lumière'.encode('latin1')]
 
         mock_getfilesystemencoding.return_value = 'utf-8'
-       
+        _reload()
         self.failUnlessRaises(FilenameEncodingError,
                               listdir_unicode,
                               u'/dummy')
@@ -119,6 +140,7 @@ class StringUtilsNonUnicodePlatform(unittest.TestCase):
         # We're trying to list a directory whose name cannot be represented in
         # the filesystem encoding.  This should fail.
         mock_getfilesystemencoding.return_value = 'ascii'
+        _reload()
         self.failUnlessRaises(FilenameEncodingError,
                               listdir_unicode,
                               u'/lumière')
@@ -126,12 +148,12 @@ class StringUtilsNonUnicodePlatform(unittest.TestCase):
     @patch('sys.getfilesystemencoding')
     def test_open_unicode(self, mock):
         mock.return_value = 'ascii'
-
+        _reload()
         self.failUnlessRaises(FilenameEncodingError,
                               open_unicode,
-                              u'lumière')
+                              u'lumière', 'rb')
 
-class StringUtils:
+class StringUtils(ReallyEqualMixin):
     def setUp(self):
         # Mock sys.platform because unicode_platform() uses it
         self.original_platform = sys.platform
@@ -139,29 +161,30 @@ class StringUtils:
 
     def tearDown(self):
         sys.platform = self.original_platform
+        _reload()
 
     @patch('sys.stdout')
     def test_argv_to_unicode(self, mock):
         if 'argv' not in dir(self):
-            raise unittest.SkipTest("There's no way to pass non-ASCII arguments in CLI on this (mocked) platform")
+            return
 
-        mock.encoding = self.stdoutencoding
-
+        mock.encoding = self.output_encoding
         argu = u'lumière'
         argv = self.argv
-
-        self.failUnlessEqual(argv_to_unicode(argv), argu)
+        _reload()
+        self.failUnlessReallyEqual(argv_to_unicode(argv), argu)
 
     def test_unicode_to_url(self):
-        self.failUnless(unicode_to_url(u'lumière'), u'lumière'.encode('utf-8'))
+        self.failUnless(unicode_to_url(u'lumière'), "lumi\xc3\xa8re")
 
     @patch('sys.stdout')
-    def test_unicode_to_stdout(self, mock):
-        if 'argv' not in dir(self):
-            raise unittest.SkipTest("There's no way to pass non-ASCII arguments in CLI on this (mocked) platform")
+    def test_unicode_to_output(self, mock):
+        if 'output' not in dir(self):
+            return
 
-        mock.encoding = self.stdoutencoding
-        self.failUnlessEqual(unicode_to_stdout(u'lumière'), self.argv)
+        mock.encoding = self.output_encoding
+        _reload()
+        self.failUnlessReallyEqual(unicode_to_output(u'lumière'), self.output)
 
     def test_unicode_platform(self):
         matrix = {
@@ -171,113 +194,119 @@ class StringUtils:
           'darwin': True,
         }
 
-        self.failUnlessEqual(unicode_platform(), matrix[self.platform])
+        _reload()
+        self.failUnlessReallyEqual(unicode_platform(), matrix[self.platform])
  
     @patch('sys.getfilesystemencoding')
     @patch('os.listdir')
     def test_listdir_unicode(self, mock_listdir, mock_getfilesystemencoding):
         if 'dirlist' not in dir(self):
-            raise unittest.SkipTest("No way to write non-ASCII filenames on this system")
+            return
 
         mock_listdir.return_value = self.dirlist
-        mock_getfilesystemencoding.return_value = self.filesystemencoding
+        mock_getfilesystemencoding.return_value = self.filesystem_encoding
        
+        _reload()
         filenames = listdir_unicode(u'/dummy')
 
         for fname in TEST_FILENAMES:
             self.failUnless(isinstance(fname, unicode))
-
-            if fname not in filenames:
-                self.fail("Cannot find %r in %r" % (fname, filenames))
+            self.failUnlessIn(fname, filenames)
 
     @patch('sys.getfilesystemencoding')
     @patch('__builtin__.open')
     def test_open_unicode(self, mock_open, mock_getfilesystemencoding):
-        mock_getfilesystemencoding.return_value = self.filesystemencoding
-
+        mock_getfilesystemencoding.return_value = self.filesystem_encoding
         fn = u'/dummy_directory/lumière.txt'
 
+        _reload()
         try:
-            open_unicode(fn)
+            open_unicode(fn, 'rb')
         except FilenameEncodingError:
-            raise unittest.SkipTest("Cannot represent test filename on this (mocked) platform")
+            return
 
         # Pass Unicode string to open() on Unicode platforms
         if unicode_platform():
-            mock_open.assert_called_with(fn, 'r')
+            mock_open.assert_called_with(fn, 'rb')
 
         # Pass correctly encoded bytestrings to open() on non-Unicode platforms
         else:
-            fn_bytestring = fn.encode(self.filesystemencoding)
-            mock_open.assert_called_with(fn_bytestring, 'r')
+            fn_bytestring = fn.encode(self.filesystem_encoding)
+            mock_open.assert_called_with(fn_bytestring, 'rb')
+
 
 class UbuntuKarmicUTF8(StringUtils, unittest.TestCase):
     uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
+    output = 'lumi\xc3\xa8re'
     argv = 'lumi\xc3\xa8re'
     platform = 'linux2'
-    filesystemencoding = 'UTF-8'
-    stdoutencoding = 'UTF-8'
+    filesystem_encoding = 'UTF-8'
+    output_encoding = 'UTF-8'
+    argv_encoding = 'UTF-8'
     dirlist = ['test_file', '\xc3\x84rtonwall.mp3', 'Blah blah.txt']
-
 
 class UbuntuKarmicLatin1(StringUtils, unittest.TestCase):
     uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
+    output = 'lumi\xe8re'
     argv = 'lumi\xe8re'
     platform = 'linux2'
-    filesystemencoding = 'ISO-8859-1'
-    stdoutencoding = 'ISO-8859-1'
+    filesystem_encoding = 'ISO-8859-1'
+    output_encoding = 'ISO-8859-1'
+    argv_encoding = 'ISO-8859-1'
     dirlist = ['test_file', 'Blah blah.txt', '\xc4rtonwall.mp3']
 
 class WindowsXP(StringUtils, unittest.TestCase):
     uname = 'Windows XP 5.1.2600 x86 x86 Family 15 Model 75 Step ping 2, AuthenticAMD'
-    argv = 'lumi\xe8re'
+    output = 'lumi\x8are'
+    argv = 'lumi\xc3\xa8re'
     platform = 'win32'
-    filesystemencoding = 'mbcs'
-    stdoutencoding = 'cp850'
+    filesystem_encoding = 'mbcs'
+    output_encoding = 'cp850'
+    argv_encoding = 'utf-8'
     dirlist = [u'Blah blah.txt', u'test_file', u'\xc4rtonwall.mp3']
-
-    todo = "Unicode arguments on the command-line is not yet supported under Windows, see bug #565."
 
 class WindowsXP_UTF8(StringUtils, unittest.TestCase):
     uname = 'Windows XP 5.1.2600 x86 x86 Family 15 Model 75 Step ping 2, AuthenticAMD'
-    argv = 'lumi\xe8re'
+    output = 'lumi\xc3\xa8re'
+    argv = 'lumi\xc3\xa8re'
     platform = 'win32'
-    filesystemencoding = 'mbcs'
-    stdoutencoding = 'cp65001'
+    filesystem_encoding = 'mbcs'
+    output_encoding = 'cp65001'
+    argv_encoding = 'utf-8'
     dirlist = [u'Blah blah.txt', u'test_file', u'\xc4rtonwall.mp3']
-
-    todo = "Unicode arguments on the command-line is not yet supported under Windows, see bug #565."
 
 class WindowsVista(StringUtils, unittest.TestCase):
     uname = 'Windows Vista 6.0.6000 x86 x86 Family 6 Model 15 Stepping 11, GenuineIntel'
-    argv = 'lumi\xe8re'
+    output = 'lumi\x8are'
+    argv = 'lumi\xc3\xa8re'
     platform = 'win32'
-    filesystemencoding = 'mbcs'
-    stdoutencoding = 'cp850'
+    filesystem_encoding = 'mbcs'
+    output_encoding = 'cp850'
+    argv_encoding = 'utf-8'
     dirlist = [u'Blah blah.txt', u'test_file', u'\xc4rtonwall.mp3']
-
-    todo = "Unicode arguments on the command-line is not yet supported under Windows, see bug #565."
 
 class MacOSXLeopard(StringUtils, unittest.TestCase):
     uname = 'Darwin g5.local 9.8.0 Darwin Kernel Version 9.8.0: Wed Jul 15 16:57:01 PDT 2009; root:xnu-1228.15.4~1/RELEASE_PPC Power Macintosh powerpc'
+    output = 'lumi\xc3\xa8re'
     argv = 'lumi\xc3\xa8re'
     platform = 'darwin'
-    filesystemencoding = 'utf-8'
-    stdoutencoding = 'UTF-8'
+    filesystem_encoding = 'utf-8'
+    output_encoding = 'UTF-8'
+    argv_encoding = 'UTF-8'
     dirlist = [u'A\u0308rtonwall.mp3', u'Blah blah.txt', u'test_file']
 
 class MacOSXLeopard7bit(StringUtils, unittest.TestCase):
     uname = 'Darwin g5.local 9.8.0 Darwin Kernel Version 9.8.0: Wed Jul 15 16:57:01 PDT 2009; root:xnu-1228.15.4~1/RELEASE_PPC Power Macintosh powerpc'
-    #argv = 'lumiere'
     platform = 'darwin'
-    filesystemencoding = 'utf-8'
-    stdoutencoding = 'US-ASCII'
+    filesystem_encoding = 'utf-8'
+    output_encoding = 'US-ASCII'
+    argv_encoding = 'US-ASCII'
     dirlist = [u'A\u0308rtonwall.mp3', u'Blah blah.txt', u'test_file']
 
 class OpenBSD(StringUtils, unittest.TestCase):
     uname = 'OpenBSD 4.1 GENERIC#187 i386 Intel(R) Celeron(R) CPU 2.80GHz ("GenuineIntel" 686-class)'
-    #argv = 'lumiere'
     platform = 'openbsd4'
-    filesystemencoding = '646'
-    stdoutencoding = '646'
+    filesystem_encoding = '646'
+    output_encoding = '646'
+    argv_encoding = '646'
     # Oops, I cannot write filenames containing non-ascii characters

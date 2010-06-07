@@ -1416,7 +1416,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(run, "list-aliases")
         def _check_aliases_1((out,err)):
             self.failUnlessEqual(err, "")
-            self.failUnlessEqual(out, "tahoe: %s\n" % private_uri)
+            self.failUnlessEqual(out.strip(" \n"), "tahoe: %s" % private_uri)
         d.addCallback(_check_aliases_1)
 
         # now that that's out of the way, remove root_dir.cap and work with

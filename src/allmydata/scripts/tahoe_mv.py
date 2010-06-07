@@ -4,7 +4,8 @@ import urllib
 import simplejson
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
-from allmydata.scripts.common_http import do_http
+from allmydata.scripts.common_http import do_http, format_http_error
+from allmydata.util.stringutils import to_str
 
 # this script is used for both 'mv' and 'ln'
 
@@ -21,7 +22,7 @@ def mv(options, mode="move"):
     try:
         rootcap, from_path = get_alias(aliases, from_file, DEFAULT_ALIAS)
     except UnknownAliasError, e:
-        print >>stderr, "error: %s" % e.args[0]
+        e.display(stderr)
         return 1
     from_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
     if from_path:
@@ -29,16 +30,13 @@ def mv(options, mode="move"):
     # figure out the source cap
     data = urllib.urlopen(from_url + "?t=json").read()
     nodetype, attrs = simplejson.loads(data)
-    cap = attrs.get("rw_uri") or attrs["ro_uri"]
-    # simplejson sometimes returns unicode, but we know that it's really just
-    # an ASCII file-cap.
-    cap = str(cap)
+    cap = to_str(attrs.get("rw_uri") or attrs["ro_uri"])
 
     # now get the target
     try:
         rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
     except UnknownAliasError, e:
-        print >>stderr, "error: %s" % e.args[0]
+        e.display(stderr)
         return 1
     to_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
     if path:
@@ -56,18 +54,17 @@ def mv(options, mode="move"):
         if status == 409:
             print >>stderr, "Error: You can't overwrite a directory with a file"
         else:
-            print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
-            print >>stderr, resp.read()
+            print >>stderr, format_http_error("Error", resp)
             if mode == "move":
                 print >>stderr, "NOT removing the original"
-        return
+        return 1
 
     if mode == "move":
         # now remove the original
         resp = do_http("DELETE", from_url)
         if not re.search(r'^2\d\d$', str(status)):
-            print >>stderr, "error, got %s %s" % (resp.status, resp.reason)
-            print >>stderr, resp.read()
+            print >>stderr, format_http_error("Error deleting original after move", resp)
+            return 2
 
     print >>stdout, "OK"
-    return
+    return 0

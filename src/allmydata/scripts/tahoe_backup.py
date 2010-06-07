@@ -6,19 +6,12 @@ import simplejson
 import datetime
 from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
                                      UnknownAliasError
-from allmydata.scripts.common_http import do_http
+from allmydata.scripts.common_http import do_http, HTTPError, format_http_error
 from allmydata.util import time_format
 from allmydata.scripts import backupdb
-from allmydata.util.stringutils import unicode_to_stdout, listdir_unicode, open_unicode
+from allmydata.util.stringutils import listdir_unicode, open_unicode, quote_output, to_str
 from allmydata.util.assertutil import precondition
 
-
-class HTTPError(Exception):
-    pass
-
-def raiseHTTPError(msg, resp):
-    msg = msg + ": %s %s %s" % (resp.status, resp.reason, resp.read())
-    raise HTTPError(msg)
 
 def get_local_metadata(path):
     metadata = {}
@@ -49,8 +42,9 @@ def mkdir(contents, options):
     url = options['node-url'] + "uri?t=mkdir-immutable"
     resp = do_http("POST", url, body)
     if resp.status < 200 or resp.status >= 300:
-        raiseHTTPError("error during mkdir", resp)
-    dircap = str(resp.read().strip())
+        raise HTTPError("Error during mkdir", resp)
+
+    dircap = to_str(resp.read().strip())
     return dircap
 
 def put_child(dirurl, childname, childcap):
@@ -58,7 +52,7 @@ def put_child(dirurl, childname, childcap):
     url = dirurl + urllib.quote(childname) + "?t=uri"
     resp = do_http("PUT", url, childcap)
     if resp.status not in (200, 201):
-        raiseHTTPError("error during put_child", resp)
+        raise HTTPError("Error during put_child", resp)
 
 class BackupProcessingError(Exception):
     pass
@@ -99,7 +93,7 @@ class BackerUpper:
         try:
             rootcap, path = get_alias(options.aliases, options.to_dir, DEFAULT_ALIAS)
         except UnknownAliasError, e:
-            print >>stderr, "error: %s" % e.args[0]
+            e.display(stderr)
             return 1
         to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
         if path:
@@ -115,8 +109,7 @@ class BackerUpper:
         if resp.status == 404:
             resp = do_http("POST", archives_url + "?t=mkdir")
             if resp.status != 200:
-                print >>stderr, "Unable to create target directory: %s %s %s" % \
-                      (resp.status, resp.reason, resp.read())
+                print >>stderr, format_http_error("Unable to create target directory", resp)
                 return 1
 
         # second step: process the tree
@@ -156,20 +149,19 @@ class BackerUpper:
         return 0
 
     def verboseprint(self, msg):
+        precondition(isinstance(msg, str), msg)
         if self.verbosity >= 2:
-            if isinstance(msg, unicode):
-                msg = unicode_to_stdout(msg)
-
             print >>self.options.stdout, msg
 
     def warn(self, msg):
+        precondition(isinstance(msg, str), msg)
         print >>self.options.stderr, msg
 
     def process(self, localpath):
         precondition(isinstance(localpath, unicode), localpath)
         # returns newdircap
 
-        self.verboseprint("processing %s" % localpath)
+        self.verboseprint("processing %s" % quote_output(localpath))
         create_contents = {} # childname -> (type, rocap, metadata)
         compare_contents = {} # childname -> rocap
 
@@ -177,7 +169,7 @@ class BackerUpper:
             children = listdir_unicode(localpath)
         except EnvironmentError:
             self.directories_skipped += 1
-            self.warn("WARNING: permission denied on directory %s" % localpath)
+            self.warn("WARNING: permission denied on directory %s" % quote_output(localpath))
             children = []
 
         for child in self.options.filter_listdir(children):
@@ -199,17 +191,17 @@ class BackerUpper:
                     compare_contents[child] = childcap
                 except EnvironmentError:
                     self.files_skipped += 1
-                    self.warn("WARNING: permission denied on file %s" % childpath)
+                    self.warn("WARNING: permission denied on file %s" % quote_output(childpath))
             else:
                 self.files_skipped += 1
                 if os.path.islink(childpath):
-                    self.warn("WARNING: cannot backup symlink %s" % childpath)
+                    self.warn("WARNING: cannot backup symlink %s" % quote_output(childpath))
                 else:
-                    self.warn("WARNING: cannot backup special file %s" % childpath)
+                    self.warn("WARNING: cannot backup special file %s" % quote_output(childpath))
 
         must_create, r = self.check_backupdb_directory(compare_contents)
         if must_create:
-            self.verboseprint(" creating directory for %s" % localpath)
+            self.verboseprint(" creating directory for %s" % quote_output(localpath))
             newdircap = mkdir(create_contents, self.options)
             assert isinstance(newdircap, str)
             if r:
@@ -217,7 +209,7 @@ class BackerUpper:
             self.directories_created += 1
             return newdircap
         else:
-            self.verboseprint(" re-using old directory for %s" % localpath)
+            self.verboseprint(" re-using old directory for %s" % quote_output(localpath))
             self.directories_reused += 1
             return r.was_created()
 
@@ -237,7 +229,7 @@ class BackerUpper:
 
         # we must check the file before using the results
         filecap = r.was_uploaded()
-        self.verboseprint("checking %s" % filecap)
+        self.verboseprint("checking %s" % quote_output(filecap))
         nodeurl = self.options['node-url']
         checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(filecap)
         self.files_checked += 1
@@ -270,7 +262,7 @@ class BackerUpper:
 
         # we must check the directory before re-using it
         dircap = r.was_created()
-        self.verboseprint("checking %s" % dircap)
+        self.verboseprint("checking %s" % quote_output(dircap))
         nodeurl = self.options['node-url']
         checkurl = nodeurl + "uri/%s?t=check&output=JSON" % urllib.quote(dircap)
         self.directories_checked += 1
@@ -292,22 +284,24 @@ class BackerUpper:
     def upload(self, childpath):
         precondition(isinstance(childpath, unicode), childpath)
 
-        #self.verboseprint("uploading %s.." % childpath)
+        #self.verboseprint("uploading %s.." % quote_output(childpath))
         metadata = get_local_metadata(childpath)
 
         # we can use the backupdb here
         must_upload, bdb_results = self.check_backupdb_file(childpath)
 
         if must_upload:
-            self.verboseprint("uploading %s.." % childpath)
-            infileobj = open_unicode(os.path.expanduser(childpath), "rb")
+            self.verboseprint("uploading %s.." % quote_output(childpath))
+            infileobj = open_unicode(childpath, "rb")
             url = self.options['node-url'] + "uri"
             resp = do_http("PUT", url, infileobj)
             if resp.status not in (200, 201):
-                raiseHTTPError("Error during file PUT", resp)
+                raise HTTPError("Error during file PUT", resp)
+
             filecap = resp.read().strip()
-            self.verboseprint(" %s -> %s" % (childpath, filecap))
-            #self.verboseprint(" metadata: %s" % (metadata,))
+            self.verboseprint(" %s -> %s" % (quote_output(childpath, quotemarks=False),
+                                             quote_output(filecap, quotemarks=False)))
+            #self.verboseprint(" metadata: %s" % (quote_output(metadata, quotemarks=False),))
 
             if bdb_results:
                 bdb_results.did_upload(filecap)
@@ -316,7 +310,7 @@ class BackerUpper:
             return filecap, metadata
 
         else:
-            self.verboseprint("skipping %s.." % childpath)
+            self.verboseprint("skipping %s.." % quote_output(childpath))
             self.files_reused += 1
             return bdb_results.was_uploaded(), metadata
 
