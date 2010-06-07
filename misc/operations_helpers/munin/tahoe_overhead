@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # This is a munin plugin which pulls total-used data from the server in
-# misc/spacetime/diskwatcher.tac, and a total-deep-size number from custom
+# misc/operations_helpers/spacetime/diskwatcher.tac, and a total-deep-size number from custom
 # PHP database-querying scripts on a different server. It produces a graph of
 # how much garbage/overhead is present in the grid: the ratio of total-used
 # over (total-deep-size*N/k), expressed as a percentage. No overhead would be

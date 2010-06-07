@@ -254,7 +254,7 @@ Other tools can be built to examine these stats and render them into
 something useful. For example, a tool could sum the
 "storage_server.disk_avail' values from all servers to compute a
 total-disk-available number for the entire grid (however, the "disk watcher"
-daemon, in misc/spacetime/, is better suited for this specific task).
+daemon, in misc/operations_helpers/spacetime/, is better suited for this specific task).
 
 == Using Munin To Graph Stats Values ==
 

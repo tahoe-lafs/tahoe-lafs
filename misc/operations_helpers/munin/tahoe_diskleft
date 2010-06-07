@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # This is a munin plugin which pulls data from the server in
-# misc/spacetime/diskwatcher.tac . It produces a graph of how much free space
+# misc/operations_helpers/spacetime/diskwatcher.tac . It produces a graph of how much free space
 # is left on all disks across the grid. The plugin should be configured with
 # env_url= pointing at the diskwatcher.tac webport.
 

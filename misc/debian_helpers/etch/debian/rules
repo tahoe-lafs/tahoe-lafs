@@ -15,7 +15,7 @@ DEBNAME := $(firstword $(DEB_PACKAGES))
 STAGING_DIR := $(CURDIR)/debian/$(DEBNAME)
 
 DEB_INSTALL_DOCS_ALL := COPYING.GPL COPYING.TGPPL.html CREDITS \
- NEWS README.txt relnotes.txt docs misc/spacetime misc/cpu-watcher.tac
+ NEWS README.txt relnotes.txt docs misc/operations_helpers/spacetime misc/operations_helpers/cpu-watcher.tac
 DEB_COMPRESS_EXCLUDE := .tac
 
 
@@ -39,7 +39,7 @@ install/$(DEBNAME)::
 	chmod +x $(STAGING_DIR)/usr/bin/tahoe.new
 	mv $(STAGING_DIR)/usr/bin/tahoe.new $(STAGING_DIR)/usr/bin/tahoe
 
-	dh_install misc/munin/* usr/share/$(DEBNAME)/munin
+	dh_install misc/operations_helpers/munin/* usr/share/$(DEBNAME)/munin
 	chmod +x $(STAGING_DIR)/usr/share/$(DEBNAME)/munin/*
 
 	dh_pycentral

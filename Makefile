@@ -119,28 +119,22 @@ test-coverage: build src/allmydata/_version.py
 	$(PYTHON) setup.py trial --reporter=bwverbose-coverage -s $(TEST)
 
 quicktest:
-	$(PYTHON) misc/run-with-pythonpath.py trial $(TRIALARGS) $(TEST)
+	$(PYTHON) misc/build_helpers/run-with-pythonpath.py trial $(TRIALARGS) $(TEST)
 
 # code-coverage: install the "coverage" package from PyPI, do "make
 # quicktest-coverage" to do a unit test run with coverage-gathering enabled,
 # then use "make coverate-output-text" for a brief report, or "make
 # coverage-output" for a pretty HTML report. Also see "make .coverage.el" and
-# misc/coverage.el for emacs integration.
+# misc/coding_helpers/coverage.el for emacs integration.
 
 quicktest-coverage:
 	rm -f .coverage
-	$(PYTHON) misc/run-with-pythonpath.py trial --reporter=bwverbose-coverage $(TEST)
+	$(PYTHON) misc/build_helpers/run-with-pythonpath.py trial --reporter=bwverbose-coverage $(TEST)
 # on my laptop, "quicktest" takes 239s, "quicktest-coverage" takes 304s
-
-COVERAGE_OMIT = --omit /System,/Library,/usr/lib,src/allmydata/test,support
-
-# this is like 'coverage report', but includes lines-uncovered
-coverage-output-text:
-	$(PYTHON) misc/coverage2text.py
 
 coverage-output:
 	rm -rf coverage-html
-	coverage html -d coverage-html $(COVERAGE_OMIT)
+	coverage html -d coverage-html
 	cp .coverage coverage-html/coverage.data
 	@echo "now point your browser at coverage-html/index.html"
 
@@ -160,7 +154,7 @@ coverage-output:
 .PHONY: repl test-darcs-boringfile test-clean clean find-trailing-spaces
 
 .coverage.el: .coverage
-	$(PYTHON) misc/coverage2el.py
+	$(PYTHON) misc/coding_helpers/coverage2el.py
 
 # 'upload-coverage' is meant to be run with an UPLOAD_TARGET=host:/dir setting
 ifdef UPLOAD_TARGET
@@ -244,7 +238,7 @@ repl:
 
 test-darcs-boringfile:
 	$(MAKE)
-	$(PYTHON) misc/test-darcs-boringfile.py
+	$(PYTHON) misc/build_helpers/test-darcs-boringfile.py
 
 test-clean:
 	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|auto_deps|appname).py" |sort >allfiles.tmp.old
@@ -265,7 +259,7 @@ clean:
 	rm -f bin/tahoe bin/tahoe-script.py
 
 find-trailing-spaces:
-	$(PYTHON) misc/find-trailing-spaces.py -r src
+	$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r src
 
 # The test-desert-island target grabs the tahoe-deps tarball, unpacks it,
 # does a build, then asserts that the build did not try to download anything
@@ -280,7 +274,7 @@ fetch-and-unpack-deps:
 test-desert-island:
 	$(MAKE) fetch-and-unpack-deps
 	$(MAKE) 2>&1 | tee make.out
-	$(PYTHON) misc/check-build.py make.out no-downloads
+	$(PYTHON) misc/build_helpers/check-build.py make.out no-downloads
 
 
 # TARBALL GENERATION
@@ -297,7 +291,7 @@ upload-tarballs:
 
 # DEBIAN PACKAGING
 
-VER=$(shell $(PYTHON) misc/get-version.py)
+VER=$(shell $(PYTHON) misc/build_helpers/get-version.py)
 DEBCOMMENTS="'make deb' build"
 
 show-version:
@@ -309,7 +303,7 @@ show-pp:
 .PHONY: deb-etch deb-lenny deb-sid
 .PHONY: deb-edgy deb-feisty deb-gutsy deb-hardy deb-intrepid deb-jaunty
 
-# we use misc/$TAHOE_ARCH/debian
+# we use misc/debian_helpers/$TAHOE_ARCH/debian
 
 deb-etch:      # py2.4
 	$(MAKE) deb-ARCH ARCH=etch TAHOE_ARCH=etch
@@ -352,7 +346,7 @@ endif
 
 setup-deb: is-known-debian-arch
 	rm -f debian
-	ln -s misc/$(TAHOE_ARCH)/debian debian
+	ln -s misc/debian_helpers/$(TAHOE_ARCH)/debian debian
 	chmod +x debian/rules
 
 # etch (current debian stable) has python-simplejson-1.3, which doesn't
@@ -419,7 +413,7 @@ deb-jaunty-head:
 # new experimental debian-packaging-building target
 .PHONY: EXPERIMENTAL-deb
 EXPERIMENTAL-deb: is-known-debian-arch
-	$(PYTHON) misc/build-deb.py $(ARCH)
+	$(PYTHON) misc/build_helpers/build-deb.py $(ARCH)
 
 
 # These targets provide for windows native builds

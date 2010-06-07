@@ -198,7 +198,7 @@ but a few notes are worth stating here:
 
  * assign each severe (log.WEIRD or higher) event a unique message
    identifier, as the umid= argument to the log.msg() call. The
-   misc/make_umid script may be useful for this purpose. This will make it
+   misc/coding_tools/make_umid script may be useful for this purpose. This will make it
    easier to write a classification function for these messages.
 
  * use the parent= argument whenever the event is causally/temporally

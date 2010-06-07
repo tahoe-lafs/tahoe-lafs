@@ -205,7 +205,7 @@ class TestMacDiskImage(Command):
         pass
     def run(self):
         import sys
-        sys.path.append('misc')
+        sys.path.append(os.path.join('misc', 'build_helpers'))
         import test_mac_diskimage
         return test_mac_diskimage.test_mac_diskimage('Allmydata', version=self.distribution.metadata.version)
 

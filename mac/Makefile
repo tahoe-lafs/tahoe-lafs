@@ -21,6 +21,7 @@ diskimage:
 ifdef UPLOAD_DEST_FURLFILE
 # N.B.: xfer-client.py requires foolscap, so we hack up PYTHONPATH to improve
 # the chances of finding it (using the one that we just built)
+# broken. To fix this just use flappclient. --Zooko 2010-06-06
 upload:
 	chmod a+r Allmydata-$(VERSION).dmg
 	PYTHONPATH=$(PYTHONPATH):../support/lib/python2.5/site-packages \
