@@ -205,7 +205,7 @@ class StringUtils(ReallyEqualMixin):
 
         try:
             u"test".encode(self.filesystem_encoding)
-        except UnicodeEncodeError:
+        except LookupError:
             raise unittest.SkipTest("This platform does not support the '%s' filesystem encoding "
                                     "that we are testing for the benefit of a different platform.")
 
@@ -224,6 +224,12 @@ class StringUtils(ReallyEqualMixin):
     def test_open_unicode(self, mock_open, mock_getfilesystemencoding):
         mock_getfilesystemencoding.return_value = self.filesystem_encoding
         fn = u'/dummy_directory/lumière.txt'
+
+        try:
+            u"test".encode(self.filesystem_encoding)
+        except LookupError:
+            raise unittest.SkipTest("This platform does not support the '%s' filesystem encoding "
+                                    "that we are testing for the benefit of a different platform.")
 
         _reload()
         try:

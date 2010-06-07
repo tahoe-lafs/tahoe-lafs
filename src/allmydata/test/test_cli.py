@@ -1067,12 +1067,12 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             if good_out is None:
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessIn("files whose names could not be converted", err)
-                self.failUnlessReallyEqual(out, "")
+                self.failUnlessIn(quote_output(u"gööd"), err)
+                self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share"]))
             else:
                 self.failUnlessReallyEqual(rc, 0)
                 self.failUnlessReallyEqual(err, "")
-                outstrs = out.splitlines()
-                self.failUnlessReallyEqual(outstrs, ["0share", "1share", good_out])
+                self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share", good_out]))
         d.addCallback(_check1)
         d.addCallback(lambda ign: self.do_cli("ls", "missing"))
         def _check2((rc,out,err)):
@@ -1095,6 +1095,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             if good_out is None:
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessIn("files whose names could not be converted", err)
+                self.failUnlessIn(quote_output(u"gööd"), err)
                 self.failUnlessReallyEqual(out, "")
             else:
                 # listing a file (as dir/filename) should have the edge metadata,
@@ -1130,8 +1131,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check1_ascii((rc,out,err)):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
-            outstrs = out.splitlines()
-            self.failUnlessReallyEqual(outstrs, ["0share", "1share", "good"])
+            self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share", "good"]))
         d.addCallback(_check1_ascii)
         def _check4_ascii((rc, out, err)):
             # listing a file (as dir/filename) should have the edge metadata,
@@ -1840,7 +1840,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 2)
             foo2 = os.path.join(source, "foo2.txt")
-            self.failUnlessReallyEqual(err, "WARNING: cannot backup symlink %s\n" % foo2)
+            self.failUnlessReallyEqual(err, "WARNING: cannot backup symlink '%s'\n" % foo2)
 
             fu, fr, fs, dc, dr, ds = self.count_output(out)
             # foo.txt
