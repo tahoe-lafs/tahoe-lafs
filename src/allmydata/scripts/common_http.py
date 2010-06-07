@@ -83,4 +83,4 @@ def check_http_error(resp, stderr):
 
 class HTTPError(TahoeError):
     def __init__(self, msg, resp):
-        TahoeError.__init__(format_http_error(msg, resp))
+        TahoeError.__init__(self, format_http_error(msg, resp))

@@ -29,7 +29,7 @@ def _put_local_file(pathname, inf):
 
 class MissingSourceError(TahoeError):
     def __init__(self, name):
-        TahoeError.__init__("No such file or directory %s" % quote_output(name))
+        TahoeError.__init__(self, "No such file or directory %s" % quote_output(name))
 
 
 def GET_to_file(url):
