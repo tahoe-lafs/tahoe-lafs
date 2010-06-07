@@ -61,7 +61,7 @@ class CLITestMixin(ReallyEqualMixin):
             try:
                 u.encode(enc)
             except UnicodeEncodeError:
-                raise unittest.SkipTest("A non-ASCII filename %r could not be encoded as %s" (u, enc))
+                raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
 
 
 class CLI(CLITestMixin, unittest.TestCase):
@@ -464,11 +464,11 @@ class CLI(CLITestMixin, unittest.TestCase):
             for name in filenames:
                 path = os.path.join(basedir, name)
                 open(path, "wb").close()
-        except EnvironmentError, e:
+        except EnvironmentError:
             # Maybe the OS or Python wouldn't let us create a file at the badly encoded path,
             # which is entirely reasonable.
             raise unittest.SkipTest("This test is only applicable to platforms that allow "
-                                    "creating files at badly encoded paths.\n%r" % (e,))
+                                    "creating files at badly encoded paths.")
 
         self.failUnlessRaises(FilenameEncodingError, listdir_unicode, unicode(basedir))
 
@@ -663,8 +663,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         try:
             etudes_arg = u"études".encode(get_argv_encoding())
             lumiere_arg = u"lumière.txt".encode(get_argv_encoding())
-        except UnicodeEncodeError, e:
-            raise unittest.SkipTest("A non-ASCII test argument could not be encoded as %s:\n%r" (get_argv_encoding(), e))
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
         d = self.do_cli("create-alias", etudes_arg)
         def _check_create_unicode((rc, out, err)):
@@ -713,6 +713,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_get2)
 
         return d
+
+    # TODO: test list-aliases, including Unicode
 
 
 class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
@@ -989,8 +991,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         try:
             a_trier_arg = u"à trier.txt".encode(get_argv_encoding())
-        except UnicodeEncodeError, e:
-            raise unittest.SkipTest("A non-ASCII command argument could not be encoded as %s:\n%r" (get_argv_encoding(), e))
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
         self.skip_if_cannot_represent_filename(u"à trier.txt")
 
@@ -1064,7 +1066,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check1((rc,out,err)):
             if good_out is None:
                 self.failUnlessReallyEqual(rc, 1)
-                self.failUnlessIn("could not be encoded", err)
+                self.failUnlessIn("files whose names could not be converted", err)
                 self.failUnlessReallyEqual(out, "")
             else:
                 self.failUnlessReallyEqual(rc, 0)
@@ -1092,7 +1094,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check4((rc, out, err)):
             if good_out is None:
                 self.failUnlessReallyEqual(rc, 1)
-                self.failUnlessIn("could not be encoded", err)
+                self.failUnlessIn("files whose names could not be converted", err)
                 self.failUnlessReallyEqual(out, "")
             else:
                 # listing a file (as dir/filename) should have the edge metadata,
@@ -1367,8 +1369,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         try:
             fn1_arg = fn1.encode(get_argv_encoding())
             artonwall_arg = u"Ärtonwall".encode(get_argv_encoding())
-        except UnicodeEncodeError, e:
-            raise unittest.SkipTest("A non-ASCII command argument could not be encoded as %s:\n%r" (get_argv_encoding(), e))
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
         self.skip_if_cannot_represent_filename(fn1)
 
@@ -2391,8 +2393,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         try:
             motorhead_arg = u"tahoe:Motörhead".encode(get_argv_encoding())
-        except UnicodeEncodeError, e:
-            raise unittest.SkipTest("A non-ASCII command argument could not be encoded as %s:\n%r" (get_argv_encoding(), e))
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("mkdir", motorhead_arg))
