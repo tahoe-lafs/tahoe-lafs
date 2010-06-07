@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import os
 from cStringIO import StringIO
@@ -272,6 +273,7 @@ class Consolidate(GridTestMixin, CLITestMixin, ReallyEqualMixin, unittest.TestCa
         d.addCallback(check_consolidation)
 
         return d
+    test_basic.timeout = 28800 # It took more than 7200 seconds on François's ARM
 
     def build_manifest(self, root):
         # like dirnode.build_manifest, but this one doesn't skip duplicate
