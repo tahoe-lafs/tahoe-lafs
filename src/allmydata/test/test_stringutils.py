@@ -207,7 +207,8 @@ class StringUtils(ReallyEqualMixin):
             u"test".encode(self.filesystem_encoding)
         except LookupError:
             raise unittest.SkipTest("This platform does not support the '%s' filesystem encoding "
-                                    "that we are testing for the benefit of a different platform.")
+                                    "that we are testing for the benefit of a different platform."
+                                    % (self.filesystem_encoding,))
 
         mock_listdir.return_value = self.dirlist
         mock_getfilesystemencoding.return_value = self.filesystem_encoding
@@ -229,7 +230,8 @@ class StringUtils(ReallyEqualMixin):
             u"test".encode(self.filesystem_encoding)
         except LookupError:
             raise unittest.SkipTest("This platform does not support the '%s' filesystem encoding "
-                                    "that we are testing for the benefit of a different platform.")
+                                    "that we are testing for the benefit of a different platform."
+                                    % (self.filesystem_encoding,))
 
         _reload()
         try:
