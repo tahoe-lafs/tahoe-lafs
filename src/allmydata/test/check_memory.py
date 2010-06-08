@@ -60,7 +60,7 @@ class ChildDidNotStartError(Exception):
     pass
 
 class SystemFramework(pollmixin.PollMixin):
-    numnodes = 5
+    numnodes = 7
 
     def __init__(self, basedir, mode):
         self.basedir = basedir = os.path.abspath(basedir)
