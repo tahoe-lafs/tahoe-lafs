@@ -1162,6 +1162,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
 
         def _done(ign):
             self.log("done %r" % (request,), level=OPERATIONAL)
+            # TODO: this should not return True if only_if_at caused all files to be skipped.
             return len(files) > 0
         d.addBoth(_done)
         return d
@@ -1707,7 +1708,14 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                     desired_metadata = _attrs_to_metadata(attrs)
                     if noisy: self.log("desired_metadata = %r" % (desired_metadata,), level=NOISY)
 
-                    return parent_or_node.set_metadata_for(childname, desired_metadata)
+                    d3 = parent_or_node.set_metadata_for(childname, desired_metadata)
+                    def _nosuch(err):
+                        if updated_heisenfiles:
+                            err.trap(NoSuchChildError)
+                        else:
+                            return err
+                    d3.addErrback(_nosuch)
+                    return d3
             d2.addCallback(_update)
             d2.addCallback(lambda ign: None)
             return d2
