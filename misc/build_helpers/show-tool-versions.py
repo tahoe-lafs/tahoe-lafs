@@ -8,7 +8,8 @@ def print_platform():
         out = platform.platform()
         print
         print "platform:", out.replace("\n", " ")
-        print ', linux_distribution:', repr(platform.linux_distribution())
+        if hasattr(platform, 'linux_distribution'):
+            print "linux_distribution:", repr(platform.linux_distribution())
     except EnvironmentError, le:
          sys.stderr.write("Got exception using 'platform': %s\n" % (le,))
          pass
