@@ -109,3 +109,6 @@ D: Debian packaging including init scripts
 
 N: Jeremy Visser
 D: Ubuntu packaging, usability testing
+
+N: Jeremy Fitzhardinge
+D: better support for HTTP range queries
