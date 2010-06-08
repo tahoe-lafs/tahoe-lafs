@@ -573,12 +573,6 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile readonly uri WRITE denied",
                                          self.handler.openFile, "uri/"+self.readonly_uri, sftp.FXF_WRITE, {}))
 
-        # cannot write to a mutable file by uri when no-write permissions are specified
-        d.addCallback(lambda ign:
-            self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "openFile mutable uri permissions:0444 WRITE denied",
-                                         self.handler.openFile, "uri/"+self.mutable_uri, sftp.FXF_WRITE,
-                                         {'permissions': 0444}))
-
         # cannot create a file with the EXCL flag if it already exists
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_FAILURE, "openFile small WRITE|CREAT|EXCL failure",
@@ -695,6 +689,16 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self.root.get(u"newfile"))
         d.addCallback(lambda node: download_to_data(node))
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234"))
+
+        # test WRITE | TRUNC with permissions: 0
+        d.addCallback(lambda ign:
+                      self.handler.openFile("newfile", sftp.FXF_WRITE | sftp.FXF_TRUNC, {'permissions': 0}))
+        d.addCallback(_write_trunc)
+        d.addCallback(lambda ign: self.root.get(u"newfile"))
+        d.addCallback(lambda node: download_to_data(node))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234"))
+        d.addCallback(lambda ign: self.root.get_metadata_for(u"newfile"))
+        d.addCallback(lambda metadata: self.failIf(metadata.get('no-write', False), metadata))
 
         # test EXCL flag
         d.addCallback(lambda ign:
@@ -821,6 +825,14 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             self.failUnless(node.is_mutable())
             self.failUnlessReallyEqual(node.get_uri(), self.mutable_uri)
             return node.download_best_version()
+        d.addCallback(_check_same_file)
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable new! contents"))
+
+        # ... and with permissions, which should be ignored
+        d.addCallback(lambda ign:
+                      self.handler.openFile("mutable", sftp.FXF_WRITE, {'permissions': 0}))
+        d.addCallback(_write_mutable)
+        d.addCallback(lambda ign: self.root.get(u"mutable"))
         d.addCallback(_check_same_file)
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable new! contents"))
 

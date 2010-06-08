@@ -191,7 +191,7 @@ def _lsLine(name, attrs):
     return l
 
 
-def _no_write(parent_readonly, child, metadata):
+def _no_write(parent_readonly, child, metadata=None):
     """Whether child should be listed as having read-only permissions in parent."""
 
     if child.is_unknown():
@@ -201,7 +201,7 @@ def _no_write(parent_readonly, child, metadata):
     elif parent_readonly or IDirectoryNode.providedBy(child):
         return True
     else:
-        return metadata.get('no-write', False)
+        return metadata is not None and metadata.get('no-write', False)
 
 
 def _populate_attrs(childnode, metadata, size=None):
@@ -1326,10 +1326,6 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 if (flags & FXF_WRITE) and root.is_readonly():
                     raise SFTPError(FX_PERMISSION_DENIED,
                                     "cannot write to a non-writeable filecap without a parent directory")
-                if (flags & FXF_WRITE) and root.is_mutable() and desired_metadata.get('no-write', False):
-                    raise SFTPError(FX_PERMISSION_DENIED,
-                                    "cannot write to a mutable filecap without a parent directory, when the "
-                                    "specified permissions would require the link from the parent to be made read-only")
                 if flags & FXF_EXCL:
                     raise SFTPError(FX_FAILURE,
                                     "cannot create a file exclusively when it already exists")
@@ -1346,7 +1342,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 # reported as r--r--r--, which is appropriate because an immutable file can't be
                 # written via this path.
 
-                metadata['no-write'] = _no_write(True, root, metadata)
+                metadata['no-write'] = _no_write(True, root)
                 return self._make_file(file, userpath, flags, filenode=root, metadata=metadata)
             else:
                 # case 2
@@ -1398,7 +1394,10 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                         if noisy: self.log("_got_child( (%r, %r) )" % (filenode, current_metadata), level=NOISY)
 
                         metadata = update_metadata(current_metadata, desired_metadata, time())
-                        metadata['no-write'] = _no_write(parent_readonly, filenode, metadata)
+
+                        # Ignore the permissions of the desired_metadata in an open call. The permissions
+                        # can only be set by setAttrs.
+                        metadata['no-write'] = _no_write(parent_readonly, filenode, current_metadata)
 
                         if filenode.is_unknown():
                             raise SFTPError(FX_PERMISSION_DENIED,
