@@ -599,7 +599,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
     def test_GET_FILEURL_partial_range_overrun(self):
         headers = {"range": "bytes=100-200"}
-        length  = len(self.BAR_CONTENTS)
         d = self.shouldFail2(error.Error, "test_GET_FILEURL_range_overrun",
                              "416 Requested Range not satisfiable",
                              "First beyond end of file",
@@ -648,7 +647,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
 
     def test_HEAD_FILEURL_partial_range_overrun(self):
         headers = {"range": "bytes=100-200"}
-        length  = len(self.BAR_CONTENTS)
         d = self.shouldFail2(error.Error, "test_HEAD_FILEURL_range_overrun",
                              "416 Requested Range not satisfiable",
                              "",
