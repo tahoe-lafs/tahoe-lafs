@@ -18,7 +18,11 @@ mutable_plaintext = "muta" * 10000
 class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
     # Many of these tests take around 60 seconds on François's ARM buildslave:
     # http://tahoe-lafs.org/buildbot/builders/FranXois%20lenny-armv5tel
-    timeout = 120
+    # allmydata.test.test_hung_server.HungServerDownloadTest.test_2_good_8_broken_duplicate_share_fail once ERRORed after 197 seconds on Midnight Magic's NetBSD buildslave:
+    # http://tahoe-lafs.org/buildbot/builders/MM%20netbsd4%20i386%20warp
+    # MM's buildslave varies a lot in how long it takes to run tests.
+
+    timeout = 240
 
     def _break(self, servers):
         for (id, ss) in servers:
