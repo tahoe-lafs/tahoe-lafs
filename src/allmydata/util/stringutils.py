@@ -41,8 +41,8 @@ def _reload():
     filesystem_encoding = _canonical_encoding(sys.getfilesystemencoding())
     output_encoding = _canonical_encoding(sys.stdout.encoding or locale.getpreferredencoding())
     if sys.platform == 'win32':
-        # arguments are converted to utf-8 in windows/tahoe.py
-        argv_encoding = 'utf-8'
+        # Unicode arguments are not supported on Windows yet; see #565 and #1074.
+        argv_encoding = 'ascii'
     else:
         argv_encoding = output_encoding
     is_unicode_platform = sys.platform in ["win32", "darwin"]

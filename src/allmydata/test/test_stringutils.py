@@ -27,7 +27,7 @@ if __name__ == "__main__":
     print "    platform = '%s'" % sys.platform
     print "    filesystem_encoding = '%s'" % sys.getfilesystemencoding()
     print "    output_encoding = '%s'" % sys.stdout.encoding
-    print "    argv_encoding = '%s'" % (sys.platform == "win32" and 'utf-8' or sys.stdout.encoding)
+    print "    argv_encoding = '%s'" % (sys.platform == "win32" and 'ascii' or sys.stdout.encoding)
 
     try:
         tmpdir = tempfile.mkdtemp()
@@ -272,31 +272,28 @@ class UbuntuKarmicLatin1(StringUtils, unittest.TestCase):
 class WindowsXP(StringUtils, unittest.TestCase):
     uname = 'Windows XP 5.1.2600 x86 x86 Family 15 Model 75 Step ping 2, AuthenticAMD'
     output = 'lumi\x8are'
-    argv = 'lumi\xc3\xa8re'
     platform = 'win32'
     filesystem_encoding = 'mbcs'
     output_encoding = 'cp850'
-    argv_encoding = 'utf-8'
+    argv_encoding = 'ascii'
     dirlist = [u'Blah blah.txt', u'test_file', u'\xc4rtonwall.mp3']
 
 class WindowsXP_UTF8(StringUtils, unittest.TestCase):
     uname = 'Windows XP 5.1.2600 x86 x86 Family 15 Model 75 Step ping 2, AuthenticAMD'
     output = 'lumi\xc3\xa8re'
-    argv = 'lumi\xc3\xa8re'
     platform = 'win32'
     filesystem_encoding = 'mbcs'
     output_encoding = 'cp65001'
-    argv_encoding = 'utf-8'
+    argv_encoding = 'ascii'
     dirlist = [u'Blah blah.txt', u'test_file', u'\xc4rtonwall.mp3']
 
 class WindowsVista(StringUtils, unittest.TestCase):
     uname = 'Windows Vista 6.0.6000 x86 x86 Family 6 Model 15 Stepping 11, GenuineIntel'
     output = 'lumi\x8are'
-    argv = 'lumi\xc3\xa8re'
     platform = 'win32'
     filesystem_encoding = 'mbcs'
     output_encoding = 'cp850'
-    argv_encoding = 'utf-8'
+    argv_encoding = 'ascii'
     dirlist = [u'Blah blah.txt', u'test_file', u'\xc4rtonwall.mp3']
 
 class MacOSXLeopard(StringUtils, unittest.TestCase):
