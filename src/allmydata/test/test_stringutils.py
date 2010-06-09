@@ -205,7 +205,7 @@ class StringUtils(ReallyEqualMixin):
 
         try:
             u"test".encode(self.filesystem_encoding)
-        except LookupError:
+        except (LookupError, AttributeError):
             raise unittest.SkipTest("This platform does not support the '%s' filesystem encoding "
                                     "that we are testing for the benefit of a different platform."
                                     % (self.filesystem_encoding,))
@@ -228,7 +228,7 @@ class StringUtils(ReallyEqualMixin):
 
         try:
             u"test".encode(self.filesystem_encoding)
-        except LookupError:
+        except (LookupError, AttributeError):
             raise unittest.SkipTest("This platform does not support the '%s' filesystem encoding "
                                     "that we are testing for the benefit of a different platform."
                                     % (self.filesystem_encoding,))
