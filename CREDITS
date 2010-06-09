@@ -52,7 +52,7 @@ D: packaging, buildbot
 E: cgalvan@enthought.com
 
 N: François Deppierraz
-D: char encodings, testing, duplicity plugin, skip symlinks in backup, FUSE
+D: char encodings, testing, duplicity plugin, debugging, FUSE, docs
 E: francois@ctrlaltdel.ch
 
 N: Larry Hosken

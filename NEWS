@@ -1,6 +1,6 @@
 User visible changes in Tahoe-LAFS.  -*- outline -*-
 
-* Release 1.7.0-beta (2010-06-09)
+* Release 1.7.0β (2010-06-09)
 
 ** New Features
 
@@ -15,30 +15,38 @@ docs/frontends/FTP-and-SFTP.txt document to get started.
 
 Tahoe-LAFS now correctly handles filenames containing non-ASCII characters on
 all supported platforms:
+
  - when reading files in from the local filesystem (such as when you run "tahoe
    backup" to back up your local files to a Tahoe-LAFS grid);
+
  - when writing files out to the local filesystem (such as when you run "tahoe
    cp -r" to recursively copy files out of a Tahoe-LAFS grid);
+
  - when displaying filenames to the terminal (such as when you run "tahoe ls"),
    subject to limitations of the terminal and locale;
+
  - when parsing command-line arguments, except on Windows.
 
 *** Servers of Happiness
 
-Tahoe-LAFS now measures a file during upload to see how well distributed it is
-across multiple servers.  It aborts the upload if the pieces of the file are
-not sufficiently well-distributed.  This behavior is controlled by a
-configuration parameter called "servers of happiness".  With default settings
-Tahoe-LAFS generates 10 shares for each file, such that any 3 of those shares
-are sufficient to recover the file.  The default value of "servers of
-happiness" is 7, which means that Tahoe-LAFS will guarantee that there are at
-least 7 servers holding some of the shares, such that any 3 of those servers
-can completely recover your file.  The new upload code also distributes the
-shares better than the previous version in some cases and takes better
-advantage of pre-existing shares (when a file has already been previously
-uploaded).  See the docs/architecture.txt document [3] for details.
+Tahoe-LAFS now measures during immutable file upload to see how well
+distributed it is across multiple servers. It aborts the upload if the pieces
+of the file are not sufficiently well-distributed.
 
-** Bugfixes
+This behavior is controlled by a configuration parameter called "servers of
+happiness". With the default settings for its erasure coding, Tahoe-LAFS
+generates 10 shares for each file, such that any 3 of those shares are
+sufficient to recover the file. The default value of "servers of happiness" is
+7, which means that Tahoe-LAFS will guarantee that there are at least 7 servers
+holding some of the shares, such that any 3 of those servers can completely
+recover your file.
+
+The new upload code also distributes the shares better than the previous
+version in some cases and takes better advantage of pre-existing shares (when a
+file has already been previously uploaded). See the architecture.txt document
+[3] for details.
+
+** Bugfixes and Improvements
 
  - Premature abort of upload if some shares were already present and some
    servers fail. (#608)
@@ -64,12 +72,12 @@ uploaded).  See the docs/architecture.txt document [3] for details.
 The 'tahoe debug consolidate' subcommand (for converting old allmydata Windows
 client backups to a newer format) has been removed.
 
-** dependency updates
+** Dependency Updates
 
 the Python version dependency is raised to 2.4.4 in some cases (2.4.3 for
-  Redhat-based Linux distributions, 2.4.2 for UCS-2 builds)
-pycrypto-2.0.1
-pyasn1-0.0.8a
+  Redhat-based Linux distributions, 2.4.2 for UCS-2 builds) (#1066)
+pycrypto >= 2.0.1
+pyasn1 >= 0.0.8a
 mock (only required by unit tests)
 
 * Release 1.6.1 (2010-02-27)
