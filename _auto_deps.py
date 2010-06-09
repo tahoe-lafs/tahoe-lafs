@@ -32,10 +32,6 @@ install_requires=[
                   "pycrypto >= 2.0.1",
                   "pyasn1 >= 0.0.8a",
 
-                  # Mock - Mocking and Testing Library
-                  # http://www.voidspace.org.uk/python/mock/
-                  "mock",
-
                   # Will be needed to test web apps, but not yet. See #1001.
                   #"windmill >= 1.3",
                   ]

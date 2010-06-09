@@ -134,6 +134,12 @@ if "--reporter=bwverbose-coverage" in sys.argv:
 if "sdist_dsc" in sys.argv:
     setup_requires.append('stdeb >= 0.3')
 
+tests_require=[
+    # Mock - Mocking and Testing Library
+    # http://www.voidspace.org.uk/python/mock/
+    "mock",
+    ]
+
 class ShowSupportLib(Command):
     user_options = []
     def initialize_options(self):
@@ -365,6 +371,7 @@ setup(name=APPNAME,
       classifiers=trove_classifiers,
       test_suite="allmydata.test",
       install_requires=install_requires,
+      tests_require=tests_require,
       include_package_data=True,
       setup_requires=setup_requires,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
