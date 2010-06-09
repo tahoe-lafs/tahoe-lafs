@@ -29,7 +29,7 @@ def flip_one_bit(s, offset=0, size=None):
 class ReallyEqualMixin:
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.failUnlessEqual(a, b, msg=msg)
-        self.failUnlessEqual(type(a), type(b), msg=msg)
+        self.failUnlessEqual(type(a), type(b), msg="a :: %r, b :: %r, %r" % (a, b, msg))
 
 
 class SignalMixin:

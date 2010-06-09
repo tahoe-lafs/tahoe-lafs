@@ -10,6 +10,11 @@ from allmydata.util.stringutils import quote_output, quote_path
 class Checker:
     pass
 
+def _quote_serverid_index_share(serverid, storage_index, sharenum):
+    return "server %s, SI %s, shnum %r" % (quote_output(serverid, quotemarks=False),
+                                           quote_output(storage_index, quotemarks=False),
+                                           sharenum)
+
 def check(options):
     stdout = options.stdout
     stderr = options.stderr
@@ -55,38 +60,36 @@ def check(options):
             summary = "not healthy"
         stdout.write("Summary: %s\n" % summary)
         cr = data["pre-repair-results"]["results"]
-        stdout.write(" storage index: %s\n" % data["storage-index"])
-        stdout.write(" good-shares: %d (encoding is %d-of-%d)\n"
+        stdout.write(" storage index: %s\n" % quote_output(data["storage-index"], quotemarks=False))
+        stdout.write(" good-shares: %r (encoding is %r-of-%r)\n"
                      % (cr["count-shares-good"],
                         cr["count-shares-needed"],
                         cr["count-shares-expected"]))
-        stdout.write(" wrong-shares: %d\n" % cr["count-wrong-shares"])
+        stdout.write(" wrong-shares: %r\n" % cr["count-wrong-shares"])
         corrupt = cr["list-corrupt-shares"]
         if corrupt:
             stdout.write(" corrupt shares:\n")
             for (serverid, storage_index, sharenum) in corrupt:
-                stdout.write("  server %s, SI %s, shnum %d\n" %
-                             (serverid, storage_index, sharenum))
+                stdout.write("  %s\n" % _quote_serverid_index_share(serverid, storage_index, sharenum))
         if data["repair-attempted"]:
             if data["repair-successful"]:
                 stdout.write(" repair successful\n")
             else:
                 stdout.write(" repair failed\n")
     else:
-        stdout.write("Summary: %s\n" % data["summary"])
+        stdout.write("Summary: %s\n" % quote_output(data["summary"], quotemarks=False))
         cr = data["results"]
-        stdout.write(" storage index: %s\n" % data["storage-index"])
-        stdout.write(" good-shares: %d (encoding is %d-of-%d)\n"
+        stdout.write(" storage index: %s\n" % quote_output(data["storage-index"], quotemarks=False))
+        stdout.write(" good-shares: %r (encoding is %r-of-%r)\n"
                      % (cr["count-shares-good"],
                         cr["count-shares-needed"],
                         cr["count-shares-expected"]))
-        stdout.write(" wrong-shares: %d\n" % cr["count-wrong-shares"])
+        stdout.write(" wrong-shares: %r\n" % cr["count-wrong-shares"])
         corrupt = cr["list-corrupt-shares"]
         if corrupt:
             stdout.write(" corrupt shares:\n")
             for (serverid, storage_index, sharenum) in corrupt:
-                stdout.write("  server %s, SI %s, shnum %d\n" %
-                             (serverid, storage_index, sharenum))
+                stdout.write("  %s\n" % _quote_serverid_index_share(serverid, storage_index, sharenum))
     return 0
 
 
@@ -136,13 +139,12 @@ class DeepCheckOutput(LineOnlyReceiver):
             if not path:
                 path = ["<root>"]
             summary = cr.get("summary", "Healthy (LIT)")
-            print >>stdout, "%s: %s" % (quote_path(path), summary)
+            print >>stdout, "%s: %s" % (quote_path(path), quote_output(summary, quotemarks=False))
 
         # always print out corrupt shares
         for shareloc in cr["results"].get("list-corrupt-shares", []):
             (serverid, storage_index, sharenum) = shareloc
-            print >>stdout, " corrupt: server %s, SI %s, shnum %d" % \
-                  (serverid, storage_index, sharenum)
+            print >>stdout, " corrupt: %s" % _quote_serverid_index_share(serverid, storage_index, sharenum)
 
     def done(self):
         if self.in_error:
@@ -224,8 +226,7 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
         prr = crr.get("pre-repair-results", {})
         for shareloc in prr.get("results", {}).get("list-corrupt-shares", []):
             (serverid, storage_index, sharenum) = shareloc
-            print >>stdout, " corrupt: server %s, SI %s, shnum %d" % \
-                  (serverid, storage_index, sharenum)
+            print >>stdout, " corrupt: %s" % _quote_serverid_index_share(serverid, storage_index, sharenum)
 
         # always print out repairs
         if crr["repair-attempted"]:

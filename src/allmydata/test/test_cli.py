@@ -32,7 +32,7 @@ from twisted.python import usage
 from allmydata.util.assertutil import precondition
 from allmydata.util.stringutils import listdir_unicode, open_unicode, unicode_platform, \
     quote_output, get_output_encoding, get_argv_encoding, get_filesystem_encoding, \
-    unicode_to_output
+    unicode_to_output, to_str
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
@@ -1951,7 +1951,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             data = simplejson.loads(out)
-            self.failUnlessReallyEqual(data["summary"], "Healthy")
+            self.failUnlessReallyEqual(to_str(data["summary"]), "Healthy")
         d.addCallback(_check2)
 
         def _clobber_shares(ignored):

@@ -115,7 +115,7 @@ def unicode_to_output(s):
 
     try:
         out = s.encode(output_encoding)
-    except UnicodeEncodeError:
+    except (UnicodeEncodeError, UnicodeDecodeError):
         raise UnicodeEncodeError(output_encoding, s, 0, 0,
                                  "A string could not be encoded as %s for output to the terminal:\n%r" %
                                  (output_encoding, repr(s)))
@@ -143,7 +143,7 @@ def quote_output(s, quotemarks=True):
 
     try:
         out = s.encode(output_encoding)
-    except UnicodeEncodeError:
+    except (UnicodeEncodeError, UnicodeDecodeError):
         return repr(s)
 
     if PRINTABLE_8BIT.search(out) is None:
@@ -182,7 +182,7 @@ def listdir_unicode_fallback(path):
 
     try:
         byte_path = path.encode(filesystem_encoding)
-    except UnicodeEncodeError:
+    except (UnicodeEncodeError, UnicodeDecodeError):
         raise FilenameEncodingError(path)
 
     try:
