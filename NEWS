@@ -1,24 +1,63 @@
 User visible changes in Tahoe-LAFS.  -*- outline -*-
 
-* Release 1.7.0
+* Release 1.7.0-beta (2010-06-09)
+
+** New Features
+
+*** SFTP support
+
+Your Tahoe-LAFS gateway now acts like a full-fledged SFTP server.  It has been
+tested with sshfs to provide a virtual filesystem in Linux.  Many users have
+asked for this feature.  We hope that it serves them well! See the
+docs/frontends/FTP-and-SFTP.txt document to get started.
+
+*** support for non-ASCII character encodings
+
+Tahoe-LAFS now correctly handles filenames containing non-ASCII characters on
+all supported platforms:
+ - when reading files in from the local filesystem (such as when you run "tahoe
+   backup" to back up your local files to a Tahoe-LAFS grid);
+ - when writing files out to the local filesystem (such as when you run "tahoe
+   cp -r" to recursively copy files out of a Tahoe-LAFS grid);
+ - when displaying filenames to the terminal (such as when you run "tahoe ls"),
+   subject to limitations of the terminal and locale;
+ - when parsing command-line arguments, except on Windows.
+
+*** Servers of Happiness
+
+Tahoe-LAFS now measures a file during upload to see how well distributed it is
+across multiple servers.  It aborts the upload if the pieces of the file are
+not sufficiently well-distributed.  This behavior is controlled by a
+configuration parameter called "servers of happiness".  With default settings
+Tahoe-LAFS generates 10 shares for each file, such that any 3 of those shares
+are sufficient to recover the file.  The default value of "servers of
+happiness" is 7, which means that Tahoe-LAFS will guarantee that there are at
+least 7 servers holding some of the shares, such that any 3 of those servers
+can completely recover your file.  The new upload code also distributes the
+shares better than the previous version in some cases and takes better
+advantage of pre-existing shares (when a file has already been previously
+uploaded).  See the docs/architecture.txt document [3] for details.
 
 ** Bugfixes
 
-*** Unicode filenames handling
-
-Tahoe CLI commands working on local files, for instance 'tahoe cp' or 'tahoe
-backup', have been improved to correctly handle filenames containing non-ASCII
-characters.
-
-In the case where Tahoe encounters a filename which cannot be decoded using the
-system encoding, an error will be returned and the operation will fail.  Under
-Linux, this typically happens when the filesystem contains filenames encoded
-with another encoding, for instance latin1, than the system locale, for
-instance UTF-8.  In such case, you'll need to fix your system with tools such
-as 'convmv' before using Tahoe CLI.
-
-All CLI commands have been improved to support non-ASCII parameters such as
-filenames and aliases on all supported Operating Systems.
+ - Premature abort of upload if some shares were already present and some
+   servers fail. (#608)
+ - python ./setup.py install -- can't create or remove files in install
+   directory. (#803)
+ - Network failure => internal TypeError. (#902)
+ - Install of Tahoe on CentOS 5.4. (#933)
+ - CLI option --node-url now supports https url. (#1028)
+ - HTML/CSS template files were not correctly installed under Windows. (#1033)
+ - MetadataSetter does not enforce restriction on setting "tahoe" subkeys.
+   (#1034)
+ - ImportError: No module named setuptools_darcs.setuptools_darcs. (#1054)
+ - Renamed Title in xhtml files. (#1062)
+ - Increase Python version dependency to 2.4.4, to avoid a critical CPython
+   security bug. (#1066)
+ - Typo correction for the munin plugin tahoe_storagespace. (#968)
+ - Fix warnings found by pylint. (#973)
+ - Changing format of some documentation files. (#1027)
+ - the misc/ directory was tied up. (#1068)
 
 ** Removals
 
@@ -27,11 +66,11 @@ client backups to a newer format) has been removed.
 
 ** dependency updates
 
- no python-2.4.2 or 2.4.3 (2.4.4 is ok)
- pycrypto-2.0.1
- pyasn1-0.0.8a
- mock
-
+the Python version dependency is raised to 2.4.4 in some cases (2.4.3 for
+  Redhat-based Linux distributions, 2.4.2 for UCS-2 builds)
+pycrypto-2.0.1
+pyasn1-0.0.8a
+mock (only required by unit tests)
 
 * Release 1.6.1 (2010-02-27)
 
