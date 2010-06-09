@@ -25,7 +25,7 @@ def _canonical_encoding(encoding):
     # fail early if this happens
     try:
         u"test".encode(encoding)
-    except LookupError:
+    except (LookupError, AttributeError):
         raise AssertionError("The character encoding '%s' is not supported for conversion." % (encoding,))
 
     return encoding

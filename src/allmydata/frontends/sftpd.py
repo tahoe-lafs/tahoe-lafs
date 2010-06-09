@@ -311,7 +311,7 @@ class EncryptedTemporaryFile(PrefixingLogMixin):
     def flush(self):
         self.file.flush()
 
-    def seek(self, offset, whence=os.SEEK_SET):
+    def seek(self, offset, whence=0):  # 0 = SEEK_SET
         if noisy: self.log(".seek(%r, %r)" % (offset, whence), level=NOISY)
         self.file.seek(offset, whence)
 
