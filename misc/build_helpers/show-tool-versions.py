@@ -15,9 +15,24 @@ def print_platform():
          pass
 
 def print_python_ver():
+    print
     print "python:", sys.version.replace("\n", " "),
     print ', maxunicode: ' + str(sys.maxunicode),
-    print ', stdout.encoding: ' + str(sys.stdout.encoding),
+
+def print_locale():
+    cmdlist = ['locale']
+    try:
+        res = subprocess.Popen(cmdlist, stdin=open(os.devnull),
+                               stdout=subprocess.PIPE).communicate()[0]
+        print
+        print "locale: ", res.replace("\n", " ")
+    except EnvironmentError, le:
+        sys.stderr.write("Got exception invoking '%s': %s\n" % (cmdlist[0], le,))
+        pass
+
+def print_python_encoding_settings():
+    print
+    print 'stdout.encoding: ' + str(sys.stdout.encoding),
     print ', stdin.encoding: ' + str(sys.stdin.encoding),
     print ', filesystem.encoding: ' + str(sys.getfilesystemencoding()),
     print ', locale.getpreferredencoding: ' + str(locale.getpreferredencoding()),
@@ -78,6 +93,9 @@ def print_py_pkg_ver(pkgname):
 print_platform()
 
 print_python_ver()
+
+print_locale()
+print_python_encoding_settings()
 
 print_cmd_ver(['buildbot', '--version'])
 print_cmd_ver(['cl'])
