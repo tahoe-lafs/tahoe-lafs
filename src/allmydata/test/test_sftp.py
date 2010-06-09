@@ -49,11 +49,11 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             if isinstance(res, Failure):
                 res.trap(sftp.SFTPError)
                 self.failUnlessReallyEqual(res.value.code, expected_code,
-                                           "%s was supposed to raise SFTPError(%d), not SFTPError(%d): %s" %
+                                           "%s was supposed to raise SFTPError(%r), not SFTPError(%r): %s" %
                                            (which, expected_code, res.value.code, res))
             else:
                 print '@' + '@'.join(s)
-                self.fail("%s was supposed to raise SFTPError(%d), not get %r" %
+                self.fail("%s was supposed to raise SFTPError(%r), not get %r" %
                           (which, expected_code, res))
         d.addBoth(_done)
         return d
@@ -1294,3 +1294,42 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                                          self.handler.extendedRequest, "foo", "bar"))
 
         return d
+
+    def test_memory_leak(self):
+        d0 = self._set_up("memory_leak")
+
+        def _leaky(ign, i):
+            new_i = "new_%r" % (i,)
+            d = defer.succeed(None)
+            # Copied from test_openFile_write above:
+
+            # it should be possible to rename even before the open has completed
+            def _open_and_rename_race(ign):
+                slow_open = defer.Deferred()
+                reactor.callLater(1, slow_open.callback, None)
+                d2 = self.handler.openFile("new", sftp.FXF_WRITE | sftp.FXF_CREAT, {}, delay=slow_open)
+
+                # deliberate race between openFile and renameFile
+                d3 = self.handler.renameFile("new", new_i)
+                del d3
+                return d2
+            d.addCallback(_open_and_rename_race)
+            def _write_rename_race(wf):
+                d2 = wf.writeChunk(0, "abcd")
+                d2.addCallback(lambda ign: wf.close())
+                return d2
+            d.addCallback(_write_rename_race)
+            d.addCallback(lambda ign: self.root.get(unicode(new_i)))
+            d.addCallback(lambda node: download_to_data(node))
+            d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcd"))
+            d.addCallback(lambda ign:
+                          self.shouldFail(NoSuchChildError, "rename new while open", "new",
+                                          self.root.get, u"new"))
+            return d
+
+        for index in range(3):
+            d0.addCallback(_leaky, index)
+
+        d0.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
+        d0.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
+        return d0
