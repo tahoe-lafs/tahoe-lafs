@@ -74,13 +74,14 @@
 
     <h2>A note about firewalls</h2>
 
-    <p>If your node is behind a firewall or NAT device and want other
-    clients to connect to it then you'll need to <em>open a port</em>
-    in your firewall.  To do that you'll need to know which port tahoe
-    is listening on as, by default, it listens on an arbitrary port
-    number.  To tell tahoe to listen to a fixed port, open the
-    <code>~/.tahoe/tahoe.cfg</code> file in your favourite text editor
-    and changing the <code>tub.port</code> line to something like the
+    <p>If your node is behind a firewall or NAT device and you want other
+    clients to connect to it then you'll need to <em>open a port</em> in your
+    firewall.  To do that you'll need to know which port tahoe is listening on.
+    If you haven't already set a port number, tahoe picks a random port to
+    listen on and remembers this port number in the
+    <code>~/.tahoe/client.port</code> file.  To tell tahoe to listen to a fixed
+    port, open the <code>~/.tahoe/tahoe.cfg</code> file in your favourite text
+    editor and changing the <code>tub.port</code> line to something like the
     following:</p>
 
     <pre>tub.port = 8098</pre>
