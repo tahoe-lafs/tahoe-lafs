@@ -19,4 +19,5 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
             self.failIf("0.0.0.0" in addresses, addresses)
         d.addCallbacks(_check)
         return d
-    test_list_async.timeout=2
+    # David A.'s OpenSolaris box timed out on this test one time when it was at 2s.
+    test_list_async.timeout=4
