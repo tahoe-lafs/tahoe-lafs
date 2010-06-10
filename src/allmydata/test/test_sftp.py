@@ -669,12 +669,18 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         def _write_append(wf):
             d2 = wf.writeChunk(0, "0123456789")
             d2.addCallback(lambda ign: wf.writeChunk(8, "0123"))
+
+            d2.addCallback(lambda ign: wf.setAttrs({'size': 17}))
+            d2.addCallback(lambda ign: wf.getAttrs())
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['size'], 17))
+
+            d2.addCallback(lambda ign: wf.writeChunk(0, "z"))
             d2.addCallback(lambda ign: wf.close())
             return d2
         d.addCallback(_write_append)
         d.addCallback(lambda ign: self.root.get(u"newfile"))
         d.addCallback(lambda node: download_to_data(node))
-        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234567890123"))
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "01234567890123\x00\x00\x00z"))
 
         # test WRITE | TRUNC without CREAT, when the file already exists
         # This is invalid according to section 6.3 of the SFTP spec, but required for interoperability,
