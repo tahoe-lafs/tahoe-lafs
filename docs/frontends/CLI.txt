@@ -92,7 +92,7 @@ most often used by developers who have just modified the code and want to
 start using their changes.
 
 
-== Virtual Drive Manipulation ==
+== Filesystem Manipulation ==
 
 These commands let you exmaine a Tahoe filesystem, providing basic
 list/upload/download/delete/rename/mkdir functionality. They can be used as
@@ -110,9 +110,9 @@ local one.
 These commands also use a table of "aliases" to figure out which directory
 they ought to use a starting point. This is explained in more detail below.
 
-In Tahoe up to v1.6.0, passing non-ASCII characters to the CLI is not guaranteed
-to work, although it might work on your platform, especially if your platform
-uses UTF-8 encoding.
+As of Tahoe v1.7, passing non-ASCII characters to the CLI should work,
+except on Windows. The command-line arguments are assumed to use the
+character encoding specified by the current locale.
 
 === Starting Directories ===
 
@@ -170,19 +170,28 @@ The best way to get started with Tahoe is to create a node, start it, then
 use the following command to create a new directory and set it as your
 "tahoe:" alias:
 
- tahoe add-alias tahoe `tahoe mkdir`
+ tahoe create-alias tahoe
 
 After that you can use "tahoe ls tahoe:" and "tahoe cp local.txt tahoe:",
 and both will refer to the directory that you've just created.
 
 ==== SECURITY NOTE: For users of shared systems ====
 
-Remember that command-line arguments are visible to other users (through the
+Another way to achieve the same effect as the above "tahoe create-alias"
+command is:
+
+ tahoe add-alias tahoe `tahoe mkdir`
+
+However, command-line arguments are visible to other users (through the
 'ps' command, or the Windows Process Explorer tool), so if you are using a
 tahoe node on a shared host, your login neighbors will be able to see (and
 capture) any directory caps that you set up with the "tahoe add-alias"
-command. To avoid this, bypass add-alias and edit the NODEDIR/private/aliases
-file directly, by adding a line like this:
+command.
+
+The "tahoe create-alias" command avoids this problem by creating a new
+directory and putting the cap into your aliases file for you. Alternatively,
+you can edit the NODEDIR/private/aliases file directly, by adding a line like
+this:
 
  fun: URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
 
@@ -193,13 +202,11 @@ vulnerability becomes less significant: they can still see your filenames and
 other arguments you type there, but not the caps that Tahoe uses to permit
 access to your files and directories.
 
-The new "tahoe create-alias" command creates a new directory and puts the cap
-into your aliases file for you, thus avoiding this problem.
-
 
 === Command Syntax Summary ===
 
 tahoe add-alias alias cap
+tahoe create-alias alias
 tahoe list-aliases
 tahoe mkdir
 tahoe mkdir [alias:]path
@@ -410,7 +417,7 @@ tahoe backup --exclude-vcs ~ work:backups
   * .hgignore
   * _darcs
 
-== Virtual Drive Maintenance ==
+== Storage Grid Maintenance ==
 
 tahoe manifest tahoe:
 tahoe manifest --storage-index tahoe:
