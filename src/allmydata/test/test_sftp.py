@@ -333,6 +333,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "setAttrs size",
                                          self.handler.setAttrs, "small", {'size': 0}))
 
+        d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
+        d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
         return d
 
     def test_openFile_read(self):
@@ -513,6 +515,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             return d2
         d.addCallback(_read_short)
 
+        d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
+        d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
         return d
 
     def test_openFile_write(self):
@@ -640,6 +644,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
             d2.addCallback(lambda ign: wf.setAttrs({'size': 17}))
             d2.addCallback(lambda ign: wf.getAttrs())
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['size'], 17))
+            d2.addCallback(lambda ign: self.handler.getAttrs("newfile", followLinks=0))
             d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['size'], 17))
 
             d2.addCallback(lambda ign:
@@ -842,6 +848,29 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(_check_same_file)
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable new! contents"))
 
+        # ... and with a setAttrs call that diminishes the parent link to read-only
+        d.addCallback(lambda ign:
+                      self.handler.openFile("mutable", sftp.FXF_WRITE, {}))
+        def _write_mutable_setattr(wf):
+            d2 = wf.writeChunk(8, "read-only link from parent")
+
+            d2.addCallback(lambda ign: self.handler.setAttrs("mutable", {'permissions': 0444}))
+            d2.addCallback(lambda ign: self.handler.getAttrs("mutable", followLinks=0))
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0444))
+
+            d2.addCallback(lambda ign: wf.close())
+            return d2
+        d.addCallback(_write_mutable_setattr)
+        d.addCallback(lambda ign: self.root.get(u"mutable"))
+        def _check_readonly_file(node):
+            self.failUnless(node.is_mutable())
+            self.failUnless(node.is_readonly())
+            self.failUnlessReallyEqual(node.get_write_uri(), None)
+            self.failUnlessReallyEqual(node.get_storage_index(), self.mutable.get_storage_index())
+            return node.download_best_version()
+        d.addCallback(_check_readonly_file)
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable read-only link from parent"))
+
         # test READ | WRITE without CREAT or TRUNC
         d.addCallback(lambda ign:
                       self.handler.openFile("small", sftp.FXF_READ | sftp.FXF_WRITE, {}))
@@ -913,6 +942,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                       self.shouldFail(NoSuchChildError, "rename new while open", "new",
                                       self.root.get, u"new"))
 
+        d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
+        d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
         return d
 
     def test_removeFile(self):
@@ -998,6 +1029,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                       self.shouldFail(NoSuchChildError, "removeFile tempfile3", "tempfile3",
                                       self.root.get, u"tempfile3"))
 
+        d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
+        d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
         return d
 
     def test_removeDirectory(self):
@@ -1033,6 +1066,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                       self.shouldFail(NoSuchChildError, "removeDirectory unknown", "unknown",
                                       self.root.get, u"unknown"))
 
+        d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
+        d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
         return d
 
     def test_renameFile(self):
@@ -1099,6 +1134,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self.root.get(u"new_unknown"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.unknown_uri))
 
+        d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
+        d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
         return d
 
     def test_renameFile_posix(self):
@@ -1183,6 +1220,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self.root.get(u"new_unknown"))
         d.addCallback(lambda node: self.failUnlessReallyEqual(node.get_uri(), self.unknown_uri))
 
+        d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
+        d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
         return d
 
     def test_makeDirectory(self):
@@ -1234,6 +1273,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                                          self.handler.makeDirectory, "newdir2",
                                          {'permissions': 0444}))
 
+        d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
+        d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
         return d
 
     def test_execCommand_and_openShell(self):
@@ -1300,42 +1341,3 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                                          self.handler.extendedRequest, "foo", "bar"))
 
         return d
-
-    def test_memory_leak(self):
-        d0 = self._set_up("memory_leak")
-
-        def _leaky(ign, i):
-            new_i = "new_%r" % (i,)
-            d = defer.succeed(None)
-            # Copied from test_openFile_write above:
-
-            # it should be possible to rename even before the open has completed
-            def _open_and_rename_race(ign):
-                slow_open = defer.Deferred()
-                reactor.callLater(1, slow_open.callback, None)
-                d2 = self.handler.openFile("new", sftp.FXF_WRITE | sftp.FXF_CREAT, {}, delay=slow_open)
-
-                # deliberate race between openFile and renameFile
-                d3 = self.handler.renameFile("new", new_i)
-                del d3
-                return d2
-            d.addCallback(_open_and_rename_race)
-            def _write_rename_race(wf):
-                d2 = wf.writeChunk(0, "abcd")
-                d2.addCallback(lambda ign: wf.close())
-                return d2
-            d.addCallback(_write_rename_race)
-            d.addCallback(lambda ign: self.root.get(unicode(new_i)))
-            d.addCallback(lambda node: download_to_data(node))
-            d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcd"))
-            d.addCallback(lambda ign:
-                          self.shouldFail(NoSuchChildError, "rename new while open", "new",
-                                          self.root.get, u"new"))
-            return d
-
-        for index in range(3):
-            d0.addCallback(_leaky, index)
-
-        d0.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
-        d0.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
-        return d0

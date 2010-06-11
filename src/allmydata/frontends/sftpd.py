@@ -952,6 +952,8 @@ class GeneralSFTPFile(PrefixingLogMixin):
             now = time()
             self.metadata = update_metadata(self.metadata, _attrs_to_metadata(attrs), now)
             if size is not None:
+                # TODO: should we refuse to truncate a file opened with FXF_APPEND?
+                # <http://allmydata.org/trac/tahoe-lafs/ticket/1037#comment:20>
                 self.consumer.set_current_size(size)
             eventually_callback(d)(None)
             return None
@@ -1159,7 +1161,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         def _done(ign):
             if noisy:
                 self.log("done %r\nall_heisenfiles = %r\nself._heisenfiles = %r" % (request, all_heisenfiles, self._heisenfiles), level=OPERATIONAL)
-            else:
+            else:  # pragma: no cover
                 self.log("done %r" % (request,), level=OPERATIONAL)
             return len(from_files) > 0
         d.addBoth(_done)
