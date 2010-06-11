@@ -1786,6 +1786,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         if extensionName == 'posix-rename@openssh.com':
             def _bad(): raise SFTPError(FX_BAD_MESSAGE, "could not parse posix-rename@openssh.com request")
 
+            if 4 > len(extensionData): return defer.execute(_bad)
             (fromPathLen,) = struct.unpack('>L', extensionData[0:4])
             if 8 + fromPathLen > len(extensionData): return defer.execute(_bad)
 

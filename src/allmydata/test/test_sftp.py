@@ -169,6 +169,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             self.failUnlessReallyEqual(self.handler._path_from_string("/foo/bar"), [u"foo", u"bar"])
             self.failUnlessReallyEqual(self.handler._path_from_string("foo/bar//"), [u"foo", u"bar"])
             self.failUnlessReallyEqual(self.handler._path_from_string("/foo/bar//"), [u"foo", u"bar"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("foo/./bar"), [u"foo", u"bar"])
+            self.failUnlessReallyEqual(self.handler._path_from_string("./foo/./bar"), [u"foo", u"bar"])
             self.failUnlessReallyEqual(self.handler._path_from_string("foo/../bar"), [u"bar"])
             self.failUnlessReallyEqual(self.handler._path_from_string("/foo/../bar"), [u"bar"])
             self.failUnlessReallyEqual(self.handler._path_from_string("../bar"), [u"bar"])
@@ -188,6 +190,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             self.failUnlessReallyEqual(self.handler.realPath("/foo/bar"), "/foo/bar")
             self.failUnlessReallyEqual(self.handler.realPath("foo/bar//"), "/foo/bar")
             self.failUnlessReallyEqual(self.handler.realPath("/foo/bar//"), "/foo/bar")
+            self.failUnlessReallyEqual(self.handler.realPath("foo/./bar"), "/foo/bar")
+            self.failUnlessReallyEqual(self.handler.realPath("./foo/./bar"), "/foo/bar")
             self.failUnlessReallyEqual(self.handler.realPath("foo/../bar"), "/bar")
             self.failUnlessReallyEqual(self.handler.realPath("/foo/../bar"), "/bar")
             self.failUnlessReallyEqual(self.handler.realPath("../bar"), "/bar")
@@ -1323,7 +1327,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             d2.addCallback(lambda ign: self.failUnlessEqual(protocol.reason.value.exitCode, 1))
             d2.addCallback(lambda ign: session.closed())
             return d2
-        d.addCallback(_exec_error)
+        d.addCallback(_openShell)
 
         return d
 
@@ -1339,5 +1343,15 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_OP_UNSUPPORTED, "extendedRequest foo bar",
                                          self.handler.extendedRequest, "foo", "bar"))
+
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "extendedRequest posix-rename@openssh.com invalid 1",
+                                         self.handler.extendedRequest, 'posix-rename@openssh.com', ''))
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "extendedRequest posix-rename@openssh.com invalid 2",
+                                         self.handler.extendedRequest, 'posix-rename@openssh.com', '\x00\x00\x00\x01'))
+        d.addCallback(lambda ign:
+            self.shouldFailWithSFTPError(sftp.FX_BAD_MESSAGE, "extendedRequest posix-rename@openssh.com invalid 3",
+                                         self.handler.extendedRequest, 'posix-rename@openssh.com', '\x00\x00\x00\x01_\x00\x00\x00\x01'))
 
         return d
