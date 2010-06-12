@@ -73,6 +73,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         def _created_root(node):
             self.root = node
             self.root_uri = node.get_uri()
+            sftpd._reload()
             self.handler = sftpd.SFTPUserHandler(self.client, self.root, self.username)
         d.addCallback(_created_root)
         return d
@@ -828,6 +829,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda node: download_to_data(node))
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "abcde56789"))
 
+        d.addCallback(lambda ign: self.root.set_node(u"mutable2", self.mutable))
+
         # test writing to a mutable file
         d.addCallback(lambda ign:
                       self.handler.openFile("mutable", sftp.FXF_WRITE, {}))
@@ -839,6 +842,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign: self.root.get(u"mutable"))
         def _check_same_file(node):
             self.failUnless(node.is_mutable())
+            self.failIf(node.is_readonly())
             self.failUnlessReallyEqual(node.get_uri(), self.mutable_uri)
             return node.download_best_version()
         d.addCallback(_check_same_file)
@@ -852,13 +856,19 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(_check_same_file)
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable new! contents"))
 
-        # ... and with a setAttrs call that diminishes the parent link to read-only
+        # ... and with a setAttrs call that diminishes the parent link to read-only, first by path
         d.addCallback(lambda ign:
                       self.handler.openFile("mutable", sftp.FXF_WRITE, {}))
         def _write_mutable_setattr(wf):
             d2 = wf.writeChunk(8, "read-only link from parent")
 
             d2.addCallback(lambda ign: self.handler.setAttrs("mutable", {'permissions': 0444}))
+
+            d2.addCallback(lambda ign: self.root.get(u"mutable"))
+            d2.addCallback(lambda node: self.failUnless(node.is_readonly()))
+
+            d2.addCallback(lambda ign: wf.getAttrs())
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666))
             d2.addCallback(lambda ign: self.handler.getAttrs("mutable", followLinks=0))
             d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0444))
 
@@ -874,6 +884,30 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             return node.download_best_version()
         d.addCallback(_check_readonly_file)
         d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable read-only link from parent"))
+
+        # ... and then by handle
+        d.addCallback(lambda ign:
+                      self.handler.openFile("mutable2", sftp.FXF_WRITE, {}))
+        def _write_mutable2_setattr(wf):
+            d2 = wf.writeChunk(7, "2")
+
+            d2.addCallback(lambda ign: wf.setAttrs({'permissions': 0444, 'size': 8}))
+
+            # The link isn't made read-only until the file is closed.
+            d2.addCallback(lambda ign: self.root.get(u"mutable2"))
+            d2.addCallback(lambda node: self.failIf(node.is_readonly()))
+
+            d2.addCallback(lambda ign: wf.getAttrs())
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0444))
+            d2.addCallback(lambda ign: self.handler.getAttrs("mutable2", followLinks=0))
+            d2.addCallback(lambda attrs: self.failUnlessReallyEqual(attrs['permissions'], S_IFREG | 0666))
+
+            d2.addCallback(lambda ign: wf.close())
+            return d2
+        d.addCallback(_write_mutable2_setattr)
+        d.addCallback(lambda ign: self.root.get(u"mutable2"))
+        d.addCallback(_check_readonly_file)  # from above
+        d.addCallback(lambda data: self.failUnlessReallyEqual(data, "mutable2"))
 
         # test READ | WRITE without CREAT or TRUNC
         d.addCallback(lambda ign:

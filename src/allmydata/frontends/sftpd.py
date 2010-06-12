@@ -765,9 +765,6 @@ class GeneralSFTPFile(PrefixingLogMixin):
         d.addBoth(_done)
         return d
 
-    def get_metadata(self):
-        return self.metadata
-
     def readChunk(self, offset, length):
         request = ".readChunk(%r, %r)" % (offset, length)
         self.log(request, level=OPERATIONAL)
@@ -869,7 +866,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         def _close(ign):
             d2 = self.consumer.when_done()
             if self.filenode and self.filenode.is_mutable():
-                self.log("update mutable file %r childname=%r" % (self.filenode, childname), level=OPERATIONAL)
+                self.log("update mutable file %r childname=%r metadata=%r" % (self.filenode, childname, self.metadata), level=OPERATIONAL)
                 if self.metadata.get('no-write', False) and not self.filenode.is_readonly():
                     assert parent and childname, (parent, childname, self.metadata)
                     d2.addCallback(lambda ign: parent.set_metadata_for(childname, self.metadata))
@@ -946,7 +943,10 @@ class GeneralSFTPFile(PrefixingLogMixin):
         d = defer.Deferred()
         def _set(ign):
             if noisy: self.log("_set(%r) in %r" % (ign, request), level=NOISY)
-            if only_if_at and only_if_at != _direntry_for(self.parent, self.childname, self.filenode):
+            current_direntry = _direntry_for(self.parent, self.childname, self.filenode)
+            if only_if_at and only_if_at != current_direntry:
+                if noisy: self.log("not setting attributes: current_direntry=%r in %r" %
+                                   (current_direntry, request), level=NOISY)
                 return None
 
             now = time()
@@ -988,6 +988,9 @@ class Reason:
 
 all_heisenfiles = {}
 
+def _reload():
+    global all_heisenfiles
+    all_heisenfiles = {}
 
 class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     implements(ISFTPServer)
@@ -1510,17 +1513,17 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             # For the standard SSH_FXP_RENAME operation, overwrite=False.
             # We also support the posix-rename@openssh.com extension, which uses overwrite=True.
 
-            d2 = defer.fail(NoSuchChildError())
+            d2 = defer.succeed(None)
             if not overwrite:
                 d2.addCallback(lambda ign: to_parent.get(to_childname))
-            def _expect_fail(res):
-                if not isinstance(res, Failure):
-                    raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_userpath)
+                def _expect_fail(res):
+                    if not isinstance(res, Failure):
+                        raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_userpath)
 
-                # It is OK if we fail for errors other than NoSuchChildError, since that probably
-                # indicates some problem accessing the destination directory.
-                res.trap(NoSuchChildError)
-            d2.addBoth(_expect_fail)
+                    # It is OK if we fail for errors other than NoSuchChildError, since that probably
+                    # indicates some problem accessing the destination directory.
+                    res.trap(NoSuchChildError)
+                d2.addBoth(_expect_fail)
 
             # If there are heisenfiles to be written at the 'from' direntry, then ensure
             # they will now be written at the 'to' direntry instead.
