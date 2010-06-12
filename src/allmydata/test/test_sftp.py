@@ -6,6 +6,7 @@ from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
 from twisted.internet.error import ProcessDone, ProcessTerminated
+from allmydata.util import deferredutil
 
 conch_interfaces = None
 sftp = None
@@ -965,7 +966,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
             # deliberate race between openFile and renameFile
             d3 = self.handler.renameFile("new", "new2")
-            del d3
+            d3.addErrback(lambda err: self.fail("renameFile failed: %r" % (err,)))
             return d2
         d.addCallback(_open_and_rename_race)
         def _write_rename_race(wf):
@@ -1150,6 +1151,20 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "renameFile small unknown",
                                          self.handler.renameFile, "small", "unknown"))
+
+        # renaming a file onto a heisenfile should fail, even if the open hasn't completed
+        def _rename_onto_heisenfile_race(wf):
+            slow_open = defer.Deferred()
+            reactor.callLater(1, slow_open.callback, None)
+
+            d2 = self.handler.openFile("heisenfile", sftp.FXF_WRITE | sftp.FXF_CREAT, {}, delay=slow_open)
+
+            # deliberate race between openFile and renameFile
+            d3 = self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "renameFile small heisenfile",
+                                              self.handler.renameFile, "small", "heisenfile")
+            d2.addCallback(lambda wf: wf.close())
+            return deferredutil.gatherResults([d2, d3])
+        d.addCallback(_rename_onto_heisenfile_race)
 
         # renaming a file to a correct path should succeed
         d.addCallback(lambda ign: self.handler.renameFile("small", "new_small"))
