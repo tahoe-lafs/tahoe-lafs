@@ -1134,8 +1134,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         from_direntry = _direntry_for(from_parent, from_childname)
         to_direntry = _direntry_for(to_parent, to_childname)
 
-        if noisy: self.log("from_direntry = %r, to_direntry = %r in %r" %
-                           (from_direntry, to_direntry, request), level=NOISY)
+        if noisy: self.log("from_direntry = %r, to_direntry = %r, len(all_heisenfiles) = %r, len(self._heisenfiles) = %r in %r" %
+                           (from_direntry, to_direntry, len(all_heisenfiles), len(self._heisenfiles), request), level=NOISY)
 
         if not overwrite and (to_userpath in self._heisenfiles or to_direntry in all_heisenfiles):
             def _existing(): raise SFTPError(FX_PERMISSION_DENIED, "cannot rename to existing path " + to_userpath)
@@ -1162,10 +1162,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
             d.addBoth(f.sync)
 
         def _done(ign):
-            if noisy:
-                self.log("done %r\nall_heisenfiles = %r\nself._heisenfiles = %r" % (request, all_heisenfiles, self._heisenfiles), level=OPERATIONAL)
-            else:  # pragma: no cover
-                self.log("done %r" % (request,), level=OPERATIONAL)
+            if noisy: self.log("done: len(all_heisenfiles) = %r, len(self._heisenfiles) = %r in %r" %
+                               (len(all_heisenfiles), len(self._heisenfiles), request), level=NOISY)
             return len(from_files) > 0
         d.addBoth(_done)
         return d
