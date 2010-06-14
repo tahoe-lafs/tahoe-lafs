@@ -367,7 +367,7 @@ class DirectoryNode:
         return children
 
     def _pack_contents(self, children):
-        # expects children in the same format as _unpack_contents
+        # expects children in the same format as _unpack_contents returns
         return _pack_normalized_children(self._node, children)
 
     def is_readonly(self):
