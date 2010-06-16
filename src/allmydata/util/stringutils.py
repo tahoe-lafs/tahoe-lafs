@@ -10,15 +10,17 @@ import unicodedata
 from allmydata.util.assertutil import precondition
 from twisted.python import usage
 import locale
+from allmydata.util import log
 
 
 def _canonical_encoding(encoding):
     if encoding is None:
+        log.msg("Warning: falling back to UTF-8 encoding.", level=log.WEIRD)
         encoding = 'utf-8'
     encoding = encoding.lower()
     if encoding == "cp65001":
         encoding = 'utf-8'
-    elif encoding == "us-ascii" or encoding == "646":
+    elif encoding == "us-ascii" or encoding == "646" or encoding == "ansi_x3.4-1968":
         encoding = 'ascii'
 
     # sometimes Python returns an encoding name that it doesn't support for conversion
@@ -39,7 +41,15 @@ def _reload():
     global filesystem_encoding, output_encoding, argv_encoding, is_unicode_platform
 
     filesystem_encoding = _canonical_encoding(sys.getfilesystemencoding())
-    output_encoding = _canonical_encoding(sys.stdout.encoding or locale.getpreferredencoding())
+
+    outenc = sys.stdout.encoding
+    if outenc is None:
+        try:
+            outenc = locale.getpreferredencoding()
+        except Exception:
+            pass  # work around <http://bugs.python.org/issue1443504>
+    output_encoding = _canonical_encoding(outenc)
+
     if sys.platform == 'win32':
         # Unicode arguments are not supported on Windows yet; see #565 and #1074.
         argv_encoding = 'ascii'
@@ -126,7 +136,7 @@ def unicode_to_output(s):
                                  (output_encoding, repr(s)))
     return out
 
-def quote_output(s, quotemarks=True):
+def quote_output(s, quotemarks=True, encoding=None):
     """
     Encode either a Unicode string or a UTF-8-encoded bytestring for representation
     on stdout or stderr, tolerating errors. If 'quotemarks' is True, the string is
@@ -142,7 +152,7 @@ def quote_output(s, quotemarks=True):
             return 'b' + repr(s)
 
     try:
-        out = s.encode(output_encoding)
+        out = s.encode(encoding or output_encoding)
     except (UnicodeEncodeError, UnicodeDecodeError):
         return repr(s)
 
