@@ -319,6 +319,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 # this is really bytes received rather than sent, but it's
                 # convenient and basically measures the same thing
                 bytes_sent = results.ciphertext_fetched
+                self.failUnless(isinstance(bytes_sent, (int, long)), bytes_sent)
 
                 # We currently don't support resumption of upload if the data is
                 # encrypted with a random key.  (Because that would require us
@@ -329,16 +330,16 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                     # Make sure we did not have to read the whole file the
                     # second time around .
                     self.failUnless(bytes_sent < len(DATA),
-                                "resumption didn't save us any work:"
-                                " read %d bytes out of %d total" %
-                                (bytes_sent, len(DATA)))
+                                    "resumption didn't save us any work:"
+                                    " read %r bytes out of %r total" %
+                                    (bytes_sent, len(DATA)))
                 else:
                     # Make sure we did have to read the whole file the second
                     # time around -- because the one that we partially uploaded
                     # earlier was encrypted with a different random key.
                     self.failIf(bytes_sent < len(DATA),
                                 "resumption saved us some work even though we were using random keys:"
-                                " read %d bytes out of %d total" %
+                                " read %r bytes out of %r total" %
                                 (bytes_sent, len(DATA)))
                 n = self.clients[1].create_node_from_uri(cap)
                 return download_to_data(n)
