@@ -1,5 +1,5 @@
 
-import time, math
+import time, math, unicodedata
 
 from zope.interface import implements
 from twisted.internet import defer
@@ -16,6 +16,7 @@ from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log
+from allmydata.util.stringutils import quote_output
 from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
 from allmydata.util.consumer import download_to_data
@@ -75,15 +76,17 @@ def update_metadata(metadata, new_metadata, now):
 
     return metadata
 
+def normalize(namex):
+    return unicodedata.normalize('NFC', namex)
 
 # TODO: {Deleter,MetadataSetter,Adder}.modify all start by unpacking the
 # contents and end by repacking them. It might be better to apply them to
 # the unpacked contents.
 
 class Deleter:
-    def __init__(self, node, name, must_exist=True, must_be_directory=False, must_be_file=False):
+    def __init__(self, node, namex, must_exist=True, must_be_directory=False, must_be_file=False):
         self.node = node
-        self.name = name
+        self.name = normalize(namex)
         self.must_exist = must_exist
         self.must_be_directory = must_be_directory
         self.must_be_file = must_be_file
@@ -109,9 +112,9 @@ class Deleter:
 
 
 class MetadataSetter:
-    def __init__(self, node, name, metadata, create_readonly_node=None):
+    def __init__(self, node, namex, metadata, create_readonly_node=None):
         self.node = node
-        self.name = name
+        self.name = normalize(namex)
         self.metadata = metadata
         self.create_readonly_node = create_readonly_node
 
@@ -139,20 +142,20 @@ class Adder:
         if entries is None:
             entries = {}
         precondition(isinstance(entries, dict), entries)
+        # keys of 'entries' may not be normalized.
         self.entries = entries
         self.overwrite = overwrite
         self.create_readonly_node = create_readonly_node
 
-    def set_node(self, name, node, metadata):
-        precondition(isinstance(name, unicode), name)
+    def set_node(self, namex, node, metadata):
         precondition(IFilesystemNode.providedBy(node), node)
-        self.entries[name] = (node, metadata)
+        self.entries[namex] = (node, metadata)
 
     def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         now = time.time()
-        for (name, (child, new_metadata)) in self.entries.iteritems():
-            precondition(isinstance(name, unicode), name)
+        for (namex, (child, new_metadata)) in self.entries.iteritems():
+            name = normalize(namex)
             precondition(IFilesystemNode.providedBy(child), child)
 
             # Strictly speaking this is redundant because we would raise the
@@ -162,10 +165,10 @@ class Adder:
             metadata = None
             if name in children:
                 if not self.overwrite:
-                    raise ExistingChildError("child '%s' already exists" % name)
+                    raise ExistingChildError("child %s already exists" % quote_output(name, encoding='utf-8'))
 
                 if self.overwrite == "only-files" and IDirectoryNode.providedBy(children[name][0]):
-                    raise ExistingChildError("child '%s' already exists" % name)
+                    raise ExistingChildError("child %s already exists" % quote_output(name, encoding='utf-8'))
                 metadata = children[name][1].copy()
 
             metadata = update_metadata(metadata, new_metadata, now)
@@ -175,6 +178,7 @@ class Adder:
             children[name] = (child, metadata)
         new_contents = self.node._pack_contents(children)
         return new_contents
+
 
 def _encrypt_rw_uri(filenode, rw_uri):
     assert isinstance(rw_uri, str)
@@ -212,7 +216,8 @@ def pack_children(filenode, children, deep_immutable=False):
         (child, metadata) = children[name]
         child.raise_error()
         if deep_immutable and not child.is_allowed_in_immutable_directory():
-            raise MustBeDeepImmutableError("child '%s' is not allowed in an immutable directory" % (name,), name)
+            raise MustBeDeepImmutableError("child %s is not allowed in an immutable directory" %
+                                           quote_output(name, encoding='utf-8'), name)
         if has_aux:
             entry = children.get_aux(name)
         if not entry:
@@ -284,6 +289,7 @@ class DirectoryNode:
         return plaintext
 
     def _create_and_validate_node(self, rw_uri, ro_uri, name):
+        # name is just for error reporting
         node = self._nodemaker.create_from_cap(rw_uri, ro_uri,
                                                deep_immutable=not self.is_mutable(),
                                                name=name)
@@ -291,6 +297,7 @@ class DirectoryNode:
         return node
 
     def _create_readonly_node(self, node, name):
+        # name is just for error reporting
         if not node.is_unknown() and node.is_readonly():
             return node
         return self._create_and_validate_node(None, node.get_readonly_uri(), name=name)
@@ -299,7 +306,8 @@ class DirectoryNode:
         # the directory is serialized as a list of netstrings, one per child.
         # Each child is serialized as a list of four netstrings: (name, ro_uri,
         # rwcapdata, metadata), in which the name, ro_uri, metadata are in
-        # cleartext. The 'name' is UTF-8 encoded. The rwcapdata is formatted as:
+        # cleartext. The 'name' is UTF-8 encoded, and should be normalized to NFC.
+        # The rwcapdata is formatted as:
         # pack("16ss32s", iv, AES(H(writekey+iv), plaintext_rw_uri), mac)
         assert isinstance(data, str), (repr(data), type(data))
         # an empty directory is serialized as an empty string
@@ -312,10 +320,15 @@ class DirectoryNode:
         while position < len(data):
             entries, position = split_netstring(data, 1, position)
             entry = entries[0]
-            (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
+            (namex_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
             if not mutable and len(rwcapdata) > 0:
                 raise ValueError("the rwcapdata field of a dirnode in an immutable directory was not empty")
-            name = name_utf8.decode("utf-8")
+
+            # A name containing characters that are unassigned in one version of Unicode might
+            # not be normalized wrt a later version. Therefore we normalize names going both in
+            # and out of directories.
+            name = normalize(namex_utf8.decode("utf-8"))
+
             rw_uri = ""
             if writeable:
                 rw_uri = self._decrypt_rwcapdata(rwcapdata)
@@ -338,12 +351,12 @@ class DirectoryNode:
                     children[name] = (child, metadata)
                     children.set_with_aux(name, (child, metadata), auxilliary=entry)
                 else:
-                    log.msg(format="mutable cap for child '%(name)s' unpacked from an immutable directory",
-                                   name=name_utf8,
+                    log.msg(format="mutable cap for child %(name)s unpacked from an immutable directory",
+                                   name=quote_output(name, encoding='utf-8'),
                                    facility="tahoe.webish", level=log.UNUSUAL)
             except CapConstraintError, e:
-                log.msg(format="unmet constraint on cap for child '%(name)s' unpacked from a directory:\n"
-                               "%(message)s", message=e.args[0], name=name_utf8,
+                log.msg(format="unmet constraint on cap for child %(name)s unpacked from a directory:\n"
+                               "%(message)s", message=e.args[0], name=quote_output(name, encoding='utf-8'),
                                facility="tahoe.webish", level=log.UNUSUAL)
 
         return children
@@ -406,10 +419,10 @@ class DirectoryNode:
         name to a tuple of (IFilesystemNode, metadata)."""
         return self._read()
 
-    def has_child(self, name):
+    def has_child(self, namex):
         """I return a Deferred that fires with a boolean, True if there
         exists a child of the given name, False if not."""
-        assert isinstance(name, unicode)
+        name = normalize(namex)
         d = self._read()
         d.addCallback(lambda children: children.has_key(name))
         return d
@@ -426,31 +439,31 @@ class DirectoryNode:
             raise NoSuchChildError(name)
         return child
 
-    def get(self, name):
+    def get(self, namex):
         """I return a Deferred that fires with the named child node,
         which is an IFilesystemNode."""
-        assert isinstance(name, unicode)
+        name = normalize(namex)
         d = self._read()
         d.addCallback(self._get, name)
         return d
 
-    def get_child_and_metadata(self, name):
+    def get_child_and_metadata(self, namex):
         """I return a Deferred that fires with the (node, metadata) pair for
         the named child. The node is an IFilesystemNode, and the metadata
         is a dictionary."""
-        assert isinstance(name, unicode)
+        name = normalize(namex)
         d = self._read()
         d.addCallback(self._get_with_metadata, name)
         return d
 
-    def get_metadata_for(self, name):
-        assert isinstance(name, unicode)
+    def get_metadata_for(self, namex):
+        name = normalize(namex)
         d = self._read()
         d.addCallback(lambda children: children[name][1])
         return d
 
-    def set_metadata_for(self, name, metadata):
-        assert isinstance(name, unicode)
+    def set_metadata_for(self, namex, metadata):
+        name = normalize(namex)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
         assert isinstance(metadata, dict)
@@ -460,7 +473,7 @@ class DirectoryNode:
         d.addCallback(lambda res: self)
         return d
 
-    def get_child_at_path(self, path):
+    def get_child_at_path(self, pathx):
         """Transform a child path into an IFilesystemNode.
 
         I perform a recursive series of 'get' operations to find the named
@@ -470,42 +483,41 @@ class DirectoryNode:
         The path can be either a single string (slash-separated) or a list of
         path-name elements.
         """
-        d = self.get_child_and_metadata_at_path(path)
+        d = self.get_child_and_metadata_at_path(pathx)
         d.addCallback(lambda (node, metadata): node)
         return d
 
-    def get_child_and_metadata_at_path(self, path):
+    def get_child_and_metadata_at_path(self, pathx):
         """Transform a child path into an IFilesystemNode and
         a metadata dictionary from the last edge that was traversed.
         """
 
-        if not path:
+        if not pathx:
             return defer.succeed((self, {}))
-        if isinstance(path, (list, tuple)):
+        if isinstance(pathx, (list, tuple)):
             pass
         else:
-            path = path.split("/")
-        for p in path:
-            assert isinstance(p, unicode)
-        childname = path[0]
-        remaining_path = path[1:]
-        if remaining_path:
-            d = self.get(childname)
+            pathx = pathx.split("/")
+        for p in pathx:
+            assert isinstance(p, unicode), p
+        childnamex = pathx[0]
+        remaining_pathx = pathx[1:]
+        if remaining_pathx:
+            d = self.get(childnamex)
             d.addCallback(lambda node:
-                          node.get_child_and_metadata_at_path(remaining_path))
+                          node.get_child_and_metadata_at_path(remaining_pathx))
             return d
-        d = self.get_child_and_metadata(childname)
+        d = self.get_child_and_metadata(childnamex)
         return d
 
-    def set_uri(self, name, writecap, readcap, metadata=None, overwrite=True):
-        precondition(isinstance(name, unicode), name)
+    def set_uri(self, namex, writecap, readcap, metadata=None, overwrite=True):
         precondition(isinstance(writecap, (str,type(None))), writecap)
         precondition(isinstance(readcap, (str,type(None))), readcap)
 
         # We now allow packing unknown nodes, provided they are valid
         # for this type of directory.
-        child_node = self._create_and_validate_node(writecap, readcap, name)
-        d = self.set_node(name, child_node, metadata, overwrite)
+        child_node = self._create_and_validate_node(writecap, readcap, namex)
+        d = self.set_node(namex, child_node, metadata, overwrite)
         d.addCallback(lambda res: child_node)
         return d
 
@@ -513,8 +525,8 @@ class DirectoryNode:
         # this takes URIs
         a = Adder(self, overwrite=overwrite,
                   create_readonly_node=self._create_readonly_node)
-        for (name, e) in entries.iteritems():
-            assert isinstance(name, unicode)
+        for (namex, e) in entries.iteritems():
+            assert isinstance(namex, unicode), namex
             if len(e) == 2:
                 writecap, readcap = e
                 metadata = None
@@ -526,13 +538,13 @@ class DirectoryNode:
             
             # We now allow packing unknown nodes, provided they are valid
             # for this type of directory.
-            child_node = self._create_and_validate_node(writecap, readcap, name)
-            a.set_node(name, child_node, metadata)
+            child_node = self._create_and_validate_node(writecap, readcap, namex)
+            a.set_node(namex, child_node, metadata)
         d = self._node.modify(a.modify)
         d.addCallback(lambda ign: self)
         return d
 
-    def set_node(self, name, child, metadata=None, overwrite=True):
+    def set_node(self, namex, child, metadata=None, overwrite=True):
         """I add a child at the specific name. I return a Deferred that fires
         when the operation finishes. This Deferred will fire with the child
         node that was just added. I will replace any existing child of the
@@ -545,11 +557,10 @@ class DirectoryNode:
 
         if self.is_readonly():
             return defer.fail(NotWriteableError())
-        assert isinstance(name, unicode)
         assert IFilesystemNode.providedBy(child), child
         a = Adder(self, overwrite=overwrite,
                   create_readonly_node=self._create_readonly_node)
-        a.set_node(name, child, metadata)
+        a.set_node(namex, child, metadata)
         d = self._node.modify(a.modify)
         d.addCallback(lambda res: child)
         return d
@@ -565,12 +576,12 @@ class DirectoryNode:
         return d
 
 
-    def add_file(self, name, uploadable, metadata=None, overwrite=True):
+    def add_file(self, namex, uploadable, metadata=None, overwrite=True):
         """I upload a file (using the given IUploadable), then attach the
         resulting FileNode to the directory at the given name. I return a
         Deferred that fires (with the IFileNode of the uploaded file) when
         the operation completes."""
-        assert isinstance(name, unicode)
+        name = normalize(namex)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
         d = self._uploader.upload(uploadable)
@@ -580,21 +591,20 @@ class DirectoryNode:
                       self.set_node(name, node, metadata, overwrite))
         return d
 
-    def delete(self, name, must_exist=True, must_be_directory=False, must_be_file=False):
+    def delete(self, namex, must_exist=True, must_be_directory=False, must_be_file=False):
         """I remove the child at the specific name. I return a Deferred that
         fires (with the node just removed) when the operation finishes."""
-        assert isinstance(name, unicode)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
-        deleter = Deleter(self, name, must_exist=must_exist,
+        deleter = Deleter(self, namex, must_exist=must_exist,
                           must_be_directory=must_be_directory, must_be_file=must_be_file)
         d = self._node.modify(deleter.modify)
         d.addCallback(lambda res: deleter.old_child)
         return d
 
-    def create_subdirectory(self, name, initial_children={}, overwrite=True,
+    def create_subdirectory(self, namex, initial_children={}, overwrite=True,
                             mutable=True, metadata=None):
-        assert isinstance(name, unicode)
+        name = normalize(namex)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
         if mutable:
@@ -611,21 +621,22 @@ class DirectoryNode:
         d.addCallback(_created)
         return d
 
-    def move_child_to(self, current_child_name, new_parent,
-                      new_child_name=None, overwrite=True):
+    def move_child_to(self, current_child_namex, new_parent,
+                      new_child_namex=None, overwrite=True):
         """I take one of my children and move them to a new parent. The child
         is referenced by name. On the new parent, the child will live under
         'new_child_name', which defaults to 'current_child_name'. I return a
         Deferred that fires when the operation finishes."""
-        assert isinstance(current_child_name, unicode)
+
         if self.is_readonly() or new_parent.is_readonly():
             return defer.fail(NotWriteableError())
-        if new_child_name is None:
-            new_child_name = current_child_name
-        assert isinstance(new_child_name, unicode)
+
+        current_child_name = normalize(current_child_namex)
+        if new_child_namex is None:
+            new_child_namex = current_child_name
         d = self.get(current_child_name)
         def sn(child):
-            return new_parent.set_node(new_child_name, child,
+            return new_parent.set_node(new_child_namex, child,
                                        overwrite=overwrite)
         d.addCallback(sn)
         d.addCallback(lambda child: self.delete(current_child_name))
