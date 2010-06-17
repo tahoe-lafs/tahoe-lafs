@@ -6,7 +6,6 @@ unicode and back.
 import sys
 import os
 import re
-import unicodedata
 from allmydata.util.assertutil import precondition
 from twisted.python import usage
 import locale
