@@ -38,6 +38,12 @@ and IP addresses are used, when connections are timed out, etc. This
 configuration is independent of the services that the node is offering: the
 same controls are used for client and introducer nodes.
 
+If your node is behind a firewall or NAT device and you want other clients to
+connect to it, you'll need to open a port in the firewall or NAT, and specify
+that port number in the tub.port option. If behind a NAT, you *may* need to
+set the tub.location option described below.
+
+
 [node]
 
 nickname = (UTF-8 string, optional)

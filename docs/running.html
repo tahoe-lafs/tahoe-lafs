@@ -61,37 +61,9 @@
 
 
     <p>See <a href="configuration.txt">configuration.txt</a> for more
-    details about how to configure Tahoe-LAFS.</p>
+    details about how to configure Tahoe-LAFS, including how to get other
+    clients to connect to your node if it is behind a firewall or NAT device.
 
-
-    <h2>A note about firewalls</h2>
-
-    <p>If your node is behind a firewall or NAT device and you want other
-    clients to connect to it then you'll need to <em>open a port</em> in your
-    firewall.  To do that you'll need to know which port Tahoe-LAFS is listening on.
-    If you haven't already set a port number, it will pick a random port to
-    listen on and remember this port number in the
-    <code>~/.tahoe/client.port</code> file.  To tell Tahoe-LAFS to listen to a fixed
-    port, open the <code>~/.tahoe/tahoe.cfg</code> file in your favourite text
-    editor and changing the <code>tub.port</code> line to something like the
-    following:</p>
-
-    <pre>tub.port = 8098</pre>
-
-    <p>This tells Tahoe-LAFS to always listen on port 8098 of your
-    computer.  The next issue is that your computer may be behind a
-    NATing router and isn't directly connected to the internet but
-    goes through a router to get out.  If that's the case then you'll
-    need to set the <code>tub.location</code> option so that Tahoe-LAFS
-    tells the introducer where you're really listening:</p>
-
-    <pre>tub.location = myserver.mydomain.org:8098</pre>
-
-    <p>or probably more likely</p>
-
-    <pre>tub.location = 123.456.789.012:8098</pre>
-
-    <p>The <a href="configuration.txt">configuration.txt</a> file contains more details.</p>
 
     <h2>A note about small grids</h2>
 
