@@ -140,7 +140,7 @@ class BucketProxy(unittest.TestCase):
                               num_segments=5,
                               num_share_hashes=3,
                               uri_extension_size_max=500, nodeid=None)
-        self.failUnless(interfaces.IStorageBucketWriter.providedBy(bp))
+        self.failUnless(interfaces.IStorageBucketWriter.providedBy(bp), bp)
 
     def _do_test_readwrite(self, name, header_size, wbp_class, rbp_class):
         # Let's pretend each share has 100 bytes of data, and that there are
@@ -190,8 +190,8 @@ class BucketProxy(unittest.TestCase):
             rb = RemoteBucket()
             rb.target = br
             rbp = rbp_class(rb, peerid="abc", storage_index="")
-            self.failUnless("to peer" in repr(rbp))
-            self.failUnless(interfaces.IStorageBucketReader.providedBy(rbp))
+            self.failUnlessIn("to peer", repr(rbp))
+            self.failUnless(interfaces.IStorageBucketReader.providedBy(rbp), rbp)
 
             d1 = rbp.get_block_data(0, 25, 25)
             d1.addCallback(lambda res: self.failUnlessEqual(res, "a"*25))
@@ -317,9 +317,9 @@ class Server(unittest.TestCase):
         incoming_bucket_dir = os.path.dirname(incoming_share_dir)
         incoming_prefix_dir = os.path.dirname(incoming_bucket_dir)
         incoming_dir = os.path.dirname(incoming_prefix_dir)
-        self.failIf(os.path.exists(incoming_bucket_dir))
-        self.failIf(os.path.exists(incoming_prefix_dir))
-        self.failUnless(os.path.exists(incoming_dir))
+        self.failIf(os.path.exists(incoming_bucket_dir), incoming_bucket_dir)
+        self.failIf(os.path.exists(incoming_prefix_dir), incoming_prefix_dir)
+        self.failUnless(os.path.exists(incoming_dir), incoming_dir)
 
     def test_allocate(self):
         ss = self.create("test_allocate")
@@ -345,8 +345,8 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(set(b.keys()), set([0,1,2]))
         self.failUnlessEqual(b[0].remote_read(0, 25), "%25d" % 0)
         b_str = str(b[0])
-        self.failUnless("BucketReader" in b_str, b_str)
-        self.failUnless("mfwgy33dmf2g 0" in b_str, b_str)
+        self.failUnlessIn("BucketReader", b_str)
+        self.failUnlessIn("mfwgy33dmf2g 0", b_str)
 
         # now if we ask about writing again, the server should offer those
         # three buckets as already present. It should offer them even if we
@@ -390,7 +390,7 @@ class Server(unittest.TestCase):
 
         e = self.failUnlessRaises(UnknownImmutableContainerVersionError,
                                   ss.remote_get_buckets, "si1")
-        self.failUnless(" had version 0 but we wanted 1" in str(e), e)
+        self.failUnlessIn(" had version 0 but we wanted 1", str(e))
 
     def test_disconnect(self):
         # simulate a disconnection
@@ -678,14 +678,14 @@ class Server(unittest.TestCase):
         reports = os.listdir(reportdir)
         self.failUnlessEqual(len(reports), 1)
         report_si0 = reports[0]
-        self.failUnless(si0_s in report_si0, report_si0)
+        self.failUnlessIn(si0_s, report_si0)
         f = open(os.path.join(reportdir, report_si0), "r")
         report = f.read()
         f.close()
-        self.failUnless("type: immutable" in report)
-        self.failUnless(("storage_index: %s" % si0_s) in report)
-        self.failUnless("share_number: 0" in report)
-        self.failUnless("This share smells funny." in report)
+        self.failUnlessIn("type: immutable", report)
+        self.failUnlessIn("storage_index: %s" % si0_s, report)
+        self.failUnlessIn("share_number: 0", report)
+        self.failUnlessIn("This share smells funny.", report)
 
         # test the RIBucketWriter version too
         si1_s = base32.b2a("si1")
@@ -705,10 +705,10 @@ class Server(unittest.TestCase):
         f = open(os.path.join(reportdir, report_si1), "r")
         report = f.read()
         f.close()
-        self.failUnless("type: immutable" in report)
-        self.failUnless(("storage_index: %s" % si1_s) in report)
-        self.failUnless("share_number: 1" in report)
-        self.failUnless("This share tastes like dust." in report)
+        self.failUnlessIn("type: immutable", report)
+        self.failUnlessIn("storage_index: %s" % si1_s, report)
+        self.failUnlessIn("share_number: 1", report)
+        self.failUnlessIn("This share tastes like dust.", report)
 
 
 
@@ -770,8 +770,8 @@ class MutableServer(unittest.TestCase):
         read = ss.remote_slot_readv
         e = self.failUnlessRaises(UnknownMutableContainerVersionError,
                                   read, "si1", [0], [(0,10)])
-        self.failUnless(" had magic " in str(e), e)
-        self.failUnless(" but we wanted " in str(e), e)
+        self.failUnlessIn(" had magic ", str(e))
+        self.failUnlessIn(" but we wanted ", str(e))
 
     def test_container_size(self):
         ss = self.create("test_container_size")
@@ -846,7 +846,7 @@ class MutableServer(unittest.TestCase):
         f = self.failUnlessRaises(BadWriteEnablerError,
                                   write, "si1", bad_secrets,
                                   {}, [])
-        self.failUnless("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'." in f, f)
+        self.failUnlessIn("The write enabler was recorded by nodeid 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'.", f)
 
         # this testv should fail
         answer = write("si1", secrets,
@@ -1184,9 +1184,9 @@ class MutableServer(unittest.TestCase):
                                   ss.remote_renew_lease, "si1",
                                   secrets(20)[1])
         e_s = str(e)
-        self.failUnless("Unable to renew non-existent lease" in e_s)
-        self.failUnless("I have leases accepted by nodeids:" in e_s)
-        self.failUnless("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' ." in e_s)
+        self.failUnlessIn("Unable to renew non-existent lease", e_s)
+        self.failUnlessIn("I have leases accepted by nodeids:", e_s)
+        self.failUnlessIn("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' .", e_s)
 
         # same for cancelling
         self.failUnlessRaises(IndexError,
@@ -1277,8 +1277,8 @@ class MutableServer(unittest.TestCase):
         prefix = si[:2]
         prefixdir = os.path.join(self.workdir("test_remove"), "shares", prefix)
         bucketdir = os.path.join(prefixdir, si)
-        self.failUnless(os.path.exists(prefixdir))
-        self.failIf(os.path.exists(bucketdir))
+        self.failUnless(os.path.exists(prefixdir), prefixdir)
+        self.failIf(os.path.exists(bucketdir), bucketdir)
 
 class Stats(unittest.TestCase):
 
@@ -1313,44 +1313,44 @@ class Stats(unittest.TestCase):
         self.failUnlessEqual(sorted(output.keys()),
                              sorted(["allocate", "renew", "cancel", "get"]))
         self.failUnlessEqual(len(ss.latencies["allocate"]), 1000)
-        self.failUnless(abs(output["allocate"]["mean"] - 9500) < 1)
-        self.failUnless(abs(output["allocate"]["01_0_percentile"] - 9010) < 1)
-        self.failUnless(abs(output["allocate"]["10_0_percentile"] - 9100) < 1)
-        self.failUnless(abs(output["allocate"]["50_0_percentile"] - 9500) < 1)
-        self.failUnless(abs(output["allocate"]["90_0_percentile"] - 9900) < 1)
-        self.failUnless(abs(output["allocate"]["95_0_percentile"] - 9950) < 1)
-        self.failUnless(abs(output["allocate"]["99_0_percentile"] - 9990) < 1)
-        self.failUnless(abs(output["allocate"]["99_9_percentile"] - 9999) < 1)
+        self.failUnless(abs(output["allocate"]["mean"] - 9500) < 1, output)
+        self.failUnless(abs(output["allocate"]["01_0_percentile"] - 9010) < 1, output)
+        self.failUnless(abs(output["allocate"]["10_0_percentile"] - 9100) < 1, output)
+        self.failUnless(abs(output["allocate"]["50_0_percentile"] - 9500) < 1, output)
+        self.failUnless(abs(output["allocate"]["90_0_percentile"] - 9900) < 1, output)
+        self.failUnless(abs(output["allocate"]["95_0_percentile"] - 9950) < 1, output)
+        self.failUnless(abs(output["allocate"]["99_0_percentile"] - 9990) < 1, output)
+        self.failUnless(abs(output["allocate"]["99_9_percentile"] - 9999) < 1, output)
 
         self.failUnlessEqual(len(ss.latencies["renew"]), 1000)
-        self.failUnless(abs(output["renew"]["mean"] - 500) < 1)
-        self.failUnless(abs(output["renew"]["01_0_percentile"] -  10) < 1)
-        self.failUnless(abs(output["renew"]["10_0_percentile"] - 100) < 1)
-        self.failUnless(abs(output["renew"]["50_0_percentile"] - 500) < 1)
-        self.failUnless(abs(output["renew"]["90_0_percentile"] - 900) < 1)
-        self.failUnless(abs(output["renew"]["95_0_percentile"] - 950) < 1)
-        self.failUnless(abs(output["renew"]["99_0_percentile"] - 990) < 1)
-        self.failUnless(abs(output["renew"]["99_9_percentile"] - 999) < 1)
+        self.failUnless(abs(output["renew"]["mean"] - 500) < 1, output)
+        self.failUnless(abs(output["renew"]["01_0_percentile"] -  10) < 1, output)
+        self.failUnless(abs(output["renew"]["10_0_percentile"] - 100) < 1, output)
+        self.failUnless(abs(output["renew"]["50_0_percentile"] - 500) < 1, output)
+        self.failUnless(abs(output["renew"]["90_0_percentile"] - 900) < 1, output)
+        self.failUnless(abs(output["renew"]["95_0_percentile"] - 950) < 1, output)
+        self.failUnless(abs(output["renew"]["99_0_percentile"] - 990) < 1, output)
+        self.failUnless(abs(output["renew"]["99_9_percentile"] - 999) < 1, output)
 
         self.failUnlessEqual(len(ss.latencies["cancel"]), 10)
-        self.failUnless(abs(output["cancel"]["mean"] - 9) < 1)
-        self.failUnless(abs(output["cancel"]["01_0_percentile"] -  0) < 1)
-        self.failUnless(abs(output["cancel"]["10_0_percentile"] -  2) < 1)
-        self.failUnless(abs(output["cancel"]["50_0_percentile"] - 10) < 1)
-        self.failUnless(abs(output["cancel"]["90_0_percentile"] - 18) < 1)
-        self.failUnless(abs(output["cancel"]["95_0_percentile"] - 18) < 1)
-        self.failUnless(abs(output["cancel"]["99_0_percentile"] - 18) < 1)
-        self.failUnless(abs(output["cancel"]["99_9_percentile"] - 18) < 1)
+        self.failUnless(abs(output["cancel"]["mean"] - 9) < 1, output)
+        self.failUnless(abs(output["cancel"]["01_0_percentile"] -  0) < 1, output)
+        self.failUnless(abs(output["cancel"]["10_0_percentile"] -  2) < 1, output)
+        self.failUnless(abs(output["cancel"]["50_0_percentile"] - 10) < 1, output)
+        self.failUnless(abs(output["cancel"]["90_0_percentile"] - 18) < 1, output)
+        self.failUnless(abs(output["cancel"]["95_0_percentile"] - 18) < 1, output)
+        self.failUnless(abs(output["cancel"]["99_0_percentile"] - 18) < 1, output)
+        self.failUnless(abs(output["cancel"]["99_9_percentile"] - 18) < 1, output)
 
         self.failUnlessEqual(len(ss.latencies["get"]), 1)
-        self.failUnless(abs(output["get"]["mean"] - 5) < 1)
-        self.failUnless(abs(output["get"]["01_0_percentile"] - 5) < 1)
-        self.failUnless(abs(output["get"]["10_0_percentile"] - 5) < 1)
-        self.failUnless(abs(output["get"]["50_0_percentile"] - 5) < 1)
-        self.failUnless(abs(output["get"]["90_0_percentile"] - 5) < 1)
-        self.failUnless(abs(output["get"]["95_0_percentile"] - 5) < 1)
-        self.failUnless(abs(output["get"]["99_0_percentile"] - 5) < 1)
-        self.failUnless(abs(output["get"]["99_9_percentile"] - 5) < 1)
+        self.failUnless(abs(output["get"]["mean"] - 5) < 1, output)
+        self.failUnless(abs(output["get"]["01_0_percentile"] - 5) < 1, output)
+        self.failUnless(abs(output["get"]["10_0_percentile"] - 5) < 1, output)
+        self.failUnless(abs(output["get"]["50_0_percentile"] - 5) < 1, output)
+        self.failUnless(abs(output["get"]["90_0_percentile"] - 5) < 1, output)
+        self.failUnless(abs(output["get"]["95_0_percentile"] - 5) < 1, output)
+        self.failUnless(abs(output["get"]["99_0_percentile"] - 5) < 1, output)
+        self.failUnless(abs(output["get"]["99_9_percentile"] - 5) < 1, output)
 
 def remove_tags(s):
     s = re.sub(r'<[^>]*>', ' ', s)
@@ -1394,12 +1394,12 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
 
         # this sample is before the crawler has started doing anything
         html = w.renderSynchronously()
-        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnless("Accepting new shares: Yes" in s, s)
-        self.failUnless("Reserved space: - 0 B (0)" in s, s)
-        self.failUnless("Total buckets: Not computed yet" in s, s)
-        self.failUnless("Next crawl in" in s, s)
+        self.failUnlessIn("Accepting new shares: Yes", s)
+        self.failUnlessIn("Reserved space: - 0 B (0)", s)
+        self.failUnlessIn("Total buckets: Not computed yet", s)
+        self.failUnlessIn("Next crawl in", s)
 
         # give the bucket-counting-crawler one tick to get started. The
         # cpu_slice=0 will force it to yield right after it processes the
@@ -1414,8 +1414,8 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             ss.bucket_counter.cpu_slice = 100.0 # finish as fast as possible
             html = w.renderSynchronously()
             s = remove_tags(html)
-            self.failUnless(" Current crawl " in s, s)
-            self.failUnless(" (next work in " in s, s)
+            self.failUnlessIn(" Current crawl ", s)
+            self.failUnlessIn(" (next work in ", s)
         d.addCallback(_check)
 
         # now give it enough time to complete a full cycle
@@ -1426,8 +1426,8 @@ class BucketCounter(unittest.TestCase, pollmixin.PollMixin):
             ss.bucket_counter.cpu_slice = orig_cpu_slice
             html = w.renderSynchronously()
             s = remove_tags(html)
-            self.failUnless("Total buckets: 0 (the number of" in s, s)
-            self.failUnless("Next crawl in 59 minutes" in s, s)
+            self.failUnlessIn("Total buckets: 0 (the number of", s)
+            self.failUnlessIn("Next crawl in 59 minutes", s)
         d.addCallback(_check2)
         return d
 
@@ -1617,10 +1617,10 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # this is before the crawl has started, so we're not in a cycle yet
         initial_state = lc.get_state()
         self.failIf(lc.get_progress()["cycle-in-progress"])
-        self.failIf("cycle-to-date" in initial_state)
-        self.failIf("estimated-remaining-cycle" in initial_state)
-        self.failIf("estimated-current-cycle" in initial_state)
-        self.failUnless("history" in initial_state)
+        self.failIfIn("cycle-to-date", initial_state)
+        self.failIfIn("estimated-remaining-cycle", initial_state)
+        self.failIfIn("estimated-current-cycle", initial_state)
+        self.failUnlessIn("history", initial_state)
         self.failUnlessEqual(initial_state["history"], {})
 
         ss.setServiceParent(self.s)
@@ -1633,16 +1633,16 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # processed.
         def _after_first_bucket(ignored):
             initial_state = lc.get_state()
-            self.failUnless("cycle-to-date" in initial_state)
-            self.failUnless("estimated-remaining-cycle" in initial_state)
-            self.failUnless("estimated-current-cycle" in initial_state)
-            self.failUnless("history" in initial_state)
+            self.failUnlessIn("cycle-to-date", initial_state)
+            self.failUnlessIn("estimated-remaining-cycle", initial_state)
+            self.failUnlessIn("estimated-current-cycle", initial_state)
+            self.failUnlessIn("history", initial_state)
             self.failUnlessEqual(initial_state["history"], {})
 
             so_far = initial_state["cycle-to-date"]
             self.failUnlessEqual(so_far["expiration-enabled"], False)
-            self.failUnless("configured-expiration-mode" in so_far)
-            self.failUnless("lease-age-histogram" in so_far)
+            self.failUnlessIn("configured-expiration-mode", so_far)
+            self.failUnlessIn("lease-age-histogram", so_far)
             lah = so_far["lease-age-histogram"]
             self.failUnlessEqual(type(lah), list)
             self.failUnlessEqual(len(lah), 1)
@@ -1699,12 +1699,12 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failIf("estimated-remaining-cycle" in s)
             self.failIf("estimated-current-cycle" in s)
             last = s["history"][0]
-            self.failUnless("cycle-start-finish-times" in last)
+            self.failUnlessIn("cycle-start-finish-times", last)
             self.failUnlessEqual(type(last["cycle-start-finish-times"]), tuple)
             self.failUnlessEqual(last["expiration-enabled"], False)
-            self.failUnless("configured-expiration-mode" in last)
+            self.failUnlessIn("configured-expiration-mode", last)
 
-            self.failUnless("lease-age-histogram" in last)
+            self.failUnlessIn("lease-age-histogram", last)
             lah = last["lease-age-histogram"]
             self.failUnlessEqual(type(lah), list)
             self.failUnlessEqual(len(lah), 1)
@@ -1750,8 +1750,8 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(lambda ign: self.render_json(webstatus))
         def _check_json(json):
             data = simplejson.loads(json)
-            self.failUnless("lease-checker" in data)
-            self.failUnless("lease-checker-progress" in data)
+            self.failUnlessIn("lease-checker", data)
+            self.failUnlessIn("lease-checker-progress", data)
         d.addCallback(_check_json)
         return d
 
@@ -1833,7 +1833,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # examine the state right after the first bucket has been processed
         def _after_first_bucket(ignored):
             p = lc.get_progress()
-            self.failUnless(p["cycle-in-progress"])
+            self.failUnless(p["cycle-in-progress"], p)
         d.addCallback(_after_first_bucket)
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html_in_cycle(html):
@@ -1974,7 +1974,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # examine the state right after the first bucket has been processed
         def _after_first_bucket(ignored):
             p = lc.get_progress()
-            self.failUnless(p["cycle-in-progress"])
+            self.failUnless(p["cycle-in-progress"], p)
         d.addCallback(_after_first_bucket)
         d.addCallback(lambda ign: self.render1(webstatus))
         def _check_html_in_cycle(html):
@@ -2169,7 +2169,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         e = self.failUnlessRaises(ValueError,
                                   StorageServer, basedir, "\x00" * 20,
                                   expiration_mode="bogus")
-        self.failUnless("GC mode 'bogus' must be 'age' or 'cutoff-date'" in str(e), str(e))
+        self.failUnlessIn("GC mode 'bogus' must be 'age' or 'cutoff-date'", str(e))
 
     def test_parse_duration(self):
         DAY = 24*60*60
@@ -2183,12 +2183,11 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         self.failUnlessEqual(p("3 month"), 3*MONTH)
         self.failUnlessEqual(p("2years"), 2*YEAR)
         e = self.failUnlessRaises(ValueError, p, "2kumquats")
-        self.failUnless("no unit (like day, month, or year) in '2kumquats'"
-                        in str(e), str(e))
+        self.failUnlessIn("no unit (like day, month, or year) in '2kumquats'", str(e))
 
     def test_parse_date(self):
         p = time_format.parse_date
-        self.failUnless(isinstance(p("2009-03-18"), int))
+        self.failUnless(isinstance(p("2009-03-18"), int), p("2009-03-18"))
         self.failUnlessEqual(p("2009-03-18"), 1237334400)
 
     def test_limited_history(self):
@@ -2247,9 +2246,9 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             # have to interrupt it even earlier, before it's finished the
             # first bucket).
             s = lc.get_state()
-            self.failUnless("cycle-to-date" in s)
-            self.failUnless("estimated-remaining-cycle" in s)
-            self.failUnless("estimated-current-cycle" in s)
+            self.failUnlessIn("cycle-to-date", s)
+            self.failUnlessIn("estimated-remaining-cycle", s)
+            self.failUnlessIn("estimated-current-cycle", s)
 
             left = s["estimated-remaining-cycle"]["space-recovered"]
             self.failUnlessEqual(left["actual-buckets"], None)
@@ -2440,7 +2439,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
     def test_no_server(self):
         w = StorageStatus(None)
         html = w.renderSynchronously()
-        self.failUnless("<h1>No Storage Server Running</h1>" in html, html)
+        self.failUnlessIn("<h1>No Storage Server Running</h1>", html)
 
     def test_status(self):
         basedir = "storage/WebStatus/status"
@@ -2450,10 +2449,10 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         w = StorageStatus(ss)
         d = self.render1(w)
         def _check_html(html):
-            self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+            self.failUnlessIn("<h1>Storage Server Status</h1>", html)
             s = remove_tags(html)
-            self.failUnless("Accepting new shares: Yes" in s, s)
-            self.failUnless("Reserved space: - 0 B (0)" in s, s)
+            self.failUnlessIn("Accepting new shares: Yes", s)
+            self.failUnlessIn("Reserved space: - 0 B (0)", s)
         d.addCallback(_check_html)
         d.addCallback(lambda ign: self.render_json(w))
         def _check_json(json):
@@ -2461,8 +2460,8 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             s = data["stats"]
             self.failUnlessEqual(s["storage_server.accepting_immutable_shares"], 1)
             self.failUnlessEqual(s["storage_server.reserved_space"], 0)
-            self.failUnless("bucket-counter" in data)
-            self.failUnless("lease-checker" in data)
+            self.failUnlessIn("bucket-counter", data)
+            self.failUnlessIn("lease-checker", data)
         d.addCallback(_check_json)
         return d
 
@@ -2479,11 +2478,11 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
-        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnless("Accepting new shares: Yes" in s, s)
-        self.failUnless("Total disk space: ?" in s, s)
-        self.failUnless("Space Available to Tahoe: ?" in s, s)
+        self.failUnlessIn("Accepting new shares: Yes", s)
+        self.failUnlessIn("Total disk space: ?", s)
+        self.failUnlessIn("Space Available to Tahoe: ?", s)
         self.failUnless(ss.get_available_space() is None)
 
     def test_status_bad_disk_stats(self):
@@ -2495,12 +2494,12 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
-        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnless("Accepting new shares: No" in s, s)
-        self.failUnless("Total disk space: ?" in s, s)
-        self.failUnless("Space Available to Tahoe: ?" in s, s)
-        self.failUnless(ss.get_available_space() == 0)
+        self.failUnlessIn("Accepting new shares: No", s)
+        self.failUnlessIn("Total disk space: ?", s)
+        self.failUnlessIn("Space Available to Tahoe: ?", s)
+        self.failUnlessEqual(ss.get_available_space(), 0)
 
     def test_readonly(self):
         basedir = "storage/WebStatus/readonly"
@@ -2509,9 +2508,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
-        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnless("Accepting new shares: No" in s, s)
+        self.failUnlessIn("Accepting new shares: No", s)
 
     def test_reserved(self):
         basedir = "storage/WebStatus/reserved"
@@ -2520,9 +2519,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
-        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnless("Reserved space: - 10.00 MB (10000000)" in s, s)
+        self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
 
     def test_huge_reserved(self):
         basedir = "storage/WebStatus/reserved"
@@ -2531,9 +2530,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
-        self.failUnless("<h1>Storage Server Status</h1>" in html, html)
+        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
-        self.failUnless("Reserved space: - 10.00 MB (10000000)" in s, s)
+        self.failUnlessIn("Reserved space: - 10.00 MB (10000000)", s)
 
     def test_util(self):
         w = StorageStatus(None)
