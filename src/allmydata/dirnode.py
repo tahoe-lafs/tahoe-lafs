@@ -76,6 +76,10 @@ def update_metadata(metadata, new_metadata, now):
 
     return metadata
 
+
+# 'x' at the end of a variable name indicates that it holds a Unicode string that may not
+# be NFC-normalized.
+
 def normalize(namex):
     return unicodedata.normalize('NFC', namex)
 
@@ -325,8 +329,9 @@ class DirectoryNode:
                 raise ValueError("the rwcapdata field of a dirnode in an immutable directory was not empty")
 
             # A name containing characters that are unassigned in one version of Unicode might
-            # not be normalized wrt a later version. Therefore we normalize names going both in
-            # and out of directories.
+            # not be normalized wrt a later version. See the note in section 'Normalization Stability'
+            # at <http://unicode.org/policies/stability_policy.html>.
+            # Therefore we normalize names going both in and out of directories.
             name = normalize(namex_utf8.decode("utf-8"))
 
             rw_uri = ""
