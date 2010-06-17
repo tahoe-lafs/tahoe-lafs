@@ -173,8 +173,8 @@ class BackerUpper:
             children = []
 
         for child in self.options.filter_listdir(children):
+            assert isinstance(child, unicode), child
             childpath = os.path.join(localpath, child)
-            child = unicode(child)
             # note: symlinks to directories are both islink() and isdir()
             if os.path.isdir(childpath) and not os.path.islink(childpath):
                 metadata = get_local_metadata(childpath)

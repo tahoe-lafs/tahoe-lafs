@@ -295,14 +295,14 @@ class BackupOptions(VDriveOptions):
     def opt_exclude(self, pattern):
         """Ignore files matching a glob pattern. You may give multiple
         '--exclude' options."""
-        g = pattern.strip()
+        g = argv_to_unicode(pattern).strip()
         if g:
             exclude = self['exclude']
             exclude.add(g)
 
     def opt_exclude_from(self, filepath):
         """Ignore file matching glob patterns listed in file, one per
-        line."""
+        line. The file is assumed to be in the argv encoding."""
         try:
             exclude_file = file(filepath)
         except:
