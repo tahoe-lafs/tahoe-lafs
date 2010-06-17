@@ -9,7 +9,7 @@
   </head>
 
   <body>
-    <h1>How To Start Tahoe-LAFS</h1>
+    <h1>How To Run Tahoe-LAFS</h1>
 
     <p>This is how to run a Tahoe-LAFS client or a complete Tahoe-LAFS grid. First you
     have to install the Tahoe-LAFS software, as documented in <a
@@ -65,7 +65,7 @@
     clients to connect to your node if it is behind a firewall or NAT device.
 
 
-    <h2>A note about small grids</h2>
+    <h3>A note about small grids</h3>
 
     <p>By default, Tahoe-LAFS ships with the configuration parameter
     <code>shares.happy</code> set to 7. If you are using Tahoe-LAFS on a
@@ -75,11 +75,65 @@
     <code>shares.happy</code> to a more suitable value for your
     grid.</p>
 
+
     <h2>Do Stuff With It</h2>
 
-    <p>Now you have a decentralized filesystem.  See <a
-    href="using.html">using.html</a> for instructions about how to interact
-    with it.</p>
+    <p>This is how to use your Tahoe node.</p>
+
+    <h3>The WUI</h3>
+
+    <p>Point your web browser to <a
+    href="http://127.0.0.1:3456">http://127.0.0.1:3456</a> &mdash; which is the URL
+    of the gateway running on your own local computer &mdash; to use your newly
+    created node.</p>
+
+    <p>Create a new directory (with the button labelled "create a directory").
+    Your web browser will load the new directory.  Now if you want to be able
+    to come back to this directory later, you have to bookmark it, or otherwise
+    save a copy of the URL.  If you lose URL to this directory, then you can never
+    again come back to this directory.</p>
+
+    <p>You can do more or less everything you want to do with a decentralized
+    filesystem through the WUI.</p>
+
+    <h3>The CLI</h3>
+
+    <p>Prefer the command-line? Run "<code>tahoe --help</code>" (the same
+    command-line tool that is used to start and stop nodes serves to navigate
+    and use the decentralized filesystem). To get started, create a new
+    directory and mark it as the 'tahoe:' alias by running "<code>tahoe
+    create-alias tahoe</code>". Once you've done that, you can do
+    "<code>tahoe ls tahoe:</code>" and "<code>tahoe cp LOCALFILE
+    tahoe:foo.txt</code>" to work with your filesystem. The Tahoe CLI uses
+    similar syntax to the well-known scp and rsync tools. See <a
+    href="frontends/CLI.txt">CLI.txt</a> for more details.</p>
+
+    <p>As with the WUI (and with all current interfaces to Tahoe), you are
+    responsible for remembering directory capabilities yourself. If you create
+    a new directory and lose the capability to it, then you cannot access that
+    directory ever again.</p>
+
+    <h3>The SFTP and FTP frontends</h3>
+
+    <p>You can access your Tahoe grid via any <a href="http://en.wikipedia.org/wiki/SSH_file_transfer_protocol">SFTP</a> or
+    <a href="http://en.wikipedia.org/wiki/File_Transfer_Protocol">FTP</a> client. 
+    See <a href="frontends/FTP-and-SFTP.txt">FTP-and-SFTP.txt</a> for how to set this up.
+    On most Unix platforms, you can also use SFTP to plug Tahoe into your computer's
+    local filesystem via <code>sshfs</code>.
+    
+    <p>The <a href="http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend">SftpFrontend</a> page
+    on the wiki has more information about using SFTP with Tahoe.</p>
+
+    <h3>The WAPI</h3>
+
+    <p>Want to program your Tahoe node to do your bidding?  Easy!  See <a
+    href="frontends/webapi.txt">webapi.txt</a>.</p>
+
+    <h2>Socialize</h2>
+
+    <p>You can chat with other users of and hackers of this software on the
+    #tahoe IRC channel at <code>irc.freenode.net</code>, or on the <a
+    href="http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev">tahoe-dev mailing list</a>.</p>
 
   </body>
 

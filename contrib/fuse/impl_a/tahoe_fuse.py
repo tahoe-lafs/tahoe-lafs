@@ -186,7 +186,7 @@ class TahoeFS (fuse.Fuse):
         except EnvironmentError, le:
             # FIXME: This user-friendly help message may be platform-dependent because it checks the exception description.
             if le.args[1].find('No such file or directory') != -1:
-                raise SystemExit('%s requires a directory capability in %s, but it was not found.\nPlease see "The CLI" in "docs/using.html".\n' % (sys.argv[0], rootdirfn))
+                raise SystemExit('%s requires a directory capability in %s, but it was not found.\n' % (sys.argv[0], rootdirfn))
             else:
                 raise le
 
