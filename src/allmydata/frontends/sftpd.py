@@ -241,15 +241,12 @@ def _populate_attrs(childnode, metadata, size=None):
         # We would prefer to omit atime, but SFTP version 3 can only
         # accept mtime if atime is also set.
         if 'linkmotime' in metadata.get('tahoe', {}):
-            attrs['mtime'] = attrs['atime'] = _to_sftp_time(metadata['tahoe']['linkmotime'])
+            attrs['ctime'] = attrs['mtime'] = attrs['atime'] = _to_sftp_time(metadata['tahoe']['linkmotime'])
         elif 'mtime' in metadata:
-            attrs['mtime'] = attrs['atime'] = _to_sftp_time(metadata['mtime'])
+            attrs['ctime'] = attrs['mtime'] = attrs['atime'] = _to_sftp_time(metadata['mtime'])
 
         if 'linkcrtime' in metadata.get('tahoe', {}):
             attrs['createtime'] = _to_sftp_time(metadata['tahoe']['linkcrtime'])
-
-        if 'ctime' in metadata:
-            attrs['ctime'] = _to_sftp_time(metadata['ctime'])
 
     attrs['permissions'] = perms
 
