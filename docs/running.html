@@ -31,34 +31,31 @@
     introducer and several initial storage nodes (see the note about
     small grids below).</p>
 
+    <p>If the Tahoe-LAFS <code>bin</code> directory is not on your PATH, then
+    in all the command lines below, specify the full path to <code>bin/tahoe</code>.</p>
+
     <p>To construct a client node, run
-    "<code><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
-    create-client</code>", which will create <code>~/.tahoe</code> to be the
+    "<code>tahoe create-client</code>", which will create <code>~/.tahoe</code> to be the
     node's base directory. Acquire a copy of the <code>introducer.furl</code>
     from the introducer and put it into this directory, then use
-    "<code><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
-    run</code>". After that, the node should be off and running. The first
+    "<code>tahoe run</code>". After that, the node should be off and running. The first
     thing it will do is connect to the introducer and get itself connected to
     all other nodes on the grid.  By default, a node will serve as a storage
     node, meaning that it offers its disk space to other nodes.  To configure
     other behavior, see <a href="configuration.txt">configuration.txt</a>.</p>
 
-
     <p>To construct an introducer, create a new base directory for it (the name
     of the directory is up to you), <code>cd</code> into it, and run
-    "<code><strong>path-to-the-tahoe-bin-directory</strong>/tahoe
-    create-introducer .</code>". Now run the introducer using
+    "<code>tahoe create-introducer .</code>". Now run the introducer using
     "<code>tahoe start .</code>". After it starts, it will write a file named
     <code>introducer.furl</code> in that base directory. This file contains the
     URL the other nodes must use in order to connect to this introducer.</p>
-
 
     <p>The "<code>tahoe run</code>" command above
     will run the node in the foreground. On Unix, you can run it in the background
     instead by using the "<code>tahoe start</code>" command.
     To stop a node started in this way, use "<code>tahoe stop</code>".
     <code>tahoe --help</code> gives a summary of all commands.</p>
-
 
     <p>See <a href="configuration.txt">configuration.txt</a> for more
     details about how to configure Tahoe-LAFS, including how to get other
