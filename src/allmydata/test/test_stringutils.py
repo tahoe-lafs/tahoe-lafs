@@ -1,7 +1,10 @@
-# coding=utf-8
+
+lumiere_nfc = u"lumi\u00E8re"
+Artonwall_nfc = u"\u00C4rtonwall.mp3"
+Artonwall_nfd = u"A\u0308rtonwall.mp3"
 
 TEST_FILENAMES = (
-  u'Ärtonwall.mp3',
+  Artonwall_nfc,
   u'test_file',
   u'Blah blah.txt',
 )
@@ -16,7 +19,7 @@ if __name__ == "__main__":
     import platform
 
     if len(sys.argv) != 2:
-        print "Usage: %s lumière" % sys.argv[0]
+        print "Usage: %s lumi<e-grave>re" % sys.argv[0]
         sys.exit(1)
     
     print
@@ -56,6 +59,7 @@ from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.util.stringutils import argv_to_unicode, unicode_to_url, \
     unicode_to_output, unicode_platform, listdir_unicode, open_unicode, \
     FilenameEncodingError, get_output_encoding, _reload
+from allmydata.dirnode import normalize
 
 from twisted.python import usage
 
@@ -89,24 +93,25 @@ class StringUtilsErrors(ReallyEqualMixin, unittest.TestCase):
 
         self.failUnlessRaises(usage.UsageError,
                               argv_to_unicode,
-                              u'lumière'.encode('latin1'))
+                              lumiere_nfc.encode('latin1'))
 
     @patch('sys.stdout')
     def test_unicode_to_output(self, mock):
-        # Encoding koi8-r cannot represent 'è'
+        # Encoding koi8-r cannot represent e-grave
         mock.encoding = 'koi8-r'
         _reload()
-        self.failUnlessRaises(UnicodeEncodeError, unicode_to_output, u'lumière')
+        self.failUnlessRaises(UnicodeEncodeError, unicode_to_output, lumiere_nfc)
 
     @patch('os.listdir')
-    def test_unicode_normalization(self, mock):
-        # Pretend to run on an Unicode platform
+    def test_no_unicode_normalization(self, mock):
+        # Pretend to run on a Unicode platform.
+        # We normalized to NFC in 1.7beta, but we now don't.
         orig_platform = sys.platform
         try:
             sys.platform = 'darwin'
-            mock.return_value = [u'A\u0308rtonwall.mp3']
+            mock.return_value = [Artonwall_nfd]
             _reload()
-            self.failUnlessReallyEqual(listdir_unicode(u'/dummy'), [u'\xc4rtonwall.mp3'])
+            self.failUnlessReallyEqual(listdir_unicode(u'/dummy'), [Artonwall_nfd])
         finally:
             sys.platform = orig_platform
 
@@ -128,8 +133,8 @@ class StringUtilsNonUnicodePlatform(unittest.TestCase):
         # What happens if latin1-encoded filenames are encountered on an UTF-8
         # filesystem?
         mock_listdir.return_value = [
-            u'lumière'.encode('utf-8'),
-            u'lumière'.encode('latin1')]
+            lumiere_nfc.encode('utf-8'),
+            lumiere_nfc.encode('latin1')]
 
         mock_getfilesystemencoding.return_value = 'utf-8'
         _reload()
@@ -143,7 +148,7 @@ class StringUtilsNonUnicodePlatform(unittest.TestCase):
         _reload()
         self.failUnlessRaises(FilenameEncodingError,
                               listdir_unicode,
-                              u'/lumière')
+                              u'/' + lumiere_nfc)
 
     @patch('sys.getfilesystemencoding')
     def test_open_unicode(self, mock):
@@ -151,7 +156,7 @@ class StringUtilsNonUnicodePlatform(unittest.TestCase):
         _reload()
         self.failUnlessRaises(FilenameEncodingError,
                               open_unicode,
-                              u'lumière', 'rb')
+                              lumiere_nfc, 'rb')
 
 class StringUtils(ReallyEqualMixin):
     def setUp(self):
@@ -169,13 +174,13 @@ class StringUtils(ReallyEqualMixin):
             return
 
         mock.encoding = self.output_encoding
-        argu = u'lumière'
+        argu = lumiere_nfc
         argv = self.argv
         _reload()
         self.failUnlessReallyEqual(argv_to_unicode(argv), argu)
 
     def test_unicode_to_url(self):
-        self.failUnless(unicode_to_url(u'lumière'), "lumi\xc3\xa8re")
+        self.failUnless(unicode_to_url(lumiere_nfc), "lumi\xc3\xa8re")
 
     @patch('sys.stdout')
     def test_unicode_to_output(self, mock):
@@ -184,7 +189,7 @@ class StringUtils(ReallyEqualMixin):
 
         mock.encoding = self.output_encoding
         _reload()
-        self.failUnlessReallyEqual(unicode_to_output(u'lumière'), self.output)
+        self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.output)
 
     def test_unicode_platform(self):
         matrix = {
@@ -216,15 +221,14 @@ class StringUtils(ReallyEqualMixin):
         _reload()
         filenames = listdir_unicode(u'/dummy')
 
-        for fname in TEST_FILENAMES:
-            self.failUnless(isinstance(fname, unicode))
-            self.failUnlessIn(fname, filenames)
+        self.failUnlessEqual(set([normalize(fname) for fname in filenames]),
+                             set(TEST_FILENAMES))
 
     @patch('sys.getfilesystemencoding')
     @patch('__builtin__.open')
     def test_open_unicode(self, mock_open, mock_getfilesystemencoding):
         mock_getfilesystemencoding.return_value = self.filesystem_encoding
-        fn = u'/dummy_directory/lumière.txt'
+        fn = u'/dummy_directory/" + lumiere_nfc + ".txt'
 
         try:
             u"test".encode(self.filesystem_encoding)
