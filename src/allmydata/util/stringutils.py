@@ -211,15 +211,9 @@ def listdir_unicode(path):
     # On other platforms (ie. Unix systems), the byte-level API is used
 
     if is_unicode_platform:
-        dirlist = os.listdir(path)
+        return os.listdir(path)
     else:
-        dirlist = listdir_unicode_fallback(path)
-
-    # Normalize the resulting unicode filenames
-    #
-    # This prevents different OSes from generating non-equal unicode strings for
-    # the same filename representation
-    return [unicodedata.normalize('NFC', fname) for fname in dirlist]
+        return listdir_unicode_fallback(path)
 
 def open_unicode(path, mode):
     """
