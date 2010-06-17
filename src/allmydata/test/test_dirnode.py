@@ -46,6 +46,10 @@ mut_read_uri = "URI:SSK-RO:jf6wkflosyvntwxqcdo7a54jvm:euw4iw7bbnkrrwpzuburbhppux
 future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
 future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
 
+# 'o' 'n' 'e-macron'
+one_nfc = u"on\u0113"
+one_nfd = u"one\u0304"
+
 class Dirnode(GridTestMixin, unittest.TestCase,
               testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
     timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
@@ -73,7 +77,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         c = self.g.clients[0]
         nm = c.nodemaker
 
-        kids = {u"one": (nm.create_from_cap(one_uri), {}),
+        kids = {one_nfd: (nm.create_from_cap(one_uri), {}),
                 u"two": (nm.create_from_cap(setup_py_uri),
                          {"metakey": "metavalue"}),
                 u"mut": (nm.create_from_cap(mut_write_uri, mut_read_uri), {}),
@@ -98,8 +102,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         
         def _check_kids(children):
             self.failUnlessEqual(set(children.keys()),
-                                 set([u"one", u"two", u"mut", u"fut", u"fro", u"empty_litdir", u"tiny_litdir"]))
-            one_node, one_metadata = children[u"one"]
+                                 set([one_nfc, u"two", u"mut", u"fut", u"fro", u"empty_litdir", u"tiny_litdir"]))
+            one_node, one_metadata = children[one_nfc]
             two_node, two_metadata = children[u"two"]
             mut_node, mut_metadata = children[u"mut"]
             fut_node, fut_metadata = children[u"fut"]
@@ -154,7 +158,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(_check_kids)
 
         bad_future_node = UnknownNode(future_write_uri, None)
-        bad_kids1 = {u"one": (bad_future_node, {})}
+        bad_kids1 = {one_nfd: (bad_future_node, {})}
         # This should fail because we don't know how to diminish the future_write_uri
         # cap (given in a write slot and not prefixed with "ro." or "imm.") to a readcap.
         d.addCallback(lambda ign:
@@ -162,7 +166,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                       "cannot attach unknown",
                                       nm.create_new_mutable_directory,
                                       bad_kids1))
-        bad_kids2 = {u"one": (nm.create_from_cap(one_uri), None)}
+        bad_kids2 = {one_nfd: (nm.create_from_cap(one_uri), None)}
         d.addCallback(lambda ign:
                       self.shouldFail(AssertionError, "bad_kids2",
                                       "requires metadata to be a dict",
@@ -176,7 +180,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         c = self.g.clients[0]
         nm = c.nodemaker
 
-        kids = {u"one": (nm.create_from_cap(one_uri), {}),
+        kids = {one_nfd: (nm.create_from_cap(one_uri), {}),
                 u"two": (nm.create_from_cap(setup_py_uri),
                          {"metakey": "metavalue"}),
                 u"fut": (nm.create_from_cap(None, future_read_uri), {}),
@@ -202,8 +206,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         
         def _check_kids(children):
             self.failUnlessEqual(set(children.keys()),
-                                 set([u"one", u"two", u"fut", u"empty_litdir", u"tiny_litdir"]))
-            one_node, one_metadata = children[u"one"]
+                                 set([one_nfc, u"two", u"fut", u"empty_litdir", u"tiny_litdir"]))
+            one_node, one_metadata = children[one_nfc]
             two_node, two_metadata = children[u"two"]
             fut_node, fut_metadata = children[u"fut"]
             emptylit_node, emptylit_metadata = children[u"empty_litdir"]
@@ -247,32 +251,32 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(_check_kids)
 
         bad_future_node1 = UnknownNode(future_write_uri, None)
-        bad_kids1 = {u"one": (bad_future_node1, {})}
+        bad_kids1 = {one_nfd: (bad_future_node1, {})}
         d.addCallback(lambda ign:
                       self.shouldFail(MustNotBeUnknownRWError, "bad_kids1",
                                       "cannot attach unknown",
                                       c.create_immutable_dirnode,
                                       bad_kids1))
         bad_future_node2 = UnknownNode(future_write_uri, future_read_uri)
-        bad_kids2 = {u"one": (bad_future_node2, {})}
+        bad_kids2 = {one_nfd: (bad_future_node2, {})}
         d.addCallback(lambda ign:
                       self.shouldFail(MustBeDeepImmutableError, "bad_kids2",
                                       "is not immutable",
                                       c.create_immutable_dirnode,
                                       bad_kids2))
-        bad_kids3 = {u"one": (nm.create_from_cap(one_uri), None)}
+        bad_kids3 = {one_nfd: (nm.create_from_cap(one_uri), None)}
         d.addCallback(lambda ign:
                       self.shouldFail(AssertionError, "bad_kids3",
                                       "requires metadata to be a dict",
                                       c.create_immutable_dirnode,
                                       bad_kids3))
-        bad_kids4 = {u"one": (nm.create_from_cap(mut_write_uri), {})}
+        bad_kids4 = {one_nfd: (nm.create_from_cap(mut_write_uri), {})}
         d.addCallback(lambda ign:
                       self.shouldFail(MustBeDeepImmutableError, "bad_kids4",
                                       "is not immutable",
                                       c.create_immutable_dirnode,
                                       bad_kids4))
-        bad_kids5 = {u"one": (nm.create_from_cap(mut_read_uri), {})}
+        bad_kids5 = {one_nfd: (nm.create_from_cap(mut_read_uri), {})}
         d.addCallback(lambda ign:
                       self.shouldFail(MustBeDeepImmutableError, "bad_kids5",
                                       "is not immutable",
@@ -329,7 +333,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(_check_kids)
             d.addCallback(lambda ign: n.get(u"subdir"))
             d.addCallback(lambda sd: self.failIf(sd.is_mutable()))
-            bad_kids = {u"one": (nm.create_from_cap(mut_write_uri), {})}
+            bad_kids = {one_nfd: (nm.create_from_cap(mut_write_uri), {})}
             d.addCallback(lambda ign:
                           self.shouldFail(MustBeDeepImmutableError, "YZ",
                                           "is not immutable",
