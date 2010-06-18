@@ -1733,43 +1733,43 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     # and check4a takes 6s, as does the backup before check4b.
     test_backup.timeout = 3000
 
+    def _check_filtering(self, filtered, all, included, excluded):
+        filtered = set(filtered)
+        all = set(all)
+        included = set(included)
+        excluded = set(excluded)
+        self.failUnlessReallyEqual(filtered, included)
+        self.failUnlessReallyEqual(all.difference(filtered), excluded)
+
     def test_exclude_options(self):
-        root_listdir = ('lib.a', '_darcs', 'subdir', 'nice_doc.lyx')
-        subdir_listdir = ('another_doc.lyx', 'run_snake_run.py', 'CVS', '.svn', '_darcs')
+        root_listdir = (u'lib.a', u'_darcs', u'subdir', u'nice_doc.lyx')
+        subdir_listdir = (u'another_doc.lyx', u'run_snake_run.py', u'CVS', u'.svn', u'_darcs')
         basedir = "cli/Backup/exclude_options"
         fileutil.make_dirs(basedir)
         nodeurl_path = os.path.join(basedir, 'node.url')
         fileutil.write(nodeurl_path, 'http://example.net:2357/')
-
-        def _check_filtering(filtered, all, included, excluded):
-            filtered = set(filtered)
-            all = set(all)
-            included = set(included)
-            excluded = set(excluded)
-            self.failUnlessReallyEqual(filtered, included)
-            self.failUnlessReallyEqual(all.difference(filtered), excluded)
 
         # test simple exclude
         backup_options = cli.BackupOptions()
         backup_options.parseOptions(['--exclude', '*lyx', '--node-directory',
                                      basedir, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
-        _check_filtering(filtered, root_listdir, ('lib.a', '_darcs', 'subdir'),
-                         ('nice_doc.lyx',))
+        self._check_filtering(filtered, root_listdir, (u'lib.a', u'_darcs', u'subdir'),
+                              (u'nice_doc.lyx',))
         # multiple exclude
         backup_options = cli.BackupOptions()
         backup_options.parseOptions(['--exclude', '*lyx', '--exclude', 'lib.?', '--node-directory',
                                      basedir, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
-        _check_filtering(filtered, root_listdir, ('_darcs', 'subdir'),
-                         ('nice_doc.lyx', 'lib.a'))
+        self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
+                              (u'nice_doc.lyx', u'lib.a'))
         # vcs metadata exclusion
         backup_options = cli.BackupOptions()
         backup_options.parseOptions(['--exclude-vcs', '--node-directory',
                                      basedir, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(subdir_listdir))
-        _check_filtering(filtered, subdir_listdir, ('another_doc.lyx', 'run_snake_run.py',),
-                         ('CVS', '.svn', '_darcs'))
+        self._check_filtering(filtered, subdir_listdir, (u'another_doc.lyx', u'run_snake_run.py',),
+                              (u'CVS', u'.svn', u'_darcs'))
         # read exclude patterns from file
         exclusion_string = "_darcs\n*py\n.svn"
         excl_filepath = os.path.join(basedir, 'exclusion')
@@ -1778,9 +1778,9 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         backup_options.parseOptions(['--exclude-from', excl_filepath, '--node-directory',
                                      basedir, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(subdir_listdir))
-        _check_filtering(filtered, subdir_listdir, ('another_doc.lyx', 'CVS'),
-                         ('.svn', '_darcs', 'run_snake_run.py'))
-        # text BackupConfigurationError
+        self._check_filtering(filtered, subdir_listdir, (u'another_doc.lyx', u'CVS'),
+                              (u'.svn', u'_darcs', u'run_snake_run.py'))
+        # test BackupConfigurationError
         self.failUnlessRaises(cli.BackupConfigurationError,
                               backup_options.parseOptions,
                               ['--exclude-from', excl_filepath + '.no', '--node-directory',
@@ -1791,8 +1791,54 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         backup_options.parseOptions(['--exclude', '*lyx', '--node-directory',
                                      basedir, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(iter(root_listdir)))
-        _check_filtering(filtered, root_listdir, ('lib.a', '_darcs', 'subdir'),
-                         ('nice_doc.lyx',))
+        self._check_filtering(filtered, root_listdir, (u'lib.a', u'_darcs', u'subdir'),
+                              (u'nice_doc.lyx',))
+
+    def test_exclude_options_unicode(self):
+        nice_doc = u"nice_d\u00F8c.lyx"
+        try:
+            doc_pattern_arg = u"*d\u00F8c*".encode(get_argv_encoding())
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
+
+        root_listdir = (u'lib.a', u'_darcs', u'subdir', nice_doc)
+        basedir = "cli/Backup/exclude_options_unicode"
+        fileutil.make_dirs(basedir)
+        nodeurl_path = os.path.join(basedir, 'node.url')
+        fileutil.write(nodeurl_path, 'http://example.net:2357/')
+
+        # test simple exclude
+        backup_options = cli.BackupOptions()
+        backup_options.parseOptions(['--exclude', doc_pattern_arg, '--node-directory',
+                                     basedir, 'from', 'to'])
+        filtered = list(backup_options.filter_listdir(root_listdir))
+        self._check_filtering(filtered, root_listdir, (u'lib.a', u'_darcs', u'subdir'),
+                              (nice_doc,))
+        # multiple exclude
+        backup_options = cli.BackupOptions()
+        backup_options.parseOptions(['--exclude', doc_pattern_arg, '--exclude', 'lib.?', '--node-directory',
+                                     basedir, 'from', 'to'])
+        filtered = list(backup_options.filter_listdir(root_listdir))
+        self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
+                             (nice_doc, u'lib.a'))
+        # read exclude patterns from file
+        exclusion_string = doc_pattern_arg + "\nlib.?"
+        excl_filepath = os.path.join(basedir, 'exclusion')
+        fileutil.write(excl_filepath, exclusion_string)
+        backup_options = cli.BackupOptions()
+        backup_options.parseOptions(['--exclude-from', excl_filepath, '--node-directory',
+                                     basedir, 'from', 'to'])
+        filtered = list(backup_options.filter_listdir(root_listdir))
+        self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
+                             (nice_doc, u'lib.a'))
+
+        # test that an iterator works too
+        backup_options = cli.BackupOptions()
+        backup_options.parseOptions(['--exclude', doc_pattern_arg, '--node-directory',
+                                     basedir, 'from', 'to'])
+        filtered = list(backup_options.filter_listdir(iter(root_listdir)))
+        self._check_filtering(filtered, root_listdir, (u'lib.a', u'_darcs', u'subdir'),
+                              (nice_doc,))
 
     def test_ignore_symlinks(self):
         if not hasattr(os, 'symlink'):

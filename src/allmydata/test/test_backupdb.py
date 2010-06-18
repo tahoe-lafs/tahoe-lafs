@@ -4,6 +4,7 @@ from StringIO import StringIO
 from twisted.trial import unittest
 
 from allmydata.util import fileutil
+from allmydata.util.stringutils import listdir_unicode
 from allmydata.scripts import backupdb
 
 class BackupDB(unittest.TestCase):
@@ -79,9 +80,7 @@ class BackupDB(unittest.TestCase):
         fn = os.path.join(self.basedir, filename)
         parentdir = os.path.dirname(fn)
         fileutil.make_dirs(parentdir)
-        f = open(fn, "w")
-        f.write(data)
-        f.close()
+        fileutil.write(fn, data)
         return fn
 
     def test_check(self):
@@ -227,4 +226,36 @@ class BackupDB(unittest.TestCase):
                      u"dir1": "URI:DIR2-CHK:baz2"}
         r = bdb.check_directory(contents3)
         self.failIf(r.was_created())
+
+    def test_unicode(self):
+        self.basedir = basedir = os.path.join("backupdb", "unicode")
+        fileutil.make_dirs(basedir)
+        dbfile = os.path.join(basedir, "dbfile")
+        bdb = self.create_or_skip(dbfile)
+        self.failUnless(bdb)
+
+        self.writeto(u"f\u00f6\u00f6.txt", "foo.txt")
+        files = [fn for fn in listdir_unicode(unicode(basedir)) if fn.endswith(".txt")]
+        self.failUnlessEqual(len(files), 1)
+        foo_fn = os.path.join(basedir, files[0])
+        #print foo_fn, type(foo_fn)
+
+        r = bdb.check_file(foo_fn)
+        self.failUnlessEqual(r.was_uploaded(), False)
+        r.did_upload("foo-cap")
+
+        r = bdb.check_file(foo_fn)
+        self.failUnlessEqual(r.was_uploaded(), "foo-cap")
+        self.failUnlessEqual(r.should_check(), False)
+
+        bar_fn = self.writeto(u"b\u00e5r.txt", "bar.txt")
+        #print bar_fn, type(bar_fn)
+
+        r = bdb.check_file(bar_fn)
+        self.failUnlessEqual(r.was_uploaded(), False)
+        r.did_upload("bar-cap")
+
+        r = bdb.check_file(bar_fn)
+        self.failUnlessEqual(r.was_uploaded(), "bar-cap")
+        self.failUnlessEqual(r.should_check(), False)
 
