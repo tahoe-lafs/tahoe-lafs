@@ -240,16 +240,18 @@ class WebMixin(object):
                       for (name,value)
                       in data[1]["children"].iteritems()] )
         self.failUnlessEqual(kids[u"sub"][0], "dirnode")
-        self.failUnless("metadata" in kids[u"sub"][1])
-        self.failUnless("ctime" in kids[u"sub"][1]["metadata"])
-        self.failUnless("mtime" in kids[u"sub"][1]["metadata"])
+        self.failUnlessIn("metadata", kids[u"sub"][1])
+        self.failUnlessIn("tahoe", kids[u"sub"][1]["metadata"])
+        tahoe_md = kids[u"sub"][1]["metadata"]["tahoe"]
+        self.failUnlessIn("linkcrtime", tahoe_md)
+        self.failUnlessIn("linkmotime", tahoe_md)
         self.failUnlessEqual(kids[u"bar.txt"][0], "filenode")
         self.failUnlessEqual(kids[u"bar.txt"][1]["size"], len(self.BAR_CONTENTS))
         self.failUnlessEqual(kids[u"bar.txt"][1]["ro_uri"], self._bar_txt_uri)
         self.failUnlessEqual(kids[u"bar.txt"][1]["verify_uri"],
                              self._bar_txt_verifycap)
-        self.failUnlessEqual(kids[u"bar.txt"][1]["metadata"]["ctime"],
-                             self._bar_txt_metadata["ctime"])
+        self.failUnlessEqual(kids[u"bar.txt"][1]["metadata"]["tahoe"]["linkcrtime"],
+                             self._bar_txt_metadata["tahoe"]["linkcrtime"])
         self.failUnlessEqual(kids[u"n\u00fc.txt"][1]["ro_uri"],
                              self._bar_txt_uri)
 

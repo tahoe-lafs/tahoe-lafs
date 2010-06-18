@@ -664,25 +664,41 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
 
 ==== About the metadata ====
 
-  The value of the 'mtime' key and of the 'tahoe':'linkmotime' is updated
-  whenever a link to a child is set. The value of the 'ctime' key and of the
-  'tahoe':'linkcrtime' key is updated whenever a link to a child is created --
-  i.e. when there was not previously a link under that name.
+  The value of the 'tahoe':'linkmotime' key is updated whenever a link to a
+  child is set. The value of the 'tahoe':'linkcrtime' key is updated whenever
+  a link to a child is created -- i.e. when there was not previously a link
+  under that name.
 
-  In Tahoe earlier than v1.4.0, only the 'mtime'/'ctime' keys were populated.
-  Starting in Tahoe v1.4.0, the 'linkmotime'/'linkcrtime' keys in the 'tahoe'
-  sub-dict are also populated. However, prior to v1.7.0, a bug caused the
-  'tahoe' sub-dict to be deleted by webapi requests in which new metadata
-  is specified, and not to be added to existing child links that lack it.
+  Note however, that if the edge in the Tahoe filesystem points to a mutable
+  file and the contents of that mutable file is changed, then the
+  'tahoe':'linkmotime' value on that edge will *not* be updated, since the
+  edge itself wasn't updated -- only the mutable file was.
 
-  The reason we added the new values in Tahoe v1.4.0 is that there is a
+  The timestamps are represented as a number of seconds since the UNIX epoch
+  (1970-01-01 00:00:00 UTC), excluding leap seconds.
+
+  In Tahoe earlier than v1.4.0, 'mtime' and 'ctime' keys were populated
+  instead of the 'tahoe':'linkmotime' and 'tahoe':'linkcrtime' keys. Starting
+  in Tahoe v1.4.0, the 'linkmotime'/'linkcrtime' keys in the 'tahoe' sub-dict
+  are populated. However, prior to Tahoe v1.7beta, a bug caused the 'tahoe'
+  sub-dict to be deleted by webapi requests in which new metadata is
+  specified, and not to be added to existing child links that lack it.
+
+  From Tahoe v1.7.0 onward, the 'mtime' and 'ctime' fields are no longer
+  populated or updated (see ticket #924), except by "tahoe backup" as
+  explained below. For backward compatibility, when an existing link is
+  updated and 'tahoe':'linkcrtime' is not present in the previous metadata
+  but 'ctime' is, the old value of 'ctime' is used as the new value of
+  'tahoe':'linkcrtime'.
+
+  The reason we added the new fields in Tahoe v1.4.0 is that there is a
   "set_children" API (described below) which you can use to overwrite the
-  values of the 'mtime'/'ctime' pair, and this API is used by the "tahoe
-  backup" command (both in Tahoe v1.3.0 and in Tahoe v1.4.0) to set the
-  'mtime' and 'ctime' values when backing up files from a local filesystem
-  into the Tahoe filesystem. As of Tahoe v1.4.0, the set_children API cannot
-  be used to set anything under the 'tahoe' key of the metadata dict -- if
-  you include 'tahoe' keys in your 'metadata' arguments then it will silently
+  values of the 'mtime'/'ctime' pair, and this API is used by the
+  "tahoe backup" command (in Tahoe v1.3.0 and later) to set the 'mtime' and
+  'ctime' values when backing up files from a local filesystem into the
+  Tahoe filesystem. As of Tahoe v1.4.0, the set_children API cannot be used
+  to set anything under the 'tahoe' key of the metadata dict -- if you
+  include 'tahoe' keys in your 'metadata' arguments then it will silently
   ignore those keys.
 
   Therefore, if the 'tahoe' sub-dict is present, you can rely on the
@@ -694,60 +710,45 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
   they like, and there is nothing to constrain their system clock from taking
   any value.)
 
-  The meaning of the 'ctime'/'mtime' fields are slightly more complex.
+  When an edge is created or updated by "tahoe backup", the 'mtime' and
+  'ctime' keys on that edge are set as follows:
 
-  The meaning of the 'mtime' field is: whenever the edge is updated (by an HTTP
-  PUT or POST, as is done by the "tahoe cp" command), then the mtime is set to
-  the current time on the clock of the updating client. Whenever the edge is
-  updated by "tahoe backup" then the mtime is instead set to the value which
-  the updating client read from its local filesystem for the "mtime" of the
-  local file in question, which means the last time the contents of that file
-  were changed. Note however, that if the edge in the Tahoe filesystem points
-  to a mutable file and the contents of that mutable file is changed then the
-  "mtime" value on that edge will *not* be updated, since the edge itself
-  wasn't updated -- only the mutable file was.
+    * 'mtime' is set to the timestamp read from the local filesystem for the
+      "mtime" of the local file in question, which means the last time the
+      contents of that file were changed.
 
-  The meaning of the 'ctime' field is even more complex. Whenever a new edge is
-  created (by an HTTP PUT or POST, as is done by "tahoe cp") then the ctime is
-  set to the current time on the clock of the updating client. Whenever the
-  edge is created *or updated* by "tahoe backup" then the ctime is instead set
-  to the value which the updating client read from its local filesystem. On
-  Windows, it reads the timestamp of when the local file was created and puts
-  that into the "ctime", and on other platforms it reads the timestamp of the
-  most recent time that either the contents or the metadata of the local file
-  was changed and puts that into the ctime. Again, if the edge points to a
-  mutable file and the content of that mutable file is changed then the ctime
-  will not be updated in any case.
+    * On Windows, 'ctime' is set to the creation timestamp for the file
+      read from the local filesystem. On other platforms, 'ctime' is set to
+      the UNIX "ctime" of the local file, which means the last time that
+      either the contents or the metadata of the local file was changed.
 
-  Therefore there are several ways that the 'ctime' field could be confusing: 
+  There are several ways that the 'ctime' field could be confusing: 
 
   1. You might be confused about whether it reflects the time of the creation
-  of a link in the Tahoe filesystem or a timestamp copied in from a local
-  filesystem.
+     of a link in the Tahoe filesystem (by a version of Tahoe < v1.7.0) or a
+     timestamp copied in by "tahoe backup" from a local filesystem.
 
-  2. You might be confused about whether it is a copy of the file creation time
-  (if "tahoe backup" was run on a Windows system) or of the last
-  contents-or-metadata change (if "tahoe backup" was run on a different
-  operating system).
+  2. You might be confused about whether it is a copy of the file creation
+     time (if "tahoe backup" was run on a Windows system) or of the last
+     contents-or-metadata change (if "tahoe backup" was run on a different
+     operating system).
 
-  3. You might be confused by the fact that changing the contents of a mutable
-  file in Tahoe don't have any effect on any links pointing at that file in any
-  directories, although "tahoe backup" sets the link 'ctime'/'mtime' to reflect
-  timestamps about the local file corresponding to the Tahoe file to which the
-  link points.
+  3. You might be confused by the fact that changing the contents of a
+     mutable file in Tahoe don't have any effect on any links pointing at
+     that file in any directories, although "tahoe backup" sets the link
+     'ctime'/'mtime' to reflect timestamps about the local file corresponding
+     to the Tahoe file to which the link points.
 
-  4. Also, quite apart from Tahoe, you might be confused about the meaning of
-  the 'ctime' in UNIX local filesystems, which people sometimes think means
-  file creation time, but which actually means, in UNIX local filesystems, the
-  most recent time that the file contents or the file metadata (such as owner,
-  permission bits, extended attributes, etc.) has changed. Note that although
-  'ctime' does not mean file creation time in UNIX, it does mean link creation
-  time in Tahoe, unless the "tahoe backup" command has been used on that link,
-  in which case it means something about the local filesystem file which
-  corresponds to the Tahoe file which is pointed at by the link. It means
-  either file creation time of the local file (if "tahoe backup" was run on
-  Windows) or file-contents-or-metadata-update-time of the local file (if
-  "tahoe backup" was run on a different operating system).
+  4. Also, quite apart from Tahoe, you might be confused about the meaning
+     of the "ctime" in UNIX local filesystems, which people sometimes think
+     means file creation time, but which actually means, in UNIX local
+     filesystems, the most recent time that the file contents or the file
+     metadata (such as owner, permission bits, extended attributes, etc.)
+     has changed. Note that although "ctime" does not mean file creation time
+     in UNIX, links created by a version of Tahoe prior to v1.7.0, and never
+     written by "tahoe backup", will have 'ctime' set to the link creation
+     time.
+
 
 === Attaching an existing File or Directory by its read- or write- cap ===
 

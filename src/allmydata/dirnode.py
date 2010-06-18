@@ -30,13 +30,11 @@ def update_metadata(metadata, new_metadata, now):
     Timestamps are set according to the time 'now'."""
 
     if metadata is None:
-        metadata = {'ctime': now,
-                    'mtime': now,
-                    'tahoe': {
-                        'linkcrtime': now,
-                        'linkmotime': now,
-                        }
-                    }
+        metadata = {}
+
+    old_ctime = None
+    if 'ctime' in metadata:
+        old_ctime = metadata['ctime']
 
     if new_metadata is not None:
         # Overwrite all metadata.
@@ -48,29 +46,19 @@ def update_metadata(metadata, new_metadata, now):
         if 'tahoe' in metadata:
             newmd['tahoe'] = metadata['tahoe']
 
-        # For backwards compatibility with Tahoe < 1.4.0:
-        if 'ctime' not in newmd:
-            if 'ctime' in metadata:
-                newmd['ctime'] = metadata['ctime']
-            else:
-                newmd['ctime'] = now
-        if 'mtime' not in newmd:
-            newmd['mtime'] = now
-
         metadata = newmd
-    else:
-        # For backwards compatibility with Tahoe < 1.4.0:
-        if 'ctime' not in metadata:
-            metadata['ctime'] = now
-        metadata['mtime'] = now
 
     # update timestamps
     sysmd = metadata.get('tahoe', {})
     if 'linkcrtime' not in sysmd:
         # In Tahoe < 1.4.0 we used the word 'ctime' to mean what Tahoe >= 1.4.0
-        # calls 'linkcrtime'.
-        assert 'ctime' in metadata
-        sysmd['linkcrtime'] = metadata['ctime']
+        # calls 'linkcrtime'. This field is only used if it was in the old metadata,
+        # and 'tahoe:linkcrtime' was not.
+        if old_ctime is not None:
+            sysmd['linkcrtime'] = old_ctime
+        else:
+            sysmd['linkcrtime'] = now
+
     sysmd['linkmotime'] = now
     metadata['tahoe'] = sysmd
 
