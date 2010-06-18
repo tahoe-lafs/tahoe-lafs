@@ -9,6 +9,7 @@ import simplejson
 from allmydata.util import fileutil, hashutil, base32
 from allmydata import uri
 from allmydata.immutable import upload
+from allmydata.dirnode import normalize
 
 # Test that the scripts can be imported -- although the actual tests of their
 # functionality are done by invoking them in a subprocess.
@@ -429,7 +430,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnlessRaises(common.UnknownAliasError, ga5, u"C:\\Windows")
 
     def test_listdir_unicode_good(self):
-        filenames = [u'Lôzane', u'Bern', u'Genève']
+        filenames = [u'Lôzane', u'Bern', u'Genève']  # must be NFC
 
         for name in filenames:
             self.skip_if_cannot_represent_filename(name)
@@ -441,7 +442,7 @@ class CLI(CLITestMixin, unittest.TestCase):
             open_unicode(os.path.join(unicode(basedir), name), "wb").close()
 
         for file in listdir_unicode(unicode(basedir)):
-            self.failUnlessIn(file, filenames)
+            self.failUnlessIn(normalize(file), filenames)
 
 
 class Help(unittest.TestCase):
