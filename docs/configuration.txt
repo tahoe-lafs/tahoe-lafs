@@ -246,7 +246,7 @@ stats_gatherer.furl = (FURL string, optional)
 
 shares.needed = (int, optional) aka "k"
 shares.total = (int, optional) aka "N", N >= k
-shares.happy = (int, optional) k <= happy <= N
+shares.happy = (int, optional) 1 <= happy <= N
 
  These three values set the default encoding parameters. Each time a new file
  is uploaded, erasure-coding is used to break the ciphertext into separate
@@ -273,10 +273,13 @@ shares.happy = (int, optional) k <= happy <= N
  uses.
 
  shares.happy allows you control over the distribution of your immutable file.
- An upload is only considered successful if shares are placed on at least
- 'shares.happy' distinct servers, the correct functioning of at least k of
- which is sufficient to guarantee the availability of the uploaded file. This
- value should not be larger than the number of servers on your grid.
+ For a successful upload, shares are guaranteed to be initially placed on
+ at least 'shares.happy' distinct servers, the correct functioning of any
+ k of which is sufficient to guarantee the availability of the uploaded file.
+ This value should not be larger than the number of servers on your grid.
+ 
+ A value of shares.happy <= k is allowed, but does not provide any redundancy
+ if some servers fail or lose shares.
 
  (Mutable files use a different share placement algorithm that does not 
   consider this parameter.)

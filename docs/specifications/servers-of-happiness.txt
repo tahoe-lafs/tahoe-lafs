@@ -3,12 +3,12 @@
 When you upload a file to a Tahoe-LAFS grid, you expect that it will
 stay there for a while, and that it will do so even if a few of the
 peers on the grid stop working, or if something else goes wrong. An
-upload health metric helps to make sure that this actually happens. An
-upload health metric is essentially a test that looks at a file on a
-Tahoe-LAFS grid and says whether or not that file is healthy; that is,
-whether it is distributed on the grid in such a way as to ensure that it
-will probably survive in good enough shape to be recoverable even if a
-few things go wrong between the time of the test and the time that it is
+upload health metric helps to make sure that this actually happens.
+An upload health metric is a test that looks at a file on a Tahoe-LAFS
+grid and says whether or not that file is healthy; that is, whether it
+is distributed on the grid in such a way as to ensure that it will
+probably survive in good enough shape to be recoverable, even if a few
+things go wrong between the time of the test and the time that it is
 recovered. Our current upload health metric for immutable files is called
 'servers-of-happiness'; its predecessor was called 'shares-of-happiness'.
 
@@ -27,9 +27,9 @@ servers-of-happiness addresses this by extending the share-focused
 upload health metric to also consider the location of the shares on
 grid. servers-of-happiness looks at the mapping of peers to the shares
 that they hold, and compares the cardinality of the largest happy subset
-of those with a user-configurable threshold (A happy subset of peers has
+of those to a user-configurable threshold. A happy subset of peers has
 the property that any k (where k is as in k-of-n encoding) peers within
-the subset can reconstruct the source file). This definition of file
+the subset can reconstruct the source file. This definition of file
 health provides a stronger assurance of file availability over time;
 with 3-of-10 encoding, and happy=7, a healthy file is still guaranteed
 to be available even if 4 peers fail.
@@ -65,7 +65,7 @@ is inefficient; for k = 3, and if there are n peers, it corresponds to
 an expansion factor of 10x. Layouts that are declared healthy by the
 bipartite graph matching approach have the property that they correspond
 to uploads that are either already relatively efficient in their
-utilization of space, or can be made to be so by deleting shares, and
+utilization of space, or can be made to be so by deleting shares; and
 that place all of the shares that they generate, enabling redistribution
 of shares later without having to re-encode the file.  Also, it is
 computationally reasonable to compute a maximum matching in a bipartite
