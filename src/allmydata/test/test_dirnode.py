@@ -1,5 +1,6 @@
 
 import time
+import unicodedata
 from zope.interface import implements
 from twisted.trial import unittest
 from twisted.internet import defer
@@ -261,7 +262,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         bad_kids2 = {one_nfd: (bad_future_node2, {})}
         d.addCallback(lambda ign:
                       self.shouldFail(MustBeDeepImmutableError, "bad_kids2",
-                                      "is not immutable",
+                                      "is not allowed in an immutable directory",
                                       c.create_immutable_dirnode,
                                       bad_kids2))
         bad_kids3 = {one_nfd: (nm.create_from_cap(one_uri), None)}
@@ -273,13 +274,13 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         bad_kids4 = {one_nfd: (nm.create_from_cap(mut_write_uri), {})}
         d.addCallback(lambda ign:
                       self.shouldFail(MustBeDeepImmutableError, "bad_kids4",
-                                      "is not immutable",
+                                      "is not allowed in an immutable directory",
                                       c.create_immutable_dirnode,
                                       bad_kids4))
         bad_kids5 = {one_nfd: (nm.create_from_cap(mut_read_uri), {})}
         d.addCallback(lambda ign:
                       self.shouldFail(MustBeDeepImmutableError, "bad_kids5",
-                                      "is not immutable",
+                                      "is not allowed in an immutable directory",
                                       c.create_immutable_dirnode,
                                       bad_kids5))
         d.addCallback(lambda ign: c.create_immutable_dirnode({}))
@@ -336,15 +337,15 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             bad_kids = {one_nfd: (nm.create_from_cap(mut_write_uri), {})}
             d.addCallback(lambda ign:
                           self.shouldFail(MustBeDeepImmutableError, "YZ",
-                                          "is not immutable",
+                                          "is not allowed in an immutable directory",
                                           n.create_subdirectory,
                                           u"sub2", bad_kids, mutable=False))
             return d
         d.addCallback(_made_parent)
         return d
 
-    def test_spaces_are_stripped_on_the_way_out(self):
-        self.basedir = "dirnode/Dirnode/test_spaces_are_stripped_on_the_way_out"
+    def test_directory_representation(self):
+        self.basedir = "dirnode/Dirnode/test_directory_representation"
         self.set_up_grid()
         c = self.g.clients[0]
         nm = c.nodemaker
@@ -352,6 +353,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         # This test checks that any trailing spaces in URIs are retained in the
         # encoded directory, but stripped when we get them out of the directory.
         # See ticket #925 for why we want that.
+        # It also tests that we store child names as UTF-8 NFC, and normalize
+        # them again when retrieving them.
 
         stripped_write_uri = "lafs://from_the_future\t"
         stripped_read_uri = "lafs://readonly_from_the_future\t"
@@ -362,9 +365,13 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.failUnlessEqual(child.get_write_uri(), spacedout_write_uri)
         self.failUnlessEqual(child.get_readonly_uri(), "ro." + spacedout_read_uri)
 
-        kids = {u"child": (child, {})}
-        d = c.create_dirnode(kids)
-        
+        child_dottedi = u"ch\u0131\u0307ld"
+
+        kids_in   = {child_dottedi: (child, {}), one_nfd: (child, {})}
+        kids_out  = {child_dottedi: (child, {}), one_nfc: (child, {})}
+        kids_norm = {u"child":      (child, {}), one_nfc: (child, {})}
+        d = c.create_dirnode(kids_in)
+
         def _created(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
             self.failUnless(dn.is_mutable())
@@ -377,7 +384,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
         def _check_data(data):
             # Decode the netstring representation of the directory to check that the
-            # spaces are retained when the URIs are stored.
+            # spaces are retained when the URIs are stored, and that the names are stored
+            # as NFC.
             position = 0
             numkids = 0
             while position < len(data):
@@ -386,21 +394,42 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
                 name = name_utf8.decode("utf-8")
                 rw_uri = self.rootnode._decrypt_rwcapdata(rwcapdata)
-                self.failUnless(name in kids)
-                (expected_child, ign) = kids[name]
+                self.failUnlessIn(name, kids_out)
+                (expected_child, ign) = kids_out[name]
                 self.failUnlessEqual(rw_uri, expected_child.get_write_uri())
                 self.failUnlessEqual("ro." + ro_uri, expected_child.get_readonly_uri())
                 numkids += 1
 
-            self.failUnlessEqual(numkids, 1)
-            return self.rootnode.list()
+            self.failUnlessEqual(numkids, len(kids_out))
+            return self.rootnode
         d.addCallback(_check_data)
-        
-        # Now when we use the real directory listing code, the trailing spaces
-        # should have been stripped (and "ro." should have been prepended to the
-        # ro_uri, since it's unknown).
+
+        # Mock up a hypothetical future version of Unicode that adds a canonical equivalence
+        # between dotless-i + dot-above, and 'i'. That would actually be prohibited by the
+        # stability rules, but similar additions involving currently-unassigned characters
+        # would not be.
+        old_normalize = unicodedata.normalize
+        def future_normalize(form, s):
+            assert form == 'NFC', form
+            return old_normalize(form, s).replace(u"\u0131\u0307", u"i")
+
+        def _list(node):
+            unicodedata.normalize = future_normalize
+            d2 = node.list()
+            def _undo_mock(res):
+                unicodedata.normalize = old_normalize
+                return res
+            d2.addBoth(_undo_mock)
+            return d2
+        d.addCallback(_list)
+
         def _check_kids(children):
-            self.failUnlessEqual(set(children.keys()), set([u"child"]))
+            # Now when we use the real directory listing code, the trailing spaces
+            # should have been stripped (and "ro." should have been prepended to the
+            # ro_uri, since it's unknown). Also the dotless-i + dot-above should have been
+            # normalized to 'i'.
+
+            self.failUnlessEqual(set(children.keys()), set(kids_norm.keys()))
             child_node, child_metadata = children[u"child"]
 
             self.failUnlessEqual(child_node.get_write_uri(), stripped_write_uri)
@@ -408,7 +437,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(_check_kids)
 
         d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
-        d.addCallback(lambda n: n.list())
+        d.addCallback(_list)
         d.addCallback(_check_kids)  # again with dirnode recreated from cap
         return d
 

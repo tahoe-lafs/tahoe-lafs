@@ -163,7 +163,7 @@ class Adder:
             precondition(IFilesystemNode.providedBy(child), child)
 
             # Strictly speaking this is redundant because we would raise the
-            # error again in pack_children.
+            # error again in _pack_normalized_children.
             child.raise_error()
 
             metadata = None
@@ -199,9 +199,21 @@ def _encrypt_rw_uri(filenode, rw_uri):
     # The MAC is not checked by readers in Tahoe >= 1.3.0, but we still
     # produce it for the sake of older readers.
 
-def pack_children(filenode, children, deep_immutable=False):
+
+def pack_children(filenode, childrenx, deep_immutable=False):
+    # initial_children must have metadata (i.e. {} instead of None)
+    children = {}
+    for (namex, (node, metadata)) in childrenx.iteritems():
+        precondition(isinstance(metadata, dict),
+                     "directory creation requires metadata to be a dict, not None", metadata)
+        children[normalize(namex)] = (node, metadata)
+
+    return _pack_normalized_children(filenode, children, deep_immutable=deep_immutable)
+
+
+def _pack_normalized_children(filenode, children, deep_immutable=False):
     """Take a dict that maps:
-         children[unicode_name] = (IFileSystemNode, metadata_dict)
+         children[unicode_nfc_name] = (IFileSystemNode, metadata_dict)
     and pack it into a single string, for use as the contents of the backing
     file. This is the same format as is returned by _unpack_contents. I also
     accept an AuxValueDict, in which case I'll use the auxilliary cached data
@@ -368,7 +380,7 @@ class DirectoryNode:
 
     def _pack_contents(self, children):
         # expects children in the same format as _unpack_contents
-        return pack_children(self._node, children)
+        return _pack_normalized_children(self._node, children)
 
     def is_readonly(self):
         return self._node.is_readonly()
