@@ -166,7 +166,7 @@ start the FTP server unless it detects the necessary support code in Twisted.
 This patch is not needed for SFTP.
 
 
-== Immutable and mutable files ==
+== Immutable and Mutable Files ==
 
 All files created via SFTP (and FTP) are immutable files. However, files
 can only be created in writeable directories, which allows the directory
@@ -193,5 +193,22 @@ read-only.
 If SFTP is used to write to an existing mutable file, it will publish a
 new version when the file handle is closed.
 
+
+== Known Issues ==
+
 Mutable files are not supported by the FTP frontend (ticket #680). Currently,
 a directory containing mutable files cannot even be listed over FTP.
+
+The FTP frontend sometimes fails to report errors, for example if an upload
+fails because it does meet the "servers of happiness" threshold (ticket #1081).
+Upload errors also may not be reported when writing files using SFTP via sshfs
+(ticket #1059).
+
+Non-ASCII filenames are not supported by FTP (ticket #682). They can be used
+with SFTP only if the client encodes filenames as UTF-8 (ticket #1089).
+
+The gateway node may incur a memory leak when accessing many files via SFTP
+(ticket #1045).
+
+For other known issues in SFTP, see
+<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>.
