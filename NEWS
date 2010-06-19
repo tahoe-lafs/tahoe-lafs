@@ -1,6 +1,6 @@
 User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
-* Release 1.7.0β (2010-06-09)
+* Release 1.7.0 (2010-06-18)
 
 ** New Features
 
@@ -66,6 +66,11 @@ file has already been previously uploaded). See the architecture.txt document
  - Fix warnings found by pylint. (#973)
  - Changing format of some documentation files. (#1027)
  - the misc/ directory was tied up. (#1068)
+ - The 'ctime' and 'mtime' metadata fields are no longer written except by
+   "tahoe backup". (#924)
+ - Unicode filenames in Tahoe-LAFS directories are normalized so that names
+   that differ only in how accents are encoded are treated as the same. (#1076)
+ - Various small improvements to documentation. (#937, #911, #1024, #1082)
 
 ** Removals
 
