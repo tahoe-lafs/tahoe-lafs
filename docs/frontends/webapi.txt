@@ -675,7 +675,8 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
   edge itself wasn't updated -- only the mutable file was.
 
   The timestamps are represented as a number of seconds since the UNIX epoch
-  (1970-01-01 00:00:00 UTC), excluding leap seconds.
+  (1970-01-01 00:00:00 UTC), with leap seconds not being counted in the long
+  term.
 
   In Tahoe earlier than v1.4.0, 'mtime' and 'ctime' keys were populated
   instead of the 'tahoe':'linkmotime' and 'tahoe':'linkcrtime' keys. Starting
