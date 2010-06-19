@@ -250,6 +250,8 @@ class WebMixin(object):
         self.failUnlessEqual(kids[u"bar.txt"][1]["ro_uri"], self._bar_txt_uri)
         self.failUnlessEqual(kids[u"bar.txt"][1]["verify_uri"],
                              self._bar_txt_verifycap)
+        self.failUnlessIn("metadata", kids[u"bar.txt"][1])
+        self.failUnlessIn("tahoe", kids[u"bar.txt"][1]["metadata"])
         self.failUnlessEqual(kids[u"bar.txt"][1]["metadata"]["tahoe"]["linkcrtime"],
                              self._bar_txt_metadata["tahoe"]["linkcrtime"])
         self.failUnlessEqual(kids[u"n\u00fc.txt"][1]["ro_uri"],
@@ -933,11 +935,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
     def failUnlessHasBarDotTxtMetadata(self, res):
         data = simplejson.loads(res)
         self.failUnless(isinstance(data, list))
-        self.failUnless(data[1].has_key("metadata"))
-        self.failUnless(data[1]["metadata"].has_key("ctime"))
-        self.failUnless(data[1]["metadata"].has_key("mtime"))
-        self.failUnlessEqual(data[1]["metadata"]["ctime"],
-                             self._bar_txt_metadata["ctime"])
+        self.failUnlessIn("metadata", data[1])
+        self.failUnlessIn("tahoe", data[1]["metadata"])
+        self.failUnlessIn("linkcrtime", data[1]["metadata"]["tahoe"])
+        self.failUnlessIn("linkmotime", data[1]["metadata"]["tahoe"])
+        self.failUnlessEqual(data[1]["metadata"]["tahoe"]["linkcrtime"],
+                             self._bar_txt_metadata["tahoe"]["linkcrtime"])
 
     def test_GET_FILEURL_json(self):
         # twisted.web.http.parse_qs ignores any query args without an '=', so
