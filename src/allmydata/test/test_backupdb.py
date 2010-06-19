@@ -4,7 +4,8 @@ from StringIO import StringIO
 from twisted.trial import unittest
 
 from allmydata.util import fileutil
-from allmydata.util.stringutils import listdir_unicode
+from allmydata.util.stringutils import listdir_unicode, get_filesystem_encoding, unicode_platform
+from allmydata.util.assertutil import precondition
 from allmydata.scripts import backupdb
 
 class BackupDB(unittest.TestCase):
@@ -15,6 +16,16 @@ class BackupDB(unittest.TestCase):
             if "I was unable to import a python sqlite library" in stderr.getvalue():
                 raise unittest.SkipTest("sqlite unavailable, skipping test")
         return bdb
+
+    def skip_if_cannot_represent_filename(self, u):
+        precondition(isinstance(u, unicode))
+
+        enc = get_filesystem_encoding()
+        if not unicode_platform():
+            try:
+                u.encode(enc)
+            except UnicodeEncodeError:
+                raise unittest.SkipTest("A non-ASCII filename could not be encoded on this platform.")
 
     def test_basic(self):
         self.basedir = basedir = os.path.join("backupdb", "create")
@@ -77,7 +88,7 @@ class BackupDB(unittest.TestCase):
 
 
     def writeto(self, filename, data):
-        fn = os.path.join(self.basedir, filename)
+        fn = os.path.join(self.basedir, unicode(filename))
         parentdir = os.path.dirname(fn)
         fileutil.make_dirs(parentdir)
         fileutil.write(fn, data)
@@ -228,6 +239,9 @@ class BackupDB(unittest.TestCase):
         self.failIf(r.was_created())
 
     def test_unicode(self):
+        self.skip_if_cannot_represent_filename(u"f\u00f6\u00f6.txt")
+        self.skip_if_cannot_represent_filename(u"b\u00e5r.txt")
+
         self.basedir = basedir = os.path.join("backupdb", "unicode")
         fileutil.make_dirs(basedir)
         dbfile = os.path.join(basedir, "dbfile")
