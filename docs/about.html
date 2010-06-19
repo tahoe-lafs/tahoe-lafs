@@ -4,7 +4,7 @@
     <link rev="made" class="mailto" href="mailto:zooko[at]zooko[dot]com">
     <meta name="description" content="welcome to Tahoe-LAFS">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <meta name="keywords" content="tahoe secure decentralized filesystem cloud storage">
+    <meta name="keywords" content="tahoe-lafs secure decentralized filesystem cloud storage">
   </head>
 
   <body>
@@ -17,9 +17,9 @@
     <p>This guarantee is integrated naturally into the Tahoe-LAFS storage system and doesn't require you to perform a manual pre-encryption step or cumbersome key management.  (After all, having to do cumbersome manual operations when storing or accessing your data would nullify one of the primary benefits of using cloud storage in the first place -- convenience.)</p>
     <p>Here's how it works.</p>
 
-    <img src="http://allmydata.org/~zooko/network-and-reliance-topology.png"></img>
+    <img src="http://tahoe-lafs.org/~zooko/network-and-reliance-topology.png"></img>
 
-    <p>(See also <a href="http://testgrid.allmydata.org:3567/file/URI:CHK:4rd7ous7b5xgbmpan6mmdbx3za:2jywqfnobreondkanwnekugmxv3cyuzdv34fpyazkb5htjmokdta:3:10:102761/@@named=/network-and-reliance-topology-paranoid.png">Tahoe-LAFS for Paranoids</a> and <a href="http://testgrid.allmydata.org:3567/file/URI:CHK:mpa737uu7suao7lva2axhbtgw4:5rpemho4d3cqsgvgsqmg3hbn2mzeibsbdpthmpyo5jwnj7f2fqfa:3:10:114022/@@named=/network-and-reliance-topology-corporate.png">Tahoe-LAFS for Corporates</a>.)</p>
+<!--    <p>(See also <a href="http://testgrid.allmydata.org:3567/file/URI:CHK:4rd7ous7b5xgbmpan6mmdbx3za:2jywqfnobreondkanwnekugmxv3cyuzdv34fpyazkb5htjmokdta:3:10:102761/@@named=/network-and-reliance-topology-paranoid.png">Tahoe-LAFS for Paranoids</a> and <a href="http://testgrid.allmydata.org:3567/file/URI:CHK:mpa737uu7suao7lva2axhbtgw4:5rpemho4d3cqsgvgsqmg3hbn2mzeibsbdpthmpyo5jwnj7f2fqfa:3:10:114022/@@named=/network-and-reliance-topology-corporate.png">Tahoe-LAFS for Corporates</a>.)</p> -->
 
     <p>A "storage grid" is made up of a number of storage servers.  A storage server has direct attached storage (typically one or more hard disks).  A "gateway" uses the storage servers and provides access to the filesystem over HTTP(S) or (S)FTP.</p>
     <p>Users do not rely on storage servers to provide <i>confidentiality</i> nor <i>integrity</i> for their data -- instead all of the data is encrypted and integrity-checked by the gateway, so that the servers can neither read nor modify the contents of the files.</p>
@@ -31,16 +31,15 @@
     <p>There are two kinds of files: immutable and mutable.  Immutable files have the property that once they have been uploaded to the storage grid they can't be modified.  Mutable ones can be modified.  A user can have read-write access to a mutable file or read-only access to it (or no access to it at all).</p>
     <p>A user who has read-write access to a mutable file or directory can give another user read-write access to that file or directory, or they can give read-only access to that file or directory.  A user who has read-only access to a file or directory can give another user read-only access to it.</p>
     <p>When linking a file or directory into a parent directory, you can use a read-write link or a read-only link.  If you use a read-write link, then anyone who has read-write access to the parent directory can gain read-write access to the child, and anyone who has read-only access to the parent directory can gain read-only access to the child.  If you use a read-only link, then anyone who has either read-write or read-only access to the parent directory can gain read-only access to the child.</p>
-    <p>For more technical detail, please see <a href="architecture.txt">architecture.txt</a> and the <a href="http://allmydata.org/trac/tahoe/wiki/Doc">The Doc Page</a> on the Wiki.</p>
+    <p>For more technical detail, please see <a href="architecture.txt">architecture.txt</a> and the <a href="http://tahoe-lafs.org/trac/tahoe-lafs/wiki/Doc">The Doc Page</a> on the Wiki.</p>
 
-    <h2>Installing</h2>
-    <p>To install Tahoe-LAFS, please see <a href="install.html">install.html</a>.</p>
+    <h2>Get Started</h2>
+    <p>To use Tahoe-LAFS, please see <a href="quickstart.html">quickstart.html</a>.</p>
 
     <h2>Licence</h2>
     <p>You may use this package under the GNU General Public License, version 2 or, at your option, any later version.  See the file <a href="../COPYING.GPL">COPYING.GPL</a> for the terms of the GNU General Public License, version 2.</p>
     <p>You may use this package under the Transitive Grace Period Public Licence, version 1 or, at your option, any later version.  The Transitive Grace Period Public Licence has requirements similar to the GPL except that it allows you to wait for up to twelve months after you redistribute a derived work before releasing the source code of your derived work. See the file <a href="../COPYING.TGPPL.html">COPYING.TGPPL.html</a> for the terms of the Transitive Grace Period Public Licence, version 1.</p>
     <p>(You may choose to use this package under the terms of either licence, at your option.)</p>
-    <p>If you would like to inquire about a commercial relationship with Allmydata, Inc., please contact <a href="mailto:partnerships@allmydata.com">partnerships@allmydata.com</a> and visit <a href="http://allmydata.com">http://allmydata.com</a>.
 
   </body>
 </html>
