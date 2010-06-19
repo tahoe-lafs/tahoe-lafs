@@ -1,27 +1,21 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.7.0β
-
-(beta release for Tahoe-LAFS v1.7.0)
-
-(This relnotes.txt document is the beta version of the
-relnotes.txt document which will announce Tahoe-LAFS v1.7.0
-when it is final.)
+﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.7.0
 
 The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.7.0β of Tahoe-LAFS, an extremely
-reliable distributed data store.
+availability of version 1.7.0 of Tahoe-LAFS, an extremely
+reliable distributed storage system.
 
-Tahoe-LAFS is the first cloud storage system which offers
-"provider-independent security"—meaning that not even your
-cloud service provider can read or alter your data without
-your consent.  Here is the one-page explanation of its unique
-security and fault-tolerance properties:
+Tahoe-LAFS is the first distributed storage system which offers
+"provider-independent security"—meaning that not even the
+operator of your storage server can read or alter your data
+without your consent. Here is the one-page explanation of its
+unique security and fault-tolerance properties:
 
 http://tahoe-lafs.org/source/tahoe/trunk/docs/about.html
 
-Tahoe-LAFS v1.7.0β is the successor to v1.6.1, which was released
+Tahoe-LAFS v1.7.0 is the successor to v1.6.1, which was released
 February 27, 2010 [1].
 
-v1.7.0β is a major new release with new features and a few bugfixes. It
+v1.7.0 is a major new release with new features and bugfixes. It
 adds a fully functional SFTP interface, support for non-ASCII character
 encodings, and a new upload algorithm which guarantees that each file
 is spread over multiple servers for fault-tolerance. See the NEWS file
@@ -30,9 +24,9 @@ is spread over multiple servers for fault-tolerance. See the NEWS file
 
 WHAT IS IT GOOD FOR?
 
-With Tahoe-LAFS, you spread your filesystem across multiple
-servers, and even if some of the servers fail or are taken
-over by an attacker, the entire filesystem continues to work
+With Tahoe-LAFS, you distribute your filesystem across multiple
+servers, and even if some of the servers are compromised by
+by an attacker, the entire filesystem continues to work
 correctly, and continues to preserve your privacy and
 security. You can easily share specific files and directories
 with other people.
@@ -41,15 +35,15 @@ In addition to the core storage system itself, volunteers have
 built other projects on top of Tahoe-LAFS and have integrated
 Tahoe-LAFS with existing systems.
 
-These related projects include frontends for Windows,
-Macintosh, JavaScript, iPhone, and Android, and plugins for
-Hadoop, bzr, mercurial, duplicity, TiddlyWiki, and more. See
-the Related Projects page on the wiki [3].
+These include frontends for Windows, Macintosh, JavaScript,
+iPhone, and Android, and plugins for Hadoop, bzr, mercurial,
+duplicity, TiddlyWiki, and more. See the Related Projects page
+on the wiki [3].
 
-We believe that strong encryption, Free and Open Source
-Software, erasure coding, and careful engineering practices
+We believe that strong cryptography, Free and Open Source
+Software, erasure coding, and principled engineering practices
 make Tahoe-LAFS safer than RAID, removable drive, tape,
-on-line backup or other Cloud storage systems.
+on-line backup or "cloud storage" systems.
 
 This software is developed under test-driven development, and
 there are no known bugs or security flaws which would
@@ -69,11 +63,11 @@ all versions since v1.0. Servers from this release can serve
 clients of all versions back to v1.0 and clients from this
 release can use servers of all versions back to v1.0.
 
-This is the ninth release in the version 1 series. The version
-1 series of Tahoe-LAFS will be actively supported and
-maintained for the forseeable future, and future versions of
-Tahoe-LAFS will retain the ability to read and write files
-compatible with Tahoe-LAFS v1.
+This is the ninth release in the version 1 series. This series
+of Tahoe-LAFS will be actively supported and maintained for
+the forseeable future, and future versions of Tahoe-LAFS will
+retain the ability to read and write files compatible with
+Tahoe-LAFS v1.
 
 
 LICENCE
@@ -151,11 +145,11 @@ project and displayed superb software engineering skills.
 Zooko Wilcox-O'Hearn
 on behalf of the Tahoe-LAFS team
 
-June 8, 2010
+June 18, 2010
 Boulder, Colorado, USA
 
 [1] http://tahoe-lafs.org/trac/tahoe/browser/relnotes.txt?rev=4244
-[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4443
+[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4254
 [3] http://tahoe-lafs.org/trac/tahoe/wiki/RelatedProjects
 [4] http://tahoe-lafs.org/trac/tahoe/browser/docs/known_issues.txt
 [5] http://tahoe-lafs.org/trac/tahoe/browser/COPYING.GPL
@@ -163,6 +157,6 @@ Boulder, Colorado, USA
 [7] http://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.html
 [8] http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [9] http://tahoe-lafs.org/trac/tahoe/roadmap
-[10] http://tahoe-lafs.org/trac/tahoe/browser/CREDITS?rev=4456
+[10] http://tahoe-lafs.org/trac/tahoe/browser/CREDITS?rev=4511
 [11] http://tahoe-lafs.org/trac/tahoe/wiki/Dev
 [12] http://tahoe-lafs.org/hacktahoelafs/
