@@ -49,7 +49,9 @@
     "<code>tahoe create-introducer .</code>". Now run the introducer using
     "<code>tahoe start .</code>". After it starts, it will write a file named
     <code>introducer.furl</code> in that base directory. This file contains the
-    URL the other nodes must use in order to connect to this introducer.</p>
+    URL the other nodes must use in order to connect to this introducer.
+    (Note that "<code>tahoe run .</code>" doesn't work for introducers, this is a known
+    issue: <a href="http://allmydata.org/trac/tahoe-lafs/ticket/937">#937</a>.)</p>
 
     <p>The "<code>tahoe run</code>" command above
     will run the node in the foreground. On Unix, you can run it in the background
