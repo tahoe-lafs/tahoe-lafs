@@ -3,11 +3,11 @@
 Below is a list of known issues in older releases of Tahoe-LAFS, and how to
 manage them.  The current version of this file can be found at
 
-http://allmydata.org/source/tahoe/trunk/docs/historical/historical_known_issues.txt
+http://tahoe-lafs.org/source/tahoe/trunk/docs/historical/historical_known_issues.txt
 
 Issues in newer releases of Tahoe-LAFS can be found at:
 
-http://allmydata.org/source/tahoe/trunk/docs/known_issues.txt
+http://tahoe-lafs.org/source/tahoe/trunk/docs/known_issues.txt
 
 == issues in Tahoe v1.1.0, released 2008-06-11 ==
 
@@ -94,7 +94,7 @@ mutable files, you may be able to avoid the potential for "rollback"
 failure.
 
 A future version of Tahoe will include a fix for this issue.  Here is
-[http://allmydata.org/pipermail/tahoe-dev/2008-May/000630.html the
+[http://tahoe-lafs.org/pipermail/tahoe-dev/2008-May/000630.html the
 mailing list discussion] about how that future version will work.
 
 

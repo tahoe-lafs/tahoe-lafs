@@ -1,32 +1,29 @@
-= Known Issues =
+﻿= known issues =
 
-1.  Overview
-2.  Issues in Tahoe-LAFS v1.6.0, released 2010-02-01
-  2.1.  Potential unauthorized access by JavaScript in unrelated files
-    2.1.1.  How to manage it
-  2.2.  Potential disclosure of file through embedded hyperlinks or JavaScript in that file
-    2.2.1.  How to manage it
-  2.3.  Command-line arguments are leaked to other local users
-    2.3.1.  How to manage it
-  2.4.  Capabilities may be leaked to web browser phishing filter servers
-    2.4.1.  How to manage it
+*  overview
+*  issues in Tahoe-LAFS v1.7.0, released 2010-06-18
+  -  potential unauthorized access by JavaScript in unrelated files
+  -  potential disclosure of file through embedded hyperlinks or JavaScript in that file
+  -  command-line arguments are leaked to other local users
+  -  capabilities may be leaked to web browser phishing filter / "safe browsing" servers ===
+  -  known issues in the FTP and SFTP frontends ===
 
-== Overview ==
+== overview ==
 
 Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
 manage them.  The current version of this file can be found at
 
-http://allmydata.org/source/tahoe/trunk/docs/known_issues.txt
+http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/known_issues.txt
 
 If you've been using Tahoe-LAFS since v1.1 (released 2008-06-11) or if you're
 just curious about what sort of mistakes we've made in the past, then you might
 want to read the "historical known issues" document:
 
-http://allmydata.org/source/tahoe/trunk/docs/historical/historical_known_issues.txt
+http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/historical/historical_known_issues.txt
 
-== Issues in Tahoe-LAFS v1.6.0, released 2010-02-01 ==
+== issues in Tahoe-LAFS v1.7.0, released 2010-06-18 ==
 
-=== Potential unauthorized access by JavaScript in unrelated files ===
+=== potential unauthorized access by JavaScript in unrelated files ===
 
 If you view a file stored in Tahoe-LAFS through a web user interface,
 JavaScript embedded in that file might be able to access other files or
@@ -36,7 +33,7 @@ those other files or directories to the author of the script, and if you
 have the ability to modify the contents of those files or directories,
 then that script could modify or delete those files or directories.
 
-==== How to manage it ====
+==== how to manage it ====
 
 For future versions of Tahoe-LAFS, we are considering ways to close off
 this leakage of authority while preserving ease of use -- the discussion
@@ -48,7 +45,7 @@ doing so, or limit your viewing to files which you know don't contain
 malicious JavaScript.
 
 
-=== Potential disclosure of file through embedded hyperlinks or JavaScript in that file ===
+=== potential disclosure of file through embedded hyperlinks or JavaScript in that file ===
 
 If there is a file stored on a Tahoe-LAFS storage grid, and that file
 gets downloaded and displayed in a web browser, then JavaScript or
@@ -64,7 +61,7 @@ file. Note that IMG tags are typically followed automatically by web
 browsers, so being careful which hyperlinks you click on is not
 sufficient to prevent this from happening.
 
-==== How to manage it ====
+==== how to manage it ====
 
 For future versions of Tahoe-LAFS, we are considering ways to close off
 this leakage of authority while preserving ease of use -- the discussion
@@ -77,16 +74,19 @@ and remove any JavaScript unless you are sure that the JavaScript is not
 written to maliciously leak access.
 
 
-=== Command-line arguments are leaked to other local users ===
+=== command-line arguments are leaked to other local users ===
 
 Remember that command-line arguments are visible to other users (through
 the 'ps' command, or the windows Process Explorer tool), so if you are
 using a Tahoe-LAFS node on a shared host, other users on that host will
 be able to see (and copy) any caps that you pass as command-line
 arguments.  This includes directory caps that you set up with the "tahoe
-add-alias" command.  Use "tahoe create-alias" for that purpose instead.
+add-alias" command.
 
-==== How to manage it ====
+==== how to manage it ====
+
+As of Tahoe-LAFS v1.3.0 there is a "tahoe create-alias" command that does
+the following technique for you.
 
 Bypass add-alias and edit the NODEDIR/private/aliases file directly, by
 adding a line like this:
@@ -98,36 +98,49 @@ are bypassed, and other users will not be able to see them. Once you've
 added the alias, if you use that alias instead of a cap itself on the
 command-line, then no secrets are passed through the command line.  Then
 other processes on the system can still see your filenames and other
-arguments you type there, but not the caps that Tahoe uses to permit
-access to your files and directories.  Starting in Tahoe-LAFS v1.3.0,
-there is a "tahoe create-alias" command that does this for you.
+arguments you type there, but not the caps that Tahoe-LAFS uses to permit
+access to your files and directories.
 
 
-=== Capabilities may be leaked to web browser phishing filter servers ===
+=== capabilities may be leaked to web browser phishing filter / "safe browsing" servers ===
 
-Internet Explorer includes a "phishing filter", which is turned on by
-default, and which sends any URLs that it deems suspicious to a central
-server (Microsoft gives a brief description of its operation at
-<http://blogs.msdn.com/ie/archive/2005/09/09/463204.aspx>).
-This of course has implications for the privacy of general web browsing,
-but when using the Tahoe web user interface, it could also affect
-confidentiality and integrity by leaking capabilities to the filter server.
-Since IE's filter sends URLs by SSL/TLS, the exposure of caps is limited
-to the filter server operators (or anyone able to hack the filter server)
-rather than to network eavesdroppers.
+Firefox, Internet Explorer, and Chrome include a "phishing filter" or
+"safe browing" component, which is turned on by default, and which sends
+any URLs that it deems suspicious to a central server.
 
-We are not aware of any other widely used current browser besides IE that
-has such a facility enabled by default (Opera has one that is disabled by
-default). Firefox briefly included a phishing filter in previous versions,
-but abandoned it.
+Microsoft gives a brief description of their filter's operation at
+<http://blogs.msdn.com/ie/archive/2005/09/09/463204.aspx>. Firefox
+and Chrome both use Google's "safe browsing API" which is documented
+at <http://code.google.com/apis/safebrowsing/> and
+<http://code.google.com/p/google-safe-browsing/wiki/Protocolv2Spec>.
 
-==== How to manage it ====
+This of course has implications for the privacy of general web browsing
+(especially in the cases of Firefox and Chrome, which send your main
+personally identifying Google cookie along with these requests without
+your explicit consent, as described for Firefox in
+<https://bugzilla.mozilla.org/show_bug.cgi?id=368255>).
 
-If you use Internet Explorer's phishing filter or a similar add-on
-for another browser, consider either disabling it, or not using the WUI
-via that browser. Phishing filters have very limited effectiveness (see
+The reason for documenting this issue here, though, is that when using the
+Tahoe-LAFS web user interface, it could also affect confidentiality and integrity
+by leaking capabilities to the filter server.
+
+Since IE's filter sends URLs by SSL/TLS, the exposure of caps is limited to
+the filter server operators (or anyone able to hack the filter server) rather
+than to network eavesdroppers. The "safe browsing API" protocol used by
+Firefox and Chrome, on the other hand, is *not* encrypted, although the
+URL components are normally hashed.
+
+Opera also has a similar facility that is disabled by default. A previous
+version of this file stated that Firefox had abandoned their phishing
+filter; this was incorrect.
+
+==== how to manage it ====
+
+If you use any phishing filter or "safe browsing" feature, consider either
+disabling it, or not using the WUI via that browser. Phishing filters have
+very limited effectiveness (see
 <http://lorrie.cranor.org/pubs/ndss-phish-tools-final.pdf>), and phishing
-site operators have learnt how to bypass them.
+or malware attackers have learnt how to bypass them.
 
 To disable the filter in IE7 or IE8:
  - Click Internet Options from the Tools menu.
@@ -138,4 +151,23 @@ To disable the filter in IE7 or IE8:
  - Confirm (click OK or Yes) out of all dialogs.
 
 If you have a version of IE that splits the settings between security
-zones, do this for all zones. Alternatively, don't use IE.
+zones, do this for all zones.
+
+To disable the filter in Firefox:
+ - Click Options from the Tools menu.
+ - Click the Security tab.
+ - Uncheck both the "Block reported attack sites" and "Block reported
+   web forgeries" options.
+ - Click OK.
+
+To disable the filter in Chrome:
+ - Click Options from the Tools menu.
+ - Click the "Under the Hood" tab and find the "Privacy" section.
+ - Uncheck the "Enable phishing and malware protection" option.
+ - Click Close.
+
+
+=== known issues in the FTP and SFTP frontends ===
+
+These are documented in docs/frontends/FTP-and-SFTP.txt and at
+<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>.
