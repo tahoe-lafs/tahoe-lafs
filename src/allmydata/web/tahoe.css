@@ -128,10 +128,11 @@ table.tahoe-directory {
 .toolbar {
   display: table;
   margin: .2em auto;
+  text-align: center;
   /*width: 100%;*/
 }
 .toolbar .toolbar-item {
-  display: table-cell;
+  display: inline;
   text-align: center;
   padding: 0 1em;
 }
