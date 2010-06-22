@@ -985,6 +985,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
         d.addBoth(self.should404, "test_GET_FILEURL_uri_missing")
         return d
 
+    def test_GET_DIRECTORY_html_banner(self):
+        d = self.GET(self.public_url + "/foo", followRedirect=True)
+        def _check(res):
+            self.failUnlessIn('<div class="toolbar-item"><a href="../../..">Return to Welcome page</a></div>',res)
+        d.addCallback(_check)
+        return d
+
     def test_GET_DIRURL(self):
         # the addSlash means we get a redirect here
         # from /uri/$URI/foo/ , we need ../../../ to get back to the root
