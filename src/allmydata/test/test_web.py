@@ -980,6 +980,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, unittest.TestCase):
                                  self.public_url + "/foo/bar.txt?t=bogus")
         return d
 
+    def test_CSS_FILE(self):
+        d = self.GET("/tahoe_css", followRedirect=True)
+        def _check(res):
+            CSS_STYLE=re.compile('toolbar\s{.+text-align:\scenter.+toolbar-item.+display:\sinline',re.DOTALL)
+            self.failUnless(CSS_STYLE.search(res), res)
+        d.addCallback(_check)
+        return d
+    
     def test_GET_FILEURL_uri_missing(self):
         d = self.GET(self.public_url + "/foo/missing?t=uri")
         d.addBoth(self.should404, "test_GET_FILEURL_uri_missing")
