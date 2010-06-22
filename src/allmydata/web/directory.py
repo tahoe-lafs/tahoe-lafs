@@ -613,7 +613,7 @@ class DirectoryAsHTML(rend.Page):
 
     def render_welcome(self, ctx, data):
         link = get_root(ctx)
-        return T.div[T.a(href=link)["Return to Welcome page"]]
+        return ctx.tag[T.a(href=link)["Return to Welcome page"]]
 
     def render_show_readonly(self, ctx, data):
         if self.node.is_unknown() or self.node.is_readonly():
