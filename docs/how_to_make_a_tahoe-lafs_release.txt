@@ -1,5 +1,5 @@
 1 update doc files: relnotes.txt, CREDITS, docs/known_issues.txt, NEWS. Add release name and date to top-most item in NEWS.
-2 change docs/install.html to point to just the current tahoe-X.Y.Z.zip source code file, or else to point to a directory which contains only tahoe-X.Y.Z.* source code files
+2 change docs/quickstart.html to point to just the current allmydata-tahoe-X.Y.Z.zip source code file, or else to point to a directory which contains only allmydata-tahoe-X.Y.Z.* source code files
 3 darcs pull
 4 make tag
 5 make sure buildbot is green
