@@ -41,7 +41,9 @@ def _reload():
 
     filesystem_encoding = _canonical_encoding(sys.getfilesystemencoding())
 
-    outenc = sys.stdout.encoding
+    outenc = None
+    if hasattr(sys.stdout, 'encoding'):
+        outenc = sys.stdout.encoding
     if outenc is None:
         try:
             outenc = locale.getpreferredencoding()
