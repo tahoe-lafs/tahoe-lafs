@@ -552,9 +552,6 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             # truncated to before the milestone.
             eventually_callback(d)(None)
 
-        # FIXME: causes spurious failures
-        #self.unregisterProducer()
-
     def close(self):
         if not self.is_closed:
             self.is_closed = True
@@ -565,9 +562,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         self.finish()
 
     def unregisterProducer(self):
-        if self.producer:
-            self.producer.stopProducing()
-            self.producer = None
+        pass
 
 
 SIZE_THRESHOLD = 1000
