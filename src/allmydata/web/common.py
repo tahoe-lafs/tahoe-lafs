@@ -11,7 +11,8 @@ from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      EmptyPathnameComponentError, MustBeDeepImmutableError, \
      MustBeReadonlyError, MustNotBeUnknownRWError
 from allmydata.mutable.common import UnrecoverableFileError
-from allmydata.util import abbreviate # TODO: consolidate
+from allmydata.util import abbreviate
+from allmydata.util.stringutils import to_str
 
 class IOpHandleTable(Interface):
     pass
@@ -64,17 +65,14 @@ def convert_children_json(nodemaker, children_json):
     children = {}
     if children_json:
         data = simplejson.loads(children_json)
-        for (name, (ctype, propdict)) in data.iteritems():
-            name = unicode(name)
-            writecap = propdict.get("rw_uri")
-            if writecap is not None:
-                writecap = str(writecap)
-            readcap = propdict.get("ro_uri")
-            if readcap is not None:
-                readcap = str(readcap)
+        for (namex, (ctype, propdict)) in data.iteritems():
+            namex = unicode(namex)
+            writecap = to_str(propdict.get("rw_uri"))
+            readcap = to_str(propdict.get("ro_uri"))
             metadata = propdict.get("metadata", {})
-            childnode = nodemaker.create_from_cap(writecap, readcap)
-            children[name] = (childnode, metadata)
+            # name= argument is just for error reporting
+            childnode = nodemaker.create_from_cap(writecap, readcap, name=namex)
+            children[namex] = (childnode, metadata)
     return children
 
 def abbreviate_time(data):
