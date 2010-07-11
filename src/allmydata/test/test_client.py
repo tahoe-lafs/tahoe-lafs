@@ -27,7 +27,7 @@ BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
               )
 
-class Basic(unittest.TestCase):
+class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_loadable(self):
         basedir = "test_client.Basic.test_loadable"
         os.mkdir(basedir)
@@ -81,7 +81,7 @@ class Basic(unittest.TestCase):
         f.write("reserved_space = 1000\n")
         f.close()
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 1000)
+        self.failUnlessReallyEqual(c.getServiceNamed("storage").reserved_space, 1000)
 
     def test_reserved_2(self):
         basedir = "client.Basic.test_reserved_2"
@@ -93,7 +93,7 @@ class Basic(unittest.TestCase):
         f.write("reserved_space = 10K\n")
         f.close()
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 10*1000)
+        self.failUnlessReallyEqual(c.getServiceNamed("storage").reserved_space, 10*1000)
 
     def test_reserved_3(self):
         basedir = "client.Basic.test_reserved_3"
@@ -105,7 +105,7 @@ class Basic(unittest.TestCase):
         f.write("reserved_space = 5mB\n")
         f.close()
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
+        self.failUnlessReallyEqual(c.getServiceNamed("storage").reserved_space,
                              5*1000*1000)
 
     def test_reserved_4(self):
@@ -118,8 +118,8 @@ class Basic(unittest.TestCase):
         f.write("reserved_space = 78Gb\n")
         f.close()
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
-                             78*1000*1000*1000)
+        self.failUnlessReallyEqual(c.getServiceNamed("storage").reserved_space,
+                                   78*1000*1000*1000)
 
     def test_reserved_bad(self):
         basedir = "client.Basic.test_reserved_bad"
@@ -131,7 +131,7 @@ class Basic(unittest.TestCase):
         f.write("reserved_space = bogus\n")
         f.close()
         c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 0)
+        self.failUnlessReallyEqual(c.getServiceNamed("storage").reserved_space, 0)
 
     def _permute(self, sb, key):
         return [ peerid
@@ -142,10 +142,10 @@ class Basic(unittest.TestCase):
         for k in ["%d" % i for i in range(5)]:
             sb.test_add_server(k, None)
 
-        self.failUnlessEqual(self._permute(sb, "one"), ['3','1','0','4','2'])
-        self.failUnlessEqual(self._permute(sb, "two"), ['0','4','2','1','3'])
+        self.failUnlessReallyEqual(self._permute(sb, "one"), ['3','1','0','4','2'])
+        self.failUnlessReallyEqual(self._permute(sb, "two"), ['0','4','2','1','3'])
         sb.test_servers.clear()
-        self.failUnlessEqual(self._permute(sb, "one"), [])
+        self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
     def test_versions(self):
         basedir = "test_client.Basic.test_versions"
@@ -154,8 +154,8 @@ class Basic(unittest.TestCase):
         c = client.Client(basedir)
         ss = c.getServiceNamed("storage")
         verdict = ss.remote_get_version()
-        self.failUnlessEqual(verdict["application-version"],
-                             str(allmydata.__full_version__))
+        self.failUnlessReallyEqual(verdict["application-version"],
+                                   str(allmydata.__full_version__))
         self.failIfEqual(str(allmydata.__version__), "unknown")
         self.failUnless("." in str(allmydata.__full_version__),
                         "non-numeric version in '%s'" % allmydata.__version__)
@@ -225,7 +225,7 @@ class Run(unittest.TestCase, testutil.StallMixin):
         d.addCallback(_restart)
         return d
 
-class NodeMaker(unittest.TestCase):
+class NodeMaker(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_maker(self):
         basedir = "client/NodeMaker/maker"
         fileutil.make_dirs(basedir)
@@ -297,6 +297,19 @@ class NodeMaker(unittest.TestCase):
         self.failIf(IMutableFileNode.providedBy(n))
         self.failIf(IDirectoryNode.providedBy(n))
         self.failUnless(n.is_unknown())
-        self.failUnlessEqual(n.get_uri(), unknown_rw)
-        self.failUnlessEqual(n.get_write_uri(), unknown_rw)
-        self.failUnlessEqual(n.get_readonly_uri(), "ro." + unknown_ro)
+        self.failUnlessReallyEqual(n.get_uri(), unknown_rw)
+        self.failUnlessReallyEqual(n.get_write_uri(), unknown_rw)
+        self.failUnlessReallyEqual(n.get_readonly_uri(), "ro." + unknown_ro)
+
+        unknown_rw = u"lafs://from_the_future_rw_\u263A".encode('utf-8')
+        unknown_ro = u"lafs://readonly_from_the_future_ro_\u263A".encode('utf-8')
+        n = c.create_node_from_uri(unknown_rw, unknown_ro)
+        self.failUnless(IFilesystemNode.providedBy(n))
+        self.failIf(IFileNode.providedBy(n))
+        self.failIf(IImmutableFileNode.providedBy(n))
+        self.failIf(IMutableFileNode.providedBy(n))
+        self.failIf(IDirectoryNode.providedBy(n))
+        self.failUnless(n.is_unknown())
+        self.failUnlessReallyEqual(n.get_uri(), unknown_rw)
+        self.failUnlessReallyEqual(n.get_write_uri(), unknown_rw)
+        self.failUnlessReallyEqual(n.get_readonly_uri(), "ro." + unknown_ro)

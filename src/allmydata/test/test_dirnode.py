@@ -46,13 +46,15 @@ tiny_litdir_uri = "URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdg
 mut_read_uri = "URI:SSK-RO:jf6wkflosyvntwxqcdo7a54jvm:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
 future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
 future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
+future_nonascii_write_uri = u"x-tahoe-even-more-crazy://I_am_from_the_future_rw_\u263A".encode('utf-8')
+future_nonascii_read_uri = u"x-tahoe-even-more-crazy-readonly://I_am_from_the_future_ro_\u263A".encode('utf-8')
 
 # 'o' 'n' 'e-macron'
 one_nfc = u"on\u0113"
 one_nfd = u"one\u0304"
 
 class Dirnode(GridTestMixin, unittest.TestCase,
-              testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
+              testutil.ReallyEqualMixin, testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
     timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
 
     def test_basic(self):
@@ -84,6 +86,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 u"mut": (nm.create_from_cap(mut_write_uri, mut_read_uri), {}),
                 u"fut": (nm.create_from_cap(future_write_uri, future_read_uri), {}),
                 u"fro": (nm.create_from_cap(None, future_read_uri), {}),
+                u"fut-unic": (nm.create_from_cap(future_nonascii_write_uri, future_nonascii_read_uri), {}),
+                u"fro-unic": (nm.create_from_cap(None, future_nonascii_read_uri), {}),
                 u"empty_litdir": (nm.create_from_cap(empty_litdir_uri), {}),
                 u"tiny_litdir": (nm.create_from_cap(tiny_litdir_uri), {}),
                 }
@@ -102,54 +106,67 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(_created)
         
         def _check_kids(children):
-            self.failUnlessEqual(set(children.keys()),
-                                 set([one_nfc, u"two", u"mut", u"fut", u"fro", u"empty_litdir", u"tiny_litdir"]))
+            self.failUnlessReallyEqual(set(children.keys()),
+                                       set([one_nfc, u"two", u"mut", u"fut", u"fro",
+                                            u"fut-unic", u"fro-unic", u"empty_litdir", u"tiny_litdir"]))
             one_node, one_metadata = children[one_nfc]
             two_node, two_metadata = children[u"two"]
             mut_node, mut_metadata = children[u"mut"]
             fut_node, fut_metadata = children[u"fut"]
             fro_node, fro_metadata = children[u"fro"]
+            futna_node, futna_metadata = children[u"fut-unic"]
+            frona_node, frona_metadata = children[u"fro-unic"]
             emptylit_node, emptylit_metadata = children[u"empty_litdir"]
             tinylit_node, tinylit_metadata = children[u"tiny_litdir"]
             
-            self.failUnlessEqual(one_node.get_size(), 3)
-            self.failUnlessEqual(one_node.get_uri(), one_uri)
-            self.failUnlessEqual(one_node.get_readonly_uri(), one_uri)
+            self.failUnlessReallyEqual(one_node.get_size(), 3)
+            self.failUnlessReallyEqual(one_node.get_uri(), one_uri)
+            self.failUnlessReallyEqual(one_node.get_readonly_uri(), one_uri)
             self.failUnless(isinstance(one_metadata, dict), one_metadata)
             
-            self.failUnlessEqual(two_node.get_size(), 14861)
-            self.failUnlessEqual(two_node.get_uri(), setup_py_uri)
-            self.failUnlessEqual(two_node.get_readonly_uri(), setup_py_uri)
-            self.failUnlessEqual(two_metadata["metakey"], "metavalue")
+            self.failUnlessReallyEqual(two_node.get_size(), 14861)
+            self.failUnlessReallyEqual(two_node.get_uri(), setup_py_uri)
+            self.failUnlessReallyEqual(two_node.get_readonly_uri(), setup_py_uri)
+            self.failUnlessReallyEqual(two_metadata["metakey"], "metavalue")
             
-            self.failUnlessEqual(mut_node.get_uri(), mut_write_uri)
-            self.failUnlessEqual(mut_node.get_readonly_uri(), mut_read_uri)
+            self.failUnlessReallyEqual(mut_node.get_uri(), mut_write_uri)
+            self.failUnlessReallyEqual(mut_node.get_readonly_uri(), mut_read_uri)
             self.failUnless(isinstance(mut_metadata, dict), mut_metadata)
             
             self.failUnless(fut_node.is_unknown())
-            self.failUnlessEqual(fut_node.get_uri(), future_write_uri)
-            self.failUnlessEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fut_node.get_uri(), future_write_uri)
+            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
             self.failUnless(isinstance(fut_metadata, dict), fut_metadata)
-            
+
+            self.failUnless(futna_node.is_unknown())
+            self.failUnlessReallyEqual(futna_node.get_uri(), future_nonascii_write_uri)
+            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "ro." + future_nonascii_read_uri)
+            self.failUnless(isinstance(futna_metadata, dict), futna_metadata)
+
             self.failUnless(fro_node.is_unknown())
-            self.failUnlessEqual(fro_node.get_uri(), "ro." + future_read_uri)
-            self.failUnlessEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fro_node.get_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
             self.failUnless(isinstance(fro_metadata, dict), fro_metadata)
 
+            self.failUnless(frona_node.is_unknown())
+            self.failUnlessReallyEqual(frona_node.get_uri(), "ro." + future_nonascii_read_uri)
+            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "ro." + future_nonascii_read_uri)
+            self.failUnless(isinstance(frona_metadata, dict), frona_metadata)
+
             self.failIf(emptylit_node.is_unknown())
-            self.failUnlessEqual(emptylit_node.get_storage_index(), None)
+            self.failUnlessReallyEqual(emptylit_node.get_storage_index(), None)
             self.failIf(tinylit_node.is_unknown())
-            self.failUnlessEqual(tinylit_node.get_storage_index(), None)
+            self.failUnlessReallyEqual(tinylit_node.get_storage_index(), None)
 
             d2 = defer.succeed(None)
             d2.addCallback(lambda ignored: emptylit_node.list())
             d2.addCallback(lambda children: self.failUnlessEqual(children, {}))
             d2.addCallback(lambda ignored: tinylit_node.list())
-            d2.addCallback(lambda children: self.failUnlessEqual(set(children.keys()),
-                                                                 set([u"short"])))
+            d2.addCallback(lambda children: self.failUnlessReallyEqual(set(children.keys()),
+                                                                       set([u"short"])))
             d2.addCallback(lambda ignored: tinylit_node.list())
             d2.addCallback(lambda children: children[u"short"][0].read(MemAccum()))
-            d2.addCallback(lambda accum: self.failUnlessEqual(accum.data, "The end."))
+            d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, "The end."))
             return d2
 
         d.addCallback(_check_kids)
@@ -185,6 +202,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 u"two": (nm.create_from_cap(setup_py_uri),
                          {"metakey": "metavalue"}),
                 u"fut": (nm.create_from_cap(None, future_read_uri), {}),
+                u"futna": (nm.create_from_cap(None, future_nonascii_read_uri), {}),
                 u"empty_litdir": (nm.create_from_cap(empty_litdir_uri), {}),
                 u"tiny_litdir": (nm.create_from_cap(tiny_litdir_uri), {}),
                 }
@@ -206,43 +224,49 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(_created)
         
         def _check_kids(children):
-            self.failUnlessEqual(set(children.keys()),
-                                 set([one_nfc, u"two", u"fut", u"empty_litdir", u"tiny_litdir"]))
+            self.failUnlessReallyEqual(set(children.keys()),
+                                       set([one_nfc, u"two", u"fut", u"futna", u"empty_litdir", u"tiny_litdir"]))
             one_node, one_metadata = children[one_nfc]
             two_node, two_metadata = children[u"two"]
             fut_node, fut_metadata = children[u"fut"]
+            futna_node, futna_metadata = children[u"futna"]
             emptylit_node, emptylit_metadata = children[u"empty_litdir"]
             tinylit_node, tinylit_metadata = children[u"tiny_litdir"]
 
-            self.failUnlessEqual(one_node.get_size(), 3)
-            self.failUnlessEqual(one_node.get_uri(), one_uri)
-            self.failUnlessEqual(one_node.get_readonly_uri(), one_uri)
+            self.failUnlessReallyEqual(one_node.get_size(), 3)
+            self.failUnlessReallyEqual(one_node.get_uri(), one_uri)
+            self.failUnlessReallyEqual(one_node.get_readonly_uri(), one_uri)
             self.failUnless(isinstance(one_metadata, dict), one_metadata)
 
-            self.failUnlessEqual(two_node.get_size(), 14861)
-            self.failUnlessEqual(two_node.get_uri(), setup_py_uri)
-            self.failUnlessEqual(two_node.get_readonly_uri(), setup_py_uri)
-            self.failUnlessEqual(two_metadata["metakey"], "metavalue")
+            self.failUnlessReallyEqual(two_node.get_size(), 14861)
+            self.failUnlessReallyEqual(two_node.get_uri(), setup_py_uri)
+            self.failUnlessReallyEqual(two_node.get_readonly_uri(), setup_py_uri)
+            self.failUnlessReallyEqual(two_metadata["metakey"], "metavalue")
 
             self.failUnless(fut_node.is_unknown())
-            self.failUnlessEqual(fut_node.get_uri(), "imm." + future_read_uri)
-            self.failUnlessEqual(fut_node.get_readonly_uri(), "imm." + future_read_uri)
+            self.failUnlessReallyEqual(fut_node.get_uri(), "imm." + future_read_uri)
+            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "imm." + future_read_uri)
             self.failUnless(isinstance(fut_metadata, dict), fut_metadata)
 
+            self.failUnless(futna_node.is_unknown())
+            self.failUnlessReallyEqual(futna_node.get_uri(), "imm." + future_nonascii_read_uri)
+            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "imm." + future_nonascii_read_uri)
+            self.failUnless(isinstance(futna_metadata, dict), futna_metadata)
+
             self.failIf(emptylit_node.is_unknown())
-            self.failUnlessEqual(emptylit_node.get_storage_index(), None)
+            self.failUnlessReallyEqual(emptylit_node.get_storage_index(), None)
             self.failIf(tinylit_node.is_unknown())
-            self.failUnlessEqual(tinylit_node.get_storage_index(), None)
+            self.failUnlessReallyEqual(tinylit_node.get_storage_index(), None)
 
             d2 = defer.succeed(None)
             d2.addCallback(lambda ignored: emptylit_node.list())
             d2.addCallback(lambda children: self.failUnlessEqual(children, {}))
             d2.addCallback(lambda ignored: tinylit_node.list())
-            d2.addCallback(lambda children: self.failUnlessEqual(set(children.keys()),
-                                                                 set([u"short"])))
+            d2.addCallback(lambda children: self.failUnlessReallyEqual(set(children.keys()),
+                                                                       set([u"short"])))
             d2.addCallback(lambda ignored: tinylit_node.list())
             d2.addCallback(lambda children: children[u"short"][0].read(MemAccum()))
-            d2.addCallback(lambda accum: self.failUnlessEqual(accum.data, "The end."))
+            d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, "The end."))
             return d2
 
         d.addCallback(_check_kids)
@@ -295,7 +319,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnless("RO-IMM" in rep)
             cap = dn.get_cap()
             self.failUnlessIn("LIT", cap.to_string())
-            self.failUnlessEqual(cap.to_string(), "URI:DIR2-LIT:")
+            self.failUnlessReallyEqual(cap.to_string(), "URI:DIR2-LIT:")
             self.cap = cap
             return dn.list()
         d.addCallback(_created_empty)
@@ -313,12 +337,12 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnless("RO-IMM" in rep)
             cap = dn.get_cap()
             self.failUnlessIn("LIT", cap.to_string())
-            self.failUnlessEqual(cap.to_string(),
-                                 "URI:DIR2-LIT:gi4tumj2n4wdcmz2kvjesosmjfkdu3rvpbtwwlbqhiwdeot3puwcy")
+            self.failUnlessReallyEqual(cap.to_string(),
+                                       "URI:DIR2-LIT:gi4tumj2n4wdcmz2kvjesosmjfkdu3rvpbtwwlbqhiwdeot3puwcy")
             self.cap = cap
             return dn.list()
         d.addCallback(_created_small)
-        d.addCallback(lambda kids: self.failUnlessEqual(kids.keys(), [u"o"]))
+        d.addCallback(lambda kids: self.failUnlessReallyEqual(kids.keys(), [u"o"]))
 
         # now test n.create_subdirectory(mutable=False)
         d.addCallback(lambda ign: c.create_dirnode())
@@ -328,7 +352,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(_check_kids)
             d.addCallback(lambda ign: n.list())
             d.addCallback(lambda children:
-                          self.failUnlessEqual(children.keys(), [u"subdir"]))
+                          self.failUnlessReallyEqual(children.keys(), [u"subdir"]))
             d.addCallback(lambda ign: n.get(u"subdir"))
             d.addCallback(lambda sd: sd.list())
             d.addCallback(_check_kids)
@@ -362,8 +386,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         spacedout_read_uri = stripped_read_uri + "  "
 
         child = nm.create_from_cap(spacedout_write_uri, spacedout_read_uri)
-        self.failUnlessEqual(child.get_write_uri(), spacedout_write_uri)
-        self.failUnlessEqual(child.get_readonly_uri(), "ro." + spacedout_read_uri)
+        self.failUnlessReallyEqual(child.get_write_uri(), spacedout_write_uri)
+        self.failUnlessReallyEqual(child.get_readonly_uri(), "ro." + spacedout_read_uri)
 
         child_dottedi = u"ch\u0131\u0307ld"
 
@@ -396,11 +420,11 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 rw_uri = self.rootnode._decrypt_rwcapdata(rwcapdata)
                 self.failUnlessIn(name, kids_out)
                 (expected_child, ign) = kids_out[name]
-                self.failUnlessEqual(rw_uri, expected_child.get_write_uri())
-                self.failUnlessEqual("ro." + ro_uri, expected_child.get_readonly_uri())
+                self.failUnlessReallyEqual(rw_uri, expected_child.get_write_uri())
+                self.failUnlessReallyEqual("ro." + ro_uri, expected_child.get_readonly_uri())
                 numkids += 1
 
-            self.failUnlessEqual(numkids, len(kids_out))
+            self.failUnlessReallyEqual(numkids, len(kids_out))
             return self.rootnode
         d.addCallback(_check_data)
 
@@ -429,11 +453,11 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             # ro_uri, since it's unknown). Also the dotless-i + dot-above should have been
             # normalized to 'i'.
 
-            self.failUnlessEqual(set(children.keys()), set(kids_norm.keys()))
+            self.failUnlessReallyEqual(set(children.keys()), set(kids_norm.keys()))
             child_node, child_metadata = children[u"child"]
 
-            self.failUnlessEqual(child_node.get_write_uri(), stripped_write_uri)
-            self.failUnlessEqual(child_node.get_readonly_uri(), "ro." + stripped_read_uri)
+            self.failUnlessReallyEqual(child_node.get_write_uri(), stripped_write_uri)
+            self.failUnlessReallyEqual(child_node.get_readonly_uri(), "ro." + stripped_read_uri)
         d.addCallback(_check_kids)
 
         d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
@@ -489,15 +513,15 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         def _check_results(r):
             self.failUnless(IDeepCheckResults.providedBy(r))
             c = r.get_counters()
-            self.failUnlessEqual(c,
-                                 {"count-objects-checked": 4,
-                                  "count-objects-healthy": 4,
-                                  "count-objects-unhealthy": 0,
-                                  "count-objects-unrecoverable": 0,
-                                  "count-corrupt-shares": 0,
-                                  })
+            self.failUnlessReallyEqual(c,
+                                       {"count-objects-checked": 4,
+                                        "count-objects-healthy": 4,
+                                        "count-objects-unhealthy": 0,
+                                        "count-objects-unrecoverable": 0,
+                                        "count-corrupt-shares": 0,
+                                        })
             self.failIf(r.get_corrupt_shares())
-            self.failUnlessEqual(len(r.get_all_results()), 4)
+            self.failUnlessReallyEqual(len(r.get_all_results()), 4)
         d.addCallback(_check_results)
         return d
 
@@ -510,23 +534,23 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         def _check_results(r):
             self.failUnless(IDeepCheckAndRepairResults.providedBy(r))
             c = r.get_counters()
-            self.failUnlessEqual(c,
-                                 {"count-objects-checked": 4,
-                                  "count-objects-healthy-pre-repair": 4,
-                                  "count-objects-unhealthy-pre-repair": 0,
-                                  "count-objects-unrecoverable-pre-repair": 0,
-                                  "count-corrupt-shares-pre-repair": 0,
-                                  "count-objects-healthy-post-repair": 4,
-                                  "count-objects-unhealthy-post-repair": 0,
-                                  "count-objects-unrecoverable-post-repair": 0,
-                                  "count-corrupt-shares-post-repair": 0,
-                                  "count-repairs-attempted": 0,
-                                  "count-repairs-successful": 0,
-                                  "count-repairs-unsuccessful": 0,
-                                  })
+            self.failUnlessReallyEqual(c,
+                                       {"count-objects-checked": 4,
+                                        "count-objects-healthy-pre-repair": 4,
+                                        "count-objects-unhealthy-pre-repair": 0,
+                                        "count-objects-unrecoverable-pre-repair": 0,
+                                        "count-corrupt-shares-pre-repair": 0,
+                                        "count-objects-healthy-post-repair": 4,
+                                        "count-objects-unhealthy-post-repair": 0,
+                                        "count-objects-unrecoverable-post-repair": 0,
+                                        "count-corrupt-shares-post-repair": 0,
+                                        "count-repairs-attempted": 0,
+                                        "count-repairs-successful": 0,
+                                        "count-repairs-unsuccessful": 0,
+                                        })
             self.failIf(r.get_corrupt_shares())
             self.failIf(r.get_remaining_corrupt_shares())
-            self.failUnlessEqual(len(r.get_all_results()), 4)
+            self.failUnlessReallyEqual(len(r.get_all_results()), 4)
         d.addCallback(_check_results)
         return d
 
@@ -542,14 +566,14 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
         def _check_results(r):
             c = r.get_counters()
-            self.failUnlessEqual(c,
-                                 {"count-objects-checked": 4,
-                                  "count-objects-healthy": 3,
-                                  "count-objects-unhealthy": 1,
-                                  "count-objects-unrecoverable": 0,
-                                  "count-corrupt-shares": 0,
-                                  })
-            #self.failUnlessEqual(len(r.get_problems()), 1) # TODO
+            self.failUnlessReallyEqual(c,
+                                       {"count-objects-checked": 4,
+                                        "count-objects-healthy": 3,
+                                        "count-objects-unhealthy": 1,
+                                        "count-objects-unrecoverable": 0,
+                                        "count-corrupt-shares": 0,
+                                        })
+            #self.failUnlessReallyEqual(len(r.get_problems()), 1) # TODO
         d.addCallback(_check_results)
         return d
 
@@ -631,13 +655,13 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             u_v = n.get_verify_cap().to_string()
             self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
             u_r = n.get_repair_cap().to_string()
-            self.failUnlessEqual(u_r, u)
+            self.failUnlessReallyEqual(u_r, u)
             self.expected_manifest.append( ((), u) )
             self.expected_verifycaps.add(u_v)
             si = n.get_storage_index()
             self.expected_storage_indexes.add(base32.b2a(si))
             expected_si = n._uri.get_storage_index()
-            self.failUnlessEqual(si, expected_si)
+            self.failUnlessReallyEqual(si, expected_si)
 
             d = n.list()
             d.addCallback(lambda res: self.failUnlessEqual(res, {}))
@@ -686,8 +710,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
             d.addCallback(lambda res: n.list())
             d.addCallback(lambda children:
-                          self.failUnlessEqual(set(children.keys()),
-                                               set([u"child", u"subdir"])))
+                          self.failUnlessReallyEqual(set(children.keys()),
+                                                     set([u"child", u"subdir"])))
 
             d.addCallback(lambda res: n.start_deep_stats().when_done())
             def _check_deepstats(stats):
@@ -705,27 +729,27 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                             "largest-immutable-file": 0,
                             }
                 for k,v in expected.iteritems():
-                    self.failUnlessEqual(stats[k], v,
-                                         "stats[%s] was %s, not %s" %
-                                         (k, stats[k], v))
+                    self.failUnlessReallyEqual(stats[k], v,
+                                               "stats[%s] was %s, not %s" %
+                                               (k, stats[k], v))
                 self.failUnless(stats["size-directories"] > 500,
                                 stats["size-directories"])
                 self.failUnless(stats["largest-directory"] > 500,
                                 stats["largest-directory"])
-                self.failUnlessEqual(stats["size-files-histogram"], [])
+                self.failUnlessReallyEqual(stats["size-files-histogram"], [])
             d.addCallback(_check_deepstats)
 
             d.addCallback(lambda res: n.build_manifest().when_done())
             def _check_manifest(res):
                 manifest = res["manifest"]
-                self.failUnlessEqual(sorted(manifest),
-                                     sorted(self.expected_manifest))
+                self.failUnlessReallyEqual(sorted(manifest),
+                                           sorted(self.expected_manifest))
                 stats = res["stats"]
                 _check_deepstats(stats)
-                self.failUnlessEqual(self.expected_verifycaps,
-                                     res["verifycaps"])
-                self.failUnlessEqual(self.expected_storage_indexes,
-                                     res["storage-index"])
+                self.failUnlessReallyEqual(self.expected_verifycaps,
+                                           res["verifycaps"])
+                self.failUnlessReallyEqual(self.expected_storage_indexes,
+                                           res["storage-index"])
             d.addCallback(_check_manifest)
 
             def _add_subsubdir(res):
@@ -740,13 +764,13 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                           self.failUnless(isinstance(subsubdir,
                                                      dirnode.DirectoryNode)))
             d.addCallback(lambda res: n.get_child_at_path(u""))
-            d.addCallback(lambda res: self.failUnlessEqual(res.get_uri(),
-                                                           n.get_uri()))
+            d.addCallback(lambda res: self.failUnlessReallyEqual(res.get_uri(),
+                                                                 n.get_uri()))
 
             d.addCallback(lambda res: n.get_metadata_for(u"child"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()),
-                                               set(["tahoe"])))
+                          self.failUnlessReallyEqual(set(metadata.keys()),
+                                                     set(["tahoe"])))
 
             d.addCallback(lambda res:
                           self.shouldFail(NoSuchChildError, "gcamap-no",
@@ -759,16 +783,16 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 child, metadata = res
                 self.failUnless(isinstance(child, dirnode.DirectoryNode))
                 # edge-metadata needs at least one path segment
-                self.failUnlessEqual(set(metadata.keys()), set([]))
+                self.failUnlessReallyEqual(set(metadata.keys()), set([]))
             d.addCallback(_check_child_and_metadata1)
             d.addCallback(lambda res:
                           n.get_child_and_metadata_at_path(u"child"))
 
             def _check_child_and_metadata2(res):
                 child, metadata = res
-                self.failUnlessEqual(child.get_uri(),
-                                     fake_file_uri)
-                self.failUnlessEqual(set(metadata.keys()), set(["tahoe"]))
+                self.failUnlessReallyEqual(child.get_uri(),
+                                           fake_file_uri)
+                self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"]))
             d.addCallback(_check_child_and_metadata2)
 
             d.addCallback(lambda res:
@@ -776,7 +800,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             def _check_child_and_metadata3(res):
                 child, metadata = res
                 self.failUnless(isinstance(child, dirnode.DirectoryNode))
-                self.failUnlessEqual(set(metadata.keys()), set(["tahoe"]))
+                self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"]))
             d.addCallback(_check_child_and_metadata3)
 
             # set_uri + metadata
@@ -786,7 +810,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                 {}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
 
             # You can't override the link timestamps.
             d.addCallback(lambda res: n.set_uri(u"c2",
@@ -804,7 +828,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                 fake_file_uri, fake_file_uri))
             d.addCallback(lambda res: n.get_metadata_for(u"c3"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
 
             # we can also add specific metadata at set_uri() time
             d.addCallback(lambda res: n.set_uri(u"c4",
@@ -830,13 +854,13 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                           overwrite=False))
             d.addCallback(lambda res: n.get_metadata_for(u"d2"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
 
             # if we don't set any defaults, the child should get timestamps
             d.addCallback(lambda res: n.set_node(u"d3", n))
             d.addCallback(lambda res: n.get_metadata_for(u"d3"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
 
             # we can also add specific metadata at set_node() time
             d.addCallback(lambda res: n.set_node(u"d4", n,
@@ -874,10 +898,10 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda children: self.failIf(u"new" in children))
             d.addCallback(lambda res: n.get_metadata_for(u"e1"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
             d.addCallback(lambda res: n.get_metadata_for(u"e2"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
             d.addCallback(lambda res: n.get_metadata_for(u"e3"))
             d.addCallback(lambda metadata:
                           self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
@@ -905,10 +929,10 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda children: self.failIf(u"new" in children))
             d.addCallback(lambda res: n.get_metadata_for(u"f1"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
             d.addCallback(lambda res: n.get_metadata_for(u"f2"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
             d.addCallback(lambda res: n.get_metadata_for(u"f3"))
             d.addCallback(lambda metadata:
                           self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
@@ -951,9 +975,9 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
             d.addCallback(lambda res: n.get_metadata_for(u"timestamps"))
             def _check_timestamp1(metadata):
-                self.failUnlessEqual(set(metadata.keys()), set(["tahoe"]))
+                self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"]))
                 tahoe_md = metadata["tahoe"]
-                self.failUnlessEqual(set(tahoe_md.keys()), set(["linkcrtime", "linkmotime"]))
+                self.failUnlessReallyEqual(set(tahoe_md.keys()), set(["linkcrtime", "linkmotime"]))
 
                 self.failUnlessGreaterOrEqualThan(tahoe_md["linkcrtime"],
                                                   self._start_timestamp)
@@ -975,22 +999,22 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             def _check_timestamp2(metadata):
                 self.failUnlessIn("tahoe", metadata)
                 tahoe_md = metadata["tahoe"]
-                self.failUnlessEqual(set(tahoe_md.keys()), set(["linkcrtime", "linkmotime"]))
+                self.failUnlessReallyEqual(set(tahoe_md.keys()), set(["linkcrtime", "linkmotime"]))
 
-                self.failUnlessEqual(tahoe_md["linkcrtime"], self._old_linkcrtime)
+                self.failUnlessReallyEqual(tahoe_md["linkcrtime"], self._old_linkcrtime)
                 self.failUnlessGreaterThan(tahoe_md["linkmotime"], self._old_linkmotime)
                 return n.delete(u"timestamps")
             d.addCallback(_check_timestamp2)
 
             d.addCallback(lambda res: n.delete(u"subdir"))
             d.addCallback(lambda old_child:
-                          self.failUnlessEqual(old_child.get_uri(),
+                          self.failUnlessReallyEqual(old_child.get_uri(),
                                                self.subdir.get_uri()))
 
             d.addCallback(lambda res: n.list())
             d.addCallback(lambda children:
-                          self.failUnlessEqual(set(children.keys()),
-                                               set([u"child"])))
+                          self.failUnlessReallyEqual(set(children.keys()),
+                                                     set([u"child"])))
 
             uploadable1 = upload.Data("some data", convergence="converge")
             d.addCallback(lambda res: n.add_file(u"newfile", uploadable1))
@@ -1005,11 +1029,11 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                           overwrite=False))
             d.addCallback(lambda res: n.list())
             d.addCallback(lambda children:
-                          self.failUnlessEqual(set(children.keys()),
-                                               set([u"child", u"newfile"])))
+                          self.failUnlessReallyEqual(set(children.keys()),
+                                                     set([u"child", u"newfile"])))
             d.addCallback(lambda res: n.get_metadata_for(u"newfile"))
             d.addCallback(lambda metadata:
-                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
 
             uploadable3 = upload.Data("some data", convergence="converge")
             d.addCallback(lambda res: n.add_file(u"newfile-metadata",
@@ -1035,28 +1059,28 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                           n.move_child_to(u"child", self.subdir2))
             d.addCallback(lambda res: n.list())
             d.addCallback(lambda children:
-                          self.failUnlessEqual(set(children.keys()),
-                                               set([u"newfile", u"subdir2"])))
+                          self.failUnlessReallyEqual(set(children.keys()),
+                                                     set([u"newfile", u"subdir2"])))
             d.addCallback(lambda res: self.subdir2.list())
             d.addCallback(lambda children:
-                          self.failUnlessEqual(set(children.keys()),
-                                               set([u"child"])))
+                          self.failUnlessReallyEqual(set(children.keys()),
+                                                     set([u"child"])))
             d.addCallback(lambda res: self.subdir2.get(u"child"))
             d.addCallback(lambda child:
-                          self.failUnlessEqual(child.get_uri(),
-                                               fake_file_uri))
+                          self.failUnlessReallyEqual(child.get_uri(),
+                                                     fake_file_uri))
 
             # move it back, using new_child_name=
             d.addCallback(lambda res:
                           self.subdir2.move_child_to(u"child", n, u"newchild"))
             d.addCallback(lambda res: n.list())
             d.addCallback(lambda children:
-                          self.failUnlessEqual(set(children.keys()),
-                                               set([u"newchild", u"newfile",
-                                                    u"subdir2"])))
+                          self.failUnlessReallyEqual(set(children.keys()),
+                                                     set([u"newchild", u"newfile",
+                                                          u"subdir2"])))
             d.addCallback(lambda res: self.subdir2.list())
             d.addCallback(lambda children:
-                          self.failUnlessEqual(set(children.keys()), set([])))
+                          self.failUnlessReallyEqual(set(children.keys()), set([])))
 
             # now make sure that we honor overwrite=False
             d.addCallback(lambda res:
@@ -1071,8 +1095,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                           overwrite=False))
             d.addCallback(lambda res: self.subdir2.get(u"newchild"))
             d.addCallback(lambda child:
-                          self.failUnlessEqual(child.get_uri(),
-                                               other_file_uri))
+                          self.failUnlessReallyEqual(child.get_uri(),
+                                                     other_file_uri))
 
 
             # Setting the no-write field should diminish a mutable cap to read-only
@@ -1114,18 +1138,18 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         (t1, t2, t3) = (626644800.0, 634745640.0, 892226160.0)
 
         md1 = dirnode.update_metadata({"ctime": t1}, {}, t2)
-        self.failUnlessEqual(md1, {"tahoe":{"linkcrtime": t1, "linkmotime": t2}})
+        self.failUnlessReallyEqual(md1, {"tahoe":{"linkcrtime": t1, "linkmotime": t2}})
 
         md2 = dirnode.update_metadata(md1, {"key": "value", "tahoe": {"bad": "mojo"}}, t3)
-        self.failUnlessEqual(md2, {"key": "value",
-                                   "tahoe":{"linkcrtime": t1, "linkmotime": t3}})
+        self.failUnlessReallyEqual(md2, {"key": "value",
+                                         "tahoe":{"linkcrtime": t1, "linkmotime": t3}})
 
         md3 = dirnode.update_metadata({}, None, t3)
-        self.failUnlessEqual(md3, {"tahoe":{"linkcrtime": t3, "linkmotime": t3}})
+        self.failUnlessReallyEqual(md3, {"tahoe":{"linkcrtime": t3, "linkmotime": t3}})
 
         md4 = dirnode.update_metadata({}, {"bool": True, "number": 42}, t1)
-        self.failUnlessEqual(md4, {"bool": True, "number": 42,
-                                   "tahoe":{"linkcrtime": t1, "linkmotime": t1}})
+        self.failUnlessReallyEqual(md4, {"bool": True, "number": 42,
+                                         "tahoe":{"linkcrtime": t1, "linkmotime": t1}})
 
     def test_create_subdirectory(self):
         self.basedir = "dirnode/Dirnode/test_create_subdirectory"
@@ -1146,14 +1170,14 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d = n.create_subdirectory(u"subdir", kids)
             def _check(sub):
                 d = n.get_child_at_path(u"subdir")
-                d.addCallback(lambda sub2: self.failUnlessEqual(sub2.get_uri(),
-                                                                sub.get_uri()))
+                d.addCallback(lambda sub2: self.failUnlessReallyEqual(sub2.get_uri(),
+                                                                      sub.get_uri()))
                 d.addCallback(lambda ign: sub.list())
                 return d
             d.addCallback(_check)
             def _check_kids(kids2):
-                self.failUnlessEqual(set(kids.keys()), set(kids2.keys()))
-                self.failUnlessEqual(kids2[u"kid2"][1]["metakey"], "metavalue")
+                self.failUnlessReallyEqual(set(kids.keys()), set(kids2.keys()))
+                self.failUnlessReallyEqual(kids2[u"kid2"][1]["metakey"], "metavalue")
             d.addCallback(_check_kids)
             return d
         d.addCallback(_then)
@@ -1163,7 +1187,7 @@ class MinimalFakeMutableFile:
     def get_writekey(self):
         return "writekey"
 
-class Packing(unittest.TestCase):
+class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
     # This is a base32-encoded representation of the directory tree
     # root/file1
     # root/file2
@@ -1200,30 +1224,30 @@ class Packing(unittest.TestCase):
         file3_rocap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
         file3_rwcap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
         file3_metadata = {'ctime': 1246663897.4336269, 'tahoe': {'linkmotime': 1246663897.4336269, 'linkcrtime': 1246663897.4336269}, 'mtime': 1246663897.4336269}
-        self.failUnlessEqual(file3_metadata, children[u'file3'][1])
-        self.failUnlessEqual(file3_rocap,
-                             children[u'file3'][0].get_readonly_uri())
-        self.failUnlessEqual(file3_rwcap,
-                             children[u'file3'][0].get_uri())
+        self.failUnlessReallyEqual(file3_metadata, children[u'file3'][1])
+        self.failUnlessReallyEqual(file3_rocap,
+                                   children[u'file3'][0].get_readonly_uri())
+        self.failUnlessReallyEqual(file3_rwcap,
+                                   children[u'file3'][0].get_uri())
 
         # Are the metadata for child 2 right?
         file2_rocap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
         file2_rwcap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
         file2_metadata = {'ctime': 1246663897.430218, 'tahoe': {'linkmotime': 1246663897.430218, 'linkcrtime': 1246663897.430218}, 'mtime': 1246663897.430218}
-        self.failUnlessEqual(file2_metadata, children[u'file2'][1])
-        self.failUnlessEqual(file2_rocap,
+        self.failUnlessReallyEqual(file2_metadata, children[u'file2'][1])
+        self.failUnlessReallyEqual(file2_rocap,
                              children[u'file2'][0].get_readonly_uri())
-        self.failUnlessEqual(file2_rwcap,
+        self.failUnlessReallyEqual(file2_rwcap,
                              children[u'file2'][0].get_uri())
 
         # Are the metadata for child 1 right?
         file1_rocap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
         file1_rwcap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
         file1_metadata = {'ctime': 1246663897.4275661, 'tahoe': {'linkmotime': 1246663897.4275661, 'linkcrtime': 1246663897.4275661}, 'mtime': 1246663897.4275661}
-        self.failUnlessEqual(file1_metadata, children[u'file1'][1])
-        self.failUnlessEqual(file1_rocap,
+        self.failUnlessReallyEqual(file1_metadata, children[u'file1'][1])
+        self.failUnlessReallyEqual(file1_rocap,
                              children[u'file1'][0].get_readonly_uri())
-        self.failUnlessEqual(file1_rwcap,
+        self.failUnlessReallyEqual(file1_rwcap,
                              children[u'file1'][0].get_uri())
 
     def _make_kids(self, nm, which):
@@ -1340,7 +1364,7 @@ class FakeClient2(Client):
     def create_node_from_uri(self, rwcap, rocap):
         return self.nodemaker.create_from_cap(rwcap, rocap)
 
-class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
+class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.TestCase):
     def setUp(self):
         client = FakeClient2()
         self.nodemaker = client.nodemaker
@@ -1349,9 +1373,9 @@ class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
         # Create a mutable directory that contains unknown URI types, and make sure
         # we tolerate them properly.
         d = self.nodemaker.create_new_mutable_directory()
-        future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
-        future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
-        future_imm_uri = "x-tahoe-crazy-immutable://I_am_from_the_future."
+        future_write_uri = u"x-tahoe-crazy://I_am_from_the_future_rw_\u263A".encode('utf-8')
+        future_read_uri = u"x-tahoe-crazy-readonly://I_am_from_the_future_ro_\u263A".encode('utf-8')
+        future_imm_uri = u"x-tahoe-crazy-immutable://I_am_from_the_future_imm_\u263A".encode('utf-8')
         future_node = UnknownNode(future_write_uri, future_read_uri)
         def _then(n):
             self._node = n
@@ -1382,30 +1406,30 @@ class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
 
         d.addCallback(lambda ign: self._node.list())
         def _check(children):
-            self.failUnlessEqual(len(children), 4)
+            self.failUnlessReallyEqual(len(children), 4)
             (fn, metadata) = children[u"future"]
             self.failUnless(isinstance(fn, UnknownNode), fn)
-            self.failUnlessEqual(fn.get_uri(), future_write_uri)
-            self.failUnlessEqual(fn.get_write_uri(), future_write_uri)
-            self.failUnlessEqual(fn.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fn.get_uri(), future_write_uri)
+            self.failUnlessReallyEqual(fn.get_write_uri(), future_write_uri)
+            self.failUnlessReallyEqual(fn.get_readonly_uri(), "ro." + future_read_uri)
 
             (fn2, metadata2) = children[u"add-pair"]
             self.failUnless(isinstance(fn2, UnknownNode), fn2)
-            self.failUnlessEqual(fn2.get_uri(), future_write_uri)
-            self.failUnlessEqual(fn2.get_write_uri(), future_write_uri)
-            self.failUnlessEqual(fn2.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fn2.get_uri(), future_write_uri)
+            self.failUnlessReallyEqual(fn2.get_write_uri(), future_write_uri)
+            self.failUnlessReallyEqual(fn2.get_readonly_uri(), "ro." + future_read_uri)
 
             (fn3, metadata3) = children[u"add-ro"]
             self.failUnless(isinstance(fn3, UnknownNode), fn3)
-            self.failUnlessEqual(fn3.get_uri(), "ro." + future_read_uri)
-            self.failUnlessEqual(fn3.get_write_uri(), None)
-            self.failUnlessEqual(fn3.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fn3.get_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fn3.get_write_uri(), None)
+            self.failUnlessReallyEqual(fn3.get_readonly_uri(), "ro." + future_read_uri)
 
             (fn4, metadata4) = children[u"add-imm"]
             self.failUnless(isinstance(fn4, UnknownNode), fn4)
-            self.failUnlessEqual(fn4.get_uri(), "imm." + future_imm_uri)
-            self.failUnlessEqual(fn4.get_write_uri(), None)
-            self.failUnlessEqual(fn4.get_readonly_uri(), "imm." + future_imm_uri)
+            self.failUnlessReallyEqual(fn4.get_uri(), "imm." + future_imm_uri)
+            self.failUnlessReallyEqual(fn4.get_write_uri(), None)
+            self.failUnlessReallyEqual(fn4.get_readonly_uri(), "imm." + future_imm_uri)
 
             # We should also be allowed to copy the "future" UnknownNode, because
             # it contains all the information that was in the original directory
@@ -1415,22 +1439,22 @@ class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
 
         d.addCallback(lambda ign: self._node.list())
         def _check2(children):
-            self.failUnlessEqual(len(children), 5)
+            self.failUnlessReallyEqual(len(children), 5)
             (fn, metadata) = children[u"copy"]
             self.failUnless(isinstance(fn, UnknownNode), fn)
-            self.failUnlessEqual(fn.get_uri(), future_write_uri)
-            self.failUnlessEqual(fn.get_write_uri(), future_write_uri)
-            self.failUnlessEqual(fn.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fn.get_uri(), future_write_uri)
+            self.failUnlessReallyEqual(fn.get_write_uri(), future_write_uri)
+            self.failUnlessReallyEqual(fn.get_readonly_uri(), "ro." + future_read_uri)
         d.addCallback(_check2)
         return d
 
     def test_unknown_strip_prefix_for_ro(self):
-        self.failUnlessEqual(strip_prefix_for_ro("foo",     False), "foo")
-        self.failUnlessEqual(strip_prefix_for_ro("ro.foo",  False), "foo")
-        self.failUnlessEqual(strip_prefix_for_ro("imm.foo", False), "imm.foo")
-        self.failUnlessEqual(strip_prefix_for_ro("foo",     True),  "foo")
-        self.failUnlessEqual(strip_prefix_for_ro("ro.foo",  True),  "foo")
-        self.failUnlessEqual(strip_prefix_for_ro("imm.foo", True),  "foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro("foo",     False), "foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro("ro.foo",  False), "foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro("imm.foo", False), "imm.foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro("foo",     True),  "foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro("ro.foo",  True),  "foo")
+        self.failUnlessReallyEqual(strip_prefix_for_ro("imm.foo", True),  "foo")
 
     def test_unknownnode(self):
         mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
@@ -1528,7 +1552,7 @@ class Dirnode2(unittest.TestCase, testutil.ShouldFailMixin):
             self.failUnless(n.get_readonly_uri().startswith("imm."), i)
 
 
-class DeepStats(unittest.TestCase):
+class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
     timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def test_stats(self):
         ds = dirnode.DeepStats(None)
@@ -1538,10 +1562,10 @@ class DeepStats(unittest.TestCase):
         ds.max("largest-directory", 444)
 
         s = ds.get_results()
-        self.failUnlessEqual(s["count-files"], 1)
-        self.failUnlessEqual(s["size-immutable-files"], 123)
-        self.failUnlessEqual(s["largest-directory"], 444)
-        self.failUnlessEqual(s["count-literal-files"], 0)
+        self.failUnlessReallyEqual(s["count-files"], 1)
+        self.failUnlessReallyEqual(s["size-immutable-files"], 123)
+        self.failUnlessReallyEqual(s["largest-directory"], 444)
+        self.failUnlessReallyEqual(s["count-literal-files"], 0)
 
         ds.add("count-files")
         ds.add("size-immutable-files", 321)
@@ -1549,11 +1573,11 @@ class DeepStats(unittest.TestCase):
         ds.max("largest-directory", 2)
 
         s = ds.get_results()
-        self.failUnlessEqual(s["count-files"], 2)
-        self.failUnlessEqual(s["size-immutable-files"], 444)
-        self.failUnlessEqual(s["largest-directory"], 444)
-        self.failUnlessEqual(s["count-literal-files"], 0)
-        self.failUnlessEqual(s["size-files-histogram"],
+        self.failUnlessReallyEqual(s["count-files"], 2)
+        self.failUnlessReallyEqual(s["size-immutable-files"], 444)
+        self.failUnlessReallyEqual(s["largest-directory"], 444)
+        self.failUnlessReallyEqual(s["count-literal-files"], 0)
+        self.failUnlessReallyEqual(s["size-files-histogram"],
                              [ (101, 316, 1), (317, 1000, 1) ])
 
         ds = dirnode.DeepStats(None)
@@ -1561,7 +1585,7 @@ class DeepStats(unittest.TestCase):
             ds.histogram("size-files-histogram", i)
         ds.histogram("size-files-histogram", 4*1000*1000*1000*1000) # 4TB
         s = ds.get_results()
-        self.failUnlessEqual(s["size-files-histogram"],
+        self.failUnlessReallyEqual(s["size-files-histogram"],
                              [ (1, 3, 3),
                                (4, 10, 7),
                                (11, 31, 21),
@@ -1593,7 +1617,7 @@ class UCWEingNodeMaker(NodeMaker):
         return n.init_from_cap(cap)
 
 
-class Deleter(GridTestMixin, unittest.TestCase):
+class Deleter(GridTestMixin, testutil.ReallyEqualMixin, unittest.TestCase):
     timeout = 3600 # It takes longer than 433 seconds on Zandr's ARM box.
     def test_retry(self):
         # ticket #550, a dirnode.delete which experiences an
