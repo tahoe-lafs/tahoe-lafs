@@ -1,5 +1,5 @@
 
-import os, tempfile, heapq, binascii, traceback, array, stat, struct
+import heapq, traceback, array, stat, struct
 from types import NoneType
 from stat import S_IFREG, S_IFDIR
 from time import time, strftime, localtime
@@ -32,8 +32,7 @@ from allmydata.interfaces import IFileNode, IDirectoryNode, ExistingChildError, 
 from allmydata.mutable.common import NotWriteableError
 from allmydata.immutable.upload import FileHandle
 from allmydata.dirnode import update_metadata
-
-from pycryptopp.cipher.aes import AES
+from allmydata.util.fileutil import EncryptedTemporaryFile
 
 noisy = True
 use_foolscap_logging = True
@@ -286,56 +285,6 @@ def _direntry_for(filenode_or_parent, childname, filenode=None):
             return rw_uri
 
     return None
-
-
-class EncryptedTemporaryFile(PrefixingLogMixin):
-    # not implemented: next, readline, readlines, xreadlines, writelines
-
-    def __init__(self):
-        PrefixingLogMixin.__init__(self, facility="tahoe.sftp")
-        self.file = tempfile.TemporaryFile()
-        self.key = os.urandom(16)  # AES-128
-
-    def _crypt(self, offset, data):
-        # TODO: use random-access AES (pycryptopp ticket #18)
-        offset_big = offset // 16
-        offset_small = offset % 16
-        iv = binascii.unhexlify("%032x" % offset_big)
-        cipher = AES(self.key, iv=iv)
-        cipher.process("\x00"*offset_small)
-        return cipher.process(data)
-
-    def close(self):
-        self.file.close()
-
-    def flush(self):
-        self.file.flush()
-
-    def seek(self, offset, whence=0):  # 0 = SEEK_SET
-        if noisy: self.log(".seek(%r, %r)" % (offset, whence), level=NOISY)
-        self.file.seek(offset, whence)
-
-    def tell(self):
-        offset = self.file.tell()
-        if noisy: self.log(".tell() = %r" % (offset,), level=NOISY)
-        return offset
-
-    def read(self, size=-1):
-        if noisy: self.log(".read(%r)" % (size,), level=NOISY)
-        index = self.file.tell()
-        ciphertext = self.file.read(size)
-        plaintext = self._crypt(index, ciphertext)
-        return plaintext
-
-    def write(self, plaintext):
-        if noisy: self.log(".write(<data of length %r>)" % (len(plaintext),), level=NOISY)
-        index = self.file.tell()
-        ciphertext = self._crypt(index, plaintext)
-        self.file.write(ciphertext)
-
-    def truncate(self, newsize):
-        if noisy: self.log(".truncate(%r)" % (newsize,), level=NOISY)
-        self.file.truncate(newsize)
 
 
 class OverwriteableFileConsumer(PrefixingLogMixin):

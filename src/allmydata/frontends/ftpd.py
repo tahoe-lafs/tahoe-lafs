@@ -1,5 +1,4 @@
 
-import tempfile
 from zope.interface import implements
 from twisted.application import service, strports
 from twisted.internet import defer
@@ -10,6 +9,7 @@ from twisted.protocols import ftp
 from allmydata.interfaces import IDirectoryNode, ExistingChildError, \
      NoSuchChildError
 from allmydata.immutable.upload import FileHandle
+from allmydata.util.fileutil import EncryptedTemporaryFile
 
 class ReadFile:
     implements(ftp.IReadFile)
@@ -27,7 +27,7 @@ class FileWriter:
             raise NotImplementedError("Non-streaming producer not supported.")
         # we write the data to a temporary file, since Tahoe can't do
         # streaming upload yet.
-        self.f = tempfile.TemporaryFile()
+        self.f = EncryptedTemporaryFile()
         return None
 
     def unregisterProducer(self):

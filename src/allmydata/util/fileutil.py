@@ -2,9 +2,12 @@
 Futz with files like a pro.
 """
 
-import sys, exceptions, os, stat, tempfile, time
+import sys, exceptions, os, stat, tempfile, time, binascii
 
 from twisted.python import log
+
+from pycryptopp.cipher.aes import AES
+
 
 def rename(src, dst, tries=4, basedelay=0.1):
     """ Here is a superkludge to workaround the fact that occasionally on
@@ -111,6 +114,49 @@ class NamedTemporaryDirectory:
     def shutdown(self):
         if self.cleanup and hasattr(self, 'name'):
             rm_dir(self.name)
+
+class EncryptedTemporaryFile:
+    # not implemented: next, readline, readlines, xreadlines, writelines
+
+    def __init__(self):
+        self.file = tempfile.TemporaryFile()
+        self.key = os.urandom(16)  # AES-128
+
+    def _crypt(self, offset, data):
+        offset_big = offset // 16
+        offset_small = offset % 16
+        iv = binascii.unhexlify("%032x" % offset_big)
+        cipher = AES(self.key, iv=iv)
+        cipher.process("\x00"*offset_small)
+        return cipher.process(data)
+
+    def close(self):
+        self.file.close()
+
+    def flush(self):
+        self.file.flush()
+
+    def seek(self, offset, whence=0):  # 0 = SEEK_SET
+        self.file.seek(offset, whence)
+
+    def tell(self):
+        offset = self.file.tell()
+        return offset
+
+    def read(self, size=-1):
+        index = self.file.tell()
+        ciphertext = self.file.read(size)
+        plaintext = self._crypt(index, ciphertext)
+        return plaintext
+
+    def write(self, plaintext):
+        index = self.file.tell()
+        ciphertext = self._crypt(index, plaintext)
+        self.file.write(ciphertext)
+
+    def truncate(self, newsize):
+        self.file.truncate(newsize)
+
 
 def make_dirs(dirname, mode=0777):
     """
