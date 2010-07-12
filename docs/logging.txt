@@ -262,3 +262,7 @@ flog.out file.
 
 ("flogtool tail" and the log-gatherer are not useful during unit tests, since
 there is no single Tub to which all the log messages are published).
+
+It is possible for setting these environment variables to cause spurious test
+failures in tests with race condition bugs. All known instances of this have
+been fixed as of Tahoe-LAFS v1.7.1.
