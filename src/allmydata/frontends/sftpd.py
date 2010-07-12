@@ -78,6 +78,9 @@ def _to_sftp_time(t):
 
 
 def _convert_error(res, request):
+    """If res is not a Failure, return it, otherwise reraise the appropriate
+    SFTPError."""
+
     if not isinstance(res, Failure):
         logged_res = res
         if isinstance(res, str): logged_res = "<data of length %r>" % (len(res),)
@@ -88,11 +91,11 @@ def _convert_error(res, request):
     logmsg("RAISE %r %r" % (request, err.value), level=OPERATIONAL)
     try:
         if noisy: logmsg(traceback.format_exc(err.value), level=NOISY)
-    except:  # pragma: no cover
+    except Exception:  # pragma: no cover
         pass
 
     # The message argument to SFTPError must not reveal information that
-    # might compromise anonymity.
+    # might compromise anonymity, if we are running over an anonymous network.
 
     if err.check(SFTPError):
         # original raiser of SFTPError has responsibility to ensure anonymity
@@ -140,9 +143,6 @@ def _lsLine(name, attrs):
     st_gid = "tahoe"
     st_mtime = attrs.get("mtime", 0)
     st_mode = attrs["permissions"]
-    # TODO: check that clients are okay with this being a "?".
-    # (They should be because the longname is intended for human
-    # consumption.)
     st_size = attrs.get("size", "?")
     # We don't know how many links there really are to this object.
     st_nlink = 1
@@ -389,14 +389,18 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             self.overwrite(self.current_size, "\x00" * (size - self.current_size))
         self.current_size = size
 
-        # invariant: self.download_size <= self.current_size
+        # make the invariant self.download_size <= self.current_size be true again
         if size < self.download_size:
             self.download_size = size
+
         if self.downloaded >= self.download_size:
             self.finish()
 
     def registerProducer(self, p, streaming):
         if noisy: self.log(".registerProducer(%r, streaming=%r)" % (p, streaming), level=NOISY)
+        if self.producer is not None:
+            raise RuntimeError("producer is already registered")
+
         self.producer = p
         if streaming:
             # call resumeProducing once to start things off
@@ -470,7 +474,7 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
                 return
             if noisy: self.log("MILESTONE %r %r" % (next, d), level=NOISY)
             heapq.heappop(self.milestones)
-            eventually_callback(d)(None)
+            eventually(d.callback, None)
 
         if milestone >= self.download_size:
             self.finish()
@@ -543,6 +547,9 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         return self.done
 
     def finish(self):
+        """Called by the producer when it has finished producing, or when we have
+        received enough bytes, or as a result of a close. Defined by IFinishableConsumer."""
+
         while len(self.milestones) > 0:
             (next, d) = self.milestones[0]
             if noisy: self.log("MILESTONE FINISH %r %r" % (next, d), level=NOISY)
@@ -550,14 +557,14 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             # The callback means that the milestone has been reached if
             # it is ever going to be. Note that the file may have been
             # truncated to before the milestone.
-            eventually_callback(d)(None)
+            eventually(d.callback, None)
 
     def close(self):
         if not self.is_closed:
             self.is_closed = True
             try:
                 self.f.close()
-            except BaseException, e:
+            except Exception, e:
                 self.log("suppressed %r from close of temporary file %r" % (e, self.f), level=WEIRD)
         self.finish()
 
@@ -572,7 +579,8 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
     implements(ISFTPFile)
     """I represent a file handle to a particular file on an SFTP connection.
     I am used only for short immutable files opened in read-only mode.
-    The file contents are downloaded to memory when I am created."""
+    When I am created, the file contents start to be downloaded to memory.
+    self.async is used to delay read requests until the download has finished."""
 
     def __init__(self, userpath, filenode, metadata):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp", prefix=userpath)
@@ -606,9 +614,9 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
             # i.e. we respond with an EOF error iff offset is already at EOF.
 
             if offset >= len(data):
-                eventually_errback(d)(SFTPError(FX_EOF, "read at or past end of file"))
+                eventually(d.errback, SFTPError(FX_EOF, "read at or past end of file"))
             else:
-                eventually_callback(d)(data[offset:min(offset+length, len(data))])
+                eventually(d.callback, data[offset:offset+length])  # truncated if offset+length > len(data)
             return data
         self.async.addCallbacks(_read, eventually_errback(d))
         d.addBoth(_convert_error, request)
@@ -703,7 +711,6 @@ class GeneralSFTPFile(PrefixingLogMixin):
         else:
             assert IFileNode.providedBy(filenode), filenode
 
-            # TODO: use download interface described in #993 when implemented.
             if filenode.is_mutable():
                 self.async.addCallback(lambda ign: filenode.download_best_version())
                 def _downloaded(data):
@@ -721,7 +728,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
                     filenode.read(self.consumer, 0, None)
                 self.async.addCallback(_read)
 
-        eventually_callback(self.async)(None)
+        eventually(self.async.callback, None)
 
         if noisy: self.log("open done", level=NOISY)
         return self
@@ -909,7 +916,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
 
             # self.filenode might be None, but that's ok.
             attrs = _populate_attrs(self.filenode, self.metadata, size=self.consumer.get_current_size())
-            eventually_callback(d)(attrs)
+            eventually(d.callback, attrs)
             return None
         self.async.addCallbacks(_get, eventually_errback(d))
         d.addBoth(_convert_error, request)
@@ -947,7 +954,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
                 # TODO: should we refuse to truncate a file opened with FXF_APPEND?
                 # <http://allmydata.org/trac/tahoe-lafs/ticket/1037#comment:20>
                 self.consumer.set_current_size(size)
-            eventually_callback(d)(None)
+            eventually(d.callback, None)
             return None
         self.async.addCallbacks(_set, eventually_errback(d))
         d.addBoth(_convert_error, request)
