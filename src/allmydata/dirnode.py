@@ -16,7 +16,7 @@ from allmydata.check_results import DeepCheckResults, \
      DeepCheckAndRepairResults
 from allmydata.monitor import Monitor
 from allmydata.util import hashutil, mathutil, base32, log
-from allmydata.util.stringutils import quote_output
+from allmydata.util.encodingutil import quote_output
 from allmydata.util.assertutil import precondition
 from allmydata.util.netstring import netstring, split_netstring
 from allmydata.util.consumer import download_to_data

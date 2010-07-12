@@ -5,7 +5,7 @@ from allmydata import uri
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_aliases
 from allmydata.util.fileutil import move_into_place
-from allmydata.util.stringutils import unicode_to_output, quote_output
+from allmydata.util.encodingutil import unicode_to_output, quote_output
 
 
 def add_line_to_aliasfile(aliasfile, alias, cap):

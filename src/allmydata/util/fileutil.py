@@ -208,3 +208,23 @@ def read(path):
         return rf.read()
     finally:
         rf.close()
+
+def put_file(pathname, inf):
+    # TODO: create temporary file and move into place?
+    outf = open_expanduser(pathname, "wb")
+    try:
+        while True:
+            data = inf.read(32768)
+            if not data:
+                break
+            outf.write(data)
+    finally:
+        outf.close()
+
+def open_expanduser(path, mode):
+    assert isinstance(path, unicode), path
+    return open(os.path.expanduser(path), mode)
+
+def abspath_expanduser(path):
+    assert isinstance(path, unicode), path
+    return os.path.abspath(os.path.expanduser(path))

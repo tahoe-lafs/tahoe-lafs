@@ -1,7 +1,7 @@
 import os.path, re, sys, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import BaseOptions, get_aliases
-from allmydata.util.stringutils import argv_to_unicode
+from allmydata.util.encodingutil import argv_to_unicode
 
 NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 

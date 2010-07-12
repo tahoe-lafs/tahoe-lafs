@@ -8,23 +8,10 @@ from allmydata.scripts.common import get_alias, escape_path, \
                                      DefaultAliasMarker, TahoeError
 from allmydata.scripts.common_http import do_http, HTTPError
 from allmydata import uri
-from allmydata.util.stringutils import unicode_to_url, listdir_unicode, open_unicode, \
-    abspath_expanduser_unicode, quote_output, to_str
+from allmydata.util.encodingutil import unicode_to_url, quote_output, to_str
+from allmydata.util import fileutil
+from allmydata.util.fileutil import open_expanduser, abspath_expanduser
 from allmydata.util.assertutil import precondition
-
-
-def _put_local_file(pathname, inf):
-    # TODO: create temporary file and move into place?
-    # TODO: move this to fileutil.
-    outf = open_unicode(pathname, "wb")
-    try:
-        while True:
-            data = inf.read(32768)
-            if not data:
-                break
-            outf.write(data)
-    finally:
-        outf.close()
 
 
 class MissingSourceError(TahoeError):
@@ -81,7 +68,7 @@ class LocalFileSource:
         return True
 
     def open(self, caps_only):
-        return open_unicode(self.pathname, "rb")
+        return open_expanduser(self.pathname, "rb")
 
 
 class LocalFileTarget:
@@ -90,7 +77,7 @@ class LocalFileTarget:
         self.pathname = pathname
 
     def put_file(self, inf):
-        _put_local_file(self.pathname, inf)
+        fileutil.put_file(self.pathname, inf)
 
 
 class LocalMissingTarget:
@@ -99,7 +86,7 @@ class LocalMissingTarget:
         self.pathname = pathname
 
     def put_file(self, inf):
-        _put_local_file(self.pathname, inf)
+        fileutil.put_file(self.pathname, inf)
 
 
 class LocalDirectorySource:
@@ -114,7 +101,7 @@ class LocalDirectorySource:
         if self.children is not None:
             return
         self.children = {}
-        children = listdir_unicode(self.pathname)
+        children = os.listdir(self.pathname)
         for i,n in enumerate(children):
             self.progressfunc("examining %d of %d" % (i, len(children)))
             pn = os.path.join(self.pathname, n)
@@ -142,7 +129,7 @@ class LocalDirectoryTarget:
         if self.children is not None:
             return
         self.children = {}
-        children = listdir_unicode(self.pathname)
+        children = os.listdir(self.pathname)
         for i,n in enumerate(children):
             self.progressfunc("examining %d of %d" % (i, len(children)))
             n = unicode(n)
@@ -168,7 +155,7 @@ class LocalDirectoryTarget:
     def put_file(self, name, inf):
         precondition(isinstance(name, unicode), name)
         pathname = os.path.join(self.pathname, name)
-        _put_local_file(pathname, inf)
+        fileutil.put_file(pathname, inf)
 
     def set_children(self):
         pass
@@ -525,7 +512,7 @@ class Copier:
         rootcap, path = get_alias(self.aliases, destination_spec, None)
         if rootcap == DefaultAliasMarker:
             # no alias, so this is a local file
-            pathname = abspath_expanduser_unicode(path.decode('utf-8'))
+            pathname = abspath_expanduser(path.decode('utf-8'))
             if not os.path.exists(pathname):
                 t = LocalMissingTarget(pathname)
             elif os.path.isdir(pathname):
@@ -565,7 +552,7 @@ class Copier:
         rootcap, path = get_alias(self.aliases, source_spec, None)
         if rootcap == DefaultAliasMarker:
             # no alias, so this is a local file
-            pathname = abspath_expanduser_unicode(path.decode('utf-8'))
+            pathname = abspath_expanduser(path.decode('utf-8'))
             name = os.path.basename(pathname)
             if not os.path.exists(pathname):
                 raise MissingSourceError(source_spec)

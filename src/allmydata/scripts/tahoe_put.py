@@ -4,7 +4,8 @@ import urllib
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
-from allmydata.util.stringutils import quote_output, open_unicode
+from allmydata.util.encodingutil import quote_output
+from allmydata.util.fileutil import open_expanduser
 
 def put(options):
     """
@@ -64,7 +65,7 @@ def put(options):
     if mutable:
         url += "?mutable=true"
     if from_file:
-        infileobj = open_unicode(from_file, "rb")
+        infileobj = open_expanduser(from_file, "rb")
     else:
         # do_http() can't use stdin directly: for one thing, we need a
         # Content-Length field. So we currently must copy it.

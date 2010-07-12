@@ -2,7 +2,7 @@
 import os, sys, urllib
 import codecs
 from twisted.python import usage
-from allmydata.util.stringutils import unicode_to_url, quote_output
+from allmydata.util.encodingutil import unicode_to_url, quote_output
 from allmydata.util.assertutil import precondition
 
 class BaseOptions:

@@ -31,8 +31,8 @@ from twisted.internet import threads # CLI tests use deferToThread
 from twisted.python import usage
 
 from allmydata.util.assertutil import precondition
-from allmydata.util.stringutils import listdir_unicode, open_unicode, unicode_platform, \
-    quote_output, get_output_encoding, get_argv_encoding, get_filesystem_encoding, \
+from allmydata.util.encodingutil import unicode_platform, quote_output, \
+    get_output_encoding, get_argv_encoding, get_filesystem_encoding, \
     unicode_to_output, to_str
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
@@ -439,9 +439,9 @@ class CLI(CLITestMixin, unittest.TestCase):
         fileutil.make_dirs(basedir)
 
         for name in filenames:
-            open_unicode(os.path.join(unicode(basedir), name), "wb").close()
+            open(os.path.join(unicode(basedir), name), "wb").close()
 
-        for file in listdir_unicode(unicode(basedir)):
+        for file in os.listdir(unicode(basedir)):
             self.failUnlessIn(normalize(file), filenames)
 
 
@@ -974,11 +974,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         rel_fn = os.path.join(unicode(self.basedir), u"à trier.txt")
         # we make the file small enough to fit in a LIT file, for speed
         DATA = "short file"
-        f = open_unicode(rel_fn, "wb")
-        try:
-            f.write(DATA)
-        finally:
-            f.close()
+        fileutil.write(rel_fn, DATA)
 
         d = self.do_cli("create-alias", "tahoe")
 
@@ -1349,11 +1345,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
 
         DATA1 = "unicode file content"
-        f = open_unicode(fn1, "wb")
-        try:
-            f.write(DATA1)
-        finally:
-            f.close()
+        fileutil.write(fn1, DATA1)
 
         fn2 = os.path.join(self.basedir, "Metallica")
         DATA2 = "non-unicode file content"

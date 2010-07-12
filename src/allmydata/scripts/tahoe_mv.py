@@ -5,7 +5,7 @@ import simplejson
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
-from allmydata.util.stringutils import to_str
+from allmydata.util.encodingutil import to_str
 
 # this script is used for both 'mv' and 'ln'
 

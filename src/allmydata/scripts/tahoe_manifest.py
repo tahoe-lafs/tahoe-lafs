@@ -6,7 +6,7 @@ from allmydata.scripts.slow_operation import SlowOperationRunner
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
-from allmydata.util.stringutils import quote_output, quote_path
+from allmydata.util.encodingutil import quote_output, quote_path
 
 class FakeTransport:
     disconnecting = False

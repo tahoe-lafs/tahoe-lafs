@@ -4,7 +4,7 @@ import simplejson
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
-from allmydata.util.stringutils import unicode_to_output, quote_output, is_printable_ascii, to_str
+from allmydata.util.encodingutil import unicode_to_output, quote_output, is_printable_ascii, to_str
 
 def list(options):
     nodeurl = options['node-url']

@@ -3,7 +3,7 @@ from cStringIO import StringIO
 import urlparse, httplib
 import allmydata # for __full_version__
 
-from allmydata.util.stringutils import quote_output
+from allmydata.util.encodingutil import quote_output
 from allmydata.scripts.common import TahoeError
 
 

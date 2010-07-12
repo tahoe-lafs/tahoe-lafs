@@ -2,7 +2,7 @@
 import urllib
 from allmydata.scripts.common_http import do_http, check_http_error
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, UnknownAliasError
-from allmydata.util.stringutils import quote_output
+from allmydata.util.encodingutil import quote_output
 
 def mkdir(options):
     nodeurl = options['node-url']

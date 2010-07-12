@@ -12,7 +12,7 @@ from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      MustBeReadonlyError, MustNotBeUnknownRWError
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate
-from allmydata.util.stringutils import to_str
+from allmydata.util.encodingutil import to_str
 
 class IOpHandleTable(Interface):
     pass

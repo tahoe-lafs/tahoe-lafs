@@ -3,7 +3,7 @@ import urllib
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 from allmydata.scripts.common_http import do_http, format_http_error
-from allmydata.util.stringutils import open_unicode
+from allmydata.util.fileutil import open_expanduser
 
 def get(options):
     nodeurl = options['node-url']
@@ -27,7 +27,7 @@ def get(options):
     resp = do_http("GET", url)
     if resp.status in (200, 201,):
         if to_file:
-            outf = open_unicode(to_file, "wb")
+            outf = open_expanduser(to_file, "wb")
         else:
             outf = stdout
         while True:
