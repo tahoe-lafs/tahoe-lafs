@@ -420,11 +420,11 @@ class DeepCheckOptions(VDriveOptions):
     Optionally repair any problems found."""
 
 subCommands = [
-    ["mkdir", None, MakeDirectoryOptions, "Create a new directory"],
-    ["add-alias", None, AddAliasOptions, "Add a new alias cap"],
-    ["create-alias", None, CreateAliasOptions, "Create a new alias cap"],
-    ["list-aliases", None, ListAliasOptions, "List all alias caps"],
-    ["ls", None, ListOptions, "List a directory"],
+    ["mkdir", None, MakeDirectoryOptions, "Create a new directory."],
+    ["add-alias", None, AddAliasOptions, "Add a new alias cap."],
+    ["create-alias", None, CreateAliasOptions, "Create a new alias cap."],
+    ["list-aliases", None, ListAliasOptions, "List all alias caps."],
+    ["ls", None, ListOptions, "List a directory."],
     ["get", None, GetOptions, "Retrieve a file from the grid."],
     ["put", None, PutOptions, "Upload a file into the grid."],
     ["cp", None, CpOptions, "Copy one or more files."],
@@ -433,10 +433,10 @@ subCommands = [
     ["ln", None, LnOptions, "Make an additional link to an existing file."],
     ["backup", None, BackupOptions, "Make target dir look like local dir."],
     ["webopen", None, WebopenOptions, "Open a web browser to a grid file or directory."],
-    ["manifest", None, ManifestOptions, "List all files/directories in a subtree"],
-    ["stats", None, StatsOptions, "Print statistics about all files/directories in a subtree"],
-    ["check", None, CheckOptions, "Check a single file or directory"],
-    ["deep-check", None, DeepCheckOptions, "Check all files/directories reachable from a starting point"],
+    ["manifest", None, ManifestOptions, "List all files/directories in a subtree."],
+    ["stats", None, StatsOptions, "Print statistics about all files/directories in a subtree."],
+    ["check", None, CheckOptions, "Check a single file or directory."],
+    ["deep-check", None, DeepCheckOptions, "Check all files/directories reachable from a starting point."],
     ]
 
 def mkdir(options):
