@@ -171,12 +171,10 @@ class Adder:
         new_contents = self.node._pack_contents(children)
         return new_contents
 
+def _encrypt_rw_uri(writekey, rw_uri):
+    precondition(isinstance(rw_uri, str), rw_uri)
+    precondition(isinstance(writekey, str), writekey)
 
-def _encrypt_rw_uri(filenode, rw_uri):
-    assert isinstance(rw_uri, str)
-    writekey = filenode.get_writekey()
-    if not writekey:
-        return ""
     salt = hashutil.mutable_rwcap_salt_hash(rw_uri)
     key = hashutil.mutable_rwcap_key_hash(salt, writekey)
     cryptor = AES(key)
@@ -187,8 +185,7 @@ def _encrypt_rw_uri(filenode, rw_uri):
     # The MAC is not checked by readers in Tahoe >= 1.3.0, but we still
     # produce it for the sake of older readers.
 
-
-def pack_children(filenode, childrenx, deep_immutable=False):
+def pack_children(childrenx, writekey, deep_immutable=False):
     # initial_children must have metadata (i.e. {} instead of None)
     children = {}
     for (namex, (node, metadata)) in childrenx.iteritems():
@@ -196,10 +193,11 @@ def pack_children(filenode, childrenx, deep_immutable=False):
                      "directory creation requires metadata to be a dict, not None", metadata)
         children[normalize(namex)] = (node, metadata)
 
-    return _pack_normalized_children(filenode, children, deep_immutable=deep_immutable)
+    return _pack_normalized_children(children, writekey=writekey, deep_immutable=deep_immutable)
 
 
-def _pack_normalized_children(filenode, children, deep_immutable=False):
+ZERO_LEN_NETSTR=netstring('')
+def _pack_normalized_children(children, writekey, deep_immutable=False):
     """Take a dict that maps:
          children[unicode_nfc_name] = (IFileSystemNode, metadata_dict)
     and pack it into a single string, for use as the contents of the backing
@@ -208,9 +206,13 @@ def _pack_normalized_children(filenode, children, deep_immutable=False):
     as the pre-packed entry, which is faster than re-packing everything each
     time.
 
+    If writekey is provided then I will superencrypt the child's writecap with
+    writekey.
+
     If deep_immutable is True, I will require that all my children are deeply
     immutable, and will raise a MustBeDeepImmutableError if not.
     """
+    precondition((writekey is None) or isinstance(writekey, str), writekey)
 
     has_aux = isinstance(children, AuxValueDict)
     entries = []
@@ -231,7 +233,7 @@ def _pack_normalized_children(filenode, children, deep_immutable=False):
             if rw_uri is None:
                 rw_uri = ""
             assert isinstance(rw_uri, str), rw_uri
-            
+
             # should be prevented by MustBeDeepImmutableError check above
             assert not (rw_uri and deep_immutable)
 
@@ -239,9 +241,13 @@ def _pack_normalized_children(filenode, children, deep_immutable=False):
             if ro_uri is None:
                 ro_uri = ""
             assert isinstance(ro_uri, str), ro_uri
+            if writekey is not None:
+                writecap = netstring(_encrypt_rw_uri(writekey, rw_uri))
+            else:
+                writecap = ZERO_LEN_NETSTR
             entry = "".join([netstring(name.encode("utf-8")),
                              netstring(strip_prefix_for_ro(ro_uri, deep_immutable)),
-                             netstring(_encrypt_rw_uri(filenode, rw_uri)),
+                             writecap,
                              netstring(simplejson.dumps(metadata))])
         entries.append(netstring(entry))
     return "".join(entries)
@@ -368,7 +374,7 @@ class DirectoryNode:
 
     def _pack_contents(self, children):
         # expects children in the same format as _unpack_contents returns
-        return _pack_normalized_children(self._node, children)
+        return _pack_normalized_children(children, self._node.get_writekey())
 
     def is_readonly(self):
         return self._node.is_readonly()

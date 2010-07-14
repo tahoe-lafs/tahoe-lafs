@@ -8,10 +8,6 @@ from allmydata.dirnode import DirectoryNode, pack_children
 from allmydata.unknown import UnknownNode
 from allmydata import uri
 
-class DummyImmutableFileNode:
-    def get_writekey(self):
-        return None
-
 class NodeMaker:
     implements(INodeMaker)
 
@@ -47,7 +43,7 @@ class NodeMaker:
         # this returns synchronously. It starts with a "cap string".
         assert isinstance(writecap, (str, type(None))), type(writecap)
         assert isinstance(readcap,  (str, type(None))), type(readcap)
-        
+
         bigcap = writecap or readcap
         if not bigcap:
             # maybe the writecap was hidden because we're in a readonly
@@ -97,15 +93,14 @@ class NodeMaker:
 
     def create_new_mutable_directory(self, initial_children={}):
         d = self.create_mutable_file(lambda n:
-                                     pack_children(n, initial_children))
+                                     pack_children(initial_children, n.get_writekey()))
         d.addCallback(self._create_dirnode)
         return d
 
     def create_immutable_directory(self, children, convergence=None):
         if convergence is None:
             convergence = self.secret_holder.get_convergence_secret()
-        n = DummyImmutableFileNode() # writekey=None
-        packed = pack_children(n, children, deep_immutable=True)
+        packed = pack_children(children, None, deep_immutable=True)
         uploadable = Data(packed, convergence)
         d = self.uploader.upload(uploadable, history=self.history)
         d.addCallback(lambda results: self.create_from_cap(None, results.uri))

@@ -1246,33 +1246,33 @@ class Packing(unittest.TestCase):
 
         kids = self._make_kids(nm, ["imm", "lit", "write", "read",
                                     "dirwrite", "dirread"])
-        packed = dirnode.pack_children(fn, kids, deep_immutable=False)
+        packed = dirnode.pack_children(kids, fn.get_writekey(), deep_immutable=False)
         self.failUnlessIn("lit", packed)
 
         kids = self._make_kids(nm, ["imm", "lit"])
-        packed = dirnode.pack_children(fn, kids, deep_immutable=True)
+        packed = dirnode.pack_children(kids, fn.get_writekey(), deep_immutable=True)
         self.failUnlessIn("lit", packed)
 
         kids = self._make_kids(nm, ["imm", "lit", "write"])
         self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
-                              fn, kids, deep_immutable=True)
+                              kids, fn.get_writekey(), deep_immutable=True)
 
         # read-only is not enough: all children must be immutable
         kids = self._make_kids(nm, ["imm", "lit", "read"])
         self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
-                              fn, kids, deep_immutable=True)
+                              kids, fn.get_writekey(), deep_immutable=True)
 
         kids = self._make_kids(nm, ["imm", "lit", "dirwrite"])
         self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
-                              fn, kids, deep_immutable=True)
+                              kids, fn.get_writekey(), deep_immutable=True)
 
         kids = self._make_kids(nm, ["imm", "lit", "dirread"])
         self.failUnlessRaises(dirnode.MustBeDeepImmutableError,
                               dirnode.pack_children,
-                              fn, kids, deep_immutable=True)
+                              kids, fn.get_writekey(), deep_immutable=True)
 
 class FakeMutableFile:
     implements(IMutableFileNode)
