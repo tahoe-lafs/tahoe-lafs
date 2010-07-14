@@ -1,6 +1,6 @@
-    This is at least a partial credits-file of people that have contributed to
+﻿    This is at least a partial credits-file of people that have contributed to
 the Tahoe project.  It is formatted to allow easy grepping and
-beautification by scripts.  The fields are: name (N), email (E), 
+beautification by scripts.  The fields are: name (N), email (E),
 web-address (W), PGP key ID and fingerprint (P), description (D), and
 snail-mail address (S).
 
@@ -86,7 +86,7 @@ D: patch Makefile to build .debs for Ubuntu Intrepid
 
 N: Kevan Carstensen
 E: kevan@isnotajoke.com
-D: optimize mutable files and directories, safer "tahoe mv", code review, docs
+D: servers of happiness, other improvements, code review, docs
 
 N: Marc Tooley
 W: http://rune.ca
@@ -112,3 +112,9 @@ D: Ubuntu packaging, usability testing
 
 N: Jeremy Fitzhardinge
 D: better support for HTTP range queries
+
+N: Frédéric Marti
+E: freestorm77@gmail.com
+P: 0xD703AE08, F1 82 35 BB FF D8 96 0B 68 E2  91 2F C4 B8 6A 42 D7 03 AE 08
+S: Lausanne - Switzerland
+D: fix layout issue and server version numbers in WUI

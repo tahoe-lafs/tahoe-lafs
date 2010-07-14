@@ -1,4 +1,4 @@
-User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
+﻿User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
 * Release 1.7.1 (2010-07-17)
 
@@ -6,8 +6,9 @@ User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
  - Fix rarely-encountered incompatibility between Twisted logging utility and
    the new unicode support added in v1.7.0 (#1099)
- - Fix minor layout issue in the Web User Interface with Internet Explorer 
+ - Fix minor layout issue in the Web User Interface with Internet Explorer
    (#1097)
+ - Fix bug where server version number was always 0 on the welcome page (#1067)
 
 * Release 1.7.0 (2010-06-18)
 
