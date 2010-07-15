@@ -321,6 +321,20 @@ class Server(unittest.TestCase):
         self.failIf(os.path.exists(incoming_prefix_dir), incoming_prefix_dir)
         self.failUnless(os.path.exists(incoming_dir), incoming_dir)
 
+    def test_abort(self):
+        # remote_abort, when called on a writer, should make sure that
+        # the allocated size of the bucket is not counted by the storage
+        # server when accounting for space.
+        ss = self.create("test_abort")
+        already, writers = self.allocate(ss, "allocate", [0, 1, 2], 150)
+        self.failIfEqual(ss.allocated_size(), 0)
+
+        # Now abort the writers.
+        for writer in writers.itervalues():
+            writer.remote_abort()
+        self.failUnlessEqual(ss.allocated_size(), 0)
+
+
     def test_allocate(self):
         ss = self.create("test_allocate")
 
