@@ -158,6 +158,13 @@ class FakeBucketWriter:
         d.addCallback(lambda res: _call())
         return d
 
+
+    def callRemoteOnly(self, methname, *args, **kwargs):
+        d = self.callRemote(methname, *args, **kwargs)
+        del d # callRemoteOnly ignores this
+        return None
+
+
     def remote_write(self, offset, data):
         precondition(not self.closed)
         precondition(offset >= 0)
@@ -172,7 +179,7 @@ class FakeBucketWriter:
         self.closed = True
 
     def remote_abort(self):
-        log.err(RuntimeError("uh oh, I was asked to abort"))
+        pass
 
 class FakeClient:
     DEFAULT_ENCODING_PARAMETERS = {"k":25,
