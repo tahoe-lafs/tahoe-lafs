@@ -135,6 +135,15 @@ class PeerTracker:
         return (alreadygot, set(b.keys()))
 
 
+    def abort(self):
+        """
+        I abort the remote bucket writers for the share numbers in
+        sharenums. This is a good idea to conserve space on the storage
+        server.
+        """
+        for writer in self.buckets.itervalues(): writer.abort()
+
+
 class Tahoe2PeerSelector:
 
     def __init__(self, upload_id, logparent=None, upload_status=None):
@@ -355,8 +364,7 @@ class Tahoe2PeerSelector:
                                           self.needed_shares,
                                           self.servers_of_happiness,
                                           effective_happiness)
-                    raise UploadUnhappinessError("%s (%s)" % (msg,
-                                                 self._get_progress_message()))
+                    return self._failed("%s (%s)" % (msg, self._get_progress_message()))
 
         if self.uncontacted_peers:
             peer = self.uncontacted_peers.pop(0)
@@ -417,7 +425,7 @@ class Tahoe2PeerSelector:
                 if self.last_failure_msg:
                     msg += " (%s)" % (self.last_failure_msg,)
                 log.msg(msg, level=log.UNUSUAL, parent=self._log_parent)
-                raise UploadUnhappinessError(msg)
+                return self._failed(msg)
             else:
                 # we placed enough to be happy, so we're done
                 if self._status:
@@ -504,6 +512,21 @@ class Tahoe2PeerSelector:
 
         # now loop
         return self._loop()
+
+
+    def _failed(self, msg):
+        """
+        I am called when peer selection fails. I first abort all of the
+        remote buckets that I allocated during my unsuccessful attempt to
+        place shares for this file. I then raise an
+        UploadUnhappinessError with my msg argument.
+        """
+        for peer in self.use_peers:
+            assert isinstance(peer, PeerTracker)
+
+            peer.abort()
+
+        raise UploadUnhappinessError(msg)
 
 
 class EncryptAnUploadable:
