@@ -279,13 +279,20 @@ class BucketWriter(Referenceable):
     def _abort(self):
         if self.closed:
             return
+
         os.remove(self.incominghome)
         # if we were the last share to be moved, remove the incoming/
         # directory that was our parent
         parentdir = os.path.split(self.incominghome)[0]
         if not os.listdir(parentdir):
             os.rmdir(parentdir)
+        self._sharefile = None
 
+        # We are now considered closed for further writing. We must tell
+        # the storage server about this so that it stops expecting us to
+        # use the space it allocated for us earlier.
+        self.closed = True
+        self.ss.bucket_writer_closed(self, 0)
 
 
 class BucketReader(Referenceable):
