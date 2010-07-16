@@ -1805,6 +1805,62 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         return d
 
 
+    def test_peer_selector_bucket_abort(self):
+        # If peer selection for an upload fails due to an unhappy
+        # layout, the peer selection process should abort the buckets it
+        # allocates before failing, so that the space can be re-used.
+        self.basedir = self.mktemp()
+        self.set_up_grid(num_servers=5)
+
+        # Try to upload a file with happy=7, which is unsatisfiable with
+        # the current grid. This will fail, but should not take up any
+        # space on the storage servers after it fails.
+        client = self.g.clients[0]
+        client.DEFAULT_ENCODING_PARAMETERS['happy'] = 7
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            self.shouldFail(UploadUnhappinessError,
+                            "test_peer_selection_bucket_abort",
+                            "",
+                            client.upload, upload.Data("data" * 10000,
+                                                       convergence="")))
+        # wait for the abort messages to get there.
+        def _turn_barrier(res):
+            return fireEventually(res)
+        d.addCallback(_turn_barrier)
+        def _then(ignored):
+            for server in self.g.servers_by_number.values():
+                self.failUnlessEqual(server.allocated_size(), 0)
+        d.addCallback(_then)
+        return d
+
+
+    def test_encoder_bucket_abort(self):
+        # If enough servers die in the process of encoding and uploading
+        # a file to make the layout unhappy, we should cancel the
+        # newly-allocated buckets before dying.
+        self.basedir = self.mktemp()
+        self.set_up_grid(num_servers=4)
+
+        client = self.g.clients[0]
+        client.DEFAULT_ENCODING_PARAMETERS['happy'] = 7
+
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            self.shouldFail(UploadUnhappinessError,
+                            "test_encoder_bucket_abort",
+                            "",
+                            self._do_upload_with_broken_servers, 1))
+        def _turn_barrier(res):
+            return fireEventually(res)
+        d.addCallback(_turn_barrier)
+        def _then(ignored):
+            for server in self.g.servers_by_number.values():
+                self.failUnlessEqual(server.allocated_size(), 0)
+        d.addCallback(_then)
+        return d
+
+
     def _set_up_nodes_extra_config(self, clientdir):
         cfgfn = os.path.join(clientdir, "tahoe.cfg")
         oldcfg = open(cfgfn, "r").read()
