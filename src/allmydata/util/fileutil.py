@@ -144,17 +144,23 @@ class EncryptedTemporaryFile:
         return offset
 
     def read(self, size=-1):
+        """A read must not follow a write, or vice-versa, without an intervening seek."""
         index = self.file.tell()
         ciphertext = self.file.read(size)
         plaintext = self._crypt(index, ciphertext)
         return plaintext
 
     def write(self, plaintext):
+        """A read must not follow a write, or vice-versa, without an intervening seek.
+        If seeking and then writing causes a 'hole' in the file, the contents of the
+        hole are unspecified."""
         index = self.file.tell()
         ciphertext = self._crypt(index, plaintext)
         self.file.write(ciphertext)
 
     def truncate(self, newsize):
+        """Truncate or extend the file to 'newsize'. If it is extended, the contents after the
+        old end-of-file are unspecified. The file position after this operation is unspecified."""
         self.file.truncate(newsize)
 
 
