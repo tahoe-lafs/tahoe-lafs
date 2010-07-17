@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
 from twisted.trial import unittest
 from mock import patch
-import sys
+import sys, locale
 
 from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
@@ -64,7 +64,28 @@ class StringUtilsErrors(ReallyEqualMixin, unittest.TestCase):
         mock_stdout.encoding = 'nonexistent_encoding'
         self.failUnlessRaises(AssertionError, _reload)
 
-        # TODO: mock_stdout.encoding = None
+    @patch('locale.getpreferredencoding')
+    def test_get_output_encoding_not_from_stdout(self, mock_locale_getpreferredencoding):
+        locale  # hush pyflakes
+        mock_locale_getpreferredencoding.return_value = 'koi8-r'
+
+        class DummyStdout:
+            pass
+        old_stdout = sys.stdout
+        sys.stdout = DummyStdout()
+        try:
+            _reload()
+            self.failUnlessReallyEqual(get_output_encoding(), 'koi8-r')
+
+            sys.stdout.encoding = None
+            _reload()
+            self.failUnlessReallyEqual(get_output_encoding(), 'koi8-r')
+
+            mock_locale_getpreferredencoding.return_value = None
+            _reload()
+            self.failUnlessReallyEqual(get_output_encoding(), 'utf-8')
+        finally:
+            sys.stdout = old_stdout
 
     @patch('sys.stdout')
     def test_argv_to_unicode(self, mock):
