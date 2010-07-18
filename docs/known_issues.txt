@@ -1,7 +1,7 @@
 ﻿= known issues =
 
 *  overview
-*  issues in Tahoe-LAFS v1.7.0, released 2010-06-18
+*  issues in Tahoe-LAFS v1.7.1, released 2010-07-18
   -  potential unauthorized access by JavaScript in unrelated files
   -  potential disclosure of file through embedded hyperlinks or JavaScript in that file
   -  command-line arguments are leaked to other local users
