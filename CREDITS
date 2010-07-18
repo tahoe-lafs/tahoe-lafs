@@ -22,7 +22,7 @@ N: Arc O Median
 D: bug reports
 
 N: Brian Warner
-D: code
+D: Tahoe-LAFS Hacker
 
 N: RobK
 D: code
@@ -86,7 +86,7 @@ D: patch Makefile to build .debs for Ubuntu Intrepid
 
 N: Kevan Carstensen
 E: kevan@isnotajoke.com
-D: servers of happiness, other improvements, code review, docs
+D: servers of happiness, other improvements, code review, docs, upload
 
 N: Marc Tooley
 W: http://rune.ca

@@ -857,6 +857,28 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.u.upload(DATA))
         return d
 
+    def test_aborted_shares(self):
+        self.basedir = "upload/EncodingParameters/aborted_shares"
+        self.set_up_grid(num_servers=4)
+        c = self.g.clients[0]
+        DATA = upload.Data(100* "kittens", convergence="")
+        # These parameters are unsatisfiable with only 4 servers, but should
+        # work with 5, as long as the original 4 are not stuck in the open
+        # BucketWriter state (open() but not
+        parms = {"k":2, "happy":5, "n":5, "max_segment_size": 1*MiB}
+        c.DEFAULT_ENCODING_PARAMETERS = parms
+        d = self.shouldFail(UploadUnhappinessError, "test_aborted_shares",
+                            "shares could be placed on only 4 "
+                            "server(s) such that any 2 of them have enough "
+                            "shares to recover the file, but we were asked "
+                            "to place shares on at least 5 such servers",
+                            c.upload, DATA)
+        # now add the 5th server
+        d.addCallback(lambda ign: self._add_server(4, False))
+        # and this time the upload ought to succeed
+        d.addCallback(lambda ign: c.upload(DATA))
+        return d
+
 
     def test_problem_layout_comment_52(self):
         def _basedir():
