@@ -1083,6 +1083,31 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.failUnlessEqual(results.pushed_shares, 3))
         return d
 
+    def test_problem_layout_ticket1124(self):
+        self.basedir = self.mktemp()
+        d = self._setup_and_upload(k=2, n=4)
+
+        # server 0: shares 0, 1, 2, 3
+        # server 1: shares 0, 3
+        # server 2: share 1
+        # server 3: share 2
+        # With this layout, an upload should just be satisfied that the current distribution is good enough, right?
+        def _setup(ign):
+            self._add_server_with_share(server_number=0, share_number=None)
+            self._add_server_with_share(server_number=1, share_number=0)
+            self._add_server_with_share(server_number=2, share_number=1)
+            self._add_server_with_share(server_number=3, share_number=2)
+            # Copy shares
+            self._copy_share_to_server(3, 1)
+            client = self.g.clients[0]
+            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            return client
+
+        d.addCallback(_setup)
+        d.addCallback(lambda client:
+            client.upload(upload.Data("data" * 10000, convergence="")))
+        return d
+    test_problem_layout_ticket1124.todo = "Fix this after 1.7.1 release."
 
     def test_happiness_with_some_readonly_peers(self):
         # Try the following layout
