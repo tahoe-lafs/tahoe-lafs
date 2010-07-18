@@ -4,7 +4,7 @@ from StringIO import StringIO
 from twisted.trial import unittest
 
 from allmydata.util import fileutil
-from allmydata.util.encodingutil import get_filesystem_encoding, unicode_platform
+from allmydata.util.encodingutil import listdir_unicode, get_filesystem_encoding, unicode_platform
 from allmydata.util.assertutil import precondition
 from allmydata.scripts import backupdb
 
@@ -249,7 +249,7 @@ class BackupDB(unittest.TestCase):
         self.failUnless(bdb)
 
         self.writeto(u"f\u00f6\u00f6.txt", "foo.txt")
-        files = [fn for fn in os.listdir(unicode(basedir)) if fn.endswith(".txt")]
+        files = [fn for fn in listdir_unicode(unicode(basedir)) if fn.endswith(".txt")]
         self.failUnlessEqual(len(files), 1)
         foo_fn = os.path.join(basedir, files[0])
         #print foo_fn, type(foo_fn)

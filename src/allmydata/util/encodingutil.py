@@ -4,6 +4,7 @@ unicode and back.
 """
 
 import sys
+import os
 import re
 from allmydata.util.assertutil import precondition
 from twisted.python import usage
@@ -173,3 +174,44 @@ def unicode_platform():
     Does the current platform handle Unicode filenames natively?
     """
     return is_unicode_platform
+
+class FilenameEncodingError(Exception):
+    """
+    Filename cannot be encoded using the current encoding of your filesystem
+    (%s). Please configure your locale correctly or rename this file.
+    """
+    pass
+
+def listdir_unicode_fallback(path):
+    """
+    This function emulates a fallback Unicode API similar to one available
+    under Windows or MacOS X.
+
+    If badly encoded filenames are encountered, an exception is raised.
+    """
+    precondition(isinstance(path, unicode), path)
+
+    try:
+        byte_path = path.encode(filesystem_encoding)
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        raise FilenameEncodingError(path)
+
+    try:
+        return [unicode(fn, filesystem_encoding) for fn in os.listdir(byte_path)]
+    except UnicodeDecodeError:
+        raise FilenameEncodingError(fn)
+
+def listdir_unicode(path):
+    """
+    Wrapper around listdir() which provides safe access to the convenient
+    Unicode API even under platforms that don't provide one natively.
+    """
+    precondition(isinstance(path, unicode), path)
+
+    # On Windows and MacOS X, the Unicode API is used
+    # On other platforms (ie. Unix systems), the byte-level API is used
+
+    if is_unicode_platform:
+        return os.listdir(path)
+    else:
+        return listdir_unicode_fallback(path)

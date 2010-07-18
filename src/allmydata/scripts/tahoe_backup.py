@@ -9,8 +9,7 @@ from allmydata.scripts.common import get_alias, escape_path, DEFAULT_ALIAS, \
 from allmydata.scripts.common_http import do_http, HTTPError, format_http_error
 from allmydata.util import time_format
 from allmydata.scripts import backupdb
-from allmydata.util.encodingutil import quote_output, to_str
-from allmydata.util.fileutil import open_expanduser
+from allmydata.util.encodingutil import listdir_unicode, quote_output, to_str, FilenameEncodingError
 from allmydata.util.assertutil import precondition
 
 
@@ -167,14 +166,14 @@ class BackerUpper:
         compare_contents = {} # childname -> rocap
 
         try:
-            children = os.listdir(localpath)
+            children = listdir_unicode(localpath)
         except EnvironmentError:
             self.directories_skipped += 1
             self.warn("WARNING: permission denied on directory %s" % quote_output(localpath))
             children = []
-        except (UnicodeEncodeError, UnicodeDecodeError):
+        except FilenameEncodingError:
             self.directories_skipped += 1
-            self.warn("WARNING: could not list directory %s due to an encoding error" % quote_output(localpath))
+            self.warn("WARNING: could not list directory %s due to a filename encoding error" % quote_output(localpath))
             children = []
 
         for child in self.options.filter_listdir(children):
@@ -297,7 +296,7 @@ class BackerUpper:
 
         if must_upload:
             self.verboseprint("uploading %s.." % quote_output(childpath))
-            infileobj = open_expanduser(childpath, "rb")
+            infileobj = open(childpath, "rb")
             url = self.options['node-url'] + "uri"
             resp = do_http("PUT", url, infileobj)
             if resp.status not in (200, 201):

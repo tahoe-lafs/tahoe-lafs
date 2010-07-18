@@ -31,8 +31,8 @@ from twisted.internet import threads # CLI tests use deferToThread
 from twisted.python import usage
 
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import unicode_platform, quote_output, \
-    get_output_encoding, get_argv_encoding, get_filesystem_encoding, \
+from allmydata.util.encodingutil import listdir_unicode, unicode_platform, \
+    quote_output, get_output_encoding, get_argv_encoding, get_filesystem_encoding, \
     unicode_to_output, to_str
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
@@ -441,7 +441,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         for name in filenames:
             open(os.path.join(unicode(basedir), name), "wb").close()
 
-        for file in os.listdir(unicode(basedir)):
+        for file in listdir_unicode(unicode(basedir)):
             self.failUnlessIn(normalize(file), filenames)
 
 
