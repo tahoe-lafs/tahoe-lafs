@@ -1,4 +1,3 @@
-
 import os, shutil
 from cStringIO import StringIO
 from twisted.trial import unittest
@@ -740,7 +739,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
     def _copy_share_to_server(self, share_number, server_number):
         ss = self.g.servers_by_number[server_number]
-        # Copy share i from the directory associated with the first 
+        # Copy share i from the directory associated with the first
         # storage server to the directory associated with this one.
         assert self.g, "I tried to find a grid at self.g, but failed"
         assert self.shares, "I tried to find shares at self.shares, but failed"
@@ -856,7 +855,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         def _basedir():
             self.basedir = self.mktemp()
         _basedir()
-        # This scenario is at 
+        # This scenario is at
         # http://allmydata.org/trac/tahoe/ticket/778#comment:52
         #
         # The scenario in comment:52 proposes that we have a layout
@@ -865,12 +864,12 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # server 1: share 0, read-only
         # server 2: share 0, read-only
         # server 3: share 0, read-only
-        # To get access to the shares, we will first upload to one 
-        # server, which will then have shares 0 - 9. We'll then 
+        # To get access to the shares, we will first upload to one
+        # server, which will then have shares 0 - 9. We'll then
         # add three new servers, configure them to not accept any new
         # shares, then write share 0 directly into the serverdir of each,
         # and then remove share 0 from server 0 in the same way.
-        # Then each of servers 1 - 3 will report that they have share 0, 
+        # Then each of servers 1 - 3 will report that they have share 0,
         # and will not accept any new share, while server 0 will report that
         # it has shares 1 - 9 and will accept new shares.
         # We'll then set 'happy' = 4, and see that an upload fails
@@ -958,9 +957,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # We start by uploading all of the shares to one server.
         # Next, we'll add three new servers to our NoNetworkGrid. We'll add
         # one share from our initial upload to each of these.
-        # The counterintuitive ordering of the share numbers is to deal with 
-        # the permuting of these servers -- distributing the shares this 
-        # way ensures that the Tahoe2PeerSelector sees them in the order 
+        # The counterintuitive ordering of the share numbers is to deal with
+        # the permuting of these servers -- distributing the shares this
+        # way ensures that the Tahoe2PeerSelector sees them in the order
         # described below.
         d = self._setup_and_upload()
         d.addCallback(lambda ign:
@@ -974,7 +973,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # server 1: share 2
         # server 2: share 0
         # server 3: share 1
-        # We change the 'happy' parameter in the client to 4. 
+        # We change the 'happy' parameter in the client to 4.
         # The Tahoe2PeerSelector will see the peers permuted as:
         # 2, 3, 1, 0
         # Ideally, a reupload of our original data should work.
@@ -987,19 +986,19 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             client.upload(upload.Data("data" * 10000, convergence="")))
 
 
-        # This scenario is basically comment:53, but changed so that the 
+        # This scenario is basically comment:53, but changed so that the
         # Tahoe2PeerSelector sees the server with all of the shares before
         # any of the other servers.
         # The layout is:
         # server 2: shares 0 - 9
-        # server 3: share 0 
-        # server 1: share 1 
+        # server 3: share 0
+        # server 1: share 1
         # server 4: share 2
         # The Tahoe2PeerSelector sees the peers permuted as:
         # 2, 3, 1, 4
-        # Note that server 0 has been replaced by server 4; this makes it 
+        # Note that server 0 has been replaced by server 4; this makes it
         # easier to ensure that the last server seen by Tahoe2PeerSelector
-        # has only one share. 
+        # has only one share.
         d.addCallback(_change_basedir)
         d.addCallback(lambda ign:
             self._setup_and_upload())
@@ -1019,7 +1018,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
         d.addCallback(lambda ign:
             self._add_server_with_share(server_number=4, share_number=0))
-        # Now try uploading. 
+        # Now try uploading.
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
@@ -1132,11 +1131,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
 
     def test_dropped_servers_in_encoder(self):
-        # The Encoder does its own "servers_of_happiness" check if it 
-        # happens to lose a bucket during an upload (it assumes that 
+        # The Encoder does its own "servers_of_happiness" check if it
+        # happens to lose a bucket during an upload (it assumes that
         # the layout presented to it satisfies "servers_of_happiness"
         # until a failure occurs)
-        # 
+        #
         # This test simulates an upload where servers break after peer
         # selection, but before they are written to.
         def _set_basedir(ign=None):
@@ -1158,12 +1157,12 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             server = self.g.servers_by_number[0]
             self.g.remove_server(server.my_nodeid)
         d.addCallback(_remove_server)
-        # This should succeed; we still have 4 servers, and the 
+        # This should succeed; we still have 4 servers, and the
         # happiness of the upload is 4.
         d.addCallback(lambda ign:
             self._do_upload_with_broken_servers(1))
         # Now, do the same thing over again, but drop 2 servers instead
-        # of 1. This should fail, because servers_of_happiness is 4 and 
+        # of 1. This should fail, because servers_of_happiness is 4 and
         # we can't satisfy that.
         d.addCallback(_set_basedir)
         d.addCallback(lambda ign:
@@ -1211,7 +1210,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
 
     def test_merge_peers(self):
-        # merge_peers merges a list of used_peers and a dict of 
+        # merge_peers merges a list of used_peers and a dict of
         # shareid -> peerid mappings.
         shares = {
                     1 : set(["server1"]),
@@ -1271,7 +1270,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # servers_of_happiness doesn't under or overcount the happiness
         # value for given inputs.
 
-        # servers_of_happiness expects a dict of 
+        # servers_of_happiness expects a dict of
         # shnum => set(peerids) as a preexisting shares argument.
         test1 = {
                  1 : set(["server1"]),
@@ -1286,9 +1285,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # should be 3 instead of 4.
         happy = servers_of_happiness(test1)
         self.failUnlessEqual(3, happy)
-        # The second argument of merge_peers should be a set of 
-        # objects with peerid and buckets as attributes. In actual use, 
-        # these will be PeerTracker instances, but for testing it is fine 
+        # The second argument of merge_peers should be a set of
+        # objects with peerid and buckets as attributes. In actual use,
+        # these will be PeerTracker instances, but for testing it is fine
         # to make a FakePeerTracker whose job is to hold those instance
         # variables to test that part.
         class FakePeerTracker:
@@ -1319,7 +1318,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         test = {}
         happy = servers_of_happiness(test)
         self.failUnlessEqual(0, happy)
-        # Test a more substantial overlap between the trackers and the 
+        # Test a more substantial overlap between the trackers and the
         # existing assignments.
         test = {
             1 : set(['server1']),
@@ -1336,7 +1335,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         t.peerid = 'server6'
         t.buckets = [3, 5]
         trackers.append(t)
-        # The value returned by servers_of_happiness is the size 
+        # The value returned by servers_of_happiness is the size
         # of a maximum matching in the bipartite graph that
         # servers_of_happiness() makes between peerids and share
         # numbers. It should find something like this:
@@ -1345,13 +1344,13 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # (server 3, share 3)
         # (server 5, share 4)
         # (server 6, share 5)
-        # 
+        #
         # and, since there are 5 edges in this matching, it should
         # return 5.
         test2 = merge_peers(test, set(trackers))
         happy = servers_of_happiness(test2)
         self.failUnlessEqual(5, happy)
-        # Zooko's first puzzle: 
+        # Zooko's first puzzle:
         # (from http://allmydata.org/trac/tahoe-lafs/ticket/778#comment:156)
         #
         # server 1: shares 0, 1
@@ -1365,12 +1364,12 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             2 : set(['server2', 'server3']),
         }
         self.failUnlessEqual(3, servers_of_happiness(test))
-        # Zooko's second puzzle:        
+        # Zooko's second puzzle:
         # (from http://allmydata.org/trac/tahoe-lafs/ticket/778#comment:158)
-        # 
+        #
         # server 1: shares 0, 1
         # server 2: share 1
-        # 
+        #
         # This should yield happiness of 2.
         test = {
             0 : set(['server1']),
@@ -1451,7 +1450,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                 self._add_server(server_number=i)
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             c = self.g.clients[0]
-            # We set happy to an unsatisfiable value so that we can check the 
+            # We set happy to an unsatisfiable value so that we can check the
             # counting in the exception message. The same progress message
             # is also used when the upload is successful, but in that case it
             # only gets written to a log, so we can't see what it says.
@@ -1491,7 +1490,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # shares that it wants to place on the first server, including
         # the one that it wanted to allocate there. Though no shares will
         # be allocated in this request, it should still be called
-        # productive, since it caused some homeless shares to be 
+        # productive, since it caused some homeless shares to be
         # removed.
         d.addCallback(_reset)
         d.addCallback(lambda ign:
@@ -1598,7 +1597,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server(server_number=2))
         def _break_server_2(ign):
             server = self.g.servers_by_number[2].my_nodeid
-            # We have to break the server in servers_by_id, 
+            # We have to break the server in servers_by_id,
             # because the one in servers_by_number isn't wrapped,
             # and doesn't look at its broken attribute when answering
             # queries.
@@ -1674,7 +1673,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # This should place all of the shares, but fail with happy=4.
         # Since the number of servers with shares is more than the number
         # necessary to reconstitute the file, this will trigger a different
-        # error message than either of those above. 
+        # error message than either of those above.
         d.addCallback(_reset)
         d.addCallback(lambda ign:
             self._setup_and_upload())
@@ -1783,7 +1782,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             # Add some servers so that the upload will need to
             # redistribute, but will first pass over a couple of servers
             # that don't have enough shares to redistribute before
-            # finding one that does have shares to redistribute. 
+            # finding one that does have shares to redistribute.
             self._add_server_with_share(server_number=1, share_number=0)
             self._add_server_with_share(server_number=2, share_number=2)
             self._add_server_with_share(server_number=3, share_number=1)
