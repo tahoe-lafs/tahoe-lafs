@@ -15,6 +15,7 @@
  - Fix rarely-encountered incompatibility between Twisted logging utility and
    the new unicode support added in v1.7.0 (#1099)
  - Fix IP address detection on FreeBSD 7, 8, and 9 (#1098)
+ - Forward-compatibility improvements for non-ASCII caps (#1051)
 
 ** Code improvements
 
