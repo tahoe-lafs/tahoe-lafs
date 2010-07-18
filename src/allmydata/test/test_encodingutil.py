@@ -278,8 +278,13 @@ class StdlibUnicode(unittest.TestCase):
         if unicode_platform():
             raise unittest.SkipTest("This test is not applicable to platforms that represent filenames as Unicode.")
 
-        mock.return_value = 'ascii'
-        self.failUnlessRaises(UnicodeEncodeError, open, lumiere_nfc, 'rb')
+        enc = get_filesystem_encoding()
+        fn = u'\u2621.txt'
+        try:
+            fn.encode(enc)
+            raise unittest.SkipTest("This test cannot be run unless we know a filename that is not representable.")
+        except UnicodeEncodeError:
+            self.failUnlessRaises(UnicodeEncodeError, open, fn, 'wb')
 
 
 class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
