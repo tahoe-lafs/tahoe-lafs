@@ -301,6 +301,10 @@ class NodeMaker(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(n.get_write_uri(), unknown_rw)
         self.failUnlessReallyEqual(n.get_readonly_uri(), "ro." + unknown_ro)
 
+        # Note: it isn't that we *intend* to deploy non-ASCII caps in
+        # the future, it is that we want to make sure older Tahoe-LAFS
+        # versions wouldn't choke on them if we were to do so. See
+        # #1051 and wiki:NewCapDesign for details.
         unknown_rw = u"lafs://from_the_future_rw_\u263A".encode('utf-8')
         unknown_ro = u"lafs://readonly_from_the_future_ro_\u263A".encode('utf-8')
         n = c.create_node_from_uri(unknown_rw, unknown_ro)
