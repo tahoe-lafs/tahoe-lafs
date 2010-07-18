@@ -1,7 +1,7 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.7.0
+﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.7.1
 
 The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.7.0 of Tahoe-LAFS, an extremely
+availability of version 1.7.1 of Tahoe-LAFS, an extremely
 reliable distributed storage system.
 
 Tahoe-LAFS is the first distributed storage system which offers
@@ -12,14 +12,11 @@ unique security and fault-tolerance properties:
 
 http://tahoe-lafs.org/source/tahoe/trunk/docs/about.html
 
-Tahoe-LAFS v1.7.0 is the successor to v1.6.1, which was released
-February 27, 2010 [1].
+Tahoe-LAFS v1.7.1 is the successor to v1.7.0, which was released
+June 18, 2010 [1].
 
-v1.7.0 is a major new release with new features and bugfixes. It
-adds a fully functional SFTP interface, support for non-ASCII character
-encodings, and a new upload algorithm which guarantees that each file
-is spread over multiple servers for fault-tolerance. See the NEWS file
-[2] for details.
+v1.7.1 is a minor release with some small bugfixes and code
+clean-ups. See the NEWS file [2] for details.
 
 
 WHAT IS IT GOOD FOR?
@@ -138,18 +135,16 @@ ACKNOWLEDGEMENTS
 This is the fifth release of Tahoe-LAFS to be created solely
 as a labor of love by volunteers. Thank you very much to the
 team of "hackers in the public interest" who make Tahoe-LAFS
-possible. In this release we especially owe thanks to
-David-Sarah Hopwood, who has dedicated many late nights to the
-project and displayed superb software engineering skills.
+possible.
 
 Zooko Wilcox-O'Hearn
 on behalf of the Tahoe-LAFS team
 
-June 18, 2010
+July 18, 2010
 Boulder, Colorado, USA
 
-[1] http://tahoe-lafs.org/trac/tahoe/browser/relnotes.txt?rev=4244
-[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4254
+[1] http://tahoe-lafs.org/trac/tahoe/browser/relnotes.txt?rev=4514
+[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=FIXME!!!
 [3] http://tahoe-lafs.org/trac/tahoe/wiki/RelatedProjects
 [4] http://tahoe-lafs.org/trac/tahoe/browser/docs/known_issues.txt
 [5] http://tahoe-lafs.org/trac/tahoe/browser/COPYING.GPL
@@ -157,6 +152,6 @@ Boulder, Colorado, USA
 [7] http://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.html
 [8] http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [9] http://tahoe-lafs.org/trac/tahoe/roadmap
-[10] http://tahoe-lafs.org/trac/tahoe/browser/CREDITS?rev=4511
+[10] http://tahoe-lafs.org/trac/tahoe/browser/CREDITS?rev=4567
 [11] http://tahoe-lafs.org/trac/tahoe/wiki/Dev
 [12] http://tahoe-lafs.org/hacktahoelafs/
