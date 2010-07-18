@@ -8,12 +8,16 @@
  - Fix minor layout issue in the Web User Interface with Internet Explorer
    (#1097)
  - Add new command-line command "tahoe unlink" as a synonym for "tahoe rm"
-   (#1072)
+   (#776)
  - The FTP frontend now encrypts its temporary files, protecting their contents
    from an attacker who is able to read the disk. (#1083)
  - Fix rarely-encountered incompatibility between Twisted logging utility and
    the new unicode support added in v1.7.0 (#1099)
  - Fix IP address detection on FreeBSD 7, 8, and 9 (#1098)
+
+** Code improvements
+
+ - Simplify and tidy-up directories, unicode support (#967, #1072)
 
 * Release 1.7.0 (2010-06-18)
 
