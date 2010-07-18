@@ -2435,9 +2435,6 @@ class Rm(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_rm_without_alias(self):
         # 'tahoe rm' should behave sensibly when invoked without an explicit
         # alias before the default 'tahoe' alias has been created.
-
-        d.addCallback(lambda ign: self.do_cli("unlink", "afile"))
-        d.addCallback(_check)
         self.basedir = "cli/Rm/rm_without_alias"
         self.set_up_grid()
         d = self.do_cli("rm", "afile")
@@ -2446,15 +2443,15 @@ class Rm(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
+
+        d.addCallback(lambda ign: self.do_cli("unlink", "afile"))
+        d.addCallback(_check)
         return d
 
     def test_rm_with_nonexistent_alias(self):
         # 'tahoe rm' should behave sensibly when invoked with an explicit
         # alias that doesn't exist.
         self.basedir = "cli/Rm/rm_with_nonexistent_alias"
-
-        d.addCallback(lambda ign: self.do_cli("unlink", "nonexistent:afile"))
-        d.addCallback(_check)
         self.set_up_grid()
         d = self.do_cli("rm", "nonexistent:afile")
         def _check((rc, out, err)):
@@ -2462,6 +2459,9 @@ class Rm(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
             self.failUnlessReallyEqual(out, "")
+        d.addCallback(_check)
+
+        d.addCallback(lambda ign: self.do_cli("unlink", "nonexistent:afile"))
         d.addCallback(_check)
         return d
 
