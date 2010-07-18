@@ -1786,6 +1786,37 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         return d
     test_problem_layout_comment_187.todo = "this isn't fixed yet"
 
+    def test_problem_layout_ticket_1118(self):
+        # #1118 includes a report from a user who hit an assertion in
+        # the upload code with this layout.
+        self.basedir = self.mktemp()
+        d = self._setup_and_upload(k=2, n=4)
+
+        # server 0: no shares
+        # server 1: shares 0, 3
+        # server 3: share 1
+        # server 2: share 2
+        # The order that they get queries is 0, 1, 3, 2
+        def _setup(ign):
+            self._add_server(server_number=0)
+            self._add_server_with_share(server_number=1, share_number=0)
+            self._add_server_with_share(server_number=2, share_number=2)
+            self._add_server_with_share(server_number=3, share_number=1)
+            # Copy shares
+            self._copy_share_to_server(3, 1)
+            storedir = self.get_serverdir(0)
+            # remove the storedir, wiping out any existing shares
+            shutil.rmtree(storedir)
+            # create an empty storedir to replace the one we just removed
+            os.mkdir(storedir)
+            client = self.g.clients[0]
+            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            return client
+
+        d.addCallback(_setup)
+        d.addCallback(lambda client:
+                          client.upload(upload.Data("data" * 10000, convergence="")))
+        return d
 
     def test_upload_succeeds_with_some_homeless_shares(self):
         # If the upload is forced to stop trying to place shares before

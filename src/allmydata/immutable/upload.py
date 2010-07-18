@@ -916,7 +916,7 @@ class CHKUploader:
             for shnum in peer.buckets:
                 self._peer_trackers[shnum] = peer
                 servermap.setdefault(shnum, set()).add(peer.peerid)
-        assert len(buckets) == sum([len(peer.buckets) for peer in used_peers])
+        assert len(buckets) == sum([len(peer.buckets) for peer in used_peers]), "%s (%s) != %s (%s)" % (len(buckets), buckets, sum([len(peer.buckets) for peer in used_peers]), [(p.buckets, p.peerid) for p in used_peers])
         encoder.set_shareholders(buckets, servermap)
 
     def _encrypted_done(self, verifycap):
