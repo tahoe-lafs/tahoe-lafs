@@ -238,7 +238,9 @@ FLOGTOTWISTED=1 like this:
 
 With FLOGTOTWISTED=1, sufficiently-important log events will be written into
 _trial_temp/test.log, which may give you more ideas about why the test is
-failing.
+failing. Note, however, that _trial_temp/log.out will not receive messages
+below the level=OPERATIONAL threshold, due to this issue:
+<http://foolscap.lothar.com/trac/ticket/154>
 
 
 If that isn't enough, look at the detailed foolscap logging messages instead,
