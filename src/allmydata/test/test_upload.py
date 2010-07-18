@@ -2,7 +2,6 @@ import os, shutil
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.python.failure import Failure
-from twisted.python import log
 from twisted.internet import defer
 from foolscap.api import fireEventually
 
