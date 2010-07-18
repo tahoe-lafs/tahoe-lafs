@@ -24,9 +24,16 @@ class ContainerNode:
         return self._cap.to_string()
     def is_readonly(self):
         return False
-class FakeNodeMaker:
-    def create_from_cap(self, writecap, readcap=None):
+    def is_mutable(self):
+        return True
+
+class FakeNode:
+    def raise_error(self):
         return None
+
+class FakeNodeMaker:
+    def create_from_cap(self, writecap, readcap=None, deep_immutable=False, name=''):
+        return FakeNode()
 
 def random_unicode(l):
     while True:
