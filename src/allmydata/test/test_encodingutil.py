@@ -273,7 +273,6 @@ class StdlibUnicode(unittest.TestCase):
         self.failIfIn("~", expanded)
         self.failUnless(expanded.endswith(lumiere_nfc), expanded)
 
-    @patch('sys.getfilesystemencoding')
     def test_open_unrepresentable(self, mock):
         if unicode_platform():
             raise unittest.SkipTest("This test is not applicable to platforms that represent filenames as Unicode.")
