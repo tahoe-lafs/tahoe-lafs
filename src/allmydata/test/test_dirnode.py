@@ -127,7 +127,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnlessReallyEqual(two_node.get_size(), 14861)
             self.failUnlessReallyEqual(two_node.get_uri(), setup_py_uri)
             self.failUnlessReallyEqual(two_node.get_readonly_uri(), setup_py_uri)
-            self.failUnlessReallyEqual(two_metadata["metakey"], "metavalue")
+            self.failUnlessEqual(two_metadata["metakey"], "metavalue")
             
             self.failUnlessReallyEqual(mut_node.get_uri(), mut_write_uri)
             self.failUnlessReallyEqual(mut_node.get_readonly_uri(), mut_read_uri)
@@ -241,7 +241,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnlessReallyEqual(two_node.get_size(), 14861)
             self.failUnlessReallyEqual(two_node.get_uri(), setup_py_uri)
             self.failUnlessReallyEqual(two_node.get_readonly_uri(), setup_py_uri)
-            self.failUnlessReallyEqual(two_metadata["metakey"], "metavalue")
+            self.failUnlessEqual(two_metadata["metakey"], "metavalue")
 
             self.failUnless(fut_node.is_unknown())
             self.failUnlessReallyEqual(fut_node.get_uri(), "imm." + future_read_uri)
@@ -769,8 +769,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
             d.addCallback(lambda res: n.get_metadata_for(u"child"))
             d.addCallback(lambda metadata:
-                          self.failUnlessReallyEqual(set(metadata.keys()),
-                                                     set(["tahoe"])))
+                          self.failUnlessEqual(set(metadata.keys()),
+                                               set(["tahoe"])))
 
             d.addCallback(lambda res:
                           self.shouldFail(NoSuchChildError, "gcamap-no",
@@ -783,7 +783,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 child, metadata = res
                 self.failUnless(isinstance(child, dirnode.DirectoryNode))
                 # edge-metadata needs at least one path segment
-                self.failUnlessReallyEqual(set(metadata.keys()), set([]))
+                self.failUnlessEqual(set(metadata.keys()), set([]))
             d.addCallback(_check_child_and_metadata1)
             d.addCallback(lambda res:
                           n.get_child_and_metadata_at_path(u"child"))
@@ -792,7 +792,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 child, metadata = res
                 self.failUnlessReallyEqual(child.get_uri(),
                                            fake_file_uri)
-                self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"]))
+                self.failUnlessEqual(set(metadata.keys()), set(["tahoe"]))
             d.addCallback(_check_child_and_metadata2)
 
             d.addCallback(lambda res:
@@ -800,7 +800,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             def _check_child_and_metadata3(res):
                 child, metadata = res
                 self.failUnless(isinstance(child, dirnode.DirectoryNode))
-                self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"]))
+                self.failUnlessEqual(set(metadata.keys()), set(["tahoe"]))
             d.addCallback(_check_child_and_metadata3)
 
             # set_uri + metadata
@@ -810,7 +810,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                 {}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
             d.addCallback(lambda metadata:
-                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
 
             # You can't override the link timestamps.
             d.addCallback(lambda res: n.set_uri(u"c2",
@@ -828,7 +828,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                 fake_file_uri, fake_file_uri))
             d.addCallback(lambda res: n.get_metadata_for(u"c3"))
             d.addCallback(lambda metadata:
-                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
 
             # we can also add specific metadata at set_uri() time
             d.addCallback(lambda res: n.set_uri(u"c4",
@@ -854,13 +854,13 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                           overwrite=False))
             d.addCallback(lambda res: n.get_metadata_for(u"d2"))
             d.addCallback(lambda metadata:
-                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
 
             # if we don't set any defaults, the child should get timestamps
             d.addCallback(lambda res: n.set_node(u"d3", n))
             d.addCallback(lambda res: n.get_metadata_for(u"d3"))
             d.addCallback(lambda metadata:
-                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
 
             # we can also add specific metadata at set_node() time
             d.addCallback(lambda res: n.set_node(u"d4", n,
@@ -898,10 +898,10 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda children: self.failIf(u"new" in children))
             d.addCallback(lambda res: n.get_metadata_for(u"e1"))
             d.addCallback(lambda metadata:
-                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
             d.addCallback(lambda res: n.get_metadata_for(u"e2"))
             d.addCallback(lambda metadata:
-                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
             d.addCallback(lambda res: n.get_metadata_for(u"e3"))
             d.addCallback(lambda metadata:
                           self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
@@ -929,10 +929,10 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda children: self.failIf(u"new" in children))
             d.addCallback(lambda res: n.get_metadata_for(u"f1"))
             d.addCallback(lambda metadata:
-                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
             d.addCallback(lambda res: n.get_metadata_for(u"f2"))
             d.addCallback(lambda metadata:
-                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
             d.addCallback(lambda res: n.get_metadata_for(u"f3"))
             d.addCallback(lambda metadata:
                           self.failUnless((set(metadata.keys()) == set(["key", "tahoe"])) and
@@ -975,9 +975,9 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
             d.addCallback(lambda res: n.get_metadata_for(u"timestamps"))
             def _check_timestamp1(metadata):
-                self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"]))
+                self.failUnlessEqual(set(metadata.keys()), set(["tahoe"]))
                 tahoe_md = metadata["tahoe"]
-                self.failUnlessReallyEqual(set(tahoe_md.keys()), set(["linkcrtime", "linkmotime"]))
+                self.failUnlessEqual(set(tahoe_md.keys()), set(["linkcrtime", "linkmotime"]))
 
                 self.failUnlessGreaterOrEqualThan(tahoe_md["linkcrtime"],
                                                   self._start_timestamp)
@@ -999,7 +999,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             def _check_timestamp2(metadata):
                 self.failUnlessIn("tahoe", metadata)
                 tahoe_md = metadata["tahoe"]
-                self.failUnlessReallyEqual(set(tahoe_md.keys()), set(["linkcrtime", "linkmotime"]))
+                self.failUnlessEqual(set(tahoe_md.keys()), set(["linkcrtime", "linkmotime"]))
 
                 self.failUnlessReallyEqual(tahoe_md["linkcrtime"], self._old_linkcrtime)
                 self.failUnlessGreaterThan(tahoe_md["linkmotime"], self._old_linkmotime)
@@ -1009,7 +1009,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(lambda res: n.delete(u"subdir"))
             d.addCallback(lambda old_child:
                           self.failUnlessReallyEqual(old_child.get_uri(),
-                                               self.subdir.get_uri()))
+                                                     self.subdir.get_uri()))
 
             d.addCallback(lambda res: n.list())
             d.addCallback(lambda children:
@@ -1033,7 +1033,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                      set([u"child", u"newfile"])))
             d.addCallback(lambda res: n.get_metadata_for(u"newfile"))
             d.addCallback(lambda metadata:
-                          self.failUnlessReallyEqual(set(metadata.keys()), set(["tahoe"])))
+                          self.failUnlessEqual(set(metadata.keys()), set(["tahoe"])))
 
             uploadable3 = upload.Data("some data", convergence="converge")
             d.addCallback(lambda res: n.add_file(u"newfile-metadata",
@@ -1138,18 +1138,18 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         (t1, t2, t3) = (626644800.0, 634745640.0, 892226160.0)
 
         md1 = dirnode.update_metadata({"ctime": t1}, {}, t2)
-        self.failUnlessReallyEqual(md1, {"tahoe":{"linkcrtime": t1, "linkmotime": t2}})
+        self.failUnlessEqual(md1, {"tahoe":{"linkcrtime": t1, "linkmotime": t2}})
 
         md2 = dirnode.update_metadata(md1, {"key": "value", "tahoe": {"bad": "mojo"}}, t3)
-        self.failUnlessReallyEqual(md2, {"key": "value",
-                                         "tahoe":{"linkcrtime": t1, "linkmotime": t3}})
+        self.failUnlessEqual(md2, {"key": "value",
+                                   "tahoe":{"linkcrtime": t1, "linkmotime": t3}})
 
         md3 = dirnode.update_metadata({}, None, t3)
-        self.failUnlessReallyEqual(md3, {"tahoe":{"linkcrtime": t3, "linkmotime": t3}})
+        self.failUnlessEqual(md3, {"tahoe":{"linkcrtime": t3, "linkmotime": t3}})
 
         md4 = dirnode.update_metadata({}, {"bool": True, "number": 42}, t1)
-        self.failUnlessReallyEqual(md4, {"bool": True, "number": 42,
-                                         "tahoe":{"linkcrtime": t1, "linkmotime": t1}})
+        self.failUnlessEqual(md4, {"bool": True, "number": 42,
+                                   "tahoe":{"linkcrtime": t1, "linkmotime": t1}})
 
     def test_create_subdirectory(self):
         self.basedir = "dirnode/Dirnode/test_create_subdirectory"
@@ -1176,8 +1176,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 return d
             d.addCallback(_check)
             def _check_kids(kids2):
-                self.failUnlessReallyEqual(set(kids.keys()), set(kids2.keys()))
-                self.failUnlessReallyEqual(kids2[u"kid2"][1]["metakey"], "metavalue")
+                self.failUnlessEqual(set(kids.keys()), set(kids2.keys()))
+                self.failUnlessEqual(kids2[u"kid2"][1]["metakey"], "metavalue")
             d.addCallback(_check_kids)
             return d
         d.addCallback(_then)
@@ -1224,7 +1224,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         file3_rocap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
         file3_rwcap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
         file3_metadata = {'ctime': 1246663897.4336269, 'tahoe': {'linkmotime': 1246663897.4336269, 'linkcrtime': 1246663897.4336269}, 'mtime': 1246663897.4336269}
-        self.failUnlessReallyEqual(file3_metadata, children[u'file3'][1])
+        self.failUnlessEqual(file3_metadata, children[u'file3'][1])
         self.failUnlessReallyEqual(file3_rocap,
                                    children[u'file3'][0].get_readonly_uri())
         self.failUnlessReallyEqual(file3_rwcap,
@@ -1234,21 +1234,21 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         file2_rocap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
         file2_rwcap = "URI:CHK:apegrpehshwugkbh3jlt5ei6hq:5oougnemcl5xgx4ijgiumtdojlipibctjkbwvyygdymdphib2fvq:3:10:4"
         file2_metadata = {'ctime': 1246663897.430218, 'tahoe': {'linkmotime': 1246663897.430218, 'linkcrtime': 1246663897.430218}, 'mtime': 1246663897.430218}
-        self.failUnlessReallyEqual(file2_metadata, children[u'file2'][1])
+        self.failUnlessEqual(file2_metadata, children[u'file2'][1])
         self.failUnlessReallyEqual(file2_rocap,
-                             children[u'file2'][0].get_readonly_uri())
+                                   children[u'file2'][0].get_readonly_uri())
         self.failUnlessReallyEqual(file2_rwcap,
-                             children[u'file2'][0].get_uri())
+                                   children[u'file2'][0].get_uri())
 
         # Are the metadata for child 1 right?
         file1_rocap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
         file1_rwcap = "URI:CHK:olxtimympo7f27jvhtgqlnbtn4:emzdnhk2um4seixozlkw3qx2nfijvdkx3ky7i7izl47yedl6e64a:3:10:10"
         file1_metadata = {'ctime': 1246663897.4275661, 'tahoe': {'linkmotime': 1246663897.4275661, 'linkcrtime': 1246663897.4275661}, 'mtime': 1246663897.4275661}
-        self.failUnlessReallyEqual(file1_metadata, children[u'file1'][1])
+        self.failUnlessEqual(file1_metadata, children[u'file1'][1])
         self.failUnlessReallyEqual(file1_rocap,
-                             children[u'file1'][0].get_readonly_uri())
+                                   children[u'file1'][0].get_readonly_uri())
         self.failUnlessReallyEqual(file1_rwcap,
-                             children[u'file1'][0].get_uri())
+                                   children[u'file1'][0].get_uri())
 
     def _make_kids(self, nm, which):
         caps = {"imm": "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861",
@@ -1578,7 +1578,7 @@ class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(s["largest-directory"], 444)
         self.failUnlessReallyEqual(s["count-literal-files"], 0)
         self.failUnlessReallyEqual(s["size-files-histogram"],
-                             [ (101, 316, 1), (317, 1000, 1) ])
+                                   [ (101, 316, 1), (317, 1000, 1) ])
 
         ds = dirnode.DeepStats(None)
         for i in range(1, 1100):
@@ -1586,15 +1586,15 @@ class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
         ds.histogram("size-files-histogram", 4*1000*1000*1000*1000) # 4TB
         s = ds.get_results()
         self.failUnlessReallyEqual(s["size-files-histogram"],
-                             [ (1, 3, 3),
-                               (4, 10, 7),
-                               (11, 31, 21),
-                               (32, 100, 69),
-                               (101, 316, 216),
-                               (317, 1000, 684),
-                               (1001, 3162, 99),
-                               (3162277660169L, 10000000000000L, 1),
-                               ])
+                                   [ (1, 3, 3),
+                                     (4, 10, 7),
+                                     (11, 31, 21),
+                                     (32, 100, 69),
+                                     (101, 316, 216),
+                                     (317, 1000, 684),
+                                     (1001, 3162, 99),
+                                     (3162277660169L, 10000000000000L, 1),
+                                     ])
 
 class UCWEingMutableFileNode(MutableFileNode):
     please_ucwe_after_next_upload = False

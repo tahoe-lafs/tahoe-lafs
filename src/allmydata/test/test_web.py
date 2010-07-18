@@ -21,6 +21,7 @@ from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
 from allmydata.util import fileutil, base32
 from allmydata.util.consumer import download_to_data
 from allmydata.util.netstring import split_netstring
+from allmydata.util.encodingutil import to_str
 from allmydata.test.common import FakeCHKFileNode, FakeMutableFileNode, \
      create_chk_filenode, WebErrorMixin, ShouldFailMixin, make_mutable_file_uri
 from allmydata.interfaces import IMutableFileNode
@@ -214,48 +215,48 @@ class WebMixin(object):
     def failUnlessIsBarJSON(self, res):
         data = simplejson.loads(res)
         self.failUnless(isinstance(data, list))
-        self.failUnlessReallyEqual(data[0], "filenode")
+        self.failUnlessEqual(data[0], "filenode")
         self.failUnless(isinstance(data[1], dict))
         self.failIf(data[1]["mutable"])
         self.failIf("rw_uri" in data[1]) # immutable
-        self.failUnlessReallyEqual(data[1]["ro_uri"], self._bar_txt_uri)
-        self.failUnlessReallyEqual(data[1]["verify_uri"], self._bar_txt_verifycap)
+        self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), self._bar_txt_uri)
+        self.failUnlessReallyEqual(to_str(data[1]["verify_uri"]), self._bar_txt_verifycap)
         self.failUnlessReallyEqual(data[1]["size"], len(self.BAR_CONTENTS))
 
     def failUnlessIsFooJSON(self, res):
         data = simplejson.loads(res)
         self.failUnless(isinstance(data, list))
-        self.failUnlessReallyEqual(data[0], "dirnode", res)
+        self.failUnlessEqual(data[0], "dirnode", res)
         self.failUnless(isinstance(data[1], dict))
         self.failUnless(data[1]["mutable"])
         self.failUnless("rw_uri" in data[1]) # mutable
-        self.failUnlessReallyEqual(data[1]["rw_uri"], self._foo_uri)
-        self.failUnlessReallyEqual(data[1]["ro_uri"], self._foo_readonly_uri)
-        self.failUnlessReallyEqual(data[1]["verify_uri"], self._foo_verifycap)
+        self.failUnlessReallyEqual(to_str(data[1]["rw_uri"]), self._foo_uri)
+        self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), self._foo_readonly_uri)
+        self.failUnlessReallyEqual(to_str(data[1]["verify_uri"]), self._foo_verifycap)
 
         kidnames = sorted([unicode(n) for n in data[1]["children"]])
-        self.failUnlessReallyEqual(kidnames,
-                                   [u"bar.txt", u"blockingfile", u"empty",
-                                    u"n\u00fc.txt", u"sub"])
+        self.failUnlessEqual(kidnames,
+                             [u"bar.txt", u"blockingfile", u"empty",
+                              u"n\u00fc.txt", u"sub"])
         kids = dict( [(unicode(name),value)
                       for (name,value)
                       in data[1]["children"].iteritems()] )
-        self.failUnlessReallyEqual(kids[u"sub"][0], "dirnode")
+        self.failUnlessEqual(kids[u"sub"][0], "dirnode")
         self.failUnlessIn("metadata", kids[u"sub"][1])
         self.failUnlessIn("tahoe", kids[u"sub"][1]["metadata"])
         tahoe_md = kids[u"sub"][1]["metadata"]["tahoe"]
         self.failUnlessIn("linkcrtime", tahoe_md)
         self.failUnlessIn("linkmotime", tahoe_md)
-        self.failUnlessReallyEqual(kids[u"bar.txt"][0], "filenode")
+        self.failUnlessEqual(kids[u"bar.txt"][0], "filenode")
         self.failUnlessReallyEqual(kids[u"bar.txt"][1]["size"], len(self.BAR_CONTENTS))
-        self.failUnlessReallyEqual(kids[u"bar.txt"][1]["ro_uri"], self._bar_txt_uri)
-        self.failUnlessReallyEqual(kids[u"bar.txt"][1]["verify_uri"],
+        self.failUnlessReallyEqual(to_str(kids[u"bar.txt"][1]["ro_uri"]), self._bar_txt_uri)
+        self.failUnlessReallyEqual(to_str(kids[u"bar.txt"][1]["verify_uri"]),
                                    self._bar_txt_verifycap)
         self.failUnlessIn("metadata", kids[u"bar.txt"][1])
         self.failUnlessIn("tahoe", kids[u"bar.txt"][1]["metadata"])
         self.failUnlessReallyEqual(kids[u"bar.txt"][1]["metadata"]["tahoe"]["linkcrtime"],
                                    self._bar_txt_metadata["tahoe"]["linkcrtime"])
-        self.failUnlessReallyEqual(kids[u"n\u00fc.txt"][1]["ro_uri"],
+        self.failUnlessReallyEqual(to_str(kids[u"n\u00fc.txt"][1]["ro_uri"]),
                                    self._bar_txt_uri)
 
     def GET(self, urlpath, followRedirect=False, return_response=False,
@@ -1132,7 +1133,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             got = {}
             for (path_list, cap) in data:
                 got[tuple(path_list)] = cap
-            self.failUnlessReallyEqual(got[(u"sub",)], self._sub_uri)
+            self.failUnlessReallyEqual(to_str(got[(u"sub",)]), self._sub_uri)
             self.failUnless((u"sub",u"baz.txt") in got)
             self.failUnless("finished" in res)
             self.failUnless("origin" in res)
@@ -1211,13 +1212,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnless(res.endswith("\n"))
             units = [simplejson.loads(t) for t in res[:-1].split("\n")]
             self.failUnlessReallyEqual(len(units), 7)
-            self.failUnlessReallyEqual(units[-1]["type"], "stats")
+            self.failUnlessEqual(units[-1]["type"], "stats")
             first = units[0]
-            self.failUnlessReallyEqual(first["path"], [])
-            self.failUnlessReallyEqual(first["cap"], self._foo_uri)
-            self.failUnlessReallyEqual(first["type"], "directory")
-            baz = [u for u in units[:-1] if u["cap"] == self._baz_file_uri][0]
-            self.failUnlessReallyEqual(baz["path"], ["sub", "baz.txt"])
+            self.failUnlessEqual(first["path"], [])
+            self.failUnlessReallyEqual(to_str(first["cap"]), self._foo_uri)
+            self.failUnlessEqual(first["type"], "directory")
+            baz = [u for u in units[:-1] if to_str(u["cap"]) == self._baz_file_uri][0]
+            self.failUnlessEqual(baz["path"], ["sub", "baz.txt"])
             self.failIfEqual(baz["storage-index"], None)
             self.failIfEqual(baz["verifycap"], None)
             self.failIfEqual(baz["repaircap"], None)
@@ -1228,14 +1229,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_DIRURL_uri(self):
         d = self.GET(self.public_url + "/foo?t=uri")
         def _check(res):
-            self.failUnlessReallyEqual(res, self._foo_uri)
+            self.failUnlessReallyEqual(to_str(res), self._foo_uri)
         d.addCallback(_check)
         return d
 
     def test_GET_DIRURL_readonly_uri(self):
         d = self.GET(self.public_url + "/foo?t=readonly-uri")
         def _check(res):
-            self.failUnlessReallyEqual(res, self._foo_readonly_uri)
+            self.failUnlessReallyEqual(to_str(res), self._foo_readonly_uri)
         d.addCallback(_check)
         return d
 
@@ -1725,17 +1726,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                followRedirect=True))
         def _check_page_json(res):
             parsed = simplejson.loads(res)
-            self.failUnlessReallyEqual(parsed[0], "dirnode")
+            self.failUnlessEqual(parsed[0], "dirnode")
             children = dict( [(unicode(name),value)
                               for (name,value)
                               in parsed[1]["children"].iteritems()] )
-            self.failUnless("new.txt" in children)
-            new_json = children["new.txt"]
-            self.failUnlessReallyEqual(new_json[0], "filenode")
+            self.failUnless(u"new.txt" in children)
+            new_json = children[u"new.txt"]
+            self.failUnlessEqual(new_json[0], "filenode")
             self.failUnless(new_json[1]["mutable"])
-            self.failUnlessReallyEqual(new_json[1]["rw_uri"], self._mutable_uri)
+            self.failUnlessReallyEqual(to_str(new_json[1]["rw_uri"]), self._mutable_uri)
             ro_uri = self._mutable_node.get_readonly().to_string()
-            self.failUnlessReallyEqual(new_json[1]["ro_uri"], ro_uri)
+            self.failUnlessReallyEqual(to_str(new_json[1]["ro_uri"]), ro_uri)
         d.addCallback(_check_page_json)
 
         # and the JSON form of the file
@@ -1743,11 +1744,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                       self.GET(self.public_url + "/foo/new.txt?t=json"))
         def _check_file_json(res):
             parsed = simplejson.loads(res)
-            self.failUnlessReallyEqual(parsed[0], "filenode")
+            self.failUnlessEqual(parsed[0], "filenode")
             self.failUnless(parsed[1]["mutable"])
-            self.failUnlessReallyEqual(parsed[1]["rw_uri"], self._mutable_uri)
+            self.failUnlessReallyEqual(to_str(parsed[1]["rw_uri"]), self._mutable_uri)
             ro_uri = self._mutable_node.get_readonly().to_string()
-            self.failUnlessReallyEqual(parsed[1]["ro_uri"], ro_uri)
+            self.failUnlessReallyEqual(to_str(parsed[1]["ro_uri"]), ro_uri)
         d.addCallback(_check_file_json)
 
         # and look at t=uri and t=readonly-uri
@@ -2083,7 +2084,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                       self.GET("/operations/123/%s?output=JSON" % foo_si_s))
         def _check_foo_json(res):
             data = simplejson.loads(res)
-            self.failUnlessReallyEqual(data["storage-index"], foo_si_s)
+            self.failUnlessEqual(data["storage-index"], foo_si_s)
             self.failUnless(data["results"]["healthy"])
         d.addCallback(_check_foo_json)
         return d
@@ -2638,7 +2639,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def failUnlessIsEmptyJSON(self, res):
         data = simplejson.loads(res)
-        self.failUnlessReallyEqual(data[0], "dirnode", data)
+        self.failUnlessEqual(data[0], "dirnode", data)
         self.failUnlessReallyEqual(len(data[1]["children"]), 0)
 
     def test_POST_rename_file_slash_fail(self):
@@ -3223,7 +3224,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(self.CHECK, "good", "t=check&output=json")
         def _got_json_good(res):
             r = simplejson.loads(res)
-            self.failUnlessReallyEqual(r["summary"], "Healthy")
+            self.failUnlessEqual(r["summary"], "Healthy")
             self.failUnless(r["results"]["healthy"])
             self.failIf(r["results"]["needs-rebalancing"])
             self.failUnless(r["results"]["recoverable"])
@@ -3244,7 +3245,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(self.CHECK, "small", "t=check&output=json")
         def _got_json_small(res):
             r = simplejson.loads(res)
-            self.failUnlessReallyEqual(r["storage-index"], "")
+            self.failUnlessEqual(r["storage-index"], "")
             self.failUnless(r["results"]["healthy"])
         d.addCallback(_got_json_small)
 
@@ -3256,7 +3257,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(self.CHECK, "smalldir", "t=check&output=json")
         def _got_json_smalldir(res):
             r = simplejson.loads(res)
-            self.failUnlessReallyEqual(r["storage-index"], "")
+            self.failUnlessEqual(r["storage-index"], "")
             self.failUnless(r["results"]["healthy"])
         d.addCallback(_got_json_smalldir)
 
@@ -3267,8 +3268,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(self.CHECK, "sick", "t=check&output=json")
         def _got_json_sick(res):
             r = simplejson.loads(res)
-            self.failUnlessReallyEqual(r["summary"],
-                                       "Not Healthy: 9 shares (enc 3-of-10)")
+            self.failUnlessEqual(r["summary"],
+                                 "Not Healthy: 9 shares (enc 3-of-10)")
             self.failIf(r["results"]["healthy"])
             self.failIf(r["results"]["needs-rebalancing"])
             self.failUnless(r["results"]["recoverable"])
@@ -3281,8 +3282,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(self.CHECK, "dead", "t=check&output=json")
         def _got_json_dead(res):
             r = simplejson.loads(res)
-            self.failUnlessReallyEqual(r["summary"],
-                                       "Not Healthy: 1 shares (enc 3-of-10)")
+            self.failUnlessEqual(r["summary"],
+                                 "Not Healthy: 1 shares (enc 3-of-10)")
             self.failIf(r["results"]["healthy"])
             self.failIf(r["results"]["needs-rebalancing"])
             self.failIf(r["results"]["recoverable"])
@@ -3412,10 +3413,10 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             r = simplejson.loads(res)
             self.failUnlessReallyEqual(r["repair-attempted"], True)
             self.failUnlessReallyEqual(r["repair-successful"], True)
-            self.failUnlessReallyEqual(r["pre-repair-results"]["summary"],
-                                       "Not Healthy: 9 shares (enc 3-of-10)")
+            self.failUnlessEqual(r["pre-repair-results"]["summary"],
+                                 "Not Healthy: 9 shares (enc 3-of-10)")
             self.failIf(r["pre-repair-results"]["results"]["healthy"])
-            self.failUnlessReallyEqual(r["post-repair-results"]["summary"], "healthy")
+            self.failUnlessEqual(r["post-repair-results"]["summary"], "healthy")
             self.failUnless(r["post-repair-results"]["results"]["healthy"])
         d.addCallback(_got_json_sick)
 
@@ -3472,17 +3473,17 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(lambda ign: self.GET(self.rooturl+"?t=json"))
         def _check_directory_json(res, expect_rw_uri):
             data = simplejson.loads(res)
-            self.failUnlessReallyEqual(data[0], "dirnode")
+            self.failUnlessEqual(data[0], "dirnode")
             f = data[1]["children"][name]
-            self.failUnlessReallyEqual(f[0], "unknown")
+            self.failUnlessEqual(f[0], "unknown")
             if expect_rw_uri:
-                self.failUnlessReallyEqual(f[1]["rw_uri"], unknown_rwcap.decode('utf-8'))
+                self.failUnlessReallyEqual(to_str(f[1]["rw_uri"]), unknown_rwcap, data)
             else:
                 self.failIfIn("rw_uri", f[1])
             if immutable:
-                self.failUnlessReallyEqual(f[1]["ro_uri"], unknown_immcap.decode('utf-8'), data)
+                self.failUnlessReallyEqual(to_str(f[1]["ro_uri"]), unknown_immcap, data)
             else:
-                self.failUnlessReallyEqual(f[1]["ro_uri"], unknown_rocap.decode('utf-8'))
+                self.failUnlessReallyEqual(to_str(f[1]["ro_uri"]), unknown_rocap, data)
             self.failUnless("metadata" in f[1])
         d.addCallback(_check_directory_json, expect_rw_uri=not immutable)
 
@@ -3513,20 +3514,20 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         def _check_json(res, expect_rw_uri):
             data = simplejson.loads(res)
-            self.failUnlessReallyEqual(data[0], "unknown")
+            self.failUnlessEqual(data[0], "unknown")
             if expect_rw_uri:
-                self.failUnlessReallyEqual(data[1]["rw_uri"], unknown_rwcap.decode('utf-8'))
+                self.failUnlessReallyEqual(to_str(data[1]["rw_uri"]), unknown_rwcap, data)
             else:
                 self.failIfIn("rw_uri", data[1])
 
             if immutable:
-                self.failUnlessReallyEqual(data[1]["ro_uri"], unknown_immcap.decode('utf-8'))
+                self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), unknown_immcap, data)
                 self.failUnlessReallyEqual(data[1]["mutable"], False)
             elif expect_rw_uri:
-                self.failUnlessReallyEqual(data[1]["ro_uri"], unknown_rocap.decode('utf-8'))
+                self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), unknown_rocap, data)
                 self.failUnlessReallyEqual(data[1]["mutable"], True)
             else:
-                self.failUnlessReallyEqual(data[1]["ro_uri"], unknown_rocap.decode('utf-8'))
+                self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), unknown_rocap, data)
                 self.failIf("mutable" in data[1], data[1])
 
             # TODO: check metadata contents
@@ -3675,13 +3676,13 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(lambda ign: self.GET(self.rooturl+"?t=json"))
         def _check_json(res):
             data = simplejson.loads(res)
-            self.failUnlessReallyEqual(data[0], "dirnode")
+            self.failUnlessEqual(data[0], "dirnode")
             listed_children = data[1]["children"]
             self.failUnlessReallyEqual(sorted(listed_children.keys()), [u"lonely"])
             ll_type, ll_data = listed_children[u"lonely"]
-            self.failUnlessReallyEqual(ll_type, "filenode")
+            self.failUnlessEqual(ll_type, "filenode")
             self.failIf("rw_uri" in ll_data)
-            self.failUnlessReallyEqual(ll_data["ro_uri"], lonely_uri)
+            self.failUnlessReallyEqual(to_str(ll_data["ro_uri"]), lonely_uri)
         d.addCallback(_check_json)
         return d
 
@@ -3741,20 +3742,20 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessReallyEqual(len(units), 5+1)
             # should be parent-first
             u0 = units[0]
-            self.failUnlessReallyEqual(u0["path"], [])
-            self.failUnlessReallyEqual(u0["type"], "directory")
-            self.failUnlessReallyEqual(u0["cap"], self.rootnode.get_uri())
+            self.failUnlessEqual(u0["path"], [])
+            self.failUnlessEqual(u0["type"], "directory")
+            self.failUnlessReallyEqual(to_str(u0["cap"]), self.rootnode.get_uri())
             u0cr = u0["check-results"]
             self.failUnlessReallyEqual(u0cr["results"]["count-shares-good"], 10)
 
             ugood = [u for u in units
                      if u["type"] == "file" and u["path"] == [u"good"]][0]
-            self.failUnlessReallyEqual(ugood["cap"], self.uris["good"])
+            self.failUnlessReallyEqual(to_str(ugood["cap"]), self.uris["good"])
             ugoodcr = ugood["check-results"]
             self.failUnlessReallyEqual(ugoodcr["results"]["count-shares-good"], 10)
 
             stats = units[-1]
-            self.failUnlessReallyEqual(stats["type"], "stats")
+            self.failUnlessEqual(stats["type"], "stats")
             s = stats["stats"]
             self.failUnlessReallyEqual(s["count-immutable-files"], 2)
             self.failUnlessReallyEqual(s["count-literal-files"], 1)
@@ -3767,11 +3768,11 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnless(res.endswith("\n"))
             units = [simplejson.loads(t) for t in res[:-1].split("\n")]
             self.failUnlessReallyEqual(len(units), 5+1)
-            self.failUnlessReallyEqual(units[-1]["type"], "stats")
+            self.failUnlessEqual(units[-1]["type"], "stats")
             first = units[0]
-            self.failUnlessReallyEqual(first["path"], [])
-            self.failUnlessReallyEqual(first["cap"], self.rootnode.get_uri())
-            self.failUnlessReallyEqual(first["type"], "directory")
+            self.failUnlessEqual(first["path"], [])
+            self.failUnlessEqual(to_str(first["cap"]), self.rootnode.get_uri())
+            self.failUnlessEqual(first["type"], "directory")
             stats = units[-1]["stats"]
             self.failUnlessReallyEqual(stats["count-immutable-files"], 2)
             self.failUnlessReallyEqual(stats["count-literal-files"], 1)
@@ -3825,7 +3826,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             units = [simplejson.loads(line) for line in lines[:first_error]]
             self.failUnlessReallyEqual(len(units), 6) # includes subdir
             last_unit = units[-1]
-            self.failUnlessReallyEqual(last_unit["path"], ["subdir"])
+            self.failUnlessEqual(last_unit["path"], ["subdir"])
         d.addCallback(_check_broken_manifest)
 
         d.addCallback(self.CHECK, "root", "t=stream-deep-check")
@@ -3846,7 +3847,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             units = [simplejson.loads(line) for line in lines[:first_error]]
             self.failUnlessReallyEqual(len(units), 6) # includes subdir
             last_unit = units[-1]
-            self.failUnlessReallyEqual(last_unit["path"], ["subdir"])
+            self.failUnlessEqual(last_unit["path"], ["subdir"])
             r = last_unit["check-results"]["results"]
             self.failUnlessReallyEqual(r["count-recoverable-versions"], 0)
             self.failUnlessReallyEqual(r["count-shares-good"], 1)
@@ -3921,23 +3922,23 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessReallyEqual(len(units), 4+1)
             # should be parent-first
             u0 = units[0]
-            self.failUnlessReallyEqual(u0["path"], [])
-            self.failUnlessReallyEqual(u0["type"], "directory")
-            self.failUnlessReallyEqual(u0["cap"], self.rootnode.get_uri())
+            self.failUnlessEqual(u0["path"], [])
+            self.failUnlessEqual(u0["type"], "directory")
+            self.failUnlessReallyEqual(to_str(u0["cap"]), self.rootnode.get_uri())
             u0crr = u0["check-and-repair-results"]
             self.failUnlessReallyEqual(u0crr["repair-attempted"], False)
             self.failUnlessReallyEqual(u0crr["pre-repair-results"]["results"]["count-shares-good"], 10)
 
             ugood = [u for u in units
                      if u["type"] == "file" and u["path"] == [u"good"]][0]
-            self.failUnlessReallyEqual(ugood["cap"], self.uris["good"])
+            self.failUnlessEqual(to_str(ugood["cap"]), self.uris["good"])
             ugoodcrr = ugood["check-and-repair-results"]
             self.failUnlessReallyEqual(ugoodcrr["repair-attempted"], False)
             self.failUnlessReallyEqual(ugoodcrr["pre-repair-results"]["results"]["count-shares-good"], 10)
 
             usick = [u for u in units
                      if u["type"] == "file" and u["path"] == [u"sick"]][0]
-            self.failUnlessReallyEqual(usick["cap"], self.uris["sick"])
+            self.failUnlessReallyEqual(to_str(usick["cap"]), self.uris["sick"])
             usickcrr = usick["check-and-repair-results"]
             self.failUnlessReallyEqual(usickcrr["repair-attempted"], True)
             self.failUnlessReallyEqual(usickcrr["repair-successful"], True)
@@ -3945,7 +3946,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessReallyEqual(usickcrr["post-repair-results"]["results"]["count-shares-good"], 10)
 
             stats = units[-1]
-            self.failUnlessReallyEqual(stats["type"], "stats")
+            self.failUnlessEqual(stats["type"], "stats")
             s = stats["stats"]
             self.failUnlessReallyEqual(s["count-immutable-files"], 2)
             self.failUnlessReallyEqual(s["count-literal-files"], 1)
