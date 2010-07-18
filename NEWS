@@ -9,6 +9,8 @@
    (#1097)
  - Add new command-line command "tahoe unlink" as a synonym for "tahoe rm"
    (#1072)
+ - The FTP frontend now encrypts its temporary files, protecting their contents
+   from an attacker who is able to read the disk. (#1083)
  - Fix rarely-encountered incompatibility between Twisted logging utility and
    the new unicode support added in v1.7.0 (#1099)
 
