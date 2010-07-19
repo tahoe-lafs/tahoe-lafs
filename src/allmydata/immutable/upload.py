@@ -137,11 +137,19 @@ class PeerTracker:
 
     def abort(self):
         """
-        I abort the remote bucket writers for the share numbers in
-        sharenums. This is a good idea to conserve space on the storage
-        server.
+        I abort the remote bucket writers for all shares. This is a good idea
+        to conserve space on the storage server.
         """
-        for writer in self.buckets.itervalues(): writer.abort()
+        self.abort_some_buckets(self.buckets.keys())
+
+    def abort_some_buckets(self, sharenums):
+        """
+        I abort the remote bucket writers for the share numbers in sharenums.
+        """
+        for sharenum in sharenums:
+            if sharenum in self.buckets:
+                self.buckets[sharenum].abort()
+                del self.buckets[sharenum]
 
 
 class Tahoe2PeerSelector:
@@ -356,6 +364,8 @@ class Tahoe2PeerSelector:
                             if not self.preexisting_shares[share]:
                                 del self.preexisting_shares[share]
                             items.append((server, sharelist))
+                        for writer in self.use_peers:
+                            writer.abort_some_buckets(self.homeless_shares)
                     return self._loop()
                 else:
                     # Redistribution won't help us; fail.
@@ -364,6 +374,8 @@ class Tahoe2PeerSelector:
                                           self.needed_shares,
                                           self.servers_of_happiness,
                                           effective_happiness)
+                    log.msg("server selection unsuccessful for %r: %s (%s), merged=%r"
+                            % (self, msg, self._get_progress_message(), merged), level=log.INFREQUENT)
                     return self._failed("%s (%s)" % (msg, self._get_progress_message()))
 
         if self.uncontacted_peers:
