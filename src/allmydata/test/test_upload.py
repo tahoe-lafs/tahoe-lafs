@@ -11,6 +11,7 @@ import allmydata # for __full_version__
 from allmydata import uri, monitor, client
 from allmydata.immutable import upload, encode
 from allmydata.interfaces import FileTooLargeError, UploadUnhappinessError
+from allmydata.util import log
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.test.no_network import GridTestMixin
@@ -710,6 +711,7 @@ def combinations(iterable, r):
 
 def is_happy_enough(servertoshnums, h, k):
     """ I calculate whether servertoshnums achieves happiness level h. I do this with a naïve "brute force search" approach. (See src/allmydata/util/happinessutil.py for a better algorithm.) """
+    print "servertoshnums: ", servertoshnums, "h: ", h, "k: ", k
     if len(servertoshnums) < h:
         return False
     # print "servertoshnums: ", servertoshnums, h, k
@@ -798,8 +800,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
     def _add_server(self, server_number, readonly=False):
         assert self.g, "I tried to find a grid at self.g, but failed"
         ss = self.g.make_server(server_number, readonly)
+        log.msg("just created a server, number: %s => %s" % (server_number, ss,))
         self.g.add_server(server_number, ss)
-
 
     def _add_server_with_share(self, server_number, share_number=None,
                                readonly=False):
@@ -860,7 +862,6 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.shares = shares
         d.addCallback(_store_shares)
         return d
-
 
     def test_configure_parameters(self):
         self.basedir = self.mktemp()

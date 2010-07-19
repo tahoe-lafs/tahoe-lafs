@@ -5,7 +5,7 @@ from twisted.application import service
 
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, IStatsProducer
-from allmydata.util import fileutil, log, time_format
+from allmydata.util import fileutil, idlib, log, time_format
 import allmydata # for __full_version__
 
 from allmydata.storage.common import si_b2a, si_a2b, storage_index_to_dir
@@ -105,6 +105,9 @@ class StorageServer(service.MultiService, Referenceable):
                                    expiration_cutoff_date,
                                    expiration_sharetypes)
         self.lease_checker.setServiceParent(self)
+
+    def __repr__(self):
+        return "<StorageServer %s>" % (idlib.shortnodeid_b2a(self.my_nodeid),)
 
     def add_bucket_counter(self):
         statefile = os.path.join(self.storedir, "bucket_counter.state")
