@@ -3,6 +3,8 @@ I contain utilities useful for calculating servers_of_happiness, and for
 reporting it in messages
 """
 
+from copy import deepcopy
+
 def failure_message(peer_count, k, happy, effective_happy):
     # If peer_count < needed_shares, this error message makes more
     # sense than any of the others, so use it.
@@ -60,16 +62,16 @@ def merge_peers(servermap, used_peers=None):
     argument to include the shareid -> peerid mappings implied in the
     set of PeerTrackers, returning the resulting dict.
     """
+    # Since we mutate servermap, and are called outside of a
+    # context where it is okay to do that, make a copy of servermap and
+    # work with it.
+    servermap = deepcopy(servermap)
     if not used_peers:
         return servermap
 
     assert(isinstance(servermap, dict))
     assert(isinstance(used_peers, set))
 
-    # Since we mutate servermap, and are called outside of a 
-    # context where it is okay to do that, make a copy of servermap and
-    # work with it.
-    servermap = servermap.copy()
     for peer in used_peers:
         for shnum in peer.buckets:
             servermap.setdefault(shnum, set()).add(peer.peerid)
