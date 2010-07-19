@@ -302,7 +302,7 @@ class GridTestMixin:
             ss = self.g.servers_by_number[i]
             yield (i, ss, ss.storedir)
 
-    def find_shares(self, uri):
+    def find_uri_shares(self, uri):
         si = tahoe_uri.from_string(uri).get_storage_index()
         prefixdir = storage_index_to_dir(si)
         shares = []
@@ -323,7 +323,7 @@ class GridTestMixin:
         os.unlink(sharefile)
 
     def delete_shares_numbered(self, uri, shnums):
-        for (i_shnum, i_serverid, i_sharefile) in self.find_shares(uri):
+        for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
             if i_shnum in shnums:
                 os.unlink(i_sharefile)
 
@@ -333,7 +333,7 @@ class GridTestMixin:
         open(sharefile, "wb").write(corruptdata)
 
     def corrupt_shares_numbered(self, uri, shnums, corruptor, debug=False):
-        for (i_shnum, i_serverid, i_sharefile) in self.find_shares(uri):
+        for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
             if i_shnum in shnums:
                 sharedata = open(i_sharefile, "rb").read()
                 corruptdata = corruptor(sharedata, debug=debug)

@@ -87,7 +87,7 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         d.addCallback(_check)
 
         def _remove_all(ignored):
-            for sh in self.find_shares(self.uri):
+            for sh in self.find_uri_shares(self.uri):
                 self.delete_share(sh)
         d.addCallback(_remove_all)
 
@@ -322,7 +322,7 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         def _grab_sh0(res):
             self.sh0_file = [sharefile
                              for (shnum, serverid, sharefile)
-                             in self.find_shares(self.uri)
+                             in self.find_uri_shares(self.uri)
                              if shnum == 0][0]
             self.sh0_orig = open(self.sh0_file, "rb").read()
         d.addCallback(_grab_sh0)
@@ -467,11 +467,11 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         self.set_up_grid(num_clients=2)
         d = self.upload_and_stash()
 
-        d.addCallback(lambda ignored: self.find_shares(self.uri))
+        d.addCallback(lambda ignored: self.find_uri_shares(self.uri))
         def _stash_shares(oldshares):
             self.oldshares = oldshares
         d.addCallback(_stash_shares)
-        d.addCallback(lambda ignored: self.find_shares(self.uri))
+        d.addCallback(lambda ignored: self.find_uri_shares(self.uri))
         def _compare(newshares):
             self.failUnlessEqual(newshares, self.oldshares)
         d.addCallback(_compare)
@@ -482,7 +482,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             for sh in self.oldshares[1:8]:
                 self.delete_share(sh)
         d.addCallback(_delete_8)
-        d.addCallback(lambda ignored: self.find_shares(self.uri))
+        d.addCallback(lambda ignored: self.find_uri_shares(self.uri))
         d.addCallback(lambda shares: self.failUnlessEqual(len(shares), 2))
 
         d.addCallback(lambda ignored:
@@ -499,7 +499,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # test share corruption
         def _test_corrupt(ignored):
             olddata = {}
-            shares = self.find_shares(self.uri)
+            shares = self.find_uri_shares(self.uri)
             for (shnum, serverid, sharefile) in shares:
                 olddata[ (shnum, serverid) ] = open(sharefile, "rb").read()
             for sh in shares:
@@ -510,10 +510,10 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         d.addCallback(_test_corrupt)
 
         def _remove_all(ignored):
-            for sh in self.find_shares(self.uri):
+            for sh in self.find_uri_shares(self.uri):
                 self.delete_share(sh)
         d.addCallback(_remove_all)
-        d.addCallback(lambda ignored: self.find_shares(self.uri))
+        d.addCallback(lambda ignored: self.find_uri_shares(self.uri))
         d.addCallback(lambda shares: self.failUnlessEqual(shares, []))
 
         return d
@@ -544,7 +544,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
 
             # Now we inspect the filesystem to make sure that it has 10
             # shares.
-            shares = self.find_shares(self.uri)
+            shares = self.find_uri_shares(self.uri)
             self.failIf(len(shares) < 10)
         d.addCallback(_check_results)
 
@@ -589,7 +589,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             self.failUnless(post.is_healthy(), post.data)
 
             # Make sure we really have 10 shares.
-            shares = self.find_shares(self.uri)
+            shares = self.find_uri_shares(self.uri)
             self.failIf(len(shares) < 10)
         d.addCallback(_check_results)
 
@@ -650,7 +650,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
     def OFF_test_repair_from_corruption_of_1(self):
         d = defer.succeed(None)
 
-        d.addCallback(self.find_shares)
+        d.addCallback(self.find_all_shares)
         stash = [None]
         def _stash_it(res):
             stash[0] = res
@@ -685,7 +685,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
 
                 # Now we inspect the filesystem to make sure that it has 10
                 # shares.
-                shares = self.find_shares()
+                shares = self.find_all_shares()
                 self.failIf(len(shares) < 10)
 
                 # Now we assert that the verifier reports the file as healthy.

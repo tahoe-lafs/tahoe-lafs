@@ -383,7 +383,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         return d
 
-    def _find_shares(self, basedir):
+    def _find_all_shares(self, basedir):
         shares = []
         for (dirpath, dirnames, filenames) in os.walk(basedir):
             if "storage" not in dirpath:
@@ -475,7 +475,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         def _test_debug(res):
             # find a share. It is important to run this while there is only
             # one slot in the grid.
-            shares = self._find_shares(self.basedir)
+            shares = self._find_all_shares(self.basedir)
             (client_num, storage_index, filename, shnum) = shares[0]
             log.msg("test_system.SystemTest.test_mutable._test_debug using %s"
                     % filename)
@@ -578,7 +578,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         def _corrupt_shares(res):
             # run around and flip bits in all but k of the shares, to test
             # the hash checks
-            shares = self._find_shares(self.basedir)
+            shares = self._find_all_shares(self.basedir)
             ## sort by share number
             #shares.sort( lambda a,b: cmp(a[3], b[3]) )
             where = dict([ (shnum, filename)

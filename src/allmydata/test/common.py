@@ -956,7 +956,7 @@ class ShareManglingMixin(SystemTestMixin):
         d.addCallback(_stash_it)
         return d
 
-    def find_shares(self, unused=None):
+    def find_all_shares(self, unused=None):
         """Locate shares on disk. Returns a dict that maps
         (clientnum,sharenum) to a string that contains the share container
         (copied directly from the disk, containing leases etc). You can
@@ -981,7 +981,7 @@ class ShareManglingMixin(SystemTestMixin):
 
     def replace_shares(self, newshares, storage_index):
         """Replace shares on disk. Takes a dictionary in the same form
-        as find_shares() returns."""
+        as find_all_shares() returns."""
 
         for i, c in enumerate(self.clients):
             sharedir = c.getServiceNamed("storage").sharedir
@@ -1006,7 +1006,7 @@ class ShareManglingMixin(SystemTestMixin):
     def _delete_a_share(self, unused=None, sharenum=None):
         """ Delete one share. """
 
-        shares = self.find_shares()
+        shares = self.find_all_shares()
         ks = shares.keys()
         if sharenum is not None:
             k = [ key for key in shares.keys() if key[1] == sharenum ][0]
@@ -1018,7 +1018,7 @@ class ShareManglingMixin(SystemTestMixin):
         return unused
 
     def _corrupt_a_share(self, unused, corruptor_func, sharenum):
-        shares = self.find_shares()
+        shares = self.find_all_shares()
         ks = [ key for key in shares.keys() if key[1] == sharenum ]
         assert ks, (shares.keys(), sharenum)
         k = ks[0]
@@ -1028,14 +1028,14 @@ class ShareManglingMixin(SystemTestMixin):
 
     def _corrupt_all_shares(self, unused, corruptor_func):
         """ All shares on disk will be corrupted by corruptor_func. """
-        shares = self.find_shares()
+        shares = self.find_all_shares()
         for k in shares.keys():
             self._corrupt_a_share(unused, corruptor_func, k[1])
         return corruptor_func
 
     def _corrupt_a_random_share(self, unused, corruptor_func):
         """ Exactly one share on disk will be corrupted by corruptor_func. """
-        shares = self.find_shares()
+        shares = self.find_all_shares()
         ks = shares.keys()
         k = random.choice(ks)
         self._corrupt_a_share(unused, corruptor_func, k[1])

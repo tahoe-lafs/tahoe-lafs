@@ -11,7 +11,7 @@ class Test(common.ShareManglingMixin, unittest.TestCase):
         # replace_shares, and asserting that the new set of shares equals the
         # old is more to test this test code than to test the Tahoe code...
         d = defer.succeed(None)
-        d.addCallback(self.find_shares)
+        d.addCallback(self.find_all_shares)
         stash = [None]
         def _stash_it(res):
             stash[0] = res

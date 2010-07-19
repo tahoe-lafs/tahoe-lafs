@@ -991,7 +991,7 @@ class DeepCheckWebBad(DeepCheckBase, unittest.TestCase):
         self.delete_shares_numbered(node.get_uri(), [0,1])
 
     def _corrupt_some_shares(self, node):
-        for (shnum, serverid, sharefile) in self.find_shares(node.get_uri()):
+        for (shnum, serverid, sharefile) in self.find_uri_shares(node.get_uri()):
             if shnum in (0,1):
                 self._run_cli(["debug", "corrupt-share", sharefile])
 

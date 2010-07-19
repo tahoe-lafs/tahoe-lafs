@@ -64,7 +64,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             os.makedirs(si_dir)
         new_sharefile = os.path.join(si_dir, str(sharenum))
         shutil.copy(sharefile, new_sharefile)
-        self.shares = self.find_shares(self.uri)
+        self.shares = self.find_uri_shares(self.uri)
         # Make sure that the storage server has the share.
         self.failUnless((sharenum, ss.original.my_nodeid, new_sharefile)
                         in self.shares)
@@ -95,14 +95,14 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
             d = nm.create_mutable_file(mutable_plaintext)
             def _uploaded_mutable(node):
                 self.uri = node.get_uri()
-                self.shares = self.find_shares(self.uri)
+                self.shares = self.find_uri_shares(self.uri)
             d.addCallback(_uploaded_mutable)
         else:
             data = upload.Data(immutable_plaintext, convergence="")
             d = self.c0.upload(data)
             def _uploaded_immutable(upload_res):
                 self.uri = upload_res.uri
-                self.shares = self.find_shares(self.uri)
+                self.shares = self.find_uri_shares(self.uri)
             d.addCallback(_uploaded_immutable)
         return d
 

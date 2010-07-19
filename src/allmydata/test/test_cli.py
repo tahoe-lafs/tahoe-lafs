@@ -1995,7 +1995,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         def _clobber_shares(ignored):
             # delete one, corrupt a second
-            shares = self.find_shares(self.uri)
+            shares = self.find_uri_shares(self.uri)
             self.failUnlessReallyEqual(len(shares), 10)
             os.unlink(shares[0][2])
             cso = debug.CorruptShareOptions()
@@ -2120,11 +2120,11 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_stats)
 
         def _clobber_shares(ignored):
-            shares = self.find_shares(self.uris[u"gööd"])
+            shares = self.find_uri_shares(self.uris[u"gööd"])
             self.failUnlessReallyEqual(len(shares), 10)
             os.unlink(shares[0][2])
 
-            shares = self.find_shares(self.uris["mutable"])
+            shares = self.find_uri_shares(self.uris["mutable"])
             cso = debug.CorruptShareOptions()
             cso.stdout = StringIO()
             cso.parseOptions([shares[1][2]])

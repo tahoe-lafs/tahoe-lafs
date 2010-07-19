@@ -3195,14 +3195,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_compute_fileurls)
 
         def _clobber_shares(ignored):
-            good_shares = self.find_shares(self.uris["good"])
+            good_shares = self.find_uri_shares(self.uris["good"])
             self.failUnlessReallyEqual(len(good_shares), 10)
-            sick_shares = self.find_shares(self.uris["sick"])
+            sick_shares = self.find_uri_shares(self.uris["sick"])
             os.unlink(sick_shares[0][2])
-            dead_shares = self.find_shares(self.uris["dead"])
+            dead_shares = self.find_uri_shares(self.uris["dead"])
             for i in range(1, 10):
                 os.unlink(dead_shares[i][2])
-            c_shares = self.find_shares(self.uris["corrupt"])
+            c_shares = self.find_uri_shares(self.uris["corrupt"])
             cso = CorruptShareOptions()
             cso.stdout = StringIO()
             cso.parseOptions([c_shares[0][2]])
@@ -3336,14 +3336,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_compute_fileurls)
 
         def _clobber_shares(ignored):
-            good_shares = self.find_shares(self.uris["good"])
+            good_shares = self.find_uri_shares(self.uris["good"])
             self.failUnlessReallyEqual(len(good_shares), 10)
-            sick_shares = self.find_shares(self.uris["sick"])
+            sick_shares = self.find_uri_shares(self.uris["sick"])
             os.unlink(sick_shares[0][2])
-            dead_shares = self.find_shares(self.uris["dead"])
+            dead_shares = self.find_uri_shares(self.uris["dead"])
             for i in range(1, 10):
                 os.unlink(dead_shares[i][2])
-            c_shares = self.find_shares(self.uris["corrupt"])
+            c_shares = self.find_uri_shares(self.uris["corrupt"])
             cso = CorruptShareOptions()
             cso.stdout = StringIO()
             cso.parseOptions([c_shares[0][2]])
@@ -3404,7 +3404,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_compute_fileurls)
 
         def _clobber_shares(ignored):
-            sick_shares = self.find_shares(self.uris["sick"])
+            sick_shares = self.find_uri_shares(self.uris["sick"])
             os.unlink(sick_shares[0][2])
         d.addCallback(_clobber_shares)
 
@@ -3894,15 +3894,15 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         #d.addCallback(_stash_uri, "corrupt")
 
         def _clobber_shares(ignored):
-            good_shares = self.find_shares(self.uris["good"])
+            good_shares = self.find_uri_shares(self.uris["good"])
             self.failUnlessReallyEqual(len(good_shares), 10)
-            sick_shares = self.find_shares(self.uris["sick"])
+            sick_shares = self.find_uri_shares(self.uris["sick"])
             os.unlink(sick_shares[0][2])
-            #dead_shares = self.find_shares(self.uris["dead"])
+            #dead_shares = self.find_uri_shares(self.uris["dead"])
             #for i in range(1, 10):
             #    os.unlink(dead_shares[i][2])
 
-            #c_shares = self.find_shares(self.uris["corrupt"])
+            #c_shares = self.find_uri_shares(self.uris["corrupt"])
             #cso = CorruptShareOptions()
             #cso.stdout = StringIO()
             #cso.parseOptions([c_shares[0][2]])
@@ -3958,7 +3958,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
     def _count_leases(self, ignored, which):
         u = self.uris[which]
-        shares = self.find_shares(u)
+        shares = self.find_uri_shares(u)
         lease_counts = []
         for shnum, serverid, fn in shares:
             sf = get_share_file(fn)

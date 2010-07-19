@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import os, shutil
 from cStringIO import StringIO
 from twisted.trial import unittest
@@ -684,8 +686,66 @@ class StorageIndex(unittest.TestCase):
         d.addCallback(_done)
         return d
 
+# copied from python docs because itertools.combinations was added in
+# python 2.6 and we support >= 2.4.
+def combinations(iterable, r):
+    # combinations('ABCD', 2) --> AB AC AD BC BD CD
+    # combinations(range(4), 3) --> 012 013 023 123
+    pool = tuple(iterable)
+    n = len(pool)
+    if r > n:
+        return
+    indices = range(r)
+    yield tuple(pool[i] for i in indices)
+    while True:
+        for i in reversed(range(r)):
+            if indices[i] != i + n - r:
+                break
+        else:
+            return
+        indices[i] += 1
+        for j in range(i+1, r):
+            indices[j] = indices[j-1] + 1
+        yield tuple(pool[i] for i in indices)
+
+def is_happy_enough(servertoshnums, h, k):
+    """ I calculate whether servertoshnums achieves happiness level h. I do this with a naïve "brute force search" approach. (See src/allmydata/util/happinessutil.py for a better algorithm.) """
+    if len(servertoshnums) < h:
+        return False
+    # print "servertoshnums: ", servertoshnums, h, k
+    for happysetcombo in combinations(servertoshnums.iterkeys(), h):
+        # print "happysetcombo: ", happysetcombo
+        for subsetcombo in combinations(happysetcombo, k):
+            shnums = reduce(set.union, [ servertoshnums[s] for s in subsetcombo ])
+            # print "subsetcombo: ", subsetcombo, ", shnums: ", shnums
+            if len(shnums) < k:
+                # print "NOT HAAPP{Y", shnums, k
+                return False
+    # print "HAAPP{Y"
+    return True
+
 class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
     ShouldFailMixin):
+    def find_all_shares(self, unused=None):
+        """Locate shares on disk. Returns a dict that maps
+        server to set of sharenums.
+        """
+        assert self.g, "I tried to find a grid at self.g, but failed"
+        servertoshnums = {} # k: server, v: set(shnum)
+
+        for i, c in self.g.servers_by_number.iteritems():
+            for (dirp, dirns, fns) in os.walk(c.sharedir):
+                for fn in fns:
+                    try:
+                        sharenum = int(fn)
+                    except TypeError:
+                        # Whoops, I guess that's not a share file then.
+                        pass
+                    else:
+                        servertoshnums.setdefault(i, set()).add(sharenum)
+
+        return servertoshnums
+
     def _do_upload_with_broken_servers(self, servers_to_break):
         """
         I act like a normal upload, but before I send the results of
@@ -729,6 +789,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_have_shareholders)
         return d
 
+    def _has_happy_share_distribution(self):
+        servertoshnums = self.find_all_shares()
+        k = self.g.clients[0].DEFAULT_ENCODING_PARAMETERS['k']
+        h = self.g.clients[0].DEFAULT_ENCODING_PARAMETERS['happy']
+        return is_happy_enough(servertoshnums, h, k)
 
     def _add_server(self, server_number, readonly=False):
         assert self.g, "I tried to find a grid at self.g, but failed"
@@ -760,7 +825,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                           str(share_number))
         if old_share_location != new_share_location:
             shutil.copy(old_share_location, new_share_location)
-        shares = self.find_shares(self.uri)
+        shares = self.find_uri_shares(self.uri)
         # Make sure that the storage server has the share.
         self.failUnless((share_number, ss.my_nodeid, new_share_location)
                         in shares)
@@ -790,7 +855,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.uri = ur.uri
         d.addCallback(_store_uri)
         d.addCallback(lambda ign:
-            self.find_shares(self.uri))
+            self.find_uri_shares(self.uri))
         def _store_shares(shares):
             self.shares = shares
         d.addCallback(_store_shares)
@@ -876,6 +941,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign: self._add_server(4, False))
         # and this time the upload ought to succeed
         d.addCallback(lambda ign: c.upload(DATA))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
         return d
 
 
@@ -1012,6 +1079,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
 
 
         # This scenario is basically comment:53, but changed so that the
@@ -1050,6 +1119,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
 
 
         # Try the same thing, but with empty servers after the first one
@@ -1081,6 +1152,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # servers of happiness were pushed.
         d.addCallback(lambda results:
             self.failUnlessEqual(results.pushed_shares, 3))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
         return d
 
     def test_problem_layout_ticket1124(self):
@@ -1106,6 +1179,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_setup)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
         return d
     test_problem_layout_ticket1124.todo = "Fix this after 1.7.1 release."
 
@@ -1143,6 +1218,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
         return d
 
 
@@ -1180,6 +1257,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
         return d
 
 
@@ -1489,6 +1568,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_prepare_client)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
         return d
 
 
@@ -1783,6 +1864,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_setup)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
         return d
     test_problem_layout_comment_187.todo = "this isn't fixed yet"
 
@@ -1816,6 +1899,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_setup)
         d.addCallback(lambda client:
                           client.upload(upload.Data("data" * 10000, convergence="")))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
         return d
 
     def test_upload_succeeds_with_some_homeless_shares(self):
@@ -1852,6 +1937,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_server_setup)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
         return d
 
 
@@ -1879,6 +1966,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_server_setup)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
+        d.addCallback(lambda ign:
+            self.failUnless(self._has_happy_share_distribution()))
         return d
 
 
