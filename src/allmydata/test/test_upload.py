@@ -1897,11 +1897,53 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             return client
 
         d.addCallback(_setup)
+        # Note: actually it should succeed! See
+        # test_problem_layout_ticket_1128. But ticket 1118 is just to
+        # make it realize that it has failed, so if it raises
+        # UploadUnhappinessError then we'll give it the green light
+        # for now.
+        d.addCallback(lambda ignored:
+            self.shouldFail(UploadUnhappinessError,
+                            "test_problem_layout_ticket_1118",
+                            "",
+                            self.g.clients[0].upload, upload.Data("data" * 10000,
+                                                       convergence="")))
+        return d
+
+    def test_problem_layout_ticket_1128(self):
+        # #1118 includes a report from a user who hit an assertion in
+        # the upload code with this layout.
+        self.basedir = self.mktemp()
+        d = self._setup_and_upload(k=2, n=4)
+
+        # server 0: no shares
+        # server 1: shares 0, 3
+        # server 3: share 1
+        # server 2: share 2
+        # The order that they get queries is 0, 1, 3, 2
+        def _setup(ign):
+            self._add_server(server_number=0)
+            self._add_server_with_share(server_number=1, share_number=0)
+            self._add_server_with_share(server_number=2, share_number=2)
+            self._add_server_with_share(server_number=3, share_number=1)
+            # Copy shares
+            self._copy_share_to_server(3, 1)
+            storedir = self.get_serverdir(0)
+            # remove the storedir, wiping out any existing shares
+            shutil.rmtree(storedir)
+            # create an empty storedir to replace the one we just removed
+            os.mkdir(storedir)
+            client = self.g.clients[0]
+            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            return client
+
+        d.addCallback(_setup)
         d.addCallback(lambda client:
                           client.upload(upload.Data("data" * 10000, convergence="")))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
+    test_problem_layout_ticket_1128.todo = "Invent a smarter uploader that uploads successfully in this case."
 
     def test_upload_succeeds_with_some_homeless_shares(self):
         # If the upload is forced to stop trying to place shares before
