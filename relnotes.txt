@@ -4,27 +4,29 @@ The Tahoe-LAFS team is pleased to announce the immediate
 availability of version 1.7.1 of Tahoe-LAFS, an extremely
 reliable distributed storage system.
 
-Tahoe-LAFS is the first distributed storage system which offers
-"provider-independent security"—meaning that not even the
-operator of your storage server can read or alter your data
-without your consent. Here is the one-page explanation of its
-unique security and fault-tolerance properties:
+Tahoe-LAFS is the first distributed storage system which
+offers "provider-independent security"—meaning that not even
+the operators of your storage servers can read or alter your
+data without your consent. Here is the one-page explanation of
+its unique security and fault-tolerance properties:
 
 http://tahoe-lafs.org/source/tahoe/trunk/docs/about.html
 
-Tahoe-LAFS v1.7.1 is the successor to v1.7.0, which was released
-June 18, 2010 [1].
+Tahoe-LAFS v1.7.1 is the successor to v1.7.0, which was
+released June 18, 2010 [1].
 
-v1.7.1 is a minor release with some small bugfixes and code
-clean-ups. See the NEWS file [2] for details.
+v1.7.1 is a stable minor release which adds several bugfixes
+and improvements in security, forward-compatibility,
+packaging, usability, and portability. See the NEWS file [2]
+for details.
 
 
 WHAT IS IT GOOD FOR?
 
-With Tahoe-LAFS, you distribute your filesystem across multiple
-servers, and even if some of the servers are compromised by
-by an attacker, the entire filesystem continues to work
-correctly, and continues to preserve your privacy and
+With Tahoe-LAFS, you distribute your filesystem across
+multiple servers, and even if some of the servers are
+compromised by by an attacker, the entire filesystem continues
+to work correctly, and continues to preserve your privacy and
 security. You can easily share specific files and directories
 with other people.
 
@@ -60,11 +62,11 @@ all versions since v1.0. Servers from this release can serve
 clients of all versions back to v1.0 and clients from this
 release can use servers of all versions back to v1.0.
 
-This is the ninth release in the version 1 series. This series
+This is the tenth release in the version 1 series. This series
 of Tahoe-LAFS will be actively supported and maintained for
 the forseeable future, and future versions of Tahoe-LAFS will
 retain the ability to read and write files compatible with
-Tahoe-LAFS v1.
+this series.
 
 
 LICENCE
@@ -78,7 +80,7 @@ You may use this package under the Transitive Grace Period
 Public Licence, version 1 or, at your option, any later
 version. (The Transitive Grace Period Public Licence has
 requirements similar to the GPL except that it allows you to
-wait for up to twelve months after you redistribute a derived
+delay for up to twelve months after you redistribute a derived
 work before releasing the source code of your derived work.)
 See the file "COPYING.TGPPL.html" [6] for the terms of the
 Transitive Grace Period Public Licence, version 1.
@@ -137,14 +139,15 @@ as a labor of love by volunteers. Thank you very much to the
 team of "hackers in the public interest" who make Tahoe-LAFS
 possible.
 
-Zooko Wilcox-O'Hearn
+David-Sarah Hopwood and Zooko Wilcox-O'Hearn
 on behalf of the Tahoe-LAFS team
 
 July 18, 2010
-Boulder, Colorado, USA
+Rainhill, Merseyside, UK and Boulder, Colorado, USA
+
 
 [1] http://tahoe-lafs.org/trac/tahoe/browser/relnotes.txt?rev=4514
-[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=FIXME!!!
+[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4577
 [3] http://tahoe-lafs.org/trac/tahoe/wiki/RelatedProjects
 [4] http://tahoe-lafs.org/trac/tahoe/browser/docs/known_issues.txt
 [5] http://tahoe-lafs.org/trac/tahoe/browser/COPYING.GPL
