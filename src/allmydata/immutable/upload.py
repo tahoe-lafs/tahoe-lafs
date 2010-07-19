@@ -173,9 +173,9 @@ class Tahoe2PeerSelector:
                          num_segments, total_shares, needed_shares,
                          servers_of_happiness):
         """
-        @return: (used_peers, already_peers), where used_peers is a set of
+        @return: (upload_servers, already_peers), where upload_servers is a set of
                  PeerTracker instances that have agreed to hold some shares
-                 for us (the shnum is stashed inside the PeerTracker),
+                 for us (the shareids are stashed inside the PeerTracker),
                  and already_peers is a dict mapping shnum to a set of peers
                  which claim to already have the share.
         """
@@ -908,27 +908,27 @@ class CHKUploader:
         d.addCallback(_done)
         return d
 
-    def set_shareholders(self, (used_peers, already_peers), encoder):
+    def set_shareholders(self, (upload_servers, already_peers), encoder):
         """
-        @param used_peers: a sequence of PeerTracker objects
+        @param upload_servers: a sequence of PeerTracker objects that have agreed to hold some shares for us (the shareids are stashed inside the PeerTracker)
         @paran already_peers: a dict mapping sharenum to a set of peerids
                               that claim to already have this share
         """
-        self.log("_send_shares, used_peers is %s" % (used_peers,))
+        self.log("_send_shares, upload_servers is %s" % (upload_servers,))
         # record already-present shares in self._results
         self._results.preexisting_shares = len(already_peers)
 
         self._peer_trackers = {} # k: shnum, v: instance of PeerTracker
-        for peer in used_peers:
+        for peer in upload_servers:
             assert isinstance(peer, PeerTracker)
         buckets = {}
         servermap = already_peers.copy()
-        for peer in used_peers:
+        for peer in upload_servers:
             buckets.update(peer.buckets)
             for shnum in peer.buckets:
                 self._peer_trackers[shnum] = peer
                 servermap.setdefault(shnum, set()).add(peer.peerid)
-        assert len(buckets) == sum([len(peer.buckets) for peer in used_peers]), "%s (%s) != %s (%s)" % (len(buckets), buckets, sum([len(peer.buckets) for peer in used_peers]), [(p.buckets, p.peerid) for p in used_peers])
+        assert len(buckets) == sum([len(peer.buckets) for peer in upload_servers]), "%s (%s) != %s (%s)" % (len(buckets), buckets, sum([len(peer.buckets) for peer in upload_servers]), [(p.buckets, p.peerid) for p in upload_servers])
         encoder.set_shareholders(buckets, servermap)
 
     def _encrypted_done(self, verifycap):

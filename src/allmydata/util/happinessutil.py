@@ -54,7 +54,7 @@ def shares_by_server(servermap):
             ret.setdefault(peerid, set()).add(shareid)
     return ret
 
-def merge_peers(servermap, used_peers=None):
+def merge_peers(servermap, upload_servers=None):
     """
     I accept a dict of shareid -> set(peerid) mappings, and optionally a
     set of PeerTrackers. If no set of PeerTrackers is provided, I return
@@ -66,13 +66,13 @@ def merge_peers(servermap, used_peers=None):
     # context where it is okay to do that, make a copy of servermap and
     # work with it.
     servermap = deepcopy(servermap)
-    if not used_peers:
+    if not upload_servers:
         return servermap
 
     assert(isinstance(servermap, dict))
-    assert(isinstance(used_peers, set))
+    assert(isinstance(upload_servers, set))
 
-    for peer in used_peers:
+    for peer in upload_servers:
         for shnum in peer.buckets:
             servermap.setdefault(shnum, set()).add(peer.peerid)
     return servermap

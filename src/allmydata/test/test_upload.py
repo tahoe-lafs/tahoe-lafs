@@ -750,7 +750,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         """
         I act like a normal upload, but before I send the results of
         Tahoe2PeerSelector to the Encoder, I break the first servers_to_break
-        PeerTrackers in the used_peers part of the return result.
+        PeerTrackers in the upload_servers part of the return result.
         """
         assert self.g, "I tried to find a grid at self.g, but failed"
         broker = self.g.clients[0].storage_broker
@@ -771,15 +771,15 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d = selector.get_shareholders(broker, sh, storage_index,
                                       share_size, block_size, num_segments,
                                       10, 3, 4)
-        def _have_shareholders((used_peers, already_peers)):
-            assert servers_to_break <= len(used_peers)
+        def _have_shareholders((upload_servers, already_peers)):
+            assert servers_to_break <= len(upload_servers)
             for index in xrange(servers_to_break):
-                server = list(used_peers)[index]
+                server = list(upload_servers)[index]
                 for share in server.buckets.keys():
                     server.buckets[share].abort()
             buckets = {}
             servermap = already_peers.copy()
-            for peer in used_peers:
+            for peer in upload_servers:
                 buckets.update(peer.buckets)
                 for bucket in peer.buckets:
                     servermap.setdefault(bucket, set()).add(peer.peerid)
@@ -1342,7 +1342,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
 
     def test_merge_peers(self):
-        # merge_peers merges a list of used_peers and a dict of
+        # merge_peers merges a list of upload_servers and a dict of
         # shareid -> peerid mappings.
         shares = {
                     1 : set(["server1"]),
@@ -1351,7 +1351,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                     4 : set(["server4", "server5"]),
                     5 : set(["server1", "server2"]),
                  }
-        # if not provided with a used_peers argument, it should just
+        # if not provided with a upload_servers argument, it should just
         # return the first argument unchanged.
         self.failUnlessEqual(shares, merge_peers(shares, set([])))
         class FakePeerTracker:
