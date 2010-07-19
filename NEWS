@@ -4,19 +4,24 @@
 
 ** Bugfixes and Improvements
 
+ - Fix bug in which uploader could fail with AssertionFailure or
+   report that it had achieved servers-of-happiness when it
+   hadn't. (#1118)
  - Fix bug in which servers could get into a state where they would
    refuse to accept shares of a certain file (#1117)
- - Add init scripts for managing the gateway server on Debian/Ubuntu (#961)
- - Fix bug where server version number was always 0 on the welcome page (#1067)
- - Add new command-line command "tahoe unlink" as a synonym for "tahoe rm"
-   (#776)
- - The FTP frontend now encrypts its temporary files, protecting their contents
-   from an attacker who is able to read the disk. (#1083)
+ - Add init scripts for managing the gateway server on Debian/Ubuntu
+   (#961)
+ - Fix bug where server version number was always 0 on the welcome
+   page (#1067)
+ - Add new command-line command "tahoe unlink" as a synonym for "tahoe
+   rm" (#776)
+ - The FTP frontend now encrypts its temporary files, protecting their
+   contents from an attacker who is able to read the disk. (#1083)
  - Fix IP address detection on FreeBSD 7, 8, and 9 (#1098)
- - Fix minor layout issue in the Web User Interface with Internet Explorer
-   (#1097)
- - Fix rarely-encountered incompatibility between Twisted logging utility and
-   the new unicode support added in v1.7.0 (#1099)
+ - Fix minor layout issue in the Web User Interface with Internet
+   Explorer (#1097)
+ - Fix rarely-encountered incompatibility between Twisted logging
+   utility and the new unicode support added in v1.7.0 (#1099)
  - Forward-compatibility improvements for non-ASCII caps (#1051)
 
 ** Code improvements
