@@ -35,18 +35,20 @@ class FakeNodeMaker:
     def create_from_cap(self, writecap, readcap=None, deep_immutable=False, name=''):
         return FakeNode()
 
-def random_unicode(l):
-    while True:
+def random_unicode(n=140, b=3, codec='utf-8'):
+    l = []
+    while len(l) < n:
         try:
-            return os.urandom(l).decode('utf-8')
+            u = os.urandom(b).decode(codec)[0]
         except UnicodeDecodeError:
             pass
+        else:
+            l.append(u)
+    return u''.join(l)
 
 encoding_parameters = {"k": 3, "n": 10}
 def random_metadata():
     d = {}
-    d['ctime'] = random.random()
-    d['mtime'] = random.random()
     d['tahoe'] = {}
     d['tahoe']['linkcrtime'] = random.random()
     d['tahoe']['linkmotime'] = random.random()
@@ -88,7 +90,7 @@ class B(object):
 
     def init_for_pack(self, N):
         for i in xrange(len(self.children), N):
-            name = random_unicode(random.randrange(1, 9))
+            name = random_unicode(random.randrange(0, 10))
             self.children.append( (name, self.random_child()) )
 
     def init_for_unpack(self, N):
@@ -109,8 +111,11 @@ class B(object):
                                  (self.init_for_pack, self.pack),
                                  (self.init_for_unpack, self.unpack_and_repack)]:
             print "benchmarking %s" % (func,)
-            benchutil.bench(self.unpack_and_repack, initfunc=self.init_for_unpack,
-                            TOPXP=12)#, profile=profile, profresults=PROF_FILE_NAME)
+            for N in 16, 512, 2048, 16384:
+                print "%5d" % N,
+                benchutil.rep_bench(func, N, initfunc=initfunc, MAXREPS=20, UNITS_PER_SECOND=1000)
+        benchutil.print_bench_footer(UNITS_PER_SECOND=1000)
+        print "(milliseconds)"
 
     def prof_benchmarks(self):
         # This requires pyutil >= v1.3.34.
