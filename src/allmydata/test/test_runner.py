@@ -31,7 +31,7 @@ class SkipMixin:
             raise unittest.SkipTest("twistd does not fork under windows")
 
 
-class TheRightCode(common_util.SignalMixin, unittest.TestCase, SkipMixin):
+class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
     def test_path(self):
         self.skip_if_cannot_run_bintahoe()
         d = utils.getProcessOutputAndValue(bintahoe, args=["--version-and-path"], env=os.environ)
@@ -45,6 +45,24 @@ class TheRightCode(common_util.SignalMixin, unittest.TestCase, SkipMixin):
             required_ver_and_path = "allmydata-tahoe: %s (%s)" % (allmydata.__version__, ad)
             self.failUnless(out.startswith(required_ver_and_path),
                             (out, err, rc_or_sig, required_ver_and_path))
+        d.addCallback(_cb)
+        return d
+
+    def test_version_no_noise(self):
+        self.skip_if_cannot_run_bintahoe()
+        import pkg_resources
+        try:
+            pkg_resources.require("Twisted>=9.0.0")
+        except pkg_resources.VersionConflict:
+            raise unittest.SkipTest("We pass this test only with Twisted >= v9.0.0")
+
+        d = utils.getProcessOutputAndValue(bintahoe, args=["--version"], env=os.environ)
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 0, res)
+            self.failUnless(out.startswith("allmydata-tahoe:"), res)
+            self.failIfIn("DeprecationWarning", out, res)
+            self.failUnlessEqual(err, "", res)
         d.addCallback(_cb)
         return d
 
