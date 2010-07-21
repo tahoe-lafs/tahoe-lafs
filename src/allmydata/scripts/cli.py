@@ -224,7 +224,7 @@ class CpOptions(VDriveOptions):
 
     You can also use a dircap as either FROM or TO target:
 
-    tahoe cp URI:DIR2-RO:j74uhg25nwdpjpacl6rkat2yhm:kav7ijeft5h7r7rxdp5bgtlt3viv32yabqajkrdykozia5544jqa/wiki.html ./   # copy Zooko's wiki page to a local file
+    tahoe cp URI:DIR2-RO:ixqhc4kdbjxc7o65xjnveoewym:5x6lwoxghrd5rxhwunzavft2qygfkt27oj3fbxlq4c6p45z5uneq/blog.html ./   # copy Zooko's wiki page to a local file
 
     This command still has some limitations: symlinks, special files (device
     nodes, named pipes), and non-ASCII filenames are not handled very well.
