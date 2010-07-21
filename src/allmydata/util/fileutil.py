@@ -272,3 +272,35 @@ def put_file(pathname, inf):
             outf.write(data)
     finally:
         outf.close()
+
+
+# Work around <http://bugs.python.org/issue3426>. This code is adapted from
+# <http://svn.python.org/view/python/trunk/Lib/ntpath.py?revision=78247&view=markup>
+# with some simplifications.
+
+_getfullpathname = None
+try:
+    from nt import _getfullpathname
+except ImportError:
+    pass
+
+def abspath_expanduser_unicode(path):
+    """Return the absolute version of a path."""
+    assert isinstance(path, unicode), path
+
+    path = os.path.expanduser(path)
+
+    if _getfullpathname:
+        # On Windows, os.path.isabs will return True for paths without a drive letter,
+        # e.g. "\\". See <http://bugs.python.org/issue1669539>.
+        try:
+            path = _getfullpathname(path or u".")
+        except WindowsError:
+            pass
+
+    if not os.path.isabs(path):
+        path = os.path.join(os.getcwdu(), path)
+
+    # We won't hit <http://bugs.python.org/issue5827> because
+    # there is always at least one Unicode path component.
+    return os.path.normpath(path)

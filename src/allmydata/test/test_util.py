@@ -1,7 +1,7 @@
 
 def foo(): pass # keep the line number constant
 
-import os, time
+import os, time, sys
 from StringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
@@ -469,6 +469,37 @@ class FileUtil(unittest.TestCase):
 
         used = fileutil.du(basedir)
         self.failUnlessEqual(10+11+12+13, used)
+
+    def test_abspath_expanduser_unicode(self):
+        self.failUnlessRaises(AssertionError, fileutil.abspath_expanduser_unicode, "bytestring")
+
+        saved_cwd = os.path.normpath(os.getcwdu())
+        abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
+        self.failUnless(isinstance(saved_cwd, unicode), saved_cwd)
+        self.failUnless(isinstance(abspath_cwd, unicode), abspath_cwd)
+        self.failUnlessEqual(abspath_cwd, saved_cwd)
+
+        # adapted from <http://svn.python.org/view/python/branches/release26-maint/Lib/test/test_posixpath.py?view=markup&pathrev=78279#test_abspath>
+
+        self.failUnlessIn(u"foo", fileutil.abspath_expanduser_unicode(u"foo"))
+        self.failIfIn(u"~", fileutil.abspath_expanduser_unicode(u"~"))
+
+        cwds = ['cwd']
+        try:
+            cwds.append(u'\xe7w\xf0'.encode(sys.getfilesystemencoding()
+                                            or 'ascii'))
+        except UnicodeEncodeError:
+            pass # the cwd can't be encoded -- test with ascii cwd only
+
+        for cwd in cwds:
+            try:
+                os.mkdir(cwd)
+                os.chdir(cwd)
+                for upath in (u'', u'fuu', u'f\xf9\xf9', u'/fuu', u'U:\\', u'~'):
+                    uabspath = fileutil.abspath_expanduser_unicode(upath)
+                    self.failUnless(isinstance(uabspath, unicode), uabspath)
+            finally:
+                os.chdir(saved_cwd)
 
 class PollMixinTests(unittest.TestCase):
     def setUp(self):

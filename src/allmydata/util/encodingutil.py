@@ -10,6 +10,7 @@ from allmydata.util.assertutil import precondition
 from twisted.python import usage
 import locale
 from allmydata.util import log
+from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
 def _canonical_encoding(encoding):
@@ -90,6 +91,13 @@ def argv_to_unicode(s):
     except UnicodeDecodeError:
         raise usage.UsageError("Argument %s cannot be decoded as %s." %
                                (quote_output(s), argv_encoding))
+
+def argv_to_abspath(s):
+    """
+    Convenience function to decode an argv element to an absolute path, with ~ expanded.
+    If this fails, raise a UsageError.
+    """
+    return abspath_expanduser_unicode(argv_to_unicode(s))
 
 def unicode_to_url(s):
     """
