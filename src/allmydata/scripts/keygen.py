@@ -29,8 +29,8 @@ def create_key_generator(config, out=sys.stdout, err=sys.stderr):
         print >>err, "a basedir was not provided, please use --basedir or -C"
         return -1
     if os.path.exists(basedir):
-        if os.listdir(basedir):
-            print >>err, "The base directory \"%s\", which is \"%s\" is not empty." % (basedir, os.path.abspath(basedir))
+        if listdir_unicode(basedir):
+            print >>err, "The base directory %s is not empty." % quote_output(basedir)
             print >>err, "To avoid clobbering anything, I am going to quit now."
             print >>err, "Please use a different directory, or empty this one."
             return -1

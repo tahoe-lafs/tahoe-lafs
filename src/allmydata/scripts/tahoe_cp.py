@@ -9,6 +9,7 @@ from allmydata.scripts.common import get_alias, escape_path, \
 from allmydata.scripts.common_http import do_http, HTTPError
 from allmydata import uri
 from allmydata.util import fileutil
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, to_str
 from allmydata.util.assertutil import precondition
 
@@ -511,7 +512,7 @@ class Copier:
         rootcap, path = get_alias(self.aliases, destination_spec, None)
         if rootcap == DefaultAliasMarker:
             # no alias, so this is a local file
-            pathname = os.path.abspath(os.path.expanduser(path.decode('utf-8')))
+            pathname = abspath_expanduser_unicode(path.decode('utf-8'))
             if not os.path.exists(pathname):
                 t = LocalMissingTarget(pathname)
             elif os.path.isdir(pathname):
@@ -551,7 +552,7 @@ class Copier:
         rootcap, path = get_alias(self.aliases, source_spec, None)
         if rootcap == DefaultAliasMarker:
             # no alias, so this is a local file
-            pathname = os.path.abspath(os.path.expanduser(path.decode('utf-8')))
+            pathname = abspath_expanduser_unicode(path.decode('utf-8'))
             name = os.path.basename(pathname)
             if not os.path.exists(pathname):
                 raise MissingSourceError(source_spec)

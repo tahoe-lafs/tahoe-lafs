@@ -192,7 +192,7 @@ class CreateNode(unittest.TestCase):
         rc, out, err = self.run_tahoe(argv)
         self.failIfEqual(rc, 0, str((out, err, rc)))
         self.failUnlessEqual(out, "")
-        self.failUnless("is not empty." in err)
+        self.failUnlessIn("is not empty.", err)
 
         # make sure it rejects too many arguments
         argv = ["create-key-generator", "basedir", "extraarg"]

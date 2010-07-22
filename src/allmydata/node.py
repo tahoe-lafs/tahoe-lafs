@@ -11,6 +11,8 @@ from allmydata import get_package_versions, get_package_versions_string
 from allmydata.util import log
 from allmydata.util import fileutil, iputil, observer
 from allmydata.util.assertutil import precondition, _assert
+from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.encodingutil import get_filesystem_encoding
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
@@ -49,9 +51,9 @@ class Node(service.MultiService):
     PORTNUMFILE = None
     CERTFILE = "node.pem"
 
-    def __init__(self, basedir="."):
+    def __init__(self, basedir=u"."):
         service.MultiService.__init__(self)
-        self.basedir = os.path.abspath(basedir)
+        self.basedir = abspath_expanduser_unicode(unicode(basedir))
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         self._tub_ready_observerlist = observer.OneShotObserverList()
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
@@ -74,12 +76,12 @@ class Node(service.MultiService):
         iputil.increase_rlimits()
 
     def init_tempdir(self):
-        local_tempdir = "tmp" # default is NODEDIR/tmp/
-        tempdir = self.get_config("node", "tempdir", local_tempdir)
+        local_tempdir_utf8 = "tmp" # default is NODEDIR/tmp/
+        tempdir = self.get_config("node", "tempdir", local_tempdir_utf8).decode('utf-8')
         tempdir = os.path.join(self.basedir, tempdir)
         if not os.path.exists(tempdir):
             fileutil.make_dirs(tempdir)
-        tempfile.tempdir = os.path.abspath(tempdir)
+        tempfile.tempdir = abspath_expanduser_unicode(tempdir)
         # this should cause twisted.web.http (which uses
         # tempfile.TemporaryFile) to put large request bodies in the given
         # directory. Without this, the default temp dir is usually /tmp/,
@@ -167,9 +169,9 @@ class Node(service.MultiService):
     def setup_ssh(self):
         ssh_port = self.get_config("node", "ssh.port", "")
         if ssh_port:
-            ssh_keyfile = self.get_config("node", "ssh.authorized_keys_file")
+            ssh_keyfile = self.get_config("node", "ssh.authorized_keys_file").decode('utf-8')
             from allmydata import manhole
-            m = manhole.AuthorizedKeysManhole(ssh_port, ssh_keyfile)
+            m = manhole.AuthorizedKeysManhole(ssh_port, ssh_keyfile.encode(get_filesystem_encoding()))
             m.setServiceParent(self)
             self.log("AuthorizedKeysManhole listening on %s" % ssh_port)
 

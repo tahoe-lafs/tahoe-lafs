@@ -11,6 +11,7 @@ from allmydata.util import time_format
 from allmydata.scripts import backupdb
 from allmydata.util.encodingutil import listdir_unicode, quote_output, to_str, FilenameEncodingError
 from allmydata.util.assertutil import precondition
+from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
 def get_local_metadata(path):
@@ -84,7 +85,7 @@ class BackerUpper:
         self.backupdb = None
         bdbfile = os.path.join(options["node-directory"],
                                "private", "backupdb.sqlite")
-        bdbfile = os.path.abspath(bdbfile)
+        bdbfile = abspath_expanduser_unicode(bdbfile)
         self.backupdb = backupdb.get_backupdb(bdbfile, stderr)
         if not self.backupdb:
             print >>stderr, "ERROR: Unable to load backup db."

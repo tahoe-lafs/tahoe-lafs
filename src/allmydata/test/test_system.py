@@ -12,6 +12,8 @@ from allmydata.immutable import offloaded, upload
 from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
+from allmydata.util.encodingutil import quote_output
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
 from allmydata.scripts import runner
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
@@ -1285,9 +1287,9 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 if magic == '\x00\x00\x00\x01':
                     break
         else:
-            self.fail("unable to find any uri_extension files in %s"
+            self.fail("unable to find any uri_extension files in %r"
                       % self.basedir)
-        log.msg("test_system.SystemTest._test_runner using %s" % filename)
+        log.msg("test_system.SystemTest._test_runner using %r" % filename)
 
         out,err = StringIO(), StringIO()
         rc = runner.runner(["debug", "dump-share", "--offsets",
@@ -1298,12 +1300,12 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         # we only upload a single file, so we can assert some things about
         # its size and shares.
-        self.failUnless(("share filename: %s" % filename) in output)
-        self.failUnless("size: %d\n" % len(self.data) in output)
-        self.failUnless("num_segments: 1\n" in output)
+        self.failUnlessIn("share filename: %s" % quote_output(abspath_expanduser_unicode(filename)), output)
+        self.failUnlessIn("size: %d\n" % len(self.data), output)
+        self.failUnlessIn("num_segments: 1\n", output)
         # segment_size is always a multiple of needed_shares
-        self.failUnless("segment_size: %d\n" % mathutil.next_multiple(len(self.data), 3) in output)
-        self.failUnless("total_shares: 10\n" in output)
+        self.failUnlessIn("segment_size: %d\n" % mathutil.next_multiple(len(self.data), 3), output)
+        self.failUnlessIn("total_shares: 10\n", output)
         # keys which are supposed to be present
         for key in ("size", "num_segments", "segment_size",
                     "needed_shares", "total_shares",
@@ -1311,8 +1313,8 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                     #"plaintext_hash", "plaintext_root_hash",
                     "crypttext_hash", "crypttext_root_hash",
                     "share_root_hash", "UEB_hash"):
-            self.failUnless("%s: " % key in output, key)
-        self.failUnless("  verify-cap: URI:CHK-Verifier:" in output)
+            self.failUnlessIn("%s: " % key, output)
+        self.failUnlessIn("  verify-cap: URI:CHK-Verifier:", output)
 
         # now use its storage index to find the other shares using the
         # 'find-shares' tool

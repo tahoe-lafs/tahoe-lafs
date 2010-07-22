@@ -33,7 +33,8 @@ from twisted.python import usage
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, unicode_platform, \
     quote_output, get_output_encoding, get_argv_encoding, get_filesystem_encoding, \
-    unicode_to_output, to_str
+    unicode_to_output, to_str, to_argv
+from allmydata.util.fileutil import abspath_expanduser_unicode
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
@@ -181,7 +182,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         u = uri.LiteralFileURI("this is some data")
         output = self._dump_cap(u.to_string())
         self.failUnless("Literal File URI:" in output, output)
-        self.failUnless("data: this is some data" in output, output)
+        self.failUnless("data: 'this is some data'" in output, output)
 
     def test_dump_cap_ssk(self):
         writekey = "\x01" * 16
@@ -774,7 +775,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
 
         rel_fn = os.path.join(self.basedir, "DATAFILE")
-        abs_fn = os.path.abspath(rel_fn)
+        abs_fn = to_argv(abspath_expanduser_unicode(unicode(rel_fn)))
         # we make the file small enough to fit in a LIT file, for speed
         fileutil.write(rel_fn, "short file")
         d = self.do_cli("put", rel_fn)

@@ -9,6 +9,8 @@ import os.path, sys, time, random, stat
 from allmydata.util.netstring import netstring
 from allmydata.util.hashutil import backupdb_dirhash
 from allmydata.util import base32
+from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.encodingutil import to_str
 
 DAY = 24*60*60
 MONTH = 30*DAY
@@ -203,7 +205,7 @@ class BackupDB_v2:
         current working directory. The database stores absolute pathnames.
         """
 
-        path = os.path.abspath(path)
+        path = abspath_expanduser_unicode(path)
         s = os.stat(path)
         size = s[stat.ST_SIZE]
         ctime = s[stat.ST_CTIME]
@@ -246,7 +248,7 @@ class BackupDB_v2:
         probability = min(max(probability, 0.0), 1.0)
         should_check = bool(random.random() < probability)
 
-        return FileResult(self, str(filecap), should_check,
+        return FileResult(self, to_str(filecap), should_check,
                           path, mtime, ctime, size)
 
     def get_or_allocate_fileid_for_cap(self, filecap):
@@ -349,7 +351,7 @@ class BackupDB_v2:
         probability = min(max(probability, 0.0), 1.0)
         should_check = bool(random.random() < probability)
 
-        return DirectoryResult(self, dirhash_s, str(dircap), should_check)
+        return DirectoryResult(self, dirhash_s, to_str(dircap), should_check)
 
     def did_create_directory(self, dircap, dirhash):
         now = time.time()

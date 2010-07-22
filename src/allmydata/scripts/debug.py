@@ -5,6 +5,7 @@ import struct, time, os
 from twisted.python import usage, failure
 from twisted.internet import defer
 
+
 class DumpOptions(usage.Options):
     def getSynopsis(self):
         return "Usage: tahoe debug dump-share SHARE_FILENAME"
@@ -28,15 +29,17 @@ verify-cap for the file that uses the share.
         return t
 
     def parseArgs(self, filename):
-        self['filename'] = filename
+        from allmydata.util.encodingutil import argv_to_abspath
+        self['filename'] = argv_to_abspath(filename)
 
 def dump_share(options):
     from allmydata.storage.mutable import MutableShareFile
+    from allmydata.util.encodingutil import quote_output
 
     out = options.stdout
 
     # check the version, to see if we have a mutable or immutable share
-    print >>out, "share filename: %s" % options['filename']
+    print >>out, "share filename: %s" % quote_output(options['filename'])
 
     f = open(options['filename'], "rb")
     prefix = f.read(32)
@@ -61,6 +64,8 @@ def dump_immutable_chk_share(f, out, options):
     from allmydata import uri
     from allmydata.util import base32
     from allmydata.immutable.layout import ReadBucketProxy
+    from allmydata.util.encodingutil import quote_output, to_str
+
     # use a ReadBucketProxy to parse the bucket and find the uri extension
     bp = ReadBucketProxy(None, '', '')
     offsets = bp._parse_offsets(f.read_share_data(0, 0x44))
@@ -104,14 +109,16 @@ def dump_immutable_chk_share(f, out, options):
     # the storage index isn't stored in the share itself, so we depend upon
     # knowing the parent directory name to get it
     pieces = options['filename'].split(os.sep)
-    if len(pieces) >= 2 and base32.could_be_base32_encoded(pieces[-2]):
-        storage_index = base32.a2b(pieces[-2])
-        uri_extension_hash = base32.a2b(unpacked["UEB_hash"])
-        u = uri.CHKFileVerifierURI(storage_index, uri_extension_hash,
-                                   unpacked["needed_shares"],
-                                   unpacked["total_shares"], unpacked["size"])
-        verify_cap = u.to_string()
-        print >>out, "%20s: %s" % ("verify-cap", verify_cap)
+    if len(pieces) >= 2:
+        piece = to_str(pieces[-2])
+        if base32.could_be_base32_encoded(piece):
+            storage_index = base32.a2b(piece)
+            uri_extension_hash = base32.a2b(unpacked["UEB_hash"])
+            u = uri.CHKFileVerifierURI(storage_index, uri_extension_hash,
+                                      unpacked["needed_shares"],
+                                      unpacked["total_shares"], unpacked["size"])
+            verify_cap = u.to_string()
+            print >>out, "%20s: %s" % ("verify-cap", quote_output(verify_cap, quotemarks=False))
 
     sizes = {}
     sizes['data'] = (offsets['plaintext_hash_tree'] -
@@ -210,6 +217,7 @@ def dump_SDMF_share(m, length, options):
     from allmydata.mutable.common import NeedMoreDataError
     from allmydata.util import base32, hashutil
     from allmydata.uri import SSKVerifierURI
+    from allmydata.util.encodingutil import quote_output, to_str
 
     offset = m.DATA_OFFSET
 
@@ -256,12 +264,14 @@ def dump_SDMF_share(m, length, options):
     # the storage index isn't stored in the share itself, so we depend upon
     # knowing the parent directory name to get it
     pieces = options['filename'].split(os.sep)
-    if len(pieces) >= 2 and base32.could_be_base32_encoded(pieces[-2]):
-        storage_index = base32.a2b(pieces[-2])
-        fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey)
-        u = SSKVerifierURI(storage_index, fingerprint)
-        verify_cap = u.to_string()
-        print >>out, "  verify-cap:", verify_cap
+    if len(pieces) >= 2:
+        piece = to_str(pieces[-2])
+        if base32.could_be_base32_encoded(piece):
+            storage_index = base32.a2b(piece)
+            fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey)
+            u = SSKVerifierURI(storage_index, fingerprint)
+            verify_cap = u.to_string()
+            print >>out, "  verify-cap:", quote_output(verify_cap, quotemarks=False)
 
     if options['offsets']:
         # NOTE: this offset-calculation code is fragile, and needs to be
@@ -380,6 +390,7 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     from allmydata import uri
     from allmydata.storage.server import si_b2a
     from allmydata.util import base32, hashutil
+    from allmydata.util.encodingutil import quote_output
 
     if isinstance(u, uri.CHKFileURI):
         if show_header:
@@ -401,7 +412,7 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
     elif isinstance(u, uri.LiteralFileURI):
         if show_header:
             print >>out, "Literal File URI:"
-        print >>out, " data:", u.data
+        print >>out, " data:", quote_output(u.data)
 
     elif isinstance(u, uri.WriteableSSKFileURI):
         if show_header:
@@ -447,9 +458,12 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
 class FindSharesOptions(usage.Options):
     def getSynopsis(self):
         return "Usage: tahoe debug find-shares STORAGE_INDEX NODEDIRS.."
+
     def parseArgs(self, storage_index_s, *nodedirs):
+        from allmydata.util.encodingutil import argv_to_abspath
         self.si_s = storage_index_s
-        self.nodedirs = nodedirs
+        self.nodedirs = map(argv_to_abspath, nodedirs)
+
     def getUsage(self, width=None):
         t = usage.Options.getUsage(self, width)
         t += """
@@ -478,13 +492,14 @@ def find_shares(options):
     /home/warner/testnet/node-2/storage/shares/44k/44kai1tui348689nrw8fjegc8c/2
     """
     from allmydata.storage.server import si_a2b, storage_index_to_dir
+    from allmydata.util.encodingutil import listdir_unicode
 
     out = options.stdout
     sharedir = storage_index_to_dir(si_a2b(options.si_s))
     for d in options.nodedirs:
-        d = os.path.join(os.path.expanduser(d), "storage/shares", sharedir)
+        d = os.path.join(d, "storage/shares", sharedir)
         if os.path.exists(d):
-            for shnum in os.listdir(d):
+            for shnum in listdir_unicode(d):
                 print >>out, os.path.join(d, shnum)
 
     return 0
@@ -495,7 +510,8 @@ class CatalogSharesOptions(usage.Options):
 
     """
     def parseArgs(self, *nodedirs):
-        self.nodedirs = nodedirs
+        from allmydata.util.encodingutil import argv_to_abspath
+        self.nodedirs = map(argv_to_abspath, nodedirs)
         if not nodedirs:
             raise usage.UsageError("must specify at least one node directory")
 
@@ -543,6 +559,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
     from allmydata.mutable.common import NeedMoreDataError
     from allmydata.immutable.layout import ReadBucketProxy
     from allmydata.util import base32
+    from allmydata.util.encodingutil import quote_output
     import struct
 
     f = open(abs_sharefile, "rb")
@@ -582,9 +599,9 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
             print >>out, "SDMF %s %d/%d %d #%d:%s %d %s" % \
                   (si_s, k, N, datalen,
                    seqnum, base32.b2a(root_hash),
-                   expiration, abs_sharefile)
+                   expiration, quote_output(abs_sharefile))
         else:
-            print >>out, "UNKNOWN mutable %s" % (abs_sharefile,)
+            print >>out, "UNKNOWN mutable %s" % quote_output(abs_sharefile)
 
     elif struct.unpack(">L", prefix[:4]) == (1,):
         # immutable
@@ -616,21 +633,23 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
 
         print >>out, "CHK %s %d/%d %d %s %d %s" % (si_s, k, N, filesize,
                                                    ueb_hash, expiration,
-                                                   abs_sharefile)
+                                                   quote_output(abs_sharefile))
 
     else:
-        print >>out, "UNKNOWN really-unknown %s" % (abs_sharefile,)
+        print >>out, "UNKNOWN really-unknown %s" % quote_output(abs_sharefile)
 
     f.close()
 
 def catalog_shares(options):
+    from allmydata.util.encodingutil import listdir_unicode, quote_output
+
     out = options.stdout
     err = options.stderr
     now = time.time()
     for d in options.nodedirs:
-        d = os.path.join(os.path.expanduser(d), "storage/shares")
+        d = os.path.join(d, "storage/shares")
         try:
-            abbrevs = os.listdir(d)
+            abbrevs = listdir_unicode(d)
         except EnvironmentError:
             # ignore nodes that have storage turned off altogether
             pass
@@ -640,33 +659,34 @@ def catalog_shares(options):
                     continue
                 abbrevdir = os.path.join(d, abbrevdir)
                 # this tool may get run against bad disks, so we can't assume
-                # that os.listdir will always succeed. Try to catalog as much
+                # that listdir_unicode will always succeed. Try to catalog as much
                 # as possible.
                 try:
-                    sharedirs = os.listdir(abbrevdir)
+                    sharedirs = listdir_unicode(abbrevdir)
                     for si_s in sharedirs:
                         si_dir = os.path.join(abbrevdir, si_s)
                         catalog_shares_one_abbrevdir(si_s, si_dir, now, out,err)
                 except:
-                    print >>err, "Error processing %s" % abbrevdir
+                    print >>err, "Error processing %s" % quote_output(abbrevdir)
                     failure.Failure().printTraceback(err)
 
     return 0
 
 def catalog_shares_one_abbrevdir(si_s, si_dir, now, out, err):
+    from allmydata.util.encodingutil import listdir_unicode, quote_output
+
     try:
-        for shnum_s in os.listdir(si_dir):
+        for shnum_s in listdir_unicode(si_dir):
             abs_sharefile = os.path.join(si_dir, shnum_s)
-            abs_sharefile = os.path.abspath(abs_sharefile)
             assert os.path.isfile(abs_sharefile)
             try:
                 describe_share(abs_sharefile, si_s, shnum_s, now,
                                out)
             except:
-                print >>err, "Error processing %s" % abs_sharefile
+                print >>err, "Error processing %s" % quote_output(abs_sharefile)
                 failure.Failure().printTraceback(err)
     except:
-        print >>err, "Error processing %s" % si_dir
+        print >>err, "Error processing %s" % quote_output(si_dir)
         failure.Failure().printTraceback(err)
 
 class CorruptShareOptions(usage.Options):

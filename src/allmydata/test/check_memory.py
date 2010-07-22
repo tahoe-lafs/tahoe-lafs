@@ -9,6 +9,8 @@ from allmydata import client, introducer
 from allmydata.immutable import upload
 from allmydata.scripts import create_node
 from allmydata.util import fileutil, pollmixin
+from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.encodingutil import get_filesystem_encoding
 from foolscap.api import Tub, fireEventually, flushEventualQueue
 from twisted.python import log
 
@@ -63,8 +65,8 @@ class SystemFramework(pollmixin.PollMixin):
     numnodes = 7
 
     def __init__(self, basedir, mode):
-        self.basedir = basedir = os.path.abspath(basedir)
-        if not basedir.startswith(os.path.abspath(".")):
+        self.basedir = basedir = abspath_expanduser_unicode(unicode(basedir))
+        if not (basedir + os.path.sep).startswith(abspath_expanduser_unicode(u".") + os.path.sep):
             raise AssertionError("safety issue: basedir must be a subdir")
         self.testdir = testdir = os.path.join(basedir, "test")
         if os.path.exists(testdir):
@@ -226,7 +228,9 @@ this file are ignored.
     def start_client(self):
         # this returns a Deferred that fires with the client's control.furl
         log.msg("MAKING CLIENT")
-        clientdir = self.clientdir = os.path.join(self.testdir, "client")
+        # self.testdir is an absolute Unicode path
+        clientdir = self.clientdir = os.path.join(self.testdir, u"client")
+        clientdir_str = clientdir.encode(get_filesystem_encoding())
         quiet = StringIO()
         create_node.create_node(clientdir, {}, out=quiet)
         log.msg("DONE MAKING CLIENT")
@@ -265,7 +269,7 @@ this file are ignored.
         logfile = os.path.join(self.basedir, "client.log")
         cmd = ["twistd", "-n", "-y", "tahoe-client.tac", "-l", logfile]
         env = os.environ.copy()
-        self.proc = reactor.spawnProcess(pp, cmd[0], cmd, env, path=clientdir)
+        self.proc = reactor.spawnProcess(pp, cmd[0], cmd, env, path=clientdir_str)
         log.msg("CLIENT STARTED")
 
         # now we wait for the client to get started. we're looking for the

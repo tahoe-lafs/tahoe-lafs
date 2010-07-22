@@ -259,10 +259,10 @@ class StdlibUnicode(unittest.TestCase):
             raise unittest.SkipTest("%r\nIt is possible that the filesystem on which this test is being run "
                                     "does not support Unicode, even though the platform does." % (e,))
 
-        fn = lumiere_nfc + '/' + lumiere_nfc + '.txt'
+        fn = lumiere_nfc + u'/' + lumiere_nfc + u'.txt'
         open(fn, 'wb').close()
         self.failUnless(os.path.exists(fn))
-        self.failUnless(os.path.exists(os.path.abspath(fn)))
+        self.failUnless(os.path.exists(os.path.join(os.getcwdu(), fn)))
         filenames = listdir_unicode(lumiere_nfc)
 
         # We only require that the listing includes a filename that is canonically equivalent

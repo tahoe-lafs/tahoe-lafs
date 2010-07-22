@@ -65,8 +65,9 @@ class GridTesterOptions(usage.Options):
         ]
 
     def parseArgs(self, nodedir, tahoe):
-        self.nodedir = nodedir
-        self.tahoe = os.path.abspath(tahoe)
+        # Note: does not support Unicode arguments.
+        self.nodedir = os.path.expanduser(nodedir)
+        self.tahoe = os.path.abspath(os.path.expanduser(tahoe))
 
 class CommandFailed(Exception):
     pass
