@@ -3,7 +3,7 @@
 
 As explained in the architecture docs, Tahoe-LAFS can be roughly viewed as
 a collection of three layers. The lowest layer is the key-value store: it
-provides operations that accept files and upload them to the mesh, creating
+provides operations that accept files and upload them to the grid, creating
 a URI in the process which securely references the file's contents.
 The middle layer is the filesystem, creating a structure of directories and
 filenames resembling the traditional unix/windows filesystems. The top layer
@@ -35,7 +35,7 @@ contents of a pre-existing slot, and the third retrieves the contents:
 == Filesystem Goals ==
 
 The main goal for the middle (filesystem) layer is to give users a way to
-organize the data that they have uploaded into the mesh. The traditional way
+organize the data that they have uploaded into the grid. The traditional way
 to do this in computer filesystems is to put this data into files, give those
 files names, and collect these names into directories.
 
