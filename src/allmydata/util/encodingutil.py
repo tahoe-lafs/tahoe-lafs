@@ -120,8 +120,8 @@ def to_argv(s):
         return s
     return s.encode(argv_encoding)
 
-PRINTABLE_ASCII = re.compile(r'^[ -~\n\r]*$', re.DOTALL)
-PRINTABLE_8BIT = re.compile(r'^[ -&(-~\n\r\x80-\xFF]*$', re.DOTALL)
+PRINTABLE_ASCII = re.compile(r'^[\n\r\x20-\x7E]*$',          re.DOTALL)
+PRINTABLE_8BIT  = re.compile(r'^[\n\r\x20-\x7E\x80-\xFF]*$', re.DOTALL)
 
 def is_printable_ascii(s):
     return PRINTABLE_ASCII.search(s) is not None
@@ -145,12 +145,47 @@ def unicode_to_output(s):
                                  (output_encoding, repr(s)))
     return out
 
+
+def _unicode_escape(m):
+    u = m.group(0)
+    if u == '"' or u == '$' or u == '`' or u == '\\':
+        return u'\\' + u
+    if len(u) == 2:
+        codepoint = (ord(u[0])-0xD800)*0x400 + ord(u[1])-0xDC00 + 0x10000
+    else:
+        codepoint = ord(u)
+    if codepoint > 0xFFFF:
+        return u'\\U%08x' % (codepoint,)
+    elif codepoint > 0xFF:
+        return u'\\u%04x' % (codepoint,)
+    else:
+        return u'\\x%02x' % (codepoint,)
+
+def _str_escape(m):
+    c = m.group(0)
+    if c == '"' or c == '$' or c == '`' or c == '\\':
+        return '\\' + c
+    else:
+        return '\\x%02x' % (ord(c),)
+
+MUST_DOUBLE_QUOTE = re.compile(ur'[^\x20-\x26\x28-\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]', re.DOTALL)
+
+# if we must double-quote, then we have to escape ", $ and `, but need not escape '
+ESCAPABLE_UNICODE = re.compile(ur'([\uD800-\uDBFF][\uDC00-\uDFFF])|'  # valid surrogate pairs
+                               ur'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E\u00A0-\uD7FF\uE000-\uFDCF\uFDF0-\uFFFC]',
+                               re.DOTALL)
+
+ESCAPABLE_8BIT    = re.compile( r'[^ !#\x25-\x5B\x5D-\x5F\x61-\x7E]', re.DOTALL)
+
 def quote_output(s, quotemarks=True, encoding=None):
     """
     Encode either a Unicode string or a UTF-8-encoded bytestring for representation
     on stdout or stderr, tolerating errors. If 'quotemarks' is True, the string is
-    always surrounded by single quotes; otherwise, it is quoted only if necessary to
-    avoid ambiguity or control bytes in the output.
+    always quoted; otherwise, it is quoted only if necessary to avoid ambiguity or
+    control bytes in the output.
+    Quoting may use either single or double quotes. Within single quotes, all
+    characters stand for themselves, and ' will not appear. Within double quotes,
+    Python-compatible backslash escaping is used.
     """
     precondition(isinstance(s, (str, unicode)), s)
 
@@ -158,20 +193,20 @@ def quote_output(s, quotemarks=True, encoding=None):
         try:
             s = s.decode('utf-8')
         except UnicodeDecodeError:
-            return 'b' + repr(s)
+            return 'b"%s"' % (ESCAPABLE_8BIT.sub(_str_escape, s),)
 
-    try:
-        out = s.encode(encoding or output_encoding)
-    except (UnicodeEncodeError, UnicodeDecodeError):
-        return repr(s)
+    if MUST_DOUBLE_QUOTE.search(s) is None:
+        try:
+            out = s.encode(encoding or output_encoding)
+            if quotemarks or out.startswith('"'):
+                return "'%s'" % (out,)
+            else:
+                return out
+        except (UnicodeDecodeError, UnicodeEncodeError):
+            pass
 
-    if PRINTABLE_8BIT.search(out) is None:
-        return repr(out)
-
-    if quotemarks:
-        return "'" + out.replace("\\", "\\\\").replace("'", "\'") + "'"
-    else:
-        return out
+    escaped = ESCAPABLE_UNICODE.sub(_unicode_escape, s)
+    return '"%s"' % (escaped.encode(encoding or output_encoding, 'backslashreplace'),)
 
 def quote_path(path, quotemarks=True):
     return quote_output("/".join(map(to_str, path)), quotemarks=quotemarks)

@@ -57,8 +57,8 @@ import os, sys, locale
 
 from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
-    unicode_to_output, unicode_platform, listdir_unicode, FilenameEncodingError, \
-    get_output_encoding, get_filesystem_encoding, _reload
+    unicode_to_output, quote_output, unicode_platform, listdir_unicode, \
+    FilenameEncodingError, get_output_encoding, get_filesystem_encoding, _reload
 from allmydata.dirnode import normalize
 
 from twisted.python import usage
@@ -284,6 +284,103 @@ class StdlibUnicode(unittest.TestCase):
             raise unittest.SkipTest("This test cannot be run unless we know a filename that is not representable.")
         except UnicodeEncodeError:
             self.failUnlessRaises(UnicodeEncodeError, open, fn, 'wb')
+
+
+class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
+    def _check(self, inp, out, enc, optional_quotes):
+        out2 = out
+        if optional_quotes:
+            out2 = out2[1:-1]
+        self.failUnlessReallyEqual(quote_output(inp, encoding=enc), out)
+        self.failUnlessReallyEqual(quote_output(inp, encoding=enc, quotemarks=False), out2)
+        if out[0:2] != 'b"':
+            if isinstance(inp, str):
+                self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc), out)
+                self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quotemarks=False), out2)
+            else:
+                self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc), out)
+                self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quotemarks=False), out2)
+
+    def _test_quote_output_all(self, enc):
+        def check(inp, out, optional_quotes=False):
+            self._check(inp, out, enc, optional_quotes)
+
+        # optional single quotes
+        check("foo",  "'foo'",  True)
+        check("\\",   "'\\'",   True)
+        check("$\"`", "'$\"`'", True)
+
+        # mandatory single quotes
+        check("\"",   "'\"'")
+
+        # double quotes
+        check("'",    "\"'\"")
+        check("\n",   "\"\\x0a\"")
+        check("\x00", "\"\\x00\"")
+
+        # invalid Unicode and astral planes
+        check(u"\uFDD0\uFDEF",       "\"\\ufdd0\\ufdef\"")
+        check(u"\uDC00\uD800",       "\"\\udc00\\ud800\"")
+        check(u"\uDC00\uD800\uDC00", "\"\\udc00\\U00010000\"")
+        check(u"\uD800\uDC00",       "\"\\U00010000\"")
+        check(u"\uD800\uDC01",       "\"\\U00010001\"")
+        check(u"\uD801\uDC00",       "\"\\U00010400\"")
+        check(u"\uDBFF\uDFFF",       "\"\\U0010ffff\"")
+        check(u"'\uDBFF\uDFFF",      "\"'\\U0010ffff\"")
+        check(u"\"\uDBFF\uDFFF",     "\"\\\"\\U0010ffff\"")
+
+        # invalid UTF-8
+        check("\xFF",                "b\"\\xff\"")
+        check("\x00\"$\\`\x80\xFF",  "b\"\\x00\\\"\\$\\\\\\`\\x80\\xff\"")
+
+    def test_quote_output_ascii(self, enc='ascii'):
+        def check(inp, out, optional_quotes=False):
+            self._check(inp, out, enc, optional_quotes)
+
+        self._test_quote_output_all(enc)
+        check(u"\u00D7",   "\"\\xd7\"")
+        check(u"'\u00D7",  "\"'\\xd7\"")
+        check(u"\"\u00D7", "\"\\\"\\xd7\"")
+        check(u"\u2621",   "\"\\u2621\"")
+        check(u"'\u2621",  "\"'\\u2621\"")
+        check(u"\"\u2621", "\"\\\"\\u2621\"")
+
+    def test_quote_output_latin1(self, enc='latin1'):
+        def check(inp, out, optional_quotes=False):
+            self._check(inp, out.encode('latin1'), enc, optional_quotes)
+
+        self._test_quote_output_all(enc)
+        check(u"\u00D7",   u"'\u00D7'", True)
+        check(u"'\u00D7",  u"\"'\u00D7\"")
+        check(u"\"\u00D7", u"'\"\u00D7'")
+        check(u"\u00D7\"", u"'\u00D7\"'", True)
+        check(u"\u2621",   u"\"\\u2621\"")
+        check(u"'\u2621",  u"\"'\\u2621\"")
+        check(u"\"\u2621", u"\"\\\"\\u2621\"")
+
+    def test_quote_output_utf8(self, enc='utf-8'):
+        def check(inp, out, optional_quotes=False):
+            self._check(inp, out.encode('utf-8'), enc, optional_quotes)
+
+        self._test_quote_output_all(enc)
+        check(u"\u2621",   u"'\u2621'", True)
+        check(u"'\u2621",  u"\"'\u2621\"")
+        check(u"\"\u2621", u"'\"\u2621'")
+        check(u"\u2621\"", u"'\u2621\"'", True)
+
+    @patch('sys.stdout')
+    def test_quote_output_mock(self, mock_stdout):
+        mock_stdout.encoding = 'ascii'
+        _reload()
+        self.test_quote_output_ascii(None)
+
+        mock_stdout.encoding = 'latin1'
+        _reload()
+        self.test_quote_output_latin1(None)
+
+        mock_stdout.encoding = 'utf-8'
+        _reload()
+        self.test_quote_output_utf8(None)
 
 
 class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
