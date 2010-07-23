@@ -1,10 +1,10 @@
 
-= Tahoe Directory Nodes =
+= Tahoe-LAFS Directory Nodes =
 
-As explained in the architecture docs, Tahoe can be roughly viewed as a
-collection of three layers. The lowest layer is the distributed filestore, or
-DHT: it provides operations that accept files and upload them to the mesh,
-creating a URI in the process which securely references the file's contents.
+As explained in the architecture docs, Tahoe-LAFS can be roughly viewed as
+a collection of three layers. The lowest layer is the key-value store: it
+provides operations that accept files and upload them to the mesh, creating
+a URI in the process which securely references the file's contents.
 The middle layer is the filesystem, creating a structure of directories and
 filenames resembling the traditional unix/windows filesystems. The top layer
 is the application layer, which uses the lower layers to provide useful
@@ -13,11 +13,11 @@ friends.
 
 This document examines the middle layer, the "filesystem".
 
-== DHT Primitives ==
+== Key-value Store Primitives ==
 
-In the lowest layer (DHT), there are two operations that reference immutable
-data (which we refer to as "CHK URIs" or "CHK read-capabilities" or "CHK
-read-caps"). One puts data into the grid (but only if it doesn't exist
+In the lowest layer (key-value store), there are two operations that reference
+immutable data (which we refer to as "CHK URIs" or "CHK read-capabilities" or
+"CHK read-caps"). One puts data into the grid (but only if it doesn't exist
 already), the other retrieves it:
 
  chk_uri = put(data)
@@ -39,9 +39,10 @@ organize the data that they have uploaded into the mesh. The traditional way
 to do this in computer filesystems is to put this data into files, give those
 files names, and collect these names into directories.
 
-Each directory is a series of name-value pairs, which maps "child name" to an
-object of some kind. Those child objects might be files, or they might be
-other directories.
+Each directory is a set of name-entry pairs, each of which maps a "child name"
+to a directory entry pointing to an object of some kind. Those child objects
+might be files, or they might be other directories. Each directory entry also
+contains metadata.
 
 The directory structure is therefore a directed graph of nodes, in which each
 node might be a directory node or a file node. All file nodes are terminal
@@ -70,18 +71,18 @@ consistency are opposing, so it is not possible to achieve #5 and #8 at the
 same time. Moreover, it takes a more complex architecture to get close to the
 available-and-consistent ideal, so #2/#6 is in opposition to #5/#8.
 
-Tahoe-0.7.0 introduced distributed mutable files, which use public key
+Tahoe-LAFS v0.7.0 introduced distributed mutable files, which use public-key
 cryptography for integrity, and erasure coding for availability. These
 achieve roughly the same properties as immutable CHK files, but their
 contents can be replaced without changing their identity. Dirnodes are then
 just a special way of interpreting the contents of a specific mutable file.
 Earlier releases used a "vdrive server": this server was abolished in the
-0.7.0 release.
+v0.7.0 release.
 
 For details of how mutable files work, please see "mutable.txt" in this
 directory.
 
-For the current 0.7.0 release, we achieve most of our desired properties. The
+For releases since v0.7.0, we achieve most of our desired properties. The
 integrity and availability of dirnodes is equivalent to that of regular
 (immutable) files, with the exception that there are more simultaneous-update
 failure modes for mutable slots. Delegation is quite strong: you can give
@@ -127,26 +128,27 @@ is a read-capability URI, both for the same dirnode.
 
 == Dirnode storage format ==
 
-Each dirnode is stored in a single mutable file, distributed in the Tahoe
+Each dirnode is stored in a single mutable file, distributed in the Tahoe-LAFS
 grid. The contents of this file are a serialized list of netstrings, one per
 child. Each child is a list of four netstrings: (name, rocap, rwcap,
-metadata). (remember that the contents of the mutable file are encrypted by
+metadata). (Remember that the contents of the mutable file are encrypted by
 the read-cap, so this section describes the plaintext contents of the mutable
-file, *after* it has been decrypted by the read-cap).
+file, *after* it has been decrypted by the read-cap.)
 
 The name is simple a UTF-8 -encoded child name. The 'rocap' is a read-only
 capability URI to that child, either an immutable (CHK) file, a mutable file,
-or a directory. The 'rwcap' is a read-write capability URI for that child,
-encrypted with the dirnode's write-cap: this enables the "transitive
-readonlyness" property, described further below. The 'metadata' is a
-JSON-encoded dictionary of type,value metadata pairs. Some metadata keys are
-pre-defined, the rest are left up to the application.
+or a directory. It is also possible to store 'unknown' URIs that are not
+recognized by the current version of Tahoe-LAFS. The 'rwcap' is a read-write
+capability URI for that child, encrypted with the dirnode's write-cap: this
+enables the "transitive readonlyness" property, described further below. The
+'metadata' is a JSON-encoded dictionary of type,value metadata pairs. Some
+metadata keys are pre-defined, the rest are left up to the application.
 
 Each rwcap is stored as IV + ciphertext + MAC. The IV is a 16-byte random
 value. The ciphertext is obtained by using AES in CTR mode on the rwcap URI
 string, using a key that is formed from a tagged hash of the IV and the
-dirnode's writekey. The MAC is a 32-byte SHA-256 -based HMAC (using that same
-AES key) over the (IV+ciphertext) pair.
+dirnode's writekey. The MAC is written only for compatibility with older
+Tahoe-LAFS versions and is no longer verified.
 
 If Bob has read-only access to the 'bar' directory, and he adds it as a child
 to the 'foo' directory, then he will put the read-only cap for 'bar' in both
@@ -379,7 +381,7 @@ to be deleted.
 
 Any client can record the URI of a directory node in some external form (say,
 in a local file) and use it as the starting point of later traversal. Each
-Tahoe user is expected to create a new (unattached) dirnode when they first
+Tahoe-LAFS user is expected to create a new (unattached) dirnode when they first
 start using the grid, and record its URI for later use.
 
 == Mounting and Sharing Directories ==
