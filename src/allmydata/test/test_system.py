@@ -1270,7 +1270,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         # exercise some of the diagnostic tools in runner.py
 
         # find a share
-        for (dirpath, dirnames, filenames) in os.walk(self.basedir):
+        for (dirpath, dirnames, filenames) in os.walk(unicode(self.basedir)):
             if "storage" not in dirpath:
                 continue
             if not filenames:
