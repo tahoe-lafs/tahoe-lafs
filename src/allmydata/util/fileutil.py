@@ -295,7 +295,7 @@ def abspath_expanduser_unicode(path):
         # e.g. "\\". See <http://bugs.python.org/issue1669539>.
         try:
             path = _getfullpathname(path or u".")
-        except WindowsError:
+        except OSError:
             pass
 
     if not os.path.isabs(path):
