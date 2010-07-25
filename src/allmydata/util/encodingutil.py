@@ -13,7 +13,7 @@ from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
-def _canonical_encoding(encoding):
+def canonical_encoding(encoding):
     if encoding is None:
         log.msg("Warning: falling back to UTF-8 encoding.", level=log.WEIRD)
         encoding = 'utf-8'
@@ -23,14 +23,15 @@ def _canonical_encoding(encoding):
     elif encoding == "us-ascii" or encoding == "646" or encoding == "ansi_x3.4-1968":
         encoding = 'ascii'
 
+    return encoding
+
+def check_encoding(encoding):
     # sometimes Python returns an encoding name that it doesn't support for conversion
     # fail early if this happens
     try:
         u"test".encode(encoding)
     except (LookupError, AttributeError):
         raise AssertionError("The character encoding '%s' is not supported for conversion." % (encoding,))
-
-    return encoding
 
 filesystem_encoding = None
 output_encoding = None
@@ -40,23 +41,27 @@ is_unicode_platform = False
 def _reload():
     global filesystem_encoding, output_encoding, argv_encoding, is_unicode_platform
 
-    filesystem_encoding = _canonical_encoding(sys.getfilesystemencoding())
-
-    outenc = None
-    if hasattr(sys.stdout, 'encoding'):
-        outenc = sys.stdout.encoding
-    if outenc is None:
-        try:
-            outenc = locale.getpreferredencoding()
-        except Exception:
-            pass  # work around <http://bugs.python.org/issue1443504>
-    output_encoding = _canonical_encoding(outenc)
+    filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
+    check_encoding(filesystem_encoding)
 
     if sys.platform == 'win32':
-        # Unicode arguments are not supported on Windows yet; see #565 and #1074.
-        argv_encoding = 'ascii'
+        # On Windows we install UTF-8 stream wrappers for sys.stdout and
+        # sys.stderr, and reencode the arguments as UTF-8 (see scripts/runner.py).
+        output_encoding = 'utf-8'
     else:
-        argv_encoding = output_encoding
+        outenc = None
+        if hasattr(sys.stdout, 'encoding'):
+            outenc = sys.stdout.encoding
+        if outenc is None:
+            try:
+                outenc = locale.getpreferredencoding()
+            except Exception:
+                pass  # work around <http://bugs.python.org/issue1443504>
+        output_encoding = canonical_encoding(outenc)
+
+    check_encoding(output_encoding)
+    argv_encoding = output_encoding
+
     is_unicode_platform = sys.platform in ["win32", "darwin"]
 
 _reload()

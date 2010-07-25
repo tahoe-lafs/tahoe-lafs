@@ -10,6 +10,7 @@ import allmydata
 pkg_resources.require(allmydata.__appname__)
 from allmydata.scripts.common import BaseOptions
 from allmydata.scripts import debug, create_node, startstop_node, cli, keygen, stats_gatherer
+from allmydata.util.encodingutil import quote_output, get_argv_encoding
 
 def GROUP(s):
     # Usage.parseOptions compares argv[1] against command[0], so it will
@@ -19,7 +20,7 @@ def GROUP(s):
 
 
 class Options(BaseOptions, usage.Options):
-    synopsis = "Usage:  tahoe <command> [command options]"
+    synopsis = "\nUsage:  tahoe <command> [command options]"
     subCommands = ( GROUP("Administration")
                     +   create_node.subCommands
                     +   keygen.subCommands
@@ -42,8 +43,12 @@ class Options(BaseOptions, usage.Options):
 
 def runner(argv,
            run_by_human=True,
-           stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr,
+           stdin=None, stdout=None, stderr=None,
            install_node_control=True, additional_commands=None):
+
+    stdin  = stdin  or sys.stdin
+    stdout = stdout or sys.stdout
+    stderr = stderr or sys.stderr
 
     config = Options()
     if install_node_control:
@@ -63,8 +68,12 @@ def runner(argv,
         c = config
         while hasattr(c, 'subOptions'):
             c = c.subOptions
-        print str(c)
-        print "%s:  %s" % (sys.argv[0], e)
+        print >>stdout, str(c)
+        try:
+            msg = e.args[0].decode(get_argv_encoding())
+        except Exception:
+            msg = repr(e)
+        print >>stdout, "%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False))
         return 1
 
     command = config.subCommand
@@ -99,6 +108,11 @@ def runner(argv,
 
     return rc
 
+
 def run(install_node_control=True):
-    rc = runner(sys.argv[1:])
+    if sys.platform == "win32":
+        from allmydata.windows.fixups import initialize
+        initialize()
+
+    rc = runner(sys.argv[1:], install_node_control=install_node_control)
     sys.exit(rc)

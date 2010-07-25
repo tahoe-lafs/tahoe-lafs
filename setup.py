@@ -235,54 +235,46 @@ class MakeExecutable(Command):
     def run(self):
         bin_tahoe_template = os.path.join("bin", "tahoe-script.template")
 
-        # Create the 'tahoe-script.py' file under the 'bin' directory. The
-        # 'tahoe-script.py' file is exactly the same as the
-        # 'tahoe-script.template' script except that the shebang line is
-        # rewritten to use our sys.executable for the interpreter. On
-        # Windows, create a tahoe.exe will execute it. On non-Windows, make a
-        # symlink to it from 'tahoe'. The tahoe.exe will be copied from the
-        # setuptools egg's cli.exe and this will work from a zip-safe and
-        # non-zip-safe setuptools egg.
+        if sys.platform == 'win32':
+            # 'tahoe' script is needed for cygwin
+            script_names = ["tahoe.pyscript", "tahoe"]
+        else:
+            script_names = ["tahoe"]
+
+        # Create the tahoe script file under the 'bin' directory. This
+        # file is exactly the same as the 'tahoe-script.template' script
+        # except that the shebang line is rewritten to use our sys.executable
+        # for the interpreter.
         f = open(bin_tahoe_template, "rU")
         script_lines = f.readlines()
         f.close()
-        script_lines[0] = "#!%s\n" % sys.executable
-        tahoe_script = os.path.join("bin", "tahoe-script.py")
-        f = open(tahoe_script, "w")
-        for line in script_lines:
-            f.write(line)
-        f.close()
-        if sys.platform == "win32":
-            from pkg_resources import require
-            setuptools_egg = require("setuptools")[0].location
-            if os.path.isfile(setuptools_egg):
-                z = zipfile.ZipFile(setuptools_egg, 'r')
-                for filename in z.namelist():
-                    if 'cli.exe' in filename:
-                        cli_exe = z.read(filename)
-            else:
-                cli_exe = os.path.join(setuptools_egg, 'setuptools', 'cli.exe')
-            tahoe_exe = os.path.join("bin", "tahoe.exe")
-            if os.path.isfile(setuptools_egg):
-                f = open(tahoe_exe, 'wb')
-                f.write(cli_exe)
-                f.close()
-            else:
-                shutil.copy(cli_exe, tahoe_exe)
-        else:
+        script_lines[0] = '#!%s\n' % (sys.executable,)
+        for script_name in script_names:
+            tahoe_script = os.path.join("bin", script_name)
             try:
-                os.remove(os.path.join('bin', 'tahoe'))
-            except:
-                # okay, probably it was already gone
-                pass
-            os.symlink('tahoe-script.py', os.path.join('bin', 'tahoe'))
+                os.remove(tahoe_script)
+            except Exception:
+                if os.path.exists(tahoe_script):
+                   raise
+            f = open(tahoe_script, "wb")
+            for line in script_lines:
+                f.write(line)
+            f.close()
 
-        # chmod +x bin/tahoe-script.py
-        old_mode = stat.S_IMODE(os.stat(tahoe_script)[stat.ST_MODE])
-        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
-                               stat.S_IXGRP | stat.S_IRGRP |
-                               stat.S_IXOTH | stat.S_IROTH )
-        os.chmod(tahoe_script, new_mode)
+            # chmod +x
+            old_mode = stat.S_IMODE(os.stat(tahoe_script)[stat.ST_MODE])
+            new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
+                                   stat.S_IXGRP | stat.S_IRGRP |
+                                   stat.S_IXOTH | stat.S_IROTH )
+            os.chmod(tahoe_script, new_mode)
+
+        old_tahoe_exe = os.path.join("bin", "tahoe.exe")
+        try:
+            os.remove(old_tahoe_exe)
+        except Exception:
+            if os.path.exists(old_tahoe_exe):
+                raise
+
 
 class MySdist(sdist.sdist):
     """ A hook in the sdist command so that we can determine whether this the

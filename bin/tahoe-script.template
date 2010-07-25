@@ -5,12 +5,17 @@ import errno, sys, os, subprocess
 where = os.path.realpath(sys.argv[0])
 base = os.path.dirname(os.path.dirname(where))
 
+if sys.platform == "win32":
+    installed_tahoe = os.path.join(os.path.dirname(sys.executable), 'Scripts', 'tahoe.pyscript')
+else:
+    installed_tahoe = "/usr/bin/tahoe"
+
 whoami = '''\
-I am a "bin/tahoe" executable who is only for the convenience of running
+I am a "bin%stahoe" executable who is only for the convenience of running
 Tahoe from its source distribution -- I work only when invoked as the "tahoe"
 script that lives in the "bin/" subdirectory of a Tahoe source code
 distribution, and only if you have already run "make".
-'''
+''' % (os.path.sep,)
 
 # look for Tahoe.home .
 homemarker = os.path.join(base, "Tahoe.home")
@@ -19,9 +24,9 @@ if not os.path.exists(homemarker):
     print '''\
 I just tried to run and found that I am not living in such a directory, so I
 am stopping now. To run Tahoe after it has been is installed, please execute
-my brother, also named "tahoe", who gets installed into the appropriate place
-for executables when you run "make install" (perhaps as /usr/bin/tahoe).
-'''
+my brother, who gets installed into the appropriate place for executables
+when you run "make install" (perhaps as "%s").
+''' % (installed_tahoe,)
     sys.exit(1)
 
 # we've found our home. Put the tahoe support/lib etc. in our PYTHONPATH.
@@ -41,30 +46,50 @@ else:
     pp = supportdir
 os.environ["PYTHONPATH"] = pp
 
-# find the location of the tahoe executable.
-bin_dir = "bin"
+# find commandline args and the location of the tahoe executable.
 if sys.platform == "win32":
-    bin_dir = "Scripts"
-executable = os.path.join(base, "support", bin_dir, "tahoe")
+    import re
+    from ctypes import WINFUNCTYPE, POINTER, byref, c_wchar_p, c_int, windll
+
+    GetCommandLineW = WINFUNCTYPE(c_wchar_p)(("GetCommandLineW", windll.kernel32))
+    CommandLineToArgvW = WINFUNCTYPE(POINTER(c_wchar_p), c_wchar_p, POINTER(c_int)) \
+                            (("CommandLineToArgvW", windll.shell32))
+
+    argc = c_int(0)
+    argv_unicode = CommandLineToArgvW(GetCommandLineW(), byref(argc))
+
+    # See src/allmydata/scripts/runner.py for the corresponding unmangler.
+    # Note that this doesn't escape \x7F. If it did, test_unicode_arguments_and_output
+    # in test_runner.py wouldn't work.
+    def mangle(s):
+        return str(re.sub(ur'[^\x20-\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
+
+    argv = [mangle(argv_unicode[i]) for i in xrange(1, argc.value)]
+    local_tahoe = "Scripts\\tahoe.pyscript"
+else:
+    argv = sys.argv
+    local_tahoe = "bin/tahoe"
+
+script = os.path.join(base, "support", local_tahoe)
 
 try:
-    res = subprocess.call([executable] + sys.argv[1:], env=os.environ)
+    res = subprocess.call([sys.executable, script] + argv[1:], env=os.environ)
 except (OSError, IOError), le:
     if le.args[0] == errno.ENOENT:
         print whoami
         print '''\
-I just tried to run and could not find my brother, named
-"../support/bin/tahoe". To run Tahoe when it is installed, please execute my
-brother, also named "tahoe", who gets installed into the appropriate place
-for executables when you run "make install" (perhaps as /usr/bin/tahoe).
-'''
+I just tried to run and could not find my brother at
+"%s". To run Tahoe when it is installed, please execute my
+brother, who gets installed into the appropriate place for executables
+when you run "make install" (perhaps as "%s").
+''' % (script, installed_tahoe)
         raise
 except Exception, le:
     print whoami
     print '''\
-I just tried to invoke my brother, named "../support/bin/tahoe" and got an
-exception.
-'''
+I just tried to invoke my brother at "%s"
+and got an exception.
+''' % (script,)
     raise
 else:
     sys.exit(res)

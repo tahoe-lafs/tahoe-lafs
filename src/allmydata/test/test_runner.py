@@ -7,6 +7,7 @@ from twisted.internet import utils
 import os.path, re, sys
 from cStringIO import StringIO
 from allmydata.util import fileutil, pollmixin
+from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output
 from allmydata.scripts import runner
 
 from allmydata.test import common_util
@@ -44,6 +45,24 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
             required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, allmydata.__version__, ad)
             self.failUnless(out.startswith(required_ver_and_path),
                             str((out, err, rc_or_sig, required_ver_and_path)))
+        d.addCallback(_cb)
+        return d
+
+    def test_unicode_arguments_and_output(self):
+        self.skip_if_cannot_run_bintahoe()
+
+        tricky = u"\u2621"
+        try:
+            tricky_arg = unicode_to_argv(tricky, mangle=True)
+            tricky_out = unicode_to_output(tricky)
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII argument/output could not be encoded on this platform.")
+
+        d = utils.getProcessOutputAndValue(bintahoe, args=[tricky_arg], env=os.environ)
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 1, str((out, err, rc_or_sig)))
+            self.failUnlessIn("Unknown command: "+tricky_out, out)
         d.addCallback(_cb)
         return d
 

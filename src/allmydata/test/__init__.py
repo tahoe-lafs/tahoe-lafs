@@ -24,3 +24,8 @@ def disable_foolscap_incidents():
 
 # we disable incident reporting for all unit tests.
 disable_foolscap_incidents()
+
+import sys
+if sys.platform == "win32":
+    from allmydata.windows.fixups import initialize
+    initialize()

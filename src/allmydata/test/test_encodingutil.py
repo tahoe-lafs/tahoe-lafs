@@ -21,17 +21,23 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         print "Usage: %s lumi<e-grave>re" % sys.argv[0]
         sys.exit(1)
-    
+
+    if sys.platform == "win32":
+        try:
+            from allmydata.windows.fixups import initialize
+        except ImportError:
+            print "set PYTHONPATH to the src directory"
+            sys.exit(1)
+        initialize()
+
     print
     print "class MyWeirdOS(EncodingUtil, unittest.TestCase):"
     print "    uname = '%s'" % ' '.join(platform.uname())
-    if sys.platform != "win32":
-        print "    argv = %s" % repr(sys.argv[1])
+    print "    argv = %s" % repr(sys.argv[1])
     print "    platform = '%s'" % sys.platform
     print "    filesystem_encoding = '%s'" % sys.getfilesystemencoding()
     print "    output_encoding = '%s'" % sys.stdout.encoding
-    print "    argv_encoding = '%s'" % (sys.platform == "win32" and 'ascii' or sys.stdout.encoding)
-
+    print "    argv_encoding = '%s'" % sys.stdout.encoding
     try:
         tmpdir = tempfile.mkdtemp()
         for fname in TEST_FILENAMES:
@@ -56,6 +62,7 @@ from mock import patch
 import os, sys, locale
 
 from allmydata.test.common_util import ReallyEqualMixin
+from allmydata.util import encodingutil
 from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
     unicode_to_output, quote_output, unicode_platform, listdir_unicode, \
     FilenameEncodingError, get_output_encoding, get_filesystem_encoding, _reload
@@ -64,8 +71,6 @@ from allmydata.dirnode import normalize
 from twisted.python import usage
 
 class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
-    def tearDown(self):
-        _reload()
 
     @patch('sys.stdout')
     def test_get_output_encoding(self, mock_stdout):
@@ -78,11 +83,16 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(get_output_encoding(), 'utf-8')
 
         mock_stdout.encoding = 'koi8-r'
+        expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
         _reload()
-        self.failUnlessReallyEqual(get_output_encoding(), 'koi8-r')
+        self.failUnlessReallyEqual(get_output_encoding(), expected)
 
         mock_stdout.encoding = 'nonexistent_encoding'
-        self.failUnlessRaises(AssertionError, _reload)
+        if sys.platform == "win32":
+            _reload()
+            self.failUnlessReallyEqual(get_output_encoding(), 'utf-8')
+        else:
+            self.failUnlessRaises(AssertionError, _reload)
 
     @patch('locale.getpreferredencoding')
     def test_get_output_encoding_not_from_stdout(self, mock_locale_getpreferredencoding):
@@ -94,12 +104,13 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
         old_stdout = sys.stdout
         sys.stdout = DummyStdout()
         try:
+            expected = sys.platform == "win32" and 'utf-8' or 'koi8-r'
             _reload()
-            self.failUnlessReallyEqual(get_output_encoding(), 'koi8-r')
+            self.failUnlessReallyEqual(get_output_encoding(), expected)
 
             sys.stdout.encoding = None
             _reload()
-            self.failUnlessReallyEqual(get_output_encoding(), 'koi8-r')
+            self.failUnlessReallyEqual(get_output_encoding(), expected)
 
             mock_locale_getpreferredencoding.return_value = None
             _reload()
@@ -107,20 +118,14 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
         finally:
             sys.stdout = old_stdout
 
-    @patch('sys.stdout')
-    def test_argv_to_unicode(self, mock):
-        mock.encoding = 'utf-8'
-        _reload()
-
+    def test_argv_to_unicode(self):
+        encodingutil.output_encoding = 'utf-8'
         self.failUnlessRaises(usage.UsageError,
                               argv_to_unicode,
                               lumiere_nfc.encode('latin1'))
 
-    @patch('sys.stdout')
-    def test_unicode_to_output(self, mock):
-        # Encoding koi8-r cannot represent e-grave
-        mock.encoding = 'koi8-r'
-        _reload()
+    def test_unicode_to_output(self):
+        encodingutil.output_encoding = 'koi8-r'
         self.failUnlessRaises(UnicodeEncodeError, unicode_to_output, lumiere_nfc)
 
     @patch('os.listdir')
@@ -171,9 +176,9 @@ class EncodingUtilNonUnicodePlatform(unittest.TestCase):
                               listdir_unicode,
                               u'/' + lumiere_nfc)
 
+
 class EncodingUtil(ReallyEqualMixin):
     def setUp(self):
-        # Mock sys.platform because unicode_platform() uses it
         self.original_platform = sys.platform
         sys.platform = self.platform
 
@@ -197,12 +202,12 @@ class EncodingUtil(ReallyEqualMixin):
 
     @patch('sys.stdout')
     def test_unicode_to_output(self, mock):
-        if 'output' not in dir(self):
+        if 'argv' not in dir(self):
             return
 
         mock.encoding = self.output_encoding
         _reload()
-        self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.output)
+        self.failUnlessReallyEqual(unicode_to_output(lumiere_nfc), self.argv)
 
     def test_unicode_platform(self):
         matrix = {
@@ -287,19 +292,23 @@ class StdlibUnicode(unittest.TestCase):
 
 
 class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
+    def tearDown(self):
+        _reload()
+
     def _check(self, inp, out, enc, optional_quotes):
         out2 = out
         if optional_quotes:
             out2 = out2[1:-1]
         self.failUnlessReallyEqual(quote_output(inp, encoding=enc), out)
         self.failUnlessReallyEqual(quote_output(inp, encoding=enc, quotemarks=False), out2)
-        if out[0:2] != 'b"':
-            if isinstance(inp, str):
-                self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc), out)
-                self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quotemarks=False), out2)
-            else:
-                self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc), out)
-                self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quotemarks=False), out2)
+        if out[0:2] == 'b"':
+            pass
+        elif isinstance(inp, str):
+            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc), out)
+            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quotemarks=False), out2)
+        else:
+            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc), out)
+            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quotemarks=False), out2)
 
     def _test_quote_output_all(self, enc):
         def check(inp, out, optional_quotes=False):
@@ -368,24 +377,19 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check(u"\"\u2621", u"'\"\u2621'")
         check(u"\u2621\"", u"'\u2621\"'", True)
 
-    @patch('sys.stdout')
-    def test_quote_output_mock(self, mock_stdout):
-        mock_stdout.encoding = 'ascii'
-        _reload()
+    def test_quote_output_default(self):
+        encodingutil.output_encoding = 'ascii'
         self.test_quote_output_ascii(None)
 
-        mock_stdout.encoding = 'latin1'
-        _reload()
+        encodingutil.output_encoding = 'latin1'
         self.test_quote_output_latin1(None)
 
-        mock_stdout.encoding = 'utf-8'
-        _reload()
+        encodingutil.output_encoding = 'utf-8'
         self.test_quote_output_utf8(None)
 
 
 class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
     uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
-    output = 'lumi\xc3\xa8re'
     argv = 'lumi\xc3\xa8re'
     platform = 'linux2'
     filesystem_encoding = 'UTF-8'
@@ -395,7 +399,6 @@ class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
 
 class UbuntuKarmicLatin1(EncodingUtil, unittest.TestCase):
     uname = 'Linux korn 2.6.31-14-generic #48-Ubuntu SMP Fri Oct 16 14:05:01 UTC 2009 x86_64'
-    output = 'lumi\xe8re'
     argv = 'lumi\xe8re'
     platform = 'linux2'
     filesystem_encoding = 'ISO-8859-1'
@@ -403,37 +406,18 @@ class UbuntuKarmicLatin1(EncodingUtil, unittest.TestCase):
     argv_encoding = 'ISO-8859-1'
     dirlist = ['test_file', 'Blah blah.txt', '\xc4rtonwall.mp3']
 
-class WindowsXP(EncodingUtil, unittest.TestCase):
+class Windows(EncodingUtil, unittest.TestCase):
     uname = 'Windows XP 5.1.2600 x86 x86 Family 15 Model 75 Step ping 2, AuthenticAMD'
-    output = 'lumi\x8are'
+    argv = 'lumi\xc3\xa8re'
     platform = 'win32'
     filesystem_encoding = 'mbcs'
-    output_encoding = 'cp850'
-    argv_encoding = 'ascii'
-    dirlist = [u'Blah blah.txt', u'test_file', u'\xc4rtonwall.mp3']
-
-class WindowsXP_UTF8(EncodingUtil, unittest.TestCase):
-    uname = 'Windows XP 5.1.2600 x86 x86 Family 15 Model 75 Step ping 2, AuthenticAMD'
-    output = 'lumi\xc3\xa8re'
-    platform = 'win32'
-    filesystem_encoding = 'mbcs'
-    output_encoding = 'cp65001'
-    argv_encoding = 'ascii'
-    dirlist = [u'Blah blah.txt', u'test_file', u'\xc4rtonwall.mp3']
-
-class WindowsVista(EncodingUtil, unittest.TestCase):
-    uname = 'Windows Vista 6.0.6000 x86 x86 Family 6 Model 15 Stepping 11, GenuineIntel'
-    output = 'lumi\x8are'
-    platform = 'win32'
-    filesystem_encoding = 'mbcs'
-    output_encoding = 'cp850'
-    argv_encoding = 'ascii'
+    output_encoding = 'utf-8'
+    argv_encoding = 'utf-8'
     dirlist = [u'Blah blah.txt', u'test_file', u'\xc4rtonwall.mp3']
 
 class MacOSXLeopard(EncodingUtil, unittest.TestCase):
     uname = 'Darwin g5.local 9.8.0 Darwin Kernel Version 9.8.0: Wed Jul 15 16:57:01 PDT 2009; root:xnu-1228.15.4~1/RELEASE_PPC Power Macintosh powerpc'
     output = 'lumi\xc3\xa8re'
-    argv = 'lumi\xc3\xa8re'
     platform = 'darwin'
     filesystem_encoding = 'utf-8'
     output_encoding = 'UTF-8'
