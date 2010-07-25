@@ -305,8 +305,8 @@ class Node(service.MultiService):
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
-        self.tub.setOption("logport-furlfile",
-                           os.path.join(self.basedir, "private","logport.furl"))
+        lgfurl_file = os.path.join(self.basedir, "private", "logport.furl").encode(get_filesystem_encoding())
+        self.tub.setOption("logport-furlfile", lgfurl_file)
         lgfurl = self.get_config("node", "log_gatherer.furl", "")
         if lgfurl:
             # this is in addition to the contents of log-gatherer-furlfile

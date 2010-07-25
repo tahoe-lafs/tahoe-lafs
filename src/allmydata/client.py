@@ -17,6 +17,7 @@ from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, pollmixin, cachedir, log
+from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.stats import StatsProvider
@@ -261,7 +262,7 @@ class Client(node.Node, pollmixin.PollMixin):
         d = self.when_tub_ready()
         # we can't do registerReference until the Tub is ready
         def _publish(res):
-            furl_file = os.path.join(self.basedir, "private", "storage.furl")
+            furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
             furl = self.tub.registerReference(ss, furlFile=furl_file)
             ri_name = RIStorageServer.__remote_name__
             self.introducer_client.publish(furl, "storage", ri_name)
@@ -373,7 +374,7 @@ class Client(node.Node, pollmixin.PollMixin):
             # same, since that makes 'cp' work smoothly, but the difference
             # between config inputs and generated outputs is hard to see.
             helper_furlfile = os.path.join(self.basedir,
-                                           "private", "helper.furl")
+                                           "private", "helper.furl").encode(get_filesystem_encoding())
             self.tub.registerReference(self.helper, furlFile=helper_furlfile)
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",

@@ -33,7 +33,7 @@ from twisted.python import usage
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, unicode_platform, \
     quote_output, get_output_encoding, get_argv_encoding, get_filesystem_encoding, \
-    unicode_to_output, to_str, to_argv
+    unicode_to_output, unicode_to_argv, to_str
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
@@ -775,7 +775,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
 
         rel_fn = os.path.join(self.basedir, "DATAFILE")
-        abs_fn = to_argv(abspath_expanduser_unicode(unicode(rel_fn)))
+        abs_fn = unicode_to_argv(abspath_expanduser_unicode(unicode(rel_fn)))
         # we make the file small enough to fit in a LIT file, for speed
         fileutil.write(rel_fn, "short file")
         d = self.do_cli("put", rel_fn)

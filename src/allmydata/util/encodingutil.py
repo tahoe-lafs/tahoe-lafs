@@ -99,6 +99,21 @@ def argv_to_abspath(s):
     """
     return abspath_expanduser_unicode(argv_to_unicode(s))
 
+def unicode_to_argv(s, mangle=False):
+    """
+    Encode the given Unicode argument as a bytestring.
+    If the argument is to be passed to a different process, then the 'mangle' argument
+    should be true; on Windows, this uses a mangled encoding that will be reversed by
+    code in runner.py.
+    """
+    precondition(isinstance(s, unicode), s)
+
+    if mangle and sys.platform == "win32":
+        # This must be the same as 'mangle' in bin/tahoe-script.template.
+        return str(re.sub(ur'[^\x20-\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
+    else:
+        return s.encode(argv_encoding)
+
 def unicode_to_url(s):
     """
     Encode an unicode object used in an URL.
@@ -114,11 +129,6 @@ def to_str(s):
     if s is None or isinstance(s, str):
         return s
     return s.encode('utf-8')
-
-def to_argv(s):
-    if isinstance(s, str):
-        return s
-    return s.encode(argv_encoding)
 
 PRINTABLE_ASCII = re.compile(r'^[\n\r\x20-\x7E]*$',          re.DOTALL)
 PRINTABLE_8BIT  = re.compile(r'^[\n\r\x20-\x7E\x80-\xFF]*$', re.DOTALL)

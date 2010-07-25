@@ -12,7 +12,7 @@ from allmydata.immutable import offloaded, upload
 from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
-from allmydata.util.encodingutil import quote_output
+from allmydata.util.encodingutil import quote_output, unicode_to_argv, get_filesystem_encoding
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
 from allmydata.scripts import runner
@@ -1293,7 +1293,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
 
         out,err = StringIO(), StringIO()
         rc = runner.runner(["debug", "dump-share", "--offsets",
-                            filename],
+                            unicode_to_argv(filename)],
                            stdout=out, stderr=err)
         output = out.getvalue()
         self.failUnlessEqual(rc, 0)
@@ -1320,6 +1320,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         # 'find-shares' tool
         sharedir, shnum = os.path.split(filename)
         storagedir, storage_index_s = os.path.split(sharedir)
+        storage_index_s = str(storage_index_s)
         out,err = StringIO(), StringIO()
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
         cmd = ["debug", "find-shares", storage_index_s] + nodedirs
@@ -1355,8 +1356,9 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(self._test_control2, control_furl_file)
         return d
     def _test_control2(self, rref, filename):
-        d = rref.callRemote("upload_from_file_to_uri", filename, convergence=None)
-        downfile = os.path.join(self.basedir, "control.downfile")
+        d = rref.callRemote("upload_from_file_to_uri",
+                            filename.encode(get_filesystem_encoding()), convergence=None)
+        downfile = os.path.join(self.basedir, "control.downfile").encode(get_filesystem_encoding())
         d.addCallback(lambda uri:
                       rref.callRemote("download_from_uri_to_file",
                                       uri, downfile))
