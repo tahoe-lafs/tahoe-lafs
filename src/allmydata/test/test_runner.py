@@ -14,8 +14,8 @@ from allmydata.test import common_util
 import allmydata
 
 bintahoe = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(allmydata.__file__))), 'bin', 'tahoe')
-if sys.platform == "win32":  # TODO: should this include cygwin?
-    bintahoe += ".exe"
+if sys.platform == "win32":
+    bintahoe += ".pyscript"
 
 
 class SkipMixin:
