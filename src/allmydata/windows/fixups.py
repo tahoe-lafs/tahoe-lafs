@@ -152,7 +152,7 @@ def initialize():
             if real_stderr:
                 sys.stderr = UnicodeOutput(hStderr, None, STDERR_FILENO, '<Unicode console stderr>')
             else:
-                sys.stderr = UnicodeOutput(None, sys.stderr, old_stderr_fileno, '<Unicode redirected stdout>')
+                sys.stderr = UnicodeOutput(None, sys.stderr, old_stderr_fileno, '<Unicode redirected stderr>')
     except Exception, e:
         print >>original_stderr, "exception %r while fixing up sys.stdout and sys.stderr" % (e,)
         log.msg("exception %r while fixing up sys.stdout and sys.stderr" % (e,), log.WEIRD)
