@@ -9,6 +9,15 @@ def initialize():
     done = True
 
     original_stderr = sys.stderr
+
+    # If any exception occurs in this code, we'll probably try to print it on stderr,
+    # which makes for frustrating debugging if stderr is directed to our wrapper.
+    # So be paranoid about catching errors and reporting them to original_stderr,
+    # so that we can at least see them.
+    def _complain(message):
+        print >>original_stderr, isinstance(message, str) and message or repr(message)
+        log.msg(message, level=log.WEIRD)
+
     import codecs, re
     from ctypes import WINFUNCTYPE, windll, POINTER, byref, c_int
     from ctypes.wintypes import BOOL, HANDLE, DWORD, LPWSTR, LPCWSTR, LPVOID
@@ -78,11 +87,6 @@ def initialize():
             WriteConsoleW = WINFUNCTYPE(BOOL, HANDLE, LPWSTR, DWORD, POINTER(DWORD), LPVOID) \
                                 (("WriteConsoleW", windll.kernel32))
 
-            # If any exception occurs in this code, we'll probably try to print it on stderr,
-            # which makes for frustrating debugging if stderr is directed to this code.
-            # So be paranoid about catching errors and reporting them to original_stderr,
-            # so that we can at least see them.
-
             class UnicodeOutput:
                 def __init__(self, hConsole, stream, fileno, name):
                     self._hConsole = hConsole
@@ -94,7 +98,7 @@ def initialize():
                     self.encoding = 'utf-8'
                     self.name = name
                     if hasattr(stream, 'encoding') and canonical_encoding(stream.encoding) != 'utf-8':
-                        log.msg("%s (%r) had encoding %r, but we're going to write UTF-8 to it" %
+                        log.msg("%s: %r had encoding %r, but we're going to write UTF-8 to it" %
                                 (name, stream, stream.encoding), level=log.CURIOUS)
                     self.flush()
 
@@ -110,7 +114,7 @@ def initialize():
                         try:
                             self._stream.flush()
                         except Exception, e:
-                            print >>original_stderr, repr(e)
+                            _complain("%s.flush: %r from %r" % (self.name, e, self._stream))
                             raise
 
                 def write(self, text):
@@ -127,13 +131,12 @@ def initialize():
                                 n = DWORD(0)
                                 retval = WriteConsoleW(self._hConsole, text, remaining, byref(n), None)
                                 if retval == 0 or n.value == 0:
-                                    raise IOError("could not write to %s [WriteConsoleW returned %r, n.value = %r]"
-                                                  % (self.name, retval, n.value))
+                                    raise IOError("WriteConsoleW returned %r, n.value = %r" % (retval, n.value))
                                 remaining -= n.value
                                 if remaining == 0: break
                                 text = text[n.value:]
                     except Exception, e:
-                        print >>original_stderr, repr(e)
+                        _complain("%s.write: %r" % (self.name, e))
                         raise
 
                 def writelines(self, lines):
@@ -141,7 +144,7 @@ def initialize():
                         for line in lines:
                             self.write(line)
                     except Exception, e:
-                        print >>original_stderr, repr(e)
+                        _complain("%s.writelines: %r" % (self.name, e))
                         raise
 
             if real_stdout:
@@ -154,8 +157,7 @@ def initialize():
             else:
                 sys.stderr = UnicodeOutput(None, sys.stderr, old_stderr_fileno, '<Unicode redirected stderr>')
     except Exception, e:
-        print >>original_stderr, "exception %r while fixing up sys.stdout and sys.stderr" % (e,)
-        log.msg("exception %r while fixing up sys.stdout and sys.stderr" % (e,), log.WEIRD)
+        _complain("exception %r while fixing up sys.stdout and sys.stderr" % (e,))
 
     # Unmangle command-line arguments.
     GetCommandLineW = WINFUNCTYPE(LPWSTR)(("GetCommandLineW", windll.kernel32))
@@ -171,8 +173,8 @@ def initialize():
     try:
         sys.argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in xrange(1, argc.value)]
     except Exception, e:
-        print >>sys.stderr, "%s:  could not unmangle Unicode arguments" % (sys.argv[0],)
-        print >>sys.stderr, [argv_unicode[i] for i in xrange(1, argc.value)]
+        _complain("%s:  could not unmangle Unicode arguments.\n%r"
+                  % (sys.argv[0], [argv_unicode[i] for i in xrange(1, argc.value)]))
         raise
 
     if sys.argv[0].endswith('.pyscript'):
