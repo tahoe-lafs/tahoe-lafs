@@ -4,10 +4,7 @@
 """Run an arbitrary command with a PYTHONPATH that will include the Tahoe
 code, including dependent libraries. Run this like:
 
- python misc/run-with-pythonpath.py python foo.py
-or
- python misc/run-with-pythonpath.py trial -r poll allmydata.test.test_util
-
+ python misc/build_helpers/run-with-pythonpath.py python foo.py
 """
 
 import os, sys, subprocess
