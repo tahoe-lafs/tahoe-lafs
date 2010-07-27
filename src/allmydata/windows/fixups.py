@@ -159,7 +159,7 @@ def initialize():
     except Exception, e:
         _complain("exception %r while fixing up sys.stdout and sys.stderr" % (e,))
 
-    # Unmangle command-line arguments.
+    # This works around <http://bugs.python.org/issue2128>.
     GetCommandLineW = WINFUNCTYPE(LPWSTR)(("GetCommandLineW", windll.kernel32))
     CommandLineToArgvW = WINFUNCTYPE(POINTER(LPWSTR), LPCWSTR, POINTER(c_int)) \
                             (("CommandLineToArgvW", windll.shell32))
@@ -167,6 +167,10 @@ def initialize():
     argc = c_int(0)
     argv_unicode = CommandLineToArgvW(GetCommandLineW(), byref(argc))
 
+    # Because of <http://bugs.python.org/issue8775> (and similar limitations in
+    # twisted), the 'bin/tahoe' script cannot invoke us with the actual Unicode arguments.
+    # Instead it "mangles" or escapes them using \x7f as an escape character, which we
+    # unescape here.
     def unmangle(s):
         return re.sub(ur'\x7f[0-9a-fA-F]*\;', lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
 
