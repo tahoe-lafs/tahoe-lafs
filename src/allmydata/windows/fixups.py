@@ -169,17 +169,31 @@ def initialize():
 
     # Because of <http://bugs.python.org/issue8775> (and similar limitations in
     # twisted), the 'bin/tahoe' script cannot invoke us with the actual Unicode arguments.
-    # Instead it "mangles" or escapes them using \x7f as an escape character, which we
+    # Instead it "mangles" or escapes them using \x7F as an escape character, which we
     # unescape here.
     def unmangle(s):
-        return re.sub(ur'\x7f[0-9a-fA-F]*\;', lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
+        return re.sub(ur'\x7F[0-9a-fA-F]*\;', lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
 
     try:
-        sys.argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in xrange(1, argc.value)]
+        argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in xrange(1, argc.value)]
     except Exception, e:
         _complain("%s:  could not unmangle Unicode arguments.\n%r"
                   % (sys.argv[0], [argv_unicode[i] for i in xrange(1, argc.value)]))
         raise
 
-    if sys.argv[0].endswith('.pyscript'):
-        sys.argv[0] = sys.argv[0][:-9]
+    # Skip option arguments to the Python interpreter.
+    while len(argv) > 0:
+        arg = argv[0]
+        if not arg.startswith(u"-") or arg == u"-":
+            if arg.endswith('.pyscript'):
+                argv[0] = arg[:-9]
+            break
+        argv = argv[1:]
+        if arg == u'-m':
+            # sys.argv[0] should really be the absolute path of the module source, but never mind
+            break
+        if arg == u'-c':
+            argv[0] = u'-c'
+            break
+
+    sys.argv = argv

@@ -65,6 +65,20 @@ if sys.platform == "win32":
         return str(re.sub(ur'[^\x20-\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
 
     argv = [mangle(argv_unicode[i]) for i in xrange(1, argc.value)]
+
+    # Skip option arguments to the Python interpreter.
+    while len(argv) > 0:
+        arg = argv[0]
+        if not arg.startswith(u"-") or arg == u"-":
+            break
+        argv = argv[1:]
+        if arg == u'-m':
+            # sys.argv[0] should really be the absolute path of the module source, but never mind
+            break
+        if arg == u'-c':
+            argv[0] = u'-c'
+            break
+
     local_tahoe = "Scripts\\tahoe.pyscript"
 else:
     argv = sys.argv
