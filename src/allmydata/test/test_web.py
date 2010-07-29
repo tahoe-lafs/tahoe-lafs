@@ -3127,6 +3127,7 @@ class Util(ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(common.abbreviate_time(0.123), "123ms")
         self.failUnlessReallyEqual(common.abbreviate_time(0.00123), "1.2ms")
         self.failUnlessReallyEqual(common.abbreviate_time(0.000123), "123us")
+        self.failUnlessReallyEqual(common.abbreviate_time(-123000), "-123000000000us")
 
     def test_abbreviate_rate(self):
         self.failUnlessReallyEqual(common.abbreviate_rate(None), "")
