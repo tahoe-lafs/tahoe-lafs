@@ -1156,7 +1156,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.failUnless(self._has_happy_share_distribution()))
         return d
 
-    def test_problem_layout_ticket1124(self):
+    def test_problem_layout_ticket_1124(self):
         self.basedir = self.mktemp()
         d = self._setup_and_upload(k=2, n=4)
 
