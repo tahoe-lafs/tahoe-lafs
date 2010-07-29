@@ -1182,7 +1182,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
-    test_problem_layout_ticket1124.todo = "Fix this after 1.7.1 release."
+    test_problem_layout_ticket_1124.todo = "Fix this after 1.7.1 release."
 
     def test_happiness_with_some_readonly_peers(self):
         # Try the following layout
