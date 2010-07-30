@@ -85,10 +85,10 @@ def abbreviate_time(data):
     if s >= 1.0:
         return "%.2fs" % s
     if s >= 0.01:
-        return "%dms" % (1000*s)
+        return "%.0fms" % (1000*s)
     if s >= 0.001:
         return "%.1fms" % (1000*s)
-    return "%dus" % (1000000*s)
+    return "%.0fus" % (1000000*s)
 
 def abbreviate_rate(data):
     # 21.8kBps, 554.4kBps 4.37MBps
@@ -99,7 +99,7 @@ def abbreviate_rate(data):
         return "%1.2fMBps" % (r/1000000)
     if r > 1000:
         return "%.1fkBps" % (r/1000)
-    return "%dBps" % r
+    return "%.0fBps" % r
 
 def abbreviate_size(data):
     # 21.8kB, 554.4kB 4.37MB
@@ -112,7 +112,7 @@ def abbreviate_size(data):
         return "%1.2fMB" % (r/1000000)
     if r > 1000:
         return "%.1fkB" % (r/1000)
-    return "%dB" % r
+    return "%.0fB" % r
 
 def plural(sequence_or_length):
     if isinstance(sequence_or_length, int):
