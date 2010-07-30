@@ -118,3 +118,7 @@ E: freestorm77@gmail.com
 P: 0xD703AE08, F1 82 35 BB FF D8 96 0B 68 E2  91 2F C4 B8 6A 42 D7 03 AE 08
 S: Lausanne - Switzerland
 D: fix layout issue and server version numbers in WUI
+
+N: Jacob Lyles
+E: jacob.lyles@gmail.com
+D: fixed bug in WUI with Python 2.5 and a system clock set far in the past
