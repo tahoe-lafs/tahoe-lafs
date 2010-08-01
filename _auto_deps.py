@@ -107,7 +107,3 @@ def require_auto_deps():
             # but it shows a too-old version, then we'll get a
             # VersionConflict error instead of DistributionNotFound.
             pass
-
-def get_package_versions_from_setuptools():
-    import pkg_resources
-    return dict([(p.project_name, (p.version, p.location)) for p in pkg_resources.require('allmydata-tahoe')])

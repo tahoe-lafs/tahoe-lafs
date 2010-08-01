@@ -750,7 +750,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d = getPage(self.introweb_url, method="GET", followRedirect=True)
         def _check(res):
             try:
-                self.failUnless("allmydata-tahoe: %s" % str(allmydata.__version__)
+                self.failUnless("%s: %s" % (allmydata.__appname__, allmydata.__version__)
                                 in res)
                 self.failUnless("Announcement Summary: storage: 5, stub_client: 5" in res)
                 self.failUnless("Subscription Summary: storage: 5" in res)

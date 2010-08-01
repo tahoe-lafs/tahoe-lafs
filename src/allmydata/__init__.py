@@ -165,6 +165,10 @@ def get_platform():
     else:
         return platform.platform()
 
+def get_package_versions_from_setuptools():
+    import pkg_resources
+    return dict([(p.project_name, (p.version, p.location)) for p in pkg_resources.require(__appname__)])
+
 def get_package_versions_and_locations():
     # because there are a few dependencies that are outside setuptools's ken
     # (Python and platform, and sqlite3 if you are on Python >= 2.5), and
@@ -192,7 +196,7 @@ def get_package_versions_and_locations():
 
     d1 = {
         'pyOpenSSL': (OpenSSL.__version__, os.path.dirname(OpenSSL.__file__)),
-        'allmydata-tahoe': (allmydata.__version__, os.path.dirname(allmydata.__file__)),
+        __appname__: (allmydata.__version__, os.path.dirname(allmydata.__file__)),
         'foolscap': (foolscap.api.__version__, os.path.dirname(foolscap.__file__)),
         'Nevow': (nevow.__version__, os.path.dirname(nevow.__file__)),
         'pycryptopp': (pycryptopp.__version__, os.path.dirname(pycryptopp.__file__)),
@@ -210,7 +214,7 @@ def get_package_versions_and_locations():
     # But we prefer to get all the dependencies as known by setuptools:
     import pkg_resources
     try:
-        d2 = _auto_deps.get_package_versions_from_setuptools()
+        d2 = get_package_versions_from_setuptools()
     except pkg_resources.DistributionNotFound:
         # See docstring in _auto_deps.require_auto_deps() to explain why it makes sense to ignore this exception.
         pass
@@ -228,7 +232,7 @@ def get_package_locations():
 def get_package_versions_string(show_paths=False):
     vers_and_locs = get_package_versions_and_locations()
     res = []
-    for p in ["allmydata-tahoe", "foolscap", "pycryptopp", "zfec", "Twisted", "Nevow", "zope.interface", "python", "platform"]:
+    for p in [__appname__, "foolscap", "pycryptopp", "zfec", "Twisted", "Nevow", "zope.interface", "python", "platform"]:
         (ver, loc) = vers_and_locs.get(p, ('UNKNOWN', 'UNKNOWN'))
         info = str(p) + ": " + str(ver)
         if show_paths:

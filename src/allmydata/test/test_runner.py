@@ -39,10 +39,9 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str((out, err, rc_or_sig)))
 
-            # Fail unless the allmydata-tahoe package is *this* version *and*
-            # was loaded from *this* source directory.
+            # Fail unless the package is *this* version *and* was loaded from *this* source directory.
             ad = os.path.dirname(os.path.dirname(os.path.realpath(allmydata.__file__)))
-            required_ver_and_path = "allmydata-tahoe: %s (%s)" % (allmydata.__version__, ad)
+            required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, allmydata.__version__, ad)
             self.failUnless(out.startswith(required_ver_and_path),
                             (out, err, rc_or_sig, required_ver_and_path))
         d.addCallback(_cb)
@@ -60,7 +59,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, res)
-            self.failUnless(out.startswith("allmydata-tahoe:"), res)
+            self.failUnless(out.startswith(allmydata.__appname__), res)
             self.failIfIn("DeprecationWarning", out, res)
             self.failUnlessEqual(err, "", res)
         d.addCallback(_cb)
