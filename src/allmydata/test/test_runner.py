@@ -59,7 +59,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, res)
-            self.failUnless(out.startswith(allmydata.__appname__), res)
+            self.failUnless(out.startswith(allmydata.__appname__+':'), res)
             self.failIfIn("DeprecationWarning", out, res)
             self.failUnlessEqual(err, "", res)
         d.addCallback(_cb)

@@ -6,7 +6,8 @@ import pkg_resources
 pkg_resources.require('twisted')
 from twisted.python import usage
 
-pkg_resources.require('allmydata-tahoe')
+import allmydata
+pkg_resources.require(allmydata.__appname__)
 from allmydata.scripts.common import BaseOptions
 from allmydata.scripts import debug, create_node, startstop_node, cli, keygen, stats_gatherer
 
