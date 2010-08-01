@@ -1,5 +1,12 @@
 ﻿User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
+* Release 1.8.0α (2010-07-31)
+
+** Bugfixes and Improvements
+
+ - Fix bug in WUI in Python 2.5 when the system clock is set back to
+   1969. (#1055)
+
 * Release 1.7.1 (2010-07-18)
 
 ** Bugfixes and Improvements
