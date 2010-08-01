@@ -2,8 +2,9 @@
 import os, sys, urllib
 import codecs
 from twisted.python import usage
-from allmydata.util.encodingutil import unicode_to_url, quote_output
 from allmydata.util.assertutil import precondition
+from allmydata.util.encodingutil import unicode_to_url, quote_output, argv_to_abspath
+from allmydata.util.fileutil import abspath_expanduser_unicode
 
 class BaseOptions:
     # unit tests can override these to point at StringIO instances
