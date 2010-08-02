@@ -75,8 +75,6 @@ class BasedirMixin:
         if self.allow_multiple and self['multiple']:
             self.basedirs.extend(map(argv_to_abspath, args))
         else:
-            if len(args) > 0:
-                self.basedirs.append(argv_to_abspath(args[0]))
             if len(args) > 1:
                 raise usage.UsageError("I wasn't expecting so many arguments." +
                     (self.allow_multiple and
