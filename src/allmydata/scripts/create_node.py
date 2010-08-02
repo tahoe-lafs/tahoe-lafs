@@ -70,11 +70,14 @@ def write_node_config(c, config):
     c.write("\n\n")
 
     c.write("[node]\n")
-    c.write("nickname = %s\n" % config.get("nickname", "")) #TODO: utf8 in argv?
-    webport = config.get("webport", "none")
+    nickname = argv_to_unicode(config.get("nickname") or "")
+    c.write("nickname = %s\n" % (nickname.encode('utf-8'),))
+
+    # TODO: validate webport
+    webport = argv_to_unicode(config.get("webport") or "none")
     if webport.lower() == "none":
         webport = ""
-    c.write("web.port = %s\n" % webport)
+    c.write("web.port = %s\n" % (webport.encode('utf-8'),))
     c.write("web.static = public_html\n")
     c.write("#tub.port =\n")
     c.write("#tub.location = \n")
