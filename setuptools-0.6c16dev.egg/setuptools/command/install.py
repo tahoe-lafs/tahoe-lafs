@@ -49,8 +49,13 @@ class install(_install):
         self.path_file = None
         self.extra_dirs = ''
 
-
     def run(self):
+        self.old_run()
+        if sys.platform == "win32":
+            from setuptools.command.scriptsetup import do_scriptsetup
+            do_scriptsetup()
+
+    def old_run(self):
         # Explicit request for old-style install?  Just do it
         if self.old_and_unmanageable or self.single_version_externally_managed:
             return _install.run(self)
@@ -74,11 +79,6 @@ class install(_install):
             _install.run(self)
         else:
             self.do_egg_install()
-
-
-
-
-
 
     def do_egg_install(self):
 

@@ -1,0 +1,100 @@
+Metadata-Version: 1.0
+Name: setuptools
+Version: 0.6c16dev
+Summary: Download, build, install, upgrade, and uninstall Python packages -- easily!  (zetuptoolz fork)
+Home-page: http://pypi.python.org/pypi/setuptools
+Author: Phillip J. Eby
+Author-email: distutils-sig@python.org
+License: PSF or ZPL
+Description: ======================
+        This is not Setuptools
+        ======================
+        
+        This is the ``zetuptoolz`` fork of setuptools, which is used to install
+        `Tahoe-LAFS`_. It has a `darcs source repository`_ and `issue tracker`_.
+        
+        For a list of differences between this fork and setuptools, see zetuptoolz.txt.
+        
+        Note that, to avoid interfering with any setuptools installation, zetuptoolz
+        does not install a script called ``easy_install``. There is an ``easy_install_z``
+        script, but that is intended only for developers to test differences between
+        setuptools and zetuptoolz.
+        
+        .. _Tahoe-LAFS: http://tahoe-lafs.org/
+        .. _darcs source repository: http://tahoe-lafs.org/source/zetuptoolz/trunk
+        .. _issue tracker: http://tahoe-lafs.org/trac/zetuptoolz
+        
+        
+        --------------------------------
+        Using Setuptools and EasyInstall
+        --------------------------------
+        
+        Here are some of the available manuals, tutorials, and other resources for
+        learning about Setuptools, Python Eggs, and EasyInstall:
+        
+        * `The EasyInstall user's guide and reference manual`_
+        * `The setuptools Developer's Guide`_
+        * `The pkg_resources API reference`_
+        * `Package Compatibility Notes`_ (user-maintained)
+        * `The Internal Structure of Python Eggs`_
+        
+        Questions, comments, and bug reports should be directed to the `distutils-sig
+        mailing list`_.  If you have written (or know of) any tutorials, documentation,
+        plug-ins, or other resources for setuptools users, please let us know about
+        them there, so this reference list can be updated.  If you have working,
+        *tested* patches to correct problems or add features, you may submit them to
+        the `setuptools bug tracker`_.
+        
+        .. _setuptools bug tracker: http://bugs.python.org/setuptools/
+        .. _Package Compatibility Notes: http://peak.telecommunity.com/DevCenter/PackageNotes
+        .. _The Internal Structure of Python Eggs: http://peak.telecommunity.com/DevCenter/EggFormats
+        .. _The setuptools Developer's Guide: http://peak.telecommunity.com/DevCenter/setuptools
+        .. _The pkg_resources API reference: http://peak.telecommunity.com/DevCenter/PkgResources
+        .. _The EasyInstall user's guide and reference manual: http://peak.telecommunity.com/DevCenter/EasyInstall
+        .. _distutils-sig mailing list: http://mail.python.org/pipermail/distutils-sig/
+        
+        
+        -------
+        Credits
+        -------
+        
+        * The original design for the ``.egg`` format and the ``pkg_resources`` API was
+        co-created by Phillip Eby and Bob Ippolito.  Bob also implemented the first
+        version of ``pkg_resources``, and supplied the OS X operating system version
+        compatibility algorithm.
+        
+        * Ian Bicking implemented many early "creature comfort" features of
+        easy_install, including support for downloading via Sourceforge and
+        Subversion repositories.  Ian's comments on the Web-SIG about WSGI
+        application deployment also inspired the concept of "entry points" in eggs,
+        and he has given talks at PyCon and elsewhere to inform and educate the
+        community about eggs and setuptools.
+        
+        * Jim Fulton contributed time and effort to build automated tests of various
+        aspects of ``easy_install``, and supplied the doctests for the command-line
+        ``.exe`` wrappers on Windows.
+        
+        * Phillip J. Eby is the principal author and maintainer of setuptools, and
+        first proposed the idea of an importable binary distribution format for
+        Python application plug-ins.
+        
+        * Significant parts of the implementation of setuptools were funded by the Open
+        Source Applications Foundation, to provide a plug-in infrastructure for the
+        Chandler PIM application.  In addition, many OSAF staffers (such as Mike
+        "Code Bear" Taylor) contributed their time and stress as guinea pigs for the
+        use of eggs and setuptools, even before eggs were "cool".  (Thanks, guys!)
+        
+        .. _files:
+        
+Keywords: CPAN PyPI distutils eggs package management
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: Python Software Foundation License
+Classifier: License :: OSI Approved :: Zope Public License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python
+Classifier: Topic :: Software Development :: Libraries :: Python Modules
+Classifier: Topic :: System :: Archiving :: Packaging
+Classifier: Topic :: System :: Systems Administration
+Classifier: Topic :: Utilities

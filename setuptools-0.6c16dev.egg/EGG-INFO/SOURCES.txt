@@ -34,6 +34,7 @@ setuptools/command/install_scripts.py
 setuptools/command/register.py
 setuptools/command/rotate.py
 setuptools/command/saveopts.py
+setuptools/command/scriptsetup.py
 setuptools/command/sdist.py
 setuptools/command/setopt.py
 setuptools/command/test.py

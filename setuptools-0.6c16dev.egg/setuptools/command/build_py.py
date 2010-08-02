@@ -19,6 +19,12 @@ class build_py(_build_py):
         if 'data_files' in self.__dict__: del self.__dict__['data_files']
 
     def run(self):
+        self.old_run()
+        if sys.platform == "win32":
+            from setuptools.command.scriptsetup import do_scriptsetup
+            do_scriptsetup()
+
+    def old_run(self):
         """Build modules, packages, and copy data files to build directory"""
         if not self.py_modules and not self.packages:
             return

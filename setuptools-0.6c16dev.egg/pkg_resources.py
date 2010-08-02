@@ -13,7 +13,7 @@ The package resource API is designed to work with normal filesystem packages,
 method.
 """
 
-import sys, os, zipimport, time, re, imp, new, pkgutil  # XXX
+import sys, os, zipimport, time, re, imp
 
 try:
     frozenset
