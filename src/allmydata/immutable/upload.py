@@ -155,6 +155,9 @@ class PeerTracker:
                 del self.buckets[sharenum]
 
 
+def str_shareloc(shnum, bucketwriter):
+    return "%s: %s" % (shnum, idlib.shortnodeid_b2a(bucketwriter._nodeid),)
+
 class Tahoe2PeerSelector(log.PrefixingLogMixin):
 
     def __init__(self, upload_id, logparent=None, upload_status=None):
@@ -330,7 +333,13 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
             merged = merge_peers(self.preexisting_shares, self.use_peers)
             effective_happiness = servers_of_happiness(merged)
             if self.servers_of_happiness <= effective_happiness:
-                msg = ("server selection successful for %s: %s: pretty_print_merged: %s, self.use_peers: %s, self.preexisting_shares: %s" % (self, self._get_progress_message(), pretty_print_shnum_to_servers(merged), [', '.join(["%s: %s" % (k, idlib.shortnodeid_b2a(v._nodeid),) for k,v in p.buckets.iteritems()]) for p in self.use_peers], pretty_print_shnum_to_servers(self.preexisting_shares)))
+                msg = ("server selection successful for %s: %s: pretty_print_merged: %s, "
+                    "self.use_peers: %s, self.preexisting_shares: %s") \
+                        % (self, self._get_progress_message(),
+                        pretty_print_shnum_to_servers(merged),
+                        [', '.join([str_shareloc(k,v) for k,v in p.buckets.iteritems()])
+                            for p in self.use_peers],
+                        pretty_print_shnum_to_servers(self.preexisting_shares))
                 self.log(msg, level=log.OPERATIONAL)
                 return (self.use_peers, self.preexisting_shares)
             else:
@@ -338,11 +347,11 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
                 # redistributing some shares. In cases where one or two
                 # servers has, before the upload, all or most of the
                 # shares for a given SI, this can work by allowing _loop
-                # a chance to spread those out over the other peers, 
+                # a chance to spread those out over the other peers,
                 delta = self.servers_of_happiness - effective_happiness
                 shares = shares_by_server(self.preexisting_shares)
                 # Each server in shares maps to a set of shares stored on it.
-                # Since we want to keep at least one share on each server 
+                # Since we want to keep at least one share on each server
                 # that has one (otherwise we'd only be making
                 # the situation worse by removing distinct servers),
                 # each server has len(its shares) - 1 to spread around.
@@ -371,12 +380,19 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
                 else:
                     # Redistribution won't help us; fail.
                     peer_count = len(self.peers_with_shares)
-                    msg = failure_message(peer_count,
+                    failmsg = failure_message(peer_count,
                                           self.needed_shares,
                                           self.servers_of_happiness,
                                           effective_happiness)
-                    self.log("server selection unsuccessful for %r: %s (%s), merged=%s" % (self, msg, self._get_progress_message(), pretty_print_shnum_to_servers(merged)), level=log.INFREQUENT)
-                    return self._failed("%s (%s)" % (msg, self._get_progress_message()))
+                    servmsgtempl = "server selection unsuccessful for %r: %s (%s), merged=%s"
+                    servmsg = servmsgtempl % (
+                        self,
+                        failmsg,
+                        self._get_progress_message(),
+                        pretty_print_shnum_to_servers(merged)
+                        )
+                    self.log(servmsg, level=log.INFREQUENT)
+                    return self._failed("%s (%s)" % (failmsg, self._get_progress_message()))
 
         if self.uncontacted_peers:
             peer = self.uncontacted_peers.pop(0)
@@ -913,11 +929,15 @@ class CHKUploader:
 
     def set_shareholders(self, (upload_servers, already_peers), encoder):
         """
-        @param upload_servers: a sequence of PeerTracker objects that have agreed to hold some shares for us (the shareids are stashed inside the PeerTracker)
+        @param upload_servers: a sequence of PeerTracker objects that have agreed to hold some
+            shares for us (the shareids are stashed inside the PeerTracker)
         @paran already_peers: a dict mapping sharenum to a set of peerids
                               that claim to already have this share
         """
-        self.log("set_shareholders; upload_servers is %s, already_peers is %s" % ([', '.join(["%s: %s" % (k, idlib.shortnodeid_b2a(v._nodeid),) for k,v in p.buckets.iteritems()]) for p in upload_servers], already_peers))
+        msgtempl = "set_shareholders; upload_servers is %s, already_peers is %s"
+        values = ([', '.join([str_shareloc(k,v) for k,v in p.buckets.iteritems()])
+            for p in upload_servers], already_peers)
+        self.log(msgtempl % values, level=log.OPERATIONAL)
         # record already-present shares in self._results
         self._results.preexisting_shares = len(already_peers)
 
@@ -931,8 +951,13 @@ class CHKUploader:
             for shnum in peer.buckets:
                 self._peer_trackers[shnum] = peer
                 servermap.setdefault(shnum, set()).add(peer.peerid)
-        self.log("set_shareholders; %s (%s) == %s (%s)" % (len(buckets), buckets, sum([len(peer.buckets) for peer in upload_servers]), [(p.buckets, p.peerid) for p in upload_servers]))
-        assert len(buckets) == sum([len(peer.buckets) for peer in upload_servers]), "%s (%s) != %s (%s)" % (len(buckets), buckets, sum([len(peer.buckets) for peer in upload_servers]), [(p.buckets, p.peerid) for p in upload_servers])
+        assert len(buckets) == sum([len(peer.buckets) for peer in upload_servers]), \
+            "%s (%s) != %s (%s)" % (
+                len(buckets),
+                buckets,
+                sum([len(peer.buckets) for peer in upload_servers]),
+                [(p.buckets, p.peerid) for p in upload_servers]
+                )
         encoder.set_shareholders(buckets, servermap)
 
     def _encrypted_done(self, verifycap):
@@ -1136,7 +1161,7 @@ class AssistedUploader:
         now = self._time_contacting_helper_start = time.time()
         self._storage_index_elapsed = now - self._started
         self.log(format="contacting helper for SI %(si)s..",
-                 si=si_b2a(self._storage_index))
+                 si=si_b2a(self._storage_index), level=log.NOISY)
         self._upload_status.set_status("Contacting Helper")
         d = self._helper.callRemote("upload_chk", self._storage_index)
         d.addCallback(self._contacted_helper)
@@ -1147,7 +1172,7 @@ class AssistedUploader:
         elapsed = now - self._time_contacting_helper_start
         self._elapsed_time_contacting_helper = elapsed
         if upload_helper:
-            self.log("helper says we need to upload")
+            self.log("helper says we need to upload", level=log.NOISY)
             self._upload_status.set_status("Uploading Ciphertext")
             # we need to upload the file
             reu = RemoteEncryptedUploadable(self._encuploadable,
@@ -1158,7 +1183,7 @@ class AssistedUploader:
                           upload_helper.callRemote("upload", reu))
             # this Deferred will fire with the upload results
             return d
-        self.log("helper says file is already uploaded")
+        self.log("helper says file is already uploaded", level=log.OPERATIONAL)
         self._upload_status.set_progress(1, 1.0)
         self._upload_status.set_results(upload_results)
         return upload_results
@@ -1181,7 +1206,7 @@ class AssistedUploader:
             upload_results.sharemap = None
 
     def _build_verifycap(self, upload_results):
-        self.log("upload finished, building readcap")
+        self.log("upload finished, building readcap", level=log.OPERATIONAL)
         self._convert_old_upload_results(upload_results)
         self._upload_status.set_status("Building Readcap")
         r = upload_results
