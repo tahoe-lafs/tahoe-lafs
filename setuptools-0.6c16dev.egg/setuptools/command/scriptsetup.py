@@ -224,20 +224,20 @@ def do_scriptsetup(allusers=False):
 
         # <http://support.microsoft.com/kb/104011/en-us>
         # <http://msdn.microsoft.com/en-us/library/ms644952(VS.85).aspx>
-        # LRESULT WINAPI SendMessageTimeoutA(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam,
+        # LRESULT WINAPI SendMessageTimeoutW(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam,
         #                                    UINT fuFlags, UINT uTimeout, PDWORD_PTR lpdwResult);
 
         try:
-            from ctypes import WINFUNCTYPE, POINTER, windll, addressof, c_char_p
+            from ctypes import WINFUNCTYPE, POINTER, windll, addressof, c_wchar_p
             from ctypes.wintypes import LONG, HWND, UINT, WPARAM, LPARAM, DWORD
 
             SendMessageTimeout = WINFUNCTYPE(POINTER(LONG), HWND, UINT, WPARAM, LPARAM, UINT, UINT, POINTER(POINTER(DWORD))) \
-                                     (("SendMessageTimeoutA", windll.user32))
+                                     (("SendMessageTimeoutW", windll.user32))
             HWND_BROADCAST   = 0xFFFF
             WM_SETTINGCHANGE = 0x001A
             SMTO_ABORTIFHUNG = 0x0002
             SendMessageTimeout(HWND_BROADCAST, WM_SETTINGCHANGE, change_allusers and 1 or 0,
-                               addressof(c_char_p("Environment")), SMTO_ABORTIFHUNG, 5000, None);
+                               addressof(c_wchar_p(u"Environment")), SMTO_ABORTIFHUNG, 5000, None);
         except Exception, e:
             print "Warning: %r" % (e,)
 
