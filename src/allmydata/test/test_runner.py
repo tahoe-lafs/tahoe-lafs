@@ -100,6 +100,19 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
         d.addCallback(_cb)
         return d
 
+    def test_run_with_python_options(self):
+        self.skip_if_cannot_run_bintahoe()
+
+        # -t is a harmless option that warns about tabs.
+        d = utils.getProcessOutputAndValue(sys.executable, args=['-t', bintahoe, '--version'],
+                                           env=os.environ)
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 0, str(res))
+            self.failUnless(out.startswith(allmydata.__appname__+':'), str(res))
+        d.addCallback(_cb)
+        return d
+
     def test_version_no_noise(self):
         self.skip_if_cannot_run_bintahoe()
         import pkg_resources
