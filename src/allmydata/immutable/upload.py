@@ -191,7 +191,7 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
         self.servers_of_happiness = servers_of_happiness
         self.needed_shares = needed_shares
 
-        self.homeless_shares = range(total_shares)
+        self.homeless_shares = set(range(total_shares))
         self.contacted_peers = [] # peers worth asking again
         self.contacted_peers2 = [] # peers that we have asked again
         self._started_second_pass = False
@@ -300,8 +300,7 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
                     level=log.NOISY)
             for bucket in buckets:
                 self.preexisting_shares.setdefault(bucket, set()).add(peer)
-                if self.homeless_shares and bucket in self.homeless_shares:
-                    self.homeless_shares.remove(bucket)
+                self.homeless_shares.discard(bucket)
             self.full_count += 1
             self.bad_query_count += 1
 
@@ -361,7 +360,7 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
                         server, sharelist = items.pop()
                         if len(sharelist) > 1:
                             share = sharelist.pop()
-                            self.homeless_shares.append(share)
+                            self.homeless_shares.add(share)
                             self.preexisting_shares[share].remove(server)
                             if not self.preexisting_shares[share]:
                                 del self.preexisting_shares[share]
@@ -384,7 +383,8 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
             # TODO: don't pre-convert all peerids to PeerTrackers
             assert isinstance(peer, PeerTracker)
 
-            shares_to_ask = set([self.homeless_shares.pop(0)])
+            shares_to_ask = set(sorted(self.homeless_shares)[:1])
+            self.homeless_shares -= shares_to_ask
             self.query_count += 1
             self.num_peers_contacted += 1
             if self._status:
@@ -405,8 +405,8 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
             num_shares = mathutil.div_ceil(len(self.homeless_shares),
                                            len(self.contacted_peers))
             peer = self.contacted_peers.pop(0)
-            shares_to_ask = set(self.homeless_shares[:num_shares])
-            self.homeless_shares[:num_shares] = []
+            shares_to_ask = set(sorted(self.homeless_shares)[:num_shares])
+            self.homeless_shares -= shares_to_ask
             self.query_count += 1
             if self._status:
                 self._status.set_status("Contacting Peers [%s] (second query),"
@@ -456,7 +456,7 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
                     level=log.UNUSUAL)
             self.error_count += 1
             self.bad_query_count += 1
-            self.homeless_shares = list(shares_to_ask) + self.homeless_shares
+            self.homeless_shares |= shares_to_ask
             if (self.uncontacted_peers
                 or self.contacted_peers
                 or self.contacted_peers2):
@@ -517,8 +517,7 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
 
                 # some shares are still homeless, keep trying to find them a
                 # home. The ones that were rejected get first priority.
-                self.homeless_shares = (list(still_homeless)
-                                        + self.homeless_shares)
+                self.homeless_shares |= still_homeless
                 # Since they were unable to accept all of our requests, so it
                 # is safe to assume that asking them again won't help.
             else:
