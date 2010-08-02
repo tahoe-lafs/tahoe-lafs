@@ -10,7 +10,11 @@ install_requires=[
 
                   "zope.interface",
                   "Twisted >= 2.4.0",
-                  "foolscap[secure_connections] >= 0.4.1",
+
+                  # foolscap < 0.5.1 had a performance bug which spent
+                  # O(N**2) CPU for transferring large mutable files
+                  # of size N.
+                  "foolscap[secure_connections] >= 0.5.1",
                   "Nevow >= 0.6.0",
 
                   # pycryptopp v0.5.15 applied a patch from Wei Dai to fix an
