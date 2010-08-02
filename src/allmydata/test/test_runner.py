@@ -7,7 +7,7 @@ from twisted.internet import utils
 import os.path, re, sys
 from cStringIO import StringIO
 from allmydata.util import fileutil, pollmixin
-from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output
+from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, get_filesystem_encoding
 from allmydata.scripts import runner
 
 from allmydata.test import common_util
