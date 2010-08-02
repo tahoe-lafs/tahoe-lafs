@@ -711,7 +711,6 @@ def combinations(iterable, r):
 
 def is_happy_enough(servertoshnums, h, k):
     """ I calculate whether servertoshnums achieves happiness level h. I do this with a naïve "brute force search" approach. (See src/allmydata/util/happinessutil.py for a better algorithm.) """
-    print "servertoshnums: ", servertoshnums, "h: ", h, "k: ", k
     if len(servertoshnums) < h:
         return False
     # print "servertoshnums: ", servertoshnums, h, k
