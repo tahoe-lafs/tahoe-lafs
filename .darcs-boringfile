@@ -38,7 +38,7 @@
 
 ^client-basedir
 ^queen-basedir($|/)
-^_trial_temp($|/)
+^_trial_temp.*($|/)
 ^\.buildbot($|/)
 ^MANIFEST$
 ^dist($|/)
@@ -73,22 +73,18 @@
 # this file is maintained by the buildbot
 ^\.buildbot-sourcedata$
 
-# automatically-build dependencies (using the 'build-deps' target) go here
+# automatically-built dependencies (using the 'build-deps' target) go here
 ^support
-# if ez_setup.py needs to build setuptools, that goes here
-^setuptools-.*.egg$
+
 # creating a tahoe egg puts files here
 allmydata_tahoe.egg-info$
-^Twisted-.*.egg($|/)
+^Twisted-.*\.egg/
+
+# zipped .eggs are boring, contents of .egg directories are not
+^.*\.egg$
 
 ^\.checked-deps$
 ^\.built$
-
-# if setup.py needs to install plugins from eggs to satisfy setup_requires:
-^setuptools_trial.*.egg$
-^setuptools_darcs.*.egg$
-^darcsver.*.egg$
-^pyutil.*.egg$
 
 ^misc/dependencies/build($|/)
 ^misc/dependencies/temp($|/)
