@@ -1,12 +1,11 @@
 
 import os, sys
-from twisted.python import usage
-from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
+from allmydata.scripts.common import BasedirMixin, BaseOptions
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_output
 import allmydata
 
-class CreateClientOptions(BasedirMixin, usage.Options):
+class CreateClientOptions(BasedirMixin, BaseOptions):
     optParameters = [
         ("basedir", "C", None, "which directory to create the node in"),
         # we provide 'create-node'-time options for the most common
@@ -23,7 +22,9 @@ class CreateNodeOptions(CreateClientOptions):
         ("no-storage", None, "do not offer storage service to other nodes"),
         ]
 
-class CreateIntroducerOptions(NoDefaultBasedirMixin, usage.Options):
+class CreateIntroducerOptions(BasedirMixin, BaseOptions):
+    default_nodedir = None
+
     optParameters = [
         ["basedir", "C", None, "which directory to create the introducer in"],
         ]

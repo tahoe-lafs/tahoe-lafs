@@ -1,10 +1,9 @@
 
 import os, sys, signal, time
-from twisted.python import usage
-from allmydata.scripts.common import BasedirMixin
+from allmydata.scripts.common import BasedirMixin, BaseOptions
 from allmydata.util import fileutil, find_exe
 
-class StartOptions(BasedirMixin, usage.Options):
+class StartOptions(BasedirMixin, BaseOptions):
     optParameters = [
         ["basedir", "C", None, "which directory to start the node in"],
         ]
@@ -13,12 +12,12 @@ class StartOptions(BasedirMixin, usage.Options):
         ["syslog", None, "tell the node to log to syslog, not a file"],
         ]
 
-class StopOptions(BasedirMixin, usage.Options):
+class StopOptions(BasedirMixin, BaseOptions):
     optParameters = [
         ["basedir", "C", None, "which directory to stop the node in"],
         ]
 
-class RestartOptions(BasedirMixin, usage.Options):
+class RestartOptions(BasedirMixin, BaseOptions):
     optParameters = [
         ["basedir", "C", None, "which directory to restart the node in"],
         ]
@@ -27,7 +26,9 @@ class RestartOptions(BasedirMixin, usage.Options):
         ["syslog", None, "tell the node to log to syslog, not a file"],
         ]
 
-class RunOptions(usage.Options):
+class RunOptions(BasedirMixin, BaseOptions):
+    default_nodedir = u"."
+
     optParameters = [
         ["basedir", "C", None, "which directory to run the node in, CWD by default"],
         ]

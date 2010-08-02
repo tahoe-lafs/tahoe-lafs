@@ -1,13 +1,15 @@
 
 import os, sys
-from twisted.python import usage
-#from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
-from allmydata.util.encodingutil import listdir_unicode, argv_to_abspath, quote_output
+from allmydata.scripts.common import BasedirMixin, BaseOptions
+from allmydata.util.encodingutil import listdir_unicode, quote_output
 
-class CreateKeyGeneratorOptions(usage.Options):
+class CreateKeyGeneratorOptions(BasedirMixin, BaseOptions):
+    default_nodedir = None
+    allow_multiple = False
+
     optParameters = [
         ["basedir", "C", None, "which directory to create the key-generator in"],
-        ]
+    ]
 
 keygen_tac = """
 # -*- python -*-
@@ -25,10 +27,7 @@ k.setServiceParent(application)
 """
 
 def create_key_generator(config, out=sys.stdout, err=sys.stderr):
-    if not config['basedir']:
-        print >>err, "a basedir was not provided, please use --basedir or -C"
-        return -1
-    basedir = argv_to_abspath(config['basedir'])
+    basedir = config['basedirs'][0]
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
             print >>err, "The base directory %s is not empty." % quote_output(basedir)

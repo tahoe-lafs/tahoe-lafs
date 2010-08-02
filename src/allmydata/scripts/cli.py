@@ -1,19 +1,21 @@
 import os.path, re, sys, fnmatch
 from twisted.python import usage
-from allmydata.scripts.common import BaseOptions, get_aliases
-from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath
+from allmydata.scripts.common import BaseOptions, get_aliases, get_default_nodedir, DEFAULT_ALIAS
+from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_output
 
 NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 
-class VDriveOptions(BaseOptions, usage.Options):
+_default_nodedir = get_default_nodedir()
+
+class VDriveOptions(BaseOptions):
     optParameters = [
-        ["node-directory", "d", "~/.tahoe",
-         "Look here to find out which Tahoe node should be used for all "
-         "operations. The directory should either contain a full Tahoe node, "
-         "or a file named node.url which points to some other Tahoe node. "
-         "It should also contain a file named private/aliases which contains "
-         "the mapping from alias name to root dirnode URI."
-         ],
+        ["node-directory", "d", None,
+         "Specify which Tahoe node directory should be used. The directory "
+         "should either contain a full Tahoe node, or a file named node.url "
+         "that points to some other Tahoe node. It should also contain a file "
+         "named private/aliases which contains the mapping from alias name "
+         "to root dirnode URI." + (
+            _default_nodedir and (" [default for most commands: " + quote_output(_default_nodedir) + "]") or "")],
         ["node-url", "u", None,
          "URL of the tahoe node to use, a URL like \"http://127.0.0.1:3456\". "
          "This overrides the URL found in the --node-directory ."],
@@ -22,13 +24,12 @@ class VDriveOptions(BaseOptions, usage.Options):
         ]
 
     def postOptions(self):
-        # compute a node-url from the existing options, put in self['node-url']
         if self['node-directory']:
-            if sys.platform == 'win32' and self['node-directory'] == '~/.tahoe':
-                from allmydata.windows import registry
-                self['node-directory'] = registry.get_base_dir_path()
-            else:
-                self['node-directory'] = argv_to_abspath(self['node-directory'])
+            self['node-directory'] = argv_to_abspath(self['node-directory'])
+        else:
+            self['node-directory'] = _default_nodedir
+
+        # compute a node-url from the existing options, put in self['node-url']
         if self['node-url']:
             if (not isinstance(self['node-url'], basestring)
                 or not NODEURL_RE.match(self['node-url'])):
@@ -44,7 +45,7 @@ class VDriveOptions(BaseOptions, usage.Options):
 
         aliases = get_aliases(self['node-directory'])
         if self['dir-cap']:
-            aliases["tahoe"] = self['dir-cap']
+            aliases[DEFAULT_ALIAS] = self['dir-cap']
         self.aliases = aliases # maps alias name to dircap
 
 

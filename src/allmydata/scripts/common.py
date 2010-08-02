@@ -6,7 +6,25 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import unicode_to_url, quote_output, argv_to_abspath
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
-class BaseOptions:
+
+_default_nodedir = None
+if sys.platform == 'win32':
+    from allmydata.windows import registry
+    path = registry.get_base_dir_path()
+    if path:
+        precondition(isinstance(path, unicode), path)
+        _default_nodedir = abspath_expanduser_unicode(path)
+
+if _default_nodedir is None:
+    path = abspath_expanduser_unicode(u"~/.tahoe")
+    precondition(isinstance(path, unicode), path)
+    _default_nodedir = path
+
+def get_default_nodedir():
+    return _default_nodedir
+
+
+class BaseOptions(usage.Options):
     # unit tests can override these to point at StringIO instances
     stdin = sys.stdin
     stdout = sys.stdout
@@ -16,7 +34,11 @@ class BaseOptions:
         ["quiet", "q", "Operate silently."],
         ["version", "V", "Display version numbers and exit."],
         ["version-and-path", None, "Display version numbers and paths to their locations and exit."],
-        ]
+    ]
+    optParameters = [
+        ["node-directory", "d", None, "Specify which Tahoe node directory should be used." + (
+            _default_nodedir and (" [default for most commands: " + quote_output(_default_nodedir) + "]") or "")],
+    ]
 
     def opt_version(self):
         import allmydata
@@ -30,54 +52,47 @@ class BaseOptions:
 
 
 class BasedirMixin:
+    default_nodedir = _default_nodedir
+    allow_multiple = True
+
+    optParameters = [
+        ["basedir", "C", None, "Same as --node-directory."],
+    ]
     optFlags = [
-        ["multiple", "m", "allow multiple basedirs to be specified at once"],
-        ]
+        ["multiple", "m", "Specify multiple node directories at once"],
+    ]
+
+    def parseArgs(self, *args):
+        if self['node-directory'] and self['basedir']:
+            raise usage.UsageError("The --node-directory (or -d) and --basedir (or -C) "
+                                   "options cannot both be used.")
+
+        if self['node-directory'] or self['basedir']:
+            self.basedirs = [argv_to_abspath(self['node-directory'] or self['basedir'])]
+        else:
+            self.basedirs = []
+
+        if self.allow_multiple and self['multiple']:
+            self.basedirs.extend(map(argv_to_abspath, args))
+        else:
+            if len(args) > 0:
+                self.basedirs.append(argv_to_abspath(args[0]))
+            if len(args) > 1:
+                raise usage.UsageError("I wasn't expecting so many arguments." +
+                    (self.allow_multiple and
+                     " Use the --multiple option to specify more than one node directory." or ""))
+
+            if len(args) == 0 and self.default_nodedir and not self.basedirs:
+                self.basedirs.append(self.default_nodedir)
+            elif len(args) > 0:
+                self.basedirs.append(argv_to_abspath(args[0]))
 
     def postOptions(self):
         if not self.basedirs:
-            raise usage.UsageError("<basedir> parameter is required")
-        if self['basedir']:
-            del self['basedir']
+            raise usage.UsageError("A base directory for the node must be provided.")
+        del self['basedir']
         self['basedirs'] = self.basedirs
 
-    def parseArgs(self, *args):
-        self.basedirs = []
-        if self['basedir']:
-            precondition(isinstance(self['basedir'], str), self['basedir'])
-            self.basedirs.append(argv_to_abspath(self['basedir']))
-        if self['multiple']:
-            self.basedirs.extend(map(argv_to_abspath, args))
-        else:
-            if len(args) == 0 and not self.basedirs:
-                if sys.platform == 'win32':
-                    from allmydata.windows import registry
-                    rbdp = registry.get_base_dir_path()
-                    if rbdp:
-                        precondition(isinstance(registry.get_base_dir_path(), unicode), registry.get_base_dir_path())
-                        self.basedirs.append(rbdp)
-                else:
-                    self.basedirs.append(abspath_expanduser_unicode(u"~/.tahoe"))
-            if len(args) > 0:
-                self.basedirs.append(argv_to_abspath(args[0]))
-            if len(args) > 1:
-                raise usage.UsageError("I wasn't expecting so many arguments")
-
-class NoDefaultBasedirMixin(BasedirMixin):
-    def parseArgs(self, *args):
-        # create-client won't default to --basedir=~/.tahoe
-        self.basedirs = []
-        if self['basedir']:
-            self.basedirs.append(argv_to_abspath(self['basedir']))
-        if self['multiple']:
-            self.basedirs.extend(map(argv_to_abspath, args))
-        else:
-            if len(args) > 0:
-                self.basedirs.append(argv_to_abspath(args[0]))
-            if len(args) > 1:
-                raise usage.UsageError("I wasn't expecting so many arguments")
-        if not self.basedirs:
-            raise usage.UsageError("--basedir must be provided")
 
 DEFAULT_ALIAS = u"tahoe"
 
@@ -91,7 +106,7 @@ def get_aliases(nodedir):
         f = open(rootfile, "r")
         rootcap = f.read().strip()
         if rootcap:
-            aliases[u"tahoe"] = uri.from_string_dirnode(rootcap).to_string()
+            aliases[DEFAULT_ALIAS] = uri.from_string_dirnode(rootcap).to_string()
     except EnvironmentError:
         pass
     try:

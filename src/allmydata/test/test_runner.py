@@ -202,10 +202,9 @@ class CreateNode(unittest.TestCase):
 
         # make sure it rejects a missing basedir specification
         argv = ["create-key-generator"]
-        rc, out, err = self.run_tahoe(argv)
-        self.failIfEqual(rc, 0, str((out, err, rc)))
-        self.failUnlessEqual(out, "")
-        self.failUnless("a basedir was not provided" in err)
+        self.failUnlessRaises(usage.UsageError,
+                              runner.runner, argv,
+                              run_by_human=False)
 
     def test_stats_gatherer(self):
         basedir = self.workdir("test_stats_gatherer")
