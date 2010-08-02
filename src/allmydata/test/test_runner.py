@@ -13,7 +13,11 @@ from allmydata.scripts import runner
 from allmydata.test import common_util
 import allmydata
 
-bintahoe = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(allmydata.__file__))), 'bin', 'tahoe')
+srcfile = allmydata.__file__
+srcdir = os.path.dirname(os.path.dirname(os.path.realpath(srcfile)))
+rootdir = os.path.dirname(srcdir)
+
+bintahoe = os.path.join(rootdir, 'bin', 'tahoe')
 if sys.platform == "win32":
     bintahoe += ".pyscript"
 
@@ -33,6 +37,33 @@ class SkipMixin:
 
 
 class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
+    def test_the_right_code(self):
+        cwd = os.getcwd()
+        root_from_cwd = os.path.normcase(os.path.normpath(os.path.join(cwd, "..")))
+        root_from_test = os.path.normcase(os.path.normpath(rootdir))
+
+        same = (root_from_cwd == root_from_test)
+        if not same:
+            try:
+                same = os.path.samefile(root_from_cwd, root_from_test)
+            except AttributeError, e:
+                e  # hush pyflakes
+
+        if not same:
+            msg = ("We seem to be testing the code at %r,\n"
+                   "(according to the source filename %r),\n"
+                   "but expected to be testing the code at %r.\n"
+                   % (root_from_test, srcfile, root_from_cwd))
+            if (not isinstance(cwd, unicode) and
+                cwd.decode(get_filesystem_encoding(), 'replace') != os.path.normcase(os.path.normpath(os.getcwdu()))):
+                msg += ("However, this may be a false alarm because the current directory path\n"
+                        "is not representable in the filesystem encoding. Please run the tests\n"
+                        "from the root of the Tahoe-LAFS distribution at a non-Unicode path.")
+                raise unittest.SkipTest(msg)
+            else:
+                msg += "Please run the tests from the root of the Tahoe-LAFS distribution."
+                self.fail(msg)
+
     def test_path(self):
         self.skip_if_cannot_run_bintahoe()
         d = utils.getProcessOutputAndValue(bintahoe, args=["--version-and-path"], env=os.environ)
@@ -41,10 +72,13 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
             self.failUnlessEqual(rc_or_sig, 0, str(res))
 
             # Fail unless the package is *this* version *and* was loaded from *this* source directory.
-            ad = os.path.dirname(os.path.dirname(os.path.realpath(allmydata.__file__)))
-            required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, allmydata.__version__, ad)
+            required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, allmydata.__version__, srcdir)
             self.failUnless(out.startswith(required_ver_and_path),
                             str((out, err, rc_or_sig, required_ver_and_path)))
+
+            self.failIfEqual(allmydata.__version__, "unknown",
+                             "We don't know our version, because this distribution didn't come "
+                             "with a _version.py and 'setup.py darcsver' hasn't been run.")
         d.addCallback(_cb)
         return d
 
@@ -61,7 +95,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
         d = utils.getProcessOutputAndValue(bintahoe, args=[tricky_arg], env=os.environ)
         def _cb(res):
             out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 1, str((out, err, rc_or_sig)))
+            self.failUnlessEqual(rc_or_sig, 1, str(res))
             self.failUnlessIn("Unknown command: "+tricky_out, out)
         d.addCallback(_cb)
         return d
