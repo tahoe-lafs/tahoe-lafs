@@ -2,6 +2,8 @@
 import os, sys
 from twisted.python import usage
 from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
+from allmydata.util.assertutil import precondition
+from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_output
 import allmydata
 
 class CreateClientOptions(BasedirMixin, usage.Options):

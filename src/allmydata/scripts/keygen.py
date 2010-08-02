@@ -2,6 +2,7 @@
 import os, sys
 from twisted.python import usage
 #from allmydata.scripts.common import BasedirMixin, NoDefaultBasedirMixin
+from allmydata.util.encodingutil import listdir_unicode, argv_to_abspath, quote_output
 
 class CreateKeyGeneratorOptions(usage.Options):
     optParameters = [
@@ -24,10 +25,10 @@ k.setServiceParent(application)
 """
 
 def create_key_generator(config, out=sys.stdout, err=sys.stderr):
-    basedir = config['basedir']
-    if not basedir:
+    if not config['basedir']:
         print >>err, "a basedir was not provided, please use --basedir or -C"
         return -1
+    basedir = argv_to_abspath(config['basedir'])
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
             print >>err, "The base directory %s is not empty." % quote_output(basedir)

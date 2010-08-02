@@ -39,30 +39,27 @@ class BasedirMixin:
             raise usage.UsageError("<basedir> parameter is required")
         if self['basedir']:
             del self['basedir']
-        self['basedirs'] = [os.path.abspath(os.path.expanduser(b)) for b in self.basedirs]
+        self['basedirs'] = self.basedirs
 
     def parseArgs(self, *args):
         self.basedirs = []
         if self['basedir']:
-            precondition(isinstance(self['basedir'], (str, unicode)), self['basedir'])
-            self.basedirs.append(self['basedir'])
+            precondition(isinstance(self['basedir'], str), self['basedir'])
+            self.basedirs.append(argv_to_abspath(self['basedir']))
         if self['multiple']:
-            precondition(not [x for x in args if not isinstance(x, (str, unicode))], args)
-            self.basedirs.extend(args)
+            self.basedirs.extend(map(argv_to_abspath, args))
         else:
             if len(args) == 0 and not self.basedirs:
                 if sys.platform == 'win32':
                     from allmydata.windows import registry
                     rbdp = registry.get_base_dir_path()
                     if rbdp:
-                        precondition(isinstance(registry.get_base_dir_path(), (str, unicode)), registry.get_base_dir_path())
+                        precondition(isinstance(registry.get_base_dir_path(), unicode), registry.get_base_dir_path())
                         self.basedirs.append(rbdp)
                 else:
-                    precondition(isinstance(os.path.expanduser("~/.tahoe"), (str, unicode)), os.path.expanduser("~/.tahoe"))
-                    self.basedirs.append(os.path.expanduser("~/.tahoe"))
+                    self.basedirs.append(abspath_expanduser_unicode(u"~/.tahoe"))
             if len(args) > 0:
-                precondition(isinstance(args[0], (str, unicode)), args[0])
-                self.basedirs.append(args[0])
+                self.basedirs.append(argv_to_abspath(args[0]))
             if len(args) > 1:
                 raise usage.UsageError("I wasn't expecting so many arguments")
 
@@ -71,15 +68,12 @@ class NoDefaultBasedirMixin(BasedirMixin):
         # create-client won't default to --basedir=~/.tahoe
         self.basedirs = []
         if self['basedir']:
-            precondition(isinstance(self['basedir'], (str, unicode)), self['basedir'])
-            self.basedirs.append(self['basedir'])
+            self.basedirs.append(argv_to_abspath(self['basedir']))
         if self['multiple']:
-            precondition(not [x for x in args if not isinstance(x, (str, unicode))], args)
-            self.basedirs.extend(args)
+            self.basedirs.extend(map(argv_to_abspath, args))
         else:
             if len(args) > 0:
-                precondition(isinstance(args[0], (str, unicode)), args[0])
-                self.basedirs.append(args[0])
+                self.basedirs.append(argv_to_abspath(args[0]))
             if len(args) > 1:
                 raise usage.UsageError("I wasn't expecting so many arguments")
         if not self.basedirs:
