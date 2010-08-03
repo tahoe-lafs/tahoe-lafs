@@ -9,7 +9,7 @@
    servers if the servers that it is using fail or become too slow in
    mid-download. It also minimizes unnecessary round trips and
    unnecessary bytes transferred to improve performance. (#798, #800,
-   #990) XXX any other tickets? #809, #287, #447?
+   #990)
  - Non-ASCII command-line arguments and non-ASCII outputs now work on
    Windows. In addition, the command-line tool now works on 64-bit
    Windows. (#1074)
@@ -17,7 +17,9 @@
 ** Bugfixes and Improvements
 
  - Document and clean up the command-line options for specifying the
-   node's base directory. (#188, #706, #715, #772, #890)
+   node's base directory. (#188, #706, #715, #772)
+ - The default node directory for Windows is ".tahoe" in the user's
+   home directory, the same as on other platforms. (#890)
  - Fix bug in WUI in Python 2.5 when the system clock is set back to
    1969. Now you can use Tahoe-LAFS with Python 2.5 and set your
    system clock to 1969 and still use the WUI. (#1055)
