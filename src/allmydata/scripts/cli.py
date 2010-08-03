@@ -240,6 +240,10 @@ class RmOptions(VDriveOptions):
     def getSynopsis(self):
         return "%s rm REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
 
+class UnlinkOptions(RmOptions):
+    def getSynopsis(self):
+        return "%s unlink REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
+
 class MvOptions(VDriveOptions):
     def parseArgs(self, frompath, topath):
         self.from_file = argv_to_unicode(frompath)
@@ -429,7 +433,7 @@ subCommands = [
     ["put", None, PutOptions, "Upload a file into the grid."],
     ["cp", None, CpOptions, "Copy one or more files."],
     ["rm", None, RmOptions, "Unlink a file or directory on the grid."],
-    ["unlink", None, RmOptions, "Unlink a file or directory on the grid (same as rm)."],
+    ["unlink", None, UnlinkOptions, "Unlink a file or directory on the grid (same as rm)."],
     ["mv", None, MvOptions, "Move a file within the grid."],
     ["ln", None, LnOptions, "Make an additional link to an existing file."],
     ["backup", None, BackupOptions, "Make target dir look like local dir."],
