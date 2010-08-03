@@ -62,7 +62,8 @@ def print_as_ver():
                                stderr=subprocess.PIPE).communicate()[1]
         print
         print 'as: ' + res.replace("\n", " ")
-        os.remove('a.out')
+        if os.path.exists('a.out'):
+            os.remove('a.out')
     except EnvironmentError, le:
         sys.stderr.write("Got exception invoking '%s': %s\n" % ('as', le,))
         pass
