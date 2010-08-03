@@ -147,27 +147,33 @@ class CreateNode(unittest.TestCase):
         rc = runner.runner(argv, stdout=out, stderr=err)
         return rc, out.getvalue(), err.getvalue()
 
-    def do_create(self, command, basedir):
-        c1 = os.path.join(basedir, command + "-c1")
-        argv = ["--quiet", command, "--basedir", c1]
+    def do_create(self, kind):
+        basedir = self.workdir("test_" + kind)
+        command = "create-" + kind
+        is_client = kind in ("node", "client")
+        tac = is_client and "tahoe-client.tac" or ("tahoe-" + kind + ".tac")
+
+        n1 = os.path.join(basedir, command + "-n1")
+        argv = ["--quiet", command, "--basedir", n1]
         rc, out, err = self.run_tahoe(argv)
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")
         self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(c1))
-        self.failUnless(os.path.exists(os.path.join(c1, "tahoe-client.tac")))
+        self.failUnless(os.path.exists(n1))
+        self.failUnless(os.path.exists(os.path.join(n1, tac)))
 
-        # tahoe.cfg should exist, and should have storage enabled for
-        # 'create-node', and disabled for 'create-client'.
-        tahoe_cfg = os.path.join(c1, "tahoe.cfg")
-        self.failUnless(os.path.exists(tahoe_cfg))
-        content = open(tahoe_cfg).read()
-        if command == "create-client":
-            self.failUnless("\n[storage]\nenabled = false\n" in content)
-        else:
-            self.failUnless("\n[storage]\nenabled = true\n" in content)
+        if is_client:
+            # tahoe.cfg should exist, and should have storage enabled for
+            # 'create-node', and disabled for 'create-client'.
+            tahoe_cfg = os.path.join(n1, "tahoe.cfg")
+            self.failUnless(os.path.exists(tahoe_cfg))
+            content = open(tahoe_cfg).read()
+            if kind == "client":
+                self.failUnless("\n[storage]\nenabled = false\n" in content)
+            else:
+                self.failUnless("\n[storage]\nenabled = true\n" in content)
 
-        # creating the client a second time should be rejected
+        # creating the node a second time should be rejected
         rc, out, err = self.run_tahoe(argv)
         self.failIfEqual(rc, 0, str((out, err, rc)))
         self.failUnlessEqual(out, "")
@@ -179,138 +185,67 @@ class CreateNode(unittest.TestCase):
             self.failIf(re.search("[\S][^\.!?]$", line), (line,))
 
         # test that the non --basedir form works too
-        c2 = os.path.join(basedir, command + "c2")
-        argv = ["--quiet", command, c2]
+        n2 = os.path.join(basedir, command + "-n2")
+        argv = ["--quiet", command, n2]
         rc, out, err = self.run_tahoe(argv)
-        self.failUnless(os.path.exists(c2))
-        self.failUnless(os.path.exists(os.path.join(c2, "tahoe-client.tac")))
+        self.failUnlessEqual(err, "")
+        self.failUnlessEqual(out, "")
+        self.failUnlessEqual(rc, 0)
+        self.failUnless(os.path.exists(n2))
+        self.failUnless(os.path.exists(os.path.join(n2, tac)))
 
-        # make sure it rejects too many arguments
+        # test the --node-directory form
+        n3 = os.path.join(basedir, command + "-n3")
+        argv = ["--quiet", command, "--node-directory", n3]
+        rc, out, err = self.run_tahoe(argv)
+        self.failUnlessEqual(err, "")
+        self.failUnlessEqual(out, "")
+        self.failUnlessEqual(rc, 0)
+        self.failUnless(os.path.exists(n3))
+        self.failUnless(os.path.exists(os.path.join(n3, tac)))
+
+        # test the --multiple form
+        n4 = os.path.join(basedir, command + "-n4")
+        n5 = os.path.join(basedir, command + "-n5")
+        argv = ["--quiet", command, "--multiple", n4, n5]
+        rc, out, err = self.run_tahoe(argv)
+        self.failUnlessEqual(err, "")
+        self.failUnlessEqual(out, "")
+        self.failUnlessEqual(rc, 0)
+        self.failUnless(os.path.exists(n4))
+        self.failUnless(os.path.exists(os.path.join(n4, tac)))
+        self.failUnless(os.path.exists(n5))
+        self.failUnless(os.path.exists(os.path.join(n5, tac)))
+
+        # make sure it rejects too many arguments without --multiple
         argv = [command, "basedir", "extraarg"]
         self.failUnlessRaises(usage.UsageError,
                               runner.runner, argv,
                               run_by_human=False)
 
+        # when creating a non-client, there is no default for the basedir
+        if not is_client:
+            argv = [command]
+            self.failUnlessRaises(usage.UsageError,
+                                  runner.runner, argv,
+                                  run_by_human=False)
+
+
     def test_node(self):
-        basedir = self.workdir("test_node")
-        self.do_create("create-node", basedir)
+        self.do_create("node")
 
     def test_client(self):
         # create-client should behave like create-node --no-storage.
-        basedir = self.workdir("test_client")
-        self.do_create("create-client", basedir)
+        self.do_create("client")
 
     def test_introducer(self):
-        basedir = self.workdir("test_introducer")
-        c1 = os.path.join(basedir, "c1")
-        argv = ["--quiet", "create-introducer", "--basedir", c1]
-        rc, out, err = self.run_tahoe(argv)
-        self.failUnlessEqual(err, "", err)
-        self.failUnlessEqual(out, "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(c1))
-        self.failUnless(os.path.exists(os.path.join(c1,"tahoe-introducer.tac")))
-
-        # creating the introducer a second time should be rejected
-        rc, out, err = self.run_tahoe(argv)
-        self.failIfEqual(rc, 0)
-        self.failUnlessEqual(out, "")
-        self.failUnless("is not empty" in err)
-
-        # Fail if there is a non-empty line that doesn't end with a
-        # punctuation mark.
-        for line in err.splitlines():
-            self.failIf(re.search("[\S][^\.!?]$", line), (line,))
-
-        # test the non --basedir form
-        c2 = os.path.join(basedir, "c2")
-        argv = ["--quiet", "create-introducer", c2]
-        rc, out, err = self.run_tahoe(argv)
-        self.failUnlessEqual(err, "", err)
-        self.failUnlessEqual(out, "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(c2))
-        self.failUnless(os.path.exists(os.path.join(c2,"tahoe-introducer.tac")))
-
-        # reject extra arguments
-        argv = ["create-introducer", "basedir", "extraarg"]
-        self.failUnlessRaises(usage.UsageError,
-                              runner.runner, argv,
-                              run_by_human=False)
-        # and require basedir to be provided in some form
-        argv = ["create-introducer"]
-        self.failUnlessRaises(usage.UsageError,
-                              runner.runner, argv,
-                              run_by_human=False)
+        self.do_create("introducer")
 
     def test_key_generator(self):
-        basedir = self.workdir("test_key_generator")
-        kg1 = os.path.join(basedir, "kg1")
-        argv = ["--quiet", "create-key-generator", "--basedir", kg1]
-        rc, out, err = self.run_tahoe(argv)
-        self.failUnlessEqual(err, "")
-        self.failUnlessEqual(out, "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(kg1))
-        self.failUnless(os.path.exists(os.path.join(kg1, "tahoe-key-generator.tac")))
-
-        # creating it a second time should be rejected
-        rc, out, err = self.run_tahoe(argv)
-        self.failIfEqual(rc, 0, str((out, err, rc)))
-        self.failUnlessEqual(out, "")
-        self.failUnlessIn("is not empty.", err)
-
-        # make sure it rejects too many arguments
-        argv = ["create-key-generator", "basedir", "extraarg"]
-        self.failUnlessRaises(usage.UsageError,
-                              runner.runner, argv,
-                              run_by_human=False)
-
-        # make sure it rejects a missing basedir specification
-        argv = ["create-key-generator"]
-        self.failUnlessRaises(usage.UsageError,
-                              runner.runner, argv,
-                              run_by_human=False)
+        self.do_create("key-generator")
 
     def test_stats_gatherer(self):
-        basedir = self.workdir("test_stats_gatherer")
-        sg1 = os.path.join(basedir, "sg1")
-        argv = ["--quiet", "create-stats-gatherer", "--basedir", sg1]
-        rc, out, err = self.run_tahoe(argv)
-        self.failUnlessEqual(err, "")
-        self.failUnlessEqual(out, "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(sg1))
-        self.failUnless(os.path.exists(os.path.join(sg1, "tahoe-stats-gatherer.tac")))
-
-        # creating it a second time should be rejected
-        rc, out, err = self.run_tahoe(argv)
-        self.failIfEqual(rc, 0, str((out, err, rc)))
-        self.failUnlessEqual(out, "")
-        self.failUnless("is not empty." in err)
-
-        # test the non --basedir form
-        kg2 = os.path.join(basedir, "kg2")
-        argv = ["--quiet", "create-stats-gatherer", kg2]
-        rc, out, err = self.run_tahoe(argv)
-        self.failUnlessEqual(err, "", err)
-        self.failUnlessEqual(out, "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(kg2))
-        self.failUnless(os.path.exists(os.path.join(kg2,"tahoe-stats-gatherer.tac")))
-
-        # make sure it rejects too many arguments
-        argv = ["create-stats-gatherer", "basedir", "extraarg"]
-        self.failUnlessRaises(usage.UsageError,
-                              runner.runner, argv,
-                              run_by_human=False)
-
-        # make sure it rejects a missing basedir specification
-        argv = ["create-stats-gatherer"]
-        rc, out, err = self.run_tahoe(argv)
-        self.failIfEqual(rc, 0, str((out, err, rc)))
-        self.failUnlessEqual(out, "")
-        self.failUnless("a basedir was not provided" in err)
+        self.do_create("stats-gatherer")
 
     def test_subcommands(self):
         # no arguments should trigger a command listing, via UsageError

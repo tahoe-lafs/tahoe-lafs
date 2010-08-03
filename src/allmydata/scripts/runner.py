@@ -41,6 +41,11 @@ class Options(BaseOptions, usage.Options):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a command")
 
+
+create_dispatch = {}
+for module in (create_node, keygen, stats_gatherer):
+    create_dispatch.update(module.dispatch)
+
 def runner(argv,
            run_by_human=True,
            stdin=None, stdout=None, stderr=None,
@@ -87,9 +92,9 @@ def runner(argv,
     so.stdin = stdin
 
     rc = 0
-    if command in create_node.dispatch:
+    if command in create_dispatch:
+        f = create_dispatch[command]
         for basedir in so.basedirs:
-            f = create_node.dispatch[command]
             rc = f(basedir, so, stdout, stderr) or rc
     elif command in startstop_node.dispatch:
         rc = startstop_node.dispatch[command](so, stdout, stderr)
@@ -97,10 +102,6 @@ def runner(argv,
         rc = debug.dispatch[command](so)
     elif command in cli.dispatch:
         rc = cli.dispatch[command](so)
-    elif command in keygen.dispatch:
-        rc = keygen.dispatch[command](so, stdout, stderr)
-    elif command in stats_gatherer.dispatch:
-        rc = stats_gatherer.dispatch[command](so)
     elif command in ac_dispatch:
         rc = ac_dispatch[command](so, stdout, stderr)
     else:

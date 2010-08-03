@@ -13,9 +13,9 @@ class VDriveOptions(BaseOptions):
          "Specify which Tahoe node directory should be used. The directory "
          "should either contain a full Tahoe node, or a file named node.url "
          "that points to some other Tahoe node. It should also contain a file "
-         "named private/aliases which contains the mapping from alias name "
-         "to root dirnode URI." + (
-            _default_nodedir and (" [default for most commands: " + quote_output(_default_nodedir) + "]") or "")],
+         "named '" + os.path.join('private', 'aliases') + "' which contains the "
+         "mapping from alias name to root dirnode URI." + (
+            _default_nodedir and (" [default: " + quote_output(_default_nodedir) + "]") or "")],
         ["node-url", "u", None,
          "Specify the URL of the Tahoe gateway node, such as 'http://127.0.0.1:3456'. "
          "This overrides the URL found in the --node-directory ."],

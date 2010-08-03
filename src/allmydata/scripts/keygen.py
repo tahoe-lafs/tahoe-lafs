@@ -1,14 +1,14 @@
 
 import os, sys
 from allmydata.scripts.common import BasedirMixin, BaseOptions
+from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, quote_output
 
 class CreateKeyGeneratorOptions(BasedirMixin, BaseOptions):
     default_nodedir = None
-    allow_multiple = False
 
     optParameters = [
-        ["basedir", "C", None, "which directory to create the key-generator in"],
+        ["node-directory", "d", None, "Specify which directory the key-generator should be created in. [no default]"],
     ]
 
 keygen_tac = """
@@ -26,8 +26,10 @@ application = service.Application("allmydata_key_generator")
 k.setServiceParent(application)
 """
 
-def create_key_generator(config, out=sys.stdout, err=sys.stderr):
-    basedir = config['basedirs'][0]
+def create_key_generator(basedir, config, out=sys.stdout, err=sys.stderr):
+    # This should always be called with an absolute Unicode basedir.
+    precondition(isinstance(basedir, unicode), basedir)
+
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
             print >>err, "The base directory %s is not empty." % quote_output(basedir)

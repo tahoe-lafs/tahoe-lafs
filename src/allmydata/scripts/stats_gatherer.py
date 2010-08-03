@@ -1,16 +1,15 @@
 
-import os
-from twisted.python import usage
+import os, sys
+from allmydata.scripts.common import BasedirMixin, BaseOptions
+from allmydata.util.assertutil import precondition
+from allmydata.util.encodingutil import listdir_unicode, quote_output
 
-class CreateStatsGathererOptions(usage.Options):
+class CreateStatsGathererOptions(BasedirMixin, BaseOptions):
+    default_nodedir = None
+
     optParameters = [
-        ["basedir", "C", None, "which directory to create the stats-gatherer in"],
-        ]
-
-    def parseArgs(self, basedir=None):
-        if basedir is not None:
-            assert self["basedir"] is None
-            self["basedir"] = basedir
+        ["node-directory", "d", None, "Specify which directory the stats-gatherer should be created in. [no default]"],
+    ]
 
 
 stats_gatherer_tac = """
@@ -26,15 +25,14 @@ application = service.Application('allmydata_stats_gatherer')
 g.setServiceParent(application)
 """
 
-def create_stats_gatherer(config):
-    err = config.stderr
-    basedir = config['basedir']
-    if not basedir:
-        print >>err, "a basedir was not provided, please use --basedir or -C"
-        return -1
+
+def create_stats_gatherer(basedir, config, out=sys.stdout, err=sys.stderr):
+    # This should always be called with an absolute Unicode basedir.
+    precondition(isinstance(basedir, unicode), basedir)
+
     if os.path.exists(basedir):
-        if os.listdir(basedir):
-            print >>err, "The base directory \"%s\", which is \"%s\" is not empty." % (basedir, os.path.abspath(basedir))
+        if listdir_unicode(basedir):
+            print >>err, "The base directory %s is not empty." % quote_output(basedir)
             print >>err, "To avoid clobbering anything, I am going to quit now."
             print >>err, "Please use a different directory, or empty this one."
             return -1

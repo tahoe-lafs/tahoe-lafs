@@ -770,7 +770,8 @@ def corrupt_share(options):
 
 
 class ReplOptions(usage.Options):
-    pass
+    def getSynopsis(self):
+        return "Usage: tahoe debug repl"
 
 def repl(options):
     import code
@@ -801,6 +802,7 @@ Subcommands:
     tahoe debug find-shares     Locate sharefiles in node directories.
     tahoe debug catalog-shares  Describe all shares in node dirs.
     tahoe debug corrupt-share   Corrupt a share by flipping a bit.
+    tahoe debug repl            Open a Python interpreter.
 
 Please run e.g. 'tahoe debug dump-share --help' for more details on each
 subcommand.

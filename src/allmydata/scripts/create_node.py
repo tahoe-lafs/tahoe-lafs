@@ -7,7 +7,6 @@ import allmydata
 
 class CreateClientOptions(BasedirMixin, BaseOptions):
     optParameters = [
-        ("basedir", "C", None, "which directory to create the node in"),
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
@@ -26,8 +25,8 @@ class CreateIntroducerOptions(BasedirMixin, BaseOptions):
     default_nodedir = None
 
     optParameters = [
-        ["basedir", "C", None, "which directory to create the introducer in"],
-        ]
+        ["node-directory", "d", None, "Specify which directory the introducer should be created in. [no default]"],
+    ]
 
 client_tac = """
 # -*- python -*-

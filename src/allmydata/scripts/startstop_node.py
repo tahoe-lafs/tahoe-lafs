@@ -2,25 +2,19 @@
 import os, sys, signal, time
 from allmydata.scripts.common import BasedirMixin, BaseOptions
 from allmydata.util import fileutil, find_exe
+from allmydata.util.assertutil import precondition
+from allmydata.util.encodingutil import listdir_unicode, quote_output
 
 class StartOptions(BasedirMixin, BaseOptions):
-    optParameters = [
-        ["basedir", "C", None, "which directory to start the node in"],
-        ]
     optFlags = [
         ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
         ["syslog", None, "Tell the node to log to syslog, not a file."],
         ]
 
 class StopOptions(BasedirMixin, BaseOptions):
-    optParameters = [
-        ["basedir", "C", None, "which directory to stop the node in"],
-        ]
+    pass
 
 class RestartOptions(BasedirMixin, BaseOptions):
-    optParameters = [
-        ["basedir", "C", None, "which directory to restart the node in"],
-        ]
     optFlags = [
         ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
         ["syslog", None, "Tell the node to log to syslog, not a file."],
@@ -28,22 +22,24 @@ class RestartOptions(BasedirMixin, BaseOptions):
 
 class RunOptions(BasedirMixin, BaseOptions):
     default_nodedir = u"."
+    allow_multiple = False
 
     optParameters = [
-        ["basedir", "C", None, "which directory to run the node in, CWD by default"],
-        ]
+        ["node-directory", "d", None, "Specify the directory of the node to be run. [default, for 'tahoe run' only: current directory]"],
+        ["multiple", "m", None, "['tahoe run' cannot accept multiple node directories]"],
+    ]
 
 def do_start(basedir, opts, out=sys.stdout, err=sys.stderr):
-    print >>out, "STARTING", basedir
+    print >>out, "STARTING", quote_output(basedir)
     if not os.path.isdir(basedir):
-        print >>err, "%s does not look like a directory at all" % basedir
+        print >>err, "%s does not look like a directory at all" % quote_output(basedir)
         return 1
-    for fn in os.listdir(basedir):
-        if fn.endswith(".tac"):
-            tac = fn
+    for fn in listdir_unicode(basedir):
+        if fn.endswith(u".tac"):
+            tac = str(fn)
             break
     else:
-        print >>err, "%s does not look like a node directory (no .tac file)" % basedir
+        print >>err, "%s does not look like a node directory (no .tac file)" % quote_output(basedir)
         return 1
     if "client" in tac:
         nodetype = "client"
@@ -108,10 +104,10 @@ def do_start(basedir, opts, out=sys.stdout, err=sys.stderr):
         return 1
 
 def do_stop(basedir, out=sys.stdout, err=sys.stderr):
-    print >>out, "STOPPING", basedir
+    print >>out, "STOPPING", quote_output(basedir)
     pidfile = os.path.join(basedir, "twistd.pid")
     if not os.path.exists(pidfile):
-        print >>err, "%s does not look like a running node directory (no twistd.pid)" % basedir
+        print >>err, "%s does not look like a running node directory (no twistd.pid)" % quote_output(basedir)
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
         return 2
@@ -194,11 +190,26 @@ def run(config, stdout, stderr):
     from twisted.python import log, logfile
     from allmydata import client
 
-    basedir = config['basedir']
-    if basedir is None:
-        basedir = '.'
+    basedir = config['basedirs'][0]
+    precondition(isinstance(basedir, unicode), basedir)
+
+    if not os.path.isdir(basedir):
+        print >>stderr, "%s does not look like a directory at all" % quote_output(basedir)
+        return 1
+    for fn in listdir_unicode(basedir):
+        if fn.endswith(u".tac"):
+            tac = str(fn)
+            break
     else:
-        os.chdir(basedir)
+        print >>stderr, "%s does not look like a node directory (no .tac file)" % quote_output(basedir)
+        return 1
+    if "client" not in tac:
+        print >>stderr, ("%s looks like it contains a non-client node (%s).\n"
+                         "Use 'tahoe start' instead of 'tahoe run'."
+                         % (quote_output(basedir), tac))
+        return 1
+
+    os.chdir(basedir)
 
     # set up twisted logging. this will become part of the node rsn.
     logdir = os.path.join(basedir, 'logs')
