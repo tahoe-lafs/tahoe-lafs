@@ -1,4 +1,3 @@
-# coding=utf-8
 
 import os.path
 from twisted.trial import unittest
@@ -431,7 +430,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnlessRaises(common.UnknownAliasError, ga5, u"C:\\Windows")
 
     def test_listdir_unicode_good(self):
-        filenames = [u'Lôzane', u'Bern', u'Genève']  # must be NFC
+        filenames = [u'L\u00F4zane', u'Bern', u'Gen\u00E8ve']  # must be NFC
 
         for name in filenames:
             self.skip_if_cannot_represent_filename(name)
@@ -634,8 +633,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
 
         try:
-            etudes_arg = u"études".encode(get_argv_encoding())
-            lumiere_arg = u"lumière.txt".encode(get_argv_encoding())
+            etudes_arg = u"\u00E9tudes".encode(get_argv_encoding())
+            lumiere_arg = u"lumi\u00E8re.txt".encode(get_argv_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -643,10 +642,10 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check_create_unicode((rc, out, err)):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
-            self.failUnlessIn("Alias %s created" % quote_output(u"études"), out)
+            self.failUnlessIn("Alias %s created" % quote_output(u"\u00E9tudes"), out)
 
             aliases = get_aliases(self.get_clientdir())
-            self.failUnless(aliases[u"études"].startswith("URI:DIR2:"))
+            self.failUnless(aliases[u"\u00E9tudes"].startswith("URI:DIR2:"))
         d.addCallback(_check_create_unicode)
 
         d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
@@ -678,7 +677,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
                                               stdin="Let the sunshine In!"))
 
         d.addCallback(lambda res: self.do_cli("get",
-                                              get_aliases(self.get_clientdir())[u"études"] + "/" + lumiere_arg))
+                                              get_aliases(self.get_clientdir())[u"\u00E9tudes"] + "/" + lumiere_arg))
         def _check_get2((rc, out, err)):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
@@ -960,19 +959,19 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
     def test_immutable_from_file_unicode(self):
-        # tahoe put "à trier.txt" "à trier.txt"
+        # tahoe put "\u00E0 trier.txt" "\u00E0 trier.txt"
 
         try:
-            a_trier_arg = u"à trier.txt".encode(get_argv_encoding())
+            a_trier_arg = u"\u00E0 trier.txt".encode(get_argv_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
-        self.skip_if_cannot_represent_filename(u"à trier.txt")
+        self.skip_if_cannot_represent_filename(u"\u00E0 trier.txt")
 
         self.basedir = "cli/Put/immutable_from_file_unicode"
         self.set_up_grid()
 
-        rel_fn = os.path.join(unicode(self.basedir), u"à trier.txt")
+        rel_fn = os.path.join(unicode(self.basedir), u"\u00E0 trier.txt")
         # we make the file small enough to fit in a LIT file, for speed
         DATA = "short file"
         fileutil.write(rel_fn, DATA)
@@ -1002,15 +1001,15 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         c0 = self.g.clients[0]
         small = "small"
 
-        # u"gööd" might not be representable in the argv and/or output encodings.
+        # u"g\u00F6\u00F6d" might not be representable in the argv and/or output encodings.
         # It is initially included in the directory in any case.
         try:
-            good_arg = u"gööd".encode(get_argv_encoding())
+            good_arg = u"g\u00F6\u00F6d".encode(get_argv_encoding())
         except UnicodeEncodeError:
             good_arg = None
 
         try:
-            good_out = u"gööd".encode(get_output_encoding())
+            good_out = u"g\u00F6\u00F6d".encode(get_output_encoding())
         except UnicodeEncodeError:
             good_out = None
 
@@ -1018,7 +1017,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturi = n.get_uri()
-            return n.add_file(u"gööd", upload.Data(small, convergence=""))
+            return n.add_file(u"g\u00F6\u00F6d", upload.Data(small, convergence=""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_goodcap(n):
             self.goodcap = n.get_uri()
@@ -1036,7 +1035,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             if good_out is None:
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessIn("files whose names could not be converted", err)
-                self.failUnlessIn(quote_output(u"gööd"), err)
+                self.failUnlessIn(quote_output(u"g\u00F6\u00F6d"), err)
                 self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share"]))
             else:
                 self.failUnlessReallyEqual(rc, 0)
@@ -1064,7 +1063,7 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             if good_out is None:
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessIn("files whose names could not be converted", err)
-                self.failUnlessIn(quote_output(u"gööd"), err)
+                self.failUnlessIn(quote_output(u"g\u00F6\u00F6d"), err)
                 self.failUnlessReallyEqual(out, "")
             else:
                 # listing a file (as dir/filename) should have the edge metadata,
@@ -1092,9 +1091,9 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("ls", "-l", self.goodcap))
         d.addCallback(_check5)
 
-        # Now rename 'gööd' to 'good' and repeat the tests that might have been skipped due
+        # Now rename 'g\u00F6\u00F6d' to 'good' and repeat the tests that might have been skipped due
         # to encoding problems.
-        d.addCallback(lambda ign: self.rootnode.move_child_to(u"gööd", self.rootnode, u"good"))
+        d.addCallback(lambda ign: self.rootnode.move_child_to(u"g\u00F6\u00F6d", self.rootnode, u"good"))
 
         d.addCallback(lambda ign: self.do_cli("ls"))
         def _check1_ascii((rc,out,err)):
@@ -1334,10 +1333,10 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_unicode_filename(self):
         self.basedir = "cli/Cp/unicode_filename"
 
-        fn1 = os.path.join(unicode(self.basedir), u"Ärtonwall")
+        fn1 = os.path.join(unicode(self.basedir), u"\u00C4rtonwall")
         try:
             fn1_arg = fn1.encode(get_argv_encoding())
-            artonwall_arg = u"Ärtonwall".encode(get_argv_encoding())
+            artonwall_arg = u"\u00C4rtonwall".encode(get_argv_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -1367,15 +1366,15 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:"))
         def _check((rc, out, err)):
             try:
-                unicode_to_output(u"Ärtonwall")
+                unicode_to_output(u"\u00C4rtonwall")
             except UnicodeEncodeError:
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessReallyEqual(out, "Metallica\n")
-                self.failUnlessIn(quote_output(u"Ärtonwall"), err)
+                self.failUnlessIn(quote_output(u"\u00C4rtonwall"), err)
                 self.failUnlessIn("files whose names could not be converted", err)
             else:
                 self.failUnlessReallyEqual(rc, 0)
-                self.failUnlessReallyEqual(out.decode(get_output_encoding()), u"Metallica\nÄrtonwall\n")
+                self.failUnlessReallyEqual(out.decode(get_output_encoding()), u"Metallica\n\u00C4rtonwall\n")
                 self.failUnlessReallyEqual(err, "")
         d.addCallback(_check)
 
@@ -2056,18 +2055,18 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.uris = {}
         self.fileurls = {}
         DATA = "data" * 100
-        quoted_good = quote_output(u"gööd")
+        quoted_good = quote_output(u"g\u00F6\u00F6d")
 
         d = c0.create_dirnode()
         def _stash_root_and_create_file(n):
             self.rootnode = n
             self.rooturi = n.get_uri()
-            return n.add_file(u"gööd", upload.Data(DATA, convergence=""))
+            return n.add_file(u"g\u00F6\u00F6d", upload.Data(DATA, convergence=""))
         d.addCallback(_stash_root_and_create_file)
         def _stash_uri(fn, which):
             self.uris[which] = fn.get_uri()
             return fn
-        d.addCallback(_stash_uri, u"gööd")
+        d.addCallback(_stash_uri, u"g\u00F6\u00F6d")
         d.addCallback(lambda ign:
                       self.rootnode.add_file(u"small",
                                            upload.Data("literal",
@@ -2087,7 +2086,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check1)
 
         # root
-        # root/gööd
+        # root/g\u00F6\u00F6d
         # root/small
         # root/mutable
 
@@ -2121,7 +2120,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_stats)
 
         def _clobber_shares(ignored):
-            shares = self.find_uri_shares(self.uris[u"gööd"])
+            shares = self.find_uri_shares(self.uris[u"g\u00F6\u00F6d"])
             self.failUnlessReallyEqual(len(shares), 10)
             os.unlink(shares[0][2])
 
@@ -2138,7 +2137,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_clobber_shares)
 
         # root
-        # root/gööd  [9 shares]
+        # root/g\u00F6\u00F6d  [9 shares]
         # root/small
         # root/mutable [1 corrupt share]
 
@@ -2183,7 +2182,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
             units = [simplejson.loads(line) for line in lines]
-            # root, small, gööd, mutable,  stats
+            # root, small, g\u00F6\u00F6d, mutable,  stats
             self.failUnlessReallyEqual(len(units), 4+1)
         d.addCallback(_check5)
 
@@ -2219,7 +2218,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                                                   range(10)))
 
         # root
-        # rootgööd/
+        # rootg\u00F6\u00F6d/
         # root/small
         # root/mutable
         # root/subdir [unrecoverable: 0 shares]
@@ -2403,7 +2402,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
 
         try:
-            motorhead_arg = u"tahoe:Motörhead".encode(get_argv_encoding())
+            motorhead_arg = u"tahoe:Mot\u00F6rhead".encode(get_argv_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
