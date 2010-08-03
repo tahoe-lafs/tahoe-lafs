@@ -11,8 +11,8 @@ class DumpOptions(usage.Options):
         return "Usage: tahoe debug dump-share SHARE_FILENAME"
 
     optFlags = [
-        ["offsets", None, "Display a table of section offsets"],
-        ["leases-only", None, "Dump leases but not CHK contents"],
+        ["offsets", None, "Display a table of section offsets."],
+        ["leases-only", None, "Dump leases but not CHK contents."],
         ]
 
     def getUsage(self, width=None):
@@ -306,11 +306,11 @@ class DumpCapOptions(usage.Options):
         return "Usage: tahoe debug dump-cap [options] FILECAP"
     optParameters = [
         ["nodeid", "n",
-         None, "storage server nodeid (ascii), to construct WE and secrets."],
+         None, "Specify the storage server nodeid (ASCII), to construct WE and secrets."],
         ["client-secret", "c", None,
-         "client's base secret (ascii), to construct secrets"],
+         "Specify the client's base secret (ASCII), to construct secrets."],
         ["client-dir", "d", None,
-         "client's base directory, from which a -c secret will be read"],
+         "Specify the client's base directory, from which a -c secret will be read."],
         ]
     def parseArgs(self, cap):
         self.cap = cap
@@ -694,7 +694,7 @@ class CorruptShareOptions(usage.Options):
         return "Usage: tahoe debug corrupt-share SHARE_FILENAME"
 
     optParameters = [
-        ["offset", "o", "block-random", "Which bit to flip."],
+        ["offset", "o", "block-random", "Specify which bit to flip."],
         ]
 
     def getUsage(self, width=None):
@@ -781,11 +781,11 @@ class DebugCommand(usage.Options):
     subCommands = [
         ["dump-share", None, DumpOptions,
          "Unpack and display the contents of a share (uri_extension and leases)."],
-        ["dump-cap", None, DumpCapOptions, "Unpack a read-cap or write-cap"],
-        ["find-shares", None, FindSharesOptions, "Locate sharefiles in node dirs"],
-        ["catalog-shares", None, CatalogSharesOptions, "Describe shares in node dirs"],
-        ["corrupt-share", None, CorruptShareOptions, "Corrupt a share"],
-        ["repl", None, ReplOptions, "Open a python interpreter"],
+        ["dump-cap", None, DumpCapOptions, "Unpack a read-cap or write-cap."],
+        ["find-shares", None, FindSharesOptions, "Locate sharefiles in node dirs."],
+        ["catalog-shares", None, CatalogSharesOptions, "Describe all shares in node dirs."],
+        ["corrupt-share", None, CorruptShareOptions, "Corrupt a share by flipping a bit."],
+        ["repl", None, ReplOptions, "Open a Python interpreter."],
         ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
@@ -796,10 +796,10 @@ class DebugCommand(usage.Options):
         #t = usage.Options.getUsage(self, width)
         t = """
 Subcommands:
-    tahoe debug dump-share      Unpack and display the contents of a share
-    tahoe debug dump-cap        Unpack a read-cap or write-cap
-    tahoe debug find-shares     Locate sharefiles in node directories
-    tahoe debug catalog-shares  Describe all shares in node dirs
+    tahoe debug dump-share      Unpack and display the contents of a share.
+    tahoe debug dump-cap        Unpack a read-cap or write-cap.
+    tahoe debug find-shares     Locate sharefiles in node directories.
+    tahoe debug catalog-shares  Describe all shares in node dirs.
     tahoe debug corrupt-share   Corrupt a share by flipping a bit.
 
 Please run e.g. 'tahoe debug dump-share --help' for more details on each
@@ -826,7 +826,7 @@ def do_debug(options):
 
 
 subCommands = [
-    ["debug", None, DebugCommand, "debug subcommands: use 'tahoe debug' for a list"],
+    ["debug", None, DebugCommand, "debug subcommands: use 'tahoe debug' for a list."],
     ]
 
 dispatch = {

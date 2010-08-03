@@ -8,8 +8,8 @@ class StartOptions(BasedirMixin, BaseOptions):
         ["basedir", "C", None, "which directory to start the node in"],
         ]
     optFlags = [
-        ["profile", "p", "whether to run under the Python profiler, putting results in \"profiling_results.prof\""],
-        ["syslog", None, "tell the node to log to syslog, not a file"],
+        ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
+        ["syslog", None, "Tell the node to log to syslog, not a file."],
         ]
 
 class StopOptions(BasedirMixin, BaseOptions):
@@ -22,8 +22,8 @@ class RestartOptions(BasedirMixin, BaseOptions):
         ["basedir", "C", None, "which directory to restart the node in"],
         ]
     optFlags = [
-        ["profile", "p", "whether to run under the Python profiler, putting results in \"profiling_results.prof\""],
-        ["syslog", None, "tell the node to log to syslog, not a file"],
+        ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
+        ["syslog", None, "Tell the node to log to syslog, not a file."],
         ]
 
 class RunOptions(BasedirMixin, BaseOptions):

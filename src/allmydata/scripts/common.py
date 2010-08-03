@@ -59,7 +59,7 @@ class BasedirMixin:
         ["basedir", "C", None, "Same as --node-directory."],
     ]
     optFlags = [
-        ["multiple", "m", "Specify multiple node directories at once"],
+        ["multiple", "m", "Specify multiple node directories at once."],
     ]
 
     def parseArgs(self, *args):

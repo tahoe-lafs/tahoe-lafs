@@ -17,10 +17,10 @@ class VDriveOptions(BaseOptions):
          "to root dirnode URI." + (
             _default_nodedir and (" [default for most commands: " + quote_output(_default_nodedir) + "]") or "")],
         ["node-url", "u", None,
-         "URL of the tahoe node to use, a URL like \"http://127.0.0.1:3456\". "
+         "Specify the URL of the Tahoe gateway node, such as 'http://127.0.0.1:3456'. "
          "This overrides the URL found in the --node-directory ."],
         ["dir-cap", None, None,
-         "Which dirnode URI should be used as the 'tahoe' alias."]
+         "Specify which dirnode URI should be used as the 'tahoe' alias."]
         ]
 
     def postOptions(self):
@@ -78,11 +78,11 @@ class ListAliasOptions(VDriveOptions):
 
 class ListOptions(VDriveOptions):
     optFlags = [
-        ("long", "l", "Use long format: show file sizes, and timestamps"),
-        ("uri", "u", "Show file/directory URIs"),
-        ("readonly-uri", None, "Show readonly file/directory URIs"),
-        ("classify", "F", "Append '/' to directory names, and '*' to mutable"),
-        ("json", None, "Show the raw JSON output"),
+        ("long", "l", "Use long format: show file sizes, and timestamps."),
+        ("uri", "u", "Show file/directory URIs."),
+        ("readonly-uri", None, "Show read-only file/directory URIs."),
+        ("classify", "F", "Append '/' to directory names, and '*' to mutable."),
+        ("json", None, "Show the raw JSON output."),
         ]
     def parseArgs(self, where=""):
         self.where = argv_to_unicode(where)
@@ -355,10 +355,10 @@ class WebopenOptions(VDriveOptions):
 
 class ManifestOptions(VDriveOptions):
     optFlags = [
-        ("storage-index", "s", "Only print storage index strings, not pathname+cap"),
-        ("verify-cap", None, "Only print verifycap, not pathname+cap"),
-        ("repair-cap", None, "Only print repaircap, not pathname+cap"),
-        ("raw", "r", "Display raw JSON data instead of parsed"),
+        ("storage-index", "s", "Only print storage index strings, not pathname+cap."),
+        ("verify-cap", None, "Only print verifycap, not pathname+cap."),
+        ("repair-cap", None, "Only print repaircap, not pathname+cap."),
+        ("raw", "r", "Display raw JSON data instead of parsed."),
         ]
     def parseArgs(self, where=''):
         self.where = argv_to_unicode(where)
@@ -384,10 +384,10 @@ class StatsOptions(VDriveOptions):
 
 class CheckOptions(VDriveOptions):
     optFlags = [
-        ("raw", None, "Display raw JSON data instead of parsed"),
-        ("verify", None, "Verify all hashes, instead of merely querying share presence"),
-        ("repair", None, "Automatically repair any problems found"),
-        ("add-lease", None, "Add/renew lease on all shares"),
+        ("raw", None, "Display raw JSON data instead of parsed."),
+        ("verify", None, "Verify all hashes, instead of merely querying share presence."),
+        ("repair", None, "Automatically repair any problems found."),
+        ("add-lease", None, "Add/renew lease on all shares."),
         ]
     def parseArgs(self, where=''):
         self.where = argv_to_unicode(where)
@@ -402,10 +402,10 @@ class CheckOptions(VDriveOptions):
 
 class DeepCheckOptions(VDriveOptions):
     optFlags = [
-        ("raw", None, "Display raw JSON data instead of parsed"),
-        ("verify", None, "Verify all hashes, instead of merely querying share presence"),
-        ("repair", None, "Automatically repair any problems found"),
-        ("add-lease", None, "Add/renew lease on all shares"),
+        ("raw", None, "Display raw JSON data instead of parsed."),
+        ("verify", None, "Verify all hashes, instead of merely querying share presence."),
+        ("repair", None, "Automatically repair any problems found."),
+        ("add-lease", None, "Add/renew lease on all shares."),
         ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, where=''):

@@ -11,15 +11,15 @@ class CreateClientOptions(BasedirMixin, BaseOptions):
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
-        ("nickname", "n", None, "nickname for this node"),
-        ("introducer", "i", None, "introducer FURL to use"),
+        ("nickname", "n", None, "Specify the nickname for this node."),
+        ("introducer", "i", None, "Specify the introducer FURL to use."),
         ("webport", "p", "tcp:3456:interface=127.0.0.1",
-         "which TCP port to run the HTTP interface on. Use 'none' to disable."),
+         "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
         ]
 
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
-        ("no-storage", None, "do not offer storage service to other nodes"),
+        ("no-storage", None, "Do not offer storage service to other nodes."),
         ]
 
 class CreateIntroducerOptions(BasedirMixin, BaseOptions):
