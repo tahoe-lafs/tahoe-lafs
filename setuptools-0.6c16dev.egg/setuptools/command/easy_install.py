@@ -1087,10 +1087,11 @@ these changes you will not be able to run the installed code.
             log.debug("Checking existing site.py in %s", self.install_dir)
             current = open(sitepy,'rb').read()
             if not current.startswith('def __boot():'):
-                print ("**********************************************************************\n"
-                       "Warning: %s is not a setuptools-generated site.py\n"
-                       "It will not be overwritten.\n"
-                       "**********************************************************************\n"
+                print ("\n"
+                       "***********************************************************************\n"
+                       "Warning: %s is not a\n"
+                       "setuptools-generated site.py. It will not be overwritten.\n"
+                       "***********************************************************************\n"
                       ) % (sitepy,)
                 self.sitepy_installed = True
                 return

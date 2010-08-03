@@ -256,7 +256,29 @@ def do_scriptsetup(allusers=False):
         broadcast_settingchange(allusers)
 
     if changed_env:
-        print "\n" \
-              "Changes have been made to the persistent environment, but not\n" \
-              "in this Command Prompt. Running installed Python scripts will\n" \
-              "only work from new Command Prompts opened from now on.\n"
+        # whether logout is needed seems to randomly differ between installations
+        # of XP, but it is not needed in Vista or later.
+        try:
+            import platform, re
+            need_logout = not re.search(r'^[6-9]|([1-9][0-9]+)\.', platform.version())
+        except Exception, e:
+            e  # hush pyflakes
+            need_logout = True
+
+        if need_logout:
+            print """
+***********************************************************************
+Changes have been made to the persistent environment, but they may not
+take effect in this Windows session. Running installed Python scripts
+from a Command Prompt may only work after you have logged out and back
+in again, or rebooted.
+***********************************************************************
+"""
+        else:
+            print """
+***********************************************************************
+Changes have been made to the persistent environment, but not in this
+Command Prompt. Running installed Python scripts will only work from
+new Command Prompts opened from now on.
+***********************************************************************
+"""

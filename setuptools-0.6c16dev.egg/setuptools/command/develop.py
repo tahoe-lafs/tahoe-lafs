@@ -20,6 +20,12 @@ class develop(easy_install):
     command_consumes_arguments = False  # override base
 
     def run(self):
+        self.old_run()
+        if sys.platform == "win32":
+            from setuptools.command.scriptsetup import do_scriptsetup
+            do_scriptsetup()
+
+    def old_run(self):
         if self.uninstall:
             self.multi_version = True
             self.uninstall_link()
@@ -33,11 +39,6 @@ class develop(easy_install):
         easy_install.initialize_options(self)
         self.setup_path = None
         self.always_copy_from = '.'   # always copy eggs installed in curdir
-
-
-
-
-
 
     def finalize_options(self):
         ei = self.get_finalized_command("egg_info")

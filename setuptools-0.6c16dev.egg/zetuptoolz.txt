@@ -13,6 +13,8 @@ differences:
 
      <http://bugs.python.org/setuptools/issue53>
      "respect the PYTHONPATH"
+     (Note: this patch does not work as intended when site.py has been modified.
+     This will be fixed in a future version.)
 
 
  * The following patch to setuptools introduced bugs, and has been reverted
@@ -31,6 +33,13 @@ differences:
     But users who install their own setuptools will get them, and the system
     packaged people probably don't need them.
     ------------------------------------------------------------------------
+
+
+ * If unpatched setuptools decides that it needs to change an existing site.py
+   file that appears not to have been written by it (because the file does not
+   start with "def __boot():"), it aborts the installation.
+   zetuptoolz leaves the file alone and outputs a warning, but continues with
+   the installation.
 
 
  * The scripts written by zetuptoolz have the following extra line:
