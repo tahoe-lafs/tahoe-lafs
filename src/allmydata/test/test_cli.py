@@ -2391,9 +2391,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
-            #self.failUnlessIn(..., out)
+            self.failUnlessIn("URI:", out)
         d.addCallback(_check)
-        #d.addCallback(lambda ign: ...)
 
         return d
 
@@ -2411,9 +2410,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
-            #self.failUnlessIn(..., out)
+            self.failUnlessIn("URI:", out)
         d.addCallback(_check)
-        #d.addCallback(lambda ign: ...)
 
         return d
 
