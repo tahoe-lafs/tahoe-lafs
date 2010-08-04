@@ -125,7 +125,7 @@ quicktest:
 # quicktest-coverage" to do a unit test run with coverage-gathering enabled,
 # then use "make coverate-output-text" for a brief report, or "make
 # coverage-output" for a pretty HTML report. Also see "make .coverage.el" and
-# misc/coding_helpers/coverage.el for emacs integration.
+# misc/coding_tools/coverage.el for emacs integration.
 
 quicktest-coverage:
 	rm -f .coverage
@@ -134,7 +134,7 @@ quicktest-coverage:
 
 coverage-output:
 	rm -rf coverage-html
-	coverage html -d coverage-html
+	coverage html -i -d coverage-html $(COVERAGE_OMIT)
 	cp .coverage coverage-html/coverage.data
 	@echo "now point your browser at coverage-html/index.html"
 
@@ -154,7 +154,7 @@ coverage-output:
 .PHONY: repl test-darcs-boringfile test-clean clean find-trailing-spaces
 
 .coverage.el: .coverage
-	$(PYTHON) misc/coding_helpers/coverage2el.py
+	$(PYTHON) misc/coding_tools/coverage2el.py
 
 # 'upload-coverage' is meant to be run with an UPLOAD_TARGET=host:/dir setting
 ifdef UPLOAD_TARGET

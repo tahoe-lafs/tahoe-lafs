@@ -84,7 +84,8 @@
                            'face '(:box "red")
                            )
               )
-            (message "Added annotations")
+            (message (format "Added annotations: %d uncovered lines"
+                             (safe-length uncovered-code-lines)))
             )
           )
       (message "unable to find coverage for this file"))

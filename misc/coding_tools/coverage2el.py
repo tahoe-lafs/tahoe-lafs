@@ -1,5 +1,5 @@
 
-from coverage import coverage, summary
+from coverage import coverage, summary, misc
 
 class ElispReporter(summary.SummaryReporter):
     def report(self):
@@ -21,7 +21,10 @@ class ElispReporter(summary.SummaryReporter):
         out.write("(let ((results (make-hash-table :test 'equal)))\n")
         for cu in self.code_units:
             f = cu.filename
-            (fn, executable, missing, mf) = self.coverage.analysis(cu)
+            try:
+                (fn, executable, missing, mf) = self.coverage.analysis(cu)
+            except misc.NoSource:
+                continue
             code_linenumbers = executable
             uncovered_code = missing
             covered_linenumbers = sorted(set(executable) - set(missing))
