@@ -178,6 +178,8 @@ endif
 
 pyflakes:
 	$(PYTHON) -OOu `which pyflakes` src/allmydata |sort |uniq
+check-umids:
+	$(PYTHON) misc/coding_tools/check-umids.py `find src/allmydata -name '*.py'`
 
 count-lines:
 	@echo -n "files: "
