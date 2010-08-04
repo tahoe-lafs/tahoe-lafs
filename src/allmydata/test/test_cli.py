@@ -2300,12 +2300,19 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.delete_shares_numbered(ur.uri, range(1,10))
         d.addCallback(_stash_bad)
 
+        # the download is abandoned as soon as it's clear that we won't get
+        # enough shares. The one remaining share might be in either the
+        # COMPLETE or the PENDING state.
+        in_complete_msg = "ran out of shares: 1 complete, 0 pending, 0 overdue, 0 unused, need 3"
+        in_pending_msg = "ran out of shares: 0 complete, 1 pending, 0 overdue, 0 unused, need 3"
+
         d.addCallback(lambda ign: self.do_cli("get", self.uri_1share))
         def _check1((rc, out, err)):
             self.failIfEqual(rc, 0)
             self.failUnless("410 Gone" in err, err)
             self.failUnlessIn("NotEnoughSharesError: ", err)
-            self.failUnlessIn("Failed to get enough shareholders: have 1, need 3", err)
+            self.failUnless(in_complete_msg in err or in_pending_msg in err,
+                            err)
         d.addCallback(_check1)
 
         targetf = os.path.join(self.basedir, "output")
@@ -2314,7 +2321,8 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIfEqual(rc, 0)
             self.failUnless("410 Gone" in err, err)
             self.failUnlessIn("NotEnoughSharesError: ", err)
-            self.failUnlessIn("Failed to get enough shareholders: have 1, need 3", err)
+            self.failUnless(in_complete_msg in err or in_pending_msg in err,
+                            err)
             self.failIf(os.path.exists(targetf))
         d.addCallback(_check2)
 

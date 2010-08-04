@@ -5,12 +5,19 @@
 
 import os
 from twisted.trial import unittest
+from twisted.internet import defer, reactor
 from allmydata import uri
 from allmydata.storage.server import storage_index_to_dir
-from allmydata.util import base32, fileutil
-from allmydata.util.consumer import download_to_data
-from allmydata.immutable import upload
+from allmydata.util import base32, fileutil, spans, log
+from allmydata.util.consumer import download_to_data, MemoryConsumer
+from allmydata.immutable import upload, layout
 from allmydata.test.no_network import GridTestMixin
+from allmydata.test.common import ShouldFailMixin
+from allmydata.interfaces import NotEnoughSharesError, NoSharesError
+from allmydata.immutable.downloader.common import BadSegmentNumberError, \
+     BadCiphertextHashError, DownloadStopped
+from allmydata.codec import CRSDecoder
+from foolscap.eventual import fireEventually, flushEventualQueue
 
 plaintext = "This is a moderate-sized file.\n" * 10
 mutable_plaintext = "This is a moderate-sized mutable file.\n" * 10
@@ -68,20 +75,7 @@ mutable_shares = {
 }
 #--------- END stored_shares.py ----------------
 
-class DownloadTest(GridTestMixin, unittest.TestCase):
-    timeout = 2400 # It takes longer than 240 seconds on Zandr's ARM box.
-    def test_download(self):
-        self.basedir = self.mktemp()
-        self.set_up_grid()
-        self.c0 = self.g.clients[0]
-
-        # do this to create the shares
-        #return self.create_shares()
-
-        self.load_shares()
-        d = self.download_immutable()
-        d.addCallback(self.download_mutable)
-        return d
+class _Base(GridTestMixin, ShouldFailMixin):
 
     def create_shares(self, ignored=None):
         u = upload.Data(plaintext, None)
@@ -178,6 +172,9 @@ class DownloadTest(GridTestMixin, unittest.TestCase):
         def _got_data(data):
             self.failUnlessEqual(data, plaintext)
         d.addCallback(_got_data)
+        # make sure we can use the same node twice
+        d.addCallback(lambda ign: download_to_data(n))
+        d.addCallback(_got_data)
         return d
 
     def download_mutable(self, ignored=None):
@@ -188,3 +185,867 @@ class DownloadTest(GridTestMixin, unittest.TestCase):
         d.addCallback(_got_data)
         return d
 
+class DownloadTest(_Base, unittest.TestCase):
+    timeout = 2400 # It takes longer than 240 seconds on Zandr's ARM box.
+    def test_download(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        # do this to create the shares
+        #return self.create_shares()
+
+        self.load_shares()
+        d = self.download_immutable()
+        d.addCallback(self.download_mutable)
+        return d
+
+    def test_download_failover(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        self.load_shares()
+        si = uri.from_string(immutable_uri).get_storage_index()
+        si_dir = storage_index_to_dir(si)
+
+        n = self.c0.create_node_from_uri(immutable_uri)
+        d = download_to_data(n)
+        def _got_data(data):
+            self.failUnlessEqual(data, plaintext)
+        d.addCallback(_got_data)
+
+        def _clobber_some_shares(ign):
+            # find the three shares that were used, and delete them. Then
+            # download again, forcing the downloader to fail over to other
+            # shares
+            for s in n._cnode._node._shares:
+                for clientnum in immutable_shares:
+                    for shnum in immutable_shares[clientnum]:
+                        if s._shnum == shnum:
+                            fn = os.path.join(self.get_serverdir(clientnum),
+                                              "shares", si_dir, str(shnum))
+                            os.unlink(fn)
+        d.addCallback(_clobber_some_shares)
+        d.addCallback(lambda ign: download_to_data(n))
+        d.addCallback(_got_data)
+
+        def _clobber_most_shares(ign):
+            # delete all but one of the shares that are still alive
+            live_shares = [s for s in n._cnode._node._shares if s.is_alive()]
+            save_me = live_shares[0]._shnum
+            for clientnum in immutable_shares:
+                for shnum in immutable_shares[clientnum]:
+                    if shnum == save_me:
+                        continue
+                    fn = os.path.join(self.get_serverdir(clientnum),
+                                      "shares", si_dir, str(shnum))
+                    if os.path.exists(fn):
+                        os.unlink(fn)
+            # now the download should fail with NotEnoughSharesError
+            return self.shouldFail(NotEnoughSharesError, "1shares", None,
+                                   download_to_data, n)
+        d.addCallback(_clobber_most_shares)
+
+        def _clobber_all_shares(ign):
+            # delete the last remaining share
+            for clientnum in immutable_shares:
+                for shnum in immutable_shares[clientnum]:
+                    fn = os.path.join(self.get_serverdir(clientnum),
+                                      "shares", si_dir, str(shnum))
+                    if os.path.exists(fn):
+                        os.unlink(fn)
+            # now a new download should fail with NoSharesError. We want a
+            # new ImmutableFileNode so it will forget about the old shares.
+            # If we merely called create_node_from_uri() without first
+            # dereferencing the original node, the NodeMaker's _node_cache
+            # would give us back the old one.
+            n = None
+            n = self.c0.create_node_from_uri(immutable_uri)
+            return self.shouldFail(NoSharesError, "0shares", None,
+                                   download_to_data, n)
+        d.addCallback(_clobber_all_shares)
+        return d
+
+    def test_lost_servers(self):
+        # while downloading a file (after seg[0], before seg[1]), lose the
+        # three servers that we were using. The download should switch over
+        # to other servers.
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        # upload a file with multiple segments, so we can catch the download
+        # in the middle.
+        u = upload.Data(plaintext, None)
+        u.max_segment_size = 70 # 5 segs
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            self.uri = ur.uri
+            self.n = self.c0.create_node_from_uri(self.uri)
+            return download_to_data(self.n)
+        d.addCallback(_uploaded)
+        def _got_data(data):
+            self.failUnlessEqual(data, plaintext)
+        d.addCallback(_got_data)
+        def _kill_some_servers():
+            # find the three shares that were used, and delete them. Then
+            # download again, forcing the downloader to fail over to other
+            # shares
+            servers = []
+            shares = sorted([s._shnum for s in self.n._cnode._node._shares])
+            self.failUnlessEqual(shares, [0,1,2])
+            # break the RIBucketReader references
+            for s in self.n._cnode._node._shares:
+                s._rref.broken = True
+                for servernum in immutable_shares:
+                    for shnum in immutable_shares[servernum]:
+                        if s._shnum == shnum:
+                            ss = self.g.servers_by_number[servernum]
+                            servers.append(ss)
+            # and, for good measure, break the RIStorageServer references
+            # too, just in case the downloader gets more aggressive in the
+            # future and tries to re-fetch the same share.
+            for ss in servers:
+                wrapper = self.g.servers_by_id[ss.my_nodeid]
+                wrapper.broken = True
+        def _download_again(ign):
+            c = StallingConsumer(_kill_some_servers)
+            return self.n.read(c)
+        d.addCallback(_download_again)
+        def _check_failover(c):
+            self.failUnlessEqual("".join(c.chunks), plaintext)
+            shares = sorted([s._shnum for s in self.n._cnode._node._shares])
+            # we should now be using more shares than we were before
+            self.failIfEqual(shares, [0,1,2])
+        d.addCallback(_check_failover)
+        return d
+
+    def test_badguess(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        self.load_shares()
+        n = self.c0.create_node_from_uri(immutable_uri)
+
+        # Cause the downloader to guess a segsize that's too low, so it will
+        # ask for a segment number that's too high (beyond the end of the
+        # real list, causing BadSegmentNumberError), to exercise
+        # Segmentation._retry_bad_segment
+
+        con1 = MemoryConsumer()
+        n._cnode._node._build_guessed_tables(90)
+        # plaintext size of 310 bytes, wrong-segsize of 90 bytes, will make
+        # us think that file[180:200] is in the third segment (segnum=2), but
+        # really there's only one segment
+        d = n.read(con1, 180, 20)
+        def _done(res):
+            self.failUnlessEqual("".join(con1.chunks), plaintext[180:200])
+        d.addCallback(_done)
+        return d
+
+    def test_simultaneous_badguess(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        # upload a file with multiple segments, and a non-default segsize, to
+        # exercise the offset-guessing code. Because we don't tell the
+        # downloader about the unusual segsize, it will guess wrong, and have
+        # to do extra roundtrips to get the correct data.
+        u = upload.Data(plaintext, None)
+        u.max_segment_size = 70 # 5 segs, 8-wide hashtree
+        con1 = MemoryConsumer()
+        con2 = MemoryConsumer()
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            n = self.c0.create_node_from_uri(ur.uri)
+            d1 = n.read(con1, 70, 20)
+            d2 = n.read(con2, 140, 20)
+            return defer.gatherResults([d1,d2])
+        d.addCallback(_uploaded)
+        def _done(res):
+            self.failUnlessEqual("".join(con1.chunks), plaintext[70:90])
+            self.failUnlessEqual("".join(con2.chunks), plaintext[140:160])
+        d.addCallback(_done)
+        return d
+
+    def test_simultaneous_goodguess(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        # upload a file with multiple segments, and a non-default segsize, to
+        # exercise the offset-guessing code. This time we *do* tell the
+        # downloader about the unusual segsize, so it can guess right.
+        u = upload.Data(plaintext, None)
+        u.max_segment_size = 70 # 5 segs, 8-wide hashtree
+        con1 = MemoryConsumer()
+        con2 = MemoryConsumer()
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            n = self.c0.create_node_from_uri(ur.uri)
+            n._cnode._node._build_guessed_tables(u.max_segment_size)
+            d1 = n.read(con1, 70, 20)
+            #d2 = n.read(con2, 140, 20) # XXX
+            d2 = defer.succeed(None)
+            return defer.gatherResults([d1,d2])
+        d.addCallback(_uploaded)
+        def _done(res):
+            self.failUnlessEqual("".join(con1.chunks), plaintext[70:90])
+            self.failUnlessEqual("".join(con2.chunks), plaintext[140:160])
+        #d.addCallback(_done)
+        return d
+
+    def test_sequential_goodguess(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        data = (plaintext*100)[:30000] # multiple of k
+
+        # upload a file with multiple segments, and a non-default segsize, to
+        # exercise the offset-guessing code. This time we *do* tell the
+        # downloader about the unusual segsize, so it can guess right.
+        u = upload.Data(data, None)
+        u.max_segment_size = 6000 # 5 segs, 8-wide hashtree
+        con1 = MemoryConsumer()
+        con2 = MemoryConsumer()
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            n = self.c0.create_node_from_uri(ur.uri)
+            n._cnode._node._build_guessed_tables(u.max_segment_size)
+            d = n.read(con1, 12000, 20)
+            def _read1(ign):
+                self.failUnlessEqual("".join(con1.chunks), data[12000:12020])
+                return n.read(con2, 24000, 20)
+            d.addCallback(_read1)
+            def _read2(ign):
+                self.failUnlessEqual("".join(con2.chunks), data[24000:24020])
+            d.addCallback(_read2)
+            return d
+        d.addCallback(_uploaded)
+        return d
+
+
+    def test_simultaneous_get_blocks(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        self.load_shares()
+        stay_empty = []
+
+        n = self.c0.create_node_from_uri(immutable_uri)
+        d = download_to_data(n)
+        def _use_shares(ign):
+            shares = list(n._cnode._node._shares)
+            s0 = shares[0]
+            # make sure .cancel works too
+            o0 = s0.get_block(0)
+            o0.subscribe(lambda **kwargs: stay_empty.append(kwargs))
+            o1 = s0.get_block(0)
+            o2 = s0.get_block(0)
+            o0.cancel()
+            o3 = s0.get_block(1) # state=BADSEGNUM
+            d1 = defer.Deferred()
+            d2 = defer.Deferred()
+            d3 = defer.Deferred()
+            o1.subscribe(lambda **kwargs: d1.callback(kwargs))
+            o2.subscribe(lambda **kwargs: d2.callback(kwargs))
+            o3.subscribe(lambda **kwargs: d3.callback(kwargs))
+            return defer.gatherResults([d1,d2,d3])
+        d.addCallback(_use_shares)
+        def _done(res):
+            r1,r2,r3 = res
+            self.failUnlessEqual(r1["state"], "COMPLETE")
+            self.failUnlessEqual(r2["state"], "COMPLETE")
+            self.failUnlessEqual(r3["state"], "BADSEGNUM")
+            self.failUnless("block" in r1)
+            self.failUnless("block" in r2)
+            self.failIf(stay_empty)
+        d.addCallback(_done)
+        return d
+
+    def test_download_no_overrun(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        self.load_shares()
+
+        # tweak the client's copies of server-version data, so it believes
+        # that they're old and can't handle reads that overrun the length of
+        # the share. This exercises a different code path.
+        for (peerid, rref) in self.c0.storage_broker.get_all_servers():
+            v1 = rref.version["http://allmydata.org/tahoe/protocols/storage/v1"]
+            v1["tolerates-immutable-read-overrun"] = False
+
+        n = self.c0.create_node_from_uri(immutable_uri)
+        d = download_to_data(n)
+        def _got_data(data):
+            self.failUnlessEqual(data, plaintext)
+        d.addCallback(_got_data)
+        return d
+
+    def test_download_segment(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        self.load_shares()
+        n = self.c0.create_node_from_uri(immutable_uri)
+        cn = n._cnode
+        (d,c) = cn.get_segment(0)
+        def _got_segment((offset,data,decodetime)):
+            self.failUnlessEqual(offset, 0)
+            self.failUnlessEqual(len(data), len(plaintext))
+        d.addCallback(_got_segment)
+        return d
+
+    def test_download_segment_cancel(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        self.load_shares()
+        n = self.c0.create_node_from_uri(immutable_uri)
+        cn = n._cnode
+        (d,c) = cn.get_segment(0)
+        fired = []
+        d.addCallback(fired.append)
+        c.cancel()
+        d = fireEventually()
+        d.addCallback(flushEventualQueue)
+        def _check(ign):
+            self.failUnlessEqual(fired, [])
+        d.addCallback(_check)
+        return d
+
+    def test_download_bad_segment(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        self.load_shares()
+        n = self.c0.create_node_from_uri(immutable_uri)
+        cn = n._cnode
+        def _try_download():
+            (d,c) = cn.get_segment(1)
+            return d
+        d = self.shouldFail(BadSegmentNumberError, "badseg",
+                            "segnum=1, numsegs=1",
+                            _try_download)
+        return d
+
+    def test_download_segment_terminate(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        self.load_shares()
+        n = self.c0.create_node_from_uri(immutable_uri)
+        cn = n._cnode
+        (d,c) = cn.get_segment(0)
+        fired = []
+        d.addCallback(fired.append)
+        self.c0.terminator.disownServiceParent()
+        d = fireEventually()
+        d.addCallback(flushEventualQueue)
+        def _check(ign):
+            self.failUnlessEqual(fired, [])
+        d.addCallback(_check)
+        return d
+
+    def test_pause(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        self.load_shares()
+        n = self.c0.create_node_from_uri(immutable_uri)
+        c = PausingConsumer()
+        d = n.read(c)
+        def _downloaded(mc):
+            newdata = "".join(mc.chunks)
+            self.failUnlessEqual(newdata, plaintext)
+        d.addCallback(_downloaded)
+        return d
+
+    def test_pause_then_stop(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        self.load_shares()
+        n = self.c0.create_node_from_uri(immutable_uri)
+        c = PausingAndStoppingConsumer()
+        d = self.shouldFail(DownloadStopped, "test_pause_then_stop",
+                            "our Consumer called stopProducing()",
+                            n.read, c)
+        return d
+
+    def test_stop(self):
+        # use a download targetthat does an immediate stop (ticket #473)
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        self.load_shares()
+        n = self.c0.create_node_from_uri(immutable_uri)
+        c = StoppingConsumer()
+        d = self.shouldFail(DownloadStopped, "test_stop",
+                            "our Consumer called stopProducing()",
+                            n.read, c)
+        return d
+
+    def test_download_segment_bad_ciphertext_hash(self):
+        # The crypttext_hash_tree asserts the integrity of the decoded
+        # ciphertext, and exists to detect two sorts of problems. The first
+        # is a bug in zfec decode. The second is the "two-sided t-shirt"
+        # attack (found by Christian Grothoff), in which a malicious uploader
+        # creates two sets of shares (one for file A, second for file B),
+        # uploads a combination of them (shares 0-4 of A, 5-9 of B), and then
+        # builds an otherwise normal UEB around those shares: their goal is
+        # to give their victim a filecap which sometimes downloads the good A
+        # contents, and sometimes the bad B contents, depending upon which
+        # servers/shares they can get to. Having a hash of the ciphertext
+        # forces them to commit to exactly one version. (Christian's prize
+        # for finding this problem was a t-shirt with two sides: the shares
+        # of file A on the front, B on the back).
+
+        # creating a set of shares with this property is too hard, although
+        # it'd be nice to do so and confirm our fix. (it requires a lot of
+        # tampering with the uploader). So instead, we just damage the
+        # decoder. The tail decoder is rebuilt each time, so we need to use a
+        # file with multiple segments.
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        u = upload.Data(plaintext, None)
+        u.max_segment_size = 60 # 6 segs
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            n = self.c0.create_node_from_uri(ur.uri)
+            n._cnode._node._build_guessed_tables(u.max_segment_size)
+
+            d = download_to_data(n)
+            def _break_codec(data):
+                # the codec isn't created until the UEB is retrieved
+                node = n._cnode._node
+                vcap = node._verifycap
+                k, N = vcap.needed_shares, vcap.total_shares
+                bad_codec = BrokenDecoder()
+                bad_codec.set_params(node.segment_size, k, N)
+                node._codec = bad_codec
+            d.addCallback(_break_codec)
+            # now try to download it again. The broken codec will provide
+            # ciphertext that fails the hash test.
+            d.addCallback(lambda ign:
+                          self.shouldFail(BadCiphertextHashError, "badhash",
+                                          "hash failure in "
+                                          "ciphertext_hash_tree: segnum=0",
+                                          download_to_data, n))
+            return d
+        d.addCallback(_uploaded)
+        return d
+
+    def OFFtest_download_segment_XXX(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        # upload a file with multiple segments, and a non-default segsize, to
+        # exercise the offset-guessing code. This time we *do* tell the
+        # downloader about the unusual segsize, so it can guess right.
+        u = upload.Data(plaintext, None)
+        u.max_segment_size = 70 # 5 segs, 8-wide hashtree
+        con1 = MemoryConsumer()
+        con2 = MemoryConsumer()
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            n = self.c0.create_node_from_uri(ur.uri)
+            n._cnode._node._build_guessed_tables(u.max_segment_size)
+            d1 = n.read(con1, 70, 20)
+            #d2 = n.read(con2, 140, 20)
+            d2 = defer.succeed(None)
+            return defer.gatherResults([d1,d2])
+        d.addCallback(_uploaded)
+        def _done(res):
+            self.failUnlessEqual("".join(con1.chunks), plaintext[70:90])
+            self.failUnlessEqual("".join(con2.chunks), plaintext[140:160])
+        #d.addCallback(_done)
+        return d
+
+    def test_duplicate_shares(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        self.load_shares()
+        # make sure everybody has a copy of sh0. The second server contacted
+        # will report two shares, and the ShareFinder will handle the
+        # duplicate by attaching both to the same CommonShare instance.
+        si = uri.from_string(immutable_uri).get_storage_index()
+        si_dir = storage_index_to_dir(si)
+        sh0_file = [sharefile
+                    for (shnum, serverid, sharefile)
+                    in self.find_uri_shares(immutable_uri)
+                    if shnum == 0][0]
+        sh0_data = open(sh0_file, "rb").read()
+        for clientnum in immutable_shares:
+            if 0 in immutable_shares[clientnum]:
+                continue
+            cdir = self.get_serverdir(clientnum)
+            target = os.path.join(cdir, "shares", si_dir, "0")
+            outf = open(target, "wb")
+            outf.write(sh0_data)
+            outf.close()
+
+        d = self.download_immutable()
+        return d
+
+    def test_verifycap(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        self.load_shares()
+
+        n = self.c0.create_node_from_uri(immutable_uri)
+        vcap = n.get_verify_cap().to_string()
+        vn = self.c0.create_node_from_uri(vcap)
+        d = download_to_data(vn)
+        def _got_ciphertext(ciphertext):
+            self.failUnlessEqual(len(ciphertext), len(plaintext))
+            self.failIfEqual(ciphertext, plaintext)
+        d.addCallback(_got_ciphertext)
+        return d
+
+class BrokenDecoder(CRSDecoder):
+    def decode(self, shares, shareids):
+        d = CRSDecoder.decode(self, shares, shareids)
+        def _decoded(buffers):
+            def _corruptor(s, which):
+                return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
+            buffers[0] = _corruptor(buffers[0], 0) # flip lsb of first byte
+            return buffers
+        d.addCallback(_decoded)
+        return d
+
+
+class PausingConsumer(MemoryConsumer):
+    def __init__(self):
+        MemoryConsumer.__init__(self)
+        self.size = 0
+        self.writes = 0
+    def write(self, data):
+        self.size += len(data)
+        self.writes += 1
+        if self.writes <= 2:
+            # we happen to use 4 segments, and want to avoid pausing on the
+            # last one (since then the _unpause timer will still be running)
+            self.producer.pauseProducing()
+            reactor.callLater(0.1, self._unpause)
+        return MemoryConsumer.write(self, data)
+    def _unpause(self):
+        self.producer.resumeProducing()
+
+class PausingAndStoppingConsumer(PausingConsumer):
+    def write(self, data):
+        self.producer.pauseProducing()
+        reactor.callLater(0.5, self._stop)
+    def _stop(self):
+        self.producer.stopProducing()
+
+class StoppingConsumer(PausingConsumer):
+    def write(self, data):
+        self.producer.stopProducing()
+
+class StallingConsumer(MemoryConsumer):
+    def __init__(self, halfway_cb):
+        MemoryConsumer.__init__(self)
+        self.halfway_cb = halfway_cb
+        self.writes = 0
+    def write(self, data):
+        self.writes += 1
+        if self.writes == 1:
+            self.halfway_cb()
+        return MemoryConsumer.write(self, data)
+
+class Corruption(_Base, unittest.TestCase):
+
+    def _corrupt_flip(self, ign, imm_uri, which):
+        log.msg("corrupt %d" % which)
+        def _corruptor(s, debug=False):
+            return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
+        self.corrupt_shares_numbered(imm_uri, [0], _corruptor)
+
+    def _corrupt_set(self, ign, imm_uri, which, newvalue):
+        log.msg("corrupt %d" % which)
+        def _corruptor(s, debug=False):
+            return s[:which] + chr(newvalue) + s[which+1:]
+        self.corrupt_shares_numbered(imm_uri, [0], _corruptor)
+
+    def test_each_byte(self):
+        # Setting catalog_detection=True performs an exhaustive test of the
+        # Downloader's response to corruption in the lsb of each byte of the
+        # 2070-byte share, with two goals: make sure we tolerate all forms of
+        # corruption (i.e. don't hang or return bad data), and make a list of
+        # which bytes can be corrupted without influencing the download
+        # (since we don't need every byte of the share). That takes 50s to
+        # run on my laptop and doesn't have any actual asserts, so we don't
+        # normally do that.
+        self.catalog_detection = False
+
+        self.basedir = "download/Corruption/each_byte"
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        # to exercise the block-hash-tree code properly, we need to have
+        # multiple segments. We don't tell the downloader about the different
+        # segsize, so it guesses wrong and must do extra roundtrips.
+        u = upload.Data(plaintext, None)
+        u.max_segment_size = 120 # 3 segs, 4-wide hashtree
+
+        if self.catalog_detection:
+            undetected = spans.Spans()
+
+        def _download(ign, imm_uri, which, expected):
+            n = self.c0.create_node_from_uri(imm_uri)
+            # for this test to work, we need to have a new Node each time.
+            # Make sure the NodeMaker's weakcache hasn't interfered.
+            assert not n._cnode._node._shares
+            d = download_to_data(n)
+            def _got_data(data):
+                self.failUnlessEqual(data, plaintext)
+                shnums = sorted([s._shnum for s in n._cnode._node._shares])
+                no_sh0 = bool(0 not in shnums)
+                sh0 = [s for s in n._cnode._node._shares if s._shnum == 0]
+                sh0_had_corruption = False
+                if sh0 and sh0[0].had_corruption:
+                    sh0_had_corruption = True
+                num_needed = len(n._cnode._node._shares)
+                if self.catalog_detection:
+                    detected = no_sh0 or sh0_had_corruption or (num_needed!=3)
+                    if not detected:
+                        undetected.add(which, 1)
+                if expected == "no-sh0":
+                    self.failIfIn(0, shnums)
+                elif expected == "0bad-need-3":
+                    self.failIf(no_sh0)
+                    self.failUnless(sh0[0].had_corruption)
+                    self.failUnlessEqual(num_needed, 3)
+                elif expected == "need-4th":
+                    self.failIf(no_sh0)
+                    self.failUnless(sh0[0].had_corruption)
+                    self.failIfEqual(num_needed, 3)
+            d.addCallback(_got_data)
+            return d
+
+
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            imm_uri = ur.uri
+            self.shares = self.copy_shares(imm_uri)
+            d = defer.succeed(None)
+            # 'victims' is a list of corruption tests to run. Each one flips
+            # the low-order bit of the specified offset in the share file (so
+            # offset=0 is the MSB of the container version, offset=15 is the
+            # LSB of the share version, offset=24 is the MSB of the
+            # data-block-offset, and offset=48 is the first byte of the first
+            # data-block). Each one also specifies what sort of corruption
+            # we're expecting to see.
+            no_sh0_victims = [0,1,2,3] # container version
+            need3_victims =  [ ] # none currently in this category
+            # when the offsets are corrupted, the Share will be unable to
+            # retrieve the data it wants (because it thinks that data lives
+            # off in the weeds somewhere), and Share treats DataUnavailable
+            # as abandon-this-share, so in general we'll be forced to look
+            # for a 4th share.
+            need_4th_victims = [12,13,14,15, # share version
+                                24,25,26,27, # offset[data]
+                                32,33,34,35, # offset[crypttext_hash_tree]
+                                36,37,38,39, # offset[block_hashes]
+                                44,45,46,47, # offset[UEB]
+                                ]
+            need_4th_victims.append(48) # block data
+            # when corrupting hash trees, we must corrupt a value that isn't
+            # directly set from somewhere else. Since we download data from
+            # seg0, corrupt something on its hash chain, like [2] (the
+            # right-hand child of the root)
+            need_4th_victims.append(600+2*32) # block_hashes[2]
+            # Share.loop is pretty conservative: it abandons the share at the
+            # first sign of corruption. It doesn't strictly need to be this
+            # way: if the UEB were corrupt, we could still get good block
+            # data from that share, as long as there was a good copy of the
+            # UEB elsewhere. If this behavior is relaxed, then corruption in
+            # the following fields (which are present in multiple shares)
+            # should fall into the "need3_victims" case instead of the
+            # "need_4th_victims" case.
+            need_4th_victims.append(376+2*32) # crypttext_hash_tree[2]
+            need_4th_victims.append(824) # share_hashes
+            need_4th_victims.append(994) # UEB length
+            need_4th_victims.append(998) # UEB
+            corrupt_me = ([(i,"no-sh0") for i in no_sh0_victims] +
+                          [(i, "0bad-need-3") for i in need3_victims] +
+                          [(i, "need-4th") for i in need_4th_victims])
+            if self.catalog_detection:
+                corrupt_me = [(i, "") for i in range(len(self.sh0_orig))]
+            for i,expected in corrupt_me:
+                # All these tests result in a successful download. What we're
+                # measuring is how many shares the downloader had to use.
+                d.addCallback(self._corrupt_flip, imm_uri, i)
+                d.addCallback(_download, imm_uri, i, expected)
+                d.addCallback(lambda ign: self.restore_all_shares(self.shares))
+                d.addCallback(fireEventually)
+            corrupt_values = [(3, 2, "no-sh0"),
+                              (15, 2, "need-4th"), # share looks v2
+                              ]
+            for i,newvalue,expected in corrupt_values:
+                d.addCallback(self._corrupt_set, imm_uri, i, newvalue)
+                d.addCallback(_download, imm_uri, i, expected)
+                d.addCallback(lambda ign: self.restore_all_shares(self.shares))
+                d.addCallback(fireEventually)
+            return d
+        d.addCallback(_uploaded)
+        def _show_results(ign):
+            print
+            print ("of [0:%d], corruption ignored in %s" %
+                   (len(self.sh0_orig), undetected.dump()))
+        if self.catalog_detection:
+            d.addCallback(_show_results)
+            # of [0:2070], corruption ignored in len=1133:
+            # [4-11],[16-23],[28-31],[152-439],[600-663],[1309-2069]
+            #  [4-11]: container sizes
+            #  [16-23]: share block/data sizes
+            #  [152-375]: plaintext hash tree
+            #  [376-408]: crypttext_hash_tree[0] (root)
+            #  [408-439]: crypttext_hash_tree[1] (computed)
+            #  [600-631]: block hash tree[0] (root)
+            #  [632-663]: block hash tree[1] (computed)
+            #  [1309-]: reserved+unused UEB space
+        return d
+
+    def test_failure(self):
+        # this test corrupts all shares in the same way, and asserts that the
+        # download fails.
+
+        self.basedir = "download/Corruption/failure"
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        # to exercise the block-hash-tree code properly, we need to have
+        # multiple segments. We don't tell the downloader about the different
+        # segsize, so it guesses wrong and must do extra roundtrips.
+        u = upload.Data(plaintext, None)
+        u.max_segment_size = 120 # 3 segs, 4-wide hashtree
+
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            imm_uri = ur.uri
+            self.shares = self.copy_shares(imm_uri)
+
+            corrupt_me = [(48, "block data", "Last failure: None"),
+                          (600+2*32, "block_hashes[2]", "BadHashError"),
+                          (376+2*32, "crypttext_hash_tree[2]", "BadHashError"),
+                          (824, "share_hashes", "BadHashError"),
+                          ]
+            def _download(imm_uri):
+                n = self.c0.create_node_from_uri(imm_uri)
+                # for this test to work, we need to have a new Node each time.
+                # Make sure the NodeMaker's weakcache hasn't interfered.
+                assert not n._cnode._node._shares
+                return download_to_data(n)
+
+            d = defer.succeed(None)
+            for i,which,substring in corrupt_me:
+                # All these tests result in a failed download.
+                d.addCallback(self._corrupt_flip_all, imm_uri, i)
+                d.addCallback(lambda ign:
+                              self.shouldFail(NotEnoughSharesError, which,
+                                              substring,
+                                              _download, imm_uri))
+                d.addCallback(lambda ign: self.restore_all_shares(self.shares))
+                d.addCallback(fireEventually)
+            return d
+        d.addCallback(_uploaded)
+
+        return d
+
+    def _corrupt_flip_all(self, ign, imm_uri, which):
+        def _corruptor(s, debug=False):
+            return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
+        self.corrupt_all_shares(imm_uri, _corruptor)
+
+class DownloadV2(_Base, unittest.TestCase):
+    # tests which exercise v2-share code. They first upload a file with
+    # FORCE_V2 set.
+
+    def setUp(self):
+        d = defer.maybeDeferred(_Base.setUp, self)
+        def _set_force_v2(ign):
+            self.old_force_v2 = layout.FORCE_V2
+            layout.FORCE_V2 = True
+        d.addCallback(_set_force_v2)
+        return d
+    def tearDown(self):
+        layout.FORCE_V2 = self.old_force_v2
+        return _Base.tearDown(self)
+
+    def test_download(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        # upload a file
+        u = upload.Data(plaintext, None)
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            imm_uri = ur.uri
+            n = self.c0.create_node_from_uri(imm_uri)
+            return download_to_data(n)
+        d.addCallback(_uploaded)
+        return d
+
+    def test_download_no_overrun(self):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        # tweak the client's copies of server-version data, so it believes
+        # that they're old and can't handle reads that overrun the length of
+        # the share. This exercises a different code path.
+        for (peerid, rref) in self.c0.storage_broker.get_all_servers():
+            v1 = rref.version["http://allmydata.org/tahoe/protocols/storage/v1"]
+            v1["tolerates-immutable-read-overrun"] = False
+
+        # upload a file
+        u = upload.Data(plaintext, None)
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            imm_uri = ur.uri
+            n = self.c0.create_node_from_uri(imm_uri)
+            return download_to_data(n)
+        d.addCallback(_uploaded)
+        return d
+
+    def OFF_test_no_overrun_corrupt_shver(self): # unnecessary
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+
+        for (peerid, rref) in self.c0.storage_broker.get_all_servers():
+            v1 = rref.version["http://allmydata.org/tahoe/protocols/storage/v1"]
+            v1["tolerates-immutable-read-overrun"] = False
+
+        # upload a file
+        u = upload.Data(plaintext, None)
+        d = self.c0.upload(u)
+        def _uploaded(ur):
+            imm_uri = ur.uri
+            def _do_corrupt(which, newvalue):
+                def _corruptor(s, debug=False):
+                    return s[:which] + chr(newvalue) + s[which+1:]
+                self.corrupt_shares_numbered(imm_uri, [0], _corruptor)
+            _do_corrupt(12+3, 0x00)
+            n = self.c0.create_node_from_uri(imm_uri)
+            d = download_to_data(n)
+            def _got_data(data):
+                self.failUnlessEqual(data, plaintext)
+            d.addCallback(_got_data)
+            return d
+        d.addCallback(_uploaded)
+        return d

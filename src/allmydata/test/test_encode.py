@@ -1,26 +1,21 @@
 from zope.interface import implements
 from twisted.trial import unittest
-from twisted.internet import defer, reactor
+from twisted.internet import defer
 from twisted.python.failure import Failure
 from foolscap.api import fireEventually
-from allmydata import hashtree, uri
-from allmydata.immutable import encode, upload, download
+from allmydata import uri
+from allmydata.immutable import encode, upload, checker
 from allmydata.util import hashutil
 from allmydata.util.assertutil import _assert
-from allmydata.util.consumer import MemoryConsumer
-from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
-     NotEnoughSharesError, IStorageBroker, UploadUnhappinessError
-from allmydata.monitor import Monitor
-import allmydata.test.common_util as testutil
+from allmydata.util.consumer import download_to_data
+from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader
+from allmydata.test.no_network import GridTestMixin
 
 class LostPeerError(Exception):
     pass
 
 def flip_bit(good): # flips the last bit
     return good[:-1] + chr(ord(good[-1]) ^ 0x01)
-
-class FakeStorageBroker:
-    implements(IStorageBroker)
 
 class FakeBucketReaderWriterProxy:
     implements(IStorageBucketWriter, IStorageBucketReader)
@@ -57,13 +52,6 @@ class FakeBucketReaderWriterProxy:
             if self.mode == "lost" and segmentnum >= 1:
                 raise LostPeerError("I'm going away now")
             self.blocks[segmentnum] = data
-        return defer.maybeDeferred(_try)
-
-    def put_plaintext_hashes(self, hashes):
-        def _try():
-            assert not self.closed
-            assert not self.plaintext_hashes
-            self.plaintext_hashes = hashes
         return defer.maybeDeferred(_try)
 
     def put_crypttext_hashes(self, hashes):
@@ -223,7 +211,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
         fb = FakeBucketReaderWriterProxy()
         fb.put_uri_extension(uebstring)
         verifycap = uri.CHKFileVerifierURI(storage_index='x'*16, uri_extension_hash=uebhash, needed_shares=self.K, total_shares=self.M, size=self.SIZE)
-        vup = download.ValidatedExtendedURIProxy(fb, verifycap)
+        vup = checker.ValidatedExtendedURIProxy(fb, verifycap)
         return vup.start()
 
     def _test_accept(self, uebdict):
@@ -237,7 +225,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
 
     def _test_reject(self, uebdict):
         d = self._test(uebdict)
-        d.addBoth(self._should_fail, (KeyError, download.BadURIExtension))
+        d.addBoth(self._should_fail, (KeyError, checker.BadURIExtension))
         return d
 
     def test_accept_minimal(self):
@@ -333,30 +321,6 @@ class Encode(unittest.TestCase):
 
         return d
 
-    # a series of 3*3 tests to check out edge conditions. One axis is how the
-    # plaintext is divided into segments: kn+(-1,0,1). Another way to express
-    # that is that n%k == -1 or 0 or 1. For example, for 25-byte segments, we
-    # might test 74 bytes, 75 bytes, and 76 bytes.
-
-    # on the other axis is how many leaves in the block hash tree we wind up
-    # with, relative to a power of 2, so 2^a+(-1,0,1). Each segment turns
-    # into a single leaf. So we'd like to check out, e.g., 3 segments, 4
-    # segments, and 5 segments.
-
-    # that results in the following series of data lengths:
-    #  3 segs: 74, 75, 51
-    #  4 segs: 99, 100, 76
-    #  5 segs: 124, 125, 101
-
-    # all tests encode to 100 shares, which means the share hash tree will
-    # have 128 leaves, which means that buckets will be given an 8-long share
-    # hash chain
-
-    # all 3-segment files will have a 4-leaf blockhashtree, and thus expect
-    # to get 7 blockhashes. 4-segment files will also get 4-leaf block hash
-    # trees and 7 blockhashes. 5-segment files will get 8-leaf block hash
-    # trees, which get 15 blockhashes.
-
     def test_send_74(self):
         # 3 segments (25, 25, 24)
         return self.do_encode(25, 74, 100, 3, 7, 8)
@@ -387,422 +351,62 @@ class Encode(unittest.TestCase):
         # 5 segments: 25, 25, 25, 25, 1
         return self.do_encode(25, 101, 100, 5, 15, 8)
 
-class PausingConsumer(MemoryConsumer):
-    def __init__(self):
-        MemoryConsumer.__init__(self)
-        self.size = 0
-        self.writes = 0
-    def write(self, data):
-        self.size += len(data)
-        self.writes += 1
-        if self.writes <= 2:
-            # we happen to use 4 segments, and want to avoid pausing on the
-            # last one (since then the _unpause timer will still be running)
-            self.producer.pauseProducing()
-            reactor.callLater(0.1, self._unpause)
-        return MemoryConsumer.write(self, data)
-    def _unpause(self):
-        self.producer.resumeProducing()
 
-class PausingAndStoppingConsumer(PausingConsumer):
-    def write(self, data):
-        self.producer.pauseProducing()
-        reactor.callLater(0.5, self._stop)
-    def _stop(self):
-        self.producer.stopProducing()
+class Roundtrip(GridTestMixin, unittest.TestCase):
 
-class StoppingConsumer(PausingConsumer):
-    def write(self, data):
-        self.producer.stopProducing()
+    # a series of 3*3 tests to check out edge conditions. One axis is how the
+    # plaintext is divided into segments: kn+(-1,0,1). Another way to express
+    # this is n%k == -1 or 0 or 1. For example, for 25-byte segments, we
+    # might test 74 bytes, 75 bytes, and 76 bytes.
 
-class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin):
-    timeout = 2400 # It takes longer than 240 seconds on Zandr's ARM box.
-    def send_and_recover(self, k_and_happy_and_n=(25,75,100),
-                         AVAILABLE_SHARES=None,
-                         datalen=76,
-                         max_segment_size=25,
-                         bucket_modes={},
-                         recover_mode="recover",
-                         consumer=None,
-                         ):
-        if AVAILABLE_SHARES is None:
-            AVAILABLE_SHARES = k_and_happy_and_n[2]
-        data = make_data(datalen)
-        d = self.send(k_and_happy_and_n, AVAILABLE_SHARES,
-                      max_segment_size, bucket_modes, data)
-        # that fires with (uri_extension_hash, e, shareholders)
-        d.addCallback(self.recover, AVAILABLE_SHARES, recover_mode,
-                      consumer=consumer)
-        # that fires with newdata
-        def _downloaded((newdata, fd)):
-            self.failUnless(newdata == data, str((len(newdata), len(data))))
-            return fd
+    # on the other axis is how many leaves in the block hash tree we wind up
+    # with, relative to a power of 2, so 2^a+(-1,0,1). Each segment turns
+    # into a single leaf. So we'd like to check out, e.g., 3 segments, 4
+    # segments, and 5 segments.
+
+    # that results in the following series of data lengths:
+    #  3 segs: 74, 75, 51
+    #  4 segs: 99, 100, 76
+    #  5 segs: 124, 125, 101
+
+    # all tests encode to 100 shares, which means the share hash tree will
+    # have 128 leaves, which means that buckets will be given an 8-long share
+    # hash chain
+
+    # all 3-segment files will have a 4-leaf blockhashtree, and thus expect
+    # to get 7 blockhashes. 4-segment files will also get 4-leaf block hash
+    # trees and 7 blockhashes. 5-segment files will get 8-leaf block hash
+    # trees, which gets 15 blockhashes.
+
+    def test_74(self): return self.do_test_size(74)
+    def test_75(self): return self.do_test_size(75)
+    def test_51(self): return self.do_test_size(51)
+    def test_99(self): return self.do_test_size(99)
+    def test_100(self): return self.do_test_size(100)
+    def test_76(self): return self.do_test_size(76)
+    def test_124(self): return self.do_test_size(124)
+    def test_125(self): return self.do_test_size(125)
+    def test_101(self): return self.do_test_size(101)
+
+    def upload(self, data):
+        u = upload.Data(data, None)
+        u.max_segment_size = 25
+        u.encoding_param_k = 25
+        u.encoding_param_happy = 1
+        u.encoding_param_n = 100
+        d = self.c0.upload(u)
+        d.addCallback(lambda ur: self.c0.create_node_from_uri(ur.uri))
+        # returns a FileNode
+        return d
+
+    def do_test_size(self, size):
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        DATA = "p"*size
+        d = self.upload(DATA)
+        d.addCallback(lambda n: download_to_data(n))
+        def _downloaded(newdata):
+            self.failUnlessEqual(newdata, DATA)
         d.addCallback(_downloaded)
-        return d
-
-    def send(self, k_and_happy_and_n, AVAILABLE_SHARES, max_segment_size,
-             bucket_modes, data):
-        k, happy, n = k_and_happy_and_n
-        NUM_SHARES = k_and_happy_and_n[2]
-        if AVAILABLE_SHARES is None:
-            AVAILABLE_SHARES = NUM_SHARES
-        e = encode.Encoder()
-        u = upload.Data(data, convergence="some convergence string")
-        # force use of multiple segments by using a low max_segment_size
-        u.max_segment_size = max_segment_size
-        u.encoding_param_k = k
-        u.encoding_param_happy = happy
-        u.encoding_param_n = n
-        eu = upload.EncryptAnUploadable(u)
-        d = e.set_encrypted_uploadable(eu)
-
-        shareholders = {}
-        def _ready(res):
-            k,happy,n = e.get_param("share_counts")
-            assert n == NUM_SHARES # else we'll be completely confused
-            servermap = {}
-            for shnum in range(NUM_SHARES):
-                mode = bucket_modes.get(shnum, "good")
-                peer = FakeBucketReaderWriterProxy(mode, "peer%d" % shnum)
-                shareholders[shnum] = peer
-                servermap.setdefault(shnum, set()).add(peer.get_peerid())
-            e.set_shareholders(shareholders, servermap)
-            return e.start()
-        d.addCallback(_ready)
-        def _sent(res):
-            d1 = u.get_encryption_key()
-            d1.addCallback(lambda key: (res, key, shareholders))
-            return d1
-        d.addCallback(_sent)
-        return d
-
-    def recover(self, (res, key, shareholders), AVAILABLE_SHARES,
-                recover_mode, consumer=None):
-        verifycap = res
-
-        if "corrupt_key" in recover_mode:
-            # we corrupt the key, so that the decrypted data is corrupted and
-            # will fail the plaintext hash check. Since we're manually
-            # attaching shareholders, the fact that the storage index is also
-            # corrupted doesn't matter.
-            key = flip_bit(key)
-
-        u = uri.CHKFileURI(key=key,
-                           uri_extension_hash=verifycap.uri_extension_hash,
-                           needed_shares=verifycap.needed_shares,
-                           total_shares=verifycap.total_shares,
-                           size=verifycap.size)
-
-        sb = FakeStorageBroker()
-        if not consumer:
-            consumer = MemoryConsumer()
-        innertarget = download.ConsumerAdapter(consumer)
-        target = download.DecryptingTarget(innertarget, u.key)
-        fd = download.CiphertextDownloader(sb, u.get_verify_cap(), target, monitor=Monitor())
-
-        # we manually cycle the CiphertextDownloader through a number of steps that
-        # would normally be sequenced by a Deferred chain in
-        # CiphertextDownloader.start(), to give us more control over the process.
-        # In particular, by bypassing _get_all_shareholders, we skip
-        # permuted-peerlist selection.
-        for shnum, bucket in shareholders.items():
-            if shnum < AVAILABLE_SHARES and bucket.closed:
-                fd.add_share_bucket(shnum, bucket)
-        fd._got_all_shareholders(None)
-
-        # Make it possible to obtain uri_extension from the shareholders.
-        # Arrange for shareholders[0] to be the first, so we can selectively
-        # corrupt the data it returns.
-        uri_extension_sources = shareholders.values()
-        uri_extension_sources.remove(shareholders[0])
-        uri_extension_sources.insert(0, shareholders[0])
-
-        d = defer.succeed(None)
-
-        # have the CiphertextDownloader retrieve a copy of uri_extension itself
-        d.addCallback(fd._obtain_uri_extension)
-
-        if "corrupt_crypttext_hashes" in recover_mode:
-            # replace everybody's crypttext hash trees with a different one
-            # (computed over a different file), then modify our uri_extension
-            # to reflect the new crypttext hash tree root
-            def _corrupt_crypttext_hashes(unused):
-                assert isinstance(fd._vup, download.ValidatedExtendedURIProxy), fd._vup
-                assert fd._vup.crypttext_root_hash, fd._vup
-                badhash = hashutil.tagged_hash("bogus", "data")
-                bad_crypttext_hashes = [badhash] * fd._vup.num_segments
-                badtree = hashtree.HashTree(bad_crypttext_hashes)
-                for bucket in shareholders.values():
-                    bucket.crypttext_hashes = list(badtree)
-                fd._crypttext_hash_tree = hashtree.IncompleteHashTree(fd._vup.num_segments)
-                fd._crypttext_hash_tree.set_hashes({0: badtree[0]})
-                return fd._vup
-            d.addCallback(_corrupt_crypttext_hashes)
-
-        # also have the CiphertextDownloader ask for hash trees
-        d.addCallback(fd._get_crypttext_hash_tree)
-
-        d.addCallback(fd._download_all_segments)
-        d.addCallback(fd._done)
-        def _done(t):
-            newdata = "".join(consumer.chunks)
-            return (newdata, fd)
-        d.addCallback(_done)
-        return d
-
-    def test_not_enough_shares(self):
-        d = self.send_and_recover((4,8,10), AVAILABLE_SHARES=2)
-        def _done(res):
-            self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(NotEnoughSharesError))
-        d.addBoth(_done)
-        return d
-
-    def test_one_share_per_peer(self):
-        return self.send_and_recover()
-
-    def test_74(self):
-        return self.send_and_recover(datalen=74)
-    def test_75(self):
-        return self.send_and_recover(datalen=75)
-    def test_51(self):
-        return self.send_and_recover(datalen=51)
-
-    def test_99(self):
-        return self.send_and_recover(datalen=99)
-    def test_100(self):
-        return self.send_and_recover(datalen=100)
-    def test_76(self):
-        return self.send_and_recover(datalen=76)
-
-    def test_124(self):
-        return self.send_and_recover(datalen=124)
-    def test_125(self):
-        return self.send_and_recover(datalen=125)
-    def test_101(self):
-        return self.send_and_recover(datalen=101)
-
-    def test_pause(self):
-        # use a download target that does pauseProducing/resumeProducing a
-        # few times, then finishes
-        c = PausingConsumer()
-        d = self.send_and_recover(consumer=c)
-        return d
-
-    def test_pause_then_stop(self):
-        # use a download target that pauses, then stops.
-        c = PausingAndStoppingConsumer()
-        d = self.shouldFail(download.DownloadStopped, "test_pause_then_stop",
-                            "our Consumer called stopProducing()",
-                            self.send_and_recover, consumer=c)
-        return d
-
-    def test_stop(self):
-        # use a download targetthat does an immediate stop (ticket #473)
-        c = StoppingConsumer()
-        d = self.shouldFail(download.DownloadStopped, "test_stop",
-                            "our Consumer called stopProducing()",
-                            self.send_and_recover, consumer=c)
-        return d
-
-    # the following tests all use 4-out-of-10 encoding
-
-    def test_bad_blocks(self):
-        # the first 6 servers have bad blocks, which will be caught by the
-        # blockhashes
-        modemap = dict([(i, "bad block")
-                        for i in range(6)]
-                       + [(i, "good")
-                          for i in range(6, 10)])
-        return self.send_and_recover((4,8,10), bucket_modes=modemap)
-
-    def test_bad_blocks_failure(self):
-        # the first 7 servers have bad blocks, which will be caught by the
-        # blockhashes, and the download will fail
-        modemap = dict([(i, "bad block")
-                        for i in range(7)]
-                       + [(i, "good")
-                          for i in range(7, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        def _done(res):
-            self.failUnless(isinstance(res, Failure), res)
-            self.failUnless(res.check(NotEnoughSharesError), res)
-        d.addBoth(_done)
-        return d
-
-    def test_bad_blockhashes(self):
-        # the first 6 servers have bad block hashes, so the blockhash tree
-        # will not validate
-        modemap = dict([(i, "bad blockhash")
-                        for i in range(6)]
-                       + [(i, "good")
-                          for i in range(6, 10)])
-        return self.send_and_recover((4,8,10), bucket_modes=modemap)
-
-    def test_bad_blockhashes_failure(self):
-        # the first 7 servers have bad block hashes, so the blockhash tree
-        # will not validate, and the download will fail
-        modemap = dict([(i, "bad blockhash")
-                        for i in range(7)]
-                       + [(i, "good")
-                          for i in range(7, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        def _done(res):
-            self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(NotEnoughSharesError), res)
-        d.addBoth(_done)
-        return d
-
-    def test_bad_sharehashes(self):
-        # the first 6 servers have bad block hashes, so the sharehash tree
-        # will not validate
-        modemap = dict([(i, "bad sharehash")
-                        for i in range(6)]
-                       + [(i, "good")
-                          for i in range(6, 10)])
-        return self.send_and_recover((4,8,10), bucket_modes=modemap)
-
-    def assertFetchFailureIn(self, fd, where):
-        expected = {"uri_extension": 0,
-                    "crypttext_hash_tree": 0,
-                    }
-        if where is not None:
-            expected[where] += 1
-        self.failUnlessEqual(fd._fetch_failures, expected)
-
-    def test_good(self):
-        # just to make sure the test harness works when we aren't
-        # intentionally causing failures
-        modemap = dict([(i, "good") for i in range(0, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        d.addCallback(self.assertFetchFailureIn, None)
-        return d
-
-    def test_bad_uri_extension(self):
-        # the first server has a bad uri_extension block, so we will fail
-        # over to a different server.
-        modemap = dict([(i, "bad uri_extension") for i in range(1)] +
-                       [(i, "good") for i in range(1, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        d.addCallback(self.assertFetchFailureIn, "uri_extension")
-        return d
-
-    def test_bad_crypttext_hashroot(self):
-        # the first server has a bad crypttext hashroot, so we will fail
-        # over to a different server.
-        modemap = dict([(i, "bad crypttext hashroot") for i in range(1)] +
-                       [(i, "good") for i in range(1, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        d.addCallback(self.assertFetchFailureIn, "crypttext_hash_tree")
-        return d
-
-    def test_bad_crypttext_hashes(self):
-        # the first server has a bad crypttext hash block, so we will fail
-        # over to a different server.
-        modemap = dict([(i, "bad crypttext hash") for i in range(1)] +
-                       [(i, "good") for i in range(1, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        d.addCallback(self.assertFetchFailureIn, "crypttext_hash_tree")
-        return d
-
-    def test_bad_crypttext_hashes_failure(self):
-        # to test that the crypttext merkle tree is really being applied, we
-        # sneak into the download process and corrupt two things: we replace
-        # everybody's crypttext hashtree with a bad version (computed over
-        # bogus data), and we modify the supposedly-validated uri_extension
-        # block to match the new crypttext hashtree root. The download
-        # process should notice that the crypttext coming out of FEC doesn't
-        # match the tree, and fail.
-
-        modemap = dict([(i, "good") for i in range(0, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap,
-                                  recover_mode=("corrupt_crypttext_hashes"))
-        def _done(res):
-            self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(hashtree.BadHashError), res)
-        d.addBoth(_done)
-        return d
-
-    def OFF_test_bad_plaintext(self):
-        # faking a decryption failure is easier: just corrupt the key
-        modemap = dict([(i, "good") for i in range(0, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap,
-                                  recover_mode=("corrupt_key"))
-        def _done(res):
-            self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(hashtree.BadHashError), res)
-        d.addBoth(_done)
-        return d
-
-    def test_bad_sharehashes_failure(self):
-        # all ten servers have bad share hashes, so the sharehash tree
-        # will not validate, and the download will fail
-        modemap = dict([(i, "bad sharehash")
-                        for i in range(10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        def _done(res):
-            self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(NotEnoughSharesError))
-        d.addBoth(_done)
-        return d
-
-    def test_missing_sharehashes(self):
-        # the first 6 servers are missing their sharehashes, so the
-        # sharehash tree will not validate
-        modemap = dict([(i, "missing sharehash")
-                        for i in range(6)]
-                       + [(i, "good")
-                          for i in range(6, 10)])
-        return self.send_and_recover((4,8,10), bucket_modes=modemap)
-
-    def test_missing_sharehashes_failure(self):
-        # all servers are missing their sharehashes, so the sharehash tree will not validate,
-        # and the download will fail
-        modemap = dict([(i, "missing sharehash")
-                        for i in range(10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        def _done(res):
-            self.failUnless(isinstance(res, Failure), res)
-            self.failUnless(res.check(NotEnoughSharesError), res)
-        d.addBoth(_done)
-        return d
-
-    def test_lost_one_shareholder(self):
-        # we have enough shareholders when we start, but one segment in we
-        # lose one of them. The upload should still succeed, as long as we
-        # still have 'servers_of_happiness' peers left.
-        modemap = dict([(i, "good") for i in range(9)] +
-                       [(i, "lost") for i in range(9, 10)])
-        return self.send_and_recover((4,8,10), bucket_modes=modemap)
-
-    def test_lost_one_shareholder_early(self):
-        # we have enough shareholders when we choose peers, but just before
-        # we send the 'start' message, we lose one of them. The upload should
-        # still succeed, as long as we still have 'servers_of_happiness' peers
-        # left.
-        modemap = dict([(i, "good") for i in range(9)] +
-                       [(i, "lost-early") for i in range(9, 10)])
-        return self.send_and_recover((4,8,10), bucket_modes=modemap)
-
-    def test_lost_many_shareholders(self):
-        # we have enough shareholders when we start, but one segment in we
-        # lose all but one of them. The upload should fail.
-        modemap = dict([(i, "good") for i in range(1)] +
-                       [(i, "lost") for i in range(1, 10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        def _done(res):
-            self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(UploadUnhappinessError), res)
-        d.addBoth(_done)
-        return d
-
-    def test_lost_all_shareholders(self):
-        # we have enough shareholders when we start, but one segment in we
-        # lose all of them. The upload should fail.
-        modemap = dict([(i, "lost") for i in range(10)])
-        d = self.send_and_recover((4,8,10), bucket_modes=modemap)
-        def _done(res):
-            self.failUnless(isinstance(res, Failure))
-            self.failUnless(res.check(UploadUnhappinessError))
-        d.addBoth(_done)
         return d

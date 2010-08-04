@@ -197,7 +197,7 @@ def make_nodemaker(s=None, num_peers=10):
     keygen = client.KeyGenerator()
     keygen.set_default_keysize(522)
     nodemaker = NodeMaker(storage_broker, sh, None,
-                          None, None, None,
+                          None, None,
                           {"k": 3, "n": 10}, keygen)
     return nodemaker
 

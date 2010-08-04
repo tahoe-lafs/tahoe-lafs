@@ -3,7 +3,7 @@ from allmydata.test import common
 from allmydata.monitor import Monitor
 from allmydata import check_results
 from allmydata.interfaces import NotEnoughSharesError
-from allmydata.immutable import repairer, upload
+from allmydata.immutable import upload
 from allmydata.util.consumer import download_to_data
 from twisted.internet import defer
 from twisted.trial import unittest
@@ -362,99 +362,6 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
 WRITE_LEEWAY = 35
 # Optimally, you could repair one of these (small) files in a single write.
 DELTA_WRITES_PER_SHARE = 1 * WRITE_LEEWAY
-
-class DownUpConnector(unittest.TestCase):
-    def test_deferred_satisfaction(self):
-        duc = repairer.DownUpConnector()
-        duc.registerProducer(None, True) # just because you have to call registerProducer first
-        # case 1: total data in buf is < requested data at time of request
-        duc.write('\x01')
-        d = duc.read_encrypted(2, False)
-        def _then(data):
-            self.failUnlessEqual(len(data), 2)
-            self.failUnlessEqual(data[0], '\x01')
-            self.failUnlessEqual(data[1], '\x02')
-        d.addCallback(_then)
-        duc.write('\x02')
-        return d
-
-    def test_extra(self):
-        duc = repairer.DownUpConnector()
-        duc.registerProducer(None, True) # just because you have to call registerProducer first
-        # case 1: total data in buf is < requested data at time of request
-        duc.write('\x01')
-        d = duc.read_encrypted(2, False)
-        def _then(data):
-            self.failUnlessEqual(len(data), 2)
-            self.failUnlessEqual(data[0], '\x01')
-            self.failUnlessEqual(data[1], '\x02')
-        d.addCallback(_then)
-        duc.write('\x02\0x03')
-        return d
-
-    def test_short_reads_1(self):
-        # You don't get fewer bytes than you requested -- instead you get no callback at all.
-        duc = repairer.DownUpConnector()
-        duc.registerProducer(None, True) # just because you have to call registerProducer first
-
-        d = duc.read_encrypted(2, False)
-        duc.write('\x04')
-
-        def _callb(res):
-            self.fail("Shouldn't have gotten this callback res: %s" % (res,))
-        d.addCallback(_callb)
-
-        # Also in the other order of read-vs-write:
-        duc2 = repairer.DownUpConnector()
-        duc2.registerProducer(None, True) # just because you have to call registerProducer first
-        duc2.write('\x04')
-        d = duc2.read_encrypted(2, False)
-
-        def _callb2(res):
-            self.fail("Shouldn't have gotten this callback res: %s" % (res,))
-        d.addCallback(_callb2)
-
-        # But once the DUC is closed then you *do* get short reads.
-        duc3 = repairer.DownUpConnector()
-        duc3.registerProducer(None, True) # just because you have to call registerProducer first
-
-        d = duc3.read_encrypted(2, False)
-        duc3.write('\x04')
-        duc3.close()
-        def _callb3(res):
-            self.failUnlessEqual(len(res), 1)
-            self.failUnlessEqual(res[0], '\x04')
-        d.addCallback(_callb3)
-        return d
-
-    def test_short_reads_2(self):
-        # Also in the other order of read-vs-write.
-        duc = repairer.DownUpConnector()
-        duc.registerProducer(None, True) # just because you have to call registerProducer first
-
-        duc.write('\x04')
-        d = duc.read_encrypted(2, False)
-        duc.close()
-
-        def _callb(res):
-            self.failUnlessEqual(len(res), 1)
-            self.failUnlessEqual(res[0], '\x04')
-        d.addCallback(_callb)
-        return d
-
-    def test_short_reads_3(self):
-        # Also if it is closed before the read.
-        duc = repairer.DownUpConnector()
-        duc.registerProducer(None, True) # just because you have to call registerProducer first
-
-        duc.write('\x04')
-        duc.close()
-        d = duc.read_encrypted(2, False)
-        def _callb(res):
-            self.failUnlessEqual(len(res), 1)
-            self.failUnlessEqual(res[0], '\x04')
-        d.addCallback(_callb)
-        return d
 
 class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
                common.ShouldFailMixin):

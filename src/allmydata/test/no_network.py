@@ -223,6 +223,7 @@ class NoNetworkGrid(service.MultiService):
         fileutil.make_dirs(serverdir)
         ss = StorageServer(serverdir, serverid, stats_provider=SimpleStats(),
                            readonly_storage=readonly)
+        ss._no_network_server_number = i
         return ss
 
     def add_server(self, i, ss):
@@ -319,6 +320,16 @@ class GridTestMixin:
                     pass
         return sorted(shares)
 
+    def copy_shares(self, uri):
+        shares = {}
+        for (shnum, serverid, sharefile) in self.find_uri_shares(uri):
+            shares[sharefile] = open(sharefile, "rb").read()
+        return shares
+
+    def restore_all_shares(self, shares):
+        for sharefile, data in shares.items():
+            open(sharefile, "wb").write(data)
+
     def delete_share(self, (shnum, serverid, sharefile)):
         os.unlink(sharefile)
 
@@ -338,6 +349,12 @@ class GridTestMixin:
                 sharedata = open(i_sharefile, "rb").read()
                 corruptdata = corruptor(sharedata, debug=debug)
                 open(i_sharefile, "wb").write(corruptdata)
+
+    def corrupt_all_shares(self, uri, corruptor, debug=False):
+        for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
+            sharedata = open(i_sharefile, "rb").read()
+            corruptdata = corruptor(sharedata, debug=debug)
+            open(i_sharefile, "wb").write(corruptdata)
 
     def GET(self, urlpath, followRedirect=False, return_response=False,
             method="GET", clientnum=0, **kwargs):

@@ -12,7 +12,8 @@ from nevow import rend
 from allmydata import interfaces, uri, webish, dirnode
 from allmydata.storage.shares import get_share_file
 from allmydata.storage_client import StorageFarmBroker
-from allmydata.immutable import upload, download
+from allmydata.immutable import upload
+from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
 from allmydata.nodemaker import NodeMaker
 from allmydata.unknown import UnknownNode
@@ -75,7 +76,7 @@ class FakeUploader(service.Service):
 
 class FakeHistory:
     _all_upload_status = [upload.UploadStatus()]
-    _all_download_status = [download.DownloadStatus()]
+    _all_download_status = [DownloadStatus("storage_index", 1234)]
     _all_mapupdate_statuses = [servermap.UpdateStatus()]
     _all_publish_statuses = [publish.PublishStatus()]
     _all_retrieve_statuses = [retrieve.RetrieveStatus()]
@@ -111,7 +112,7 @@ class FakeClient(Client):
         self.uploader = FakeUploader()
         self.uploader.setServiceParent(self)
         self.nodemaker = FakeNodeMaker(None, self._secret_holder, None,
-                                       self.uploader, None, None,
+                                       self.uploader, None,
                                        None, None)
 
     def startService(self):
@@ -4187,7 +4188,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                    "no servers were connected, but it might also indicate "
                    "severe corruption. You should perform a filecheck on "
                    "this object to learn more. The full error message is: "
-                   "Failed to get enough shareholders: have 0, need 3")
+                   "no shares (need 3). Last failure: None")
             self.failUnlessReallyEqual(exp, body)
         d.addCallback(_check_zero_shares)
 
@@ -4199,13 +4200,16 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _check_one_share(body):
             self.failIf("<html>" in body, body)
             body = " ".join(body.strip().split())
-            exp = ("NotEnoughSharesError: This indicates that some "
+            msg = ("NotEnoughSharesError: This indicates that some "
                    "servers were unavailable, or that shares have been "
                    "lost to server departure, hard drive failure, or disk "
                    "corruption. You should perform a filecheck on "
                    "this object to learn more. The full error message is:"
-                   " Failed to get enough shareholders: have 1, need 3")
-            self.failUnlessReallyEqual(exp, body)
+                   " ran out of shares: %d complete, %d pending, 0 overdue,"
+                   " 0 unused, need 3. Last failure: None")
+            msg1 = msg % (1, 0)
+            msg2 = msg % (0, 1)
+            self.failUnless(body == msg1 or body == msg2, body)
         d.addCallback(_check_one_share)
 
         d.addCallback(lambda ignored:

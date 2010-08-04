@@ -2086,3 +2086,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 #  upload with exactly 75 peers (shares_of_happiness)
 #  have a download fail
 #  cancel a download (need to implement more cancel stuff)
+
+# from test_encode:
+# NoNetworkGrid, upload part of ciphertext, kill server, continue upload
+# check with Kevan, they want to live in test_upload, existing tests might cover
+#     def test_lost_one_shareholder(self): # these are upload-side tests
+#     def test_lost_one_shareholder_early(self):
+#     def test_lost_many_shareholders(self):
+#     def test_lost_all_shareholders(self):

@@ -9,7 +9,8 @@ from allmydata import uri
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
-from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
+from allmydata.immutable.literal import LiteralFileNode
+from allmydata.immutable.filenode import ImmutableFileNode
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.util.encodingutil import quote_output, unicode_to_argv, get_filesystem_encoding

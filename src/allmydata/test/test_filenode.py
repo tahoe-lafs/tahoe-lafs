@@ -2,9 +2,10 @@
 from twisted.trial import unittest
 from allmydata import uri, client
 from allmydata.monitor import Monitor
-from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
+from allmydata.immutable.literal import LiteralFileNode
+from allmydata.immutable.filenode import ImmutableFileNode
 from allmydata.mutable.filenode import MutableFileNode
-from allmydata.util import hashutil, cachedir
+from allmydata.util import hashutil
 from allmydata.util.consumer import download_to_data
 
 class NotANode:
@@ -30,9 +31,8 @@ class Node(unittest.TestCase):
                            needed_shares=3,
                            total_shares=10,
                            size=1000)
-        cf = cachedir.CacheFile("none")
-        fn1 = ImmutableFileNode(u, None, None, None, None, cf)
-        fn2 = ImmutableFileNode(u, None, None, None, None, cf)
+        fn1 = ImmutableFileNode(u, None, None, None, None)
+        fn2 = ImmutableFileNode(u, None, None, None, None)
         self.failUnlessEqual(fn1, fn2)
         self.failIfEqual(fn1, "I am not a filenode")
         self.failIfEqual(fn1, NotANode())

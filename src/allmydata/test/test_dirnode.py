@@ -1202,7 +1202,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_unpack_and_pack_behavior(self):
         known_tree = b32decode(self.known_tree)
         nodemaker = NodeMaker(None, None, None,
-                              None, None, None,
+                              None, None,
                               {"k": 3, "n": 10}, None)
         write_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
         filenode = nodemaker.create_from_cap(write_uri)
@@ -1264,8 +1264,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         return kids
 
     def test_deep_immutable(self):
-        nm = NodeMaker(None, None, None, None, None, None, {"k": 3, "n": 10},
-                       None)
+        nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None)
         fn = MinimalFakeMutableFile()
 
         kids = self._make_kids(nm, ["imm", "lit", "write", "read",
@@ -1359,7 +1358,7 @@ class FakeNodeMaker(NodeMaker):
 class FakeClient2(Client):
     def __init__(self):
         self.nodemaker = FakeNodeMaker(None, None, None,
-                                       None, None, None,
+                                       None, None,
                                        {"k":3,"n":10}, None)
     def create_node_from_uri(self, rwcap, rocap):
         return self.nodemaker.create_from_cap(rwcap, rocap)
@@ -1643,8 +1642,7 @@ class Deleter(GridTestMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         def _do_delete(ignored):
             nm = UCWEingNodeMaker(c0.storage_broker, c0._secret_holder,
                                   c0.get_history(), c0.getServiceNamed("uploader"),
-                                  c0.downloader,
-                                  c0.download_cache_dirman,
+                                  c0.terminator,
                                   c0.get_encoding_parameters(),
                                   c0._key_generator)
             n = nm.create_from_cap(self.root_uri)
