@@ -74,12 +74,16 @@ limitations described in #346.
 # they are still provided when writing so that older versions of Tahoe can
 # read them.
 
+FORCE_V2 = False # set briefly by unit tests to make small-sized V2 shares
+
 def make_write_bucket_proxy(rref, data_size, block_size, num_segments,
                             num_share_hashes, uri_extension_size_max, nodeid):
     # Use layout v1 for small files, so they'll be readable by older versions
     # (<tahoe-1.3.0). Use layout v2 for large files; they'll only be readable
     # by tahoe-1.3.0 or later.
     try:
+        if FORCE_V2:
+            raise FileTooLargeError
         wbp = WriteBucketProxy(rref, data_size, block_size, num_segments,
                                num_share_hashes, uri_extension_size_max, nodeid)
     except FileTooLargeError:

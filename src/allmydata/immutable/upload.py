@@ -20,7 +20,8 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
-     NoServersError, InsufficientVersionError, UploadUnhappinessError
+     NoServersError, InsufficientVersionError, UploadUnhappinessError, \
+     DEFAULT_MAX_SEGMENT_SIZE
 from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
@@ -1234,7 +1235,8 @@ class AssistedUploader:
         return self._upload_status
 
 class BaseUploadable:
-    default_max_segment_size = 128*KiB # overridden by max_segment_size
+    # this is overridden by max_segment_size
+    default_max_segment_size = DEFAULT_MAX_SEGMENT_SIZE
     default_encoding_param_k = 3 # overridden by encoding_parameters
     default_encoding_param_happy = 7
     default_encoding_param_n = 10
