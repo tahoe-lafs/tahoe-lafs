@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import sys, math
-from allmydata import upload, uri, encode, storage
+from allmydata import uri, storage
+from allmydata.immutable import upload
+from allmydata.interfaces import DEFAULT_MAX_SEGMENT_SIZE
 from allmydata.util import mathutil
 
 def roundup(size, blocksize=4096):
@@ -22,14 +24,14 @@ class BigFakeString:
     def tell(self):
         return self.fp
 
-def calc(filesize, params=(3,7,10), segsize=encode.Encoder.MAX_SEGMENT_SIZE):
+def calc(filesize, params=(3,7,10), segsize=DEFAULT_MAX_SEGMENT_SIZE):
     num_shares = params[2]
     if filesize <= upload.Uploader.URI_LIT_SIZE_THRESHOLD:
-        urisize = len(uri.pack_lit("A"*filesize))
+        urisize = len(uri.LiteralFileURI("A"*filesize).to_string())
         sharesize = 0
         sharespace = 0
     else:
-        u = upload.FileUploader(None)
+        u = upload.FileUploader(None) # XXX changed
         u.set_params(params)
         # unfortunately, Encoder doesn't currently lend itself to answering
         # this question without measuring a filesize, so we have to give it a
