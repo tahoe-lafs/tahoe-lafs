@@ -3,6 +3,7 @@ import time
 now = time.time
 from foolscap.api import eventually
 from allmydata.util import base32, log, idlib
+from twisted.internet import reactor
 
 from share import Share, CommonShare
 
@@ -24,6 +25,8 @@ class RequestToken:
         self.peerid = peerid
 
 class ShareFinder:
+    OVERDUE_TIMEOUT = 10.0
+
     def __init__(self, storage_broker, verifycap, node, download_status,
                  logparent=None, max_outstanding_requests=10):
         self.running = True # stopped by Share.stop, from Terminator
@@ -38,6 +41,8 @@ class ShareFinder:
         self._commonshares = {} # shnum to CommonShare instance
         self.undelivered_shares = []
         self.pending_requests = set()
+        self.overdue_requests = set() # subset of pending_requests
+        self.overdue_timers = {}
 
         self._storage_index = verifycap.storage_index
         self._si_prefix = base32.b2a_l(self._storage_index[:8], 60)
@@ -64,6 +69,9 @@ class ShareFinder:
 
     def stop(self):
         self.running = False
+        while self.overdue_timers:
+            req,t = self.overdue_timers.popitem()
+            t.cancel()
 
     # called by our parent CiphertextDownloader
     def hungry(self):
@@ -100,7 +108,8 @@ class ShareFinder:
             eventually(self.share_consumer.got_shares, [sh])
             return
 
-        if len(self.pending_requests) >= self.max_outstanding_requests:
+        non_overdue = self.pending_requests - self.overdue_requests
+        if len(non_overdue) >= self.max_outstanding_requests:
             # cannot send more requests, must wait for some to retire
             return
 
@@ -138,14 +147,30 @@ class ShareFinder:
                       peerid=idlib.shortnodeid_b2a(peerid),
                       level=log.NOISY, umid="Io7pyg")
         d_ev = self._download_status.add_dyhb_sent(peerid, now())
+        # TODO: get the timer from a Server object, it knows best
+        self.overdue_timers[req] = reactor.callLater(self.OVERDUE_TIMEOUT,
+                                                     self.overdue, req)
         d = rref.callRemote("get_buckets", self._storage_index)
-        d.addBoth(incidentally, self.pending_requests.discard, req)
+        d.addBoth(incidentally, self._request_retired, req)
         d.addCallbacks(self._got_response, self._got_error,
                        callbackArgs=(rref.version, peerid, req, d_ev, lp),
                        errbackArgs=(peerid, req, d_ev, lp))
         d.addErrback(log.err, format="error in send_request",
                      level=log.WEIRD, parent=lp, umid="rpdV0w")
         d.addCallback(incidentally, eventually, self.loop)
+
+    def _request_retired(self, req):
+        self.pending_requests.discard(req)
+        self.overdue_requests.discard(req)
+        if req in self.overdue_timers:
+            self.overdue_timers[req].cancel()
+            del self.overdue_timers[req]
+
+    def overdue(self, req):
+        del self.overdue_timers[req]
+        assert req in self.pending_requests # paranoia, should never be false
+        self.overdue_requests.add(req)
+        eventually(self.loop)
 
     def _got_response(self, buckets, server_version, peerid, req, d_ev, lp):
         shnums = sorted([shnum for shnum in buckets])

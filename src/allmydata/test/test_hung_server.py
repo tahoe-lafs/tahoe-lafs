@@ -10,12 +10,14 @@ from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.storage.common import storage_index_to_dir
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common import ShouldFailMixin, _corrupt_share_data
+from allmydata.util.pollmixin import PollMixin
 from allmydata.interfaces import NotEnoughSharesError
 
 immutable_plaintext = "data" * 10000
 mutable_plaintext = "muta" * 10000
 
-class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
+class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
+                             unittest.TestCase):
     # Many of these tests take around 60 seconds on François's ARM buildslave:
     # http://tahoe-lafs.org/buildbot/builders/FranXois%20lenny-armv5tel
     # allmydata.test.test_hung_server.HungServerDownloadTest.test_2_good_8_broken_duplicate_share_fail once ERRORed after 197 seconds on Midnight Magic's NetBSD buildslave:
@@ -23,7 +25,6 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
     # MM's buildslave varies a lot in how long it takes to run tests.
 
     timeout = 240
-    skip="not ready"
 
     def _break(self, servers):
         for (id, ss) in servers:
@@ -36,6 +37,15 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
     def _unhang(self, servers, **kwargs):
         for (id, ss) in servers:
             self.g.unhang_server(id, **kwargs)
+
+    def _hang_shares(self, shnums, **kwargs):
+        # hang all servers who are holding the given shares
+        hung_serverids = set()
+        for (i_shnum, i_serverid, i_sharefile) in self.shares:
+            if i_shnum in shnums:
+                if i_serverid not in hung_serverids:
+                    self.g.hang_server(i_serverid, **kwargs)
+                    hung_serverids.add(i_serverid)
 
     def _delete_all_shares_from(self, servers):
         serverids = [id for (id, ss) in servers]
@@ -206,49 +216,114 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, unittest.TestCase):
 
     # The tests below do not currently pass for mutable files.
 
-    def test_3_good_7_hung(self):
+    def test_3_good_7_hung_immutable(self):
         d = defer.succeed(None)
-        for mutable in [False]:
-            d.addCallback(lambda ign: self._set_up(mutable, "test_3_good_7_hung"))
-            d.addCallback(lambda ign: self._hang(self.servers[3:]))
-            d.addCallback(lambda ign: self._download_and_check())
+        d.addCallback(lambda ign: self._set_up(False, "test_3_good_7_hung"))
+        d.addCallback(lambda ign: self._hang(self.servers[3:]))
+        d.addCallback(lambda ign: self._download_and_check())
         return d
 
-    def test_2_good_8_hung_then_1_recovers(self):
-        d = defer.succeed(None)
-        for mutable in [False]:
-            d.addCallback(lambda ign: self._set_up(mutable, "test_2_good_8_hung_then_1_recovers"))
-            d.addCallback(lambda ign: self._hang(self.servers[2:3]))
-            d.addCallback(lambda ign: self._hang(self.servers[3:]))
-            d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
-            d.addCallback(lambda ign: self._download_and_check())
+    def test_5_overdue_immutable(self):
+        # restrict the ShareFinder to only allow 5 outstanding requests, and
+        # arrange for the first 5 servers to hang. Then trigger the OVERDUE
+        # timers (simulating 10 seconds passed), at which point the
+        # ShareFinder should send additional queries and finish the download
+        # quickly. If we didn't have OVERDUE timers, this test would fail by
+        # timing out.
+        done = []
+        d = self._set_up(False, "test_5_overdue_immutable")
+        def _reduce_max_outstanding_requests_and_download(ign):
+            self._hang_shares(range(5))
+            n = self.c0.create_node_from_uri(self.uri)
+            self._sf = n._cnode._node._sharefinder
+            self._sf.max_outstanding_requests = 5
+            self._sf.OVERDUE_TIMEOUT = 1000.0
+            d2 = download_to_data(n)
+            # start download, but don't wait for it to complete yet
+            def _done(res):
+                done.append(res) # we will poll for this later
+            d2.addBoth(_done)
+        d.addCallback(_reduce_max_outstanding_requests_and_download)
+        from foolscap.eventual import fireEventually, flushEventualQueue
+        # wait here a while
+        d.addCallback(lambda res: fireEventually(res))
+        d.addCallback(lambda res: flushEventualQueue())
+        d.addCallback(lambda ign: self.failIf(done))
+        def _check_waiting(ign):
+            # all the share requests should now be stuck waiting
+            self.failUnlessEqual(len(self._sf.pending_requests), 5)
+            # but none should be marked as OVERDUE until the timers expire
+            self.failUnlessEqual(len(self._sf.overdue_requests), 0)
+        d.addCallback(_check_waiting)
+        def _mark_overdue(ign):
+            # declare four requests overdue, allowing new requests to take
+            # their place, and leaving one stuck. The finder will keep
+            # sending requests until there are 5 non-overdue ones
+            # outstanding, at which point we'll have 4 OVERDUE, 1
+            # stuck-but-not-overdue, and 4 live requests. All 4 live requests
+            # will retire before the download is complete and the ShareFinder
+            # is shut off. That will leave 4 OVERDUE and 1
+            # stuck-but-not-overdue, for a total of 5 requests in in
+            # _sf.pending_requests
+            for t in self._sf.overdue_timers.values()[:4]:
+                t.reset(-1.0)
+            # the timers ought to fire before the eventual-send does
+            return fireEventually()
+        d.addCallback(_mark_overdue)
+        def _we_are_done():
+            return bool(done)
+        d.addCallback(lambda ign: self.poll(_we_are_done))
+        def _check_done(ign):
+            self.failUnlessEqual(done, [immutable_plaintext])
+            self.failUnlessEqual(len(self._sf.pending_requests), 5)
+            self.failUnlessEqual(len(self._sf.overdue_requests), 4)
+        d.addCallback(_check_done)
         return d
 
-    def test_2_good_8_hung_then_1_recovers_with_2_shares(self):
+    def test_3_good_7_hung_mutable(self):
+        raise unittest.SkipTest("still broken")
         d = defer.succeed(None)
-        for mutable in [False]:
-            d.addCallback(lambda ign: self._set_up(mutable, "test_2_good_8_hung_then_1_recovers_with_2_shares"))
-            d.addCallback(lambda ign: self._copy_all_shares_from(self.servers[0:1], self.servers[2]))
-            d.addCallback(lambda ign: self._hang(self.servers[2:3]))
-            d.addCallback(lambda ign: self._hang(self.servers[3:]))
-            d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
-            d.addCallback(lambda ign: self._download_and_check())
+        d.addCallback(lambda ign: self._set_up(True, "test_3_good_7_hung"))
+        d.addCallback(lambda ign: self._hang(self.servers[3:]))
+        d.addCallback(lambda ign: self._download_and_check())
         return d
 
-    def test_failover_during_stage_4(self):
-        raise unittest.SkipTest("needs rewrite")
-        # See #287
+    def test_2_good_8_hung_then_1_recovers_immutable(self):
         d = defer.succeed(None)
-        for mutable in [False]:
-            d.addCallback(lambda ign: self._set_up(mutable, "test_failover_during_stage_4"))
-            d.addCallback(lambda ign: self._corrupt_all_shares_in(self.servers[2:3], _corrupt_share_data))
-            d.addCallback(lambda ign: self._set_up(mutable, "test_failover_during_stage_4"))
-            d.addCallback(lambda ign: self._hang(self.servers[3:]))
-            d.addCallback(lambda ign: self._start_download())
-            def _after_starting_download((doned, started4d)):
-                started4d.addCallback(lambda ign: self._unhang(self.servers[3:4]))
-                doned.addCallback(self._check)
-                return doned
-            d.addCallback(_after_starting_download)
+        d.addCallback(lambda ign: self._set_up(False, "test_2_good_8_hung_then_1_recovers"))
+        d.addCallback(lambda ign: self._hang(self.servers[2:3]))
+        d.addCallback(lambda ign: self._hang(self.servers[3:]))
+        d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
+        d.addCallback(lambda ign: self._download_and_check())
+        return d
 
+    def test_2_good_8_hung_then_1_recovers_mutable(self):
+        raise unittest.SkipTest("still broken")
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self._set_up(True, "test_2_good_8_hung_then_1_recovers"))
+        d.addCallback(lambda ign: self._hang(self.servers[2:3]))
+        d.addCallback(lambda ign: self._hang(self.servers[3:]))
+        d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
+        d.addCallback(lambda ign: self._download_and_check())
+        return d
+
+    def test_2_good_8_hung_then_1_recovers_with_2_shares_immutable(self):
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self._set_up(False, "test_2_good_8_hung_then_1_recovers_with_2_shares"))
+        d.addCallback(lambda ign: self._copy_all_shares_from(self.servers[0:1], self.servers[2]))
+        d.addCallback(lambda ign: self._hang(self.servers[2:3]))
+        d.addCallback(lambda ign: self._hang(self.servers[3:]))
+        d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
+        d.addCallback(lambda ign: self._download_and_check())
+        return d
+
+    def test_2_good_8_hung_then_1_recovers_with_2_shares_mutable(self):
+        raise unittest.SkipTest("still broken")
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self._set_up(True, "test_2_good_8_hung_then_1_recovers_with_2_shares"))
+        d.addCallback(lambda ign: self._copy_all_shares_from(self.servers[0:1], self.servers[2]))
+        d.addCallback(lambda ign: self._hang(self.servers[2:3]))
+        d.addCallback(lambda ign: self._hang(self.servers[3:]))
+        d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
+        d.addCallback(lambda ign: self._download_and_check())
         return d
