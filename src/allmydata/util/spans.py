@@ -314,7 +314,7 @@ class DataSpans:
             # A). We handle E by replacing the middle and terminating.
             if start < s_start:
                 # case A: insert a new span, then loop with the remainder
-                #print " insert new psan"
+                #print " insert new span"
                 s_len = s_start-start
                 self.spans.insert(i, (start, data[:s_len]))
                 i += 1

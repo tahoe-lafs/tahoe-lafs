@@ -9,7 +9,7 @@ from allmydata.immutable import upload
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.storage.common import storage_index_to_dir
 from allmydata.test.no_network import GridTestMixin
-from allmydata.test.common import ShouldFailMixin, _corrupt_share_data
+from allmydata.test.common import ShouldFailMixin
 from allmydata.util.pollmixin import PollMixin
 from allmydata.interfaces import NotEnoughSharesError
 
@@ -20,7 +20,8 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
                              unittest.TestCase):
     # Many of these tests take around 60 seconds on François's ARM buildslave:
     # http://tahoe-lafs.org/buildbot/builders/FranXois%20lenny-armv5tel
-    # allmydata.test.test_hung_server.HungServerDownloadTest.test_2_good_8_broken_duplicate_share_fail once ERRORed after 197 seconds on Midnight Magic's NetBSD buildslave:
+    # allmydata.test.test_hung_server.HungServerDownloadTest.test_2_good_8_broken_duplicate_share_fail
+    # once ERRORed after 197 seconds on Midnight Magic's NetBSD buildslave:
     # http://tahoe-lafs.org/buildbot/builders/MM%20netbsd4%20i386%20warp
     # MM's buildslave varies a lot in how long it takes to run tests.
 

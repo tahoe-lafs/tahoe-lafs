@@ -427,7 +427,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                T.td["speed"]]]
         for r_ev in self.download_status.read_events:
             (start, length, requesttime, finishtime, bytes, decrypt, paused) = r_ev
-            print r_ev
+            #print r_ev
             if finishtime is not None:
                 rtt = finishtime - requesttime - paused
                 speed = self.render_rate(None, 1.0 * bytes / rtt)

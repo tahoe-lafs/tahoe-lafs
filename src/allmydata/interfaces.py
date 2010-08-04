@@ -15,6 +15,8 @@ URI = StringConstraint(300) # kind of arbitrary
 
 MAX_BUCKETS = 256  # per peer -- zfec offers at most 256 shares per file
 
+DEFAULT_MAX_SEGMENT_SIZE = 128*1024
+
 ShareData = StringConstraint(None)
 URIExtensionData = StringConstraint(1000)
 Number = IntegerConstraint(8) # 2**(8*8) == 16EiB ~= 18e18 ~= 18 exabytes
@@ -23,9 +25,6 @@ ReadSize = int # the 'int' constraint is 2**31 == 2Gib -- large files are proces
 WriteEnablerSecret = Hash # used to protect mutable bucket modifications
 LeaseRenewSecret = Hash # used to protect bucket lease renewal requests
 LeaseCancelSecret = Hash # used to protect bucket lease cancellation requests
-
-KiB = 1024
-DEFAULT_MAX_SEGMENT_SIZE = 128*KiB
 
 class RIStubClient(RemoteInterface):
     """Each client publishes a service announcement for a dummy object called

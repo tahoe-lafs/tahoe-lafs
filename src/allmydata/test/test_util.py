@@ -1894,7 +1894,7 @@ class SimpleDataSpans:
                 self.add(start, data)
 
     def __len__(self):
-        return len(self.missing.translate(None, "1"))
+        return len(self.missing.replace("1", ""))
     def _dump(self):
         return [i for (i,c) in enumerate(self.missing) if c == "0"]
     def _have(self, start, length):
