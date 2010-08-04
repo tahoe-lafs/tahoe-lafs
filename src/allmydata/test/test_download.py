@@ -327,15 +327,15 @@ class DownloadTest(_Base, unittest.TestCase):
         self.c0 = self.g.clients[0]
         self.load_shares()
         n = self.c0.create_node_from_uri(immutable_uri)
-        n._cnode._maybe_create_download_node()
 
         # Cause the downloader to guess a segsize that's too low, so it will
         # ask for a segment number that's too high (beyond the end of the
         # real list, causing BadSegmentNumberError), to exercise
         # Segmentation._retry_bad_segment
+        n._cnode._maybe_create_download_node()
+        n._cnode._node._build_guessed_tables(90)
 
         con1 = MemoryConsumer()
-        n._cnode._node._build_guessed_tables(90)
         # plaintext size of 310 bytes, wrong-segsize of 90 bytes, will make
         # us think that file[180:200] is in the third segment (segnum=2), but
         # really there's only one segment
