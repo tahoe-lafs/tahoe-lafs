@@ -161,13 +161,17 @@ class SegmentFetcher:
             # that will trigger the ShareFinder to keep looking
 
     def _find_one(self, shares, state):
-        # TODO could choose fastest
+        # TODO could choose fastest, or avoid servers already in use
         for s in shares:
             if self._shares[s] == state:
                 return s
         # can never get here, caller has assert in case of code bug
 
     def _send_new_request(self):
+        # TODO: this is probably O(k^2), and we're called from a range(k)
+        # loop, so O(k^3)
+
+        # this first loop prefers sh0, then sh1, sh2, etc
         for shnum,shares in sorted(self._shnums.iteritems()):
             states = [self._shares[s] for s in shares]
             if COMPLETE in states or PENDING in states:
