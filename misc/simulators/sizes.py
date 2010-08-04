@@ -60,22 +60,22 @@ class Sizes:
             self.block_arity = 0
             self.block_tree_depth = 0
             self.block_overhead = 0
-            self.bytes_until_some_data = 20 + share_size
+            self.bytes_until_some_data = 32 + share_size
             self.share_storage_overhead = 0
             self.share_transmission_overhead = 0
 
         elif mode == "beta":
             # k=num_blocks, d=1
-            # each block has a 20-byte hash
+            # each block has a 32-byte hash
             self.block_arity = num_blocks
             self.block_tree_depth = 1
-            self.block_overhead = 20
+            self.block_overhead = 32
             # the share has a list of hashes, one for each block
             self.share_storage_overhead = (self.block_overhead *
                                            num_blocks)
             # we can get away with not sending the hash of the share that
             # we're sending in full, once
-            self.share_transmission_overhead = self.share_storage_overhead - 20
+            self.share_transmission_overhead = self.share_storage_overhead - 32
             # we must get the whole list (so it can be validated) before
             # any data can be validated
             self.bytes_until_some_data = (self.share_transmission_overhead +
@@ -89,7 +89,7 @@ class Sizes:
             # to make things easier, we make the pessimistic assumption that
             # we have to store hashes for all the empty places in the tree
             # (when the number of shares is not an exact exponent of k)
-            self.block_overhead = 20
+            self.block_overhead = 32
             # the block hashes are organized into a k-ary tree, which
             # means storing (and eventually transmitting) more hashes. This
             # count includes all the low-level share hashes and the root.
@@ -98,18 +98,18 @@ class Sizes:
             #print "num_leaves", num_leaves
             #print "hash_nodes", hash_nodes
             # the storage overhead is this
-            self.share_storage_overhead = 20 * (hash_nodes - 1)
+            self.share_storage_overhead = 32 * (hash_nodes - 1)
             # the transmission overhead is smaller: if we actually transmit
             # every block, we don't have to transmit 1/k of the
             # lowest-level block hashes, and we don't have to transmit the
             # root because it was already sent with the share-level hash tree
-            self.share_transmission_overhead = 20 * (hash_nodes
+            self.share_transmission_overhead = 32 * (hash_nodes
                                                      - 1 # the root
                                                      - num_leaves / k)
             # we must get a full sibling hash chain before we can validate
             # any data
             sibling_length = d * (k-1)
-            self.bytes_until_some_data = 20 * sibling_length + block_size
+            self.bytes_until_some_data = 32 * sibling_length + block_size
             
             
 
