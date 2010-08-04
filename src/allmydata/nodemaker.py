@@ -1,7 +1,8 @@
 import weakref
 from zope.interface import implements
 from allmydata.interfaces import INodeMaker
-from allmydata.immutable.filenode import ImmutableFileNode, LiteralFileNode
+from allmydata.immutable.literal import LiteralFileNode
+from allmydata.immutable.filenode import ImmutableFileNode, CiphertextFileNode
 from allmydata.immutable.upload import Data
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.dirnode import DirectoryNode, pack_children
@@ -12,14 +13,13 @@ class NodeMaker:
     implements(INodeMaker)
 
     def __init__(self, storage_broker, secret_holder, history,
-                 uploader, downloader, download_cache_dirman,
+                 uploader, terminator,
                  default_encoding_parameters, key_generator):
         self.storage_broker = storage_broker
         self.secret_holder = secret_holder
         self.history = history
         self.uploader = uploader
-        self.downloader = downloader
-        self.download_cache_dirman = download_cache_dirman
+        self.terminator = terminator
         self.default_encoding_parameters = default_encoding_parameters
         self.key_generator = key_generator
 
@@ -29,8 +29,10 @@ class NodeMaker:
         return LiteralFileNode(cap)
     def _create_immutable(self, cap):
         return ImmutableFileNode(cap, self.storage_broker, self.secret_holder,
-                                 self.downloader, self.history,
-                                 self.download_cache_dirman)
+                                 self.terminator, self.history)
+    def _create_immutable_verifier(self, cap):
+        return CiphertextFileNode(cap, self.storage_broker, self.secret_holder,
+                                  self.terminator, self.history)
     def _create_mutable(self, cap):
         n = MutableFileNode(self.storage_broker, self.secret_holder,
                             self.default_encoding_parameters,
@@ -73,6 +75,8 @@ class NodeMaker:
             return self._create_lit(cap)
         if isinstance(cap, uri.CHKFileURI):
             return self._create_immutable(cap)
+        if isinstance(cap, uri.CHKFileVerifierURI):
+            return self._create_immutable_verifier(cap)
         if isinstance(cap, (uri.ReadonlySSKFileURI, uri.WriteableSSKFileURI)):
             return self._create_mutable(cap)
         if isinstance(cap, (uri.DirectoryURI,

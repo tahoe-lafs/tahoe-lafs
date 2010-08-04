@@ -24,6 +24,9 @@ WriteEnablerSecret = Hash # used to protect mutable bucket modifications
 LeaseRenewSecret = Hash # used to protect bucket lease renewal requests
 LeaseCancelSecret = Hash # used to protect bucket lease cancellation requests
 
+KiB = 1024
+DEFAULT_MAX_SEGMENT_SIZE = 128*KiB
+
 class RIStubClient(RemoteInterface):
     """Each client publishes a service announcement for a dummy object called
     the StubClient. This object doesn't actually offer any services, but the

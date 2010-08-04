@@ -136,3 +136,13 @@ table.tahoe-directory {
   text-align: center;
   padding: 0 1em;
 }
+
+/* recent upload/download status pages */
+
+table.status-download-events {
+  border: 1px solid #aaa;
+}
+table.status-download-events td {
+  border: 1px solid #a00;
+  padding: 2px
+}

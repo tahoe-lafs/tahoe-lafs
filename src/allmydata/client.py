@@ -1,9 +1,10 @@
-import os, stat, time
+import os, stat, time, weakref
 from allmydata.interfaces import RIStorageServer
 from allmydata import node
 
 from zope.interface import implements
 from twisted.internet import reactor, defer
+from twisted.application import service
 from twisted.application.internet import TimerService
 from foolscap.api import Referenceable
 from pycryptopp.publickey import rsa
@@ -12,11 +13,10 @@ import allmydata
 from allmydata.storage.server import StorageServer
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
-from allmydata.immutable.download import Downloader
 from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import hashutil, base32, pollmixin, cachedir, log
+from allmydata.util import hashutil, base32, pollmixin, log
 from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
@@ -94,6 +94,16 @@ class KeyGenerator:
             signer = rsa.generate(keysize)
             verifier = signer.get_verifying_key()
             return defer.succeed( (verifier, signer) )
+
+class Terminator(service.Service):
+    def __init__(self):
+        self._clients = weakref.WeakKeyDictionary()
+    def register(self, c):
+        self._clients[c] = None
+    def stopService(self):
+        for c in self._clients:
+            c.stop()
+        return service.Service.stopService(self)
 
 
 class Client(node.Node, pollmixin.PollMixin):
@@ -279,12 +289,9 @@ class Client(node.Node, pollmixin.PollMixin):
 
         self.init_client_storage_broker()
         self.history = History(self.stats_provider)
+        self.terminator = Terminator()
+        self.terminator.setServiceParent(self)
         self.add_service(Uploader(helper_furl, self.stats_provider))
-        download_cachedir = os.path.join(self.basedir,
-                                         "private", "cache", "download")
-        self.download_cache_dirman = cachedir.CacheDirectoryManager(download_cachedir)
-        self.download_cache_dirman.setServiceParent(self)
-        self.downloader = Downloader(self.storage_broker, self.stats_provider)
         self.init_stub_client()
         self.init_nodemaker()
 
@@ -343,8 +350,7 @@ class Client(node.Node, pollmixin.PollMixin):
                                    self._secret_holder,
                                    self.get_history(),
                                    self.getServiceNamed("uploader"),
-                                   self.downloader,
-                                   self.download_cache_dirman,
+                                   self.terminator,
                                    self.get_encoding_parameters(),
                                    self._key_generator)
 
