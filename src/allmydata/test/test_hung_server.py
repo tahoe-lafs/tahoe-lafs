@@ -122,12 +122,9 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         n = self.c0.create_node_from_uri(self.uri)
         if self.mutable:
             d = n.download_best_version()
-            stage_4_d = None # currently we aren't doing any tests which require this for mutable files
         else:
             d = download_to_data(n)
-            #stage_4_d = n._downloader._all_downloads.keys()[0]._stage_4_d # too ugly! FIXME
-            stage_4_d = None
-        return (d, stage_4_d,)
+        return d
 
     def _wait_for_data(self, n):
         if self.mutable:
@@ -143,7 +140,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
             self.failUnlessEqual(resultingdata, immutable_plaintext)
 
     def _download_and_check(self):
-        d, stage4d = self._start_download()
+        d = self._start_download()
         d.addCallback(self._check)
         return d
 
@@ -215,8 +212,6 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
             d.addCallback(lambda ign: self._should_fail_download())
         return d
 
-    # The tests below do not currently pass for mutable files.
-
     def test_3_good_7_hung_immutable(self):
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._set_up(False, "test_3_good_7_hung"))
@@ -281,27 +276,9 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         d.addCallback(_check_done)
         return d
 
-    def test_3_good_7_hung_mutable(self):
-        raise unittest.SkipTest("still broken")
-        d = defer.succeed(None)
-        d.addCallback(lambda ign: self._set_up(True, "test_3_good_7_hung"))
-        d.addCallback(lambda ign: self._hang(self.servers[3:]))
-        d.addCallback(lambda ign: self._download_and_check())
-        return d
-
     def test_2_good_8_hung_then_1_recovers_immutable(self):
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._set_up(False, "test_2_good_8_hung_then_1_recovers"))
-        d.addCallback(lambda ign: self._hang(self.servers[2:3]))
-        d.addCallback(lambda ign: self._hang(self.servers[3:]))
-        d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
-        d.addCallback(lambda ign: self._download_and_check())
-        return d
-
-    def test_2_good_8_hung_then_1_recovers_mutable(self):
-        raise unittest.SkipTest("still broken")
-        d = defer.succeed(None)
-        d.addCallback(lambda ign: self._set_up(True, "test_2_good_8_hung_then_1_recovers"))
         d.addCallback(lambda ign: self._hang(self.servers[2:3]))
         d.addCallback(lambda ign: self._hang(self.servers[3:]))
         d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
@@ -312,6 +289,28 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._set_up(False, "test_2_good_8_hung_then_1_recovers_with_2_shares"))
         d.addCallback(lambda ign: self._copy_all_shares_from(self.servers[0:1], self.servers[2]))
+        d.addCallback(lambda ign: self._hang(self.servers[2:3]))
+        d.addCallback(lambda ign: self._hang(self.servers[3:]))
+        d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
+        d.addCallback(lambda ign: self._download_and_check())
+        return d
+
+    # The tests below do not currently pass for mutable files. The
+    # mutable-file downloader does not yet handle hung servers, and the tests
+    # hang forever (hence the use of SkipTest rather than .todo)
+
+    def test_3_good_7_hung_mutable(self):
+        raise unittest.SkipTest("still broken")
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self._set_up(True, "test_3_good_7_hung"))
+        d.addCallback(lambda ign: self._hang(self.servers[3:]))
+        d.addCallback(lambda ign: self._download_and_check())
+        return d
+
+    def test_2_good_8_hung_then_1_recovers_mutable(self):
+        raise unittest.SkipTest("still broken")
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self._set_up(True, "test_2_good_8_hung_then_1_recovers"))
         d.addCallback(lambda ign: self._hang(self.servers[2:3]))
         d.addCallback(lambda ign: self._hang(self.servers[3:]))
         d.addCallback(lambda ign: self._unhang(self.servers[2:3]))
