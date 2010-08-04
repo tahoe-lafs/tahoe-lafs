@@ -231,6 +231,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         def _reduce_max_outstanding_requests_and_download(ign):
             self._hang_shares(range(5))
             n = self.c0.create_node_from_uri(self.uri)
+            n._cnode._maybe_create_download_node()
             self._sf = n._cnode._node._sharefinder
             self._sf.max_outstanding_requests = 5
             self._sf.OVERDUE_TIMEOUT = 1000.0

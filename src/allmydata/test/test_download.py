@@ -327,6 +327,7 @@ class DownloadTest(_Base, unittest.TestCase):
         self.c0 = self.g.clients[0]
         self.load_shares()
         n = self.c0.create_node_from_uri(immutable_uri)
+        n._cnode._maybe_create_download_node()
 
         # Cause the downloader to guess a segsize that's too low, so it will
         # ask for a segment number that's too high (beyond the end of the
@@ -385,6 +386,7 @@ class DownloadTest(_Base, unittest.TestCase):
         d = self.c0.upload(u)
         def _uploaded(ur):
             n = self.c0.create_node_from_uri(ur.uri)
+            n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             d1 = n.read(con1, 70, 20)
             #d2 = n.read(con2, 140, 20) # XXX
@@ -413,6 +415,7 @@ class DownloadTest(_Base, unittest.TestCase):
         d = self.c0.upload(u)
         def _uploaded(ur):
             n = self.c0.create_node_from_uri(ur.uri)
+            n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             d = n.read(con1, 12000, 20)
             def _read1(ign):
@@ -620,6 +623,7 @@ class DownloadTest(_Base, unittest.TestCase):
         d = self.c0.upload(u)
         def _uploaded(ur):
             n = self.c0.create_node_from_uri(ur.uri)
+            n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
 
             d = download_to_data(n)
@@ -658,6 +662,7 @@ class DownloadTest(_Base, unittest.TestCase):
         d = self.c0.upload(u)
         def _uploaded(ur):
             n = self.c0.create_node_from_uri(ur.uri)
+            n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             d1 = n.read(con1, 70, 20)
             #d2 = n.read(con2, 140, 20)
@@ -805,6 +810,7 @@ class Corruption(_Base, unittest.TestCase):
 
         def _download(ign, imm_uri, which, expected):
             n = self.c0.create_node_from_uri(imm_uri)
+            n._cnode._maybe_create_download_node()
             # for this test to work, we need to have a new Node each time.
             # Make sure the NodeMaker's weakcache hasn't interfered.
             assert not n._cnode._node._shares
@@ -945,6 +951,7 @@ class Corruption(_Base, unittest.TestCase):
                           ]
             def _download(imm_uri):
                 n = self.c0.create_node_from_uri(imm_uri)
+                n._cnode._maybe_create_download_node()
                 # for this test to work, we need to have a new Node each time.
                 # Make sure the NodeMaker's weakcache hasn't interfered.
                 assert not n._cnode._node._shares

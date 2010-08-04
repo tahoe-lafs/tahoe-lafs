@@ -31,14 +31,24 @@ class CiphertextFileNode:
             if history:
                 history.add_download(ds)
             download_status = ds
-        self._node = DownloadNode(verifycap, storage_broker, secret_holder,
-                                  terminator, history, download_status)
+        self._terminator = terminator
+        self._history = history
+        self._download_status = download_status
+        self._node = None # created lazily, on read()
+
+    def _maybe_create_download_node(self):
+        if self._node is None:
+            self._node = DownloadNode(self._verifycap, self._storage_broker,
+                                      self._secret_holder,
+                                      self._terminator,
+                                      self._history, self._download_status)
 
     def read(self, consumer, offset=0, size=None, read_ev=None):
         """I am the main entry point, from which FileNode.read() can get
         data. I feed the consumer with the desired range of ciphertext. I
         return a Deferred that fires (with the consumer) when the read is
         finished."""
+        self._maybe_create_download_node()
         return self._node.read(consumer, offset, size, read_ev)
 
     def get_segment(self, segnum):
@@ -56,10 +66,12 @@ class CiphertextFileNode:
         segment, so that you can call get_segment() before knowing the
         segment size, and still know which data you received.
         """
+        self._maybe_create_download_node()
         return self._node.get_segment(segnum)
 
     def get_segment_size(self):
         # return a Deferred that fires with the file's real segment size
+        self._maybe_create_download_node()
         return self._node.get_segsize()
 
     def get_storage_index(self):
