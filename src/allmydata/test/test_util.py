@@ -1614,8 +1614,10 @@ class SimpleSpans:
         if prevstart is not None:
             yield (prevstart, prevend-prevstart+1)
 
-    def __len__(self):
-        # this also gets us bool(s)
+    def __nonzero__(self): # this gets us bool()
+        return self.len()
+
+    def len(self):
         return len(self._have)
 
     def __add__(self, other):
@@ -1659,7 +1661,7 @@ class ByteSpans(unittest.TestCase):
         self.failUnlessEqual(list(s), [])
         self.failIf(s)
         self.failIf((0,1) in s)
-        self.failUnlessEqual(len(s), 0)
+        self.failUnlessEqual(s.len(), 0)
 
         s1 = Spans(3, 4) # 3,4,5,6
         self._check1(s1)
@@ -1672,15 +1674,15 @@ class ByteSpans(unittest.TestCase):
         self.failUnless((10,1) in s2)
         self.failIf((10,1) in s1)
         self.failUnlessEqual(list(s2.each()), [3,4,5,6,10,11])
-        self.failUnlessEqual(len(s2), 6)
+        self.failUnlessEqual(s2.len(), 6)
 
         s2.add(15,2).add(20,2)
         self.failUnlessEqual(list(s2.each()), [3,4,5,6,10,11,15,16,20,21])
-        self.failUnlessEqual(len(s2), 10)
+        self.failUnlessEqual(s2.len(), 10)
 
         s2.remove(4,3).remove(15,1)
         self.failUnlessEqual(list(s2.each()), [3,10,11,16,20,21])
-        self.failUnlessEqual(len(s2), 6)
+        self.failUnlessEqual(s2.len(), 6)
 
         s1 = SimpleSpans(3, 4) # 3 4 5 6
         s2 = SimpleSpans(5, 4) # 5 6 7 8
@@ -1690,7 +1692,7 @@ class ByteSpans(unittest.TestCase):
     def _check1(self, s):
         self.failUnlessEqual(list(s), [(3,4)])
         self.failUnless(s)
-        self.failUnlessEqual(len(s), 4)
+        self.failUnlessEqual(s.len(), 4)
         self.failIf((0,1) in s)
         self.failUnless((3,4) in s)
         self.failUnless((3,1) in s)
@@ -1817,7 +1819,7 @@ class ByteSpans(unittest.TestCase):
                 s1 = s1 & ns1; s2 = s2 & ns2
             #print "s2 now %s" % s2.dump()
             self.failUnlessEqual(list(s1.each()), list(s2.each()))
-            self.failUnlessEqual(len(s1), len(s2))
+            self.failUnlessEqual(s1.len(), s2.len())
             self.failUnlessEqual(bool(s1), bool(s2))
             self.failUnlessEqual(list(s1), list(s2))
             for j in range(10):
@@ -1837,8 +1839,8 @@ class ByteSpans(unittest.TestCase):
     # list(s) -> list of (start,length) tuples, one per span
     # (start,length) in s -> True if (start..start+length-1) are all members
     #  NOT equivalent to x in list(s)
-    # len(s) -> number of bytes, for testing, bool(), and accounting/limiting
-    # bool(s)  (__len__)
+    # s.len() -> number of bytes, for testing, bool(), and accounting/limiting
+    # bool(s)  (__nonzeron__)
     # s = s1+s2, s1-s2, +=s1, -=s1
 
     def test_overlap(self):
@@ -1893,7 +1895,9 @@ class SimpleDataSpans:
             for (start, data) in other.get_chunks():
                 self.add(start, data)
 
-    def __len__(self):
+    def __nonzero__(self): # this gets us bool()
+        return self.len()
+    def len(self):
         return len(self.missing.replace("1", ""))
     def _dump(self):
         return [i for (i,c) in enumerate(self.missing) if c == "0"]
@@ -1930,7 +1934,7 @@ class SimpleDataSpans:
 class StringSpans(unittest.TestCase):
     def do_basic(self, klass):
         ds = klass()
-        self.failUnlessEqual(len(ds), 0)
+        self.failUnlessEqual(ds.len(), 0)
         self.failUnlessEqual(list(ds._dump()), [])
         self.failUnlessEqual(sum([len(d) for (s,d) in ds.get_chunks()]), 0)
         s = ds.get_spans()
@@ -1939,7 +1943,7 @@ class StringSpans(unittest.TestCase):
         ds.remove(0, 4)
 
         ds.add(2, "four")
-        self.failUnlessEqual(len(ds), 4)
+        self.failUnlessEqual(ds.len(), 4)
         self.failUnlessEqual(list(ds._dump()), [2,3,4,5])
         self.failUnlessEqual(sum([len(d) for (s,d) in ds.get_chunks()]), 4)
         s = ds.get_spans()
@@ -1949,7 +1953,7 @@ class StringSpans(unittest.TestCase):
         self.failUnlessEqual(ds.get(4, 4), None)
 
         ds2 = klass(ds)
-        self.failUnlessEqual(len(ds2), 4)
+        self.failUnlessEqual(ds2.len(), 4)
         self.failUnlessEqual(list(ds2._dump()), [2,3,4,5])
         self.failUnlessEqual(sum([len(d) for (s,d) in ds2.get_chunks()]), 4)
         self.failUnlessEqual(ds2.get(0, 4), None)
@@ -1962,7 +1966,7 @@ class StringSpans(unittest.TestCase):
         self.failUnlessEqual(sum([len(d) for (s,d) in ds.get_chunks()]), 4)
 
         ds.add(0, "23")
-        self.failUnlessEqual(len(ds), 6)
+        self.failUnlessEqual(ds.len(), 6)
         self.failUnlessEqual(list(ds._dump()), [0,1,2,3,4,5])
         self.failUnlessEqual(sum([len(d) for (s,d) in ds.get_chunks()]), 6)
         self.failUnlessEqual(ds.get(0, 4), "23fo")
@@ -2125,7 +2129,7 @@ class StringSpans(unittest.TestCase):
                 self.failUnlessEqual(d1, d2)
             #print "s1 now %s" % list(s1._dump())
             #print "s2 now %s" % list(s2._dump())
-            self.failUnlessEqual(len(s1), len(s2))
+            self.failUnlessEqual(s1.len(), s2.len())
             self.failUnlessEqual(list(s1._dump()), list(s2._dump()))
             for j in range(100):
                 what = md5(what[12:14]+str(j)).hexdigest()

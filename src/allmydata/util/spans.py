@@ -140,7 +140,7 @@ class Spans:
         return self
 
     def dump(self):
-        return "len=%d: %s" % (len(self),
+        return "len=%d: %s" % (self.len(),
                                ",".join(["[%d-%d]" % (start,start+l-1)
                                          for (start,l) in self._spans]) )
 
@@ -153,8 +153,12 @@ class Spans:
         for s in self._spans:
             yield s
 
-    def __len__(self):
-        # this also gets us bool(s)
+    def __nonzero__(self): # this gets us bool()
+        return self.len()
+
+    def len(self):
+        # guess what! python doesn't allow __len__ to return a long, only an
+        # int. So we stop using len(spans), use spans.len() instead.
         return sum([length for start,length in self._spans])
 
     def __add__(self, other):
@@ -228,7 +232,10 @@ class DataSpans:
             for (start, data) in other.get_chunks():
                 self.add(start, data)
 
-    def __len__(self):
+    def __nonzero__(self): # this gets us bool()
+        return self.len()
+
+    def len(self):
         # return number of bytes we're holding
         return sum([len(data) for (start,data) in self.spans])
 
@@ -239,7 +246,7 @@ class DataSpans:
                 yield i
 
     def dump(self):
-        return "len=%d: %s" % (len(self),
+        return "len=%d: %s" % (self.len(),
                                ",".join(["[%d-%d]" % (start,start+len(data)-1)
                                          for (start,data) in self.spans]) )
 

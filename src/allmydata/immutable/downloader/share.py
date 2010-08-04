@@ -259,7 +259,7 @@ class Share:
 
         # and sometimes you can't even get what you need
         disappointment = needed & self._unavailable
-        if len(disappointment):
+        if disappointment.len():
             self.had_corruption = True
             raise DataUnavailable("need %s but will never get it" %
                                   disappointment.dump())

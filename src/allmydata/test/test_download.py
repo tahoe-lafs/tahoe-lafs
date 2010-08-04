@@ -321,6 +321,23 @@ class DownloadTest(_Base, unittest.TestCase):
         d.addCallback(_check_failover)
         return d
 
+    def test_long_offset(self):
+        # bug #1154: mplayer doing a seek-to-end results in an offset of type
+        # 'long', rather than 'int', and apparently __len__ is required to
+        # return an int. Rewrote Spans/DataSpans to provide s.len() instead
+        # of len(s) .
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c0 = self.g.clients[0]
+        self.load_shares()
+        n = self.c0.create_node_from_uri(immutable_uri)
+
+        c = MemoryConsumer()
+        d = n.read(c, 0L, 10L)
+        d.addCallback(lambda c: len("".join(c.chunks)))
+        d.addCallback(lambda size: self.failUnlessEqual(size, 10))
+        return d
+
     def test_badguess(self):
         self.basedir = self.mktemp()
         self.set_up_grid()
