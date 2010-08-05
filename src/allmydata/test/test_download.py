@@ -406,14 +406,13 @@ class DownloadTest(_Base, unittest.TestCase):
             n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             d1 = n.read(con1, 70, 20)
-            #d2 = n.read(con2, 140, 20) # XXX
-            d2 = defer.succeed(None)
+            d2 = n.read(con2, 140, 20)
             return defer.gatherResults([d1,d2])
         d.addCallback(_uploaded)
         def _done(res):
             self.failUnlessEqual("".join(con1.chunks), plaintext[70:90])
             self.failUnlessEqual("".join(con2.chunks), plaintext[140:160])
-        #d.addCallback(_done)
+        d.addCallback(_done)
         return d
 
     def test_sequential_goodguess(self):
