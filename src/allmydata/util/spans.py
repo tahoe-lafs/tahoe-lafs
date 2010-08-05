@@ -154,7 +154,7 @@ class Spans:
             yield s
 
     def __nonzero__(self): # this gets us bool()
-        return self.len()
+        return bool(self.len())
 
     def len(self):
         # guess what! python doesn't allow __len__ to return a long, only an
@@ -233,7 +233,7 @@ class DataSpans:
                 self.add(start, data)
 
     def __nonzero__(self): # this gets us bool()
-        return self.len()
+        return bool(self.len())
 
     def len(self):
         # return number of bytes we're holding

@@ -1666,6 +1666,9 @@ class ByteSpans(unittest.TestCase):
         s1 = Spans(3, 4) # 3,4,5,6
         self._check1(s1)
 
+        s1 = Spans(3L, 4L) # 3,4,5,6
+        self._check1(s1)
+
         s2 = Spans(s1)
         self._check1(s2)
 
@@ -1701,6 +1704,15 @@ class ByteSpans(unittest.TestCase):
         self.failIf((6,2) in s)
         self.failIf((7,1) in s)
         self.failUnlessEqual(list(s.each()), [3,4,5,6])
+
+    def test_large(self):
+        s = Spans(4, 2**65) # don't do this with a SimpleSpans
+        self.failUnlessEqual(list(s), [(4, 2**65)])
+        self.failUnless(s)
+        self.failUnlessEqual(s.len(), 2**65)
+        self.failIf((0,1) in s)
+        self.failUnless((4,2) in s)
+        self.failUnless((2**65,2) in s)
 
     def test_math(self):
         s1 = Spans(0, 10) # 0,1,2,3,4,5,6,7,8,9
@@ -1979,6 +1991,12 @@ class StringSpans(unittest.TestCase):
         ds.add(2, "four")
         ds.add(3, "ea")
         self.failUnlessEqual(ds.get(2, 4), "fear")
+
+        ds = klass()
+        ds.add(2L, "four")
+        ds.add(3L, "ea")
+        self.failUnlessEqual(ds.get(2L, 4L), "fear")
+
 
     def do_scan(self, klass):
         # do a test with gaps and spans of size 1 and 2
