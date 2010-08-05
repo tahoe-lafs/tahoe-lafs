@@ -20,10 +20,10 @@ from common import BadCiphertextHashError
 class Cancel:
     def __init__(self, f):
         self._f = f
-        self.cancelled = False
+        self.active = True
     def cancel(self):
-        if not self.cancelled:
-            self.cancelled = True
+        if self.active:
+            self.active = False
             self._f(self)
 
 class DownloadNode:
@@ -360,10 +360,11 @@ class DownloadNode:
 
     def fetch_failed(self, sf, f):
         assert sf is self._active_segment
-        self._active_segment = None
         # deliver error upwards
         for (d,c) in self._extract_requests(sf.segnum):
             eventually(self._deliver, d, c, f)
+        self._active_segment = None
+        self._start_new_segment()
 
     def process_blocks(self, segnum, blocks):
         d = defer.maybeDeferred(self._decode_blocks, segnum, blocks)
@@ -449,7 +450,8 @@ class DownloadNode:
     def _deliver(self, d, c, result):
         # this method exists to handle cancel() that occurs between
         # _got_segment and _deliver
-        if not c.cancelled:
+        if c.active:
+            c.active = False # it is now too late to cancel
             d.callback(result) # might actually be an errback
 
     def _extract_requests(self, segnum):
@@ -465,7 +467,9 @@ class DownloadNode:
         self._segment_requests = [t for t in self._segment_requests
                                   if t[2] != c]
         segnums = [segnum for (segnum,d,c) in self._segment_requests]
-        if self._active_segment.segnum not in segnums:
+        # self._active_segment might be None in rare circumstances, so make
+        # sure we tolerate it
+        if self._active_segment and self._active_segment.segnum not in segnums:
             self._active_segment.stop()
             self._active_segment = None
             self._start_new_segment()
