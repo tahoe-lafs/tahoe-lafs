@@ -13,6 +13,8 @@ from allmydata.scripts import runner
 from allmydata.test import common_util
 import allmydata
 
+timeout = 240
+
 srcfile = allmydata.__file__
 srcdir = os.path.dirname(os.path.dirname(os.path.realpath(srcfile)))
 rootdir = os.path.dirname(srcdir)
