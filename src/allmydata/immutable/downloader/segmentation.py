@@ -36,9 +36,14 @@ class Segmentation:
     def start(self):
         self._alive = True
         self._deferred = defer.Deferred()
+        self._deferred.addBoth(self._done)
         self._consumer.registerProducer(self, True)
         self._maybe_fetch_next()
         return self._deferred
+
+    def _done(self, res):
+        self._consumer.unregisterProducer()
+        return res
 
     def _maybe_fetch_next(self):
         if not self._alive or not self._hungry:
@@ -52,7 +57,6 @@ class Segmentation:
             # done!
             self._alive = False
             self._hungry = False
-            self._consumer.unregisterProducer()
             self._deferred.callback(self._consumer)
             return
         n = self._node
@@ -135,10 +139,11 @@ class Segmentation:
                 level=log.WEIRD, parent=self._lp, umid="EYlXBg")
         self._alive = False
         self._hungry = False
-        self._consumer.unregisterProducer()
         self._deferred.errback(f)
 
     def stopProducing(self):
+        log.msg("asked to stopProducing",
+                level=log.NOISY, parent=self._lp, umid="XIyL9w")
         self._hungry = False
         self._alive = False
         # cancel any outstanding segment request

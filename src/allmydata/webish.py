@@ -18,6 +18,8 @@ from allmydata.web.common import IOpHandleTable, MyExceptionHandler
 parse_qs = http.parse_qs
 class MyRequest(appserver.NevowRequest):
     fields = None
+    _tahoe_request_had_error = None
+
     def requestReceived(self, command, path, version):
         """Called by channel when all data has been received.
 
@@ -107,12 +109,17 @@ class MyRequest(appserver.NevowRequest):
 
         uri = path + queryargs
 
-        log.msg(format="web: %(clientip)s %(method)s %(uri)s %(code)s %(length)s",
+        error = ""
+        if self._tahoe_request_had_error:
+            error = " [ERROR]"
+
+        log.msg(format="web: %(clientip)s %(method)s %(uri)s %(code)s %(length)s%(error)s",
                 clientip=self.getClientIP(),
                 method=self.method,
                 uri=uri,
                 code=self.code,
                 length=(self.sentLength or "-"),
+                error=error,
                 facility="tahoe.webish",
                 level=log.OPERATIONAL,
                 )

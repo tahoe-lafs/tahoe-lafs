@@ -38,7 +38,7 @@ class ReplaceMeMixin:
                                          overwrite=replace)
         def _done(filenode):
             log.msg("webish upload complete",
-                    facility="tahoe.webish", level=log.NOISY)
+                    facility="tahoe.webish", level=log.NOISY, umid="TCjBGQ")
             if self.node:
                 # we've replaced an existing file (or modified a mutable
                 # file), so the response code is 200
@@ -446,6 +446,9 @@ class FileDownloader(rend.Page):
             return ""
         d = self.filenode.read(req, first, size)
         def _error(f):
+            log.msg("error during GET", facility="tahoe.webish", failure=f,
+                    level=log.UNUSUAL, umid="xSiF3w")
+            req._tahoe_request_had_error = f # for HTTP-style logging
             if req.startedWriting:
                 # The content-type is already set, and the response code has
                 # already been sent, so we can't provide a clean error
