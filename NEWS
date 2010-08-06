@@ -8,6 +8,7 @@
    created by other Tahoe-LAFS versions. (#1159)
  - Partial GET requests using the Range header were not handled
    correctly by the new downloader. (#1154)
+ - Restore compatibility of test suite with Python 2.4.x.
 
 * Release 1.8.0β (2010-08-02)
 
