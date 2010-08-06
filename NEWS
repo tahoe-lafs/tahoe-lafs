@@ -1,6 +1,19 @@
 ﻿User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
+* Release 1.8.0β2 (2010-08-06)
+
+** Bugfixes
+
+ - Fix an incompatibility of release 1.8.0β with node directories
+   created by other Tahoe-LAFS versions. (#1159)
+ - Partial GET requests using the Range header were not handled
+   correctly by the new downloader. (#1154)
+
 * Release 1.8.0β (2010-08-02)
+
+Note: the 1.8.0β release should not be used, because node directories
+that it creates (using 'tahoe create-*' commands) will not work with
+other releases, and vice-versa.
 
 ** New Features
 
