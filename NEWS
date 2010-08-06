@@ -1,6 +1,6 @@
-User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
+﻿User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
-* Release 1.8.0 (?)
+* Release 1.8.0 (candidate c1)
 
 ** New Features
 
@@ -19,6 +19,7 @@ User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
    node's base directory. (#188, #706, #715, #772)
  - The default node directory for Windows is ".tahoe" in the user's
    home directory, the same as on other platforms. (#890)
+ - Fix a case in which full cap URIs could be logged. (#685, #1155)
  - Fix bug in WUI in Python 2.5 when the system clock is set back to
    1969. Now you can use Tahoe-LAFS with Python 2.5 and set your
    system clock to 1969 and still use the WUI. (#1055)
