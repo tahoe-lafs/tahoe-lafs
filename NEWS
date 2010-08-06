@@ -1,29 +1,14 @@
-﻿User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
+User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
-* Release 1.8.0β2 (2010-08-06)
-
-** Bugfixes
-
- - Fix an incompatibility of release 1.8.0β with node directories
-   created by other Tahoe-LAFS versions. (#1159)
- - Partial GET requests using the Range header were not handled
-   correctly by the new downloader. (#1154)
- - Restore compatibility of test suite with Python 2.4.x.
-
-* Release 1.8.0β (2010-08-02)
-
-Note: the 1.8.0β release should not be used, because node directories
-that it creates (using 'tahoe create-*' commands) will not work with
-other releases, and vice-versa.
+* Release 1.8.0 (?)
 
 ** New Features
 
  - A completely new downloader which improves performance and
-   robustness of downloads. It automatically fails over to alternate
-   servers if the servers that it is using fail or become too slow in
-   mid-download. It also minimizes unnecessary round trips and
-   unnecessary bytes transferred to improve performance. (#798, #800,
-   #990)
+   robustness of immutable-file downloads. It automatically fails over
+   to alternate servers if the ones it is using fail in mid-download.
+   It also minimizes unnecessary round trips and unnecessary bytes
+   transferred to improve performance. (#798, #800, #990)
  - Non-ASCII command-line arguments and non-ASCII outputs now work on
    Windows. In addition, the command-line tool now works on 64-bit
    Windows. (#1074)
