@@ -185,6 +185,8 @@ class Share:
         return None, []
 
     def loop(self):
+        if not self._alive:
+            return
         try:
             # if any exceptions occur here, kill the download
             log.msg("%s.loop, reqs=[%s], pending=%s, received=%s,"
@@ -238,8 +240,6 @@ class Share:
         #  new segments added to self._requested_blocks
         #  new data received from servers (responses to our read() calls)
         #  impatience timer fires (server appears slow)
-        if not self._alive:
-            return
 
         # First, consume all of the information that we currently have, for
         # all the segments people currently want.
