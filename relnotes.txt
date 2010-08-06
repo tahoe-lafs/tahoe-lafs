@@ -1,7 +1,7 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.8.0β
+﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.8.0β2
 
 The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.8.0β of Tahoe-LAFS, an extremely
+availability of version 1.8.0β2 of Tahoe-LAFS, an extremely
 reliable distributed storage system.
 
 Tahoe-LAFS is the first distributed storage system which
@@ -15,11 +15,14 @@ http://tahoe-lafs.org/source/tahoe/trunk/docs/about.html
 The current stable release of Tahoe-LAFS is v1.7.1, which was
 released July 18, 2010 [1].
 
-v1.8.0β is the beta release of major new improvements, including fast
-and fault-tolerant downloads and better Windows support. See the NEWS
-file [2] for details. If no regressions or critical bugs are
-discovered in this 1.8.0β version then we will release a functionally
-identical 1.8.0 final version on approximately August 15, 2010.
+v1.8.0β2 is the second beta release of major new improvements,
+including fast and fault-tolerant downloads and better Windows
+support. See the NEWS file [2] for details. It corrects regressions
+in compatibility with other versions, and in downloads using the
+Range header, that were introduced in v1.8.0β. If no further
+regressions or critical bugs are discovered, we will release a
+functionally identical v1.8.0 final version on approximately
+August 15, 2010.
 
 
 WHAT IS IT GOOD FOR?
@@ -143,12 +146,12 @@ possible.
 David-Sarah Hopwood and Zooko Wilcox-O'Hearn
 on behalf of the Tahoe-LAFS team
 
-August 3, 2010
+August 6, 2010
 Rainhill, Merseyside, UK and Boulder, Colorado, USA
 
 
 [1] http://tahoe-lafs.org/trac/tahoe/browser/relnotes.txt?rev=4579
-[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4636
+[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4670
 [3] http://tahoe-lafs.org/trac/tahoe/wiki/RelatedProjects
 [4] http://tahoe-lafs.org/trac/tahoe/browser/docs/known_issues.txt
 [5] http://tahoe-lafs.org/trac/tahoe/browser/COPYING.GPL
