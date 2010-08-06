@@ -2035,9 +2035,7 @@ class StringSpans(unittest.TestCase):
             return ds
         def dump(s):
             p = set(s._dump())
-            # wow, this is the first time I've ever wanted ?: in python
-            # note: this requires python2.5
-            d = "".join([(S[i] if i in p else " ") for i in range(l)])
+            d = "".join([((i not in p) and " " or S[i]) for i in range(l)])
             assert len(d) == l
             return d
         DEBUG = False
