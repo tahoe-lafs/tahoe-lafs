@@ -16,11 +16,11 @@ import allmydata
 timeout = 240
 
 srcfile = allmydata.__file__
-srcdir = os.path.dirname(os.path.dirname(os.path.realpath(srcfile)))
+srcdir = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
 
 rootdir = os.path.dirname(srcdir)
-if os.path.normcase(os.path.basename(srcdir)) == 'site-packages':
-    if re.search(r'python.+\..+', os.path.normcase(os.path.basename(rootdir))):
+if os.path.basename(srcdir) == 'site-packages':
+    if re.search(r'python.+\..+', os.path.basename(rootdir)):
         rootdir = os.path.dirname(rootdir)
     rootdir = os.path.dirname(rootdir)
 
@@ -49,14 +49,13 @@ class SkipMixin:
 
 class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
     def test_the_right_code(self):
-        cwd = os.getcwd()
-        root_from_cwd = os.path.normcase(os.path.normpath(os.path.join(cwd, "..")))
-        root_from_test = os.path.normcase(os.path.normpath(rootdir))
+        cwd = os.path.normcase(os.path.realpath("."))
+        root_from_cwd = os.path.dirname(cwd)
 
-        same = (root_from_cwd == root_from_test)
+        same = (root_from_cwd == rootdir)
         if not same:
             try:
-                same = os.path.samefile(root_from_cwd, root_from_test)
+                same = os.path.samefile(root_from_cwd, rootdir)
             except AttributeError, e:
                 e  # hush pyflakes
 
@@ -64,10 +63,9 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
             msg = ("We seem to be testing the code at %r,\n"
                    "(according to the source filename %r),\n"
                    "but expected to be testing the code at %r.\n"
-                   % (root_from_test, srcfile, root_from_cwd))
+                   % (rootdir, srcfile, root_from_cwd))
             if (not isinstance(cwd, unicode) and
-                (os.path.normcase(os.path.normpath(cwd))).decode(get_filesystem_encoding(), 'replace')
-                  != os.path.normcase(os.path.normpath(os.getcwdu()))):
+                cwd.decode(get_filesystem_encoding(), 'replace') != os.path.normcase(os.path.realpath(os.getcwdu()))):
                 msg += ("However, this may be a false alarm because the current directory path\n"
                         "is not representable in the filesystem encoding. Please run the tests\n"
                         "from the root of the Tahoe-LAFS distribution at a non-Unicode path.")

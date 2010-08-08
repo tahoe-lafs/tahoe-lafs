@@ -170,7 +170,7 @@ def get_package_versions_from_setuptools():
     return dict([(p.project_name, (p.version, p.location)) for p in pkg_resources.require(__appname__)])
 
 def package_dir(srcfile):
-    return os.path.dirname(os.path.dirname(os.path.realpath(srcfile)))
+    return os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
 
 def get_package_versions_and_locations():
     # because there are a few dependencies that are outside setuptools's ken
