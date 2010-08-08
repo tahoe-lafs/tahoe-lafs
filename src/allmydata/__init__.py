@@ -169,6 +169,9 @@ def get_package_versions_from_setuptools():
     import pkg_resources
     return dict([(p.project_name, (p.version, p.location)) for p in pkg_resources.require(__appname__)])
 
+def package_dir(srcfile):
+    return os.path.dirname(os.path.dirname(os.path.realpath(srcfile)))
+
 def get_package_versions_and_locations():
     # because there are a few dependencies that are outside setuptools's ken
     # (Python and platform, and sqlite3 if you are on Python >= 2.5), and
@@ -187,26 +190,26 @@ def get_package_versions_and_locations():
             pass
         else:
             pysqlitever = dbapi2.version
-            pysqlitefile = os.path.dirname(dbapi2.__file__)
+            pysqlitefile = package_dir(dbapi2.__file__)
             sqlitever = dbapi2.sqlite_version
     else:
         pysqlitever = sqlite3.version
-        pysqlitefile = os.path.dirname(sqlite3.__file__)
+        pysqlitefile = package_dir(sqlite3.__file__)
         sqlitever = sqlite3.sqlite_version
 
     d1 = {
-        'pyOpenSSL': (OpenSSL.__version__, os.path.dirname(OpenSSL.__file__)),
-        __appname__: (allmydata.__version__, os.path.dirname(allmydata.__file__)),
-        'foolscap': (foolscap.api.__version__, os.path.dirname(foolscap.__file__)),
-        'Nevow': (nevow.__version__, os.path.dirname(nevow.__file__)),
-        'pycryptopp': (pycryptopp.__version__, os.path.dirname(pycryptopp.__file__)),
-        'setuptools': (setuptools.__version__, os.path.dirname(setuptools.__file__)),
-        'simplejson': (simplejson.__version__, os.path.dirname(simplejson.__file__)),
+        'pyOpenSSL': (OpenSSL.__version__, package_dir(OpenSSL.__file__)),
+        __appname__: (allmydata.__version__, package_dir(allmydata.__file__)),
+        'foolscap': (foolscap.api.__version__, package_dir(foolscap.__file__)),
+        'Nevow': (nevow.__version__, package_dir(nevow.__file__)),
+        'pycryptopp': (pycryptopp.__version__, package_dir(pycryptopp.__file__)),
+        'setuptools': (setuptools.__version__, package_dir(setuptools.__file__)),
+        'simplejson': (simplejson.__version__, package_dir(simplejson.__file__)),
         'pysqlite': (pysqlitever, pysqlitefile),
         'sqlite': (sqlitever, 'unknown'),
-        'zope.interface': ('unknown', os.path.dirname(zope.interface.__file__)),
-        'Twisted': (twisted.__version__, os.path.dirname(twisted.__file__)),
-        'zfec': (zfec.__version__, os.path.dirname(zfec.__file__)),
+        'zope.interface': ('unknown', package_dir(zope.interface.__file__)),
+        'Twisted': (twisted.__version__, package_dir(twisted.__file__)),
+        'zfec': (zfec.__version__, package_dir(zfec.__file__)),
         'python': (platform.python_version(), sys.executable),
         'platform': (get_platform(), None),
         }
