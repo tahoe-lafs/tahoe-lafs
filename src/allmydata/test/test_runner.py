@@ -17,11 +17,24 @@ timeout = 240
 
 srcfile = allmydata.__file__
 srcdir = os.path.dirname(os.path.dirname(os.path.realpath(srcfile)))
+if os.path.normcase(srcdir).endswith('.egg'):
+    srcdir = os.path.dirname(srcdir)
+elif os.path.normcase(os.path.basename(srcdir)) == 'site-packages':
+    srcdir = os.path.dirname(srcdir)
+    if re.search(r'python.+\..+', os.path.normcase(os.path.basename(srcdir))):
+        srcdir = os.path.dirname(srcdir)
+    if os.path.normcase(os.path.basename(srcdir)) == 'lib':
+        srcdir = os.path.dirname(srcdir)
+
 rootdir = os.path.dirname(srcdir)
 
 bintahoe = os.path.join(rootdir, 'bin', 'tahoe')
 if sys.platform == "win32":
     bintahoe += ".pyscript"
+    if not os.path.exists(bintahoe):
+       alt_bintahoe = os.path.join(rootdir, 'Scripts', 'tahoe.pyscript')
+       if os.path.exists(alt_bintahoe):
+           bintahoe = alt_bintahoe
 
 
 class SkipMixin:
@@ -57,7 +70,8 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
                    "but expected to be testing the code at %r.\n"
                    % (root_from_test, srcfile, root_from_cwd))
             if (not isinstance(cwd, unicode) and
-                cwd.decode(get_filesystem_encoding(), 'replace') != os.path.normcase(os.path.normpath(os.getcwdu()))):
+                (os.path.normcase(os.path.normpath(cwd))).decode(get_filesystem_encoding(), 'replace')
+                  != os.path.normcase(os.path.normpath(os.getcwdu()))):
                 msg += ("However, this may be a false alarm because the current directory path\n"
                         "is not representable in the filesystem encoding. Please run the tests\n"
                         "from the root of the Tahoe-LAFS distribution at a non-Unicode path.")
