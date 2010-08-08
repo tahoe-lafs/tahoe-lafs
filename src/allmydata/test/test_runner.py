@@ -17,12 +17,12 @@ timeout = 240
 
 srcfile = allmydata.__file__
 srcdir = os.path.dirname(os.path.dirname(os.path.realpath(srcfile)))
-if os.path.normcase(os.path.basename(srcdir)) == 'site-packages':
-    srcdir = os.path.dirname(srcdir)
-    if re.search(r'python.+\..+', os.path.normcase(os.path.basename(srcdir))):
-        srcdir = os.path.dirname(srcdir)
 
 rootdir = os.path.dirname(srcdir)
+if os.path.normcase(os.path.basename(srcdir)) == 'site-packages':
+    if re.search(r'python.+\..+', os.path.normcase(os.path.basename(rootdir))):
+        rootdir = os.path.dirname(rootdir)
+    rootdir = os.path.dirname(rootdir)
 
 bintahoe = os.path.join(rootdir, 'bin', 'tahoe')
 if sys.platform == "win32":
