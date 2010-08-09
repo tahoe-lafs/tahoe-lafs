@@ -413,7 +413,11 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         for d_ev in dyhb_events:
             (serverid, sent, shnums, received) = d_ev
             serverid_s = idlib.shortnodeid_b2a(serverid)
-            rtt = received - sent
+            rtt = None
+            if received is not None:
+                rtt = received - sent
+            if not shnums:
+                shnums = []
             t[T.tr(style="background: %s" % self.color(serverid))[
                 [T.td[serverid_s], T.td[srt(sent)], T.td[srt(received)],
                  T.td[",".join([str(shnum) for shnum in shnums])],
@@ -427,7 +431,6 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                T.td["speed"]]]
         for r_ev in self.download_status.read_events:
             (start, length, requesttime, finishtime, bytes, decrypt, paused) = r_ev
-            #print r_ev
             if finishtime is not None:
                 rtt = finishtime - requesttime - paused
                 speed = self.render_rate(None, 1.0 * bytes / rtt)
