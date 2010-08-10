@@ -152,7 +152,7 @@ Rainhill, Merseyside, UK and Boulder, Colorado, USA
 
 
 [1] http://tahoe-lafs.org/trac/tahoe/browser/relnotes.txt?rev=4579
-[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4679
+[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4692
 [3] http://tahoe-lafs.org/trac/tahoe/wiki/RelatedProjects
 [4] http://tahoe-lafs.org/trac/tahoe/browser/docs/known_issues.txt
 [5] http://tahoe-lafs.org/trac/tahoe/browser/COPYING.GPL
