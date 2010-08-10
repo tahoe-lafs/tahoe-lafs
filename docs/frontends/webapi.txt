@@ -735,7 +735,7 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
      operating system).
 
   3. You might be confused by the fact that changing the contents of a
-     mutable file in Tahoe don't have any effect on any links pointing at
+     mutable file in Tahoe doesn't have any effect on any links pointing at
      that file in any directories, although "tahoe backup" sets the link
      'ctime'/'mtime' to reflect timestamps about the local file corresponding
      to the Tahoe file to which the link points.
