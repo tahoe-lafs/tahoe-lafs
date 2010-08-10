@@ -16,6 +16,7 @@ from allmydata.test.common import ShouldFailMixin
 from allmydata.interfaces import NotEnoughSharesError, NoSharesError
 from allmydata.immutable.downloader.common import BadSegmentNumberError, \
      BadCiphertextHashError, DownloadStopped
+from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.codec import CRSDecoder
 from foolscap.eventual import fireEventually, flushEventualQueue
 
@@ -1214,3 +1215,45 @@ class DownloadV2(_Base, unittest.TestCase):
             return d
         d.addCallback(_uploaded)
         return d
+
+class Status(unittest.TestCase):
+    def test_status(self):
+        now = 12345.1
+        ds = DownloadStatus("si-1", 123)
+        self.failUnlessEqual(ds.get_status(), "idle")
+        ds.add_segment_request(0, now)
+        self.failUnlessEqual(ds.get_status(), "fetching segment 0")
+        ds.add_segment_delivery(0, now+1, 0, 1000, 2.0)
+        self.failUnlessEqual(ds.get_status(), "idle")
+        ds.add_segment_request(2, now+2)
+        ds.add_segment_request(1, now+2)
+        self.failUnlessEqual(ds.get_status(), "fetching segments 1,2")
+        ds.add_segment_error(1, now+3)
+        self.failUnlessEqual(ds.get_status(),
+                             "fetching segment 2; errors on segment 1")
+
+    def test_progress(self):
+        now = 12345.1
+        ds = DownloadStatus("si-1", 123)
+        self.failUnlessEqual(ds.get_progress(), 0.0)
+        e = ds.add_read_event(0, 1000, now)
+        self.failUnlessEqual(ds.get_progress(), 0.0)
+        e.update(500, 2.0, 2.0)
+        self.failUnlessEqual(ds.get_progress(), 0.5)
+        e.finished(now+2)
+        self.failUnlessEqual(ds.get_progress(), 1.0)
+
+        e1 = ds.add_read_event(1000, 2000, now+3)
+        e2 = ds.add_read_event(4000, 2000, now+3)
+        self.failUnlessEqual(ds.get_progress(), 0.0)
+        e1.update(1000, 2.0, 2.0)
+        self.failUnlessEqual(ds.get_progress(), 0.25)
+        e2.update(1000, 2.0, 2.0)
+        self.failUnlessEqual(ds.get_progress(), 0.5)
+        e1.update(1000, 2.0, 2.0)
+        e1.finished(now+4)
+        # now there is only one outstanding read, and it is 50% done
+        self.failUnlessEqual(ds.get_progress(), 0.5)
+        e2.update(1000, 2.0, 2.0)
+        e2.finished(now+5)
+        self.failUnlessEqual(ds.get_progress(), 1.0)

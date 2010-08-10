@@ -83,6 +83,9 @@ def build_one_ds():
     ds.add_segment_delivery(0, now+1, 0, 100, 0.5)
     ds.add_segment_request(1, now+2)
     ds.add_segment_error(1, now+3)
+    # two outstanding requests
+    ds.add_segment_request(2, now+4)
+    ds.add_segment_request(3, now+5)
 
     e = ds.add_dyhb_sent("serverid_a", now)
     e.finished([1,2], now+1)

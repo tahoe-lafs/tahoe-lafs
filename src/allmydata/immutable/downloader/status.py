@@ -157,9 +157,49 @@ class DownloadStatus:
     def get_size(self):
         return self.size
     def get_status(self):
-        return "not impl yet" # TODO
+        # mention all outstanding segment requests
+        outstanding = set()
+        errorful = set()
+        for s_ev in self.segment_events:
+            (etype, segnum, when, segstart, seglen, decodetime) = s_ev
+            if etype == "request":
+                outstanding.add(segnum)
+            elif etype == "delivery":
+                outstanding.remove(segnum)
+            else: # "error"
+                outstanding.remove(segnum)
+                errorful.add(segnum)
+        def join(segnums):
+            if len(segnums) == 1:
+                return "segment %s" % list(segnums)[0]
+            else:
+                return "segments %s" % (",".join([str(i)
+                                                  for i in sorted(segnums)]))
+        error_s = ""
+        if errorful:
+            error_s = "; errors on %s" % join(errorful)
+        if outstanding:
+            s = "fetching %s" % join(outstanding)
+        else:
+            s = "idle"
+        return s + error_s
+
     def get_progress(self):
-        return 0.1 # TODO
+        # measure all read events that aren't completely done, return the
+        # total percentage complete for them
+        if not self.read_events:
+            return 0.0
+        total_outstanding, total_received = 0, 0
+        for r_ev in self.read_events:
+            (start, length, ign1, finishtime, bytes, ign2, ign3) = r_ev
+            if finishtime is None:
+                total_outstanding += length
+                total_received += bytes
+            # else ignore completed requests
+        if not total_outstanding:
+            return 1.0
+        return 1.0 * total_received / total_outstanding
+
     def using_helper(self):
         return False
     def get_active(self):
