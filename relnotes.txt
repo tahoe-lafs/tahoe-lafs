@@ -1,7 +1,7 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.8.0c1
+﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.8.0c2
 
 The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.8.0c1 of Tahoe-LAFS, an extremely
+availability of version 1.8.0c2 of Tahoe-LAFS, an extremely
 reliable distributed storage system.
 
 Tahoe-LAFS is the first distributed storage system which
@@ -15,14 +15,15 @@ http://tahoe-lafs.org/source/tahoe/trunk/docs/about.html
 The current stable release of Tahoe-LAFS is v1.7.1, which was
 released July 18, 2010 [1].
 
-v1.8.0c1 is leading up to the v1.8.0 release of major new
+v1.8.0c2 is leading up to the v1.8.0 release of major new
 improvements, including fast and fault-tolerant downloads and
-better Windows support. See the NEWS file [2] for details. It
-corrects regressions in compatibility with other versions, and
-in downloads using the Range header, that were introduced in
-v1.8.0β. If no further regressions or critical bugs are
-discovered, we will release a functionally identical v1.8.0
-final version on approximately August 15, 2010.
+better Windows support. See the NEWS file [2] for details.
+It corrects some minor regressions in download status pages.
+v1.8.0c1 corrected regressions in compatibility with other
+versions, and in downloads using the Range header, that were
+introduced in v1.8.0β. If no further regressions or critical
+bugs are discovered, we will release a functionally identical
+v1.8.0 final version on approximately August 15, 2010.
 
 
 WHAT IS IT GOOD FOR?
@@ -146,7 +147,7 @@ possible.
 David-Sarah Hopwood and Zooko Wilcox-O'Hearn
 on behalf of the Tahoe-LAFS team
 
-August 7, 2010
+August 10, 2010
 Rainhill, Merseyside, UK and Boulder, Colorado, USA
 
 
