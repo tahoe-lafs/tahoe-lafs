@@ -6,9 +6,12 @@
 
  - A completely new downloader which improves performance and
    robustness of immutable-file downloads. It automatically fails over
-   to alternate servers if the ones it is using fail in mid-download.
-   It also minimizes unnecessary round trips and unnecessary bytes
-   transferred to improve performance. (#798, #800, #990)
+   to alternate servers if the ones it is using fail in
+   mid-download. It allows seeking to arbitrary locations in the file,
+   where the old downloader only allowed reading the entire file
+   sequentially from the beginning.  It also minimizes unnecessary
+   round trips and unnecessary bytes transferred to improve
+   performance. (#287, #288, #798, #800, #990, #1160, #1162)
  - Non-ASCII command-line arguments and non-ASCII outputs now work on
    Windows. In addition, the command-line tool now works on 64-bit
    Windows. (#1074)
