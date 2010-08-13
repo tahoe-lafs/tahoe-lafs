@@ -77,18 +77,19 @@ the BASEDIR/tahoe.cfg file:
 
  [ftpd]
  enabled = true
- port = 8021
+ port = tcp:8021:interface=127.0.0.1
  accounts.file = private/ftp.accounts
 
-The FTP server will listen on the given port number. The "accounts.file"
-pathname will be interpreted relative to the node's BASEDIR.
+The FTP server will listen on the given port number and on the loopback 
+interface only. The "accounts.file" pathname will be interpreted 
+relative to the node's BASEDIR.
 
 To enable the FTP server with an account server instead, provide the URL of
 that server in an "accounts.url" directive:
 
  [ftpd]
  enabled = true
- port = 8021
+ port = tcp:8021:interface=127.0.0.1
  accounts.url = https://example.com/login
 
 You can provide both accounts.file and accounts.url, although it probably
@@ -118,19 +119,20 @@ lines to the BASEDIR/tahoe.cfg file:
 
  [sftpd]
  enabled = true
- port = 8022
+ port = tcp:8022:interface=127.0.0.1 
  host_pubkey_file = private/ssh_host_rsa_key.pub
  host_privkey_file = private/ssh_host_rsa_key
  accounts.file = private/ftp.accounts
 
-The SFTP server will listen on the given port number. The "accounts.file"
-pathname will be interpreted relative to the node's BASEDIR.
+The SFTP server will listen on the given port number and on the loopback
+interface only. The "accounts.file" pathname will be interpreted
+relative to the node's BASEDIR.
 
 Or, to use an account server instead, do this:
 
  [sftpd]
  enabled = true
- port = 8022
+ port = tcp:8022:interface=127.0.0.1
  host_pubkey_file = private/ssh_host_rsa_key.pub
  host_privkey_file = private/ssh_host_rsa_key
  accounts.url = https://example.com/login
