@@ -87,6 +87,10 @@ def build_one_ds():
     ds.add_segment_request(2, now+4)
     ds.add_segment_request(3, now+5)
 
+    # simulate a segment which gets delivered faster than a system clock tick (ticket #1166)
+    ds.add_segment_request(4, now)
+    ds.add_segment_delivery(4, now, 0, 140, 0.5)
+
     e = ds.add_dyhb_sent("serverid_a", now)
     e.finished([1,2], now+1)
     e = ds.add_dyhb_sent("serverid_b", now+2) # left unfinished
@@ -3168,6 +3172,22 @@ class Util(ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(common.abbreviate_time(0.00123), "1.2ms")
         self.failUnlessReallyEqual(common.abbreviate_time(0.000123), "123us")
         self.failUnlessReallyEqual(common.abbreviate_time(-123000), "-123000000000us")
+
+    def test_compute_rate(self):
+        self.failUnlessReallyEqual(common.compute_rate(None, None), None)
+        self.failUnlessReallyEqual(common.compute_rate(None, 1), None)
+        self.failUnlessReallyEqual(common.compute_rate(250000, None), None)
+        self.failUnlessReallyEqual(common.compute_rate(250000, 0), None)
+        self.failUnlessReallyEqual(common.compute_rate(250000, 10), 25000.0)
+        self.failUnlessReallyEqual(common.compute_rate(0, 10), 0.0)
+        self.shouldFail(AssertionError, "test_compute_rate", "",
+                        common.compute_rate, -100, 10)
+        self.shouldFail(AssertionError, "test_compute_rate", "",
+                        common.compute_rate, 100, -10)
+
+        # Sanity check
+        rate = common.compute_rate(10*1000*1000, 1)
+        self.failUnlessReallyEqual(common.abbreviate_rate(rate), "10.00MBps")
 
     def test_abbreviate_rate(self):
         self.failUnlessReallyEqual(common.abbreviate_rate(None), "")

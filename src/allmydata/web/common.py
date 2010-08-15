@@ -90,6 +90,19 @@ def abbreviate_time(data):
         return "%.1fms" % (1000*s)
     return "%.0fus" % (1000000*s)
 
+def compute_rate(bytes, seconds):
+    if bytes is None:
+      return None
+
+    if seconds is None or seconds == 0:
+      return None
+
+    # negative values don't make sense here
+    assert bytes > -1
+    assert seconds > 0
+
+    return 1.0 * bytes / seconds
+
 def abbreviate_rate(data):
     # 21.8kBps, 554.4kBps 4.37MBps
     if data is None:

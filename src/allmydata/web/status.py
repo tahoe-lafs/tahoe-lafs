@@ -5,7 +5,7 @@ from twisted.internet import defer
 from nevow import rend, inevow, tags as T
 from allmydata.util import base32, idlib
 from allmydata.web.common import getxmlfile, get_arg, \
-     abbreviate_time, abbreviate_rate, abbreviate_size, plural
+     abbreviate_time, abbreviate_rate, abbreviate_size, plural, compute_rate
 from allmydata.interfaces import IUploadStatus, IDownloadStatus, \
      IPublishStatus, IRetrieveStatus, IServermapUpdaterStatus
 
@@ -110,12 +110,7 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         def _convert(r):
             file_size = r.file_size
             time = r.timings.get(name)
-            if time is None:
-                return None
-            try:
-                return 1.0 * file_size / time
-            except ZeroDivisionError:
-                return None
+            return compute_rate(file_size, time)
         d.addCallback(_convert)
         return d
 
@@ -137,12 +132,10 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
             file_size = r.file_size
             time1 = r.timings.get("cumulative_encoding")
             time2 = r.timings.get("cumulative_sending")
-            if (file_size is None or time1 is None or time2 is None):
+            if (time1 is None or time2 is None):
                 return None
-            try:
-                return 1.0 * file_size / (time1+time2)
-            except ZeroDivisionError:
-                return None
+            else:
+                return compute_rate(file_size, time1+time2)
         d.addCallback(_convert)
         return d
 
@@ -151,12 +144,7 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
         def _convert(r):
             fetch_size = r.ciphertext_fetched
             time = r.timings.get("cumulative_fetch")
-            if (fetch_size is None or time is None):
-                return None
-            try:
-                return 1.0 * fetch_size / time
-            except ZeroDivisionError:
-                return None
+            return compute_rate(fetch_size, time)
         d.addCallback(_convert)
         return d
 
@@ -308,12 +296,7 @@ class DownloadResultsRendererMixin(RateAndTimeMixin):
         def _convert(r):
             file_size = r.file_size
             time = r.timings.get(name)
-            if time is None:
-                return None
-            try:
-                return 1.0 * file_size / time
-            except ZeroDivisionError:
-                return None
+            return compute_rate(file_size, time)
         d.addCallback(_convert)
         return d
 
@@ -433,7 +416,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
             (start, length, requesttime, finishtime, bytes, decrypt, paused) = r_ev
             if finishtime is not None:
                 rtt = finishtime - requesttime - paused
-                speed = self.render_rate(None, 1.0 * bytes / rtt)
+                speed = self.render_rate(None, compute_rate(bytes, rtt))
                 rtt = self.render_time(None, rtt)
                 decrypt = self.render_time(None, decrypt)
                 paused = self.render_time(None, paused)
@@ -459,7 +442,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
             elif etype == "delivery":
                 if reqtime[0] == segnum:
                     segtime = when - reqtime[1]
-                    speed = self.render_rate(None, 1.0 * seglen / segtime)
+                    speed = self.render_rate(None, compute_rate(seglen, segtime))
                     segtime = self.render_time(None, segtime)
                 else:
                     segtime, speed = "", ""
@@ -595,12 +578,7 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
     def _get_rate(self, data, name):
         file_size = self.retrieve_status.get_size()
         time = self.retrieve_status.timings.get(name)
-        if time is None or file_size is None:
-            return None
-        try:
-            return 1.0 * file_size / time
-        except ZeroDivisionError:
-            return None
+        return compute_rate(file_size, time)
 
     def data_time_total(self, ctx, data):
         return self.retrieve_status.timings.get("total")
@@ -701,12 +679,7 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
     def _get_rate(self, data, name):
         file_size = self.publish_status.get_size()
         time = self.publish_status.timings.get(name)
-        if time is None:
-            return None
-        try:
-            return 1.0 * file_size / time
-        except ZeroDivisionError:
-            return None
+        return compute_rate(file_size, time)
 
     def data_time_total(self, ctx, data):
         return self.publish_status.timings.get("total")
