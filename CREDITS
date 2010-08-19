@@ -1,5 +1,5 @@
 ﻿    This is at least a partial credits-file of people that have contributed to
-the Tahoe project.  It is formatted to allow easy grepping and
+the Tahoe-LAFS project.  It is formatted to allow easy grepping and
 beautification by scripts.  The fields are: name (N), email (E),
 web-address (W), PGP key ID and fingerprint (P), description (D), and
 snail-mail address (S).

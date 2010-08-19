@@ -9,9 +9,12 @@
    to alternate servers if servers fail in mid-download. It allows
    seeking to arbitrary locations in the file, unlike the old
    downloader which only allowed reading the entire file sequentially
-   from the beginning.  It also minimizes unnecessary round trips and
-   unnecessary bytes transferred to improve performance. (#287, #288,
-   #798, #800, #990)
+   from the beginning. It minimizes unnecessary round trips and
+   unnecessary bytes transferred to improve performance. It sends
+   requests to fewer servers (the old one would send a request to
+   every server for every download) (#287, #288, #448, #798, #800,
+   #990)
+
  - Non-ASCII command-line arguments and non-ASCII outputs now work on
    Windows. In addition, the command-line tool now works on 64-bit
    Windows. (#1074)
