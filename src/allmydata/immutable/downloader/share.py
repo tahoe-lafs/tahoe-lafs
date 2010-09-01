@@ -33,7 +33,7 @@ class Share:
     # servers. A different backend would use a different class.
 
     def __init__(self, rref, server_version, verifycap, commonshare, node,
-                 download_status, peerid, shnum, logparent):
+                 download_status, peerid, shnum, dyhb_rtt, logparent):
         self._rref = rref
         self._server_version = server_version
         self._node = node # holds share_hash_tree and UEB
@@ -51,6 +51,7 @@ class Share:
         self._storage_index = verifycap.storage_index
         self._si_prefix = base32.b2a(verifycap.storage_index)[:8]
         self._shnum = shnum
+        self._dyhb_rtt = dyhb_rtt
         # self._alive becomes False upon fatal corruption or server error
         self._alive = True
         self._lp = log.msg(format="%(share)s created", share=repr(self),
@@ -278,15 +279,16 @@ class Share:
             if not self._satisfy_UEB():
                 # can't check any hashes without the UEB
                 return False
+            # the call to _satisfy_UEB() will immediately set the
+            # authoritative num_segments in all our CommonShares. If we
+            # guessed wrong, we might stil be working on a bogus segnum
+            # (beyond the real range). We catch this and signal BADSEGNUM
+            # before invoking any further code that touches hashtrees.
         self.actual_segment_size = self._node.segment_size # might be updated
         assert self.actual_segment_size is not None
 
-        # knowing the UEB means knowing num_segments. Despite the redundancy,
-        # this is the best place to set this. CommonShare.set_numsegs will
-        # ignore duplicate calls.
+        # knowing the UEB means knowing num_segments
         assert self._node.num_segments is not None
-        cs = self._commonshare
-        cs.set_numsegs(self._node.num_segments)
 
         segnum, observers = self._active_segnum_and_observers()
         # if segnum is None, we don't really need to do anything (we have no
@@ -304,9 +306,9 @@ class Share:
                 # can't check block_hash_tree without a root
                 return False
 
-        if cs.need_block_hash_root():
+        if self._commonshare.need_block_hash_root():
             block_hash_root = self._node.share_hash_tree.get_leaf(self._shnum)
-            cs.set_block_hash_root(block_hash_root)
+            self._commonshare.set_block_hash_root(block_hash_root)
 
         if segnum is None:
             return False # we don't want any particular segment right now
@@ -360,7 +362,8 @@ class Share:
                                   ] ):
             offsets[field] = fields[i]
         self.actual_offsets = offsets
-        log.msg("actual offsets: data=%d, plaintext_hash_tree=%d, crypttext_hash_tree=%d, block_hashes=%d, share_hashes=%d, uri_extension=%d" % tuple(fields))
+        log.msg("actual offsets: data=%d, plaintext_hash_tree=%d, crypttext_hash_tree=%d, block_hashes=%d, share_hashes=%d, uri_extension=%d" % tuple(fields),
+                level=log.NOISY, parent=self._lp, umid="jedQcw")
         self._received.remove(0, 4) # don't need this anymore
 
         # validate the offsets a bit
@@ -517,7 +520,8 @@ class Share:
         block = self._received.pop(blockstart, blocklen)
         if not block:
             log.msg("no data for block %s (want [%d:+%d])" % (repr(self),
-                                                              blockstart, blocklen))
+                                                              blockstart, blocklen),
+                    level=log.NOISY, parent=self._lp, umid="aK0RFw")
             return False
         log.msg(format="%(share)s._satisfy_data_block [%(start)d:+%(length)d]",
                 share=repr(self), start=blockstart, length=blocklen,
@@ -589,29 +593,17 @@ class Share:
         if self.actual_offsets or self._overrun_ok:
             if not self._node.have_UEB:
                 self._desire_UEB(desire, o)
-            # They might ask for a segment that doesn't look right.
-            # _satisfy() will catch+reject bad segnums once we know the UEB
-            # (and therefore segsize and numsegs), so we'll only fail this
-            # test if we're still guessing. We want to avoid asking the
-            # hashtrees for needed_hashes() for bad segnums. So don't enter
-            # _desire_hashes or _desire_data unless the segnum looks
-            # reasonable.
-            if segnum < r["num_segments"]:
-                # XXX somehow we're getting here for sh5. we don't yet know
-                # the actual_segment_size, we're still working off the guess.
-                # the ciphertext_hash_tree has been corrected, but the
-                # commonshare._block_hash_tree is still in the guessed state.
-                self._desire_share_hashes(desire, o)
-                if segnum is not None:
-                    self._desire_block_hashes(desire, o, segnum)
-                    self._desire_data(desire, o, r, segnum, segsize)
-            else:
-                log.msg("_desire: segnum(%d) looks wrong (numsegs=%d)"
-                        % (segnum, r["num_segments"]),
-                        level=log.UNUSUAL, parent=self._lp, umid="tuYRQQ")
+            self._desire_share_hashes(desire, o)
+            if segnum is not None:
+                # They might be asking for a segment number that is beyond
+                # what we guess the file contains, but _desire_block_hashes
+                # and _desire_data will tolerate that.
+                self._desire_block_hashes(desire, o, segnum)
+                self._desire_data(desire, o, r, segnum, segsize)
 
         log.msg("end _desire: want_it=%s need_it=%s gotta=%s"
-                % (want_it.dump(), need_it.dump(), gotta_gotta_have_it.dump()))
+                % (want_it.dump(), need_it.dump(), gotta_gotta_have_it.dump()),
+                level=log.NOISY, parent=self._lp, umid="IG7CgA")
         if self.actual_offsets:
             return (want_it, need_it+gotta_gotta_have_it)
         else:
@@ -681,14 +673,30 @@ class Share:
         (want_it, need_it, gotta_gotta_have_it) = desire
 
         # block hash chain
-        for hashnum in self._commonshare.get_needed_block_hashes(segnum):
+        for hashnum in self._commonshare.get_desired_block_hashes(segnum):
             need_it.add(o["block_hashes"]+hashnum*HASH_SIZE, HASH_SIZE)
 
         # ciphertext hash chain
-        for hashnum in self._node.get_needed_ciphertext_hashes(segnum):
+        for hashnum in self._node.get_desired_ciphertext_hashes(segnum):
             need_it.add(o["crypttext_hash_tree"]+hashnum*HASH_SIZE, HASH_SIZE)
 
     def _desire_data(self, desire, o, r, segnum, segsize):
+        if segnum > r["num_segments"]:
+            # they're asking for a segment that's beyond what we think is the
+            # end of the file. We won't get here if we've already learned the
+            # real UEB: _get_satisfaction() will notice the out-of-bounds and
+            # terminate the loop. So we must still be guessing, which means
+            # that they might be correct in asking for such a large segnum.
+            # But if they're right, then our segsize/segnum guess is
+            # certainly wrong, which means we don't know what data blocks to
+            # ask for yet. So don't bother adding anything. When the UEB
+            # comes back and we learn the correct segsize/segnums, we'll
+            # either reject the request or have enough information to proceed
+            # normally. This costs one roundtrip.
+            log.msg("_desire_data: segnum(%d) looks wrong (numsegs=%d)"
+                    % (segnum, r["num_segments"]),
+                    level=log.UNUSUAL, parent=self._lp, umid="tuYRQQ")
+            return
         (want_it, need_it, gotta_gotta_have_it) = desire
         tail = (segnum == r["num_segments"]-1)
         datastart = o["data"]
@@ -803,34 +811,62 @@ class Share:
 
 
 class CommonShare:
+    # TODO: defer creation of the hashtree until somebody uses us. There will
+    # be a lot of unused shares, and we shouldn't spend the memory on a large
+    # hashtree unless necessary.
     """I hold data that is common across all instances of a single share,
     like sh2 on both servers A and B. This is just the block hash tree.
     """
-    def __init__(self, guessed_numsegs, si_prefix, shnum, logparent):
+    def __init__(self, best_numsegs, si_prefix, shnum, logparent):
         self.si_prefix = si_prefix
         self.shnum = shnum
+
         # in the beginning, before we have the real UEB, we can only guess at
         # the number of segments. But we want to ask for block hashes early.
         # So if we're asked for which block hashes are needed before we know
         # numsegs for sure, we return a guess.
-        self._block_hash_tree = IncompleteHashTree(guessed_numsegs)
-        self._know_numsegs = False
+        self._block_hash_tree = IncompleteHashTree(best_numsegs)
+        self._block_hash_tree_is_authoritative = False
+        self._block_hash_tree_leaves = best_numsegs
         self._logparent = logparent
 
-    def set_numsegs(self, numsegs):
-        if self._know_numsegs:
-            return
-        self._block_hash_tree = IncompleteHashTree(numsegs)
-        self._know_numsegs = True
+    def __repr__(self):
+        return "CommonShare(%s-sh%d)" % (self.si_prefix, self.shnum)
+
+    def set_authoritative_num_segments(self, numsegs):
+        if self._block_hash_tree_leaves != numsegs:
+            self._block_hash_tree = IncompleteHashTree(numsegs)
+            self._block_hash_tree_leaves = numsegs
+        self._block_hash_tree_is_authoritative = True
 
     def need_block_hash_root(self):
         return bool(not self._block_hash_tree[0])
 
     def set_block_hash_root(self, roothash):
-        assert self._know_numsegs
+        assert self._block_hash_tree_is_authoritative
         self._block_hash_tree.set_hashes({0: roothash})
 
+    def get_desired_block_hashes(self, segnum):
+        if segnum < self._block_hash_tree_leaves:
+            return self._block_hash_tree.needed_hashes(segnum,
+                                                       include_leaf=True)
+
+        # the segnum might be out-of-bounds. Originally it was due to a race
+        # between the receipt of the UEB on one share (from which we learn
+        # the correct number of segments, update all hash trees to the right
+        # size, and queue a BADSEGNUM to the SegmentFetcher) and the delivery
+        # of a new Share to the SegmentFetcher while that BADSEGNUM was
+        # queued (which sends out requests to the stale segnum, now larger
+        # than the hash tree). I fixed that (by making SegmentFetcher.loop
+        # check for a bad segnum at the start of each pass, instead of using
+        # the queued BADSEGNUM or a flag it sets), but just in case this
+        # still happens, I'm leaving the < in place. If it gets hit, there's
+        # a potential lost-progress problem, but I'm pretty sure that it will
+        # get cleared up on the following turn.
+        return []
+
     def get_needed_block_hashes(self, segnum):
+        assert self._block_hash_tree_is_authoritative
         # XXX: include_leaf=True needs thought: how did the old downloader do
         # it? I think it grabbed *all* block hashes and set them all at once.
         # Since we want to fetch less data, we either need to fetch the leaf
@@ -840,12 +876,25 @@ class CommonShare:
         return self._block_hash_tree.needed_hashes(segnum, include_leaf=True)
 
     def process_block_hashes(self, block_hashes):
-        assert self._know_numsegs
+        assert self._block_hash_tree_is_authoritative
         # this may raise BadHashError or NotEnoughHashesError
         self._block_hash_tree.set_hashes(block_hashes)
 
     def check_block(self, segnum, block):
-        assert self._know_numsegs
+        assert self._block_hash_tree_is_authoritative
         h = hashutil.block_hash(block)
         # this may raise BadHashError or NotEnoughHashesError
         self._block_hash_tree.set_hashes(leaves={segnum: h})
+
+# TODO: maybe stop using EventStreamObserver: instead, use a Deferred and an
+# auxilliary OVERDUE callback. Just make sure to get all the messages in the
+# right order and on the right turns.
+
+# TODO: we're asking for too much data. We probably don't need
+# include_leaf=True in the block hash tree or ciphertext hash tree.
+
+# TODO: we ask for ciphertext hash tree nodes from all shares (whenever
+# _desire is called while we're missing those nodes), but we only consume it
+# from the first response, leaving the rest of the data sitting in _received.
+# This was ameliorated by clearing self._received after each block is
+# complete.

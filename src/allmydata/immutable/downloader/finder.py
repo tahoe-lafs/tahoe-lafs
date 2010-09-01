@@ -35,11 +35,9 @@ class ShareFinder:
         self._storage_broker = storage_broker
         self.share_consumer = self.node = node
         self.max_outstanding_requests = max_outstanding_requests
-
         self._hungry = False
 
         self._commonshares = {} # shnum to CommonShare instance
-        self.undelivered_shares = []
         self.pending_requests = set()
         self.overdue_requests = set() # subset of pending_requests
         self.overdue_timers = {}
@@ -51,6 +49,12 @@ class ShareFinder:
         self._lp = log.msg(format="ShareFinder[si=%(si)s] starting",
                            si=self._si_prefix,
                            level=log.NOISY, parent=logparent, umid="2xjj2A")
+
+    def update_num_segments(self):
+        (numsegs, authoritative) = self.node.get_num_segments()
+        assert authoritative
+        for cs in self._commonshares.values():
+            cs.set_authoritative_num_segments(numsegs)
 
     def start_finding_servers(self):
         # don't get servers until somebody uses us: creating the
@@ -83,29 +87,15 @@ class ShareFinder:
 
     # internal methods
     def loop(self):
-        undelivered_s = ",".join(["sh%d@%s" %
-                                  (s._shnum, idlib.shortnodeid_b2a(s._peerid))
-                                  for s in self.undelivered_shares])
         pending_s = ",".join([idlib.shortnodeid_b2a(rt.peerid)
                               for rt in self.pending_requests]) # sort?
         self.log(format="ShareFinder loop: running=%(running)s"
-                 " hungry=%(hungry)s, undelivered=%(undelivered)s,"
-                 " pending=%(pending)s",
-                 running=self.running, hungry=self._hungry,
-                 undelivered=undelivered_s, pending=pending_s,
+                 " hungry=%(hungry)s, pending=%(pending)s",
+                 running=self.running, hungry=self._hungry, pending=pending_s,
                  level=log.NOISY, umid="kRtS4Q")
         if not self.running:
             return
         if not self._hungry:
-            return
-        if self.undelivered_shares:
-            sh = self.undelivered_shares.pop(0)
-            # they will call hungry() again if they want more
-            self._hungry = False
-            self.log(format="delivering Share(shnum=%(shnum)d, server=%(peerid)s)",
-                     shnum=sh._shnum, peerid=sh._peerid_s,
-                     level=log.NOISY, umid="2n1qQw")
-            eventually(self.share_consumer.got_shares, [sh])
             return
 
         non_overdue = self.pending_requests - self.overdue_requests
@@ -146,14 +136,16 @@ class ShareFinder:
         lp = self.log(format="sending DYHB to [%(peerid)s]",
                       peerid=idlib.shortnodeid_b2a(peerid),
                       level=log.NOISY, umid="Io7pyg")
-        d_ev = self._download_status.add_dyhb_sent(peerid, now())
+        time_sent = now()
+        d_ev = self._download_status.add_dyhb_sent(peerid, time_sent)
         # TODO: get the timer from a Server object, it knows best
         self.overdue_timers[req] = reactor.callLater(self.OVERDUE_TIMEOUT,
                                                      self.overdue, req)
         d = rref.callRemote("get_buckets", self._storage_index)
         d.addBoth(incidentally, self._request_retired, req)
         d.addCallbacks(self._got_response, self._got_error,
-                       callbackArgs=(rref.version, peerid, req, d_ev, lp),
+                       callbackArgs=(rref.version, peerid, req, d_ev,
+                                     time_sent, lp),
                        errbackArgs=(peerid, req, d_ev, lp))
         d.addErrback(log.err, format="error in send_request",
                      level=log.WEIRD, parent=lp, umid="rpdV0w")
@@ -172,33 +164,37 @@ class ShareFinder:
         self.overdue_requests.add(req)
         eventually(self.loop)
 
-    def _got_response(self, buckets, server_version, peerid, req, d_ev, lp):
+    def _got_response(self, buckets, server_version, peerid, req, d_ev,
+                      time_sent, lp):
         shnums = sorted([shnum for shnum in buckets])
-        d_ev.finished(shnums, now())
-        if buckets:
-            shnums_s = ",".join([str(shnum) for shnum in shnums])
-            self.log(format="got shnums [%(shnums)s] from [%(peerid)s]",
-                     shnums=shnums_s, peerid=idlib.shortnodeid_b2a(peerid),
-                     level=log.NOISY, parent=lp, umid="0fcEZw")
-        else:
+        time_received = now()
+        d_ev.finished(shnums, time_received)
+        dyhb_rtt = time_received - time_sent
+        if not buckets:
             self.log(format="no shares from [%(peerid)s]",
                      peerid=idlib.shortnodeid_b2a(peerid),
                      level=log.NOISY, parent=lp, umid="U7d4JA")
-        if self.node.num_segments is None:
-            best_numsegs = self.node.guessed_num_segments
-        else:
-            best_numsegs = self.node.num_segments
+            return
+        shnums_s = ",".join([str(shnum) for shnum in shnums])
+        self.log(format="got shnums [%(shnums)s] from [%(peerid)s]",
+                 shnums=shnums_s, peerid=idlib.shortnodeid_b2a(peerid),
+                 level=log.NOISY, parent=lp, umid="0fcEZw")
+        shares = []
         for shnum, bucket in buckets.iteritems():
-            self._create_share(best_numsegs, shnum, bucket, server_version,
-                               peerid)
+            s = self._create_share(shnum, bucket, server_version, peerid,
+                                   dyhb_rtt)
+            shares.append(s)
+        self._deliver_shares(shares)
 
-    def _create_share(self, best_numsegs, shnum, bucket, server_version,
-                      peerid):
+    def _create_share(self, shnum, bucket, server_version, peerid, dyhb_rtt):
         if shnum in self._commonshares:
             cs = self._commonshares[shnum]
         else:
-            cs = CommonShare(best_numsegs, self._si_prefix, shnum,
+            numsegs, authoritative = self.node.get_num_segments()
+            cs = CommonShare(numsegs, self._si_prefix, shnum,
                              self._node_logparent)
+            if authoritative:
+                cs.set_authoritative_num_segments(numsegs)
             # Share._get_satisfaction is responsible for updating
             # CommonShare.set_numsegs after we know the UEB. Alternatives:
             #  1: d = self.node.get_num_segments()
@@ -214,9 +210,17 @@ class ShareFinder:
             #     Yuck.
             self._commonshares[shnum] = cs
         s = Share(bucket, server_version, self.verifycap, cs, self.node,
-                  self._download_status, peerid, shnum,
+                  self._download_status, peerid, shnum, dyhb_rtt,
                   self._node_logparent)
-        self.undelivered_shares.append(s)
+        return s
+
+    def _deliver_shares(self, shares):
+        # they will call hungry() again if they want more
+        self._hungry = False
+        shares_s = ",".join([str(sh) for sh in shares])
+        self.log(format="delivering shares: %s" % shares_s,
+                 level=log.NOISY, umid="2n1qQw")
+        eventually(self.share_consumer.got_shares, shares)
 
     def _got_error(self, f, peerid, req, d_ev, lp):
         d_ev.finished("error", now())

@@ -72,7 +72,7 @@ class DownloadNode:
         # things to track callers that want data
 
         # _segment_requests can have duplicates
-        self._segment_requests = [] # (segnum, d, cancel_handle)
+        self._segment_requests = [] # (segnum, d, cancel_handle, logparent)
         self._active_segment = None # a SegmentFetcher, with .segnum
 
         self._segsize_observers = observer.OneShotObserverList()
@@ -81,7 +81,8 @@ class DownloadNode:
         # for each read() call. Segmentation and get_segment() messages are
         # associated with the read() call, everything else is tied to the
         # _Node's log entry.
-        lp = log.msg(format="Immutable _Node(%(si)s) created: size=%(size)d,"
+        lp = log.msg(format="Immutable.DownloadNode(%(si)s) created:"
+                     " size=%(size)d,"
                      " guessed_segsize=%(guessed_segsize)d,"
                      " guessed_numsegs=%(guessed_numsegs)d",
                      si=self._si_prefix, size=verifycap.size,
@@ -103,9 +104,10 @@ class DownloadNode:
         # as with CommonShare, our ciphertext_hash_tree is a stub until we
         # get the real num_segments
         self.ciphertext_hash_tree = IncompleteHashTree(self.guessed_num_segments)
+        self.ciphertext_hash_tree_leaves = self.guessed_num_segments
 
     def __repr__(self):
-        return "Imm_Node(%s)" % (self._si_prefix,)
+        return "ImmutableDownloadNode(%s)" % (self._si_prefix,)
 
     def stop(self):
         # called by the Terminator at shutdown, mostly for tests
@@ -175,14 +177,14 @@ class DownloadNode:
         The Deferred can also errback with other fatal problems, such as
         NotEnoughSharesError, NoSharesError, or BadCiphertextHashError.
         """
-        log.msg(format="imm Node(%(si)s).get_segment(%(segnum)d)",
-                si=base32.b2a(self._verifycap.storage_index)[:8],
-                segnum=segnum,
-                level=log.OPERATIONAL, parent=logparent, umid="UKFjDQ")
+        lp = log.msg(format="imm Node(%(si)s).get_segment(%(segnum)d)",
+                     si=base32.b2a(self._verifycap.storage_index)[:8],
+                     segnum=segnum,
+                     level=log.OPERATIONAL, parent=logparent, umid="UKFjDQ")
         self._download_status.add_segment_request(segnum, now())
         d = defer.Deferred()
         c = Cancel(self._cancel_request)
-        self._segment_requests.append( (segnum, d, c) )
+        self._segment_requests.append( (segnum, d, c, lp) )
         self._start_new_segment()
         return (d, c)
 
@@ -208,10 +210,11 @@ class DownloadNode:
         if self._active_segment is None and self._segment_requests:
             segnum = self._segment_requests[0][0]
             k = self._verifycap.needed_shares
+            lp = self._segment_requests[0][3]
             log.msg(format="%(node)s._start_new_segment: segnum=%(segnum)d",
                     node=repr(self), segnum=segnum,
-                    level=log.NOISY, umid="wAlnHQ")
-            self._active_segment = fetcher = SegmentFetcher(self, segnum, k)
+                    level=log.NOISY, parent=lp, umid="wAlnHQ")
+            self._active_segment = fetcher = SegmentFetcher(self, segnum, k, lp)
             active_shares = [s for s in self._shares if s.is_alive()]
             fetcher.add_shares(active_shares) # this triggers the loop
 
@@ -234,13 +237,17 @@ class DownloadNode:
         h = hashutil.uri_extension_hash(UEB_s)
         if h != self._verifycap.uri_extension_hash:
             raise BadHashError
-        UEB_dict = uri.unpack_extension(UEB_s)
-        self._parse_and_store_UEB(UEB_dict) # sets self._stuff
+        self._parse_and_store_UEB(UEB_s) # sets self._stuff
         # TODO: a malformed (but authentic) UEB could throw an assertion in
         # _parse_and_store_UEB, and we should abandon the download.
         self.have_UEB = True
 
-    def _parse_and_store_UEB(self, d):
+        # inform the ShareFinder about our correct number of segments. This
+        # will update the block-hash-trees in all existing CommonShare
+        # instances, and will populate new ones with the correct value.
+        self._sharefinder.update_num_segments()
+
+    def _parse_and_store_UEB(self, UEB_s):
         # Note: the UEB contains needed_shares and total_shares. These are
         # redundant and inferior (the filecap contains the authoritative
         # values). However, because it is possible to encode the same file in
@@ -252,8 +259,11 @@ class DownloadNode:
 
         # therefore, we ignore d['total_shares'] and d['needed_shares'].
 
+        d = uri.unpack_extension(UEB_s)
+
         log.msg(format="UEB=%(ueb)s, vcap=%(vcap)s",
-                ueb=repr(d), vcap=self._verifycap.to_string(),
+                ueb=repr(uri.unpack_extension_readable(UEB_s)),
+                vcap=self._verifycap.to_string(),
                 level=log.NOISY, parent=self._lp, umid="cVqZnA")
 
         k, N = self._verifycap.needed_shares, self._verifycap.total_shares
@@ -292,6 +302,7 @@ class DownloadNode:
         # shares of file B. self.ciphertext_hash_tree was a guess before:
         # this is where we create it for real.
         self.ciphertext_hash_tree = IncompleteHashTree(self.num_segments)
+        self.ciphertext_hash_tree_leaves = self.num_segments
         self.ciphertext_hash_tree.set_hashes({0: d['crypttext_root_hash']})
 
         self.share_hash_tree.set_hashes({0: d['share_root_hash']})
@@ -344,9 +355,15 @@ class DownloadNode:
                                    % (hashnum, len(self.share_hash_tree)))
         self.share_hash_tree.set_hashes(share_hashes)
 
+    def get_desired_ciphertext_hashes(self, segnum):
+        if segnum < self.ciphertext_hash_tree_leaves:
+            return self.ciphertext_hash_tree.needed_hashes(segnum,
+                                                           include_leaf=True)
+        return []
     def get_needed_ciphertext_hashes(self, segnum):
         cht = self.ciphertext_hash_tree
         return cht.needed_hashes(segnum, include_leaf=True)
+
     def process_ciphertext_hashes(self, hashes):
         assert self.num_segments is not None
         # this may raise BadHashError or NotEnoughHashesError
@@ -457,7 +474,7 @@ class DownloadNode:
     def _extract_requests(self, segnum):
         """Remove matching requests and return their (d,c) tuples so that the
         caller can retire them."""
-        retire = [(d,c) for (segnum0, d, c) in self._segment_requests
+        retire = [(d,c) for (segnum0, d, c, lp) in self._segment_requests
                   if segnum0 == segnum]
         self._segment_requests = [t for t in self._segment_requests
                                   if t[0] != segnum]
@@ -466,10 +483,18 @@ class DownloadNode:
     def _cancel_request(self, c):
         self._segment_requests = [t for t in self._segment_requests
                                   if t[2] != c]
-        segnums = [segnum for (segnum,d,c) in self._segment_requests]
+        segnums = [segnum for (segnum,d,c,lp) in self._segment_requests]
         # self._active_segment might be None in rare circumstances, so make
         # sure we tolerate it
         if self._active_segment and self._active_segment.segnum not in segnums:
             self._active_segment.stop()
             self._active_segment = None
             self._start_new_segment()
+
+    # called by ShareFinder to choose hashtree sizes in CommonShares, and by
+    # SegmentFetcher to tell if it is still fetching a valid segnum.
+    def get_num_segments(self):
+        # returns (best_num_segments, authoritative)
+        if self.num_segments is None:
+            return (self.guessed_num_segments, False)
+        return (self.num_segments, True)

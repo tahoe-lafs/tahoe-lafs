@@ -4259,15 +4259,20 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _check_one_share(body):
             self.failIf("<html>" in body, body)
             body = " ".join(body.strip().split())
-            msg = ("NotEnoughSharesError: This indicates that some "
-                   "servers were unavailable, or that shares have been "
-                   "lost to server departure, hard drive failure, or disk "
-                   "corruption. You should perform a filecheck on "
-                   "this object to learn more. The full error message is:"
-                   " ran out of shares: %d complete, %d pending, 0 overdue,"
-                   " 0 unused, need 3. Last failure: None")
-            msg1 = msg % (1, 0)
-            msg2 = msg % (0, 1)
+            msgbase = ("NotEnoughSharesError: This indicates that some "
+                       "servers were unavailable, or that shares have been "
+                       "lost to server departure, hard drive failure, or disk "
+                       "corruption. You should perform a filecheck on "
+                       "this object to learn more. The full error message is:"
+                       )
+            msg1 = msgbase + (" ran out of shares:"
+                              " complete=sh0"
+                              " pending="
+                              " overdue= unused= need 3. Last failure: None")
+            msg2 = msgbase + (" ran out of shares:"
+                              " complete="
+                              " pending=Share(sh0-on-xgru5)"
+                              " overdue= unused= need 3. Last failure: None")
             self.failUnless(body == msg1 or body == msg2, body)
         d.addCallback(_check_one_share)
 

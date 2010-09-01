@@ -4,8 +4,8 @@ from foolscap.api import eventually
 from allmydata.interfaces import NotEnoughSharesError, NoSharesError
 from allmydata.util import log
 from allmydata.util.dictutil import DictOfSets
-from common import AVAILABLE, PENDING, OVERDUE, COMPLETE, CORRUPT, DEAD, \
-     BADSEGNUM, BadSegmentNumberError
+from common import OVERDUE, COMPLETE, CORRUPT, DEAD, BADSEGNUM, \
+     BadSegmentNumberError
 
 class SegmentFetcher:
     """I am responsible for acquiring blocks for a single segment. I will use
@@ -22,35 +22,42 @@ class SegmentFetcher:
     will shut down and do no further work. My parent can also call my stop()
     method to have me shut down early."""
 
-    def __init__(self, node, segnum, k):
+    def __init__(self, node, segnum, k, logparent):
         self._node = node # _Node
         self.segnum = segnum
         self._k = k
-        self._shares = {} # maps non-dead Share instance to a state, one of
-                          # (AVAILABLE, PENDING, OVERDUE, COMPLETE, CORRUPT).
-                          # State transition map is:
-                          #  AVAILABLE -(send-read)-> PENDING
-                          #  PENDING -(timer)-> OVERDUE
-                          #  PENDING -(rx)-> COMPLETE, CORRUPT, DEAD, BADSEGNUM
-                          #  OVERDUE -(rx)-> COMPLETE, CORRUPT, DEAD, BADSEGNUM
-                          # If a share becomes DEAD, it is removed from the
-                          # dict. If it becomes BADSEGNUM, the whole fetch is
-                          # terminated.
+        self._shares = [] # unused Share instances, sorted by "goodness"
+                          # (RTT), then shnum. This is populated when DYHB
+                          # responses arrive, or (for later segments) at
+                          # startup. We remove shares from it when we call
+                          # sh.get_block() on them.
+        self._shares_from_server = DictOfSets() # maps serverid to set of
+                                                # Shares on that server for
+                                                # which we have outstanding
+                                                # get_block() calls.
+        self._max_shares_per_server = 1 # how many Shares we're allowed to
+                                        # pull from each server. This starts
+                                        # at 1 and grows if we don't have
+                                        # sufficient diversity.
+        self._active_share_map = {} # maps shnum to outstanding (and not
+                                    # OVERDUE) Share that provides it.
+        self._overdue_share_map = DictOfSets() # shares in the OVERDUE state
+        self._lp = logparent
         self._share_observers = {} # maps Share to EventStreamObserver for
                                    # active ones
-        self._shnums = DictOfSets() # maps shnum to the shares that provide it
         self._blocks = {} # maps shnum to validated block data
         self._no_more_shares = False
-        self._bad_segnum = False
         self._last_failure = None
         self._running = True
 
     def stop(self):
         log.msg("SegmentFetcher(%s).stop" % self._node._si_prefix,
-                level=log.NOISY, umid="LWyqpg")
+                level=log.NOISY, parent=self._lp, umid="LWyqpg")
         self._cancel_all_requests()
         self._running = False
-        self._shares.clear() # let GC work # ??? XXX
+        # help GC ??? XXX
+        del self._shares, self._shares_from_server, self._active_share_map
+        del self._share_observers
 
 
     # called by our parent _Node
@@ -59,9 +66,8 @@ class SegmentFetcher:
         # called when ShareFinder locates a new share, and when a non-initial
         # segment fetch is started and we already know about shares from the
         # previous segment
-        for s in shares:
-            self._shares[s] = AVAILABLE
-            self._shnums.add(s._shnum, s)
+        self._shares.extend(shares)
+        self._shares.sort(key=lambda s: (s._dyhb_rtt, s._shnum) )
         eventually(self.loop)
 
     def no_more_shares(self):
@@ -70,15 +76,6 @@ class SegmentFetcher:
         eventually(self.loop)
 
     # internal methods
-
-    def _count_shnums(self, *states):
-        """shnums for which at least one state is in the following list"""
-        shnums = []
-        for shnum,shares in self._shnums.iteritems():
-            matches = [s for s in shares if self._shares.get(s) in states]
-            if matches:
-                shnums.append(shnum)
-        return len(shnums)
 
     def loop(self):
         try:
@@ -92,7 +89,8 @@ class SegmentFetcher:
         k = self._k
         if not self._running:
             return
-        if self._bad_segnum:
+        numsegs, authoritative = self._node.get_num_segments()
+        if authoritative and self.segnum >= numsegs:
             # oops, we were asking for a segment number beyond the end of the
             # file. This is an error.
             self.stop()
@@ -102,98 +100,125 @@ class SegmentFetcher:
             self._node.fetch_failed(self, f)
             return
 
+        #print "LOOP", self._blocks.keys(), "active:", self._active_share_map, "overdue:", self._overdue_share_map, "unused:", self._shares
+        # Should we sent out more requests?
+        while len(set(self._blocks.keys())
+                  | set(self._active_share_map.keys())
+                  ) < k:
+            # we don't have data or active requests for enough shares. Are
+            # there any unused shares we can start using?
+            (sent_something, want_more_diversity) = self._find_and_use_share()
+            if sent_something:
+                # great. loop back around in case we need to send more.
+                continue
+            if want_more_diversity:
+                # we could have sent something if we'd been allowed to pull
+                # more shares per server. Increase the limit and try again.
+                self._max_shares_per_server += 1
+                log.msg("SegmentFetcher(%s) increasing diversity limit to %d"
+                        % (self._node._si_prefix, self._max_shares_per_server),
+                        level=log.NOISY, umid="xY2pBA")
+                # Also ask for more shares, in the hopes of achieving better
+                # diversity for the next segment.
+                self._ask_for_more_shares()
+                continue
+            # we need more shares than the ones in self._shares to make
+            # progress
+            self._ask_for_more_shares()
+            if self._no_more_shares:
+                # But there are no more shares to be had. If we're going to
+                # succeed, it will be with the shares we've already seen.
+                # Will they be enough?
+                if len(set(self._blocks.keys())
+                       | set(self._active_share_map.keys())
+                       | set(self._overdue_share_map.keys())
+                       ) < k:
+                    # nope. bail.
+                    self._no_shares_error() # this calls self.stop()
+                    return
+                # our outstanding or overdue requests may yet work.
+            # more shares may be coming. Wait until then.
+            return
+
         # are we done?
-        if self._count_shnums(COMPLETE) >= k:
+        if len(set(self._blocks.keys())) >= k:
             # yay!
             self.stop()
             self._node.process_blocks(self.segnum, self._blocks)
             return
 
-        # we may have exhausted everything
-        if (self._no_more_shares and
-            self._count_shnums(AVAILABLE, PENDING, OVERDUE, COMPLETE) < k):
-            # no more new shares are coming, and the remaining hopeful shares
-            # aren't going to be enough. boo!
+    def _no_shares_error(self):
+        if not (self._shares or self._active_share_map or
+                self._overdue_share_map or self._blocks):
+            format = ("no shares (need %(k)d)."
+                      " Last failure: %(last_failure)s")
+            args = { "k": self._k,
+                     "last_failure": self._last_failure }
+            error = NoSharesError
+        else:
+            format = ("ran out of shares: complete=%(complete)s"
+                      " pending=%(pending)s overdue=%(overdue)s"
+                      " unused=%(unused)s need %(k)d."
+                      " Last failure: %(last_failure)s")
+            def join(shnums): return ",".join(["sh%d" % shnum
+                                               for shnum in sorted(shnums)])
+            pending_s = ",".join([str(sh)
+                                  for sh in self._active_share_map.values()])
+            overdue = set()
+            for shares in self._overdue_share_map.values():
+                overdue |= shares
+            overdue_s = ",".join([str(sh) for sh in overdue])
+            args = {"complete": join(self._blocks.keys()),
+                    "pending": pending_s,
+                    "overdue": overdue_s,
+                    # 'unused' should be zero
+                    "unused": ",".join([str(sh) for sh in self._shares]),
+                    "k": self._k,
+                    "last_failure": self._last_failure,
+                    }
+            error = NotEnoughSharesError
+        log.msg(format=format,
+                level=log.UNUSUAL, parent=self._lp, umid="1DsnTg",
+                **args)
+        e = error(format % args)
+        f = Failure(e)
+        self.stop()
+        self._node.fetch_failed(self, f)
 
-            log.msg("share states: %r" % (self._shares,),
-                    level=log.NOISY, umid="0ThykQ")
-            if self._count_shnums(AVAILABLE, PENDING, OVERDUE, COMPLETE) == 0:
-                format = ("no shares (need %(k)d)."
-                          " Last failure: %(last_failure)s")
-                args = { "k": k,
-                         "last_failure": self._last_failure }
-                error = NoSharesError
-            else:
-                format = ("ran out of shares: %(complete)d complete,"
-                          " %(pending)d pending, %(overdue)d overdue,"
-                          " %(unused)d unused, need %(k)d."
-                          " Last failure: %(last_failure)s")
-                args = {"complete": self._count_shnums(COMPLETE),
-                        "pending": self._count_shnums(PENDING),
-                        "overdue": self._count_shnums(OVERDUE),
-                        # 'unused' should be zero
-                        "unused": self._count_shnums(AVAILABLE),
-                        "k": k,
-                        "last_failure": self._last_failure,
-                        }
-                error = NotEnoughSharesError
-            log.msg(format=format, level=log.UNUSUAL, umid="1DsnTg", **args)
-            e = error(format % args)
-            f = Failure(e)
-            self.stop()
-            self._node.fetch_failed(self, f)
-            return
+    def _find_and_use_share(self):
+        sent_something = False
+        want_more_diversity = False
+        for sh in self._shares: # find one good share to fetch
+            shnum = sh._shnum ; serverid = sh._peerid
+            if shnum in self._blocks:
+                continue # don't request data we already have
+            if shnum in self._active_share_map:
+                # note: OVERDUE shares are removed from _active_share_map
+                # and added to _overdue_share_map instead.
+                continue # don't send redundant requests
+            sfs = self._shares_from_server
+            if len(sfs.get(serverid,set())) >= self._max_shares_per_server:
+                # don't pull too much from a single server
+                want_more_diversity = True
+                continue
+            # ok, we can use this share
+            self._shares.remove(sh)
+            self._active_share_map[shnum] = sh
+            self._shares_from_server.add(serverid, sh)
+            self._start_share(sh, shnum)
+            sent_something = True
+            break
+        return (sent_something, want_more_diversity)
 
-        # nope, not done. Are we "block-hungry" (i.e. do we want to send out
-        # more read requests, or do we think we have enough in flight
-        # already?)
-        while self._count_shnums(PENDING, COMPLETE) < k:
-            # we're hungry.. are there any unused shares?
-            sent = self._send_new_request()
-            if not sent:
-                break
+    def _start_share(self, share, shnum):
+        self._share_observers[share] = o = share.get_block(self.segnum)
+        o.subscribe(self._block_request_activity, share=share, shnum=shnum)
 
-        # ok, now are we "share-hungry" (i.e. do we have enough known shares
-        # to make us happy, or should we ask the ShareFinder to get us more?)
-        if self._count_shnums(AVAILABLE, PENDING, COMPLETE) < k:
-            # we're hungry for more shares
+    def _ask_for_more_shares(self):
+        if not self._no_more_shares:
             self._node.want_more_shares()
-            # that will trigger the ShareFinder to keep looking
-
-    def _find_one(self, shares, state):
-        # TODO could choose fastest, or avoid servers already in use
-        for s in shares:
-            if self._shares[s] == state:
-                return s
-        # can never get here, caller has assert in case of code bug
-
-    def _send_new_request(self):
-        # TODO: this is probably O(k^2), and we're called from a range(k)
-        # loop, so O(k^3)
-
-        # this first loop prefers sh0, then sh1, sh2, etc
-        for shnum,shares in sorted(self._shnums.iteritems()):
-            states = [self._shares[s] for s in shares]
-            if COMPLETE in states or PENDING in states:
-                # don't send redundant requests
-                continue
-            if AVAILABLE not in states:
-                # no candidates for this shnum, move on
-                continue
-            # here's a candidate. Send a request.
-            s = self._find_one(shares, AVAILABLE)
-            assert s
-            self._shares[s] = PENDING
-            self._share_observers[s] = o = s.get_block(self.segnum)
-            o.subscribe(self._block_request_activity, share=s, shnum=shnum)
-            # TODO: build up a list of candidates, then walk through the
-            # list, sending requests to the most desireable servers,
-            # re-checking our block-hunger each time. For non-initial segment
-            # fetches, this would let us stick with faster servers.
-            return True
-        # nothing was sent: don't call us again until you have more shares to
-        # work with, or one of the existing shares has been declared OVERDUE
-        return False
+            # that will trigger the ShareFinder to keep looking, and call our
+            # add_shares() or no_more_shares() later.
 
     def _cancel_all_requests(self):
         for o in self._share_observers.values():
@@ -207,27 +232,33 @@ class SegmentFetcher:
         log.msg("SegmentFetcher(%s)._block_request_activity:"
                 " Share(sh%d-on-%s) -> %s" %
                 (self._node._si_prefix, shnum, share._peerid_s, state),
-                level=log.NOISY, umid="vilNWA")
-        # COMPLETE, CORRUPT, DEAD, BADSEGNUM are terminal.
+                level=log.NOISY, parent=self._lp, umid="vilNWA")
+        # COMPLETE, CORRUPT, DEAD, BADSEGNUM are terminal. Remove the share
+        # from all our tracking lists.
         if state in (COMPLETE, CORRUPT, DEAD, BADSEGNUM):
             self._share_observers.pop(share, None)
+            self._shares_from_server.discard(shnum, share)
+            if self._active_share_map.get(shnum) is share:
+                del self._active_share_map[shnum]
+            self._overdue_share_map.discard(shnum, share)
+
         if state is COMPLETE:
-            # 'block' is fully validated
-            self._shares[share] = COMPLETE
+            # 'block' is fully validated and complete
             self._blocks[shnum] = block
-        elif state is OVERDUE:
-            self._shares[share] = OVERDUE
+
+        if state is OVERDUE:
+            # no longer active, but still might complete
+            del self._active_share_map[shnum]
+            self._overdue_share_map.add(shnum, share)
             # OVERDUE is not terminal: it will eventually transition to
             # COMPLETE, CORRUPT, or DEAD.
-        elif state is CORRUPT:
-            self._shares[share] = CORRUPT
-        elif state is DEAD:
-            del self._shares[share]
-            self._shnums[shnum].remove(share)
+
+        if state is DEAD:
             self._last_failure = f
-        elif state is BADSEGNUM:
-            self._shares[share] = BADSEGNUM # ???
-            self._bad_segnum = True
+        if state is BADSEGNUM:
+            # our main loop will ask the DownloadNode each time for the
+            # number of segments, so we'll deal with this in the top of
+            # _do_loop
+            pass
+
         eventually(self.loop)
-
-

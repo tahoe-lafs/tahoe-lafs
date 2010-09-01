@@ -2303,8 +2303,8 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         # the download is abandoned as soon as it's clear that we won't get
         # enough shares. The one remaining share might be in either the
         # COMPLETE or the PENDING state.
-        in_complete_msg = "ran out of shares: 1 complete, 0 pending, 0 overdue, 0 unused, need 3"
-        in_pending_msg = "ran out of shares: 0 complete, 1 pending, 0 overdue, 0 unused, need 3"
+        in_complete_msg = "ran out of shares: complete=sh0 pending= overdue= unused= need 3"
+        in_pending_msg = "ran out of shares: complete= pending=Share(sh0-on-fob7v) overdue= unused= need 3"
 
         d.addCallback(lambda ign: self.do_cli("get", self.uri_1share))
         def _check1((rc, out, err)):
