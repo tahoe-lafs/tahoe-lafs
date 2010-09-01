@@ -531,6 +531,9 @@ class Share:
             for o in observers:
                 # goes to SegmentFetcher._block_request_activity
                 o.notify(state=COMPLETE, block=block)
+            # now clear our received data, to dodge the #1170 spans.py
+            # complexity bug
+            self._received = DataSpans()
         except (BadHashError, NotEnoughHashesError), e:
             # rats, we have a corrupt block. Notify our clients that they
             # need to look elsewhere, and advise the server. Unlike
