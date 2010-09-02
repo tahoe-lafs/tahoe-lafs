@@ -202,8 +202,15 @@ class DownloadStatus:
 
     def using_helper(self):
         return False
+
     def get_active(self):
-        return False # TODO
+        # a download is considered active if it has at least one outstanding
+        # read() call
+        for r_ev in self.read_events:
+            if r_ev["finish_time"] is None:
+                return True
+        return False
+
     def get_started(self):
         return self.started
     def get_results(self):

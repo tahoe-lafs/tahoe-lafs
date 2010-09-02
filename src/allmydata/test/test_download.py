@@ -1259,6 +1259,19 @@ class Status(unittest.TestCase):
         e2.finished(now+5)
         self.failUnlessEqual(ds.get_progress(), 1.0)
 
+    def test_active(self):
+        now = 12345.1
+        ds = DownloadStatus("si-1", 123)
+        self.failUnlessEqual(ds.get_active(), False)
+        e1 = ds.add_read_event(0, 1000, now)
+        self.failUnlessEqual(ds.get_active(), True)
+        e2 = ds.add_read_event(1, 1000, now+1)
+        self.failUnlessEqual(ds.get_active(), True)
+        e1.finished(now+2)
+        self.failUnlessEqual(ds.get_active(), True)
+        e2.finished(now+3)
+        self.failUnlessEqual(ds.get_active(), False)
+
 class MyShare:
     def __init__(self, shnum, peerid, rtt):
         self._shnum = shnum
