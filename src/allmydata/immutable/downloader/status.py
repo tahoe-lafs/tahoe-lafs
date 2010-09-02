@@ -207,7 +207,8 @@ class DownloadStatus:
         # a download is considered active if it has at least one outstanding
         # read() call
         for r_ev in self.read_events:
-            if r_ev["finish_time"] is None:
+            (ign1, ign2, ign3, finishtime, ign4, ign5, ign6) = r_ev
+            if finishtime is None:
                 return True
         return False
 
