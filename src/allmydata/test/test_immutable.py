@@ -70,7 +70,7 @@ class Test(common.ShareManglingMixin, common.ShouldFailMixin, unittest.TestCase)
         def _after_download(unused=None):
             after_download_reads = self._count_reads()
             #print before_download_reads, after_download_reads
-            self.failIf(after_download_reads-before_download_reads > 37, (after_download_reads, before_download_reads))
+            self.failIf(after_download_reads-before_download_reads > 41, (after_download_reads, before_download_reads))
         d.addCallback(self._download_and_check_plaintext)
         d.addCallback(_after_download)
         return d
