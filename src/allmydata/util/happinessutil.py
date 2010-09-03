@@ -29,7 +29,7 @@ def failure_message(peer_count, k, happy, effective_happy):
                "file." %
                 (peer_count, k, happy, k))
     # Otherwise, if there is an x-happy subset of peers where
-    # x >= needed_shares, but x < servers_of_happiness, then 
+    # x >= needed_shares, but x < servers_of_happiness, then
     # we use this message.
     else:
         msg = ("shares could be placed on only %d server(s) "
@@ -129,13 +129,13 @@ def servers_of_happiness(sharemap):
     sharemap = shares_by_server(sharemap)
     graph = flow_network_for(sharemap)
     # This is an implementation of the Ford-Fulkerson method for finding
-    # a maximum flow in a flow network applied to a bipartite graph. 
-    # Specifically, it is the Edmonds-Karp algorithm, since it uses a 
+    # a maximum flow in a flow network applied to a bipartite graph.
+    # Specifically, it is the Edmonds-Karp algorithm, since it uses a
     # BFS to find the shortest augmenting path at each iteration, if one
-    # exists. 
-    # 
-    # The implementation here is an adapation of an algorithm described in 
-    # "Introduction to Algorithms", Cormen et al, 2nd ed., pp 658-662. 
+    # exists.
+    #
+    # The implementation here is an adapation of an algorithm described in
+    # "Introduction to Algorithms", Cormen et al, 2nd ed., pp 658-662.
     dim = len(graph)
     flow_function = [[0 for sh in xrange(dim)] for s in xrange(dim)]
     residual_graph, residual_function = residual_network(graph, flow_function)
@@ -188,7 +188,7 @@ def flow_network_for(sharemap):
     num_servers = len(sharemap)
     graph = [] # index -> [index], an adjacency list
     # Add an entry at the top (index 0) that has an edge to every server
-    # in sharemap 
+    # in sharemap
     graph.append(sharemap.keys())
     # For each server, add an entry that has an edge to every share that it
     # contains (or will contain).
@@ -238,7 +238,7 @@ def residual_network(graph, f):
         for v in graph[i]:
             if f[i][v] == 1:
                 # We add an edge (v, i) with cf[v,i] = 1. This means
-                # that we can remove 1 unit of flow from the edge (i, v) 
+                # that we can remove 1 unit of flow from the edge (i, v)
                 new_graph[v].append(i)
                 cf[v][i] = 1
                 cf[i][v] = -1
