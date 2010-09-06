@@ -48,11 +48,6 @@ from setuptools import find_packages, setup
 from setuptools.command import sdist
 from setuptools import Command
 
-# Make the dependency-version-requirement, which is used by the Makefile at
-# build-time, also available to the app at runtime:
-shutil.copyfile("_auto_deps.py",
-                os.path.join("src", "allmydata", "_auto_deps.py"))
-
 trove_classifiers=[
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
@@ -224,8 +219,9 @@ class CheckAutoDeps(Command):
     def finalize_options(self):
         pass
     def run(self):
-        import _auto_deps
-        _auto_deps.require_auto_deps()
+        adglobals = {}
+        execfile('src/allmydata/_auto_deps.py', adglobals)
+        adglobals['require_auto_deps']()
 
 
 class MakeExecutable(Command):
@@ -326,7 +322,9 @@ class MySdist(sdist.sdist):
 # Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
 # the _auto_deps.install_requires list, which is used in the call to setup()
 # below.
-from _auto_deps import install_requires
+adglobals = {}
+execfile('src/allmydata/_auto_deps.py', adglobals)
+install_requires = adglobals['install_requires']
 
 APPNAME='allmydata-tahoe'
 APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')

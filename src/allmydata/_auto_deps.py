@@ -1,3 +1,10 @@
+# Note: do not import any module from Tahoe-LAFS itself in this
+# file. Also please avoid importing modules from other packages than
+# the Python Standard Library if at all possible (exception: we rely
+# on importing pkg_resources, which is provided by setuptools,
+# zetuptoolz, distribute, and perhaps in the future distutils2, for
+# the require_auto_deps() function.)
+
 install_requires=[
                   # we require newer versions of setuptools (actually
                   # zetuptoolz) to build, but can handle older versions to run
@@ -64,6 +71,7 @@ if sys.version_info < (2, 5):
 
 if hasattr(sys, 'frozen'): # for py2exe
     install_requires=[]
+del sys # clean up namespace
 
 def require_python_version():
     import sys, platform

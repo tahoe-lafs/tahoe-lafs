@@ -243,10 +243,10 @@ test-darcs-boringfile:
 	$(PYTHON) misc/build_helpers/test-darcs-boringfile.py
 
 test-clean:
-	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|auto_deps|appname).py" |sort >allfiles.tmp.old
+	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.old
 	$(MAKE)
 	$(MAKE) clean
-	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|auto_deps|appname).py" |sort >allfiles.tmp.new
+	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
 clean:
