@@ -1,9 +1,118 @@
 from allmydata.test import common
 from allmydata.interfaces import NotEnoughSharesError
 from allmydata.util.consumer import download_to_data
+from allmydata import uri
 from twisted.internet import defer
 from twisted.trial import unittest
 import random
+
+from foolscap.api import eventually
+from allmydata.util import log
+
+from allmydata.immutable.downloader import finder
+
+import mock
+
+class MockNode(object):
+    def __init__(self, check_reneging, check_fetch_failed):
+        self.got = 0
+        self.finished_d = defer.Deferred()
+        self.segment_size = 78
+        self.guessed_segment_size = 78
+        self._no_more_shares = False
+        self.check_reneging = check_reneging
+        self.check_fetch_failed = check_fetch_failed
+        self._si_prefix='aa'
+        self.have_UEB = True
+        self.share_hash_tree = mock.Mock()
+        self.share_hash_tree.needed_hashes.return_value = False
+        self.on_want_more_shares = None
+
+    def when_finished(self):
+        return self.finished_d
+    def get_num_segments(self):
+        return (5, True)
+    def _calculate_sizes(self, guessed_segment_size):
+        return {'block_size': 4, 'num_segments': 5}
+    def no_more_shares(self):
+        self._no_more_shares = True
+    def got_shares(self, shares):
+        if self.check_reneging:
+            if self._no_more_shares:
+                self.finished_d.errback(unittest.FailTest("The node was told by the share finder that it is destined to remain hungry, then was given another share."))
+                return
+        self.got += len(shares)
+        log.msg("yyy 3 %s.got_shares(%s) got: %s" % (self, shares, self.got))
+        if self.got == 3:
+            self.finished_d.callback(True)
+    def get_desired_ciphertext_hashes(self, *args, **kwargs):
+        return iter([])
+    def fetch_failed(self, *args, **kwargs):
+        if self.check_fetch_failed:
+            if self.finished_d:
+                self.finished_d.errback(unittest.FailTest("The node was told by the segment fetcher that the download failed."))
+                self.finished_d = None
+    def want_more_shares(self):
+        if self.on_want_more_shares:
+            self.on_want_more_shares()
+    def process_blocks(self, *args, **kwargs):
+        if self.finished_d:
+            self.finished_d.callback(None)
+
+class TestShareFinder(unittest.TestCase):
+    def test_no_reneging_on_no_more_shares_ever(self):
+        # ticket #1191
+
+        # Suppose that K=3 and you send two DYHB requests, the first
+        # response offers two shares, and then the last offers one
+        # share. If you tell your share consumer "no more shares,
+        # ever", and then immediately tell them "oh, and here's
+        # another share", then you lose.
+
+        rcap = uri.CHKFileURI('a'*32, 'a'*32, 3, 99, 100)
+        vcap = rcap.get_verify_cap()
+
+        class MockServer(object):
+            def __init__(self, buckets):
+                self.version = {
+                    'http://allmydata.org/tahoe/protocols/storage/v1': {
+                        "tolerates-immutable-read-overrun": True
+                        }
+                    }
+                self.buckets = buckets
+                self.d = defer.Deferred()
+                self.s = None
+            def callRemote(self, methname, *args, **kwargs):
+                d = defer.Deferred()
+
+                # Even after the 3rd answer we're still hungry because
+                # we're interested in finding a share on a 3rd server
+                # so we don't have to download more than one share
+                # from the first server. This is actually necessary to
+                # trigger the bug.
+                def _give_buckets_and_hunger_again():
+                    d.callback(self.buckets)
+                    self.s.hungry()
+                eventually(_give_buckets_and_hunger_again)
+                return d
+
+        mockserver1 = MockServer({1: mock.Mock(), 2: mock.Mock()})
+        mockserver2 = MockServer({})
+        mockserver3 = MockServer({3: mock.Mock()})
+        mockstoragebroker = mock.Mock()
+        mockstoragebroker.get_servers_for_index.return_value = [ ('ms1', mockserver1), ('ms2', mockserver2), ('ms3', mockserver3), ]
+        mockdownloadstatus = mock.Mock()
+        mocknode = MockNode(check_reneging=True, check_fetch_failed=True)
+
+        s = finder.ShareFinder(mockstoragebroker, vcap, mocknode, mockdownloadstatus)
+
+        mockserver1.s = s
+        mockserver2.s = s
+        mockserver3.s = s
+
+        s.hungry()
+
+        return mocknode.when_finished()
 
 class Test(common.ShareManglingMixin, common.ShouldFailMixin, unittest.TestCase):
     def test_test_code(self):
