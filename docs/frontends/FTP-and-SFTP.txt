@@ -95,6 +95,11 @@ that server in an "accounts.url" directive:
 You can provide both accounts.file and accounts.url, although it probably
 isn't very useful except for testing.
 
+FTP provides no security, and so your password or caps could be eavesdropped
+if you connect to the FTP server remotely. The examples above include
+":interface=127.0.0.1" in the "port" option, which causes the server to only
+accept connections from localhost.
+
 
 == Configuring SFTP Access ==
 
@@ -104,6 +109,17 @@ one server from masquerading as different one. The first time a client
 program talks to a given server, it will store the host key it receives, and
 will complain if a subsequent connection uses a different key. This reduces
 the opportunity for man-in-the-middle attacks to just the first connection.
+
+Exercise caution when connecting to the SFTP server remotely. The AES
+implementation used by the SFTP code does not have defenses against timing
+attacks. The code for encrypting the SFTP connection was not written by the
+Tahoe-LAFS team, and we have not reviewed it as carefully as we have reviewed
+the code for encrypting files and directories in Tahoe-LAFS itself. If you
+can connect to the SFTP server (which is provided by the Tahoe-LAFS gateway)
+only from a client on the same host, then you would be safe from any problem
+with the SFTP connection security. The examples given below enforce this
+policy by including ":interface=127.0.0.1" in the "port" option, which
+causes the server to only accept connections from localhost.
 
 You will use directives in the tahoe.cfg file to tell the SFTP code where to
 find these keys. To create one, use the ssh-keygen tool (which comes with the
@@ -119,7 +135,7 @@ lines to the BASEDIR/tahoe.cfg file:
 
  [sftpd]
  enabled = true
- port = tcp:8022:interface=127.0.0.1 
+ port = tcp:8022:interface=127.0.0.1
  host_pubkey_file = private/ssh_host_rsa_key.pub
  host_privkey_file = private/ssh_host_rsa_key
  accounts.file = private/ftp.accounts
