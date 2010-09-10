@@ -40,25 +40,16 @@ notes: Tahoe-LAFS generates a new RSA keypair for each mutable file that
 
 == Downloading B bytes of an A-byte immutable file ==
 
-network: A
+network: B
 memory footprint: 128KiB
 
-notes: When asked to read an arbitrary range of an immutable file,
-       Tahoe-LAFS will download from the beginning of the file up until
-       it has enough of the file to satisfy the requested read.
-       Depending on where in the file the requested range is, this can
-       mean that the entire file is downloaded before the request is
-       satisfied. Tahoe-LAFS will continue to download the rest of the
-       file even after the request is satisfied, so in any case where the
-       file actually has to downloaded from the grid, reading part of an
-       immutable file will result in downloading all of the immutable
-       file. Ticket #798 is a proposal to change this behavior.
+notes: When Tahoe-LAFS 1.8.0 or later is asked to read an arbitrary range
+       of an immutable file, only the 128-KiB segments that overlap the
+       requested range will be downloaded.
 
-       Tahoe-LAFS will cache files that are read in this manner for a
-       short while, so subsequent reads of the same file may be served
-       entirely from cache, depending on what part of the file they need
-       to read, what part of the file was read by previous reads, and
-       how much time has elapsed since the last read.
+       (Earlier versions would download from the beginning of the file up
+       until the end of the requested range, and then continue to download
+       the rest of the file even after the request was satisfied.)
 
 == Downloading B bytes of an A-byte mutable file ==
 

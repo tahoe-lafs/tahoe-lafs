@@ -231,9 +231,12 @@ sense to set servers_of_happiness = N.
 
 When downloading a file, the current version just asks all known servers for
 any shares they might have. Once it has received enough responses that it
-knows where to find the needed k shares, it downloads the shares from those
-servers. (This means that it tends to download shares from the fastest
-servers.)
+knows where to find the needed k shares, it downloads at least the first
+segment from those servers. This means that it tends to download shares from
+the fastest servers. If some servers had more than one share, it will continue
+sending "Do You Have Block" requests to other servers, so that it can download
+subsequent segments from distinct servers (sorted by their DYHB round-trip
+times), if possible.
 
   *future work*
 
