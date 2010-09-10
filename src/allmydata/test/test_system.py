@@ -753,8 +753,27 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d = getPage(self.introweb_url, method="GET", followRedirect=True)
         def _check(res):
             try:
-                self.failUnless("%s: %s" % (allmydata.__appname__, allmydata.__version__)
-                                in res)
+                self.failUnless("%s: %s" % (allmydata.__appname__, allmydata.__version__) in res)
+                verstr = str(allmydata.__version__)
+
+                # The Python "rational version numbering" convention
+                # disallows "-r$REV" but allows ".post$REV"
+                # instead. Eventually we'll probably move to
+                # that. When we do, this test won't go red:
+                ix = verstr.rfind('-r')
+                if ix != -1:
+                    altverstr = verstr[:ix] + '.post' + verstr[ix+2:]
+                else:
+                    ix = verstr.rfind('.post')
+                    if ix != -1:
+                        altverstr = verstr[:ix] + '-r' + verstr[ix+5:]
+                    else:
+                        altverstr = verstr
+
+                appverstr = "%s: %s" % (allmydata.__appname__, verstr)
+                newappverstr = "%s: %s" % (allmydata.__appname__, altverstr)
+
+                self.failUnless((appverstr in res) or (newappverstr in res), (appverstr, newappverstr, res))
                 self.failUnless("Announcement Summary: storage: 5, stub_client: 5" in res)
                 self.failUnless("Subscription Summary: storage: 5" in res)
             except unittest.FailTest:

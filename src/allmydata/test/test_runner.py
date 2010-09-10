@@ -81,14 +81,32 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
 
-            # Fail unless the package is *this* version *and* was loaded from *this* source directory.
-            required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, allmydata.__version__, srcdir)
-            self.failUnless(out.startswith(required_ver_and_path),
-                            str((out, err, rc_or_sig, required_ver_and_path)))
+            # Fail unless the allmydata-tahoe package is *this* version *and*
+            # was loaded from *this* source directory.
 
-            self.failIfEqual(allmydata.__version__, "unknown",
-                             "We don't know our version, because this distribution didn't come "
-                             "with a _version.py and 'setup.py darcsver' hasn't been run.")
+            verstr = str(allmydata.__version__)
+
+            # The Python "rational version numbering" convention
+            # disallows "-r$REV" but allows ".post$REV"
+            # instead. Eventually we'll probably move to that. When we
+            # do, this test won't go red:
+
+            ix = verstr.rfind('-r')
+            if ix != -1:
+                altverstr = verstr[:ix] + '.post' + verstr[ix+2:]
+            else:
+                ix = verstr.rfind('.post')
+                if ix != -1:
+                    altverstr = verstr[:ix] + '-r' + verstr[ix+5:]
+                else:
+                    altverstr = verstr
+
+            ad = os.path.dirname(os.path.dirname(os.path.realpath(allmydata.__file__)))
+
+            required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, verstr, ad)
+            alt_required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, altverstr, ad)
+
+            self.failUnless(out.startswith(required_ver_and_path) or out.startswith(alt_required_ver_and_path), (out, err, rc_or_sig, required_ver_and_path))
         d.addCallback(_cb)
         return d
 
