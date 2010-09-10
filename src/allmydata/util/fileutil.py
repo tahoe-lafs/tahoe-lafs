@@ -304,3 +304,94 @@ def abspath_expanduser_unicode(path):
     # We won't hit <http://bugs.python.org/issue5827> because
     # there is always at least one Unicode path component.
     return os.path.normpath(path)
+
+windows = False
+try:
+    import win32api, win32con
+except ImportError:
+    pass
+else:
+    windows = True
+    # <http://msdn.microsoft.com/en-us/library/ms680621%28VS.85%29.aspx>
+    win32api.SetErrorMode(win32con.SEM_FAILCRITICALERRORS |
+                          win32con.SEM_NOOPENFILEERRORBOX)
+
+def get_disk_stats(whichdir, reserved_space=0):
+    """Return disk statistics for the storage disk, in the form of a dict
+    with the following fields.
+      total:            total bytes on disk
+      free_for_root:    bytes actually free on disk
+      free_for_nonroot: bytes free for "a non-privileged user" [Unix] or
+                          the current user [Windows]; might take into
+                          account quotas depending on platform
+      used:             bytes used on disk
+      avail:            bytes available excluding reserved space
+    An AttributeError can occur if the OS has no API to get disk information.
+    An EnvironmentError can occur if the OS call fails.
+
+    whichdir is a directory on the filesystem in question -- the
+    answer is about the filesystem, not about the directory, so the
+    directory is used only to specify which filesystem.
+
+    reserved_space is how many bytes to subtract from the answer, so
+    you can pass how many bytes you would like to leave unused on this
+    filesystem as reserved_space.
+    """
+
+    if windows:
+        # For Windows systems, where os.statvfs is not available, use GetDiskFreeSpaceEx.
+        # <http://docs.activestate.com/activepython/2.5/pywin32/win32api__GetDiskFreeSpaceEx_meth.html>
+        #
+        # Although the docs say that the argument should be the root directory
+        # of a disk, GetDiskFreeSpaceEx actually accepts any path on that disk
+        # (like its Win32 equivalent).
+
+        (free_for_nonroot, total, free_for_root) = win32api.GetDiskFreeSpaceEx(whichdir)
+    else:
+        # For Unix-like systems.
+        # <http://docs.python.org/library/os.html#os.statvfs>
+        # <http://opengroup.org/onlinepubs/7990989799/xsh/fstatvfs.html>
+        # <http://opengroup.org/onlinepubs/7990989799/xsh/sysstatvfs.h.html>
+        s = os.statvfs(whichdir)
+
+        # on my mac laptop:
+        #  statvfs(2) is a wrapper around statfs(2).
+        #    statvfs.f_frsize = statfs.f_bsize :
+        #     "minimum unit of allocation" (statvfs)
+        #     "fundamental file system block size" (statfs)
+        #    statvfs.f_bsize = statfs.f_iosize = stat.st_blocks : preferred IO size
+        # on an encrypted home directory ("FileVault"), it gets f_blocks
+        # wrong, and s.f_blocks*s.f_frsize is twice the size of my disk,
+        # but s.f_bavail*s.f_frsize is correct
+
+        total = s.f_frsize * s.f_blocks
+        free_for_root = s.f_frsize * s.f_bfree
+        free_for_nonroot = s.f_frsize * s.f_bavail
+
+    # valid for all platforms:
+    used = total - free_for_root
+    avail = max(free_for_nonroot - reserved_space, 0)
+
+    return { 'total': total, 'free_for_root': free_for_root,
+             'free_for_nonroot': free_for_nonroot,
+             'used': used, 'avail': avail, }
+
+def get_available_space(whichdir, reserved_space):
+    """Returns available space for share storage in bytes, or None if no
+    API to get this information is available.
+
+    whichdir is a directory on the filesystem in question -- the
+    answer is about the filesystem, not about the directory, so the
+    directory is used only to specify which filesystem.
+
+    reserved_space is how many bytes to subtract from the answer, so
+    you can pass how many bytes you would like to leave unused on this
+    filesystem as reserved_space.
+    """
+    try:
+        return get_disk_stats(whichdir, reserved_space)['avail']
+    except AttributeError:
+        return None
+    except EnvironmentError:
+        log.msg("OS call to get disk statistics failed")
+        return 0
