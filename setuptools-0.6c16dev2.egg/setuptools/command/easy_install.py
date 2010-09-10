@@ -11,7 +11,7 @@ __ http://peak.telecommunity.com/DevCenter/EasyInstall
 """
 import sys, os.path, zipimport, shutil, tempfile, zipfile, re, stat, random
 from glob import glob
-from setuptools import Command
+from setuptools import Command, _dont_write_bytecode
 from setuptools import __version__ as setuptools_version
 from setuptools.sandbox import run_setup
 from distutils import log, dir_util
@@ -1008,6 +1008,9 @@ See the setuptools documentation for the "develop" command for more info.
                 chmod(f, mode)
 
     def byte_compile(self, to_compile):
+        if _dont_write_bytecode:
+            self.warn('byte-compiling is disabled, skipping.')
+            return
         from distutils.util import byte_compile
         try:
             # try to make the byte compile messages quieter
