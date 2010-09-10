@@ -36,16 +36,6 @@ class StorageServer(service.MultiService, Referenceable):
     implements(RIStorageServer, IStatsProducer)
     name = 'storage'
     LeaseCheckerClass = LeaseCheckingCrawler
-    windows = False
-
-    try:
-        import win32api, win32con
-        windows = True
-        # <http://msdn.microsoft.com/en-us/library/ms680621%28VS.85%29.aspx>
-        win32api.SetErrorMode(win32con.SEM_FAILCRITICALERRORS |
-                              win32con.SEM_NOOPENFILEERRORBOX)
-    except ImportError:
-        pass
 
     def __init__(self, storedir, nodeid, reserved_space=0,
                  discard_storage=False, readonly_storage=False,
@@ -160,57 +150,6 @@ class StorageServer(service.MultiService, Referenceable):
     def _clean_incomplete(self):
         fileutil.rm_dir(self.incomingdir)
 
-    def get_disk_stats(self):
-        """Return disk statistics for the storage disk, in the form of a dict
-        with the following fields.
-          total:            total bytes on disk
-          free_for_root:    bytes actually free on disk
-          free_for_nonroot: bytes free for "a non-privileged user" [Unix] or
-                              the current user [Windows]; might take into
-                              account quotas depending on platform
-          used:             bytes used on disk
-          avail:            bytes available excluding reserved space
-        An AttributeError can occur if the OS has no API to get disk information.
-        An EnvironmentError can occur if the OS call fails."""
-
-        if self.windows:
-            # For Windows systems, where os.statvfs is not available, use GetDiskFreeSpaceEx.
-            # <http://docs.activestate.com/activepython/2.5/pywin32/win32api__GetDiskFreeSpaceEx_meth.html>
-            #
-            # Although the docs say that the argument should be the root directory
-            # of a disk, GetDiskFreeSpaceEx actually accepts any path on that disk
-            # (like its Win32 equivalent).
-
-            (free_for_nonroot, total, free_for_root) = self.win32api.GetDiskFreeSpaceEx(self.storedir)
-        else:
-            # For Unix-like systems.
-            # <http://docs.python.org/library/os.html#os.statvfs>
-            # <http://opengroup.org/onlinepubs/7990989799/xsh/fstatvfs.html>
-            # <http://opengroup.org/onlinepubs/7990989799/xsh/sysstatvfs.h.html>
-            s = os.statvfs(self.storedir)
-
-            # on my mac laptop:
-            #  statvfs(2) is a wrapper around statfs(2).
-            #    statvfs.f_frsize = statfs.f_bsize :
-            #     "minimum unit of allocation" (statvfs)
-            #     "fundamental file system block size" (statfs)
-            #    statvfs.f_bsize = statfs.f_iosize = stat.st_blocks : preferred IO size
-            # on an encrypted home directory ("FileVault"), it gets f_blocks
-            # wrong, and s.f_blocks*s.f_frsize is twice the size of my disk,
-            # but s.f_bavail*s.f_frsize is correct
-
-            total = s.f_frsize * s.f_blocks
-            free_for_root = s.f_frsize * s.f_bfree
-            free_for_nonroot = s.f_frsize * s.f_bavail
-
-        # valid for all platforms:
-        used = total - free_for_root
-        avail = max(free_for_nonroot - self.reserved_space, 0)
-
-        return { 'total': total, 'free_for_root': free_for_root,
-                 'free_for_nonroot': free_for_nonroot,
-                 'used': used, 'avail': avail, }
-
     def get_stats(self):
         # remember: RIStatsProvider requires that our return dict
         # contains numeric values.
@@ -221,7 +160,7 @@ class StorageServer(service.MultiService, Referenceable):
                 stats['storage_server.latencies.%s.%s' % (category, name)] = v
 
         try:
-            disk = self.get_disk_stats()
+            disk = fileutil.get_disk_stats(self.storedir, self.reserved_space)
             writeable = disk['avail'] > 0
 
             # spacetime predictors should use disk_avail / (d(disk_used)/dt)
@@ -253,13 +192,7 @@ class StorageServer(service.MultiService, Referenceable):
 
         if self.readonly_storage:
             return 0
-        try:
-            return self.get_disk_stats()['avail']
-        except AttributeError:
-            return None
-        except EnvironmentError:
-            log.msg("OS call to get disk statistics failed", level=log.UNUSUAL)
-            return 0
+        return fileutil.get_available_space(self.storedir, self.reserved_space)
 
     def allocated_size(self):
         space = 0

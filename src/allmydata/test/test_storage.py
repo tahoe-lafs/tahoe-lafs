@@ -1,5 +1,8 @@
+import time, os.path, platform, stat, re, simplejson, struct
 
-import time, os.path, stat, re, simplejson, struct
+from allmydata.util import log
+
+import mock
 
 from twisted.trial import unittest
 
@@ -227,11 +230,6 @@ class BucketProxy(unittest.TestCase):
         return self._do_test_readwrite("test_readwrite_v2",
                                        0x44, WriteBucketProxy_v2, ReadBucketProxy)
 
-class FakeDiskStorageServer(StorageServer):
-    DISKAVAIL = 0
-    def get_disk_stats(self):
-        return { 'free_for_nonroot': self.DISKAVAIL, 'avail': max(self.DISKAVAIL - self.reserved_space, 0), }
-
 class Server(unittest.TestCase):
 
     def setUp(self):
@@ -265,6 +263,14 @@ class Server(unittest.TestCase):
                                           sharenums, size, canary)
 
     def test_large_share(self):
+        syslow = platform.system().lower()
+        if 'cygwin' in syslow or 'windows' in syslow or 'darwin' in syslow:
+            raise unittest.SkipTest("If your filesystem doesn't support efficient sparse files then it is very expensive (Mac OS X and Windows don't support efficient sparse files).")
+
+        avail = fileutil.get_available_space('.', 2**14)
+        if avail <= 4*2**30:
+            raise unittest.SkipTest("This test will spuriously fail if you have less than 4 GiB free on your filesystem.")
+
         ss = self.create("test_large_share")
 
         already,writers = self.allocate(ss, "allocate", [0], 2**32+2)
@@ -279,7 +285,6 @@ class Server(unittest.TestCase):
         readers = ss.remote_get_buckets("allocate")
         reader = readers[shnum]
         self.failUnlessEqual(reader.remote_read(2**32, 2), "ab")
-    test_large_share.skip = "This test can spuriously fail if you have less than 4 GiB free on your filesystem, and if your filesystem doesn't support efficient sparse files then it is very expensive (Mac OS X and Windows don't support efficient sparse files)."
 
     def test_dont_overfill_dirs(self):
         """
@@ -423,11 +428,15 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(already, set())
         self.failUnlessEqual(set(writers.keys()), set([0,1,2]))
 
-    def test_reserved_space(self):
-        ss = self.create("test_reserved_space", reserved_space=10000,
-                         klass=FakeDiskStorageServer)
-        # the FakeDiskStorageServer doesn't do real calls to get_disk_stats
-        ss.DISKAVAIL = 15000
+    @mock.patch('allmydata.util.fileutil.get_disk_stats')
+    def test_reserved_space(self, mock_get_disk_stats):
+        reserved_space=10000
+        mock_get_disk_stats.return_value = {
+            'free_for_nonroot': 15000,
+            'avail': max(15000 - reserved_space, 0),
+            }
+
+        ss = self.create("test_reserved_space", reserved_space=reserved_space)
         # 15k available, 10k reserved, leaves 5k for shares
 
         # a newly created and filled share incurs this much overhead, beyond
@@ -466,9 +475,12 @@ class Server(unittest.TestCase):
 
         allocated = 1001 + OVERHEAD + LEASE_SIZE
 
-        # we have to manually increase DISKAVAIL, since we're not doing real
+        # we have to manually increase available, since we're not doing real
         # disk measurements
-        ss.DISKAVAIL -= allocated
+        mock_get_disk_stats.return_value = {
+            'free_for_nonroot': 15000 - allocated,
+            'avail': max(15000 - allocated - reserved_space, 0),
+            }
 
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
@@ -481,23 +493,6 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(ss._active_writers), 0)
         ss.disownServiceParent()
         del ss
-
-    def test_disk_stats(self):
-        # This will spuriously fail if there is zero disk space left (but so will other tests).
-        ss = self.create("test_disk_stats", reserved_space=0)
-
-        disk = ss.get_disk_stats()
-        self.failUnless(disk['total'] > 0, disk['total'])
-        self.failUnless(disk['used'] > 0, disk['used'])
-        self.failUnless(disk['free_for_root'] > 0, disk['free_for_root'])
-        self.failUnless(disk['free_for_nonroot'] > 0, disk['free_for_nonroot'])
-        self.failUnless(disk['avail'] > 0, disk['avail'])
-
-    def test_disk_stats_avail_nonnegative(self):
-        ss = self.create("test_disk_stats_avail_nonnegative", reserved_space=2**64)
-
-        disk = ss.get_disk_stats()
-        self.failUnlessEqual(disk['avail'], 0)
 
     def test_seek(self):
         basedir = self.workdir("test_seek_behavior")
@@ -2461,14 +2456,6 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d = self.render1(page, args={"t": ["json"]})
         return d
 
-class NoDiskStatsServer(StorageServer):
-    def get_disk_stats(self):
-        raise AttributeError
-
-class BadDiskStatsServer(StorageServer):
-    def get_disk_stats(self):
-        raise OSError
-
 class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
     def setUp(self):
@@ -2510,12 +2497,15 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d = self.render1(page, args={"t": ["json"]})
         return d
 
-    def test_status_no_disk_stats(self):
+    @mock.patch('allmydata.util.fileutil.get_disk_stats')
+    def test_status_no_disk_stats(self, mock_get_disk_stats):
+        mock_get_disk_stats.side_effect = AttributeError()
+
         # Some platforms may have no disk stats API. Make sure the code can handle that
         # (test runs on all platforms).
         basedir = "storage/WebStatus/status_no_disk_stats"
         fileutil.make_dirs(basedir)
-        ss = NoDiskStatsServer(basedir, "\x00" * 20)
+        ss = StorageServer(basedir, "\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
@@ -2526,12 +2516,15 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         self.failUnlessIn("Space Available to Tahoe: ?", s)
         self.failUnless(ss.get_available_space() is None)
 
-    def test_status_bad_disk_stats(self):
+    @mock.patch('allmydata.util.fileutil.get_disk_stats')
+    def test_status_bad_disk_stats(self, mock_get_disk_stats):
+        mock_get_disk_stats.side_effect = OSError()
+
         # If the API to get disk stats exists but a call to it fails, then the status should
         # show that no shares will be accepted, and get_available_space() should be 0.
         basedir = "storage/WebStatus/status_bad_disk_stats"
         fileutil.make_dirs(basedir)
-        ss = BadDiskStatsServer(basedir, "\x00" * 20)
+        ss = StorageServer(basedir, "\x00" * 20)
         ss.setServiceParent(self.s)
         w = StorageStatus(ss)
         html = w.renderSynchronously()
@@ -2583,4 +2576,3 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         self.failUnlessEqual(w.render_abbrev_space(None, 10e6), "10.00 MB")
         self.failUnlessEqual(remove_prefix("foo.bar", "foo."), "bar")
         self.failUnlessEqual(remove_prefix("foo.bar", "baz."), None)
-

@@ -1808,4 +1808,3 @@ class SystemTest(SystemTestMixin, SkipMixin, unittest.TestCase):
             return d
         d.addCallback(_got_lit_filenode)
         return d
-
