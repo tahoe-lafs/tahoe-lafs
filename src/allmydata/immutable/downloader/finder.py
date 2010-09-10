@@ -127,7 +127,7 @@ class ShareFinder:
         # we've run out of servers (so we can't send any more requests), and
         # we have nothing in flight. No further progress can be made. They
         # are destined to remain hungry.
-        self.share_consumer.no_more_shares()
+        eventually(self.share_consumer.no_more_shares)
 
     def send_request(self, server):
         peerid, rref = server
