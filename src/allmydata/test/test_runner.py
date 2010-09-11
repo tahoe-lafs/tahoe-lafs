@@ -86,6 +86,10 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
 
             verstr = str(allmydata.__version__)
 
+            self.failIfEqual(verstr, "unknown",
+                             "We don't know our version, because this distribution didn't come "
+                             "with a _version.py and 'setup.py darcsver' hasn't been run.")
+
             # The Python "rational version numbering" convention
             # disallows "-r$REV" but allows ".post$REV"
             # instead. Eventually we'll probably move to that. When we
@@ -101,10 +105,8 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
                 else:
                     altverstr = verstr
 
-            ad = os.path.dirname(os.path.dirname(os.path.realpath(allmydata.__file__)))
-
-            required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, verstr, ad)
-            alt_required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, altverstr, ad)
+            required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, verstr, srcdir)
+            alt_required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, altverstr, srcdir)
 
             self.failUnless(out.startswith(required_ver_and_path) or out.startswith(alt_required_ver_and_path), (out, err, rc_or_sig, required_ver_and_path))
         d.addCallback(_cb)
