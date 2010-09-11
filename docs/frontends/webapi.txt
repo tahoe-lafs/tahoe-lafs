@@ -1199,13 +1199,15 @@ POST $URL?t=check
                          query.
      healthy: (bool) True if the file is completely healthy, False otherwise.
               Healthy files have at least N good shares. Overlapping shares
-              (indicated by count-good-share-hosts < count-shares-good) do not
-              currently cause a file to be marked unhealthy. If there are at
-              least N good shares, then corrupt shares do not cause the file to
-              be marked unhealthy, although the corrupt shares will be listed
-              in the results (list-corrupt-shares) and should be manually
+              do not currently cause a file to be marked unhealthy. If there
+              are at least N good shares, then corrupt shares do not cause the
+              file to be marked unhealthy, although the corrupt shares will be
+              listed in the results (list-corrupt-shares) and should be manually
               removed to wasting time in subsequent downloads (as the
               downloader rediscovers the corruption and uses alternate shares).
+              Future compatibility: the meaning of this field may change to
+              reflect whether the servers-of-happiness criterion is met
+              (see ticket #614).
      sharemap: dict mapping share identifier to list of serverids
                (base32-encoded strings). This indicates which servers are
                holding which shares. For immutable files, the shareid is
