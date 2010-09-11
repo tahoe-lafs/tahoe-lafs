@@ -1,3 +1,13 @@
+"""
+To use this, get a trace file such as this one:
+
+wget http://tahoe-lafs.org/trac/tahoe-lafs/raw-attachment/ticket/1170/run-112-above28-flog-dump-sh8-on-nsziz.txt
+
+And run this command passing that trace file's name:
+
+python bench_spans.py run-112-above28-flog-dump-sh8-on-nsziz.txt
+"""
+
 from pyutil import benchutil
 
 from allmydata.util.spans import DataSpans
