@@ -1172,13 +1172,10 @@ POST $URL?t=check
      count-shares-good: the number of good shares that were found
      count-shares-needed: 'k', the number of shares required for recovery
      count-shares-expected: 'N', the number of total shares generated
-     count-good-share-hosts: the number of distinct storage servers with
-                             good shares. If this number is less than
-                             count-shares-good, then some shares are doubled
-                             up, increasing the correlation of failures. This
-                             indicates that one or more shares should be
-                             moved to an otherwise unused server, if one is
-                             available.
+     count-good-share-hosts: this was intended to be the number of distinct
+                             storage servers with good shares. It is currently
+                             (as of Tahoe-LAFS v1.8.0) computed incorrectly;
+                             see ticket #1115.
      count-wrong-shares: for mutable files, the number of shares for
                          versions other than the 'best' one (highest
                          sequence number, highest roothash). These are
