@@ -3,7 +3,7 @@
 1.  Publishing an A-byte immutable file
 2.  Publishing an A-byte mutable file
 3.  Downloading B bytes of an A-byte immutable file
-4.  Downloading B bytes of an A-byte mutable file 
+4.  Downloading B bytes of an A-byte mutable file
 5.  Modifying B bytes of an A-byte mutable file
 6.  Inserting/Removing B bytes in an A-byte mutable file
 7.  Adding an entry to an A-entry directory

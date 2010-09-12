@@ -1,19 +1,20 @@
 ﻿User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
-* Release 1.8.0 (candidate c2)
+* Release 1.8.0 (candidate c4)
 
 ** New Features
 
  - A completely new downloader which improves performance and
-   robustness of immutable-file downloads. It automatically fails over
-   to alternate servers if servers fail in mid-download. It allows
-   seeking to arbitrary locations in the file, unlike the old
-   downloader which only allowed reading the entire file sequentially
-   from the beginning. It minimizes unnecessary round trips and
+   robustness of immutable-file downloads. It uses the fastest K
+   servers to download the data in K-way parallel. It automatically
+   fails over to alternate servers if servers fail in mid-download. It
+   allows seeking to arbitrary locations in the file (the previous
+   downloader which would only read the entire file sequentially from
+   beginning to end). It minimizes unnecessary round trips and
    unnecessary bytes transferred to improve performance. It sends
-   requests to fewer servers (the old one would send a request to
-   every server for every download) (#287, #288, #448, #798, #800,
-   #990)
+   requests to fewer servers to reduce the load on servers (the
+   previous one would send a small request to every server for every
+   download) (#287, #288, #448, #798, #800, #990, #1170, #1191)
 
  - Non-ASCII command-line arguments and non-ASCII outputs now work on
    Windows. In addition, the command-line tool now works on 64-bit
@@ -22,15 +23,16 @@
 ** Bugfixes and Improvements
 
  - Document and clean up the command-line options for specifying the
-   node's base directory. (#188, #706, #715, #772)
+   node's base directory. (#188, #706, #715, #772, #1108)
  - The default node directory for Windows is ".tahoe" in the user's
    home directory, the same as on other platforms. (#890)
  - Fix a case in which full cap URIs could be logged. (#685, #1155)
  - Fix bug in WUI in Python 2.5 when the system clock is set back to
    1969. Now you can use Tahoe-LAFS with Python 2.5 and set your
    system clock to 1969 and still use the WUI. (#1055)
- - Many improvements in code organization, tests, logging, and
-   packaging. (#1074, #1108, #1127, #1129, #1131)
+ - Many improvements in code organization, tests, logging,
+   documentation, and packaging. (#983, #1074, #1108, #1127, #1129,
+   #1131, #1166, #1175)
 
 * Release 1.7.1 (2010-07-18)
 

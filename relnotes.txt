@@ -1,7 +1,7 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.8.0c3
+﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.8.0c4
 
 The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.8.0c3 of Tahoe-LAFS, an extremely
+availability of version 1.8.0c4 of Tahoe-LAFS, an extremely
 reliable distributed storage system.
 
 Tahoe-LAFS is the first distributed storage system which
@@ -15,24 +15,28 @@ http://tahoe-lafs.org/source/tahoe/trunk/docs/about.html
 The current stable release of Tahoe-LAFS is v1.7.1, which was
 released July 18, 2010 [1].
 
-v1.8.0c3 is leading up to the v1.8.0 release, featuring
-including fast and fault-tolerant downloads and better
-Windows support. See the NEWS file [2] for details. v1.8.0c3
-fixes performance regressions for some server
-layouts. v.1.80c2 corrected some minor regressions in
-download status pages.  v1.8.0c1 corrected regressions in
-compatibility with other versions, and in downloads using the
-Range header, that were introduced in v1.8.0β. If no further
-regressions or critical bugs are discovered, we will release
-v1.8.0 final on approximately September 11, 2010.
+v1.8.0 offers greatly improved performance and fault-tolerance
+of downloads and improved Windows support. See the NEWS file
+[2] for details.
+
+v1.8.0c4 is the release candidate for v1.8.0. v1.8.0c4 fixed a
+unit test failure and added some documentation and build
+system improvements. v1.8.0c3 fixed performance regressions
+for some server layouts. v.1.80c2 corrected some minor
+regressions in download status pages.  v1.8.0c1 corrected
+regressions in compatibility with other versions, and in
+downloads using the Range header, that were introduced in
+v1.8.0β. If no further regressions or critical bugs are
+discovered, we will release v1.8.0 final on September 18,
+2010.
 
 
 WHAT IS IT GOOD FOR?
 
 With Tahoe-LAFS, you distribute your filesystem across
-multiple servers, and even if some of the servers are
-compromised by by an attacker, the entire filesystem continues
-to work correctly, and continues to preserve your privacy and
+multiple servers, and even if some of the servers fail or are
+taken over by an attacker, the entire filesystem continues to
+work correctly, and continues to preserve your privacy and
 security. You can easily share specific files and directories
 with other people.
 
@@ -46,18 +50,18 @@ more. See the Related Projects page on the wiki [3].
 We believe that strong cryptography, Free and Open Source
 Software, erasure coding, and principled engineering practices
 make Tahoe-LAFS safer than RAID, removable drive, tape,
-on-line backup or "cloud storage" systems.
+on-line backup or cloud storage.
 
 This software is developed under test-driven development, and
 there are no known bugs or security flaws which would
 compromise confidentiality or data integrity under recommended
-use. (For all currently known issues please see the
-known_issues.txt file [4].)
+use. (For all important issues that we are currently aware of
+please see the known_issues.txt file [4].)
 
 
 COMPATIBILITY
 
-This release is fully compatible with the version 1 series of
+This release is compatible with the version 1 series of
 Tahoe-LAFS. Clients from this release can write files and
 directories in the format used by clients of all versions back
 to v1.0 (which was released March 25, 2008). Clients from this
@@ -113,18 +117,17 @@ SPONSORSHIP
 
 Tahoe-LAFS was originally developed by Allmydata, Inc., a
 provider of commercial backup services. After discontinuing
-funding of Tahoe-LAFS R&D in early 2009, they have continued
+funding of Tahoe-LAFS R&D in early 2009, they continued
 to provide servers, bandwidth, small personal gifts as tokens
-of appreciation, and bug reports. Thank you to Allmydata,
-Inc. for their generous and public-spirited support.
+of appreciation, and bug reports.
 
-Google, Inc. is sponsoring Tahoe-LAFS development as part of
-the Google Summer of Code 2010. Google suggested that we
-should apply for the Summer of Code program, and when we did
-they generously awarded four sponsorships to students from
-around the world to hack on Tahoe-LAFS this summer. Thank you
-to Google, Inc. for their generous and public-spirited
-support.
+Google, Inc. sponsored Tahoe-LAFS development as part of the
+Google Summer of Code 2010. They awarded four sponsorships to
+students from around the world to hack on Tahoe-LAFS that
+summer.
+
+Thank you to Allmydata and Google for their generous and
+public-spirited support.
 
 
 HACK TAHOE-LAFS!
@@ -146,7 +149,7 @@ possible.
 David-Sarah Hopwood and Zooko Wilcox-O'Hearn
 on behalf of the Tahoe-LAFS team
 
-September 2, 2010
+September 11, 2010
 Rainhill, Merseyside, UK and Boulder, Colorado, USA
 
 
