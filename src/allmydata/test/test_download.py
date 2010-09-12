@@ -290,36 +290,28 @@ class DownloadTest(_Base, unittest.TestCase):
         def _got_data(data):
             self.failUnlessEqual(data, plaintext)
         d.addCallback(_got_data)
-        def _kill_some_servers():
-            # find the three shares that were used, and delete them. Then
-            # download again, forcing the downloader to fail over to other
-            # shares
-            servers = []
-            shares = sorted([s._shnum for s in self.n._cnode._node._shares])
-            self.failUnlessEqual(shares, [0,1,2,3])
+        def _kill_some_shares():
+            # find the shares that were used and delete them
+            shares = self.n._cnode._node._shares
+            shnums = sorted([s._shnum for s in shares])
+            self.failUnlessEqual(shnums, [0,1,2,3])
+
             # break the RIBucketReader references
-            for s in self.n._cnode._node._shares:
+            # (we don't break the RIStorageServer references, because that
+            # isn't needed to test the current downloader implementation)
+            for s in shares:
                 s._rref.broken = True
-                for servernum in immutable_shares:
-                    for shnum in immutable_shares[servernum]:
-                        if s._shnum == shnum:
-                            ss = self.g.servers_by_number[servernum]
-                            servers.append(ss)
-            # and, for good measure, break the RIStorageServer references
-            # too, just in case the downloader gets more aggressive in the
-            # future and tries to re-fetch the same share.
-            for ss in servers:
-                wrapper = self.g.servers_by_id[ss.my_nodeid]
-                wrapper.broken = True
         def _download_again(ign):
-            c = StallingConsumer(_kill_some_servers)
+            # download again, deleting some shares after the first write
+            # to the consumer
+            c = StallingConsumer(_kill_some_shares)
             return self.n.read(c)
         d.addCallback(_download_again)
         def _check_failover(c):
             self.failUnlessEqual("".join(c.chunks), plaintext)
-            shares = sorted([s._shnum for s in self.n._cnode._node._shares])
-            # we should now be using more shares than we were before
-            self.failIfEqual(shares, [0,1,2,3])
+            shares = self.n._cnode._node._shares
+            shnums = sorted([s._shnum for s in shares])
+            self.failIfEqual(shnums, [0,1,2,3])
         d.addCallback(_check_failover)
         return d
 
