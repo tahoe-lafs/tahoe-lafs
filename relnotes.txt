@@ -2,7 +2,9 @@
 
 The Tahoe-LAFS team is pleased to announce the immediate
 availability of version 1.8.0c4 of Tahoe-LAFS, an extremely
-reliable distributed storage system.
+reliable distributed storage system. Get it here:
+
+http://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.html
 
 Tahoe-LAFS is the first distributed storage system which
 offers "provider-independent security"—meaning that not even

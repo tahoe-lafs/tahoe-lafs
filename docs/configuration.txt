@@ -130,7 +130,7 @@ tub.location = (string, optional)
    tub.port = 8098
    tub.location = external-firewall.example.com:7912
 
-  Run a node behind a Tor proxy (perhaps via tsocks), in client-only mode
+  Run a node behind a Tor proxy (perhaps via torsocks), in client-only mode
   (i.e. we can make outbound connections, but other nodes will not be able to
   connect to us). The literal 'unreachable.example.org' will not resolve, but
   will serve as a reminder to human observers that this node cannot be
@@ -141,7 +141,7 @@ tub.location = (string, optional)
 
   Run a node behind a Tor proxy, and make the server available as a Tor
   "hidden service". (this assumes that other clients are running their node
-  with tsocks, such that they are prepared to connect to a .onion address).
+  with torsocks, such that they are prepared to connect to a .onion address).
   The hidden service must first be configured in Tor, by giving it a local
   port number and then obtaining a .onion name, using something in the torrc
   file like:
