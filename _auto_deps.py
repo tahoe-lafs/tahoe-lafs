@@ -17,20 +17,9 @@ install_requires=[
                   "foolscap[secure_connections] >= 0.5.1",
                   "Nevow >= 0.6.0",
 
-                  # pycryptopp v0.5.15 applied a patch from Wei Dai to fix an
-                  # error in x86 assembly on CPUs that can't do SSE2.  Fixes
-                  # http://allmydata.org/trac/pycryptopp/ticket/24 .
-
-                  # pycryptopp v0.5.14 patched the embedded Crypto++ to remove
-                  # the usages of time functions, thus allowing mingw to build
-                  # and link it for Python 2.6.  If I knew a convenient,
-                  # reliable way to test whether the compiler that builds
-                  # pycryptopp will be mingw then I guess I would add that,
-                  # along with the Python >= v2.6 and the platform == Windows.
-                  # This is to work-around
-                  # http://sourceforge.net/tracker/?func=detail&aid=2805976&group_id=2435&atid=302435
-                  # .
-                  "pycryptopp >= 0.5.15",
+                  # pycryptopp v0.5.20 fixes bugs in SHA-256 and AES (from Crypto++
+                  # revisions 470, 471, 480, 492).
+                  "pycryptopp >= 0.5.20",
 
                   # Needed for SFTP. pyasn1 is needed by twisted.conch in Twisted >= 9.0.
                   # pycrypto 2.2 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/620253
