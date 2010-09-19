@@ -1,16 +1,16 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.8.0c4
+﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.8.0
 
 The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.8.0c4 of Tahoe-LAFS, an extremely
+availability of version 1.8.0 of Tahoe-LAFS, an extremely
 reliable distributed storage system. Get it here:
 
 http://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.html
 
-Tahoe-LAFS is the first distributed storage system which
-offers "provider-independent security"—meaning that not even
-the operators of your storage servers can read or alter your
-data without your consent. Here is the one-page explanation of
-its unique security and fault-tolerance properties:
+Tahoe-LAFS is the first distributed storage system to offer
+"provider-independent security" — meaning that not even the
+operators of your storage servers can read or alter your data
+without your consent. Here is the one-page explanation of its
+unique security and fault-tolerance properties:
 
 http://tahoe-lafs.org/source/tahoe/trunk/docs/about.html
 
@@ -20,17 +20,6 @@ released July 18, 2010 [1].
 v1.8.0 offers greatly improved performance and fault-tolerance
 of downloads and improved Windows support. See the NEWS file
 [2] for details.
-
-v1.8.0c4 is the release candidate for v1.8.0. v1.8.0c4 fixed a
-unit test failure and added some documentation and build
-system improvements. v1.8.0c3 fixed performance regressions
-for some server layouts. v.1.80c2 corrected some minor
-regressions in download status pages.  v1.8.0c1 corrected
-regressions in compatibility with other versions, and in
-downloads using the Range header, that were introduced in
-v1.8.0β. If no further regressions or critical bugs are
-discovered, we will release v1.8.0 final on September 18,
-2010.
 
 
 WHAT IS IT GOOD FOR?
@@ -151,12 +140,12 @@ possible.
 David-Sarah Hopwood and Zooko Wilcox-O'Hearn
 on behalf of the Tahoe-LAFS team
 
-September 11, 2010
+September 18, 2010
 Rainhill, Merseyside, UK and Boulder, Colorado, USA
 
 
 [1] http://tahoe-lafs.org/trac/tahoe/browser/relnotes.txt?rev=4579
-[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4692
+[2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4732
 [3] http://tahoe-lafs.org/trac/tahoe/wiki/RelatedProjects
 [4] http://tahoe-lafs.org/trac/tahoe/browser/docs/known_issues.txt
 [5] http://tahoe-lafs.org/trac/tahoe/browser/COPYING.GPL
