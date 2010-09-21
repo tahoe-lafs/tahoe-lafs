@@ -1,6 +1,5 @@
 README.txt
 TODO
-setup.cfg
 setup.py
 darcsver/__init__.py
 darcsver/_version.py
@@ -12,5 +11,7 @@ darcsver.egg-info/dependency_links.txt
 darcsver.egg-info/entry_points.txt
 darcsver.egg-info/not-zip-safe
 darcsver.egg-info/top_level.txt
+darcsver/test/__init__.py
+darcsver/test/test_darcsver.py
 scripts/__init__.py
 scripts/darcsverscript.py

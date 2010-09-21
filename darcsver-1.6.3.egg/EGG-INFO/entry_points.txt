@@ -1,0 +1,10 @@
+[distutils.setup_keywords]
+versionbodies = darcsver.setuptools_command:validate_versionbodies
+versionfiles = darcsver.setuptools_command:validate_versionfiles
+
+[console_scripts]
+darcsver = scripts.darcsverscript:main
+
+[distutils.commands]
+darcsver = darcsver.setuptools_command:DarcsVer
+
