@@ -40,6 +40,8 @@ version = read_version_py("src/allmydata/_version.py")
 
 egg = os.path.realpath(glob.glob('setuptools-*.egg')[0])
 sys.path.insert(0, egg)
+egg = os.path.realpath(glob.glob('darcsver-*.egg')[0])
+sys.path.insert(0, egg)
 import setuptools; setuptools.bootstrap_install_from = egg
 
 from setuptools import find_packages, setup
