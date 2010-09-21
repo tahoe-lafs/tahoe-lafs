@@ -17,10 +17,6 @@ install_requires=[
                   "foolscap[secure_connections] >= 0.5.1",
                   "Nevow >= 0.6.0",
 
-                  # pycryptopp v0.5.20 fixes bugs in SHA-256 and AES (from Crypto++
-                  # revisions 470, 471, 480, 492).
-                  "pycryptopp >= 0.5.20",
-
                   # Needed for SFTP. pyasn1 is needed by twisted.conch in Twisted >= 9.0.
                   # pycrypto 2.2 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/620253
                   "pycrypto == 2.0.1, == 2.1, >= 2.3",
@@ -29,6 +25,17 @@ install_requires=[
                   # Will be needed to test web apps, but not yet. See #1001.
                   #"windmill >= 1.3",
                   ]
+
+import platform
+if platform.machine().lower() in ['i386', 'x86_64', 'amd64', '']:
+    # pycryptopp v0.5.20 fixes bugs in SHA-256 and AES on x86 or amd64
+    # (from Crypto++ revisions 470, 471, 480, 492).  The '' is there
+    # in case platform.machine is broken and this is actually an x86
+    # or amd64 machine.
+    install_requires.append("pycryptopp >= 0.5.20")
+else:
+    install_requires.append("pycryptopp >= 0.5")
+
 
 # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
 # distribution for Python 2.4.
