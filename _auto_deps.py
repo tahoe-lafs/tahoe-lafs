@@ -34,7 +34,10 @@ if platform.machine().lower() in ['i386', 'x86_64', 'amd64', '']:
     # or amd64 machine.
     install_requires.append("pycryptopp >= 0.5.20")
 else:
-    install_requires.append("pycryptopp >= 0.5")
+    # pycryptopp v0.5.13 had a new bundled version of Crypto++
+    # (v5.6.0) and a new bundled version of setuptools (although that
+    # shouldn't make any different to users of pycryptopp).
+    install_requires.append("pycryptopp >= 0.5.14")
 
 
 # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
