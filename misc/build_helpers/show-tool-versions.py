@@ -123,6 +123,7 @@ print_stdout(['cryptest', 'V'])
 print_stdout(['darcs', '--version'])
 print_stdout(['darcs', '--exact-version'], label='darcs-exact-version')
 print_stdout(['7za'])
+print_stdout(['flappclient', '--version'])
 
 print_as_ver()
 
