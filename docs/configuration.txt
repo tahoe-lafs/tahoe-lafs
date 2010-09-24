@@ -250,9 +250,9 @@ stats_gatherer.furl = (FURL string, optional)
  If provided, the node will connect to the given stats gatherer and provide
  it with operational statistics.
 
-shares.needed = (int, optional) aka "k"
-shares.total = (int, optional) aka "N", N >= k
-shares.happy = (int, optional) 1 <= happy <= N
+shares.needed = (int, optional) aka "k", default 3
+shares.total = (int, optional) aka "N", N >= k, default 10
+shares.happy = (int, optional) 1 <= happy <= N, default 7
 
  These three values set the default encoding parameters. Each time a new file
  is uploaded, erasure-coding is used to break the ciphertext into separate
