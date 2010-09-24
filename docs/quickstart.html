@@ -10,15 +10,19 @@
 
   <body>
     <h1>About Tahoe-LAFS</h1>
-    <p>Welcome to <a href="http://tahoe-lafs.org">the Tahoe-LAFS project</a>, a secure, decentralized, fault-tolerant filesystem. <a href="about.html">About Tahoe-LAFS.</a>
+    <p>Welcome to <a href="http://tahoe-lafs.org">the Tahoe-LAFS project</a>, a secure, decentralized, fault-tolerant storage system. <a href="about.html">About Tahoe-LAFS.</a>
 
     <h1>How To Get Tahoe-LAFS</h1>
 
-    <p>This procedure has been verified to work on Windows, Mac, many flavors of Linux, Solaris, FreeBSD, OpenBSD, and NetBSD.  It's likely to work on other platforms.  If you have trouble getting Tahoe-LAFS running this way, please write to <a href="http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev">the tahoe-dev mailing list</a>, where friendly hackers will help you out.</p>
+    <p>This procedure has been verified to work on Windows, Mac, OpenSolaris, and too many flavors of Linux and of *BSD to list.  It's likely to work on other platforms.
+
+    <h2>In Case Of Trouble</h2>
+
+    <p>There are a few 3rd party libraries that Tahoe-LAFS depends on that might not be easy to set up on your platform.  If the following instructions don't Just Work without any further effort on your part, then please write to the <a href="http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev">the tahoe-dev mailing list</a> where friendly hackers will help you out. You might also find clues in the Advanced Install section described below.
 
     <h2>Install Python</h2>
 
-    <p>Check if you already have an adequate version of Python installed by running <cite>python -V</cite>.  Python&nbsp;v2.4 (v2.4.4 or greater), Python&nbsp;v2.5 or Python&nbsp;v2.6 will work. Python&nbsp;v3 does not work. On Windows, we recommend the use of Python&nbsp;v2.6 (native, not Cygwin). If your OS distribution packages Python development files such as <code>python.h</code> separately, you will also need those; for example, the <code>python-dev</code> package is needed on Ubuntu. If you don't have one of these versions of Python installed, then follow the instructions on <a href="http://www.python.org/download/releases/2.6.5/">the Python download page</a> to download and install Python&nbsp;v2.6, including development files. Make sure that the path to the installation directory has no spaces in it (e.g. on Windows, do not install Python in the "<tt>Program Files</tt>" directory).</p>
+    <p>Check if you already have an adequate version of Python installed by running <cite>python -V</cite>.  Python&nbsp;v2.4 (v2.4.4 or greater), Python&nbsp;v2.5, Python&nbsp;v2.6, or Python&nbsp;v2.7 will work. Python&nbsp;v3 does not work. On Windows, we recommend the use of Python&nbsp;v2.6 (native, not Cygwin). If you don't have one of these versions of Python installed, then follow the instructions on <a href="http://www.python.org/download/releases/2.6.6/">the Python download page</a> to download and install Python&nbsp;v2.6. Make sure that the path to the installation directory has no spaces in it (e.g. on Windows, do not install Python in the "<tt>Program Files</tt>" directory).</p>
     <p>If you are on Windows, you now must manually install the pywin32 package from <a href="http://sourceforge.net/projects/pywin32/files/">the pywin32 site</a> before getting Tahoe-LAFS. Make sure to get the correct file for the version of Python you are using &mdash; e.g. ending in "py2.6.exe" for Python&nbsp;v2.6. If using 64-bit Windows, the file should have "win-amd64" in its name.</p>
 
     <h2>Get Tahoe-LAFS</h2>
