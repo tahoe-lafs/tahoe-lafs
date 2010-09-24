@@ -34,6 +34,11 @@
    documentation, and packaging. (#983, #1074, #1108, #1127, #1129,
    #1131, #1166, #1175)
 
+** Dependency Updates
+
+ - on x86 and x86-64 platforms, pycryptopp >= 0.5.20
+ - pycrypto 2.2 is excluded due to a bug
+
 * Release 1.7.1 (2010-07-18)
 
 ** Bugfixes and Improvements
