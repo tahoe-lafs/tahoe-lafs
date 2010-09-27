@@ -516,6 +516,41 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
                       self.failUnlessEqual(newdata, common.TEST_DATA))
         return d
 
+    def test_repairer_servers_of_happiness(self):
+        # The repairer is supposed to generate and place as many of the
+        # missing shares as possible without caring about how they are
+        # distributed.
+        self.basedir = "repairer/Repairer/repairer_servers_of_happiness"
+        self.set_up_grid(num_clients=2, num_servers=10)
+        d = self.upload_and_stash()
+        # Now delete some servers. We want to leave 3 servers, which
+        # will allow us to restore the file to a healthy state without
+        # distributing the shares widely enough to satisfy the default
+        # happiness setting.
+        def _delete_some_servers(ignored):
+            for i in xrange(7):
+                self.g.remove_server(self.g.servers_by_number[i].my_nodeid)
+
+            assert len(self.g.servers_by_number) == 3
+
+        d.addCallback(_delete_some_servers)
+        # Now try to repair the file.
+        d.addCallback(lambda ignored:
+            self.c0_filenode.check_and_repair(Monitor(), verify=False))
+        def _check_results(crr):
+            self.failUnlessIsInstance(crr,
+                                      check_results.CheckAndRepairResults)
+            pre = crr.get_pre_repair_results()
+            post = crr.get_post_repair_results()
+            for p in (pre, post):
+                self.failUnlessIsInstance(p, check_results.CheckResults)
+
+            self.failIf(pre.is_healthy())
+            self.failUnless(post.is_healthy())
+
+        d.addCallback(_check_results)
+        return d
+
     # why is test_repair_from_corruption_of_1 disabled? Read on:
     #
     # As recently documented in NEWS for the 1.3.0 release, the current

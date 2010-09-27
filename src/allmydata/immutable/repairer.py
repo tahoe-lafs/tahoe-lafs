@@ -57,7 +57,9 @@ class Repairer(log.PrefixingLogMixin):
             vcap = self._filenode.get_verify_cap()
             k = vcap.needed_shares
             N = vcap.total_shares
-            happy = upload.BaseUploadable.default_encoding_param_happy
+            # Per ticket #1212
+            # (http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1212)
+            happy = 0
             self._encodingparams = (k, happy, N, segsize)
             ul = upload.CHKUploader(self._storage_broker, self._secret_holder)
             return ul.start(self) # I am the IEncryptedUploadable
