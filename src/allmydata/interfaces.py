@@ -1432,14 +1432,6 @@ class IDownloadTarget(Interface):
         called. Whatever it returns will be returned to the invoker of
         Downloader.download.
         """
-    # The following methods are just because that target might be a
-    # repairer.DownUpConnector, and just because the current CHKUpload object
-    # expects to find the storage index and encoding parameters in its
-    # Uploadable.
-    def set_storageindex(storageindex):
-        """ Set the storage index. """
-    def set_encodingparams(encodingparams):
-        """ Set the encoding parameters. """
 
 class IDownloader(Interface):
     def download(uri, target):

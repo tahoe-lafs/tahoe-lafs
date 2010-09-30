@@ -14,7 +14,7 @@ unique security and fault-tolerance properties:
 
 http://tahoe-lafs.org/source/tahoe/trunk/docs/about.html
 
-The current stable release of Tahoe-LAFS is v1.7.1, which was
+The previous stable release of Tahoe-LAFS was v1.7.1, which was
 released July 18, 2010 [1].
 
 v1.8.0 offers greatly improved performance and fault-tolerance
