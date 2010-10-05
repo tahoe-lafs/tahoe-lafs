@@ -14,6 +14,9 @@ class CreateKeyGeneratorOptions(BasedirMixin, BaseOptions):
 keygen_tac = """
 # -*- python -*-
 
+import pkg_resources
+pkg_resources.require('allmydata-tahoe')
+
 from allmydata import key_generator
 from twisted.application import service
 
