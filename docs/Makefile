@@ -14,5 +14,8 @@ images-eps: $(EPSS)
 %.eps: %.svg
 	inkscape --export-eps $@ $<
 
+%.html: %.rst
+	rst2html.py $< $@
+
 clean:
 	rm -f *.png *.eps

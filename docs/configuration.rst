@@ -66,64 +66,66 @@ set the tub.location option described below.
 
   nickname = (UTF-8 string, optional)
 
-    This value will be displayed in management tools as this node's "nickname".
-    If not provided, the nickname will be set to "<unspecified>". This string
-    shall be a UTF-8 encoded unicode string.
+    This value will be displayed in management tools as this node's
+    "nickname". If not provided, the nickname will be set to "<unspecified>".
+    This string shall be a UTF-8 encoded unicode string.
 
   web.port = (strports string, optional)
 
-    This controls where the node's webserver should listen, providing filesystem
-    access and node status as defined in webapi.txt . This file contains a
-    Twisted "strports" specification such as "3456" or
-    "tcp:3456:interface=127.0.0.1". The 'tahoe create-node' or 'tahoe create-client'
-    commands set the web.port to "tcp:3456:interface=127.0.0.1" by default; this
-    is overridable by the "--webport" option. You can make it use SSL by writing
+    This controls where the node's webserver should listen, providing
+    filesystem access and node status as defined in webapi.txt . This file
+    contains a Twisted "strports" specification such as "3456" or
+    "tcp:3456:interface=127.0.0.1". The 'tahoe create-node' or 'tahoe
+    create-client' commands set the web.port to
+    "tcp:3456:interface=127.0.0.1" by default; this is overridable by the
+    "--webport" option. You can make it use SSL by writing
     "ssl:3456:privateKey=mykey.pem:certKey=cert.pem" instead.
-   
+
     If this is not provided, the node will not run a web server.
 
   web.static = (string, optional)
 
     This controls where the /static portion of the URL space is served. The
-    value is a directory name (~username is allowed, and non-absolute names are
-    interpreted relative to the node's basedir) which can contain HTML and other
-    files. This can be used to serve a javascript-based frontend to the Tahoe
-    node, or other services.
-   
+    value is a directory name (~username is allowed, and non-absolute names
+    are interpreted relative to the node's basedir) which can contain HTML
+    and other files. This can be used to serve a javascript-based frontend to
+    the Tahoe node, or other services.
+
     The default value is "public_html", which will serve $BASEDIR/public_html .
-    With the default settings, http://127.0.0.1:3456/static/foo.html will serve
-    the contents of $BASEDIR/public_html/foo.html .
+    With the default settings, http://127.0.0.1:3456/static/foo.html will
+    serve the contents of $BASEDIR/public_html/foo.html .
 
   tub.port = (integer, optional)
 
-    This controls which port the node uses to accept Foolscap connections from
-    other nodes. If not provided, the node will ask the kernel for any available
-    port. The port will be written to a separate file (named client.port or
-    introducer.port), so that subsequent runs will re-use the same port.
+    This controls which port the node uses to accept Foolscap connections
+    from other nodes. If not provided, the node will ask the kernel for any
+    available port. The port will be written to a separate file (named
+    client.port or introducer.port), so that subsequent runs will re-use the
+    same port.
 
   tub.location = (string, optional)
 
-    In addition to running as a client, each Tahoe node also runs as a server,
-    listening for connections from other Tahoe clients. The node announces its
-    location by publishing a "FURL" (a string with some connection hints) to the
-    Introducer. The string it publishes can be found in
-    $BASEDIR/private/storage.furl . The "tub.location" configuration controls
-    what location is published in this announcement.
-   
-    If you don't provide tub.location, the node will try to figure out a useful
-    one by itself, by using tools like 'ifconfig' to determine the set of IP
-    addresses on which it can be reached from nodes both near and far. It will
-    also include the TCP port number on which it is listening (either the one
-    specified by tub.port, or whichever port was assigned by the kernel when
-    tub.port is left unspecified).
-   
-    You might want to override this value if your node lives behind a firewall
-    that is doing inbound port forwarding, or if you are using other proxies
-    such that the local IP address or port number is not the same one that
-    remote clients should use to connect. You might also want to control this
-    when using a Tor proxy to avoid revealing your actual IP address through the
-    Introducer announcement.
-   
+    In addition to running as a client, each Tahoe node also runs as a
+    server, listening for connections from other Tahoe clients. The node
+    announces its location by publishing a "FURL" (a string with some
+    connection hints) to the Introducer. The string it publishes can be found
+    in $BASEDIR/private/storage.furl . The "tub.location" configuration
+    controls what location is published in this announcement.
+
+    If you don't provide tub.location, the node will try to figure out a
+    useful one by itself, by using tools like 'ifconfig' to determine the set
+    of IP addresses on which it can be reached from nodes both near and far.
+    It will also include the TCP port number on which it is listening (either
+    the one specified by tub.port, or whichever port was assigned by the
+    kernel when tub.port is left unspecified).
+
+    You might want to override this value if your node lives behind a
+    firewall that is doing inbound port forwarding, or if you are using other
+    proxies such that the local IP address or port number is not the same one
+    that remote clients should use to connect. You might also want to control
+    this when using a Tor proxy to avoid revealing your actual IP address
+    through the Introducer announcement.
+
     The value is a comma-separated string of host:port location hints, like
     this:
 
@@ -131,100 +133,103 @@ set the tub.location option described below.
 
     A few examples:
 
-      Emulate default behavior, assuming your host has IP address 123.45.67.89
-      and the kernel-allocated port number was 8098:
-    
+      Emulate default behavior, assuming your host has IP address
+      123.45.67.89 and the kernel-allocated port number was 8098:
+
         tub.port = 8098
         tub.location = 123.45.67.89:8098,127.0.0.1:8098
-    
+
       Use a DNS name so you can change the IP address more easily:
-    
+
         tub.port = 8098
         tub.location = tahoe.example.com:8098
-    
-      Run a node behind a firewall (which has an external IP address) that has
-      been configured to forward port 7912 to our internal node's port 8098:
-    
+
+      Run a node behind a firewall (which has an external IP address) that
+      has been configured to forward port 7912 to our internal node's port
+      8098:
+
         tub.port = 8098
         tub.location = external-firewall.example.com:7912
-    
-      Run a node behind a Tor proxy (perhaps via torsocks), in client-only mode
-      (i.e. we can make outbound connections, but other nodes will not be able to
-      connect to us). The literal 'unreachable.example.org' will not resolve, but
-      will serve as a reminder to human observers that this node cannot be
-      reached. "Don't call us.. we'll call you":
-    
+
+      Run a node behind a Tor proxy (perhaps via torsocks), in client-only
+      mode (i.e. we can make outbound connections, but other nodes will not
+      be able to connect to us). The literal 'unreachable.example.org' will
+      not resolve, but will serve as a reminder to human observers that this
+      node cannot be reached. "Don't call us.. we'll call you":
+
         tub.port = 8098
         tub.location = unreachable.example.org:0
-    
+
       Run a node behind a Tor proxy, and make the server available as a Tor
-      "hidden service". (this assumes that other clients are running their node
-      with torsocks, such that they are prepared to connect to a .onion address).
-      The hidden service must first be configured in Tor, by giving it a local
-      port number and then obtaining a .onion name, using something in the torrc
-      file like:
-    
+      "hidden service". (this assumes that other clients are running their
+      node with torsocks, such that they are prepared to connect to a .onion
+      address). The hidden service must first be configured in Tor, by giving
+      it a local port number and then obtaining a .onion name, using
+      something in the torrc file like:
+
         HiddenServiceDir /var/lib/tor/hidden_services/tahoe
         HiddenServicePort 29212 127.0.0.1:8098
-    
+
       once Tor is restarted, the .onion hostname will be in
-      /var/lib/tor/hidden_services/tahoe/hostname . Then set up your tahoe.cfg
-      like:
-    
+      /var/lib/tor/hidden_services/tahoe/hostname . Then set up your
+      tahoe.cfg like:
+
         tub.port = 8098
         tub.location = ualhejtq2p7ohfbb.onion:29212
-   
+
     Most users will not need to set tub.location .
-   
-    Note that the old 'advertised_ip_addresses' file from earlier releases is no
-    longer supported. Tahoe 1.3.0 and later will ignore this file.
+
+    Note that the old 'advertised_ip_addresses' file from earlier releases is
+    no longer supported. Tahoe 1.3.0 and later will ignore this file.
 
   log_gatherer.furl = (FURL, optional)
 
-    If provided, this contains a single FURL string which is used to contact a
-    'log gatherer', which will be granted access to the logport. This can be
-    used by centralized storage meshes to gather operational logs in a single
-    place. Note that when an old-style BASEDIR/log_gatherer.furl file exists
-    (see 'Backwards Compatibility Files', below), both are used. (for most other
-    items, the separate config file overrides the entry in tahoe.cfg)
+    If provided, this contains a single FURL string which is used to contact
+    a 'log gatherer', which will be granted access to the logport. This can
+    be used by centralized storage meshes to gather operational logs in a
+    single place. Note that when an old-style BASEDIR/log_gatherer.furl file
+    exists (see 'Backwards Compatibility Files', below), both are used. (for
+    most other items, the separate config file overrides the entry in
+    tahoe.cfg)
 
   timeout.keepalive = (integer in seconds, optional)
   timeout.disconnect = (integer in seconds, optional)
 
     If timeout.keepalive is provided, it is treated as an integral number of
     seconds, and sets the Foolscap "keepalive timer" to that value. For each
-    connection to another node, if nothing has been heard for a while, we will
-    attempt to provoke the other end into saying something. The duration of
-    silence that passes before sending the PING will be between KT and 2*KT.
-    This is mainly intended to keep NAT boxes from expiring idle TCP sessions,
-    but also gives TCP's long-duration keepalive/disconnect timers some traffic
-    to work with. The default value is 240 (i.e. 4 minutes).
-   
-    If timeout.disconnect is provided, this is treated as an integral number of
-    seconds, and sets the Foolscap "disconnect timer" to that value. For each
-    connection to another node, if nothing has been heard for a while, we will
-    drop the connection. The duration of silence that passes before dropping the
-    connection will be between DT-2*KT and 2*DT+2*KT (please see ticket #521 for
-    more details). If we are sending a large amount of data to the other end
-    (which takes more than DT-2*KT to deliver), we might incorrectly drop the
-    connection. The default behavior (when this value is not provided) is to
-    disable the disconnect timer.
-   
-    See ticket #521 for a discussion of how to pick these timeout values. Using
-    30 minutes means we'll disconnect after 22 to 68 minutes of inactivity.
-    Receiving data will reset this timeout, however if we have more than 22min
-    of data in the outbound queue (such as 800kB in two pipelined segments of 10
-    shares each) and the far end has no need to contact us, our ping might be
-    delayed, so we may disconnect them by accident.
+    connection to another node, if nothing has been heard for a while, we
+    will attempt to provoke the other end into saying something. The duration
+    of silence that passes before sending the PING will be between KT and
+    2*KT. This is mainly intended to keep NAT boxes from expiring idle TCP
+    sessions, but also gives TCP's long-duration keepalive/disconnect timers
+    some traffic to work with. The default value is 240 (i.e. 4 minutes).
+
+    If timeout.disconnect is provided, this is treated as an integral number
+    of seconds, and sets the Foolscap "disconnect timer" to that value. For
+    each connection to another node, if nothing has been heard for a while,
+    we will drop the connection. The duration of silence that passes before
+    dropping the connection will be between DT-2*KT and 2*DT+2*KT (please see
+    ticket #521 for more details). If we are sending a large amount of data
+    to the other end (which takes more than DT-2*KT to deliver), we might
+    incorrectly drop the connection. The default behavior (when this value is
+    not provided) is to disable the disconnect timer.
+
+    See ticket #521 for a discussion of how to pick these timeout values.
+    Using 30 minutes means we'll disconnect after 22 to 68 minutes of
+    inactivity. Receiving data will reset this timeout, however if we have
+    more than 22min of data in the outbound queue (such as 800kB in two
+    pipelined segments of 10 shares each) and the far end has no need to
+    contact us, our ping might be delayed, so we may disconnect them by
+    accident.
 
   ssh.port = (strports string, optional)
   ssh.authorized_keys_file = (filename, optional)
 
     This enables an SSH-based interactive Python shell, which can be used to
-    inspect the internal state of the node, for debugging. To cause the node to
-    accept SSH connections on port 8022 from the same keys as the rest of your
-    account, use:
-   
+    inspect the internal state of the node, for debugging. To cause the node
+    to accept SSH connections on port 8022 from the same keys as the rest of
+    your account, use:
+
       [tub]
       ssh.port = 8022
       ssh.authorized_keys_file = ~/.ssh/authorized_keys
@@ -233,13 +238,13 @@ set the tub.location option described below.
 
     This specifies a temporary directory for the webapi server to use, for
     holding large files while they are being uploaded. If a webapi client
-    attempts to upload a 10GB file, this tempdir will need to have at least 10GB
-    available for the upload to complete.
-   
-    The default value is the "tmp" directory in the node's base directory (i.e.
-    $NODEDIR/tmp), but it can be placed elsewhere. This directory is used for
-    files that usually (on a unix system) go into /tmp . The string will be
-    interpreted relative to the node's base directory.
+    attempts to upload a 10GB file, this tempdir will need to have at least
+    10GB available for the upload to complete.
+
+    The default value is the "tmp" directory in the node's base directory
+    (i.e. $NODEDIR/tmp), but it can be placed elsewhere. This directory is
+    used for files that usually (on a unix system) go into /tmp . The string
+    will be interpreted relative to the node's base directory.
 
 Client Configuration
 ====================
@@ -248,67 +253,68 @@ Client Configuration
 
   [client]
   introducer.furl = (FURL string, mandatory)
-  
-    This FURL tells the client how to connect to the introducer. Each Tahoe grid
-    is defined by an introducer. The introducer's furl is created by the
+
+    This FURL tells the client how to connect to the introducer. Each Tahoe
+    grid is defined by an introducer. The introducer's furl is created by the
     introducer node and written into its base directory when it starts,
-    whereupon it should be published to everyone who wishes to attach a client
-    to that grid
-  
+    whereupon it should be published to everyone who wishes to attach a
+    client to that grid
+
   helper.furl = (FURL string, optional)
-  
+
     If provided, the node will attempt to connect to and use the given helper
     for uploads. See docs/helper.txt for details.
-  
+
   key_generator.furl = (FURL string, optional)
-  
+
     If provided, the node will attempt to connect to and use the given
-    key-generator service, using RSA keys from the external process rather than
-    generating its own.
-  
+    key-generator service, using RSA keys from the external process rather
+    than generating its own.
+
   stats_gatherer.furl = (FURL string, optional)
-  
-    If provided, the node will connect to the given stats gatherer and provide
-    it with operational statistics.
-  
+
+    If provided, the node will connect to the given stats gatherer and
+    provide it with operational statistics.
+
   shares.needed = (int, optional) aka "k", default 3
   shares.total = (int, optional) aka "N", N >= k, default 10
   shares.happy = (int, optional) 1 <= happy <= N, default 7
-  
-    These three values set the default encoding parameters. Each time a new file
-    is uploaded, erasure-coding is used to break the ciphertext into separate
-    pieces. There will be "N" (i.e. shares.total) pieces created, and the file
-    will be recoverable if any "k" (i.e. shares.needed) pieces are retrieved.
-    The default values are 3-of-10 (i.e. shares.needed = 3, shares.total = 10).
-    Setting k to 1 is equivalent to simple replication (uploading N copies of
-    the file).
-  
-    These values control the tradeoff between storage overhead, performance, and
-    reliability. To a first approximation, a 1MB file will use (1MB*N/k) of
-    backend storage space (the actual value will be a bit more, because of other
-    forms of overhead). Up to N-k shares can be lost before the file becomes
-    unrecoverable, so assuming there are at least N servers, up to N-k servers
-    can be offline without losing the file. So large N/k ratios are more
-    reliable, and small N/k ratios use less disk space. Clearly, k must never be
-    smaller than N.
-   
+
+    These three values set the default encoding parameters. Each time a new
+    file is uploaded, erasure-coding is used to break the ciphertext into
+    separate pieces. There will be "N" (i.e. shares.total) pieces created,
+    and the file will be recoverable if any "k" (i.e. shares.needed) pieces
+    are retrieved. The default values are 3-of-10 (i.e. shares.needed = 3,
+    shares.total = 10). Setting k to 1 is equivalent to simple replication
+    (uploading N copies of the file).
+
+    These values control the tradeoff between storage overhead, performance,
+    and reliability. To a first approximation, a 1MB file will use (1MB*N/k)
+    of backend storage space (the actual value will be a bit more, because of
+    other forms of overhead). Up to N-k shares can be lost before the file
+    becomes unrecoverable, so assuming there are at least N servers, up to
+    N-k servers can be offline without losing the file. So large N/k ratios
+    are more reliable, and small N/k ratios use less disk space. Clearly, k
+    must never be smaller than N.
+
     Large values of N will slow down upload operations slightly, since more
-    servers must be involved, and will slightly increase storage overhead due to
-    the hash trees that are created. Large values of k will cause downloads to
-    be marginally slower, because more servers must be involved. N cannot be
-    larger than 256, because of the 8-bit erasure-coding algorithm that Tahoe
-    uses.
-   
-    shares.happy allows you control over the distribution of your immutable file.
-    For a successful upload, shares are guaranteed to be initially placed on
-    at least 'shares.happy' distinct servers, the correct functioning of any
-    k of which is sufficient to guarantee the availability of the uploaded file.
-    This value should not be larger than the number of servers on your grid.
-   
-    A value of shares.happy <= k is allowed, but does not provide any redundancy
-    if some servers fail or lose shares.
-   
-    (Mutable files use a different share placement algorithm that does not 
+    servers must be involved, and will slightly increase storage overhead due
+    to the hash trees that are created. Large values of k will cause
+    downloads to be marginally slower, because more servers must be involved.
+    N cannot be larger than 256, because of the 8-bit erasure-coding
+    algorithm that Tahoe uses.
+
+    shares.happy allows you control over the distribution of your immutable
+    file. For a successful upload, shares are guaranteed to be initially
+    placed on at least 'shares.happy' distinct servers, the correct
+    functioning of any k of which is sufficient to guarantee the availability
+    of the uploaded file. This value should not be larger than the number of
+    servers on your grid.
+
+    A value of shares.happy <= k is allowed, but does not provide any
+    redundancy if some servers fail or lose shares.
+
+    (Mutable files use a different share placement algorithm that does not
     consider this parameter.)
 
 
@@ -319,45 +325,47 @@ Storage Server Configuration
 
   [storage]
   enabled = (boolean, optional)
-  
-    If this is True, the node will run a storage server, offering space to other
-    clients. If it is False, the node will not run a storage server, meaning
-    that no shares will be stored on this node. Use False this for clients who
-    do not wish to provide storage service. The default value is True.
-  
+
+    If this is True, the node will run a storage server, offering space to
+    other clients. If it is False, the node will not run a storage server,
+    meaning that no shares will be stored on this node. Use False this for
+    clients who do not wish to provide storage service. The default value is
+    True.
+
   readonly = (boolean, optional)
-  
-    If True, the node will run a storage server but will not accept any shares,
-    making it effectively read-only. Use this for storage servers which are
-    being decommissioned: the storage/ directory could be mounted read-only,
-    while shares are moved to other servers. Note that this currently only
-    affects immutable shares. Mutable shares (used for directories) will be
-    written and modified anyway. See ticket #390 for the current status of this
-    bug. The default value is False.
-  
+
+    If True, the node will run a storage server but will not accept any
+    shares, making it effectively read-only. Use this for storage servers
+    which are being decommissioned: the storage/ directory could be mounted
+    read-only, while shares are moved to other servers. Note that this
+    currently only affects immutable shares. Mutable shares (used for
+    directories) will be written and modified anyway. See ticket #390 for the
+    current status of this bug. The default value is False.
+
   reserved_space = (str, optional)
-  
-    If provided, this value defines how much disk space is reserved: the storage
-    server will not accept any share which causes the amount of free disk space
-    to drop below this value. (The free space is measured by a call to statvfs(2)
-    on Unix, or GetDiskFreeSpaceEx on Windows, and is the space available to the
-    user account under which the storage server runs.)
-   
+
+    If provided, this value defines how much disk space is reserved: the
+    storage server will not accept any share which causes the amount of free
+    disk space to drop below this value. (The free space is measured by a
+    call to statvfs(2) on Unix, or GetDiskFreeSpaceEx on Windows, and is the
+    space available to the user account under which the storage server runs.)
+
     This string contains a number, with an optional case-insensitive scale
     suffix like "K" or "M" or "G", and an optional "B" or "iB" suffix. So
-    "100MB", "100M", "100000000B", "100000000", and "100000kb" all mean the same
-    thing. Likewise, "1MiB", "1024KiB", and "1048576B" all mean the same thing.
-  
+    "100MB", "100M", "100000000B", "100000000", and "100000kb" all mean the
+    same thing. Likewise, "1MiB", "1024KiB", and "1048576B" all mean the same
+    thing.
+
   expire.enabled =
   expire.mode =
   expire.override_lease_duration =
   expire.cutoff_date =
   expire.immutable =
   expire.mutable =
-  
-    These settings control garbage-collection, in which the server will delete
-    shares that no longer have an up-to-date lease on them. Please see the
-    neighboring "garbage-collection.txt" document for full details.
+
+    These settings control garbage-collection, in which the server will
+    delete shares that no longer have an up-to-date lease on them. Please see
+    the neighboring "garbage-collection.rst" document for full details.
 
 
 Running A Helper
@@ -370,12 +378,12 @@ service.
 
   [helper]
   enabled = (boolean, optional)
-  
-    If True, the node will run a helper (see docs/helper.txt for details). The
-    helper's contact FURL will be placed in private/helper.furl, from which it
-    can be copied to any clients which wish to use it. Clearly nodes should not
-    both run a helper and attempt to use one: do not create both helper.furl and
-    run_helper in the same node. The default is False.
+
+    If True, the node will run a helper (see docs/helper.txt for details).
+    The helper's contact FURL will be placed in private/helper.furl, from
+    which it can be copied to any clients which wish to use it. Clearly nodes
+    should not both run a helper and attempt to use one: do not create both
+    helper.furl and run_helper in the same node. The default is False.
 
 
 Running An Introducer
@@ -384,8 +392,7 @@ Running An Introducer
 The introducer node uses a different '.tac' file (named introducer.tac), and
 pays attention to the "[node]" section, but not the others.
 
-The Introducer node maintains some different state than regular client
-nodes.
+The Introducer node maintains some different state than regular client nodes.
 
 BASEDIR/introducer.furl : This is generated the first time the introducer
 node is started, and used again on subsequent runs, to give the introduction
@@ -415,53 +422,51 @@ private/node.pem
   other nodes.
 
 storage/
-  Nodes which host StorageServers will create this directory to hold
-  shares of files on behalf of other clients. There will be a directory
-  underneath it for each StorageIndex for which this node is holding shares.
-  There is also an "incoming" directory where partially-completed shares are
-  held while they are being received.
+  Nodes which host StorageServers will create this directory to hold shares
+  of files on behalf of other clients. There will be a directory underneath
+  it for each StorageIndex for which this node is holding shares. There is
+  also an "incoming" directory where partially-completed shares are held
+  while they are being received.
 
 client.tac
-  this file defines the client, by constructing the actual Client
-  instance each time the node is started. It is used by the 'twistd'
-  daemonization program (in the "-y" mode), which is run internally by the
-  "tahoe start" command. This file is created by the "tahoe create-node" or
-  "tahoe create-client" commands.
+  this file defines the client, by constructing the actual Client instance
+  each time the node is started. It is used by the 'twistd' daemonization
+  program (in the "-y" mode), which is run internally by the "tahoe start"
+  command. This file is created by the "tahoe create-node" or "tahoe
+  create-client" commands.
 
 private/control.furl
-  this file contains a FURL that provides access to a
-  control port on the client node, from which files can be uploaded and
-  downloaded. This file is created with permissions that prevent anyone else
-  from reading it (on operating systems that support such a concept), to insure
-  that only the owner of the client node can use this feature. This port is
-  intended for debugging and testing use.
+  this file contains a FURL that provides access to a control port on the
+  client node, from which files can be uploaded and downloaded. This file is
+  created with permissions that prevent anyone else from reading it (on
+  operating systems that support such a concept), to insure that only the
+  owner of the client node can use this feature. This port is intended for
+  debugging and testing use.
 
 private/logport.furl
-  this file contains a FURL that provides access to a
-  'log port' on the client node, from which operational logs can be retrieved.
-  Do not grant logport access to strangers, because occasionally secret
-  information may be placed in the logs.
+  this file contains a FURL that provides access to a 'log port' on the
+  client node, from which operational logs can be retrieved. Do not grant
+  logport access to strangers, because occasionally secret information may be
+  placed in the logs.
 
 private/helper.furl
-  if the node is running a helper (for use by other
-  clients), its contact FURL will be placed here. See docs/helper.txt for more
-  details.
+  if the node is running a helper (for use by other clients), its contact
+  FURL will be placed here. See docs/helper.txt for more details.
 
 private/root_dir.cap (optional)
-  The command-line tools will read a directory
-  cap out of this file and use it, if you don't specify a '--dir-cap' option or
-  if you specify '--dir-cap=root'.
+  The command-line tools will read a directory cap out of this file and use
+  it, if you don't specify a '--dir-cap' option or if you specify
+  '--dir-cap=root'.
 
 private/convergence (automatically generated)
-  An added secret for encrypting
-  immutable files. Everyone who has this same string in their
-  private/convergence file encrypts their immutable files in the same way when
-  uploading them. This causes identical files to "converge" -- to share the
-  same storage space since they have identical ciphertext -- which conserves
-  space and optimizes upload time, but it also exposes files to the possibility
-  of a brute-force attack by people who know that string. In this attack, if
-  the attacker can guess most of the contents of a file, then they can use
-  brute-force to learn the remaining contents.
+  An added secret for encrypting immutable files. Everyone who has this same
+  string in their private/convergence file encrypts their immutable files in
+  the same way when uploading them. This causes identical files to "converge"
+  -- to share the same storage space since they have identical ciphertext --
+  which conserves space and optimizes upload time, but it also exposes files
+  to the possibility of a brute-force attack by people who know that string.
+  In this attack, if the attacker can guess most of the contents of a file,
+  then they can use brute-force to learn the remaining contents.
 
 So the set of people who know your private/convergence string is the set of
 people who converge their storage space with you when you and they upload
@@ -479,20 +484,21 @@ Other files
 ===========
 
 logs/
-  Each Tahoe node creates a directory to hold the log messages produced
-  as the node runs. These logfiles are created and rotated by the "twistd"
+  Each Tahoe node creates a directory to hold the log messages produced as
+  the node runs. These logfiles are created and rotated by the "twistd"
   daemonization program, so logs/twistd.log will contain the most recent
-  messages, logs/twistd.log.1 will contain the previous ones, logs/twistd.log.2
-  will be older still, and so on. twistd rotates logfiles after they grow
-  beyond 1MB in size. If the space consumed by logfiles becomes troublesome,
-  they should be pruned: a cron job to delete all files that were created more
-  than a month ago in this logs/ directory should be sufficient.
+  messages, logs/twistd.log.1 will contain the previous ones,
+  logs/twistd.log.2 will be older still, and so on. twistd rotates logfiles
+  after they grow beyond 1MB in size. If the space consumed by logfiles
+  becomes troublesome, they should be pruned: a cron job to delete all files
+  that were created more than a month ago in this logs/ directory should be
+  sufficient.
 
 my_nodeid
-  this is written by all nodes after startup, and contains a
-  base32-encoded (i.e. human-readable) NodeID that identifies this specific
-  node. This NodeID is the same string that gets displayed on the web page (in
-  the "which peers am I connected to" list), and the shortened form (the first
+  this is written by all nodes after startup, and contains a base32-encoded
+  (i.e. human-readable) NodeID that identifies this specific node. This
+  NodeID is the same string that gets displayed on the web page (in the
+  "which peers am I connected to" list), and the shortened form (the first
   characters) is recorded in various log messages.
 
 Backwards Compatibility Files
@@ -558,15 +564,15 @@ these are not the default values), merely a legal one.
   timeout.disconnect = 1800
   ssh.port = 8022
   ssh.authorized_keys_file = ~/.ssh/authorized_keys
-  
+
   [client]
   introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
   helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@helper.tahoe.example:7054/kk8lhr
-  
+
   [storage]
   enabled = True
   readonly_storage = True
   sizelimit = 10000000000
-  
+
   [helper]
   run_helper = True

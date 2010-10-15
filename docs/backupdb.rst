@@ -13,10 +13,10 @@ To speed up backup operations, Tahoe maintains a small database known as the
 "backupdb". This is used to avoid re-uploading files which have already been
 uploaded recently.
 
-This database lives in ~/.tahoe/private/backupdb.sqlite, and is a SQLite
-single-file database. It is used by the "tahoe backup" command. In the future,
-it will also be used by "tahoe mirror", and by "tahoe cp" when the
---use-backupdb option is included.
+This database lives in ``~/.tahoe/private/backupdb.sqlite``, and is a SQLite
+single-file database. It is used by the "tahoe backup" command. In the
+future, it will also be used by "tahoe mirror", and by "tahoe cp" when the
+``--use-backupdb`` option is included.
 
 The purpose of this database is twofold: to manage the file-to-cap
 translation (the "upload" step) and the directory-to-cap translation (the
@@ -121,9 +121,9 @@ If ctime, mtime, or size is different, the client will upload the file, as
 above.
 
 If these identifiers are the same, the client will assume that the file is
-unchanged (unless the --ignore-timestamps option is provided, in which case
-the client always re-uploads the file), and it may be allowed to skip the
-upload. For safety, however, we require the client periodically perform a
+unchanged (unless the ``--ignore-timestamps`` option is provided, in which
+case the client always re-uploads the file), and it may be allowed to skip
+the upload. For safety, however, we require the client periodically perform a
 filecheck on these probably-already-uploaded files, and re-upload anything
 that doesn't look healthy. The client looks the fileid up in the
 'last_checked' table, to see how long it has been since the file was last
@@ -151,8 +151,8 @@ checked and found healthy, the 'last_upload' entry is updated.
 Relying upon timestamps is a compromise between efficiency and safety: a file
 which is modified without changing the timestamp or size will be treated as
 unmodified, and the "tahoe backup" command will not copy the new contents
-into the grid. The --no-timestamps can be used to disable this optimization,
-forcing every byte of the file to be hashed and encoded.
+into the grid. The ``--no-timestamps`` can be used to disable this
+optimization, forcing every byte of the file to be hashed and encoded.
 
 Directory Operations
 ====================

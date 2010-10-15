@@ -49,21 +49,21 @@ Client-side Renewal
 If all of the files and directories which you care about are reachable from a
 single starting point (usually referred to as a "rootcap"), and you store
 that rootcap as an alias (via "tahoe create-alias"), then the simplest way to
-renew these leases is with the following CLI command:
+renew these leases is with the following CLI command::
 
   tahoe deep-check --add-lease ALIAS:
 
 This will recursively walk every directory under the given alias and renew
-the leases on all files and directories. (You may want to add a --repair flag
-to perform repair at the same time). Simply run this command once a week (or
-whatever other renewal period your grid recommends) and make sure it
+the leases on all files and directories. (You may want to add a ``--repair``
+flag to perform repair at the same time). Simply run this command once a week
+(or whatever other renewal period your grid recommends) and make sure it
 completes successfully. As a side effect, a manifest of all unique files and
 directories will be emitted to stdout, as well as a summary of file sizes and
 counts. It may be useful to track these statistics over time.
 
 Note that newly uploaded files (and newly created directories) get an initial
-lease too: the --add-lease process is only needed to ensure that all older
-objects have up-to-date leases on them.
+lease too: the ``--add-lease`` process is only needed to ensure that all
+older objects have up-to-date leases on them.
 
 For larger systems (such as a commercial grid), a separate "maintenance
 daemon" is under development. This daemon will acquire manifests from
@@ -84,12 +84,12 @@ below) and restarting the server node.
 Each lease has two parameters: a create/renew timestamp and a duration. The
 timestamp is updated when the share is first uploaded (i.e. the file or
 directory is created), and updated again each time the lease is renewed (i.e.
-"tahoe check --add-lease" is performed). The duration is currently fixed at
-31 days, and the "nominal lease expiration time" is simply $duration seconds
-after the $create_renew timestamp. (In a future release of Tahoe, the client
-will get to request a specific duration, and the server will accept or reject
-the request depending upon its local configuration, so that servers can
-achieve better control over their storage obligations).
+"``tahoe check --add-lease``" is performed). The duration is currently fixed
+at 31 days, and the "nominal lease expiration time" is simply $duration
+seconds after the $create_renew timestamp. (In a future release of Tahoe, the
+client will get to request a specific duration, and the server will accept or
+reject the request depending upon its local configuration, so that servers
+can achieve better control over their storage obligations).
 
 The lease-expiration code has two modes of operation. The first is age-based:
 leases are expired when their age is greater than their duration. This is the
@@ -123,89 +123,91 @@ The tahoe.cfg file uses the following keys to control lease expiration::
 
   expire.enabled = (boolean, optional)
 
-    If this is True, the storage server will delete shares on which all leases
-    have expired. Other controls dictate when leases are considered to have
-    expired. The default is False.
+    If this is True, the storage server will delete shares on which all
+    leases have expired. Other controls dictate when leases are considered to
+    have expired. The default is False.
 
   expire.mode = (string, "age" or "cutoff-date", required if expiration enabled)
 
-	If this string is "age", the age-based expiration scheme is used, and the
-	"expire.override_lease_duration" setting can be provided to influence the
-	lease ages. If it is "cutoff-date", the absolute-date-cutoff mode is used,
-	and the "expire.cutoff_date" setting must be provided to specify the cutoff
-	date. The mode setting currently has no default: you must provide a value.
+    If this string is "age", the age-based expiration scheme is used, and the
+    "expire.override_lease_duration" setting can be provided to influence the
+    lease ages. If it is "cutoff-date", the absolute-date-cutoff mode is
+    used, and the "expire.cutoff_date" setting must be provided to specify
+    the cutoff date. The mode setting currently has no default: you must
+    provide a value.
 
-	In a future release, this setting is likely to default to "age", but in this
-	release it was deemed safer to require an explicit mode specification.
+    In a future release, this setting is likely to default to "age", but in
+    this release it was deemed safer to require an explicit mode
+    specification.
 
   expire.override_lease_duration = (duration string, optional)
 
-	When age-based expiration is in use, a lease will be expired if its
-	"lease.create_renew" timestamp plus its "lease.duration" time is
-	earlier/older than the current time. This key, if present, overrides the
-	duration value for all leases, changing the algorithm from:
+    When age-based expiration is in use, a lease will be expired if its
+    "lease.create_renew" timestamp plus its "lease.duration" time is
+    earlier/older than the current time. This key, if present, overrides the
+    duration value for all leases, changing the algorithm from:
 
-    if (lease.create_renew_timestamp + lease.duration) < now:
-        expire_lease()
+      if (lease.create_renew_timestamp + lease.duration) < now:
+          expire_lease()
 
     to:
 
-    if (lease.create_renew_timestamp + override_lease_duration) < now:
-        expire_lease()
+      if (lease.create_renew_timestamp + override_lease_duration) < now:
+          expire_lease()
 
-	The value of this setting is a "duration string", which is a number of days,
-	months, or years, followed by a units suffix, and optionally separated by a
-	space, such as one of the following:
+    The value of this setting is a "duration string", which is a number of
+    days, months, or years, followed by a units suffix, and optionally
+    separated by a space, such as one of the following:
 
-	  7days
-	  31day
-	  60 days
-	  2mo
-	  3 month
-	  12 months
-	  2years
+      7days
+      31day
+      60 days
+      2mo
+      3 month
+      12 months
+      2years
 
-	This key is meant to compensate for the fact that clients do not yet have
-	the ability to ask for leases that last longer than 31 days. A grid which
-	wants to use faster or slower GC than a 31-day lease timer permits can use
-	this parameter to implement it. The current fixed 31-day lease duration
-	makes the server behave as if "lease.override_lease_duration = 31days" had
-	been passed.
+    This key is meant to compensate for the fact that clients do not yet have
+    the ability to ask for leases that last longer than 31 days. A grid which
+    wants to use faster or slower GC than a 31-day lease timer permits can
+    use this parameter to implement it. The current fixed 31-day lease
+    duration makes the server behave as if "lease.override_lease_duration =
+    31days" had been passed.
 
-	This key is only valid when age-based expiration is in use (i.e. when
-	"expire.mode = age" is used). It will be rejected if cutoff-date expiration
-	is in use.
+    This key is only valid when age-based expiration is in use (i.e. when
+    "expire.mode = age" is used). It will be rejected if cutoff-date
+    expiration is in use.
 
   expire.cutoff_date = (date string, required if mode=cutoff-date)
 
-	When cutoff-date expiration is in use, a lease will be expired if its
-	create/renew timestamp is older than the cutoff date. This string will be a
-	date in the following format:
+    When cutoff-date expiration is in use, a lease will be expired if its
+    create/renew timestamp is older than the cutoff date. This string will be
+    a date in the following format:
 
-	  2009-01-16   (January 16th, 2009)
-	  2008-02-02
-	  2007-12-25
+      2009-01-16   (January 16th, 2009)
+      2008-02-02
+      2007-12-25
 
-	The actual cutoff time shall be midnight UTC at the beginning of the given
-	day. Lease timers should naturally be generous enough to not depend upon
-	differences in timezone: there should be at least a few days between the
-	last renewal time and the cutoff date.
+    The actual cutoff time shall be midnight UTC at the beginning of the
+    given day. Lease timers should naturally be generous enough to not depend
+    upon differences in timezone: there should be at least a few days between
+    the last renewal time and the cutoff date.
 
-	This key is only valid when cutoff-based expiration is in use (i.e. when
-	"expire.mode = cutoff-date"). It will be rejected if age-based expiration is
-	in use.
+    This key is only valid when cutoff-based expiration is in use (i.e. when
+    "expire.mode = cutoff-date"). It will be rejected if age-based expiration
+    is in use.
 
   expire.immutable = (boolean, optional)
 
-	If this is False, then immutable shares will never be deleted, even if their
-	leases have expired. This can be used in special situations to perform GC on
-	mutable files but not immutable ones. The default is True.
+    If this is False, then immutable shares will never be deleted, even if
+    their leases have expired. This can be used in special situations to
+    perform GC on mutable files but not immutable ones. The default is True.
 
   expire.mutable = (boolean, optional)
 
-	If this is False, then mutable shares will never be deleted, even if their
-	leases have expired. This can be used in special situations to perform GC on
-	immutable files but not mutable ones. The default is True.
+    If this is False, then mutable shares will never be deleted, even if
+    their leases have expired. This can be used in special situations to
+    perform GC on immutable files but not mutable ones. The default is True.
 
 Expiration Progress
 ===================
