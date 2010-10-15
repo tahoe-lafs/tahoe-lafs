@@ -31,7 +31,10 @@ def print_python_encoding_settings():
     print 'filesystem.encoding: ' + str(sys.getfilesystemencoding())
     print 'locale.getpreferredencoding: ' + str(locale.getpreferredencoding())
     print 'os.path.supports_unicode_filenames: ' + str(os.path.supports_unicode_filenames)
-    print 'locale.defaultlocale: ' + str(locale.getdefaultlocale())
+    try:
+        print 'locale.defaultlocale: ' + str(locale.getdefaultlocale())
+    except ValueError, e:
+        print 'got exception from locale.getdefaultlocale(): ', e
     print 'locale.locale: ' + str(locale.getlocale())
 
 def print_stdout(cmdlist, label=None):
