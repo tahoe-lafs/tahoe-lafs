@@ -1,17 +1,22 @@
-= Tahoe Logging =
+=============
+Tahoe Logging
+=============
 
-1.  Overview
-2.  Realtime Logging
-3.  Incidents
-4.  Working with flogfiles
-5.  Gatherers
-  5.1.  Incident Gatherer
-  5.2.  Log Gatherer
-6.  Local twistd.log files
-7.  Adding log messages
-8.  Log Messages During Unit Tests 
+1.  `Overview`_
+2.  `Realtime Logging`_
+3.  `Incidents`_
+4.  `Working with flogfiles`_
+5.  `Gatherers`_
 
-== Overview ==
+    1.  `Incident Gatherer`_
+    2.  `Log Gatherer`_
+
+6.  `Local twistd.log files`_
+7.  `Adding log messages`_
+8.  `Log Messages During Unit Tests`_
+
+Overview
+========
 
 Tahoe uses the Foolscap logging mechanism (known as the "flog" subsystem) to
 record information about what is happening inside the Tahoe node. This is
@@ -26,7 +31,8 @@ The foolscap distribution includes a utility named "flogtool" (usually at
 /usr/bin/flogtool) which is used to get access to many foolscap logging
 features.
 
-== Realtime Logging ==
+Realtime Logging
+================
 
 When you are working on Tahoe code, and want to see what the node is doing,
 the easiest tool to use is "flogtool tail". This connects to the tahoe node
@@ -37,7 +43,7 @@ to stdout, and optionally saved to a file.
 BASEDIR/private/logport.furl . The following command will connect to this
 port and start emitting log information:
 
- flogtool tail BASEDIR/private/logport.furl
+  flogtool tail BASEDIR/private/logport.furl
 
 The "--save-to FILENAME" option will save all received events to a file,
 where then can be examined later with "flogtool dump" or "flogtool
@@ -45,7 +51,8 @@ web-viewer". The --catch-up flag will ask the node to dump all stored events
 before subscribing to new ones (without --catch-up, you will only hear about
 events that occur after the tool has connected and subscribed).
 
-== Incidents ==
+Incidents
+=========
 
 Foolscap keeps a short list of recent events in memory. When something goes
 wrong, it writes all the history it has (and everything that gets logged in
@@ -72,7 +79,8 @@ view provides more structure than the output of "flogtool dump": the
 parent/child relationships of log events is displayed in a nested format.
 "flogtool web-viewer" is still fairly immature.
 
-== Working with flogfiles ==
+Working with flogfiles
+======================
 
 The "flogtool filter" command can be used to take a large flogfile (perhaps
 one created by the log-gatherer, see below) and copy a subset of events into
@@ -85,7 +93,8 @@ retains events send by a specific tubid. --strip-facility removes events that
 were emitted with a given facility (like foolscap.negotiation or
 tahoe.upload).
 
-== Gatherers ==
+Gatherers
+=========
 
 In a deployed Tahoe grid, it is useful to get log information automatically
 transferred to a central log-gatherer host. This offloads the (admittedly
@@ -101,7 +110,8 @@ gatherer will then use the logport to subscribe to hear about events.
 The gatherer will write to files in its working directory, which can then be
 examined with tools like "flogtool dump" as described above.
 
-=== Incident Gatherer ===
+Incident Gatherer
+-----------------
 
 The "incident gatherer" only collects Incidents: records of the log events
 that occurred just before and slightly after some high-level "trigger event"
@@ -120,7 +130,7 @@ WORKDIR" command, and started with "tahoe start". The generated
 "gatherer.tac" file should be modified to add classifier functions.
 
 The incident gatherer writes incident names (which are simply the relative
-pathname of the incident-*.flog.bz2 file) into classified/CATEGORY. For
+pathname of the incident-\*.flog.bz2 file) into classified/CATEGORY. For
 example, the classified/mutable-retrieve-uncoordinated-write-error file
 contains a list of all incidents which were triggered by an uncoordinated
 write that was detected during mutable file retrieval (caused when somebody
@@ -145,7 +155,8 @@ In our experience, each Incident takes about two seconds to transfer from the
 node which generated it to the gatherer. The gatherer will automatically
 catch up to any incidents which occurred while it is offline.
 
-=== Log Gatherer ===
+Log Gatherer
+------------
 
 The "Log Gatherer" subscribes to hear about every single event published by
 the connected nodes, regardless of severity. This server writes these log
@@ -172,7 +183,8 @@ the outbound TCP queue), publishing nodes will start dropping log events when
 the outbound queue grows too large. When this occurs, there will be gaps
 (non-sequential event numbers) in the log-gatherer's flogfiles.
 
-== Local twistd.log files ==
+Local twistd.log files
+======================
 
 [TODO: not yet true, requires foolscap-0.3.1 and a change to allmydata.node]
 
@@ -188,53 +200,55 @@ Only events at the log.OPERATIONAL level or higher are bridged to twistd.log
 (i.e. not the log.NOISY debugging events). In addition, foolscap internal
 events (like connection negotiation messages) are not bridged to twistd.log .
 
-== Adding log messages ==
+Adding log messages
+===================
 
 When adding new code, the Tahoe developer should add a reasonable number of
 new log events. For details, please see the Foolscap logging documentation,
 but a few notes are worth stating here:
 
- * use a facility prefix of "tahoe.", like "tahoe.mutable.publish"
+* use a facility prefix of "tahoe.", like "tahoe.mutable.publish"
 
- * assign each severe (log.WEIRD or higher) event a unique message
-   identifier, as the umid= argument to the log.msg() call. The
-   misc/coding_tools/make_umid script may be useful for this purpose. This will make it
-   easier to write a classification function for these messages.
+* assign each severe (log.WEIRD or higher) event a unique message
+  identifier, as the umid= argument to the log.msg() call. The
+  misc/coding_tools/make_umid script may be useful for this purpose. This will make it
+  easier to write a classification function for these messages.
 
- * use the parent= argument whenever the event is causally/temporally
-   clustered with its parent. For example, a download process that involves
-   three sequential hash fetches could announce the send and receipt of those
-   hash-fetch messages with a parent= argument that ties them to the overall
-   download process. However, each new wapi download request should be
-   unparented.
+* use the parent= argument whenever the event is causally/temporally
+  clustered with its parent. For example, a download process that involves
+  three sequential hash fetches could announce the send and receipt of those
+  hash-fetch messages with a parent= argument that ties them to the overall
+  download process. However, each new wapi download request should be
+  unparented.
 
- * use the format= argument in preference to the message= argument. E.g.
-   use log.msg(format="got %(n)d shares, need %(k)d", n=n, k=k) instead of
-   log.msg("got %d shares, need %d" % (n,k)). This will allow later tools to
-   analyze the event without needing to scrape/reconstruct the structured
-   data out of the formatted string.
+* use the format= argument in preference to the message= argument. E.g.
+  use log.msg(format="got %(n)d shares, need %(k)d", n=n, k=k) instead of
+  log.msg("got %d shares, need %d" % (n,k)). This will allow later tools to
+  analyze the event without needing to scrape/reconstruct the structured
+  data out of the formatted string.
 
- * Pass extra information as extra keyword arguments, even if they aren't
-   included in the format= string. This information will be displayed in the
-   "flogtool dump --verbose" output, as well as being available to other
-   tools. The umid= argument should be passed this way.
+* Pass extra information as extra keyword arguments, even if they aren't
+  included in the format= string. This information will be displayed in the
+  "flogtool dump --verbose" output, as well as being available to other
+  tools. The umid= argument should be passed this way.
 
- * use log.err for the catch-all addErrback that gets attached to the end of
-   any given Deferred chain. When used in conjunction with LOGTOTWISTED=1,
-   log.err() will tell Twisted about the error-nature of the log message,
-   causing Trial to flunk the test (with an "ERROR" indication that prints a
-   copy of the Failure, including a traceback). Don't use log.err for events
-   that are BAD but handled (like hash failures: since these are often
-   deliberately provoked by test code, they should not cause test failures):
-   use log.msg(level=BAD) for those instead.
+* use log.err for the catch-all addErrback that gets attached to the end of
+  any given Deferred chain. When used in conjunction with LOGTOTWISTED=1,
+  log.err() will tell Twisted about the error-nature of the log message,
+  causing Trial to flunk the test (with an "ERROR" indication that prints a
+  copy of the Failure, including a traceback). Don't use log.err for events
+  that are BAD but handled (like hash failures: since these are often
+  deliberately provoked by test code, they should not cause test failures):
+  use log.msg(level=BAD) for those instead.
 
 
-== Log Messages During Unit Tests ==
+Log Messages During Unit Tests
+==============================
 
 If a test is failing and you aren't sure why, start by enabling
 FLOGTOTWISTED=1 like this:
 
- make test FLOGTOTWISTED=1
+  make test FLOGTOTWISTED=1
 
 With FLOGTOTWISTED=1, sufficiently-important log events will be written into
 _trial_temp/test.log, which may give you more ideas about why the test is
@@ -246,7 +260,7 @@ below the level=OPERATIONAL threshold, due to this issue:
 If that isn't enough, look at the detailed foolscap logging messages instead,
 by running the tests like this:
 
- make test FLOGFILE=flog.out.bz2 FLOGLEVEL=1 FLOGTOTWISTED=1
+  make test FLOGFILE=flog.out.bz2 FLOGLEVEL=1 FLOGTOTWISTED=1
 
 The first environment variable will cause foolscap log events to be written
 to ./flog.out.bz2 (instead of merely being recorded in the circular buffers

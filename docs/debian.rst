@@ -1,27 +1,31 @@
-= Debian Support =
+==============
+Debian Support
+==============
 
-1.  Overview 
-2.  TL;DR supporting package building instructions
-3.  TL;DR package building instructions for Tahoe
-4.  Building Debian Packages
-5.  Using Pre-Built Debian Packages
-6.  Building From Source on Debian Systems
+1.  `Overview`_
+2.  `TL;DR supporting package building instructions`_
+3.  `TL;DR package building instructions for Tahoe`_
+4.  `Building Debian Packages`_
+5.  `Using Pre-Built Debian Packages`_
+6.  `Building From Source on Debian Systems`_
 
-= Overview ==
+Overview
+========
 
 One convenient way to install Tahoe-LAFS is with debian packages.
 This document attempts to explain how to complete a desert island build for
 people in a hurry. It also attempts to explain more about our Debian packaging
 for those willing to read beyond the simple pragmatic packaging exercises.
 
-== TL;DR supporting package building instructions ==
+TL;DR supporting package building instructions
+==============================================
 
 There are only four supporting packages that are currently not available from
-the debian apt repositories in Debian Lenny:
+the debian apt repositories in Debian Lenny::
 
     python-foolscap python-zfec argparse zbase32
 
-First, we'll install some common packages for development:
+First, we'll install some common packages for development::
 
     sudo apt-get install -y build-essential debhelper cdbs python-central \
                     python-setuptools python python-dev python-twisted-core \
@@ -31,7 +35,7 @@ First, we'll install some common packages for development:
     sudo apt-file update
 
 
-To create packages for Lenny, we'll also install stdeb:    
+To create packages for Lenny, we'll also install stdeb::  
 
     sudo apt-get install python-all-dev
     STDEB_VERSION="0.5.1"
@@ -41,7 +45,7 @@ To create packages for Lenny, we'll also install stdeb:
     python setup.py --command-packages=stdeb.command bdist_deb
     sudo dpkg -i deb_dist/python-stdeb_$STDEB_VERSION-1_all.deb
 
-Now we're ready to build and install the zfec Debian package:
+Now we're ready to build and install the zfec Debian package::
 
     darcs get http://allmydata.org/source/zfec/trunk zfac
     cd zfac/zfec/
@@ -50,7 +54,7 @@ Now we're ready to build and install the zfec Debian package:
     dpkg-buildpackage -rfakeroot -uc -us
     sudo dpkg -i ../python-zfec_1.4.6-r333-1_amd64.deb
 
-We need to build a pyutil package:
+We need to build a pyutil package::
 
     wget http://pypi.python.org/packages/source/p/pyutil/pyutil-1.6.1.tar.gz
     tar -xvzf pyutil-1.6.1.tar.gz 
@@ -60,12 +64,12 @@ We need to build a pyutil package:
     dpkg-buildpackage -rfakeroot -uc -us
     sudo dpkg -i ../python-pyutil_1.6.1-1_all.deb
 
-We also need to install argparse and zbase32:
+We also need to install argparse and zbase32::
 
     sudo easy_install argparse # argparse won't install with stdeb (!) :-(
     sudo easy_install zbase32 # XXX TODO: package with stdeb
 
-Finally, we'll fetch, unpack, build and install foolscap:
+Finally, we'll fetch, unpack, build and install foolscap::
 
     # You may not already have Brian's key:
     # gpg --recv-key 0x1514A7BD
@@ -79,10 +83,11 @@ Finally, we'll fetch, unpack, build and install foolscap:
     dpkg-buildpackage -rfakeroot -uc -us
     sudo dpkg -i ../python-foolscap_0.5.0-1_all.deb 
 
-== TL;DR package building instructions for Tahoe ==
+TL;DR package building instructions for Tahoe
+=============================================
 
 If you want to build your own Debian packages from the darcs tree or from 
-a source release, do the following:
+a source release, do the following::
 
     cd ~/
     mkdir src && cd src/
@@ -98,7 +103,8 @@ supported libraries as .deb packages. You'll need to edit the Debian specific
 /etc/defaults/allmydata-tahoe file to get Tahoe started. Data is by default
 stored in /var/lib/tahoelafsd/ and Tahoe runs as the 'tahoelafsd' user.
 
-== Building Debian Packages ==
+Building Debian Packages
+========================
 
 The Tahoe source tree comes with limited support for building debian packages
 on a variety of Debian and Ubuntu platforms. For each supported platform,
@@ -109,7 +115,7 @@ the tree (e.g. "1.1-r2678").
 
 To create debian packages from a Tahoe tree, you will need some additional
 tools installed. The canonical list of these packages is in the
-"Build-Depends" clause of misc/sid/debian/control , and includes:
+"Build-Depends" clause of misc/sid/debian/control , and includes::
 
  build-essential
  debhelper
@@ -130,18 +136,20 @@ release, for example if there is no "deb-hardy-head" target, try building
 Note that we haven't tried to build source packages (.orig.tar.gz + dsc) yet,
 and there are no such source packages in our APT repository.
 
-== Using Pre-Built Debian Packages ==
+Using Pre-Built Debian Packages
+===============================
 
 The allmydata.org site hosts an APT repository with debian packages that are
-built after each checkin. The following wiki page describes this repository:
-
- http://allmydata.org/trac/tahoe/wiki/DownloadDebianPackages
+built after each checkin. `This wiki page
+<http://allmydata.org/trac/tahoe/wiki/DownloadDebianPackages>`_ describes this
+repository.
 
 The allmydata.org APT repository also includes debian packages of support
 libraries, like Foolscap, zfec, pycryptopp, and everything else you need that
 isn't already in debian.
 
-== Building From Source on Debian Systems ==
+Building From Source on Debian Systems
+======================================
 
 Many of Tahoe's build dependencies can be satisfied by first installing
 certain debian packages: simplejson is one of these. Some debian/ubuntu

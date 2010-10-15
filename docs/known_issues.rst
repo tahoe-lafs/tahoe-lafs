@@ -1,14 +1,18 @@
-﻿= known issues =
+﻿============
+Known issues
+============
 
-*  overview
-*  issues in Tahoe-LAFS v1.8.0, released 2010-09-23
-  -  potential unauthorized access by JavaScript in unrelated files
-  -  potential disclosure of file through embedded hyperlinks or JavaScript in that file
-  -  command-line arguments are leaked to other local users
-  -  capabilities may be leaked to web browser phishing filter / "safe browsing" servers ===
-  -  known issues in the FTP and SFTP frontends ===
+* `Overview`_
+* `Issues in Tahoe-LAFS v1.8.0, released 2010-09-23`
 
-== overview ==
+  *  `Potential unauthorized access by JavaScript in unrelated files`_
+  *  `Potential disclosure of file through embedded hyperlinks or JavaScript in that file`_
+  *  `Command-line arguments are leaked to other local users`_
+  *  `Capabilities may be leaked to web browser phishing filter / "safe browsing" servers`_
+  *  `Known issues in the FTP and SFTP frontends`_
+
+Overview
+========
 
 Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
 manage them.  The current version of this file can be found at
@@ -21,9 +25,11 @@ want to read the "historical known issues" document:
 
 http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/historical/historical_known_issues.txt
 
-== issues in Tahoe-LAFS v1.8.0, released 2010-09-18 ==
+Issues in Tahoe-LAFS v1.8.0, released 2010-09-23
+================================================
 
-=== potential unauthorized access by JavaScript in unrelated files ===
+Potential unauthorized access by JavaScript in unrelated files
+--------------------------------------------------------------
 
 If you view a file stored in Tahoe-LAFS through a web user interface,
 JavaScript embedded in that file might be able to access other files or
@@ -33,11 +39,12 @@ those other files or directories to the author of the script, and if you
 have the ability to modify the contents of those files or directories,
 then that script could modify or delete those files or directories.
 
-==== how to manage it ====
+how to manage it
+~~~~~~~~~~~~~~~~
 
 For future versions of Tahoe-LAFS, we are considering ways to close off
 this leakage of authority while preserving ease of use -- the discussion
-of this issue is ticket #615.
+of this issue is ticket `#615 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/615>`_.
 
 For the present, either do not view files stored in Tahoe-LAFS through a
 web user interface, or turn off JavaScript in your web browser before
@@ -45,7 +52,8 @@ doing so, or limit your viewing to files which you know don't contain
 malicious JavaScript.
 
 
-=== potential disclosure of file through embedded hyperlinks or JavaScript in that file ===
+Potential disclosure of file through embedded hyperlinks or JavaScript in that file
+-----------------------------------------------------------------------------------
 
 If there is a file stored on a Tahoe-LAFS storage grid, and that file
 gets downloaded and displayed in a web browser, then JavaScript or
@@ -61,11 +69,12 @@ file. Note that IMG tags are typically followed automatically by web
 browsers, so being careful which hyperlinks you click on is not
 sufficient to prevent this from happening.
 
-==== how to manage it ====
+how to manage it
+~~~~~~~~~~~~~~~~
 
 For future versions of Tahoe-LAFS, we are considering ways to close off
 this leakage of authority while preserving ease of use -- the discussion
-of this issue is ticket #127.
+of this issue is ticket `#127 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/127>`_.
 
 For the present, a good work-around is that if you want to store and
 view a file on Tahoe-LAFS and you want that file to remain private, then
@@ -74,7 +83,8 @@ and remove any JavaScript unless you are sure that the JavaScript is not
 written to maliciously leak access.
 
 
-=== command-line arguments are leaked to other local users ===
+Command-line arguments are leaked to other local users
+------------------------------------------------------
 
 Remember that command-line arguments are visible to other users (through
 the 'ps' command, or the windows Process Explorer tool), so if you are
@@ -83,7 +93,8 @@ be able to see (and copy) any caps that you pass as command-line
 arguments.  This includes directory caps that you set up with the "tahoe
 add-alias" command.
 
-==== how to manage it ====
+how to manage it
+~~~~~~~~~~~~~~~~
 
 As of Tahoe-LAFS v1.3.0 there is a "tahoe create-alias" command that does
 the following technique for you.
@@ -91,7 +102,7 @@ the following technique for you.
 Bypass add-alias and edit the NODEDIR/private/aliases file directly, by
 adding a line like this:
 
-fun: URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
+  fun: URI:DIR2:ovjy4yhylqlfoqg2vcze36dhde:4d4f47qko2xm5g7osgo2yyidi5m4muyo2vjjy53q4vjju2u55mfa
 
 By entering the dircap through the editor, the command-line arguments
 are bypassed, and other users will not be able to see them. Once you've
@@ -102,7 +113,8 @@ arguments you type there, but not the caps that Tahoe-LAFS uses to permit
 access to your files and directories.
 
 
-=== capabilities may be leaked to web browser phishing filter / "safe browsing" servers ===
+Capabilities may be leaked to web browser phishing filter / "safe browsing" servers
+-----------------------------------------------------------------------------------
 
 Firefox, Internet Explorer, and Chrome include a "phishing filter" or
 "safe browing" component, which is turned on by default, and which sends
@@ -134,7 +146,8 @@ Opera also has a similar facility that is disabled by default. A previous
 version of this file stated that Firefox had abandoned their phishing
 filter; this was incorrect.
 
-==== how to manage it ====
+how to manage it
+~~~~~~~~~~~~~~~~
 
 If you use any phishing filter or "safe browsing" feature, consider either
 disabling it, or not using the WUI via that browser. Phishing filters have
@@ -143,31 +156,47 @@ very limited effectiveness (see
 or malware attackers have learnt how to bypass them.
 
 To disable the filter in IE7 or IE8:
- - Click Internet Options from the Tools menu.
- - Click the Advanced tab.
- - If an "Enable SmartScreen Filter" option is present, uncheck it.
-   If a "Use Phishing Filter" or "Phishing Filter" option is present,
-   set it to Disable.
- - Confirm (click OK or Yes) out of all dialogs.
+````````````````````````````````````
+
+- Click Internet Options from the Tools menu.
+
+- Click the Advanced tab.
+
+- If an "Enable SmartScreen Filter" option is present, uncheck it.
+  If a "Use Phishing Filter" or "Phishing Filter" option is present,
+  set it to Disable.
+
+- Confirm (click OK or Yes) out of all dialogs.
 
 If you have a version of IE that splits the settings between security
 zones, do this for all zones.
 
 To disable the filter in Firefox:
- - Click Options from the Tools menu.
- - Click the Security tab.
- - Uncheck both the "Block reported attack sites" and "Block reported
-   web forgeries" options.
- - Click OK.
+`````````````````````````````````
+
+- Click Options from the Tools menu.
+
+- Click the Security tab.
+
+- Uncheck both the "Block reported attack sites" and "Block reported
+  web forgeries" options.
+
+- Click OK.
 
 To disable the filter in Chrome:
- - Click Options from the Tools menu.
- - Click the "Under the Hood" tab and find the "Privacy" section.
- - Uncheck the "Enable phishing and malware protection" option.
- - Click Close.
+````````````````````````````````
+
+- Click Options from the Tools menu.
+
+- Click the "Under the Hood" tab and find the "Privacy" section.
+
+- Uncheck the "Enable phishing and malware protection" option.
+
+- Click Close.
 
 
-=== known issues in the FTP and SFTP frontends ===
+Known issues in the FTP and SFTP frontends
+------------------------------------------
 
 These are documented in docs/frontends/FTP-and-SFTP.txt and at
 <http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>.

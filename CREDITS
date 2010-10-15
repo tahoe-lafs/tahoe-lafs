@@ -122,3 +122,7 @@ D: fix layout issue and server version numbers in WUI
 N: Jacob Lyles
 E: jacob.lyles@gmail.com
 D: fixed bug in WUI with Python 2.5 and a system clock set far in the past
+
+N: Ravi Pinjala
+E: ravi@p-static.net
+D: converted docs from .txt to .rst

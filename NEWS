@@ -1,5 +1,11 @@
 ﻿User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
+* Release 1.8.1 (coming)
+
+** Documentation
+
+ - All .txt documents have been converted to .rst format (#1225)
+
 * Release 1.8.0 (2010-09-23)
 
 ** New Features

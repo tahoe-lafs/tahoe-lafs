@@ -1,6 +1,14 @@
-= The Tahoe BackupDB =
+==================
+The Tahoe BackupDB
+==================
 
-== Overview ==
+1.  `Overview`_
+2.  `Schema`_
+3.  `Upload Operation`_
+4.  `Directory Operations`_
+
+Overview
+========
 To speed up backup operations, Tahoe maintains a small database known as the
 "backupdb". This is used to avoid re-uploading files which have already been
 uploaded recently.
@@ -33,46 +41,48 @@ actually provides sqlite3 rather than sqlite2), but on old distributions such
 as Debian etch (4.0 "oldstable") or Ubuntu Edgy (6.10) the "python-pysqlite2"
 package won't work, but the "sqlite3-dev" package will.
 
-== Schema ==
+Schema
+======
 
-The database contains the following tables:
+The database contains the following tables::
 
-CREATE TABLE version
-(
- version integer  # contains one row, set to 1
-);
+  CREATE TABLE version
+  (
+   version integer  # contains one row, set to 1
+  );
+  
+  CREATE TABLE local_files
+  (
+   path  varchar(1024),  PRIMARY KEY -- index, this is os.path.abspath(fn)
+   size  integer,         -- os.stat(fn)[stat.ST_SIZE]
+   mtime number,          -- os.stat(fn)[stat.ST_MTIME]
+   ctime number,          -- os.stat(fn)[stat.ST_CTIME]
+   fileid integer
+  );
+  
+  CREATE TABLE caps
+  (
+   fileid integer PRIMARY KEY AUTOINCREMENT,
+   filecap varchar(256) UNIQUE    -- URI:CHK:...
+  );
+  
+  CREATE TABLE last_upload
+  (
+   fileid INTEGER PRIMARY KEY,
+   last_uploaded TIMESTAMP,
+   last_checked TIMESTAMP
+  );
+  
+  CREATE TABLE directories
+  (
+   dirhash varchar(256) PRIMARY KEY,
+   dircap varchar(256),
+   last_uploaded TIMESTAMP,
+   last_checked TIMESTAMP
+  );
 
-CREATE TABLE local_files
-(
- path  varchar(1024),  PRIMARY KEY -- index, this is os.path.abspath(fn)
- size  integer,         -- os.stat(fn)[stat.ST_SIZE]
- mtime number,          -- os.stat(fn)[stat.ST_MTIME]
- ctime number,          -- os.stat(fn)[stat.ST_CTIME]
- fileid integer
-);
-
-CREATE TABLE caps
-(
- fileid integer PRIMARY KEY AUTOINCREMENT,
- filecap varchar(256) UNIQUE    -- URI:CHK:...
-);
-
-CREATE TABLE last_upload
-(
- fileid INTEGER PRIMARY KEY,
- last_uploaded TIMESTAMP,
- last_checked TIMESTAMP
-);
-
-CREATE TABLE directories
-(
- dirhash varchar(256) PRIMARY KEY,
- dircap varchar(256),
- last_uploaded TIMESTAMP,
- last_checked TIMESTAMP
-);
-
-== Upload Operation ==
+Upload Operation
+================
 
 The upload process starts with a pathname (like ~/.emacs) and wants to end up
 with a file-cap (like URI:CHK:...).
@@ -82,12 +92,16 @@ The first step is to convert the path to an absolute form
 is not present in this table, the file must be uploaded. The upload process
 is:
 
- 1. record the file's size, creation time, and modification time
- 2. upload the file into the grid, obtaining an immutable file read-cap
- 3. add an entry to the 'caps' table, with the read-cap, to get a fileid
- 4. add an entry to the 'last_upload' table, with the current time
- 5. add an entry to the 'local_files' table, with the fileid, the path,
-    and the local file's size/ctime/mtime
+1. record the file's size, creation time, and modification time
+
+2. upload the file into the grid, obtaining an immutable file read-cap
+
+3. add an entry to the 'caps' table, with the read-cap, to get a fileid
+
+4. add an entry to the 'last_upload' table, with the current time
+
+5. add an entry to the 'local_files' table, with the fileid, the path,
+   and the local file's size/ctime/mtime
 
 If the path *is* present in 'local_files', the easy-to-compute identifying
 information is compared: file size and ctime/mtime. If these differ, the file
@@ -140,7 +154,8 @@ unmodified, and the "tahoe backup" command will not copy the new contents
 into the grid. The --no-timestamps can be used to disable this optimization,
 forcing every byte of the file to be hashed and encoded.
 
-== Directory Operations ==
+Directory Operations
+====================
 
 Once the contents of a directory are known (a filecap for each file, and a
 dircap for each directory), the backup process must find or create a tahoe

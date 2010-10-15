@@ -1,11 +1,14 @@
-= The Tahoe Upload Helper =
+=======================
+The Tahoe Upload Helper
+=======================
 
-1. Overview
-2. Setting Up A Helper
-3. Using a Helper
-4. Other Helper Modes
+1. `Overview`_
+2. `Setting Up A Helper`_
+3. `Using a Helper`_
+4. `Other Helper Modes`_
 
-== Overview ==
+Overview
+========
 
 As described in the "SWARMING DOWNLOAD, TRICKLING UPLOAD" section of
 architecture.txt, Tahoe uploads require more bandwidth than downloads: you
@@ -45,31 +48,30 @@ connection to the helper. This can improve TCP fairness, and should allow
 other applications that are sharing the same uplink to compete more evenly
 for the limited bandwidth.
 
-
-
-== Setting Up A Helper ==
+Setting Up A Helper
+===================
 
 Who should consider running a helper?
 
- * Benevolent entities which wish to provide better upload speed for clients
-   that have slow uplinks
- * Folks which have machines with upload bandwidth to spare.
- * Server grid operators who want clients to connect to a small number of
-   helpers rather than a large number of storage servers (a "multi-tier"
-   architecture)
+* Benevolent entities which wish to provide better upload speed for clients
+  that have slow uplinks
+* Folks which have machines with upload bandwidth to spare.
+* Server grid operators who want clients to connect to a small number of
+  helpers rather than a large number of storage servers (a "multi-tier"
+  architecture)
 
 What sorts of machines are good candidates for running a helper?
 
- * The Helper needs to have good bandwidth to the storage servers. In
-   particular, it needs to have at least 3.3x better upload bandwidth than
-   the client does, or the client might as well upload directly to the
-   storage servers. In a commercial grid, the helper should be in the same
-   colo (and preferably in the same rack) as the storage servers.
- * The Helper will take on most of the CPU load involved in uploading a file.
-   So having a dedicated machine will give better results.
- * The Helper buffers ciphertext on disk, so the host will need at least as
-   much free disk space as there will be simultaneous uploads. When an upload
-   is interrupted, that space will be used for a longer period of time.
+* The Helper needs to have good bandwidth to the storage servers. In
+  particular, it needs to have at least 3.3x better upload bandwidth than
+  the client does, or the client might as well upload directly to the
+  storage servers. In a commercial grid, the helper should be in the same
+  colo (and preferably in the same rack) as the storage servers.
+* The Helper will take on most of the CPU load involved in uploading a file.
+  So having a dedicated machine will give better results.
+* The Helper buffers ciphertext on disk, so the host will need at least as
+  much free disk space as there will be simultaneous uploads. When an upload
+  is interrupted, that space will be used for a longer period of time.
 
 To turn a Tahoe-LAFS node into a helper (i.e. to run a helper service in
 addition to whatever else that node is doing), edit the tahoe.cfg file in your
@@ -82,7 +84,9 @@ file named private/helper.furl which contains the contact information for the
 helper: you will need to give this FURL to any clients that wish to use your
 helper.
 
- cat $BASEDIR/private/helper.furl |mail -s "helper furl" friend@example.com
+::
+
+  cat $BASEDIR/private/helper.furl | mail -s "helper furl" friend@example.com
 
 You can tell if your node is running a helper by looking at its web status
 page. Assuming that you've set up the 'webport' to use port 3456, point your
@@ -105,27 +109,30 @@ finished. For long-running and busy helpers, it may be a good idea to delete
 files in these directories that have not been modified for a week or two.
 Future versions of tahoe will try to self-manage these files a bit better.
 
-== Using a Helper ==
+Using a Helper
+==============
 
 Who should consider using a Helper?
 
- * clients with limited upstream bandwidth, such as a consumer ADSL line
- * clients who believe that the helper will give them faster uploads than
-   they could achieve with a direct upload
- * clients who experience problems with TCP connection fairness: if other
-   programs or machines in the same home are getting less than their fair
-   share of upload bandwidth. If the connection is being shared fairly, then
-   a Tahoe upload that is happening at the same time as a single FTP upload
-   should get half the bandwidth.
- * clients who have been given the helper.furl by someone who is running a
-   Helper and is willing to let them use it
+* clients with limited upstream bandwidth, such as a consumer ADSL line
+* clients who believe that the helper will give them faster uploads than
+  they could achieve with a direct upload
+* clients who experience problems with TCP connection fairness: if other
+  programs or machines in the same home are getting less than their fair
+  share of upload bandwidth. If the connection is being shared fairly, then
+  a Tahoe upload that is happening at the same time as a single FTP upload
+  should get half the bandwidth.
+* clients who have been given the helper.furl by someone who is running a
+  Helper and is willing to let them use it
 
 To take advantage of somebody else's Helper, take the helper.furl file that
 they give you, and copy it into your node's base directory, then restart the
 node:
 
- cat email >$BASEDIR/helper.furl
- tahoe restart $BASEDIR
+::
+
+  cat email >$BASEDIR/helper.furl
+  tahoe restart $BASEDIR
 
 This will signal the client to try and connect to the helper. Subsequent
 uploads will use the helper rather than using direct connections to the
@@ -146,15 +153,16 @@ tahoe/foolscap connections.
 The upload/download status page (http://localhost:3456/status) will announce
 the using-helper-or-not state of each upload, in the "Helper?" column.
 
-== Other Helper Modes ==
+Other Helper Modes
+==================
 
 The Tahoe Helper only currently helps with one kind of operation: uploading
 immutable files. There are three other things it might be able to help with
 in the future:
 
- * downloading immutable files
- * uploading mutable files (such as directories)
- * downloading mutable files (like directories)
+* downloading immutable files
+* uploading mutable files (such as directories)
+* downloading mutable files (like directories)
 
 Since mutable files are currently limited in size, the ADSL upstream penalty
 is not so severe for them. There is no ADSL penalty to downloads, but there

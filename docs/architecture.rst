@@ -1,19 +1,22 @@
-= Tahoe-LAFS Architecture =
+=======================
+Tahoe-LAFS Architecture
+=======================
 
-1.  Overview
-2.  The Key-Value Store
-3.  File Encoding
-4.  Capabilities
-5.  Server Selection
-6.  Swarming Download, Trickling Upload
-7.  The Filesystem Layer
-8.  Leases, Refreshing, Garbage Collection
-9.  File Repairer
-10. Security
-11. Reliability
+1.  `Overview`_
+2.  `The Key-Value Store`_
+3.  `File Encoding`_
+4.  `Capabilities`_
+5.  `Server Selection`_
+6.  `Swarming Download, Trickling Upload`_
+7.  `The Filesystem Layer`_
+8.  `Leases, Refreshing, Garbage Collection`_
+9.  `File Repairer`_
+10. `Security`_
+11. `Reliability`_
 
 
-== Overview  ==
+Overview
+========
 
 (See the docs/specifications directory for more details.)
 
@@ -40,10 +43,13 @@ Allmydata.com uses it for a backup service: the application periodically
 copies files from the local disk onto the decentralized filesystem. We later
 provide read-only access to those files, allowing users to recover them.
 There are several other applications built on top of the Tahoe-LAFS
-filesystem (see the RelatedProjects page of the wiki for a list).
+filesystem (see the `RelatedProjects
+<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects>`_ page of the
+wiki for a list).
 
 
-== The Key-Value Store ==
+The Key-Value Store
+===================
 
 The key-value store is implemented by a grid of Tahoe-LAFS storage servers --
 user-space processes. Tahoe-LAFS storage clients communicate with the storage
@@ -76,7 +82,8 @@ For future releases, we have plans to decentralize introduction, allowing any
 server to tell a new client about all the others.
 
 
-== File Encoding ==
+File Encoding
+=============
 
 When a client stores a file on the grid, it first encrypts the file. It then
 breaks the encrypted file into small segments, in order to reduce the memory
@@ -117,7 +124,8 @@ turn them into segments of ciphertext, use the decryption key to convert that
 into plaintext, then emit the plaintext bytes to the output target.
 
 
-== Capabilities ==
+Capabilities
+============
 
 Capabilities to immutable files represent a specific set of bytes. Think of
 it like a hash function: you feed in a bunch of bytes, and you get out a
@@ -142,20 +150,23 @@ to retrieve a set of bytes, and then you can use it to validate ("identify")
 that these potential bytes are indeed the ones that you were looking for.
 
 The "key-value store" layer doesn't include human-meaningful names.
-Capabilities sit on the "global+secure" edge of Zooko's Triangle[1]. They are
+Capabilities sit on the "global+secure" edge of `Zooko's Triangle`_. They are
 self-authenticating, meaning that nobody can trick you into accepting a file
 that doesn't match the capability you used to refer to that file. The
 filesystem layer (described below) adds human-meaningful names atop the
 key-value layer.
 
+.. _`Zooko's Triangle`: http://en.wikipedia.org/wiki/Zooko%27s_triangle
 
-== Server Selection ==
+
+Server Selection
+================
 
 When a file is uploaded, the encoded shares are sent to some servers. But to
 which ones? The "server selection" algorithm is used to make this choice.
 
 The storage index is used to consistently-permute the set of all servers nodes
-(by sorting them by HASH(storage_index+nodeid)). Each file gets a different
+(by sorting them by ``HASH(storage_index+nodeid)``). Each file gets a different
 permutation, which (on average) will evenly distribute shares among the grid
 and avoid hotspots. Each server has announced its available space when it
 connected to the introducer, and we use that available space information to
@@ -254,7 +265,7 @@ times), if possible.
   significantly hurt reliability (sometimes the permutation resulted in most
   of the shares being dumped on a single node).
 
-  Another algorithm (known as "denver airport"[2]) uses the permuted hash to
+  Another algorithm (known as "denver airport" [#naming]_) uses the permuted hash to
   decide on an approximate target for each share, then sends lease requests
   via Chord routing. The request includes the contact information of the
   uploading node, and asks that the node which eventually accepts the lease
@@ -263,8 +274,17 @@ times), if possible.
   the same approach. This allows nodes to avoid maintaining a large number of
   long-term connections, at the expense of complexity and latency.
 
+.. [#naming]  all of these names are derived from the location where they were
+        concocted, in this case in a car ride from Boulder to DEN. To be
+        precise, "Tahoe 1" was an unworkable scheme in which everyone who holds
+        shares for a given file would form a sort of cabal which kept track of
+        all the others, "Tahoe 2" is the first-100-nodes in the permuted hash
+        described in this document, and "Tahoe 3" (or perhaps "Potrero hill 1")
+        was the abandoned ring-with-many-hands approach.
 
-== Swarming Download, Trickling Upload ==
+
+Swarming Download, Trickling Upload
+===================================
 
 Because the shares being downloaded are distributed across a large number of
 nodes, the download process will pull from many of them at the same time. The
@@ -295,7 +315,8 @@ in the same facility, so the helper-to-storage-server bandwidth is huge.
 See "helper.txt" for details about the upload helper.
 
 
-== The Filesystem Layer ==
+The Filesystem Layer
+====================
 
 The "filesystem" layer is responsible for mapping human-meaningful pathnames
 (directories and filenames) to pieces of data. The actual bytes inside these
@@ -325,7 +346,8 @@ links to spaces that are shared with specific other users, and other spaces
 that are globally visible.
 
 
-== Leases, Refreshing, Garbage Collection ==
+Leases, Refreshing, Garbage Collection
+======================================
 
 When a file or directory in the virtual filesystem is no longer referenced,
 the space that its shares occupied on each storage server can be freed,
@@ -346,7 +368,8 @@ See docs/garbage-collection.txt for further information, and how to configure
 garbage collection.
 
 
-== File Repairer ==
+File Repairer
+=============
 
 Shares may go away because the storage server hosting them has suffered a
 failure: either temporary downtime (affecting availability of the file), or a
@@ -403,19 +426,20 @@ to other nodes.
   in client behavior.
 
 
-== Security ==
+Security
+========
 
 The design goal for this project is that an attacker may be able to deny
 service (i.e. prevent you from recovering a file that was uploaded earlier)
 but can accomplish none of the following three attacks:
 
- 1) violate confidentiality: the attacker gets to view data to which you have
-    not granted them access
- 2) violate integrity: the attacker convinces you that the wrong data is
-    actually the data you were intending to retrieve
- 3) violate unforgeability: the attacker gets to modify a mutable file or
-    directory (either the pathnames or the file contents) to which you have
-    not given them write permission
+1) violate confidentiality: the attacker gets to view data to which you have
+   not granted them access
+2) violate integrity: the attacker convinces you that the wrong data is
+   actually the data you were intending to retrieve
+3) violate unforgeability: the attacker gets to modify a mutable file or
+   directory (either the pathnames or the file contents) to which you have
+   not given them write permission
 
 Integrity (the promise that the downloaded data will match the uploaded data)
 is provided by the hashes embedded in the capability (for immutable files) or
@@ -467,7 +491,8 @@ normal web site, using username and password to give a user access to her
 capabilities).
 
 
-== Reliability ==
+Reliability
+===========
 
 File encoding and peer-node selection parameters can be adjusted to achieve
 different goals. Each choice results in a number of properties; there are
@@ -532,16 +557,3 @@ decisions: this tool may help you evaluate different expansion factors and
 view the disk consumption of each. It is also acquiring some sections with
 availability/reliability numbers, as well as preliminary cost analysis data.
 This tool will continue to evolve as our analysis improves.
-
-------------------------------
-
-[1]: http://en.wikipedia.org/wiki/Zooko%27s_triangle
-
-[2]: all of these names are derived from the location where they were
-     concocted, in this case in a car ride from Boulder to DEN. To be
-     precise, "Tahoe 1" was an unworkable scheme in which everyone who holds
-     shares for a given file would form a sort of cabal which kept track of
-     all the others, "Tahoe 2" is the first-100-nodes in the permuted hash
-     described in this document, and "Tahoe 3" (or perhaps "Potrero hill 1")
-     was the abandoned ring-with-many-hands approach.
-
