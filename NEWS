@@ -5,6 +5,8 @@
 ** Documentation
 
  - All .txt documents have been converted to .rst format (#1225)
+ - Added docs/backdoors.rst declaring that we won't add backdoors to
+   Tahoe-LAFS (#1216)
 
 * Release 1.8.0 (2010-09-23)
 
