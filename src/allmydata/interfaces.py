@@ -1163,20 +1163,56 @@ class ICodecEncoder(Interface):
         encode(), unless of course it already happens to be an even multiple
         of required_shares in length.)
 
-         ALSO: the requirement to break up your data into 'required_shares'
-         chunks before calling encode() feels a bit surprising, at least from
-         the point of view of a user who doesn't know how FEC works. It feels
-         like an implementation detail that has leaked outside the
-         abstraction barrier. Can you imagine a use case in which the data to
-         be encoded might already be available in pre-segmented chunks, such
-         that it is faster or less work to make encode() take a list rather
-         than splitting a single string?
+        Note: the requirement to break up your data into
+        'required_shares' chunks of exactly the right length before
+        calling encode() is surprising from point of view of a user
+        who doesn't know how FEC works. It feels like an
+        implementation detail that has leaked outside the abstraction
+        barrier. Is there a use case in which the data to be encoded
+        might already be available in pre-segmented chunks, such that
+        it is faster or less work to make encode() take a list rather
+        than splitting a single string?
 
-         ALSO ALSO: I think 'inshares' is a misleading term, since encode()
-         is supposed to *produce* shares, so what it *accepts* should be
-         something other than shares. Other places in this interface use the
-         word 'data' for that-which-is-not-shares.. maybe we should use that
-         term?
+        Yes, there is: suppose you are uploading a file with K=64,
+        N=128, segsize=262,144. Then each in-share will be of size
+        4096. If you use this .encode() API then your code could first
+        read each successive 4096-byte chunk from the file and store
+        each one in a Python string and store each such Python string
+        in a Python list. Then you could call .encode(), passing that
+        list as "inshares". The encoder would generate the other 64
+        "secondary shares" and return to you a new list containing
+        references to the same 64 Python strings that you passed in
+        (as the primary shares) plus references to the new 64 Python
+        strings.
+
+        (You could even imagine that your code could use readv() so
+        that the operating system can arrange to get all of those
+        bytes copied from the file into the Python list of Python
+        strings as efficiently as possible instead of having a loop
+        written in C or in Python to copy the next part of the file
+        into the next string.)
+
+        On the other hand if you instead use the .encode_proposal()
+        API (above), then your code can first read in all of the
+        262,144 bytes of the segment from the file into a Python
+        string, then call .encode_proposal() passing the segment data
+        as the "data" argument. The encoder would basically first
+        split the "data" argument into a list of 64 in-shares of 4096
+        byte each, and then do the same thing that .encode() does. So
+        this would result in a little bit more copying of data and a
+        little bit higher of a "maximum memory usage" during the
+        process, although it might or might not make a practical
+        difference for our current use cases.
+
+        Note that "inshares" is a strange name for the parameter if
+        you think of the parameter as being just for feeding in data
+        to the codec. It makes more sense if you think of the result
+        of this encoding as being the set of shares from inshares plus
+        an extra set of "secondary shares" (or "check shares"). It is
+        a surprising name! If the API is going to be surprising then
+        the name should be surprising. If we switch to
+        encode_proposal() above then we should also switch to an
+        unsurprising name.
 
         'desired_share_ids', if provided, is required to be a sequence of
         ints, each of which is required to be >= 0 and < max_shares. If not
