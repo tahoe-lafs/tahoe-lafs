@@ -50,7 +50,7 @@ def mkdir(contents, options):
 
 def put_child(dirurl, childname, childcap):
     assert dirurl[-1] == "/"
-    url = dirurl + urllib.quote(childname) + "?t=uri"
+    url = dirurl + urllib.quote(unicode_to_url(childname)) + "?t=uri"
     resp = do_http("PUT", url, childcap)
     if resp.status not in (200, 201):
         raise HTTPError("Error during put_child", resp)

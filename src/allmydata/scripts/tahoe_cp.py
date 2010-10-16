@@ -51,7 +51,7 @@ def mkdir(targeturl):
 def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
     url = nodeurl + "/".join(["uri",
                               urllib.quote(parent_writecap),
-                              urllib.quote(name),
+                              urllib.quote(unicode_to_url(name)),
                               ]) + "?t=mkdir"
     resp = do_http("POST", url)
     if resp.status in (200, 201):

@@ -1487,6 +1487,39 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_unicode_dirnames(self):
+        self.basedir = "cli/Cp/unicode_dirnames"
+
+        fn1 = os.path.join(unicode(self.basedir), u"\u00C4rtonwall")
+        try:
+            fn1_arg = fn1.encode(get_argv_encoding())
+            artonwall_arg = u"\u00C4rtonwall".encode(get_argv_encoding())
+        except UnicodeEncodeError:
+            raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
+
+        self.skip_if_cannot_represent_filename(fn1)
+
+        self.set_up_grid()
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda res: self.do_cli("mkdir", "tahoe:test/" + artonwall_arg))
+        d.addCallback(lambda res: self.do_cli("cp", "-r", "tahoe:test", "tahoe:test2"))
+        d.addCallback(lambda res: self.do_cli("ls", "tahoe:test2"))
+        def _check((rc, out, err)):
+            try:
+                unicode_to_output(u"\u00C4rtonwall")
+            except UnicodeEncodeError:
+                self.failUnlessReallyEqual(rc, 1)
+                self.failUnlessReallyEqual(out, "")
+                self.failUnlessIn(quote_output(u"\u00C4rtonwall"), err)
+                self.failUnlessIn("files whose names could not be converted", err)
+            else:
+                self.failUnlessReallyEqual(rc, 0)
+                self.failUnlessReallyEqual(out.decode(get_output_encoding()), u"\u00C4rtonwall\n")
+                self.failUnlessReallyEqual(err, "")
+        d.addCallback(_check)
+
+        return d
 
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
