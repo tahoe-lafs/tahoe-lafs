@@ -119,7 +119,7 @@ class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
             sys.stdout = old_stdout
 
     def test_argv_to_unicode(self):
-        encodingutil.output_encoding = 'utf-8'
+        encodingutil.argv_encoding = 'utf-8'
         self.failUnlessRaises(usage.UsageError,
                               argv_to_unicode,
                               lumiere_nfc.encode('latin1'))
