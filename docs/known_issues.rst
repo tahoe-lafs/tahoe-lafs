@@ -17,7 +17,7 @@ Overview
 Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
 manage them.  The current version of this file can be found at
 
-http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/known_issues.txt
+http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/known_issues.rst
 
 If you've been using Tahoe-LAFS since v1.1 (released 2008-06-11) or if you're
 just curious about what sort of mistakes we've made in the past, then you might
@@ -200,3 +200,30 @@ Known issues in the FTP and SFTP frontends
 
 These are documented in docs/frontends/FTP-and-SFTP.txt and at
 <http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>.
+
+
+Traffic analysis based on sizes of files/directories, storage indices, and timing
+---------------------------------------------------------------------------------
+
+Files and directories stored by Tahoe-LAFS are encrypted, but the ciphertext
+reveals the exact size of the original file or directory representation.
+This information is available to passive eavesdroppers and to server operators.
+
+For example, a large data set with known file sizes could probably be
+identified with a high degree of confidence.
+
+Uploads and downloads of the same file or directory can be linked by server
+operators, even without making assumptions based on file size. Anyone who
+knows the introducer furl for a grid may be able to act as a server operator.
+This implies that if such an attacker knows which file/directory is being
+accessed in a particular request (by some other form of surveillance, say),
+then they can identify later or earlier accesses of the same file/directory.
+
+Observing requests during a directory traversal (such as a deep-check
+operation) could reveal information about the directory structure, i.e.
+which files and subdirectories are linked from a given directory.
+
+Attackers can combine the above information with inferences based on timing
+correlations. For instance, two files that are accessed close together in
+time are likely to be related even if they are not linked in the directory
+structure. Also, users that access the same files may be related to each other.
