@@ -294,6 +294,24 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         return d
 
+    def test_response_cache_memory_leak(self):
+        d = self.nodemaker.create_mutable_file("contents")
+        def _created(n):
+            d = n.download_best_version()
+            d.addCallback(lambda res: self.failUnlessEqual(res, "contents"))
+            d.addCallback(lambda ign: self.failUnless(isinstance(n._cache, ResponseCache)))
+
+            def _check_cache_size(expected):
+                # The total size of cache entries should not increase on the second download.
+                d2 = n.download_best_version()
+                d2.addCallback(lambda ign: self.failUnlessEqual(len(repr(n._cache.cache)), expected))
+                return d2
+            d.addCallback(lambda ign: _check_cache_size(len(repr(n._cache.cache))))
+            return d
+        d.addCallback(_created)
+        return d
+    test_response_cache_memory_leak.todo = "This isn't fixed (see #1045)."
+
     def test_create_with_initial_contents_function(self):
         data = "initial contents"
         def _make_contents(n):
