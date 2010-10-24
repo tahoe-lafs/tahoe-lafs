@@ -40,9 +40,10 @@
     from the introducer and put it into this directory, then use
     "<code>tahoe run</code>". After that, the node should be off and running. The first
     thing it will do is connect to the introducer and get itself connected to
-    all other nodes on the grid.  By default, a node will serve as a storage
-    node, meaning that it offers its disk space to other nodes.  To configure
-    other behavior, see <a href="configuration.txt">configuration.txt</a>.</p>
+    all other nodes on the grid.  By default, "<code>tahoe create-client</code>
+    creates a client-only node, that does not offer its disk space to other nodes.
+    To configure other behavior, use "<code>tahoe create-node</code>" or see
+    <a href="configuration.rst">configuration.rst</a>.</p>
 
     <p>To construct an introducer, create a new base directory for it (the name
     of the directory is up to you), <code>cd</code> into it, and run
@@ -59,7 +60,7 @@
     To stop a node started in this way, use "<code>tahoe stop</code>".
     <code>tahoe --help</code> gives a summary of all commands.</p>
 
-    <p>See <a href="configuration.txt">configuration.txt</a> for more
+    <p>See <a href="configuration.rst">configuration.rst</a> for more
     details about how to configure Tahoe-LAFS, including how to get other
     clients to connect to your node if it is behind a firewall or NAT device.
 
@@ -70,7 +71,7 @@
     <code>shares.happy</code> set to 7. If you are using Tahoe-LAFS on a
     grid with fewer than 7 storage nodes, this won't work well for you
     &mdash; none of your uploads will succeed. To fix this, see <a
-    href='configuration.txt'>configuration.txt</a> to learn how to set
+    href='configuration.rst'>configuration.rst</a> to learn how to set
     <code>shares.happy</code> to a more suitable value for your
     grid.</p>
 
