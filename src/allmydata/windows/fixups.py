@@ -129,7 +129,9 @@ def initialize():
                             remaining = len(text)
                             while remaining > 0:
                                 n = DWORD(0)
-                                retval = WriteConsoleW(self._hConsole, text, remaining, byref(n), None)
+                                # There is a shorter-than-documented limitation on the length of the string
+                                # passed to WriteConsoleW (see #1232).
+                                retval = WriteConsoleW(self._hConsole, text, min(remaining, 10000), byref(n), None)
                                 if retval == 0 or n.value == 0:
                                     raise IOError("WriteConsoleW returned %r, n.value = %r" % (retval, n.value))
                                 remaining -= n.value
