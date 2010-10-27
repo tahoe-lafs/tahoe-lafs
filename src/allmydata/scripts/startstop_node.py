@@ -48,60 +48,22 @@ def do_start(basedir, opts, out=sys.stdout, err=sys.stderr):
     else:
         nodetype = "unknown (%s)" % tac
 
-    cmd = find_exe.find_exe('twistd')
-    if not cmd:
-        # If 'twistd' wasn't on $PATH, maybe we're running from source and
-        # Twisted was built as one of our dependencies. If so, we're at
-        # BASEDIR/src/allmydata/scripts/startstop_node.py, and it's at
-        # BASEDIR/support/$BINDIR/twistd
-        up = os.path.dirname
-        TAHOEDIR = up(up(up(up(os.path.abspath(__file__)))))
-        if sys.platform == "win32":
-            bin_dir = "Scripts"
-        else:
-            bin_dir = "bin"
-        bindir = os.path.join(TAHOEDIR, "support", bin_dir)
-
-        maybe = os.path.join(bindir, "twistd")
-        if os.path.exists(maybe):
-            cmd = [maybe]
-            oldpath = os.environ.get("PATH", "").split(os.pathsep)
-            os.environ["PATH"] = os.pathsep.join(oldpath + [bindir])
-            # sys.path and $PYTHONPATH are taken care of by the extra code in
-            # 'setup.py trial'
-        else:
-            maybe = maybe+'.py'
-            if os.path.exists(maybe):
-                cmd = [sys.executable, maybe]
-                oldpath = os.environ.get("PATH", "").split(os.pathsep)
-                os.environ["PATH"] = os.pathsep.join(oldpath + [bindir])
-                # sys.path and $PYTHONPATH are taken care of by the extra code in
-                # 'setup.py trial'
-
-    if not cmd:
-        print "Can't find twistd (it comes with Twisted).  Aborting."
-        sys.exit(1)
-
-    cmd.extend(["-y", tac])
+    args = ["twistd", "-y", tac]
     if opts["syslog"]:
-        cmd.append("--syslog")
+        args.append("--syslog")
     elif nodetype in ("client", "introducer"):
         fileutil.make_dirs(os.path.join(basedir, "logs"))
-        cmd.extend(["--logfile", os.path.join("logs", "twistd.log")])
+        args.extend(["--logfile", os.path.join("logs", "twistd.log")])
     if opts["profile"]:
-        cmd.extend(["--profile=profiling_results.prof", "--savestats",])
-    curdir = os.getcwd()
-    try:
-        os.chdir(basedir)
-        rc = os.system(' '.join(cmd))
-    finally:
-        os.chdir(curdir)
-    if rc == 0:
-        print >>out, "%s node probably started" % nodetype
-        return 0
-    else:
-        print >>err, "%s node probably not started" % nodetype
-        return 1
+        args.extend(["--profile=profiling_results.prof", "--savestats",])
+    # now we're committed
+    os.chdir(basedir)
+    from twisted.scripts import twistd
+    sys.argv = args
+    twistd.run()
+    # run() doesn't return: the parent does os._exit(0) in daemonize(), so
+    # we'll never get here. If application setup fails (e.g. ImportError),
+    # run() will raise an exception.
 
 def do_stop(basedir, out=sys.stdout, err=sys.stderr):
     print >>out, "STOPPING", quote_output(basedir)
