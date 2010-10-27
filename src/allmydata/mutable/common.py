@@ -1,6 +1,6 @@
 
 from allmydata.util import idlib
-from allmydata.util.dictutil import DictOfSets
+from allmydata.util.spans import DataSpans
 
 MODE_CHECK = "MODE_CHECK" # query all peers
 MODE_ANYTHING = "MODE_ANYTHING" # one recoverable version
@@ -59,74 +59,52 @@ class UnknownVersionError(Exception):
 class ResponseCache:
     """I cache share data, to reduce the number of round trips used during
     mutable file operations. All of the data in my cache is for a single
-    storage index, but I will keep information on multiple shares (and
-    multiple versions) for that storage index.
+    storage index, but I will keep information on multiple shares for
+    that storage index.
+
+    I maintain a highest-seen sequence number, and will flush all entries
+    each time this number increases (this doesn't necessarily imply that
+    all entries have the same sequence number).
 
     My cache is indexed by a (verinfo, shnum) tuple.
 
-    My cache entries contain a set of non-overlapping byteranges: (start,
-    data, timestamp) tuples.
+    My cache entries are DataSpans instances, each representing a set of
+    non-overlapping byteranges.
     """
 
     def __init__(self):
-        self.cache = DictOfSets()
+        self.cache = {}
+        self.seqnum = None
 
     def _clear(self):
-        # used by unit tests
-        self.cache = DictOfSets()
+        # also used by unit tests
+        self.cache = {}
 
-    def _does_overlap(self, x_start, x_length, y_start, y_length):
-        if x_start < y_start:
-            x_start, y_start = y_start, x_start
-            x_length, y_length = y_length, x_length
-        x_end = x_start + x_length
-        y_end = y_start + y_length
-        # this just returns a boolean. Eventually we'll want a form that
-        # returns a range.
-        if not x_length:
-            return False
-        if not y_length:
-            return False
-        if x_start >= y_end:
-            return False
-        if y_start >= x_end:
-            return False
-        return True
+    def add(self, verinfo, shnum, offset, data):
+        seqnum = verinfo[0]
+        if seqnum > self.seqnum:
+            self._clear()
+            self.seqnum = seqnum
 
-
-    def _inside(self, x_start, x_length, y_start, y_length):
-        x_end = x_start + x_length
-        y_end = y_start + y_length
-        if x_start < y_start:
-            return False
-        if x_start >= y_end:
-            return False
-        if x_end < y_start:
-            return False
-        if x_end > y_end:
-            return False
-        return True
-
-    def add(self, verinfo, shnum, offset, data, timestamp):
         index = (verinfo, shnum)
-        self.cache.add(index, (offset, data, timestamp) )
+        if index in self.cache:
+            self.cache[index].add(offset, data)
+        else:
+            spans = DataSpans()
+            spans.add(offset, data)
+            self.cache[index] = spans
 
     def read(self, verinfo, shnum, offset, length):
         """Try to satisfy a read request from cache.
-        Returns (data, timestamp), or (None, None) if the cache did not hold
-        the requested data.
+        Returns data, or None if the cache did not hold the entire requested span.
         """
 
-        # TODO: join multiple fragments, instead of only returning a hit if
-        # we have a fragment that contains the whole request
+        # TODO: perhaps return a DataSpans object representing the fragments
+        # that we have, instead of only returning a hit if we can satisfy the
+        # whole request from cache.
 
         index = (verinfo, shnum)
-        for entry in self.cache.get(index, set()):
-            (e_start, e_data, e_timestamp) = entry
-            if self._inside(offset, length, e_start, len(e_data)):
-                want_start = offset - e_start
-                want_end = offset+length - e_start
-                return (e_data[want_start:want_end], e_timestamp)
-        return None, None
-
-
+        if index in self.cache:
+            return self.cache[index].get(offset, length)
+        else:
+            return None

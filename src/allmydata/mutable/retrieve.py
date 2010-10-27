@@ -7,12 +7,13 @@ from twisted.python import failure
 from foolscap.api import DeadReferenceError, eventually, fireEventually
 from allmydata.interfaces import IRetrieveStatus, NotEnoughSharesError
 from allmydata.util import hashutil, idlib, log
+from allmydata.util.dictutil import DictOfSets
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
 from pycryptopp.publickey import rsa
 
-from allmydata.mutable.common import DictOfSets, CorruptShareError, UncoordinatedWriteError
+from allmydata.mutable.common import CorruptShareError, UncoordinatedWriteError
 from allmydata.mutable.layout import SIGNED_PREFIX, unpack_share_data
 
 class RetrieveStatus:
@@ -198,8 +199,7 @@ class Retrieve:
         got_from_cache = False
         datavs = []
         for (offset, length) in readv:
-            (data, timestamp) = self._node._read_from_cache(self.verinfo, shnum,
-                                                            offset, length)
+            data = self._node._read_from_cache(self.verinfo, shnum, offset, length)
             if data is not None:
                 datavs.append(data)
         if len(datavs) == len(readv):

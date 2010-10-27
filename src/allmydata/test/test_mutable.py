@@ -301,16 +301,16 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents"))
             d.addCallback(lambda ign: self.failUnless(isinstance(n._cache, ResponseCache)))
 
-            def _check_cache_size(expected):
-                # The total size of cache entries should not increase on the second download.
+            def _check_cache(expected):
+                # The total size of cache entries should not increase on the second download;
+                # in fact the cache contents should be identical.
                 d2 = n.download_best_version()
-                d2.addCallback(lambda ign: self.failUnlessEqual(len(repr(n._cache.cache)), expected))
+                d2.addCallback(lambda rep: self.failUnlessEqual(repr(n._cache.cache), expected))
                 return d2
-            d.addCallback(lambda ign: _check_cache_size(len(repr(n._cache.cache))))
+            d.addCallback(lambda ign: _check_cache(repr(n._cache.cache)))
             return d
         d.addCallback(_created)
         return d
-    test_response_cache_memory_leak.todo = "This isn't fixed (see #1045)."
 
     def test_create_with_initial_contents_function(self):
         data = "initial contents"
@@ -1717,72 +1717,37 @@ class MultipleVersions(unittest.TestCase, PublishMixin, CheckerMixin):
 
 
 class Utils(unittest.TestCase):
-    def _do_inside(self, c, x_start, x_length, y_start, y_length):
-        # we compare this against sets of integers
-        x = set(range(x_start, x_start+x_length))
-        y = set(range(y_start, y_start+y_length))
-        should_be_inside = x.issubset(y)
-        self.failUnlessEqual(should_be_inside, c._inside(x_start, x_length,
-                                                         y_start, y_length),
-                             str((x_start, x_length, y_start, y_length)))
-
-    def test_cache_inside(self):
-        c = ResponseCache()
-        x_start = 10
-        x_length = 5
-        for y_start in range(8, 17):
-            for y_length in range(8):
-                self._do_inside(c, x_start, x_length, y_start, y_length)
-
-    def _do_overlap(self, c, x_start, x_length, y_start, y_length):
-        # we compare this against sets of integers
-        x = set(range(x_start, x_start+x_length))
-        y = set(range(y_start, y_start+y_length))
-        overlap = bool(x.intersection(y))
-        self.failUnlessEqual(overlap, c._does_overlap(x_start, x_length,
-                                                      y_start, y_length),
-                             str((x_start, x_length, y_start, y_length)))
-
-    def test_cache_overlap(self):
-        c = ResponseCache()
-        x_start = 10
-        x_length = 5
-        for y_start in range(8, 17):
-            for y_length in range(8):
-                self._do_overlap(c, x_start, x_length, y_start, y_length)
-
     def test_cache(self):
         c = ResponseCache()
         # xdata = base62.b2a(os.urandom(100))[:100]
         xdata = "1Ex4mdMaDyOl9YnGBM3I4xaBF97j8OQAg1K3RBR01F2PwTP4HohB3XpACuku8Xj4aTQjqJIR1f36mEj3BCNjXaJmPBEZnnHL0U9l"
         ydata = "4DCUQXvkEPnnr9Lufikq5t21JsnzZKhzxKBhLhrBB6iIcBOWRuT4UweDhjuKJUre8A4wOObJnl3Kiqmlj4vjSLSqUGAkUD87Y3vs"
-        nope = (None, None)
-        c.add("v1", 1, 0, xdata, "time0")
-        c.add("v1", 1, 2000, ydata, "time1")
-        self.failUnlessEqual(c.read("v2", 1, 10, 11), nope)
-        self.failUnlessEqual(c.read("v1", 2, 10, 11), nope)
-        self.failUnlessEqual(c.read("v1", 1, 0, 10), (xdata[:10], "time0"))
-        self.failUnlessEqual(c.read("v1", 1, 90, 10), (xdata[90:], "time0"))
-        self.failUnlessEqual(c.read("v1", 1, 300, 10), nope)
-        self.failUnlessEqual(c.read("v1", 1, 2050, 5), (ydata[50:55], "time1"))
-        self.failUnlessEqual(c.read("v1", 1, 0, 101), nope)
-        self.failUnlessEqual(c.read("v1", 1, 99, 1), (xdata[99:100], "time0"))
-        self.failUnlessEqual(c.read("v1", 1, 100, 1), nope)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 9), nope)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 10), nope)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 11), nope)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 15), nope)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 19), nope)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 20), nope)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 21), nope)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 25), nope)
-        self.failUnlessEqual(c.read("v1", 1, 1999, 25), nope)
+        c.add("v1", 1, 0, xdata)
+        c.add("v1", 1, 2000, ydata)
+        self.failUnlessEqual(c.read("v2", 1, 10, 11), None)
+        self.failUnlessEqual(c.read("v1", 2, 10, 11), None)
+        self.failUnlessEqual(c.read("v1", 1, 0, 10), xdata[:10])
+        self.failUnlessEqual(c.read("v1", 1, 90, 10), xdata[90:])
+        self.failUnlessEqual(c.read("v1", 1, 300, 10), None)
+        self.failUnlessEqual(c.read("v1", 1, 2050, 5), ydata[50:55])
+        self.failUnlessEqual(c.read("v1", 1, 0, 101), None)
+        self.failUnlessEqual(c.read("v1", 1, 99, 1), xdata[99:100])
+        self.failUnlessEqual(c.read("v1", 1, 100, 1), None)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 9), None)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 10), None)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 11), None)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 15), None)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 19), None)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 20), None)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 21), None)
+        self.failUnlessEqual(c.read("v1", 1, 1990, 25), None)
+        self.failUnlessEqual(c.read("v1", 1, 1999, 25), None)
 
-        # optional: join fragments
+        # test joining fragments
         c = ResponseCache()
-        c.add("v1", 1, 0, xdata[:10], "time0")
-        c.add("v1", 1, 10, xdata[10:20], "time1")
-        #self.failUnlessEqual(c.read("v1", 1, 0, 20), (xdata[:20], "time0"))
+        c.add("v1", 1, 0, xdata[:10])
+        c.add("v1", 1, 10, xdata[10:20])
+        self.failUnlessEqual(c.read("v1", 1, 0, 20), xdata[:20])
 
 class Exceptions(unittest.TestCase):
     def test_repr(self):

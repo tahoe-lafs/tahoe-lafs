@@ -6,12 +6,13 @@ from twisted.internet import defer
 from twisted.python import failure
 from foolscap.api import DeadReferenceError, RemoteException, eventually
 from allmydata.util import base32, hashutil, idlib, log
+from allmydata.util.dictutil import DictOfSets
 from allmydata.storage.server import si_b2a
 from allmydata.interfaces import IServermapUpdaterStatus
 from pycryptopp.publickey import rsa
 
 from allmydata.mutable.common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
-     DictOfSets, CorruptShareError, NeedMoreDataError
+     CorruptShareError, NeedMoreDataError
 from allmydata.mutable.layout import unpack_prefix_and_signature, unpack_header, unpack_share, \
      SIGNED_PREFIX_LENGTH
 
@@ -581,7 +582,7 @@ class ServermapUpdater:
                 verinfo = self._got_results_one_share(shnum, data, peerid, lp)
                 last_verinfo = verinfo
                 last_shnum = shnum
-                self._node._add_to_cache(verinfo, shnum, 0, data, now)
+                self._node._add_to_cache(verinfo, shnum, 0, data)
             except CorruptShareError, e:
                 # log it and give the other shares a chance to be processed
                 f = failure.Failure()

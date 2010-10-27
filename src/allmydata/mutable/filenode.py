@@ -149,8 +149,8 @@ class MutableFileNode:
         self._privkey = privkey
     def _populate_encprivkey(self, encprivkey):
         self._encprivkey = encprivkey
-    def _add_to_cache(self, verinfo, shnum, offset, data, timestamp):
-        self._cache.add(verinfo, shnum, offset, data, timestamp)
+    def _add_to_cache(self, verinfo, shnum, offset, data):
+        self._cache.add(verinfo, shnum, offset, data)
     def _read_from_cache(self, verinfo, shnum, offset, length):
         return self._cache.read(verinfo, shnum, offset, length)
 

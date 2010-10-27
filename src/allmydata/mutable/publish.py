@@ -7,12 +7,13 @@ from twisted.internet import defer
 from twisted.python import failure
 from allmydata.interfaces import IPublishStatus
 from allmydata.util import base32, hashutil, mathutil, idlib, log
+from allmydata.util.dictutil import DictOfSets
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
 from foolscap.api import eventually, fireEventually
 
-from allmydata.mutable.common import MODE_WRITE, MODE_CHECK, DictOfSets, \
+from allmydata.mutable.common import MODE_WRITE, MODE_CHECK, \
      UncoordinatedWriteError, NotEnoughServersError
 from allmydata.mutable.servermap import ServerMap
 from allmydata.mutable.layout import pack_prefix, pack_share, unpack_header, pack_checkstring, \
