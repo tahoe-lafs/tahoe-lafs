@@ -1,7 +1,7 @@
 
 import os, sys, signal, time
 from allmydata.scripts.common import BasedirMixin, BaseOptions
-from allmydata.util import fileutil, find_exe
+from allmydata.util import fileutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, quote_output
 
