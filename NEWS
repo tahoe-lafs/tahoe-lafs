@@ -4,9 +4,17 @@
 
 ** Documentation
 
- - All .txt documents have been converted to .rst format (#1225)
+ - All .txt documents have been converted to .rst format. (#1225)
  - Added docs/backdoors.rst declaring that we won't add backdoors to
-   Tahoe-LAFS (#1216)
+   Tahoe-LAFS, or add anything to facilitate government access to data.
+   (#1216)
+
+** Bugfixes and Improvements
+
+ - Fix bug that caused 'tahoe cp' to fail for a grid-to-grid copy
+   involving a non-ASCII filename. (#1224)
+ - Fix rarely-encountered bug involving printing large strings to
+   the console on Windows. (#1232)
 
 * Release 1.8.0 (2010-09-23)
 
