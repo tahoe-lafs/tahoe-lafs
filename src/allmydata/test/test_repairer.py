@@ -672,6 +672,35 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         return d
     #test_repair_from_corruption_of_1.todo = "Repairer doesn't properly replace corrupted shares yet."
 
+    def test_tiny_reads(self):
+        # ticket #1223 points out three problems:
+        #   repairer reads beyond end of input file
+        #   new-downloader does not tolerate overreads
+        #   uploader does lots of tiny reads, inefficient
+        self.basedir = "repairer/Repairer/test_tiny_reads"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        DATA = "a"*135
+        c0.DEFAULT_ENCODING_PARAMETERS['k'] = 22
+        c0.DEFAULT_ENCODING_PARAMETERS['n'] = 66
+        d = c0.upload(upload.Data(DATA, convergence=""))
+        def _then(ur):
+            self.uri = ur.uri
+            self.delete_shares_numbered(self.uri, [0])
+            self.c0_filenode = c0.create_node_from_uri(ur.uri)
+            self._stash_counts()
+            return self.c0_filenode.check_and_repair(Monitor())
+        d.addCallback(_then)
+        def _check(ign):
+            (r,a,w) = self._get_delta_counts()
+            # when the uploader (driven by the repairer) does full-segment
+            # reads, this makes 44 server read calls (2*k). Before, when it
+            # was doing input_chunk_size reads (7 bytes), it was doing over
+            # 400.
+            self.failIf(r > 100, "too many reads: %d>100" % r)
+        d.addCallback(_check)
+        return d
+
 
 # XXX extend these tests to show that the checker detects which specific
 # share on which specific server is broken -- this is necessary so that the

@@ -1622,7 +1622,11 @@ class IUploadable(Interface):
 
         If the data must be acquired through multiple internal read
         operations, returning a list instead of a single string may help to
-        reduce string copies.
+        reduce string copies. However, the length of the concatenated strings
+        must equal the amount of data requested, unless EOF is encountered.
+        Long reads, or short reads without EOF, are not allowed. read()
+        should return the same amount of data as a local disk file read, just
+        in a different shape and asynchronously.
 
         'length' will typically be equal to (min(get_size(),1MB)/req_shares),
         so a 10kB file means length=3kB, 100kB file means length=30kB,

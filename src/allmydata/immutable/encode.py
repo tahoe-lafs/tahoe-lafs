@@ -316,6 +316,9 @@ class Encoder(object):
         # of additional shares which can be substituted if the primary ones
         # are unavailable
 
+        # we read data from the source one segment at a time, and then chop
+        # it into 'input_piece_size' pieces before handing it to the codec
+
         crypttext_segment_hasher = hashutil.crypttext_segment_hasher()
 
         # memory footprint: we only hold a tiny piece of the plaintext at any
@@ -350,8 +353,7 @@ class Encoder(object):
         crypttext_segment_hasher = hashutil.crypttext_segment_hasher()
 
         d = self._gather_data(self.required_shares, input_piece_size,
-                              crypttext_segment_hasher,
-                              allow_short=True)
+                              crypttext_segment_hasher, allow_short=True)
         def _done_gathering(chunks):
             for c in chunks:
                 # a short trailing chunk will have been padded by
@@ -369,58 +371,50 @@ class Encoder(object):
 
     def _gather_data(self, num_chunks, input_chunk_size,
                      crypttext_segment_hasher,
-                     allow_short=False,
-                     previous_chunks=[]):
+                     allow_short=False):
         """Return a Deferred that will fire when the required number of
         chunks have been read (and hashed and encrypted). The Deferred fires
-        with the combination of any 'previous_chunks' and the new chunks
-        which were gathered."""
+        with a list of chunks, each of size input_chunk_size."""
+
+        # I originally built this to allow read_encrypted() to behave badly:
+        # to let it return more or less data than you asked for. It would
+        # stash the leftovers until later, and then recurse until it got
+        # enough. I don't think that was actually useful.
+        #
+        # who defines read_encrypted?
+        #  offloaded.LocalCiphertextReader: real disk file: exact
+        #  upload.EncryptAnUploadable: Uploadable, but a wrapper that makes
+        #    it exact. The return value is a list of 50KiB chunks, to reduce
+        #    the memory footprint of the encryption process.
+        #  repairer.Repairer: immutable.filenode.CiphertextFileNode: exact
+        #
+        # This has been redefined to require read_encrypted() to behave like
+        # a local file: return exactly the amount requested unless it hits
+        # EOF.
+        #  -warner
 
         if self._aborted:
             raise UploadAborted()
 
-        if not num_chunks:
-            return defer.succeed(previous_chunks)
-
-        d = self._uploadable.read_encrypted(input_chunk_size, False)
+        read_size = num_chunks * input_chunk_size
+        d = self._uploadable.read_encrypted(read_size, hash_only=False)
         def _got(data):
+            assert isinstance(data, (list,tuple))
             if self._aborted:
                 raise UploadAborted()
-            encrypted_pieces = []
-            length = 0
-            while data:
-                encrypted_piece = data.pop(0)
-                length += len(encrypted_piece)
-                crypttext_segment_hasher.update(encrypted_piece)
-                self._crypttext_hasher.update(encrypted_piece)
-                encrypted_pieces.append(encrypted_piece)
-
-            precondition(length <= input_chunk_size,
-                         "length=%d > input_chunk_size=%d" %
-                         (length, input_chunk_size))
-            if allow_short:
-                if length < input_chunk_size:
-                    # padding
-                    pad_size = input_chunk_size - length
-                    encrypted_pieces.append('\x00' * pad_size)
-            else:
-                # non-tail segments should be the full segment size
-                if length != input_chunk_size:
-                    log.msg("non-tail segment should be full segment size: %d!=%d"
-                            % (length, input_chunk_size),
-                            level=log.BAD, umid="jNk5Yw")
-                precondition(length == input_chunk_size,
-                             "length=%d != input_chunk_size=%d" %
-                             (length, input_chunk_size))
-
-            encrypted_piece = "".join(encrypted_pieces)
-            return previous_chunks + [encrypted_piece]
-
+            data = "".join(data)
+            precondition(len(data) <= read_size, len(data), read_size)
+            if not allow_short:
+                precondition(len(data) == read_size, len(data), read_size)
+            crypttext_segment_hasher.update(data)
+            self._crypttext_hasher.update(data)
+            if allow_short and len(data) < read_size:
+                # padding
+                data += "\x00" * (read_size - len(data))
+            encrypted_pieces = [data[i:i+input_chunk_size]
+                                for i in range(0, len(data), input_chunk_size)]
+            return encrypted_pieces
         d.addCallback(_got)
-        d.addCallback(lambda chunks:
-                      self._gather_data(num_chunks-1, input_chunk_size,
-                                        crypttext_segment_hasher,
-                                        allow_short, chunks))
         return d
 
     def _send_segment(self, (shares, shareids), segnum):
