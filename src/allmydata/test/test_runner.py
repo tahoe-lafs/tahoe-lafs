@@ -158,7 +158,8 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
             self.failUnless(out.startswith(allmydata.__appname__+':'), str(res))
             self.failIfIn("DeprecationWarning", out, str(res))
             errlines = err.split("\n")
-            self.failIf([True for line in errlines if line != "" and ("UserWarning: Unbuilt egg for setuptools" not in line)], str(res))
+            self.failIf([True for line in errlines if (line != "" and "UserWarning: Unbuilt egg for setuptools" not in line
+                                                                  and "from pkg_resources import load_entry_point" not in line)], errstr)
             if err != "":
                 raise unittest.SkipTest("This test is known not to pass on Ubuntu Lucid; see #1235.")
         d.addCallback(_cb)
@@ -443,7 +444,8 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr) # If you emit noise, you fail this test.
             errlines = err.split("\n")
-            self.failIf([True for line in errlines if line != "" and ("UserWarning: Unbuilt egg for setuptools" not in line)], errstr)
+            self.failIf([True for line in errlines if (line != "" and "UserWarning: Unbuilt egg for setuptools" not in line
+                                                                  and "from pkg_resources import load_entry_point" not in line)], errstr)
             if err != "":
                 raise unittest.SkipTest("This test is known not to pass on Ubuntu Lucid; see #1235.")
 
