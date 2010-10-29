@@ -524,6 +524,16 @@ class WorkingSet(object):
         if dist.key in self.by_key:
             return      # ignore hidden distros
 
+        # If we have a __requires__ then we can already tell if this
+        # dist is unsatisfactory, in which case we won't add it.
+        if __requires__ is not None:
+            for thisreqstr in __requires__:
+                for thisreq in parse_requirements(thisreqstr):
+                    if thisreq.key == dist.key:
+                        if dist not in thisreq:
+                            return
+
+
         self.by_key[dist.key] = dist
         if dist.key not in keys:
             keys.append(dist.key)
@@ -2591,6 +2601,7 @@ def _initialize(g):
 _initialize(globals())
 
 # Prepare the master working set and make the ``require()`` API available
+__requires__ = None
 _declare_state('object', working_set = WorkingSet())
 try:
     # Does the main program list any requirements?
@@ -2601,12 +2612,15 @@ else:
     # Yes: ensure the requirements are met, by prefixing sys.path if necessary
     try:
         working_set.require(__requires__)
-    except VersionConflict:     # try it without defaults already on sys.path
+    except (VersionConflict, DistributionNotFound):     # try it without defaults already on sys.path
         working_set = WorkingSet([])    # by starting with an empty path
-        for dist in working_set.resolve(
-            parse_requirements(__requires__), Environment()
-        ):
-            working_set.add(dist)
+        try:
+            for dist in working_set.resolve(
+                parse_requirements(__requires__), Environment()
+                ):
+                working_set.add(dist)
+        except DistributionNotFound:
+            pass
         for entry in sys.path:  # add any missing entries from sys.path
             if entry not in working_set.entries:
                 working_set.add_entry(entry)
