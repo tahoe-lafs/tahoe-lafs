@@ -372,8 +372,8 @@ class ServermapUpdater:
         #   * the offset table tells us the 'ish', also the positive offset
         # A future version of the SMDF slot format should consider using
         # fixed-size slots so we can retrieve less data. For now, we'll just
-        # read 2000 bytes, which also happens to read enough actual data to
-        # pre-fetch a 9-entry dirnode.
+        # read 4000 bytes, which also happens to read enough actual data to
+        # pre-fetch an 18-entry dirnode.
         self._read_size = 4000
         if mode == MODE_CHECK:
             # we use unpack_prefix_and_signature, so we need 1k
