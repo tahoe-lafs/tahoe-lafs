@@ -159,7 +159,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
             self.failIfIn("DeprecationWarning", out, str(res))
             errlines = err.split("\n")
             self.failIf([True for line in errlines if (line != "" and "UserWarning: Unbuilt egg for setuptools" not in line
-                                                                  and "from pkg_resources import load_entry_point" not in line)], errstr)
+                                                                  and "from pkg_resources import load_entry_point" not in line)], str(res))
             if err != "":
                 raise unittest.SkipTest("This test is known not to pass on Ubuntu Lucid; see #1235.")
         d.addCallback(_cb)
