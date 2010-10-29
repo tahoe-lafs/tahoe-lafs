@@ -1493,6 +1493,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         fn1 = os.path.join(unicode(self.basedir), u"\u00C4rtonwall")
         try:
             fn1_arg = fn1.encode(get_argv_encoding())
+            del fn1_arg # hush pyflakes
             artonwall_arg = u"\u00C4rtonwall".encode(get_argv_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
