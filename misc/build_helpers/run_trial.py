@@ -32,7 +32,7 @@ __requires__ = [APPNAME + '==' + version] + install_requires + test_requires
 
 print "Requirements: %r" % (__requires__,)
 
-eggz = glob.glob('setuptools-*.egg')
+eggz = glob.glob(os.path.join('..', 'setuptools-*.egg'))
 if len(eggz) > 0:
    egg = os.path.realpath(eggz[0])
    print "Inserting egg on sys.path: %r" % (egg,)
