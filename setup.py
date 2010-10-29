@@ -38,6 +38,34 @@ def read_version_py(infname):
 
 version = read_version_py("src/allmydata/_version.py")
 
+APPNAME='allmydata-tahoe'
+APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')
+APPNAMEFILESTR = "__appname__ = '%s'" % (APPNAME,)
+try:
+    curappnamefilestr = open(APPNAMEFILE, 'rU').read()
+except EnvironmentError:
+    # No file, or unreadable or something, okay then let's try to write one.
+    open(APPNAMEFILE, "w").write(APPNAMEFILESTR)
+else:
+    if curappnamefilestr.strip() != APPNAMEFILESTR:
+        print "Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR)
+        sys.exit(-1)
+
+# setuptools/zetuptoolz looks in __main__.__requires__ for a list of
+# requirements. When running "python setup.py test", __main__ is
+# setup.py, so we put the list here so that the requirements will be
+# available for tests:
+
+# Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
+# the _auto_deps.install_requires list, which is used in the call to setup()
+# below.
+adglobals = {}
+execfile('src/allmydata/_auto_deps.py', adglobals)
+install_requires = adglobals['install_requires']
+
+if len(sys.argv) > 1 and sys.argv[1] in ['trial', 'test'] and version is not None:
+    __requires__ = [APPNAME + '==' + version] + install_requires
+
 egg = os.path.realpath(glob.glob('setuptools-*.egg')[0])
 sys.path.insert(0, egg)
 egg = os.path.realpath(glob.glob('darcsver-*.egg')[0])
@@ -318,26 +346,6 @@ class MySdist(sdist.sdist):
             self.distribution.get_fullname = get_fullname
 
         return sdist.sdist.make_distribution(self)
-
-# Tahoe's dependencies are managed by the find_links= entry in setup.cfg and
-# the _auto_deps.install_requires list, which is used in the call to setup()
-# below.
-adglobals = {}
-execfile('src/allmydata/_auto_deps.py', adglobals)
-install_requires = adglobals['install_requires']
-
-APPNAME='allmydata-tahoe'
-APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')
-APPNAMEFILESTR = "__appname__ = '%s'" % (APPNAME,)
-try:
-    curappnamefilestr = open(APPNAMEFILE, 'rU').read()
-except EnvironmentError:
-    # No file, or unreadable or something, okay then let's try to write one.
-    open(APPNAMEFILE, "w").write(APPNAMEFILESTR)
-else:
-    if curappnamefilestr.strip() != APPNAMEFILESTR:
-        print "Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR)
-        sys.exit(-1)
 
 setup_args = {}
 if version:

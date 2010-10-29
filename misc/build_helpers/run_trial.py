@@ -1,6 +1,44 @@
 #!/usr/bin/env python
 
-import os, sys, re
+import os, sys, re, glob
+
+def read_version_py(infname):
+    try:
+        verstrline = open(infname, "rt").read()
+    except EnvironmentError:
+        return None
+    else:
+        VSRE = r"^verstr = ['\"]([^'\"]*)['\"]"
+        mo = re.search(VSRE, verstrline, re.M)
+        if mo:
+            return mo.group(1)
+
+version = read_version_py(os.path.join('..', 'src', 'allmydata', '_version.py'))
+
+if version is None:
+    raise AssertionError("We don't know which version we're supposed to be testing.")
+
+APPNAME='allmydata-tahoe'
+
+adglobals = {}
+execfile(os.path.join('..', 'src', 'allmydata', '_auto_deps.py'), adglobals)
+install_requires = adglobals['install_requires']
+test_requires = adglobals.get('test_requires', ['mock'])
+
+# setuptools/zetuptoolz looks in __main__.__requires__ for a list of
+# requirements.
+
+__requires__ = [APPNAME + '==' + version] + install_requires + test_requires
+
+print "Requirements: %r" % (__requires__,)
+
+eggz = glob.glob('setuptools-*.egg')
+if len(eggz) > 0:
+   egg = os.path.realpath(eggz[0])
+   print "Inserting egg on sys.path: %r" % (egg,)
+   sys.path.insert(0, egg)
+
+import pkg_resources
 
 modulename = None
 for i in xrange(1, len(sys.argv)):
@@ -28,6 +66,9 @@ elif os.path.normcase(os.path.basename(srcdir)) == 'site-packages':
 
 srcdir = os.path.normcase(os.path.normpath(srcdir))
 cwd = os.path.normcase(os.path.normpath(os.getcwd()))
+
+if os.path.normcase(os.path.basename(cwd)) == 'src':
+    cwd = os.path.dirname(cwd)
 
 same = (srcdir == cwd)
 if not same:
