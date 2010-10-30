@@ -4,6 +4,9 @@ Decentralized storage grid.
 community web site: U{http://tahoe-lafs.org/}
 """
 
+from allmydata import _auto_deps
+_auto_deps.require_auto_deps()
+
 # This is just to suppress DeprecationWarnings from nevow and twisted.
 # See http://allmydata.org/trac/tahoe/ticket/859 and
 # http://divmod.org/trac/ticket/2994 .
@@ -62,9 +65,6 @@ except ImportError:
 # "application" part of the Tahoe versioning scheme:
 # http://allmydata.org/trac/tahoe/wiki/Versioning
 __full_version__ = __appname__ + '/' + str(__version__)
-
-from allmydata import _auto_deps
-_auto_deps.require_auto_deps()
 
 import os, platform, re, subprocess, sys
 _distributor_id_cmdline_re = re.compile("(?:Distributor ID:)\s*(.*)", re.I)
