@@ -94,7 +94,10 @@ def print_setuptools_ver():
         sys.stderr.flush()
         pass
 
-def print_py_pkg_ver(pkgname):
+def print_py_pkg_ver(pkgname, modulename=None):
+    if modulename is None:
+        modulename = pkgname
+
     print
     try:
         import pkg_resources
@@ -110,6 +113,17 @@ def print_py_pkg_ver(pkgname):
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
         pass
+    try:
+        __import__(modulename)
+    except ImportError:
+        pass
+    else:
+        modobj = sys.modules.get(modulename)
+        print pkgname + ' module: ' + str(modobj)
+        try:
+            print pkgname + ' __version__: ' + str(modobj.__version__)
+        except AttributeError:
+            pass
 
 print_platform()
 
@@ -139,3 +153,7 @@ print_py_pkg_ver('pyflakes')
 print_py_pkg_ver('zope.interface')
 print_py_pkg_ver('setuptools_darcs')
 print_py_pkg_ver('darcsver')
+print_py_pkg_ver('Twisted', 'twisted')
+print_py_pkg_ver('TwistedCore', 'twisted.python')
+print_py_pkg_ver('TwistedWeb', 'twisted.web')
+print_py_pkg_ver('TwistedConch', 'twisted.conch')
