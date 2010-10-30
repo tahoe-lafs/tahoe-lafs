@@ -17,6 +17,8 @@
    the console on Windows. (#1232)
  - Fix a memory leak in the ResponseCache which is used during mutable file
    operations. (#1045)
+ - Fix a regression and add a performance improvement in the downloader. This
+   issue caused repair to fail in some special cases. (#1223)
 
 * Release 1.8.0 (2010-09-23)
 
