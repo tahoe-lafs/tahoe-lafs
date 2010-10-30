@@ -27,5 +27,6 @@ except OSError:
 os.chdir('src')
 trial=os.path.join(os.getcwd(), '..', 'misc', 'build_helpers', 'run_trial.py')
 os.environ['PATH']=os.getcwd()+os.pathsep+os.environ['PATH']
-os.environ['PYTHONPATH']=os.pathsep+pkgdirname+os.pathsep+os.pathsep.join(glob.glob('*.egg'))+os.pathsep+os.environ.get('PYTHONPATH','')
+eggs = [os.path.realpath(p) for p in glob.glob(os.path.join('..', '*.egg'))]
+os.environ['PYTHONPATH']=os.pathsep+pkgdirname+os.pathsep+os.pathsep.join(eggs)+os.pathsep+os.environ.get('PYTHONPATH','')
 sys.exit(subprocess.call([sys.executable, trial, testsuite], env=os.environ))
