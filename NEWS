@@ -4,21 +4,29 @@
 
 ** Documentation
 
- - All .txt documents have been converted to .rst format. (#1225)
+ - All .txt documents (except historical docs) have been converted to
+   .rst format. (#1225)
  - Added docs/backdoors.rst declaring that we won't add backdoors to
    Tahoe-LAFS, or add anything to facilitate government access to data.
    (#1216)
 
 ** Bugfixes and Improvements
 
- - Fix bug that caused 'tahoe cp' to fail for a grid-to-grid copy
+ - Allow the repairer to improve the health of a file by uploading
+   some shares, even if it cannot achieve the configured happiness
+   threshold. This fixes a regression introduced between v1.7.1 and
+   v1.8.0. (#1212)
+ - Use a newer version of a dependency if needed, even if an older
+   version is installed. This would previously cause a VersionConflict
+   error. (#1190)
+ - Fix a memory leak in the ResponseCache which is used during mutable
+   file/directory operations. (#1045)
+ - Fix a regression and add a performance improvement in the downloader.
+   This issue caused repair to fail in some special cases. (#1223)
+ - Fix a bug that caused 'tahoe cp' to fail for a grid-to-grid copy
    involving a non-ASCII filename. (#1224)
- - Fix rarely-encountered bug involving printing large strings to
+ - Fix a rarely-encountered bug involving printing large strings to
    the console on Windows. (#1232)
- - Fix a memory leak in the ResponseCache which is used during mutable file
-   operations. (#1045)
- - Fix a regression and add a performance improvement in the downloader. This
-   issue caused repair to fail in some special cases. (#1223)
 
 * Release 1.8.0 (2010-09-23)
 
