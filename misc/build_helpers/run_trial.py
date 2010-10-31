@@ -88,7 +88,7 @@ if not same:
     cwdu = os.path.normcase(os.path.normpath(os.getcwdu())
     if os.path.basename(cwdu) == u'src':
         cwdu = os.path.dirname(cwdu)
-    if not isinstance(cwd, unicode) and cwd.decode(sys.getfilesystemencoding(), 'replace') != cwdu):
+    if not isinstance(cwd, unicode) and cwd.decode(sys.getfilesystemencoding(), 'replace') != cwdu:
         msg += ("However, this may be a false alarm because the current directory path\n"
                 "is not representable in the filesystem encoding. This script needs to be\n"
                 "run from the source directory to be tested, at a non-Unicode path.")
