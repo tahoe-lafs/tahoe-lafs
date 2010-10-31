@@ -65,9 +65,11 @@ elif os.path.normcase(os.path.basename(srcdir)) == 'site-packages':
         srcdir = os.path.dirname(srcdir)
 
 srcdir = os.path.normcase(os.path.normpath(srcdir))
-cwd = os.path.normcase(os.path.normpath(os.getcwd()))
+if os.path.basename(srcdir) == 'src':
+    srcdir = os.path.dirname(srcdir)
 
-if os.path.normcase(os.path.basename(cwd)) == 'src':
+cwd = os.path.normcase(os.path.normpath(os.getcwd()))
+if os.path.basename(cwd) == 'src':
     cwd = os.path.dirname(cwd)
 
 same = (srcdir == cwd)
@@ -82,8 +84,11 @@ if not same:
            "(according to the source filename %r),\n"
            "but expected to be testing the code at %r.\n"
            % (srcdir, srcfile, cwd))
-    if (not isinstance(cwd, unicode) and
-        cwd.decode(sys.getfilesystemencoding(), 'replace') != os.path.normcase(os.path.normpath(os.getcwdu()))):
+
+    cwdu = os.path.normcase(os.path.normpath(os.getcwdu())
+    if os.path.basename(cwdu) == u'src':
+        cwdu = os.path.dirname(cwdu)
+    if not isinstance(cwd, unicode) and cwd.decode(sys.getfilesystemencoding(), 'replace') != cwdu):
         msg += ("However, this may be a false alarm because the current directory path\n"
                 "is not representable in the filesystem encoding. This script needs to be\n"
                 "run from the source directory to be tested, at a non-Unicode path.")
