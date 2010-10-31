@@ -4,6 +4,9 @@ Decentralized storage grid.
 community web site: U{http://tahoe-lafs.org/}
 """
 
+# temporary hack to debug failure on midnightmagic's buildslave:
+import nevow
+
 from allmydata import _auto_deps
 _auto_deps.require_auto_deps()
 
