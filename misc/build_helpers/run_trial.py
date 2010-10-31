@@ -85,7 +85,7 @@ if not same:
            "but expected to be testing the code at %r.\n"
            % (srcdir, srcfile, cwd))
 
-    cwdu = os.path.normcase(os.path.normpath(os.getcwdu())
+    cwdu = os.path.normcase(os.path.normpath(os.getcwdu()))
     if os.path.basename(cwdu) == u'src':
         cwdu = os.path.dirname(cwdu)
     if not isinstance(cwd, unicode) and cwd.decode(sys.getfilesystemencoding(), 'replace') != cwdu:
