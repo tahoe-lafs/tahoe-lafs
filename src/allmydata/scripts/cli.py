@@ -307,10 +307,11 @@ class BackupOptions(VDriveOptions):
     def opt_exclude_from(self, filepath):
         """Ignore file matching glob patterns listed in file, one per
         line. The file is assumed to be in the argv encoding."""
+        abs_filepath = argv_to_abspath(filepath)
         try:
-            exclude_file = file(filepath)
+            exclude_file = file(abs_filepath)
         except:
-            raise BackupConfigurationError('Error opening exclude file %r.' % filepath)
+            raise BackupConfigurationError('Error opening exclude file %s.' % quote_output(abs_filepath))
         try:
             for line in exclude_file:
                 self.opt_exclude(line)

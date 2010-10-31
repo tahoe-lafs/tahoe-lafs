@@ -5,6 +5,8 @@ from cStringIO import StringIO
 import urllib, re
 import simplejson
 
+from mock import patch
+
 from allmydata.util import fileutil, hashutil, base32
 from allmydata import uri
 from allmydata.immutable import upload
@@ -1866,6 +1868,22 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         filtered = list(backup_options.filter_listdir(iter(root_listdir)))
         self._check_filtering(filtered, root_listdir, (u'lib.a', u'_darcs', u'subdir'),
                               (nice_doc,))
+
+    @patch('__builtin__.file')
+    def test_exclude_from_tilde_expansion(self, mock):
+        basedir = "cli/Backup/exclude_from_tilde_expansion"
+        fileutil.make_dirs(basedir)
+        nodeurl_path = os.path.join(basedir, 'node.url')
+        fileutil.write(nodeurl_path, 'http://example.net:2357/')
+
+        # ensure that tilde expansion is performed on exclude-from argument
+        exclude_file = u'~/.tahoe/excludes.dummy'
+        backup_options = cli.BackupOptions()
+
+        mock.return_value = StringIO()
+        backup_options.parseOptions(['--exclude-from', unicode_to_argv(exclude_file),
+                                     '--node-directory', basedir, 'from', 'to'])
+        self.failUnlessIn(((abspath_expanduser_unicode(exclude_file),), {}), mock.call_args_list)
 
     def test_ignore_symlinks(self):
         if not hasattr(os, 'symlink'):
