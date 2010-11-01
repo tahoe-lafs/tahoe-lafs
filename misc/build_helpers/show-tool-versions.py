@@ -11,6 +11,7 @@ def print_platform():
         import platform
         out = platform.platform()
         print "platform:", foldlines(out)
+        print "machine: ", platform.machine()
         if hasattr(platform, 'linux_distribution'):
             print "linux_distribution:", repr(platform.linux_distribution())
     except EnvironmentError:
