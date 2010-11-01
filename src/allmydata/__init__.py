@@ -4,6 +4,16 @@ Decentralized storage grid.
 community web site: U{http://tahoe-lafs.org/}
 """
 
+# We want to call require_auto_deps() before other imports, because the setuptools
+# docs claim that if a distribution is installed with --multi-version, it might not
+# be importable until after pkg_resources.require() has been called for it. We don't
+# have an example of this happening at this time. It is possible that require() isn't
+# actually needed because we set __requires__ in the generated startup script, but
+# that would be an undocumented property of the setuptools implementation.
+
+from allmydata import _auto_deps
+_auto_deps.require_auto_deps()
+
 # This is just to suppress DeprecationWarnings from nevow and twisted.
 # See http://allmydata.org/trac/tahoe/ticket/859 and
 # http://divmod.org/trac/ticket/2994 .
@@ -65,19 +75,6 @@ except ImportError:
 # "application" part of the Tahoe versioning scheme:
 # http://allmydata.org/trac/tahoe/wiki/Versioning
 __full_version__ = __appname__ + '/' + str(__version__)
-
-# Ideally we would call require_auto_deps() before importing nevow and twisted, but
-# that causes midnightmagic's NetBSD buildslave to be unable to import allmydata.test,
-# for reasons that are not understood. We want to call require_auto_deps() before other
-# imports because the setuptools docs claim that if a distribution is installed with
-# --multi-version, it might not importable until after pkg_resources.require()
-# has been called for it. We don't have an example of this happening at this time.
-# It is possible that require() isn't actually needed because we set __requires__
-# in the generated startup script, but that would be an undocumented property of the
-# setuptools implementation.
-
-from allmydata import _auto_deps
-_auto_deps.require_auto_deps()
 
 import os, platform, re, subprocess, sys
 _distributor_id_cmdline_re = re.compile("(?:Distributor ID:)\s*(.*)", re.I)
