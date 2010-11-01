@@ -34,7 +34,7 @@ install_requires=[
                   ]
 
 import platform
-if platform.machine().lower() in ['i386', 'x86_64', 'amd64', '']:
+if platform.machine().lower() in ['i386', 'x86_64', 'amd64', 'x86', '']:
     # pycryptopp v0.5.20 fixes bugs in SHA-256 and AES on x86 or amd64
     # (from Crypto++ revisions 470, 471, 480, 492).  The '' is there
     # in case platform.machine is broken and this is actually an x86
