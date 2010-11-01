@@ -6,9 +6,9 @@ where = os.path.realpath(sys.argv[0])
 base = os.path.dirname(os.path.dirname(where))
 
 if sys.platform == "win32":
-    installed_tahoe = os.path.join(os.path.dirname(sys.executable), 'Scripts', 'tahoe.pyscript')
+    perhaps_installed_tahoe = os.path.join(os.path.dirname(sys.executable), 'Scripts', 'tahoe.pyscript')
 else:
-    installed_tahoe = "/usr/bin/tahoe"
+    perhaps_installed_tahoe = "/usr/bin/tahoe"
 
 whoami = '''\
 I am a "bin%stahoe" executable who is only for the convenience of running
@@ -26,7 +26,7 @@ I just tried to run and found that I am not living in such a directory, so I
 am stopping now. To run Tahoe after it has been is installed, please execute
 my brother, who gets installed into the appropriate place for executables
 when you run "make install" (perhaps as "%s").
-''' % (installed_tahoe,)
+''' % (perhaps_installed_tahoe,)
     sys.exit(1)
 
 # we've found our home. Put the tahoe support/lib etc. in our PYTHONPATH.
@@ -96,7 +96,7 @@ I just tried to run and could not find my brother at
 "%s". To run Tahoe when it is installed, please execute my
 brother, who gets installed into the appropriate place for executables
 when you run "make install" (perhaps as "%s").
-''' % (script, installed_tahoe)
+''' % (script, perhaps_installed_tahoe)
         raise
 except Exception, le:
     print whoami

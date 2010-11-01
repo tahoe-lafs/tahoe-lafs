@@ -52,7 +52,7 @@ D: packaging, buildbot
 E: cgalvan@enthought.com
 
 N: François Deppierraz
-D: char encodings, duplicity plugin, debugging, FUSE, docs, FreeBSD, WUI
+D: encodings, duplicity, debugging, FUSE, docs, FreeBSD, WUI, ARM, NEWS
 E: francois@ctrlaltdel.ch
 
 N: Larry Hosken

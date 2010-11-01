@@ -1,5 +1,5 @@
 ========================
-Configuring a Tahoe node
+Configuring a Tahoe-LAFS node
 ========================
 
 1.  `Overall Node Configuration`_
@@ -12,7 +12,7 @@ Configuring a Tahoe node
 8.  `Backwards Compatibility Files`_
 9.  `Example`_
 
-A Tahoe node is configured by writing to files in its base directory. These
+A Tahoe-LAFS node is configured by writing to files in its base directory. These
 files are read by the node when it starts, so each time you change them, you
 need to restart the node.
 
@@ -89,7 +89,7 @@ set the tub.location option described below.
     value is a directory name (~username is allowed, and non-absolute names
     are interpreted relative to the node's basedir) which can contain HTML
     and other files. This can be used to serve a javascript-based frontend to
-    the Tahoe node, or other services.
+    the Tahoe-LAFS node, or other services.
 
     The default value is "public_html", which will serve $BASEDIR/public_html .
     With the default settings, http://127.0.0.1:3456/static/foo.html will
@@ -105,8 +105,8 @@ set the tub.location option described below.
 
   tub.location = (string, optional)
 
-    In addition to running as a client, each Tahoe node also runs as a
-    server, listening for connections from other Tahoe clients. The node
+    In addition to running as a client, each Tahoe-LAFS node also runs as a
+    server, listening for connections from other Tahoe-LAFS clients. The node
     announces its location by publishing a "FURL" (a string with some
     connection hints) to the Introducer. The string it publishes can be found
     in $BASEDIR/private/storage.furl . The "tub.location" configuration
@@ -180,7 +180,7 @@ set the tub.location option described below.
     Most users will not need to set tub.location .
 
     Note that the old 'advertised_ip_addresses' file from earlier releases is
-    no longer supported. Tahoe 1.3.0 and later will ignore this file.
+    no longer supported. Tahoe-LAFS 1.3.0 and later will ignore this file.
 
   log_gatherer.furl = (FURL, optional)
 
@@ -254,7 +254,7 @@ Client Configuration
   [client]
   introducer.furl = (FURL string, mandatory)
 
-    This FURL tells the client how to connect to the introducer. Each Tahoe
+    This FURL tells the client how to connect to the introducer. Each Tahoe-LAFS
     grid is defined by an introducer. The introducer's furl is created by the
     introducer node and written into its base directory when it starts,
     whereupon it should be published to everyone who wishes to attach a
@@ -302,7 +302,7 @@ Client Configuration
     to the hash trees that are created. Large values of k will cause
     downloads to be marginally slower, because more servers must be involved.
     N cannot be larger than 256, because of the 8-bit erasure-coding
-    algorithm that Tahoe uses.
+    algorithm that Tahoe-LAFS uses.
 
     shares.happy allows you control over the distribution of your immutable
     file. For a successful upload, shares are guaranteed to be initially
@@ -474,7 +474,7 @@ identical immutable files, and it is also the set of people who could mount
 such an attack.
 
 The content of the private/convergence file is a base-32 encoded string. If
-the file doesn't exist, then when the Tahoe client starts up it will generate
+the file doesn't exist, then when the Tahoe-LAFS client starts up it will generate
 a random 256-bit string and write the base-32 encoding of this string into
 the file. If you want to converge your immutable files with as many people as
 possible, put the empty string (so that private/convergence is a zero-length
@@ -484,7 +484,7 @@ Other files
 ===========
 
 logs/
-  Each Tahoe node creates a directory to hold the log messages produced as
+  Each Tahoe-LAFS node creates a directory to hold the log messages produced as
   the node runs. These logfiles are created and rotated by the "twistd"
   daemonization program, so logs/twistd.log will contain the most recent
   messages, logs/twistd.log.1 will contain the previous ones,
@@ -504,7 +504,7 @@ my_nodeid
 Backwards Compatibility Files
 =============================
 
-Tahoe releases before 1.3.0 had no 'tahoe.cfg' file, and used distinct files
+Tahoe-LAFS releases before 1.3.0 had no 'tahoe.cfg' file, and used distinct files
 for each item listed below. For each configuration knob, if the distinct file
 exists, it will take precedence over the corresponding item in tahoe.cfg.
 
@@ -535,7 +535,7 @@ were previously combined, controlled by the presence of a
 BASEDIR/authorized_keys.SSHPORT file, in which the suffix of the filename
 indicated which port the ssh server should listen on, and the contents of the
 file provided the ssh public keys to accept. Support for these files has been
-removed completely. To ssh into your Tahoe node, add [node]ssh.port and
+removed completely. To ssh into your Tahoe-LAFS node, add [node]ssh.port and
 [node].ssh_authorized_keys_file statements to your tahoe.cfg.
 
 Likewise, the functionality of [node]tub.location is a variant of the
@@ -555,7 +555,7 @@ these are not the default values), merely a legal one.
 ::
 
   [node]
-  nickname = Bob's Tahoe Node
+  nickname = Bob's Tahoe-LAFS Node
   tub.port = 34912
   tub.location = 123.45.67.89:8098,44.55.66.77:8098
   web.port = 3456
