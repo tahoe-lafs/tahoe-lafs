@@ -23,6 +23,8 @@ if os.path.basename(srcdir) == 'site-packages':
     if re.search(r'python.+\..+', os.path.basename(rootdir)):
         rootdir = os.path.dirname(rootdir)
     rootdir = os.path.dirname(rootdir)
+elif os.path.basename(rootdir) == 'src':
+    rootdir = os.path.dirname(rootdir)
 
 bintahoe = os.path.join(rootdir, 'bin', 'tahoe')
 if sys.platform == "win32":
@@ -51,6 +53,8 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
     def test_the_right_code(self):
         cwd = os.path.normcase(os.path.realpath("."))
         root_from_cwd = os.path.dirname(cwd)
+        if os.path.basename(root_from_cwd) == 'src':
+            root_from_cwd = os.path.dirname(root_from_cwd)
 
         same = (root_from_cwd == rootdir)
         if not same:
@@ -64,8 +68,12 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
                    "(according to the source filename %r),\n"
                    "but expected to be testing the code at %r.\n"
                    % (rootdir, srcfile, root_from_cwd))
-            if (not isinstance(cwd, unicode) and
-                cwd.decode(get_filesystem_encoding(), 'replace') != os.path.normcase(os.path.realpath(os.getcwdu()))):
+
+            root_from_cwdu = os.path.normcase(os.path.normpath(os.getcwdu()))
+            if os.path.basename(root_from_cwdu) == u'src':
+                root_from_cwdu = os.path.dirname(root_from_cwdu)
+
+            if not isinstance(root_from_cwd, unicode) and root_from_cwd.decode(get_filesystem_encoding(), 'replace') != root_from_cwdu:
                 msg += ("However, this may be a false alarm because the current directory path\n"
                         "is not representable in the filesystem encoding. Please run the tests\n"
                         "from the root of the Tahoe-LAFS distribution at a non-Unicode path.")
