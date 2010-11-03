@@ -793,19 +793,33 @@ class Environment(object):
         This calls the ``find(req)`` method of the `working_set` to see if a
         suitable distribution is already active.  (This may raise
         ``VersionConflict`` if an unsuitable version of the project is already
-        active in the specified `working_set`.)  If a suitable distribution
-        isn't active, this method returns the newest distribution in the
-        environment that meets the ``Requirement`` in `req`.  If no suitable
-        distribution is found, and `installer` is supplied, then the result of
-        calling the environment's ``obtain(req, installer)`` method will be
-        returned.
+        active in the specified `working_set`.)
+
+        If a suitable distribution isn't active, this method returns the
+        newest platform-dependent distribution in the environment that meets
+        the ``Requirement`` in `req`. If no suitable platform-dependent
+        distribution is found, then the newest platform-independent
+        distribution that meets the requirement is returned. (A platform-
+        dependent distribution will typically have code compiled or
+        specialized for that platform.)
+
+        Otherwise, if `installer` is supplied, then the result of calling the
+        environment's ``obtain(req, installer)`` method will be returned.
         """
         dist = working_set.find(req)
         if dist is not None:
             return dist
+
+        # first try to find a platform-dependent dist
+        for dist in self[req.key]:
+            if dist in req and dist.platform is not None:
+                return dist
+
+        # then try any other dist
         for dist in self[req.key]:
             if dist in req:
                 return dist
+
         return self.obtain(req, installer) # try and download/install
 
     def obtain(self, requirement, installer=None):
