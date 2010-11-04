@@ -1,4 +1,4 @@
-#!python
+#!/usr/bin/env python
 # This script generates a table of dependencies in HTML format on stdout.
 # It expects to be run in the tahoe-lafs-dep-eggs directory.
 
@@ -8,8 +8,8 @@ extensions = ('.egg', '.tar.bz2', '.tar.gz', '.exe')
 platform_aliases = [('i686','x86'), ('i386','x86'), ('i86pc','x86'), ('win32','windows-x86'),
                     ('win-amd64','windows-x86_64'), ('amd64','x86_64')]
 python_versions = ((2,4), (2,5), (2,6), (2,7))
-FILENAME_RE  = re.compile(r'([a-zA-Z_0-9]*)-([0-9\.]*)(-py[0-9\.]*)?(-.*)?')
-FILENAME_RE2 = re.compile(r'([a-zA-Z_0-9]*)-([0-9\.]*)(win32|win-amd64)?(-py[0-9\.]*)?')
+FILENAME_RE  = re.compile(r'([a-zA-Z_0-9]*)-([0-9\.r_]*)(-py[0-9\.]*)?(-.*)?')
+FILENAME_RE2 = re.compile(r'([a-zA-Z_0-9]*)-([0-9\.r_]*)(win32|win-amd64)?(-py[0-9\.]*)?')
 
 matrix = {}
 
