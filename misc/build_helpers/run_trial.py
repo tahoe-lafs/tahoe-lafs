@@ -64,18 +64,18 @@ elif os.path.normcase(os.path.basename(srcdir)) == 'site-packages':
     if os.path.normcase(os.path.basename(srcdir)) == 'lib':
         srcdir = os.path.dirname(srcdir)
 
-srcdir = os.path.normcase(os.path.normpath(srcdir))
-if os.path.basename(srcdir) == 'src':
-    srcdir = os.path.dirname(srcdir)
+rootdir = os.path.normcase(os.path.normpath(srcdir))
+if os.path.basename(rootdir) == 'src':
+    rootdir = os.path.dirname(rootdir)
 
-cwd = os.path.normcase(os.path.normpath(os.getcwd()))
-if os.path.basename(cwd) == 'src':
-    cwd = os.path.dirname(cwd)
+root_from_cwd = os.path.normcase(os.path.normpath(os.getcwd()))
+if os.path.basename(root_from_cwd) == 'src':
+    root_from_cwd = os.path.dirname(root_from_cwd)
 
-same = (srcdir == cwd)
+same = (root_from_cwd == rootdir)
 if not same:
     try:
-        same = os.path.samefile(srcdir, cwd)
+        same = os.path.samefile(root_from_cwd, rootdir)
     except AttributeError, e:
         e  # hush pyflakes
 
@@ -83,12 +83,13 @@ if not same:
     msg = ("We seem to be testing the code at %r\n"
            "(according to the source filename %r),\n"
            "but expected to be testing the code at %r.\n"
-           % (srcdir, srcfile, cwd))
+           % (rootdir, srcfile, root_from_cwd))
 
-    cwdu = os.path.normcase(os.path.normpath(os.getcwdu()))
-    if os.path.basename(cwdu) == u'src':
-        cwdu = os.path.dirname(cwdu)
-    if not isinstance(cwd, unicode) and cwd.decode(sys.getfilesystemencoding(), 'replace') != cwdu:
+    root_from_cwdu = os.path.normcase(os.path.normpath(os.getcwdu()))
+    if os.path.basename(root_from_cwdu) == u'src':
+        root_from_cwdu = os.path.dirname(root_from_cwdu)
+
+    if not isinstance(root_from_cwd, unicode) and root_from_cwd.decode(sys.getfilesystemencoding(), 'replace') != root_from_cwdu:
         msg += ("However, this may be a false alarm because the current directory path\n"
                 "is not representable in the filesystem encoding. This script needs to be\n"
                 "run from the source directory to be tested, at a non-Unicode path.")
