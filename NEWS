@@ -27,6 +27,8 @@
    involving a non-ASCII filename. (#1224)
  - Fix a rarely-encountered bug involving printing large strings to
    the console on Windows. (#1232)
+ - Perform ~ expansion in the --exclude-from filename argument to
+   'tahoe backup'. (#1241)
 
 * Release 1.8.0 (2010-09-23)
 
