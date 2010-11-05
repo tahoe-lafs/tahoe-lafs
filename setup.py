@@ -63,7 +63,7 @@ adglobals = {}
 execfile('src/allmydata/_auto_deps.py', adglobals)
 install_requires = adglobals['install_requires']
 
-if len(sys.argv) > 1 and sys.argv[1] in ['trial', 'test'] and version is not None:
+if ('trial' in sys.argv or 'test' in sys.argv) and version is not None:
     __requires__ = [APPNAME + '==' + version] + install_requires
 
 egg = os.path.realpath(glob.glob('setuptools-*.egg')[0])
