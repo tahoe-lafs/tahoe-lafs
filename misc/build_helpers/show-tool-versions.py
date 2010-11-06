@@ -2,6 +2,18 @@
 
 import locale, os, subprocess, sys, traceback
 
+added_zetuptoolz_egg = False
+try:
+    import pkg_resources
+except ImportError:
+    import glob
+    eggz = glob.glob(os.path.join('..', 'setuptools-*.egg'))
+    if len(eggz) > 0:
+        egg = os.path.realpath(eggz[0])
+        print >>sys.stderr, "Inserting egg on sys.path: %r" % (egg,)
+        added_zetuptoolz_egg = True
+        sys.path.insert(0, egg)
+
 def foldlines(s):
     return s.replace("\n", " ").replace("\r", "")
 
@@ -85,6 +97,10 @@ def print_as_ver():
 
 def print_setuptools_ver():
     print
+    if added_zetuptoolz_egg:
+        # it would be misleading to report the bundled version of zetuptoolz as the installed version
+        print "setuptools: using bundled egg"
+        return
     try:
         import pkg_resources
         out = str(pkg_resources.require("setuptools"))
