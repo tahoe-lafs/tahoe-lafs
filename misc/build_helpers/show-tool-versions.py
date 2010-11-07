@@ -7,7 +7,7 @@ try:
     import pkg_resources
 except ImportError:
     import glob
-    eggz = glob.glob(os.path.join('..', 'setuptools-*.egg'))
+    eggz = glob.glob('setuptools-*.egg')
     if len(eggz) > 0:
         egg = os.path.realpath(eggz[0])
         print >>sys.stderr, "Inserting egg on sys.path: %r" % (egg,)
