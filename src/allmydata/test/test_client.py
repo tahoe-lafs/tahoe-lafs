@@ -81,7 +81,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         f.write("reserved_space = 1000\n")
         f.close()
         c = client.Client(basedir)
-        self.failUnlessReallyEqual(c.getServiceNamed("storage").reserved_space, 1000)
+        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 1000)
 
     def test_reserved_2(self):
         basedir = "client.Basic.test_reserved_2"
@@ -93,7 +93,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         f.write("reserved_space = 10K\n")
         f.close()
         c = client.Client(basedir)
-        self.failUnlessReallyEqual(c.getServiceNamed("storage").reserved_space, 10*1000)
+        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 10*1000)
 
     def test_reserved_3(self):
         basedir = "client.Basic.test_reserved_3"
@@ -105,7 +105,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         f.write("reserved_space = 5mB\n")
         f.close()
         c = client.Client(basedir)
-        self.failUnlessReallyEqual(c.getServiceNamed("storage").reserved_space,
+        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
                              5*1000*1000)
 
     def test_reserved_4(self):
@@ -118,8 +118,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         f.write("reserved_space = 78Gb\n")
         f.close()
         c = client.Client(basedir)
-        self.failUnlessReallyEqual(c.getServiceNamed("storage").reserved_space,
-                                   78*1000*1000*1000)
+        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
+                             78*1000*1000*1000)
 
     def test_reserved_bad(self):
         basedir = "client.Basic.test_reserved_bad"
@@ -131,7 +131,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         f.write("reserved_space = bogus\n")
         f.close()
         c = client.Client(basedir)
-        self.failUnlessReallyEqual(c.getServiceNamed("storage").reserved_space, 0)
+        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 0)
 
     def _permute(self, sb, key):
         return [ peerid
