@@ -66,7 +66,7 @@ def mv(options, mode="move"):
     if mode == "move":
         # now remove the original
         resp = do_http("DELETE", from_url)
-        if not re.search(r'^2\d\d$', str(status)):
+        if not re.search(r'^2\d\d$', str(resp.status)):
             print >>stderr, format_http_error("Error deleting original after move", resp)
             return 2
 
