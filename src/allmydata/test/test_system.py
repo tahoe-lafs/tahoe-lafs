@@ -4,6 +4,8 @@ from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet import threads # CLI tests use deferToThread
+from twisted.internet import utils
+
 import allmydata
 from allmydata import uri
 from allmydata.storage.mutable import MutableShareFile
@@ -29,6 +31,9 @@ from twisted.web.error import Error
 
 from allmydata.test.common import SystemTestMixin
 
+# TODO: move these to common or common_util
+from allmydata.test.test_runner import bintahoe, SkipMixin
+
 LARGE_DATA = """
 This is some data to publish to the remote grid.., which needs to be large
 enough to not fit inside a LIT uri.
@@ -47,7 +52,7 @@ class CountingDataUploadable(upload.Data):
                 self.interrupt_after_d.callback(self)
         return upload.Data.read(self, length)
 
-class SystemTest(SystemTestMixin, unittest.TestCase):
+class SystemTest(SystemTestMixin, SkipMixin, unittest.TestCase):
     timeout = 3600 # It takes longer than 960 seconds on Zandr's ARM box.
 
     def test_connections(self):
@@ -1589,9 +1594,23 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         d.addCallback(_check_ls_rouri)
 
 
-        d.addCallback(run, "mv", "tahoe-file-stdin", "tahoe-moved")
+        d.addCallback(run, "mv", "tahoe-file-stdin", "tahoe-moved-first-time")
         d.addCallback(run, "ls")
-        d.addCallback(_check_ls, ["tahoe-moved"], ["tahoe-file-stdin"])
+        d.addCallback(_check_ls, ["tahoe-moved-first-time"], ["tahoe-file-stdin"])
+
+        def _mv_with_http_proxy(ign):
+            env = os.environ
+            env['http_proxy'] = env['HTTP_PROXY'] = "http://127.0.0.0:12345"  # invalid address
+            return self._run_cli_in_subprocess(["mv"] + nodeargs + ["tahoe-moved-first-time", "tahoe-moved"], env=env)
+        d.addCallback(_mv_with_http_proxy)
+
+        def _check_mv_with_http_proxy(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 0, str(res))
+        d.addCallback(_check_mv_with_http_proxy)
+
+        d.addCallback(run, "ls")
+        d.addCallback(_check_ls, ["tahoe-moved"], ["tahoe-moved-firsttime"])
 
         d.addCallback(run, "ln", "tahoe-moved", "newlink")
         d.addCallback(run, "ls")
@@ -1743,6 +1762,15 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         def _done(res):
             return stdout.getvalue(), stderr.getvalue()
         d.addCallback(_done)
+        return d
+
+    def _run_cli_in_subprocess(self, argv, env=None):
+        self.skip_if_cannot_run_bintahoe()
+
+        if env is None:
+            env = os.environ
+        d = utils.getProcessOutputAndValue(sys.executable, args=[bintahoe] + argv,
+                                           env=env)
         return d
 
     def _test_checker(self, res):
