@@ -28,7 +28,11 @@ def mv(options, mode="move"):
     if from_path:
         from_url += "/" + escape_path(from_path)
     # figure out the source cap
-    data = urllib.urlopen(from_url + "?t=json").read()
+    resp = do_http("GET", from_url + "?t=json")
+    if not re.search(r'^2\d\d$', str(resp.status)):
+        print >>stderr, format_http_error("Error", resp)
+        return 1
+    data = resp.read()
     nodetype, attrs = simplejson.loads(data)
     cap = to_str(attrs.get("rw_uri") or attrs["ro_uri"])
 
