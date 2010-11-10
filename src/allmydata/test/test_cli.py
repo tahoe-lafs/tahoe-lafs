@@ -12,8 +12,7 @@ from allmydata import uri
 from allmydata.immutable import upload
 from allmydata.dirnode import normalize
 
-# Test that the scripts can be imported -- although the actual tests of their
-# functionality are done by invoking them in a subprocess.
+# Test that the scripts can be imported.
 from allmydata.scripts import create_node, debug, keygen, startstop_node, \
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls, \
     tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_rm, tahoe_webopen
