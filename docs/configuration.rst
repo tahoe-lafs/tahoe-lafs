@@ -1,6 +1,6 @@
-========================
+=============================
 Configuring a Tahoe-LAFS node
-========================
+=============================
 
 1.  `Overall Node Configuration`_
 2.  `Client Configuration`_
