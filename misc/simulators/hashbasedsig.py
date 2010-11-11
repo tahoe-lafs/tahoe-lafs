@@ -1,5 +1,4 @@
 #!python
-# MIT or any Tahoe license.
 
 # range of hash output lengths
 range_L_hash = [128]
