@@ -1269,6 +1269,46 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
                               "mv moved the wrong thing"))
         return d
 
+    def test_mv_error_if_DELETE_fails(self):
+        self.basedir = "cli/Mv/mv_error_if_DELETE_fails"
+        self.set_up_grid()
+        fn1 = os.path.join(self.basedir, "file1")
+        DATA1 = "Nuclear launch codes"
+        fileutil.write(fn1, DATA1)
+
+        original_do_http = tahoe_mv.do_http
+        def mock_do_http(method, url, body=""):
+            if method == "DELETE":
+                class FakeResponse:
+                    def read(self):
+                        return "response"
+                resp = FakeResponse()
+                resp.status = '500 Something Went Wrong'
+                resp.reason = '*shrug*'
+                return resp
+            else:
+                return original_do_http(method, url, body=body)
+        tahoe_mv.do_http = mock_do_http
+
+        # copy file to the grid
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda res:
+            self.do_cli("cp", fn1, "tahoe:"))
+
+        # do mv file1 file2
+        d.addCallback(lambda res:
+            self.do_cli("mv", "tahoe:file1", "tahoe:file2"))
+        def _check( (rc, out, err) ):
+            self.failIfIn("OK", out, "mv printed 'OK' even though the DELETE failed")
+            self.failUnlessEqual(rc, 2)
+        d.addCallback(_check)
+
+        def _restore_do_http(res):
+            tahoe_mv.do_http = original_do_http
+            return res
+        d.addBoth(_restore_do_http)
+        return d
+
     def test_mv_without_alias(self):
         # doing 'tahoe mv' without explicitly specifying an alias or
         # creating the default 'tahoe' alias should fail with a useful
