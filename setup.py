@@ -376,5 +376,6 @@ setup(name=APPNAME,
       setup_requires=setup_requires,
       entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
       zip_safe=False, # We prefer unzipped for easier access.
+      versionfiles=['src/allmydata/_version.py',],
       **setup_args
       )
