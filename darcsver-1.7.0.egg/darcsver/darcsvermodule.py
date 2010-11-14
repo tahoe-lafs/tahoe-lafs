@@ -78,6 +78,7 @@ def update(pkgname, verfilename, revision_number=False, loud=False, abort_if_sna
         verfilenames = [verfilename]
     else:
         verfilenames = verfilename
+        assert all([isinstance(vfn, basestring) for vfn in verfilenames]), [vfn for vfn in verfilenames if not isinstance(vfn, basestring)]
     if isinstance(version_body, basestring):
         verbodies = [version_body]
     else:
@@ -105,7 +106,6 @@ def update(pkgname, verfilename, revision_number=False, loud=False, abort_if_sna
         cmd = ["changes", "--xml-output"]
         if not revision_number:
             cmd.append("--from-tag=^%s" % (pkgname,))
-        errput = None
         try:
             p = subprocess.Popen(["darcs"] + cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True)
         except OSError:
@@ -115,6 +115,7 @@ def update(pkgname, verfilename, revision_number=False, loud=False, abort_if_sna
             rc = p.returncode
             if rc != 0 and errput:
                 log.info("%s: darcs wrote to stderr: '%s'" % (EXE_NAME, errput,))
+                errput = None
     else:
         if all([os.path.exists(vfn) for vfn in verfilenames]):
             log.info("%s: using extant version file %s" % (EXE_NAME, verfilenames))
@@ -128,48 +129,55 @@ def update(pkgname, verfilename, revision_number=False, loud=False, abort_if_sna
     allbadchars = "".join([chr(i) for i in range(0x0a) + [0x0b, 0x0c] + range(0x0e, 0x20) + range(0x7f,0x100)])
     tt = string.maketrans(allbadchars, "-"*len(allbadchars))
     output = output.translate(tt)
+    regexstr = "^TAG %s-(%s)$" % (pkgname, VERSION_BASE_RE_STR)
+    last_tag = None
 
     # strip off trailing warning messages that darcs 2.3.1 writes to stdout
     endi = output.find("</changelog>")+len("</changelog>")
-    output = output[:endi]
-    doc = xml.dom.minidom.parseString(output)
-
-    changelog = doc.getElementsByTagName("changelog")[0]
-    patches = changelog.getElementsByTagName("patch")
-    regexstr = "^TAG %s-(%s)$" % (pkgname, VERSION_BASE_RE_STR)
-    version_re = re.compile(regexstr)
-    last_tag = None
-    count_since_last_patch = 0
-    if abort_if_snapshot:
-        for patch in patches:
-            name = get_text(patch.getElementsByTagName("name")[0].childNodes)
-            m = version_re.match(name)
-            if m:
-                last_tag = m.group(1)
-                last_tag = last_tag.encode("utf-8")
-                break
-            else:
-                sys.exit(0) # because abort_if_snapshot
+    if endi != -1:
+        output = output[:endi]
+    try:
+        doc = xml.dom.minidom.parseString(output)
+    except xml.parsers.expat.ExpatError:
+        # Okay maybe this is an error message instead of an XML output.
+        pass
     else:
-        for patch in patches:
-            name = get_text(patch.getElementsByTagName("name")[0].childNodes)
-            m = version_re.match(name)
-            if m:
-                last_tag = m.group(1)
-                last_tag = last_tag.encode("utf-8")
-                break
-            else:
-                count_since_last_patch += 1
+        changelog = doc.getElementsByTagName("changelog")[0]
+        patches = changelog.getElementsByTagName("patch")
+        version_re = re.compile(regexstr)
+        count_since_last_patch = 0
+        if abort_if_snapshot:
+            for patch in patches:
+                name = get_text(patch.getElementsByTagName("name")[0].childNodes)
+                m = version_re.match(name)
+                if m:
+                    last_tag = m.group(1)
+                    last_tag = last_tag.encode("utf-8")
+                    break
+                else:
+                    sys.exit(0) # because abort_if_snapshot
+        else:
+            for patch in patches:
+                name = get_text(patch.getElementsByTagName("name")[0].childNodes)
+                m = version_re.match(name)
+                if m:
+                    last_tag = m.group(1)
+                    last_tag = last_tag.encode("utf-8")
+                    break
+                else:
+                    count_since_last_patch += 1
 
     if not last_tag:
         if errput:
             log.info("%s: darcs wrote to stderr: '%s'" % (EXE_NAME, errput,))
+            errput = None
+        assert all([isinstance(vfn, basestring) for vfn in verfilenames]), [vfn for vfn in verfilenames if not isinstance(vfn, basestring)]
         if all([os.path.exists(vfn) for vfn in verfilenames]):
             log.warn("%s: I'm unable to find a tag in the darcs history matching \"%s\", so I'm leaving %s alone." % (EXE_NAME, regexstr, verfilenames,))
             return (0, read_version_py(verfilenames[0]))
         else:
             log.warn("%s: I'm unable to find a tag in the darcs history matching \"%s\", and %s don't exist." % (EXE_NAME, regexstr, verfilenames,))
-            return (0, None)
+            return (-1, None)
 
     if revision_number:
         if count_since_last_patch:

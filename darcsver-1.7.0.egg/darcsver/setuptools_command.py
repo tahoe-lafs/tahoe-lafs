@@ -46,14 +46,14 @@ class DarcsVer(setuptools.Command):
     description = "generate a version number from darcs history"
     user_options = [
         ('project-name', None, "name of the project as it appears in the project's release tags (default's the to the distribution name)"),
-        ('version-file', None, "path to file into which the version number should be written (defaults to the package directory's _version.py)"),
+        ('filename', None, "path to file into which the version number should be written (defaults to the package directory's _version.py)"),
         ('count-all-patches', None, "If true, count the total number of patches in all history.  If false, count the total number of patches since the most recent release tag."),
         ('abort-if-snapshot', None, "If true, the if the current version is a snapshot (not a release tag), then immediately exit the process with exit code 0."),
         ]
 
     def initialize_options(self):
         self.project_name = None
-        self.version_file = None
+        self.filename = None
         self.count_all_patches = None
         self.abort_if_snapshot = None
 
@@ -61,10 +61,12 @@ class DarcsVer(setuptools.Command):
         if self.project_name is None:
             self.project_name = self.distribution.get_name()
 
-        # If the user passed --version-file on the cmdline, override
+        # If the user passed --filename on the cmdline, override
         # the setup.py's versionfiles argument.
-        if self.version_file is not None:
-            self.distribution.versionfiles = [self.version_file]
+        if self.filename is not None:
+            if not isinstance(self.filename, basestring):
+                 raise TypeError("filename is required to be a string, not %s, filename: %s" % (type(self.filename), self.filename))
+            self.distribution.versionfiles = [self.filename]
 
         if self.abort_if_snapshot is None:
             self.abort_if_snapshot=False
@@ -112,5 +114,7 @@ class DarcsVer(setuptools.Command):
         if self.distribution.versionbodies is None:
             self.distribution.versionbodies = [PYTHON_VERSION_BODY]
 
+        assert all([isinstance(vfn, basestring) for vfn in self.distribution.versionfiles]), self.distribution.versionfiles
         (rc, verstr) = darcsvermodule.update(self.project_name, self.distribution.versionfiles, self.count_all_patches, abort_if_snapshot=self.abort_if_snapshot, EXE_NAME="setup.py darcsver", version_body=self.distribution.versionbodies)
-        self.distribution.metadata.version = verstr
+        if rc == 0:
+            self.distribution.metadata.version = verstr

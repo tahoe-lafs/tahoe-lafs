@@ -1,6 +1,6 @@
 Metadata-Version: 1.0
 Name: darcsver
-Version: 1.6.3
+Version: 1.7.0
 Summary: generate a version number from darcs history
 Home-page: http://tahoe-lafs.org/trac/darcsver
 Author: Zooko O'Whielacronx
