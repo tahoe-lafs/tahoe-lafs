@@ -7,14 +7,17 @@ import re, os, sys
 extensions = ('.egg', '.tar.bz2', '.tar.gz', '.exe')
 platform_aliases = [('i686','x86'), ('i386','x86'), ('i86pc','x86'), ('win32','windows-x86'),
                     ('win-amd64','windows-x86_64'), ('amd64','x86_64')]
-python_versions = ((2,4), (2,5), (2,6), (2,7))
 FILENAME_RE  = re.compile(r'([a-zA-Z_0-9]*)-([0-9\.a-vx-z_]*)(-py[0-9\.]*)?(-.*)?')
 FILENAME_RE2 = re.compile(r'([a-zA-Z_0-9]*)-([0-9\.a-vx-z_]*)(win32|win-amd64)?(-py[0-9\.]*)?')
 
 matrix = {}
+platforms = set()
+pkgs = set()
+platform_dependent_pkgs = set()
+python_versions = set()
 
 depdir = '.'
-if len(sys.argv) >= 1:
+if len(sys.argv) > 1:
     depdir = sys.argv[1]
 
 filenames = os.listdir(depdir)
@@ -50,8 +53,19 @@ for fname in filenames:
                     platform = platform[:-len(alias)] + replacement
                     break
 
-            add(matrix, (pkg, platform), (pythonver, fname))
+            platforms.add(platform)
+            pkgs.add(pkg)
+            if platform:
+                platform_dependent_pkgs.add(pkg)
+            if pythonver not in matrix:
+                python_versions.add(pythonver)
+                matrix[pythonver] = {}
+            add(matrix[pythonver], platform, (pkg, fname))
             break
+
+platform_independent_pkgs = pkgs - platform_dependent_pkgs
+
+width = 100 / (len(platform_independent_pkgs) + 1)
 
 print '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">'
 print '<html>'
@@ -62,36 +76,33 @@ print '</head>'
 print '<body>'
 print '<h2>Software packages that Tahoe-LAFS depends on</h2>'
 print
-print '<p>Packages that have compiled C/C++ code:</p>'
-print '<table border="1">'
-print '  <tr>'
-print '    <th colspan=2 style="background-color: #FFFFD0">&nbsp;Package&nbsp;</th>'
-for pyver in python_versions:
-    print '    <th style="background-color:#FFE8FF;">&nbsp;Python %d.%d&nbsp;</th>' % pyver
-print '  </tr>'
-
-platform_dependent_pkgs = set()
-
-last_pkg = None
-for (pkg, platform) in sorted(matrix):
-    if platform:
-        platform_dependent_pkgs.add(pkg)
-        row_files = sorted(matrix[(pkg, platform)])
-        style1 = pkg != last_pkg and 'border-top: 2px solid #000000; background-color: #FFFFF0' or 'border: 0;'
-        style2 = pkg != last_pkg and 'border-top: 2px solid #000000; background-color: #FFFFF0' or 'background-color: #FFFFF0;'
-        style3 = pkg != last_pkg and 'border-top: 2px solid #000000;' or ''
+for pyver in reversed(sorted(python_versions)):
+    if pyver:
+        print '<p>Packages for Python %s that have compiled C/C++ code:</p>' % (pyver,)
+        print '<table border="1">'
         print '  <tr>'
-        print '    <th style="%s">&nbsp;%s&nbsp;</th>' % (style1, pkg != last_pkg and pkg or '',)
-        print '    <td style="%s">&nbsp;%s&nbsp;</td>' % (style2, platform,)
-        for pyver in python_versions:
-            files = [n for (v, n) in row_files if v == '%d.%d' % pyver]
-            print '    <td style="%s">&nbsp;%s</td>' % (style3,
-                    '<br>&nbsp;'.join(['<a href="%s">%s</a>' % (f, f) for f in files]))
+        print '    <th style="background-color: #FFFFD0" width="%d%%">&nbsp;Platform&nbsp;</th>' % (width,)
+        for pkg in sorted(platform_dependent_pkgs):
+            print '    <th style="background-color:#FFE8FF;" width="%d%%">&nbsp;%s&nbsp;</th>' % (width, pkg)
         print '  </tr>'
-        last_pkg = pkg
 
-print '</table>'
-print
+        first = True
+        for platform in sorted(matrix[pyver]):
+            row_files = sorted(matrix[pyver][platform])
+            style1 = first and 'border-top: 2px solid #000000; background-color: #FFFFF0' or 'background-color: #FFFFF0'
+            style2 = first and 'border-top: 2px solid #000000' or ''
+            print '  <tr>'
+            print '    <td style="%s">&nbsp;%s&nbsp;</td>' % (style1, platform,)
+            for pkg in sorted(platform_dependent_pkgs):
+                files = [n for (p, n) in row_files if pkg == p]
+                print '    <td style="%s">&nbsp;%s</td>' % (style2,
+                        '<br>&nbsp;'.join(['<a href="%s">%s</a>' % (f, f) for f in files]))
+            print '  </tr>'
+            first = False
+
+    print '</table>'
+    print
+
 print '<p>Packages that are platform-independent or source-only:</p>'
 print '<table border="1">'
 print '  <tr>'
@@ -101,13 +112,13 @@ print '  </tr>'
 
 style1 = 'border-top: 2px solid #000000; background-color:#FFFFF0;'
 style2 = 'border-top: 2px solid #000000;'
-for (pkg, platform) in sorted(matrix):
-    if pkg not in platform_dependent_pkgs:
-        print '  <tr>'
-        print '    <th style="%s">&nbsp;%s&nbsp;</th>' % (style1, pkg)
-        files = [n for (v, n) in sorted(matrix[(pkg, platform)]) if not v]
-        print '    <td style="%s">&nbsp;%s</td>' % (style2, '<br>&nbsp;'.join(['<a href="%s">%s</a>' % (f, f) for f in files]))
-        print '  </tr>'
+m = matrix['']['']
+for pkg in sorted(platform_independent_pkgs):
+    print '  <tr>'
+    print '    <th style="%s">&nbsp;%s&nbsp;</th>' % (style1, pkg)
+    files = [n for (p, n) in m if pkg == p]
+    print '    <td style="%s">&nbsp;%s</td>' % (style2, '<br>&nbsp;'.join(['<a href="%s">%s</a>' % (f, f) for f in files]))
+    print '  </tr>'
 
 print '</table>'
 
