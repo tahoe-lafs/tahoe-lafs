@@ -7,8 +7,8 @@ import re, os, sys
 extensions = ('.egg', '.tar.bz2', '.tar.gz', '.exe')
 platform_aliases = [('i686','x86'), ('i386','x86'), ('i86pc','x86'), ('win32','windows-x86'),
                     ('win-amd64','windows-x86_64'), ('amd64','x86_64')]
-FILENAME_RE  = re.compile(r'([a-zA-Z_0-9]*)-([0-9\.a-vx-z_]*)(-py[0-9\.]*)?(-.*)?')
-FILENAME_RE2 = re.compile(r'([a-zA-Z_0-9]*)-([0-9\.a-vx-z_]*)(win32|win-amd64)?(-py[0-9\.]*)?')
+FILENAME_RE  = re.compile(r'([a-zA-Z_0-9\.]*)-([0-9\.a-vx-z_]*)(-py[0-9\.]*)?(-.*)?')
+FILENAME_RE2 = re.compile(r'([a-zA-Z_0-9\.]*)-([0-9\.a-vx-z_]*)(win32|win-amd64)?(-py[0-9\.]*)?')
 
 matrix = {}
 platforms = set()
