@@ -23,6 +23,12 @@ def validate_versionfiles(dist, attr, value):
 def validate_versionbodies(dist, attr, value):
     return validate_string_or_iter_of_strings(dist, attr, value)
 
+def all(iterator):
+    for thing in iterator:
+        if not thing:
+            return False
+    return True
+
 PYTHON_VERSION_BODY='''
 # This is the version of this tree, as created by %(versiontool)s from the darcs patch
 # information: the main version number is taken from the most recent release
