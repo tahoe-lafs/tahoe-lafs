@@ -11,7 +11,6 @@ FILENAME_RE  = re.compile(r'([a-zA-Z_0-9\.]*)-([0-9\.a-vx-z_]*)(-py[0-9\.]*)?(-.
 FILENAME_RE2 = re.compile(r'([a-zA-Z_0-9\.]*)-([0-9\.a-vx-z_]*)(win32|win-amd64)?(-py[0-9\.]*)?')
 
 matrix = {}
-platforms = set()
 pkgs = set()
 platform_dependent_pkgs = set()
 python_versions = set()
@@ -53,7 +52,6 @@ for fname in filenames:
                     platform = platform[:-len(alias)] + replacement
                     break
 
-            platforms.add(platform)
             pkgs.add(pkg)
             if platform:
                 platform_dependent_pkgs.add(pkg)
@@ -95,8 +93,11 @@ for pyver in reversed(sorted(python_versions)):
             print '    <td style="%s">&nbsp;%s&nbsp;</td>' % (style1, platform,)
             for pkg in sorted(platform_dependent_pkgs):
                 files = [n for (p, n) in row_files if pkg == p]
-                print '    <td style="%s">&nbsp;%s</td>' % (style2,
-                        '<br>&nbsp;'.join(['<a href="%s">%s</a>' % (f, f) for f in files]))
+                if pkg == 'pywin32' and not platform.startswith('windows'):
+                    print '    <td style="border: 0; text-align: center; %s"> n/a </td>' % (style2,)
+                else:
+                    print '    <td style="%s">&nbsp;%s</td>' % (style2,
+                            '<br>&nbsp;'.join(['<a href="%s">%s</a>' % (f, f) for f in files]))
             print '  </tr>'
             first = False
 
