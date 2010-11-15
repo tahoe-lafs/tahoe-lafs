@@ -55,7 +55,7 @@ one_nfd = u"one\u0304"
 
 class Dirnode(GridTestMixin, unittest.TestCase,
               testutil.ReallyEqualMixin, testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
-    timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
+    timeout = 480 # It occasionally takes longer than 240 seconds on Francois's arm box.
 
     def test_basic(self):
         self.basedir = "dirnode/Dirnode/test_basic"
