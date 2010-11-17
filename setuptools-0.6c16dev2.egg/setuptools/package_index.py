@@ -19,6 +19,21 @@ PYPI_MD5 = re.compile(
 URL_SCHEME = re.compile('([-+.a-z0-9]{2,}):',re.I).match
 EXTENSIONS = ".tar.gz .tar.bz2 .tar .zip .tgz".split()
 
+def is_local(url_or_fname):
+    """ Return True if url_or_fname is a "file:" url or if it is a schemaless thing (which is presumably a filename). """
+    mo = URL_SCHEME(url_or_fname)
+    return not (mo and mo.group(1).lower()!='file')
+
+def url_or_fname_to_fname(url_or_fname):
+    """ Assert that is_local(url_or_fname) then if it is a "file:" url, parse it and run url2pathname on it, else just return it. """
+    assert is_local(url_or_fname)
+
+    mo = URL_SCHEME(url_or_fname)
+    if mo:
+        return urllib2.url2pathname(urlparse.urlparse(url)[2])
+    else:
+        return url_or_fname
+
 __all__ = [
     'PackageIndex', 'distros_for_url', 'parse_bdist_wininst',
     'interpret_distro_name',
@@ -436,18 +451,22 @@ class PackageIndex(Environment):
         def find(env, req):
             # Find a matching distribution; may be called more than once
 
-            # first try to find a platform-dependent dist
-            for allow_platform_independent in (False, True):
-                for dist in env[req.key]:
-                    if dist.precedence==DEVELOP_DIST and not develop_ok:
-                        if dist not in skipped:
-                            self.warn("Skipping development or system egg: %s",dist)
-                            skipped[dist] = 1
-                        continue
+            # first try to find a local dist
+            for allow_remote in (False, True):
+                # then try to find a platform-dependent dist
+                for allow_platform_independent in (False, True):
+                    for dist in env[req.key]:
+                        if dist.precedence==DEVELOP_DIST and not develop_ok:
+                            if dist not in skipped:
+                                self.warn("Skipping development or system egg: %s",dist)
+                                skipped[dist] = 1
+                            continue
 
-                    if (dist in req and (allow_platform_independent or dist.platform is not None) and
-                        (dist.precedence<=SOURCE_DIST or not source)):
-                        return dist
+                        if ((is_local(dist.location) or allow_remote) and
+                            (dist in req) and
+                            ((allow_platform_independent or dist.platform is not None) and
+                             (dist.precedence<=SOURCE_DIST or not source))):
+                            return dist
 
         if force_scan:
             self.prescan()
