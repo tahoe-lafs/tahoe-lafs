@@ -436,18 +436,18 @@ class PackageIndex(Environment):
         def find(env, req):
             # Find a matching distribution; may be called more than once
 
-            for dist in env[req.key]:
+            # first try to find a platform-dependent dist
+            for allow_platform_independent in (False, True):
+                for dist in env[req.key]:
+                    if dist.precedence==DEVELOP_DIST and not develop_ok:
+                        if dist not in skipped:
+                            self.warn("Skipping development or system egg: %s",dist)
+                            skipped[dist] = 1
+                        continue
 
-                if dist.precedence==DEVELOP_DIST and not develop_ok:
-                    if dist not in skipped:
-                        self.warn("Skipping development or system egg: %s",dist)
-                        skipped[dist] = 1
-                    continue
-
-                if dist in req and (dist.precedence<=SOURCE_DIST or not source):
-                    return dist
-
-
+                    if (dist in req and (allow_platform_independent or dist.platform is not None) and
+                        (dist.precedence<=SOURCE_DIST or not source)):
+                        return dist
 
         if force_scan:
             self.prescan()
