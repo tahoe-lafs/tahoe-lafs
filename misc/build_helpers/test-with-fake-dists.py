@@ -24,7 +24,7 @@
 # 0.5.24 or 0.5.25. At the time of this writing it requires >= 0.5.20
 # on x86 and >= 0.5.14 on other architectures.)
 
-import StringIO, glob, os, platform, subprocess, sys, tarfile, zipfile
+import StringIO, glob, os, platform, shutil, subprocess, sys, tarfile, zipfile
 import pkg_resources
 
 fake_distdir = 'tahoe-deps'
@@ -66,4 +66,5 @@ try:
 finally:
     os.remove(bdist_egg_name)
     os.remove(sdist_name)
-    pass
+    shutil.rmtree('support')
+    [shutil.rmtree(p) for p in glob.glob('pycryptopp*.egg')]
