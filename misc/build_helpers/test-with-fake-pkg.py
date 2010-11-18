@@ -16,7 +16,7 @@ import glob, os, subprocess, sys
 fakepkgdir = 'misc/build_helpers/fakepkgs'
 fakepkgname = "pycryptopp"
 fakepkgversion = "0.5.13"
-testsuite = "allmydata.test.test_base62"
+testsuite = "allmydata.test.test_backupdb"
 
 pkgdirname = os.path.join(os.getcwd(), fakepkgdir, '%s-%s.egg' % (fakepkgname, fakepkgversion))
 
