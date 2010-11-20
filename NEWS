@@ -2,14 +2,6 @@
 
 * Release 1.8.1 (coming)
 
-** Documentation
-
- - All .txt documents (except historical docs) have been converted to
-   .rst format. (#1225)
- - Added docs/backdoors.rst declaring that we won't add backdoors to
-   Tahoe-LAFS, or add anything to facilitate government access to data.
-   (#1216)
-
 ** Bugfixes and Improvements
 
  - Allow the repairer to improve the health of a file by uploading
@@ -37,6 +29,14 @@
  - Use a newer version of a dependency if needed, even if an older
    version is installed. This would previously cause a VersionConflict
    error. (#1190)
+
+** Documentation
+
+ - All .txt documents (except historical docs) have been converted to
+   .rst format. (#1225)
+ - Added docs/backdoors.rst declaring that we won't add backdoors to
+   Tahoe-LAFS, or add anything to facilitate government access to data.
+   (#1216)
 
 * Release 1.8.0 (2010-09-23)
 
