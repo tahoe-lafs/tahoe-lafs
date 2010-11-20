@@ -3,6 +3,7 @@
 # It expects to be run in the tahoe-lafs-dep-eggs directory.
 
 import re, os, sys
+import pkg_resources
 
 extensions = ('.egg', '.tar.bz2', '.tar.gz', '.exe')
 platform_aliases = [('i686','x86'), ('i386','x86'), ('i86pc','x86'), ('win32','windows-x86'),
@@ -93,11 +94,12 @@ for pyver in reversed(sorted(python_versions)):
             print '    <td style="%s">&nbsp;%s&nbsp;</td>' % (style1, platform,)
             for pkg in sorted(platform_dependent_pkgs):
                 files = [n for (p, n) in row_files if pkg == p]
+                bestfile = files and max([(pkg_resources.parse_version(x), x) for x in files])[1] or None
                 if pkg == 'pywin32' and not platform.startswith('windows'):
                     print '    <td style="border: 0; text-align: center; %s"> n/a </td>' % (style2,)
                 else:
                     print '    <td style="%s">&nbsp;%s</td>' % (style2,
-                            '<br>&nbsp;'.join(['<a href="%s">%s</a>' % (f, f) for f in files]))
+                            bestfile and '<a href="%s">%s</a>' % (bestfile, bestfile) or '')
             print '  </tr>'
             first = False
 
