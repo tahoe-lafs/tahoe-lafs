@@ -23,6 +23,8 @@
    proxy, thus avoiding giving caps to the HTTP proxy (and also
    avoiding failures in the case that the HTTP proxy is failing or
    requires authentication). (#1253)
+ - The CLI now correctly reports failure in the case that 'tahoe mv' fails to
+   unlink the file from its old location. (#1255)
 
 ** Packaging
 
