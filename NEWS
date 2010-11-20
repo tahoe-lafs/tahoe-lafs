@@ -31,6 +31,9 @@
  - Use a newer version of a dependency if needed, even if an older
    version is installed. This would previously cause a VersionConflict
    error. (#1190)
+ - Use a precompiled binary of a dependency if one with a sufficiently high
+   version number is available, instead of attempting to compile the dependency
+   from source, even if the source version has a higher version number . (#1233)
 
 ** Documentation
 
