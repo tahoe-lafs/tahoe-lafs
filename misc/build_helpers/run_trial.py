@@ -52,7 +52,14 @@ if modulename is None:
 __import__(modulename)
 srcfile = sys.modules[modulename].__file__
 srcdir = os.path.dirname(os.path.realpath(srcfile))
-for i in modulename.split('.'):
+
+components = modulename.split('.')
+leaf = os.path.normcase(components[-1])
+if os.path.normcase(os.path.basename(srcfile)) in (leaf + '.py', leaf + '.pyc'):
+    # strip the leaf module name
+    components = components[:-1]
+
+for i in components:
     srcdir = os.path.dirname(srcdir)
 
 if os.path.normcase(srcdir).endswith('.egg'):
