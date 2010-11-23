@@ -131,7 +131,7 @@ setup_requires = []
 # configure it to run darcsver before your command, if you want the version
 # number to be correct when that command runs.
 # http://pypi.python.org/pypi/darcsver
-setup_requires.append('darcsver >= 1.2.0')
+setup_requires.append('darcsver >= 1.7.1')
 
 # Nevow requires Twisted to setup, but doesn't declare that requirement in a
 # way that enables setuptools to satisfy that requirement before Nevow's
