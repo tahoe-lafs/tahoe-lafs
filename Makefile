@@ -132,6 +132,8 @@ quicktest-coverage:
 	$(PYTHON) misc/build_helpers/run-with-pythonpath.py trial --reporter=bwverbose-coverage $(TEST)
 # on my laptop, "quicktest" takes 239s, "quicktest-coverage" takes 304s
 
+# --include appeared in coverage-3.4
+COVERAGE_OMIT=--include '$(CURDIR)/src/allmydata/*' --omit '$(CURDIR)/src/allmydata/test/*'
 coverage-output:
 	rm -rf coverage-html
 	coverage html -i -d coverage-html $(COVERAGE_OMIT)

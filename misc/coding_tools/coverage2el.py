@@ -1,10 +1,20 @@
 
+import os.path
 from coverage import coverage, summary, misc
 
 class ElispReporter(summary.SummaryReporter):
     def report(self):
-        self.find_code_units(None, ["/System", "/Library", "/usr/lib",
-                                    "support/lib", "src/allmydata/test"])
+        try:
+            # coverage-3.4 has both omit= and include= . include= is applied
+            # first, then omit= removes items from what's left. These are
+            # tested with fnmatch, against fully-qualified filenames.
+            self.find_code_units(None,
+                                 omit=[os.path.abspath("src/allmydata/test/*")],
+                                 include=[os.path.abspath("src/allmydata/*")])
+        except TypeError:
+            # coverage-3.3 only had omit=
+            self.find_code_units(None, ["/System", "/Library", "/usr/lib",
+                                        "support/lib", "src/allmydata/test"])
 
         out = open(".coverage.el", "w")
         out.write("""
