@@ -26,10 +26,17 @@ class RunOptions(BasedirMixin, BaseOptions):
 
     optParameters = [
         ["node-directory", "d", None, "Specify the directory of the node to be run. [default, for 'tahoe run' only: current directory]"],
-        ["multiple", "m", None, "['tahoe run' cannot accept multiple node directories]"],
-    ]
+        ]
+    optFlags = [ ]
+    if BasedirMixin.can_start_multiple:
+        # usage.Options doesn't let us remove flags that we inherit from a
+        # parent class, so at least provide a --help string that warns people
+        # away from using it. There is also code (switching on
+        # allow_multiple) to disable it at runtime.
+        optFlags.append(["multiple", "m",
+                         "['tahoe run' cannot accept multiple node directories]"])
 
-def do_start(basedir, opts, out=sys.stdout, err=sys.stderr):
+def do_start(basedir, opts, out=sys.stdout, err=sys.stderr, fork=False):
     print >>out, "STARTING", quote_output(basedir)
     if not os.path.isdir(basedir):
         print >>err, "%s does not look like a directory at all" % quote_output(basedir)
@@ -57,6 +64,10 @@ def do_start(basedir, opts, out=sys.stdout, err=sys.stderr):
     if opts["profile"]:
         args.extend(["--profile=profiling_results.prof", "--savestats",])
     # now we're committed
+    if fork:
+        if os.fork() != 0:
+            return 0 # parent
+        # we're in the child
     os.chdir(basedir)
     from twisted.scripts import twistd
     sys.argv = args
@@ -123,8 +134,11 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
 
 def start(config, stdout, stderr):
     rc = 0
-    for basedir in config['basedirs']:
-        rc = do_start(basedir, config, stdout, stderr) or rc
+    for basedir in config['basedirs'][:-1]:
+        # fork before starting all but the last one
+        rc = do_start(basedir, config, stdout, stderr, fork=True) or rc
+    # start the last one in the current process, to capture its exit code
+    rc = do_start(config['basedirs'][-1], config, stdout, stderr, fork=False) or rc
     return rc
 
 def stop(config, stdout, stderr):
@@ -143,8 +157,7 @@ def restart(config, stdout, stderr):
     if rc:
         print >>stderr, "not restarting"
         return rc
-    for basedir in config['basedirs']:
-        rc = do_start(basedir, config, stdout, stderr) or rc
+    rc = start(config, stdout, stderr) or rc
     return rc
 
 def run(config, stdout, stderr):
