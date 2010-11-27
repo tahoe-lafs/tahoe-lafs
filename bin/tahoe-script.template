@@ -72,22 +72,21 @@ if sys.platform == "win32":
         if not arg.startswith(u"-") or arg == u"-":
             break
         argv = argv[1:]
-        if arg == u'-m':
-            # sys.argv[0] should really be the absolute path of the module source, but never mind
-            break
-        if arg == u'-c':
-            argv[0] = u'-c'
+        if arg == u'-m' or arg == u'-c':
             break
 
-    local_tahoe = "Scripts\\tahoe.pyscript"
+    script = os.path.join(base, "support", "Scripts", "tahoe.pyscript")
+
+    # On Windows, the script is not directly executable and must be run via python.
+    args = [sys.executable, script] + argv[1:]
 else:
-    argv = sys.argv
-    local_tahoe = "bin/tahoe"
+    script = os.path.join(base, "support", "bin", "tahoe")
 
-script = os.path.join(base, "support", local_tahoe)
+    # On non-Windows, invoke the script directly, so that 'top' for example shows 'tahoe'.
+    args = [script] + sys.argv[1:]
 
 try:
-    res = subprocess.call([sys.executable, script] + argv[1:], env=os.environ)
+    res = subprocess.call(args, env=os.environ)
 except (OSError, IOError), le:
     if le.args[0] == errno.ENOENT:
         print whoami
