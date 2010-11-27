@@ -54,18 +54,13 @@ class BaseOptions(usage.Options):
 class BasedirMixin:
     default_nodedir = _default_nodedir
     allow_multiple = True
-    # startstop_node.py needs os.fork to implement the "-m" option on "tahoe
-    # start" option
-    can_start_multiple = hasattr(os, "fork")
-
 
     optParameters = [
         ["basedir", "C", None, "Same as --node-directory."],
     ]
-    optFlags = [ ]
-    if can_start_multiple:
-        optFlags.append(["multiple", "m",
-                         "Specify multiple node directories at once."])
+    optFlags = [
+        ["multiple", "m", "Specify multiple node directories at once."],
+    ]
 
     def parseArgs(self, *args):
         if self['node-directory'] and self['basedir']:
