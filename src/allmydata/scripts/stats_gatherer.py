@@ -26,7 +26,8 @@ g.setServiceParent(application)
 """
 
 
-def create_stats_gatherer(basedir, config, out=sys.stdout, err=sys.stderr):
+def create_stats_gatherer(config, out=sys.stdout, err=sys.stderr):
+    basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
     precondition(isinstance(basedir, unicode), basedir)
 

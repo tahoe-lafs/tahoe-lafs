@@ -246,20 +246,7 @@ class CreateNode(unittest.TestCase):
         self.failUnless(os.path.exists(n3))
         self.failUnless(os.path.exists(os.path.join(n3, tac)))
 
-        # test the --multiple form
-        n4 = os.path.join(basedir, command + "-n4")
-        n5 = os.path.join(basedir, command + "-n5")
-        argv = ["--quiet", command, "--multiple", n4, n5]
-        rc, out, err = self.run_tahoe(argv)
-        self.failUnlessEqual(err, "")
-        self.failUnlessEqual(out, "")
-        self.failUnlessEqual(rc, 0)
-        self.failUnless(os.path.exists(n4))
-        self.failUnless(os.path.exists(os.path.join(n4, tac)))
-        self.failUnless(os.path.exists(n5))
-        self.failUnless(os.path.exists(os.path.join(n5, tac)))
-
-        # make sure it rejects too many arguments without --multiple
+        # make sure it rejects too many arguments
         argv = [command, "basedir", "extraarg"]
         self.failUnlessRaises(usage.UsageError,
                               runner.runner, argv,

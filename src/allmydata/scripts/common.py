@@ -53,43 +53,29 @@ class BaseOptions(usage.Options):
 
 class BasedirMixin:
     default_nodedir = _default_nodedir
-    allow_multiple = True
 
     optParameters = [
         ["basedir", "C", None, "Same as --node-directory."],
     ]
-    optFlags = [
-        ["multiple", "m", "Specify multiple node directories at once."],
-    ]
 
-    def parseArgs(self, *args):
+    def parseArgs(self, basedir=None):
         if self['node-directory'] and self['basedir']:
             raise usage.UsageError("The --node-directory (or -d) and --basedir (or -C) "
                                    "options cannot both be used.")
 
-        if self['node-directory'] or self['basedir']:
-            self.basedirs = [argv_to_abspath(self['node-directory'] or self['basedir'])]
+        if basedir:
+            b = argv_to_abspath(basedir)
+        elif self['basedir']:
+            b = argv_to_abspath(self['basedir'])
+        elif self['node-directory']:
+            b = argv_to_abspath(self['node-directory'])
         else:
-            self.basedirs = []
-
-        if self.allow_multiple and self['multiple']:
-            self.basedirs.extend(map(argv_to_abspath, args))
-        else:
-            if len(args) > 1:
-                raise usage.UsageError("I wasn't expecting so many arguments." +
-                    (self.allow_multiple and
-                     " Use the --multiple option to specify more than one node directory." or ""))
-
-            if len(args) == 0 and self.default_nodedir and not self.basedirs:
-                self.basedirs.append(self.default_nodedir)
-            elif len(args) > 0:
-                self.basedirs.append(argv_to_abspath(args[0]))
+            b = self.default_nodedir
+        self['basedir'] = b
 
     def postOptions(self):
-        if not self.basedirs:
+        if not self['basedir']:
             raise usage.UsageError("A base directory for the node must be provided.")
-        del self['basedir']
-        self['basedirs'] = self.basedirs
 
 
 DEFAULT_ALIAS = u"tahoe"

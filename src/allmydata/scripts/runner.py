@@ -87,11 +87,8 @@ def runner(argv,
     so.stderr = stderr
     so.stdin = stdin
 
-    rc = 0
     if command in create_dispatch:
-        f = create_dispatch[command]
-        for basedir in so.basedirs:
-            rc = f(basedir, so, stdout, stderr) or rc
+        rc = create_dispatch[command](so, stdout, stderr)
     elif command in startstop_node.dispatch:
         rc = startstop_node.dispatch[command](so, stdout, stderr)
     elif command in debug.dispatch:

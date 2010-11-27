@@ -22,14 +22,13 @@ class RestartOptions(BasedirMixin, BaseOptions):
 
 class RunOptions(BasedirMixin, BaseOptions):
     default_nodedir = u"."
-    allow_multiple = False
 
     optParameters = [
         ["node-directory", "d", None, "Specify the directory of the node to be run. [default, for 'tahoe run' only: current directory]"],
-        ["multiple", "m", None, "['tahoe run' cannot accept multiple node directories]"],
     ]
 
-def do_start(basedir, opts, out=sys.stdout, err=sys.stderr):
+def start(opts, out=sys.stdout, err=sys.stderr):
+    basedir = opts['basedir']
     print >>out, "STARTING", quote_output(basedir)
     if not os.path.isdir(basedir):
         print >>err, "%s does not look like a directory at all" % quote_output(basedir)
@@ -65,7 +64,8 @@ def do_start(basedir, opts, out=sys.stdout, err=sys.stderr):
     # we'll never get here. If application setup fails (e.g. ImportError),
     # run() will raise an exception.
 
-def do_stop(basedir, out=sys.stdout, err=sys.stderr):
+def stop(config, out=sys.stdout, err=sys.stderr):
+    basedir = config['basedir']
     print >>out, "STOPPING", quote_output(basedir)
     pidfile = os.path.join(basedir, "twistd.pid")
     if not os.path.exists(pidfile):
@@ -121,38 +121,22 @@ def do_stop(basedir, out=sys.stdout, err=sys.stderr):
     # we define rc=1 to mean "I think something is still running, sorry"
     return 1
 
-def start(config, stdout, stderr):
-    rc = 0
-    for basedir in config['basedirs']:
-        rc = do_start(basedir, config, stdout, stderr) or rc
-    return rc
-
-def stop(config, stdout, stderr):
-    rc = 0
-    for basedir in config['basedirs']:
-        rc = do_stop(basedir, stdout, stderr) or rc
-    return rc
-
 def restart(config, stdout, stderr):
-    rc = 0
-    for basedir in config['basedirs']:
-        rc = do_stop(basedir, stdout, stderr) or rc
+    rc = stop(config, stdout, stderr)
     if rc == 2:
         print >>stderr, "ignoring couldn't-stop"
         rc = 0
     if rc:
         print >>stderr, "not restarting"
         return rc
-    for basedir in config['basedirs']:
-        rc = do_start(basedir, config, stdout, stderr) or rc
-    return rc
+    return start(config, stdout, stderr)
 
 def run(config, stdout, stderr):
     from twisted.internet import reactor
     from twisted.python import log, logfile
     from allmydata import client
 
-    basedir = config['basedirs'][0]
+    basedir = config['basedir']
     precondition(isinstance(basedir, unicode), basedir)
 
     if not os.path.isdir(basedir):

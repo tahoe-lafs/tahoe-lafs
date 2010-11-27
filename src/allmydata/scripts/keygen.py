@@ -29,7 +29,8 @@ application = service.Application("allmydata_key_generator")
 k.setServiceParent(application)
 """
 
-def create_key_generator(basedir, config, out=sys.stdout, err=sys.stderr):
+def create_key_generator(config, out=sys.stdout, err=sys.stderr):
+    basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
     precondition(isinstance(basedir, unicode), basedir)
 

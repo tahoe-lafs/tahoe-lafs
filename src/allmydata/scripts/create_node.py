@@ -89,7 +89,8 @@ def write_node_config(c, config):
     c.write("\n")
 
 
-def create_node(basedir, config, out=sys.stdout, err=sys.stderr):
+def create_node(config, out=sys.stdout, err=sys.stderr):
+    basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
     precondition(isinstance(basedir, unicode), basedir)
 
@@ -144,14 +145,15 @@ def create_node(basedir, config, out=sys.stdout, err=sys.stderr):
         print >>out, " The node cannot connect to a grid without it."
     if not config.get("nickname", ""):
         print >>out, " Please set [node]nickname= in tahoe.cfg"
+    return 0
 
-
-def create_client(basedir, config, out=sys.stdout, err=sys.stderr):
+def create_client(config, out=sys.stdout, err=sys.stderr):
     config['no-storage'] = True
-    return create_node(basedir, config, out=out, err=err)
+    return create_node(config, out=out, err=err)
 
 
-def create_introducer(basedir, config, out=sys.stdout, err=sys.stderr):
+def create_introducer(config, out=sys.stdout, err=sys.stderr):
+    basedir = config['basedir']
     # This should always be called with an absolute Unicode basedir.
     precondition(isinstance(basedir, unicode), basedir)
 
@@ -173,6 +175,7 @@ def create_introducer(basedir, config, out=sys.stdout, err=sys.stderr):
     c.close()
 
     print >>out, "Introducer created in %s" % quote_output(basedir)
+    return 0
 
 
 subCommands = [
