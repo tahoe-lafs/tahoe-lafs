@@ -3,7 +3,7 @@ Known issues
 ============
 
 * `Overview`_
-* `Issues in Tahoe-LAFS v1.8.0, released 2010-09-23`
+* `Issues in Tahoe-LAFS v1.8.1, released 2010-11-28`
 
   *  `Potential unauthorized access by JavaScript in unrelated files`_
   *  `Potential disclosure of file through embedded hyperlinks or JavaScript in that file`_
@@ -25,7 +25,7 @@ want to read the "historical known issues" document:
 
 http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/historical/historical_known_issues.txt
 
-Issues in Tahoe-LAFS v1.8.0, released 2010-09-23
+Issues in Tahoe-LAFS v1.8.1, released 2010-11-28
 ================================================
 
 Potential unauthorized access by JavaScript in unrelated files

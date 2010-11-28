@@ -27,9 +27,21 @@
    fails to unlink the file from its old location. (#1255)
  - 'tahoe start' now gives a more positive indication that the node
    has started. (#71)
+ - The arguments seen by 'ps' or other tools for node processes should
+   be more useful (in particular, they should include the path of the
+   'tahoe' script, rather than an obscure tool named 'twistd'). (#174)
+
+** Removed Features
+
+ - The tahoe start/stop/restart and node creation commands no longer
+   accept the -m or --multiple option, for consistency between platforms.
+   (#1262)
 
 ** Packaging
 
+ - We now host binary packages so that users on certain operating systems
+   can install without having a compiler.
+   <http://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-lafs-dep-eggs/README.html>
  - Use a newer version of a dependency if needed, even if an older
    version is installed. This would previously cause a VersionConflict
    error. (#1190)
@@ -45,6 +57,7 @@
  - Added docs/backdoors.rst declaring that we won't add backdoors to
    Tahoe-LAFS, or add anything to facilitate government access to data.
    (#1216)
+
 
 * Release 1.8.0 (2010-09-23)
 
@@ -85,6 +98,7 @@
  - on x86 and x86-64 platforms, pycryptopp >= 0.5.20
  - pycrypto 2.2 is excluded due to a bug
 
+
 * Release 1.7.1 (2010-07-18)
 
 ** Bugfixes and Improvements
@@ -113,6 +127,7 @@
 
  - Simplify and tidy-up directories, unicode support, test code (#923, #967,
    #1072)
+
 
 * Release 1.7.0 (2010-06-18)
 
@@ -199,6 +214,7 @@ pycrypto >= 2.0.1
 pyasn1 >= 0.0.8a
 mock (only required by unit tests)
 
+
 * Release 1.6.1 (2010-02-27)
 
 ** Bugfixes
@@ -218,6 +234,7 @@ The timeouts for operation handles have been greatly increased, so that
 you can view the results of an operation up to 4 days after it has
 completed. After viewing them for the first time, the results are
 retained for a further day. (#577)
+
 
 * Release 1.6.0 (2010-02-01)
 
