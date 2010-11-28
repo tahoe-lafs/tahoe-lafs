@@ -9,7 +9,7 @@ import os.path
 import os
 import sys
 
-__version__ = '0.6c16dev2'
+__version__ = '0.6c16dev3'
 __all__ = [
     'setup', 'Distribution', 'Feature', 'Command', 'Extension', 'Require',
     'find_packages'
