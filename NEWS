@@ -27,8 +27,8 @@
    fails to unlink the file from its old location. (#1255)
  - 'tahoe start' now gives a more positive indication that the node
    has started. (#71)
- - The arguments seen by 'ps' or other tools for node processes should
-   be more useful (in particular, they should include the path of the
+ - The arguments seen by 'ps' or other tools for node processes are
+   now more useful (in particular, they include the path of the
    'tahoe' script, rather than an obscure tool named 'twistd'). (#174)
 
 ** Removed Features
