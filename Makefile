@@ -289,7 +289,7 @@ tarballs:
 	$(PYTHON) setup.py sdist --sumo --formats=bztar,gztar,zip
 
 upload-tarballs:
-	@if [ "X${BB_BRANCH}" == "Xtrunk" ]; then for f in dist/allmydata-tahoe-*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi
+	@if [ "X${BB_BRANCH}" == "X" ]; then for f in dist/allmydata-tahoe-*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi
 
 # DEBIAN PACKAGING
 
