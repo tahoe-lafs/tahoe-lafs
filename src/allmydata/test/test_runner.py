@@ -459,7 +459,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         # now we can kill it. TODO: On a slow machine, the node might kill
-        # itself before we get a chance too, especially if spawning the
+        # itself before we get a chance to, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
             self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))

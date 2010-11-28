@@ -65,7 +65,7 @@ def write_node_config(c, config):
     c.write("# This file controls the configuration of the Tahoe node that\n")
     c.write("# lives in this directory. It is only read at node startup.\n")
     c.write("# For details about the keys that can be set here, please\n")
-    c.write("# read the 'docs/configuration.txt' file that came with your\n")
+    c.write("# read the 'docs/configuration.rst' file that came with your\n")
     c.write("# Tahoe installation.\n")
     c.write("\n\n")
 
