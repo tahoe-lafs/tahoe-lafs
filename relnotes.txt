@@ -125,7 +125,7 @@ public-spirited support.
 HACK TAHOE-LAFS!
 
 If you can find a security flaw in Tahoe-LAFS which is serious
-enough that feel compelled to warn our users and issue a fix,
+enough that we feel compelled to warn our users and issue a fix,
 then we will award you with a customized t-shirts with your
 exploit printed on it and add you to the "Hack Tahoe-LAFS Hall
 Of Fame" [12].
