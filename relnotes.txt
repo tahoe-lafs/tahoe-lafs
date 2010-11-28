@@ -48,7 +48,7 @@ This software is developed under test-driven development, and
 there are no known bugs or security flaws which would
 compromise confidentiality or data integrity under recommended
 use. (For all important issues that we are currently aware of
-please see the known_issues.txt file [4].)
+please see the known_issues.rst file [4].)
 
 
 COMPATIBILITY
@@ -148,7 +148,7 @@ Rainhill, Merseyside, UK and Boulder, Colorado, USA
 [1] http://tahoe-lafs.org/trac/tahoe/browser/relnotes.txt?rev=4747
 [2] http://tahoe-lafs.org/trac/tahoe/browser/NEWS?rev=4854
 [3] http://tahoe-lafs.org/trac/tahoe/wiki/RelatedProjects
-[4] http://tahoe-lafs.org/trac/tahoe/browser/docs/known_issues.txt
+[4] http://tahoe-lafs.org/trac/tahoe/browser/docs/known_issues.rst
 [5] http://tahoe-lafs.org/trac/tahoe/browser/COPYING.GPL
 [6] http://tahoe-lafs.org/source/tahoe/trunk/COPYING.TGPPL.html
 [7] http://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.html
