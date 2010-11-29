@@ -133,7 +133,7 @@ Of Fame" [12].
 
 ACKNOWLEDGEMENTS
 
-This is the fifth release of Tahoe-LAFS to be created solely
+This is the sixth release of Tahoe-LAFS to be created solely
 as a labor of love by volunteers. Thank you very much to the
 team of "hackers in the public interest" who make Tahoe-LAFS
 possible.
