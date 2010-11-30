@@ -226,11 +226,11 @@ class CpOptions(VDriveOptions):
 
     tahoe cp URI:DIR2-RO:ixqhc4kdbjxc7o65xjnveoewym:5x6lwoxghrd5rxhwunzavft2qygfkt27oj3fbxlq4c6p45z5uneq/blog.html ./   # copy Zooko's wiki page to a local file
 
-    This command still has some limitations: symlinks, special files (device
-    nodes, named pipes), and non-ASCII filenames are not handled very well.
-    Arguments should probably not have trailing slashes. 'tahoe cp' does not
-    behave as much like /bin/cp as you would wish, especially with respect to
-    trailing slashes.
+    This command still has some limitations: symlinks and special files
+    (device nodes, named pipes) are not handled very well. Arguments should
+    probably not have trailing slashes. 'tahoe cp' does not behave as much
+    like /bin/cp as you would wish, especially with respect to trailing
+    slashes.
     """
 
 class RmOptions(VDriveOptions):
