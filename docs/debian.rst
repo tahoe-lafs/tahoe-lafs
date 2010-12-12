@@ -139,12 +139,12 @@ and there are no such source packages in our APT repository.
 Using Pre-Built Debian Packages
 ===============================
 
-The allmydata.org site hosts an APT repository with debian packages that are
-built after each checkin. `This wiki page
-<http://allmydata.org/trac/tahoe/wiki/DownloadDebianPackages>`_ describes this
-repository.
+The ``tahoe-lafs.org`` site hosts an APT repository with Debian packages that are
+built after each checkin. The `DownloadDebianPackages
+<http://tahoe-lafs.org/trac/tahoe/wiki/DownloadDebianPackages>`_ wiki page
+describes this repository.
 
-The allmydata.org APT repository also includes debian packages of support
+The ``tahoe-lafs.org`` APT repository also includes Debian packages of support
 libraries, like Foolscap, zfec, pycryptopp, and everything else you need that
 isn't already in debian.
 
@@ -172,9 +172,13 @@ will insist upon downloading that specific 0.9.26 version. Since the current
 release of Nevow is 0.9.31, and 0.9.26 is no longer available for download,
 this will fail.
 
-The Tahoe source tree currently ships with a directory full of tarballs of
-dependent libraries (misc/dependencies/), to enable a "desert-island build".
-There are plans to remove these tarballs from the source repository (but
-still provide a way to get Tahoe source plus dependencies). This Nevow-0.9.26
--type problem can be mitigated by putting the right dependency tarball in
-misc/dependencies/ .
+`<http://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-lafs-dep-sdists/>`_
+contains source tarballs for Tahoe's dependent libraries. The Nevow-0.9.26-type
+problem can be mitigated by putting the right dependency in ``tahoe-deps``,
+or by downloading the "SUMO" distribution of Tahoe-LAFS, which includes all of
+these source tarballs.
+
+If you encounter problems building a dependency from source,
+`<http://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-lafs-dep-eggs/>`_
+contains binary (`.egg`) distributions for various OS platforms and versions
+of Python.
