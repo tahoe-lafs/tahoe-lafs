@@ -1,4 +1,6 @@
-= Specification Document Outline =
+==============================
+Specification Document Outline
+==============================
 
 While we do not yet have a clear set of specification documents for Tahoe
 (explaining the file formats, so that others can write interoperable
@@ -8,7 +10,13 @@ Tahoe.
 
 We currently imagine 4 documents.
 
-== #1: Share Format, Encoding Algorithm ==
+1.  `#1: Share Format, Encoding Algorithm`_
+2.  `#2: Share Exchange Protocol`_
+3.  `#3: Server Selection Algorithm, filecap format`_
+4.  `#4: Directory Format`_
+
+#1: Share Format, Encoding Algorithm
+====================================
 
 This document will describe the way that files are encrypted and encoded into
 shares. It will include a specification of the share format, and explain both
@@ -43,7 +51,8 @@ from destroying shares). We don't yet have a document dedicated to explaining
 these, but let's call it "Access Control" for now.
 
 
-== #2: Share Exchange Protocol ==
+#2: Share Exchange Protocol
+===========================
 
 This document explains the wire-protocol used to upload, download, and modify
 shares on the various storage servers.
@@ -75,7 +84,8 @@ each protocol. The first one to be written will describe the Foolscap-based
 protocol that tahoe currently uses, but we anticipate a subsequent one to
 describe a more HTTP-based protocol.
 
-== #3: Server Selection Algorithm, filecap format ==
+#3: Server Selection Algorithm, filecap format
+==============================================
 
 This document has two interrelated purposes. With a deeper understanding of
 the issues, we may be able to separate these more cleanly in the future.
@@ -90,27 +100,27 @@ of work?
 This question implies many things, all of which should be explained in this
 document:
 
- * the notion of a "grid", nominally a set of servers who could potentially
-   hold shares, which might change over time
- * a way to configure which grid should be used
- * a way to discover which servers are a part of that grid
- * a way to decide which servers are reliable enough to be worth sending
-   shares
- * an algorithm to handle servers which refuse shares
- * a way for a downloader to locate which servers have shares
- * a way to choose which shares should be used for download
+* the notion of a "grid", nominally a set of servers who could potentially
+  hold shares, which might change over time
+* a way to configure which grid should be used
+* a way to discover which servers are a part of that grid
+* a way to decide which servers are reliable enough to be worth sending
+  shares
+* an algorithm to handle servers which refuse shares
+* a way for a downloader to locate which servers have shares
+* a way to choose which shares should be used for download
 
 The server-selection algorithm has several obviously competing goals:
 
- * minimize the amount of work that must be done during upload
- * minimize the total storage resources used
- * avoid "hot spots", balance load among multiple servers
- * maximize the chance that enough shares will be downloadable later, by
-   uploading lots of shares, and by placing them on reliable servers
- * minimize the work that the future downloader must do
- * tolerate temporary server failures, permanent server departure, and new
-   server insertions
- * minimize the amount of information that must be added to the filecap
+* minimize the amount of work that must be done during upload
+* minimize the total storage resources used
+* avoid "hot spots", balance load among multiple servers
+* maximize the chance that enough shares will be downloadable later, by
+  uploading lots of shares, and by placing them on reliable servers
+* minimize the work that the future downloader must do
+* tolerate temporary server failures, permanent server departure, and new
+  server insertions
+* minimize the amount of information that must be added to the filecap
 
 The server-selection algorithm is defined in some context: some set of
 expectations about the servers or grid with which it is expected to operate.
@@ -185,7 +195,8 @@ Tahoe-1.3.0 filecaps do not contain hostnames, because the failure of DNS or
 an individual host might then impact file availability (however the
 Introducer contains DNS names or IP addresses).
 
-== #4: Directory Format ==
+#4: Directory Format
+====================
 
 Tahoe directories are a special way of interpreting and managing the contents
 of a file (either mutable or immutable). These "dirnode" files are basically

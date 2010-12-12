@@ -1,4 +1,6 @@
-= Servers of Happiness =
+====================
+Servers of Happiness
+====================
 
 When you upload a file to a Tahoe-LAFS grid, you expect that it will
 stay there for a while, and that it will do so even if a few of the
@@ -34,7 +36,8 @@ health provides a stronger assurance of file availability over time;
 with 3-of-10 encoding, and happy=7, a healthy file is still guaranteed
 to be available even if 4 peers fail.
 
-== Measuring Servers of Happiness ==
+Measuring Servers of Happiness
+==============================
 
 We calculate servers-of-happiness by computing a matching on a
 bipartite graph that is related to the layout of shares on the grid.
@@ -71,7 +74,8 @@ of shares later without having to re-encode the file.  Also, it is
 computationally reasonable to compute a maximum matching in a bipartite
 graph, and there are well-studied algorithms to do that.
 
-== Issues ==
+Issues
+======
 
 The uploader is good at detecting unhealthy upload layouts, but it
 doesn't always know how to make an unhealthy upload into a healthy

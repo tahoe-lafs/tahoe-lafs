@@ -1,17 +1,44 @@
+==========================
+The Tahoe REST-ful Web API
+==========================
 
-= The Tahoe REST-ful Web API =
+1.  `Enabling the web-API port`_
+2.  `Basic Concepts: GET, PUT, DELETE, POST`_
+3.  `URLs`_
 
-1. Enabling the web-API port
-2. Basic Concepts: GET, PUT, DELETE, POST
-3. URLs, Machine-Oriented Interfaces
-4. Browser Operations: Human-Oriented Interfaces
-5. Welcome / Debug / Status pages
-6. Static Files in /public_html
-7. Safety and security issues -- names vs. URIs
-8. Concurrency Issues
+	1. `Child Lookup`_
 
+4.  `Slow Operations, Progress, and Cancelling`_
+5.  `Programmatic Operations`_
 
-== Enabling the web-API port ==
+    1. `Reading a file`_
+    2. `Writing/Uploading a File`_
+    3. `Creating a New Directory`_
+    4. `Get Information About A File Or Directory (as JSON)`_
+    5. `Attaching an existing File or Directory by its read- or write-cap`_
+    6. `Adding multiple files or directories to a parent directory at once`_
+    7. `Deleting a File or Directory`_
+
+6.  `Browser Operations: Human-Oriented Interfaces`_
+
+    1.  `Viewing A Directory (as HTML)`_
+    2.  `Viewing/Downloading a File`_
+    3.  `Get Information About A File Or Directory (as HTML)`_
+    4.  `Creating a Directory`_
+    5.  `Uploading a File`_
+    6.  `Attaching An Existing File Or Directory (by URI)`_
+    7.  `Deleting A Child`_
+    8.  `Renaming A Child`_
+    9.  `Other Utilities`_
+    10. `Debugging and Testing Features`_
+
+7.  `Other Useful Pages`_
+8.  `Static Files in /public_html`_
+9.  `Safety and security issues -- names vs. URIs`_
+10. `Concurrency Issues`_
+
+Enabling the web-API port
+=========================
 
 Every Tahoe node is capable of running a built-in HTTP server. To enable
 this, just write a port number into the "[node]web.port" line of your node's
@@ -22,26 +49,29 @@ section of $NODEDIR/tahoe.cfg will cause the node to run a webserver on port
 This string is actually a Twisted "strports" specification, meaning you can
 get more control over the interface to which the server binds by supplying
 additional arguments. For more details, see the documentation on
-twisted.application.strports:
-http://twistedmatrix.com/documents/current/api/twisted.application.strports.html
+`twisted.application.strports
+<http://twistedmatrix.com/documents/current/api/twisted.application.strports.html>`_.
 
 Writing "tcp:3456:interface=127.0.0.1" into the web.port line does the same
 but binds to the loopback interface, ensuring that only the programs on the
-local host can connect. Using
-"ssl:3456:privateKey=mykey.pem:certKey=cert.pem" runs an SSL server.
+local host can connect. Using "ssl:3456:privateKey=mykey.pem:certKey=cert.pem"
+runs an SSL server.
 
 This webport can be set when the node is created by passing a --webport
 option to the 'tahoe create-node' command. By default, the node listens on
 port 3456, on the loopback (127.0.0.1) interface.
 
-== Basic Concepts ==
+Basic Concepts: GET, PUT, DELETE, POST
+======================================
 
-As described in architecture.txt, each file and directory in a Tahoe virtual
+As described in `architecture.rst`_, each file and directory in a Tahoe virtual
 filesystem is referenced by an identifier that combines the designation of
 the object with the authority to do something with it (such as read or modify
 the contents). This identifier is called a "read-cap" or "write-cap",
 depending upon whether it enables read-only or read-write access. These
 "caps" are also referred to as URIs.
+
+.. _architecture.rst: http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/architecture.rst
 
 The Tahoe web-based API is "REST-ful", meaning it implements the concepts of
 "REpresentational State Transfer": the original scheme by which the World
@@ -81,25 +111,26 @@ When an error occurs, the HTTP response code will be set to an appropriate
 400-series code (like 404 Not Found for an unknown childname, or 400 Bad Request
 when the parameters to a webapi operation are invalid), and the HTTP response
 body will usually contain a few lines of explanation as to the cause of the
-error and possible responses. Unusual exceptions may result in a
-500 Internal Server Error as a catch-all, with a default response body containing
+error and possible responses. Unusual exceptions may result in a 500 Internal
+Server Error as a catch-all, with a default response body containing
 a Nevow-generated HTML-ized representation of the Python exception stack trace
 that caused the problem. CLI programs which want to copy the response body to
 stderr should provide an "Accept: text/plain" header to their requests to get
-a plain text stack trace instead. If the Accept header contains */*, or
-text/*, or text/html (or if there is no Accept header), HTML tracebacks will
+a plain text stack trace instead. If the Accept header contains ``*/*``, or
+``text/*``, or text/html (or if there is no Accept header), HTML tracebacks will
 be generated.
 
-== URLs ==
+URLs
+====
 
 Tahoe uses a variety of read- and write- caps to identify files and
 directories. The most common of these is the "immutable file read-cap", which
-is used for most uploaded files. These read-caps look like the following:
+is used for most uploaded files. These read-caps look like the following::
 
  URI:CHK:ime6pvkaxuetdfah2p2f35pe54:4btz54xk3tew6nd4y2ojpxj4m6wxjqqlwnztgre6gnjgtucd5r4a:3:10:202
 
 The next most common is a "directory write-cap", which provides both read and
-write access to a directory, and look like this:
+write access to a directory, and look like this::
 
  URI:DIR2:djrdkfawoqihigoett4g6auz6a:jx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq
 
@@ -116,39 +147,40 @@ To refer to any Tahoe object through the web API, you simply need to combine
 a prefix (which indicates the HTTP server to use) with the cap (which
 indicates which object inside that server to access). Since the default Tahoe
 webport is 3456, the most common prefix is one that will use a local node
-listening on this port:
+listening on this port::
 
  http://127.0.0.1:3456/uri/ + $CAP
 
 So, to access the directory named above (which happens to be the
 publically-writeable sample directory on the Tahoe test grid, described at
-http://allmydata.org/trac/tahoe/wiki/TestGrid), the URL would be:
+http://allmydata.org/trac/tahoe/wiki/TestGrid), the URL would be::
 
  http://127.0.0.1:3456/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/
 
 (note that the colons in the directory-cap are url-encoded into "%3A"
 sequences).
 
-Likewise, to access the file named above, use:
+Likewise, to access the file named above, use::
 
  http://127.0.0.1:3456/uri/URI%3ACHK%3Aime6pvkaxuetdfah2p2f35pe54%3A4btz54xk3tew6nd4y2ojpxj4m6wxjqqlwnztgre6gnjgtucd5r4a%3A3%3A10%3A202
 
 In the rest of this document, we'll use "$DIRCAP" as shorthand for a read-cap
 or write-cap that refers to a directory, and "$FILECAP" to abbreviate a cap
 that refers to a file (whether mutable or immutable). So those URLs above can
-be abbreviated as:
+be abbreviated as::
 
  http://127.0.0.1:3456/uri/$DIRCAP/
  http://127.0.0.1:3456/uri/$FILECAP
 
 The operation summaries below will abbreviate these further, by eliding the
-server prefix. They will be displayed like this:
+server prefix. They will be displayed like this::
 
  /uri/$DIRCAP/
  /uri/$FILECAP
 
 
-=== Child Lookup ===
+Child Lookup
+------------
 
 Tahoe directories contain named child entries, just like directories in a regular
 local filesystem. These child entries, called "dirnodes", consist of a name,
@@ -160,18 +192,18 @@ but that is unusual).
 If you have a Tahoe URL that refers to a directory, and want to reference a
 named child inside it, just append the child name to the URL. For example, if
 our sample directory contains a file named "welcome.txt", we can refer to
-that file with:
+that file with::
 
  http://127.0.0.1:3456/uri/$DIRCAP/welcome.txt
 
 (or http://127.0.0.1:3456/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/welcome.txt)
 
-Multiple levels of subdirectories can be handled this way:
+Multiple levels of subdirectories can be handled this way::
 
  http://127.0.0.1:3456/uri/$DIRCAP/tahoe-source/docs/webapi.txt
 
 In this document, when we need to refer to a URL that references a file using
-this child-of-some-directory format, we'll use the following string:
+this child-of-some-directory format, we'll use the following string::
 
  /uri/$DIRCAP/[SUBDIRS../]FILENAME
 
@@ -180,14 +212,14 @@ subdirectory names in the middle of the URL. The "FILENAME" at the end means
 that this whole URL refers to a file of some sort, rather than to a
 directory.
 
-When we need to refer specifically to a directory in this way, we'll write:
+When we need to refer specifically to a directory in this way, we'll write::
 
  /uri/$DIRCAP/[SUBDIRS../]SUBDIR
 
 
 Note that all components of pathnames in URLs are required to be UTF-8
 encoded, so "resume.doc" (with an acute accent on both E's) would be accessed
-with:
+with::
 
  http://127.0.0.1:3456/uri/$DIRCAP/r%C3%A9sum%C3%A9.doc
 
@@ -204,7 +236,8 @@ for you. If you don't know the cap, you can't access the file. This allows
 the security properties of Tahoe caps to be extended across the webapi
 interface.
 
-== Slow Operations, Progress, and Cancelling ==
+Slow Operations, Progress, and Cancelling
+=========================================
 
 Certain operations can be expected to take a long time. The "t=deep-check",
 described below, will recursively visit every file and directory reachable
@@ -220,15 +253,16 @@ are created by the client, and passed in as a an "ophandle=" query argument
 to the POST or PUT request which starts the operation. The following
 operations can then be used to retrieve status:
 
-GET /operations/$HANDLE?output=HTML   (with or without t=status)
-GET /operations/$HANDLE?output=JSON   (same)
+``GET /operations/$HANDLE?output=HTML   (with or without t=status)``
+
+``GET /operations/$HANDLE?output=JSON   (same)``
 
  These two retrieve the current status of the given operation. Each operation
  presents a different sort of information, but in general the page retrieved
  will indicate:
 
-  * whether the operation is complete, or if it is still running
-  * how much of the operation is complete, and how much is left, if possible
+ * whether the operation is complete, or if it is still running
+ * how much of the operation is complete, and how much is left, if possible
 
  Note that the final status output can be quite large: a deep-manifest of a
  directory structure with 300k directories and 200k unique files is about
@@ -242,7 +276,7 @@ GET /operations/$HANDLE?output=JSON   (same)
  There may be more status information available under
  /operations/$HANDLE/$ETC : i.e., the handle forms the root of a URL space.
 
-POST /operations/$HANDLE?t=cancel
+``POST /operations/$HANDLE?t=cancel``
 
  This terminates the operation, and returns an HTML page explaining what was
  cancelled. If the operation handle has already expired (see below), this
@@ -282,7 +316,8 @@ operations have streaming equivalents. These equivalents do not use operation
 handles. Instead, they emit line-oriented status results immediately. Client
 code can cancel the operation by simply closing the HTTP connection.
 
-== Programmatic Operations ==
+Programmatic Operations
+=======================
 
 Now that we know how to build URLs that refer to files and directories in a
 Tahoe virtual filesystem, what sorts of operations can we do with those URLs?
@@ -291,10 +326,12 @@ can be performed on these URLs. This set of operations are aimed at programs
 that use HTTP to communicate with a Tahoe node. A later section describes
 operations that are intended for web browsers.
 
-=== Reading A File ===
+Reading A File
+--------------
 
-GET /uri/$FILECAP
-GET /uri/$DIRCAP/[SUBDIRS../]FILENAME
+``GET /uri/$FILECAP``
+
+``GET /uri/$DIRCAP/[SUBDIRS../]FILENAME``
 
  This will retrieve the contents of the given file. The HTTP response body
  will contain the sequence of bytes that make up the file.
@@ -304,10 +341,12 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME
  "Browser Operations", for details on how to modify these URLs for that
  purpose.
 
-=== Writing/Uploading A File ===
+Writing/Uploading A File
+------------------------
 
-PUT /uri/$FILECAP
-PUT /uri/$DIRCAP/[SUBDIRS../]FILENAME
+``PUT /uri/$FILECAP``
+
+``PUT /uri/$DIRCAP/[SUBDIRS../]FILENAME``
 
  Upload a file, using the data from the HTTP request body, and add whatever
  child links and subdirectories are necessary to make the file available at
@@ -334,7 +373,7 @@ PUT /uri/$DIRCAP/[SUBDIRS../]FILENAME
  Note that the 'curl -T localfile http://127.0.0.1:3456/uri/$DIRCAP/foo.txt'
  command can be used to invoke this operation.
 
-PUT /uri
+``PUT /uri``
 
  This uploads a file, and produces a file-cap for the contents, but does not
  attach the file into the filesystem. No directories will be modified by
@@ -344,17 +383,19 @@ PUT /uri
  mutable file, and return its write-cap in the HTTP respose. The default is
  to create an immutable file, returning the read-cap as a response.
 
-=== Creating A New Directory ===
+Creating A New Directory
+------------------------
 
-POST /uri?t=mkdir
-PUT /uri?t=mkdir
+``POST /uri?t=mkdir``
+
+``PUT /uri?t=mkdir``
 
  Create a new empty directory and return its write-cap as the HTTP response
  body. This does not make the newly created directory visible from the
  filesystem. The "PUT" operation is provided for backwards compatibility:
  new code should use POST.
 
-POST /uri?t=mkdir-with-children
+``POST /uri?t=mkdir-with-children``
 
  Create a new directory, populated with a set of child nodes, and return its
  write-cap as the HTTP response body. The new directory is not attached to
@@ -369,7 +410,7 @@ POST /uri?t=mkdir-with-children
  Each dictionary key should be a child name, and each value should be a list
  of [TYPE, PROPDICT], where PROPDICT contains "rw_uri", "ro_uri", and
  "metadata" keys (all others are ignored). For example, the PUT request body
- could be:
+ could be::
 
   {
     "Fran\u00e7ais": [ "filenode", {
@@ -417,9 +458,11 @@ POST /uri?t=mkdir-with-children
 
  The metadata may have a "no-write" field. If this is set to true in the
  metadata of a link, it will not be possible to open that link for writing
- via the SFTP frontend; see docs/frontends/FTP-and-SFTP.txt for details.
+ via the SFTP frontend; see `FTP-and-SFTP.rst`_ for details.
  Also, if the "no-write" field is set to true in the metadata of a link to
  a mutable child, it will cause the link to be diminished to read-only.
+ 
+ .. _FTP-and-SFTP.rst: http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/frontents/FTP-and-SFTP.rst
 
  Note that the webapi-using client application must not provide the
  "Content-Type: multipart/form-data" header that usually accompanies HTML
@@ -431,7 +474,7 @@ POST /uri?t=mkdir-with-children
  and the resulting string encoded into UTF-8. This UTF-8 bytestring should
  then be used as the POST body.
 
-POST /uri?t=mkdir-immutable
+``POST /uri?t=mkdir-immutable``
 
  Like t=mkdir-with-children above, but the new directory will be
  deep-immutable. This means that the directory itself is immutable, and that
@@ -460,8 +503,9 @@ POST /uri?t=mkdir-immutable
  A non-empty request body is mandatory, since after the directory is created,
  it will not be possible to add more children to it.
 
-POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
-PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
+``POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir``
+
+``PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir``
 
  Create new directories as necessary to make sure that the named target
  ($DIRCAP/SUBDIRS../SUBDIR) is a directory. This will create additional
@@ -477,7 +521,7 @@ PUT /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir
  The write-cap of the new directory will be returned as the HTTP response
  body.
 
-POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-with-children
+``POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-with-children``
 
  Like /uri?t=mkdir-with-children, but the final directory is created as a
  child of an existing mutable directory. This will create additional
@@ -490,7 +534,7 @@ POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-with-children
  directory; or if it would require changing an immutable directory; or if
  the immediate parent directory already has a a child named SUBDIR.
 
-POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-immutable
+``POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-immutable``
 
  Like /uri?t=mkdir-immutable, but the final directory is created as a child
  of an existing mutable directory. The final directory will be deep-immutable,
@@ -503,7 +547,7 @@ POST /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir-immutable
  This operation will return an error if the parent directory is immutable,
  or already has a child named SUBDIR.
 
-POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME``
 
  Create a new empty mutable directory and attach it to the given existing
  directory. This will create additional intermediate directories as necessary.
@@ -516,7 +560,7 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME
  whereas the /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=mkdir operation above has a URL
  that points directly to the bottommost new directory.
 
-POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-with-children&name=NAME
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-with-children&name=NAME``
 
  Like /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME, but the new directory will
  be populated with initial children via the POST request body. This command
@@ -530,7 +574,7 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-with-children&name=NAME
  Note that the name= argument must be passed as a queryarg, because the POST
  request body is used for the initial children JSON. 
 
-POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-immutable&name=NAME
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-immutable&name=NAME``
 
  Like /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-with-children&name=NAME, but the
  final directory will be deep-immutable. The children are specified as a
@@ -543,323 +587,333 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir-immutable&name=NAME
  This operation will return an error if the parent directory is immutable,
  or already has a child named NAME.
 
-=== Get Information About A File Or Directory (as JSON) ===
+Get Information About A File Or Directory (as JSON)
+---------------------------------------------------
 
-GET /uri/$FILECAP?t=json
-GET /uri/$DIRCAP?t=json
-GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=json
-GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
+``GET /uri/$FILECAP?t=json``
 
-  This returns a machine-parseable JSON-encoded description of the given
-  object. The JSON always contains a list, and the first element of the list is
-  always a flag that indicates whether the referenced object is a file or a
-  directory. If it is a capability to a file, then the information includes
-  file size and URI, like this:
+``GET /uri/$DIRCAP?t=json``
 
-   GET /uri/$FILECAP?t=json :
+``GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=json``
 
-    [ "filenode", {
-      "ro_uri": file_uri,
-      "verify_uri": verify_uri,
-      "size": bytes,
-      "mutable": false
-      } ]
+``GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json``
 
-  If it is a capability to a directory followed by a path from that directory
-  to a file, then the information also includes metadata from the link to the
-  file in the parent directory, like this:
+ This returns a machine-parseable JSON-encoded description of the given
+ object. The JSON always contains a list, and the first element of the list is
+ always a flag that indicates whether the referenced object is a file or a
+ directory. If it is a capability to a file, then the information includes
+ file size and URI, like this::
 
-   GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json :
+  GET /uri/$FILECAP?t=json :
 
-    [ "filenode", {
-      "ro_uri": file_uri,
-      "verify_uri": verify_uri,
-      "size": bytes,
-      "mutable": false,
-      "metadata": {
-        "ctime": 1202777696.7564139,
-        "mtime": 1202777696.7564139,
-        "tahoe": {
-          "linkcrtime": 1202777696.7564139,
-          "linkmotime": 1202777696.7564139
-          } } } ]
+   [ "filenode", {
+	 "ro_uri": file_uri,
+	 "verify_uri": verify_uri,
+	 "size": bytes,
+	 "mutable": false
+	 } ]
 
-  If it is a directory, then it includes information about the children of
-  this directory, as a mapping from child name to a set of data about the
-  child (the same data that would appear in a corresponding GET?t=json of the
-  child itself). The child entries also include metadata about each child,
-  including link-creation- and link-change- timestamps. The output looks like
-  this:
+ If it is a capability to a directory followed by a path from that directory
+ to a file, then the information also includes metadata from the link to the
+ file in the parent directory, like this::
 
-   GET /uri/$DIRCAP?t=json :
-   GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=json :
+  GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
 
-    [ "dirnode", {
-      "rw_uri": read_write_uri,
-      "ro_uri": read_only_uri,
-      "verify_uri": verify_uri,
-      "mutable": true,
-      "children": {
-        "foo.txt": [ "filenode", {
-            "ro_uri": uri,
-            "size": bytes,
-            "metadata": {
-              "ctime": 1202777696.7564139,
-              "mtime": 1202777696.7564139,
-              "tahoe": {
-                "linkcrtime": 1202777696.7564139,
-                "linkmotime": 1202777696.7564139
-                } } } ],
-        "subdir":  [ "dirnode", {
-            "rw_uri": rwuri,
-            "ro_uri": rouri,
-            "metadata": {
-              "ctime": 1202778102.7589991,
-              "mtime": 1202778111.2160511,
-              "tahoe": {
-                "linkcrtime": 1202777696.7564139,
-                "linkmotime": 1202777696.7564139
-              } } } ]
-      } } ]
+   [ "filenode", {
+	 "ro_uri": file_uri,
+	 "verify_uri": verify_uri,
+	 "size": bytes,
+	 "mutable": false,
+	 "metadata": {
+	   "ctime": 1202777696.7564139,
+	   "mtime": 1202777696.7564139,
+	   "tahoe": {
+		 "linkcrtime": 1202777696.7564139,
+		 "linkmotime": 1202777696.7564139
+		 } } } ]
 
-  In the above example, note how 'children' is a dictionary in which the keys
-  are child names and the values depend upon whether the child is a file or a
-  directory. The value is mostly the same as the JSON representation of the
-  child object (except that directories do not recurse -- the "children"
-  entry of the child is omitted, and the directory view includes the metadata
-  that is stored on the directory edge).
+ If it is a directory, then it includes information about the children of
+ this directory, as a mapping from child name to a set of data about the
+ child (the same data that would appear in a corresponding GET?t=json of the
+ child itself). The child entries also include metadata about each child,
+ including link-creation- and link-change- timestamps. The output looks like
+ this::
 
-  The rw_uri field will be present in the information about a directory
-  if and only if you have read-write access to that directory. The verify_uri
-  field will be present if and only if the object has a verify-cap
-  (non-distributed LIT files do not have verify-caps).
-  
-  If the cap is of an unknown format, then the file size and verify_uri will
-  not be available:
+  GET /uri/$DIRCAP?t=json :
+  GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=json :
 
-   GET /uri/$UNKNOWNCAP?t=json :
+   [ "dirnode", {
+	 "rw_uri": read_write_uri,
+	 "ro_uri": read_only_uri,
+	 "verify_uri": verify_uri,
+	 "mutable": true,
+	 "children": {
+	   "foo.txt": [ "filenode", {
+		   "ro_uri": uri,
+		   "size": bytes,
+		   "metadata": {
+			 "ctime": 1202777696.7564139,
+			 "mtime": 1202777696.7564139,
+			 "tahoe": {
+			   "linkcrtime": 1202777696.7564139,
+			   "linkmotime": 1202777696.7564139
+			   } } } ],
+	   "subdir":  [ "dirnode", {
+		   "rw_uri": rwuri,
+		   "ro_uri": rouri,
+		   "metadata": {
+			 "ctime": 1202778102.7589991,
+			 "mtime": 1202778111.2160511,
+			 "tahoe": {
+			   "linkcrtime": 1202777696.7564139,
+			   "linkmotime": 1202777696.7564139
+			 } } } ]
+	 } } ]
 
-    [ "unknown", {
-      "ro_uri": unknown_read_uri
-      } ]
+ In the above example, note how 'children' is a dictionary in which the keys
+ are child names and the values depend upon whether the child is a file or a
+ directory. The value is mostly the same as the JSON representation of the
+ child object (except that directories do not recurse -- the "children"
+ entry of the child is omitted, and the directory view includes the metadata
+ that is stored on the directory edge).
 
-   GET /uri/$DIRCAP/[SUBDIRS../]UNKNOWNCHILDNAME?t=json :
+ The rw_uri field will be present in the information about a directory
+ if and only if you have read-write access to that directory. The verify_uri
+ field will be present if and only if the object has a verify-cap
+ (non-distributed LIT files do not have verify-caps).
+ 
+ If the cap is of an unknown format, then the file size and verify_uri will
+ not be available::
 
-    [ "unknown", {
-      "rw_uri": unknown_write_uri,
-      "ro_uri": unknown_read_uri,
-      "mutable": true,
-      "metadata": {
-        "ctime": 1202777696.7564139,
-        "mtime": 1202777696.7564139,
-        "tahoe": {
-          "linkcrtime": 1202777696.7564139,
-          "linkmotime": 1202777696.7564139
-          } } } ]
+  GET /uri/$UNKNOWNCAP?t=json :
 
-  As in the case of file nodes, the metadata will only be present when the
-  capability is to a directory followed by a path. The "mutable" field is also
-  not always present; when it is absent, the mutability of the object is not
-  known.
+   [ "unknown", {
+	 "ro_uri": unknown_read_uri
+	 } ]
 
-==== About the metadata ====
+  GET /uri/$DIRCAP/[SUBDIRS../]UNKNOWNCHILDNAME?t=json :
 
-  The value of the 'tahoe':'linkmotime' key is updated whenever a link to a
-  child is set. The value of the 'tahoe':'linkcrtime' key is updated whenever
-  a link to a child is created -- i.e. when there was not previously a link
-  under that name.
+   [ "unknown", {
+	 "rw_uri": unknown_write_uri,
+	 "ro_uri": unknown_read_uri,
+	 "mutable": true,
+	 "metadata": {
+	   "ctime": 1202777696.7564139,
+	   "mtime": 1202777696.7564139,
+	   "tahoe": {
+		 "linkcrtime": 1202777696.7564139,
+		 "linkmotime": 1202777696.7564139
+		 } } } ]
 
-  Note however, that if the edge in the Tahoe filesystem points to a mutable
-  file and the contents of that mutable file is changed, then the
-  'tahoe':'linkmotime' value on that edge will *not* be updated, since the
-  edge itself wasn't updated -- only the mutable file was.
+ As in the case of file nodes, the metadata will only be present when the
+ capability is to a directory followed by a path. The "mutable" field is also
+ not always present; when it is absent, the mutability of the object is not
+ known.
 
-  The timestamps are represented as a number of seconds since the UNIX epoch
-  (1970-01-01 00:00:00 UTC), with leap seconds not being counted in the long
-  term.
+About the metadata
+``````````````````
 
-  In Tahoe earlier than v1.4.0, 'mtime' and 'ctime' keys were populated
-  instead of the 'tahoe':'linkmotime' and 'tahoe':'linkcrtime' keys. Starting
-  in Tahoe v1.4.0, the 'linkmotime'/'linkcrtime' keys in the 'tahoe' sub-dict
-  are populated. However, prior to Tahoe v1.7beta, a bug caused the 'tahoe'
-  sub-dict to be deleted by webapi requests in which new metadata is
-  specified, and not to be added to existing child links that lack it.
+The value of the 'tahoe':'linkmotime' key is updated whenever a link to a
+child is set. The value of the 'tahoe':'linkcrtime' key is updated whenever
+a link to a child is created -- i.e. when there was not previously a link
+under that name.
 
-  From Tahoe v1.7.0 onward, the 'mtime' and 'ctime' fields are no longer
-  populated or updated (see ticket #924), except by "tahoe backup" as
-  explained below. For backward compatibility, when an existing link is
-  updated and 'tahoe':'linkcrtime' is not present in the previous metadata
-  but 'ctime' is, the old value of 'ctime' is used as the new value of
-  'tahoe':'linkcrtime'.
+Note however, that if the edge in the Tahoe filesystem points to a mutable
+file and the contents of that mutable file is changed, then the
+'tahoe':'linkmotime' value on that edge will *not* be updated, since the
+edge itself wasn't updated -- only the mutable file was.
 
-  The reason we added the new fields in Tahoe v1.4.0 is that there is a
-  "set_children" API (described below) which you can use to overwrite the
-  values of the 'mtime'/'ctime' pair, and this API is used by the
-  "tahoe backup" command (in Tahoe v1.3.0 and later) to set the 'mtime' and
-  'ctime' values when backing up files from a local filesystem into the
-  Tahoe filesystem. As of Tahoe v1.4.0, the set_children API cannot be used
-  to set anything under the 'tahoe' key of the metadata dict -- if you
-  include 'tahoe' keys in your 'metadata' arguments then it will silently
-  ignore those keys.
+The timestamps are represented as a number of seconds since the UNIX epoch
+(1970-01-01 00:00:00 UTC), with leap seconds not being counted in the long
+term.
 
-  Therefore, if the 'tahoe' sub-dict is present, you can rely on the
-  'linkcrtime' and 'linkmotime' values therein to have the semantics described
-  above. (This is assuming that only official Tahoe clients have been used to
-  write those links, and that their system clocks were set to what you expected
-  -- there is nothing preventing someone from editing their Tahoe client or
-  writing their own Tahoe client which would overwrite those values however
-  they like, and there is nothing to constrain their system clock from taking
-  any value.)
+In Tahoe earlier than v1.4.0, 'mtime' and 'ctime' keys were populated
+instead of the 'tahoe':'linkmotime' and 'tahoe':'linkcrtime' keys. Starting
+in Tahoe v1.4.0, the 'linkmotime'/'linkcrtime' keys in the 'tahoe' sub-dict
+are populated. However, prior to Tahoe v1.7beta, a bug caused the 'tahoe'
+sub-dict to be deleted by webapi requests in which new metadata is
+specified, and not to be added to existing child links that lack it.
 
-  When an edge is created or updated by "tahoe backup", the 'mtime' and
-  'ctime' keys on that edge are set as follows:
+From Tahoe v1.7.0 onward, the 'mtime' and 'ctime' fields are no longer
+populated or updated (see ticket #924), except by "tahoe backup" as
+explained below. For backward compatibility, when an existing link is
+updated and 'tahoe':'linkcrtime' is not present in the previous metadata
+but 'ctime' is, the old value of 'ctime' is used as the new value of
+'tahoe':'linkcrtime'.
 
-    * 'mtime' is set to the timestamp read from the local filesystem for the
-      "mtime" of the local file in question, which means the last time the
-      contents of that file were changed.
+The reason we added the new fields in Tahoe v1.4.0 is that there is a
+"set_children" API (described below) which you can use to overwrite the
+values of the 'mtime'/'ctime' pair, and this API is used by the
+"tahoe backup" command (in Tahoe v1.3.0 and later) to set the 'mtime' and
+'ctime' values when backing up files from a local filesystem into the
+Tahoe filesystem. As of Tahoe v1.4.0, the set_children API cannot be used
+to set anything under the 'tahoe' key of the metadata dict -- if you
+include 'tahoe' keys in your 'metadata' arguments then it will silently
+ignore those keys.
 
-    * On Windows, 'ctime' is set to the creation timestamp for the file
-      read from the local filesystem. On other platforms, 'ctime' is set to
-      the UNIX "ctime" of the local file, which means the last time that
-      either the contents or the metadata of the local file was changed.
+Therefore, if the 'tahoe' sub-dict is present, you can rely on the
+'linkcrtime' and 'linkmotime' values therein to have the semantics described
+above. (This is assuming that only official Tahoe clients have been used to
+write those links, and that their system clocks were set to what you expected
+-- there is nothing preventing someone from editing their Tahoe client or
+writing their own Tahoe client which would overwrite those values however
+they like, and there is nothing to constrain their system clock from taking
+any value.)
 
-  There are several ways that the 'ctime' field could be confusing: 
+When an edge is created or updated by "tahoe backup", the 'mtime' and
+'ctime' keys on that edge are set as follows:
 
-  1. You might be confused about whether it reflects the time of the creation
-     of a link in the Tahoe filesystem (by a version of Tahoe < v1.7.0) or a
-     timestamp copied in by "tahoe backup" from a local filesystem.
+* 'mtime' is set to the timestamp read from the local filesystem for the
+  "mtime" of the local file in question, which means the last time the
+  contents of that file were changed.
 
-  2. You might be confused about whether it is a copy of the file creation
-     time (if "tahoe backup" was run on a Windows system) or of the last
-     contents-or-metadata change (if "tahoe backup" was run on a different
-     operating system).
+* On Windows, 'ctime' is set to the creation timestamp for the file
+  read from the local filesystem. On other platforms, 'ctime' is set to
+  the UNIX "ctime" of the local file, which means the last time that
+  either the contents or the metadata of the local file was changed.
 
-  3. You might be confused by the fact that changing the contents of a
-     mutable file in Tahoe doesn't have any effect on any links pointing at
-     that file in any directories, although "tahoe backup" sets the link
-     'ctime'/'mtime' to reflect timestamps about the local file corresponding
-     to the Tahoe file to which the link points.
+There are several ways that the 'ctime' field could be confusing: 
 
-  4. Also, quite apart from Tahoe, you might be confused about the meaning
-     of the "ctime" in UNIX local filesystems, which people sometimes think
-     means file creation time, but which actually means, in UNIX local
-     filesystems, the most recent time that the file contents or the file
-     metadata (such as owner, permission bits, extended attributes, etc.)
-     has changed. Note that although "ctime" does not mean file creation time
-     in UNIX, links created by a version of Tahoe prior to v1.7.0, and never
-     written by "tahoe backup", will have 'ctime' set to the link creation
-     time.
+1. You might be confused about whether it reflects the time of the creation
+   of a link in the Tahoe filesystem (by a version of Tahoe < v1.7.0) or a
+   timestamp copied in by "tahoe backup" from a local filesystem.
 
+2. You might be confused about whether it is a copy of the file creation
+   time (if "tahoe backup" was run on a Windows system) or of the last
+   contents-or-metadata change (if "tahoe backup" was run on a different
+   operating system).
 
-=== Attaching an existing File or Directory by its read- or write- cap ===
+3. You might be confused by the fact that changing the contents of a
+   mutable file in Tahoe doesn't have any effect on any links pointing at
+   that file in any directories, although "tahoe backup" sets the link
+   'ctime'/'mtime' to reflect timestamps about the local file corresponding
+   to the Tahoe file to which the link points.
 
-PUT /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri
-
-  This attaches a child object (either a file or directory) to a specified
-  location in the virtual filesystem. The child object is referenced by its
-  read- or write- cap, as provided in the HTTP request body. This will create
-  intermediate directories as necessary.
-
-  This is similar to a UNIX hardlink: by referencing a previously-uploaded file
-  (or previously-created directory) instead of uploading/creating a new one,
-  you can create two references to the same object.
-
-  The read- or write- cap of the child is provided in the body of the HTTP
-  request, and this same cap is returned in the response body.
-
-  The default behavior is to overwrite any existing object at the same
-  location. To prevent this (and make the operation return an error instead
-  of overwriting), add a "replace=false" argument, as "?t=uri&replace=false".
-  With replace=false, this operation will return an HTTP 409 "Conflict" error
-  if there is already an object at the given location, rather than
-  overwriting the existing object. To allow the operation to overwrite a
-  file, but return an error when trying to overwrite a directory, use
-  "replace=only-files" (this behavior is closer to the traditional UNIX "mv"
-  command). Note that "true", "t", and "1" are all synonyms for "True", and
-  "false", "f", and "0" are synonyms for "False", and the parameter is
-  case-insensitive.
-  
-  Note that this operation does not take its child cap in the form of
-  separate "rw_uri" and "ro_uri" fields. Therefore, it cannot accept a
-  child cap in a format unknown to the webapi server, unless its URI
-  starts with "ro." or "imm.". This restriction is necessary because the
-  server is not able to attenuate an unknown write cap to a read cap.
-  Unknown URIs starting with "ro." or "imm.", on the other hand, are
-  assumed to represent read caps. The client should not prefix a write
-  cap with "ro." or "imm." and pass it to this operation, since that
-  would result in granting the cap's write authority to holders of the
-  directory read cap.
-
-=== Adding multiple files or directories to a parent directory at once ===
-
-POST /uri/$DIRCAP/[SUBDIRS..]?t=set_children
-POST /uri/$DIRCAP/[SUBDIRS..]?t=set-children    (Tahoe >= v1.6)
-
-  This command adds multiple children to a directory in a single operation.
-  It reads the request body and interprets it as a JSON-encoded description
-  of the child names and read/write-caps that should be added.
-
-  The body should be a JSON-encoded dictionary, in the same format as the
-  "children" value returned by the "GET /uri/$DIRCAP?t=json" operation
-  described above. In this format, each key is a child names, and the
-  corresponding value is a tuple of (type, childinfo). "type" is ignored, and
-  "childinfo" is a dictionary that contains "rw_uri", "ro_uri", and
-  "metadata" keys. You can take the output of "GET /uri/$DIRCAP1?t=json" and
-  use it as the input to "POST /uri/$DIRCAP2?t=set_children" to make DIR2
-  look very much like DIR1 (except for any existing children of DIR2 that
-  were not overwritten, and any existing "tahoe" metadata keys as described
-  below).
-
-  When the set_children request contains a child name that already exists in
-  the target directory, this command defaults to overwriting that child with
-  the new value (both child cap and metadata, but if the JSON data does not
-  contain a "metadata" key, the old child's metadata is preserved). The
-  command takes a boolean "overwrite=" query argument to control this
-  behavior. If you use "?t=set_children&overwrite=false", then an attempt to
-  replace an existing child will instead cause an error.
-
-  Any "tahoe" key in the new child's "metadata" value is ignored. Any
-  existing "tahoe" metadata is preserved. The metadata["tahoe"] value is
-  reserved for metadata generated by the tahoe node itself. The only two keys
-  currently placed here are "linkcrtime" and "linkmotime". For details, see
-  the section above entitled "Get Information About A File Or Directory (as
-  JSON)", in the "About the metadata" subsection.
-  
-  Note that this command was introduced with the name "set_children", which
-  uses an underscore rather than a hyphen as other multi-word command names
-  do. The variant with a hyphen is now accepted, but clients that desire
-  backward compatibility should continue to use "set_children".
+4. Also, quite apart from Tahoe, you might be confused about the meaning
+   of the "ctime" in UNIX local filesystems, which people sometimes think
+   means file creation time, but which actually means, in UNIX local
+   filesystems, the most recent time that the file contents or the file
+   metadata (such as owner, permission bits, extended attributes, etc.)
+   has changed. Note that although "ctime" does not mean file creation time
+   in UNIX, links created by a version of Tahoe prior to v1.7.0, and never
+   written by "tahoe backup", will have 'ctime' set to the link creation
+   time.
 
 
-=== Deleting a File or Directory ===
+Attaching an existing File or Directory by its read- or write-cap
+-----------------------------------------------------------------
 
-DELETE /uri/$DIRCAP/[SUBDIRS../]CHILDNAME
+``PUT /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri``
 
-  This removes the given name from its parent directory. CHILDNAME is the
-  name to be removed, and $DIRCAP/SUBDIRS.. indicates the directory that will
-  be modified.
+ This attaches a child object (either a file or directory) to a specified
+ location in the virtual filesystem. The child object is referenced by its
+ read- or write- cap, as provided in the HTTP request body. This will create
+ intermediate directories as necessary.
 
-  Note that this does not actually delete the file or directory that the name
-  points to from the tahoe grid -- it only removes the named reference from
-  this directory. If there are other names in this directory or in other
-  directories that point to the resource, then it will remain accessible
-  through those paths. Even if all names pointing to this object are removed
-  from their parent directories, then someone with possession of its read-cap
-  can continue to access the object through that cap.
+ This is similar to a UNIX hardlink: by referencing a previously-uploaded file
+ (or previously-created directory) instead of uploading/creating a new one,
+ you can create two references to the same object.
 
-  The object will only become completely unreachable once 1: there are no
-  reachable directories that reference it, and 2: nobody is holding a read-
-  or write- cap to the object. (This behavior is very similar to the way
-  hardlinks and anonymous files work in traditional UNIX filesystems).
+ The read- or write- cap of the child is provided in the body of the HTTP
+ request, and this same cap is returned in the response body.
 
-  This operation will not modify more than a single directory. Intermediate
-  directories which were implicitly created by PUT or POST methods will *not*
-  be automatically removed by DELETE.
+ The default behavior is to overwrite any existing object at the same
+ location. To prevent this (and make the operation return an error instead
+ of overwriting), add a "replace=false" argument, as "?t=uri&replace=false".
+ With replace=false, this operation will return an HTTP 409 "Conflict" error
+ if there is already an object at the given location, rather than
+ overwriting the existing object. To allow the operation to overwrite a
+ file, but return an error when trying to overwrite a directory, use
+ "replace=only-files" (this behavior is closer to the traditional UNIX "mv"
+ command). Note that "true", "t", and "1" are all synonyms for "True", and
+ "false", "f", and "0" are synonyms for "False", and the parameter is
+ case-insensitive.
+ 
+ Note that this operation does not take its child cap in the form of
+ separate "rw_uri" and "ro_uri" fields. Therefore, it cannot accept a
+ child cap in a format unknown to the webapi server, unless its URI
+ starts with "ro." or "imm.". This restriction is necessary because the
+ server is not able to attenuate an unknown write cap to a read cap.
+ Unknown URIs starting with "ro." or "imm.", on the other hand, are
+ assumed to represent read caps. The client should not prefix a write
+ cap with "ro." or "imm." and pass it to this operation, since that
+ would result in granting the cap's write authority to holders of the
+ directory read cap.
 
-  This method returns the file- or directory- cap of the object that was just
-  removed.
+Adding multiple files or directories to a parent directory at once
+------------------------------------------------------------------
 
-== Browser Operations ==
+``POST /uri/$DIRCAP/[SUBDIRS..]?t=set_children``
+
+``POST /uri/$DIRCAP/[SUBDIRS..]?t=set-children``    (Tahoe >= v1.6)
+
+ This command adds multiple children to a directory in a single operation.
+ It reads the request body and interprets it as a JSON-encoded description
+ of the child names and read/write-caps that should be added.
+
+ The body should be a JSON-encoded dictionary, in the same format as the
+ "children" value returned by the "GET /uri/$DIRCAP?t=json" operation
+ described above. In this format, each key is a child names, and the
+ corresponding value is a tuple of (type, childinfo). "type" is ignored, and
+ "childinfo" is a dictionary that contains "rw_uri", "ro_uri", and
+ "metadata" keys. You can take the output of "GET /uri/$DIRCAP1?t=json" and
+ use it as the input to "POST /uri/$DIRCAP2?t=set_children" to make DIR2
+ look very much like DIR1 (except for any existing children of DIR2 that
+ were not overwritten, and any existing "tahoe" metadata keys as described
+ below).
+
+ When the set_children request contains a child name that already exists in
+ the target directory, this command defaults to overwriting that child with
+ the new value (both child cap and metadata, but if the JSON data does not
+ contain a "metadata" key, the old child's metadata is preserved). The
+ command takes a boolean "overwrite=" query argument to control this
+ behavior. If you use "?t=set_children&overwrite=false", then an attempt to
+ replace an existing child will instead cause an error.
+
+ Any "tahoe" key in the new child's "metadata" value is ignored. Any
+ existing "tahoe" metadata is preserved. The metadata["tahoe"] value is
+ reserved for metadata generated by the tahoe node itself. The only two keys
+ currently placed here are "linkcrtime" and "linkmotime". For details, see
+ the section above entitled "Get Information About A File Or Directory (as
+ JSON)", in the "About the metadata" subsection.
+ 
+ Note that this command was introduced with the name "set_children", which
+ uses an underscore rather than a hyphen as other multi-word command names
+ do. The variant with a hyphen is now accepted, but clients that desire
+ backward compatibility should continue to use "set_children".
+
+
+Deleting a File or Directory
+----------------------------
+
+``DELETE /uri/$DIRCAP/[SUBDIRS../]CHILDNAME``
+
+ This removes the given name from its parent directory. CHILDNAME is the
+ name to be removed, and $DIRCAP/SUBDIRS.. indicates the directory that will
+ be modified.
+
+ Note that this does not actually delete the file or directory that the name
+ points to from the tahoe grid -- it only removes the named reference from
+ this directory. If there are other names in this directory or in other
+ directories that point to the resource, then it will remain accessible
+ through those paths. Even if all names pointing to this object are removed
+ from their parent directories, then someone with possession of its read-cap
+ can continue to access the object through that cap.
+
+ The object will only become completely unreachable once 1: there are no
+ reachable directories that reference it, and 2: nobody is holding a read-
+ or write- cap to the object. (This behavior is very similar to the way
+ hardlinks and anonymous files work in traditional UNIX filesystems).
+
+ This operation will not modify more than a single directory. Intermediate
+ directories which were implicitly created by PUT or POST methods will *not*
+ be automatically removed by DELETE.
+
+ This method returns the file- or directory- cap of the object that was just
+ removed.
+
+Browser Operations: Human-oriented interfaces
+=============================================
 
 This section describes the HTTP operations that provide support for humans
 running a web browser. Most of these operations use HTML forms that use POST
@@ -874,9 +928,10 @@ separated from the main URL by "?", and from each other by "&". For example,
 specified by using <input type="hidden"> elements. For clarity, the
 descriptions below display the most significant arguments as URL query args.
 
-=== Viewing A Directory (as HTML) ===
+Viewing A Directory (as HTML)
+-----------------------------
 
-GET /uri/$DIRCAP/[SUBDIRS../]
+``GET /uri/$DIRCAP/[SUBDIRS../]``
 
  This returns an HTML page, intended to be displayed to a human by a web
  browser, which contains HREF links to all files and directories reachable
@@ -885,10 +940,12 @@ GET /uri/$DIRCAP/[SUBDIRS../]
  contains forms to upload new files, and to delete files and directories.
  Those forms use POST methods to do their job.
 
-=== Viewing/Downloading a File ===
+Viewing/Downloading a File
+--------------------------
 
-GET /uri/$FILECAP
-GET /uri/$DIRCAP/[SUBDIRS../]FILENAME
+``GET /uri/$FILECAP``
+
+``GET /uri/$DIRCAP/[SUBDIRS../]FILENAME``
 
  This will retrieve the contents of the given file. The HTTP response body
  will contain the sequence of bytes that make up the file.
@@ -907,13 +964,13 @@ GET /uri/$DIRCAP/[SUBDIRS../]FILENAME
  most browsers will refuse to display it inline). "true", "t", "1", and other
  case-insensitive equivalents are all treated the same.
 
- Character-set handling in URLs and HTTP headers is a dubious art[1]. For
+ Character-set handling in URLs and HTTP headers is a dubious art [1]_. For
  maximum compatibility, Tahoe simply copies the bytes from the filename=
  argument into the Content-Disposition header's filename= parameter, without
  trying to interpret them in any particular way.
 
 
-GET /named/$FILECAP/FILENAME
+``GET /named/$FILECAP/FILENAME``
 
  This is an alternate download form which makes it easier to get the correct
  filename. The Tahoe server will provide the contents of the given file, with
@@ -923,28 +980,33 @@ GET /named/$FILECAP/FILENAME
  this form can *only* be used with file caps; it is an error to use a
  directory cap after the /named/ prefix.
 
-=== Get Information About A File Or Directory (as HTML) ===
+Get Information About A File Or Directory (as HTML)
+---------------------------------------------------
 
-GET /uri/$FILECAP?t=info
-GET /uri/$DIRCAP/?t=info
-GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR/?t=info
-GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=info
+``GET /uri/$FILECAP?t=info``
 
-  This returns a human-oriented HTML page with more detail about the selected
-  file or directory object. This page contains the following items:
+``GET /uri/$DIRCAP/?t=info``
 
-   object size
-   storage index
-   JSON representation
-   raw contents (text/plain)
-   access caps (URIs): verify-cap, read-cap, write-cap (for mutable objects)
-   check/verify/repair form
-   deep-check/deep-size/deep-stats/manifest (for directories)
-   replace-conents form (for mutable files)
+``GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR/?t=info``
 
-=== Creating a Directory ===
+``GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=info``
 
-POST /uri?t=mkdir
+ This returns a human-oriented HTML page with more detail about the selected
+ file or directory object. This page contains the following items:
+
+ * object size
+ * storage index
+ * JSON representation
+ * raw contents (text/plain)
+ * access caps (URIs): verify-cap, read-cap, write-cap (for mutable objects)
+ * check/verify/repair form
+ * deep-check/deep-size/deep-stats/manifest (for directories)
+ * replace-conents form (for mutable files)
+
+Creating a Directory
+--------------------
+
+``POST /uri?t=mkdir``
 
  This creates a new empty directory, but does not attach it to the virtual
  filesystem.
@@ -962,7 +1024,7 @@ POST /uri?t=mkdir
  "false"), then the HTTP response body will simply be the write-cap of the
  new directory.
 
-POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=CHILDNAME
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=CHILDNAME``
 
  This creates a new empty directory as a child of the designated SUBDIR. This
  will create additional intermediate directories as necessary.
@@ -974,16 +1036,18 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=CHILDNAME
  the directory that was just created.
 
 
-=== Uploading a File ===
+Uploading a File
+----------------
 
-POST /uri?t=upload
+``POST /uri?t=upload``
 
  This uploads a file, and produces a file-cap for the contents, but does not
  attach the file into the filesystem. No directories will be modified by
  this operation.
 
  The file must be provided as the "file" field of an HTML encoded form body,
- produced in response to an HTML form like this:
+ produced in response to an HTML form like this::
+ 
   <form action="/uri" method="POST" enctype="multipart/form-data">
    <input type="hidden" name="t" value="upload" />
    <input type="file" name="file" />
@@ -1007,11 +1071,12 @@ POST /uri?t=upload
  returning the upload results page as a response.
 
 
-POST /uri/$DIRCAP/[SUBDIRS../]?t=upload
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=upload``
 
  This uploads a file, and attaches it as a new child of the given directory,
  which must be mutable. The file must be provided as the "file" field of an
- HTML-encoded form body, produced in response to an HTML form like this:
+ HTML-encoded form body, produced in response to an HTML form like this::
+ 
   <form action="." method="POST" enctype="multipart/form-data">
    <input type="hidden" name="t" value="upload" />
    <input type="file" name="file" />
@@ -1051,7 +1116,7 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=upload
  the file that was just uploaded (a write-cap for mutable files, or a
  read-cap for immutable files).
 
-POST /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=upload
+``POST /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=upload``
 
  This also uploads a file and attaches it as a new child of the given
  directory, which must be mutable. It is a slight variant of the previous
@@ -1059,16 +1124,17 @@ POST /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=upload
  directory. It is otherwise identical: this accepts mutable= and when_done=
  arguments too.
 
-POST /uri/$FILECAP?t=upload
+``POST /uri/$FILECAP?t=upload``
 
  This modifies the contents of an existing mutable file in-place. An error is
  signalled if $FILECAP does not refer to a mutable file. It behaves just like
  the "PUT /uri/$FILECAP" form, but uses a POST for the benefit of HTML forms
  in a web browser.
 
-=== Attaching An Existing File Or Directory (by URI) ===
+Attaching An Existing File Or Directory (by URI)
+------------------------------------------------
 
-POST /uri/$DIRCAP/[SUBDIRS../]?t=uri&name=CHILDNAME&uri=CHILDCAP
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=uri&name=CHILDNAME&uri=CHILDCAP``
 
  This attaches a given read- or write- cap "CHILDCAP" to the designated
  directory, with a specified child name. This behaves much like the PUT t=uri
@@ -1083,9 +1149,10 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=uri&name=CHILDNAME&uri=CHILDCAP
 
  This accepts the same replace= argument as POST t=upload.
 
-=== Deleting A Child ===
+Deleting A Child
+----------------
 
-POST /uri/$DIRCAP/[SUBDIRS../]?t=delete&name=CHILDNAME
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=delete&name=CHILDNAME``
 
  This instructs the node to remove a child object (file or subdirectory) from
  the given directory, which must be mutable. Note that the entire subtree is
@@ -1094,9 +1161,10 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=delete&name=CHILDNAME
  into the subtree will see that the child subdirectories are not modified by
  this operation. Only the link from the given directory to its child is severed.
 
-=== Renaming A Child ===
+Renaming A Child
+----------------
 
-POST /uri/$DIRCAP/[SUBDIRS../]?t=rename&from_name=OLD&to_name=NEW
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=rename&from_name=OLD&to_name=NEW``
 
  This instructs the node to rename a child of the given directory, which must
  be mutable. This has a similar effect to removing the child, then adding the
@@ -1104,11 +1172,12 @@ POST /uri/$DIRCAP/[SUBDIRS../]?t=rename&from_name=OLD&to_name=NEW
  operation cannot move the child to a different directory.
 
  This operation will replace any existing child of the new name, making it
- behave like the UNIX "mv -f" command.
+ behave like the UNIX "``mv -f``" command.
 
-=== Other Utilities ===
+Other Utilities
+---------------
 
-GET /uri?uri=$CAP
+``GET /uri?uri=$CAP``
 
   This causes a redirect to /uri/$CAP, and retains any additional query
   arguments (like filename= or save=). This is for the convenience of web
@@ -1119,7 +1188,7 @@ GET /uri?uri=$CAP
   indicated by the $CAP: unlike the GET /uri/$DIRCAP form, you cannot
   traverse to children by appending additional path segments to the URL.
 
-GET /uri/$DIRCAP/[SUBDIRS../]?t=rename-form&name=$CHILDNAME
+``GET /uri/$DIRCAP/[SUBDIRS../]?t=rename-form&name=$CHILDNAME``
 
   This provides a useful facility to browser-based user interfaces. It
   returns a page containing a form targetting the "POST $DIRCAP t=rename"
@@ -1127,155 +1196,156 @@ GET /uri/$DIRCAP/[SUBDIRS../]?t=rename-form&name=$CHILDNAME
   'from_name' field of that form. I.e. this presents a form offering to
   rename $CHILDNAME, requesting the new name, and submitting POST rename.
 
-GET /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri
+``GET /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri``
 
  This returns the file- or directory- cap for the specified object.
 
-GET /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=readonly-uri
+``GET /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=readonly-uri``
 
  This returns a read-only file- or directory- cap for the specified object.
  If the object is an immutable file, this will return the same value as
  t=uri.
 
-=== Debugging and Testing Features ===
+Debugging and Testing Features
+------------------------------
 
 These URLs are less-likely to be helpful to the casual Tahoe user, and are
 mainly intended for developers.
 
-POST $URL?t=check
+``POST $URL?t=check``
 
-  This triggers the FileChecker to determine the current "health" of the
-  given file or directory, by counting how many shares are available. The
-  page that is returned will display the results. This can be used as a "show
-  me detailed information about this file" page.
+ This triggers the FileChecker to determine the current "health" of the
+ given file or directory, by counting how many shares are available. The
+ page that is returned will display the results. This can be used as a "show
+ me detailed information about this file" page.
 
-  If a verify=true argument is provided, the node will perform a more
-  intensive check, downloading and verifying every single bit of every share.
+ If a verify=true argument is provided, the node will perform a more
+ intensive check, downloading and verifying every single bit of every share.
 
-  If an add-lease=true argument is provided, the node will also add (or
-  renew) a lease to every share it encounters. Each lease will keep the share
-  alive for a certain period of time (one month by default). Once the last
-  lease expires or is explicitly cancelled, the storage server is allowed to
-  delete the share.
+ If an add-lease=true argument is provided, the node will also add (or
+ renew) a lease to every share it encounters. Each lease will keep the share
+ alive for a certain period of time (one month by default). Once the last
+ lease expires or is explicitly cancelled, the storage server is allowed to
+ delete the share.
 
-  If an output=JSON argument is provided, the response will be
-  machine-readable JSON instead of human-oriented HTML. The data is a
-  dictionary with the following keys:
+ If an output=JSON argument is provided, the response will be
+ machine-readable JSON instead of human-oriented HTML. The data is a
+ dictionary with the following keys::
 
-   storage-index: a base32-encoded string with the objects's storage index,
-                  or an empty string for LIT files
-   summary: a string, with a one-line summary of the stats of the file
-   results: a dictionary that describes the state of the file. For LIT files,
-            this dictionary has only the 'healthy' key, which will always be
-            True. For distributed files, this dictionary has the following
-            keys:
-     count-shares-good: the number of good shares that were found
-     count-shares-needed: 'k', the number of shares required for recovery
-     count-shares-expected: 'N', the number of total shares generated
-     count-good-share-hosts: this was intended to be the number of distinct
-                             storage servers with good shares. It is currently
-                             (as of Tahoe-LAFS v1.8.0) computed incorrectly;
-                             see ticket #1115.
-     count-wrong-shares: for mutable files, the number of shares for
-                         versions other than the 'best' one (highest
-                         sequence number, highest roothash). These are
-                         either old ...
-     count-recoverable-versions: for mutable files, the number of
-                                 recoverable versions of the file. For
-                                 a healthy file, this will equal 1.
-     count-unrecoverable-versions: for mutable files, the number of
-                                   unrecoverable versions of the file.
-                                   For a healthy file, this will be 0.
-     count-corrupt-shares: the number of shares with integrity failures
-     list-corrupt-shares: a list of "share locators", one for each share
-                          that was found to be corrupt. Each share locator
-                          is a list of (serverid, storage_index, sharenum).
-     needs-rebalancing: (bool) True if there are multiple shares on a single
-                        storage server, indicating a reduction in reliability
-                        that could be resolved by moving shares to new
-                        servers.
-     servers-responding: list of base32-encoded storage server identifiers,
-                         one for each server which responded to the share
-                         query.
-     healthy: (bool) True if the file is completely healthy, False otherwise.
-              Healthy files have at least N good shares. Overlapping shares
-              do not currently cause a file to be marked unhealthy. If there
-              are at least N good shares, then corrupt shares do not cause the
-              file to be marked unhealthy, although the corrupt shares will be
-              listed in the results (list-corrupt-shares) and should be manually
-              removed to wasting time in subsequent downloads (as the
-              downloader rediscovers the corruption and uses alternate shares).
-              Future compatibility: the meaning of this field may change to
-              reflect whether the servers-of-happiness criterion is met
-              (see ticket #614).
-     sharemap: dict mapping share identifier to list of serverids
-               (base32-encoded strings). This indicates which servers are
-               holding which shares. For immutable files, the shareid is
-               an integer (the share number, from 0 to N-1). For
-               immutable files, it is a string of the form
-               'seq%d-%s-sh%d', containing the sequence number, the
-               roothash, and the share number.
+  storage-index: a base32-encoded string with the objects's storage index,
+				 or an empty string for LIT files
+  summary: a string, with a one-line summary of the stats of the file
+  results: a dictionary that describes the state of the file. For LIT files,
+		   this dictionary has only the 'healthy' key, which will always be
+		   True. For distributed files, this dictionary has the following
+		   keys:
+	count-shares-good: the number of good shares that were found
+	count-shares-needed: 'k', the number of shares required for recovery
+	count-shares-expected: 'N', the number of total shares generated
+	count-good-share-hosts: this was intended to be the number of distinct
+							storage servers with good shares. It is currently
+							(as of Tahoe-LAFS v1.8.0) computed incorrectly;
+							see ticket #1115.
+	count-wrong-shares: for mutable files, the number of shares for
+						versions other than the 'best' one (highest
+						sequence number, highest roothash). These are
+						either old ...
+	count-recoverable-versions: for mutable files, the number of
+								recoverable versions of the file. For
+								a healthy file, this will equal 1.
+	count-unrecoverable-versions: for mutable files, the number of
+								  unrecoverable versions of the file.
+								  For a healthy file, this will be 0.
+	count-corrupt-shares: the number of shares with integrity failures
+	list-corrupt-shares: a list of "share locators", one for each share
+						 that was found to be corrupt. Each share locator
+						 is a list of (serverid, storage_index, sharenum).
+	needs-rebalancing: (bool) True if there are multiple shares on a single
+					   storage server, indicating a reduction in reliability
+					   that could be resolved by moving shares to new
+					   servers.
+	servers-responding: list of base32-encoded storage server identifiers,
+						one for each server which responded to the share
+						query.
+	healthy: (bool) True if the file is completely healthy, False otherwise.
+			 Healthy files have at least N good shares. Overlapping shares
+			 do not currently cause a file to be marked unhealthy. If there
+			 are at least N good shares, then corrupt shares do not cause the
+			 file to be marked unhealthy, although the corrupt shares will be
+			 listed in the results (list-corrupt-shares) and should be manually
+			 removed to wasting time in subsequent downloads (as the
+			 downloader rediscovers the corruption and uses alternate shares).
+			 Future compatibility: the meaning of this field may change to
+			 reflect whether the servers-of-happiness criterion is met
+			 (see ticket #614).
+	sharemap: dict mapping share identifier to list of serverids
+			  (base32-encoded strings). This indicates which servers are
+			  holding which shares. For immutable files, the shareid is
+			  an integer (the share number, from 0 to N-1). For
+			  immutable files, it is a string of the form
+			  'seq%d-%s-sh%d', containing the sequence number, the
+			  roothash, and the share number.
 
-POST $URL?t=start-deep-check    (must add &ophandle=XYZ)
+``POST $URL?t=start-deep-check``    (must add &ophandle=XYZ)
 
-  This initiates a recursive walk of all files and directories reachable from
-  the target, performing a check on each one just like t=check. The result
-  page will contain a summary of the results, including details on any
-  file/directory that was not fully healthy.
+ This initiates a recursive walk of all files and directories reachable from
+ the target, performing a check on each one just like t=check. The result
+ page will contain a summary of the results, including details on any
+ file/directory that was not fully healthy.
 
-  t=start-deep-check can only be invoked on a directory. An error (400
-  BAD_REQUEST) will be signalled if it is invoked on a file. The recursive
-  walker will deal with loops safely.
+ t=start-deep-check can only be invoked on a directory. An error (400
+ BAD_REQUEST) will be signalled if it is invoked on a file. The recursive
+ walker will deal with loops safely.
 
-  This accepts the same verify= and add-lease= arguments as t=check.
+ This accepts the same verify= and add-lease= arguments as t=check.
 
-  Since this operation can take a long time (perhaps a second per object),
-  the ophandle= argument is required (see "Slow Operations, Progress, and
-  Cancelling" above). The response to this POST will be a redirect to the
-  corresponding /operations/$HANDLE page (with output=HTML or output=JSON to
-  match the output= argument given to the POST). The deep-check operation
-  will continue to run in the background, and the /operations page should be
-  used to find out when the operation is done.
+ Since this operation can take a long time (perhaps a second per object),
+ the ophandle= argument is required (see "Slow Operations, Progress, and
+ Cancelling" above). The response to this POST will be a redirect to the
+ corresponding /operations/$HANDLE page (with output=HTML or output=JSON to
+ match the output= argument given to the POST). The deep-check operation
+ will continue to run in the background, and the /operations page should be
+ used to find out when the operation is done.
 
-  Detailed check results for non-healthy files and directories will be
-  available under /operations/$HANDLE/$STORAGEINDEX, and the HTML status will
-  contain links to these detailed results.
+ Detailed check results for non-healthy files and directories will be
+ available under /operations/$HANDLE/$STORAGEINDEX, and the HTML status will
+ contain links to these detailed results.
 
-  The HTML /operations/$HANDLE page for incomplete operations will contain a
-  meta-refresh tag, set to 60 seconds, so that a browser which uses
-  deep-check will automatically poll until the operation has completed.
+ The HTML /operations/$HANDLE page for incomplete operations will contain a
+ meta-refresh tag, set to 60 seconds, so that a browser which uses
+ deep-check will automatically poll until the operation has completed.
 
-  The JSON page (/options/$HANDLE?output=JSON) will contain a
-  machine-readable JSON dictionary with the following keys:
+ The JSON page (/options/$HANDLE?output=JSON) will contain a
+ machine-readable JSON dictionary with the following keys::
 
-   finished: a boolean, True if the operation is complete, else False. Some
-             of the remaining keys may not be present until the operation
-             is complete.
-   root-storage-index: a base32-encoded string with the storage index of the
-                       starting point of the deep-check operation
-   count-objects-checked: count of how many objects were checked. Note that
-                          non-distributed objects (i.e. small immutable LIT
-                          files) are not checked, since for these objects,
-                          the data is contained entirely in the URI.
-   count-objects-healthy: how many of those objects were completely healthy
-   count-objects-unhealthy: how many were damaged in some way
-   count-corrupt-shares: how many shares were found to have corruption,
-                         summed over all objects examined
-   list-corrupt-shares: a list of "share identifiers", one for each share
-                        that was found to be corrupt. Each share identifier
-                        is a list of (serverid, storage_index, sharenum).
-   list-unhealthy-files: a list of (pathname, check-results) tuples, for
-                         each file that was not fully healthy. 'pathname' is
-                         a list of strings (which can be joined by "/"
-                         characters to turn it into a single string),
-                         relative to the directory on which deep-check was
-                         invoked. The 'check-results' field is the same as
-                         that returned by t=check&output=JSON, described
-                         above.
-   stats: a dictionary with the same keys as the t=start-deep-stats command
-          (described below)
+  finished: a boolean, True if the operation is complete, else False. Some
+			of the remaining keys may not be present until the operation
+			is complete.
+  root-storage-index: a base32-encoded string with the storage index of the
+					  starting point of the deep-check operation
+  count-objects-checked: count of how many objects were checked. Note that
+						 non-distributed objects (i.e. small immutable LIT
+						 files) are not checked, since for these objects,
+						 the data is contained entirely in the URI.
+  count-objects-healthy: how many of those objects were completely healthy
+  count-objects-unhealthy: how many were damaged in some way
+  count-corrupt-shares: how many shares were found to have corruption,
+						summed over all objects examined
+  list-corrupt-shares: a list of "share identifiers", one for each share
+					   that was found to be corrupt. Each share identifier
+					   is a list of (serverid, storage_index, sharenum).
+  list-unhealthy-files: a list of (pathname, check-results) tuples, for
+						each file that was not fully healthy. 'pathname' is
+						a list of strings (which can be joined by "/"
+						characters to turn it into a single string),
+						relative to the directory on which deep-check was
+						invoked. The 'check-results' field is the same as
+						that returned by t=check&output=JSON, described
+						above.
+  stats: a dictionary with the same keys as the t=start-deep-stats command
+		 (described below)
 
-POST $URL?t=stream-deep-check
+``POST $URL?t=stream-deep-check``
 
  This initiates a recursive walk of all files and directories reachable from
  the target, performing a check on each one just like t=check. For each
@@ -1292,7 +1362,7 @@ POST $URL?t=stream-deep-check
  "file", "directory", or "stats".
 
  For all units that have a type of "file" or "directory", the dictionary will
- contain the following keys:
+ contain the following keys::
 
   "path": a list of strings, with the path that is traversed to reach the
           object
@@ -1329,90 +1399,90 @@ POST $URL?t=stream-deep-check
  unit is emitted to the HTTP response body before the child is traversed.
 
 
-POST $URL?t=check&repair=true
+``POST $URL?t=check&repair=true``
 
-  This performs a health check of the given file or directory, and if the
-  checker determines that the object is not healthy (some shares are missing
-  or corrupted), it will perform a "repair". During repair, any missing
-  shares will be regenerated and uploaded to new servers.
+ This performs a health check of the given file or directory, and if the
+ checker determines that the object is not healthy (some shares are missing
+ or corrupted), it will perform a "repair". During repair, any missing
+ shares will be regenerated and uploaded to new servers.
 
-  This accepts the same verify=true and add-lease= arguments as t=check. When
-  an output=JSON argument is provided, the machine-readable JSON response
-  will contain the following keys:
+ This accepts the same verify=true and add-lease= arguments as t=check. When
+ an output=JSON argument is provided, the machine-readable JSON response
+ will contain the following keys::
 
-   storage-index: a base32-encoded string with the objects's storage index,
-                  or an empty string for LIT files
-   repair-attempted: (bool) True if repair was attempted
-   repair-successful: (bool) True if repair was attempted and the file was
-                      fully healthy afterwards. False if no repair was
-                      attempted, or if a repair attempt failed.
-   pre-repair-results: a dictionary that describes the state of the file
-                       before any repair was performed. This contains exactly
-                       the same keys as the 'results' value of the t=check
-                       response, described above.
-   post-repair-results: a dictionary that describes the state of the file
-                        after any repair was performed. If no repair was
-                        performed, post-repair-results and pre-repair-results
-                        will be the same. This contains exactly the same keys
-                        as the 'results' value of the t=check response,
-                        described above.
+  storage-index: a base32-encoded string with the objects's storage index,
+				 or an empty string for LIT files
+  repair-attempted: (bool) True if repair was attempted
+  repair-successful: (bool) True if repair was attempted and the file was
+					 fully healthy afterwards. False if no repair was
+					 attempted, or if a repair attempt failed.
+  pre-repair-results: a dictionary that describes the state of the file
+					  before any repair was performed. This contains exactly
+					  the same keys as the 'results' value of the t=check
+					  response, described above.
+  post-repair-results: a dictionary that describes the state of the file
+					   after any repair was performed. If no repair was
+					   performed, post-repair-results and pre-repair-results
+					   will be the same. This contains exactly the same keys
+					   as the 'results' value of the t=check response,
+					   described above.
 
-POST $URL?t=start-deep-check&repair=true    (must add &ophandle=XYZ)
+``POST $URL?t=start-deep-check&repair=true``    (must add &ophandle=XYZ)
 
-  This triggers a recursive walk of all files and directories, performing a
-  t=check&repair=true on each one.
+ This triggers a recursive walk of all files and directories, performing a
+ t=check&repair=true on each one.
 
-  Like t=start-deep-check without the repair= argument, this can only be
-  invoked on a directory. An error (400 BAD_REQUEST) will be signalled if it
-  is invoked on a file. The recursive walker will deal with loops safely.
+ Like t=start-deep-check without the repair= argument, this can only be
+ invoked on a directory. An error (400 BAD_REQUEST) will be signalled if it
+ is invoked on a file. The recursive walker will deal with loops safely.
 
-  This accepts the same verify= and add-lease= arguments as
-  t=start-deep-check. It uses the same ophandle= mechanism as
-  start-deep-check. When an output=JSON argument is provided, the response
-  will contain the following keys:
+ This accepts the same verify= and add-lease= arguments as
+ t=start-deep-check. It uses the same ophandle= mechanism as
+ start-deep-check. When an output=JSON argument is provided, the response
+ will contain the following keys::
 
-   finished: (bool) True if the operation has completed, else False
-   root-storage-index: a base32-encoded string with the storage index of the
-                       starting point of the deep-check operation
-   count-objects-checked: count of how many objects were checked
+  finished: (bool) True if the operation has completed, else False
+  root-storage-index: a base32-encoded string with the storage index of the
+					  starting point of the deep-check operation
+  count-objects-checked: count of how many objects were checked
 
-   count-objects-healthy-pre-repair: how many of those objects were completely
-                                     healthy, before any repair
-   count-objects-unhealthy-pre-repair: how many were damaged in some way
-   count-objects-healthy-post-repair: how many of those objects were completely
-                                       healthy, after any repair
-   count-objects-unhealthy-post-repair: how many were damaged in some way
+  count-objects-healthy-pre-repair: how many of those objects were completely
+									healthy, before any repair
+  count-objects-unhealthy-pre-repair: how many were damaged in some way
+  count-objects-healthy-post-repair: how many of those objects were completely
+									  healthy, after any repair
+  count-objects-unhealthy-post-repair: how many were damaged in some way
 
-   count-repairs-attempted: repairs were attempted on this many objects.
-   count-repairs-successful: how many repairs resulted in healthy objects
-   count-repairs-unsuccessful: how many repairs resulted did not results in
-                               completely healthy objects
-   count-corrupt-shares-pre-repair: how many shares were found to have
-                                    corruption, summed over all objects
-                                    examined, before any repair
-   count-corrupt-shares-post-repair: how many shares were found to have
-                                     corruption, summed over all objects
-                                     examined, after any repair
-   list-corrupt-shares: a list of "share identifiers", one for each share
-                        that was found to be corrupt (before any repair).
-                        Each share identifier is a list of (serverid,
-                        storage_index, sharenum).
-   list-remaining-corrupt-shares: like list-corrupt-shares, but mutable shares
-                                  that were successfully repaired are not
-                                  included. These are shares that need
-                                  manual processing. Since immutable shares
-                                  cannot be modified by clients, all corruption
-                                  in immutable shares will be listed here.
-   list-unhealthy-files: a list of (pathname, check-results) tuples, for
-                         each file that was not fully healthy. 'pathname' is
-                         relative to the directory on which deep-check was
-                         invoked. The 'check-results' field is the same as
-                         that returned by t=check&repair=true&output=JSON,
-                         described above.
-   stats: a dictionary with the same keys as the t=start-deep-stats command
-          (described below)
+  count-repairs-attempted: repairs were attempted on this many objects.
+  count-repairs-successful: how many repairs resulted in healthy objects
+  count-repairs-unsuccessful: how many repairs resulted did not results in
+							  completely healthy objects
+  count-corrupt-shares-pre-repair: how many shares were found to have
+								   corruption, summed over all objects
+								   examined, before any repair
+  count-corrupt-shares-post-repair: how many shares were found to have
+									corruption, summed over all objects
+									examined, after any repair
+  list-corrupt-shares: a list of "share identifiers", one for each share
+					   that was found to be corrupt (before any repair).
+					   Each share identifier is a list of (serverid,
+					   storage_index, sharenum).
+  list-remaining-corrupt-shares: like list-corrupt-shares, but mutable shares
+								 that were successfully repaired are not
+								 included. These are shares that need
+								 manual processing. Since immutable shares
+								 cannot be modified by clients, all corruption
+								 in immutable shares will be listed here.
+  list-unhealthy-files: a list of (pathname, check-results) tuples, for
+						each file that was not fully healthy. 'pathname' is
+						relative to the directory on which deep-check was
+						invoked. The 'check-results' field is the same as
+						that returned by t=check&repair=true&output=JSON,
+						described above.
+  stats: a dictionary with the same keys as the t=start-deep-stats command
+		 (described below)
 
-POST $URL?t=stream-deep-check&repair=true
+``POST $URL?t=stream-deep-check&repair=true``
 
  This triggers a recursive walk of all files and directories, performing a
  t=check&repair=true on each one. For each unique object (duplicates are
@@ -1435,95 +1505,95 @@ POST $URL?t=stream-deep-check&repair=true
  file or directory repair fails, the traversal will continue, and the repair
  failure will be indicated in the JSON data (in the "repair-successful" key).
 
-POST $DIRURL?t=start-manifest    (must add &ophandle=XYZ)
+``POST $DIRURL?t=start-manifest``    (must add &ophandle=XYZ)
 
-  This operation generates a "manfest" of the given directory tree, mostly
-  for debugging. This is a table of (path, filecap/dircap), for every object
-  reachable from the starting directory. The path will be slash-joined, and
-  the filecap/dircap will contain a link to the object in question. This page
-  gives immediate access to every object in the virtual filesystem subtree.
+ This operation generates a "manfest" of the given directory tree, mostly
+ for debugging. This is a table of (path, filecap/dircap), for every object
+ reachable from the starting directory. The path will be slash-joined, and
+ the filecap/dircap will contain a link to the object in question. This page
+ gives immediate access to every object in the virtual filesystem subtree.
 
-  This operation uses the same ophandle= mechanism as deep-check. The
-  corresponding /operations/$HANDLE page has three different forms. The
-  default is output=HTML.
+ This operation uses the same ophandle= mechanism as deep-check. The
+ corresponding /operations/$HANDLE page has three different forms. The
+ default is output=HTML.
 
-  If output=text is added to the query args, the results will be a text/plain
-  list. The first line is special: it is either "finished: yes" or "finished:
-  no"; if the operation is not finished, you must periodically reload the
-  page until it completes. The rest of the results are a plaintext list, with
-  one file/dir per line, slash-separated, with the filecap/dircap separated
-  by a space.
+ If output=text is added to the query args, the results will be a text/plain
+ list. The first line is special: it is either "finished: yes" or "finished:
+ no"; if the operation is not finished, you must periodically reload the
+ page until it completes. The rest of the results are a plaintext list, with
+ one file/dir per line, slash-separated, with the filecap/dircap separated
+ by a space.
 
-  If output=JSON is added to the queryargs, then the results will be a
-  JSON-formatted dictionary with six keys. Note that because large directory
-  structures can result in very large JSON results, the full results will not
-  be available until the operation is complete (i.e. until output["finished"]
-  is True):
+ If output=JSON is added to the queryargs, then the results will be a
+ JSON-formatted dictionary with six keys. Note that because large directory
+ structures can result in very large JSON results, the full results will not
+ be available until the operation is complete (i.e. until output["finished"]
+ is True)::
 
-   finished (bool): if False then you must reload the page until True
-   origin_si (base32 str): the storage index of the starting point
-   manifest: list of (path, cap) tuples, where path is a list of strings.
-   verifycaps: list of (printable) verify cap strings
-   storage-index: list of (base32) storage index strings
-   stats: a dictionary with the same keys as the t=start-deep-stats command
-          (described below)
+  finished (bool): if False then you must reload the page until True
+  origin_si (base32 str): the storage index of the starting point
+  manifest: list of (path, cap) tuples, where path is a list of strings.
+  verifycaps: list of (printable) verify cap strings
+  storage-index: list of (base32) storage index strings
+  stats: a dictionary with the same keys as the t=start-deep-stats command
+		 (described below)
 
-POST $DIRURL?t=start-deep-size    (must add &ophandle=XYZ)
+``POST $DIRURL?t=start-deep-size``   (must add &ophandle=XYZ)
 
-  This operation generates a number (in bytes) containing the sum of the
-  filesize of all directories and immutable files reachable from the given
-  directory. This is a rough lower bound of the total space consumed by this
-  subtree. It does not include space consumed by mutable files, nor does it
-  take expansion or encoding overhead into account. Later versions of the
-  code may improve this estimate upwards.
+ This operation generates a number (in bytes) containing the sum of the
+ filesize of all directories and immutable files reachable from the given
+ directory. This is a rough lower bound of the total space consumed by this
+ subtree. It does not include space consumed by mutable files, nor does it
+ take expansion or encoding overhead into account. Later versions of the
+ code may improve this estimate upwards.
 
-  The /operations/$HANDLE status output consists of two lines of text:
+ The /operations/$HANDLE status output consists of two lines of text::
 
-   finished: yes
-   size: 1234
+  finished: yes
+  size: 1234
 
-POST $DIRURL?t=start-deep-stats    (must add &ophandle=XYZ)
+``POST $DIRURL?t=start-deep-stats``    (must add &ophandle=XYZ)
 
-  This operation performs a recursive walk of all files and directories
-  reachable from the given directory, and generates a collection of
-  statistics about those objects.
+ This operation performs a recursive walk of all files and directories
+ reachable from the given directory, and generates a collection of
+ statistics about those objects.
 
-  The result (obtained from the /operations/$OPHANDLE page) is a
-  JSON-serialized dictionary with the following keys (note that some of these
-  keys may be missing until 'finished' is True):
+ The result (obtained from the /operations/$OPHANDLE page) is a
+ JSON-serialized dictionary with the following keys (note that some of these
+ keys may be missing until 'finished' is True)::
 
-   finished: (bool) True if the operation has finished, else False
-   count-immutable-files: count of how many CHK files are in the set
-   count-mutable-files: same, for mutable files (does not include directories)
-   count-literal-files: same, for LIT files (data contained inside the URI)
-   count-files: sum of the above three
-   count-directories: count of directories
-   count-unknown: count of unrecognized objects (perhaps from the future)
-   size-immutable-files: total bytes for all CHK files in the set, =deep-size
-   size-mutable-files (TODO): same, for current version of all mutable files
-   size-literal-files: same, for LIT files
-   size-directories: size of directories (includes size-literal-files)
-   size-files-histogram: list of (minsize, maxsize, count) buckets,
-                         with a histogram of filesizes, 5dB/bucket,
-                         for both literal and immutable files
-   largest-directory: number of children in the largest directory
-   largest-immutable-file: number of bytes in the largest CHK file
+  finished: (bool) True if the operation has finished, else False
+  count-immutable-files: count of how many CHK files are in the set
+  count-mutable-files: same, for mutable files (does not include directories)
+  count-literal-files: same, for LIT files (data contained inside the URI)
+  count-files: sum of the above three
+  count-directories: count of directories
+  count-unknown: count of unrecognized objects (perhaps from the future)
+  size-immutable-files: total bytes for all CHK files in the set, =deep-size
+  size-mutable-files (TODO): same, for current version of all mutable files
+  size-literal-files: same, for LIT files
+  size-directories: size of directories (includes size-literal-files)
+  size-files-histogram: list of (minsize, maxsize, count) buckets,
+						with a histogram of filesizes, 5dB/bucket,
+						for both literal and immutable files
+  largest-directory: number of children in the largest directory
+  largest-immutable-file: number of bytes in the largest CHK file
 
-  size-mutable-files is not implemented, because it would require extra
-  queries to each mutable file to get their size. This may be implemented in
-  the future.
+ size-mutable-files is not implemented, because it would require extra
+ queries to each mutable file to get their size. This may be implemented in
+ the future.
 
-  Assuming no sharing, the basic space consumed by a single root directory is
-  the sum of size-immutable-files, size-mutable-files, and size-directories.
-  The actual disk space used by the shares is larger, because of the
-  following sources of overhead:
+ Assuming no sharing, the basic space consumed by a single root directory is
+ the sum of size-immutable-files, size-mutable-files, and size-directories.
+ The actual disk space used by the shares is larger, because of the
+ following sources of overhead::
 
-   integrity data
-   expansion due to erasure coding
-   share management data (leases)
-   backend (ext3) minimum block size
+  integrity data
+  expansion due to erasure coding
+  share management data (leases)
+  backend (ext3) minimum block size
 
-POST $URL?t=stream-manifest
+``POST $URL?t=stream-manifest``
 
  This operation performs a recursive walk of all files and directories
  reachable from the given starting point. For each such unique object
@@ -1538,7 +1608,7 @@ POST $URL?t=stream-manifest
  "file", "directory", or "stats".
 
  For all units that have a type of "file" or "directory", the dictionary will
- contain the following keys:
+ contain the following keys::
 
   "path": a list of strings, with the path that is traversed to reach the
           object
@@ -1567,16 +1637,17 @@ POST $URL?t=stream-manifest
  was untraversable, since the manifest entry is emitted to the HTTP response
  body before the child is traversed.
 
-== Other Useful Pages ==
+Other Useful Pages
+==================
 
 The portion of the web namespace that begins with "/uri" (and "/named") is
 dedicated to giving users (both humans and programs) access to the Tahoe
 virtual filesystem. The rest of the namespace provides status information
 about the state of the Tahoe node.
 
-GET /   (the root page)
+``GET /``   (the root page)
 
-This is the "Welcome Page", and contains a few distinct sections:
+This is the "Welcome Page", and contains a few distinct sections::
 
  Node information: library versions, local nodeid, services being provided.
 
@@ -1587,7 +1658,7 @@ This is the "Welcome Page", and contains a few distinct sections:
  Grid Status: introducer information, helper information, connected storage
               servers.
 
-GET /status/
+``GET /status/``
 
  This page lists all active uploads and downloads, and contains a short list
  of recent upload/download operations. Each operation has a link to a page
@@ -1604,28 +1675,28 @@ GET /status/
  "mapupdate", "publish", or "retrieve" (the first two are for immutable
  files, while the latter three are for mutable files and directories).
 
- The "upload" op-dict will contain the following keys:
+ The "upload" op-dict will contain the following keys::
 
-   type (string): "upload"
-   storage-index-string (string): a base32-encoded storage index
-   total-size (int): total size of the file
-   status (string): current status of the operation
-   progress-hash (float): 1.0 when the file has been hashed
-   progress-ciphertext (float): 1.0 when the file has been encrypted.
-   progress-encode-push (float): 1.0 when the file has been encoded and
-                                 pushed to the storage servers. For helper
-                                 uploads, the ciphertext value climbs to 1.0
-                                 first, then encoding starts. For unassisted
-                                 uploads, ciphertext and encode-push progress
-                                 will climb at the same pace.
+  type (string): "upload"
+  storage-index-string (string): a base32-encoded storage index
+  total-size (int): total size of the file
+  status (string): current status of the operation
+  progress-hash (float): 1.0 when the file has been hashed
+  progress-ciphertext (float): 1.0 when the file has been encrypted.
+  progress-encode-push (float): 1.0 when the file has been encoded and
+								pushed to the storage servers. For helper
+								uploads, the ciphertext value climbs to 1.0
+								first, then encoding starts. For unassisted
+								uploads, ciphertext and encode-push progress
+								will climb at the same pace.
 
- The "download" op-dict will contain the following keys:
+ The "download" op-dict will contain the following keys::
 
-   type (string): "download"
-   storage-index-string (string): a base32-encoded storage index
-   total-size (int): total size of the file
-   status (string): current status of the operation
-   progress (float): 1.0 when the file has been fully downloaded
+  type (string): "download"
+  storage-index-string (string): a base32-encoded storage index
+  total-size (int): total size of the file
+  status (string): current status of the operation
+  progress (float): 1.0 when the file has been fully downloaded
 
  Front-ends which want to report progress information are advised to simply
  average together all the progress-* indicators. A slightly more accurate
@@ -1633,7 +1704,7 @@ GET /status/
  implementation hashes synchronously, so clients will probably never see
  progress-hash!=1.0).
 
-GET /provisioning/
+``GET /provisioning/``
 
  This page provides a basic tool to predict the likely storage and bandwidth
  requirements of a large Tahoe grid. It provides forms to input things like
@@ -1644,7 +1715,7 @@ GET /provisioning/
  the grid. This information is very preliminary, and the model upon which it
  is based still needs a lot of work.
 
-GET /helper_status/
+``GET /helper_status/``
 
  If the node is running a helper (i.e. if [helper]enabled is set to True in
  tahoe.cfg), then this page will provide a list of all the helper operations
@@ -1652,10 +1723,10 @@ GET /helper_status/
  JSON-formatted list of helper statistics, which can then be used to produce
  graphs to indicate how busy the helper is.
 
-GET /statistics/
+``GET /statistics/``
 
  This page provides "node statistics", which are collected from a variety of
- sources.
+ sources::
 
    load_monitor: every second, the node schedules a timer for one second in
                  the future, then measures how late the subsequent callback
@@ -1693,7 +1764,7 @@ GET /statistics/
  graphs of node behavior. The misc/munin/ directory in the source
  distribution provides some tools to produce these graphs.
 
-GET /   (introducer status)
+``GET /``   (introducer status)
 
  For Introducer nodes, the welcome page displays information about both
  clients and servers which are connected to the introducer. Servers make
@@ -1706,7 +1777,7 @@ GET /   (introducer status)
 
  By adding "?t=json" to the URL, the node will return a JSON-formatted
  dictionary of stats values, which can be used to produce graphs of connected
- clients over time. This dictionary has the following keys:
+ clients over time. This dictionary has the following keys::
 
   ["subscription_summary"] : a dictionary mapping service name (like
                              "storage") to an integer with the number of
@@ -1724,7 +1795,8 @@ GET /   (introducer status)
                                     considered to be on the same host.
 
 
-== Static Files in /public_html ==
+Static Files in /public_html
+============================
 
 The webapi server will take any request for a URL that starts with /static
 and serve it from a configurable directory which defaults to
@@ -1737,7 +1809,8 @@ This can be useful to serve a javascript application which provides a
 prettier front-end to the rest of the Tahoe webapi.
 
 
-== Safety and security issues -- names vs. URIs ==
+Safety and security issues -- names vs. URIs
+============================================
 
 Summary: use explicit file- and dir- caps whenever possible, to reduce the
 potential for surprises when the filesystem structure is changed.
@@ -1792,7 +1865,8 @@ In general, use names if you want "whatever object (whether file or
 directory) is found by following this name (or sequence of names) when my
 request reaches the server". Use URIs if you want "this particular object".
 
-== Concurrency Issues ==
+Concurrency Issues
+==================
 
 Tahoe uses both mutable and immutable files. Mutable files can be created
 explicitly by doing an upload with ?mutable=true added, or implicitly by
@@ -1834,7 +1908,7 @@ Coordination Directive" sections of mutable.txt, in the same directory as
 this file.
 
 
-[1]: URLs and HTTP and UTF-8, Oh My
+.. [1] URLs and HTTP and UTF-8, Oh My
 
  HTTP does not provide a mechanism to specify the character set used to
  encode non-ascii names in URLs (rfc2396#2.1). We prefer the convention that
@@ -1850,14 +1924,14 @@ this file.
 
  The response header will need to indicate a non-ASCII filename. The actual
  mechanism to do this is not clear. For ASCII filenames, the response header
- would look like:
+ would look like::
 
   Content-Disposition: attachment; filename="english.txt"
 
  If Tahoe were to enforce the utf-8 convention, it would need to decode the
  URL argument into a unicode string, and then encode it back into a sequence
  of bytes when creating the response header. One possibility would be to use
- unencoded utf-8. Developers suggest that IE7 might accept this:
+ unencoded utf-8. Developers suggest that IE7 might accept this::
 
   #1: Content-Disposition: attachment; filename="fianc\xC3\xA9e"
     (note, the last four bytes of that line, not including the newline, are
@@ -1865,21 +1939,21 @@ this file.
 
  RFC2231#4 (dated 1997): suggests that the following might work, and some
  developers (http://markmail.org/message/dsjyokgl7hv64ig3) have reported that
- it is supported by firefox (but not IE7):
+ it is supported by firefox (but not IE7)::
 
   #2: Content-Disposition: attachment; filename*=utf-8''fianc%C3%A9e
 
  My reading of RFC2616#19.5.1 (which defines Content-Disposition) says that
  the filename= parameter is defined to be wrapped in quotes (presumeably to
  allow spaces without breaking the parsing of subsequent parameters), which
- would give us:
+ would give us::
 
   #3: Content-Disposition: attachment; filename*=utf-8''"fianc%C3%A9e"
 
  However this is contrary to the examples in the email thread listed above.
 
  Developers report that IE7 (when it is configured for UTF-8 URL encoding,
- which is not the default in asian countries), will accept:
+ which is not the default in asian countries), will accept::
 
   #4: Content-Disposition: attachment; filename=fianc%C3%A9e
 

@@ -1,5 +1,6 @@
-
-== FileEncoding ==
+=============
+File Encoding
+=============
 
 When the client wishes to upload an immutable file, the first step is to
 decide upon an encryption key. There are two methods: convergent or random.
@@ -43,8 +44,7 @@ table that maps SI to shares.
 Anybody who knows a Storage Index can retrieve the associated ciphertext:
 ciphertexts are not secret.
 
-
-[[Image(file-encoding1.png)]]
+.. image:: file-encoding1.svg
 
 The ciphertext file is then broken up into segments. The last segment is
 likely to be shorter than the rest. Each segment is erasure-coded into a
@@ -60,7 +60,7 @@ aka landlord, aka storage node, aka peer). The "share" held by each remote
 shareholder is nominally just a collection of these blocks. The file will
 be recoverable when a certain number of shares have been retrieved.
 
-[[Image(file-encoding2.png)]]
+.. image:: file-encoding2.svg
 
 The blocks are hashed as they are generated and transmitted. These
 block hashes are put into a Merkle hash tree. When the last share has been
@@ -71,7 +71,7 @@ nodes ahead of time, so we can validate each block independently.
 The root of this block hash tree is called the "block root hash" and
 used in the next step.
 
-[[Image(file-encoding3.png)]]
+.. image:: file-encoding3.svg
 
 There is a higher-level Merkle tree called the "share hash tree". Its leaves
 are the block root hashes from each share. The root of this tree is called
@@ -89,11 +89,11 @@ time, sufficient download queries can be generated in parallel).
 
 The URI (also known as the immutable-file read-cap, since possessing it
 grants the holder the capability to read the file's plaintext) is then
-represented as a (relatively) short printable string like so:
+represented as a (relatively) short printable string like so::
 
  URI:CHK:auxet66ynq55naiy2ay7cgrshm:6rudoctmbxsmbg7gwtjlimd6umtwrrsxkjzthuldsmo4nnfoc6fa:3:10:1000000
 
-[[Image(file-encoding4.png)]]
+.. image:: file-encoding4.svg
 
 During download, when a peer begins to transmit a share, it first transmits
 all of the parts of the share hash tree that are necessary to validate its
@@ -102,7 +102,7 @@ that are necessary to validate the first block. Then it transmits the
 first block. It then continues this loop: transmitting any portions of the
 block hash tree to validate block#N, then sending block#N.
 
-[[Image(file-encoding5.png)]]
+.. image:: file-encoding5.svg
 
 So the "share" that is sent to the remote peer actually consists of three
 pieces, sent in a specific order as they become available, and retrieved
@@ -125,13 +125,14 @@ peers) into decoding, to produce the first segment of crypttext, which is
 then decrypted to produce the first segment of plaintext, which is finally
 delivered to the user.
 
-[[Image(file-encoding6.png)]]
+.. image:: file-encoding6.svg
 
-== Hashes ==
+Hashes
+======
 
 All hashes use SHA-256d, as defined in Practical Cryptography (by Ferguson
 and Schneier). All hashes use a single-purpose tag, e.g. the hash that
-converts an encryption key into a storage index is defined as follows:
+converts an encryption key into a storage index is defined as follows::
 
  SI = SHA256d(netstring("allmydata_immutable_key_to_storage_index_v1") + key)
 
@@ -142,7 +143,8 @@ Using SHA-256d (instead of plain SHA-256) guards against length-extension
 attacks. Using the tag protects our Merkle trees against attacks in which the
 hash of a leaf is confused with a hash of two children (allowing an attacker
 to generate corrupted data that nevertheless appears to be valid), and is
-simply good "cryptograhic hygiene". The "Chosen Protocol Attack" by Kelsey,
-Schneier, and Wagner (http://www.schneier.com/paper-chosen-protocol.html) is
+simply good "cryptograhic hygiene". The `"Chosen Protocol Attack" by Kelsey,
+Schneier, and Wagner <http://www.schneier.com/paper-chosen-protocol.html>`_ is
 relevant. Putting the tag in a netstring guards against attacks that seek to
 confuse the end of the tag with the beginning of the subsequent value.
+

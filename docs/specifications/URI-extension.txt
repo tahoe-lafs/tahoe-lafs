@@ -1,5 +1,6 @@
-
-"URI Extension Block"
+===================
+URI Extension Block
+===================
 
 This block is a serialized dictionary with string keys and string values
 (some of which represent numbers, some of which are SHA-256 hashes). All
@@ -13,7 +14,7 @@ clients who do not wish to do incremental validation) can be performed solely
 with the data from this block.
 
 At the moment, this data block contains the following keys (and an estimate
-on their sizes):
+on their sizes)::
 
  size                5
  segment_size        7
@@ -42,7 +43,7 @@ files, regardless of file size. Therefore hash trees (which have a size that
 depends linearly upon the number of segments) are stored elsewhere in the
 bucket, with only the hash tree root stored in this data block.
 
-This block will be serialized as follows:
+This block will be serialized as follows::
 
  assert that all keys match ^[a-zA-z_\-]+$
  sort all the keys lexicographically
@@ -51,7 +52,7 @@ This block will be serialized as follows:
   write(netstring(data[k]))
 
 
-Serialized size:
+Serialized size::
 
  dense binary (but decimal) packing: 160+46=206
  including 'key:' (185) and netstring (6*3+7*4=46) on values: 231

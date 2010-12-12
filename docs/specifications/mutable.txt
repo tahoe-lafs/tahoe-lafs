@@ -1,7 +1,22 @@
+=============
+Mutable Files
+=============
 
 This describes the "RSA-based mutable files" which were shipped in Tahoe v0.8.0.
 
-= Mutable Files =
+1.  `Consistency vs. Availability`_
+2.  `The Prime Coordination Directive: "Don't Do That"`_
+3.  `Small Distributed Mutable Files`_
+
+    1. `SDMF slots overview`_
+    2. `Server Storage Protocol`_
+    3. `Code Details`_
+    4. `SMDF Slot Format`_
+    5. `Recovery`_
+
+4.  `Medium Distributed Mutable Files`_
+5.  `Large Distributed Mutable Files`_
+6.  `TODO`_
 
 Mutable File Slots are places with a stable identifier that can hold data
 that changes over time. In contrast to CHK slots, for which the
@@ -27,7 +42,8 @@ shares cannot read or modify them: the worst they can do is deny service (by
 deleting or corrupting the shares), or attempt a rollback attack (which can
 only succeed with the cooperation of at least k servers).
 
-== Consistency vs Availability ==
+Consistency vs. Availability
+============================
 
 There is an age-old battle between consistency and availability. Epic papers
 have been written, elaborate proofs have been established, and generations of
@@ -45,25 +61,26 @@ effective ways to merge multiple versions, so inconsistency is not
 necessarily a problem (i.e. directory nodes can usually merge multiple "add
 child" operations).
 
-== The Prime Coordination Directive: "Don't Do That" ==
+The Prime Coordination Directive: "Don't Do That"
+=================================================
 
 The current rule for applications which run on top of Tahoe is "do not
 perform simultaneous uncoordinated writes". That means you need non-tahoe
 means to make sure that two parties are not trying to modify the same mutable
 slot at the same time. For example:
 
- * don't give the read-write URI to anyone else. Dirnodes in a private
-   directory generally satisfy this case, as long as you don't use two
-   clients on the same account at the same time
- * if you give a read-write URI to someone else, stop using it yourself. An
-   inbox would be a good example of this.
- * if you give a read-write URI to someone else, call them on the phone
-   before you write into it
- * build an automated mechanism to have your agents coordinate writes.
-   For example, we expect a future release to include a FURL for a
-   "coordination server" in the dirnodes. The rule can be that you must
-   contact the coordination server and obtain a lock/lease on the file
-   before you're allowed to modify it.
+* don't give the read-write URI to anyone else. Dirnodes in a private
+  directory generally satisfy this case, as long as you don't use two
+  clients on the same account at the same time
+* if you give a read-write URI to someone else, stop using it yourself. An
+  inbox would be a good example of this.
+* if you give a read-write URI to someone else, call them on the phone
+  before you write into it
+* build an automated mechanism to have your agents coordinate writes.
+  For example, we expect a future release to include a FURL for a
+  "coordination server" in the dirnodes. The rule can be that you must
+  contact the coordination server and obtain a lock/lease on the file
+  before you're allowed to modify it.
 
 If you do not follow this rule, Bad Things will happen. The worst-case Bad
 Thing is that the entire file will be lost. A less-bad Bad Thing is that one
@@ -91,7 +108,8 @@ run. The Prime Coordination Directive therefore applies to inter-node
 conflicts, not intra-node ones.
 
 
-== Small Distributed Mutable Files ==
+Small Distributed Mutable Files
+===============================
 
 SDMF slots are suitable for small (<1MB) files that are editing by rewriting
 the entire file. The three operations are:
@@ -103,7 +121,8 @@ the entire file. The three operations are:
 The first use of SDMF slots will be to hold directories (dirnodes), which map
 encrypted child names to rw-URI/ro-URI pairs.
 
-=== SDMF slots overview ===
+SDMF slots overview
+-------------------
 
 Each SDMF slot is created with a public/private key pair. The public key is
 known as the "verification key", while the private key is called the
@@ -138,6 +157,8 @@ The read-write URI consists of the write key and the verification key hash.
 The read-only URI contains the read key and the verification key hash. The
 verify-only URI contains the storage index and the verification key hash.
 
+::
+
  URI:SSK-RW:b2a(writekey):b2a(verification_key_hash)
  URI:SSK-RO:b2a(readkey):b2a(verification_key_hash)
  URI:SSK-Verify:b2a(storage_index):b2a(verification_key_hash)
@@ -158,64 +179,75 @@ write enabler with anyone else.
 The SDMF slot structure will be described in more detail below. The important
 pieces are:
 
-  * a sequence number
-  * a root hash "R"
-  * the encoding parameters (including k, N, file size, segment size)
-  * a signed copy of [seqnum,R,encoding_params], using the signature key
-  * the verification key (not encrypted)
-  * the share hash chain (part of a Merkle tree over the share hashes)
-  * the block hash tree (Merkle tree over blocks of share data)
-  * the share data itself (erasure-coding of read-key-encrypted file data)
-  * the signature key, encrypted with the write key
+* a sequence number
+* a root hash "R"
+* the encoding parameters (including k, N, file size, segment size)
+* a signed copy of [seqnum,R,encoding_params], using the signature key
+* the verification key (not encrypted)
+* the share hash chain (part of a Merkle tree over the share hashes)
+* the block hash tree (Merkle tree over blocks of share data)
+* the share data itself (erasure-coding of read-key-encrypted file data)
+* the signature key, encrypted with the write key
 
 The access pattern for read is:
- * hash read-key to get storage index
- * use storage index to locate 'k' shares with identical 'R' values
-   * either get one share, read 'k' from it, then read k-1 shares
-   * or read, say, 5 shares, discover k, either get more or be finished
-   * or copy k into the URIs
- * read verification key
- * hash verification key, compare against verification key hash
- * read seqnum, R, encoding parameters, signature
- * verify signature against verification key
- * read share data, compute block-hash Merkle tree and root "r"
- * read share hash chain (leading from "r" to "R")
- * validate share hash chain up to the root "R"
- * submit share data to erasure decoding
- * decrypt decoded data with read-key
- * submit plaintext to application
+
+* hash read-key to get storage index
+* use storage index to locate 'k' shares with identical 'R' values
+
+  * either get one share, read 'k' from it, then read k-1 shares
+  * or read, say, 5 shares, discover k, either get more or be finished
+  * or copy k into the URIs
+
+* read verification key
+* hash verification key, compare against verification key hash
+* read seqnum, R, encoding parameters, signature
+* verify signature against verification key
+* read share data, compute block-hash Merkle tree and root "r"
+* read share hash chain (leading from "r" to "R")
+* validate share hash chain up to the root "R"
+* submit share data to erasure decoding
+* decrypt decoded data with read-key
+* submit plaintext to application
 
 The access pattern for write is:
- * hash write-key to get read-key, hash read-key to get storage index
- * use the storage index to locate at least one share
- * read verification key and encrypted signature key
- * decrypt signature key using write-key
- * hash signature key, compare against write-key
- * hash verification key, compare against verification key hash
- * encrypt plaintext from application with read-key
-   * application can encrypt some data with the write-key to make it only
-     available to writers (use this for transitive read-onlyness of dirnodes)
- * erasure-code crypttext to form shares
- * split shares into blocks
- * compute Merkle tree of blocks, giving root "r" for each share
- * compute Merkle tree of shares, find root "R" for the file as a whole
- * create share data structures, one per server:
-   * use seqnum which is one higher than the old version
-   * share hash chain has log(N) hashes, different for each server
-   * signed data is the same for each server
- * now we have N shares and need homes for them
- * walk through peers
-   * if share is not already present, allocate-and-set
-   * otherwise, try to modify existing share:
-   * send testv_and_writev operation to each one
-   * testv says to accept share if their(seqnum+R) <= our(seqnum+R)
-   * count how many servers wind up with which versions (histogram over R)
-   * keep going until N servers have the same version, or we run out of servers
-     * if any servers wound up with a different version, report error to
-       application
-     * if we ran out of servers, initiate recovery process (described below)
 
-=== Server Storage Protocol ===
+* hash write-key to get read-key, hash read-key to get storage index
+* use the storage index to locate at least one share
+* read verification key and encrypted signature key
+* decrypt signature key using write-key
+* hash signature key, compare against write-key
+* hash verification key, compare against verification key hash
+* encrypt plaintext from application with read-key
+
+  * application can encrypt some data with the write-key to make it only
+    available to writers (use this for transitive read-onlyness of dirnodes)
+
+* erasure-code crypttext to form shares
+* split shares into blocks
+* compute Merkle tree of blocks, giving root "r" for each share
+* compute Merkle tree of shares, find root "R" for the file as a whole
+* create share data structures, one per server:
+
+  * use seqnum which is one higher than the old version
+  * share hash chain has log(N) hashes, different for each server
+  * signed data is the same for each server
+
+* now we have N shares and need homes for them
+* walk through peers
+
+  * if share is not already present, allocate-and-set
+  * otherwise, try to modify existing share:
+  * send testv_and_writev operation to each one
+  * testv says to accept share if their(seqnum+R) <= our(seqnum+R)
+  * count how many servers wind up with which versions (histogram over R)
+  * keep going until N servers have the same version, or we run out of servers
+
+    * if any servers wound up with a different version, report error to
+      application
+    * if we ran out of servers, initiate recovery process (described below)
+
+Server Storage Protocol
+-----------------------
 
 The storage servers will provide a mutable slot container which is oblivious
 to the details of the data being contained inside it. Each storage index
@@ -228,7 +260,7 @@ as the filename.
 The container holds space for a container magic number (for versioning), the
 write enabler, the nodeid which accepted the write enabler (used for share
 migration, described below), a small number of lease structures, the embedded
-data itself, and expansion space for additional lease structures.
+data itself, and expansion space for additional lease structures::
 
  #   offset    size    name
  1   0         32      magic verstr "tahoe mutable container v1" plus binary
@@ -270,53 +302,63 @@ portions of the container are inaccessible to the clients.
 The two methods provided by the storage server on these "MutableSlot" share
 objects are:
 
- * readv(ListOf(offset=int, length=int))
-   * returns a list of bytestrings, of the various requested lengths
-   * offset < 0 is interpreted relative to the end of the data
-   * spans which hit the end of the data will return truncated data
+* readv(ListOf(offset=int, length=int))
 
- * testv_and_writev(write_enabler, test_vector, write_vector)
-   * this is a test-and-set operation which performs the given tests and only
-     applies the desired writes if all tests succeed. This is used to detect
-     simultaneous writers, and to reduce the chance that an update will lose
-     data recently written by some other party (written after the last time
-     this slot was read).
-   * test_vector=ListOf(TupleOf(offset, length, opcode, specimen))
-   * the opcode is a string, from the set [gt, ge, eq, le, lt, ne]
-   * each element of the test vector is read from the slot's data and 
-     compared against the specimen using the desired (in)equality. If all
-     tests evaluate True, the write is performed
-   * write_vector=ListOf(TupleOf(offset, newdata))
-     * offset < 0 is not yet defined, it probably means relative to the
-       end of the data, which probably means append, but we haven't nailed
-       it down quite yet
-     * write vectors are executed in order, which specifies the results of
-       overlapping writes
-   * return value:
-     * error: OutOfSpace
-     * error: something else (io error, out of memory, whatever)
-     * (True, old_test_data): the write was accepted (test_vector passed)
-     * (False, old_test_data): the write was rejected (test_vector failed)
-       * both 'accepted' and 'rejected' return the old data that was used
-         for the test_vector comparison. This can be used by the client
-         to detect write collisions, including collisions for which the
-         desired behavior was to overwrite the old version.
+  * returns a list of bytestrings, of the various requested lengths
+  * offset < 0 is interpreted relative to the end of the data
+  * spans which hit the end of the data will return truncated data
+
+* testv_and_writev(write_enabler, test_vector, write_vector)
+
+  * this is a test-and-set operation which performs the given tests and only
+    applies the desired writes if all tests succeed. This is used to detect
+    simultaneous writers, and to reduce the chance that an update will lose
+    data recently written by some other party (written after the last time
+    this slot was read).
+  * test_vector=ListOf(TupleOf(offset, length, opcode, specimen))
+  * the opcode is a string, from the set [gt, ge, eq, le, lt, ne]
+  * each element of the test vector is read from the slot's data and 
+    compared against the specimen using the desired (in)equality. If all
+    tests evaluate True, the write is performed
+  * write_vector=ListOf(TupleOf(offset, newdata))
+
+    * offset < 0 is not yet defined, it probably means relative to the
+      end of the data, which probably means append, but we haven't nailed
+      it down quite yet
+    * write vectors are executed in order, which specifies the results of
+      overlapping writes
+
+  * return value:
+
+    * error: OutOfSpace
+    * error: something else (io error, out of memory, whatever)
+    * (True, old_test_data): the write was accepted (test_vector passed)
+    * (False, old_test_data): the write was rejected (test_vector failed)
+
+      * both 'accepted' and 'rejected' return the old data that was used
+        for the test_vector comparison. This can be used by the client
+        to detect write collisions, including collisions for which the
+        desired behavior was to overwrite the old version.
 
 In addition, the storage server provides several methods to access these
 share objects:
 
- * allocate_mutable_slot(storage_index, sharenums=SetOf(int))
-   * returns DictOf(int, MutableSlot)
- * get_mutable_slot(storage_index)
-   * returns DictOf(int, MutableSlot)
-   * or raises KeyError
+* allocate_mutable_slot(storage_index, sharenums=SetOf(int))
+
+  * returns DictOf(int, MutableSlot)
+
+* get_mutable_slot(storage_index)
+
+  * returns DictOf(int, MutableSlot)
+  * or raises KeyError
 
 We intend to add an interface which allows small slots to allocate-and-write
 in a single call, as well as do update or read in a single call. The goal is
 to allow a reasonably-sized dirnode to be created (or updated, or read) in
 just one round trip (to all N shareholders in parallel).
 
-==== migrating shares ====
+migrating shares
+````````````````
 
 If a share must be migrated from one server to another, two values become
 invalid: the write enabler (since it was computed for the old server), and
@@ -357,7 +399,8 @@ operations on either client or server.
 Migrating the leases will require a similar protocol. This protocol will be
 defined concretely at a later date.
 
-=== Code Details ===
+Code Details
+------------
 
 The MutableFileNode class is used to manipulate mutable files (as opposed to
 ImmutableFileNodes). These are initially generated with
@@ -370,13 +413,15 @@ NOTE: this section is out of date. Please see src/allmydata/interfaces.py
 
 The methods of MutableFileNode are:
 
- * download_to_data() -> [deferred] newdata, NotEnoughSharesError
-   * if there are multiple retrieveable versions in the grid, get() returns
-     the first version it can reconstruct, and silently ignores the others.
-     In the future, a more advanced API will signal and provide access to
-     the multiple heads.
- * update(newdata) -> OK, UncoordinatedWriteError, NotEnoughSharesError
- * overwrite(newdata) -> OK, UncoordinatedWriteError, NotEnoughSharesError
+* download_to_data() -> [deferred] newdata, NotEnoughSharesError
+
+  * if there are multiple retrieveable versions in the grid, get() returns
+    the first version it can reconstruct, and silently ignores the others.
+    In the future, a more advanced API will signal and provide access to
+    the multiple heads.
+
+* update(newdata) -> OK, UncoordinatedWriteError, NotEnoughSharesError
+* overwrite(newdata) -> OK, UncoordinatedWriteError, NotEnoughSharesError
 
 download_to_data() causes a new retrieval to occur, pulling the current
 contents from the grid and returning them to the caller. At the same time,
@@ -386,7 +431,7 @@ change has occured between the two, this information will be out of date,
 triggering the UncoordinatedWriteError.
 
 update() is therefore intended to be used just after a download_to_data(), in
-the following pattern:
+the following pattern::
 
  d = mfn.download_to_data()
  d.addCallback(apply_delta)
@@ -399,7 +444,7 @@ its own. To accomplish this, the app needs to pause, download the new
 (post-collision and post-recovery) form of the file, reapply their delta,
 then submit the update request again. A randomized pause is necessary to
 reduce the chances of colliding a second time with another client that is
-doing exactly the same thing:
+doing exactly the same thing::
 
  d = mfn.download_to_data()
  d.addCallback(apply_delta)
@@ -419,7 +464,7 @@ retry forever, but such apps are encouraged to provide a means to the user of
 giving up after a while.
 
 UCW does not mean that the update was not applied, so it is also a good idea
-to skip the retry-update step if the delta was already applied:
+to skip the retry-update step if the delta was already applied::
 
  d = mfn.download_to_data()
  d.addCallback(apply_delta)
@@ -456,12 +501,11 @@ you want to replace the file's contents with completely unrelated ones. When
 raw files are uploaded into a mutable slot through the tahoe webapi (using
 POST and the ?mutable=true argument), they are put in place with overwrite().
 
-
-
 The peer-selection and data-structure manipulation (and signing/verification)
 steps will be implemented in a separate class in allmydata/mutable.py .
 
-=== SMDF Slot Format ===
+SMDF Slot Format
+----------------
 
 This SMDF data lives inside a server-side MutableSlot container. The server
 is oblivious to this format.
@@ -470,44 +514,47 @@ This data is tightly packed. In particular, the share data is defined to run
 all the way to the beginning of the encrypted private key (the encprivkey
 offset is used both to terminate the share data and to begin the encprivkey).
 
- #    offset   size    name
- 1    0        1       version byte, \x00 for this format
- 2    1        8       sequence number. 2^64-1 must be handled specially, TBD
- 3    9        32      "R" (root of share hash Merkle tree)
- 4    41       16      IV (share data is AES(H(readkey+IV)) )
- 5    57       18      encoding parameters:
-       57       1        k
-       58       1        N
-       59       8        segment size
-       67       8        data length (of original plaintext)
- 6    75       32      offset table:
-       75       4        (8) signature
-       79       4        (9) share hash chain
-       83       4        (10) block hash tree
-       87       4        (11) share data
-       91       8        (12) encrypted private key
-       99       8        (13) EOF
- 7    107      436ish  verification key (2048 RSA key)
- 8    543ish   256ish  signature=RSAenc(sigkey, H(version+seqnum+r+IV+encparm))
- 9    799ish   (a)     share hash chain, encoded as:
-                        "".join([pack(">H32s", shnum, hash)
-                                 for (shnum,hash) in needed_hashes])
-10    (927ish) (b)     block hash tree, encoded as:
-                        "".join([pack(">32s",hash) for hash in block_hash_tree])
-11    (935ish) LEN     share data (no gap between this and encprivkey)
-12    ??       1216ish encrypted private key= AESenc(write-key, RSA-key)
-13    ??       --      EOF
+::
 
-(a) The share hash chain contains ceil(log(N)) hashes, each 32 bytes long.
+  #    offset   size    name
+  1    0        1       version byte, \x00 for this format
+  2    1        8       sequence number. 2^64-1 must be handled specially, TBD
+  3    9        32      "R" (root of share hash Merkle tree)
+  4    41       16      IV (share data is AES(H(readkey+IV)) )
+  5    57       18      encoding parameters:
+        57       1        k
+        58       1        N
+        59       8        segment size
+        67       8        data length (of original plaintext)
+  6    75       32      offset table:
+        75       4        (8) signature
+        79       4        (9) share hash chain
+        83       4        (10) block hash tree
+        87       4        (11) share data
+        91       8        (12) encrypted private key
+        99       8        (13) EOF
+  7    107      436ish  verification key (2048 RSA key)
+  8    543ish   256ish  signature=RSAenc(sigkey, H(version+seqnum+r+IV+encparm))
+  9    799ish   (a)     share hash chain, encoded as:
+                         "".join([pack(">H32s", shnum, hash)
+                                  for (shnum,hash) in needed_hashes])
+ 10    (927ish) (b)     block hash tree, encoded as:
+                         "".join([pack(">32s",hash) for hash in block_hash_tree])
+ 11    (935ish) LEN     share data (no gap between this and encprivkey)
+ 12    ??       1216ish encrypted private key= AESenc(write-key, RSA-key)
+ 13    ??       --      EOF
+
+ (a) The share hash chain contains ceil(log(N)) hashes, each 32 bytes long.
     This is the set of hashes necessary to validate this share's leaf in the
     share Merkle tree. For N=10, this is 4 hashes, i.e. 128 bytes.
-(b) The block hash tree contains ceil(length/segsize) hashes, each 32 bytes
+ (b) The block hash tree contains ceil(length/segsize) hashes, each 32 bytes
     long. This is the set of hashes necessary to validate any given block of
     share data up to the per-share root "r". Each "r" is a leaf of the share
     has tree (with root "R"), from which a minimal subset of hashes is put in
     the share hash chain in (8).
 
-=== Recovery ===
+Recovery
+--------
 
 The first line of defense against damage caused by colliding writes is the
 Prime Coordination Directive: "Don't Do That".
@@ -540,63 +587,70 @@ somebody else's.
 
 The write-shares-to-peers algorithm is as follows:
 
- * permute peers according to storage index
- * walk through peers, trying to assign one share per peer
- * for each peer:
-   * send testv_and_writev, using "old(seqnum+R) <= our(seqnum+R)" as the test
-     * this means that we will overwrite any old versions, and we will
-       overwrite simultaenous writers of the same version if our R is higher.
-       We will not overwrite writers using a higher seqnum.
-   * record the version that each share winds up with. If the write was
-     accepted, this is our own version. If it was rejected, read the
-     old_test_data to find out what version was retained.
-   * if old_test_data indicates the seqnum was equal or greater than our
-     own, mark the "Simultanous Writes Detected" flag, which will eventually
-     result in an error being reported to the writer (in their close() call).
-   * build a histogram of "R" values
-   * repeat until the histogram indicate that some version (possibly ours)
-     has N shares. Use new servers if necessary.
-   * If we run out of servers:
-     * if there are at least shares-of-happiness of any one version, we're
-       happy, so return. (the close() might still get an error)
-     * not happy, need to reinforce something, goto RECOVERY
+* permute peers according to storage index
+* walk through peers, trying to assign one share per peer
+* for each peer:
 
-RECOVERY:
- * read all shares, count the versions, identify the recoverable ones,
-   discard the unrecoverable ones.
- * sort versions: locate max(seqnums), put all versions with that seqnum
-   in the list, sort by number of outstanding shares. Then put our own
-   version. (TODO: put versions with seqnum <max but >us ahead of us?).
- * for each version:
-   * attempt to recover that version
-   * if not possible, remove it from the list, go to next one
-   * if recovered, start at beginning of peer list, push that version,
-     continue until N shares are placed
-   * if pushing our own version, bump up the seqnum to one higher than
-     the max seqnum we saw
-   * if we run out of servers:
-     * schedule retry and exponential backoff to repeat RECOVERY
-   * admit defeat after some period? presumeably the client will be shut down
-     eventually, maybe keep trying (once per hour?) until then.
+  * send testv_and_writev, using "old(seqnum+R) <= our(seqnum+R)" as the test
+
+    * this means that we will overwrite any old versions, and we will
+      overwrite simultaenous writers of the same version if our R is higher.
+      We will not overwrite writers using a higher seqnum.
+
+  * record the version that each share winds up with. If the write was
+    accepted, this is our own version. If it was rejected, read the
+    old_test_data to find out what version was retained.
+  * if old_test_data indicates the seqnum was equal or greater than our
+    own, mark the "Simultanous Writes Detected" flag, which will eventually
+    result in an error being reported to the writer (in their close() call).
+  * build a histogram of "R" values
+  * repeat until the histogram indicate that some version (possibly ours)
+    has N shares. Use new servers if necessary.
+  * If we run out of servers:
+
+    * if there are at least shares-of-happiness of any one version, we're
+      happy, so return. (the close() might still get an error)
+    * not happy, need to reinforce something, goto RECOVERY
+
+Recovery:
+
+* read all shares, count the versions, identify the recoverable ones,
+  discard the unrecoverable ones.
+* sort versions: locate max(seqnums), put all versions with that seqnum
+  in the list, sort by number of outstanding shares. Then put our own
+  version. (TODO: put versions with seqnum <max but >us ahead of us?).
+* for each version:
+
+  * attempt to recover that version
+  * if not possible, remove it from the list, go to next one
+  * if recovered, start at beginning of peer list, push that version,
+    continue until N shares are placed
+  * if pushing our own version, bump up the seqnum to one higher than
+    the max seqnum we saw
+  * if we run out of servers:
+
+    * schedule retry and exponential backoff to repeat RECOVERY
+
+  * admit defeat after some period? presumeably the client will be shut down
+    eventually, maybe keep trying (once per hour?) until then.
 
 
-
-
-== Medium Distributed Mutable Files ==
+Medium Distributed Mutable Files
+================================
 
 These are just like the SDMF case, but:
 
- * we actually take advantage of the Merkle hash tree over the blocks, by
-   reading a single segment of data at a time (and its necessary hashes), to
-   reduce the read-time alacrity
- * we allow arbitrary writes to the file (i.e. seek() is provided, and
-   O_TRUNC is no longer required)
- * we write more code on the client side (in the MutableFileNode class), to
-   first read each segment that a write must modify. This looks exactly like
-   the way a normal filesystem uses a block device, or how a CPU must perform
-   a cache-line fill before modifying a single word.
- * we might implement some sort of copy-based atomic update server call,
-   to allow multiple writev() calls to appear atomic to any readers.
+* we actually take advantage of the Merkle hash tree over the blocks, by
+  reading a single segment of data at a time (and its necessary hashes), to
+  reduce the read-time alacrity
+* we allow arbitrary writes to the file (i.e. seek() is provided, and
+  O_TRUNC is no longer required)
+* we write more code on the client side (in the MutableFileNode class), to
+  first read each segment that a write must modify. This looks exactly like
+  the way a normal filesystem uses a block device, or how a CPU must perform
+  a cache-line fill before modifying a single word.
+* we might implement some sort of copy-based atomic update server call,
+  to allow multiple writev() calls to appear atomic to any readers.
 
 MDMF slots provide fairly efficient in-place edits of very large files (a few
 GB). Appending data is also fairly efficient, although each time a power of 2
@@ -608,7 +662,8 @@ the block hash tree and the actual data).
 MDMF1 uses the Merkle tree to enable low-alacrity random-access reads. MDMF2
 adds cache-line reads to allow random-access writes.
 
-== Large Distributed Mutable Files ==
+Large Distributed Mutable Files
+===============================
 
 LDMF slots use a fundamentally different way to store the file, inspired by
 Mercurial's "revlog" format. They enable very efficient insert/remove/replace
@@ -624,7 +679,8 @@ back an entire tree to a specific point in history.
 LDMF1 provides deltas but tries to avoid dealing with multiple heads. LDMF2
 provides explicit support for revision identifiers and branching.
 
-== TODO ==
+TODO
+====
 
 improve allocate-and-write or get-writer-buckets API to allow one-call (or
 maybe two-call) updates. The challenge is in figuring out which shares are on
@@ -639,9 +695,9 @@ do for updating the write enabler. However we need to know which lease to
 update.. maybe send back a list of all old nodeids that we find, then try all
 of them when we accept the update?
 
- We now do this in a specially-formatted IndexError exception:
-  "UNABLE to renew non-existent lease. I have leases accepted by " +
-  "nodeids: '12345','abcde','44221' ."
+We now do this in a specially-formatted IndexError exception:
+ "UNABLE to renew non-existent lease. I have leases accepted by " +
+ "nodeids: '12345','abcde','44221' ."
 
 confirm that a repairer can regenerate shares without the private key. Hmm,
 without the write-enabler they won't be able to write those shares to the

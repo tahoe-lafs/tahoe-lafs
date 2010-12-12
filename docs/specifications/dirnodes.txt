@@ -1,5 +1,6 @@
-
-= Tahoe-LAFS Directory Nodes =
+==========================
+Tahoe-LAFS Directory Nodes
+==========================
 
 As explained in the architecture docs, Tahoe-LAFS can be roughly viewed as
 a collection of three layers. The lowest layer is the key-value store: it
@@ -13,12 +14,30 @@ friends.
 
 This document examines the middle layer, the "filesystem".
 
-== Key-value Store Primitives ==
+1.  `Key-value Store Primitives`_
+2.  `Filesystem goals`_
+3.  `Dirnode goals`_
+4.  `Dirnode secret values`_
+5.  `Dirnode storage format`_
+6.  `Dirnode sizes, mutable-file initial read sizes`_
+7.  `Design Goals, redux`_
+
+    1. `Confidentiality leaks in the storage servers`_
+    2. `Integrity failures in the storage servers`_
+    3. `Improving the efficiency of dirnodes`_
+    4. `Dirnode expiration and leases`_
+
+8.  `Starting Points: root dirnodes`_
+9.  `Mounting and Sharing Directories`_
+10. `Revocation`_
+
+Key-value Store Primitives
+==========================
 
 In the lowest layer (key-value store), there are two operations that reference
 immutable data (which we refer to as "CHK URIs" or "CHK read-capabilities" or
 "CHK read-caps"). One puts data into the grid (but only if it doesn't exist
-already), the other retrieves it:
+already), the other retrieves it::
 
  chk_uri = put(data)
  data = get(chk_uri)
@@ -26,13 +45,14 @@ already), the other retrieves it:
 We also have three operations which reference mutable data (which we refer to
 as "mutable slots", or "mutable write-caps and read-caps", or sometimes "SSK
 slots"). One creates a slot with some initial contents, a second replaces the
-contents of a pre-existing slot, and the third retrieves the contents:
+contents of a pre-existing slot, and the third retrieves the contents::
 
  mutable_uri = create(initial_data)
  replace(mutable_uri, new_data)
  data = get(mutable_uri)
 
-== Filesystem Goals ==
+Filesystem Goals
+================
 
 The main goal for the middle (filesystem) layer is to give users a way to
 organize the data that they have uploaded into the grid. The traditional way
@@ -48,23 +68,24 @@ The directory structure is therefore a directed graph of nodes, in which each
 node might be a directory node or a file node. All file nodes are terminal
 nodes.
 
-== Dirnode Goals ==
+Dirnode Goals
+=============
 
 What properties might be desirable for these directory nodes? In no
 particular order:
 
- 1: functional. Code which does not work doesn't count.
- 2: easy to document, explain, and understand
- 3: confidential: it should not be possible for others to see the contents of
-                  a directory
- 4: integrity: it should not be possible for others to modify the contents
-               of a directory
- 5: available: directories should survive host failure, just like files do
- 6: efficient: in storage, communication bandwidth, number of round-trips
- 7: easy to delegate individual directories in a flexible way
- 8: updateness: everybody looking at a directory should see the same contents
- 9: monotonicity: everybody looking at a directory should see the same
-                  sequence of updates
+1. functional. Code which does not work doesn't count.
+2. easy to document, explain, and understand
+3. confidential: it should not be possible for others to see the contents of
+   a directory
+4. integrity: it should not be possible for others to modify the contents
+   of a directory
+5. available: directories should survive host failure, just like files do
+6. efficient: in storage, communication bandwidth, number of round-trips
+7. easy to delegate individual directories in a flexible way
+8. updateness: everybody looking at a directory should see the same contents
+9. monotonicity: everybody looking at a directory should see the same
+   sequence of updates
 
 Some of these goals are mutually exclusive. For example, availability and
 consistency are opposing, so it is not possible to achieve #5 and #8 at the
@@ -102,7 +123,8 @@ version 1 and other shares of version 2). In extreme cases of simultaneous
 update, mutable files might suffer from non-monotonicity.
 
 
-== Dirnode secret values ==
+Dirnode secret values
+=====================
 
 As mentioned before, dirnodes are simply a special way to interpret the
 contents of a mutable file, so the secret keys and capability strings
@@ -126,7 +148,8 @@ URI:DIR2-RO:buxjqykt637u61nnmjg7s8zkny:ar8r5j99a4mezdojejmsfp4fj1zeky9gjigyrid4u
 is a read-capability URI, both for the same dirnode.
 
 
-== Dirnode storage format ==
+Dirnode storage format
+======================
 
 Each dirnode is stored in a single mutable file, distributed in the Tahoe-LAFS
 grid. The contents of this file are a serialized list of netstrings, one per
@@ -159,7 +182,8 @@ other users who have read-only access to 'foo' will be unable to decrypt its
 rwcap slot, this limits those users to read-only access to 'bar' as well,
 thus providing the transitive readonlyness that we desire.
 
-=== Dirnode sizes, mutable-file initial read sizes ===
+Dirnode sizes, mutable-file initial read sizes
+==============================================
 
 How big are dirnodes? When reading dirnode data out of mutable files, how
 large should our initial read be? If we guess exactly, we can read a dirnode
@@ -171,6 +195,8 @@ will cost us at least another RTT.
 Assuming child names are between 10 and 99 characters long, how long are the
 various pieces of a dirnode?
 
+::
+
  netstring(name) ~= 4+len(name)
  chk-cap = 97 (for 4-char filesizes)
  dir-rw-cap = 88
@@ -181,8 +207,10 @@ various pieces of a dirnode?
  JSON({ctime=float,mtime=float,'tahoe':{linkcrtime=float,linkmotime=float}}): 137
  netstring(metadata) = 4+137 = 141
 
-so a CHK entry is:
+so a CHK entry is::
+
  5+ 4+len(name) + 4+97 + 5+16+97+32 + 4+137
+
 And a 15-byte filename gives a 416-byte entry. When the entry points at a
 subdirectory instead of a file, the entry is a little bit smaller. So an
 empty directory uses 0 bytes, a directory with one child uses about 416
@@ -193,7 +221,7 @@ get 139ish bytes of data in each share per child.
 
 The pubkey, signature, and hashes form the first 935ish bytes of the
 container, then comes our data, then about 1216 bytes of encprivkey. So if we
-read the first:
+read the first::
 
  1kB: we get 65bytes of dirnode data : only empty directories
  2kB: 1065bytes: about 8
@@ -205,42 +233,44 @@ we read the mutable file, which should give good performance (one RTT) for
 small directories.
 
 
-== Design Goals, redux ==
+Design Goals, redux
+===================
 
 How well does this design meet the goals?
 
- #1 functional: YES: the code works and has extensive unit tests
- #2 documentable: YES: this document is the existence proof
- #3 confidential: YES: see below
- #4 integrity: MOSTLY: a coalition of storage servers can rollback individual
-                       mutable files, but not a single one. No server can
-                       substitute fake data as genuine.
- #5 availability: YES: as long as 'k' storage servers are present and have
-                       the same version of the mutable file, the dirnode will
-                       be available.
- #6 efficient: MOSTLY:
-      network: single dirnode lookup is very efficient, since clients can
-               fetch specific keys rather than being required to get or set
-               the entire dirnode each time. Traversing many directories
-               takes a lot of roundtrips, and these can't be collapsed with
-               promise-pipelining because the intermediate values must only
-               be visible to the client. Modifying many dirnodes at once
-               (e.g. importing a large pre-existing directory tree) is pretty
-               slow, since each graph edge must be created independently.
-      storage: each child has a separate IV, which makes them larger than
-               if all children were aggregated into a single encrypted string
- #7 delegation: VERY: each dirnode is a completely independent object,
-                to which clients can be granted separate read-write or
-                read-only access
- #8 updateness: VERY: with only a single point of access, and no caching,
-                each client operation starts by fetching the current
-                value, so there are no opportunities for staleness
- #9 monotonicity: VERY: the single point of access also protects against
-                  retrograde motion
+1. functional: YES: the code works and has extensive unit tests
+2. documentable: YES: this document is the existence proof
+3. confidential: YES: see below
+4. integrity: MOSTLY: a coalition of storage servers can rollback individual
+   mutable files, but not a single one. No server can
+   substitute fake data as genuine.
+5. availability: YES: as long as 'k' storage servers are present and have
+   the same version of the mutable file, the dirnode will
+   be available.
+6. efficient: MOSTLY:
+     network: single dirnode lookup is very efficient, since clients can
+       fetch specific keys rather than being required to get or set
+       the entire dirnode each time. Traversing many directories
+       takes a lot of roundtrips, and these can't be collapsed with
+       promise-pipelining because the intermediate values must only
+       be visible to the client. Modifying many dirnodes at once
+       (e.g. importing a large pre-existing directory tree) is pretty
+       slow, since each graph edge must be created independently.
+     storage: each child has a separate IV, which makes them larger than
+       if all children were aggregated into a single encrypted string
+7. delegation: VERY: each dirnode is a completely independent object,
+   to which clients can be granted separate read-write or
+   read-only access
+8. updateness: VERY: with only a single point of access, and no caching,
+   each client operation starts by fetching the current
+   value, so there are no opportunities for staleness
+9. monotonicity: VERY: the single point of access also protects against
+   retrograde motion
      
 
 
-=== Confidentiality leaks in the storage servers ===
+Confidentiality leaks in the storage servers
+--------------------------------------------
 
 Dirnode (and the mutable files upon which they are based) are very private
 against other clients: traffic between the client and the storage servers is
@@ -261,7 +291,8 @@ attacker may be able to build up a graph with the same shape as the plaintext
 filesystem, but with unlabeled edges and unknown file contents.
 
 
-=== Integrity failures in the storage servers ===
+Integrity failures in the storage servers
+-----------------------------------------
 
 The mutable file's integrity mechanism (RSA signature on the hash of the file
 contents) prevents the storage server from modifying the dirnode's contents
@@ -276,7 +307,8 @@ version number. This insures that one or two misbehaving storage servers
 cannot cause this rollback on their own.
 
 
-=== Improving the efficiency of dirnodes ===
+Improving the efficiency of dirnodes
+------------------------------------
 
 The current mutable-file -based dirnode scheme suffers from certain
 inefficiencies. A very large directory (with thousands or millions of
@@ -304,7 +336,6 @@ seconds per directory. We have designed (but not yet built) a DSA-based
 mutable file scheme which will use shared parameters to reduce the
 directory-creation effort to a bare minimum (picking a random number instead
 of generating two random primes).
-
 
 When a backup program is run for the first time, it needs to copy a large
 amount of data from a pre-existing filesystem into reliable storage. This
@@ -345,7 +376,8 @@ encryption keys for each component directory, to get the benefits of both
 schemes at once.
 
 
-=== Dirnode expiration and leases ===
+Dirnode expiration and leases
+-----------------------------
 
 Dirnodes are created any time a client wishes to add a new directory. How
 long do they live? What's to keep them from sticking around forever, taking
@@ -377,14 +409,16 @@ prompts the client to send out lease-cancellation messages, allowing the data
 to be deleted.
 
 
-== Starting Points: root dirnodes ==
+Starting Points: root dirnodes
+==============================
 
 Any client can record the URI of a directory node in some external form (say,
 in a local file) and use it as the starting point of later traversal. Each
 Tahoe-LAFS user is expected to create a new (unattached) dirnode when they first
 start using the grid, and record its URI for later use.
 
-== Mounting and Sharing Directories ==
+Mounting and Sharing Directories
+================================
 
 The biggest benefit of this dirnode approach is that sharing individual
 directories is almost trivial. Alice creates a subdirectory that she wants to
@@ -409,7 +443,8 @@ indicate whether they want to grant read-write or read-only access to the
 recipient. The recipient then needs an interface to drag the new folder into
 their vdrive and give it a home.
 
-== Revocation ==
+Revocation
+==========
 
 When Alice decides that she no longer wants Bob to be able to access the
 shared directory, what should she do? Suppose she's shared this folder with
