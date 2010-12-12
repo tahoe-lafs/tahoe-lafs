@@ -184,7 +184,7 @@ class PutOptions(VDriveOptions):
         t += """
 Examples:
  % cat FILE | tahoe put                # create unlinked file from stdin
- % cat FILE | tahoe -                  # same
+ % cat FILE | tahoe put -              # same
  % tahoe put bar                       # create unlinked file from local 'bar'
  % cat FILE | tahoe put - FOO          # create tahoe:FOO from stdin
  % tahoe put bar FOO                   # copy local 'bar' to tahoe:FOO
