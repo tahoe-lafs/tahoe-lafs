@@ -1,5 +1,5 @@
 ﻿============
-Known issues
+Known Issues
 ============
 
 * `Overview`_
@@ -151,7 +151,7 @@ how to manage it
 If you use any phishing filter or "safe browsing" feature, consider either
 disabling it, or not using the WUI via that browser. Phishing filters have
 very limited effectiveness (see
-<http://lorrie.cranor.org/pubs/ndss-phish-tools-final.pdf>), and phishing
+`<http://lorrie.cranor.org/pubs/ndss-phish-tools-final.pdf>`_), and phishing
 or malware attackers have learnt how to bypass them.
 
 To disable the filter in IE7 or IE8:
