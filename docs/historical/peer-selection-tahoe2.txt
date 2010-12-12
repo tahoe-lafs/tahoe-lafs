@@ -1,4 +1,4 @@
-= THIS PAGE DESCRIBES HISTORICAL DESIGN CHOICES. SEE docs/architecture.txt FOR CURRENT DOCUMENTATION =
+= THIS PAGE DESCRIBES HISTORICAL DESIGN CHOICES. SEE docs/architecture.rst FOR CURRENT DOCUMENTATION =
 
 When a file is uploaded, the encoded shares are sent to other peers. But to
 which ones? The PeerSelection algorithm is used to make this choice.

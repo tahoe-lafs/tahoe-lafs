@@ -73,13 +73,13 @@ set the tub.location option described below.
   web.port = (strports string, optional)
 
     This controls where the node's webserver should listen, providing
-    filesystem access and node status as defined in webapi.txt . This file
-    contains a Twisted "strports" specification such as "3456" or
-    "tcp:3456:interface=127.0.0.1". The 'tahoe create-node' or 'tahoe
-    create-client' commands set the web.port to
-    "tcp:3456:interface=127.0.0.1" by default; this is overridable by the
-    "--webport" option. You can make it use SSL by writing
-    "ssl:3456:privateKey=mykey.pem:certKey=cert.pem" instead.
+    filesystem access and node status as defined in `webapi.rst
+    <frontends/webapi.rst>`_. This file contains a Twisted "strports"
+    specification such as "3456" or "tcp:3456:interface=127.0.0.1".
+    The 'tahoe create-node' or 'tahoe create-client' commands set the
+    web.port to "tcp:3456:interface=127.0.0.1" by default; this is
+    overridable by the "--webport" option. You can make it use SSL by
+    writing "ssl:3456:privateKey=mykey.pem:certKey=cert.pem" instead.
 
     If this is not provided, the node will not run a web server.
 
@@ -263,7 +263,7 @@ Client Configuration
   helper.furl = (FURL string, optional)
 
     If provided, the node will attempt to connect to and use the given helper
-    for uploads. See docs/helper.txt for details.
+    for uploads. See `<helper.rst>`_ for details.
 
   key_generator.furl = (FURL string, optional)
 
@@ -379,7 +379,7 @@ service.
   [helper]
   enabled = (boolean, optional)
 
-    If True, the node will run a helper (see docs/helper.txt for details).
+    If True, the node will run a helper (see `<helper.rst>`_ for details).
     The helper's contact FURL will be placed in private/helper.furl, from
     which it can be copied to any clients which wish to use it. Clearly nodes
     should not both run a helper and attempt to use one: do not create both
@@ -451,7 +451,7 @@ private/logport.furl
 
 private/helper.furl
   if the node is running a helper (for use by other clients), its contact
-  FURL will be placed here. See docs/helper.txt for more details.
+  FURL will be placed here. See `<helper.rst>`_ for more details.
 
 private/root_dir.cap (optional)
   The command-line tools will read a directory cap out of this file and use

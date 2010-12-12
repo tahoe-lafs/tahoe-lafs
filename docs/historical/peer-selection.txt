@@ -10,8 +10,8 @@ nodes were parts of which cabals.
 
 When we release 0.2.0, we used the "tahoe3" algorithm (see
 peer-selection-tahoe3.txt), but in v0.6 (ticket #132) we switched back to
-"tahoe2" (see the peer-selection-tahoe2.txt, and the PEER SELECTION section
-of docs/architecture.txt), which uses a permuted peerid list and packs the
+"tahoe2" (see peer-selection-tahoe2.txt, and the PEER SELECTION section
+of docs/architecture.rst), which uses a permuted peerid list and packs the
 shares into the first 10 or so members of this list. (It is named "tahoe2"
 because it was designed before "tahoe3" was.)
 

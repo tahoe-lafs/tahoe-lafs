@@ -7,8 +7,8 @@ been implemented. Please see mutable-DSA.svg for a quick picture of the
 crypto scheme described herein)
 
 This file shows only the differences from RSA-based mutable files to
-(EC)DSA-based mutable files.  You have to read and understand mutable.txt before
-reading this file (mutable-DSA.txt).
+(EC)DSA-based mutable files.  You have to read and understand
+docs/specifications/mutable.rst before reading this file (mutable-DSA.txt).
 
 == new design criteria ==
 

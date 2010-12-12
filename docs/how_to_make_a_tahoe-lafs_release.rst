@@ -1,6 +1,6 @@
-[ ]  1 update doc files: relnotes.txt, CREDITS, docs/known_issues.rst, NEWS. Add release name and date to top-most item in NEWS.
+[ ]  1 update doc files: `<../relnotes.txt>`_, `<../CREDITS>`_, `<known_issues.rst>`_, `<../NEWS>`_. Add release name and date to top-most item in NEWS.
 
-[ ]  2 change docs/quickstart.html to point to just the current allmydata-tahoe-X.Y.Z.zip source code file, or else to point to a directory which contains only allmydata-tahoe-X.Y.Z.* source code files
+[ ]  2 change `<quickstart.html>`_ to point to just the current allmydata-tahoe-X.Y.Z.zip source code file, or else to point to a directory which contains only allmydata-tahoe-X.Y.Z.* source code files
 
 [ ]  3 darcs pull
 
@@ -26,7 +26,7 @@
 
 [ ] 14 send out relnotes.txt: [ ] tahoe-announce@tahoe-lafs.org, [ ] tahoe-dev@tahoe-lafs.org, [ ] p2p-hackers@lists.zooko.com, [ ] lwn@lwn.net, [ ] cap-talk@mail.eros-os.org, [ ] cryptography@metzdown.com, [ ] cryptography@randombit.net, [ ] twisted-python@twistedmatrix.com, [ ] owncloud@kde.org, [ ] liberationtech@lists.stanford.edu, [ ] the "decentralization" group on groups.yahoo.com, [ ] pycrypto mailing list, -> fuse-devel@lists.sourceforge.net, -> fuse-sshfs@lists.sourceforge.net, [ ] duplicity-talk@nongnu.org, [ ] news@phoronix.com, [ ] python-list@python.org, -> cygwin@cygwin.com, [ ] The Boulder Linux Users' Group, [ ] The Boulder Hackerspace mailing list, [ ] cryptopp-users@googlegroups.com, [ ] tiddlywiki, [ ] hdfs-dev@hadoop.apache.org, [ ] bzr, [ ] mercurial, [ ] http://listcultures.org/pipermail/p2presearch_listcultures.org/ , deltacloud, libcloud, [ ] swift@lists.launchpad.net, cleversafe.org, [ ] stephen@fosketts.net, [ ] Chris Mellor of The Register, [ ] nosql@mypopescu.com
 
-[ ] 15 update hacktahoe.org
+[ ] 15 update `<http://tahoe-lafs.org/hacktahoelafs/>`_
 
 [ ] 16 make an "announcement of new release" on freshmeat
 

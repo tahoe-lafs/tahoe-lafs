@@ -125,12 +125,13 @@ character encoding specified by the current locale.
 Starting Directories
 --------------------
 
-As described in architecture.txt, the Tahoe distributed filesystem consists
-of a collection of directories and files, each of which has a "read-cap" or a
-"write-cap" (also known as a URI). Each directory is simply a table that maps
-a name to a child file or directory, and this table is turned into a string
-and stored in a mutable file. The whole set of directory and file "nodes" are
-connected together into a directed graph.
+As described in `docs/architecture.rst <../architecture.rst>`_, the
+Tahoe-LAFS distributed filesystem consists of a collection of directories
+and files, each of which has a "read-cap" or a "write-cap" (also known as
+a URI). Each directory is simply a table that maps a name to a child file
+or directory, and this table is turned into a string and stored in a
+mutable file. The whole set of directory and file "nodes" are connected
+together into a directed graph.
 
 To use this collection of files and directories, you need to choose a
 starting point: some specific directory that we will refer to as a

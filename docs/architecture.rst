@@ -18,7 +18,7 @@ Tahoe-LAFS Architecture
 Overview
 ========
 
-(See the docs/specifications directory for more details.)
+(See the `docs/specifications directory <specifications>`_ for more details.)
 
 There are three layers: the key-value store, the filesystem, and the
 application.
@@ -312,7 +312,7 @@ commercially-run grid for which all of the storage servers are in a colo
 facility with high interconnect bandwidth. In this case, the helper is placed
 in the same facility, so the helper-to-storage-server bandwidth is huge.
 
-See "helper.txt" for details about the upload helper.
+See `<helper.rst>`_ for details about the upload helper.
 
 
 The Filesystem Layer
@@ -364,8 +364,8 @@ clients are responsible for renewing their leases on a periodic basis at
 least frequently enough to prevent any of the leases from expiring before the
 next renewal pass.
 
-See docs/garbage-collection.txt for further information, and how to configure
-garbage collection.
+See `<garbage-collection.rst>`_ for further information, and for how to
+configure garbage collection.
 
 
 File Repairer

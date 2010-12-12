@@ -180,7 +180,7 @@ some credentials to the storage server to convince it that the client
 deserves the space. When storage servers are in this mode, they will have a
 certificate that names a public key, and any credentials that can demonstrate
 a path from that key will be accepted. This scheme is described in
-docs/accounts-pubkey.txt .
+docs/proposed/old-accounts-pubkey.txt .
 
 The second limitation is unexplored. The read-cap does not currently contain
 any notion of who must pay for the bandwidth incurred.

@@ -64,14 +64,14 @@ port 3456, on the loopback (127.0.0.1) interface.
 Basic Concepts: GET, PUT, DELETE, POST
 ======================================
 
-As described in `architecture.rst`_, each file and directory in a Tahoe virtual
-filesystem is referenced by an identifier that combines the designation of
-the object with the authority to do something with it (such as read or modify
-the contents). This identifier is called a "read-cap" or "write-cap",
-depending upon whether it enables read-only or read-write access. These
-"caps" are also referred to as URIs.
-
-.. _architecture.rst: http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/architecture.rst
+As described in `docs/architecture.rst <../architecture.rst>`_, each file
+and directory in a Tahoe virtual filesystem is referenced by an identifier
+that combines the designation of the object with the authority to do something
+with it (such as read or modify the contents). This identifier is called a
+"read-cap" or "write-cap", depending upon whether it enables read-only or
+read-write access. These "caps" are also referred to as URIs (which may be
+confusing because they are not currently `RFC3986
+<http://tools.ietf.org/html/rfc3986>`_-compliant URIs).
 
 The Tahoe web-based API is "REST-ful", meaning it implements the concepts of
 "REpresentational State Transfer": the original scheme by which the World
@@ -200,7 +200,7 @@ that file with::
 
 Multiple levels of subdirectories can be handled this way::
 
- http://127.0.0.1:3456/uri/$DIRCAP/tahoe-source/docs/webapi.txt
+ http://127.0.0.1:3456/uri/$DIRCAP/tahoe-source/docs/architecture.rst
 
 In this document, when we need to refer to a URL that references a file using
 this child-of-some-directory format, we'll use the following string::
@@ -1904,8 +1904,7 @@ Tahoe-1.1; back with Tahoe-1.0 the web client was responsible for serializing
 web requests themselves).
 
 For more details, please see the "Consistency vs Availability" and "The Prime
-Coordination Directive" sections of mutable.txt, in the same directory as
-this file.
+Coordination Directive" sections of `mutable.rst <../specifications/mutable.rst>`_.
 
 
 .. [1] URLs and HTTP and UTF-8, Oh My
@@ -1937,16 +1936,17 @@ this file.
     (note, the last four bytes of that line, not including the newline, are
     0xC3 0xA9 0x65 0x22)
 
- RFC2231#4 (dated 1997): suggests that the following might work, and some
- developers (http://markmail.org/message/dsjyokgl7hv64ig3) have reported that
- it is supported by firefox (but not IE7)::
+ `RFC2231#4 <http://tools.ietf.org/html/rfc2231#section-4>`_
+ (dated 1997): suggests that the following might work, and
+ `some developers have reported <http://markmail.org/message/dsjyokgl7hv64ig3>`_
+ that it is supported by firefox (but not IE7)::
 
   #2: Content-Disposition: attachment; filename*=utf-8''fianc%C3%A9e
 
- My reading of RFC2616#19.5.1 (which defines Content-Disposition) says that
- the filename= parameter is defined to be wrapped in quotes (presumeably to
- allow spaces without breaking the parsing of subsequent parameters), which
- would give us::
+ My reading of `RFC2616#19.5.1 <http://tools.ietf.org/html/rfc2616#section-19.5.1>`_
+ (which defines Content-Disposition) says that the filename= parameter is
+ defined to be wrapped in quotes (presumably to allow spaces without breaking
+ the parsing of subsequent parameters), which would give us::
 
   #3: Content-Disposition: attachment; filename*=utf-8''"fianc%C3%A9e"
 

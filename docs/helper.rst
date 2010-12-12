@@ -11,7 +11,7 @@ Overview
 ========
 
 As described in the "SWARMING DOWNLOAD, TRICKLING UPLOAD" section of
-architecture.txt, Tahoe uploads require more bandwidth than downloads: you
+`<architecture.rst>`_, Tahoe uploads require more bandwidth than downloads: you
 must push the redundant shares during upload, but you do not need to retrieve
 them during download. With the default 3-of-10 encoding parameters, this
 means that an upload will require about 3.3x the traffic as a download of the

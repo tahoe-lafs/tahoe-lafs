@@ -16,14 +16,13 @@ Overview
 
 Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
 manage them.  The current version of this file can be found at
-
-http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/known_issues.rst
+`<http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/known_issues.rst>`_.
 
 If you've been using Tahoe-LAFS since v1.1 (released 2008-06-11) or if you're
 just curious about what sort of mistakes we've made in the past, then you might
-want to read the "historical known issues" document:
+want to read `the "historical known issues" document
+<historical/historical_known_issues.txt>`_.
 
-http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/historical/historical_known_issues.txt
 
 Issues in Tahoe-LAFS v1.8.1, released 2010-11-28
 ================================================
@@ -121,16 +120,16 @@ Firefox, Internet Explorer, and Chrome include a "phishing filter" or
 any URLs that it deems suspicious to a central server.
 
 Microsoft gives a brief description of their filter's operation at
-<http://blogs.msdn.com/ie/archive/2005/09/09/463204.aspx>. Firefox
+`<http://blogs.msdn.com/ie/archive/2005/09/09/463204.aspx>`_. Firefox
 and Chrome both use Google's "safe browsing API" which is documented
-at <http://code.google.com/apis/safebrowsing/> and
-<http://code.google.com/p/google-safe-browsing/wiki/Protocolv2Spec>.
+at `<http://code.google.com/apis/safebrowsing/>`_ and
+`<http://code.google.com/p/google-safe-browsing/wiki/Protocolv2Spec>`_.
 
 This of course has implications for the privacy of general web browsing
 (especially in the cases of Firefox and Chrome, which send your main
 personally identifying Google cookie along with these requests without
-your explicit consent, as described for Firefox in
-<https://bugzilla.mozilla.org/show_bug.cgi?id=368255>).
+your explicit consent, as described in `Firefox bugzilla ticket #368255
+`<https://bugzilla.mozilla.org/show_bug.cgi?id=368255>`_).
 
 The reason for documenting this issue here, though, is that when using the
 Tahoe-LAFS web user interface, it could also affect confidentiality and integrity
@@ -198,8 +197,8 @@ To disable the filter in Chrome:
 Known issues in the FTP and SFTP frontends
 ------------------------------------------
 
-These are documented in docs/frontends/FTP-and-SFTP.txt and at
-<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>.
+These are documented in `docs/frontends/FTP-and-SFTP.rst <frontends/FTP-and-SFTP.rst>`_
+and at `<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
 
 
 Traffic analysis based on sizes of files/directories, storage indices, and timing
