@@ -118,8 +118,8 @@ local one.
 These commands also use a table of "aliases" to figure out which directory
 they ought to use a starting point. This is explained in more detail below.
 
-As of Tahoe v1.7, passing non-ASCII characters to the CLI should work,
-except on Windows. The command-line arguments are assumed to use the
+As of Tahoe v1.7 (v1.7.1 on Windows), passing non-ASCII characters to the
+CLI should work. On Unix, the command-line arguments are assumed to use the
 character encoding specified by the current locale.
 
 Starting Directories
