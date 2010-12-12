@@ -224,14 +224,14 @@ process reside on only one storage server. We hope to extend
 at the end of the upload process, the appropriate upload health check fails,
 the upload is considered a failure.
 
-The current defaults use ``k``=3, ``servers_of_happiness``=7, and ``N``=10.
-``N``=10 means that we'll try to place 10 shares. ``k``=3 means that we need
-any three shares to recover the file. ``servers_of_happiness``=7 means that
+The current defaults use ``k`` = 3, ``servers_of_happiness`` = 7, and ``N`` = 10.
+``N`` = 10 means that we'll try to place 10 shares. ``k`` = 3 means that we need
+any three shares to recover the file. ``servers_of_happiness`` = 7 means that
 we'll consider an immutable file upload to be successful if we can place shares
 on enough servers that there are 7 different servers, the correct functioning
 of any ``k`` of which guarantee the availability of the immutable file.
 
-``N``=10 and ``k``=3 means there is a 3.3x expansion factor. On a small grid, you
+``N`` = 10 and ``k`` = 3 means there is a 3.3x expansion factor. On a small grid, you
 should set ``N`` about equal to the number of storage servers in your grid; on a
 large grid, you might set it to something smaller to avoid the overhead of
 contacting every server to place a file. In either case, you should then set ``k``
@@ -305,7 +305,7 @@ means that on a typical 8x ADSL line, uploading a file will take about 32
 times longer than downloading it again later.
 
 Smaller expansion ratios can reduce this upload penalty, at the expense of
-reliability (see RELIABILITY, below). By using an "upload helper", this
+reliability (see `Reliability`_, below). By using an "upload helper", this
 penalty is eliminated: the client does a 1x upload of encrypted data to the
 helper, then the helper performs encoding and pushes the shares to the
 storage servers. This is an improvement if the helper has significantly
