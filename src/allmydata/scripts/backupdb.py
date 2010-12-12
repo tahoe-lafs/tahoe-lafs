@@ -23,7 +23,7 @@ CREATE TABLE version -- added in v1
 
 CREATE TABLE local_files -- added in v1
 (
- path  VARCHAR(1024) PRIMARY KEY, -- index, this is os.path.abspath(fn)
+ path  VARCHAR(1024) PRIMARY KEY, -- index, this is an absolute UTF-8-encoded local filename
  size  INTEGER,       -- os.stat(fn)[stat.ST_SIZE]
  mtime NUMBER,        -- os.stat(fn)[stat.ST_MTIME]
  ctime NUMBER,        -- os.stat(fn)[stat.ST_CTIME]
