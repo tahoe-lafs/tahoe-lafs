@@ -501,7 +501,7 @@ different goals. Each choice results in a number of properties; there are
 many tradeoffs.
 
 First, some terms: the erasure-coding algorithm is described as ``k``-out-of-``N``
-(for this release, the default values are ``k``=3 and ``N``=10). Each grid will
+(for this release, the default values are ``k`` = 3 and ``N`` = 10). Each grid will
 have some number of nodes; this number will rise and fall over time as nodes
 join, drop out, come back, and leave forever. Files are of various sizes, some
 are popular, others are unpopular. Nodes have various capacities, variable
