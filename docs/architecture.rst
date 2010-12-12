@@ -24,7 +24,7 @@ There are three layers: the key-value store, the filesystem, and the
 application.
 
 The lowest layer is the key-value store. The keys are "capabilities" -- short
-ascii strings -- and the values are sequences of data bytes. This data is
+ASCII strings -- and the values are sequences of data bytes. This data is
 encrypted and distributed across a number of nodes, such that it will survive
 the loss of most of the nodes. There are no hard limits on the size of the
 values, but there may be performance issues with extremely large values (just
@@ -173,7 +173,7 @@ connected to the introducer, and we use that available space information to
 remove any servers that cannot hold an encoded share for our file. Then we ask
 some of the servers thus removed if they are already holding any encoded shares
 for our file; we use this information later. (We ask any servers which are in
-the first 2*N elements of the permuted list.)
+the first 2*``N`` elements of the permuted list.)
 
 We then use the permuted list of servers to ask each server, in turn, if it
 will hold a share for us (a share that was not reported as being already
@@ -222,23 +222,23 @@ process reside on only one storage server. We hope to extend
 at the end of the upload process, the appropriate upload health check fails,
 the upload is considered a failure.
 
-The current defaults use k=3, servers_of_happiness=7, and N=10. N=10 means that
-we'll try to place 10 shares. k=3 means that we need any three shares to
-recover the file. servers_of_happiness=7 means that we'll consider an immutable
-file upload to be successful if we can place shares on enough servers that
-there are 7 different servers, the correct functioning of any k of which
-guarantee the availability of the immutable file.
+The current defaults use ``k``=3, ``servers_of_happiness``=7, and ``N``=10.
+``N``=10 means that we'll try to place 10 shares. ``k``=3 means that we need
+any three shares to recover the file. ``servers_of_happiness``=7 means that
+we'll consider an immutable file upload to be successful if we can place shares
+on enough servers that there are 7 different servers, the correct functioning
+of any ``k`` of which guarantee the availability of the immutable file.
 
-N=10 and k=3 means there is a 3.3x expansion factor. On a small grid, you
-should set N about equal to the number of storage servers in your grid; on a
+``N``=10 and ``k``=3 means there is a 3.3x expansion factor. On a small grid, you
+should set ``N`` about equal to the number of storage servers in your grid; on a
 large grid, you might set it to something smaller to avoid the overhead of
-contacting every server to place a file. In either case, you should then set k
-such that N/k reflects your desired availability goals. The best value for
-servers_of_happiness will depend on how you use Tahoe-LAFS. In a friendnet with
-a variable number of servers, it might make sense to set it to the smallest
+contacting every server to place a file. In either case, you should then set ``k``
+such that ``N``/``k`` reflects your desired availability goals. The best value for
+``servers_of_happiness`` will depend on how you use Tahoe-LAFS. In a friendnet
+with a variable number of servers, it might make sense to set it to the smallest
 number of servers that you expect to have online and accepting shares at any
 given time. In a stable environment without much server churn, it may make
-sense to set servers_of_happiness = N.
+sense to set ``servers_of_happiness`` = ``N``.
 
 When downloading a file, the current version just asks all known servers for
 any shares they might have. Once it has received enough responses that it
@@ -260,7 +260,7 @@ times), if possible.
   clockwise from 0 with a basket. Each time it encountered a share, it put it
   in the basket, each time it encountered a server, give it as many shares
   from the basket as they'd accept. This reduced the number of queries
-  (usually to 1) for small grids (where N is larger than the number of
+  (usually to 1) for small grids (where ``N`` is larger than the number of
   nodes), but resulted in extremely non-uniform share distribution, which
   significantly hurt reliability (sometimes the permutation resulted in most
   of the shares being dumped on a single node).
@@ -395,7 +395,7 @@ which nodes ought to hold shares for this file, and to see if those nodes are
 still around and willing to provide the data. If the file is not healthy
 enough, the File Repairer is invoked to download the ciphertext, regenerate
 any missing shares, and upload them to new nodes. The goal of the File
-Repairer is to finish up with a full set of "N" shares.
+Repairer is to finish up with a full set of ``N`` shares.
 
 There are a number of engineering issues to be resolved here. The bandwidth,
 disk IO, and CPU time consumed by the verification/repair process must be
@@ -498,11 +498,11 @@ File encoding and peer-node selection parameters can be adjusted to achieve
 different goals. Each choice results in a number of properties; there are
 many tradeoffs.
 
-First, some terms: the erasure-coding algorithm is described as K-out-of-N
-(for this release, the default values are K=3 and N=10). Each grid will have
-some number of nodes; this number will rise and fall over time as nodes join,
-drop out, come back, and leave forever. Files are of various sizes, some are
-popular, others are unpopular. Nodes have various capacities, variable
+First, some terms: the erasure-coding algorithm is described as ``k``-out-of-``N``
+(for this release, the default values are ``k``=3 and ``N``=10). Each grid will
+have some number of nodes; this number will rise and fall over time as nodes
+join, drop out, come back, and leave forever. Files are of various sizes, some
+are popular, others are unpopular. Nodes have various capacities, variable
 upload/download bandwidths, and network latency. Most of the mathematical
 models that look at node failure assume some average (and independent)
 probability 'P' of a given node being available: this can be high (servers
@@ -510,14 +510,14 @@ tend to be online and available >90% of the time) or low (laptops tend to be
 turned on for an hour then disappear for several days). Files are encoded in
 segments of a given maximum size, which affects memory usage.
 
-The ratio of N/K is the "expansion factor". Higher expansion factors improve
-reliability very quickly (the binomial distribution curve is very sharp), but
-consumes much more grid capacity. When P=50%, the absolute value of K affects
-the granularity of the binomial curve (1-out-of-2 is much worse than
+The ratio of ``N``/``k`` is the "expansion factor". Higher expansion factors
+improve reliability very quickly (the binomial distribution curve is very sharp),
+but consumes much more grid capacity. When P=50%, the absolute value of ``k``
+affects the granularity of the binomial curve (1-out-of-2 is much worse than
 50-out-of-100), but high values asymptotically approach a constant (i.e.
 500-of-1000 is not much better than 50-of-100). When P is high and the
-expansion factor is held at a constant, higher values of K and N give much
-better reliability (for P=99%, 50-out-of-100 is much much better than
+expansion factor is held at a constant, higher values of ``k`` and ``N`` give
+much better reliability (for P=99%, 50-out-of-100 is much much better than
 5-of-10, roughly 10^50 times better), because there are more shares that can
 be lost without losing the file.
 
@@ -537,7 +537,7 @@ rate at which nodes come and go will be higher (requiring network maintenance
 traffic). Also, the File Repairer work will increase with larger grids,
 although then the job can be distributed out to more nodes.
 
-Higher values of N increase overhead: more shares means more Merkle hashes
+Higher values of ``N`` increase overhead: more shares means more Merkle hashes
 that must be included with the data, and more nodes to contact to retrieve
 the shares. Smaller segment sizes reduce memory usage (since each segment
 must be held in memory while erasure coding runs) and improves "alacrity"

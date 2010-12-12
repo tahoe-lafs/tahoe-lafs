@@ -140,7 +140,7 @@ starting point: some specific directory that we will refer to as a
 "starting directory".  For a given starting directory, the
 "``ls [STARTING_DIR]``" command would list the contents of this directory,
 the "``ls [STARTING_DIR]/dir1``" command would look inside this directory
-for a child named "dir1" and list its contents,
+for a child named "``dir1``" and list its contents,
 "``ls [STARTING_DIR]/dir1/subdir2``" would look two levels deep, etc.
 
 Note that there is no real global "root" directory, but instead each
@@ -256,9 +256,9 @@ Command Syntax Summary
 
 In these summaries, ``PATH``, ``TOPATH`` or ``FROMPATH`` can be one of::
 
- * ``[SUBDIRS/]FILENAME`` for a path relative to the default ``tahoe:`` alias;
- * ``ALIAS:[SUBDIRS/]FILENAME`` for a path relative to another alias;
- * ``DIRCAP/[SUBDIRS/]FILENAME`` or ``DIRCAP:./[SUBDIRS/]FILENAME`` for a path relative to a directory cap.
+* ``[SUBDIRS/]FILENAME`` for a path relative to the default ``tahoe:`` alias;
+* ``ALIAS:[SUBDIRS/]FILENAME`` for a path relative to another alias;
+* ``DIRCAP/[SUBDIRS/]FILENAME`` or ``DIRCAP:./[SUBDIRS/]FILENAME`` for a path relative to a directory cap.
 
 
 Command Examples
