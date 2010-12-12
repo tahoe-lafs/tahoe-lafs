@@ -125,26 +125,26 @@ set the ``tub.location`` option described below.
     through the Introducer announcement.
 
     The value is a comma-separated string of host:port location hints, like
-    this:
+    this::
 
       123.45.67.89:8098,tahoe.example.com:8098,127.0.0.1:8098
 
     A few examples:
 
     * Emulate default behavior, assuming your host has IP address
-      123.45.67.89 and the kernel-allocated port number was 8098:
+      123.45.67.89 and the kernel-allocated port number was 8098::
 
         tub.port = 8098
         tub.location = 123.45.67.89:8098,127.0.0.1:8098
 
-    * Use a DNS name so you can change the IP address more easily:
+    * Use a DNS name so you can change the IP address more easily::
 
         tub.port = 8098
         tub.location = tahoe.example.com:8098
 
     * Run a node behind a firewall (which has an external IP address) that
       has been configured to forward port 7912 to our internal node's port
-      8098:
+      8098::
 
         tub.port = 8098
         tub.location = external-firewall.example.com:7912
@@ -153,7 +153,7 @@ set the ``tub.location`` option described below.
       mode (i.e. we can make outbound connections, but other nodes will not
       be able to connect to us). The literal '``unreachable.example.org``' will
       not resolve, but will serve as a reminder to human observers that this
-      node cannot be reached. "Don't call us.. we'll call you":
+      node cannot be reached. "Don't call us.. we'll call you"::
 
         tub.port = 8098
         tub.location = unreachable.example.org:0
@@ -163,14 +163,14 @@ set the ``tub.location`` option described below.
       node with ``torsocks``, such that they are prepared to connect to a
       ``.onion`` address.) The hidden service must first be configured in
       Tor, by giving it a local port number and then obtaining a ``.onion``
-      name, using something in the ``torrc`` file like:
+      name, using something in the ``torrc`` file like::
 
         HiddenServiceDir /var/lib/tor/hidden_services/tahoe
         HiddenServicePort 29212 127.0.0.1:8098
 
       once Tor is restarted, the ``.onion`` hostname will be in
-      ``/var/lib/tor/hidden_services/tahoe/hostname`` . Then set up your
-      ``tahoe.cfg`` like:
+      ``/var/lib/tor/hidden_services/tahoe/hostname``. Then set up your
+      ``tahoe.cfg`` like::
 
         tub.port = 8098
         tub.location = ualhejtq2p7ohfbb.onion:29212
@@ -228,7 +228,7 @@ set the ``tub.location`` option described below.
     This enables an SSH-based interactive Python shell, which can be used to
     inspect the internal state of the node, for debugging. To cause the node
     to accept SSH connections on port 8022 from the same keys as the rest of
-    your account, use:
+    your account, use::
 
       [tub]
       ssh.port = 8022
@@ -308,7 +308,7 @@ Client Configuration
     ``shares.happy`` allows you control over the distribution of your immutable
     file. For a successful upload, shares are guaranteed to be initially
     placed on at least ``shares.happy`` distinct servers, the correct
-    functioning of any ``k` of which is sufficient to guarantee the availability
+    functioning of any ``k`` of which is sufficient to guarantee the availability
     of the uploaded file. This value should not be larger than the number of
     servers on your grid.
 
@@ -428,7 +428,7 @@ This section describes these other files.
   other nodes.
 
 ``storage/``
-  Nodes which host StorageServers will create this directory to hold shares
+  Nodes that host StorageServers will create this directory to hold shares
   of files on behalf of other clients. There will be a directory underneath
   it for each StorageIndex for which this node is holding shares. There is
   also an "incoming" directory where partially-completed shares are held
