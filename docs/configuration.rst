@@ -23,10 +23,10 @@ This document contains a complete list of the config files that are examined
 by the client node, as well as the state files that you'll observe in its
 base directory.
 
-The main file is named "``tahoe.cfg``", which is an ".INI"-style configuration
+The main file is named "``tahoe.cfg``", and is an ".INI"-style configuration
 file (parsed by the Python stdlib 'ConfigParser' module: "``[name]``" section
 markers, lines with "``key.subkey: value``", rfc822-style continuations). There
-are other files that contain information which does not easily fit into this
+are also other files containing information that does not easily fit into this
 format. The "``tahoe create-node``" or "``tahoe create-client``" command will
 create an initial ``tahoe.cfg`` file for you. After creation, the node will
 never modify the ``tahoe.cfg`` file: all persistent state is put in other files.
@@ -85,7 +85,7 @@ set the ``tub.location`` option described below.
 
     This controls where the ``/static`` portion of the URL space is served. The
     value is a directory name (``~username`` is allowed, and non-absolute names
-    are interpreted relative to the node's basedir) which can contain HTML
+    are interpreted relative to the node's basedir), which can contain HTML
     and other files. This can be used to serve a Javascript-based frontend to
     the Tahoe-LAFS node, or other services.
 
@@ -182,7 +182,7 @@ set the ``tub.location`` option described below.
 
 ``log_gatherer.furl = (FURL, optional)``
 
-    If provided, this contains a single FURL string which is used to contact
+    If provided, this contains a single FURL string that is used to contact
     a "log gatherer", which will be granted access to the logport. This can
     be used by centralized storage grids to gather operational logs in a
     single place. Note that when an old-style ``BASEDIR/log_gatherer.furl`` file
@@ -242,7 +242,7 @@ set the ``tub.location`` option described below.
     10GB available for the upload to complete.
 
     The default value is the ``tmp`` directory in the node's base directory
-    (i.e. ``NODEDIR/tmp``), but it can be placed elsewhere. This directory is
+    (i.e. ``BASEDIR/tmp``), but it can be placed elsewhere. This directory is
     used for files that usually (on a Unix system) go into ``/tmp``. The string
     will be interpreted relative to the node's base directory.
 
@@ -290,17 +290,17 @@ Client Configuration
     equivalent to simple replication (uploading ``N`` copies of the file).
 
     These values control the tradeoff between storage overhead, performance,
-    and reliability. To a first approximation, a 1MB file will use (1MB*``N``/``k``)
+    and reliability. To a first approximation, a 1MB file will use (1MB * ``N``/``k``)
     of backend storage space (the actual value will be a bit more, because of
     other forms of overhead). Up to ``N``-``k`` shares can be lost before the file
     becomes unrecoverable, so assuming there are at least ``N`` servers, up to
-    N-k servers can be offline without losing the file. So large ``N``/``k``
+    ``N``-``k`` servers can be offline without losing the file. So large ``N``/``k``
     ratios are more reliable, and small ``N``/``k`` ratios use less disk space.
     Clearly, ``k`` must never be smaller than ``N``.
 
     Large values of ``N`` will slow down upload operations slightly, since more
     servers must be involved, and will slightly increase storage overhead due
-    to the hash trees that are created. Large values of k will cause
+    to the hash trees that are created. Large values of ``k`` will cause
     downloads to be marginally slower, because more servers must be involved.
     ``N`` cannot be larger than 256, because of the 8-bit erasure-coding
     algorithm that Tahoe-LAFS uses.
@@ -336,7 +336,7 @@ Storage Server Configuration
 
     If ``True``, the node will run a storage server but will not accept any
     shares, making it effectively read-only. Use this for storage servers
-    which are being decommissioned: the ``storage/`` directory could be mounted
+    that are being decommissioned: the ``storage/`` directory could be mounted
     read-only, while shares are moved to other servers. Note that this
     currently only affects immutable shares. Mutable shares (used for
     directories) will be written and modified anyway. See ticket `#390
@@ -346,7 +346,7 @@ Storage Server Configuration
 ``reserved_space = (str, optional)``
 
     If provided, this value defines how much disk space is reserved: the
-    storage server will not accept any share which causes the amount of free
+    storage server will not accept any share that causes the amount of free
     disk space to drop below this value. (The free space is measured by a
     call to statvfs(2) on Unix, or GetDiskFreeSpaceEx on Windows, and is the
     space available to the user account under which the storage server runs.)
@@ -386,9 +386,9 @@ service.
 
     If ``True``, the node will run a helper (see `<helper.rst>`_ for details).
     The helper's contact FURL will be placed in ``private/helper.furl``, from
-    which it can be copied to any clients which wish to use it. Clearly nodes
+    which it can be copied to any clients that wish to use it. Clearly nodes
     should not both run a helper and attempt to use one: do not create
-    ``helper.furl`` and also define ``[helper] enabled`` in the same node.
+    ``helper.furl`` and also define ``[helper]enabled`` in the same node.
     The default is ``False``.
 
 
