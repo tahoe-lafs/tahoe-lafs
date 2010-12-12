@@ -10,12 +10,12 @@ The Tahoe Upload Helper
 Overview
 ========
 
-As described in the "SWARMING DOWNLOAD, TRICKLING UPLOAD" section of
-`<architecture.rst>`_, Tahoe uploads require more bandwidth than downloads: you
-must push the redundant shares during upload, but you do not need to retrieve
-them during download. With the default 3-of-10 encoding parameters, this
-means that an upload will require about 3.3x the traffic as a download of the
-same file.
+As described in the `"Swarming Download, Trickling Upload" section of
+architecture.rst <architecture.rst#swarming-download-trickling-upload>`_,
+Tahoe uploads require more bandwidth than downloads: you must push the
+redundant shares during upload, but you do not need to retrieve them during
+download. With the default 3-of-10 encoding parameters, this means that an
+upload will require about 3.3x the traffic as a download of the same file.
 
 Unfortunately, this "expansion penalty" occurs in the same upstream direction
 that most consumer DSL lines are slow anyways. Typical ADSL lines get 8 times
