@@ -356,17 +356,14 @@ Command Examples
 ``tahoe put file.txt tahoe:subdir/foo.txt``
 
 ``tahoe put file.txt DIRCAP/foo.txt``
-or
-``tahoe put file.txt DIRCAP:./foo.txt``
 
 ``tahoe put file.txt DIRCAP/subdir/foo.txt``
-or
-``tahoe put file.txt DIRCAP:./subdir/foo.txt``
 
  These upload the named file and attach them to a subdirectory of the given
  root directory, under the name "``foo.txt``". When a directory write-cap is
- given, you can use either ``/`` or ``:./`` to separate it from the following
- path. When the source file is named "``-``", the contents are taken from stdin.
+ given, you can use either ``/`` (as shown above) or ``:./`` to separate it
+ from the following path. When the source file is named "``-``", the contents
+ are taken from stdin.
 
 ``tahoe put file.txt --mutable``
 

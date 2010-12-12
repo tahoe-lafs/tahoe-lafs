@@ -39,7 +39,7 @@ about the file they point to. Therefore, the same file may be associated with
 different metadata if it is referred to through different edges.
 
 The top layer consists of the applications using the filesystem.
-Allmydata.com uses it for a backup service: the application periodically
+Allmydata.com used it for a backup service: the application periodically
 copies files from the local disk onto the decentralized filesystem. We later
 provide read-only access to those files, allowing users to recover them.
 There are several other applications built on top of the Tahoe-LAFS
@@ -104,7 +104,7 @@ used for both server selection (described below) and to index shares within
 the Storage Servers on the selected nodes.
 
 The client computes secure hashes of the ciphertext and of the shares. It
-uses Merkle Trees so that it is possible to verify the correctness of a
+uses `Merkle Trees`_ so that it is possible to verify the correctness of a
 subset of the data without requiring all of the data. For example, this
 allows you to verify the correctness of the first segment of a movie file and
 then begin playing the movie file in your movie viewer before the entire
@@ -122,6 +122,8 @@ To download, the client that wishes to turn a capability into a sequence of
 bytes will obtain the blocks from storage servers, use erasure-decoding to
 turn them into segments of ciphertext, use the decryption key to convert that
 into plaintext, then emit the plaintext bytes to the output target.
+
+.. _`Merkle Trees`: http://systems.cs.colorado.edu/grunwald/Classes/Fall2003-InformationStorage/Papers/merkle-tree.pdf
 
 
 Capabilities
@@ -526,16 +528,16 @@ granularity: having only one node means a single point of failure, no matter
 how many copies of the file you make. Independent nodes (with uncorrelated
 failures) are necessary to hit the mathematical ideals: if you have 100 nodes
 but they are all in the same office building, then a single power failure
-will take out all of them at once. The "Sybil Attack" is where a single
-attacker convinces you that they are actually multiple servers, so that you
-think you are using a large number of independent nodes, but in fact you have
-a single point of failure (where the attacker turns off all their machines at
-once). Large grids, with lots of truly independent nodes, will enable the use
-of lower expansion factors to achieve the same reliability, but will increase
-overhead because each node needs to know something about every other, and the
-rate at which nodes come and go will be higher (requiring network maintenance
-traffic). Also, the File Repairer work will increase with larger grids,
-although then the job can be distributed out to more nodes.
+will take out all of them at once. Pseudospoofing, also called a "Sybil Attack",
+is where a single attacker convinces you that they are actually multiple
+servers, so that you think you are using a large number of independent nodes,
+but in fact you have a single point of failure (where the attacker turns off
+all their machines at once). Large grids, with lots of truly independent nodes,
+will enable the use of lower expansion factors to achieve the same reliability,
+but will increase overhead because each node needs to know something about
+every other, and the rate at which nodes come and go will be higher (requiring
+network maintenance traffic). Also, the File Repairer work will increase with
+larger grids, although then the job can be distributed out to more nodes.
 
 Higher values of ``N`` increase overhead: more shares means more Merkle hashes
 that must be included with the data, and more nodes to contact to retrieve
