@@ -263,7 +263,7 @@ migration, described below), a small number of lease structures, the embedded
 data itself, and expansion space for additional lease structures::
 
  #   offset    size    name
- 1   0         32      magic verstr "tahoe mutable container v1" plus binary
+ 1   0         32      magic verstr "Tahoe mutable container v1\n\x75\x09\x44\x03\x8e"
  2   32        20      write enabler's nodeid
  3   52        32      write enabler
  4   84        8       data size (actual share data present) (a)
