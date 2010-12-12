@@ -163,7 +163,7 @@ Directory URIs
 The grid layer provides a mapping from URI to data. To turn this into a graph
 of directories and files, the "vdrive" layer (which sits on top of the grid
 layer) needs to keep track of "directory nodes", or "dirnodes" for short.
-`docs/dirnodes.rst <../dirnodes.rst>`_ describes how these work.
+`<dirnodes.rst>`_ describes how these work.
 
 Dirnodes are contained inside mutable files, and are thus simply a particular
 way to interpret the contents of these files. As a result, a directory
