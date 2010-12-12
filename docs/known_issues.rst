@@ -129,7 +129,7 @@ This of course has implications for the privacy of general web browsing
 (especially in the cases of Firefox and Chrome, which send your main
 personally identifying Google cookie along with these requests without
 your explicit consent, as described in `Firefox bugzilla ticket #368255
-`<https://bugzilla.mozilla.org/show_bug.cgi?id=368255>`_).
+<https://bugzilla.mozilla.org/show_bug.cgi?id=368255>`_).
 
 The reason for documenting this issue here, though, is that when using the
 Tahoe-LAFS web user interface, it could also affect confidentiality and integrity
