@@ -458,11 +458,9 @@ Creating A New Directory
 
  The metadata may have a "no-write" field. If this is set to true in the
  metadata of a link, it will not be possible to open that link for writing
- via the SFTP frontend; see `FTP-and-SFTP.rst`_ for details.
+ via the SFTP frontend; see `<FTP-and-SFTP.rst>`_ for details.
  Also, if the "no-write" field is set to true in the metadata of a link to
  a mutable child, it will cause the link to be diminished to read-only.
- 
- .. _FTP-and-SFTP.rst: http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/frontents/FTP-and-SFTP.rst
 
  Note that the webapi-using client application must not provide the
  "Content-Type: multipart/form-data" header that usually accompanies HTML
