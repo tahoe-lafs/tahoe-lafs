@@ -429,24 +429,3 @@ windows-installer:
 
 windows-installer-upload:
 	$(RUNPP) -c "$(MAKE) -C windows windows-installer-upload"
-
-
-# These targets provide for mac native builds
-.PHONY: mac-exe mac-upload mac-cleanup mac-dbg
-
-mac-exe: .built
-	$(MAKE) -C mac clean
-	VERSION=$(VER) $(RUNPP) -c "$(MAKE) -C mac build"
-
-mac-dist:
-	VERSION=$(VER) $(MAKE) -C mac diskimage
-
-mac-upload:
-	VERSION=$(VER) $(MAKE) -C mac upload
-
-mac-cleanup:
-	VERSION=$(VER) $(MAKE) -C mac cleanup
-
-mac-dbg:
-	cd mac && $(PP) $(PYTHON)w allmydata_tahoe.py
-
