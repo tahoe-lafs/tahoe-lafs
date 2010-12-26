@@ -1,5 +1,12 @@
 ﻿User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
+* Trunk, post-1.8.1
+
+** Removals
+
+ - The unmaintained GUI application for Mac OS X has been removed. (#1282)
+
+
 * Release 1.8.1 (2010-10-28)
 
 ** Bugfixes and Improvements
