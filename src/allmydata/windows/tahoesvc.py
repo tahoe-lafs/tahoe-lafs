@@ -43,7 +43,7 @@ except:
 
 class Tahoe(win32serviceutil.ServiceFramework):
     _svc_name_ = "Tahoe"
-    _svc_display_name_ = "Allmydata Tahoe Node"
+    _svc_display_name_ = "Tahoe-LAFS Node"
     def __init__(self, args):
         logmsg("init")
         try:
@@ -131,8 +131,22 @@ class Tahoe(win32serviceutil.ServiceFramework):
         try:
             logmsg("main thread startup")
 
-            import depends # import dependencies so that py2exe finds them
-            _junk = depends # appease pyflakes
+            # import dependencies so that py2exe finds them
+            # nevow requires all these for its voodoo module import time adaptor registrations
+            from nevow import accessors, appserver, static, rend, url, util, query, i18n, flat
+            from nevow import guard, stan, testutil, context
+            from nevow.flat import flatmdom, flatstan, twist
+            from formless import webform, processors, annotate, iformless
+            from decimal import Decimal
+
+            import allmydata.web
+
+            # junk to appease pyflakes's outrage at py2exe's needs
+            [
+                accessors, appserver, static, rend, url, util, query, i18n, flat, guard, stan, testutil,
+                context, flatmdom, flatstan, twist, webform, processors, annotate, iformless, Decimal,
+                allmydata,
+            ]
 
             from twisted.internet import reactor
             from twisted.python import log, logfile
