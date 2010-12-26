@@ -416,16 +416,3 @@ deb-jaunty-head:
 .PHONY: EXPERIMENTAL-deb
 EXPERIMENTAL-deb: is-known-debian-arch
 	$(PYTHON) misc/build_helpers/build-deb.py $(ARCH)
-
-
-# These targets provide for windows native builds
-.PHONY: windows-exe windows-installer windows-installer-upload
-
-windows-exe: .built
-	$(RUNPP) -c "$(MAKE) -C windows windows-exe"
-
-windows-installer:
-	$(RUNPP) -c "$(MAKE) -C windows windows-installer"
-
-windows-installer-upload:
-	$(RUNPP) -c "$(MAKE) -C windows windows-installer-upload"
