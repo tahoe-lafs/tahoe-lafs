@@ -4,7 +4,8 @@
 
 ** Removals
 
- - The unmaintained GUI application for Mac OS X has been removed. (#1282)
+ - The unmaintained GUI applications for Mac OS X and Windows have been
+   removed. (#1282)
 
 
 * Release 1.8.1 (2010-10-28)
