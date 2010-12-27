@@ -35,13 +35,14 @@ of duration-over-renewal-time will be more robust in the face of occasional
 delays or failures.
 
 The current recommended values for a small Tahoe grid are to renew the leases
-once a week, and to give each lease a duration of 31 days. Renewing leases
-can be expected to take about one second per file/directory, depending upon
-the number of servers and the network speeds involved. Note that in the
-current release, the server code enforces a 31 day lease duration: there is
-not yet a way for the client to request a different duration (however the
-server can use the "expire.override_lease_duration" configuration setting to
-increase or decrease the effective duration to something other than 31 days).
+once a week, and give each lease a duration of 31 days. In the current
+release, there is not yet a way to create a lease with a different duration,
+but the server can use the ``expire.override_lease_duration`` configuration
+setting to increase or decrease the effective duration (when the lease is
+processed) to something other than 31 days.
+
+Renewing leases can be expected to take about one second per file/directory,
+depending upon the number of servers and the network speeds involved.
 
 Client-side Renewal
 ===================
@@ -65,13 +66,13 @@ Note that newly uploaded files (and newly created directories) get an initial
 lease too: the ``--add-lease`` process is only needed to ensure that all
 older objects have up-to-date leases on them.
 
-For larger systems (such as a commercial grid), a separate "maintenance
-daemon" is under development. This daemon will acquire manifests from
-rootcaps on a periodic basis, keep track of checker results, manage
-lease-addition, and prioritize repair needs, using multiple worker nodes to
-perform these jobs in parallel. Eventually, this daemon will be made
-appropriate for use by individual users as well, and may be incorporated
-directly into the client node.
+A separate "rebalancing manager/service" is also planned -- see ticket
+`#543 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/543>`_. The exact
+details of what this service will do are not settled, but it is likely to
+work by acquiring manifests from rootcaps on a periodic basis, keeping track
+of checker results, managing lease-addition, and prioritizing repair and
+rebalancing of shares. Eventually it may use multiple worker nodes to perform
+these jobs in parallel.
 
 Server Side Expiration
 ======================
@@ -170,9 +171,7 @@ The ``tahoe.cfg`` file uses the following keys to control lease expiration:
     This key is meant to compensate for the fact that clients do not yet have
     the ability to ask for leases that last longer than 31 days. A grid which
     wants to use faster or slower GC than a 31-day lease timer permits can
-    use this parameter to implement it. The current fixed 31-day lease
-    duration makes the server behave as if "lease.override_lease_duration =
-    31days" had been passed.
+    use this parameter to implement it.
 
     This key is only valid when age-based expiration is in use (i.e. when
     ``expire.mode = age`` is used). It will be rejected if cutoff-date

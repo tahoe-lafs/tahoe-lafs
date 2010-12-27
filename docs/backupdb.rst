@@ -52,7 +52,7 @@ The database contains the following tables::
   
   CREATE TABLE local_files
   (
-   path  varchar(1024),  PRIMARY KEY -- index, this is os.path.abspath(fn)
+   path  varchar(1024),  PRIMARY KEY -- index, this is an absolute UTF-8-encoded local filename
    size  integer,         -- os.stat(fn)[stat.ST_SIZE]
    mtime number,          -- os.stat(fn)[stat.ST_MTIME]
    ctime number,          -- os.stat(fn)[stat.ST_CTIME]
@@ -91,7 +91,8 @@ The first step is to convert the path to an absolute form
 is not present in this table, the file must be uploaded. The upload process
 is:
 
-1. record the file's size, creation time, and modification time
+1. record the file's size, ctime (which is the directory-entry change time or
+   file creation time depending on OS) and modification time
 
 2. upload the file into the grid, obtaining an immutable file read-cap
 
