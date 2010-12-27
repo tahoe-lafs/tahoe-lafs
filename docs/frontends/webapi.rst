@@ -109,7 +109,7 @@ actions to upload, rename, and delete files.
 
 When an error occurs, the HTTP response code will be set to an appropriate
 400-series code (like 404 Not Found for an unknown childname, or 400 Bad Request
-when the parameters to a webapi operation are invalid), and the HTTP response
+when the parameters to a web-API operation are invalid), and the HTTP response
 body will usually contain a few lines of explanation as to the cause of the
 error and possible responses. Unusual exceptions may result in a 500 Internal
 Server Error as a catch-all, with a default response body containing
@@ -231,9 +231,9 @@ contain unicode filenames, and cannot contain binary strings that are not
 representable as such.
 
 All Tahoe operations that refer to existing files or directories must include
-a suitable read- or write- cap in the URL: the webapi server won't add one
+a suitable read- or write- cap in the URL: the web-API server won't add one
 for you. If you don't know the cap, you can't access the file. This allows
-the security properties of Tahoe caps to be extended across the webapi
+the security properties of Tahoe caps to be extended across the web-API
 interface.
 
 Slow Operations, Progress, and Cancelling
@@ -436,22 +436,22 @@ Creating A New Directory
   }
 
  For forward-compatibility, a mutable directory can also contain caps in
- a format that is unknown to the webapi server. When such caps are retrieved
+ a format that is unknown to the web-API server. When such caps are retrieved
  from a mutable directory in a "ro_uri" field, they will be prefixed with
  the string "ro.", indicating that they must not be decoded without
  checking that they are read-only. The "ro." prefix must not be stripped
- off without performing this check. (Future versions of the webapi server
+ off without performing this check. (Future versions of the web-API server
  will perform it where necessary.)
 
  If both the "rw_uri" and "ro_uri" fields are present in a given PROPDICT,
- and the webapi server recognizes the rw_uri as a write cap, then it will
+ and the web-API server recognizes the rw_uri as a write cap, then it will
  reset the ro_uri to the corresponding read cap and discard the original
  contents of ro_uri (in order to ensure that the two caps correspond to the
  same object and that the ro_uri is in fact read-only). However this may not
- happen for caps in a format unknown to the webapi server. Therefore, when
- writing a directory the webapi client should ensure that the contents
+ happen for caps in a format unknown to the web-API server. Therefore, when
+ writing a directory the web-API client should ensure that the contents
  of "rw_uri" and "ro_uri" for a given PROPDICT are a consistent
- (write cap, read cap) pair if possible. If the webapi client only has
+ (write cap, read cap) pair if possible. If the web-API client only has
  one cap and does not know whether it is a write cap or read cap, then
  it is acceptable to set "rw_uri" to that cap and omit "ro_uri". The
  client must not put a write cap into a "ro_uri" field.
@@ -462,7 +462,7 @@ Creating A New Directory
  Also, if the "no-write" field is set to true in the metadata of a link to
  a mutable child, it will cause the link to be diminished to read-only.
 
- Note that the webapi-using client application must not provide the
+ Note that the web-API-using client application must not provide the
  "Content-Type: multipart/form-data" header that usually accompanies HTML
  form submissions, since the body is not formatted this way. Doing so will
  cause a server error as the lower-level code misparses the request body.
@@ -480,18 +480,18 @@ Creating A New Directory
  immutable files, literal files, and deep-immutable directories.
 
  For forward-compatibility, a deep-immutable directory can also contain caps
- in a format that is unknown to the webapi server. When such caps are retrieved
+ in a format that is unknown to the web-API server. When such caps are retrieved
  from a deep-immutable directory in a "ro_uri" field, they will be prefixed
  with the string "imm.", indicating that they must not be decoded without
  checking that they are immutable. The "imm." prefix must not be stripped
- off without performing this check. (Future versions of the webapi server
+ off without performing this check. (Future versions of the web-API server
  will perform it where necessary.)
  
  The cap for each child may be given either in the "rw_uri" or "ro_uri"
  field of the PROPDICT (not both). If a cap is given in the "rw_uri" field,
- then the webapi server will check that it is an immutable read-cap of a
+ then the web-API server will check that it is an immutable read-cap of a
  *known* format, and give an error if it is not. If a cap is given in the
- "ro_uri" field, then the webapi server will still check whether known
+ "ro_uri" field, then the web-API server will still check whether known
  caps are immutable, but for unknown caps it will simply assume that the
  cap can be stored, as described above. Note that an attacker would be
  able to store any cap in an immutable directory, so this check when
@@ -729,7 +729,7 @@ In Tahoe earlier than v1.4.0, 'mtime' and 'ctime' keys were populated
 instead of the 'tahoe':'linkmotime' and 'tahoe':'linkcrtime' keys. Starting
 in Tahoe v1.4.0, the 'linkmotime'/'linkcrtime' keys in the 'tahoe' sub-dict
 are populated. However, prior to Tahoe v1.7beta, a bug caused the 'tahoe'
-sub-dict to be deleted by webapi requests in which new metadata is
+sub-dict to be deleted by web-API requests in which new metadata is
 specified, and not to be added to existing child links that lack it.
 
 From Tahoe v1.7.0 onward, the 'mtime' and 'ctime' fields are no longer
@@ -829,7 +829,7 @@ Attaching an existing File or Directory by its read- or write-cap
  
  Note that this operation does not take its child cap in the form of
  separate "rw_uri" and "ro_uri" fields. Therefore, it cannot accept a
- child cap in a format unknown to the webapi server, unless its URI
+ child cap in a format unknown to the web-API server, unless its URI
  starts with "ro." or "imm.". This restriction is necessary because the
  server is not able to attenuate an unknown write cap to a read cap.
  Unknown URIs starting with "ro." or "imm.", on the other hand, are
@@ -1138,7 +1138,7 @@ Attaching An Existing File Or Directory (by URI)
  directory, with a specified child name. This behaves much like the PUT t=uri
  operation, and is a lot like a UNIX hardlink. It is subject to the same
  restrictions as that operation on the use of cap formats unknown to the
- webapi server.
+ web-API server.
 
  This will create additional intermediate directories as necessary, although
  since it is expected to be triggered by a form that was retrieved by "GET
@@ -1796,7 +1796,7 @@ This is the "Welcome Page", and contains a few distinct sections::
 Static Files in /public_html
 ============================
 
-The webapi server will take any request for a URL that starts with /static
+The web-API server will take any request for a URL that starts with /static
 and serve it from a configurable directory which defaults to
 $BASEDIR/public_html . This is configured by setting the "[node]web.static"
 value in $BASEDIR/tahoe.cfg . If this is left at the default value of
@@ -1804,7 +1804,7 @@ value in $BASEDIR/tahoe.cfg . If this is left at the default value of
 served with the contents of the file $BASEDIR/public_html/subdir/foo.html .
 
 This can be useful to serve a javascript application which provides a
-prettier front-end to the rest of the Tahoe webapi.
+prettier front-end to the rest of the Tahoe web-API.
 
 
 Safety and security issues -- names vs. URIs
@@ -1850,7 +1850,7 @@ parent directory, so it isn't any harder to use the URI for this purpose.
 
 The read and write caps in a given directory node are separate URIs, and
 can't be assumed to point to the same object even if they were retrieved in
-the same operation (although the webapi server attempts to ensure this
+the same operation (although the web-API server attempts to ensure this
 in most cases). If you need to rely on that property, you should explicitly
 verify it. More generally, you should not make assumptions about the
 internal consistency of the contents of mutable directories. As a result
@@ -1895,7 +1895,7 @@ Coordination Directive.
 
 Tahoe nodes implement internal serialization to make sure that a single Tahoe
 node cannot conflict with itself. For example, it is safe to issue two
-directory modification requests to a single tahoe node's webapi server at the
+directory modification requests to a single tahoe node's web-API server at the
 same time, because the Tahoe node will internally delay one of them until
 after the other has finished being applied. (This feature was introduced in
 Tahoe-1.1; back with Tahoe-1.0 the web client was responsible for serializing

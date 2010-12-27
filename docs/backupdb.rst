@@ -14,9 +14,8 @@ To speed up backup operations, Tahoe maintains a small database known as the
 uploaded recently.
 
 This database lives in ``~/.tahoe/private/backupdb.sqlite``, and is a SQLite
-single-file database. It is used by the "tahoe backup" command. In the
-future, it will also be used by "tahoe mirror", and by "tahoe cp" when the
-``--use-backupdb`` option is included.
+single-file database. It is used by the "``tahoe backup``" command. In the
+future, it may optionally be used by other commands such as "``tahoe cp``".
 
 The purpose of this database is twofold: to manage the file-to-cap
 translation (the "upload" step) and the directory-to-cap translation (the
@@ -24,7 +23,7 @@ translation (the "upload" step) and the directory-to-cap translation (the
 
 The overall goal of optimizing backup is to reduce the work required when the
 source disk has not changed (much) since the last backup. In the ideal case,
-running "tahoe backup" twice in a row, with no intervening changes to the
+running "``tahoe backup``" twice in a row, with no intervening changes to the
 disk, will not require any network traffic. Minimal changes to the source
 disk should result in minimal traffic.
 
@@ -32,12 +31,12 @@ This database is optional. If it is deleted, the worst effect is that a
 subsequent backup operation may use more effort (network bandwidth, CPU
 cycles, and disk IO) than it would have without the backupdb.
 
-The database uses sqlite3, which is included as part of the standard python
-library with python2.5 and later. For python2.4, Tahoe will try to install the
+The database uses sqlite3, which is included as part of the standard Python
+library with Python 2.5 and later. For Python 2.4, Tahoe will try to install the
 "pysqlite" package at build-time, but this will succeed only if sqlite3 with
 development headers is already installed.  On Debian and Debian derivatives
 you can install the "python-pysqlite2" package (which, despite the name,
-actually provides sqlite3 rather than sqlite2), but on old distributions such
+actually provides sqlite3 rather than sqlite2). On old distributions such
 as Debian etch (4.0 "oldstable") or Ubuntu Edgy (6.10) the "python-pysqlite2"
 package won't work, but the "sqlite3-dev" package will.
 
@@ -84,11 +83,11 @@ The database contains the following tables::
 Upload Operation
 ================
 
-The upload process starts with a pathname (like ~/.emacs) and wants to end up
-with a file-cap (like URI:CHK:...).
+The upload process starts with a pathname (like ``~/.emacs``) and wants to end up
+with a file-cap (like ``URI:CHK:...``).
 
 The first step is to convert the path to an absolute form
-(/home/warner/.emacs) and do a lookup in the local_files table. If the path
+(``/home/warner/.emacs``) and do a lookup in the local_files table. If the path
 is not present in this table, the file must be uploaded. The upload process
 is:
 
@@ -150,8 +149,8 @@ checked and found healthy, the 'last_upload' entry is updated.
 
 Relying upon timestamps is a compromise between efficiency and safety: a file
 which is modified without changing the timestamp or size will be treated as
-unmodified, and the "tahoe backup" command will not copy the new contents
-into the grid. The ``--no-timestamps`` can be used to disable this
+unmodified, and the "``tahoe backup``" command will not copy the new contents
+into the grid. The ``--no-timestamps`` option can be used to disable this
 optimization, forcing every byte of the file to be hashed and encoded.
 
 Directory Operations
@@ -162,17 +161,17 @@ dircap for each directory), the backup process must find or create a tahoe
 directory node with the same contents. The contents are hashed, and the hash
 is queried in the 'directories' table. If found, the last-checked timestamp
 is used to perform the same random-early-check algorithm described for files
-above, but no new upload is performed. Since "tahoe backup" creates immutable
+above, but no new upload is performed. Since "``tahoe backup``" creates immutable
 directories, it is perfectly safe to re-use a directory from a previous
 backup.
 
-If not found, the webapi "mkdir-immutable" operation is used to create a new
+If not found, the web-API "mkdir-immutable" operation is used to create a new
 directory, and an entry is stored in the table.
 
 The comparison operation ignores timestamps and metadata, and pays attention
 solely to the file names and contents.
 
-By using a directory-contents hash, the "tahoe backup" command is able to
+By using a directory-contents hash, the "``tahoe backup``" command is able to
 re-use directories from other places in the backed up data, or from old
 backups. This means that renaming a directory and moving a subdirectory to a
 new parent both count as "minor changes" and will result in minimal Tahoe
@@ -184,7 +183,7 @@ directories from backup #1.
 
 The best case is a null backup, in which nothing has changed. This will
 result in minimal network bandwidth: one directory read and two modifies. The
-Archives/ directory must be read to locate the latest backup, and must be
-modified to add a new snapshot, and the Latest/ directory will be updated to
+``Archives/`` directory must be read to locate the latest backup, and must be
+modified to add a new snapshot, and the ``Latest/`` directory will be updated to
 point to that same snapshot.
 

@@ -82,7 +82,7 @@ clients.
 "key-generation" service, which allows a client to offload their RSA key
 generation to a separate process. Since RSA key generation takes several
 seconds, and must be done each time a directory is created, moving it to a
-separate process allows the first process (perhaps a busy webapi server) to
+separate process allows the first process (perhaps a busy web-API server) to
 continue servicing other requests. The key generator exports a FURL that can
 be copied into a node to enable this functionality.
 
@@ -96,8 +96,8 @@ same way as "``tahoe run``".
 
 "``tahoe stop [NODEDIR]``" will shut down a running node.
 
-"``tahoe restart [NODEDIR]``" will stop and then restart a running node. This is
-most often used by developers who have just modified the code and want to
+"``tahoe restart [NODEDIR]``" will stop and then restart a running node. This
+is most often used by developers who have just modified the code and want to
 start using their changes.
 
 
@@ -107,15 +107,15 @@ Filesystem Manipulation
 These commands let you exmaine a Tahoe-LAFS filesystem, providing basic
 list/upload/download/delete/rename/mkdir functionality. They can be used as
 primitives by other scripts. Most of these commands are fairly thin wrappers
-around webapi calls, which are described in `<webapi.rst>`_.
+around web-API calls, which are described in `<webapi.rst>`_.
 
-By default, all filesystem-manipulation commands look in ``~/.tahoe/`` to figure
-out which Tahoe-LAFS node they should use. When the CLI command makes webapi
-calls, it will use ``~/.tahoe/node.url`` for this purpose: a running Tahoe-LAFS
-node that provides a webapi port will write its URL into this file. If you want
-to use a node on some other host, just create ``~/.tahoe/`` and copy that node's
-webapi URL into this file, and the CLI commands will contact that node instead
-of a local one.
+By default, all filesystem-manipulation commands look in ``~/.tahoe/`` to
+figure out which Tahoe-LAFS node they should use. When the CLI command makes
+web-API calls, it will use ``~/.tahoe/node.url`` for this purpose: a running
+Tahoe-LAFS node that provides a web-API port will write its URL into this
+file. If you want to use a node on some other host, just create ``~/.tahoe/``
+and copy that node's web-API URL into this file, and the CLI commands will
+contact that node instead of a local one.
 
 These commands also use a table of "aliases" to figure out which directory
 they ought to use a starting point. This is explained in more detail below.
@@ -258,7 +258,8 @@ In these summaries, ``PATH``, ``TOPATH`` or ``FROMPATH`` can be one of::
 
 * ``[SUBDIRS/]FILENAME`` for a path relative to the default ``tahoe:`` alias;
 * ``ALIAS:[SUBDIRS/]FILENAME`` for a path relative to another alias;
-* ``DIRCAP/[SUBDIRS/]FILENAME`` or ``DIRCAP:./[SUBDIRS/]FILENAME`` for a path relative to a directory cap.
+* ``DIRCAP/[SUBDIRS/]FILENAME`` or ``DIRCAP:./[SUBDIRS/]FILENAME`` for a
+  path relative to a directory cap.
 
 
 Command Examples

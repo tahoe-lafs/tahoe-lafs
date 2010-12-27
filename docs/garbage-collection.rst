@@ -28,7 +28,7 @@ next renewal pass.
 
 There are several tradeoffs to be considered when choosing the renewal timer
 and the lease duration, and there is no single optimal pair of values. See
-the "lease-tradeoffs.svg" diagram to get an idea for the tradeoffs involved.
+the `<lease-tradeoffs.svg>`_ diagram to get an idea for the tradeoffs involved.
 If lease renewal occurs quickly and with 100% reliability, than any renewal
 time that is shorter than the lease duration will suffice, but a larger ratio
 of duration-over-renewal-time will be more robust in the face of occasional
@@ -48,14 +48,14 @@ Client-side Renewal
 
 If all of the files and directories which you care about are reachable from a
 single starting point (usually referred to as a "rootcap"), and you store
-that rootcap as an alias (via "tahoe create-alias"), then the simplest way to
-renew these leases is with the following CLI command::
+that rootcap as an alias (via "``tahoe create-alias``" for example), then the
+simplest way to renew these leases is with the following CLI command::
 
   tahoe deep-check --add-lease ALIAS:
 
 This will recursively walk every directory under the given alias and renew
 the leases on all files and directories. (You may want to add a ``--repair``
-flag to perform repair at the same time). Simply run this command once a week
+flag to perform repair at the same time.) Simply run this command once a week
 (or whatever other renewal period your grid recommends) and make sure it
 completes successfully. As a side effect, a manifest of all unique files and
 directories will be emitted to stdout, as well as a summary of file sizes and
@@ -78,7 +78,7 @@ Server Side Expiration
 
 Expiration must be explicitly enabled on each storage server, since the
 default behavior is to never expire shares. Expiration is enabled by adding
-config keys to the "[storage]" section of the tahoe.cfg file (as described
+config keys to the ``[storage]`` section of the ``tahoe.cfg`` file (as described
 below) and restarting the server node.
 
 Each lease has two parameters: a create/renew timestamp and a duration. The
@@ -89,7 +89,7 @@ at 31 days, and the "nominal lease expiration time" is simply $duration
 seconds after the $create_renew timestamp. (In a future release of Tahoe, the
 client will get to request a specific duration, and the server will accept or
 reject the request depending upon its local configuration, so that servers
-can achieve better control over their storage obligations).
+can achieve better control over their storage obligations.)
 
 The lease-expiration code has two modes of operation. The first is age-based:
 leases are expired when their age is greater than their duration. This is the
@@ -99,7 +99,7 @@ active files and directories will be preserved, and the garbage will
 collected in a timely fashion.
 
 Since there is not yet a way for clients to request a lease duration of other
-than 31 days, there is a tahoe.cfg setting to override the duration of all
+than 31 days, there is a ``tahoe.cfg`` setting to override the duration of all
 leases. If, for example, this alternative duration is set to 60 days, then
 clients could safely renew their leases with an add-lease operation perhaps
 once every 50 days: even though nominally their leases would expire 31 days
@@ -117,22 +117,22 @@ for a long period of time: once the lease-checker has examined all shares and
 expired whatever it is going to expire, the second and subsequent passes are
 not going to find any new leases to remove.
 
-The tahoe.cfg file uses the following keys to control lease expiration::
+The ``tahoe.cfg`` file uses the following keys to control lease expiration:
 
-  [storage]
+``[storage]``
 
-  expire.enabled = (boolean, optional)
+``expire.enabled = (boolean, optional)``
 
-    If this is True, the storage server will delete shares on which all
+    If this is ``True``, the storage server will delete shares on which all
     leases have expired. Other controls dictate when leases are considered to
-    have expired. The default is False.
+    have expired. The default is ``False``.
 
-  expire.mode = (string, "age" or "cutoff-date", required if expiration enabled)
+``expire.mode = (string, "age" or "cutoff-date", required if expiration enabled)``
 
     If this string is "age", the age-based expiration scheme is used, and the
-    "expire.override_lease_duration" setting can be provided to influence the
+    ``expire.override_lease_duration`` setting can be provided to influence the
     lease ages. If it is "cutoff-date", the absolute-date-cutoff mode is
-    used, and the "expire.cutoff_date" setting must be provided to specify
+    used, and the ``expire.cutoff_date`` setting must be provided to specify
     the cutoff date. The mode setting currently has no default: you must
     provide a value.
 
@@ -140,24 +140,24 @@ The tahoe.cfg file uses the following keys to control lease expiration::
     this release it was deemed safer to require an explicit mode
     specification.
 
-  expire.override_lease_duration = (duration string, optional)
+``expire.override_lease_duration = (duration string, optional)``
 
     When age-based expiration is in use, a lease will be expired if its
-    "lease.create_renew" timestamp plus its "lease.duration" time is
+    ``lease.create_renew`` timestamp plus its ``lease.duration`` time is
     earlier/older than the current time. This key, if present, overrides the
-    duration value for all leases, changing the algorithm from:
+    duration value for all leases, changing the algorithm from::
 
       if (lease.create_renew_timestamp + lease.duration) < now:
           expire_lease()
 
-    to:
+    to::
 
       if (lease.create_renew_timestamp + override_lease_duration) < now:
           expire_lease()
 
     The value of this setting is a "duration string", which is a number of
     days, months, or years, followed by a units suffix, and optionally
-    separated by a space, such as one of the following:
+    separated by a space, such as one of the following::
 
       7days
       31day
@@ -175,14 +175,14 @@ The tahoe.cfg file uses the following keys to control lease expiration::
     31days" had been passed.
 
     This key is only valid when age-based expiration is in use (i.e. when
-    "expire.mode = age" is used). It will be rejected if cutoff-date
+    ``expire.mode = age`` is used). It will be rejected if cutoff-date
     expiration is in use.
 
-  expire.cutoff_date = (date string, required if mode=cutoff-date)
+``expire.cutoff_date = (date string, required if mode=cutoff-date)``
 
     When cutoff-date expiration is in use, a lease will be expired if its
     create/renew timestamp is older than the cutoff date. This string will be
-    a date in the following format:
+    a date in the following format::
 
       2009-01-16   (January 16th, 2009)
       2008-02-02

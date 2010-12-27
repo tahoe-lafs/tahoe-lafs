@@ -30,7 +30,7 @@ What's involved in a download?
 ==============================
 
 Downloads are triggered by read() calls, each with a starting offset (defaults
-to 0) and a length (defaults to the whole file). A regular webapi GET request
+to 0) and a length (defaults to the whole file). A regular web-API GET request
 will result in a whole-file read() call.
 
 Each read() call turns into an ordered sequence of get_segment() calls. A

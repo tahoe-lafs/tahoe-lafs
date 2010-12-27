@@ -88,14 +88,14 @@ contents of an authority string. These authority strings can be shared with
 others just like filecaps and dircaps: knowledge of the authority string is
 both necessary and complete to wield the authority it represents.
 
-webapi requests will include the authority necessary to complete the
+Web-API requests will include the authority necessary to complete the
 operation. When used by a CLI tool, the authority is likely to come from
 ~/.tahoe/private/authority (i.e. it is ambient to the user who has access to
 that node, just like aliases provide similar access to a specific "root
 directory"). When used by the browser-oriented WUI, the authority will [TODO]
 somehow be retained on each page in a way that minimizes the risk of CSRF
 attacks and allows safe sharing (cut-and-paste of a URL without sharing the
-storage authority too). The client node receiving the webapi request will
+storage authority too). The client node receiving the web-API request will
 extract the authority string from the request and use it to build the storage
 server messages that it sends to fulfill that request.
 
@@ -449,12 +449,11 @@ using a foreign tahoe node, or when asking a Helper to upload a specific
 file. Attenuations (see below) should be used to limit the delegated
 authority in these cases.
 
-In the programmatic webapi interface (colloquially known as the "WAPI"), any
-operation that consumes storage will accept a storage-authority= query
-argument, the value of which will be the printable form of an authority
-string. This includes all PUT operations, POST t=upload and t=mkdir, and
-anything which creates a new file, creates a directory (perhaps an
-intermediate one), or modifies a mutable file.
+In the programmatic web-API, any operation that consumes storage will accept
+a storage-authority= query argument, the value of which will be the printable
+form of an authority string. This includes all PUT operations, POST t=upload
+and t=mkdir, and anything which creates a new file, creates a directory
+(perhaps an intermediate one), or modifies a mutable file.
 
 Alternatively, the authority string can also be passed through an HTTP
 header. A single "X-Tahoe-Storage-Authority:" header can be used with the
@@ -501,7 +500,7 @@ servers in a single grid and sum them together, providing a grid-wide usage
 number for each account. This could be used by e.g. clients in a commercial
 grid to report overall-space-used to the end user.
 
-There will be webapi URLs available for all of these reports.
+There will be web-API URLs available for all of these reports.
 
 TODO: storage servers might also have a mechanism to apply space-usage limits
 to specific account ids directly, rather than requiring that these be
@@ -516,7 +515,7 @@ beginning with the storage-authority data structure and working upwards. This
 section is organized to follow the storage authority, starting from the point
 of grant. The discussion will thus begin at the storage server (where the
 authority is first created), work back to the client (which receives the
-authority as a webapi argument), then follow the authority back to the
+authority as a web-API argument), then follow the authority back to the
 servers as it is used to enable specific storage operations. It will then
 detail the accounting tables that the storage server is obligated to
 maintain, and describe the interfaces through which these tables are accessed

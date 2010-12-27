@@ -37,7 +37,7 @@ All Tahoe-LAFS client nodes can run a frontend FTP server, allowing regular FTP
 clients (like /usr/bin/ftp, ncftp, and countless others) to access the
 virtual filesystem. They can also run an SFTP server, so SFTP clients (like
 /usr/bin/sftp, the sshfs FUSE plugin, and others) can too. These frontends
-sit at the same level as the webapi interface.
+sit at the same level as the web-API interface.
 
 Since Tahoe-LAFS does not use user accounts or passwords, the FTP/SFTP servers
 must be configured with a way to first authenticate a user (confirm that a

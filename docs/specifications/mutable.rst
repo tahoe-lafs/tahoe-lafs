@@ -498,8 +498,9 @@ overwrite() tells the client to ignore this cached version information, and
 to unconditionally replace the mutable file's contents with the new data.
 This should not be used in delta application, but rather in situations where
 you want to replace the file's contents with completely unrelated ones. When
-raw files are uploaded into a mutable slot through the tahoe webapi (using
-POST and the ?mutable=true argument), they are put in place with overwrite().
+raw files are uploaded into a mutable slot through the Tahoe-LAFS web-API
+(using POST and the ?mutable=true argument), they are put in place with
+overwrite().
 
 The peer-selection and data-structure manipulation (and signing/verification)
 steps will be implemented in a separate class in allmydata/mutable.py .

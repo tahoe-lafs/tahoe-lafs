@@ -149,7 +149,7 @@ set the ``tub.location`` option described below.
         tub.port = 8098
         tub.location = external-firewall.example.com:7912
 
-    * Run a node behind a Tor proxy (perhaps via torsocks), in client-only
+    * Run a node behind a Tor proxy (perhaps via ``torsocks``), in client-only
       mode (i.e. we can make outbound connections, but other nodes will not
       be able to connect to us). The literal '``unreachable.example.org``' will
       not resolve, but will serve as a reminder to human observers that this
@@ -186,7 +186,7 @@ set the ``tub.location`` option described below.
     a "log gatherer", which will be granted access to the logport. This can
     be used by centralized storage grids to gather operational logs in a
     single place. Note that when an old-style ``BASEDIR/log_gatherer.furl`` file
-    exists (see 'Backwards Compatibility Files', below), both are used. (For
+    exists (see `Backwards Compatibility Files`_, below), both are used. (For
     most other items, the separate config file overrides the entry in
     ``tahoe.cfg``.)
 
@@ -208,18 +208,20 @@ set the ``tub.location`` option described below.
     each connection to another node, if nothing has been heard for a while,
     we will drop the connection. The duration of silence that passes before
     dropping the connection will be between DT-2*KT and 2*DT+2*KT (please see
-    ticket #521 for more details). If we are sending a large amount of data
+    ticket `#521`_ for more details). If we are sending a large amount of data
     to the other end (which takes more than DT-2*KT to deliver), we might
     incorrectly drop the connection. The default behavior (when this value is
     not provided) is to disable the disconnect timer.
 
-    See ticket #521 for a discussion of how to pick these timeout values.
+    See ticket `#521`_ for a discussion of how to pick these timeout values.
     Using 30 minutes means we'll disconnect after 22 to 68 minutes of
     inactivity. Receiving data will reset this timeout, however if we have
     more than 22min of data in the outbound queue (such as 800kB in two
     pipelined segments of 10 shares each) and the far end has no need to
     contact us, our ping might be delayed, so we may disconnect them by
     accident.
+
+    .. _`#521`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/521
 
 ``ssh.port = (strports string, optional)``
 
@@ -236,8 +238,8 @@ set the ``tub.location`` option described below.
 
 ``tempdir = (string, optional)``
 
-    This specifies a temporary directory for the webapi server to use, for
-    holding large files while they are being uploaded. If a webapi client
+    This specifies a temporary directory for the web-API server to use, for
+    holding large files while they are being uploaded. If a web-API client
     attempts to upload a 10GB file, this tempdir will need to have at least
     10GB available for the upload to complete.
 
@@ -400,10 +402,11 @@ and pays attention to the ``[node]`` section, but not the others.
 
 The Introducer node maintains some different state than regular client nodes.
 
-``BASEDIR/introducer.furl`` : This is generated the first time the introducer
-node is started, and used again on subsequent runs, to give the introduction
-service a persistent long-term identity. This file should be published and
-copied into new client nodes before they are started for the first time.
+``BASEDIR/introducer.furl``
+  This is generated the first time the introducer node is started, and used
+  again on subsequent runs, to give the introduction service a persistent
+  long-term identity. This file should be published and copied into new client
+  nodes before they are started for the first time.
 
 
 Other Files in BASEDIR
@@ -572,14 +575,17 @@ these are not the default values), merely a legal one.
   ssh.port = 8022
   ssh.authorized_keys_file = ~/.ssh/authorized_keys
 
+
   [client]
   introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
   helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@helper.tahoe.example:7054/kk8lhr
+
 
   [storage]
   enabled = True
   readonly_storage = True
   sizelimit = 10000000000
+
 
   [helper]
   run_helper = True
