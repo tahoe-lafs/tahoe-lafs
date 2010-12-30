@@ -226,8 +226,8 @@ with::
 Also note that the filenames inside upload POST forms are interpreted using
 whatever character set was provided in the conventional '_charset' field, and
 defaults to UTF-8 if not otherwise specified. The JSON representation of each
-directory contains native unicode strings. Tahoe directories are specified to
-contain unicode filenames, and cannot contain binary strings that are not
+directory contains native Unicode strings. Tahoe directories are specified to
+contain Unicode filenames, and cannot contain binary strings that are not
 representable as such.
 
 All Tahoe operations that refer to existing files or directories must include
@@ -467,7 +467,7 @@ Creating A New Directory
  form submissions, since the body is not formatted this way. Doing so will
  cause a server error as the lower-level code misparses the request body.
 
- Child file names should each be expressed as a unicode string, then used as
+ Child file names should each be expressed as a Unicode string, then used as
  keys of the dictionary. The dictionary should then be converted into JSON,
  and the resulting string encoded into UTF-8. This UTF-8 bytestring should
  then be used as the POST body.
@@ -1908,16 +1908,19 @@ Coordination Directive" sections of `mutable.rst <../specifications/mutable.rst>
 .. [1] URLs and HTTP and UTF-8, Oh My
 
  HTTP does not provide a mechanism to specify the character set used to
- encode non-ascii names in URLs (rfc2396#2.1). We prefer the convention that
- the filename= argument shall be a URL-encoded UTF-8 encoded unicode object.
+ encode non-ASCII names in URLs
+ (`RFC3986#2.1 <http://tools.ietf.org/html/rfc3986#section-2.1>`_).
+ We prefer the convention that the ``filename=`` argument shall be a
+ URL-encoded UTF-8 encoded Unicode string.
  For example, suppose we want to provoke the server into using a filename of
- "f i a n c e-acute e" (i.e. F I A N C U+00E9 E). The UTF-8 encoding of this
- is 0x66 0x69 0x61 0x6e 0x63 0xc3 0xa9 0x65 (or "fianc\xC3\xA9e", as python's
- repr() function would show). To encode this into a URL, the non-printable
- characters must be escaped with the urlencode '%XX' mechansim, giving us
- "fianc%C3%A9e". Thus, the first line of the HTTP request will be "GET
- /uri/CAP...?save=true&filename=fianc%C3%A9e HTTP/1.1". Not all browsers
- provide this: IE7 uses the Latin-1 encoding, which is fianc%E9e.
+ "f i a n c e-acute e" (i.e. f i a n c U+00E9 e). The UTF-8 encoding of this
+ is 0x66 0x69 0x61 0x6e 0x63 0xc3 0xa9 0x65 (or "fianc\\xC3\\xA9e", as python's
+ ``repr()`` function would show). To encode this into a URL, the non-printable
+ characters must be escaped with the urlencode ``%XX`` mechansim, giving us
+ "fianc%C3%A9e". Thus, the first line of the HTTP request will be
+ "``GET /uri/CAP...?save=true&filename=fianc%C3%A9e HTTP/1.1``". Not all
+ browsers provide this: IE7 by default uses the Latin-1 encoding, which is
+ fianc%E9e (although it has a configuration option to send URLs as UTF-8).
 
  The response header will need to indicate a non-ASCII filename. The actual
  mechanism to do this is not clear. For ASCII filenames, the response header
@@ -1925,10 +1928,10 @@ Coordination Directive" sections of `mutable.rst <../specifications/mutable.rst>
 
   Content-Disposition: attachment; filename="english.txt"
 
- If Tahoe were to enforce the utf-8 convention, it would need to decode the
- URL argument into a unicode string, and then encode it back into a sequence
+ If Tahoe were to enforce the UTF-8 convention, it would need to decode the
+ URL argument into a Unicode string, and then encode it back into a sequence
  of bytes when creating the response header. One possibility would be to use
- unencoded utf-8. Developers suggest that IE7 might accept this::
+ unencoded UTF-8. Developers suggest that IE7 might accept this::
 
   #1: Content-Disposition: attachment; filename="fianc\xC3\xA9e"
     (note, the last four bytes of that line, not including the newline, are
@@ -1937,7 +1940,7 @@ Coordination Directive" sections of `mutable.rst <../specifications/mutable.rst>
  `RFC2231#4 <http://tools.ietf.org/html/rfc2231#section-4>`_
  (dated 1997): suggests that the following might work, and
  `some developers have reported <http://markmail.org/message/dsjyokgl7hv64ig3>`_
- that it is supported by firefox (but not IE7)::
+ that it is supported by Firefox (but not IE7)::
 
   #2: Content-Disposition: attachment; filename*=utf-8''fianc%C3%A9e
 
@@ -1951,11 +1954,11 @@ Coordination Directive" sections of `mutable.rst <../specifications/mutable.rst>
  However this is contrary to the examples in the email thread listed above.
 
  Developers report that IE7 (when it is configured for UTF-8 URL encoding,
- which is not the default in asian countries), will accept::
+ which is not the default in Asian countries), will accept::
 
   #4: Content-Disposition: attachment; filename=fianc%C3%A9e
 
  However, for maximum compatibility, Tahoe simply copies bytes from the URL
- into the response header, rather than enforcing the utf-8 convention. This
+ into the response header, rather than enforcing the UTF-8 convention. This
  means it does not try to decode the filename from the URL argument, nor does
  it encode the filename into the response header.
