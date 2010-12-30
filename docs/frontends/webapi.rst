@@ -1911,16 +1911,16 @@ Coordination Directive" sections of `mutable.rst <../specifications/mutable.rst>
  encode non-ASCII names in URLs
  (`RFC3986#2.1 <http://tools.ietf.org/html/rfc3986#section-2.1>`_).
  We prefer the convention that the ``filename=`` argument shall be a
- URL-encoded UTF-8 encoded Unicode string.
+ URL-escaped UTF-8 encoded Unicode string.
  For example, suppose we want to provoke the server into using a filename of
  "f i a n c e-acute e" (i.e. f i a n c U+00E9 e). The UTF-8 encoding of this
  is 0x66 0x69 0x61 0x6e 0x63 0xc3 0xa9 0x65 (or "fianc\\xC3\\xA9e", as python's
  ``repr()`` function would show). To encode this into a URL, the non-printable
- characters must be escaped with the urlencode ``%XX`` mechansim, giving us
- "fianc%C3%A9e". Thus, the first line of the HTTP request will be
+ characters must be escaped with the urlencode ``%XX`` mechanism, giving
+ us "fianc%C3%A9e". Thus, the first line of the HTTP request will be
  "``GET /uri/CAP...?save=true&filename=fianc%C3%A9e HTTP/1.1``". Not all
  browsers provide this: IE7 by default uses the Latin-1 encoding, which is
- fianc%E9e (although it has a configuration option to send URLs as UTF-8).
+ "fianc%E9e" (although it has a configuration option to send URLs as UTF-8).
 
  The response header will need to indicate a non-ASCII filename. The actual
  mechanism to do this is not clear. For ASCII filenames, the response header
