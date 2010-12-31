@@ -267,7 +267,7 @@ class Server(unittest.TestCase):
         if 'cygwin' in syslow or 'windows' in syslow or 'darwin' in syslow:
             raise unittest.SkipTest("If your filesystem doesn't support efficient sparse files then it is very expensive (Mac OS X and Windows don't support efficient sparse files).")
 
-        avail = fileutil.get_available_space('.', 2**14)
+        avail = fileutil.get_available_space('.', 512*2**20)
         if avail <= 4*2**30:
             raise unittest.SkipTest("This test will spuriously fail if you have less than 4 GiB free on your filesystem.")
 
