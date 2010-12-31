@@ -1,7 +1,5 @@
 import time, os.path, platform, stat, re, simplejson, struct
 
-from allmydata.util import log
-
 import mock
 
 from twisted.trial import unittest
