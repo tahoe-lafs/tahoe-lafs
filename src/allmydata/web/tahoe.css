@@ -24,10 +24,22 @@ th {
   color: white;
   background-color: #58a1c3;
 }
-td { padding: .3em .3em; }
-th { padding: .3em .3em; }
-.table-headings-top th { text-align: center; }
-.table-headings-left th { text-align: right; vertical-align: top; }
+td {
+    padding: .3em .3em;
+}
+
+th {
+    padding: .3em .3em;
+}
+
+.table-headings-top th {
+    text-align: center;
+    
+}
+.table-headings-left th {
+    text-align: right;
+    vertical-align: top;
+}
 legend {
   font-weight: bold;
 }
@@ -140,7 +152,10 @@ table.tahoe-directory {
 /* recent upload/download status pages */
 
 table.status-download-events {
-  border: 1px solid #aaa;
+  #border: 1px solid #aaa;
+  margin: 1em auto;
+  border: .2em solid #3289b4; 
+  border-spacing: 1px;
 }
 table.status-download-events td {
   border: 1px solid #a00;

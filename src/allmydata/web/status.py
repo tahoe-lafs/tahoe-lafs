@@ -383,11 +383,11 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         if not self.download_status.storage_index:
             return
         srt = self.short_relative_time
-        l = T.ul()
-
-        t = T.table(class_="status-download-events")
-        t[T.tr[T.td["serverid"], T.td["sent"], T.td["received"],
-               T.td["shnums"], T.td["RTT"]]]
+        l = T.div()
+        
+        t = T.table(align="left", class_="status-download-events")
+        t[T.tr[T.th["serverid"], T.th["sent"], T.th["received"],
+               T.th["shnums"], T.th["RTT"]]]
         dyhb_events = []
         for serverid,requests in self.download_status.dyhb_requests.iteritems():
             for req in requests:
@@ -400,18 +400,20 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
             if received is not None:
                 rtt = received - sent
             if not shnums:
-                shnums = []
+                shnums = ["-"]
             t[T.tr(style="background: %s" % self.color(serverid))[
                 [T.td[serverid_s], T.td[srt(sent)], T.td[srt(received)],
                  T.td[",".join([str(shnum) for shnum in shnums])],
                  T.td[self.render_time(None, rtt)],
                  ]]]
-        l["DYHB Requests:", t]
-
-        t = T.table(class_="status-download-events")
-        t[T.tr[T.td["range"], T.td["start"], T.td["finish"], T.td["got"],
-               T.td["time"], T.td["decrypttime"], T.td["pausedtime"],
-               T.td["speed"]]]
+        
+        l[T.h2["DYHB Requests:"], t]
+        l[T.br(clear="all")]
+        
+        t = T.table(align="left",class_="status-download-events")
+        t[T.tr[T.th["range"], T.th["start"], T.th["finish"], T.th["got"],
+               T.th["time"], T.th["decrypttime"], T.th["pausedtime"],
+               T.th["speed"]]]
         for r_ev in self.download_status.read_events:
             (start, length, requesttime, finishtime, bytes, decrypt, paused) = r_ev
             if finishtime is not None:
@@ -427,17 +429,25 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                    T.td[bytes], T.td[rtt], T.td[decrypt], T.td[paused],
                    T.td[speed],
                    ]]
-        l["Read Events:", t]
-
-        t = T.table(class_="status-download-events")
-        t[T.tr[T.td["type"], T.td["segnum"], T.td["when"], T.td["range"],
-               T.td["decodetime"], T.td["segtime"], T.td["speed"]]]
+        
+        l[T.h2["Read Events:"], t]
+        l[T.br(clear="all")]
+        
+        t = T.table(align="left",class_="status-download-events")
+        t[T.tr[T.th["type"], T.th["segnum"], T.th["when"], T.th["range"],
+               T.th["decodetime"], T.th["segtime"], T.th["speed"]]]
         reqtime = (None, None)
         for s_ev in self.download_status.segment_events:
             (etype, segnum, when, segstart, seglen, decodetime) = s_ev
             if etype == "request":
-                t[T.tr[T.td["request"], T.td["seg%d" % segnum],
-                       T.td[srt(when)]]]
+                t[T.tr[T.td["request"],
+                    T.td["seg%d" % segnum],
+                    T.td[srt(when)],
+                    T.td["-"],
+                    T.td["-"],
+                    T.td["-"],
+                    T.td["-"]]]
+                    
                 reqtime = (segnum, when)
             elif etype == "delivery":
                 if reqtime[0] == segnum:
@@ -453,11 +463,13 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                        T.td[segtime], T.td[speed]]]
             elif etype == "error":
                 t[T.tr[T.td["error"], T.td["seg%d" % segnum]]]
-        l["Segment Events:", t]
+                
+        l[T.h2["Segment Events:"], t]
+        l[T.br(clear="all")]
 
-        t = T.table(border="1")
-        t[T.tr[T.td["serverid"], T.td["shnum"], T.td["range"],
-               T.td["txtime"], T.td["rxtime"], T.td["received"], T.td["RTT"]]]
+        t = T.table(align="left",class_="status-download-events")
+        t[T.tr[T.th["serverid"], T.th["shnum"], T.th["range"],
+               T.th["txtime"], T.th["rxtime"], T.th["received"], T.th["RTT"]]]
         reqtime = (None, None)
         request_events = []
         for serverid,requests in self.download_status.requests.iteritems():
@@ -476,7 +488,9 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                 T.td[srt(sent)], T.td[srt(received)], T.td[receivedlen],
                 T.td[self.render_time(None, rtt)],
                 ]]
-        l["Requests:", t]
+                
+        l[T.h2["Requests:"], t]
+        l[T.br(clear="all")]
 
         return l
 
@@ -822,11 +836,14 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         total = self.update_status.timings.get("total")
         per_server = self.update_status.timings.get("per_server")
         base = "http://chart.apis.google.com/chart?"
-        pieces = ["cht=bhs", "chs=400x300"]
+        pieces = ["cht=bhs"]
         pieces.append("chco=ffffff,4d89f9,c6d9fd") # colors
         data0 = []
         data1 = []
         data2 = []
+        nb_nodes = 0
+        graph_botom_margin= 21
+        graph_top_margin = 5
         peerids_s = []
         top_abs = started
         # we sort the queries by the time at which we sent the first request
@@ -836,6 +853,7 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         peerids = [t[1] for t in sorttable]
 
         for peerid in peerids:
+            nb_nodes += 1
             times = per_server[peerid]
             peerid_s = idlib.shortnodeid_b2a(peerid)
             peerids_s.append(peerid_s)
@@ -855,10 +873,12 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         if finished:
             top_abs = max(top_abs, finished)
         top_rel = top_abs - started
+        chs ="chs=400x%d" % ( (nb_nodes*28) + graph_top_margin + graph_botom_margin )
         chd = "chd=t:" + "|".join([",".join(data0),
                                    ",".join(data1),
                                    ",".join(data2)])
         pieces.append(chd)
+        pieces.append(chs)
         chds = "chds=0,%0.3f" % top_rel
         pieces.append(chds)
         pieces.append("chxt=x,y")
@@ -874,7 +894,7 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
             pieces.append("chm=r,FF0000,0,%0.3f,%0.3f" % (finished_f,
                                                           finished_f+0.01))
         url = base + "&".join(pieces)
-        return T.img(src=url, align="right", float="right")
+        return T.img(src=url,border="1",align="right", float="right")
 
 
 class Status(rend.Page):
