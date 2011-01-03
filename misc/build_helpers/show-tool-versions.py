@@ -38,12 +38,9 @@ def print_python_ver():
     print 'maxunicode: ' + str(sys.maxunicode)
 
 def print_python_encoding_settings():
-    print_stderr([sys.executable, '-c', 'import sys; print >>sys.stderr, sys.stdout.encoding'], label='sys.stdout.encoding')
-    print_stdout([sys.executable, '-c', 'import sys; print sys.stderr.encoding'], label='sys.stderr.encoding')
     print
     print 'filesystem.encoding: ' + str(sys.getfilesystemencoding())
     print 'locale.getpreferredencoding: ' + str(locale.getpreferredencoding())
-    print 'os.path.supports_unicode_filenames: ' + str(os.path.supports_unicode_filenames)
     try:
         print 'locale.defaultlocale: ' + str(locale.getdefaultlocale())
     except ValueError, e:
@@ -60,20 +57,6 @@ def print_stdout(cmdlist, label=None):
         print label + ': ' + foldlines(res)
     except EnvironmentError:
         sys.stderr.write("\nGot exception invoking '%s'. Exception follows.\n" % (cmdlist[0],))
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.flush()
-        pass
-
-def print_stderr(cmdlist, label=None):
-    print
-    try:
-        res = subprocess.Popen(cmdlist, stdin=open(os.devnull),
-                               stderr=subprocess.PIPE).communicate()[1]
-        if label is None:
-            label = cmdlist[0]
-        print label + ': ' + foldlines(res)
-    except EnvironmentError:
-        sys.stderr.write("\nGot exception invoking '%s'. Exception follows\n" % (cmdlist[0],))
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
         pass
