@@ -260,7 +260,7 @@ clean:
 	rm -rf *.pyc
 	rm -rf misc/dependencies/build misc/dependencies/temp
 	rm -rf misc/dependencies/tahoe_deps.egg-info
-	rm -f bin/tahoe bin/tahoe-script.py
+	rm -f bin/tahoe bin/tahoe.pyscript
 
 find-trailing-spaces:
 	$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r src
