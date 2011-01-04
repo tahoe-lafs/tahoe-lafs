@@ -14,26 +14,66 @@ Performance costs for some common operations
 10. `Performing a file-verify on an A-byte file`_
 11. `Repairing an A-byte file (mutable or immutable)`_
 
+``K`` indicates the number of shares required to reconstruct the file
+(default: 3)
+
+``N`` indicates the total number of shares produced (default: 10)
+
+``S`` indicates the segment size (default: 128 KiB)
+
+``A`` indicates the number of bytes in a file
+
+``B`` indicates the number of bytes of a file which are being read or
+written
+
+``G`` indicates the number of storage servers on your grid
+
 Publishing an ``A``-byte immutable file
 =======================================
 
-network: A
+when the file is already uploaded
+---------------------------------
 
-memory footprint: N/k*128KiB
+If the file is already uploaded with the exact same contents, same
+erasure coding parameters (K, N), and same added convergence secret,
+then it reads the whole file from disk one time while hashing it to
+compute the storage index, then contacts about N servers to ask each
+one to store a share. All of the servers reply that they already have
+a copy of that share, and the upload is done.
 
-notes: An immutable file upload requires an additional I/O pass over the entire
-source file before the upload process can start, since convergent
-encryption derives the encryption key in part from the contents of the
-source file.
+disk: A
+
+cpu: ~A
+
+network: ~N
+
+memory footprint: N/K*S
+
+when the file is not already uploaded
+-------------------------------------
+
+If the file is not already uploaded with the exact same contents, same
+erasure coding parameters (K, N), and same added convergence secret,
+then it reads the whole file from disk one time while hashing it to
+compute the storage index, then contacts about N servers to ask each
+one to store a share. Then it uploads each share to a storage server.
+
+disk: 2*A
+
+cpu: 2*~A
+
+network: ~N + ~A
+
+memory footprint: N/K*S
 
 Publishing an ``A``-byte mutable file
 =====================================
 
 network: A
 
-memory footprint: N/k*A
+memory footprint: N/K*A
 
-cpu: O(A) + a large constant for RSA keypair generation
+cpu: ~A + a large constant for RSA keypair generation
 
 notes: Tahoe-LAFS generates a new RSA keypair for each mutable file that it
 publishes to a grid. This takes up to 1 or 2 seconds on a typical desktop PC.
@@ -48,10 +88,10 @@ Downloading ``B`` bytes of an ``A``-byte immutable file
 
 network: B
 
-memory footprint: 128KiB
+cpu: ~A
 
-notes: When Tahoe-LAFS 1.8.0 or later is asked to read an arbitrary range
-of an immutable file, only the 128-KiB segments that overlap the
+notes: When Tahoe-LAFS 1.8.0 or later is asked to read an arbitrary
+range of an immutable file, only the S-byte segments that overlap the
 requested range will be downloaded.
 
 (Earlier versions would download from the beginning of the file up
@@ -74,7 +114,7 @@ Modifying ``B`` bytes of an ``A``-byte mutable file
 
 network: A
 
-memory footprint: N/k*A
+memory footprint: N/K*A
 
 notes: If you upload a changed version of a mutable file that you
 earlier put onto your grid with, say, 'tahoe put --mutable',
@@ -89,7 +129,7 @@ Inserting/Removing ``B`` bytes in an ``A``-byte mutable file
 
 network: A
 
-memory footprint: N/k*A
+memory footprint: N/K*A
 
 notes: Modifying any part of a mutable file in Tahoe-LAFS requires that
 the entire file be downloaded, modified, held in memory while it is
@@ -104,9 +144,9 @@ file".
 Adding an entry to an ``A``-entry directory
 ===========================================
 
-network: O(A)
+network: ~A
 
-memory footprint: N/k*A
+memory footprint: N/K*A
 
 notes: In Tahoe-LAFS, directories are implemented as specialized mutable
 files. So adding an entry to a directory is essentially adding B
@@ -115,9 +155,9 @@ files. So adding an entry to a directory is essentially adding B
 Listing an ``A`` entry directory
 ================================
 
-network: O(A)
+network: ~A
 
-memory footprint: N/k*A
+memory footprint: N/K*A
 
 notes: Listing a directory requires that the mutable file storing the
 directory be downloaded from the grid. So listing an A entry
@@ -127,7 +167,7 @@ file, since each directory entry is about 300-330 bytes in size.
 Performing a file-check on an ``A``-byte file
 =============================================
 
-network: O(S), where S is the number of servers on your grid
+network: ~G, where G is the number of servers on your grid
 
 memory footprint: negligible
 
@@ -139,9 +179,9 @@ and repair operations.
 Performing a file-verify on an ``A``-byte file
 ==============================================
 
-network: N/k*A
+network: N/K*A
 
-memory footprint: N/k*128KiB
+memory footprint: N/K*S
 
 notes: To verify a file, Tahoe-LAFS downloads all of the ciphertext
 shares that were originally uploaded to the grid and integrity
@@ -152,9 +192,9 @@ of these shares are necessary to recover the file.
 Repairing an ``A``-byte file (mutable or immutable)
 ===================================================
 
-network: variable; up to around O(A)
+network: variable; up to around ~A
 
-memory footprint: from 128KiB to (1+N/k)*128KiB
+memory footprint: from S to (1+N/K)*S
 
 notes: To repair a file, Tahoe-LAFS downloads the file, and generates/uploads
 missing shares in the same way as when it initially uploads the file.
