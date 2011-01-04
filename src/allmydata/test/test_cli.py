@@ -2942,6 +2942,12 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
 
 
 class Rm(GridTestMixin, CLITestMixin, unittest.TestCase):
+    def _create_test_file(self):
+        data = "puppies" * 1000
+        path = os.path.join(self.basedir, "datafile")
+        fileutil.write(path, data)
+        self.datafile = path
+
     def test_rm_without_alias(self):
         # 'tahoe rm' should behave sensibly when invoked without an explicit
         # alias before the default 'tahoe' alias has been created.
@@ -2972,6 +2978,26 @@ class Rm(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
 
         d.addCallback(lambda ign: self.do_cli("unlink", "nonexistent:afile"))
+        d.addCallback(_check)
+        return d
+
+    def test_rm_without_path(self):
+        # 'tahoe rm' should give a sensible error message when invoked without a path.
+        self.basedir = "cli/Rm/rm_without_path"
+        self.set_up_grid()
+        self._create_test_file()
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda ign: self.do_cli("put", self.datafile, "tahoe:test"))
+        def _do_rm((rc, out, err)):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnless(out.startswith("URI:"), out)
+            return self.do_cli("rm", out.strip('\n'))
+        d.addCallback(_do_rm)
+
+        def _check((rc, out, err)):
+            self.failUnlessReallyEqual(rc, 1)
+            self.failUnlessIn("path must be given", err)
+            self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
 
