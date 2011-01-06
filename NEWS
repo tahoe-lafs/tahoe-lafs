@@ -2,10 +2,24 @@
 
 * Trunk, post-1.8.1
 
+** Bugfixes and Improvements
+
+ - 'top' on some Unix platforms, e.g. Linux, now shows node processes as
+   'tahoe' instead of 'python'. (#174)
+ - Improve HTML formatting of the WUI. (#1219)
+
 ** Removals
 
  - The unmaintained GUI applications for Mac OS X and Windows have been
    removed. (#1282)
+
+** Documentation
+
+ - Some documentation updates missed in 1.8.1 have been completed. (#1225)
+
+** Dependency Updates
+
+ - foolscap 0.6.0
 
 
 * Release 1.8.1 (2010-10-28)
