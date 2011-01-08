@@ -162,7 +162,7 @@ isn't very useful except for testing.
 
 For further information on SFTP compatibility and known issues with various
 clients and with the sshfs filesystem, see
-http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend .
+`<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
 
 Dependencies
 ============
@@ -225,8 +225,8 @@ containing mutable files cannot even be listed over FTP.
 
 The FTP frontend sometimes fails to report errors, for example if an upload
 fails because it does meet the "servers of happiness" threshold (`ticket #1081
-<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1081>`_). Upload errors also may not
-be reported when writing files using SFTP via sshfs (`ticket #1059
+<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1081>`_). Upload errors also
+may not be reported when writing files using SFTP via sshfs (`ticket #1059
 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1059>`_).
 
 Non-ASCII filenames are not supported by FTP (`ticket #682
@@ -234,8 +234,11 @@ Non-ASCII filenames are not supported by FTP (`ticket #682
 with SFTP only if the client encodes filenames as UTF-8 (`ticket #1089
 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1089>`_).
 
-The gateway node may incur a memory leak when accessing many files via SFTP
-(`ticket #1045 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1045>`_).
+The gateway node may hang or consume 100% CPU if the client tries to rekey.
+(`ticket #1297 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1045>`_).
+This is due to `a bug in Twisted <http://twistedmatrix.com/trac/ticket/4395>`_
+up to and including version 10.2.
 
-For other known issues in SFTP, see
-<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>.
+For options to disable rekeying in various clients in order to work around
+this issue, and for other known issues in SFTP, see
+`<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
