@@ -4,6 +4,9 @@ The Tahoe-LAFS CLI commands
 
 1.  `Overview`_
 2.  `CLI Command Overview`_
+
+    1.  `Unicode Support`_
+
 3.  `Node Management`_
 4.  `Filesystem Manipulation`_
 
@@ -50,7 +53,33 @@ arguments. "``tahoe --help``" might also provide something useful.
 Running "``tahoe --version``" will display a list of version strings, starting
 with the "allmydata" module (which contains the majority of the Tahoe-LAFS
 functionality) and including versions for a number of dependent libraries,
-like Twisted, Foolscap, pycryptopp, and zfec.
+like Twisted, Foolscap, pycryptopp, and zfec. "``tahoe --version-and-path``"
+will also show the path from which each library was imported.
+
+On Unix systems, the shell expands filename wildcards (``*`` and ``?``)
+before the program is able to read them, which may produce unexpected
+results for many ``tahoe`` comands. We recommend that you avoid using them.
+On Windows, wildcards cannot be used to specify multiple filenames to
+``tahoe``.
+
+Unicode Support
+---------------
+
+As of Tahoe-LAFS v1.7.0 (v1.8.0 on Windows), the ``tahoe`` tool supports
+non-ASCII characters in command lines and output. On Unix, the command-line
+arguments are assumed to use the character encoding specified by the
+current locale (usually given by the ``LANG`` environment variable).
+
+If a name to be output contains control characters or characters that
+cannot be represented in the encoding used on your terminal, it will be
+quoted. The quoting scheme used is similar to `POSIX shell quoting`_: in
+a "double-quoted" string, backslashes introduce escape sequences (like
+those in Python strings), but in a 'single-quoted' string all characters
+stand for themselves. This quoting is only used for output, on all
+operating systems. Your shell interprets any quoting or escapes used on
+the command line.
+
+.. _`POSIX shell quoting`: http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html
 
 
 Node Management
@@ -119,10 +148,6 @@ contact that node instead of a local one.
 
 These commands also use a table of "aliases" to figure out which directory
 they ought to use a starting point. This is explained in more detail below.
-
-As of Tahoe-LAFS v1.7.0 (v1.8.0 on Windows), passing non-ASCII characters to
-the CLI should work. On Unix, the command-line arguments are assumed to use
-the character encoding specified by the current locale.
 
 Starting Directories
 --------------------
