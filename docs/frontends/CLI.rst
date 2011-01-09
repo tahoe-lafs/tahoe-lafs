@@ -279,11 +279,12 @@ Command Syntax Summary
 
 ``tahoe backup FROMLOCAL TOPATH``
 
-In these summaries, ``PATH``, ``TOPATH`` or ``FROMPATH`` can be one of::
+In these summaries, ``PATH``, ``TOPATH`` or ``FROMPATH`` can be one of:
 
 * ``[SUBDIRS/]FILENAME`` for a path relative to the default ``tahoe:`` alias;
 * ``ALIAS:[SUBDIRS/]FILENAME`` for a path relative to another alias;
-* ``DIRCAP/[SUBDIRS/]FILENAME`` or ``DIRCAP:./[SUBDIRS/]FILENAME`` for a path relative to a directory cap.
+* ``DIRCAP/[SUBDIRS/]FILENAME`` or ``DIRCAP:./[SUBDIRS/]FILENAME`` for a path
+  relative to a directory cap.
 
 
 Command Examples
