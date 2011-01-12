@@ -1,4 +1,5 @@
 #!/bin/false # You must specify a python interpreter.
+u"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.4.4 and 2.7.x inclusive."
 
 import errno, sys, os, subprocess
 
