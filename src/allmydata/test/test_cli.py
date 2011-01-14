@@ -498,11 +498,11 @@ class Help(unittest.TestCase):
 
     def test_create_alias(self):
         help = str(cli.CreateAliasOptions())
-        self.failUnless("create-alias ALIAS" in help, help)
+        self.failUnless("create-alias ALIAS[:]" in help, help)
 
     def test_add_aliases(self):
         help = str(cli.AddAliasOptions())
-        self.failUnless("add-alias ALIAS DIRCAP" in help, help)
+        self.failUnless("add-alias ALIAS[:] DIRCAP" in help, help)
 
 
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
@@ -530,7 +530,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless("tahoe" in aliases)
             self.failUnless(aliases["tahoe"].startswith("URI:DIR2:"))
         d.addCallback(_done)
-        d.addCallback(lambda res: self.do_cli("create-alias", "two"))
+        d.addCallback(lambda res: self.do_cli("create-alias", "two:"))
 
         def _stash_urls(res):
             aliases = get_aliases(self.get_clientdir())
@@ -566,6 +566,17 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             aliases = get_aliases(self.get_clientdir())
             self.failUnlessReallyEqual(aliases["two"], self.two_uri)
         d.addCallback(_check_add_duplicate)
+
+        # check create-alias and add-alias with invalid aliases
+        def _check_invalid((rc,stdout,stderr)):
+            self.failIfEqual(rc, 0)
+            self.failUnlessIn("cannot contain", stderr)
+
+        for invalid in ['foo:bar', 'foo bar', 'foobar::']:
+            d.addCallback(lambda res: self.do_cli("create-alias", invalid))
+            d.addCallback(_check_invalid)
+            d.addCallback(lambda res: self.do_cli("add-alias", invalid, self.two_uri))
+            d.addCallback(_check_invalid)
 
         def _test_urls(junk):
             self._test_webopen([], self.welcome_url)
