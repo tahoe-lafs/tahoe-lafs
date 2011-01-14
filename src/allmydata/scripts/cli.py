@@ -57,19 +57,23 @@ class MakeDirectoryOptions(VDriveOptions):
 class AddAliasOptions(VDriveOptions):
     def parseArgs(self, alias, cap):
         self.alias = argv_to_unicode(alias)
+        if self.alias.endswith(u':'):
+            self.alias = self.alias[:-1]
         self.cap = cap
 
     def getSynopsis(self):
-        return "%s add-alias ALIAS DIRCAP" % (os.path.basename(sys.argv[0]),)
+        return "%s add-alias ALIAS[:] DIRCAP" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Add a new alias for an existing directory."""
 
 class CreateAliasOptions(VDriveOptions):
     def parseArgs(self, alias):
         self.alias = argv_to_unicode(alias)
+        if self.alias.endswith(u':'):
+            self.alias = self.alias[:-1]
 
     def getSynopsis(self):
-        return "%s create-alias ALIAS" % (os.path.basename(sys.argv[0]),)
+        return "%s create-alias ALIAS[:]" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Create a new directory and add an alias for it."""
 

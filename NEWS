@@ -7,6 +7,8 @@
  - 'top' on some Unix platforms, e.g. Linux, now shows node processes as
    'tahoe' instead of 'python'. (#174)
  - Improve HTML formatting of the WUI. (#1219)
+ - The 'tahoe create-alias' and 'tahoe add-alias' commands now accept a
+   trailing colon on the alias. (#1305)
 
 ** Removals
 

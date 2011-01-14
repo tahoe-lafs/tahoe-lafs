@@ -32,8 +32,13 @@ def add_alias(options):
     cap = options.cap
     stdout = options.stdout
     stderr = options.stderr
-    assert ":" not in alias
-    assert " " not in alias
+    if u":" in alias:
+        # a single trailing colon will already have been stripped if present
+        print >>stderr, "Alias names cannot contain colons."
+        return 1
+    if u" " in alias:
+        print >>stderr, "Alias names cannot contain spaces."
+        return 1
 
     old_aliases = get_aliases(nodedir)
     if alias in old_aliases:
@@ -53,8 +58,13 @@ def create_alias(options):
     alias = options.alias
     stdout = options.stdout
     stderr = options.stderr
-    assert ":" not in alias
-    assert " " not in alias
+    if u":" in alias:
+        # a single trailing colon will already have been stripped if present
+        print >>stderr, "Alias names cannot contain colons."
+        return 1
+    if u" " in alias:
+        print >>stderr, "Alias names cannot contain spaces."
+        return 1
 
     old_aliases = get_aliases(nodedir)
     if alias in old_aliases:

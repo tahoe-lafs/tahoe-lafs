@@ -247,9 +247,9 @@ access to your files and directories.
 Command Syntax Summary
 ----------------------
 
-``tahoe add-alias ALIAS DIRCAP``
+``tahoe add-alias ALIAS[:] DIRCAP``
 
-``tahoe create-alias ALIAS``
+``tahoe create-alias ALIAS[:]``
 
 ``tahoe list-aliases``
 
@@ -290,7 +290,7 @@ In these summaries, ``PATH``, ``TOPATH`` or ``FROMPATH`` can be one of:
 Command Examples
 ----------------
 
-``tahoe add-alias ALIAS DIRCAP``
+``tahoe add-alias ALIAS[:] DIRCAP``
 
  An example would be::
 
@@ -300,6 +300,9 @@ Command Examples
  cap. Once this is done, "``tahoe ls fun:``" will list the contents of this
  directory. Use "``tahoe add-alias tahoe DIRCAP``" to set the contents of the
  default ``tahoe:`` alias.
+
+ Since Tahoe-LAFS v1.8.2, the alias name can be given with or without the
+ trailing colon.
 
 ``tahoe create-alias fun``
 
