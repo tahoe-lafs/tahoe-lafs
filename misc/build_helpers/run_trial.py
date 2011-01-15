@@ -39,6 +39,7 @@ if len(eggz) > 0:
    sys.path.insert(0, egg)
 
 import pkg_resources
+pkg_resources  # hush pyflakes
 
 modulename = None
 for i in xrange(1, len(sys.argv)):
