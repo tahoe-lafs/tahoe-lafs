@@ -63,6 +63,10 @@ adglobals = {}
 execfile('src/allmydata/_auto_deps.py', adglobals)
 install_requires = adglobals['install_requires']
 
+if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
+    del sys.argv[1]
+    install_requires += ["fakedependency >= 1.0.0"]
+
 __requires__ = install_requires[:]
 if 'trial' in sys.argv or 'test' in sys.argv:
     if version is not None:
