@@ -60,11 +60,20 @@ def test():
         cleanup()
 
 def cleanup():
-    shutil.rmtree('build')
-    shutil.rmtree('support')
-    shutil.rmtree(os.path.join('src', 'allmydata_tahoe.egg-info'))
-    os.remove(os.path.join('bin', 'tahoe'))
-    os.remove(os.path.join('bin', 'tahoe.pyscript'))
+    egg_info = os.path.join('src', 'allmydata_tahoe.egg-info')
+    bin_tahoe = os.path.join('bin', 'tahoe')
+    bin_tahoe_pyscript = os.path.join('bin', 'tahoe.pyscript')
+
+    if os.path.exists('build'):
+        shutil.rmtree('build')
+    if os.path.exists('support'):
+        shutil.rmtree('support')
+    if os.path.exists(egg_info):
+        shutil.rmtree(egg_info)
+    if os.path.exists(bin_tahoe):
+        os.remove(bin_tahoe)
+    if os.path.exists(bin_tahoe_pyscript):
+        os.remove(bin_tahoe_pyscript)
 
 if __name__ == '__main__':
     test()
