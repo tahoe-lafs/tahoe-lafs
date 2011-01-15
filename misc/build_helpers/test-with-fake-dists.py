@@ -10,7 +10,7 @@ def test():
     #
     # Then we run
     #
-    #   python --fakedependency setup.py -v test -s buildtest.test_with_fake_dist
+    #   python setup.py --fakedependency -v test -s buildtest.test_build_with_fake_dist
     #
     # which imports fakedependency and passes if fakedependency.__version__ == '1.0.0'.
     #
