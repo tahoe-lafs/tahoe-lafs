@@ -126,7 +126,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     storage_enabled = not config.get("no-storage", None)
     c.write("enabled = %s\n" % boolstr[storage_enabled])
     c.write("#readonly =\n")
-    c.write("#reserved_space =\n")
+    c.write("reserved_space = 1G\n")
     c.write("#expire.enabled =\n")
     c.write("#expire.mode =\n")
     c.write("\n")

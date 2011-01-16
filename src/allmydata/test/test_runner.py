@@ -213,6 +213,7 @@ class CreateNode(unittest.TestCase):
                 self.failUnless("\n[storage]\nenabled = false\n" in content)
             else:
                 self.failUnless("\n[storage]\nenabled = true\n" in content)
+                self.failUnless("\nreserved_space = 1G\n" in content)
 
         # creating the node a second time should be rejected
         rc, out, err = self.run_tahoe(argv)

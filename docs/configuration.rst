@@ -359,6 +359,10 @@ Storage Server Configuration
     same thing. Likewise, "1MiB", "1024KiB", and "1048576B" all mean the same
     thing.
 
+    "``tahoe create-node``" generates a tahoe.cfg with
+    "``reserved_space=1G``", but you may wish to raise, lower, or remove the
+    reservation to suit your needs.
+
 ``expire.enabled =``
 
 ``expire.mode =``
