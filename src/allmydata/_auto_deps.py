@@ -107,6 +107,12 @@ def require_auto_deps():
     require_python_version()
 
     import pkg_resources
+    import foolscap.api
+    if foolscap.api.__version__ != '0.6.0':
+        import os, sys
+        raise AssertionError("wrong foolscap!\nfoolscap.api.__version__=%r\nPYTHONPATH=%r\nsys.path=%r" %
+                             (foolscap.api.__version__, os.environ.get('PYTHONPATH'), sys.path))
+
     for requirement in install_requires:
         try:
             pkg_resources.require(requirement)
