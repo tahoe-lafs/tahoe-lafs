@@ -9,6 +9,8 @@
  - Improve HTML formatting of the WUI. (#1219)
  - The 'tahoe create-alias' and 'tahoe add-alias' commands now accept a
    trailing colon on the alias. (#1305)
+ - The default reserved_space setting for newly-created storage nodes
+   is 1 GiB. (#1208)
 
 ** Removals
 
