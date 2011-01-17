@@ -112,10 +112,13 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     write_node_config(c, config)
 
     c.write("[client]\n")
+    c.write("# Which services should this client connect to?\n")
     c.write("introducer.furl = %s\n" % config.get("introducer", ""))
     c.write("helper.furl =\n")
     c.write("#key_generator.furl =\n")
     c.write("#stats_gatherer.furl =\n")
+    c.write("\n")
+    c.write("# What encoding parameters should this client use for uploads?\n")
     c.write("#shares.needed = 3\n")
     c.write("#shares.happy = 7\n")
     c.write("#shares.total = 10\n")
@@ -123,6 +126,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
 
     boolstr = {True:"true", False:"false"}
     c.write("[storage]\n")
+    c.write("# Shall this node provide storage service?\n")
     storage_enabled = not config.get("no-storage", None)
     c.write("enabled = %s\n" % boolstr[storage_enabled])
     c.write("#readonly =\n")
@@ -132,6 +136,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.write("\n")
 
     c.write("[helper]\n")
+    c.write("# Shall this node run a helper service that clients can use?\n")
     c.write("enabled = false\n")
     c.write("\n")
 
