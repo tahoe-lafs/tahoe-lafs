@@ -210,9 +210,9 @@ class CreateNode(unittest.TestCase):
             self.failUnless(os.path.exists(tahoe_cfg))
             content = open(tahoe_cfg).read()
             if kind == "client":
-                self.failUnless("\n[storage]\nenabled = false\n" in content)
+                self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = false\n", content), content)
             else:
-                self.failUnless("\n[storage]\nenabled = true\n" in content)
+                self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = true\n", content), content)
                 self.failUnless("\nreserved_space = 1G\n" in content)
 
         # creating the node a second time should be rejected
