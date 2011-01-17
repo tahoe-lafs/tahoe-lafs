@@ -469,7 +469,8 @@ class Help(unittest.TestCase):
 
     def test_ln(self):
         help = str(cli.LnOptions())
-        self.failUnless("ln FROM TO" in help, help)
+        self.failUnless("ln FROM_LINK TO_LINK" in help, help)
+        self.failUnless("Use 'tahoe ln' to duplicate a link" in help)
 
     def test_backup(self):
         help = str(cli.BackupOptions())

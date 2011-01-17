@@ -269,7 +269,29 @@ class LnOptions(VDriveOptions):
         self.to_file = argv_to_unicode(topath)
 
     def getSynopsis(self):
-        return "%s ln FROM TO" % (os.path.basename(sys.argv[0]),)
+        return "%s ln FROM_LINK TO_LINK" % (os.path.basename(sys.argv[0]),)
+
+    longdesc = """
+    Use 'tahoe ln' to duplicate a link (directory entry) already on the grid
+    to elsewhere on the grid. For example 'tahoe ln alias:some_file
+    alias:new_file'. causes 'alias:new_file' to point to the same object that
+    'alias:some_file' points to.
+
+    (The argument order is the same as Unix ln. To remember the order, you
+    can think of this command as copying a link, rather than copying a file
+    as 'tahoe cp' does. Then the argument order is consistent with that of
+    'tahoe cp'.)
+
+    When linking a remote file into a remote directory, you'll need to append
+    a '/' to the name of the remote directory, e.g. 'tahoe ln tahoe:file1
+    tahoe:dir/' (which is shorthand for 'tahoe ln tahoe:file1
+    tahoe:dir/file1'). If you forget the '/', e.g. 'tahoe ln tahoe:file1
+    tahoe:dir', the 'ln' command will refuse to overwrite the 'tahoe:dir'
+    directory, and will exit with an error.
+
+    Note that it is not possible to use this command to create links between
+    local and remote files.
+    """
 
 class BackupConfigurationError(Exception):
     pass
@@ -432,11 +454,11 @@ subCommands = [
     ["ls", None, ListOptions, "List a directory."],
     ["get", None, GetOptions, "Retrieve a file from the grid."],
     ["put", None, PutOptions, "Upload a file into the grid."],
-    ["cp", None, CpOptions, "Copy one or more files."],
+    ["cp", None, CpOptions, "Copy one or more files or directories."],
     ["rm", None, RmOptions, "Unlink a file or directory on the grid."],
     ["unlink", None, UnlinkOptions, "Unlink a file or directory on the grid (same as rm)."],
     ["mv", None, MvOptions, "Move a file within the grid."],
-    ["ln", None, LnOptions, "Make an additional link to an existing file."],
+    ["ln", None, LnOptions, "Make an additional link to an existing file or directory."],
     ["backup", None, BackupOptions, "Make target dir look like local dir."],
     ["webopen", None, WebopenOptions, "Open a web browser to a grid file or directory."],
     ["manifest", None, ManifestOptions, "List all files/directories in a subtree."],
