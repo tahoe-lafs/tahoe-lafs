@@ -3,7 +3,7 @@ from twisted.application import service, strports, internet
 from twisted.web import http
 from twisted.internet import defer
 from nevow import appserver, inevow, static
-from allmydata.util import log
+from allmydata.util import log, fileutil
 
 from allmydata.web import introweb, root
 from allmydata.web.common import IOpHandleTable, MyExceptionHandler
@@ -157,15 +157,19 @@ class WebishServer(service.MultiService):
         self._scheme = None
         self._portnum = None
         self._url = None
-        self.listener = s # stash it so the tests can query for the portnum
+        self._listener = s # stash it so we can query for the portnum
 
         self._started = defer.Deferred()
         if nodeurl_path:
-            self._started.addCallback(self._write_nodeurl_file, nodeurl_path)
+            def _write_nodeurl_file(ign):
+                # this file will be created with default permissions
+                fileutil.write(nodeurl_path, self.getURL() + "\n")
+            self._started.addCallback(_write_nodeurl_file)
 
     def getURL(self):
         assert self._url
         return self._url
+
     def getPortnum(self):
         assert self._portnum
         return self._portnum
@@ -183,7 +187,7 @@ class WebishServer(service.MultiService):
             return f
 
         service.MultiService.startService(self)
-        s = self.listener
+        s = self._listener
         if hasattr(s, 'endpoint') and hasattr(s, '_waitingForPort'):
             # Twisted 10.2 gives us a StreamServerEndpointService. This is
             # ugly but should do for now.
@@ -205,13 +209,6 @@ class WebishServer(service.MultiService):
             # who knows, probably some weirdo future version of Twisted
             self._started.errback(AssertionError("couldn't find out the scheme or port for the web-API server"))
 
-
-    def _write_nodeurl_file(self, junk, nodeurl_path):
-        if self._url:
-            f = open(nodeurl_path, 'wb')
-            # this file is world-readable
-            f.write(self._url + "\n")
-            f.close()
 
 class IntroducerWebishServer(WebishServer):
     def __init__(self, introducer, webport, nodeurl_path=None, staticdir=None):
