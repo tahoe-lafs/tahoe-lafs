@@ -654,7 +654,7 @@ def catalog_shares(options):
             # ignore nodes that have storage turned off altogether
             pass
         else:
-            for abbrevdir in abbrevs:
+            for abbrevdir in sorted(abbrevs):
                 if abbrevdir == "incoming":
                     continue
                 abbrevdir = os.path.join(d, abbrevdir)
@@ -663,7 +663,7 @@ def catalog_shares(options):
                 # as possible.
                 try:
                     sharedirs = listdir_unicode(abbrevdir)
-                    for si_s in sharedirs:
+                    for si_s in sorted(sharedirs):
                         si_dir = os.path.join(abbrevdir, si_s)
                         catalog_shares_one_abbrevdir(si_s, si_dir, now, out,err)
                 except:
@@ -672,11 +672,17 @@ def catalog_shares(options):
 
     return 0
 
+def _as_number(s):
+    try:
+        return int(s)
+    except ValueError:
+        return "not int"
+
 def catalog_shares_one_abbrevdir(si_s, si_dir, now, out, err):
     from allmydata.util.encodingutil import listdir_unicode, quote_output
 
     try:
-        for shnum_s in listdir_unicode(si_dir):
+        for shnum_s in sorted(listdir_unicode(si_dir), key=_as_number):
             abs_sharefile = os.path.join(si_dir, shnum_s)
             assert os.path.isfile(abs_sharefile)
             try:
