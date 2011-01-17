@@ -169,8 +169,10 @@ class WebMixin(object):
         self.ws = webish.WebishServer(self.s, "0", staticdir=self.staticdir,
                                       clock=self.clock)
         self.ws.setServiceParent(self.s)
-        self.webish_port = port = self.ws.listener._port.getHost().port
-        self.webish_url = "http://localhost:%d" % port
+        self.webish_port = self.ws.getPortnum()
+        self.webish_url = self.ws.getURL()
+        assert self.webish_url.endswith("/")
+        self.webish_url = self.webish_url[:-1] # these tests add their own /
 
         l = [ self.s.create_dirnode() for x in range(6) ]
         d = defer.DeferredList(l)

@@ -1,4 +1,4 @@
-import time
+import re, time
 from twisted.application import service, strports, internet
 from twisted.web import http
 from twisted.internet import defer
@@ -149,30 +149,68 @@ class WebishServer(service.MultiService):
         self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
         if staticdir:
             self.root.putChild("static", static.File(staticdir))
+        if re.search(r'^\d', webport):
+            webport = "tcp:"+webport # twisted warns about bare "0" or "3456"
         s = strports.service(webport, site)
         s.setServiceParent(self)
+
+        self._scheme = None
+        self._portnum = None
+        self._url = None
         self.listener = s # stash it so the tests can query for the portnum
+
         self._started = defer.Deferred()
         if nodeurl_path:
             self._started.addCallback(self._write_nodeurl_file, nodeurl_path)
 
+    def getURL(self):
+        assert self._url
+        return self._url
+    def getPortnum(self):
+        assert self._portnum
+        return self._portnum
+
     def startService(self):
+        def _got_port(lp):
+            self._portnum = lp.getHost().port
+            # what is our webport?
+            assert self._scheme
+            self._url = "%s://127.0.0.1:%d/" % (self._scheme, self._portnum)
+            self._started.callback(None)
+            return lp
+        def _fail(f):
+            self._started.errback(f)
+            return f
+
         service.MultiService.startService(self)
-        self._started.callback(None)
+        s = self.listener
+        if hasattr(s, 'endpoint') and hasattr(s, '_waitingForPort'):
+            # Twisted 10.2 gives us a StreamServerEndpointService. This is
+            # ugly but should do for now.
+            classname = s.endpoint.__class__.__name__
+            if classname.startswith('SSL'):
+                self._scheme = 'https'
+            else:
+                self._scheme = 'http'
+            s._waitingForPort.addCallbacks(_got_port, _fail)
+        elif isinstance(s, internet.TCPServer):
+            # Twisted <= 10.1
+            self._scheme = 'http'
+            _got_port(s._port)
+        elif isinstance(s, internet.SSLServer):
+            # Twisted <= 10.1
+            self._scheme = 'https'
+            _got_port(s._port)
+        else:
+            # who knows, probably some weirdo future version of Twisted
+            self._started.errback(AssertionError("couldn't find out the scheme or port for the web-API server"))
+
 
     def _write_nodeurl_file(self, junk, nodeurl_path):
-        # what is our webport?
-        s = self.listener
-        if isinstance(s, internet.TCPServer):
-            base_url = "http://127.0.0.1:%d/" % s._port.getHost().port
-        elif isinstance(s, internet.SSLServer):
-            base_url = "https://127.0.0.1:%d/" % s._port.getHost().port
-        else:
-            base_url = None
-        if base_url:
+        if self._url:
             f = open(nodeurl_path, 'wb')
             # this file is world-readable
-            f.write(base_url + "\n")
+            f.write(self._url + "\n")
             f.close()
 
 class IntroducerWebishServer(WebishServer):

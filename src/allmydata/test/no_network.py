@@ -287,10 +287,10 @@ class GridTestMixin:
                                num_servers=num_servers,
                                client_config_hooks=client_config_hooks)
         self.g.setServiceParent(self.s)
-        self.client_webports = [c.getServiceNamed("webish").listener._port.getHost().port
+        self.client_webports = [c.getServiceNamed("webish").getPortnum()
                                 for c in self.g.clients]
-        self.client_baseurls = ["http://localhost:%d/" % p
-                                for p in self.client_webports]
+        self.client_baseurls = [c.getServiceNamed("webish").getURL()
+                                for c in self.g.clients]
 
     def get_clientdir(self, i=0):
         return self.g.clients[i].basedir

@@ -503,14 +503,10 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         def _connected(res):
             log.msg("CONNECTED")
             # now find out where the web port was
-            l = self.clients[0].getServiceNamed("webish").listener
-            port = l._port.getHost().port
-            self.webish_url = "http://localhost:%d/" % port
+            self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
             if self.numclients >=4:
                 # and the helper-using webport
-                l = self.clients[3].getServiceNamed("webish").listener
-                port = l._port.getHost().port
-                self.helper_webish_url = "http://localhost:%d/" % port
+                self.helper_webish_url = self.clients[3].getServiceNamed("webish").getURL()
         d.addCallback(_connected)
         return d
 
@@ -541,9 +537,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         def _maybe_get_webport(res):
             if num == 0:
                 # now find out where the web port was
-                l = self.clients[0].getServiceNamed("webish").listener
-                port = l._port.getHost().port
-                self.webish_url = "http://localhost:%d/" % port
+                self.webish_url = self.clients[0].getServiceNamed("webish").getURL()
         d.addCallback(_maybe_get_webport)
         return d
 
