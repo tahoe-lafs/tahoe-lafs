@@ -1,9 +1,10 @@
 
 # do not import any allmydata modules at this level. Do that from inside
 # individual functions instead.
-import struct, time, os
+import struct, time, os, sys
 from twisted.python import usage, failure
 from twisted.internet import defer
+from twisted.scripts import trial as twisted_trial
 
 
 class DumpOptions(usage.Options):
@@ -784,6 +785,35 @@ def repl(options):
     return code.interact()
 
 
+DEFAULT_TESTSUITE = 'allmydata'
+
+class TrialOptions(twisted_trial.Options):
+    def getSynopsis(self):
+        return "Usage: tahoe debug trial [options] [[file|package|module|TestCase|testmethod]...]"
+
+    def parseOptions(self, all_subargs, *a, **kw):
+        self.trial_args = list(all_subargs)
+        return twisted_trial.Options.parseOptions(self, all_subargs, *a, **kw)
+
+    def parseArgs(self, *nonoption_args):
+        if not nonoption_args:
+            self.trial_args.append(DEFAULT_TESTSUITE)
+
+    def getUsage(self, width=None):
+        t = twisted_trial.Options.getUsage(self, width)
+        t += """
+The 'tahoe debug trial' command uses the correct imports for this instance of
+Tahoe-LAFS. The default test suite is '%s'.
+""" % (DEFAULT_TESTSUITE,)
+        return t
+
+def trial(config):
+    sys.argv = ['trial'] + config.trial_args
+
+    # This does not return.
+    twisted_trial.run()
+
+
 class DebugCommand(usage.Options):
     subCommands = [
         ["dump-share", None, DumpOptions,
@@ -793,6 +823,7 @@ class DebugCommand(usage.Options):
         ["catalog-shares", None, CatalogSharesOptions, "Describe all shares in node dirs."],
         ["corrupt-share", None, CorruptShareOptions, "Corrupt a share by flipping a bit."],
         ["repl", None, ReplOptions, "Open a Python interpreter."],
+        ["trial", None, TrialOptions, "Run tests using Twisted Trial with the right imports."],
         ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
@@ -809,6 +840,7 @@ Subcommands:
     tahoe debug catalog-shares  Describe all shares in node dirs.
     tahoe debug corrupt-share   Corrupt a share by flipping a bit.
     tahoe debug repl            Open a Python interpreter.
+    tahoe debug trial           Run tests using Twisted Trial with the right imports.
 
 Please run e.g. 'tahoe debug dump-share --help' for more details on each
 subcommand.
@@ -822,6 +854,7 @@ subDispatch = {
     "catalog-shares": catalog_shares,
     "corrupt-share": corrupt_share,
     "repl": repl,
+    "trial": trial,
     }
 
 
