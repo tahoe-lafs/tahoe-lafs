@@ -1,0 +1,13 @@
+
+README.txt
+setup.cfg
+setup.py
+setuptools_darcs/__init__.py
+setuptools_darcs/_version.py
+setuptools_darcs/setuptools_darcs.py
+setuptools_darcs.egg-info/PKG-INFO
+setuptools_darcs.egg-info/SOURCES.txt
+setuptools_darcs.egg-info/dependency_links.txt
+setuptools_darcs.egg-info/entry_points.txt
+setuptools_darcs.egg-info/not-zip-safe
+setuptools_darcs.egg-info/top_level.txt

@@ -1,0 +1,3 @@
+[setuptools.file_finders]
+darcs = setuptools_darcs.setuptools_darcs:find_files_for_darcs
+
