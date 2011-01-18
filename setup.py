@@ -78,6 +78,8 @@ egg = os.path.realpath(glob.glob('setuptools-*.egg')[0])
 sys.path.insert(0, egg)
 egg = os.path.realpath(glob.glob('darcsver-*.egg')[0])
 sys.path.insert(0, egg)
+egg = os.path.realpath(glob.glob('setuptools_darcs-*.egg')[0])
+sys.path.insert(0, egg)
 import setuptools; setuptools.bootstrap_install_from = egg
 
 from setuptools import find_packages, setup
@@ -149,12 +151,11 @@ setup_requires.append('darcsver >= 1.7.1')
 # http://pypi.python.org/pypi/setuptools_trial
 setup_requires.extend(['setuptools_trial >= 0.5'])
 
-# setuptools_darcs is required to produce complete distributions (such as
-# with "sdist" or "bdist_egg") (unless there is a PKG-INFO file present which
-# shows that this is itself a source distribution). For simplicity, and
-# because there is some unknown error with setuptools_darcs when building and
-# testing tahoe all in one python command on some platforms, we always add it
-# to setup_requires. http://pypi.python.org/pypi/setuptools_darcs
+# setuptools_darcs is required to produce complete distributions (such
+# as with "sdist" or "bdist_egg"), unless there is a
+# src/allmydata_tahoe.egg-info/SOURCE.txt file, which if present
+# contains a complete list of files that should be included.
+# http://pypi.python.org/pypi/setuptools_darcs
 setup_requires.append('setuptools_darcs >= 1.1.0')
 
 # trialcoverage is required if you want the "trial" unit test runner to have a
