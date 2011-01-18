@@ -169,11 +169,9 @@ if "--reporter=bwverbose-coverage" in sys.argv:
 if "sdist_dsc" in sys.argv:
     setup_requires.append('stdeb >= 0.3')
 
-tests_require=[
-    # Mock - Mocking and Testing Library
-    # http://www.voidspace.org.uk/python/mock/
-    "mock",
-    ]
+# We no longer have any requirements specific to tests.
+tests_require=[]
+
 
 class ShowSupportLib(Command):
     user_options = []
