@@ -1,7 +1,7 @@
 #!/bin/false # You must specify a python interpreter.
 u"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.4.4 and 2.7.x inclusive."
 
-import errno, sys, os, subprocess
+import sys, os, subprocess
 
 where = os.path.realpath(sys.argv[0])
 base = os.path.dirname(os.path.dirname(where))
@@ -14,8 +14,8 @@ else:
 whoami = '''\
 I am a "bin%stahoe" executable who is only for the convenience of running
 Tahoe from its source distribution -- I work only when invoked as the "tahoe"
-script that lives in the "bin/" subdirectory of a Tahoe source code
-distribution, and only if you have already run "make".
+script that lives in the "bin" subdirectory of a Tahoe source code
+distribution, and only if you have already run "python setup.py build".
 ''' % (os.path.sep,)
 
 # look for Tahoe.home .
@@ -65,39 +65,40 @@ if sys.platform == "win32":
     def mangle(s):
         return str(re.sub(ur'[^\x20-\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
 
-    argv = [mangle(argv_unicode[i]) for i in xrange(1, argc.value)]
+    argv = [mangle(argv_unicode[i]) for i in xrange(0, argc.value)]
 
-    # Skip option arguments to the Python interpreter.
-    while len(argv) > 0:
-        arg = argv[0]
-        if not arg.startswith(u"-") or arg == u"-":
-            break
-        argv = argv[1:]
-        if arg == u'-m' or arg == u'-c':
-            break
+    # Take only the suffix with the same number of arguments as sys.argv.
+    # This accounts for anything that can cause initial arguments to be stripped,
+    # for example, the Python interpreter or any options passed to it, or runner
+    # scripts such as 'coverage run'. It works even if there are no such arguments,
+    # as in the case of a frozen executable created by bb-freeze or similar.
 
-    script = os.path.join(base, "support", "Scripts", "tahoe.pyscript")
+    argv = argv[-len(sys.argv):]
 
     # On Windows, the script is not directly executable and must be run via python.
-    args = [sys.executable, script] + argv[1:]
+    prefix = [sys.executable]
+    script = os.path.join(base, "support", "Scripts", "tahoe.pyscript")
+    args = argv[1:]
 else:
-    script = os.path.join(base, "support", "bin", "tahoe")
-
     # On non-Windows, invoke the script directly, so that 'top' for example shows 'tahoe'.
-    args = [script] + sys.argv[1:]
+    prefix = []
+    script = os.path.join(base, "support", "bin", "tahoe")
+    args = sys.argv[1:]
 
-try:
-    res = subprocess.call(args, env=os.environ)
-except (OSError, IOError), le:
-    if le.args[0] == errno.ENOENT:
-        print whoami
-        print '''\
+if not os.path.exists(script):
+    print whoami
+    print '''\
 I just tried to run and could not find my brother at
 "%s". To run Tahoe when it is installed, please execute my
 brother, who gets installed into the appropriate place for executables
-when you run "make install" (perhaps as "%s").
+when you run "python setup.py install" (perhaps as "%s").
 ''' % (script, perhaps_installed_tahoe)
-        raise
+    sys.exit(1)
+
+command = prefix + [script] + args
+
+try:
+    res = subprocess.call(command, env=os.environ)
 except Exception, le:
     print whoami
     print '''\
@@ -107,4 +108,3 @@ and got an exception.
     raise
 else:
     sys.exit(res)
-

@@ -177,25 +177,18 @@ def initialize():
         return re.sub(ur'\x7F[0-9a-fA-F]*\;', lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
 
     try:
-        argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in xrange(1, argc.value)]
+        argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in xrange(0, argc.value)]
     except Exception, e:
         _complain("%s:  could not unmangle Unicode arguments.\n%r"
-                  % (sys.argv[0], [argv_unicode[i] for i in xrange(1, argc.value)]))
+                  % (sys.argv[0], [argv_unicode[i] for i in xrange(0, argc.value)]))
         raise
 
-    # Skip option arguments to the Python interpreter.
-    while len(argv) > 0:
-        arg = argv[0]
-        if not arg.startswith(u"-") or arg == u"-":
-            if arg.endswith('.pyscript'):
-                argv[0] = arg[:-9]
-            break
-        argv = argv[1:]
-        if arg == u'-m':
-            # sys.argv[0] should really be the absolute path of the module source, but never mind
-            break
-        if arg == u'-c':
-            argv[0] = u'-c'
-            break
+    # Take only the suffix with the same number of arguments as sys.argv.
+    # This accounts for anything that can cause initial arguments to be stripped,
+    # for example, the Python interpreter or any options passed to it, or runner
+    # scripts such as 'coverage run'. It works even if there are no such arguments,
+    # as in the case of a frozen executable created by bb-freeze or similar.
 
-    sys.argv = argv
+    sys.argv = argv[-len(sys.argv):]
+    if sys.argv[0].endswith('.pyscript'):
+        sys.argv[0] = sys.argv[0][:-9]
