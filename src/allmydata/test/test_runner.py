@@ -3,7 +3,7 @@ from twisted.trial import unittest
 
 from twisted.python import usage, runtime
 from twisted.internet import utils
-import os.path, re, sys
+import os.path, re, sys, subprocess
 from cStringIO import StringIO
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, get_filesystem_encoding
@@ -14,16 +14,21 @@ import allmydata
 
 timeout = 240
 
-srcfile = allmydata.__file__
-srcdir = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
+def get_root_from_file(src):
+    srcdir = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(src))))
 
-rootdir = os.path.dirname(srcdir)
-if os.path.basename(srcdir) == 'site-packages':
-    if re.search(r'python.+\..+', os.path.basename(rootdir)):
-        rootdir = os.path.dirname(rootdir)
-    rootdir = os.path.dirname(rootdir)
-elif os.path.basename(rootdir) == 'src':
-    rootdir = os.path.dirname(rootdir)
+    root = os.path.dirname(srcdir)
+    if os.path.basename(srcdir) == 'site-packages':
+        if re.search(r'python.+\..+', os.path.basename(root)):
+            root = os.path.dirname(root)
+        root = os.path.dirname(root)
+    elif os.path.basename(root) == 'src':
+        root = os.path.dirname(root)
+
+    return root
+
+srcfile = allmydata.__file__
+rootdir = get_root_from_file(srcfile)
 
 bintahoe = os.path.join(rootdir, 'bin', 'tahoe')
 if sys.platform == "win32":
@@ -49,16 +54,17 @@ class SkipMixin:
 
 
 class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
-    def test_the_right_code(self):
+    def _check_right_code(self, file_to_check):
+        root_to_check = get_root_from_file(file_to_check)
         cwd = os.path.normcase(os.path.realpath("."))
         root_from_cwd = os.path.dirname(cwd)
         if os.path.basename(root_from_cwd) == 'src':
             root_from_cwd = os.path.dirname(root_from_cwd)
 
-        same = (root_from_cwd == rootdir)
+        same = (root_from_cwd == root_to_check)
         if not same:
             try:
-                same = os.path.samefile(root_from_cwd, rootdir)
+                same = os.path.samefile(root_from_cwd, root_to_check)
             except AttributeError, e:
                 e  # hush pyflakes
 
@@ -66,9 +72,9 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
             msg = ("We seem to be testing the code at %r,\n"
                    "(according to the source filename %r),\n"
                    "but expected to be testing the code at %r.\n"
-                   % (rootdir, srcfile, root_from_cwd))
+                   % (root_to_check, file_to_check, root_from_cwd))
 
-            root_from_cwdu = os.path.normcase(os.path.normpath(os.getcwdu()))
+            root_from_cwdu = os.path.dirname(os.path.normcase(os.path.normpath(os.getcwdu())))
             if os.path.basename(root_from_cwdu) == u'src':
                 root_from_cwdu = os.path.dirname(root_from_cwdu)
 
@@ -80,6 +86,21 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
             else:
                 msg += "Please run the tests from the root of the Tahoe-LAFS distribution."
                 self.fail(msg)
+
+    def test_the_right_code(self):
+        self._check_right_code(srcfile)
+
+    def test_import_in_repl(self):
+        self.skip_if_cannot_run_bintahoe()
+
+        p = subprocess.Popen([sys.executable, bintahoe, "debug", "repl"],
+                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        (out, err) = p.communicate("import allmydata; print; print allmydata.__file__")
+
+        self.failUnlessEqual(p.returncode, 0)
+        lines = out.splitlines()
+        self.failUnlessIn('>>>', lines[0], (out, err))
+        self._check_right_code(lines[1])
 
     def test_path(self):
         self.skip_if_cannot_run_bintahoe()
@@ -112,6 +133,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
                 else:
                     altverstr = verstr
 
+            srcdir = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
             required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, verstr, srcdir)
             alt_required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, altverstr, srcdir)
 
