@@ -22,7 +22,8 @@ install_requires=[
                   # O(N**2) CPU for transferring large mutable files
                   # of size N.
                   # foolscap < 0.6 is incompatible with Twisted 10.2.0.
-                  "foolscap[secure_connections] >= 0.6.0",
+                  # foolscap 0.6.1 quiets a DeprecationWarning.
+                  "foolscap[secure_connections] >= 0.6.1",
                   "Nevow >= 0.6.0",
 
                   # Needed for SFTP. pyasn1 is needed by twisted.conch in Twisted >= 9.0.
