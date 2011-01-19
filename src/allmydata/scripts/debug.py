@@ -793,6 +793,8 @@ class TrialOptions(twisted_trial.Options):
 
     def parseOptions(self, all_subargs, *a, **kw):
         self.trial_args = list(all_subargs)
+
+        # any output from the option parsing will be printed twice, but that's harmless
         return twisted_trial.Options.parseOptions(self, all_subargs, *a, **kw)
 
     def parseArgs(self, *nonoption_args):
