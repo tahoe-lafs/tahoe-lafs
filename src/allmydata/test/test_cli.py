@@ -504,6 +504,11 @@ class Help(unittest.TestCase):
         help = str(cli.AddAliasOptions())
         self.failUnless("add-alias ALIAS[:] DIRCAP" in help, help)
 
+    def test_debug_trial(self):
+        help = str(debug.TrialOptions())
+        self.failUnless("debug trial [options] [[file|package|module|TestCase|testmethod]...]" in help, help)
+        self.failUnless("The 'tahoe debug trial' command uses the correct imports" in help, help)
+
 
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
