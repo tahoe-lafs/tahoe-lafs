@@ -295,11 +295,9 @@ class MakeExecutable(Command):
     def run(self):
         bin_tahoe_template = os.path.join("bin", "tahoe-script.template")
 
-        if sys.platform == 'win32':
-            # 'tahoe' script is needed for cygwin
-            script_names = ["tahoe.pyscript", "tahoe"]
-        else:
-            script_names = ["tahoe"]
+        # tahoe.pyscript is really only necessary for Windows, but we also
+        # create it on Unix for consistency.
+        script_names = ["tahoe.pyscript", "tahoe"]
 
         # Create the tahoe script file under the 'bin' directory. This
         # file is exactly the same as the 'tahoe-script.template' script
