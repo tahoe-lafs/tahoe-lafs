@@ -69,9 +69,6 @@ if sys.version_info < (2, 5):
 ##    # it is going to offer iocp reactor.  We currently require process management.  It would be
 ##    # better if Twisted would declare that it requires pywin32 if it is going to offer process
 ##    # management.  That is twisted ticket #3238 -- http://twistedmatrix.com/trac/ticket/3238 .
-##    # On the other hand, Tahoe also depends on pywin32 for getting free disk space statistics
-##    # (although that is not a hard requirement: if win32api can't be imported then we don't
-##    # rely on having the disk stats).
 ##    install_requires.append('pywin32')
 
 if hasattr(sys, 'frozen'): # for py2exe

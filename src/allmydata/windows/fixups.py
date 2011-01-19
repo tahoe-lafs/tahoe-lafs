@@ -8,6 +8,19 @@ def initialize():
         return True
     done = True
 
+    import codecs, re
+    from ctypes import WINFUNCTYPE, windll, POINTER, byref, c_int
+    from ctypes.wintypes import BOOL, HANDLE, DWORD, UINT, LPWSTR, LPCWSTR, LPVOID
+    from allmydata.util import log
+    from allmydata.util.encodingutil import canonical_encoding
+
+    # <http://msdn.microsoft.com/en-us/library/ms680621%28VS.85%29.aspx>
+    SetErrorMode = WINFUNCTYPE(UINT, UINT)(("SetErrorMode", windll.kernel32))
+    SEM_FAILCRITICALERRORS = 0x0001
+    SEM_NOOPENFILEERRORBOX = 0x8000
+
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX)
+
     original_stderr = sys.stderr
 
     # If any exception occurs in this code, we'll probably try to print it on stderr,
@@ -17,12 +30,6 @@ def initialize():
     def _complain(message):
         print >>original_stderr, isinstance(message, str) and message or repr(message)
         log.msg(message, level=log.WEIRD)
-
-    import codecs, re
-    from ctypes import WINFUNCTYPE, windll, POINTER, byref, c_int
-    from ctypes.wintypes import BOOL, HANDLE, DWORD, LPWSTR, LPCWSTR, LPVOID
-    from allmydata.util import log
-    from allmydata.util.encodingutil import canonical_encoding
 
     # Work around <http://bugs.python.org/issue6058>.
     codecs.register(lambda name: name == 'cp65001' and codecs.lookup('utf-8') or None)

@@ -305,16 +305,27 @@ def abspath_expanduser_unicode(path):
     # there is always at least one Unicode path component.
     return os.path.normpath(path)
 
-windows = False
-try:
-    import win32api, win32con
-except ImportError:
-    pass
-else:
-    windows = True
-    # <http://msdn.microsoft.com/en-us/library/ms680621%28VS.85%29.aspx>
-    win32api.SetErrorMode(win32con.SEM_FAILCRITICALERRORS |
-                          win32con.SEM_NOOPENFILEERRORBOX)
+
+have_GetDiskFreeSpaceExW = False
+if sys.platform == "win32":
+    try:
+        from ctypes import WINFUNCTYPE, windll, POINTER, byref, c_ulonglong
+        from ctypes.wintypes import BOOL, DWORD, LPCWSTR
+
+        # <http://msdn.microsoft.com/en-us/library/aa383742%28v=VS.85%29.aspx>
+        PULARGE_INTEGER = POINTER(c_ulonglong)
+
+        # <http://msdn.microsoft.com/en-us/library/aa364937%28VS.85%29.aspx>
+        GetDiskFreeSpaceExW = WINFUNCTYPE(BOOL, LPCWSTR, PULARGE_INTEGER, PULARGE_INTEGER, PULARGE_INTEGER)(
+            ("GetDiskFreeSpaceExW", windll.kernel32))
+
+        # <http://msdn.microsoft.com/en-us/library/ms679360%28v=VS.85%29.aspx>
+        GetLastError = WINFUNCTYPE(DWORD)(("GetLastError", windll.kernel32))
+
+        have_GetDiskFreeSpaceExW = True
+    except Exception:
+        import traceback
+        traceback.print_exc()
 
 def get_disk_stats(whichdir, reserved_space=0):
     """Return disk statistics for the storage disk, in the form of a dict
@@ -338,15 +349,24 @@ def get_disk_stats(whichdir, reserved_space=0):
     filesystem as reserved_space.
     """
 
-    if windows:
-        # For Windows systems, where os.statvfs is not available, use GetDiskFreeSpaceEx.
-        # <http://docs.activestate.com/activepython/2.5/pywin32/win32api__GetDiskFreeSpaceEx_meth.html>
-        #
-        # Although the docs say that the argument should be the root directory
-        # of a disk, GetDiskFreeSpaceEx actually accepts any path on that disk
-        # (like its Win32 equivalent).
+    if have_GetDiskFreeSpaceExW:
+        # If this is a Windows system and GetDiskFreeSpaceExW is available, use it.
+        # (This might put up an error dialog unless
+        # SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX) has been called,
+        # which we do in allmydata.windows.fixups.initialize().)
 
-        (free_for_nonroot, total, free_for_root) = win32api.GetDiskFreeSpaceEx(whichdir)
+        n_free_for_nonroot = c_ulonglong(0)
+        n_total            = c_ulonglong(0)
+        n_free_for_root    = c_ulonglong(0)
+        retval = GetDiskFreeSpaceExW(whichdir, byref(n_free_for_nonroot),
+                                               byref(n_total),
+                                               byref(n_free_for_root))
+        if retval == 0:
+            raise OSError("Windows error %d attempting to get disk statistics for %r"
+                          % (GetLastError(), whichdir))
+        free_for_nonroot = n_free_for_nonroot.value
+        total            = n_total.value
+        free_for_root    = n_free_for_root.value
     else:
         # For Unix-like systems.
         # <http://docs.python.org/library/os.html#os.statvfs>
@@ -372,9 +392,12 @@ def get_disk_stats(whichdir, reserved_space=0):
     used = total - free_for_root
     avail = max(free_for_nonroot - reserved_space, 0)
 
-    return { 'total': total, 'free_for_root': free_for_root,
+    return { 'total': total,
+             'free_for_root': free_for_root,
              'free_for_nonroot': free_for_nonroot,
-             'used': used, 'avail': avail, }
+             'used': used,
+             'avail': avail,
+           }
 
 def get_available_space(whichdir, reserved_space):
     """Returns available space for share storage in bytes, or None if no
