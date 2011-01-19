@@ -11,6 +11,7 @@ export PYTHON
 
 PP=$(shell $(PYTHON) setup.py -q show_pythonpath)
 RUNPP=$(PYTHON) setup.py run_with_pythonpath
+TAHOE=$(PYTHON) bin/tahoe
 
 .PHONY: make-version build
 
@@ -116,10 +117,10 @@ fuse-test: .built .checked-deps
 
 test-coverage: build src/allmydata/_version.py
 	rm -f .coverage
-	$(PYTHON) setup.py trial --reporter=bwverbose-coverage -s $(TEST)
+	$(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
 
 quicktest:
-	$(PYTHON) misc/build_helpers/run-with-pythonpath.py trial $(TRIALARGS) $(TEST)
+	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
 
 # code-coverage: install the "coverage" package from PyPI, do "make
 # quicktest-coverage" to do a unit test run with coverage-gathering enabled,
@@ -129,7 +130,7 @@ quicktest:
 
 quicktest-coverage:
 	rm -f .coverage
-	$(PYTHON) misc/build_helpers/run-with-pythonpath.py trial --reporter=bwverbose-coverage $(TEST)
+	$(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
 # on my laptop, "quicktest" takes 239s, "quicktest-coverage" takes 304s
 
 # --include appeared in coverage-3.4
