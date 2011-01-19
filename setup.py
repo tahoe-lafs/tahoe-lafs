@@ -68,11 +68,6 @@ if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
     install_requires += ["fakedependency >= 1.0.0"]
 
 __requires__ = install_requires[:]
-if 'trial' in sys.argv or 'test' in sys.argv:
-    if version is not None:
-        __requires__.append(APPNAME + '==' + version)
-    else:
-        __requires__.append(APPNAME)
 
 egg = os.path.realpath(glob.glob('setuptools-*.egg')[0])
 sys.path.insert(0, egg)
@@ -140,16 +135,13 @@ setup_requires = []
 # http://pypi.python.org/pypi/darcsver
 setup_requires.append('darcsver >= 1.7.1')
 
-# Nevow requires Twisted to setup, but doesn't declare that requirement in a
-# way that enables setuptools to satisfy that requirement before Nevow's
-# setup.py tried to "import twisted". Fortunately we require setuptools_trial
-# to setup and setuptools_trial requires Twisted to install, so hopefully
-# everything will work out until the Nevow issue is fixed:
-# http://divmod.org/trac/ticket/2629 setuptools_trial is needed if you want
-# "./setup.py trial" or "./setup.py test" to execute the tests (and in order
-# to make sure Twisted is installed early enough -- see the paragraph above).
-# http://pypi.python.org/pypi/setuptools_trial
-setup_requires.extend(['setuptools_trial >= 0.5'])
+# Nevow requires Twisted to setup, but prior to Nevow v0.9.33, didn't
+# declare that requirement in a way that enables setuptools to satisfy
+# the requirement before Nevow's setup.py tries to "import twisted".
+# This only matters when Twisted is not already installed.
+# See http://divmod.org/trac/ticket/2629
+# Retire this hack if/when we require Nevow >= 0.9.33.
+setup_requires.append('Twisted >= 2.4.0')
 
 # setuptools_darcs is required to produce complete distributions (such
 # as with "sdist" or "bdist_egg"), unless there is a
@@ -247,6 +239,40 @@ class TestMacDiskImage(Command):
         sys.path.append(os.path.join('misc', 'build_helpers'))
         import test_mac_diskimage
         return test_mac_diskimage.test_mac_diskimage('Allmydata', version=self.distribution.metadata.version)
+
+
+class Trial(Command):
+    description = "run trial (use 'bin%stahoe debug trial' for the full set of trial options)" % (os.sep,)
+    # This is just a subset of the most useful options, for compatibility.
+    user_options = [ ("rterrors", "e", "Print out tracebacks as soon as they occur."),
+                     ("reporter=", None, "The reporter to use for this test run."),
+                     ("suite=", "s", "Specify the test suite."),
+                     ("version-and-path", None, "Display version numbers and paths of Tahoe dependencies."),
+                   ]
+
+    def initialize_options(self):
+        self.rterrors = False
+        self.reporter = None
+        self.suite = "allmydata"
+        self.version_and_path = False
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        args = [sys.executable, os.path.join('bin', 'tahoe')]
+        if self.version_and_path:
+            args.append('--version-and-path')
+        args += ['debug', 'trial']
+        if self.rterrors:
+            args.append('--rterrors')
+        if self.reporter:
+            args.append('--reporter=' + self.reporter)
+        if self.suite:
+            args.append(self.suite)
+        rc = subprocess.call(args)
+        sys.exit(rc)
+
 
 class CheckAutoDeps(Command):
     user_options = []
@@ -371,6 +397,7 @@ setup(name=APPNAME,
                 "run_with_pythonpath": RunWithPythonPath,
                 "check_auto_deps": CheckAutoDeps,
                 "test_mac_diskimage": TestMacDiskImage,
+                "trial": Trial,
                 "make_executable": MakeExecutable,
                 "sdist": MySdist,
                 },
