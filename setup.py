@@ -229,7 +229,9 @@ class RunWithPythonPath(Command):
         sys.exit(rc)
 
 class TestMacDiskImage(Command):
+    description = "test the Mac disk image in dmg format (unmaintained)"
     user_options = []
+
     def initialize_options(self):
         pass
     def finalize_options(self):
@@ -287,7 +289,9 @@ class CheckAutoDeps(Command):
 
 
 class MakeExecutable(Command):
+    description = "make the 'bin%stahoe' scripts" % (os.sep,)
     user_options = []
+
     def initialize_options(self):
         pass
     def finalize_options(self):
@@ -378,6 +382,7 @@ class MySdist(sdist.sdist):
             self.distribution.get_fullname = get_fullname
 
         return sdist.sdist.make_distribution(self)
+
 
 setup_args = {}
 if version:
