@@ -1753,6 +1753,43 @@ class SystemTest(SystemTestMixin, SkipMixin, unittest.TestCase):
 
         return d
 
+    def test_debug_trial(self):
+        def _check_for_line(lines, result, test):
+            for l in lines:
+                if result in l and test in l:
+                    return
+            self.fail("output (prefixed with '##') does not have a line containing both %r and %r:\n## %s"
+                      % (result, test, "\n## ".join(lines)))
+
+        def _check_for_outcome(lines, out, outcome):
+            self.failUnlessIn(outcome, out, "output (prefixed with '##') does not contain %r:\n## %s"
+                                            % (outcome, "\n## ".join(lines)))
+
+        d = self._run_cli_in_subprocess(['debug', 'trial', '--reporter=verbose',
+                                         'allmydata.test.trialtest'])
+        def _check_failure( (out, err, rc) ):
+            self.failUnlessEqual(rc, 1)
+            lines = out.split('\n')
+            _check_for_line(lines, "[SKIPPED]", "test_skip")
+            _check_for_line(lines, "[TODO]",    "test_todo")
+            _check_for_line(lines, "[FAIL]",    "test_fail")
+            _check_for_line(lines, "[ERROR]",   "test_deferred_error")
+            _check_for_line(lines, "[ERROR]",   "test_error")
+            _check_for_outcome(lines, out, "FAILED")
+        d.addCallback(_check_failure)
+
+        # the --quiet argument regression-tests a problem in finding which arguments to pass to trial
+        d.addCallback(lambda ign: self._run_cli_in_subprocess(['--quiet', 'debug', 'trial', '--reporter=verbose',
+                                                               'allmydata.test.trialtest.Success']))
+        def _check_success( (out, err, rc) ):
+            self.failUnlessEqual(rc, 0)
+            lines = out.split('\n')
+            _check_for_line(lines, "[SKIPPED]", "test_skip")
+            _check_for_line(lines, "[TODO]",    "test_todo")
+            _check_for_outcome(lines, out, "PASSED")
+        d.addCallback(_check_success)
+        return d
+
     def _run_cli(self, argv, stdin=""):
         #print "CLI:", argv
         stdout, stderr = StringIO(), StringIO()
