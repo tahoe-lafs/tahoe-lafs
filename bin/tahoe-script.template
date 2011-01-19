@@ -95,7 +95,22 @@ when you run "python setup.py install" (perhaps as "%s").
 ''' % (script, perhaps_installed_tahoe)
     sys.exit(1)
 
-command = prefix + [script] + args
+# Support indirection via another "runner" script (e.g. coverage).
+# For example: bin/tahoe @RUNNER RUNNER_ARGS @tahoe TAHOE_ARGS
+
+if len(args) >= 1 and args[0].startswith('@'):
+    runner = args[0][1:]
+    if runner.endswith('.py') or runner.endswith('.pyscript'):
+        prefix = [sys.executable]
+    else:
+        prefix = []
+
+    def _subst(a):
+        if a == '@tahoe': return script
+        return a
+    command = prefix + [runner] + map(_subst, args[1:])
+else:
+    command = prefix + [script] + args
 
 try:
     res = subprocess.call(command, env=os.environ)

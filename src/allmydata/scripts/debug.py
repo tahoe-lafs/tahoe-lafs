@@ -846,7 +846,22 @@ Subcommands:
 
 Please run e.g. 'tahoe debug dump-share --help' for more details on each
 subcommand.
-"""
+
+Another debugging feature is that bin%stahoe allows executing an arbitrary
+"runner" command (typically an installed Python script, such as 'coverage'),
+with the Tahoe libraries on the PYTHONPATH. The runner command name is
+prefixed with '@', and any occurrences of '@tahoe' in its arguments are
+replaced by the full path to the tahoe script.
+
+For example, if 'coverage' is installed and on the PATH, you can use:
+
+    bin%stahoe @coverage run --branch @tahoe debug trial
+
+to get branch coverage for the Tahoe test suite. Or, to run python with
+the -3 option that warns about Python 3 incompatibilities:
+
+    bin%stahoe @python -3 @tahoe command [options]
+""" % (os.sep, os.sep, os.sep)
         return t
 
 subDispatch = {
