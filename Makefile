@@ -220,11 +220,11 @@ check-memory-once: .built
 check-speed: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
 	@echo "stopping any leftover client code"
-	-$(PYTHON) bin/tahoe stop $(TESTCLIENTDIR)
-	$(PYTHON) bin/tahoe start $(TESTCLIENTDIR)
+	-$(TAHOE) stop $(TESTCLIENTDIR)
+	$(TAHOE) start $(TESTCLIENTDIR)
 	sleep 5
 	$(PYTHON) src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
-	$(PYTHON) bin/tahoe stop $(TESTCLIENTDIR)
+	$(TAHOE) stop $(TESTCLIENTDIR)
 
 # The check-grid target also uses a pre-established client node, along with a
 # long-term directory that contains some well-known files. See the docstring
@@ -239,7 +239,7 @@ bench-dirnode: .built
 # 'make repl' is a simple-to-type command to get a Python interpreter loop
 # from which you can type 'import allmydata'
 repl:
-	$(RUNPP) -p
+	$(TAHOE) debug repl
 
 test-darcs-boringfile:
 	$(MAKE)
