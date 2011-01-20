@@ -4,7 +4,6 @@ from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet import threads # CLI tests use deferToThread
-from twisted.internet import utils
 
 import allmydata
 from allmydata import uri
@@ -32,7 +31,7 @@ from twisted.web.error import Error
 from allmydata.test.common import SystemTestMixin
 
 # TODO: move these to common or common_util
-from allmydata.test.test_runner import bintahoe, SkipMixin
+from allmydata.test.test_runner import RunBinTahoeMixin
 
 LARGE_DATA = """
 This is some data to publish to the remote grid.., which needs to be large
@@ -52,7 +51,7 @@ class CountingDataUploadable(upload.Data):
                 self.interrupt_after_d.callback(self)
         return upload.Data.read(self, length)
 
-class SystemTest(SystemTestMixin, SkipMixin, unittest.TestCase):
+class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     timeout = 3600 # It takes longer than 960 seconds on Zandr's ARM box.
 
     def test_connections(self):
@@ -1594,23 +1593,9 @@ class SystemTest(SystemTestMixin, SkipMixin, unittest.TestCase):
         d.addCallback(_check_ls_rouri)
 
 
-        d.addCallback(run, "mv", "tahoe-file-stdin", "tahoe-moved-first-time")
+        d.addCallback(run, "mv", "tahoe-file-stdin", "tahoe-moved")
         d.addCallback(run, "ls")
-        d.addCallback(_check_ls, ["tahoe-moved-first-time"], ["tahoe-file-stdin"])
-
-        def _mv_with_http_proxy(ign):
-            env = os.environ
-            env['http_proxy'] = env['HTTP_PROXY'] = "http://127.0.0.0:12345"  # invalid address
-            return self._run_cli_in_subprocess(["mv"] + nodeargs + ["tahoe-moved-first-time", "tahoe-moved"], env=env)
-        d.addCallback(_mv_with_http_proxy)
-
-        def _check_mv_with_http_proxy(res):
-            out, err, rc_or_sig = res
-            self.failUnlessEqual(rc_or_sig, 0, str(res))
-        d.addCallback(_check_mv_with_http_proxy)
-
-        d.addCallback(run, "ls")
-        d.addCallback(_check_ls, ["tahoe-moved"], ["tahoe-moved-firsttime"])
+        d.addCallback(_check_ls, ["tahoe-moved"], ["tahoe-file-stdin"])
 
         d.addCallback(run, "ln", "tahoe-moved", "newlink")
         d.addCallback(run, "ls")
@@ -1753,6 +1738,52 @@ class SystemTest(SystemTestMixin, SkipMixin, unittest.TestCase):
 
         return d
 
+    def test_filesystem_with_cli_in_subprocess(self):
+        # We do this in a separate test so that test_filesystem doesn't skip if we can't run bin/tahoe.
+
+        self.basedir = "system/SystemTest/test_filesystem_with_cli_in_subprocess"
+        d = self.set_up_nodes()
+        def _new_happy_semantics(ign):
+            for c in self.clients:
+                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+        d.addCallback(_new_happy_semantics)
+
+        def _run_in_subprocess(ignored, verb, *args, **kwargs):
+            stdin = kwargs.get("stdin")
+            env = kwargs.get("env")
+            newargs = [verb, "--node-directory", self.getdir("client0")] + list(args)
+            return self.run_bintahoe(newargs, stdin=stdin, env=env)
+
+        def _check_succeeded(res, check_stderr=True):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 0, str(res))
+            if check_stderr:
+                self.failUnlessEqual(err, "")
+
+        d.addCallback(_run_in_subprocess, "create-alias", "newalias")
+        d.addCallback(_check_succeeded)
+
+        STDIN_DATA = "This is the file to upload from stdin."
+        d.addCallback(_run_in_subprocess, "put", "-", "newalias:tahoe-file", stdin=STDIN_DATA)
+        d.addCallback(_check_succeeded, check_stderr=False)
+
+        def _mv_with_http_proxy(ign):
+            env = os.environ
+            env['http_proxy'] = env['HTTP_PROXY'] = "http://127.0.0.0:12345"  # invalid address
+            return _run_in_subprocess(None, "mv", "newalias:tahoe-file", "newalias:tahoe-moved", env=env)
+        d.addCallback(_mv_with_http_proxy)
+        d.addCallback(_check_succeeded)
+
+        d.addCallback(_run_in_subprocess, "ls", "newalias:")
+        def _check_ls(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.failUnlessIn("tahoe-moved", out)
+            self.failIfIn("tahoe-file", out)
+        d.addCallback(_check_ls)
+        return d
+
     def test_debug_trial(self):
         def _check_for_line(lines, result, test):
             for l in lines:
@@ -1765,8 +1796,8 @@ class SystemTest(SystemTestMixin, SkipMixin, unittest.TestCase):
             self.failUnlessIn(outcome, out, "output (prefixed with '##') does not contain %r:\n## %s"
                                             % (outcome, "\n## ".join(lines)))
 
-        d = self._run_cli_in_subprocess(['debug', 'trial', '--reporter=verbose',
-                                         'allmydata.test.trialtest'])
+        d = self.run_bintahoe(['debug', 'trial', '--reporter=verbose',
+                               'allmydata.test.trialtest'])
         def _check_failure( (out, err, rc) ):
             self.failUnlessEqual(rc, 1)
             lines = out.split('\n')
@@ -1779,8 +1810,8 @@ class SystemTest(SystemTestMixin, SkipMixin, unittest.TestCase):
         d.addCallback(_check_failure)
 
         # the --quiet argument regression-tests a problem in finding which arguments to pass to trial
-        d.addCallback(lambda ign: self._run_cli_in_subprocess(['--quiet', 'debug', 'trial', '--reporter=verbose',
-                                                               'allmydata.test.trialtest.Success']))
+        d.addCallback(lambda ign: self.run_bintahoe(['--quiet', 'debug', 'trial', '--reporter=verbose',
+                                                     'allmydata.test.trialtest.Success']))
         def _check_success( (out, err, rc) ):
             self.failUnlessEqual(rc, 0)
             lines = out.split('\n')
@@ -1799,15 +1830,6 @@ class SystemTest(SystemTestMixin, SkipMixin, unittest.TestCase):
         def _done(res):
             return stdout.getvalue(), stderr.getvalue()
         d.addCallback(_done)
-        return d
-
-    def _run_cli_in_subprocess(self, argv, env=None):
-        self.skip_if_cannot_run_bintahoe()
-
-        if env is None:
-            env = os.environ
-        d = utils.getProcessOutputAndValue(sys.executable, args=[bintahoe] + argv,
-                                           env=env)
         return d
 
     def _test_checker(self, res):

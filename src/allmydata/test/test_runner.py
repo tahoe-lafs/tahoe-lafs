@@ -2,7 +2,8 @@
 from twisted.trial import unittest
 
 from twisted.python import usage, runtime
-from twisted.internet import utils
+from twisted.internet import threads
+
 import os.path, re, sys, subprocess
 from cStringIO import StringIO
 from allmydata.util import fileutil, pollmixin
@@ -39,10 +40,8 @@ if sys.platform == "win32":
            bintahoe = alt_bintahoe
 
 
-class SkipMixin:
+class RunBinTahoeMixin:
     def skip_if_cannot_run_bintahoe(self):
-        if "cygwin" in sys.platform.lower():
-            raise unittest.SkipTest("We don't know how to make this test work on cygwin: spawnProcess seems to hang forever. We don't know if 'bin/tahoe start' can be run on cygwin.")
         if not os.path.exists(bintahoe):
             raise unittest.SkipTest("The bin/tahoe script isn't to be found in the expected location (%s), and I don't want to test a 'tahoe' executable that I find somewhere else, in case it isn't the right executable for this version of Tahoe. Perhaps running 'setup.py build' again will help." % (bintahoe,))
 
@@ -52,8 +51,22 @@ class SkipMixin:
             # twistd on windows doesn't daemonize. cygwin should work normally.
             raise unittest.SkipTest("twistd does not fork under windows")
 
+    def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
+        self.skip_if_cannot_run_bintahoe()
+        command = [sys.executable] + python_options + [bintahoe] + args
+        if stdin is None:
+            stdin_stream = None
+        else:
+            stdin_stream = subprocess.PIPE
 
-class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
+        def _run():
+            p = subprocess.Popen(command, stdin=stdin_stream, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+            (out, err) = p.communicate(stdin)
+            return (out, err, p.returncode)
+        return threads.deferToThread(_run)
+
+
+class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
     def _check_right_code(self, file_to_check):
         root_to_check = get_root_from_file(file_to_check)
         cwd = os.path.normcase(os.path.realpath("."))
@@ -91,20 +104,19 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
         self._check_right_code(srcfile)
 
     def test_import_in_repl(self):
-        self.skip_if_cannot_run_bintahoe()
-
-        p = subprocess.Popen([sys.executable, bintahoe, "debug", "repl"],
-                             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        (out, err) = p.communicate("import allmydata; print; print allmydata.__file__")
-
-        self.failUnlessEqual(p.returncode, 0)
-        lines = out.splitlines()
-        self.failUnlessIn('>>>', lines[0], (out, err))
-        self._check_right_code(lines[1])
+        d = self.run_bintahoe(["debug", "repl"],
+                              stdin="import allmydata; print; print allmydata.__file__")
+        def _cb(res):
+            out, err, rc_or_sig = res
+            self.failUnlessEqual(rc_or_sig, 0, str(res))
+            lines = out.splitlines()
+            self.failUnlessIn('>>>', lines[0], str(res))
+            self._check_right_code(lines[1])
+        d.addCallback(_cb)
+        return d
 
     def test_path(self):
-        self.skip_if_cannot_run_bintahoe()
-        d = utils.getProcessOutputAndValue(bintahoe, args=["--version-and-path"], env=os.environ)
+        d = self.run_bintahoe(["--version-and-path"])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
@@ -151,7 +163,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII argument/output could not be encoded on this platform.")
 
-        d = utils.getProcessOutputAndValue(bintahoe, args=[tricky_arg], env=os.environ)
+        d = self.run_bintahoe([tricky_arg])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 1, str(res))
@@ -163,8 +175,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
         self.skip_if_cannot_run_bintahoe()
 
         # -t is a harmless option that warns about tabs.
-        d = utils.getProcessOutputAndValue(sys.executable, args=['-t', bintahoe, '--version'],
-                                           env=os.environ)
+        d = self.run_bintahoe(["--version"], python_options=["-t"])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
@@ -180,7 +191,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, SkipMixin):
         except pkg_resources.VersionConflict:
             raise unittest.SkipTest("We pass this test only with Twisted >= v9.0.0")
 
-        d = utils.getProcessOutputAndValue(bintahoe, args=["--version"], env=os.environ)
+        d = self.run_bintahoe(["--version"])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
@@ -307,7 +318,7 @@ class CreateNode(unittest.TestCase):
 
 
 class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
-              SkipMixin):
+              RunBinTahoeMixin):
     # exercise "tahoe start", for both introducer, client node, and
     # key-generator, by spawning "tahoe start" as a subprocess. This doesn't
     # get us figleaf-based line-level coverage, but it does a better job of
@@ -333,7 +344,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         INTRODUCER_FURL_FILE = os.path.join(c1, "introducer.furl")
 
-        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-introducer", "--basedir", c1], env=os.environ)
+        d = self.run_bintahoe(["--quiet", "create-introducer", "--basedir", c1])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
@@ -345,7 +356,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb)
 
         def _then_start_the_node(res):
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "start", c1])
         d.addCallback(_then_start_the_node)
 
         def _cb2(res):
@@ -376,7 +387,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             # rm this so we can detect when the second incarnation is ready
             os.unlink(INTRODUCER_FURL_FILE)
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "restart", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "restart", c1])
         d.addCallback(_started)
 
         def _then(res):
@@ -399,7 +410,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
 
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "stop", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
 
         def _after_stopping(res):
@@ -436,7 +447,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         PORTNUMFILE = os.path.join(c1, "client.port")
 
-        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-client", "--basedir", c1, "--webport", "0"], env=os.environ)
+        d = self.run_bintahoe(["--quiet", "create-client", "--basedir", c1, "--webport", "0"])
         def _cb(res):
             out, err, rc_or_sig = res
             errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
@@ -451,7 +462,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb)
 
         def _start(res):
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "start", c1])
         d.addCallback(_start)
 
         def _cb2(res):
@@ -485,7 +496,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # 'tahoe stop' command takes a while.
         def _stop(res):
             self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "stop", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
         return d
 
@@ -497,7 +508,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         PORTNUMFILE = os.path.join(c1, "client.port")
 
-        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-node", "--basedir", c1, "--webport", "0"], env=os.environ)
+        d = self.run_bintahoe(["--quiet", "create-node", "--basedir", c1, "--webport", "0"])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
@@ -510,7 +521,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb)
 
         def _start(res):
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "start", c1])
         d.addCallback(_start)
 
         def _cb2(res):
@@ -541,7 +552,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # rm this so we can detect when the second incarnation is ready
             os.unlink(PORTNUMFILE)
 
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "restart", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "restart", c1])
         d.addCallback(_started)
 
         def _cb3(res):
@@ -564,7 +575,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _stop(res):
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "stop", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
 
         def _cb4(res):
@@ -592,7 +603,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         basedir = self.workdir("test_baddir")
         fileutil.make_dirs(basedir)
 
-        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", "--basedir", basedir], env=os.environ)
+        d = self.run_bintahoe(["--quiet", "start", "--basedir", basedir])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 1)
@@ -600,7 +611,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb)
 
         def _then_stop_it(res):
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "stop", "--basedir", basedir], env=os.environ)
+            return self.run_bintahoe(["--quiet", "stop", "--basedir", basedir])
         d.addCallback(_then_stop_it)
 
         def _cb2(res):
@@ -611,7 +622,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _then_start_in_bogus_basedir(res):
             not_a_dir = os.path.join(basedir, "bogus")
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", "--basedir", not_a_dir], env=os.environ)
+            return self.run_bintahoe(["--quiet", "start", "--basedir", not_a_dir])
         d.addCallback(_then_start_in_bogus_basedir)
 
         def _cb3(res):
@@ -628,14 +639,14 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         KEYGEN_FURL_FILE = os.path.join(c1, "key_generator.furl")
 
-        d = utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "create-key-generator", "--basedir", c1], env=os.environ)
+        d = self.run_bintahoe(["--quiet", "create-key-generator", "--basedir", c1])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
         d.addCallback(_cb)
 
         def _start(res):
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "start", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "start", c1])
         d.addCallback(_start)
 
         def _cb2(res):
@@ -663,7 +674,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             # rm this so we can detect when the second incarnation is ready
             os.unlink(KEYGEN_FURL_FILE)
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "restart", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "restart", c1])
         d.addCallback(_started)
 
         def _cb3(res):
@@ -683,7 +694,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # 'tahoe stop' command takes a while.
         def _stop(res):
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
-            return utils.getProcessOutputAndValue(bintahoe, args=["--quiet", "stop", c1], env=os.environ)
+            return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
 
         def _cb4(res):

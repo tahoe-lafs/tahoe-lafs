@@ -1,15 +1,11 @@
 # from the Python Standard Library
-import os, re, socket, sys
+import os, re, socket, sys, subprocess
 
 # from Twisted
-from twisted.internet import defer
-from twisted.internet import reactor
+from twisted.internet import defer, threads, reactor
 from twisted.internet.protocol import DatagramProtocol
-from twisted.internet.utils import getProcessOutput
 from twisted.python.procutils import which
 from twisted.python import log
-
-from allmydata.util import observer
 
 try:
     import resource
@@ -193,39 +189,6 @@ _irix_path = '/usr/etc/ifconfig'
 # Solaris 2.x
 _sunos_path = '/usr/sbin/ifconfig'
 
-class SequentialTrier(object):
-    """ I hold a list of executables to try and try each one in turn
-    until one gives me a list of IP addresses."""
-
-    def __init__(self, exebasename, args, regex):
-        assert not os.path.isabs(exebasename)
-        self.exes_left_to_try = which(exebasename)
-        self.exes_left_to_try.reverse()
-        self.args = args
-        self.regex = regex
-        self.o = observer.OneShotObserverList()
-        self._try_next()
-
-    def _try_next(self):
-        if not self.exes_left_to_try:
-            self.o.fire(None)
-        else:
-            exe = self.exes_left_to_try.pop()
-            d2 = _query(exe, self.args, self.regex)
-
-            def cb(res):
-                if res:
-                    self.o.fire(res)
-                else:
-                    self._try_next()
-
-            def eb(why):
-                self._try_next()
-
-            d2.addCallbacks(cb, eb)
-
-    def when_tried(self):
-        return self.o.when_fired()
 
 # k: platform string as provided in the value of _platform_map
 # v: tuple of (path_to_tool, args, regex,)
@@ -237,7 +200,11 @@ _tool_map = {
     "irix": (_irix_path, _netbsd_args, _netbsd_re,),
     "sunos": (_sunos_path, _netbsd_args, _netbsd_re,),
     }
+
 def _find_addresses_via_config():
+    return threads.deferToThread(_synchronously_find_addresses_via_config)
+
+def _synchronously_find_addresses_via_config():
     # originally by Greg Smith, hacked by Zooko to conform to Brian's API
 
     platform = _platform_map.get(sys.platform)
@@ -254,23 +221,30 @@ def _find_addresses_via_config():
     if os.path.isabs(pathtotool):
         return _query(pathtotool, args, regex)
     else:
-        return SequentialTrier(pathtotool, args, regex).when_tried()
+        exes_to_try = which(pathtotool)
+        for exe in exes_to_try:
+            try:
+                addresses = _query(exe, args, regex)
+            except Exception:
+                addresses = []
+            if addresses:
+                return addresses
+        return []
 
 def _query(path, args, regex):
-    d = getProcessOutput(path, args)
-    def _parse(output):
-        addresses = []
-        outputsplit = output.split('\n')
-        for outline in outputsplit:
-            m = regex.match(outline)
-            if m:
-                addr = m.groupdict()['address']
-                if addr not in addresses:
-                    addresses.append(addr)
+    p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    (output, err) = p.communicate()
 
-        return addresses
-    d.addCallback(_parse)
-    return d
+    addresses = []
+    outputsplit = output.split('\n')
+    for outline in outputsplit:
+        m = regex.match(outline)
+        if m:
+            addr = m.groupdict()['address']
+            if addr not in addresses:
+                addresses.append(addr)
+
+    return addresses
 
 def _cygwin_hack_find_addresses(target):
     addresses = []
