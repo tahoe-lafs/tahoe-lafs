@@ -1,111 +1,105 @@
-# Note: do not import any module from Tahoe-LAFS itself in this
-# file. Also please avoid importing modules from other packages than
-# the Python Standard Library if at all possible (exception: we rely
-# on importing pkg_resources, which is provided by setuptools,
-# zetuptoolz, distribute, and perhaps in the future distutils2, for
-# the require_auto_deps() function.)
+# Note: please minimize imports in this file. In particular, do not import
+# any module from Tahoe-LAFS or its dependencies, and do not import any
+# modules at all at global level. That includes setuptools and pkg_resources.
+# It is ok to import modules from the Python Standard Library if they are
+# always available, or the import is protected by try...except ImportError.
 
-install_requires=[
-                  # we require newer versions of setuptools (actually
-                  # zetuptoolz) to build, but can handle older versions to run
-                  "setuptools >= 0.6c6",
+install_requires = [
+    "zfec >= 1.1.0",
 
-                  "zfec >= 1.1.0",
+    # Feisty has simplejson 1.4
+    "simplejson >= 1.4",
 
-                  # Feisty has simplejson 1.4
-                  "simplejson >= 1.4",
+    "zope.interface",
 
-                  "zope.interface",
-                  "Twisted >= 2.4.0",
+    "Twisted >= 2.4.0",
 
-                  # foolscap < 0.5.1 had a performance bug which spent
-                  # O(N**2) CPU for transferring large mutable files
-                  # of size N.
-                  # foolscap < 0.6 is incompatible with Twisted 10.2.0.
-                  # foolscap 0.6.1 quiets a DeprecationWarning.
-                  "foolscap[secure_connections] >= 0.6.1",
-                  "Nevow >= 0.6.0",
+    # foolscap < 0.5.1 had a performance bug which spent
+    # O(N**2) CPU for transferring large mutable files
+    # of size N.
+    # foolscap < 0.6 is incompatible with Twisted 10.2.0.
+    # foolscap 0.6.1 quiets a DeprecationWarning.
+    "foolscap[secure_connections] >= 0.6.1",
 
-                  # Needed for SFTP. pyasn1 is needed by twisted.conch in Twisted >= 9.0.
-                  # pycrypto 2.2 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/620253
-                  "pycrypto == 2.0.1, == 2.1, >= 2.3",
-                  "pyasn1 >= 0.0.8a",
+    "Nevow >= 0.6.0",
 
-                  # http://www.voidspace.org.uk/python/mock/
-                  "mock",
+    # Needed for SFTP. pyasn1 is needed by twisted.conch in Twisted >= 9.0.
+    # pycrypto 2.2 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/620253
+    "pycrypto == 2.0.1, == 2.1.0, >= 2.3",
+    "pyasn1 >= 0.0.8a",
 
-                  # Will be needed to test web apps, but not yet. See #1001.
-                  #"windmill >= 1.3",
-                  ]
+    # http://www.voidspace.org.uk/python/mock/
+    "mock",
 
-import platform
-if platform.machine().lower() in ['i386', 'x86_64', 'amd64', 'x86', '']:
-    # pycryptopp v0.5.20 fixes bugs in SHA-256 and AES on x86 or amd64
-    # (from Crypto++ revisions 470, 471, 480, 492).  The '' is there
-    # in case platform.machine is broken and this is actually an x86
-    # or amd64 machine.
-    install_requires.append("pycryptopp >= 0.5.20")
-else:
-    # pycryptopp v0.5.13 had a new bundled version of Crypto++
-    # (v5.6.0) and a new bundled version of setuptools (although that
-    # shouldn't make any different to users of pycryptopp).
-    install_requires.append("pycryptopp >= 0.5.14")
+    # Will be needed to test web apps, but not yet. See #1001.
+    #"windmill >= 1.3",
+]
 
+# Includes some indirect dependencies, but does not include allmydata.
+# These are in the order they should be listed by --version, etc.
+package_imports = [
+    # package name      module name
+    ('foolscap',        'foolscap'),
+    ('pycryptopp',      'pycryptopp'),
+    ('zfec',            'zfec'),
+    ('Twisted',         'twisted'),
+    ('Nevow',           'nevow'),
+    ('zope.interface',  'zope.interface'),
+    ('python',          None),
+    ('platform',        None),
+    ('pyOpenSSL',       'OpenSSL'),
+    ('simplejson',      'simplejson'),
+    ('pycrypto',        'Crypto'),
+    ('pyasn1',          'pyasn1'),
+    ('mock',            'mock'),
+]
 
-# Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
-# distribution for Python 2.4.
-import sys
-if sys.version_info < (2, 5):
-    # pysqlite v2.0.5 was shipped in Ubuntu 6.06 LTS "dapper" and Nexenta NCP 1.
-    install_requires.append("pysqlite >= 2.0.5")
+def require_more():
+    import platform, sys
 
-if hasattr(sys, 'frozen'): # for py2exe
-    install_requires=[]
-del sys # clean up namespace
-
-def require_python_version():
-    import sys, platform
-
-    # we require 2.4.4 on non-UCS-2, non-Redhat builds to avoid <http://www.python.org/news/security/PSF-2006-001/>
-    # we require 2.4.3 on non-UCS-2 Redhat, because 2.4.3 is common on Redhat-based distros and will have patched the above bug
-    # we require at least 2.4.2 in any case to avoid a bug in the base64 module: <http://bugs.python.org/issue1171487>
-    if sys.maxunicode == 65535:
-        if sys.version_info < (2, 4, 2) or sys.version_info[0] > 2:
-            raise NotImplementedError("Tahoe-LAFS current requires Python v2.4.2 or greater "
-                                      "for a UCS-2 build (but less than v3), not %r" %
-                                      (sys.version_info,))
-    elif platform.platform().lower().find('redhat') >= 0:
-        if sys.version_info < (2, 4, 3) or sys.version_info[0] > 2:
-            raise NotImplementedError("Tahoe-LAFS current requires Python v2.4.3 or greater "
-                                      "on Redhat-based distributions (but less than v3), not %r" %
-                                      (sys.version_info,))
+    if platform.machine().lower() in ['i386', 'x86_64', 'amd64', 'x86', '']:
+        # pycryptopp v0.5.20 fixes bugs in SHA-256 and AES on x86 or amd64
+        # (from Crypto++ revisions 470, 471, 480, 492).  The '' is there
+        # in case platform.machine is broken and this is actually an x86
+        # or amd64 machine.
+        install_requires.append("pycryptopp >= 0.5.20")
     else:
-        if sys.version_info < (2, 4, 4) or sys.version_info[0] > 2:
-            raise NotImplementedError("Tahoe-LAFS current requires Python v2.4.4 or greater "
-                                      "for a non-UCS-2 build (but less than v3), not %r" %
-                                      (sys.version_info,))
+        # pycryptopp v0.5.13 had a new bundled version of Crypto++
+        # (v5.6.0) and a new bundled version of setuptools (although that
+        # shouldn't make any difference to users of pycryptopp).
+        install_requires.append("pycryptopp >= 0.5.14")
 
-def require_auto_deps():
-    """
-    The purpose of this function is to raise a pkg_resources exception if any of the
-    requirements can't be imported.  This is just to give earlier and more explicit error
-    messages, as opposed to waiting until the source code tries to import some module from one
-    of these packages and gets an ImportError.  This function gets called from
-    src/allmydata/__init__.py .
-    """
-    require_python_version()
+    # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
+    # distribution for Python 2.4.
+    try:
+        import sqlite3
+        sqlite3 # hush pyflakes
+        package_imports.append(('sqlite3', 'sqlite3'))
+    except ImportError:
+        # pysqlite v2.0.5 was shipped in Ubuntu 6.06 LTS "dapper" and Nexenta NCP 1.
+        install_requires.append("pysqlite >= 2.0.5")
+        package_imports.append(('pysqlite', 'pysqlite.dbapi2'))
 
-    import pkg_resources
-    for requirement in install_requires:
-        try:
-            pkg_resources.require(requirement)
-        except pkg_resources.DistributionNotFound:
-            # there is no .egg-info present for this requirement, which
-            # either means that it isn't installed, or it is installed in a
-            # way that pkg_resources can't find it (but regular python
-            # might).  There are several older Linux distributions which
-            # provide our dependencies just fine, but they don't ship
-            # .egg-info files. Note that if there *is* an .egg-info file,
-            # but it shows a too-old version, then we'll get a
-            # VersionConflict error instead of DistributionNotFound.
-            pass
+    if not hasattr(sys, 'frozen'):
+        # we require newer versions of setuptools (actually
+        # zetuptoolz) to build, but can handle older versions to run
+        install_requires.append("setuptools >= 0.6c6")
+        package_imports.append(('setuptools', 'setuptools'))
+
+require_more()
+
+deprecation_messages = [
+    "the sha module is deprecated; use the hashlib module instead",
+    "object.__new__\(\) takes no parameters",
+    "The popen2 module is deprecated.  Use the subprocess module.",
+    "the md5 module is deprecated; use hashlib instead",
+    "twisted.web.error.NoResource is deprecated since Twisted 9.0.  See twisted.web.resource.NoResource.",
+    "the sets module is deprecated",
+]
+
+deprecation_imports = [
+    'nevow',
+    'twisted.persisted.sob',
+    'twisted.python.filepath',
+    'Crypto.Hash.SHA',
+]
