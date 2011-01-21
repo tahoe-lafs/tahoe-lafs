@@ -30,7 +30,7 @@ from twisted.web.error import Error
 
 from allmydata.test.common import SystemTestMixin
 
-# TODO: move these to common or common_util
+# TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
 
 LARGE_DATA = """

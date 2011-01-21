@@ -31,13 +31,18 @@ def get_root_from_file(src):
 srcfile = allmydata.__file__
 rootdir = get_root_from_file(srcfile)
 
-bintahoe = os.path.join(rootdir, 'bin', 'tahoe')
-if sys.platform == "win32":
-    bintahoe += ".pyscript"
-    if not os.path.exists(bintahoe):
-       alt_bintahoe = os.path.join(rootdir, 'Scripts', 'tahoe.pyscript')
-       if os.path.exists(alt_bintahoe):
-           bintahoe = alt_bintahoe
+if hasattr(sys, 'frozen'):
+    bintahoe = os.path.join(rootdir, 'tahoe')
+    if sys.platform == "win32" and os.path.exists(bintahoe + '.exe'):
+        bintahoe += '.exe'
+else:
+    bintahoe = os.path.join(rootdir, 'bin', 'tahoe')
+    if sys.platform == "win32":
+        bintahoe += '.pyscript'
+        if not os.path.exists(bintahoe):
+            alt_bintahoe = os.path.join(rootdir, 'Scripts', 'tahoe.pyscript')
+            if os.path.exists(alt_bintahoe):
+                bintahoe = alt_bintahoe
 
 
 class RunBinTahoeMixin:
@@ -53,7 +58,14 @@ class RunBinTahoeMixin:
 
     def run_bintahoe(self, args, stdin=None, python_options=[], env=None):
         self.skip_if_cannot_run_bintahoe()
-        command = [sys.executable] + python_options + [bintahoe] + args
+
+        if hasattr(sys, 'frozen'):
+            if python_options:
+                raise unittest.SkipTest("This test doesn't apply to frozen builds.")
+            command = [bintahoe] + args
+        else:
+            command = [sys.executable] + python_options + [bintahoe] + args
+
         if stdin is None:
             stdin_stream = None
         else:
@@ -69,6 +81,9 @@ class RunBinTahoeMixin:
 class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
     def _check_right_code(self, file_to_check):
         root_to_check = get_root_from_file(file_to_check)
+        if os.path.basename(root_to_check) == 'dist':
+            root_to_check = os.path.dirname(root_to_check)
+
         cwd = os.path.normcase(os.path.realpath("."))
         root_from_cwd = os.path.dirname(cwd)
         if os.path.basename(root_from_cwd) == 'src':
@@ -172,8 +187,6 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         return d
 
     def test_run_with_python_options(self):
-        self.skip_if_cannot_run_bintahoe()
-
         # -t is a harmless option that warns about tabs.
         d = self.run_bintahoe(["--version"], python_options=["-t"])
         def _cb(res):
