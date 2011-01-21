@@ -35,7 +35,9 @@ class Options(BaseOptions, usage.Options):
 
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
-            raise usage.UsageError("must specify a command")
+            if not hasattr(self, 'no_command_needed'):
+                raise usage.UsageError("must specify a command")
+            sys.exit(0)
 
 
 create_dispatch = {}

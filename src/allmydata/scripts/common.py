@@ -32,8 +32,8 @@ class BaseOptions(usage.Options):
 
     optFlags = [
         ["quiet", "q", "Operate silently."],
-        ["version", "V", "Display version numbers and exit."],
-        ["version-and-path", None, "Display version numbers and paths to their locations and exit."],
+        ["version", "V", "Display version numbers."],
+        ["version-and-path", None, "Display version numbers and paths to their locations."],
     ]
     optParameters = [
         ["node-directory", "d", None, "Specify which Tahoe node directory should be used." + (
@@ -43,12 +43,14 @@ class BaseOptions(usage.Options):
     def opt_version(self):
         import allmydata
         print >>self.stdout, allmydata.get_package_versions_string()
-        sys.exit(0)
+        print >>self.stdout
+        self.no_command_needed = True
 
     def opt_version_and_path(self):
         import allmydata
         print >>self.stdout, allmydata.get_package_versions_string(show_paths=True)
-        sys.exit(0)
+        print >>self.stdout
+        self.no_command_needed = True
 
 
 class BasedirMixin:
