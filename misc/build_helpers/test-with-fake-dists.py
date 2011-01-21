@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import StringIO, glob, os, platform, shutil, subprocess, sys, tarfile, zipfile
+import StringIO, os, platform, shutil, subprocess, sys, tarfile, zipfile
 import pkg_resources
 
 def test():

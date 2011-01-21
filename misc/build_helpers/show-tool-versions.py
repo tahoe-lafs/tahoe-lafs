@@ -5,6 +5,7 @@ import locale, os, subprocess, sys, traceback
 added_zetuptoolz_egg = False
 try:
     import pkg_resources
+    pkg_resources  # hush pyflakes
 except ImportError:
     import glob
     eggz = glob.glob('setuptools-*.egg')
