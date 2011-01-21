@@ -249,21 +249,21 @@ class Trial(Command):
     user_options = [ ("rterrors", "e", "Print out tracebacks as soon as they occur."),
                      ("reporter=", None, "The reporter to use for this test run."),
                      ("suite=", "s", "Specify the test suite."),
-                     ("version-and-path", None, "Display version numbers and paths of Tahoe dependencies."),
+                     ("quiet", None, "Don't display version numbers and paths of Tahoe dependencies."),
                    ]
 
     def initialize_options(self):
         self.rterrors = False
         self.reporter = None
         self.suite = "allmydata"
-        self.version_and_path = False
+        self.quiet = False
 
     def finalize_options(self):
         pass
 
     def run(self):
         args = [sys.executable, os.path.join('bin', 'tahoe')]
-        if self.version_and_path:
+        if not self.quiet:
             args.append('--version-and-path')
         args += ['debug', 'trial']
         if self.rterrors:
