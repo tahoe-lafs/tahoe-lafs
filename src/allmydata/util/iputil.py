@@ -176,12 +176,12 @@ _win32_re = re.compile('^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\
 
 # These work in Redhat 6.x and Debian 2.2 potato
 _linux_path = '/sbin/ifconfig'
-_linux_re = re.compile('^\s*inet \w*:?(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
+_linux_re = re.compile('^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
 
 # NetBSD 1.4 (submitted by Rhialto), Darwin, Mac OS X
 _netbsd_path = '/sbin/ifconfig'
 _netbsd_args = ('-a',)
-_netbsd_re = re.compile('^\s+inet \w*:?(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
+_netbsd_re = re.compile('^\s+inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
 
 # Irix 6.5
 _irix_path = '/usr/etc/ifconfig'
