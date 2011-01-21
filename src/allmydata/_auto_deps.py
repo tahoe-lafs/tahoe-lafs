@@ -78,7 +78,7 @@ def require_more():
     except ImportError:
         # pysqlite v2.0.5 was shipped in Ubuntu 6.06 LTS "dapper" and Nexenta NCP 1.
         install_requires.append("pysqlite >= 2.0.5")
-        package_imports.append(('pysqlite', 'pysqlite.dbapi2'))
+        package_imports.append(('pysqlite', 'pysqlite2.dbapi2'))
 
     if not hasattr(sys, 'frozen'):
         # we require newer versions of setuptools (actually
