@@ -6,7 +6,7 @@
 # pyutil.version_class for a description of what the different fields mean.
 
 __pkgname__ = "darcsver"
-verstr = "1.7.1"
+verstr = "1.7.2"
 try:
     from pyutil.version_class import Version as pyutil_Version
     __version__ = pyutil_Version(verstr)

@@ -1,5 +1,4 @@
 README.txt
-TODO
 setup.py
 darcsver/__init__.py
 darcsver/_version.py

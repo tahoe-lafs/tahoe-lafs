@@ -47,7 +47,7 @@ except (ImportError, ValueError):
 '''
 
 def write_version_py(verstr, outfname, EXE_NAME, version_body, pkgname):
-    f = open(outfname, "wt+")
+    f = open(outfname, "wb+")
     f.write(version_body % {
             'versiontool': EXE_NAME,
             'pkgversion': verstr,
