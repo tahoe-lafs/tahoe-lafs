@@ -276,18 +276,6 @@ class Trial(Command):
         sys.exit(rc)
 
 
-class CheckAutoDeps(Command):
-    user_options = []
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        adglobals = {}
-        execfile('src/allmydata/_auto_deps.py', adglobals)
-        adglobals['require_auto_deps']()
-
-
 class MakeExecutable(Command):
     description = "make the 'bin%stahoe' scripts" % (os.sep,)
     user_options = []
@@ -398,7 +386,6 @@ setup(name=APPNAME,
       cmdclass={"show_supportlib": ShowSupportLib,
                 "show_pythonpath": ShowPythonPath,
                 "run_with_pythonpath": RunWithPythonPath,
-                "check_auto_deps": CheckAutoDeps,
                 "test_mac_diskimage": TestMacDiskImage,
                 "trial": Trial,
                 "make_executable": MakeExecutable,
