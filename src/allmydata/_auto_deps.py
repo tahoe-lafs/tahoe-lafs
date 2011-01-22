@@ -5,6 +5,10 @@
 # always available, or the import is protected by try...except ImportError.
 
 install_requires = [
+    # we require newer versions of setuptools (actually
+    # zetuptoolz) to build, but can handle older versions to run
+    "setuptools >= 0.6c6",
+
     "zfec >= 1.1.0",
 
     # Feisty has simplejson 1.4
@@ -80,10 +84,11 @@ def require_more():
         install_requires.append("pysqlite >= 2.0.5")
         package_imports.append(('pysqlite', 'pysqlite2.dbapi2'))
 
+    # Don't try to get the version number of setuptools in frozen builds, because
+    # that triggers 'site' processing that causes failures. Note that frozen
+    # builds still (unfortunately) import pkg_resources in .tac files, so the
+    # entry for setuptools in install_requires above isn't conditional.
     if not hasattr(sys, 'frozen'):
-        # we require newer versions of setuptools (actually
-        # zetuptoolz) to build, but can handle older versions to run
-        install_requires.append("setuptools >= 0.6c6")
         package_imports.append(('setuptools', 'setuptools'))
 
 require_more()
