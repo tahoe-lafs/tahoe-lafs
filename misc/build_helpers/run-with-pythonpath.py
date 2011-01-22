@@ -7,7 +7,7 @@ code, including dependent libraries. Run this like:
  python misc/build_helpers/run-with-pythonpath.py python foo.py
 """
 
-import os, sys, subprocess
+import os, sys
 
 # figure out where support/lib/pythonX.X/site-packages is
 # add it to os.environ["PYTHONPATH"]
