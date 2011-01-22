@@ -133,38 +133,30 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
     def test_path(self):
         d = self.run_bintahoe(["--version-and-path"])
         def _cb(res):
+            from allmydata import normalized_version
+
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
 
             # Fail unless the allmydata-tahoe package is *this* version *and*
             # was loaded from *this* source directory.
 
-            verstr = str(allmydata.__version__)
+            required_verstr = str(allmydata.__version__)
 
-            self.failIfEqual(verstr, "unknown",
+            self.failIfEqual(required_verstr, "unknown",
                              "We don't know our version, because this distribution didn't come "
                              "with a _version.py and 'setup.py darcsver' hasn't been run.")
 
-            # The Python "rational version numbering" convention
-            # disallows "-r$REV" but allows ".post$REV"
-            # instead. Eventually we'll probably move to that. When we
-            # do, this test won't go red:
-
-            ix = verstr.rfind('-r')
-            if ix != -1:
-                altverstr = verstr[:ix] + '.post' + verstr[ix+2:]
-            else:
-                ix = verstr.rfind('.post')
-                if ix != -1:
-                    altverstr = verstr[:ix] + '-r' + verstr[ix+5:]
-                else:
-                    altverstr = verstr
-
             srcdir = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
-            required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, verstr, srcdir)
-            alt_required_ver_and_path = "%s: %s (%s)" % (allmydata.__appname__, altverstr, srcdir)
+            info = (res, allmydata.__appname__, required_verstr, srcdir)
 
-            self.failUnless(out.startswith(required_ver_and_path) or out.startswith(alt_required_ver_and_path), (out, err, rc_or_sig, required_ver_and_path))
+            appverpath = out.split(')')[0]
+            (appver, path) = appverpath.split(' (')
+            (app, ver) = appver.split(': ')
+
+            self.failUnlessEqual(app, allmydata.__appname__, info)
+            self.failUnlessEqual(normalized_version(ver), normalized_version(required_verstr), info)
+            self.failUnlessEqual(path, srcdir, info)
         d.addCallback(_cb)
         return d
 
@@ -198,10 +190,11 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
 
     def test_version_no_noise(self):
         self.skip_if_cannot_run_bintahoe()
-        import pkg_resources
-        try:
-            pkg_resources.require("Twisted>=9.0.0")
-        except pkg_resources.VersionConflict:
+
+        from allmydata import get_package_versions, normalized_version
+        twisted_ver = get_package_versions()['Twisted']
+
+        if not normalized_version(twisted_ver) >= normalized_version('9.0.0'):
             raise unittest.SkipTest("We pass this test only with Twisted >= v9.0.0")
 
         d = self.run_bintahoe(["--version"])
@@ -449,11 +442,13 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
     def test_client_no_noise(self):
         self.skip_if_cannot_daemonize()
-        import pkg_resources
-        try:
-            pkg_resources.require("Twisted>=9.0.0")
-        except pkg_resources.VersionConflict:
+
+        from allmydata import get_package_versions, normalized_version
+        twisted_ver = get_package_versions()['Twisted']
+
+        if not normalized_version(twisted_ver) >= normalized_version('9.0.0'):
             raise unittest.SkipTest("We pass this test only with Twisted >= v9.0.0")
+
         basedir = self.workdir("test_client_no_noise")
         c1 = os.path.join(basedir, "c1")
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
