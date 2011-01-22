@@ -129,17 +129,6 @@ coverage-output:
 	cp .coverage coverage-html/coverage.data
 	@echo "now point your browser at coverage-html/index.html"
 
-## use these two targets to compare this coverage against the previous run.
-## The deltas only work if the old test was run in the same directory, since
-## it compares absolute filenames.
-#get-old-figleaf-coverage:
-#	wget --progress=dot -O old.figleaf http://allmydata.org/tahoe-figleaf/current/figleaf.pickle
-#
-#figleaf-delta-output:
-#	$(RUNPP) -p -c "misc/figleaf2html -d coverage-html -r src -x misc/figleaf.excludes -o old.figleaf"
-#	cp .figleaf coverage-html/figleaf.pickle
-#	@echo "now point your browser at coverage-html/index.html"
-
 .PHONY: upload-coverage .coverage.el pyflakes count-lines
 .PHONY: check-memory check-memory-once check-speed check-grid
 .PHONY: repl test-darcs-boringfile test-clean clean find-trailing-spaces
