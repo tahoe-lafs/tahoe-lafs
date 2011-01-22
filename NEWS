@@ -26,6 +26,7 @@
  - foolscap 0.6.1
  - Debian package dependencies now specify python-twisted-conch
  - setuptools_darcs is bundled rather than being an external dependency
+ - pywin32 is no longer required on Windows
 
 
 * Release 1.8.1 (2010-10-28)
