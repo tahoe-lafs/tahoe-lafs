@@ -21,7 +21,11 @@ def rm(options):
     except UnknownAliasError, e:
         e.display(stderr)
         return 1
-    assert path
+    if not path:
+        print >>stderr, """
+'tahoe rm' can only unlink directory entries, so a path must be given."""
+        return 1
+
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)
     url += "/" + escape_path(path)
 
