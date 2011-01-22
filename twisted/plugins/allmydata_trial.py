@@ -5,7 +5,7 @@ from twisted.trial.itrial import IReporter
 from twisted.plugin import IPlugin
 
 # register a plugin that can create our CoverageReporter. The reporter itself
-# lives separately, in src/allmydata/test/trial_figleaf.py
+# lives separately, in src/allmydata/test/trial_coverage.py
 
 # note that this allmydata_trial.py file is *not* in a package: there is no
 # __init__.py in our parent directory. This is important, because otherwise
