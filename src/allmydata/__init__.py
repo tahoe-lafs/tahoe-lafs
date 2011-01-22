@@ -300,17 +300,20 @@ def cross_check_pkg_resources_versus_import():
     return errors
 
 
-def get_error_string(errors):
+def get_error_string(errors, debug=False):
     from allmydata._auto_deps import install_requires
 
-    return ("\n%s\n\n"
-            "For debugging purposes, the PYTHONPATH was\n"
-            "  %r\n"
-            "install_requires was\n"
-            "  %r\n"
-            "sys.path after importing pkg_resources was\n"
-            "  %s\n"
-            % ("\n".join(errors), os.environ.get('PYTHONPATH'), install_requires, (os.pathsep+"\n  ").join(sys.path)) )
+    msg = "\n%s\n" % ("\n".join(errors),)
+    if debug:
+        msg += ("\n"
+                "For debugging purposes, the PYTHONPATH was\n"
+                "  %r\n"
+                "install_requires was\n"
+                "  %r\n"
+                "sys.path after importing pkg_resources was\n"
+                "  %s\n"
+                % (os.environ.get('PYTHONPATH'), install_requires, (os.pathsep+"\n  ").join(sys.path)) )
+    return msg
 
 def check_all_requirements():
     """This function returns a list of errors due to any failed checks."""
@@ -346,7 +349,7 @@ def check_all_requirements():
             errors.append("%s: %s" % (e.__class__.__name__, e))
 
     if errors:
-        raise PackagingError(get_error_string(errors))
+        raise PackagingError(get_error_string(errors, debug=True))
 
 check_all_requirements()
 
@@ -357,7 +360,7 @@ def get_package_versions():
 def get_package_locations():
     return dict([(k, l) for k, (v, l) in _vers_and_locs_list])
 
-def get_package_versions_string(show_paths=False):
+def get_package_versions_string(show_paths=False, debug=False):
     res = []
     for p, (v, loc) in _vers_and_locs_list:
         info = str(p) + ": " + str(v)
@@ -370,6 +373,6 @@ def get_package_versions_string(show_paths=False):
     if not hasattr(sys, 'frozen'):
         errors = cross_check_pkg_resources_versus_import()
         if errors:
-            output += get_error_string(errors)
+            output += get_error_string(errors, debug=debug)
 
     return output
