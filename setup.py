@@ -9,7 +9,7 @@
 #
 # See the docs/about.html file for licensing information.
 
-import glob, os, shutil, stat, subprocess, sys, zipfile, re
+import glob, os, stat, subprocess, sys, re
 
 ##### sys.path management
 

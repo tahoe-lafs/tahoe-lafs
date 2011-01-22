@@ -157,7 +157,7 @@ endif
 
 
 pyflakes:
-	$(PYTHON) -OOu `which pyflakes` src/allmydata static misc/build_helpers bin/tahoe-script.template |sort |uniq
+	$(PYTHON) -OOu `which pyflakes` src/allmydata static misc/build_helpers bin/tahoe-script.template twisted setup.py |sort |uniq
 check-umids:
 	$(PYTHON) misc/coding_tools/check-umids.py `find src/allmydata -name '*.py'`
 
