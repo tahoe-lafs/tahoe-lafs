@@ -11,6 +11,9 @@ class CreateStatsGathererOptions(BasedirMixin, BaseOptions):
         ["node-directory", "d", None, "Specify which directory the stats-gatherer should be created in. [no default]"],
     ]
 
+    def getSynopsis(self):
+        return "Usage:  %s create-stats-gatherer [options] NODEDIR" % (os.path.basename(sys.argv[0]),)
+
 
 stats_gatherer_tac = """
 # -*- python -*-

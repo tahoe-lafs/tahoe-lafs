@@ -5,14 +5,21 @@ from allmydata.util import fileutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, quote_output
 
+
 class StartOptions(BasedirMixin, BaseOptions):
     optFlags = [
         ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
         ["syslog", None, "Tell the node to log to syslog, not a file."],
         ]
 
+    def getSynopsis(self):
+        return "Usage:  %s start [options] [NODEDIR]" % (os.path.basename(sys.argv[0]),)
+
+
 class StopOptions(BasedirMixin, BaseOptions):
-    pass
+    def getSynopsis(self):
+        return "Usage:  %s stop [options] [NODEDIR]" % (os.path.basename(sys.argv[0]),)
+
 
 class RestartOptions(BasedirMixin, BaseOptions):
     optFlags = [
@@ -20,12 +27,20 @@ class RestartOptions(BasedirMixin, BaseOptions):
         ["syslog", None, "Tell the node to log to syslog, not a file."],
         ]
 
+    def getSynopsis(self):
+        return "Usage:  %s restart [options] [NODEDIR]" % (os.path.basename(sys.argv[0]),)
+
+
 class RunOptions(BasedirMixin, BaseOptions):
     default_nodedir = u"."
 
     optParameters = [
         ["node-directory", "d", None, "Specify the directory of the node to be run. [default, for 'tahoe run' only: current directory]"],
     ]
+
+    def getSynopsis(self):
+        return "Usage:  %s run [options] [NODEDIR]" % (os.path.basename(sys.argv[0]),)
+
 
 def start(opts, out=sys.stdout, err=sys.stderr):
     basedir = opts['basedir']

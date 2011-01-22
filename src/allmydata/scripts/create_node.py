@@ -16,10 +16,18 @@ class CreateClientOptions(BasedirMixin, BaseOptions):
          "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
         ]
 
+    def getSynopsis(self):
+        return "Usage:  %s create-client [options] [NODEDIR]" % (os.path.basename(sys.argv[0]),)
+
+
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
         ]
+
+    def getSynopsis(self):
+        return "Usage:  %s create-node [options] [NODEDIR]" % (os.path.basename(sys.argv[0]),)
+
 
 class CreateIntroducerOptions(BasedirMixin, BaseOptions):
     default_nodedir = None
@@ -27,6 +35,10 @@ class CreateIntroducerOptions(BasedirMixin, BaseOptions):
     optParameters = [
         ["node-directory", "d", None, "Specify which directory the introducer should be created in. [no default]"],
     ]
+
+    def getSynopsis(self):
+        return "Usage:  %s create-introducer [options] NODEDIR" % (os.path.basename(sys.argv[0]),)
+
 
 client_tac = """
 # -*- python -*-

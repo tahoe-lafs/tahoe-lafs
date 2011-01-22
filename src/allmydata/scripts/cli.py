@@ -62,7 +62,7 @@ class AddAliasOptions(VDriveOptions):
         self.cap = cap
 
     def getSynopsis(self):
-        return "%s add-alias ALIAS[:] DIRCAP" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s add-alias ALIAS[:] DIRCAP" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Add a new alias for an existing directory."""
 
@@ -73,7 +73,7 @@ class CreateAliasOptions(VDriveOptions):
             self.alias = self.alias[:-1]
 
     def getSynopsis(self):
-        return "%s create-alias ALIAS[:]" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s create-alias ALIAS[:]" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Create a new directory and add an alias for it."""
 
@@ -135,7 +135,7 @@ class GetOptions(VDriveOptions):
             self.to_file = None
 
     def getSynopsis(self):
-        return "%s get REMOTE_FILE LOCAL_FILE" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s get REMOTE_FILE LOCAL_FILE" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """
     Retrieve a file from the grid and write it to the local filesystem. If
@@ -174,7 +174,7 @@ class PutOptions(VDriveOptions):
             self.from_file = None
 
     def getSynopsis(self):
-        return "%s put LOCAL_FILE REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s put LOCAL_FILE REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """
     Put a file into the grid, copying its contents from the local filesystem.
@@ -242,11 +242,11 @@ class RmOptions(VDriveOptions):
         self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
-        return "%s rm REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s rm REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
 
 class UnlinkOptions(RmOptions):
     def getSynopsis(self):
-        return "%s unlink REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s unlink REMOTE_FILE" % (os.path.basename(sys.argv[0]),)
 
 class MvOptions(VDriveOptions):
     def parseArgs(self, frompath, topath):
@@ -254,7 +254,7 @@ class MvOptions(VDriveOptions):
         self.to_file = argv_to_unicode(topath)
 
     def getSynopsis(self):
-        return "%s mv FROM TO" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s mv FROM TO" % (os.path.basename(sys.argv[0]),)
     longdesc = """
     Use 'tahoe mv' to move files that are already on the grid elsewhere on
     the grid, e.g., 'tahoe mv alias:some_file alias:new_file'.
@@ -273,7 +273,7 @@ class LnOptions(VDriveOptions):
         self.to_file = argv_to_unicode(topath)
 
     def getSynopsis(self):
-        return "%s ln FROM_LINK TO_LINK" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s ln FROM_LINK TO_LINK" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """
     Use 'tahoe ln' to duplicate a link (directory entry) already on the grid
@@ -320,7 +320,7 @@ class BackupOptions(VDriveOptions):
         self.to_dir = argv_to_unicode(topath)
 
     def getSynopsis(Self):
-        return "%s backup FROM ALIAS:TO" % os.path.basename(sys.argv[0])
+        return "Usage:  %s backup FROM ALIAS:TO" % os.path.basename(sys.argv[0])
 
     def opt_exclude(self, pattern):
         """Ignore files matching a glob pattern. You may give multiple
@@ -378,7 +378,7 @@ class WebopenOptions(VDriveOptions):
         self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
-        return "%s webopen [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s webopen [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Open a web browser to the contents of some file or
     directory on the grid. When run without arguments, open the Welcome
@@ -395,7 +395,7 @@ class ManifestOptions(VDriveOptions):
         self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
-        return "%s manifest [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s manifest [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Print a list of all files and directories reachable from
     the given starting point."""
@@ -408,7 +408,7 @@ class StatsOptions(VDriveOptions):
         self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
-        return "%s stats [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s stats [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """Print statistics about of all files and directories
     reachable from the given starting point."""
@@ -424,7 +424,7 @@ class CheckOptions(VDriveOptions):
         self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
-        return "%s check [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s check [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """
     Check a single file or directory: count how many shares are available and
@@ -443,7 +443,7 @@ class DeepCheckOptions(VDriveOptions):
         self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
-        return "%s deep-check [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s deep-check [ALIAS:PATH]" % (os.path.basename(sys.argv[0]),)
 
     longdesc = """
     Check all files and directories reachable from the given starting point
