@@ -12,7 +12,8 @@ from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      MustBeReadonlyError, MustNotBeUnknownRWError
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate
-from allmydata.util.encodingutil import to_str
+from allmydata.util.encodingutil import to_str, quote_output
+
 
 class IOpHandleTable(Interface):
     pass
@@ -166,8 +167,8 @@ def humanize_failure(f):
         return ("There was already a child by that name, and you asked me "
                 "to not replace it.", http.CONFLICT)
     if f.check(NoSuchChildError):
-        name = f.value.args[0]
-        return ("No such child: %s" % name.encode("utf-8"), http.NOT_FOUND)
+        quoted_name = quote_output(f.value.args[0], encoding="utf-8", quotemarks=False)
+        return ("No such child: %s" % quoted_name, http.NOT_FOUND)
     if f.check(NotEnoughSharesError):
         t = ("NotEnoughSharesError: This indicates that some "
              "servers were unavailable, or that shares have been "
@@ -194,41 +195,41 @@ def humanize_failure(f):
              "this object to learn more.")
         return (t, http.GONE)
     if f.check(MustNotBeUnknownRWError):
-        name = f.value.args[1]
+        quoted_name = quote_output(f.value.args[1], encoding="utf-8")
         immutable = f.value.args[2]
         if immutable:
             t = ("MustNotBeUnknownRWError: an operation to add a child named "
-                 "'%s' to a directory was given an unknown cap in a write slot.\n"
+                 "%s to a directory was given an unknown cap in a write slot.\n"
                  "If the cap is actually an immutable readcap, then using a "
                  "webapi server that supports a later version of Tahoe may help.\n\n"
                  "If you are using the webapi directly, then specifying an immutable "
                  "readcap in the read slot (ro_uri) of the JSON PROPDICT, and "
                  "omitting the write slot (rw_uri), would also work in this "
-                 "case.") % name.encode("utf-8")
+                 "case.") % quoted_name
         else:
             t = ("MustNotBeUnknownRWError: an operation to add a child named "
-                 "'%s' to a directory was given an unknown cap in a write slot.\n"
+                 "%s to a directory was given an unknown cap in a write slot.\n"
                  "Using a webapi server that supports a later version of Tahoe "
                  "may help.\n\n"
                  "If you are using the webapi directly, specifying a readcap in "
                  "the read slot (ro_uri) of the JSON PROPDICT, as well as a "
                  "writecap in the write slot if desired, would also work in this "
-                 "case.") % name.encode("utf-8")
+                 "case.") % quoted_name
         return (t, http.BAD_REQUEST)
     if f.check(MustBeDeepImmutableError):
-        name = f.value.args[1]
+        quoted_name = quote_output(f.value.args[1], encoding="utf-8")
         t = ("MustBeDeepImmutableError: a cap passed to this operation for "
-             "the child named '%s', needed to be immutable but was not. Either "
+             "the child named %s, needed to be immutable but was not. Either "
              "the cap is being added to an immutable directory, or it was "
              "originally retrieved from an immutable directory as an unknown "
-             "cap." % name.encode("utf-8"))
+             "cap.") % quoted_name
         return (t, http.BAD_REQUEST)
     if f.check(MustBeReadonlyError):
-        name = f.value.args[1]
+        quoted_name = quote_output(f.value.args[1], encoding="utf-8")
         t = ("MustBeReadonlyError: a cap passed to this operation for "
              "the child named '%s', needed to be read-only but was not. "
              "The cap is being passed in a read slot (ro_uri), or was retrieved "
-             "from a read slot as an unknown cap." % name.encode("utf-8"))
+             "from a read slot as an unknown cap.") % quoted_name
         return (t, http.BAD_REQUEST)
     if f.check(WebError):
         return (f.value.text, f.value.code)
