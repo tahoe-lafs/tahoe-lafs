@@ -441,15 +441,27 @@ This section describes these other files.
   also an "incoming" directory where partially-completed shares are held
   while they are being received.
 
-``client.tac``
-  this file defines the client, by constructing the actual Client instance
+``tahoe-client.tac``
+  This file defines the client, by constructing the actual Client instance
   each time the node is started. It is used by the "``twistd``" daemonization
   program (in the ``-y`` mode), which is run internally by the "``tahoe start``"
   command. This file is created by the "``tahoe create-node``" or
   "``tahoe create-client``" commands.
 
+``tahoe-introducer.tac``
+  This file is used to construct an introducer, and is created by the
+  "``tahoe create-introducer``" command.
+
+``tahoe-key-generator.tac``
+  This file is used to construct a key generator, and is created by the
+  "``tahoe create-key-gernerator``" command.
+
+``tahoe-stats-gatherer.tac``
+  This file is used to construct a statistics gatherer, and is created by
+  the "``tahoe create-stats-gatherer``" command.
+
 ``private/control.furl``
-  this file contains a FURL that provides access to a control port on the
+  This file contains a FURL that provides access to a control port on the
   client node, from which files can be uploaded and downloaded. This file is
   created with permissions that prevent anyone else from reading it (on
   operating systems that support such a concept), to insure that only the
@@ -457,13 +469,13 @@ This section describes these other files.
   debugging and testing use.
 
 ``private/logport.furl``
-  this file contains a FURL that provides access to a 'log port' on the
+  This file contains a FURL that provides access to a 'log port' on the
   client node, from which operational logs can be retrieved. Do not grant
   logport access to strangers, because occasionally secret information may be
   placed in the logs.
 
 ``private/helper.furl``
-  if the node is running a helper (for use by other clients), its contact
+  If the node is running a helper (for use by other clients), its contact
   FURL will be placed here. See `<helper.rst>`_ for more details.
 
 ``private/root_dir.cap`` (optional)
