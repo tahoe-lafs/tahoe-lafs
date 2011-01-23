@@ -604,4 +604,4 @@ these are not the default values), merely a legal one.
 
 
   [helper]
-  run_helper = True
+  enable = True
