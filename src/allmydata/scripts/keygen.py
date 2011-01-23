@@ -11,6 +11,10 @@ class CreateKeyGeneratorOptions(BasedirMixin, BaseOptions):
         ["node-directory", "d", None, "Specify which directory the key-generator should be created in. [no default]"],
     ]
 
+    def getSynopsis(self):
+        return "Usage:  %s create-key-generator [options] NODEDIR" % (os.path.basename(sys.argv[0]),)
+
+
 keygen_tac = """
 # -*- python -*-
 
