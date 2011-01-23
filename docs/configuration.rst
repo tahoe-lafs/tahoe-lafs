@@ -574,9 +574,9 @@ is not (``tub.location`` is used verbatim).
 Example
 =======
 
-The following is a sample ``tahoe.cfg`` file, containing values for all keys
-described above. Note that this is not a recommended configuration (most of
-these are not the default values), merely a legal one.
+The following is a sample ``tahoe.cfg`` file, containing values for some of the
+keys described in the previous section. Note that this is not a recommended
+configuration (most of these are not the default values), merely a legal one.
 
 ::
 
@@ -599,9 +599,9 @@ these are not the default values), merely a legal one.
 
   [storage]
   enabled = True
-  readonly_storage = True
+  readonly = True
   sizelimit = 10000000000
 
 
   [helper]
-  enable = True
+  enabled = True
