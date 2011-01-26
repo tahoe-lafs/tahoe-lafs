@@ -1,32 +1,27 @@
-﻿User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
+User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
-* Trunk, post-1.8.1
+* Release 1.8.2 (?)
 
-** Bugfixes and Improvements
+** Compatibility and Dependencies
 
- - 'top' on some Unix platforms, e.g. Linux, now shows node processes as
-   'tahoe' instead of 'python'. (#174)
- - Improve HTML formatting of the WUI. (#1219)
- - The 'tahoe create-alias' and 'tahoe add-alias' commands now accept a
-   trailing colon on the alias. (#1305)
- - The default reserved_space setting for newly-created storage nodes
-   is 1 GiB. (#1208)
+ - Tahoe is now compatible with Twisted-10.2 (released last month). The
+   previous Tahoe-1.8.1 release failed to run against Twisted-10.2,
+   raising an AttributeError on StreamServerEndpointService (#1286)
+ - Tahoe now depends upon the "mock" testing library, and the foolscap
+   dependency was raised to 0.6.1 . It no longer requires pywin32 (which
+   was used only on windows). Future developers should note that
+   reactor.spawnProcess and derivatives may no longer be used inside
+   Tahoe code.
 
-** Removals
+** Other Changes
 
- - The unmaintained GUI applications for Mac OS X and Windows have been
-   removed. (#1282)
-
-** Documentation
-
- - Some documentation updates missed in 1.8.1 have been completed. (#1225)
-
-** Dependency Updates
-
- - foolscap 0.6.1
- - Debian package dependencies now specify python-twisted-conch
- - setuptools_darcs is bundled rather than being an external dependency
- - pywin32 is no longer required on Windows
+ - the default reserved_space value for new storage nodes is 1 GB (#1208)
+ - documentation is now in reStructuredText (.rst) format
+ - "tahoe cp" should now handle non-ASCII filenames
+ - the unmaintained Mac/Windows GUI applications have been removed (#1282)
+ - tahoe processes should appear in top and ps as "tahoe", not "python",
+   on some unix platforms. (#174)
+ - "tahoe debug trial" can be used to run the test suite (#1296)
 
 
 * Release 1.8.1 (2010-10-28)
