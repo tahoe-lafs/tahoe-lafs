@@ -427,9 +427,9 @@ The documentation for installing on Windows (docs/install.html) has been
 improved. (#773)
 
 For other changes not mentioned here, see
-<http://allmydata.org/trac/tahoe/query?milestone=1.6.0&keywords=!~news-done>.
+<http://tahoe-lafs.org/trac/tahoe/query?milestone=1.6.0&keywords=!~news-done>.
 To include the tickets mentioned above, go to
-<http://allmydata.org/trac/tahoe/query?milestone=1.6.0>.
+<http://tahoe-lafs.org/trac/tahoe/query?milestone=1.6.0>.
 
 
 * Release 1.5.0 (2009-08-01)
@@ -804,7 +804,7 @@ The cli might not correctly handle arguments which contain non-ascii
 characters in Tahoe v1.3 (although depending on your platform it
 might, especially if your platform can be configured to pass such
 characters on the command-line in utf-8 encoding).  See
-http://allmydata.org/trac/tahoe/ticket/565 for details.
+http://tahoe-lafs.org/trac/tahoe/ticket/565 for details.
 
 ** Web changes
 
@@ -906,9 +906,9 @@ libraries that Tahoe requires (foolscap, twisted, zfec, etc), so using the
 process. This can be useful if you want to build Tahoe while on an airplane,
 a desert island, or other bandwidth-limited environments.
 
-Similarly, allmydata.org now hosts a "tahoe-deps" tarball which contains the
+Similarly, tahoe-lafs.org now hosts a "tahoe-deps" tarball which contains the
 latest versions of all these dependencies. This tarball, located at
-http://allmydata.org/source/tahoe/deps/tahoe-deps.tar.gz, can be unpacked in
+http://tahoe-lafs.org/source/tahoe/deps/tahoe-deps.tar.gz, can be unpacked in
 the tahoe source tree (or in its parent directory), and the build process
 should satisfy its downloading needs from it instead of reaching out to PyPI.
 This can be useful if you want to build Tahoe from a darcs checkout while on
@@ -1008,7 +1008,7 @@ of existing mutable shares).
 
 Clients now declare which versions of the protocols they support. This is
 part of a new backwards-compatibility system:
-http://allmydata.org/trac/tahoe/wiki/Versioning .
+http://tahoe-lafs.org/trac/tahoe/wiki/Versioning .
 
 The version strings for human inspection (as displayed on the Welcome web
 page, and included in logs) now includes a platform identifer (frequently

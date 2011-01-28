@@ -11,25 +11,35 @@
   <body>
     <h1>How To Run Tahoe-LAFS</h1>
 
-    <p>This is how to run a Tahoe-LAFS client or a complete Tahoe-LAFS grid. First you
-    have to install the Tahoe-LAFS software, as documented in <a
-    href="install.html">install.html</a>.</p>
+    <p>This is how to run a Tahoe-LAFS client to connect to an
+    existing grid, or how to set up a complete Tahoe-LAFS grid. First
+    you have to install the Tahoe-LAFS software, as documented
+    in <a href="install.html">install.html</a>.</p>
 
     <p>The <code>tahoe</code> program in the <code>bin</code> directory is
     used to create, start, and stop nodes. Each node lives in a separate base
     directory, in which there is a configuration file named <code>tahoe.cfg</code>. Nodes
     read and write files within this base directory.</p>
 
-    <p>A grid consists of a set of <em>storage nodes</em> and <em>client nodes</em>
-    running the Tahoe-LAFS code. There is also an <em>introducer node</em> that
-    is responsible for getting the other nodes talking to each other.</p>
+    <p>A grid consists of a set of <em>storage nodes</em>
+    and <em>client nodes</em> (also known as <em>gateway nodes</em>)
+    running the Tahoe-LAFS code. There is also an <em>introducer
+    node</em> that is responsible for getting the other nodes talking
+    to each other. Which grid of storage servers your client will
+    connect to is determined solely by the introducer—if you configure
+    your node to connect to a certain introducer then your node will
+    only use those storage servers provided by that introducer. If you
+    configure your node to connect to a new introducer of your own
+    creation (see below), then your node will not connect to any
+    storage servers until you've created some storage servers and told them
+    to register themselves with that introducer.</p>
 
     <p>If you're getting started we recommend you try connecting to
     the <a href="http://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid">the
-    public test grid</a> as you only need to create a client node.
-    When you want to create your own grid you'll need to create the
-    introducer and several initial storage nodes (see the note about
-    small grids below).</p>
+    public test grid</a>—you will need to create only a gateway node
+    to do that.  When you want to create your own grid you'll need to
+    create the introducer and several initial storage nodes (see the
+    note about small grids below).</p>
 
     <p>If the Tahoe-LAFS <code>bin</code> directory is not on your PATH, then
     in all the command lines below, specify the full path to <code>bin/tahoe</code>.</p>
@@ -116,11 +126,11 @@
     <h3>The SFTP and FTP frontends</h3>
 
     <p>You can access your Tahoe-LAFS grid via any <a href="http://en.wikipedia.org/wiki/SSH_file_transfer_protocol">SFTP</a> or
-    <a href="http://en.wikipedia.org/wiki/File_Transfer_Protocol">FTP</a> client. 
+    <a href="http://en.wikipedia.org/wiki/File_Transfer_Protocol">FTP</a> client.
     See <a href="frontends/FTP-and-SFTP.rst">FTP-and-SFTP.rst</a> for how to set this up.
     On most Unix platforms, you can also use SFTP to plug Tahoe-LAFS into your computer's
     local filesystem via <code>sshfs</code>.
-    
+
     <p>The <a href="http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend">SftpFrontend</a> page
     on the wiki has more information about using SFTP with Tahoe-LAFS.</p>
 
