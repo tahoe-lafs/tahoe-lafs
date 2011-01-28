@@ -9,20 +9,20 @@ from allmydata.util.verlib import NormalizedVersion as V, \
 
 class CheckRequirement(unittest.TestCase):
     def test_check_requirement(self):
-        check_requirement("setuptools >= 0.6c6", {"setuptools": ("0.6", "")})
-        check_requirement("pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.1.0", "")})
-        check_requirement("pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.4.0", "")})
+        check_requirement("setuptools >= 0.6c6", {"setuptools": ("0.6", "", "")})
+        check_requirement("pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.1.0", "", "")})
+        check_requirement("pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.4.0", "", "")})
 
-        check_requirement("zope.interface", {"zope.interface": ("unknown", "")})
-        check_requirement("mock", {"mock": ("0.6.0", "")})
-        check_requirement("foo >= 1.0", {"foo": ("1.0", ""), "bar": ("2.0", "")})
+        check_requirement("zope.interface", {"zope.interface": ("unknown", "", "")})
+        check_requirement("mock", {"mock": ("0.6.0", "", "")})
+        check_requirement("foo >= 1.0", {"foo": ("1.0", "", ""), "bar": ("2.0", "", "")})
 
-        check_requirement("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.7.0", "")})
+        check_requirement("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.7.0", "", "")})
 
         self.failUnlessRaises(PackagingError, check_requirement,
-                              "foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.5.1", "")})
+                              "foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.5.1", "", "")})
         self.failUnlessRaises(PackagingError, check_requirement,
-                              "pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.2.0", "")})
+                              "pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.2.0", "", "")})
         self.failUnlessRaises(PackagingError, check_requirement,
                               "foo >= 1.0", {})
 
