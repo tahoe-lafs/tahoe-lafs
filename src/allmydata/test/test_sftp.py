@@ -293,17 +293,17 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
         gross = u"gro\u00DF".encode("utf-8")
         expected_root = [
-            ('empty_lit_dir', r'dr-xr-xr-x .* \? .* empty_lit_dir$',      {'permissions': S_IFDIR | 0555}),
+            ('empty_lit_dir', r'dr-xr-xr-x .* 0 .* empty_lit_dir$',       {'permissions': S_IFDIR | 0555}),
             (gross,           r'-rw-rw-rw- .* 1010 .* '+gross+'$',        {'permissions': S_IFREG | 0666, 'size': 1010}),
             # The fall of the Berlin wall may have been on 9th or 10th November 1989 depending on the gateway's timezone.
-            #('loop',          r'drwxrwxrwx .* \? Nov (09|10)  1989 loop$', {'permissions': S_IFDIR | 0777}),
-            ('loop',          r'drwxrwxrwx .* \? .* loop$',               {'permissions': S_IFDIR | 0777}),
-            ('mutable',       r'-rw-rw-rw- .* \? .* mutable$',            {'permissions': S_IFREG | 0666}),
-            ('readonly',      r'-r--r--r-- .* \? .* readonly$',           {'permissions': S_IFREG | 0444}),
+            #('loop',          r'drwxrwxrwx .* 0 Nov (09|10)  1989 loop$', {'permissions': S_IFDIR | 0777}),
+            ('loop',          r'drwxrwxrwx .* 0 .* loop$',                {'permissions': S_IFDIR | 0777}),
+            ('mutable',       r'-rw-rw-rw- .* 0 .* mutable$',             {'permissions': S_IFREG | 0666}),
+            ('readonly',      r'-r--r--r-- .* 0 .* readonly$',            {'permissions': S_IFREG | 0444}),
             ('small',         r'-rw-rw-rw- .* 10 .* small$',              {'permissions': S_IFREG | 0666, 'size': 10}),
             ('small2',        r'-rw-rw-rw- .* 26 .* small2$',             {'permissions': S_IFREG | 0666, 'size': 26}),
-            ('tiny_lit_dir',  r'dr-xr-xr-x .* \? .* tiny_lit_dir$',       {'permissions': S_IFDIR | 0555}),
-            ('unknown',       r'\?--------- .* \? .* unknown$',           {'permissions': 0}),
+            ('tiny_lit_dir',  r'dr-xr-xr-x .* 0 .* tiny_lit_dir$',        {'permissions': S_IFDIR | 0555}),
+            ('unknown',       r'\?--------- .* 0 .* unknown$',            {'permissions': 0}),
         ]
 
         d.addCallback(lambda ign: self.handler.openDirectory(""))

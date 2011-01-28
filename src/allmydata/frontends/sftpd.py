@@ -142,7 +142,10 @@ def _lsLine(name, attrs):
     st_gid = "tahoe"
     st_mtime = attrs.get("mtime", 0)
     st_mode = attrs["permissions"]
-    st_size = attrs.get("size", "?")
+
+    # Some clients won't tolerate '?' in the size field (#1337).
+    st_size = attrs.get("size", 0)
+
     # We don't know how many links there really are to this object.
     st_nlink = 1
 
