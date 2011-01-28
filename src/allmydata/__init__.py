@@ -182,17 +182,21 @@ def get_package_versions_and_locations():
                 __import__(modulename)
                 module = sys.modules[modulename]
             except ImportError:
-                packages.append((pkgname, (None, modulename)))
+                packages.append( (pkgname, (None, None, modulename)) )
             else:
                 if 'sqlite' in pkgname:
-                    packages.append( (pkgname,  (get_version(module, 'version'),        package_dir(module.__file__))) )
-                    packages.append( ('sqlite', (get_version(module, 'sqlite_version'), package_dir(module.__file__))) )
+                    packages.append( (pkgname, (get_version(module, 'version'), package_dir(module.__file__),
+                                               'sqlite %s' % (get_version(module, 'sqlite_version'),))) )
                 else:
-                    packages.append( (pkgname,  (get_version(module, '__version__'),    package_dir(module.__file__))) )
+                    comment = None
+                    if pkgname == 'setuptools' and hasattr(module, '_distribute'):
+                        # distribute does not report its version in any module variables
+                        comment = 'distribute'
+                    packages.append( (pkgname, (get_version(module, '__version__'), package_dir(module.__file__), comment)) )
         elif pkgname == 'python':
-            packages.append( (pkgname, (platform.python_version(), sys.executable)) )
+            packages.append( (pkgname, (platform.python_version(), sys.executable, None)) )
         elif pkgname == 'platform':
-            packages.append( (pkgname, (get_platform(), None)) )
+            packages.append( (pkgname, (get_platform(), None, None)) )
 
     return packages
 
@@ -207,9 +211,10 @@ def check_requirement(req, vers_and_locs):
         raise PackagingError("no version info for %s" % (name,))
     if req.strip(' ') == name:
         return
-    (actual, location) = vers_and_locs[name]
+    (actual, location, comment) = vers_and_locs[name]
     if actual is None:
-        raise ImportError("could not import %r for requirement %r" % (location, req))
+        # comment is the module name
+        raise ImportError("could not import %r for requirement %r" % (comment, req))
     if actual == 'unknown':
         return
     actualver = normalized_version(actual)
@@ -247,25 +252,35 @@ def cross_check_pkg_resources_versus_import():
     from _auto_deps import install_requires
 
     errors = []
-    not_pkg_resourceable = set(['sqlite', 'sqlite3', 'python', 'platform', __appname__.lower()])
+    not_pkg_resourceable = set(['sqlite3', 'python', 'platform', __appname__.lower()])
     not_import_versionable = set(['zope.interface', 'mock', 'pyasn1'])
-    ignorable = set(['argparse', 'pyutil', 'zbase32'])
+    ignorable = set(['argparse', 'pyutil', 'zbase32', 'distribute'])
 
     pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
                                         for p in pkg_resources.require(install_requires)])
 
-    for name, (imp_ver, imp_loc) in _vers_and_locs_list:
+    for name, (imp_ver, imp_loc, imp_comment) in _vers_and_locs_list:
         name = name.lower()
         if name not in not_pkg_resourceable:
             if name not in pkg_resources_vers_and_locs:
-                errors.append("Warning: dependency %s (version %s imported from %r) was not found by pkg_resources."
-                              % (name, imp_ver, imp_loc))
+                if name == "setuptools" and "distribute" in pkg_resources_vers_and_locs:
+                    pr_ver, pr_loc = pkg_resources_vers_and_locs["distribute"]
+                    if not (os.path.normpath(os.path.realpath(pr_loc)) == os.path.normpath(os.path.realpath(imp_loc))
+                            and imp_comment == "distribute"):
+                        errors.append("Warning: dependency 'setuptools' found to be version %s of 'distribute' from %r "
+                                      "by pkg_resources, but 'import setuptools' gave version %s [%s] from %r. "
+                                      "The version mismatch is expected, but the location mismatch is not."
+                                      % (pr_ver, pr_loc, imp_ver, imp_comment or 'probably *not* distribute', imp_loc))
+                else:
+                    errors.append("Warning: dependency %s (version %s imported from %r) was not found by pkg_resources."
+                                  % (name, imp_ver, imp_loc))
+                continue
 
             pr_ver, pr_loc = pkg_resources_vers_and_locs[name]
             try:
                 pr_normver = normalized_version(pr_ver)
             except Exception, e:
-                errors.append("Warning: version number %s found for dependency %s by pkg_resources could not be parsed. "
+                errors.append("Warning: version number %s found for dependency '%s' by pkg_resources could not be parsed. "
                               "The version found by import was %s from %r. "
                               "pkg_resources thought it should be found at %r. "
                               "The exception was %s: %s"
@@ -287,7 +302,7 @@ def cross_check_pkg_resources_versus_import():
                     else:
                         if pr_ver == 'unknown' or (pr_normver != imp_normver):
                             if not os.path.normpath(os.path.realpath(pr_loc)) == os.path.normpath(os.path.realpath(imp_loc)):
-                                errors.append("Warning: dependency %s found to have version number %s (normalized to %s, from %r) "
+                                errors.append("Warning: dependency '%s' found to have version number %s (normalized to %s, from %r) "
                                               "by pkg_resources, but version %s (normalized to %s, from %r) by import."
                                               % (name, pr_ver, str(pr_normver), pr_loc, imp_ver, str(imp_normver), imp_loc))
 
@@ -355,15 +370,17 @@ check_all_requirements()
 
 
 def get_package_versions():
-    return dict([(k, v) for k, (v, l) in _vers_and_locs_list])
+    return dict([(k, v) for k, (v, l, c) in _vers_and_locs_list])
 
 def get_package_locations():
-    return dict([(k, l) for k, (v, l) in _vers_and_locs_list])
+    return dict([(k, l) for k, (v, l, c) in _vers_and_locs_list])
 
 def get_package_versions_string(show_paths=False, debug=False):
     res = []
-    for p, (v, loc) in _vers_and_locs_list:
+    for p, (v, loc, comment) in _vers_and_locs_list:
         info = str(p) + ": " + str(v)
+        if comment:
+            info = info + " [%s]" % str(comment)
         if show_paths:
             info = info + " (%s)" % str(loc)
         res.append(info)
