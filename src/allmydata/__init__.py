@@ -373,7 +373,7 @@ def check_all_requirements():
     for requirement in install_requires:
         try:
             check_requirement(requirement, vers_and_locs)
-        except Exception, e:
+        except (ImportError, PackagingError), e:
             errors.append("%s: %s" % (e.__class__.__name__, e))
 
     if errors:
