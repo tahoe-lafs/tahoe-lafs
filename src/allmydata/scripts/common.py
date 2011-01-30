@@ -165,9 +165,9 @@ def get_alias(aliases, path_unicode, default):
         if default == None:
             return DefaultAliasMarker, path
         if default not in aliases:
-            raise UnknownAliasError("No alias specified, and the default "
-                                    "'tahoe' alias doesn't exist. To create "
-                                    "it, use 'tahoe create-alias tahoe'.")
+            raise UnknownAliasError("No alias specified, and the default %s alias doesn't exist. "
+                                    "To create it, use 'tahoe create-alias %s'."
+                                    % (quote_output(default), quote_output(default, quotemarks=False)))
         return aliases[default], path
     if colon == 1 and default is None and platform_uses_lettercolon_drivename():
         # treat C:\why\must\windows\be\so\weird as a local path, not a tahoe
@@ -182,9 +182,9 @@ def get_alias(aliases, path_unicode, default):
         if default == None:
             return DefaultAliasMarker, path
         if default not in aliases:
-            raise UnknownAliasError("No alias specified, and the default "
-                                    "'tahoe' alias doesn't exist. To create "
-                                    "it, use 'tahoe create-alias tahoe'.")
+            raise UnknownAliasError("No alias specified, and the default %s alias doesn't exist. "
+                                    "To create it, use 'tahoe create-alias %s'."
+                                    % (quote_output(default), quote_output(default, quotemarks=False)))
         return aliases[default], path
     if alias not in aliases:
         raise UnknownAliasError("Unknown alias %s, please create it with 'tahoe add-alias' or 'tahoe create-alias'." %
