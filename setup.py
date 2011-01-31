@@ -145,10 +145,22 @@ setup_requires.append('Twisted >= 2.4.0')
 
 # setuptools_darcs is required to produce complete distributions (such
 # as with "sdist" or "bdist_egg"), unless there is a
-# src/allmydata_tahoe.egg-info/SOURCE.txt file, which if present
-# contains a complete list of files that should be included.
+# src/allmydata_tahoe.egg-info/SOURCE.txt file present which contains
+# a complete list of files that should be included.
+
 # http://pypi.python.org/pypi/setuptools_darcs
-setup_requires.append('setuptools_darcs >= 1.1.0')
+
+# However, requiring it runs afoul of a bug in Distribute, which was
+# shipped in Ubuntu Lucid, so for now you have to manually install it
+# before building sdists or eggs:
+# http://bitbucket.org/tarek/distribute/issue/55/revision-control-plugin-automatically-installed-as-a-build-dependency-is-not-present-when-another-build-dependency-is-being
+
+# Note that we explicitly inject setuptools_darcs at the beginning of
+# this setup.py file, so it is still in effect when building dists
+# using this setup.py file even when the following requirement is
+# disabled.
+if False:
+    setup_requires.append('setuptools_darcs >= 1.1.0')
 
 # trialcoverage is required if you want the "trial" unit test runner to have a
 # "--reporter=bwverbose-coverage" option which produces code-coverage results.
