@@ -1,12 +1,13 @@
 User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
 
-* Release 1.8.2 (?)
+* Release 1.8.2 (2011-01-30)
 
 ** Compatibility and Dependencies
 
- - Tahoe is now compatible with Twisted-10.2 (released last month). The
-   previous Tahoe-1.8.1 release failed to run against Twisted-10.2,
-   raising an AttributeError on StreamServerEndpointService (#1286)
+ - Tahoe is now compatible with Twisted-10.2 (released last month), as well
+   as with earlier versions. The previous Tahoe-1.8.1 release failed to run
+   against Twisted-10.2, raising an AttributeError on
+   StreamServerEndpointService (#1286)
  - Tahoe now depends upon the "mock" testing library, and the foolscap
    dependency was raised to 0.6.1 . It no longer requires pywin32 (which
    was used only on windows). Future developers should note that
@@ -22,6 +23,10 @@ User visible changes in Tahoe-LAFS.  -*- outline; coding: utf-8 -*-
  - tahoe processes should appear in top and ps as "tahoe", not "python",
    on some unix platforms. (#174)
  - "tahoe debug trial" can be used to run the test suite (#1296)
+ - the SFTP frontend now reports unknown sizes as "0" instead of "?",
+   to improve compatibility with clients like FileZilla (#1337)
+ - "tahoe --version" should now report correct values in situations where
+   1.8.1 might have been wrong (#1287)
 
 
 * Release 1.8.1 (2010-10-28)
