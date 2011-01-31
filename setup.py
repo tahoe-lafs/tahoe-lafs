@@ -323,12 +323,13 @@ class MakeExecutable(Command):
                 f.write(line)
             f.close()
 
-            # chmod +x
-            old_mode = stat.S_IMODE(os.stat(tahoe_script)[stat.ST_MODE])
-            new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
-                                   stat.S_IXGRP | stat.S_IRGRP |
-                                   stat.S_IXOTH | stat.S_IROTH )
-            os.chmod(tahoe_script, new_mode)
+        # chmod +x
+        unix_script = os.path.join("bin", "tahoe")
+        old_mode = stat.S_IMODE(os.stat(unix_script)[stat.ST_MODE])
+        new_mode = old_mode | (stat.S_IXUSR | stat.S_IRUSR |
+                               stat.S_IXGRP | stat.S_IRGRP |
+                               stat.S_IXOTH | stat.S_IROTH )
+        os.chmod(unix_script, new_mode)
 
         old_tahoe_exe = os.path.join("bin", "tahoe.exe")
         try:
