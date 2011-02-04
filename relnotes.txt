@@ -63,7 +63,7 @@ release can use servers of all versions back to v1.0.
 
 This is the thirteenth release in the version 1 series. This
 series of Tahoe-LAFS will be actively supported and maintained
-for the forseeable future, and future versions of Tahoe-LAFS
+for the foreseeable future, and future versions of Tahoe-LAFS
 will retain the ability to read and write files compatible
 with this series.
 
