@@ -90,8 +90,8 @@ licence, at your option.)
 
 INSTALLATION
 
-Tahoe-LAFS works on Linux, Mac OS X, Windows, Cygwin, Solaris,
-*BSD, and probably most other systems. Start with
+Tahoe-LAFS works on Linux, Mac OS X, Windows, Solaris, *BSD,
+and probably most other systems. Start with
 "docs/quickstart.rst" [7].
 
 
