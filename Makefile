@@ -105,7 +105,7 @@ quicktest:
 
 quicktest-coverage:
 	rm -f .coverage
-	$(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
+	PYTHONPATH=. $(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
 # on my laptop, "quicktest" takes 239s, "quicktest-coverage" takes 304s
 
 # --include appeared in coverage-3.4
