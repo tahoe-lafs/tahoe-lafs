@@ -247,18 +247,18 @@ class Root(rend.Page):
 
     def data_connected_storage_servers(self, ctx, data):
         sb = self.client.get_storage_broker()
-        return len(sb.get_all_servers())
+        return len(sb.get_connected_servers())
 
     def data_services(self, ctx, data):
         sb = self.client.get_storage_broker()
-        return sb.get_all_descriptors()
+        return sb.get_known_servers()
 
-    def render_service_row(self, ctx, descriptor):
-        nodeid = descriptor.get_serverid()
+    def render_service_row(self, ctx, server):
+        nodeid = server.get_serverid()
 
         ctx.fillSlots("peerid", idlib.nodeid_b2a(nodeid))
-        ctx.fillSlots("nickname", descriptor.get_nickname())
-        rhost = descriptor.get_remote_host()
+        ctx.fillSlots("nickname", server.get_nickname())
+        rhost = server.get_remote_host()
         if rhost:
             if nodeid == self.client.nodeid:
                 rhost_s = "(loopback)"
@@ -267,12 +267,12 @@ class Root(rend.Page):
             else:
                 rhost_s = str(rhost)
             connected = "Yes: to " + rhost_s
-            since = descriptor.get_last_connect_time()
+            since = server.get_last_connect_time()
         else:
             connected = "No"
-            since = descriptor.get_last_loss_time()
-        announced = descriptor.get_announcement_time()
-        announcement = descriptor.get_announcement()
+            since = server.get_last_loss_time()
+        announced = server.get_announcement_time()
+        announcement = server.get_announcement()
         version = announcement["my-version"]
         service_name = announcement["service-name"]
 

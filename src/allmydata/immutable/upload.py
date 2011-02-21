@@ -224,7 +224,8 @@ class Tahoe2PeerSelector(log.PrefixingLogMixin):
                                              num_share_hashes, EXTENSION_SIZE,
                                              None)
         allocated_size = wbp.get_allocated_size()
-        all_peers = storage_broker.get_servers_for_index(storage_index)
+        all_peers = [(s.get_serverid(), s.get_rref())
+                     for s in storage_broker.get_servers_for_psi(storage_index)]
         if not all_peers:
             raise NoServersError("client gave us zero peers")
 

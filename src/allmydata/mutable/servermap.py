@@ -424,7 +424,8 @@ class ServermapUpdater:
         self._queries_completed = 0
 
         sb = self._storage_broker
-        full_peerlist = sb.get_servers_for_index(self._storage_index)
+        full_peerlist = [(s.get_serverid(), s.get_rref())
+                         for s in sb.get_servers_for_psi(self._storage_index)]
         self.full_peerlist = full_peerlist # for use later, immutable
         self.extra_peers = full_peerlist[:] # peers are removed as we use them
         self._good_peers = set() # peers who had some shares

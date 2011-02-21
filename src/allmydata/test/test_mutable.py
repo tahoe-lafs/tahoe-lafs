@@ -1910,11 +1910,9 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_got_key)
         def _break_peer0(res):
             si = self._storage_index
-            peerlist = nm.storage_broker.get_servers_for_index(si)
-            peerid0, connection0 = peerlist[0]
-            peerid1, connection1 = peerlist[1]
-            connection0.broken = True
-            self.connection1 = connection1
+            servers = nm.storage_broker.get_servers_for_psi(si)
+            self.g.break_server(servers[0].get_serverid())
+            self.server1 = servers[1]
         d.addCallback(_break_peer0)
         # now "create" the file, using the pre-established key, and let the
         # initial publish finally happen
@@ -1925,7 +1923,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 1"))
             # now break the second peer
             def _break_peer1(res):
-                self.connection1.broken = True
+                self.g.break_server(self.server1.get_serverid())
             d.addCallback(_break_peer1)
             d.addCallback(lambda res: n.overwrite("contents 2"))
             # that ought to work too
@@ -1956,7 +1954,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         nm = self.g.clients[0].nodemaker
         sb = nm.storage_broker
 
-        peerids = [serverid for (serverid,ss) in sb.get_all_servers()]
+        peerids = [s.get_serverid() for s in sb.get_connected_servers()]
         self.g.break_server(peerids[0])
 
         d = nm.create_mutable_file("contents 1")
@@ -1980,8 +1978,8 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.basedir = "mutable/Problems/test_publish_all_servers_bad"
         self.set_up_grid()
         nm = self.g.clients[0].nodemaker
-        for (serverid,ss) in nm.storage_broker.get_all_servers():
-            ss.broken = True
+        for s in nm.storage_broker.get_connected_servers():
+            s.get_rref().broken = True
 
         d = self.shouldFail(NotEnoughServersError,
                             "test_publish_all_servers_bad",
@@ -2033,8 +2031,8 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             #  1. notice which server gets a read() call first
             #  2. tell that server to start throwing errors
             killer = FirstServerGetsKilled()
-            for (serverid,ss) in nm.storage_broker.get_all_servers():
-                ss.post_call_notifier = killer.notify
+            for s in nm.storage_broker.get_connected_servers():
+                s.get_rref().post_call_notifier = killer.notify
         d.addCallback(_created)
 
         # now we update a servermap from a new node (which doesn't have the
@@ -2059,8 +2057,8 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             self.uri = n.get_uri()
             self.n2 = nm.create_from_cap(self.uri)
             deleter = FirstServerGetsDeleted()
-            for (serverid,ss) in nm.storage_broker.get_all_servers():
-                ss.post_call_notifier = deleter.notify
+            for s in nm.storage_broker.get_connected_servers():
+                s.get_rref().post_call_notifier = deleter.notify
         d.addCallback(_created)
         d.addCallback(lambda res: self.n2.get_servermap(MODE_WRITE))
         return d

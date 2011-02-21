@@ -352,13 +352,17 @@ class IStorageBucketReader(Interface):
         """
 
 class IStorageBroker(Interface):
-    def get_servers_for_index(peer_selection_index):
+    def get_servers_for_psi(peer_selection_index):
         """
-        @return: list of (peerid, versioned-rref) tuples
+        @return: list of IServer instances
         """
-    def get_all_servers():
+    def get_connected_servers():
         """
-        @return: frozenset of (peerid, versioned-rref) tuples
+        @return: frozenset of connected IServer instances
+        """
+    def get_known_servers():
+        """
+        @return: frozenset of IServer instances
         """
     def get_all_serverids():
         """

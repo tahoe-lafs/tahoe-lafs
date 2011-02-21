@@ -3,7 +3,7 @@ import simplejson
 from twisted.trial import unittest
 from allmydata import check_results, uri
 from allmydata.web import check_results as web_check_results
-from allmydata.storage_client import StorageFarmBroker, NativeStorageClientDescriptor
+from allmydata.storage_client import StorageFarmBroker, NativeStorageServer
 from allmydata.monitor import Monitor
 from allmydata.test.no_network import GridTestMixin
 from allmydata.immutable.upload import Data
@@ -28,7 +28,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                       "my-version": "ver",
                       "oldest-supported": "oldest",
                       }
-            dsc = NativeStorageClientDescriptor(peerid, ann_d)
+            dsc = NativeStorageServer(peerid, ann_d)
             sb.test_add_descriptor(peerid, dsc)
         c = FakeClient()
         c.storage_broker = sb

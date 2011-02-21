@@ -287,14 +287,14 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         self.failUnlessEqual(d["list-corrupt-shares"], [], where)
         if not incomplete:
             self.failUnlessEqual(sorted(d["servers-responding"]),
-                                 sorted(self.g.servers_by_id.keys()),
+                                 sorted(self.g.get_all_serverids()),
                                  where)
             self.failUnless("sharemap" in d, str((where, d)))
             all_serverids = set()
             for (shareid, serverids) in d["sharemap"].items():
                 all_serverids.update(serverids)
             self.failUnlessEqual(sorted(all_serverids),
-                                 sorted(self.g.servers_by_id.keys()),
+                                 sorted(self.g.get_all_serverids()),
                                  where)
 
         self.failUnlessEqual(d["count-wrong-shares"], 0, where)
@@ -545,7 +545,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         if not incomplete:
             self.failUnlessEqual(sorted(r["servers-responding"]),
                                  sorted([idlib.nodeid_b2a(sid)
-                                         for sid in self.g.servers_by_id]),
+                                         for sid in self.g.get_all_serverids()]),
                                  where)
             self.failUnless("sharemap" in r, where)
             all_serverids = set()
@@ -553,7 +553,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                 all_serverids.update(serverids_s)
             self.failUnlessEqual(sorted(all_serverids),
                                  sorted([idlib.nodeid_b2a(sid)
-                                         for sid in self.g.servers_by_id]),
+                                         for sid in self.g.get_all_serverids()]),
                                  where)
         self.failUnlessEqual(r["count-wrong-shares"], 0, where)
         self.failUnlessEqual(r["count-recoverable-versions"], 1, where)

@@ -134,13 +134,12 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 0)
 
     def _permute(self, sb, key):
-        return [ peerid
-                 for (peerid,rref) in sb.get_servers_for_index(key) ]
+        return [ s.get_serverid() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
         sb = StorageFarmBroker(None, True)
         for k in ["%d" % i for i in range(5)]:
-            sb.test_add_server(k, None)
+            sb.test_add_server(k, "rref")
 
         self.failUnlessReallyEqual(self._permute(sb, "one"), ['3','1','0','4','2'])
         self.failUnlessReallyEqual(self._permute(sb, "two"), ['0','4','2','1','3'])

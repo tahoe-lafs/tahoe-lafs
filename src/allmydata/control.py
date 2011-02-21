@@ -91,7 +91,7 @@ class ControlServer(Referenceable, service.Service):
         # 300ms.
         results = {}
         sb = self.parent.get_storage_broker()
-        everyone = sb.get_all_servers()
+        everyone = sb.get_connected_servers()
         num_pings = int(mathutil.div_ceil(10, (len(everyone) * 0.3)))
         everyone = list(everyone) * num_pings
         d = self._do_one_ping(None, everyone, results)
@@ -99,7 +99,9 @@ class ControlServer(Referenceable, service.Service):
     def _do_one_ping(self, res, everyone_left, results):
         if not everyone_left:
             return results
-        peerid, connection = everyone_left.pop(0)
+        server = everyone_left.pop(0)
+        peerid = server.get_serverid()
+        connection = server.get_rref()
         start = time.time()
         d = connection.callRemote("get_buckets", "\x00"*16)
         def _done(ignored):

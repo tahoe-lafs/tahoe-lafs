@@ -53,10 +53,10 @@ class CHKCheckerAndUEBFetcher:
 
     def _get_all_shareholders(self, storage_index):
         dl = []
-        for (peerid, ss) in self._peer_getter(storage_index):
-            d = ss.callRemote("get_buckets", storage_index)
+        for s in self._peer_getter(storage_index):
+            d = s.get_rref().callRemote("get_buckets", storage_index)
             d.addCallbacks(self._got_response, self._got_error,
-                           callbackArgs=(peerid,))
+                           callbackArgs=(s.get_serverid(),))
             dl.append(d)
         return defer.DeferredList(dl)
 
@@ -620,7 +620,7 @@ class Helper(Referenceable):
         lp2 = self.log("doing a quick check+UEBfetch",
                        parent=lp, level=log.NOISY)
         sb = self._storage_broker
-        c = CHKCheckerAndUEBFetcher(sb.get_servers_for_index, storage_index, lp2)
+        c = CHKCheckerAndUEBFetcher(sb.get_servers_for_psi, storage_index, lp2)
         d = c.check()
         def _checked(res):
             if res:

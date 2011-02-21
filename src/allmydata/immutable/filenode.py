@@ -102,7 +102,7 @@ class CiphertextFileNode:
         verifycap = self._verifycap
         storage_index = verifycap.storage_index
         sb = self._storage_broker
-        servers = sb.get_all_servers()
+        servers = sb.get_connected_servers()
         sh = self._secret_holder
 
         c = Checker(verifycap=verifycap, servers=servers,
@@ -160,7 +160,7 @@ class CiphertextFileNode:
     def check(self, monitor, verify=False, add_lease=False):
         verifycap = self._verifycap
         sb = self._storage_broker
-        servers = sb.get_all_servers()
+        servers = sb.get_connected_servers()
         sh = self._secret_holder
 
         v = Checker(verifycap=verifycap, servers=servers,

@@ -139,9 +139,9 @@ class ResultsBase:
 
         # this table is sorted by permuted order
         sb = c.get_storage_broker()
-        permuted_peer_ids = [peerid
-                             for (peerid, rref)
-                             in sb.get_servers_for_index(cr.get_storage_index())]
+        permuted_peer_ids = [s.get_serverid()
+                             for s
+                             in sb.get_servers_for_psi(cr.get_storage_index())]
 
         num_shares_left = sum([len(shares) for shares in servers.values()])
         servermap = []

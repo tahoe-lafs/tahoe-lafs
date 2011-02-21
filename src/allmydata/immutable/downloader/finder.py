@@ -62,8 +62,9 @@ class ShareFinder:
         # test_dirnode, which creates us with storage_broker=None
         if not self._started:
             si = self.verifycap.storage_index
-            s = self._storage_broker.get_servers_for_index(si)
-            self._servers = iter(s)
+            servers = [(s.get_serverid(), s.get_rref())
+                       for s in self._storage_broker.get_servers_for_psi(si)]
+            self._servers = iter(servers)
             self._started = True
 
     def log(self, *args, **kwargs):

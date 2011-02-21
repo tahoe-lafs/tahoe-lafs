@@ -572,7 +572,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             if not c.connected_to_introducer():
                 return False
             sb = c.get_storage_broker()
-            if len(sb.get_all_servers()) != self.numclients:
+            if len(sb.get_connected_servers()) != self.numclients:
                 return False
         return True
 

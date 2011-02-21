@@ -101,7 +101,8 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
 
         self.c0 = self.g.clients[0]
         nm = self.c0.nodemaker
-        self.servers = sorted([(id, ss) for (id, ss) in nm.storage_broker.get_all_servers()])
+        self.servers = sorted([(s.get_serverid(), s.get_rref())
+                               for s in nm.storage_broker.get_connected_servers()])
         self.servers = self.servers[5:] + self.servers[:5]
 
         if mutable:

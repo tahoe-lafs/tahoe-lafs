@@ -95,12 +95,23 @@ class TestShareFinder(unittest.TestCase):
                     self.s.hungry()
                 eventually(_give_buckets_and_hunger_again)
                 return d
+        class MockIServer(object):
+            def __init__(self, serverid, rref):
+                self.serverid = serverid
+                self.rref = rref
+            def get_serverid(self):
+                return self.serverid
+            def get_rref(self):
+                return self.rref
 
         mockserver1 = MockServer({1: mock.Mock(), 2: mock.Mock()})
         mockserver2 = MockServer({})
         mockserver3 = MockServer({3: mock.Mock()})
         mockstoragebroker = mock.Mock()
-        mockstoragebroker.get_servers_for_index.return_value = [ ('ms1', mockserver1), ('ms2', mockserver2), ('ms3', mockserver3), ]
+        servers = [ MockIServer("ms1", mockserver1),
+                    MockIServer("ms2", mockserver2),
+                    MockIServer("ms3", mockserver3), ]
+        mockstoragebroker.get_servers_for_psi.return_value = servers
         mockdownloadstatus = mock.Mock()
         mocknode = MockNode(check_reneging=True, check_fetch_failed=True)
 

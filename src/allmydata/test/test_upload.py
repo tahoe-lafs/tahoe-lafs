@@ -1730,12 +1730,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._add_server(server_number=2))
         def _break_server_2(ign):
-            server = self.g.servers_by_number[2].my_nodeid
-            # We have to break the server in servers_by_id,
-            # because the one in servers_by_number isn't wrapped,
-            # and doesn't look at its broken attribute when answering
-            # queries.
-            self.g.servers_by_id[server].broken = True
+            serverid = self.g.servers_by_number[2].my_nodeid
+            self.g.break_server(serverid)
         d.addCallback(_break_server_2)
         d.addCallback(lambda ign:
             self._add_server(server_number=3, readonly=True))

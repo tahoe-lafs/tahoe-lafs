@@ -468,7 +468,7 @@ class Client(node.Node, pollmixin.PollMixin):
         temporary test network and need to know when it is safe to proceed
         with an upload or download."""
         def _check():
-            return len(self.storage_broker.get_all_servers()) >= num_clients
+            return len(self.storage_broker.get_connected_servers()) >= num_clients
         d = self.poll(_check, 0.5)
         d.addCallback(lambda res: None)
         return d
