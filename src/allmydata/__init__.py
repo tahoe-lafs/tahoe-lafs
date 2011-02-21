@@ -251,15 +251,21 @@ def cross_check_pkg_resources_versus_import():
     import pkg_resources
     from _auto_deps import install_requires
 
+    pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
+                                        for p in pkg_resources.require(install_requires)])
+
+    return cross_check(pkg_resources_vers_and_locs, _vers_and_locs_list)
+
+
+def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
+    """This function returns a list of errors due to any failed cross-checks."""
+
     errors = []
     not_pkg_resourceable = set(['sqlite3', 'python', 'platform', __appname__.lower()])
     not_import_versionable = set(['zope.interface', 'mock', 'pyasn1'])
     ignorable = set(['argparse', 'pyutil', 'zbase32', 'distribute'])
 
-    pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
-                                        for p in pkg_resources.require(install_requires)])
-
-    for name, (imp_ver, imp_loc, imp_comment) in _vers_and_locs_list:
+    for name, (imp_ver, imp_loc, imp_comment) in imported_vers_and_locs_list:
         name = name.lower()
         if name not in not_pkg_resourceable:
             if name not in pkg_resources_vers_and_locs:
@@ -306,7 +312,7 @@ def cross_check_pkg_resources_versus_import():
                                               "by pkg_resources, but version %r (normalized to %r, from %r) by import."
                                               % (name, pr_ver, str(pr_normver), pr_loc, imp_ver, str(imp_normver), imp_loc))
 
-    imported_packages = set([p.lower() for (p, _) in _vers_and_locs_list])
+    imported_packages = set([p.lower() for (p, _) in imported_vers_and_locs_list])
     for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
         if pr_name not in imported_packages and pr_name not in ignorable:
             errors.append("Warning: dependency %r (version %r) found by pkg_resources not found by import."
