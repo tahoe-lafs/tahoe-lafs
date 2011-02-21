@@ -444,10 +444,27 @@ class FileDownloader(rend.Page):
         req.setHeader("content-length", str(contentsize))
         if req.method == "HEAD":
             return ""
+
+        # Twisted >=9.0 throws an error if we call req.finish() on a closed
+        # HTTP connection. It also has req.notifyFinish() to help avoid it.
+        finished = []
+        def _request_finished(ign):
+            finished.append(True)
+        if hasattr(req, "notifyFinish"):
+            req.notifyFinish().addBoth(_request_finished)
+
         d = self.filenode.read(req, first, size)
+
+        def _finished(ign):
+            if not finished:
+                req.finish()
         def _error(f):
-            log.msg("error during GET", facility="tahoe.webish", failure=f,
-                    level=log.UNUSUAL, umid="xSiF3w")
+            lp = log.msg("error during GET", facility="tahoe.webish", failure=f,
+                         level=log.UNUSUAL, umid="xSiF3w")
+            if finished:
+                log.msg("but it's too late to tell them", parent=lp,
+                        level=log.UNUSUAL, umid="j1xIbw")
+                return
             req._tahoe_request_had_error = f # for HTTP-style logging
             if req.startedWriting:
                 # The content-type is already set, and the response code has
@@ -466,7 +483,7 @@ class FileDownloader(rend.Page):
                 # sensible error message.
                 eh = MyExceptionHandler()
                 eh.renderHTTP_exception(ctx, f)
-        d.addCallbacks(lambda ign: req.finish(), _error)
+        d.addCallbacks(_finished, _error)
         return req.deferred
 
 
