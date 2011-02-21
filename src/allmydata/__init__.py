@@ -267,12 +267,12 @@ def cross_check_pkg_resources_versus_import():
                     pr_ver, pr_loc = pkg_resources_vers_and_locs["distribute"]
                     if not (os.path.normpath(os.path.realpath(pr_loc)) == os.path.normpath(os.path.realpath(imp_loc))
                             and imp_comment == "distribute"):
-                        errors.append("Warning: dependency 'setuptools' found to be version %s of 'distribute' from %r "
-                                      "by pkg_resources, but 'import setuptools' gave version %s [%s] from %r. "
-                                      "The version mismatch is expected, but the location mismatch is not."
+                        errors.append("Warning: dependency 'setuptools' found to be version %r of 'distribute' from %r "
+                                      "by pkg_resources, but 'import setuptools' gave version %r [%s] from %r. "
+                                      "A version mismatch is expected, but a location mismatch is not."
                                       % (pr_ver, pr_loc, imp_ver, imp_comment or 'probably *not* distribute', imp_loc))
                 else:
-                    errors.append("Warning: dependency %s (version %s imported from %r) was not found by pkg_resources."
+                    errors.append("Warning: dependency %r (version %r imported from %r) was not found by pkg_resources."
                                   % (name, imp_ver, imp_loc))
                 continue
 
@@ -280,36 +280,36 @@ def cross_check_pkg_resources_versus_import():
             try:
                 pr_normver = normalized_version(pr_ver)
             except Exception, e:
-                errors.append("Warning: version number %s found for dependency '%s' by pkg_resources could not be parsed. "
-                              "The version found by import was %s from %r. "
+                errors.append("Warning: version number %r found for dependency %r by pkg_resources could not be parsed. "
+                              "The version found by import was %r from %r. "
                               "pkg_resources thought it should be found at %r. "
                               "The exception was %s: %s"
-                              % (pr_ver, name, imp_ver, imp_loc, pr_loc, e.__class__.name, e))
+                              % (pr_ver, name, imp_ver, imp_loc, pr_loc, e.__class__.__name__, e))
             else:
                 if imp_ver == 'unknown':
                     if name not in not_import_versionable:
-                        errors.append("Warning: unexpectedly could not find a version number for dependency %s imported from %r. "
-                                      "pkg_resources thought it should be version %s at %r."
+                        errors.append("Warning: unexpectedly could not find a version number for dependency %r imported from %r. "
+                                      "pkg_resources thought it should be version %r at %r."
                                       % (name, imp_loc, pr_ver, pr_loc))
                 else:
                     try:
                         imp_normver = normalized_version(imp_ver)
                     except Exception, e:
-                        errors.append("Warning: version number %s found for dependency %s (imported from %r) could not be parsed. "
-                                      "pkg_resources thought it should be version %s at %r. "
+                        errors.append("Warning: version number %r found for dependency %r (imported from %r) could not be parsed. "
+                                      "pkg_resources thought it should be version %r at %r. "
                                       "The exception was %s: %s"
-                                      % (imp_ver, name, imp_loc, pr_ver, pr_loc, e.__class__.name, e))
+                                      % (imp_ver, name, imp_loc, pr_ver, pr_loc, e.__class__.__name__, e))
                     else:
                         if pr_ver == 'unknown' or (pr_normver != imp_normver):
                             if not os.path.normpath(os.path.realpath(pr_loc)) == os.path.normpath(os.path.realpath(imp_loc)):
-                                errors.append("Warning: dependency '%s' found to have version number %s (normalized to %s, from %r) "
-                                              "by pkg_resources, but version %s (normalized to %s, from %r) by import."
+                                errors.append("Warning: dependency %r found to have version number %r (normalized to %r, from %r) "
+                                              "by pkg_resources, but version %r (normalized to %r, from %r) by import."
                                               % (name, pr_ver, str(pr_normver), pr_loc, imp_ver, str(imp_normver), imp_loc))
 
     imported_packages = set([p.lower() for (p, _) in _vers_and_locs_list])
     for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
         if pr_name not in imported_packages and pr_name not in ignorable:
-            errors.append("Warning: dependency %s (version %s) found by pkg_resources not found by import."
+            errors.append("Warning: dependency %r (version %r) found by pkg_resources not found by import."
                           % (pr_name, pr_ver))
 
     return errors
