@@ -5,12 +5,13 @@ Configuring a Tahoe-LAFS node
 1.  `Overall Node Configuration`_
 2.  `Client Configuration`_
 3.  `Storage Server Configuration`_
-4.  `Running A Helper`_
-5.  `Running An Introducer`_
-6.  `Other Files in BASEDIR`_
-7.  `Other files`_
-8.  `Backwards Compatibility Files`_
-9.  `Example`_
+4.  `Frontend Configuration`_
+5.  `Running A Helper`_
+6.  `Running An Introducer`_
+7.  `Other Files in BASEDIR`_
+8.  `Other files`_
+9.  `Backwards Compatibility Files`_
+10. `Example`_
 
 A Tahoe-LAFS node is configured by writing to files in its base directory. These
 files are read by the node when it starts, so each time you change them, you
@@ -319,6 +320,39 @@ Client Configuration
 
     (Mutable files use a different share placement algorithm that does not
     currently consider this parameter.)
+
+Frontend Configuration
+======================
+
+The Tahoe client process can run a variety of frontend file-access protocols.
+You will use these to create and retrieve files from the virtual filesystem.
+Configuration details for each are documented in the following
+protocol-specific guides:
+
+HTTP
+
+    Tahoe runs a webserver by default on port 3456. This interface provides a
+    human-oriented "WUI", with pages to create, modify, and browse
+    directories and files, as well as a number of pages to check on the
+    status of your Tahoe node. It also provides a machine-oriented "WAPI",
+    with a REST-ful HTTP interface that can be used by other programs
+    (including the CLI tools). Please see `<frontends/webapi.rst>`_ for full
+    details, and the ``web.port`` and ``web.static`` config variables above.
+    The `<frontends/download-status.rst>`_ document also describes a few WUI
+    status pages.
+
+CLI
+
+    The main "bin/tahoe" executable includes subcommands for manipulating the
+    filesystem, uploading/downloading files, and creating/running Tahoe
+    nodes. See `<frontends/CLI.rst>`_ for details.
+
+FTP, SFTP
+
+    Tahoe can also run both FTP and SFTP servers, and map a username/password
+    pair to a top-level Tahoe directory. See `<frontends/FTP-and-SFTP.rst>`_
+    for instructions on configuring these services, and the ``[ftpd]`` and
+    ``[sftpd]`` sections of ``tahoe.cfg``.
 
 
 Storage Server Configuration
