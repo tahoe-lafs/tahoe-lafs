@@ -256,7 +256,7 @@ class Root(rend.Page):
     def render_service_row(self, ctx, server):
         nodeid = server.get_serverid()
 
-        ctx.fillSlots("peerid", idlib.nodeid_b2a(nodeid))
+        ctx.fillSlots("peerid", server.longname())
         ctx.fillSlots("nickname", server.get_nickname())
         rhost = server.get_remote_host()
         if rhost:

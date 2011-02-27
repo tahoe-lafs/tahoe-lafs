@@ -139,19 +139,19 @@ class ResultsBase:
 
         # this table is sorted by permuted order
         sb = c.get_storage_broker()
-        permuted_peer_ids = [s.get_serverid()
-                             for s
-                             in sb.get_servers_for_psi(cr.get_storage_index())]
+        permuted_servers = [s
+                            for s
+                            in sb.get_servers_for_psi(cr.get_storage_index())]
 
         num_shares_left = sum([len(shares) for shares in servers.values()])
         servermap = []
-        for serverid in permuted_peer_ids:
-            nickname = sb.get_nickname_for_serverid(serverid)
-            shareids = servers.get(serverid, [])
+        for s in permuted_servers:
+            nickname = s.get_nickname()
+            shareids = servers.get(s.get_serverid(), [])
             shareids.reverse()
             shareids_s = [ T.tt[shareid, " "] for shareid in sorted(shareids) ]
             servermap.append(T.tr[T.td[T.div(class_="nickname")[nickname],
-                                       T.div(class_="nodeid")[T.tt[base32.b2a(serverid)]]],
+                                       T.div(class_="nodeid")[T.tt[s.name()]]],
                                   T.td[shareids_s],
                                   ])
             num_shares_left -= len(shareids)
