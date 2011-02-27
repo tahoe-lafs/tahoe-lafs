@@ -74,7 +74,7 @@ def merge_peers(servermap, upload_servers=None):
 
     for peer in upload_servers:
         for shnum in peer.buckets:
-            servermap.setdefault(shnum, set()).add(peer.peerid)
+            servermap.setdefault(shnum, set()).add(peer.serverid)
     return servermap
 
 def servers_of_happiness(sharemap):
