@@ -100,23 +100,23 @@ class ControlServer(Referenceable, service.Service):
         if not everyone_left:
             return results
         server = everyone_left.pop(0)
-        peerid = server.get_serverid()
+        server_name = server.longname()
         connection = server.get_rref()
         start = time.time()
         d = connection.callRemote("get_buckets", "\x00"*16)
         def _done(ignored):
             stop = time.time()
             elapsed = stop - start
-            if peerid in results:
-                results[peerid].append(elapsed)
+            if server_name in results:
+                results[server_name].append(elapsed)
             else:
-                results[peerid] = [elapsed]
+                results[server_name] = [elapsed]
         d.addCallback(_done)
         d.addCallback(self._do_one_ping, everyone_left, results)
         def _average(res):
             averaged = {}
-            for peerid,times in results.iteritems():
-                averaged[peerid] = sum(times) / len(times)
+            for server_name,times in results.iteritems():
+                averaged[server_name] = sum(times) / len(times)
             return averaged
         d.addCallback(_average)
         return d
