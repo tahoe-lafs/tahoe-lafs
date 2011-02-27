@@ -236,7 +236,7 @@ class SegmentFetcher:
         # from all our tracking lists.
         if state in (COMPLETE, CORRUPT, DEAD, BADSEGNUM):
             self._share_observers.pop(share, None)
-            self._shares_from_server.discard(shnum, share)
+            self._shares_from_server.discard(share._server.get_serverid(), share)
             if self._active_share_map.get(shnum) is share:
                 del self._active_share_map[shnum]
             self._overdue_share_map.discard(shnum, share)
