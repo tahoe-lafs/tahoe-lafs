@@ -236,15 +236,18 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         file_cancel_secret = file_cancel_secret_hash(client_cancel_secret,
                                                      storage_index)
         def _make_trackers(servers):
-           return [ServerTracker(serverid, conn,
-                                 share_size, block_size,
-                                 num_segments, num_share_hashes,
-                                 storage_index,
-                                 bucket_renewal_secret_hash(file_renewal_secret,
-                                                            serverid),
-                                 bucket_cancel_secret_hash(file_cancel_secret,
-                                                           serverid))
-                   for (serverid, conn) in servers]
+            trackers = []
+            for (serverid, conn) in servers:
+                seed = serverid
+                renew = bucket_renewal_secret_hash(file_renewal_secret, seed)
+                cancel = bucket_cancel_secret_hash(file_cancel_secret, seed)
+                st = ServerTracker(serverid, conn,
+                                   share_size, block_size,
+                                   num_segments, num_share_hashes,
+                                   storage_index,
+                                   renew, cancel)
+                trackers.append(st)
+            return trackers
         self.uncontacted_trackers = _make_trackers(writable_servers)
 
         # We don't try to allocate shares to these servers, since they've
