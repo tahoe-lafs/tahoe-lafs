@@ -773,18 +773,18 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d = selector.get_shareholders(broker, sh, storage_index,
                                       share_size, block_size, num_segments,
                                       10, 3, 4)
-        def _have_shareholders((upload_servers, already_servers)):
-            assert servers_to_break <= len(upload_servers)
+        def _have_shareholders((upload_trackers, already_servers)):
+            assert servers_to_break <= len(upload_trackers)
             for index in xrange(servers_to_break):
-                server = list(upload_servers)[index]
-                for share in server.buckets.keys():
-                    server.buckets[share].abort()
+                tracker = list(upload_trackers)[index]
+                for share in tracker.buckets.keys():
+                    tracker.buckets[share].abort()
             buckets = {}
             servermap = already_servers.copy()
-            for server in upload_servers:
-                buckets.update(server.buckets)
-                for bucket in server.buckets:
-                    servermap.setdefault(bucket, set()).add(server.serverid)
+            for tracker in upload_trackers:
+                buckets.update(tracker.buckets)
+                for bucket in tracker.buckets:
+                    servermap.setdefault(bucket, set()).add(tracker.serverid)
             encoder.set_shareholders(buckets, servermap)
             d = encoder.start()
             return d
