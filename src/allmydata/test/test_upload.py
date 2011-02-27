@@ -725,6 +725,11 @@ def is_happy_enough(servertoshnums, h, k):
     # print "HAAPP{Y"
     return True
 
+class FakeServerTracker:
+    def __init__(self, serverid, buckets):
+        self.serverid = serverid
+        self.buckets = buckets
+
 class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
     ShouldFailMixin):
     def find_all_shares(self, unused=None):
@@ -1355,13 +1360,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # if not provided with a upload_servers argument, it should just
         # return the first argument unchanged.
         self.failUnlessEqual(shares, merge_peers(shares, set([])))
-        class FakeServerTracker:
-            pass
         trackers = []
         for (i, server) in [(i, "server%d" % i) for i in xrange(5, 9)]:
-            t = FakeServerTracker()
-            t.serverid = server
-            t.buckets = [i]
+            t = FakeServerTracker(server, [i])
             trackers.append(t)
         expected = {
                     1 : set(["server1"]),
@@ -1387,9 +1388,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         expected = {}
         for (i, server) in [(i, "server%d" % i) for i in xrange(10)]:
             shares3[i] = set([server])
-            t = FakeServerTracker()
-            t.serverid = server
-            t.buckets = [i]
+            t = FakeServerTracker(server, [i])
             trackers.append(t)
             expected[i] = set([server])
         self.failUnlessEqual(expected, merge_peers(shares3, set(trackers)))
@@ -1423,13 +1422,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # ServerTracker instances, but for testing it is fine to make a
         # FakeServerTracker whose job is to hold those instance variables to
         # test that part.
-        class FakeServerTracker:
-            pass
         trackers = []
         for (i, server) in [(i, "server%d" % i) for i in xrange(5, 9)]:
-            t = FakeServerTracker()
-            t.serverid = server
-            t.buckets = [i]
+            t = FakeServerTracker(server, [i])
             trackers.append(t)
         # Recall that test1 is a server layout with servers_of_happiness
         # = 3.  Since there isn't any overlap between the shnum ->
@@ -1441,9 +1436,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # Now add an overlapping server to trackers. This is redundant,
         # so it should not cause the previously reported happiness value
         # to change.
-        t = FakeServerTracker()
-        t.serverid = "server1"
-        t.buckets = [1]
+        t = FakeServerTracker("server1", [1])
         trackers.append(t)
         test2 = merge_peers(test1, set(trackers))
         happy = servers_of_happiness(test2)
@@ -1460,13 +1453,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             4 : set(['server4']),
         }
         trackers = []
-        t = FakeServerTracker()
-        t.serverid = 'server5'
-        t.buckets = [4]
+        t = FakeServerTracker('server5', [4])
         trackers.append(t)
-        t = FakeServerTracker()
-        t.serverid = 'server6'
-        t.buckets = [3, 5]
+        t = FakeServerTracker('server6', [3, 5])
         trackers.append(t)
         # The value returned by servers_of_happiness is the size
         # of a maximum matching in the bipartite graph that
