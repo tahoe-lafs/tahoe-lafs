@@ -129,11 +129,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_permute(self):
         sb = StorageFarmBroker(None, True)
         for k in ["%d" % i for i in range(5)]:
-            sb.test_add_server(k, "rref")
+            sb.test_add_rref(k, "rref")
 
         self.failUnlessReallyEqual(self._permute(sb, "one"), ['3','1','0','4','2'])
         self.failUnlessReallyEqual(self._permute(sb, "two"), ['0','4','2','1','3'])
-        sb.test_servers.clear()
+        sb.servers.clear()
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
     def test_versions(self):

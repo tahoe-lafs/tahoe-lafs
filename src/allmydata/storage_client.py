@@ -71,15 +71,16 @@ class StorageFarmBroker:
         # own Reconnector, and will give us a RemoteReference when we ask
         # them for it.
         self.servers = {}
-        # self.test_servers are statically configured from unit tests
-        self.test_servers = {} # serverid -> rref
         self.introducer_client = None
 
     # these two are used in unit tests
-    def test_add_server(self, serverid, rref):
-        self.test_servers[serverid] = rref
-    def test_add_descriptor(self, serverid, dsc):
-        self.servers[serverid] = dsc
+    def test_add_rref(self, serverid, rref):
+        s = NativeStorageServer(serverid, {})
+        s.rref = rref
+        self.servers[serverid] = s
+
+    def test_add_server(self, serverid, s):
+        self.servers[serverid] = s
 
     def use_introducer(self, introducer_client):
         self.introducer_client = ic = introducer_client
@@ -124,7 +125,6 @@ class StorageFarmBroker:
 
     def get_all_serverids(self):
         serverids = set()
-        serverids.update(self.test_servers.keys())
         serverids.update(self.servers.keys())
         return frozenset(serverids)
 
@@ -133,13 +133,7 @@ class StorageFarmBroker:
                           if s.get_rref()])
 
     def get_known_servers(self):
-        servers = []
-        for serverid,rref in self.test_servers.items():
-            s = NativeStorageServer(serverid, {})
-            s.rref = rref
-            servers.append(s)
-        servers.extend(self.servers.values())
-        return sorted(servers, key=lambda s: s.get_serverid())
+        return sorted(self.servers.values(), key=lambda s: s.get_serverid())
 
     def get_nickname_for_serverid(self, serverid):
         if serverid in self.servers:

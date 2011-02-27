@@ -196,8 +196,8 @@ class FakeClient:
         peers = [ ("%20d"%fakeid, FakeStorageServer(mode[fakeid]))
                   for fakeid in range(self.num_servers) ]
         self.storage_broker = StorageFarmBroker(None, permute_peers=True)
-        for (serverid, server) in peers:
-            self.storage_broker.test_add_server(serverid, server)
+        for (serverid, rref) in peers:
+            self.storage_broker.test_add_rref(serverid, rref)
         self.last_peers = [p[1] for p in peers]
 
     def log(self, *args, **kwargs):
