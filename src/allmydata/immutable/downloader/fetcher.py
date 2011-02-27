@@ -31,7 +31,7 @@ class SegmentFetcher:
                           # responses arrive, or (for later segments) at
                           # startup. We remove shares from it when we call
                           # sh.get_block() on them.
-        self._shares_from_server = DictOfSets() # maps serverid to set of
+        self._shares_from_server = DictOfSets() # maps server to set of
                                                 # Shares on that server for
                                                 # which we have outstanding
                                                 # get_block() calls.
@@ -189,7 +189,7 @@ class SegmentFetcher:
         sent_something = False
         want_more_diversity = False
         for sh in self._shares: # find one good share to fetch
-            shnum = sh._shnum ; serverid = sh._server.get_serverid()
+            shnum = sh._shnum ; server = sh._server # XXX
             if shnum in self._blocks:
                 continue # don't request data we already have
             if shnum in self._active_share_map:
@@ -197,14 +197,14 @@ class SegmentFetcher:
                 # and added to _overdue_share_map instead.
                 continue # don't send redundant requests
             sfs = self._shares_from_server
-            if len(sfs.get(serverid,set())) >= self._max_shares_per_server:
+            if len(sfs.get(server,set())) >= self._max_shares_per_server:
                 # don't pull too much from a single server
                 want_more_diversity = True
                 continue
             # ok, we can use this share
             self._shares.remove(sh)
             self._active_share_map[shnum] = sh
-            self._shares_from_server.add(serverid, sh)
+            self._shares_from_server.add(server, sh)
             self._start_share(sh, shnum)
             sent_something = True
             break
@@ -236,7 +236,8 @@ class SegmentFetcher:
         # from all our tracking lists.
         if state in (COMPLETE, CORRUPT, DEAD, BADSEGNUM):
             self._share_observers.pop(share, None)
-            self._shares_from_server.discard(share._server.get_serverid(), share)
+            server = share._server # XXX
+            self._shares_from_server.discard(server, share)
             if self._active_share_map.get(shnum) is share:
                 del self._active_share_map[shnum]
             self._overdue_share_map.discard(shnum, share)
