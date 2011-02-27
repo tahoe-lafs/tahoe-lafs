@@ -7,7 +7,7 @@ from allmydata.hashtree import IncompleteHashTree
 from allmydata.check_results import CheckResults
 from allmydata.uri import CHKFileVerifierURI
 from allmydata.util.assertutil import precondition
-from allmydata.util import base32, idlib, deferredutil, dictutil, log, mathutil
+from allmydata.util import base32, deferredutil, dictutil, log, mathutil
 from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, uri_extension_hash, CRYPTO_VAL_SIZE, \
@@ -481,10 +481,10 @@ class Checker(log.PrefixingLogMixin):
                                       self._verifycap.get_storage_index())
         self.file_cancel_secret = fcs
 
-    def _get_renewal_secret(self, peerid):
-        return bucket_renewal_secret_hash(self.file_renewal_secret, peerid)
-    def _get_cancel_secret(self, peerid):
-        return bucket_cancel_secret_hash(self.file_cancel_secret, peerid)
+    def _get_renewal_secret(self, seed):
+        return bucket_renewal_secret_hash(self.file_renewal_secret, seed)
+    def _get_cancel_secret(self, seed):
+        return bucket_cancel_secret_hash(self.file_cancel_secret, seed)
 
     def _get_buckets(self, s, storageindex):
         """Return a deferred that eventually fires with ({sharenum: bucket},
@@ -496,13 +496,14 @@ class Checker(log.PrefixingLogMixin):
         responded.)"""
 
         rref = s.get_rref()
+        lease_seed = s.get_lease_seed()
         serverid = s.get_serverid()
         if self._add_lease:
-            renew_secret = self._get_renewal_secret(serverid)
-            cancel_secret = self._get_cancel_secret(serverid)
+            renew_secret = self._get_renewal_secret(lease_seed)
+            cancel_secret = self._get_cancel_secret(lease_seed)
             d2 = rref.callRemote("add_lease", storageindex,
                                  renew_secret, cancel_secret)
-            d2.addErrback(self._add_lease_failed, serverid, storageindex)
+            d2.addErrback(self._add_lease_failed, s.name(), storageindex)
 
         d = rref.callRemote("get_buckets", storageindex)
         def _wrap_results(res):
@@ -520,7 +521,7 @@ class Checker(log.PrefixingLogMixin):
         d.addCallbacks(_wrap_results, _trap_errs)
         return d
 
-    def _add_lease_failed(self, f, peerid, storage_index):
+    def _add_lease_failed(self, f, server_name, storage_index):
         # Older versions of Tahoe didn't handle the add-lease message very
         # well: <=1.1.0 throws a NameError because it doesn't implement
         # remote_add_lease(), 1.2.0/1.3.0 throw IndexError on unknown buckets
@@ -540,16 +541,16 @@ class Checker(log.PrefixingLogMixin):
                 # this may ignore a bit too much, but that only hurts us
                 # during debugging
                 return
-            self.log(format="error in add_lease from [%(peerid)s]: %(f_value)s",
-                     peerid=idlib.shortnodeid_b2a(peerid),
+            self.log(format="error in add_lease from [%(name)s]: %(f_value)s",
+                     name=server_name,
                      f_value=str(f.value),
                      failure=f,
                      level=log.WEIRD, umid="atbAxw")
             return
         # local errors are cause for alarm
         log.err(f,
-                format="local error in add_lease to [%(peerid)s]: %(f_value)s",
-                peerid=idlib.shortnodeid_b2a(peerid),
+                format="local error in add_lease to [%(name)s]: %(f_value)s",
+                name=server_name,
                 f_value=str(f.value),
                 level=log.WEIRD, umid="hEGuQg")
 
