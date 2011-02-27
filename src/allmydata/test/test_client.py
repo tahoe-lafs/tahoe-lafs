@@ -7,21 +7,11 @@ from twisted.python import log
 import allmydata
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
-from allmydata.introducer.client import IntroducerClient
 from allmydata.util import base32, fileutil
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
-
-class FakeIntroducerClient(IntroducerClient):
-    def __init__(self):
-        self._connections = set()
-    def add_peer(self, nodeid):
-        entry = (nodeid, "storage", "rref")
-        self._connections.add(entry)
-    def remove_all_peers(self):
-        self._connections.clear()
 
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"

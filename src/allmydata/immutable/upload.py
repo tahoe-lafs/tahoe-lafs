@@ -28,16 +28,6 @@ from pycryptopp.cipher.aes import AES
 from cStringIO import StringIO
 
 
-KiB=1024
-MiB=1024*KiB
-GiB=1024*MiB
-TiB=1024*GiB
-PiB=1024*TiB
-
-class HaveAllPeersError(Exception):
-    # we use this to jump out of the loop
-    pass
-
 # this wants to live in storage, not here
 class TooFullError(Exception):
     pass
