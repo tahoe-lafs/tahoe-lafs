@@ -189,7 +189,7 @@ class SegmentFetcher:
         sent_something = False
         want_more_diversity = False
         for sh in self._shares: # find one good share to fetch
-            shnum = sh._shnum ; serverid = sh._peerid
+            shnum = sh._shnum ; serverid = sh._server.get_serverid()
             if shnum in self._blocks:
                 continue # don't request data we already have
             if shnum in self._active_share_map:
@@ -229,9 +229,8 @@ class SegmentFetcher:
         # called by Shares, in response to our s.send_request() calls.
         if not self._running:
             return
-        log.msg("SegmentFetcher(%s)._block_request_activity:"
-                " Share(sh%d-on-%s) -> %s" %
-                (self._node._si_prefix, shnum, share._peerid_s, state),
+        log.msg("SegmentFetcher(%s)._block_request_activity: %s -> %s" %
+                (self._node._si_prefix, repr(share), state),
                 level=log.NOISY, parent=self._lp, umid="vilNWA")
         # COMPLETE, CORRUPT, DEAD, BADSEGNUM are terminal. Remove the share
         # from all our tracking lists.

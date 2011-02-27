@@ -204,8 +204,8 @@ class ShareFinder:
             #  2: break _get_satisfaction into Deferred-attached pieces.
             #     Yuck.
             self._commonshares[shnum] = cs
-        s = Share(bucket, server.get_version(), self.verifycap, cs, self.node,
-                  self._download_status, server.get_serverid(), shnum, dyhb_rtt,
+        s = Share(bucket, server, self.verifycap, cs, self.node,
+                  self._download_status, shnum, dyhb_rtt,
                   self._node_logparent)
         return s
 
