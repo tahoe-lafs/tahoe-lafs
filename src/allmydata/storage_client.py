@@ -179,6 +179,7 @@ class NativeStorageServer:
 
     def __init__(self, serverid, ann_d, min_shares=1):
         self.serverid = serverid
+        self._tubid = serverid
         self.announcement = ann_d
         self.min_shares = min_shares
 
@@ -191,10 +192,24 @@ class NativeStorageServer:
         self._reconnector = None
         self._trigger_cb = None
 
+    def __repr__(self):
+        return "<NativeStorageServer for %s>" % self.name()
     def get_serverid(self):
-        return self.serverid
+        return self._tubid
     def get_permutation_seed(self):
-        return self.serverid
+        return self._tubid
+    def get_version(self):
+        if self.rref:
+            return self.rref.version
+        return None
+    def name(self): # keep methodname short
+        return self.serverid_s
+    def longname(self):
+        return idlib.nodeid_b2a(self._tubid)
+    def get_lease_seed(self):
+        return self._tubid
+    def get_foolscap_write_enabler_seed(self):
+        return self._tubid
 
     def get_nickname(self):
         return self.announcement["nickname"].decode("utf-8")
@@ -215,8 +230,8 @@ class NativeStorageServer:
         self._reconnector = tub.connectTo(furl, self._got_connection)
 
     def _got_connection(self, rref):
-        lp = log.msg(format="got connection to %(serverid)s, getting versions",
-                     serverid=self.serverid_s,
+        lp = log.msg(format="got connection to %(name)s, getting versions",
+                     name=self.name(),
                      facility="tahoe.storage_broker", umid="coUECQ")
         if self._trigger_cb:
             eventually(self._trigger_cb)
@@ -224,11 +239,11 @@ class NativeStorageServer:
         d = add_version_to_remote_reference(rref, default)
         d.addCallback(self._got_versioned_service, lp)
         d.addErrback(log.err, format="storageclient._got_connection",
-                     serverid=self.serverid_s, umid="Sdq3pg")
+                     name=self.name(), umid="Sdq3pg")
 
     def _got_versioned_service(self, rref, lp):
-        log.msg(format="%(serverid)s provided version info %(version)s",
-                serverid=self.serverid_s, version=rref.version,
+        log.msg(format="%(name)s provided version info %(version)s",
+                name=self.name(), version=rref.version,
                 facility="tahoe.storage_broker", umid="SWmJYg",
                 level=log.NOISY, parent=lp)
 
@@ -241,8 +256,7 @@ class NativeStorageServer:
         return self.rref
 
     def _lost(self):
-        log.msg(format="lost connection to %(serverid)s",
-                serverid=self.serverid_s,
+        log.msg(format="lost connection to %(name)s", name=self.name(),
                 facility="tahoe.storage_broker", umid="zbRllw")
         self.last_loss_time = time.time()
         self.rref = None

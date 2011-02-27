@@ -103,6 +103,10 @@ class TestShareFinder(unittest.TestCase):
                 return self.serverid
             def get_rref(self):
                 return self.rref
+            def name(self):
+                return "name-%s" % self.serverid
+            def get_version(self):
+                return self.rref.version
 
         mockserver1 = MockServer({1: mock.Mock(), 2: mock.Mock()})
         mockserver2 = MockServer({})

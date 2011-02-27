@@ -121,12 +121,24 @@ class NoNetworkServer:
     def __init__(self, serverid, rref):
         self.serverid = serverid
         self.rref = rref
+    def __repr__(self):
+        return "<NoNetworkServer for %s>" % self.name()
     def get_serverid(self):
         return self.serverid
     def get_permutation_seed(self):
         return self.serverid
+    def get_lease_seed(self):
+        return self.serverid
+    def name(self):
+        return idlib.shortnodeid_b2a(self.serverid)
+    def longname(self):
+        return idlib.nodeid_b2a(self.serverid)
+    def get_nickname(self):
+        return "nickname"
     def get_rref(self):
         return self.rref
+    def get_version(self):
+        return self.rref.version
 
 class NoNetworkStorageBroker:
     implements(IStorageBroker)
