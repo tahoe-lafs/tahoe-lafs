@@ -14,7 +14,7 @@ from allmydata.storage.server import si_b2a
 from allmydata.immutable import encode
 from allmydata.util import base32, dictutil, idlib, log, mathutil
 from allmydata.util.happinessutil import servers_of_happiness, \
-                                         shares_by_server, merge_peers, \
+                                         shares_by_server, merge_servers, \
                                          failure_message
 from allmydata.util.assertutil import precondition
 from allmydata.util.rrefutil import add_version_to_remote_reference
@@ -324,7 +324,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
     def _loop(self):
         if not self.homeless_shares:
-            merged = merge_peers(self.preexisting_shares, self.use_trackers)
+            merged = merge_servers(self.preexisting_shares, self.use_trackers)
             effective_happiness = servers_of_happiness(merged)
             if self.servers_of_happiness <= effective_happiness:
                 msg = ("server selection successful for %s: %s: pretty_print_merged: %s, "
@@ -436,7 +436,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             return self._loop()
         else:
             # no more servers. If we haven't placed enough shares, we fail.
-            merged = merge_peers(self.preexisting_shares, self.use_trackers)
+            merged = merge_servers(self.preexisting_shares, self.use_trackers)
             effective_happiness = servers_of_happiness(merged)
             if effective_happiness < self.servers_of_happiness:
                 msg = failure_message(len(self.serverids_with_shares),

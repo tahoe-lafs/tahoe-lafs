@@ -54,13 +54,13 @@ def shares_by_server(servermap):
             ret.setdefault(peerid, set()).add(shareid)
     return ret
 
-def merge_peers(servermap, upload_trackers=None):
+def merge_servers(servermap, upload_trackers=None):
     """
-    I accept a dict of shareid -> set(peerid) mappings, and optionally a
-    set of PeerTrackers. If no set of PeerTrackers is provided, I return
+    I accept a dict of shareid -> set(serverid) mappings, and optionally a
+    set of ServerTrackers. If no set of ServerTrackers is provided, I return
     my first argument unmodified. Otherwise, I update a copy of my first
-    argument to include the shareid -> peerid mappings implied in the
-    set of PeerTrackers, returning the resulting dict.
+    argument to include the shareid -> serverid mappings implied in the
+    set of ServerTrackers, returning the resulting dict.
     """
     # Since we mutate servermap, and are called outside of a
     # context where it is okay to do that, make a copy of servermap and

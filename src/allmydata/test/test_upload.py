@@ -17,7 +17,7 @@ from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_util import ShouldFailMixin
 from allmydata.util.happinessutil import servers_of_happiness, \
-                                         shares_by_server, merge_peers
+                                         shares_by_server, merge_servers
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.server import storage_index_to_dir
 
@@ -1347,8 +1347,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         return d
 
 
-    def test_merge_peers(self):
-        # merge_peers merges a list of upload_servers and a dict of
+    def test_merge_servers(self):
+        # merge_servers merges a list of upload_servers and a dict of
         # shareid -> serverid mappings.
         shares = {
                     1 : set(["server1"]),
@@ -1359,7 +1359,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                  }
         # if not provided with a upload_servers argument, it should just
         # return the first argument unchanged.
-        self.failUnlessEqual(shares, merge_peers(shares, set([])))
+        self.failUnlessEqual(shares, merge_servers(shares, set([])))
         trackers = []
         for (i, server) in [(i, "server%d" % i) for i in xrange(5, 9)]:
             t = FakeServerTracker(server, [i])
@@ -1374,7 +1374,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                     7 : set(["server7"]),
                     8 : set(["server8"]),
                    }
-        self.failUnlessEqual(expected, merge_peers(shares, set(trackers)))
+        self.failUnlessEqual(expected, merge_servers(shares, set(trackers)))
         shares2 = {}
         expected = {
                     5 : set(["server5"]),
@@ -1382,7 +1382,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                     7 : set(["server7"]),
                     8 : set(["server8"]),
                    }
-        self.failUnlessEqual(expected, merge_peers(shares2, set(trackers)))
+        self.failUnlessEqual(expected, merge_servers(shares2, set(trackers)))
         shares3 = {}
         trackers = []
         expected = {}
@@ -1391,7 +1391,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             t = FakeServerTracker(server, [i])
             trackers.append(t)
             expected[i] = set([server])
-        self.failUnlessEqual(expected, merge_peers(shares3, set(trackers)))
+        self.failUnlessEqual(expected, merge_servers(shares3, set(trackers)))
 
 
     def test_servers_of_happiness_utility_function(self):
@@ -1417,7 +1417,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # should be 3 instead of 4.
         happy = servers_of_happiness(test1)
         self.failUnlessEqual(3, happy)
-        # The second argument of merge_peers should be a set of objects with
+        # The second argument of merge_servers should be a set of objects with
         # serverid and buckets as attributes. In actual use, these will be
         # ServerTracker instances, but for testing it is fine to make a
         # FakeServerTracker whose job is to hold those instance variables to
@@ -1430,7 +1430,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # = 3.  Since there isn't any overlap between the shnum ->
         # set([serverid]) correspondences in test1 and those in trackers,
         # the result here should be 7.
-        test2 = merge_peers(test1, set(trackers))
+        test2 = merge_servers(test1, set(trackers))
         happy = servers_of_happiness(test2)
         self.failUnlessEqual(7, happy)
         # Now add an overlapping server to trackers. This is redundant,
@@ -1438,7 +1438,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # to change.
         t = FakeServerTracker("server1", [1])
         trackers.append(t)
-        test2 = merge_peers(test1, set(trackers))
+        test2 = merge_servers(test1, set(trackers))
         happy = servers_of_happiness(test2)
         self.failUnlessEqual(7, happy)
         test = {}
@@ -1469,7 +1469,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         #
         # and, since there are 5 edges in this matching, it should
         # return 5.
-        test2 = merge_peers(test, set(trackers))
+        test2 = merge_servers(test, set(trackers))
         happy = servers_of_happiness(test2)
         self.failUnlessEqual(5, happy)
         # Zooko's first puzzle:
