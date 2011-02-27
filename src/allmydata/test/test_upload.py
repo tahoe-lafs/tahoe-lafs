@@ -727,8 +727,10 @@ def is_happy_enough(servertoshnums, h, k):
 
 class FakeServerTracker:
     def __init__(self, serverid, buckets):
-        self.serverid = serverid
+        self._serverid = serverid
         self.buckets = buckets
+    def get_serverid(self):
+        return self._serverid
 
 class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
     ShouldFailMixin):
@@ -789,7 +791,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             for tracker in upload_trackers:
                 buckets.update(tracker.buckets)
                 for bucket in tracker.buckets:
-                    servermap.setdefault(bucket, set()).add(tracker.serverid)
+                    servermap.setdefault(bucket, set()).add(tracker.get_serverid())
             encoder.set_shareholders(buckets, servermap)
             d = encoder.start()
             return d

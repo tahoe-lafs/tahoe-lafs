@@ -74,7 +74,7 @@ def merge_servers(servermap, upload_trackers=None):
 
     for tracker in upload_trackers:
         for shnum in tracker.buckets:
-            servermap.setdefault(shnum, set()).add(tracker.serverid)
+            servermap.setdefault(shnum, set()).add(tracker.get_serverid())
     return servermap
 
 def servers_of_happiness(sharemap):
