@@ -21,16 +21,16 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_loadable(self):
         basedir = "test_client.Basic.test_loadable"
         os.mkdir(basedir)
-        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        fileutil.write(os.path.join(basedir, "introducer.furl"), "")
         client.Client(basedir)
 
     def test_loadable_old_config_bits(self):
         basedir = "test_client.Basic.test_loadable_old_config_bits"
         os.mkdir(basedir)
-        open(os.path.join(basedir, "introducer.furl"), "w").write("")
-        open(os.path.join(basedir, "no_storage"), "w").write("")
-        open(os.path.join(basedir, "readonly_storage"), "w").write("")
-        open(os.path.join(basedir, "debug_discard_storage"), "w").write("")
+        fileutil.write(os.path.join(basedir, "introducer.furl"), "")
+        fileutil.write(os.path.join(basedir, "no_storage"), "")
+        fileutil.write(os.path.join(basedir, "readonly_storage"), "")
+        fileutil.write(os.path.join(basedir, "debug_discard_storage"), "")
         c = client.Client(basedir)
         try:
             c.getServiceNamed("storage")
@@ -41,9 +41,9 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_loadable_old_storage_config_bits(self):
         basedir = "test_client.Basic.test_loadable_old_storage_config_bits"
         os.mkdir(basedir)
-        open(os.path.join(basedir, "introducer.furl"), "w").write("")
-        open(os.path.join(basedir, "readonly_storage"), "w").write("")
-        open(os.path.join(basedir, "debug_discard_storage"), "w").write("")
+        fileutil.write(os.path.join(basedir, "introducer.furl"), "")
+        fileutil.write(os.path.join(basedir, "readonly_storage"), "")
+        fileutil.write(os.path.join(basedir, "debug_discard_storage"), "")
         c = client.Client(basedir)
         s = c.getServiceNamed("storage")
         self.failUnless(s.no_storage)
@@ -52,7 +52,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_secrets(self):
         basedir = "test_client.Basic.test_secrets"
         os.mkdir(basedir)
-        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        fileutil.write(os.path.join(basedir, "introducer.furl"), "")
         c = client.Client(basedir)
         secret_fname = os.path.join(basedir, "private", "secret")
         self.failUnless(os.path.exists(secret_fname), secret_fname)
@@ -64,36 +64,33 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_reserved_1(self):
         basedir = "client.Basic.test_reserved_1"
         os.mkdir(basedir)
-        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(BASECONFIG)
-        f.write("[storage]\n")
-        f.write("enabled = true\n")
-        f.write("reserved_space = 1000\n")
-        f.close()
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                           BASECONFIG + \
+                           "[storage]\n" + \
+                           "enabled = true\n" + \
+                           "reserved_space = 1000\n")
         c = client.Client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 1000)
 
     def test_reserved_2(self):
         basedir = "client.Basic.test_reserved_2"
         os.mkdir(basedir)
-        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(BASECONFIG)
-        f.write("[storage]\n")
-        f.write("enabled = true\n")
-        f.write("reserved_space = 10K\n")
-        f.close()
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),  \
+                           BASECONFIG + \
+                           "[storage]\n" + \
+                           "enabled = true\n" + \
+                           "reserved_space = 10K\n")
         c = client.Client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 10*1000)
 
     def test_reserved_3(self):
         basedir = "client.Basic.test_reserved_3"
         os.mkdir(basedir)
-        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(BASECONFIG)
-        f.write("[storage]\n")
-        f.write("enabled = true\n")
-        f.write("reserved_space = 5mB\n")
-        f.close()
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                           BASECONFIG + \
+                           "[storage]\n" + \
+                           "enabled = true\n" + \
+                           "reserved_space = 5mB\n")
         c = client.Client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
                              5*1000*1000)
@@ -101,12 +98,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_reserved_4(self):
         basedir = "client.Basic.test_reserved_4"
         os.mkdir(basedir)
-        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(BASECONFIG)
-        f.write("[storage]\n")
-        f.write("enabled = true\n")
-        f.write("reserved_space = 78Gb\n")
-        f.close()
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                           BASECONFIG + \
+                           "[storage]\n" + \
+                           "enabled = true\n" + \
+                           "reserved_space = 78Gb\n")
         c = client.Client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space,
                              78*1000*1000*1000)
@@ -114,12 +110,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_reserved_bad(self):
         basedir = "client.Basic.test_reserved_bad"
         os.mkdir(basedir)
-        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(BASECONFIG)
-        f.write("[storage]\n")
-        f.write("enabled = true\n")
-        f.write("reserved_space = bogus\n")
-        f.close()
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                           BASECONFIG + \
+                           "[storage]\n" + \
+                           "enabled = true\n" + \
+                           "reserved_space = bogus\n")
         c = client.Client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 0)
 
@@ -139,7 +134,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_versions(self):
         basedir = "test_client.Basic.test_versions"
         os.mkdir(basedir)
-        open(os.path.join(basedir, "introducer.furl"), "w").write("")
+        fileutil.write(os.path.join(basedir, "introducer.furl"), "")
         c = client.Client(basedir)
         ss = c.getServiceNamed("storage")
         verdict = ss.remote_get_version()
@@ -177,15 +172,15 @@ class Run(unittest.TestCase, testutil.StallMixin):
         basedir = "test_client.Run.test_loadable"
         os.mkdir(basedir)
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-        open(os.path.join(basedir, "introducer.furl"), "w").write(dummy)
-        open(os.path.join(basedir, "suicide_prevention_hotline"), "w")
+        fileutil.write(os.path.join(basedir, "introducer.furl"), dummy)
+        fileutil.write(os.path.join(basedir, "suicide_prevention_hotline"), "")
         client.Client(basedir)
 
     def test_reloadable(self):
         basedir = "test_client.Run.test_reloadable"
         os.mkdir(basedir)
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-        open(os.path.join(basedir, "introducer.furl"), "w").write(dummy)
+        fileutil.write(os.path.join(basedir, "introducer.furl"), dummy)
         c1 = client.Client(basedir)
         c1.setServiceParent(self.sparent)
 
@@ -218,9 +213,7 @@ class NodeMaker(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_maker(self):
         basedir = "client/NodeMaker/maker"
         fileutil.make_dirs(basedir)
-        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
-        f.write(BASECONFIG)
-        f.close()
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG)
         c = client.Client(basedir)
 
         n = c.create_node_from_uri("URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
