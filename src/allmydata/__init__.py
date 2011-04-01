@@ -133,8 +133,13 @@ def get_platform():
 
 
 from allmydata.util import verlib
-def normalized_version(verstr):
-    return verlib.NormalizedVersion(verlib.suggest_normalized_version(verstr))
+def normalized_version(verstr, what=None):
+    try:
+        return verlib.NormalizedVersion(verlib.suggest_normalized_version(verstr))
+    except (StandardError, verlib.IrrationalVersionError), e:
+        cls, value, traceback = sys.exc_info()
+        raise PackagingError, ("could not parse %s due to %s: %s"
+                               % (what or repr(verstr), cls.__name__, value)), traceback
 
 
 def get_package_versions_and_locations():
@@ -217,19 +222,19 @@ def check_requirement(req, vers_and_locs):
         raise ImportError("could not import %r for requirement %r" % (comment, req))
     if actual == 'unknown':
         return
-    actualver = normalized_version(actual)
+    actualver = normalized_version(actual, what="actual version %r of %s from %r" % (actual, name, location))
 
     for r in reqlist:
         s = r.split('>=')
         if len(s) == 2:
             required = s[1].strip(' ')
-            if actualver >= normalized_version(required):
+            if actualver >= normalized_version(required, what="required minimum version %r in %r" % (required, req)):
                 return  # minimum requirement met
         else:
             s = r.split('==')
             if len(s) == 2:
                 required = s[1].strip(' ')
-                if actualver == normalized_version(required):
+                if actualver == normalized_version(required, what="required exact version %r in %r" % (required, req)):
                     return  # exact requirement met
             else:
                 raise PackagingError("no version info or could not understand requirement %r" % (req,))

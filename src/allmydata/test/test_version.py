@@ -20,12 +20,20 @@ class CheckRequirement(unittest.TestCase):
 
         check_requirement("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.7.0", "", None)})
 
+        try:
+            check_requirement("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.6.1+", "", None)})
+            # succeeding is ok
+        except PackagingError, e:
+            self.failUnlessIn("could not parse", str(e))
+
         self.failUnlessRaises(PackagingError, check_requirement,
                               "foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.5.1", "", None)})
         self.failUnlessRaises(PackagingError, check_requirement,
                               "pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.2.0", "", None)})
         self.failUnlessRaises(PackagingError, check_requirement,
                               "foo >= 1.0", {})
+        self.failUnlessRaises(PackagingError, check_requirement,
+                              "foo >= 1.0", {"foo": ("irrational", "", None)})
 
         self.failUnlessRaises(ImportError, check_requirement,
                               "foo >= 1.0", {"foo": (None, None, "foomodule")})
