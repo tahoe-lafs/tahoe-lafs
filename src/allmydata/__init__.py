@@ -136,7 +136,7 @@ from allmydata.util import verlib
 def normalized_version(verstr, what=None):
     try:
         return verlib.NormalizedVersion(verlib.suggest_normalized_version(verstr))
-    except (StandardError, verlib.IrrationalVersionError), e:
+    except (StandardError, verlib.IrrationalVersionError):
         cls, value, traceback = sys.exc_info()
         raise PackagingError, ("could not parse %s due to %s: %s"
                                % (what or repr(verstr), cls.__name__, value)), traceback
