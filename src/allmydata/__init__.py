@@ -32,7 +32,7 @@ except ImportError:
 # http://allmydata.org/trac/tahoe/wiki/Versioning
 __full_version__ = __appname__ + '/' + str(__version__)
 
-import os, platform, re, subprocess, sys
+import os, platform, re, subprocess, sys, traceback
 _distributor_id_cmdline_re = re.compile("(?:Distributor ID:)\s*(.*)", re.I)
 _release_cmdline_re = re.compile("(?:Release:)\s*(.*)", re.I)
 
@@ -137,9 +137,9 @@ def normalized_version(verstr, what=None):
     try:
         return verlib.NormalizedVersion(verlib.suggest_normalized_version(verstr))
     except (StandardError, verlib.IrrationalVersionError):
-        cls, value, traceback = sys.exc_info()
+        cls, value, trace = sys.exc_info()
         raise PackagingError, ("could not parse %s due to %s: %s"
-                               % (what or repr(verstr), cls.__name__, value)), traceback
+                               % (what or repr(verstr), cls.__name__, value)), trace
 
 
 def get_package_versions_and_locations():
@@ -187,7 +187,9 @@ def get_package_versions_and_locations():
                 __import__(modulename)
                 module = sys.modules[modulename]
             except ImportError:
-                packages.append( (pkgname, (None, None, modulename)) )
+                etype, emsg, etrace = sys.exc_info()
+                trace_info = (emsg, ([None] + traceback.extract_tb(etrace))[-1])
+                packages.append( (pkgname, (None, None, trace_info)) )
             else:
                 if 'sqlite' in pkgname:
                     packages.append( (pkgname, (get_version(module, 'version'), package_dir(module.__file__),
@@ -218,8 +220,8 @@ def check_requirement(req, vers_and_locs):
         return
     (actual, location, comment) = vers_and_locs[name]
     if actual is None:
-        # comment is the module name
-        raise ImportError("could not import %r for requirement %r" % (comment, req))
+        # comment is (message, (filename, line number, function name, text)) for the original ImportError
+        raise ImportError("for requirement %r: %s" % (req, comment))
     if actual == 'unknown':
         return
     actualver = normalized_version(actual, what="actual version %r of %s from %r" % (actual, name, location))
