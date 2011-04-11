@@ -188,7 +188,7 @@ def get_package_versions_and_locations():
                 module = sys.modules[modulename]
             except ImportError:
                 etype, emsg, etrace = sys.exc_info()
-                trace_info = (emsg, ([None] + traceback.extract_tb(etrace))[-1])
+                trace_info = (etype, str(emsg), ([None] + traceback.extract_tb(etrace))[-1])
                 packages.append( (pkgname, (None, None, trace_info)) )
             else:
                 if 'sqlite' in pkgname:
@@ -220,7 +220,7 @@ def check_requirement(req, vers_and_locs):
         return
     (actual, location, comment) = vers_and_locs[name]
     if actual is None:
-        # comment is (message, (filename, line number, function name, text)) for the original ImportError
+        # comment is (type, message, (filename, line number, function name, text)) for the original ImportError
         raise ImportError("for requirement %r: %s" % (req, comment))
     if actual == 'unknown':
         return
