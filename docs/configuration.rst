@@ -299,7 +299,7 @@ Client Configuration
     becomes unrecoverable, so assuming there are at least ``N`` servers, up to
     ``N``-``k`` servers can be offline without losing the file. So large ``N``/``k``
     ratios are more reliable, and small ``N``/``k`` ratios use less disk space.
-    Clearly, ``k`` must never be smaller than ``N``.
+    Clearly, ``k`` must never be greater than ``N``.
 
     Large values of ``N`` will slow down upload operations slightly, since more
     servers must be involved, and will slightly increase storage overhead due
