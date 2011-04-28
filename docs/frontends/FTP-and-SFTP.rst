@@ -234,9 +234,9 @@ with SFTP only if the client encodes filenames as UTF-8 (`ticket #1089
 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1089>`_).
 
 The gateway node may hang or consume 100% CPU if the client tries to rekey.
-(`ticket #1297 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1045>`_).
+(`ticket #1297 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1297>`_).
 This is due to `a bug in Twisted <http://twistedmatrix.com/trac/ticket/4395>`_
-up to and including version 10.2.
+which was fixed in Twisted 11.0 (released 3-April-2011).
 
 For options to disable rekeying in various clients in order to work around
 this issue, and for other known issues in SFTP, see
