@@ -47,7 +47,7 @@ cpu: ~A
 
 network: ~N
 
-memory footprint: N/K*S
+memory footprint: S
 
 when the file is not already uploaded
 -------------------------------------
@@ -62,18 +62,18 @@ disk: 2*A
 
 cpu: 2*~A
 
-network: ~N + ~A
+network: N/K*A
 
 memory footprint: N/K*S
 
 Publishing an ``A``-byte mutable file
 =====================================
 
+cpu: ~A + a large constant for RSA keypair generation
+
 network: A
 
 memory footprint: N/K*A
-
-cpu: ~A + a large constant for RSA keypair generation
 
 notes: Tahoe-LAFS generates a new RSA keypair for each mutable file that it
 publishes to a grid. This takes up to 1 or 2 seconds on a typical desktop PC.
@@ -86,9 +86,9 @@ files, this may cause Tahoe-LAFS to have an unacceptably large memory footprint
 Downloading ``B`` bytes of an ``A``-byte immutable file
 =======================================================
 
-network: B
+cpu: ~B
 
-cpu: ~A
+network: B
 
 notes: When Tahoe-LAFS 1.8.0 or later is asked to read an arbitrary
 range of an immutable file, only the S-byte segments that overlap the
@@ -101,6 +101,8 @@ the rest of the file even after the request was satisfied.)
 Downloading ``B`` bytes of an ``A``-byte mutable file
 =====================================================
 
+cpu: ~A
+
 network: A
 
 memory footprint: A
@@ -111,6 +113,8 @@ exploring fixes for this; see ticket #393 for more information.
 
 Modifying ``B`` bytes of an ``A``-byte mutable file
 ===================================================
+
+cpu: ~A
 
 network: A
 
@@ -126,6 +130,8 @@ the existing RSA keypair instead of generating a new one.
 
 Inserting/Removing ``B`` bytes in an ``A``-byte mutable file
 ============================================================
+
+cpu: ~A
 
 network: A
 
@@ -144,9 +150,11 @@ file".
 Adding an entry to an ``A``-entry directory
 ===========================================
 
+cpu: ~A
+
 network: ~A
 
-memory footprint: N/K*A
+memory footprint: N/K*~A
 
 notes: In Tahoe-LAFS, directories are implemented as specialized mutable
 files. So adding an entry to a directory is essentially adding B
@@ -155,9 +163,11 @@ files. So adding an entry to a directory is essentially adding B
 Listing an ``A`` entry directory
 ================================
 
+cpu: ~A
+
 network: ~A
 
-memory footprint: N/K*A
+memory footprint: N/K*~A
 
 notes: Listing a directory requires that the mutable file storing the
 directory be downloaded from the grid. So listing an A entry
@@ -167,7 +177,9 @@ file, since each directory entry is about 300-330 bytes in size.
 Performing a file-check on an ``A``-byte file
 =============================================
 
-network: ~G, where G is the number of servers on your grid
+cpu: ~G
+
+network: ~G
 
 memory footprint: negligible
 
@@ -179,24 +191,29 @@ and repair operations.
 Performing a file-verify on an ``A``-byte file
 ==============================================
 
+cpu: ~N/K*A
+
 network: N/K*A
 
 memory footprint: N/K*S
 
 notes: To verify a file, Tahoe-LAFS downloads all of the ciphertext
-shares that were originally uploaded to the grid and integrity
-checks them. This is, for well-behaved grids, likely to be more
-expensive than downloading an A-byte file, since only a fraction
-of these shares are necessary to recover the file.
+shares that were originally uploaded to the grid and integrity checks
+them. This is (for well-behaved grids) more expensive than downloading
+an A-byte file, since only a fraction of these shares are necessary to
+recover the file.
 
 Repairing an ``A``-byte file (mutable or immutable)
 ===================================================
 
-network: variable; up to around ~A
+cpu: variable, between ~A and ~N/K*A
 
-memory footprint: from S to (1+N/K)*S
+network: variable; between A and N/K*A
 
-notes: To repair a file, Tahoe-LAFS downloads the file, and generates/uploads
-missing shares in the same way as when it initially uploads the file.
-So, depending on how many shares are missing, this can be about as
-expensive as initially uploading the file in the first place.
+memory footprint: (1+N/K)*S
+
+notes: To repair a file, Tahoe-LAFS downloads the file, and
+generates/uploads missing shares in the same way as when it initially
+uploads the file.  So, depending on how many shares are missing, this
+can cost as little as a download or as much as a download followed by
+a full upload.
