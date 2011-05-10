@@ -82,7 +82,7 @@ your own local computer -- to use your newly created node.
 Create a new directory (with the button labelled "create a directory").
 Your web browser will load the new directory.  Now if you want to be 
 able to come back to this directory later, you have to bookmark it, or 
-otherwise save a copy of the URL.  If you lose URL to this directory, 
+otherwise save a copy of the URL.  If you lose the URL to this directory, 
 then you can never again come back to this directory.
 
 You can do more or less everything you want to do with a decentralized
