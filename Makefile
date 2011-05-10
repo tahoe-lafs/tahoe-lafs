@@ -77,7 +77,7 @@ endif
 signal-error-deps:
 	@echo
 	@echo
-	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please see docs/install.html for help on installing dependencies."
+	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please see docs/quickstart.rst for help on installing dependencies."
 	@echo
 	@echo
 	exit 1

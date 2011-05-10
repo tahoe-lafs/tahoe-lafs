@@ -112,6 +112,7 @@ please ignore ERROR "Reactor was unclean" in test_system and
 test_introducer. Upgrading to a newer version of Twisted or pyOpenSSL
 will cause those false alarms to stop happening (as will downgrading
 to an older version of either of those packages).
+
 == issues in Tahoe v1.0.0, released 2008-03-25 ==
 
 (Tahoe v1.0 was superceded by v1.1 which was released 2008-06-11.)
@@ -127,7 +128,8 @@ write succeeded, when it in fact failed. This can cause data loss.
 
 Upgrade client to v1.1, or make sure that servers are always able to
 write to their local filesystem (including that there is space
-available) as described in "issue 1" above.
+available) as described in "server out of space when writing mutable
+file" above.
 
 
 === server out of space when writing immutable file ===
@@ -144,7 +146,8 @@ data loss.
 Upgrading either or both of the client and the server to v1.1 will fix
 this issue.  Also it can be avoided by ensuring that the servers are
 always able to write to their local filesystem (including that there
-is space available) as described in "issue 1" above.
+is space available) as described in "server out of space when writing
+mutable file" above.
 
 
 === large directories or mutable files of certain sizes ===

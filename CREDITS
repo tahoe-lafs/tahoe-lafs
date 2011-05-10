@@ -94,7 +94,7 @@ P: 0xD5A7EE69911DF5CF
 D: port to NetBSD, help debugging Crypto++ bug
 
 N: Sam Mason
-D: edited docs/running.html
+D: edited docs/running.rst
 
 N: David-Sarah Hopwood
 E: david-sarah@jacaranda.org

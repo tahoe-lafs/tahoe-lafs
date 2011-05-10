@@ -428,7 +428,7 @@ Several DeprecationWarnings for python2.6 were silenced. (#859)
 The checker --add-lease option would sometimes fail for shares stored
 on old (Tahoe v1.2.0) servers. (#875)
 
-The documentation for installing on Windows (docs/install.html) has been
+The documentation for installing on Windows (docs/quickstart.rst) has been
 improved. (#773)
 
 For other changes not mentioned here, see

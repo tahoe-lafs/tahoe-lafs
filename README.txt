@@ -7,7 +7,7 @@ distributes your filesystem across multiple servers, and even if some of the
 servers fail or are taken over by an attacker, the entire filesystem continues
 to work correctly and to preserve your privacy and security.
 
-To get started please see `quickstart.html`_.
+To get started please see `quickstart.rst`_.
 
 LICENCE
 =======
@@ -22,7 +22,7 @@ the Transitive Grace Period Public Licence, version 1.0.
 
 See `TGPPL.PDF`_ for why the TGPPL exists, graphically illustrated on three slides.
 
-.. _quickstart.html: http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.html
+.. _quickstart.rst: http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.rst
 .. _COPYING.GPL: http://tahoe-lafs.org/trac/dupfilefind/browser/COPYING.GPL
 .. _COPYING.TGPPL.html: http://tahoe-lafs.org/source/dupfilefind/trunk/COPYING.TGPPL.html
 .. _TGPPL.PDF: http://tahoe-lafs.org/~zooko/tgppl.pdf

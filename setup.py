@@ -7,7 +7,7 @@
 #
 # This file is part of Tahoe-LAFS.
 #
-# See the docs/about.html file for licensing information.
+# See the docs/about.rst file for licensing information.
 
 import glob, os, stat, subprocess, sys, re
 
