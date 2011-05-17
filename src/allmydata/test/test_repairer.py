@@ -553,7 +553,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
 
     # why is test_repair_from_corruption_of_1 disabled? Read on:
     #
-    # As recently documented in NEWS for the 1.3.0 release, the current
+    # As recently documented in NEWS.rst for the 1.3.0 release, the current
     # immutable repairer suffers from several limitations:
     #
     #  * minimalistic verifier: it's just download without decryption, so we

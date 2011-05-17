@@ -1,4 +1,4 @@
-[ ]  1 update doc files: `<../relnotes.txt>`_, `<../CREDITS>`_, `<known_issues.rst>`_, `<../NEWS>`_. Add release name and date to top-most item in NEWS.
+[ ]  1 update doc files: `<../relnotes.txt>`_, `<../CREDITS>`_, `<known_issues.rst>`_, `<../NEWS.rst>`_. Add release name and date to top-most item in NEWS.
 
 [ ]  2 change `<quickstart.rst>`_ to point to just the current allmydata-tahoe-X.Y.Z.zip source code file, or else to point to a directory which contains only allmydata-tahoe-X.Y.Z.* source code files
 

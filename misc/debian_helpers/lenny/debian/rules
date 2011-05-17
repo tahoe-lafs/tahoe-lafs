@@ -15,7 +15,7 @@ DEBNAME := $(firstword $(DEB_PACKAGES))
 STAGING_DIR := $(CURDIR)/debian/$(DEBNAME)
 
 DEB_INSTALL_DOCS_ALL := COPYING.GPL COPYING.TGPPL.html CREDITS \
- NEWS README.txt relnotes.txt docs misc/operations_helpers/spacetime misc/operations_helpers/cpu-watcher.tac
+ NEWS.rst README.txt relnotes.txt docs misc/operations_helpers/spacetime misc/operations_helpers/cpu-watcher.tac
 DEB_COMPRESS_EXCLUDE := .tac
 
 
