@@ -2390,12 +2390,12 @@ class RIStatsProvider(RemoteInterface):
     def get_stats():
         """
         returns a dictionary containing 'counters' and 'stats', each a
-        dictionary with string counter/stat name keys, and numeric values.
+        dictionary with string counter/stat name keys, and numeric or None values.
         counters are monotonically increasing measures of work done, and
         stats are instantaneous measures (potentially time averaged
         internally)
         """
-        return DictOf(str, DictOf(str, ChoiceOf(float, int, long)))
+        return DictOf(str, DictOf(str, ChoiceOf(float, int, long, None)))
 
 class RIStatsGatherer(RemoteInterface):
     __remote_name__ = "RIStatsGatherer.tahoe.allmydata.com"

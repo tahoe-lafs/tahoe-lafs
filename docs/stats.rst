@@ -1,4 +1,4 @@
-================
+﻿================
 Tahoe Statistics
 ================
 
@@ -44,7 +44,7 @@ The currently available stats (as of release 1.6.0 or so) are described here:
     this group counts inbound storage-server operations. They are not provided
     by client-only nodes which have been configured to not run a storage server
     (with [storage]enabled=false in tahoe.cfg)
-                           
+
     allocate, write, close, abort
         these are for immutable file uploads. 'allocate' is incremented when a
         client asks if it can upload a share to the server. 'write' is
@@ -134,6 +134,14 @@ The currently available stats (as of release 1.6.0 or so) are described here:
         999 out of the last 1000 operations were faster than the
         given number, and is the same threshold used by Amazon's
         internal SLA, according to the Dynamo paper).
+        Percentiles are only reported in the case of a sufficient
+        number of observations for unambiguous interpretation. For
+        example, the 99.9th percentile is (at the level of thousandths
+        precision) 9 thousandths greater than the 99th
+        percentile for sample sizes greater than or equal to 1000,
+        thus the 99.9th percentile is only reported for samples of 1000
+        or more observations.
+
 
 **counters.uploader.files_uploaded**
 
@@ -195,7 +203,7 @@ The currently available stats (as of release 1.6.0 or so) are described here:
 
     active_uploads
         how many files are currently being uploaded. 0 when idle.
-    
+
     incoming_count
         how many cache files are present in the incoming/ directory,
         which holds ciphertext files that are still being fetched

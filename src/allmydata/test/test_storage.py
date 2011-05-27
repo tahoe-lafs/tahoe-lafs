@@ -1311,6 +1311,8 @@ class Stats(unittest.TestCase):
             ss.add_latency("allocate", 1.0 * i)
         for i in range(1000):
             ss.add_latency("renew", 1.0 * i)
+        for i in range(20):
+            ss.add_latency("write", 1.0 * i)
         for i in range(10):
             ss.add_latency("cancel", 2.0 * i)
         ss.add_latency("get", 5.0)
@@ -1318,7 +1320,7 @@ class Stats(unittest.TestCase):
         output = ss.get_latencies()
 
         self.failUnlessEqual(sorted(output.keys()),
-                             sorted(["allocate", "renew", "cancel", "get"]))
+                             sorted(["allocate", "renew", "cancel", "write", "get"]))
         self.failUnlessEqual(len(ss.latencies["allocate"]), 1000)
         self.failUnless(abs(output["allocate"]["mean"] - 9500) < 1, output)
         self.failUnless(abs(output["allocate"]["01_0_percentile"] - 9010) < 1, output)
@@ -1339,25 +1341,35 @@ class Stats(unittest.TestCase):
         self.failUnless(abs(output["renew"]["99_0_percentile"] - 990) < 1, output)
         self.failUnless(abs(output["renew"]["99_9_percentile"] - 999) < 1, output)
 
+        self.failUnlessEqual(len(ss.latencies["write"]), 20)
+        self.failUnless(abs(output["write"]["mean"] - 9) < 1, output)
+        self.failUnless(output["write"]["01_0_percentile"] is None, output)
+        self.failUnless(abs(output["write"]["10_0_percentile"] -  2) < 1, output)
+        self.failUnless(abs(output["write"]["50_0_percentile"] - 10) < 1, output)
+        self.failUnless(abs(output["write"]["90_0_percentile"] - 18) < 1, output)
+        self.failUnless(abs(output["write"]["95_0_percentile"] - 19) < 1, output)
+        self.failUnless(output["write"]["99_0_percentile"] is None, output)
+        self.failUnless(output["write"]["99_9_percentile"] is None, output)
+
         self.failUnlessEqual(len(ss.latencies["cancel"]), 10)
         self.failUnless(abs(output["cancel"]["mean"] - 9) < 1, output)
-        self.failUnless(abs(output["cancel"]["01_0_percentile"] -  0) < 1, output)
+        self.failUnless(output["cancel"]["01_0_percentile"] is None, output)
         self.failUnless(abs(output["cancel"]["10_0_percentile"] -  2) < 1, output)
         self.failUnless(abs(output["cancel"]["50_0_percentile"] - 10) < 1, output)
         self.failUnless(abs(output["cancel"]["90_0_percentile"] - 18) < 1, output)
-        self.failUnless(abs(output["cancel"]["95_0_percentile"] - 18) < 1, output)
-        self.failUnless(abs(output["cancel"]["99_0_percentile"] - 18) < 1, output)
-        self.failUnless(abs(output["cancel"]["99_9_percentile"] - 18) < 1, output)
+        self.failUnless(output["cancel"]["95_0_percentile"] is None, output)
+        self.failUnless(output["cancel"]["99_0_percentile"] is None, output)
+        self.failUnless(output["cancel"]["99_9_percentile"] is None, output)
 
         self.failUnlessEqual(len(ss.latencies["get"]), 1)
-        self.failUnless(abs(output["get"]["mean"] - 5) < 1, output)
-        self.failUnless(abs(output["get"]["01_0_percentile"] - 5) < 1, output)
-        self.failUnless(abs(output["get"]["10_0_percentile"] - 5) < 1, output)
-        self.failUnless(abs(output["get"]["50_0_percentile"] - 5) < 1, output)
-        self.failUnless(abs(output["get"]["90_0_percentile"] - 5) < 1, output)
-        self.failUnless(abs(output["get"]["95_0_percentile"] - 5) < 1, output)
-        self.failUnless(abs(output["get"]["99_0_percentile"] - 5) < 1, output)
-        self.failUnless(abs(output["get"]["99_9_percentile"] - 5) < 1, output)
+        self.failUnless(output["get"]["mean"] is None, output)
+        self.failUnless(output["get"]["01_0_percentile"] is None, output)
+        self.failUnless(output["get"]["10_0_percentile"] is None, output)
+        self.failUnless(output["get"]["50_0_percentile"] is None, output)
+        self.failUnless(output["get"]["90_0_percentile"] is None, output)
+        self.failUnless(output["get"]["95_0_percentile"] is None, output)
+        self.failUnless(output["get"]["99_0_percentile"] is None, output)
+        self.failUnless(output["get"]["99_9_percentile"] is None, output)
 
 def remove_tags(s):
     s = re.sub(r'<[^>]*>', ' ', s)

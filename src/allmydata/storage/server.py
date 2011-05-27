@@ -116,12 +116,15 @@ class StorageServer(service.MultiService, Referenceable):
 
     def get_latencies(self):
         """Return a dict, indexed by category, that contains a dict of
-        latency numbers for each category. Each dict will contain the
+        latency numbers for each category. If there are sufficient samples
+        for unambiguous interpretation, each dict will contain the
         following keys: mean, 01_0_percentile, 10_0_percentile,
         50_0_percentile (median), 90_0_percentile, 95_0_percentile,
-        99_0_percentile, 99_9_percentile. If no samples have been collected
-        for the given category, then that category name will not be present
-        in the return value."""
+        99_0_percentile, 99_9_percentile.  If there are insufficient
+        samples for a given percentile to be interpreted unambiguously
+        that percentile will be reported as None. If no samples have been
+        collected for the given category, then that category name will
+        not be present in the return value. """
         # note that Amazon's Dynamo paper says they use 99.9% percentile.
         output = {}
         for category in self.latencies:
@@ -129,16 +132,25 @@ class StorageServer(service.MultiService, Referenceable):
                 continue
             stats = {}
             samples = self.latencies[category][:]
-            samples.sort()
             count = len(samples)
-            stats["mean"] = sum(samples) / count
-            stats["01_0_percentile"] = samples[int(0.01 * count)]
-            stats["10_0_percentile"] = samples[int(0.1 * count)]
-            stats["50_0_percentile"] = samples[int(0.5 * count)]
-            stats["90_0_percentile"] = samples[int(0.9 * count)]
-            stats["95_0_percentile"] = samples[int(0.95 * count)]
-            stats["99_0_percentile"] = samples[int(0.99 * count)]
-            stats["99_9_percentile"] = samples[int(0.999 * count)]
+            stats["samplesize"] = count
+            samples.sort()
+            if count > 1:
+                stats["mean"] = sum(samples) / count
+            else:
+                stats["mean"] = None
+
+            orderstatlist = [(0.01, "01_0_percentile", 100), (0.1, "10_0_percentile", 10),\
+                             (0.50, "50_0_percentile", 10), (0.90, "90_0_percentile", 10),\
+                             (0.95, "95_0_percentile", 20), (0.99, "99_0_percentile", 100),\
+                             (0.999, "99_9_percentile", 1000)]
+
+            for percentile, percentilestring, minnumtoobserve in orderstatlist:
+                if count >= minnumtoobserve:
+                    stats[percentilestring] = samples[int(percentile*count)]
+                else:
+                    stats[percentilestring] = None
+
             output[category] = stats
         return output
 
@@ -551,4 +563,3 @@ class StorageServer(service.MultiService, Referenceable):
                 share_type=share_type, si=si_s, shnum=shnum, reason=reason,
                 level=log.SCARY, umid="SGx2fA")
         return None
-

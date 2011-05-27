@@ -1,6 +1,16 @@
-==================================
+﻿==================================
 User-Visible Changes in Tahoe-LAFS
 ==================================
+
+Release 1.9.0 (2011-??-??)
+--------------------------
+
+
+- Nodes now emit "None" for percentiles with higher implied precision
+  than the number of observations can support. Older stats gatherers
+  will throw an exception if they gather stats from a new storage
+  server and it sends a "None" for a percentile. (`#1392`_)
+
 
 Release 1.8.2 (2011-01-30)
 --------------------------
