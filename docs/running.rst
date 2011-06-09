@@ -61,11 +61,10 @@ A note about small grids
 
 By default, Tahoe-LAFS ships with the configuration parameter
 ``shares.happy`` set to 7. If you are using Tahoe-LAFS on a
-grid with fewer than 7 storage nodes, this won't work well for you
-&mdash; none of your uploads will succeed. To fix this, see <a
-href='configuration.rst'>configuration.rst</a> to learn how to set
-``shares.happy`` to a more suitable value for your
-grid.
+grid with fewer than 7 storage nodes, this won't work well for
+you -- none of your uploads will succeed. To fix this, see
+`configuration.rst <configuration.rst>`_ to learn how to set
+``shares.happy`` to a more suitable value for your grid.
 
 Do Stuff With It
 ================
