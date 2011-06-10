@@ -128,4 +128,4 @@ E: ravi@p-static.net
 D: converted docs from .txt to .rst
 
 N: Josh Wilcox
-D: docs
+D: docs, return None from get_stats() when there aren't enough samples

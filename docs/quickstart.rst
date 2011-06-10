@@ -48,8 +48,8 @@ you are using -- e.g. ending in "py2.6.exe" for Python v2.6. If using
 Get Tahoe-LAFS
 --------------
 
-`Download the latest stable release, v1.8.1
-<http://tahoe-lafs.org/source/tahoe-lafs/releases/allmydata-tahoe-1.8.1.zip>`_
+`Download the latest stable release, v1.8.2
+<http://tahoe-lafs.org/source/tahoe-lafs/releases/allmydata-tahoe-1.8.2.zip>`_
 
 Set Up Tahoe-LAFS
 -----------------

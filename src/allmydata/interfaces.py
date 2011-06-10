@@ -1715,7 +1715,7 @@ class IUploader(Interface):
 
 class ICheckable(Interface):
     def check(monitor, verify=False, add_lease=False):
-        """Check upon my health, optionally repairing any problems.
+        """Check up on my health, optionally repairing any problems.
 
         This returns a Deferred that fires with an instance that provides
         ICheckResults, or None if the object is non-distributed (i.e. LIT
