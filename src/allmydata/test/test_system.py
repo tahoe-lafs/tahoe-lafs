@@ -1107,7 +1107,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(lambda res: getPage(base + public + "/subdir1"))
         def _got_subdir1(page):
             # there ought to be an href for our file
-            self.failUnless(("<td>%d</td>" % len(self.data)) in page)
+            self.failUnlessIn('<td align="right">%d</td>' % len(self.data), page)
             self.failUnless(">mydata567</a>" in page)
         d.addCallback(_got_subdir1)
         d.addCallback(self.log, "done with _got_subdir1")

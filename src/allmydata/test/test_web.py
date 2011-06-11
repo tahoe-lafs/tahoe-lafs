@@ -1063,7 +1063,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                r'\s+<td>',
                                r'<a href="%s">bar.txt</a>' % bar_url,
                                r'</td>',
-                               r'\s+<td>%d</td>' % len(self.BAR_CONTENTS),
+                               r'\s+<td align="right">%d</td>' % len(self.BAR_CONTENTS),
                                ])
             self.failUnless(re.search(get_bar, res), res)
             for line in res.split("\n"):
@@ -3725,7 +3725,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                   r'\s+<td>',
                                   r'<a href="[^"]+%s[^"]+">lonely</a>' % (urllib.quote(lonely_uri),),
                                   r'</td>',
-                                  r'\s+<td>%d</td>' % len("one"),
+                                  r'\s+<td align="right">%d</td>' % len("one"),
                                   ])
             self.failUnless(re.search(get_lonely, res), res)
 
