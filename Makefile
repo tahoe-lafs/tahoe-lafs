@@ -70,7 +70,7 @@ endif
 
 # TESTING
 
-.PHONY: signal-error-deps test test-coverage quicktest quicktest-coverage
+.PHONY: signal-error-deps test check test-coverage quicktest quicktest-coverage
 .PHONY: coverage-output get-old-coverage-coverage coverage-delta-output
 
 
@@ -97,8 +97,13 @@ TEST=allmydata
 # use 'make test TRIALARGS=--reporter=bwverbose' from buildbot, to
 # suppress the ansi color sequences
 
-test: build src/allmydata/_version.py
+# It is unnecessary to have this depend on build or src/allmydata/_version.py,
+# since 'setup.py test' always updates the version and builds before testing.
+test:
 	$(PYTHON) setup.py test $(TRIALARGS) -s $(TEST)
+	touch .built
+
+check: test
 
 fuse-test: .built .checked-deps
 	$(RUNPP) -d contrib/fuse -p -c runtests.py
