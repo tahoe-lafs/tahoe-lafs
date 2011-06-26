@@ -74,21 +74,6 @@ endif
 .PHONY: coverage-output get-old-coverage-coverage coverage-delta-output
 
 
-signal-error-deps:
-	@echo
-	@echo
-	@echo "ERROR: Not all of Tahoe's dependencies are in place.  Please see docs/quickstart.rst for help on installing dependencies."
-	@echo
-	@echo
-	exit 1
-
-check-auto-deps:
-	$(PYTHON) setup.py -q check_auto_deps || $(MAKE) signal-error-deps
-
-.checked-deps:
-	$(MAKE) check-auto-deps
-	touch .checked-deps
-
 # you can use 'make test TEST=allmydata.test.test_introducer' to run just
 # test_introducer. TEST=allmydata.test.test_client.Basic.test_permute works
 # too.
@@ -105,7 +90,7 @@ test:
 
 check: test
 
-fuse-test: .built .checked-deps
+fuse-test: .built
 	$(RUNPP) -d contrib/fuse -p -c runtests.py
 
 test-coverage: build src/allmydata/_version.py
@@ -235,7 +220,7 @@ test-clean:
 	diff allfiles.tmp.old allfiles.tmp.new
 
 clean:
-	rm -rf build _trial_temp _test_memory .checked-deps .built
+	rm -rf build _trial_temp _test_memory .built
 	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
 	rm -rf src/allmydata_tahoe.egg-info
 	rm -rf support dist
