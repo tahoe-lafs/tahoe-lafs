@@ -3,29 +3,66 @@ import itertools
 from zope.interface import implements
 from allmydata.interfaces import IDownloadStatus
 
-class RequestEvent:
-    def __init__(self, download_status, tag):
-        self._download_status = download_status
-        self._tag = tag
-    def finished(self, received, when):
-        self._download_status.add_request_finished(self._tag, received, when)
+class ReadEvent:
+    def __init__(self, ev, ds):
+        self._ev = ev
+        self._ds = ds
+    def update(self, bytes, decrypttime, pausetime):
+        self._ev["bytes_returned"] += bytes
+        self._ev["decrypt_time"] += decrypttime
+        self._ev["paused_time"] += pausetime
+    def finished(self, finishtime):
+        self._ev["finish_time"] = finishtime
+        self._ds.update_last_timestamp(finishtime)
+
+class SegmentEvent:
+    def __init__(self, ev, ds):
+        self._ev = ev
+        self._ds = ds
+    def activate(self, when):
+        if self._ev["active_time"] is None:
+            self._ev["active_time"] = when
+    def deliver(self, when, start, length, decodetime):
+        assert self._ev["active_time"] is not None
+        self._ev["finish_time"] = when
+        self._ev["success"] = True
+        self._ev["decode_time"] = decodetime
+        self._ev["segment_start"] = start
+        self._ev["segment_length"] = length
+        self._ds.update_last_timestamp(when)
+    def error(self, when):
+        self._ev["finish_time"] = when
+        self._ev["success"] = False
+        self._ds.update_last_timestamp(when)
 
 class DYHBEvent:
-    def __init__(self, download_status, tag):
-        self._download_status = download_status
-        self._tag = tag
+    def __init__(self, ev, ds):
+        self._ev = ev
+        self._ds = ds
+    def error(self, when):
+        self._ev["finish_time"] = when
+        self._ev["success"] = False
+        self._ds.update_last_timestamp(when)
     def finished(self, shnums, when):
-        self._download_status.add_dyhb_finished(self._tag, shnums, when)
+        self._ev["finish_time"] = when
+        self._ev["success"] = True
+        self._ev["response_shnums"] = shnums
+        self._ds.update_last_timestamp(when)
 
-class ReadEvent:
-    def __init__(self, download_status, tag):
-        self._download_status = download_status
-        self._tag = tag
-    def update(self, bytes, decrypttime, pausetime):
-        self._download_status.update_read_event(self._tag, bytes,
-                                                decrypttime, pausetime)
-    def finished(self, finishtime):
-        self._download_status.finish_read_event(self._tag, finishtime)
+class BlockRequestEvent:
+    def __init__(self, ev, ds):
+        self._ev = ev
+        self._ds = ds
+    def finished(self, received, when):
+        self._ev["finish_time"] = when
+        self._ev["success"] = True
+        self._ev["response_length"] = received
+        self._ds.update_last_timestamp(when)
+    def error(self, when):
+        self._ev["finish_time"] = when
+        self._ev["success"] = False
+        self._ds.update_last_timestamp(when)
+
 
 class DownloadStatus:
     # There is one DownloadStatus for each CiphertextFileNode. The status
@@ -38,110 +75,115 @@ class DownloadStatus:
         self.size = size
         self.counter = self.statusid_counter.next()
         self.helper = False
-        self.started = None
-        # self.dyhb_requests tracks "do you have a share" requests and
-        # responses. It maps serverid to a tuple of:
-        #  send time
-        #  tuple of response shnums (None if response hasn't arrived, "error")
-        #  response time (None if response hasn't arrived yet)
-        self.dyhb_requests = {}
 
-        # self.requests tracks share-data requests and responses. It maps
-        # serverid to a tuple of:
-        #  shnum,
-        #  start,length,  (of data requested)
-        #  send time
-        #  response length (None if reponse hasn't arrived yet, or "error")
-        #  response time (None if response hasn't arrived)
-        self.requests = {}
+        self.first_timestamp = None
+        self.last_timestamp = None
 
-        # self.segment_events tracks segment requests and delivery. It is a
-        # list of:
-        #  type ("request", "delivery", "error")
-        #  segment number
-        #  event time
-        #  segment start (file offset of first byte, None except in "delivery")
-        #  segment length (only in "delivery")
-        #  time spent in decode (only in "delivery")
+        # all four of these _events lists are sorted by start_time, because
+        # they are strictly append-only (some elements are later mutated in
+        # place, but none are removed or inserted in the middle).
+
+        # self.read_events tracks read() requests. It is a list of dicts,
+        # each with the following keys:
+        #  start,length  (of data requested)
+        #  start_time
+        #  finish_time (None until finished)
+        #  bytes_returned (starts at 0, grows as segments are delivered)
+        #  decrypt_time (time spent in decrypt, None for ciphertext-only reads)
+        #  paused_time (time spent paused by client via pauseProducing)
+        self.read_events = []
+
+        # self.segment_events tracks segment requests and their resolution.
+        # It is a list of dicts:
+        #  segment_number
+        #  start_time
+        #  active_time (None until work has begun)
+        #  decode_time (time spent in decode, None until delievered)
+        #  finish_time (None until resolved)
+        #  success (None until resolved, then boolean)
+        #  segment_start (file offset of first byte, None until delivered)
+        #  segment_length (None until delivered)
         self.segment_events = []
 
-        # self.read_events tracks read() requests. It is a list of:
-        #  start,length  (of data requested)
-        #  request time
-        #  finish time (None until finished)
-        #  bytes returned (starts at 0, grows as segments are delivered)
-        #  time spent in decrypt (None for ciphertext-only reads)
-        #  time spent paused
-        self.read_events = []
+        # self.dyhb_requests tracks "do you have a share" requests and
+        # responses. It is a list of dicts:
+        #  serverid (binary)
+        #  start_time
+        #  success (None until resolved, then boolean)
+        #  response_shnums (tuple, None until successful)
+        #  finish_time (None until resolved)
+        self.dyhb_requests = []
+
+        # self.block_requests tracks share-data requests and responses. It is
+        # a list of dicts:
+        #  serverid (binary),
+        #  shnum,
+        #  start,length,  (of data requested)
+        #  start_time
+        #  finish_time (None until resolved)
+        #  success (None until resolved, then bool)
+        #  response_length (None until success)
+        self.block_requests = []
 
         self.known_shares = [] # (serverid, shnum)
         self.problems = []
 
 
-    def add_dyhb_sent(self, serverid, when):
-        r = (when, None, None)
-        if serverid not in self.dyhb_requests:
-            self.dyhb_requests[serverid] = []
-        self.dyhb_requests[serverid].append(r)
-        tag = (serverid, len(self.dyhb_requests[serverid])-1)
-        return DYHBEvent(self, tag)
-
-    def add_dyhb_finished(self, tag, shnums, when):
-        # received="error" on error, else tuple(shnums)
-        (serverid, index) = tag
-        r = self.dyhb_requests[serverid][index]
-        (sent, _, _) = r
-        r = (sent, shnums, when)
-        self.dyhb_requests[serverid][index] = r
-
-    def add_request_sent(self, serverid, shnum, start, length, when):
-        r = (shnum, start, length, when, None, None)
-        if serverid not in self.requests:
-            self.requests[serverid] = []
-        self.requests[serverid].append(r)
-        tag = (serverid, len(self.requests[serverid])-1)
-        return RequestEvent(self, tag)
-
-    def add_request_finished(self, tag, received, when):
-        # received="error" on error, else len(data)
-        (serverid, index) = tag
-        r = self.requests[serverid][index]
-        (shnum, start, length, sent, _, _) = r
-        r = (shnum, start, length, sent, received, when)
-        self.requests[serverid][index] = r
+    def add_read_event(self, start, length, when):
+        if self.first_timestamp is None:
+            self.first_timestamp = when
+        r = { "start": start,
+              "length": length,
+              "start_time": when,
+              "finish_time": None,
+              "bytes_returned": 0,
+              "decrypt_time": 0,
+              "paused_time": 0,
+              }
+        self.read_events.append(r)
+        return ReadEvent(r, self)
 
     def add_segment_request(self, segnum, when):
-        if self.started is None:
-            self.started = when
-        r = ("request", segnum, when, None, None, None)
+        if self.first_timestamp is None:
+            self.first_timestamp = when
+        r = { "segment_number": segnum,
+              "start_time": when,
+              "active_time": None,
+              "finish_time": None,
+              "success": None,
+              "decode_time": None,
+              "segment_start": None,
+              "segment_length": None,
+              }
         self.segment_events.append(r)
-    def add_segment_delivery(self, segnum, when, start, length, decodetime):
-        r = ("delivery", segnum, when, start, length, decodetime)
-        self.segment_events.append(r)
-    def add_segment_error(self, segnum, when):
-        r = ("error", segnum, when, None, None, None)
-        self.segment_events.append(r)
+        return SegmentEvent(r, self)
 
-    def add_read_event(self, start, length, when):
-        if self.started is None:
-            self.started = when
-        r = (start, length, when, None, 0, 0, 0)
-        self.read_events.append(r)
-        tag = len(self.read_events)-1
-        return ReadEvent(self, tag)
-    def update_read_event(self, tag, bytes_d, decrypt_d, paused_d):
-        r = self.read_events[tag]
-        (start, length, requesttime, finishtime, bytes, decrypt, paused) = r
-        bytes += bytes_d
-        decrypt += decrypt_d
-        paused += paused_d
-        r = (start, length, requesttime, finishtime, bytes, decrypt, paused)
-        self.read_events[tag] = r
-    def finish_read_event(self, tag, finishtime):
-        r = self.read_events[tag]
-        (start, length, requesttime, _, bytes, decrypt, paused) = r
-        r = (start, length, requesttime, finishtime, bytes, decrypt, paused)
-        self.read_events[tag] = r
+    def add_dyhb_request(self, serverid, when):
+        r = { "serverid": serverid,
+              "start_time": when,
+              "success": None,
+              "response_shnums": None,
+              "finish_time": None,
+              }
+        self.dyhb_requests.append(r)
+        return DYHBEvent(r, self)
+
+    def add_block_request(self, serverid, shnum, start, length, when):
+        r = { "serverid": serverid,
+              "shnum": shnum,
+              "start": start,
+              "length": length,
+              "start_time": when,
+              "finish_time": None,
+              "success": None,
+              "response_length": None,
+              }
+        self.block_requests.append(r)
+        return BlockRequestEvent(r, self)
+
+    def update_last_timestamp(self, when):
+        if self.last_timestamp is None or when > self.last_timestamp:
+            self.last_timestamp = when
 
     def add_known_share(self, serverid, shnum):
         self.known_shares.append( (serverid, shnum) )
@@ -160,15 +202,12 @@ class DownloadStatus:
         # mention all outstanding segment requests
         outstanding = set()
         errorful = set()
-        for s_ev in self.segment_events:
-            (etype, segnum, when, segstart, seglen, decodetime) = s_ev
-            if etype == "request":
-                outstanding.add(segnum)
-            elif etype == "delivery":
-                outstanding.remove(segnum)
-            else: # "error"
-                outstanding.remove(segnum)
-                errorful.add(segnum)
+        outstanding = set([s_ev["segment_number"]
+                           for s_ev in self.segment_events
+                           if s_ev["finish_time"] is None])
+        errorful = set([s_ev["segment_number"]
+                        for s_ev in self.segment_events
+                        if s_ev["success"] is False])
         def join(segnums):
             if len(segnums) == 1:
                 return "segment %s" % list(segnums)[0]
@@ -191,10 +230,9 @@ class DownloadStatus:
             return 0.0
         total_outstanding, total_received = 0, 0
         for r_ev in self.read_events:
-            (start, length, ign1, finishtime, bytes, ign2, ign3) = r_ev
-            if finishtime is None:
-                total_outstanding += length
-                total_received += bytes
+            if r_ev["finish_time"] is None:
+                total_outstanding += r_ev["length"]
+                total_received += r_ev["bytes_returned"]
             # else ignore completed requests
         if not total_outstanding:
             return 1.0
@@ -213,6 +251,6 @@ class DownloadStatus:
         return False
 
     def get_started(self):
-        return self.started
+        return self.first_timestamp
     def get_results(self):
         return None # TODO

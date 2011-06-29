@@ -1217,14 +1217,16 @@ class Status(unittest.TestCase):
         now = 12345.1
         ds = DownloadStatus("si-1", 123)
         self.failUnlessEqual(ds.get_status(), "idle")
-        ds.add_segment_request(0, now)
+        ev0 = ds.add_segment_request(0, now)
         self.failUnlessEqual(ds.get_status(), "fetching segment 0")
-        ds.add_segment_delivery(0, now+1, 0, 1000, 2.0)
+        ev0.activate(now+0.5)
+        ev0.deliver(now+1, 0, 1000, 2.0)
         self.failUnlessEqual(ds.get_status(), "idle")
-        ds.add_segment_request(2, now+2)
-        ds.add_segment_request(1, now+2)
+        ev2 = ds.add_segment_request(2, now+2)
+        del ev2 # hush pyflakes
+        ev1 = ds.add_segment_request(1, now+2)
         self.failUnlessEqual(ds.get_status(), "fetching segments 1,2")
-        ds.add_segment_error(1, now+3)
+        ev1.error(now+3)
         self.failUnlessEqual(ds.get_status(),
                              "fetching segment 2; errors on segment 1")
 

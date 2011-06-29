@@ -135,8 +135,8 @@ class ShareFinder:
         lp = self.log(format="sending DYHB to [%(name)s]", name=server.name(),
                       level=log.NOISY, umid="Io7pyg")
         time_sent = now()
-        d_ev = self._download_status.add_dyhb_sent(server.get_serverid(),
-                                                   time_sent)
+        d_ev = self._download_status.add_dyhb_request(server.get_serverid(),
+                                                      time_sent)
         # TODO: get the timer from a Server object, it knows best
         self.overdue_timers[req] = reactor.callLater(self.OVERDUE_TIMEOUT,
                                                      self.overdue, req)
@@ -218,7 +218,7 @@ class ShareFinder:
         eventually(self.share_consumer.got_shares, shares)
 
     def _got_error(self, f, server, req, d_ev, lp):
-        d_ev.finished("error", now())
+        d_ev.error(now())
         self.log(format="got error from [%(name)s]",
                  name=server.name(), failure=f,
                  level=log.UNUSUAL, parent=lp, umid="zUKdCw")

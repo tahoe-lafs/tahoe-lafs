@@ -726,12 +726,12 @@ class Share:
                          share=repr(self),
                          start=start, length=length,
                          level=log.NOISY, parent=self._lp, umid="sgVAyA")
-            req_ev = ds.add_request_sent(self._server.get_serverid(),
-                                         self._shnum,
-                                         start, length, now())
+            block_ev = ds.add_block_request(self._server.get_serverid(),
+                                            self._shnum,
+                                            start, length, now())
             d = self._send_request(start, length)
-            d.addCallback(self._got_data, start, length, req_ev, lp)
-            d.addErrback(self._got_error, start, length, req_ev, lp)
+            d.addCallback(self._got_data, start, length, block_ev, lp)
+            d.addErrback(self._got_error, start, length, block_ev, lp)
             d.addCallback(self._trigger_loop)
             d.addErrback(lambda f:
                          log.err(format="unhandled error during send_request",
@@ -741,8 +741,8 @@ class Share:
     def _send_request(self, start, length):
         return self._rref.callRemote("read", start, length)
 
-    def _got_data(self, data, start, length, req_ev, lp):
-        req_ev.finished(len(data), now())
+    def _got_data(self, data, start, length, block_ev, lp):
+        block_ev.finished(len(data), now())
         if not self._alive:
             return
         log.msg(format="%(share)s._got_data [%(start)d:+%(length)d] -> %(datalen)d",
@@ -784,8 +784,8 @@ class Share:
         # the wanted/needed span is only "wanted" for the first pass. Once
         # the offset table arrives, it's all "needed".
 
-    def _got_error(self, f, start, length, req_ev, lp):
-        req_ev.finished("error", now())
+    def _got_error(self, f, start, length, block_ev, lp):
+        block_ev.error(now())
         log.msg(format="error requesting %(start)d+%(length)d"
                 " from %(server)s for si %(si)s",
                 start=start, length=length,

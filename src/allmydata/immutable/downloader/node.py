@@ -1,6 +1,7 @@
 
 import time
 now = time.time
+from zope.interface import Interface
 from twisted.python.failure import Failure
 from twisted.internet import defer
 from foolscap.api import eventually
@@ -16,6 +17,11 @@ from finder import ShareFinder
 from fetcher import SegmentFetcher
 from segmentation import Segmentation
 from common import BadCiphertextHashError
+
+class IDownloadStatusHandlingConsumer(Interface):
+    def set_download_status_read_event(read_ev):
+        """Record the DownloadStatus 'read event', to be updated with the
+        time it takes to decrypt each chunk of data."""
 
 class Cancel:
     def __init__(self, f):
@@ -72,7 +78,7 @@ class DownloadNode:
         # things to track callers that want data
 
         # _segment_requests can have duplicates
-        self._segment_requests = [] # (segnum, d, cancel_handle, logparent)
+        self._segment_requests = [] # (segnum, d, cancel_handle, seg_ev, lp)
         self._active_segment = None # a SegmentFetcher, with .segnum
 
         self._segsize_observers = observer.OneShotObserverList()
@@ -119,22 +125,25 @@ class DownloadNode:
     # things called by outside callers, via CiphertextFileNode. get_segment()
     # may also be called by Segmentation.
 
-    def read(self, consumer, offset=0, size=None, read_ev=None):
+    def read(self, consumer, offset, size):
         """I am the main entry point, from which FileNode.read() can get
         data. I feed the consumer with the desired range of ciphertext. I
         return a Deferred that fires (with the consumer) when the read is
         finished.
 
         Note that there is no notion of a 'file pointer': each call to read()
-        uses an independent offset= value."""
+        uses an independent offset= value.
+        """
         # for concurrent operations: each gets its own Segmentation manager
         if size is None:
             size = self._verifycap.size
         # ignore overruns: clip size so offset+size does not go past EOF, and
         # so size is not negative (which indicates that offset >= EOF)
         size = max(0, min(size, self._verifycap.size-offset))
-        if read_ev is None:
-            read_ev = self._download_status.add_read_event(offset, size, now())
+
+        read_ev = self._download_status.add_read_event(offset, size, now())
+        if IDownloadStatusHandlingConsumer.providedBy(consumer):
+            consumer.set_download_status_read_event(read_ev)
 
         lp = log.msg(format="imm Node(%(si)s).read(%(offset)d, %(size)d)",
                      si=base32.b2a(self._verifycap.storage_index)[:8],
@@ -148,7 +157,11 @@ class DownloadNode:
             read_ev.finished(now())
             # no data, so no producer, so no register/unregisterProducer
             return defer.succeed(consumer)
+
+        # for concurrent operations, each read() gets its own Segmentation
+        # manager
         s = Segmentation(self, offset, size, consumer, read_ev, lp)
+
         # this raises an interesting question: what segments to fetch? if
         # offset=0, always fetch the first segment, and then allow
         # Segmentation to be responsible for pulling the subsequent ones if
@@ -186,10 +199,10 @@ class DownloadNode:
                      si=base32.b2a(self._verifycap.storage_index)[:8],
                      segnum=segnum,
                      level=log.OPERATIONAL, parent=logparent, umid="UKFjDQ")
-        self._download_status.add_segment_request(segnum, now())
+        seg_ev = self._download_status.add_segment_request(segnum, now())
         d = defer.Deferred()
         c = Cancel(self._cancel_request)
-        self._segment_requests.append( (segnum, d, c, lp) )
+        self._segment_requests.append( (segnum, d, c, seg_ev, lp) )
         self._start_new_segment()
         return (d, c)
 
@@ -213,13 +226,13 @@ class DownloadNode:
 
     def _start_new_segment(self):
         if self._active_segment is None and self._segment_requests:
-            segnum = self._segment_requests[0][0]
+            (segnum, d, c, seg_ev, lp) = self._segment_requests[0]
             k = self._verifycap.needed_shares
-            lp = self._segment_requests[0][3]
             log.msg(format="%(node)s._start_new_segment: segnum=%(segnum)d",
                     node=repr(self), segnum=segnum,
                     level=log.NOISY, parent=lp, umid="wAlnHQ")
             self._active_segment = fetcher = SegmentFetcher(self, segnum, k, lp)
+            seg_ev.activate(now())
             active_shares = [s for s in self._shares if s.is_alive()]
             fetcher.add_shares(active_shares) # this triggers the loop
 
@@ -383,7 +396,8 @@ class DownloadNode:
     def fetch_failed(self, sf, f):
         assert sf is self._active_segment
         # deliver error upwards
-        for (d,c) in self._extract_requests(sf.segnum):
+        for (d,c,seg_ev) in self._extract_requests(sf.segnum):
+            seg_ev.error(now())
             eventually(self._deliver, d, c, f)
         self._active_segment = None
         self._start_new_segment()
@@ -392,26 +406,34 @@ class DownloadNode:
         d = defer.maybeDeferred(self._decode_blocks, segnum, blocks)
         d.addCallback(self._check_ciphertext_hash, segnum)
         def _deliver(result):
-            ds = self._download_status
-            if isinstance(result, Failure):
-                ds.add_segment_error(segnum, now())
-            else:
-                (offset, segment, decodetime) = result
-                ds.add_segment_delivery(segnum, now(),
-                                        offset, len(segment), decodetime)
             log.msg(format="delivering segment(%(segnum)d)",
                     segnum=segnum,
                     level=log.OPERATIONAL, parent=self._lp,
                     umid="j60Ojg")
-            for (d,c) in self._extract_requests(segnum):
-                eventually(self._deliver, d, c, result)
+            when = now()
+            if isinstance(result, Failure):
+                # this catches failures in decode or ciphertext hash
+                for (d,c,seg_ev) in self._extract_requests(segnum):
+                    seg_ev.error(when)
+                    eventually(self._deliver, d, c, result)
+            else:
+                (offset, segment, decodetime) = result
+                for (d,c,seg_ev) in self._extract_requests(segnum):
+                    # when we have two requests for the same segment, the
+                    # second one will not be "activated" before the data is
+                    # delivered, so to allow the status-reporting code to see
+                    # consistent behavior, we activate them all now. The
+                    # SegmentEvent will ignore duplicate activate() calls.
+                    # Note that this will result in an inaccurate "receive
+                    # speed" for the second request.
+                    seg_ev.activate(when)
+                    seg_ev.deliver(when, offset, len(segment), decodetime)
+                    eventually(self._deliver, d, c, result)
             self._active_segment = None
             self._start_new_segment()
         d.addBoth(_deliver)
-        d.addErrback(lambda f:
-                     log.err("unhandled error during process_blocks",
-                             failure=f, level=log.WEIRD,
-                             parent=self._lp, umid="MkEsCg"))
+        d.addErrback(log.err, "unhandled error during process_blocks",
+                     level=log.WEIRD, parent=self._lp, umid="MkEsCg")
 
     def _decode_blocks(self, segnum, blocks):
         tail = (segnum == self.num_segments-1)
@@ -479,7 +501,8 @@ class DownloadNode:
     def _extract_requests(self, segnum):
         """Remove matching requests and return their (d,c) tuples so that the
         caller can retire them."""
-        retire = [(d,c) for (segnum0, d, c, lp) in self._segment_requests
+        retire = [(d,c,seg_ev)
+                  for (segnum0,d,c,seg_ev,lp) in self._segment_requests
                   if segnum0 == segnum]
         self._segment_requests = [t for t in self._segment_requests
                                   if t[0] != segnum]
@@ -488,7 +511,7 @@ class DownloadNode:
     def _cancel_request(self, c):
         self._segment_requests = [t for t in self._segment_requests
                                   if t[2] != c]
-        segnums = [segnum for (segnum,d,c,lp) in self._segment_requests]
+        segnums = [segnum for (segnum,d,c,seg_ev,lp) in self._segment_requests]
         # self._active_segment might be None in rare circumstances, so make
         # sure we tolerate it
         if self._active_segment and self._active_segment.segnum not in segnums:
