@@ -19,7 +19,7 @@ from allmydata.nodemaker import NodeMaker
 from allmydata.unknown import UnknownNode
 from allmydata.web import status, common
 from allmydata.scripts.debug import CorruptShareOptions, corrupt_share
-from allmydata.util import fileutil, base32
+from allmydata.util import fileutil, base32, hashutil
 from allmydata.util.consumer import download_to_data
 from allmydata.util.netstring import split_netstring
 from allmydata.util.encodingutil import to_str
@@ -78,34 +78,39 @@ def build_one_ds():
     ds = DownloadStatus("storage_index", 1234)
     now = time.time()
 
-    ds.add_segment_request(0, now)
-    # segnum, when, start,len, decodetime
-    ds.add_segment_delivery(0, now+1, 0, 100, 0.5)
-    ds.add_segment_request(1, now+2)
-    ds.add_segment_error(1, now+3)
+    serverid_a = hashutil.tagged_hash("foo", "serverid_a")[:20]
+    serverid_b = hashutil.tagged_hash("foo", "serverid_b")[:20]
+    storage_index = hashutil.storage_index_hash("SI")
+    e0 = ds.add_segment_request(0, now)
+    e0.activate(now+0.5)
+    e0.deliver(now+1, 0, 100, 0.5) # when, start,len, decodetime
+    e1 = ds.add_segment_request(1, now+2)
+    e1.error(now+3)
     # two outstanding requests
-    ds.add_segment_request(2, now+4)
-    ds.add_segment_request(3, now+5)
+    e2 = ds.add_segment_request(2, now+4)
+    e3 = ds.add_segment_request(3, now+5)
+    del e2,e3 # hush pyflakes
 
     # simulate a segment which gets delivered faster than a system clock tick (ticket #1166)
-    ds.add_segment_request(4, now)
-    ds.add_segment_delivery(4, now, 0, 140, 0.5)
+    e = ds.add_segment_request(4, now)
+    e.activate(now)
+    e.deliver(now, 0, 140, 0.5)
 
-    e = ds.add_dyhb_sent("serverid_a", now)
+    e = ds.add_dyhb_request(serverid_a, now)
     e.finished([1,2], now+1)
-    e = ds.add_dyhb_sent("serverid_b", now+2) # left unfinished
+    e = ds.add_dyhb_request(serverid_b, now+2) # left unfinished
 
     e = ds.add_read_event(0, 120, now)
     e.update(60, 0.5, 0.1) # bytes, decrypttime, pausetime
     e.finished(now+1)
     e = ds.add_read_event(120, 30, now+2) # left unfinished
 
-    e = ds.add_request_sent("serverid_a", 1, 100, 20, now)
+    e = ds.add_block_request(serverid_a, 1, 100, 20, now)
     e.finished(20, now+1)
-    e = ds.add_request_sent("serverid_a", 1, 120, 30, now+1) # left unfinished
+    e = ds.add_block_request(serverid_a, 1, 120, 30, now+1) # left unfinished
 
     # make sure that add_read_event() can come first too
-    ds1 = DownloadStatus("storage_index", 1234)
+    ds1 = DownloadStatus(storage_index, 1234)
     e = ds1.add_read_event(0, 120, now)
     e.update(60, 0.5, 0.1) # bytes, decrypttime, pausetime
     e.finished(now+1)
@@ -556,10 +561,24 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check_dl(res):
             self.failUnless("File Download Status" in res, res)
         d.addCallback(_check_dl)
-        d.addCallback(lambda res: self.GET("/status/down-%d?t=json" % dl_num))
+        d.addCallback(lambda res: self.GET("/status/down-%d/event_json" % dl_num))
         def _check_dl_json(res):
             data = simplejson.loads(res)
             self.failUnless(isinstance(data, dict))
+            self.failUnless("read" in data)
+            self.failUnlessEqual(data["read"][0]["length"], 120)
+            self.failUnlessEqual(data["segment"][0]["segment_length"], 100)
+            self.failUnlessEqual(data["segment"][2]["segment_number"], 2)
+            self.failUnlessEqual(data["segment"][2]["finish_time"], None)
+            phwr_id = base32.b2a(hashutil.tagged_hash("foo", "serverid_a")[:20])
+            cmpu_id = base32.b2a(hashutil.tagged_hash("foo", "serverid_b")[:20])
+            # serverids[] keys are strings, since that's what JSON does, but
+            # we'd really like them to be ints
+            self.failUnlessEqual(data["serverids"]["0"], "phwr")
+            self.failUnlessEqual(data["serverids"]["1"], "cmpu")
+            self.failUnlessEqual(data["server_info"][phwr_id]["short"], "phwr")
+            self.failUnlessEqual(data["server_info"][cmpu_id]["short"], "cmpu")
+            self.failUnless("dyhb" in data)
         d.addCallback(_check_dl_json)
         d.addCallback(lambda res: self.GET("/status/up-%d" % ul_num))
         def _check_ul(res):
