@@ -34,12 +34,11 @@ def check_encoding(encoding):
         raise AssertionError("The character encoding '%s' is not supported for conversion." % (encoding,))
 
 filesystem_encoding = None
-output_encoding = None
-argv_encoding = None
+io_encoding = None
 is_unicode_platform = False
 
 def _reload():
-    global filesystem_encoding, output_encoding, argv_encoding, is_unicode_platform
+    global filesystem_encoding, io_encoding, is_unicode_platform
 
     filesystem_encoding = canonical_encoding(sys.getfilesystemencoding())
     check_encoding(filesystem_encoding)
@@ -47,20 +46,19 @@ def _reload():
     if sys.platform == 'win32':
         # On Windows we install UTF-8 stream wrappers for sys.stdout and
         # sys.stderr, and reencode the arguments as UTF-8 (see scripts/runner.py).
-        output_encoding = 'utf-8'
+        io_encoding = 'utf-8'
     else:
-        outenc = None
+        ioenc = None
         if hasattr(sys.stdout, 'encoding'):
-            outenc = sys.stdout.encoding
-        if outenc is None:
+            ioenc = sys.stdout.encoding
+        if ioenc is None:
             try:
-                outenc = locale.getpreferredencoding()
+                ioenc = locale.getpreferredencoding()
             except Exception:
                 pass  # work around <http://bugs.python.org/issue1443504>
-        output_encoding = canonical_encoding(outenc)
+        io_encoding = canonical_encoding(ioenc)
 
-    check_encoding(output_encoding)
-    argv_encoding = output_encoding
+    check_encoding(io_encoding)
 
     is_unicode_platform = sys.platform in ["win32", "darwin"]
 
@@ -73,17 +71,11 @@ def get_filesystem_encoding():
     """
     return filesystem_encoding
 
-def get_output_encoding():
+def get_io_encoding():
     """
-    Returns expected encoding for writing to stdout or stderr.
+    Returns expected encoding for writing to stdout or stderr, and for arguments in sys.argv.
     """
-    return output_encoding
-
-def get_argv_encoding():
-    """
-    Returns expected encoding for command-line arguments.
-    """
-    return argv_encoding
+    return io_encoding
 
 def argv_to_unicode(s):
     """
@@ -92,10 +84,10 @@ def argv_to_unicode(s):
     precondition(isinstance(s, str), s)
 
     try:
-        return unicode(s, argv_encoding)
+        return unicode(s, io_encoding)
     except UnicodeDecodeError:
         raise usage.UsageError("Argument %s cannot be decoded as %s." %
-                               (quote_output(s), argv_encoding))
+                               (quote_output(s), io_encoding))
 
 def argv_to_abspath(s):
     """
@@ -117,7 +109,7 @@ def unicode_to_argv(s, mangle=False):
         # This must be the same as 'mangle' in bin/tahoe-script.template.
         return str(re.sub(ur'[^\x20-\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
     else:
-        return s.encode(argv_encoding)
+        return s.encode(io_encoding)
 
 def unicode_to_url(s):
     """
@@ -148,16 +140,16 @@ def unicode_to_output(s):
     precondition(isinstance(s, unicode), s)
 
     try:
-        out = s.encode(output_encoding)
+        out = s.encode(io_encoding)
     except (UnicodeEncodeError, UnicodeDecodeError):
-        raise UnicodeEncodeError(output_encoding, s, 0, 0,
+        raise UnicodeEncodeError(io_encoding, s, 0, 0,
                                  "A string could not be encoded as %s for output to the terminal:\n%r" %
-                                 (output_encoding, repr(s)))
+                                 (io_encoding, repr(s)))
 
     if PRINTABLE_8BIT.search(out) is None:
-        raise UnicodeEncodeError(output_encoding, s, 0, 0,
+        raise UnicodeEncodeError(io_encoding, s, 0, 0,
                                  "A string encoded as %s for output to the terminal contained unsafe bytes:\n%r" %
-                                 (output_encoding, repr(s)))
+                                 (io_encoding, repr(s)))
     return out
 
 
@@ -212,7 +204,7 @@ def quote_output(s, quotemarks=True, encoding=None):
 
     if MUST_DOUBLE_QUOTE.search(s) is None:
         try:
-            out = s.encode(encoding or output_encoding)
+            out = s.encode(encoding or io_encoding)
             if quotemarks or out.startswith('"'):
                 return "'%s'" % (out,)
             else:
@@ -221,7 +213,7 @@ def quote_output(s, quotemarks=True, encoding=None):
             pass
 
     escaped = ESCAPABLE_UNICODE.sub(_unicode_escape, s)
-    return '"%s"' % (escaped.encode(encoding or output_encoding, 'backslashreplace'),)
+    return '"%s"' % (escaped.encode(encoding or io_encoding, 'backslashreplace'),)
 
 def quote_path(path, quotemarks=True):
     return quote_output("/".join(map(to_str, path)), quotemarks=quotemarks)

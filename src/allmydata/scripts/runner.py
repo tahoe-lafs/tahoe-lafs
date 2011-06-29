@@ -6,7 +6,7 @@ from twisted.python import usage
 
 from allmydata.scripts.common import BaseOptions
 from allmydata.scripts import debug, create_node, startstop_node, cli, keygen, stats_gatherer
-from allmydata.util.encodingutil import quote_output, get_argv_encoding
+from allmydata.util.encodingutil import quote_output, get_io_encoding
 
 def GROUP(s):
     # Usage.parseOptions compares argv[1] against command[0], so it will
@@ -73,7 +73,7 @@ def runner(argv,
             c = c.subOptions
         print >>stdout, str(c)
         try:
-            msg = e.args[0].decode(get_argv_encoding())
+            msg = e.args[0].decode(get_io_encoding())
         except Exception:
             msg = repr(e)
         print >>stdout, "%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False))

@@ -32,7 +32,7 @@ from twisted.python import usage
 
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, unicode_platform, \
-    quote_output, get_output_encoding, get_argv_encoding, get_filesystem_encoding, \
+    quote_output, get_io_encoding, get_filesystem_encoding, \
     unicode_to_output, unicode_to_argv, to_str
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
@@ -651,8 +651,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
 
         try:
-            etudes_arg = u"\u00E9tudes".encode(get_argv_encoding())
-            lumiere_arg = u"lumi\u00E8re.txt".encode(get_argv_encoding())
+            etudes_arg = u"\u00E9tudes".encode(get_io_encoding())
+            lumiere_arg = u"lumi\u00E8re.txt".encode(get_io_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -980,7 +980,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # tahoe put "\u00E0 trier.txt" "\u00E0 trier.txt"
 
         try:
-            a_trier_arg = u"\u00E0 trier.txt".encode(get_argv_encoding())
+            a_trier_arg = u"\u00E0 trier.txt".encode(get_io_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -997,7 +997,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
 
         d.addCallback(lambda res:
-                      self.do_cli("put", rel_fn.encode(get_argv_encoding()), a_trier_arg))
+                      self.do_cli("put", rel_fn.encode(get_io_encoding()), a_trier_arg))
         def _uploaded((rc, out, err)):
             readcap = out.strip()
             self.failUnless(readcap.startswith("URI:LIT:"), readcap)
@@ -1022,12 +1022,12 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         # u"g\u00F6\u00F6d" might not be representable in the argv and/or output encodings.
         # It is initially included in the directory in any case.
         try:
-            good_arg = u"g\u00F6\u00F6d".encode(get_argv_encoding())
+            good_arg = u"g\u00F6\u00F6d".encode(get_io_encoding())
         except UnicodeEncodeError:
             good_arg = None
 
         try:
-            good_out = u"g\u00F6\u00F6d".encode(get_output_encoding())
+            good_out = u"g\u00F6\u00F6d".encode(get_io_encoding())
         except UnicodeEncodeError:
             good_out = None
 
@@ -1393,8 +1393,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         fn1 = os.path.join(unicode(self.basedir), u"\u00C4rtonwall")
         try:
-            fn1_arg = fn1.encode(get_argv_encoding())
-            artonwall_arg = u"\u00C4rtonwall".encode(get_argv_encoding())
+            fn1_arg = fn1.encode(get_io_encoding())
+            artonwall_arg = u"\u00C4rtonwall".encode(get_io_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -1432,7 +1432,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessIn("files whose names could not be converted", err)
             else:
                 self.failUnlessReallyEqual(rc, 0)
-                self.failUnlessReallyEqual(out.decode(get_output_encoding()), u"Metallica\n\u00C4rtonwall\n")
+                self.failUnlessReallyEqual(out.decode(get_io_encoding()), u"Metallica\n\u00C4rtonwall\n")
                 self.failUnlessReallyEqual(err, "")
         d.addCallback(_check)
 
@@ -1550,9 +1550,9 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         fn1 = os.path.join(unicode(self.basedir), u"\u00C4rtonwall")
         try:
-            fn1_arg = fn1.encode(get_argv_encoding())
+            fn1_arg = fn1.encode(get_io_encoding())
             del fn1_arg # hush pyflakes
-            artonwall_arg = u"\u00C4rtonwall".encode(get_argv_encoding())
+            artonwall_arg = u"\u00C4rtonwall".encode(get_io_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -1574,7 +1574,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessIn("files whose names could not be converted", err)
             else:
                 self.failUnlessReallyEqual(rc, 0)
-                self.failUnlessReallyEqual(out.decode(get_output_encoding()), u"\u00C4rtonwall\n")
+                self.failUnlessReallyEqual(out.decode(get_io_encoding()), u"\u00C4rtonwall\n")
                 self.failUnlessReallyEqual(err, "")
         d.addCallback(_check)
 
@@ -1882,7 +1882,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
     def test_exclude_options_unicode(self):
         nice_doc = u"nice_d\u00F8c.lyx"
         try:
-            doc_pattern_arg = u"*d\u00F8c*".encode(get_argv_encoding())
+            doc_pattern_arg = u"*d\u00F8c*".encode(get_io_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
@@ -2517,7 +2517,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
 
         try:
-            motorhead_arg = u"tahoe:Mot\u00F6rhead".encode(get_argv_encoding())
+            motorhead_arg = u"tahoe:Mot\u00F6rhead".encode(get_io_encoding())
         except UnicodeEncodeError:
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
