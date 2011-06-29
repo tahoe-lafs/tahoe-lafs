@@ -535,7 +535,7 @@ offset is used both to terminate the share data and to begin the encprivkey).
         91       8        (12) encrypted private key
         99       8        (13) EOF
   7    107      436ish  verification key (2048 RSA key)
-  8    543ish   256ish  signature=RSAenc(sigkey, H(version+seqnum+r+IV+encparm))
+  8    543ish   256ish  signature=RSAsign(sigkey, H(version+seqnum+r+IV+encparm))
   9    799ish   (a)     share hash chain, encoded as:
                          "".join([pack(">H32s", shnum, hash)
                                   for (shnum,hash) in needed_hashes])
