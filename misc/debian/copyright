@@ -221,17 +221,6 @@ Apache Licence.
        this License.
 ------- end TGPPL1 licence
 
-The files mac/fuse.py and mac/fuseparts/subbedopts.py are licensed under
-the GNU Lesser General Public Licence.  In addition, on 2009-09-21 Csaba 
-Henk granted permission for those files to be under the same terms as 
-Tahoe-LAFS itself.
-
-See /usr/share/common-licenses/GPL for a copy of the GNU General Public
-License, and /usr/share/common-licenses/LGPL for the GNU Lesser General Public
-License.
-
-The file src/allmydata/util/figleaf.py is licensed under the BSD licence.
-
 ------- begin BSD licence
 Copyright (c) <YEAR>, <OWNER>
 All rights reserved.

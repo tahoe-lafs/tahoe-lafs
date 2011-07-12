@@ -90,9 +90,6 @@ test:
 
 check: test
 
-fuse-test: .built
-	$(RUNPP) -d contrib/fuse -p -c runtests.py
-
 test-coverage: build src/allmydata/_version.py
 	rm -f .coverage
 	$(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
