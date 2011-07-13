@@ -388,7 +388,7 @@ alive until the last lease has expired or been cancelled. Clients which know
 and care about specific dirnodes can ask to keep them alive for a while, by
 renewing a lease on them (with a typical period of one month). Clients are
 expected to assist in the deletion of dirnodes by canceling their leases as
-soon as they are done with them. This means that when a client deletes a
+soon as they are done with them. This means that when a client unlinks a
 directory, it should also cancel its lease on that directory. When the lease
 count on a given share goes to zero, the storage server can delete the
 related storage. Multiple clients may all have leases on the same dirnode:

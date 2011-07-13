@@ -44,7 +44,7 @@ CLI Command Overview
 The "``tahoe``" tool provides access to three categories of commands.
 
 * node management: create a client/server node, start/stop/restart it
-* filesystem manipulation: list files, upload, download, delete, rename
+* filesystem manipulation: list files, upload, download, unlink, rename
 * debugging: unpack cap-strings, examine share files
 
 To get a list of all commands, just run "``tahoe``" with no additional
@@ -134,7 +134,7 @@ Filesystem Manipulation
 =======================
 
 These commands let you exmaine a Tahoe-LAFS filesystem, providing basic
-list/upload/download/delete/rename/mkdir functionality. They can be used as
+list/upload/download/unlink/rename/mkdir functionality. They can be used as
 primitives by other scripts. Most of these commands are fairly thin wrappers
 around web-API calls, which are described in `<webapi.rst>`_.
 
@@ -348,9 +348,9 @@ Command Examples
 
  This uses the python 'webbrowser' module to cause a local web browser to
  open to the web page for the given directory. This page offers interfaces to
- add, download, rename, and delete files in the directory. If no alias or
- path is given, this command opens the root directory of the default
- ``tahoe:`` alias.
+ add, download, rename, and unlink files and subdirectories in that directory.
+ If no alias or path is given, this command opens the root directory of the
+ default ``tahoe:`` alias.
 
 ``tahoe put file.txt``
 
@@ -431,11 +431,15 @@ Command Examples
  This copies a file from your ``tahoe:`` root to a different directory, set up
  earlier with "``tahoe add-alias fun DIRCAP``" or "``tahoe create-alias fun``".
 
-``tahoe rm uploaded.txt``
+``tahoe unlink uploaded.txt``
 
-``tahoe rm tahoe:uploaded.txt``
+``tahoe unlink tahoe:uploaded.txt``
 
- This deletes a file from your ``tahoe:`` root.
+ This unlinks a file from your ``tahoe:`` root (that is, causes there to no
+ longer be an entry ``uploaded.txt`` in the root directory that points to it).
+ Note that this does not delete the file from the grid.
+ For backward compatibility, ``tahoe rm`` is accepted as a synonym for
+ ``tahoe unlink``.
 
 ``tahoe mv uploaded.txt renamed.txt``
 
