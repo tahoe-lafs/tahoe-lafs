@@ -1093,21 +1093,25 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                r'\s+<td align="right">%d</td>' % len(self.BAR_CONTENTS),
                                ])
             self.failUnless(re.search(get_bar, res), res)
-            for line in res.split("\n"):
-                # find the line that contains the delete button for bar.txt
-                if ("form action" in line and
-                    'value="delete"' in line and
-                    'value="bar.txt"' in line):
-                    # the form target should use a relative URL
-                    foo_url = urllib.quote("%s/uri/%s/" % (ROOT, self._foo_uri))
-                    self.failUnless(('action="%s"' % foo_url) in line, line)
-                    # and the when_done= should too
-                    #done_url = urllib.quote(???)
-                    #self.failUnless(('name="when_done" value="%s"' % done_url)
-                    #                in line, line)
-                    break
-            else:
-                self.fail("unable to find delete-bar.txt line", res)
+            for label in ['unlink', 'rename']:
+                for line in res.split("\n"):
+                    # find the line that contains the relevant button for bar.txt
+                    if ("form action" in line and
+                        ('value="%s"' % (label,)) in line and
+                        'value="bar.txt"' in line):
+                        # the form target should use a relative URL
+                        foo_url = urllib.quote("%s/uri/%s/" % (ROOT, self._foo_uri))
+                        self.failUnlessIn('action="%s"' % foo_url, line)
+                        # and the when_done= should too
+                        #done_url = urllib.quote(???)
+                        #self.failUnlessIn('name="when_done" value="%s"' % done_url, line)
+
+                        # 'unlink' needs to use POST because it directly has a side effect
+                        if label == 'unlink':
+                            self.failUnlessIn('method="post"', line)
+                        break
+                else:
+                    self.fail("unable to find '%s bar.txt' line" % (label,), res)
 
             # the DIR reference just points to a URI
             sub_url = ("%s/uri/%s/" % (ROOT, urllib.quote(self._sub_uri)))
@@ -2638,13 +2642,20 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
-    def test_POST_delete(self):
-        d = self.POST(self.public_url + "/foo", t="delete", name="bar.txt")
+    def test_POST_delete(self, command_name='delete'):
+        d = self._foo_node.list()
+        def _check_before(children):
+            self.failUnless(u"bar.txt" in children)
+        d.addCallback(_check_before)
+        d.addCallback(lambda res: self.POST(self.public_url + "/foo", t=command_name, name="bar.txt"))
         d.addCallback(lambda res: self._foo_node.list())
-        def _check(children):
+        def _check_after(children):
             self.failIf(u"bar.txt" in children)
-        d.addCallback(_check)
+        d.addCallback(_check_after)
         return d
+
+    def test_POST_unlink(self):
+        return self.test_POST_delete(command_name='unlink')
 
     def test_POST_rename_file(self):
         d = self.POST(self.public_url + "/foo", t="rename",

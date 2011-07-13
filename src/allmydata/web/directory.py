@@ -202,8 +202,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d = self._POST_upload(ctx) # this one needs the context
         elif t == "uri":
             d = self._POST_uri(req)
-        elif t == "delete":
-            d = self._POST_delete(req)
+        elif t == "delete" or t == "unlink":
+            d = self._POST_unlink(req)
         elif t == "rename":
             d = self._POST_rename(req)
         elif t == "check":
@@ -361,22 +361,22 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         d.addCallback(lambda res: childcap)
         return d
 
-    def _POST_delete(self, req):
+    def _POST_unlink(self, req):
         name = get_arg(req, "name")
         if name is None:
             # apparently an <input type="hidden" name="name" value="">
             # won't show up in the resulting encoded form.. the 'name'
-            # field is completely missing. So to allow deletion of an
-            # empty file, we have to pretend that None means ''. The only
-            # downside of this is a slightly confusing error message if
-            # someone does a POST without a name= field. For our own HTML
-            # this isn't a big deal, because we create the 'delete' POST
-            # buttons ourselves.
+            # field is completely missing. So to allow unlinking of a
+            # child with a name that is the empty string, we have to
+            # pretend that None means ''. The only downside of this is
+            # a slightly confusing error message if someone does a POST
+            # without a name= field. For our own HTML this isn't a big
+            # deal, because we create the 'unlink' POST buttons ourselves.
             name = ''
         charset = get_arg(req, "_charset", "utf-8")
         name = name.decode(charset)
         d = self.node.delete(name)
-        d.addCallback(lambda res: "thing deleted")
+        d.addCallback(lambda res: "thing unlinked")
         return d
 
     def _POST_rename(self, req):
@@ -644,17 +644,17 @@ class DirectoryAsHTML(rend.Page):
         root = get_root(ctx)
         here = "%s/uri/%s/" % (root, urllib.quote(self.node.get_uri()))
         if self.node.is_unknown() or self.node.is_readonly():
-            delete = "-"
+            unlink = "-"
             rename = "-"
         else:
-            # this creates a button which will cause our child__delete method
-            # to be invoked, which deletes the file and then redirects the
+            # this creates a button which will cause our _POST_unlink method
+            # to be invoked, which unlinks the file and then redirects the
             # browser back to this directory
-            delete = T.form(action=here, method="post")[
-                T.input(type='hidden', name='t', value='delete'),
+            unlink = T.form(action=here, method="post")[
+                T.input(type='hidden', name='t', value='unlink'),
                 T.input(type='hidden', name='name', value=name),
                 T.input(type='hidden', name='when_done', value="."),
-                T.input(type='submit', value='del', name="del"),
+                T.input(type='submit', value='unlink', name="unlink"),
                 ]
 
             rename = T.form(action=here, method="get")[
@@ -664,7 +664,7 @@ class DirectoryAsHTML(rend.Page):
                 T.input(type='submit', value='rename', name="rename"),
                 ]
 
-        ctx.fillSlots("delete", delete)
+        ctx.fillSlots("unlink", unlink)
         ctx.fillSlots("rename", rename)
 
         times = []

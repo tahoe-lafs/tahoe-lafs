@@ -88,7 +88,7 @@ URL) will return information about the object, such as metadata. GET
 operations are required to have no side-effects.
 
 PUT is used to upload new objects into the filesystem, or to replace an
-existing object. DELETE it used to delete objects from the filesystem. Both
+existing object. DELETE is used to delete objects from the filesystem. Both
 PUT and DELETE are required to be idempotent: performing the same operation
 multiple times must have the same side-effects as only performing it once.
 
@@ -1158,6 +1158,11 @@ Deleting A Child
  filesystem, the subtree need not be empty; if it isn't, then other references
  into the subtree will see that the child subdirectories are not modified by
  this operation. Only the link from the given directory to its child is severed.
+
+ In Tahoe-LAFS v1.9.0 and later, t=unlink can be used as a synonym for t=delete.
+ If interoperability with older web-API servers is required, t=delete should
+ be used.
+
 
 Renaming A Child
 ----------------
