@@ -59,10 +59,6 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addBoth(_done)
         return d
 
-    def failUnlessReallyEqual(self, a, b, msg=None):
-        self.failUnlessEqual(a, b, msg=msg)
-        self.failUnlessEqual(type(a), type(b), msg=msg)
-
     def _set_up(self, basedir, num_clients=1, num_servers=10):
         self.basedir = "sftp/" + basedir
         self.set_up_grid(num_clients=num_clients, num_servers=num_servers)
