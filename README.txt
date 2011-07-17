@@ -7,7 +7,7 @@ distributes your filesystem across multiple servers, and even if some of the
 servers fail or are taken over by an attacker, the entire filesystem continues
 to work correctly and to preserve your privacy and security.
 
-To get started please see `quickstart.rst`_.
+To get started please see `quickstart.rst`_ in the docs directory.
 
 LICENCE
 =======
