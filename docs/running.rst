@@ -19,7 +19,7 @@ the Tahoe-LAFS code. There is also an *introducer node* that is
 responsible for getting the other nodes talking to each other.
 
 If you're getting started we recommend you try connecting to
-the `the public test grid
+the `public test grid
 <http://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid>`_ as you only
 need to create a client node. When you want to create your own grid
 you'll need to create the introducer and several initial storage nodes
@@ -29,14 +29,17 @@ If the Tahoe-LAFS ``bin`` directory is not on your PATH, then in all
 the command lines below, specify the full path to ``bin/tahoe``.
 
 To construct a client node, run "``tahoe create-client``", which will
-create ``~/.tahoe`` to be the node's base directory. Acquire a copy of
-the ``introducer.furl`` from the introducer and put it into this
-directory, then use "``tahoe run``". After that, the node should be off
-and running. The first thing it will do is connect to the introducer
-and get itself connected to all other nodes on the grid.  By default,
-"``tahoe create-client``" creates a client-only node, that does not
-offer its disk space to other nodes. To configure other behavior, use
-"``tahoe create-node``" or see `configuration.rst <configuration.rst>`_.
+create ``~/.tahoe`` to be the node's base directory. Acquire the
+``introducer.furl`` (see below if you are running your own introducer,
+or use the one from the `TestGrid page
+<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid>`_), and paste it
+after ``introducer.furl =`` in the ``[client]`` section of
+``~/.tahoe/tahoe.cfg``. Then use "``tahoe run``". After that, the node
+should be off and running. The first thing it will do is connect to
+the introducer and get itself connected to all other nodes on the grid.
+By default, "``tahoe create-client``" creates a client-only node, that
+does not offer its disk space to other nodes. To configure other behavior,
+use "``tahoe create-node``" or see `configuration.rst <configuration.rst>`_.
 
 To construct an introducer, create a new base directory for it (the
 name of the directory is up to you), ``cd`` into it, and run
