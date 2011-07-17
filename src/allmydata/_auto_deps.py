@@ -23,7 +23,16 @@ install_requires = [
     # of size N.
     # foolscap < 0.6 is incompatible with Twisted 10.2.0.
     # foolscap 0.6.1 quiets a DeprecationWarning.
-    "foolscap[secure_connections] >= 0.6.1",
+    # pyOpenSSL is required by foolscap for it (foolscap) to provide secure
+    # connections. Foolscap doesn't reliably declare this dependency in a
+    # machine-readable way, so we need to declare a dependency on pyOpenSSL
+    # ourselves. Tahoe-LAFS doesn't *really* depend directly on pyOpenSSL,
+    # so if something changes in the relationship between foolscap and
+    # pyOpenSSL, such as foolscap requiring a specific version of pyOpenSSL,
+    # or foolscap switching from pyOpenSSL to a different crypto library, we
+    # need to update this declaration here.
+    "foolscap >= 0.6.1",
+    "pyOpenSSL",
 
     "Nevow >= 0.6.0",
 
