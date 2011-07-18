@@ -34,9 +34,11 @@ create ``~/.tahoe`` to be the node's base directory. Acquire the
 or use the one from the `TestGrid page
 <http://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid>`_), and paste it
 after ``introducer.furl =`` in the ``[client]`` section of
-``~/.tahoe/tahoe.cfg``. Then use "``tahoe run``". After that, the node
-should be off and running. The first thing it will do is connect to
-the introducer and get itself connected to all other nodes on the grid.
+``~/.tahoe/tahoe.cfg``. Then use "``tahoe run ~/.tahoe``". After that,
+the node should be off and running. The first thing it will do is
+connect to the introducer and get itself connected to all other nodes
+on the grid.
+
 By default, "``tahoe create-client``" creates a client-only node, that
 does not offer its disk space to other nodes. To configure other behavior,
 use "``tahoe create-node``" or see `configuration.rst <configuration.rst>`_.
