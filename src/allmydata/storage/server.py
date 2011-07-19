@@ -172,7 +172,7 @@ class StorageServer(service.MultiService, Referenceable):
                 stats['storage_server.latencies.%s.%s' % (category, name)] = v
 
         try:
-            disk = fileutil.get_disk_stats(self.storedir, self.reserved_space)
+            disk = fileutil.get_disk_stats(self.sharedir, self.reserved_space)
             writeable = disk['avail'] > 0
 
             # spacetime predictors should use disk_avail / (d(disk_used)/dt)
@@ -204,7 +204,7 @@ class StorageServer(service.MultiService, Referenceable):
 
         if self.readonly_storage:
             return 0
-        return fileutil.get_available_space(self.storedir, self.reserved_space)
+        return fileutil.get_available_space(self.sharedir, self.reserved_space)
 
     def allocated_size(self):
         space = 0
