@@ -135,14 +135,20 @@ setup_requires = []
 # http://pypi.python.org/pypi/darcsver
 setup_requires.append('darcsver >= 1.7.2')
 
-# Nevow requires Twisted to setup, but prior to Nevow v0.9.33, didn't
-# declare that requirement in a way that enables setuptools to satisfy
-# the requirement before Nevow's setup.py tries to "import twisted".
-# This only matters when Twisted is not already installed.
-# See http://divmod.org/trac/ticket/2629
-# Retire this hack when
+# Nevow imports itself when building, which causes Twisted and zope.interface
+# to be imported. We need to make sure that the versions of Twisted and
+# zope.interface used at build time satisfy Nevow's requirements. If not
+# then there are two problems:
+#  - prior to Nevow v0.9.33, Nevow didn't declare its dependency on Twisted
+#    in a way that enabled setuptools to satisfy that requirement at
+#    build time.
+#  - some versions of zope.interface, e.g. v3.6.4, are incompatible with
+#    Nevow, and we need to avoid those both at build and run-time.
+#
+# This only matters when compatible versions of Twisted and zope.interface
+# are not already installed. Retire this hack when
 # https://bugs.launchpad.net/nevow/+bug/812537 has been fixed.
-setup_requires += [req for req in install_requires if req.startswith('Twisted')]
+setup_requires += [req for req in install_requires if req.startswith('Twisted') or req.startswith('zope.interface')]
 
 # setuptools_darcs is required to produce complete distributions (such
 # as with "sdist" or "bdist_egg"), unless there is a

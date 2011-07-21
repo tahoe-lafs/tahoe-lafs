@@ -14,7 +14,9 @@ install_requires = [
     # Feisty has simplejson 1.4
     "simplejson >= 1.4",
 
-    "zope.interface",
+    # zope.interface 3.6.4 is incompatible with Nevow.
+    # These are the versions packaged in major versions of Debian or Ubuntu, or in pkgsrc.
+    "zope.interface == 3.3.1, == 3.5.3, == 3.6.1",
 
     # On Windows we need at least Twisted 9.0 to avoid an indirect dependency on pywin32.
     # We also need Twisted 10.1 for the FTP frontend in order for Twisted's FTP server to

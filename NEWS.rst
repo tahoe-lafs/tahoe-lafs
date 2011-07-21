@@ -15,6 +15,9 @@ Release 1.9.0 (2011-??-??)
 Compatibility and Dependencies
 ''''''''''''''''''''''''''''''
 
+- An incompatibility of zope.interface version 3.6.4 with Nevow has
+  been resolved. Tahoe-LAFS now requires one of the exact versions
+  v3.3.1, v3.5.3, or v3.6.1 of zope.interface. (`#1435`_)
 - The Twisted dependency has been raised to version 10.1. This ensures
   that we no longer require pywin32 on Windows, and that it is never
   necessary to patch Twisted in order to use the FTP frontend.
@@ -23,6 +26,7 @@ Compatibility and Dependencies
 .. _`#1274`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1274
 .. _`#1392`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1392
 .. _`#1409`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1409
+.. _`#1435`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1435
 .. _`#1438`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1438
 
 
