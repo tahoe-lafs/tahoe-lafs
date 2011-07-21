@@ -12,8 +12,19 @@ Release 1.9.0 (2011-??-??)
   will throw an exception if they gather stats from a new storage
   server and it sends a "None" for a percentile. (`#1392`_)
 
+Compatibility and Dependencies
+''''''''''''''''''''''''''''''
+
+- The Twisted dependency has been raised to version 10.1. This ensures
+  that we no longer require pywin32 on Windows, and that it is never
+  necessary to patch Twisted in order to use the FTP frontend.
+  (`#1274`_, `#1438`_)
+
+.. _`#1274`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1274
 .. _`#1392`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1392
 .. _`#1409`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1409
+.. _`#1438`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1438
+
 
 Release 1.8.2 (2011-01-30)
 --------------------------

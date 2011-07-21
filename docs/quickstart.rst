@@ -38,13 +38,6 @@ install Python v2.6. Make sure that the path to the installation
 directory has no spaces in it (e.g. on Windows, do not install Python 
 in the "Program Files" directory).
 
-If you are on Windows, you now must manually install the pywin32 
-package from `the pywin32 site 
-<http://sourceforge.net/projects/pywin32/files/>`_ before getting 
-Tahoe-LAFS. Make sure to get the correct file for the version of Python 
-you are using -- e.g. ending in "py2.6.exe" for Python v2.6. If using 
-64-bit Windows, the file should have "win-amd64" in its name.
-
 Get Tahoe-LAFS
 --------------
 

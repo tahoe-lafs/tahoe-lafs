@@ -178,14 +178,6 @@ uses (which is a Python wrapper around the C++ -based Crypto++ library, a
 library that is frequently installed as /usr/lib/libcryptopp.a, to avoid
 problems with non-alphanumerics in filenames).
 
-The FTP server requires code in Twisted that enables asynchronous closing of
-file-upload operations. This code is present in Twisted-10.1 (released
-27-June-2010), but not in Twisted-10.0 (released 01-March-2010). To use
-Tahoe-LAFS's FTP server with Twisted-10.0 or earlier, you will need to apply
-the patch attached to http://twistedmatrix.com/trac/ticket/3462 . The
-Tahoe-LAFS node will refuse to start the FTP server unless it detects the
-necessary support code in Twisted. This patch is not needed for SFTP.
-
 Immutable and Mutable Files
 ===========================
 

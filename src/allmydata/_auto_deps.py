@@ -16,7 +16,10 @@ install_requires = [
 
     "zope.interface",
 
-    "Twisted >= 2.4.0",
+    # On Windows we need at least Twisted 9.0 to avoid an indirect dependency on pywin32.
+    # We also need Twisted 10.1 for the FTP frontend in order for Twisted's FTP server to
+    # support asynchronous close.
+    "Twisted >= 10.1.0",
 
     # foolscap < 0.5.1 had a performance bug which spent
     # O(N**2) CPU for transferring large mutable files

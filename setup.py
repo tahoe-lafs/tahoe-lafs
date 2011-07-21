@@ -140,8 +140,9 @@ setup_requires.append('darcsver >= 1.7.2')
 # the requirement before Nevow's setup.py tries to "import twisted".
 # This only matters when Twisted is not already installed.
 # See http://divmod.org/trac/ticket/2629
-# Retire this hack if/when we require Nevow >= 0.9.33.
-setup_requires.append('Twisted >= 2.4.0')
+# Retire this hack when
+# https://bugs.launchpad.net/nevow/+bug/812537 has been fixed.
+setup_requires += [req for req in install_requires if req.startswith('Twisted')]
 
 # setuptools_darcs is required to produce complete distributions (such
 # as with "sdist" or "bdist_egg"), unless there is a
