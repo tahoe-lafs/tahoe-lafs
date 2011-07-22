@@ -2,23 +2,6 @@
 
 import os, sys, re, glob
 
-if sys.platform == "win32":
-    # Buildbot depends on pywin32, but we don't want it to be available to the code under test.
-    def not_pywin32(entry):
-        dirs = os.path.normcase(entry).replace('/', '\\').split('\\')
-        return "win32" not in dirs and "pythonwin" not in dirs
-
-    print sys.path
-    sys.path = filter(not_pywin32, sys.path)
-    print sys.path
-
-    try:
-        import win32api
-    except ImportError:
-        pass  # expected
-    else:
-        raise AssertionError("We were unable to expunge pywin32 from the sys.path.")
-
 
 def read_version_py(infname):
     try:
