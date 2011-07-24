@@ -3080,3 +3080,39 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
+
+    def test_webopen(self):
+        # TODO: replace with @patch that supports Deferreds.
+        import webbrowser
+        def call_webbrowser_open(url):
+            self.failUnlessIn(self.alias_uri.replace(':', '%3A'), url)
+            self.webbrowser_open_called = True
+        def _cleanup(res):
+            webbrowser.open = self.old_webbrowser_open
+            return res
+
+        self.old_webbrowser_open = webbrowser.open
+        try:
+            webbrowser.open = call_webbrowser_open
+
+            self.basedir = "cli/Webopen/webopen"
+            self.set_up_grid()
+            d = self.do_cli("create-alias", "alias:")
+            def _check_alias((rc, out, err)):
+                self.failUnlessReallyEqual(rc, 0, repr((rc, out, err)))
+                self.failUnlessIn("Alias 'alias' created", out)
+                self.failUnlessReallyEqual(err, "")
+                self.alias_uri = get_aliases(self.get_clientdir())["alias"]
+            d.addCallback(_check_alias)
+            d.addCallback(lambda res: self.do_cli("webopen", "alias:"))
+            def _check_webopen((rc, out, err)):
+                self.failUnlessReallyEqual(rc, 0, repr((rc, out, err)))
+                self.failUnlessReallyEqual(out, "")
+                self.failUnlessReallyEqual(err, "")
+                self.failUnless(self.webbrowser_open_called)
+            d.addCallback(_check_webopen)
+            d.addBoth(_cleanup)
+        except:
+            _cleanup(None)
+            raise
+        return d
