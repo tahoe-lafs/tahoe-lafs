@@ -1,0 +1,291 @@
+.TH TAHOE 1 "July 2011" "Tahoe-LAFS \[em] tahoe command" "User Commands"
+.SH NAME
+.PP
+tahoe - Secure distributed filesystem.
+.SH SYNOPSIS
+.PP
+tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]PARAMETER\f[]]...
+.SH GENERAL OPTIONS
+.TP
+.B \f[B]-q,\ --quiet\f[]
+Operate silently.
+.RS
+.RE
+.TP
+.B \f[B]-V,\ --version\f[]
+Display version numbers.
+.RS
+.RE
+.TP
+.B \f[B]--version-and-path\f[]
+Display version numbers and paths to their locations.
+.RS
+.RE
+.TP
+.B \f[B]-d,\ --node-directory\f[]
+Specify which Tahoe node directory should be used.
+(default for most commands: `$HOME/.tahoe')
+.RS
+.RE
+.SH COMMANDS
+.PP
+The \f[B]tahoe\f[] runner can be used for various tasks depending
+on the command used.
+.SS ADMINISTRATION
+.PP
+tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
+.RS
+.SS COMMANDS
+.TP
+.B \f[B]create-node\f[]
+Create a node that acts as a client, server or both.
+.TP
+.B \f[B]create-client\f[]
+Create a client node (with storage initially disabled).
+.TP
+.B \f[B]create-introducer\f[]
+Create an introducer node.
+.TP
+.B \f[B]create-key-generator\f[]
+Create a key generator service.
+.TP
+.B \f[B]create-stats-gatherer\f[]
+Create a stats-gatherer service.
+.SS OPTIONS
+.TP
+.B \f[B]-C,\ --basedir=\f[]
+Same as \[em]node-directory.
+.TP
+.B \f[B]-d,\ --node-directory=\f[]
+Specify which Tahoe node directory should be used.
+(default for \f[B]create-node\f[] and \f[B]create-client\f[]:
+`$HOME/.tahoe/').
+.TP
+.B \f[B]-n,\ --nickname=\f[]
+Specify the nickname for this node (\f[B]create-node\f[] and
+\f[B]create-client\f[] only).
+.TP
+.B \f[B]-i,\ --introducer=\f[]
+Specify the introducer FURL to use (\f[B]create-node\f[] and
+\f[B]create-client\f[] only).
+.TP
+.B \f[B]-p,\ --webport=\f[]
+Specify which TCP port to run the HTTP interface on.
+Use `none' to disable.
+Default: `tcp:3456:interface=127.0.0.1' (\f[B]create-node\f[] and
+\f[B]create-client\f[] only).
+.TP
+.B \f[B]--no-storage\f[]
+Do not offer storage service to other nodes (\f[B]create-node\f[]
+only).
+.RE
+.SS CONTROLLING NODES
+.PP
+tahoe \f[I]COMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]NODEDIR\f[]]
+.SS COMMANDS
+.TP
+.B \f[B]start\f[]
+Start a node (of any type).
+.RS
+.RE
+.TP
+.B \f[B]stop\f[]
+Stop a node.
+.RS
+.RE
+.TP
+.B \f[B]restart\f[]
+Restart a node.
+.RS
+.RE
+.TP
+.B \f[B]run\f[]
+Run a node synchronously.
+.RS
+.RE
+.SS OPTIONS
+.TP
+.B \f[B]-p,\ --profile\f[]
+Run under the Python profiler, putting results in
+`profiling_results.prof' (use with \f[B]start\f[] or
+\f[B]restart\f[] only).
+.RS
+.RE
+.TP
+.B \f[B]--syslog\f[]
+Tell the node to log to syslog, not a file (use with \f[B]start\f[]
+or \f[B]restart\f[] only).
+.RS
+.RE
+.TP
+.B \f[B]-C,\ --basedir=\f[]
+Same as \[em]node-directory.
+.RS
+.RE
+.TP
+.B \f[B]-d,\ --node-directory=\f[]
+Specify which Tahoe node directory should be used (default for commands
+other than \f[B]run\f[]: `$HOME/.tahoe/').
+.RS
+.RE
+.TP
+.B \f[B]--help\f[]
+Display help and exit
+.RS
+.RE
+.SS USING THE FILSYSTEM
+.TP
+.B \f[B]mkdir\f[]
+Create a new directory.
+.RS
+.RE
+.TP
+.B \f[B]add-alias\f[]
+Add a new alias cap.
+.RS
+.RE
+.TP
+.B \f[B]create-alias\f[]
+Create a new alias cap.
+.RS
+.RE
+.TP
+.B \f[B]list-aliases\f[]
+List all alias caps.
+.RS
+.RE
+.TP
+.B \f[B]ls\f[]
+List a directory.
+.RS
+.RE
+.TP
+.B \f[B]get\f[]
+Retrieve a file from the grid.
+.RS
+.RE
+.TP
+.B \f[B]put\f[]
+Upload a file into the grid.
+.RS
+.RE
+.TP
+.B \f[B]cp\f[]
+Copy one or more files or directories.
+.RS
+.RE
+.TP
+.B \f[B]unlink\f[]
+Unlink a file or directory on the grid.
+.RS
+.RE
+.TP
+.B \f[B]rm\f[]
+Unlink a file or directory on the grid (same as \f[B]unlink\f[]).
+.RS
+.RE
+.TP
+.B \f[B]mv\f[]
+Move a file within the grid.
+.RS
+.RE
+.TP
+.B \f[B]ln\f[]
+Make an additional link to an existing file or directory.
+.RS
+.RE
+.TP
+.B \f[B]backup\f[]
+Make target dir look like local dir.
+.RS
+.RE
+.TP
+.B \f[B]webopen\f[]
+Open a web browser to a grid file or directory.
+.RS
+.RE
+.TP
+.B \f[B]manifest\f[]
+List all files/directories in a subtree.
+.RS
+.RE
+.TP
+.B \f[B]stats\f[]
+Print statistics about all files/directories in a subtree.
+.RS
+.RE
+.TP
+.B \f[B]check\f[]
+Check a single file or directory.
+.RS
+.RE
+.TP
+.B \f[B]deep-check\f[]
+Check all files/directories reachable from a starting point
+.RS
+.RE
+.SS OPTIONS
+.PP
+Please run `tahoe \f[I]COMMAND\f[] --help' for more details on each
+command.
+.SS DEBUGGING
+.PP
+tahoe debug \f[I]SUBCOMMAND\f[] [\f[I]OPTION\f[]]... [\f[I]PARAMETER\f[]]...
+.SS SUBCOMMANDS
+.TP
+.B \f[B]dump-share\f[]
+Unpack and display the contents of a share.
+.RS
+.RE
+.TP
+.B \f[B]dump-cap\f[]
+Unpack a read-cap or write-cap.
+.RS
+.RE
+.TP
+.B \f[B]find-shares\f[]
+Locate sharefiles in node directories.
+.RS
+.RE
+.TP
+.B \f[B]catalog-shares\f[]
+Describe all shares in node dirs.
+.RS
+.RE
+.TP
+.B \f[B]corrupt-share\f[]
+Corrupt a share by flipping a bit.
+.RS
+.RE
+.TP
+.B \f[B]repl\f[]
+Open a Python interpreter.
+.RS
+.RE
+.TP
+.B \f[B]trial\f[]
+Run tests using Twisted Trial with the right imports.
+.RS
+.RE
+.PP
+Please run e.g.\ `tahoe debug dump-share --help' for more
+details on each subcommand.
+.SH AUTHORS
+.PP
+Tahoe-LAFS has been written by Brian Warner, Zooko Wilcox-O'Hearn
+and dozens of others.
+This manpage was originally written by bertagaz.
+.SH REPORTING BUGS
+.PP
+Please see <http://tahoe-lafs.org/trac/tahoe-lafs/wiki/HowToReportABug>.
+.PP
+For known security issues see
+<http://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/known_issues.rst>.
+.PP
+Tahoe-LAFS home page: <http://tahoe-lafs.org/>
+.PP
+tahoe-dev mailing list: <http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>
+.SH COPYRIGHT
+.PP
+2006\[en]2011 \@ AllMyData, Inc.
+
