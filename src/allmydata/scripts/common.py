@@ -40,6 +40,12 @@ class BaseOptions(usage.Options):
             _default_nodedir and (" [default for most commands: " + quote_output(_default_nodedir) + "]") or "")],
     ]
 
+    def __init__(self):
+        super(BaseOptions, self).__init__()
+        self.command_name = os.path.basename(sys.argv[0])
+        if self.command_name == 'trial':
+            self.command_name = 'tahoe'
+
     def opt_version(self):
         import allmydata
         print >>self.stdout, allmydata.get_package_versions_string(debug=True)

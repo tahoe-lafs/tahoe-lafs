@@ -13,12 +13,12 @@ class StartOptions(BasedirMixin, BaseOptions):
         ]
 
     def getSynopsis(self):
-        return "Usage:  %s start [options] [NODEDIR]" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s start [options] [NODEDIR]" % (self.command_name,)
 
 
 class StopOptions(BasedirMixin, BaseOptions):
     def getSynopsis(self):
-        return "Usage:  %s stop [options] [NODEDIR]" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s stop [options] [NODEDIR]" % (self.command_name,)
 
 
 class RestartOptions(BasedirMixin, BaseOptions):
@@ -28,7 +28,7 @@ class RestartOptions(BasedirMixin, BaseOptions):
         ]
 
     def getSynopsis(self):
-        return "Usage:  %s restart [options] [NODEDIR]" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s restart [options] [NODEDIR]" % (self.command_name,)
 
 
 class RunOptions(BasedirMixin, BaseOptions):
@@ -39,7 +39,7 @@ class RunOptions(BasedirMixin, BaseOptions):
     ]
 
     def getSynopsis(self):
-        return "Usage:  %s run [options] [NODEDIR]" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s run [options] [NODEDIR]" % (self.command_name,)
 
 
 def start(opts, out=sys.stdout, err=sys.stderr):
