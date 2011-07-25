@@ -249,6 +249,7 @@ set the ``tub.location`` option described below.
     used for files that usually (on a Unix system) go into ``/tmp``. The string
     will be interpreted relative to the node's base directory.
 
+
 Client Configuration
 ====================
 
@@ -321,6 +322,7 @@ Client Configuration
     (Mutable files use a different share placement algorithm that does not
     currently consider this parameter.)
 
+
 Frontend Configuration
 ======================
 
@@ -353,6 +355,7 @@ FTP, SFTP
     pair to a top-level Tahoe directory. See `<frontends/FTP-and-SFTP.rst>`_
     for instructions on configuring these services, and the ``[ftpd]`` and
     ``[sftpd]`` sections of ``tahoe.cfg``.
+
 
 
 Storage Server Configuration
@@ -539,6 +542,7 @@ This section describes these other files.
   string into the file. If you want to converge your immutable files with as
   many people as possible, put the empty string (so that ``private/convergence``
   is a zero-length file).
+
 
 Other files
 ===========

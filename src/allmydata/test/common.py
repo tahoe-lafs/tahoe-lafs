@@ -336,7 +336,6 @@ class LoggingServiceParent(service.MultiService):
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
 
-
 class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
     # SystemTestMixin tests tend to be a lot of work, and we have a few

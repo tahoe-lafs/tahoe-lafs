@@ -1,4 +1,3 @@
-
 import datetime, os.path, re, types, ConfigParser, tempfile
 from base64 import b32decode, b32encode
 
@@ -61,7 +60,6 @@ class Node(service.MultiService):
 
         # creates self.config, populates from distinct files if necessary
         self.read_config()
-
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
         self.nickname = nickname_utf8.decode("utf-8")
         assert type(self.nickname) is unicode
@@ -344,4 +342,3 @@ class Node(service.MultiService):
     def add_service(self, s):
         s.setServiceParent(self)
         return s
-
