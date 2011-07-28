@@ -1,4 +1,4 @@
-import os.path, re, sys, fnmatch
+import os.path, re, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import BaseOptions, get_aliases, get_default_nodedir, DEFAULT_ALIAS
 from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_output
