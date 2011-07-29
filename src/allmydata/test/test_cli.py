@@ -1625,6 +1625,357 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         return d
 
+    def test_cp_replaces_mutable_file_contents(self):
+        self.basedir = "cli/Cp/cp_replaces_mutable_file_contents"
+        self.set_up_grid()
+
+        # Write a test file, which we'll copy to the grid.
+        test_txt_path = os.path.join(self.basedir, "test.txt")
+        test_txt_contents = "foo bar baz"
+        f = open(test_txt_path, "w")
+        f.write(test_txt_contents)
+        f.close()
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda ignored:
+            self.do_cli("mkdir", "tahoe:test"))
+        # We have to use 'tahoe put' here because 'tahoe cp' doesn't
+        # know how to make mutable files at the destination.
+        d.addCallback(lambda ignored:
+            self.do_cli("put", "--mutable", test_txt_path, "tahoe:test/test.txt"))
+        d.addCallback(lambda ignored:
+            self.do_cli("get", "tahoe:test/test.txt"))
+        def _check((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out, test_txt_contents)
+        d.addCallback(_check)
+
+        # We'll do ls --json to get the read uri and write uri for the
+        # file we've just uploaded.
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:test/test.txt"))
+        def _get_test_txt_uris((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            filetype, data = simplejson.loads(out)
+
+            self.failUnlessEqual(filetype, "filenode")
+            self.failUnless(data['mutable'])
+
+            self.failUnlessIn("rw_uri", data)
+            self.rw_uri = data["rw_uri"]
+            self.failUnlessIn("ro_uri", data)
+            self.ro_uri = data['ro_uri']
+        d.addCallback(_get_test_txt_uris)
+
+        # Now make a new file to copy in place of test.txt.
+        new_txt_path = os.path.join(self.basedir, "new.txt")
+        new_txt_contents = "baz bar foo" * 100000
+        f = open(new_txt_path, "w")
+        f.write(new_txt_contents)
+        f.close()
+
+        # Copy the new file on top of the old file.
+        d.addCallback(lambda ignored:
+            self.do_cli("cp", new_txt_path, "tahoe:test/test.txt"))
+
+        # If we get test.txt now, we should see the new data.
+        d.addCallback(lambda ignored:
+            self.do_cli("get", "tahoe:test/test.txt"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, new_txt_contents))
+        # If we get the json of the new file, we should see that the old
+        # uri is there
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:test/test.txt"))
+        def _check_json((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            filetype, data = simplejson.loads(out)
+
+            self.failUnlessEqual(filetype, "filenode")
+            self.failUnless(data['mutable'])
+
+            self.failUnlessIn("ro_uri", data)
+            self.failUnlessEqual(data["ro_uri"], self.ro_uri)
+            self.failUnlessIn("rw_uri", data)
+            self.failUnlessEqual(data['rw_uri'], self.rw_uri)
+        d.addCallback(_check_json)
+
+        # and, finally, doing a GET directly on one of the old uris
+        # should give us the new contents.
+        d.addCallback(lambda ignored:
+            self.do_cli("get", self.rw_uri))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, new_txt_contents))
+        # Now copy the old test.txt without an explicit destination
+        # file. tahoe cp will match it to the existing file and
+        # overwrite it appropriately.
+        d.addCallback(lambda ignored:
+            self.do_cli("cp", test_txt_path, "tahoe:test"))
+        d.addCallback(lambda ignored:
+            self.do_cli("get", "tahoe:test/test.txt"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, test_txt_contents))
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:test/test.txt"))
+        d.addCallback(_check_json)
+        d.addCallback(lambda ignored:
+            self.do_cli("get", self.rw_uri))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, test_txt_contents))
+
+        # Now we'll make a more complicated directory structure.
+        # test2/
+        # test2/mutable1
+        # test2/mutable2
+        # test2/imm1
+        # test2/imm2
+        imm_test_txt_path = os.path.join(self.basedir, "imm_test.txt")
+        imm_test_txt_contents = test_txt_contents * 10000
+        fileutil.write(imm_test_txt_path, imm_test_txt_contents)
+        d.addCallback(lambda ignored:
+            self.do_cli("mkdir", "tahoe:test2"))
+        d.addCallback(lambda ignored:
+            self.do_cli("put", "--mutable", new_txt_path,
+                        "tahoe:test2/mutable1"))
+        d.addCallback(lambda ignored:
+            self.do_cli("put", "--mutable", new_txt_path,
+                        "tahoe:test2/mutable2"))
+        d.addCallback(lambda ignored:
+            self.do_cli('put', new_txt_path, "tahoe:test2/imm1"))
+        d.addCallback(lambda ignored:
+            self.do_cli("put", imm_test_txt_path, "tahoe:test2/imm2"))
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:test2"))
+        def _process_directory_json((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+
+            filetype, data = simplejson.loads(out)
+            self.failUnlessEqual(filetype, "dirnode")
+            self.failUnless(data['mutable'])
+            self.failUnlessIn("children", data)
+            children = data['children']
+
+            # Store the URIs for later use.
+            self.childuris = {}
+            for k in ["mutable1", "mutable2", "imm1", "imm2"]:
+                self.failUnlessIn(k, children)
+                childtype, childdata = children[k]
+                self.failUnlessEqual(childtype, "filenode")
+                if "mutable" in k:
+                    self.failUnless(childdata['mutable'])
+                    self.failUnlessIn("rw_uri", childdata)
+                    uri_key = "rw_uri"
+                else:
+                    self.failIf(childdata['mutable'])
+                    self.failUnlessIn("ro_uri", childdata)
+                    uri_key = "ro_uri"
+                self.childuris[k] = childdata[uri_key]
+        d.addCallback(_process_directory_json)
+        # Now build a local directory to copy into place, like the following:
+        # source1/
+        # source1/mutable1
+        # source1/mutable2
+        # source1/imm1
+        # source1/imm3
+        def _build_local_directory(ignored):
+            source1_path = os.path.join(self.basedir, "source1")
+            fileutil.make_dirs(source1_path)
+            for fn in ("mutable1", "mutable2", "imm1", "imm3"):
+                fileutil.write(os.path.join(source1_path, fn), fn * 1000)
+            self.source1_path = source1_path
+        d.addCallback(_build_local_directory)
+        d.addCallback(lambda ignored:
+            self.do_cli("cp", "-r", self.source1_path, "tahoe:test2"))
+
+        # We expect that mutable1 and mutable2 are overwritten in-place,
+        # so they'll retain their URIs but have different content.
+        def _process_file_json((rc, out, err), fn):
+            self.failUnlessEqual(rc, 0)
+            filetype, data = simplejson.loads(out)
+            self.failUnlessEqual(filetype, "filenode")
+
+            if "mutable" in fn:
+                self.failUnless(data['mutable'])
+                self.failUnlessIn("rw_uri", data)
+                self.failUnlessEqual(data["rw_uri"], self.childuris[fn])
+            else:
+                self.failIf(data['mutable'])
+                self.failUnlessIn("ro_uri", data)
+                self.failIfEqual(data["ro_uri"], self.childuris[fn])
+
+        for fn in ("mutable1", "mutable2"):
+            d.addCallback(lambda ignored, fn=fn:
+                self.do_cli("get", "tahoe:test2/%s" % fn))
+            d.addCallback(lambda (rc, out, err), fn=fn:
+                self.failUnlessEqual(out, fn * 1000))
+            d.addCallback(lambda ignored, fn=fn:
+                self.do_cli("ls", "--json", "tahoe:test2/%s" % fn))
+            d.addCallback(_process_file_json, fn=fn)
+
+        # imm1 should have been replaced, so both its uri and content
+        # should be different.
+        d.addCallback(lambda ignored:
+            self.do_cli("get", "tahoe:test2/imm1"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, "imm1" * 1000))
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:test2/imm1"))
+        d.addCallback(_process_file_json, fn="imm1")
+
+        # imm3 should have been created.
+        d.addCallback(lambda ignored:
+            self.do_cli("get", "tahoe:test2/imm3"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, "imm3" * 1000))
+
+        # imm2 should be exactly as we left it, since our newly-copied
+        # directory didn't contain an imm2 entry.
+        d.addCallback(lambda ignored:
+            self.do_cli("get", "tahoe:test2/imm2"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, imm_test_txt_contents))
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:test2/imm2"))
+        def _process_imm2_json((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            filetype, data = simplejson.loads(out)
+            self.failUnlessEqual(filetype, "filenode")
+            self.failIf(data['mutable'])
+            self.failUnlessIn("ro_uri", data)
+            self.failUnlessEqual(data['ro_uri'], self.childuris["imm2"])
+        d.addCallback(_process_imm2_json)
+        return d
+
+    def test_cp_overwrite_readonly_mutable_file(self):
+        # tahoe cp should print an error when asked to overwrite a
+        # mutable file that it can't overwrite.
+        self.basedir = "cli/Cp/overwrite_readonly_mutable_file"
+        self.set_up_grid()
+
+        # This is our initial file. We'll link its readcap into the
+        # tahoe: alias.
+        test_file_path = os.path.join(self.basedir, "test_file.txt")
+        test_file_contents = "This is a test file."
+        fileutil.write(test_file_path, test_file_contents)
+
+        # This is our replacement file. We'll try and fail to upload it
+        # over the readcap that we linked into the tahoe: alias.
+        replacement_file_path = os.path.join(self.basedir, "replacement.txt")
+        replacement_file_contents = "These are new contents."
+        fileutil.write(replacement_file_path, replacement_file_contents)
+
+        d = self.do_cli("create-alias", "tahoe:")
+        d.addCallback(lambda ignored:
+            self.do_cli("put", "--mutable", test_file_path))
+        def _get_test_uri((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            # this should be a write uri
+            self._test_write_uri = out
+        d.addCallback(_get_test_uri)
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", self._test_write_uri))
+        def _process_test_json((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            filetype, data = simplejson.loads(out)
+
+            self.failUnlessEqual(filetype, "filenode")
+            self.failUnless(data['mutable'])
+            self.failUnlessIn("ro_uri", data)
+            self._test_read_uri = data['ro_uri']
+        d.addCallback(_process_test_json)
+        # Now we'll link the readonly URI into the tahoe: alias.
+        d.addCallback(lambda ignored:
+            self.do_cli("ln", self._test_read_uri, "tahoe:test_file.txt"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(rc, 0))
+        # Let's grab the json of that to make sure that we did it right.
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:"))
+        def _process_tahoe_json((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+
+            filetype, data = simplejson.loads(out)
+            self.failUnlessEqual(filetype, "dirnode")
+            self.failUnlessIn("children", data)
+            kiddata = data['children']
+
+            self.failUnlessIn("test_file.txt", kiddata)
+            testtype, testdata = kiddata['test_file.txt']
+            self.failUnlessEqual(testtype, "filenode")
+            self.failUnless(testdata['mutable'])
+            self.failUnlessIn("ro_uri", testdata)
+            self.failUnlessEqual(testdata['ro_uri'], self._test_read_uri)
+            self.failIfIn("rw_uri", testdata)
+        d.addCallback(_process_tahoe_json)
+        # Okay, now we're going to try uploading another mutable file in
+        # place of that one. We should get an error.
+        d.addCallback(lambda ignored:
+            self.do_cli("cp", replacement_file_path, "tahoe:test_file.txt"))
+        def _check_error_message((rc, out, err)):
+            self.failUnlessEqual(rc, 1)
+            self.failUnlessIn("need write capability to publish", err)
+        d.addCallback(_check_error_message)
+        # Make extra sure that that didn't work.
+        d.addCallback(lambda ignored:
+            self.do_cli("get", "tahoe:test_file.txt"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, test_file_contents))
+        d.addCallback(lambda ignored:
+            self.do_cli("get", self._test_read_uri))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, test_file_contents))
+        # Now we'll do it without an explicit destination.
+        d.addCallback(lambda ignored:
+            self.do_cli("cp", test_file_path, "tahoe:"))
+        d.addCallback(_check_error_message)
+        d.addCallback(lambda ignored:
+            self.do_cli("get", "tahoe:test_file.txt"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, test_file_contents))
+        d.addCallback(lambda ignored:
+            self.do_cli("get", self._test_read_uri))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(out, test_file_contents))
+        # Now we'll link a readonly file into a subdirectory.
+        d.addCallback(lambda ignored:
+            self.do_cli("mkdir", "tahoe:testdir"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(rc, 0))
+        d.addCallback(lambda ignored:
+            self.do_cli("ln", self._test_read_uri, "tahoe:test/file2.txt"))
+        d.addCallback(lambda (rc, out, err):
+            self.failUnlessEqual(rc, 0))
+
+        test_dir_path = os.path.join(self.basedir, "test")
+        fileutil.make_dirs(test_dir_path)
+        for f in ("file1.txt", "file2.txt"):
+            fileutil.write(os.path.join(test_dir_path, f), f * 10000)
+
+        d.addCallback(lambda ignored:
+            self.do_cli("cp", "-r", test_dir_path, "tahoe:test"))
+        d.addCallback(_check_error_message)
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:test"))
+        def _got_testdir_json((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+
+            filetype, data = simplejson.loads(out)
+            self.failUnlessEqual(filetype, "dirnode")
+
+            self.failUnlessIn("children", data)
+            childdata = data['children']
+
+            self.failUnlessIn("file2.txt", childdata)
+            file2type, file2data = childdata['file2.txt']
+            self.failUnlessEqual(file2type, "filenode")
+            self.failUnless(file2data['mutable'])
+            self.failUnlessIn("ro_uri", file2data)
+            self.failUnlessEqual(file2data['ro_uri'], self._test_read_uri)
+            self.failIfIn("rw_uri", file2data)
+        d.addCallback(_got_testdir_json)
+        return d
+
+
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
     def writeto(self, path, data):

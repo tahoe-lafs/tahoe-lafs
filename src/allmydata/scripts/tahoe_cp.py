@@ -386,11 +386,20 @@ class TahoeDirectoryTarget:
         url = self.nodeurl + "uri"
         if not hasattr(inf, "seek"):
             inf = inf.read()
-        filecap = PUT(url, inf)
-        # TODO: this always creates immutable files. We might want an option
-        # to always create mutable files, or to copy mutable files into new
-        # mutable files.
-        self.new_children[name] = filecap
+
+        if self.children is None:
+            self.populate(False)
+
+        # Check to see if we already have a mutable file by this name.
+        # If so, overwrite that file in place.
+        if name in self.children and self.children[name].mutable:
+            self.children[name].put_file(inf)
+        else:
+            filecap = PUT(url, inf)
+            # TODO: this always creates immutable files. We might want an option
+            # to always create mutable files, or to copy mutable files into new
+            # mutable files.
+            self.new_children[name] = filecap
 
     def put_uri(self, name, filecap):
         self.new_children[name] = filecap
