@@ -1868,10 +1868,7 @@ class ShellSession(PrefixingLogMixin):
         if hasattr(protocol, 'transport') and protocol.transport is None:
             protocol.transport = FakeTransport()  # work around Twisted bug
 
-        d = defer.succeed(None)
-        d.addCallback(lambda ign: protocol.write("This server supports only SFTP, not shell sessions.\n"))
-        d.addCallback(lambda ign: protocol.processEnded(Reason(ProcessTerminated(exitCode=1))))
-        return d
+        return self._unsupported(protocol)
 
     def execCommand(self, protocol, cmd):
         self.log(".execCommand(%r, %r)" % (protocol, cmd), level=OPERATIONAL)
@@ -1881,11 +1878,19 @@ class ShellSession(PrefixingLogMixin):
         d = defer.succeed(None)
         if cmd == "df -P -k /":
             d.addCallback(lambda ign: protocol.write(
-                          "Filesystem         1024-blocks      Used Available Capacity Mounted on\n"
-                          "tahoe                628318530 314159265 314159265      50% /\n"))
+                          "Filesystem         1024-blocks      Used Available Capacity Mounted on\r\n"
+                          "tahoe                628318530 314159265 314159265      50% /\r\n"))
             d.addCallback(lambda ign: protocol.processEnded(Reason(ProcessDone(None))))
         else:
-            d.addCallback(lambda ign: protocol.processEnded(Reason(ProcessTerminated(exitCode=1))))
+            d.addCallback(lambda ign: self._unsupported(protocol))
+        return d
+
+    def _unsupported(self, protocol):
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: protocol.errReceived(
+                      "This server supports only the SFTP protocol. It does not support SCP,\r\n"
+                      "interactive shell sessions, or commands other than one needed by sshfs.\r\n"))
+        d.addCallback(lambda ign: protocol.processEnded(Reason(ProcessTerminated(exitCode=1))))
         return d
 
     def windowChanged(self, newWindowSize):
