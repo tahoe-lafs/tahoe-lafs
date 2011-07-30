@@ -1662,9 +1662,9 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(data['mutable'])
 
             self.failUnlessIn("rw_uri", data)
-            self.rw_uri = data["rw_uri"]
+            self.rw_uri = to_str(data["rw_uri"])
             self.failUnlessIn("ro_uri", data)
-            self.ro_uri = data['ro_uri']
+            self.ro_uri = to_str(data["ro_uri"])
         d.addCallback(_get_test_txt_uris)
 
         # Now make a new file to copy in place of test.txt.
@@ -1695,9 +1695,9 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(data['mutable'])
 
             self.failUnlessIn("ro_uri", data)
-            self.failUnlessEqual(data["ro_uri"], self.ro_uri)
+            self.failUnlessEqual(to_str(data["ro_uri"]), self.ro_uri)
             self.failUnlessIn("rw_uri", data)
-            self.failUnlessEqual(data['rw_uri'], self.rw_uri)
+            self.failUnlessEqual(to_str(data["rw_uri"]), self.rw_uri)
         d.addCallback(_check_json)
 
         # and, finally, doing a GET directly on one of the old uris
@@ -1769,7 +1769,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                     self.failIf(childdata['mutable'])
                     self.failUnlessIn("ro_uri", childdata)
                     uri_key = "ro_uri"
-                self.childuris[k] = childdata[uri_key]
+                self.childuris[k] = to_str(childdata[uri_key])
         d.addCallback(_process_directory_json)
         # Now build a local directory to copy into place, like the following:
         # source1/
@@ -1797,11 +1797,11 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             if "mutable" in fn:
                 self.failUnless(data['mutable'])
                 self.failUnlessIn("rw_uri", data)
-                self.failUnlessEqual(data["rw_uri"], self.childuris[fn])
+                self.failUnlessEqual(to_str(data["rw_uri"]), self.childuris[fn])
             else:
                 self.failIf(data['mutable'])
                 self.failUnlessIn("ro_uri", data)
-                self.failIfEqual(data["ro_uri"], self.childuris[fn])
+                self.failIfEqual(to_str(data["ro_uri"]), self.childuris[fn])
 
         for fn in ("mutable1", "mutable2"):
             d.addCallback(lambda ignored, fn=fn:
@@ -1842,7 +1842,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(filetype, "filenode")
             self.failIf(data['mutable'])
             self.failUnlessIn("ro_uri", data)
-            self.failUnlessEqual(data['ro_uri'], self.childuris["imm2"])
+            self.failUnlessEqual(to_str(data["ro_uri"]), self.childuris["imm2"])
         d.addCallback(_process_imm2_json)
         return d
 
@@ -1881,7 +1881,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(filetype, "filenode")
             self.failUnless(data['mutable'])
             self.failUnlessIn("ro_uri", data)
-            self._test_read_uri = data['ro_uri']
+            self._test_read_uri = to_str(data["ro_uri"])
         d.addCallback(_process_test_json)
         # Now we'll link the readonly URI into the tahoe: alias.
         d.addCallback(lambda ignored:
@@ -1904,7 +1904,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(testtype, "filenode")
             self.failUnless(testdata['mutable'])
             self.failUnlessIn("ro_uri", testdata)
-            self.failUnlessEqual(testdata['ro_uri'], self._test_read_uri)
+            self.failUnlessEqual(to_str(testdata["ro_uri"]), self._test_read_uri)
             self.failIfIn("rw_uri", testdata)
         d.addCallback(_process_tahoe_json)
         # Okay, now we're going to try uploading another mutable file in
@@ -1970,7 +1970,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(file2type, "filenode")
             self.failUnless(file2data['mutable'])
             self.failUnlessIn("ro_uri", file2data)
-            self.failUnlessEqual(file2data['ro_uri'], self._test_read_uri)
+            self.failUnlessEqual(to_str(file2data["ro_uri"]), self._test_read_uri)
             self.failIfIn("rw_uri", file2data)
         d.addCallback(_got_testdir_json)
         return d
