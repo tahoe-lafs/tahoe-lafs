@@ -124,16 +124,13 @@ class StorageFarmBroker:
         return sorted(self.get_connected_servers(), key=_permuted)
 
     def get_all_serverids(self):
-        serverids = set()
-        serverids.update(self.servers.keys())
-        return frozenset(serverids)
+        return frozenset(self.servers.keys())
 
     def get_connected_servers(self):
-        return frozenset([s for s in self.get_known_servers()
-                          if s.get_rref()])
+        return frozenset([s for s in self.servers.values() if s.get_rref()])
 
     def get_known_servers(self):
-        return sorted(self.servers.values(), key=lambda s: s.get_serverid())
+        return frozenset(self.servers.values())
 
     def get_nickname_for_serverid(self, serverid):
         if serverid in self.servers:

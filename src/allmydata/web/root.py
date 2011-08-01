@@ -256,7 +256,7 @@ class Root(rend.Page):
 
     def data_services(self, ctx, data):
         sb = self.client.get_storage_broker()
-        return sb.get_known_servers()
+        return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
     def render_service_row(self, ctx, server):
         nodeid = server.get_serverid()
