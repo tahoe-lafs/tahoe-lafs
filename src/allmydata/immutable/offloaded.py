@@ -64,7 +64,7 @@ class CHKCheckerAndUEBFetcher:
         # buckets is a dict: maps shum to an rref of the server who holds it
         shnums_s = ",".join([str(shnum) for shnum in buckets])
         self.log("got_response: [%s] has %d shares (%s)" %
-                 (server.name(), len(buckets), shnums_s),
+                 (server.get_name(), len(buckets), shnums_s),
                  level=log.NOISY)
         self._found_shares.update(buckets.keys())
         for k in buckets:

@@ -151,7 +151,7 @@ class ResultsBase:
             shareids.reverse()
             shareids_s = [ T.tt[shareid, " "] for shareid in sorted(shareids) ]
             servermap.append(T.tr[T.td[T.div(class_="nickname")[nickname],
-                                       T.div(class_="nodeid")[T.tt[s.name()]]],
+                                       T.div(class_="nodeid")[T.tt[s.get_name()]]],
                                   T.td[shareids_s],
                                   ])
             num_shares_left -= len(shareids)

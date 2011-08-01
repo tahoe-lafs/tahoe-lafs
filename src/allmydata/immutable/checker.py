@@ -503,7 +503,7 @@ class Checker(log.PrefixingLogMixin):
             cancel_secret = self._get_cancel_secret(lease_seed)
             d2 = rref.callRemote("add_lease", storageindex,
                                  renew_secret, cancel_secret)
-            d2.addErrback(self._add_lease_failed, s.name(), storageindex)
+            d2.addErrback(self._add_lease_failed, s.get_name(), storageindex)
 
         d = rref.callRemote("get_buckets", storageindex)
         def _wrap_results(res):

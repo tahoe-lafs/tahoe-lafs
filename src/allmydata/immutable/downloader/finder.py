@@ -87,7 +87,7 @@ class ShareFinder:
 
     # internal methods
     def loop(self):
-        pending_s = ",".join([rt.server.name()
+        pending_s = ",".join([rt.server.get_name()
                               for rt in self.pending_requests]) # sort?
         self.log(format="ShareFinder loop: running=%(running)s"
                  " hungry=%(hungry)s, pending=%(pending)s",
@@ -132,7 +132,7 @@ class ShareFinder:
     def send_request(self, server):
         req = RequestToken(server)
         self.pending_requests.add(req)
-        lp = self.log(format="sending DYHB to [%(name)s]", name=server.name(),
+        lp = self.log(format="sending DYHB to [%(name)s]", name=server.get_name(),
                       level=log.NOISY, umid="Io7pyg")
         time_sent = now()
         d_ev = self._download_status.add_dyhb_request(server.get_serverid(),
@@ -168,12 +168,12 @@ class ShareFinder:
         d_ev.finished(shnums, time_received)
         dyhb_rtt = time_received - time_sent
         if not buckets:
-            self.log(format="no shares from [%(name)s]", name=server.name(),
+            self.log(format="no shares from [%(name)s]", name=server.get_name(),
                      level=log.NOISY, parent=lp, umid="U7d4JA")
             return
         shnums_s = ",".join([str(shnum) for shnum in shnums])
         self.log(format="got shnums [%(shnums)s] from [%(name)s]",
-                 shnums=shnums_s, name=server.name(),
+                 shnums=shnums_s, name=server.get_name(),
                  level=log.NOISY, parent=lp, umid="0fcEZw")
         shares = []
         for shnum, bucket in buckets.iteritems():
@@ -220,7 +220,7 @@ class ShareFinder:
     def _got_error(self, f, server, req, d_ev, lp):
         d_ev.error(now())
         self.log(format="got error from [%(name)s]",
-                 name=server.name(), failure=f,
+                 name=server.get_name(), failure=f,
                  level=log.UNUSUAL, parent=lp, umid="zUKdCw")
 
 

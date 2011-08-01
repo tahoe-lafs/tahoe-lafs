@@ -122,16 +122,16 @@ class NoNetworkServer:
         self.serverid = serverid
         self.rref = rref
     def __repr__(self):
-        return "<NoNetworkServer for %s>" % self.name()
+        return "<NoNetworkServer for %s>" % self.get_name()
     def get_serverid(self):
         return self.serverid
     def get_permutation_seed(self):
         return self.serverid
     def get_lease_seed(self):
         return self.serverid
-    def name(self):
+    def get_name(self):
         return idlib.shortnodeid_b2a(self.serverid)
-    def longname(self):
+    def get_longname(self):
         return idlib.nodeid_b2a(self.serverid)
     def get_nickname(self):
         return "nickname"

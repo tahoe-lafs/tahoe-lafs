@@ -193,7 +193,7 @@ class NativeStorageServer:
         self._trigger_cb = None
 
     def __repr__(self):
-        return "<NativeStorageServer for %s>" % self.name()
+        return "<NativeStorageServer for %s>" % self.get_name()
     def get_serverid(self):
         return self._tubid
     def get_permutation_seed(self):
@@ -202,9 +202,9 @@ class NativeStorageServer:
         if self.rref:
             return self.rref.version
         return None
-    def name(self): # keep methodname short
+    def get_name(self): # keep methodname short
         return self.serverid_s
-    def longname(self):
+    def get_longname(self):
         return idlib.nodeid_b2a(self._tubid)
     def get_lease_seed(self):
         return self._tubid
@@ -231,7 +231,7 @@ class NativeStorageServer:
 
     def _got_connection(self, rref):
         lp = log.msg(format="got connection to %(name)s, getting versions",
-                     name=self.name(),
+                     name=self.get_name(),
                      facility="tahoe.storage_broker", umid="coUECQ")
         if self._trigger_cb:
             eventually(self._trigger_cb)
@@ -239,11 +239,11 @@ class NativeStorageServer:
         d = add_version_to_remote_reference(rref, default)
         d.addCallback(self._got_versioned_service, lp)
         d.addErrback(log.err, format="storageclient._got_connection",
-                     name=self.name(), umid="Sdq3pg")
+                     name=self.get_name(), umid="Sdq3pg")
 
     def _got_versioned_service(self, rref, lp):
         log.msg(format="%(name)s provided version info %(version)s",
-                name=self.name(), version=rref.version,
+                name=self.get_name(), version=rref.version,
                 facility="tahoe.storage_broker", umid="SWmJYg",
                 level=log.NOISY, parent=lp)
 
@@ -256,7 +256,7 @@ class NativeStorageServer:
         return self.rref
 
     def _lost(self):
-        log.msg(format="lost connection to %(name)s", name=self.name(),
+        log.msg(format="lost connection to %(name)s", name=self.get_name(),
                 facility="tahoe.storage_broker", umid="zbRllw")
         self.last_loss_time = time.time()
         self.rref = None

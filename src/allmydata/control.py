@@ -100,7 +100,7 @@ class ControlServer(Referenceable, service.Service):
         if not everyone_left:
             return results
         server = everyone_left.pop(0)
-        server_name = server.longname()
+        server_name = server.get_longname()
         connection = server.get_rref()
         start = time.time()
         d = connection.callRemote("get_buckets", "\x00"*16)

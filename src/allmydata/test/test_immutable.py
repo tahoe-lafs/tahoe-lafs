@@ -103,7 +103,7 @@ class TestShareFinder(unittest.TestCase):
                 return self.serverid
             def get_rref(self):
                 return self.rref
-            def name(self):
+            def get_name(self):
                 return "name-%s" % self.serverid
             def get_version(self):
                 return self.rref.version

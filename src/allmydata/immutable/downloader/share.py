@@ -94,7 +94,7 @@ class Share:
         self.had_corruption = False # for unit tests
 
     def __repr__(self):
-        return "Share(sh%d-on-%s)" % (self._shnum, self._server.name())
+        return "Share(sh%d-on-%s)" % (self._shnum, self._server.get_name())
 
     def is_alive(self):
         # XXX: reconsider. If the share sees a single error, should it remain
@@ -797,7 +797,7 @@ class Share:
         log.msg(format="error requesting %(start)d+%(length)d"
                 " from %(server)s for si %(si)s",
                 start=start, length=length,
-                server=self._server.name(), si=self._si_prefix,
+                server=self._server.get_name(), si=self._si_prefix,
                 failure=f, parent=lp, level=log.UNUSUAL, umid="BZgAJw")
         # retire our observers, assuming we won't be able to make any
         # further progress

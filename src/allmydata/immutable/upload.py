@@ -93,12 +93,12 @@ class ServerTracker:
 
     def __repr__(self):
         return ("<ServerTracker for server %s and SI %s>"
-                % (self._server.name(), si_b2a(self.storage_index)[:5]))
+                % (self._server.get_name(), si_b2a(self.storage_index)[:5]))
 
     def get_serverid(self):
         return self._server.get_serverid()
-    def name(self):
-        return self._server.name()
+    def get_name(self):
+        return self._server.get_name()
 
     def query(self, sharenums):
         rref = self._server.get_rref()
@@ -286,7 +286,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             self.num_servers_contacted += 1
             self.query_count += 1
             self.log("asking server %s for any existing shares" %
-                     (tracker.name(),), level=log.NOISY)
+                     (tracker.get_name(),), level=log.NOISY)
         dl = defer.DeferredList(ds)
         dl.addCallback(lambda ign: self._loop())
         return dl
@@ -300,7 +300,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         serverid = tracker.get_serverid()
         if isinstance(res, failure.Failure):
             self.log("%s got error during existing shares check: %s"
-                    % (tracker.name(), res), level=log.UNUSUAL)
+                    % (tracker.get_name(), res), level=log.UNUSUAL)
             self.error_count += 1
             self.bad_query_count += 1
         else:
@@ -308,7 +308,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             if buckets:
                 self.serverids_with_shares.add(serverid)
             self.log("response to get_buckets() from server %s: alreadygot=%s"
-                    % (tracker.name(), tuple(sorted(buckets))),
+                    % (tracker.get_name(), tuple(sorted(buckets))),
                     level=log.NOISY)
             for bucket in buckets:
                 self.preexisting_shares.setdefault(bucket, set()).add(serverid)
@@ -416,7 +416,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             if self._status:
                 self._status.set_status("Contacting Servers [%s] (first query),"
                                         " %d shares left.."
-                                        % (tracker.name(),
+                                        % (tracker.get_name(),
                                            len(self.homeless_shares)))
             d = tracker.query(shares_to_ask)
             d.addBoth(self._got_response, tracker, shares_to_ask,
@@ -437,7 +437,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             if self._status:
                 self._status.set_status("Contacting Servers [%s] (second query),"
                                         " %d shares left.."
-                                        % (tracker.name(),
+                                        % (tracker.get_name(),
                                            len(self.homeless_shares)))
             d = tracker.query(shares_to_ask)
             d.addBoth(self._got_response, tracker, shares_to_ask,
@@ -498,7 +498,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         else:
             (alreadygot, allocated) = res
             self.log("response to allocate_buckets() from server %s: alreadygot=%s, allocated=%s"
-                    % (tracker.name(),
+                    % (tracker.get_name(),
                        tuple(sorted(alreadygot)), tuple(sorted(allocated))),
                     level=log.NOISY)
             progress = False
