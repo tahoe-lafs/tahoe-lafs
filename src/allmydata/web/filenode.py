@@ -322,14 +322,6 @@ def makeMutableDownloadable(n):
     return d
 
 class FileDownloader(rend.Page):
-    # since we override the rendering process (to let the tahoe Downloader
-    # drive things), we must inherit from regular old twisted.web.resource
-    # instead of nevow.rend.Page . Nevow will use adapters to wrap a
-    # nevow.appserver.OldResourceAdapter around any
-    # twisted.web.resource.IResource that it is given. TODO: it looks like
-    # that wrapper would allow us to return a Deferred from render(), which
-    # might could simplify the implementation of WebDownloadTarget.
-
     def __init__(self, filenode, filename):
         rend.Page.__init__(self)
         self.filenode = filenode
