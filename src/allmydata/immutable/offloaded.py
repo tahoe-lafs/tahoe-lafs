@@ -85,7 +85,7 @@ class CHKCheckerAndUEBFetcher:
             self.log("no readers, so no UEB", level=log.NOISY)
             return
         b,server = self._readers.pop()
-        rbp = ReadBucketProxy(b, server.get_serverid(), si_b2a(self._storage_index))
+        rbp = ReadBucketProxy(b, server, si_b2a(self._storage_index))
         d = rbp.get_uri_extension()
         d.addCallback(self._got_uri_extension)
         d.addErrback(self._ueb_error)

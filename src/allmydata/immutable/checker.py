@@ -497,7 +497,6 @@ class Checker(log.PrefixingLogMixin):
 
         rref = s.get_rref()
         lease_seed = s.get_lease_seed()
-        serverid = s.get_serverid()
         if self._add_lease:
             renew_secret = self._get_renewal_secret(lease_seed)
             cancel_secret = self._get_cancel_secret(lease_seed)
@@ -507,7 +506,7 @@ class Checker(log.PrefixingLogMixin):
 
         d = rref.callRemote("get_buckets", storageindex)
         def _wrap_results(res):
-            return (res, serverid, True)
+            return (res, True)
 
         def _trap_errs(f):
             level = log.WEIRD
@@ -516,7 +515,7 @@ class Checker(log.PrefixingLogMixin):
             self.log("failure from server on 'get_buckets' the REMOTE failure was:",
                      facility="tahoe.immutable.checker",
                      failure=f, level=level, umid="AX7wZQ")
-            return ({}, serverid, False)
+            return ({}, False)
 
         d.addCallbacks(_wrap_results, _trap_errs)
         return d
@@ -555,7 +554,7 @@ class Checker(log.PrefixingLogMixin):
                 level=log.WEIRD, umid="hEGuQg")
 
 
-    def _download_and_verify(self, serverid, sharenum, bucket):
+    def _download_and_verify(self, server, sharenum, bucket):
         """Start an attempt to download and verify every block in this bucket
         and return a deferred that will eventually fire once the attempt
         completes.
@@ -575,7 +574,7 @@ class Checker(log.PrefixingLogMixin):
         results."""
 
         vcap = self._verifycap
-        b = layout.ReadBucketProxy(bucket, serverid, vcap.get_storage_index())
+        b = layout.ReadBucketProxy(bucket, server, vcap.get_storage_index())
         veup = ValidatedExtendedURIProxy(b, vcap)
         d = veup.start()
 
@@ -658,7 +657,7 @@ class Checker(log.PrefixingLogMixin):
 
     def _verify_server_shares(self, s):
         """ Return a deferred which eventually fires with a tuple of
-        (set(sharenum), serverid, set(corruptsharenum),
+        (set(sharenum), server, set(corruptsharenum),
         set(incompatiblesharenum), success) showing all the shares verified
         to be served by this server, and all the corrupt shares served by the
         server, and all the incompatible shares served by the server. In case
@@ -682,11 +681,11 @@ class Checker(log.PrefixingLogMixin):
         d = self._get_buckets(s, self._verifycap.get_storage_index())
 
         def _got_buckets(result):
-            bucketdict, serverid, success = result
+            bucketdict, success = result
 
             shareverds = []
             for (sharenum, bucket) in bucketdict.items():
-                d = self._download_and_verify(serverid, sharenum, bucket)
+                d = self._download_and_verify(s, sharenum, bucket)
                 shareverds.append(d)
 
             dl = deferredutil.gatherResults(shareverds)
@@ -703,29 +702,29 @@ class Checker(log.PrefixingLogMixin):
                             corrupt.add(sharenum)
                         elif whynot == 'incompatible':
                             incompatible.add(sharenum)
-                return (verified, serverid, corrupt, incompatible, success)
+                return (verified, s, corrupt, incompatible, success)
 
             dl.addCallback(collect)
             return dl
 
         def _err(f):
             f.trap(RemoteException, DeadReferenceError)
-            return (set(), s.get_serverid(), set(), set(), False)
+            return (set(), s, set(), set(), False)
 
         d.addCallbacks(_got_buckets, _err)
         return d
 
     def _check_server_shares(self, s):
         """Return a deferred which eventually fires with a tuple of
-        (set(sharenum), serverid, set(), set(), responded) showing all the
+        (set(sharenum), server, set(), set(), responded) showing all the
         shares claimed to be served by this server. In case the server is
-        disconnected then it fires with (set() serverid, set(), set(), False)
+        disconnected then it fires with (set(), server, set(), set(), False)
         (a server disconnecting when we ask it for buckets is the same, for
         our purposes, as a server that says it has none, except that we want
         to track and report whether or not each server responded.)"""
         def _curry_empty_corrupted(res):
-            buckets, serverid, responded = res
-            return (set(buckets), serverid, set(), set(), responded)
+            buckets, responded = res
+            return (set(buckets), s, set(), set(), responded)
         d = self._get_buckets(s, self._verifycap.get_storage_index())
         d.addCallback(_curry_empty_corrupted)
         return d
@@ -741,7 +740,8 @@ class Checker(log.PrefixingLogMixin):
         corruptsharelocators = [] # (serverid, storageindex, sharenum)
         incompatiblesharelocators = [] # (serverid, storageindex, sharenum)
 
-        for theseverifiedshares, thisserverid, thesecorruptshares, theseincompatibleshares, thisresponded in results:
+        for theseverifiedshares, thisserver, thesecorruptshares, theseincompatibleshares, thisresponded in results:
+            thisserverid = thisserver.get_serverid()
             servers.setdefault(thisserverid, set()).update(theseverifiedshares)
             for sharenum in theseverifiedshares:
                 verifiedshares.setdefault(sharenum, set()).add(thisserverid)

@@ -3,7 +3,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader, \
      FileTooLargeError, HASH_SIZE
-from allmydata.util import mathutil, idlib, observer, pipeline
+from allmydata.util import mathutil, observer, pipeline
 from allmydata.util.assertutil import precondition
 from allmydata.storage.server import si_b2a
 
@@ -296,20 +296,19 @@ class ReadBucketProxy:
 
     MAX_UEB_SIZE = 2000 # actual size is closer to 419, but varies by a few bytes
 
-    def __init__(self, rref, peerid, storage_index):
+    def __init__(self, rref, server, storage_index):
         self._rref = rref
-        self._peerid = peerid
-        peer_id_s = idlib.shortnodeid_b2a(peerid)
-        storage_index_s = si_b2a(storage_index)
-        self._reprstr = "<ReadBucketProxy %s to peer [%s] SI %s>" % (id(self), peer_id_s, storage_index_s)
+        self._server = server
+        self._storage_index = storage_index
         self._started = False # sent request to server
         self._ready = observer.OneShotObserverList() # got response from server
 
     def get_peerid(self):
-        return self._peerid
+        return self._server.get_serverid()
 
     def __repr__(self):
-        return self._reprstr
+        return "<ReadBucketProxy %s to peer [%s] SI %s>" % \
+               (id(self), self._server.get_name(), si_b2a(self._storage_index))
 
     def _start_if_needed(self):
         """ Returns a deferred that will be fired when I'm ready to return

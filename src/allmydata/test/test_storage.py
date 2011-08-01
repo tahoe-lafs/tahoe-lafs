@@ -23,6 +23,7 @@ from allmydata.immutable.layout import WriteBucketProxy, WriteBucketProxy_v2, \
 from allmydata.interfaces import BadWriteEnablerError
 from allmydata.test.common import LoggingServiceParent
 from allmydata.test.common_web import WebRenderingMixin
+from allmydata.test.no_network import NoNetworkServer
 from allmydata.web.storage import StorageStatus, remove_prefix
 
 class Marker:
@@ -190,7 +191,8 @@ class BucketProxy(unittest.TestCase):
             br = BucketReader(self, sharefname)
             rb = RemoteBucket()
             rb.target = br
-            rbp = rbp_class(rb, peerid="abc", storage_index="")
+            server = NoNetworkServer("abc", None)
+            rbp = rbp_class(rb, server, storage_index="")
             self.failUnlessIn("to peer", repr(rbp))
             self.failUnless(interfaces.IStorageBucketReader.providedBy(rbp), rbp)
 

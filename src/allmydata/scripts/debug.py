@@ -68,7 +68,7 @@ def dump_immutable_chk_share(f, out, options):
     from allmydata.util.encodingutil import quote_output, to_str
 
     # use a ReadBucketProxy to parse the bucket and find the uri extension
-    bp = ReadBucketProxy(None, '', '')
+    bp = ReadBucketProxy(None, None, '')
     offsets = bp._parse_offsets(f.read_share_data(0, 0x44))
     print >>out, "%20s: %d" % ("version", bp._version)
     seek = offsets['uri_extension']
@@ -610,7 +610,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
         class ImmediateReadBucketProxy(ReadBucketProxy):
             def __init__(self, sf):
                 self.sf = sf
-                ReadBucketProxy.__init__(self, "", "", "")
+                ReadBucketProxy.__init__(self, None, None, "")
             def __repr__(self):
                 return "<ImmediateReadBucketProxy>"
             def _read(self, offset, size):
@@ -768,7 +768,7 @@ def corrupt_share(options):
     else:
         # otherwise assume it's immutable
         f = ShareFile(fn)
-        bp = ReadBucketProxy(None, '', '')
+        bp = ReadBucketProxy(None, None, '')
         offsets = bp._parse_offsets(f.read_share_data(0, 0x24))
         start = f._data_offset + offsets["data"]
         end = f._data_offset + offsets["plaintext_hash_tree"]
