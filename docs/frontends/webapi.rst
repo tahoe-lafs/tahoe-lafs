@@ -14,28 +14,29 @@ The Tahoe REST-ful Web API
     1. `Reading a file`_
     2. `Writing/Uploading a File`_
     3. `Creating a New Directory`_
-    4. `Get Information About A File Or Directory (as JSON)`_
-    5. `Attaching an existing File or Directory by its read- or write-cap`_
-    6. `Adding multiple files or directories to a parent directory at once`_
-    7. `Deleting a File or Directory`_
+    4. `Getting Information About A File Or Directory (as JSON)`_
+    5. `Attaching an Existing File or Directory by its read- or write-cap`_
+    6. `Adding Multiple Files or Directories to a Parent Directory at Once`_
+    7. `Unlinking a File or Directory`_
 
 6.  `Browser Operations: Human-Oriented Interfaces`_
 
     1.  `Viewing A Directory (as HTML)`_
     2.  `Viewing/Downloading a File`_
-    3.  `Get Information About A File Or Directory (as HTML)`_
+    3.  `Getting Information About A File Or Directory (as HTML)`_
     4.  `Creating a Directory`_
     5.  `Uploading a File`_
     6.  `Attaching An Existing File Or Directory (by URI)`_
-    7.  `Deleting A Child`_
+    7.  `Unlinking A Child`_
     8.  `Renaming A Child`_
     9.  `Other Utilities`_
     10. `Debugging and Testing Features`_
 
 7.  `Other Useful Pages`_
 8.  `Static Files in /public_html`_
-9.  `Safety and security issues -- names vs. URIs`_
+9.  `Safety and Security Issues -- Names vs. URIs`_
 10. `Concurrency Issues`_
+
 
 Enabling the web-API port
 =========================
@@ -60,6 +61,7 @@ runs an SSL server.
 This webport can be set when the node is created by passing a --webport
 option to the 'tahoe create-node' command. By default, the node listens on
 port 3456, on the loopback (127.0.0.1) interface.
+
 
 Basic Concepts: GET, PUT, DELETE, POST
 ======================================
@@ -97,7 +99,7 @@ POST is used for more complicated actions that cannot be expressed as a GET,
 PUT, or DELETE. POST operations can be thought of as a method call: sending
 some message to the object referenced by the URL. In Tahoe, POST is also used
 for operations that must be triggered by an HTML form (including upload and
-delete), because otherwise a regular web browser has no way to accomplish
+unlinking), because otherwise a regular web browser has no way to accomplish
 these tasks. In general, everything that can be done with a PUT or DELETE can
 also be done with a POST.
 
@@ -106,7 +108,7 @@ a program that needs to manipulate the virtual file system. Such programs are
 expected to use the RESTful interface described above. The second is a human
 using a standard web browser to work with the filesystem. This user is given
 a series of HTML pages with links to download files, and forms that use POST
-actions to upload, rename, and delete files.
+actions to upload, rename, and unlink files.
 
 When an error occurs, the HTTP response code will be set to an appropriate
 400-series code (like 404 Not Found for an unknown childname, or 400 Bad Request
@@ -120,6 +122,7 @@ stderr should provide an "Accept: text/plain" header to their requests to get
 a plain text stack trace instead. If the Accept header contains ``*/*``, or
 ``text/*``, or text/html (or if there is no Accept header), HTML tracebacks will
 be generated.
+
 
 URLs
 ====
@@ -237,6 +240,7 @@ for you. If you don't know the cap, you can't access the file. This allows
 the security properties of Tahoe caps to be extended across the web-API
 interface.
 
+
 Slow Operations, Progress, and Cancelling
 =========================================
 
@@ -317,6 +321,7 @@ operations have streaming equivalents. These equivalents do not use operation
 handles. Instead, they emit line-oriented status results immediately. Client
 code can cancel the operation by simply closing the HTTP connection.
 
+
 Programmatic Operations
 =======================
 
@@ -326,6 +331,7 @@ This section contains a catalog of GET, PUT, DELETE, and POST operations that
 can be performed on these URLs. This set of operations are aimed at programs
 that use HTTP to communicate with a Tahoe node. A later section describes
 operations that are intended for web browsers.
+
 
 Reading A File
 --------------
@@ -341,6 +347,7 @@ Reading A File
  Content-Type and Content-Disposition headers. Please see the next section
  "Browser Operations", for details on how to modify these URLs for that
  purpose.
+
 
 Writing/Uploading A File
 ------------------------
@@ -383,6 +390,7 @@ Writing/Uploading A File
  If "mutable=true" is in the query arguments, the operation will create a
  mutable file, and return its write-cap in the HTTP respose. The default is
  to create an immutable file, returning the read-cap as a response.
+
 
 Creating A New Directory
 ------------------------
@@ -586,8 +594,9 @@ Creating A New Directory
  This operation will return an error if the parent directory is immutable,
  or already has a child named NAME.
 
-Get Information About A File Or Directory (as JSON)
----------------------------------------------------
+
+Getting Information About A File Or Directory (as JSON)
+-------------------------------------------------------
 
 ``GET /uri/$FILECAP?t=json``
 
@@ -799,7 +808,7 @@ There are several ways that the 'ctime' field could be confusing:
    time.
 
 
-Attaching an existing File or Directory by its read- or write-cap
+Attaching an Existing File or Directory by its read- or write-cap
 -----------------------------------------------------------------
 
 ``PUT /uri/$DIRCAP/[SUBDIRS../]CHILDNAME?t=uri``
@@ -839,7 +848,8 @@ Attaching an existing File or Directory by its read- or write-cap
  would result in granting the cap's write authority to holders of the
  directory read cap.
 
-Adding multiple files or directories to a parent directory at once
+
+Adding Multiple Files or Directories to a Parent Directory at Once
 ------------------------------------------------------------------
 
 ``POST /uri/$DIRCAP/[SUBDIRS..]?t=set_children``
@@ -882,8 +892,8 @@ Adding multiple files or directories to a parent directory at once
  backward compatibility should continue to use "set_children".
 
 
-Deleting a File or Directory
-----------------------------
+Unlinking a File or Directory
+-----------------------------
 
 ``DELETE /uri/$DIRCAP/[SUBDIRS../]CHILDNAME``
 
@@ -892,7 +902,7 @@ Deleting a File or Directory
  be modified.
 
  Note that this does not actually delete the file or directory that the name
- points to from the tahoe grid -- it only removes the named reference from
+ points to from the tahoe grid -- it only unlinks the named reference from
  this directory. If there are other names in this directory or in other
  directories that point to the resource, then it will remain accessible
  through those paths. Even if all names pointing to this object are removed
@@ -911,6 +921,7 @@ Deleting a File or Directory
  This method returns the file- or directory- cap of the object that was just
  removed.
 
+
 Browser Operations: Human-oriented interfaces
 =============================================
 
@@ -927,6 +938,7 @@ separated from the main URL by "?", and from each other by "&". For example,
 specified by using <input type="hidden"> elements. For clarity, the
 descriptions below display the most significant arguments as URL query args.
 
+
 Viewing A Directory (as HTML)
 -----------------------------
 
@@ -938,6 +950,7 @@ Viewing A Directory (as HTML)
  that a human who follows them will get pages also meant for a human. It also
  contains forms to upload new files, and to unlink files and directories
  from their parent directory. Those forms use POST methods to do their job.
+
 
 Viewing/Downloading a File
 --------------------------
@@ -979,8 +992,9 @@ Viewing/Downloading a File
  this form can *only* be used with file caps; it is an error to use a
  directory cap after the /named/ prefix.
 
-Get Information About A File Or Directory (as HTML)
----------------------------------------------------
+
+Getting Information About A File Or Directory (as HTML)
+-------------------------------------------------------
 
 ``GET /uri/$FILECAP?t=info``
 
@@ -1001,6 +1015,7 @@ Get Information About A File Or Directory (as HTML)
  * check/verify/repair form
  * deep-check/deep-size/deep-stats/manifest (for directories)
  * replace-conents form (for mutable files)
+
 
 Creating a Directory
 --------------------
@@ -1130,6 +1145,7 @@ Uploading a File
  the "PUT /uri/$FILECAP" form, but uses a POST for the benefit of HTML forms
  in a web browser.
 
+
 Attaching An Existing File Or Directory (by URI)
 ------------------------------------------------
 
@@ -1148,10 +1164,13 @@ Attaching An Existing File Or Directory (by URI)
 
  This accepts the same replace= argument as POST t=upload.
 
-Deleting A Child
-----------------
+
+Unlinking A Child
+-----------------
 
 ``POST /uri/$DIRCAP/[SUBDIRS../]?t=delete&name=CHILDNAME``
+
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=unlink&name=CHILDNAME``
 
  This instructs the node to remove a child object (file or subdirectory) from
  the given directory, which must be mutable. Note that the entire subtree is
@@ -1209,6 +1228,7 @@ Other Utilities
  This returns a read-only file- or directory- cap for the specified object.
  If the object is an immutable file, this will return the same value as
  t=uri.
+
 
 Debugging and Testing Features
 ------------------------------
@@ -1641,6 +1661,7 @@ mainly intended for developers.
  was untraversable, since the manifest entry is emitted to the HTTP response
  body before the child is traversed.
 
+
 Other Useful Pages
 ==================
 
@@ -1813,7 +1834,7 @@ This can be useful to serve a javascript application which provides a
 prettier front-end to the rest of the Tahoe web-API.
 
 
-Safety and security issues -- names vs. URIs
+Safety and Security Issues -- Names vs. URIs
 ============================================
 
 Summary: use explicit file- and dir- caps whenever possible, to reduce the
@@ -1868,6 +1889,7 @@ designed to confuse applications that rely on their consistency.
 In general, use names if you want "whatever object (whether file or
 directory) is found by following this name (or sequence of names) when my
 request reaches the server". Use URIs if you want "this particular object".
+
 
 Concurrency Issues
 ==================
