@@ -52,6 +52,7 @@ class Share:
         self._dyhb_rtt = dyhb_rtt
         # self._alive becomes False upon fatal corruption or server error
         self._alive = True
+        self._loop_scheduled = False
         self._lp = log.msg(format="%(share)s created", share=repr(self),
                            level=log.NOISY, parent=logparent, umid="P7hv2w")
 
@@ -164,7 +165,7 @@ class Share:
                 break
         else:
             self._requested_blocks.append( (segnum, set([o])) )
-        eventually(self.loop)
+        self.schedule_loop()
         return o
 
     def _cancel_block_request(self, o):
@@ -184,7 +185,14 @@ class Share:
             return self._requested_blocks[0]
         return None, []
 
+    def schedule_loop(self):
+        if self._loop_scheduled:
+            return
+        self._loop_scheduled = True
+        eventually(self.loop)
+
     def loop(self):
+        self._loop_scheduled = False
         if not self._alive:
             return
         try:
@@ -797,7 +805,7 @@ class Share:
 
     def _trigger_loop(self, res):
         if self._alive:
-            eventually(self.loop)
+            self.schedule_loop()
         return res
 
     def _fail(self, f, level=log.WEIRD):
