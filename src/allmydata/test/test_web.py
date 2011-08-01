@@ -86,7 +86,7 @@ def build_one_ds():
     now = time.time()
 
     serverA = FakeIServer(hashutil.tagged_hash("foo", "serverid_a")[:20])
-    serverB = FakeIServer(hashutil.tagged_hash("foo", "serverid_a")[:20])
+    serverB = FakeIServer(hashutil.tagged_hash("foo", "serverid_b")[:20])
     storage_index = hashutil.storage_index_hash("SI")
     e0 = ds.add_segment_request(0, now)
     e0.activate(now+0.5)
