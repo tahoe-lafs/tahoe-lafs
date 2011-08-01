@@ -372,9 +372,9 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         iv_dir = self.getdir("introducer")
         if not os.path.isdir(iv_dir):
             fileutil.make_dirs(iv_dir)
-            f = open(os.path.join(iv_dir, "webport"), "w")
-            f.write("tcp:0:interface=127.0.0.1\n")
-            f.close()
+            fileutil.write(os.path.join(iv_dir, 'tahoe.cfg'), \
+                               "[node]\n" + \
+                               "web.port = tcp:0:interface=127.0.0.1\n")
             if SYSTEM_TEST_CERTS:
                 os.mkdir(os.path.join(iv_dir, "private"))
                 f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
@@ -450,24 +450,28 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
                 f.write(SYSTEM_TEST_CERTS[i+1])
                 f.close()
 
-            def write(name, value):
-                open(os.path.join(basedir, name), "w").write(value+"\n")
+            config = "[client]\n"
+            config += "introducer.furl = %s\n" % self.introducer_furl
+            if self.stats_gatherer_furl:
+                config += "stats_gatherer.furl = %s\n" % self.stats_gatherer_furl
+
             if i == 0:
                 # clients[0] runs a webserver and a helper, no key_generator
-                write("webport", "tcp:0:interface=127.0.0.1")
-                write("run_helper", "yes")
-                write("keepalive_timeout", "600")
+                config += "[node]\n"
+                config += "web.port = tcp:0:interface=127.0.0.1\n"
+                config += "timeout.keepalive = 600\n"
+                config += "[helper]\n"
+                config += "enabled = True\n"
             if i == 3:
                 # clients[3] runs a webserver and uses a helper, uses
                 # key_generator
-                write("webport", "tcp:0:interface=127.0.0.1")
-                write("disconnect_timeout", "1800")
                 if self.key_generator_furl:
-                    kgf = "%s\n" % (self.key_generator_furl,)
-                    write("key_generator.furl", kgf)
-            write("introducer.furl", self.introducer_furl)
-            if self.stats_gatherer_furl:
-                write("stats_gatherer.furl", self.stats_gatherer_furl)
+                    config += "key_generator.furl = %s\n" % self.key_generator_furl
+                config += "[node]\n"
+                config += "web.port = tcp:0:interface=127.0.0.1\n"
+                config += "timeout.disconnect = 1800\n"
+
+            fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
 
         # give subclasses a chance to append lines to the node's tahoe.cfg
         # files before they are launched.
@@ -485,8 +489,10 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             f.close()
             self.helper_furl = helper_furl
             if self.numclients >= 4:
-                f = open(os.path.join(basedirs[3],"helper.furl"), "w")
-                f.write(helper_furl)
+                f = open(os.path.join(basedirs[3], 'tahoe.cfg'), 'ab+')
+                f.write(
+                      "[client]\n"
+                      "helper.furl = %s\n" % helper_furl)
                 f.close()
 
             # this starts the rest of the clients
@@ -546,11 +552,11 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         basedir = self.getdir("client%d" % client_num)
         if not os.path.isdir(basedir):
             fileutil.make_dirs(basedir)
-        open(os.path.join(basedir, "introducer.furl"), "w").write(self.introducer_furl)
+        config = "[client]\n"
+        config += "introducer.furl = %s\n" % self.introducer_furl
         if helper_furl:
-            f = open(os.path.join(basedir, "helper.furl") ,"w")
-            f.write(helper_furl+"\n")
-            f.close()
+            config += "helper.furl = %s\n" % helper_furl
+        fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
 
         c = client.Client(basedir=basedir)
         self.clients.append(c)

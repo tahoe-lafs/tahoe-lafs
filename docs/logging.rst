@@ -101,11 +101,13 @@ transferred to a central log-gatherer host. This offloads the (admittedly
 modest) storage requirements to a different host and provides access to
 logfiles from multiple nodes (web-API, storage, or helper) in a single place.
 
-There are two kinds of gatherers. Both produce a FURL which needs to be
-placed in the ``NODEDIR/log_gatherer.furl`` file (one FURL per line) of
-each node that is to publish its logs to the gatherer. When the Tahoe node
-starts, it will connect to the configured gatherers and offer its logport:
-the gatherer will then use the logport to subscribe to hear about events.
+There are two kinds of gatherers: "log gatherer" and "stats gatherer". Each
+produces a FURL which needs to be placed in the ``NODEDIR/tahoe.cfg `` file
+of each node that is to publish to the gatherer, under the keys
+"log_gatherer.furl" and "stats_gatherer.furl" respectively. When the Tahoe
+node starts, it will connect to the configured gatherers and offer its
+logport: the gatherer will then use the logport to subscribe to hear about
+events.
 
 The gatherer will write to files in its working directory, which can then be
 examined with tools like "``flogtool dump``" as described above.
@@ -168,13 +170,15 @@ contain events from many different sources, making it easier to correlate
 things that happened on multiple machines (such as comparing a client node
 making a request with the storage servers that respond to that request).
 
-The Log Gatherer is created with the "``flogtool create-gatherer WORKDIR``"
-command, and started with "``tahoe start``". The ``log_gatherer.furl`` it
-creates then needs to be copied into the ``BASEDIR/log_gatherer.furl`` file
-of all nodes that should be sending it log events.
+Create the Log Gatherer with the "``flogtool create-gatherer
+WORKDIR``" command, and start it with "``tahoe start``". Then copy the
+contents of the ``log_gatherer.furl`` file it creates into the
+``BASEDIR/tahoe.cfg`` file (under the key ``log_gatherer.furl`` of the
+section ``[node]``) of all nodes that should be sending it log
+events. (See `<configuration.rst>`_.)
 
 The "``flogtool filter``" command, described above, is useful to cut down the
-potentially-large flogfiles into more a narrowly-focussed form.
+potentially large flogfiles into a more focussed form.
 
 Busy nodes, particularly web-API nodes which are performing recursive
 deep-size/deep-stats/deep-check operations, can produce a lot of log events.

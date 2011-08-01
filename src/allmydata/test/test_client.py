@@ -1,9 +1,9 @@
 import os
 from twisted.trial import unittest
 from twisted.application import service
-from twisted.python import log
 
 import allmydata
+from allmydata.node import OldConfigError
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.util import base32, fileutil
@@ -12,46 +12,60 @@ from allmydata.interfaces import IFilesystemNode, IFileNode, \
 from foolscap.api import flushEventualQueue
 import allmydata.test.common_util as testutil
 
+import mock
+
 BASECONFIG = ("[client]\n"
               "introducer.furl = \n"
+              )
+
+BASECONFIG_I = ("[client]\n"
+              "introducer.furl = %s\n"
               )
 
 class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_loadable(self):
         basedir = "test_client.Basic.test_loadable"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "introducer.furl"), "")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                           BASECONFIG)
         client.Client(basedir)
 
-    def test_loadable_old_config_bits(self):
-        basedir = "test_client.Basic.test_loadable_old_config_bits"
+    @mock.patch('allmydata.util.log.err')
+    def test_warn_on_old_config_files(self, mocklogerr):
+        basedir = "test_client.Basic.test_warn_on_old_config_files"
         os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                           BASECONFIG + \
+                           "[storage]\n" + \
+                           "enabled = false\n" + \
+                           "reserved_space = bogus\n")
         fileutil.write(os.path.join(basedir, "introducer.furl"), "")
         fileutil.write(os.path.join(basedir, "no_storage"), "")
         fileutil.write(os.path.join(basedir, "readonly_storage"), "")
         fileutil.write(os.path.join(basedir, "debug_discard_storage"), "")
-        c = client.Client(basedir)
-        try:
-            c.getServiceNamed("storage")
-            self.fail("that was supposed to fail")
-        except KeyError:
-            pass
+        e = self.failUnlessRaises(OldConfigError, client.Client, basedir)
+        self.failUnlessIn(os.path.abspath(os.path.join(basedir, u"introducer.furl")), e.args[0])
+        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "no_storage")), e.args[0])
+        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "readonly_storage")), e.args[0])
+        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "debug_discard_storage")), e.args[0])
+        for oldfile in [u'introducer.furl', 'no_storage', 'readonly_storage',
+                        'debug_discard_storage']:
+            warned = [ m for m in mocklogerr.call_args_list if ("Found pre-Tahoe-LAFS-v1.3 configuration file" in m[0][0] and oldfile in m[0][0]) ]
+            self.failUnless(warned, (oldfile, mocklogerr.call_args_list))
 
-    def test_loadable_old_storage_config_bits(self):
-        basedir = "test_client.Basic.test_loadable_old_storage_config_bits"
-        os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "introducer.furl"), "")
-        fileutil.write(os.path.join(basedir, "readonly_storage"), "")
-        fileutil.write(os.path.join(basedir, "debug_discard_storage"), "")
-        c = client.Client(basedir)
-        s = c.getServiceNamed("storage")
-        self.failUnless(s.no_storage)
-        self.failUnless(s.readonly_storage)
+        for oldfile in [
+            'nickname', 'webport', 'keepalive_timeout', 'log_gatherer.furl',
+            'disconnect_timeout', 'advertised_ip_addresses', 'helper.furl',
+            'key_generator.furl', 'stats_gatherer.furl', 'sizelimit',
+            'run_helper']:
+            warned = [ m for m in mocklogerr.call_args_list if ("Found pre-Tahoe-LAFS-v1.3 configuration file" in m[0][0] and oldfile in m[0][0]) ]
+            self.failIf(warned, oldfile)
 
     def test_secrets(self):
         basedir = "test_client.Basic.test_secrets"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "introducer.furl"), "")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                           BASECONFIG)
         c = client.Client(basedir)
         secret_fname = os.path.join(basedir, "private", "secret")
         self.failUnless(os.path.exists(secret_fname), secret_fname)
@@ -133,7 +147,10 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_versions(self):
         basedir = "test_client.Basic.test_versions"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "introducer.furl"), "")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                           BASECONFIG + \
+                           "[storage]\n" + \
+                           "enabled = true\n")
         c = client.Client(basedir)
         ss = c.getServiceNamed("storage")
         verdict = ss.remote_get_version()
@@ -144,7 +161,6 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                         "non-numeric version in '%s'" % allmydata.__version__)
         all_versions = allmydata.get_package_versions_string()
         self.failUnless(allmydata.__appname__ in all_versions)
-        log.msg("tahoe versions: %s" % all_versions)
         # also test stats
         stats = c.get_stats()
         self.failUnless("node.uptime" in stats)
@@ -171,7 +187,7 @@ class Run(unittest.TestCase, testutil.StallMixin):
         basedir = "test_client.Run.test_loadable"
         os.mkdir(basedir)
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-        fileutil.write(os.path.join(basedir, "introducer.furl"), dummy)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % dummy)
         fileutil.write(os.path.join(basedir, "suicide_prevention_hotline"), "")
         client.Client(basedir)
 
@@ -179,7 +195,7 @@ class Run(unittest.TestCase, testutil.StallMixin):
         basedir = "test_client.Run.test_reloadable"
         os.mkdir(basedir)
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-        fileutil.write(os.path.join(basedir, "introducer.furl"), dummy)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % dummy)
         c1 = client.Client(basedir)
         c1.setServiceParent(self.sparent)
 

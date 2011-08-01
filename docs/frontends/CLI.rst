@@ -89,8 +89,8 @@ Node Management
 creates a new directory and populates it with files that will allow the
 "``tahoe start``" command to use it later on. This command creates nodes that
 have client functionality (upload/download files), web API services
-(controlled by the 'webport' file), and storage services (unless
-``--no-storage`` is specified).
+(controlled by the '[node]web.port' configuration), and storage services
+(unless ``--no-storage`` is specified).
 
 NODEDIR defaults to ``~/.tahoe/`` , and newly-created nodes default to
 publishing a web server on port 3456 (limited to the loopback interface, at

@@ -178,18 +178,21 @@ set the ``tub.location`` option described below.
 
     Most users will not need to set ``tub.location``.
 
-    Note that the old ``advertised_ip_addresses`` file from earlier releases is
-    no longer supported. Tahoe-LAFS v1.3.0 and later will ignore this file.
-
 ``log_gatherer.furl = (FURL, optional)``
 
     If provided, this contains a single FURL string that is used to contact
     a "log gatherer", which will be granted access to the logport. This can
-    be used by centralized storage grids to gather operational logs in a
-    single place. Note that when an old-style ``BASEDIR/log_gatherer.furl`` file
-    exists (see `Backwards Compatibility Files`_, below), both are used. (For
-    most other items, the separate config file overrides the entry in
-    ``tahoe.cfg``.)
+    be used to gather operational logs in a single place. Note that in
+    previous releases of Tahoe-LAFS, if an old-style
+    ``BASEDIR/log_gatherer.furl`` file existed it would also be used in
+    addition to this value, allowing multiple log gatherers to be used at
+    once. As of Tahoe-LAFS v1.9.0, an old-style file is ignored and a
+    warning will be emitted if one is detected. This means that as of
+    Tahoe-LAFS v1.9.0 you can have at most one log gatherer per node. See
+    ticket `#1423`_ about lifting this restriction and letting you have
+    multiple log gatherers.
+
+    .. _`#1423`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1423
 
 ``timeout.keepalive = (integer in seconds, optional)``
 
@@ -565,49 +568,6 @@ Other files
   "which peers am I connected to" list), and the shortened form (the first
   few characters) is recorded in various log messages.
 
-Backwards Compatibility Files
-=============================
-
-Tahoe-LAFS releases before v1.3.0 had no ``tahoe.cfg`` file, and used distinct
-files for each item listed below. For each configuration knob, if the distinct
-file exists, it will take precedence over the corresponding item in ``tahoe.cfg``.
-
-===============================  ===================================  =================
-Config setting                   File                                 Comment
-===============================  ===================================  =================
-``[node]nickname``               ``BASEDIR/nickname``
-``[node]web.port``               ``BASEDIR/webport``
-``[node]tub.port``               ``BASEDIR/client.port``              (for Clients, not Introducers)
-``[node]tub.port``               ``BASEDIR/introducer.port``          (for Introducers, not Clients) (note that, unlike other keys, ``tahoe.cfg`` overrides this file)
-``[node]tub.location``           ``BASEDIR/advertised_ip_addresses``
-``[node]log_gatherer.furl``      ``BASEDIR/log_gatherer.furl``        (one per line)
-``[node]timeout.keepalive``      ``BASEDIR/keepalive_timeout``
-``[node]timeout.disconnect``     ``BASEDIR/disconnect_timeout``
-``[client]introducer.furl``      ``BASEDIR/introducer.furl``
-``[client]helper.furl``          ``BASEDIR/helper.furl``
-``[client]key_generator.furl``   ``BASEDIR/key_generator.furl``
-``[client]stats_gatherer.furl``  ``BASEDIR/stats_gatherer.furl``
-``[storage]enabled``             ``BASEDIR/no_storage``               (``False`` if ``no_storage`` exists)
-``[storage]readonly``            ``BASEDIR/readonly_storage``         (``True`` if ``readonly_storage`` exists)
-``[storage]sizelimit``           ``BASEDIR/sizelimit``
-``[storage]debug_discard``       ``BASEDIR/debug_discard_storage``
-``[helper]enabled``              ``BASEDIR/run_helper``               (``True`` if ``run_helper`` exists)
-===============================  ===================================  =================
-
-Note: the functionality of ``[node]ssh.port`` and ``[node]ssh.authorized_keys_file``
-were previously combined, controlled by the presence of a
-``BASEDIR/authorized_keys.SSHPORT`` file, in which the suffix of the filename
-indicated which port the ssh server should listen on, and the contents of the
-file provided the ssh public keys to accept. Support for these files has been
-removed completely. To ``ssh`` into your Tahoe-LAFS node, add ``[node]ssh.port``
-and ``[node].ssh_authorized_keys_file`` statements to your ``tahoe.cfg``.
-
-Likewise, the functionality of ``[node]tub.location`` is a variant of the
-now-unsupported ``BASEDIR/advertised_ip_addresses`` . The old file was additive
-(the addresses specified in ``advertised_ip_addresses`` were used in addition to
-any that were automatically discovered), whereas the new ``tahoe.cfg`` directive
-is not (``tub.location`` is used verbatim).
-
 
 Example
 =======
@@ -643,3 +603,13 @@ configuration (most of these are not the default values), merely a legal one.
 
   [helper]
   enabled = True
+
+
+Old Configuration Files
+=======================
+
+Tahoe-LAFS releases before v1.3.0 had no ``tahoe.cfg`` file, and used
+distinct files for each item. This is no longer supported and if you
+have configuration in the old format you must manually convert it to
+the new format for Tahoe-LAFS to detect it. See
+`<historical/configuration.rst>`_.

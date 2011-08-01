@@ -322,6 +322,10 @@ class CreateNode(unittest.TestCase):
                               run_by_human=False)
 
 
+BASECONFIG_I = ("[client]\n"
+                "introducer.furl = %s\n"
+                )
+
 class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
               RunBinTahoeMixin):
     # exercise "tahoe start", for both introducer, client node, and
@@ -467,7 +471,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
             open(HOTLINE_FILE, "w").write("")
-            open(os.path.join(c1, "introducer.furl"), "w").write("pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer\n")
+            fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % "pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -526,7 +530,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
             open(HOTLINE_FILE, "w").write("")
-            open(os.path.join(c1, "introducer.furl"), "w").write("pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer\n")
+            fileutil.write(os.path.join(c1, "tahoe.cfg"), BASECONFIG_I % "pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer")
             # now it's safe to start the node
         d.addCallback(_cb)
 
