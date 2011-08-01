@@ -88,9 +88,10 @@ URL) will return information about the object, such as metadata. GET
 operations are required to have no side-effects.
 
 PUT is used to upload new objects into the filesystem, or to replace an
-existing object. DELETE is used to delete objects from the filesystem. Both
-PUT and DELETE are required to be idempotent: performing the same operation
-multiple times must have the same side-effects as only performing it once.
+existing link or the contents of a mutable file. DELETE is used to unlink
+objects from directories. Both PUT and DELETE are required to be idempotent:
+performing the same operation multiple times must have the same side-effects
+as only performing it once.
 
 POST is used for more complicated actions that cannot be expressed as a GET,
 PUT, or DELETE. POST operations can be thought of as a method call: sending
@@ -935,8 +936,8 @@ Viewing A Directory (as HTML)
  browser, which contains HREF links to all files and directories reachable
  from this directory. These HREF links do not have a t= argument, meaning
  that a human who follows them will get pages also meant for a human. It also
- contains forms to upload new files, and to delete files and directories.
- Those forms use POST methods to do their job.
+ contains forms to upload new files, and to unlink files and directories
+ from their parent directory. Those forms use POST methods to do their job.
 
 Viewing/Downloading a File
 --------------------------
