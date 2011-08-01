@@ -185,8 +185,8 @@ class DownloadStatus:
         if self.last_timestamp is None or when > self.last_timestamp:
             self.last_timestamp = when
 
-    def add_known_share(self, serverid, shnum):
-        self.known_shares.append( (serverid, shnum) )
+    def add_known_share(self, server, shnum): # XXX use me
+        self.known_shares.append( (server, shnum) )
 
     def add_problem(self, p):
         self.problems.append(p)
