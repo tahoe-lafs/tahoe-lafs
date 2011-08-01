@@ -107,7 +107,7 @@ class DownloadStatus:
 
         # self.dyhb_requests tracks "do you have a share" requests and
         # responses. It is a list of dicts:
-        #  serverid (binary)
+        #  server (instance of IServer)
         #  start_time
         #  success (None until resolved, then boolean)
         #  response_shnums (tuple, None until successful)
@@ -158,8 +158,8 @@ class DownloadStatus:
         self.segment_events.append(r)
         return SegmentEvent(r, self)
 
-    def add_dyhb_request(self, serverid, when):
-        r = { "serverid": serverid,
+    def add_dyhb_request(self, server, when):
+        r = { "server": server,
               "start_time": when,
               "success": None,
               "response_shnums": None,

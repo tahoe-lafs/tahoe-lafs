@@ -358,19 +358,21 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
 
     def _find_overlap(self, events, start_key, end_key):
         # given a list of event dicts, return a new list in which each event
-        # has an extra "row" key (an int, starting at 0). This is a hint to
-        # our JS frontend about how to overlap the parts of the graph it is
-        # drawing.
+        # has an extra "row" key (an int, starting at 0), and if appropriate
+        # a "serverid" key (ascii-encoded server id), replacing the "server"
+        # key. This is a hint to our JS frontend about how to overlap the
+        # parts of the graph it is drawing.
 
-        # we must always make a copy, since we're going to be adding "row"
-        # keys and don't want to change the original objects. If we're
+        # we must always make a copy, since we're going to be adding keys
+        # and don't want to change the original objects. If we're
         # stringifying serverids, we'll also be changing the serverid keys.
         new_events = []
         rows = []
         for ev in events:
             ev = ev.copy()
-            if "serverid" in ev:
-                ev["serverid"] = base32.b2a(ev["serverid"])
+            if ev.has_key('server'):
+                ev["serverid"] = base32.b2a(ev["server"].get_serverid())
+                del ev["server"]
             # find an empty slot in the rows
             free_slot = None
             for row,finished in enumerate(rows):
@@ -410,6 +412,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
             # DownloadStatus promises to give us events in temporal order
             ev = ev.copy()
             ev["serverid"] = base32.b2a(ev["server"].get_serverid())
+            del ev["server"]
             if ev["serverid"] not in serverid_to_group:
                 groupnum = len(serverid_to_group)
                 serverid_to_group[ev["serverid"]] = groupnum
@@ -493,18 +496,17 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         t[T.tr[T.th["serverid"], T.th["sent"], T.th["received"],
                T.th["shnums"], T.th["RTT"]]]
         for d_ev in self.download_status.dyhb_requests:
-            serverid = d_ev["serverid"]
+            server = d_ev["server"]
             sent = d_ev["start_time"]
             shnums = d_ev["response_shnums"]
             received = d_ev["finish_time"]
-            serverid_s = idlib.shortnodeid_b2a(serverid)
             rtt = None
             if received is not None:
                 rtt = received - sent
             if not shnums:
                 shnums = ["-"]
-            t[T.tr(style="background: %s" % self.color(serverid))[
-                [T.td[serverid_s], T.td[srt(sent)], T.td[srt(received)],
+            t[T.tr(style="background: %s" % self.color(server.get_serverid()))[
+                [T.td[server.get_name()], T.td[srt(sent)], T.td[srt(received)],
                  T.td[",".join([str(shnum) for shnum in shnums])],
                  T.td[self.render_time(None, rtt)],
                  ]]]
