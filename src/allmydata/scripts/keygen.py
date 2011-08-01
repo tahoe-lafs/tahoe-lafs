@@ -12,7 +12,7 @@ class CreateKeyGeneratorOptions(BasedirMixin, BaseOptions):
     ]
 
     def getSynopsis(self):
-        return "Usage:  %s create-key-generator [options] NODEDIR" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s create-key-generator [options] NODEDIR" % (self.command_name,)
 
 
 keygen_tac = """

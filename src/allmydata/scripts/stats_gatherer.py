@@ -12,7 +12,7 @@ class CreateStatsGathererOptions(BasedirMixin, BaseOptions):
     ]
 
     def getSynopsis(self):
-        return "Usage:  %s create-stats-gatherer [options] NODEDIR" % (os.path.basename(sys.argv[0]),)
+        return "Usage:  %s create-stats-gatherer [options] NODEDIR" % (self.command_name,)
 
 
 stats_gatherer_tac = """

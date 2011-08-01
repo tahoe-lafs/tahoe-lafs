@@ -220,7 +220,7 @@ class CpOptions(VDriveOptions):
         self.destination = argv_to_unicode(args[-1])
 
     def getSynopsis(self):
-        return "Usage: tahoe cp [options] FROM.. TO"
+        return "Usage: %s cp [options] FROM.. TO" % (self.command_name,)
 
     longdesc = """
     Use 'tahoe cp' to copy files between a local filesystem and a Tahoe grid.
