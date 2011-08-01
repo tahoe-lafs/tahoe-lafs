@@ -77,10 +77,10 @@ class ServerTracker:
         self.buckets = {} # k: shareid, v: IRemoteBucketWriter
         self.sharesize = sharesize
 
-        wbp = layout.make_write_bucket_proxy(None, sharesize,
+        wbp = layout.make_write_bucket_proxy(None, None, sharesize,
                                              blocksize, num_segments,
                                              num_share_hashes,
-                                             EXTENSION_SIZE, server.get_serverid())
+                                             EXTENSION_SIZE)
         self.wbp_class = wbp.__class__ # to create more of them
         self.allocated_size = wbp.get_allocated_size()
         self.blocksize = blocksize
@@ -120,12 +120,11 @@ class ServerTracker:
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
         b = {}
         for sharenum, rref in buckets.iteritems():
-            bp = self.wbp_class(rref, self.sharesize,
+            bp = self.wbp_class(rref, self._server, self.sharesize,
                                 self.blocksize,
                                 self.num_segments,
                                 self.num_share_hashes,
-                                EXTENSION_SIZE,
-                                self._server.get_serverid())
+                                EXTENSION_SIZE)
             b[sharenum] = bp
         self.buckets.update(b)
         return (alreadygot, set(b.keys()))
@@ -149,7 +148,7 @@ class ServerTracker:
 
 
 def str_shareloc(shnum, bucketwriter):
-    return "%s: %s" % (shnum, idlib.shortnodeid_b2a(bucketwriter._nodeid),)
+    return "%s: %s" % (shnum, bucketwriter.get_servername(),)
 
 class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
@@ -205,9 +204,9 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         num_share_hashes = len(ht.needed_hashes(0, include_leaf=True))
 
         # figure out how much space to ask for
-        wbp = layout.make_write_bucket_proxy(None, share_size, 0, num_segments,
-                                             num_share_hashes, EXTENSION_SIZE,
-                                             None)
+        wbp = layout.make_write_bucket_proxy(None, None,
+                                             share_size, 0, num_segments,
+                                             num_share_hashes, EXTENSION_SIZE)
         allocated_size = wbp.get_allocated_size()
         all_servers = storage_broker.get_servers_for_psi(storage_index)
         if not all_servers:

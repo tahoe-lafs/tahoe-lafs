@@ -123,9 +123,8 @@ class Share:
         # use the upload-side code to get this as accurate as possible
         ht = IncompleteHashTree(N)
         num_share_hashes = len(ht.needed_hashes(0, include_leaf=True))
-        wbp = make_write_bucket_proxy(None, share_size, r["block_size"],
-                                      r["num_segments"], num_share_hashes, 0,
-                                      None)
+        wbp = make_write_bucket_proxy(None, None, share_size, r["block_size"],
+                                      r["num_segments"], num_share_hashes, 0)
         self._fieldsize = wbp.fieldsize
         self._fieldstruct = wbp.fieldstruct
         self.guessed_offsets = wbp._offsets

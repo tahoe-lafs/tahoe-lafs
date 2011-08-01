@@ -136,12 +136,12 @@ class BucketProxy(unittest.TestCase):
 
     def test_create(self):
         bw, rb, sharefname = self.make_bucket("test_create", 500)
-        bp = WriteBucketProxy(rb,
+        bp = WriteBucketProxy(rb, None,
                               data_size=300,
                               block_size=10,
                               num_segments=5,
                               num_share_hashes=3,
-                              uri_extension_size_max=500, nodeid=None)
+                              uri_extension_size_max=500)
         self.failUnless(interfaces.IStorageBucketWriter.providedBy(bp), bp)
 
     def _do_test_readwrite(self, name, header_size, wbp_class, rbp_class):
@@ -167,13 +167,12 @@ class BucketProxy(unittest.TestCase):
         uri_extension = "s" + "E"*498 + "e"
 
         bw, rb, sharefname = self.make_bucket(name, sharesize)
-        bp = wbp_class(rb,
+        bp = wbp_class(rb, None,
                        data_size=95,
                        block_size=25,
                        num_segments=4,
                        num_share_hashes=3,
-                       uri_extension_size_max=len(uri_extension),
-                       nodeid=None)
+                       uri_extension_size_max=len(uri_extension))
 
         d = bp.put_header()
         d.addCallback(lambda res: bp.put_block(0, "a"*25))
