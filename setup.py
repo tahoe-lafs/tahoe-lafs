@@ -184,84 +184,6 @@ if "sdist_dsc" in sys.argv:
 tests_require=[]
 
 
-class ShowSupportLib(Command):
-    user_options = []
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        # TODO: --quiet suppresses the 'running show_supportlib' message.
-        # Find a way to do this all the time.
-        print supportlib # TODO windowsy
-
-class ShowPythonPath(Command):
-    user_options = []
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        # TODO: --quiet suppresses the 'running show_supportlib' message.
-        # Find a way to do this all the time.
-        print "PYTHONPATH=%s" % os.environ.get("PYTHONPATH", '')
-
-class RunWithPythonPath(Command):
-    description = "Run a subcommand with PYTHONPATH set appropriately"
-
-    user_options = [ ("python", "p",
-                      "Treat command string as arguments to a python executable"),
-                     ("command=", "c", "Command to be run"),
-                     ("directory=", "d", "Directory to run the command in"),
-                     ]
-    boolean_options = ["python"]
-
-    def initialize_options(self):
-        self.command = None
-        self.python = False
-        self.directory = None
-    def finalize_options(self):
-        pass
-    def run(self):
-        oldpp = os.environ.get("PYTHONPATH", "").split(os.pathsep)
-        if oldpp == [""]:
-            # grr silly split() behavior
-            oldpp = []
-        os.environ['PYTHONPATH'] = os.pathsep.join(oldpp + [supportlib,])
-
-        # We must require the command to be safe to split on
-        # whitespace, and have --python and --directory to make it
-        # easier to achieve this.
-
-        command = []
-        if self.python:
-            command.append(sys.executable)
-        if self.command:
-            command.extend(self.command.split())
-        if not command:
-            raise RuntimeError("The --command argument is mandatory")
-        if self.directory:
-            os.chdir(self.directory)
-        if self.verbose:
-            print "command =", " ".join(command)
-        rc = subprocess.call(command)
-        sys.exit(rc)
-
-class TestMacDiskImage(Command):
-    description = "test the Mac disk image in dmg format (unmaintained)"
-    user_options = []
-
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        import sys
-        sys.path.append(os.path.join('misc', 'build_helpers'))
-        import test_mac_diskimage
-        return test_mac_diskimage.test_mac_diskimage('Allmydata', version=self.distribution.metadata.version)
-
-
 class Trial(Command):
     description = "run trial (use 'bin%stahoe debug trial' for the full set of trial options)" % (os.sep,)
     # This is just a subset of the most useful options, for compatibility.
@@ -403,11 +325,7 @@ setup(name=APPNAME,
       author_email='tahoe-dev@tahoe-lafs.org',
       url='http://tahoe-lafs.org/',
       license='GNU GPL', # see README.txt -- there is an alternative licence
-      cmdclass={"show_supportlib": ShowSupportLib,
-                "show_pythonpath": ShowPythonPath,
-                "run_with_pythonpath": RunWithPythonPath,
-                "test_mac_diskimage": TestMacDiskImage,
-                "trial": Trial,
+      cmdclass={"trial": Trial,
                 "make_executable": MakeExecutable,
                 "sdist": MySdist,
                 },

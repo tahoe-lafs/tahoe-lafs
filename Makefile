@@ -9,9 +9,8 @@ export PYTHON
 # setup.py will extend sys.path to include our support/lib/... directory
 # itself. It will also create it in the beginning of the 'develop' command.
 
-PP=$(shell $(PYTHON) setup.py -q show_pythonpath)
-RUNPP=$(PYTHON) setup.py run_with_pythonpath
 TAHOE=$(PYTHON) bin/tahoe
+SOURCES=src/allmydata src/buildtest static misc/build_helpers bin/tahoe-script.template twisted setup.py
 
 .PHONY: make-version build
 
@@ -21,35 +20,15 @@ TAHOE=$(PYTHON) bin/tahoe
 make-version:
 	$(PYTHON) ./setup.py darcsver --count-all-patches
 
-# We want src/allmydata/_version.py to be up-to-date, but it's a fairly
-# expensive operation (about 6 seconds on a just-before-0.7.0 tree, probably
-# because of the 332 patches since the last tag), and we've removed the need
-# for an explicit 'build' step by removing the C code from src/allmydata and
-# by running everything in place. It would be neat to do:
-#
-#src/allmydata/_version.py: _darcs/patches
-#	$(MAKE) make-version
-#
-# since that would update the embedded version string each time new darcs
-# patches were pulled, but without an obligatory 'build' step this rule
-# wouldn't be run frequently enough anyways.
-#
-# So instead, I'll just make sure that we update the version at least once
-# when we first start using the tree, and again whenever an explicit
-# 'make-version' is run, since then at least the developer has some means to
-# update things. It would be nice if 'make clean' deleted any
-# automatically-generated _version.py too, so that 'make clean; make all'
-# could be useable as a "what the heck is going on, get me back to a clean
-# state', but we need 'make clean' to work on non-darcs trees without
-# destroying useful information.
-
 .built:
 	$(MAKE) build
 
 src/allmydata/_version.py:
 	$(MAKE) make-version
 
-build: src/allmydata/_version.py
+# It is unnecessary to have this depend on build or src/allmydata/_version.py,
+# since 'setup.py build' always updates the version using 'darcsver --count-all-patches'.
+build:
 	$(PYTHON) setup.py build
 	touch .built
 
@@ -58,7 +37,7 @@ build: src/allmydata/_version.py
 # 'make install PREFIX=/usr/local/stow/tahoe-N.N' will do the same, but to
 # a different location
 
-install: src/allmydata/_version.py
+install:
 ifdef PREFIX
 	mkdir -p $(PREFIX)
 	$(PYTHON) ./setup.py install --single-version-externally-managed \
@@ -90,7 +69,7 @@ test:
 
 check: test
 
-test-coverage: build src/allmydata/_version.py
+test-coverage: build
 	rm -f .coverage
 	$(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
 
@@ -144,9 +123,10 @@ endif
 
 
 pyflakes:
-	$(PYTHON) -OOu `which pyflakes` src/allmydata static misc/build_helpers bin/tahoe-script.template twisted setup.py |sort |uniq
+	$(PYTHON) -OOu `which pyflakes` $(SOURCES) |sort |uniq
+
 check-umids:
-	$(PYTHON) misc/coding_tools/check-umids.py `find src/allmydata -name '*.py'`
+	$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py'`
 
 count-lines:
 	@echo -n "files: "
@@ -158,17 +138,17 @@ count-lines:
 
 check-memory: .built
 	rm -rf _test_memory
-	$(RUNPP) -p -c "src/allmydata/test/check_memory.py upload"
-	$(RUNPP) -p -c "src/allmydata/test/check_memory.py upload-self"
-	$(RUNPP) -p -c "src/allmydata/test/check_memory.py upload-POST"
-	$(RUNPP) -p -c "src/allmydata/test/check_memory.py download"
-	$(RUNPP) -p -c "src/allmydata/test/check_memory.py download-GET"
-	$(RUNPP) -p -c "src/allmydata/test/check_memory.py download-GET-slow"
-	$(RUNPP) -p -c "src/allmydata/test/check_memory.py receive"
+	$(TAHOE) @src/allmydata/test/check_memory.py upload
+	$(TAHOE) @src/allmydata/test/check_memory.py upload-self
+	$(TAHOE) @src/allmydata/test/check_memory.py upload-POST
+	$(TAHOE) @src/allmydata/test/check_memory.py download
+	$(TAHOE) @src/allmydata/test/check_memory.py download-GET
+	$(TAHOE) @src/allmydata/test/check_memory.py download-GET-slow
+	$(TAHOE) @src/allmydata/test/check_memory.py receive
 
 check-memory-once: .built
 	rm -rf _test_memory
-	$(RUNPP) -p -c "src/allmydata/test/check_memory.py $(MODE)"
+	$(TAHOE) @src/allmydata/test/check_memory.py $(MODE)
 
 # The check-speed target uses a pre-established client node to run a canned
 # set of performance tests against a test network that is also
@@ -187,7 +167,7 @@ check-speed: .built
 	-$(TAHOE) stop $(TESTCLIENTDIR)
 	$(TAHOE) start $(TESTCLIENTDIR)
 	sleep 5
-	$(PYTHON) src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
+	$(TAHOE) @src/allmydata/test/check_speed.py $(TESTCLIENTDIR)
 	$(TAHOE) stop $(TESTCLIENTDIR)
 
 # The check-grid target also uses a pre-established client node, along with a
@@ -195,10 +175,10 @@ check-speed: .built
 # in src/allmydata/test/check_grid.py to see how to set this up.
 check-grid: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
-	$(PYTHON) src/allmydata/test/check_grid.py $(TESTCLIENTDIR) bin/tahoe
+	$(TAHOE) @src/allmydata/test/check_grid.py $(TESTCLIENTDIR) bin/tahoe
 
 bench-dirnode: .built
-	$(RUNPP) -p -c src/allmydata/test/bench_dirnode.py
+	$(TAHOE) @src/allmydata/test/bench_dirnode.py
 
 # 'make repl' is a simple-to-type command to get a Python interpreter loop
 # from which you can type 'import allmydata'
@@ -216,6 +196,10 @@ test-clean:
 	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
+# It would be nice if 'make clean' deleted any automatically-generated
+# _version.py too, so that 'make clean; make all' could be useable as a
+# "what the heck is going on, get me back to a clean state', but we need
+# 'make clean' to work on non-darcs trees without destroying useful information.
 clean:
 	rm -rf build _trial_temp _test_memory .built
 	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
@@ -228,7 +212,7 @@ clean:
 	rm -f bin/tahoe bin/tahoe.pyscript
 
 find-trailing-spaces:
-	$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r src
+	$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r $(SOURCES)
 
 # The test-desert-island target grabs the tahoe-deps tarball, unpacks it,
 # does a build, then asserts that the build did not try to download anything
