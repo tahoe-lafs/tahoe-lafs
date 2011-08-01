@@ -14,11 +14,9 @@ from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
 from allmydata.mutable.layout import unpack_header
-from allmydata.storage.server import storage_index_to_dir
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.util import hashutil, log, fileutil, pollmixin
 from allmydata.util.assertutil import precondition
-from allmydata.util.consumer import download_to_data
 from allmydata.stats import StatsGathererService
 from allmydata.key_generator import KeyGeneratorService
 import allmydata.test.common_util as testutil
@@ -916,152 +914,6 @@ N8L+bvLd4BU9g6hRS8b59lQ6GNjryx2bUnCVtLcey4Jd
 #SYSTEM_TEST_CERTS = []
 
 TEST_DATA="\x02"*(immutable.upload.Uploader.URI_LIT_SIZE_THRESHOLD+1)
-
-class ShareManglingMixin(SystemTestMixin):
-
-    def setUp(self):
-        # Set self.basedir to a temp dir which has the name of the current
-        # test method in its name.
-        self.basedir = self.mktemp()
-
-        d = defer.maybeDeferred(SystemTestMixin.setUp, self)
-        d.addCallback(lambda x: self.set_up_nodes())
-
-        def _upload_a_file(ignored):
-            cl0 = self.clients[0]
-            # We need multiple segments to test crypttext hash trees that are
-            # non-trivial (i.e. they have more than just one hash in them).
-            cl0.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
-            # Tests that need to test servers of happiness using this should
-            # set their own value for happy -- the default (7) breaks stuff.
-            cl0.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
-            d2 = cl0.upload(immutable.upload.Data(TEST_DATA, convergence=""))
-            def _after_upload(u):
-                filecap = u.uri
-                self.n = self.clients[1].create_node_from_uri(filecap)
-                self.uri = uri.CHKFileURI.init_from_string(filecap)
-                return cl0.create_node_from_uri(filecap)
-            d2.addCallback(_after_upload)
-            return d2
-        d.addCallback(_upload_a_file)
-
-        def _stash_it(filenode):
-            self.filenode = filenode
-        d.addCallback(_stash_it)
-        return d
-
-    def find_all_shares(self, unused=None):
-        """Locate shares on disk. Returns a dict that maps
-        (clientnum,sharenum) to a string that contains the share container
-        (copied directly from the disk, containing leases etc). You can
-        modify this dict and then call replace_shares() to modify the shares.
-        """
-        shares = {} # k: (i, sharenum), v: data
-
-        for i, c in enumerate(self.clients):
-            sharedir = c.getServiceNamed("storage").sharedir
-            for (dirp, dirns, fns) in os.walk(sharedir):
-                for fn in fns:
-                    try:
-                        sharenum = int(fn)
-                    except TypeError:
-                        # Whoops, I guess that's not a share file then.
-                        pass
-                    else:
-                        data = open(os.path.join(sharedir, dirp, fn), "rb").read()
-                        shares[(i, sharenum)] = data
-
-        return shares
-
-    def replace_shares(self, newshares, storage_index):
-        """Replace shares on disk. Takes a dictionary in the same form
-        as find_all_shares() returns."""
-
-        for i, c in enumerate(self.clients):
-            sharedir = c.getServiceNamed("storage").sharedir
-            for (dirp, dirns, fns) in os.walk(sharedir):
-                for fn in fns:
-                    try:
-                        sharenum = int(fn)
-                    except TypeError:
-                        # Whoops, I guess that's not a share file then.
-                        pass
-                    else:
-                        pathtosharefile = os.path.join(sharedir, dirp, fn)
-                        os.unlink(pathtosharefile)
-            for ((clientnum, sharenum), newdata) in newshares.iteritems():
-                if clientnum == i:
-                    fullsharedirp=os.path.join(sharedir, storage_index_to_dir(storage_index))
-                    fileutil.make_dirs(fullsharedirp)
-                    wf = open(os.path.join(fullsharedirp, str(sharenum)), "wb")
-                    wf.write(newdata)
-                    wf.close()
-
-    def _delete_a_share(self, unused=None, sharenum=None):
-        """ Delete one share. """
-
-        shares = self.find_all_shares()
-        ks = shares.keys()
-        if sharenum is not None:
-            k = [ key for key in shares.keys() if key[1] == sharenum ][0]
-        else:
-            k = random.choice(ks)
-        del shares[k]
-        self.replace_shares(shares, storage_index=self.uri.get_storage_index())
-
-        return unused
-
-    def _corrupt_a_share(self, unused, corruptor_func, sharenum):
-        shares = self.find_all_shares()
-        ks = [ key for key in shares.keys() if key[1] == sharenum ]
-        assert ks, (shares.keys(), sharenum)
-        k = ks[0]
-        shares[k] = corruptor_func(shares[k])
-        self.replace_shares(shares, storage_index=self.uri.get_storage_index())
-        return corruptor_func
-
-    def _corrupt_all_shares(self, unused, corruptor_func):
-        """ All shares on disk will be corrupted by corruptor_func. """
-        shares = self.find_all_shares()
-        for k in shares.keys():
-            self._corrupt_a_share(unused, corruptor_func, k[1])
-        return corruptor_func
-
-    def _corrupt_a_random_share(self, unused, corruptor_func):
-        """ Exactly one share on disk will be corrupted by corruptor_func. """
-        shares = self.find_all_shares()
-        ks = shares.keys()
-        k = random.choice(ks)
-        self._corrupt_a_share(unused, corruptor_func, k[1])
-        return k[1]
-
-    def _count_reads(self):
-        sum_of_read_counts = 0
-        for thisclient in self.clients:
-            counters = thisclient.stats_provider.get_stats()['counters']
-            sum_of_read_counts += counters.get('storage_server.read', 0)
-        return sum_of_read_counts
-
-    def _count_allocates(self):
-        sum_of_allocate_counts = 0
-        for thisclient in self.clients:
-            counters = thisclient.stats_provider.get_stats()['counters']
-            sum_of_allocate_counts += counters.get('storage_server.allocate', 0)
-        return sum_of_allocate_counts
-
-    def _count_writes(self):
-        sum_of_write_counts = 0
-        for thisclient in self.clients:
-            counters = thisclient.stats_provider.get_stats()['counters']
-            sum_of_write_counts += counters.get('storage_server.write', 0)
-        return sum_of_write_counts
-
-    def _download_and_check_plaintext(self, unused=None):
-        d = download_to_data(self.n)
-        def _after_download(result):
-            self.failUnlessEqual(result, TEST_DATA)
-        d.addCallback(_after_download)
-        return d
 
 class ShouldFailMixin:
     def shouldFail(self, expected_failure, which, substring,
