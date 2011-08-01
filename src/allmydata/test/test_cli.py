@@ -15,10 +15,10 @@ from allmydata.dirnode import normalize
 # Test that the scripts can be imported.
 from allmydata.scripts import create_node, debug, keygen, startstop_node, \
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls, \
-    tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_rm, tahoe_webopen
+    tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen
 _hush_pyflakes = [create_node, debug, keygen, startstop_node,
     tahoe_add_alias, tahoe_backup, tahoe_check, tahoe_cp, tahoe_get, tahoe_ls,
-    tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_rm, tahoe_webopen]
+    tahoe_manifest, tahoe_mkdir, tahoe_mv, tahoe_put, tahoe_unlink, tahoe_webopen]
 
 from allmydata.scripts import common
 from allmydata.scripts.common import DEFAULT_ALIAS, get_aliases, get_alias, \
@@ -2941,35 +2941,37 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         return d
 
 
-class Rm(GridTestMixin, CLITestMixin, unittest.TestCase):
+class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
+    command = "unlink"
+
     def _create_test_file(self):
         data = "puppies" * 1000
         path = os.path.join(self.basedir, "datafile")
         fileutil.write(path, data)
         self.datafile = path
 
-    def test_rm_without_alias(self):
-        # 'tahoe rm' should behave sensibly when invoked without an explicit
+    def test_unlink_without_alias(self):
+        # 'tahoe unlink' should behave sensibly when invoked without an explicit
         # alias before the default 'tahoe' alias has been created.
-        self.basedir = "cli/Rm/rm_without_alias"
+        self.basedir = "cli/Unlink/%s_without_alias" % (self.command,)
         self.set_up_grid()
-        d = self.do_cli("rm", "afile")
+        d = self.do_cli(self.command, "afile")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
 
-        d.addCallback(lambda ign: self.do_cli("unlink", "afile"))
+        d.addCallback(lambda ign: self.do_cli(self.command, "afile"))
         d.addCallback(_check)
         return d
 
-    def test_rm_with_nonexistent_alias(self):
-        # 'tahoe rm' should behave sensibly when invoked with an explicit
+    def test_unlink_with_nonexistent_alias(self):
+        # 'tahoe unlink' should behave sensibly when invoked with an explicit
         # alias that doesn't exist.
-        self.basedir = "cli/Rm/rm_with_nonexistent_alias"
+        self.basedir = "cli/Unlink/%s_with_nonexistent_alias" % (self.command,)
         self.set_up_grid()
-        d = self.do_cli("rm", "nonexistent:afile")
+        d = self.do_cli(self.command, "nonexistent:afile")
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
@@ -2977,29 +2979,35 @@ class Rm(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
 
-        d.addCallback(lambda ign: self.do_cli("unlink", "nonexistent:afile"))
+        d.addCallback(lambda ign: self.do_cli(self.command, "nonexistent:afile"))
         d.addCallback(_check)
         return d
 
-    def test_rm_without_path(self):
-        # 'tahoe rm' should give a sensible error message when invoked without a path.
-        self.basedir = "cli/Rm/rm_without_path"
+    def test_unlink_without_path(self):
+        # 'tahoe unlink' should give a sensible error message when invoked without a path.
+        self.basedir = "cli/Unlink/%s_without_path" % (self.command,)
         self.set_up_grid()
         self._create_test_file()
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda ign: self.do_cli("put", self.datafile, "tahoe:test"))
-        def _do_rm((rc, out, err)):
+        def _do_unlink((rc, out, err)):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnless(out.startswith("URI:"), out)
-            return self.do_cli("rm", out.strip('\n'))
-        d.addCallback(_do_rm)
+            return self.do_cli(self.command, out.strip('\n'))
+        d.addCallback(_do_unlink)
 
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
+            self.failUnlessIn("'tahoe %s'" % (self.command,), err)
             self.failUnlessIn("path must be given", err)
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_check)
         return d
+
+
+class Rm(Unlink):
+    """Test that 'tahoe rm' behaves in the same way as 'tahoe unlink'."""
+    command = "rm"
 
 
 class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):

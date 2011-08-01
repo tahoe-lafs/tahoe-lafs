@@ -4,7 +4,7 @@ from allmydata.scripts.common_http import do_http, format_http_success, format_h
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
                                      UnknownAliasError
 
-def rm(options):
+def unlink(options, command="unlink"):
     """
     @return: a Deferred which eventually fires with the exit code
     """
@@ -23,7 +23,7 @@ def rm(options):
         return 1
     if not path:
         print >>stderr, """
-'tahoe rm' can only unlink directory entries, so a path must be given."""
+'tahoe %s' can only unlink directory entries, so a path must be given.""" % (command,)
         return 1
 
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)

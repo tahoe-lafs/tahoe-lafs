@@ -247,16 +247,16 @@ class CpOptions(VDriveOptions):
     slashes.
     """
 
-class RmOptions(VDriveOptions):
+class UnlinkOptions(VDriveOptions):
     def parseArgs(self, where):
         self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
-        return "Usage:  %s rm [options] REMOTE_FILE" % (self.command_name,)
-
-class UnlinkOptions(RmOptions):
-    def getSynopsis(self):
         return "Usage:  %s unlink [options] REMOTE_FILE" % (self.command_name,)
+
+class RmOptions(UnlinkOptions):
+    def getSynopsis(self):
+        return "Usage:  %s rm [options] REMOTE_FILE" % (self.command_name,)
 
 class MvOptions(VDriveOptions):
     def parseArgs(self, frompath, topath):
@@ -470,8 +470,8 @@ subCommands = [
     ["get", None, GetOptions, "Retrieve a file from the grid."],
     ["put", None, PutOptions, "Upload a file into the grid."],
     ["cp", None, CpOptions, "Copy one or more files or directories."],
-    ["rm", None, RmOptions, "Unlink a file or directory on the grid."],
-    ["unlink", None, UnlinkOptions, "Unlink a file or directory on the grid (same as rm)."],
+    ["unlink", None, UnlinkOptions, "Unlink a file or directory on the grid."],
+    ["rm", None, RmOptions, "Unlink a file or directory on the grid (same as unlink)."],
     ["mv", None, MvOptions, "Move a file within the grid."],
     ["ln", None, LnOptions, "Make an additional link to an existing file or directory."],
     ["backup", None, BackupOptions, "Make target dir look like local dir."],
@@ -531,10 +531,13 @@ def cp(options):
     rc = tahoe_cp.copy(options)
     return rc
 
-def rm(options):
-    from allmydata.scripts import tahoe_rm
-    rc = tahoe_rm.rm(options)
+def unlink(options, command="unlink"):
+    from allmydata.scripts import tahoe_unlink
+    rc = tahoe_unlink.unlink(options, command=command)
     return rc
+
+def rm(options):
+    return unlink(options, command="rm")
 
 def mv(options):
     from allmydata.scripts import tahoe_mv
@@ -585,8 +588,8 @@ dispatch = {
     "get": get,
     "put": put,
     "cp": cp,
+    "unlink": unlink,
     "rm": rm,
-    "unlink": rm,
     "mv": mv,
     "ln": ln,
     "backup": backup,
