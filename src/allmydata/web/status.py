@@ -409,7 +409,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         for ev in events:
             # DownloadStatus promises to give us events in temporal order
             ev = ev.copy()
-            ev["serverid"] = base32.b2a(ev["serverid"])
+            ev["serverid"] = base32.b2a(ev["server"].get_serverid())
             if ev["serverid"] not in serverid_to_group:
                 groupnum = len(serverid_to_group)
                 serverid_to_group[ev["serverid"]] = groupnum
@@ -579,12 +579,13 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                T.th["txtime"], T.th["rxtime"],
                T.th["received"], T.th["RTT"]]]
         for r_ev in self.download_status.block_requests:
+            server = r_ev["server"]
             rtt = None
             if r_ev["finish_time"] is not None:
                 rtt = r_ev["finish_time"] - r_ev["start_time"]
-            serverid_s = idlib.shortnodeid_b2a(r_ev["serverid"])
-            t[T.tr(style="background: %s" % self.color(r_ev["serverid"]))[
-                T.td[serverid_s], T.td[r_ev["shnum"]],
+            color = self.color(server.get_serverid())
+            t[T.tr(style="background: %s" % color)[
+                T.td[server.get_name()], T.td[r_ev["shnum"]],
                 T.td["[%d:+%d]" % (r_ev["start"], r_ev["length"])],
                 T.td[srt(r_ev["start_time"])], T.td[srt(r_ev["finish_time"])],
                 T.td[r_ev["response_length"] or ""],

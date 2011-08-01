@@ -116,7 +116,7 @@ class DownloadStatus:
 
         # self.block_requests tracks share-data requests and responses. It is
         # a list of dicts:
-        #  serverid (binary),
+        #  server (instance of IServer)
         #  shnum,
         #  start,length,  (of data requested)
         #  start_time
@@ -168,8 +168,8 @@ class DownloadStatus:
         self.dyhb_requests.append(r)
         return DYHBEvent(r, self)
 
-    def add_block_request(self, serverid, shnum, start, length, when):
-        r = { "serverid": serverid,
+    def add_block_request(self, server, shnum, start, length, when):
+        r = { "server": server,
               "shnum": shnum,
               "start": start,
               "length": length,
