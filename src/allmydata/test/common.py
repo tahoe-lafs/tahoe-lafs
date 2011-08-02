@@ -1200,6 +1200,22 @@ def _corrupt_share_data(data, debug=False):
 
         return corrupt_field(data, 0x0c+0x44, sharedatasize)
 
+def _corrupt_share_data_last_byte(data, debug=False):
+    """Scramble the file data -- flip all bits of the last byte."""
+    sharevernum = struct.unpack(">L", data[0x0c:0x0c+4])[0]
+    assert sharevernum in (1, 2), "This test is designed to corrupt immutable shares of v1 or v2 in specific ways, not v%d." % sharevernum
+    if sharevernum == 1:
+        sharedatasize = struct.unpack(">L", data[0x0c+0x08:0x0c+0x08+4])[0]
+        offset = 0x0c+0x24+sharedatasize-1
+    else:
+        sharedatasize = struct.unpack(">Q", data[0x0c+0x08:0x0c+0x0c+8])[0]
+        offset = 0x0c+0x44+sharedatasize-1
+
+    newdata = data[:offset] + chr(ord(data[offset])^0xFF) + data[offset+1:]
+    if debug:
+        log.msg("testing: flipping all bits of byte at offset %d: %r, newdata: %r" % (offset, data[offset], newdata[offset]))
+    return newdata
+
 def _corrupt_crypttext_hash_tree(data, debug=False):
     """Scramble the file data -- the field containing the crypttext hash tree
     will have one bit flipped or else will be changed to a random value.

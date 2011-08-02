@@ -239,6 +239,11 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         return self._help_test_verify(common._corrupt_share_data,
                                       self.judge_invisible_corruption)
 
+    def test_corrupt_sharedata_last_byte(self):
+        self.basedir = "repairer/Verifier/corrupt_sharedata_last_byte"
+        return self._help_test_verify(common._corrupt_share_data_last_byte,
+                                      self.judge_invisible_corruption)
+
     def test_corrupt_ueb_length(self):
         self.basedir = "repairer/Verifier/corrupt_ueb_length"
         return self._help_test_verify(common._corrupt_length_of_uri_extension,
