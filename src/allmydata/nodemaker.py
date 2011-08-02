@@ -1,10 +1,12 @@
 import weakref
 from zope.interface import implements
-from allmydata.interfaces import INodeMaker
+from allmydata.util.assertutil import precondition
+from allmydata.interfaces import INodeMaker, SDMF_VERSION
 from allmydata.immutable.literal import LiteralFileNode
 from allmydata.immutable.filenode import ImmutableFileNode, CiphertextFileNode
 from allmydata.immutable.upload import Data
 from allmydata.mutable.filenode import MutableFileNode
+from allmydata.mutable.publish import MutableData
 from allmydata.dirnode import DirectoryNode, pack_children
 from allmydata.unknown import UnknownNode
 from allmydata import uri
@@ -87,17 +89,26 @@ class NodeMaker:
             return self._create_dirnode(filenode)
         return None
 
-    def create_mutable_file(self, contents=None, keysize=None):
+    def create_mutable_file(self, contents=None, keysize=None,
+                            version=SDMF_VERSION):
         n = MutableFileNode(self.storage_broker, self.secret_holder,
                             self.default_encoding_parameters, self.history)
         d = self.key_generator.generate(keysize)
-        d.addCallback(n.create_with_keys, contents)
+        d.addCallback(n.create_with_keys, contents, version=version)
         d.addCallback(lambda res: n)
         return d
 
-    def create_new_mutable_directory(self, initial_children={}):
+    def create_new_mutable_directory(self, initial_children={},
+                                     version=SDMF_VERSION):
+        # initial_children must have metadata (i.e. {} instead of None)
+        for (name, (node, metadata)) in initial_children.iteritems():
+            precondition(isinstance(metadata, dict),
+                         "create_new_mutable_directory requires metadata to be a dict, not None", metadata)
+            node.raise_error()
         d = self.create_mutable_file(lambda n:
-                                     pack_children(initial_children, n.get_writekey()))
+                                     MutableData(pack_children(initial_children,
+                                                    n.get_writekey())),
+                                     version=version)
         d.addCallback(self._create_dirnode)
         return d
 
