@@ -326,6 +326,23 @@ Client Configuration
     (Mutable files use a different share placement algorithm that does not
     currently consider this parameter.)
 
+``mutable.format = sdmf or mdmf``
+
+    This value tells Tahoe-LAFS what the default mutable file format should
+    be. If ``mutable.format=sdmf``, then newly created mutable files will be
+    in the old SDMF format. This is desirable for clients that operate on
+    grids where some peers run older versions of Tahoe-LAFS, as these older
+    versions cannot read the new MDMF mutable file format. If
+    ``mutable.format`` is ``mdmf``, then newly created mutable files will use
+    the new MDMF format, which supports efficient in-place modification and
+    streaming downloads. You can overwrite this value using a special
+    mutable-type parameter in the webapi. If you do not specify a value here,
+    Tahoe-LAFS will use SDMF for all newly-created mutable files.
+
+    Note that this parameter only applies to mutable files. Mutable
+    directories, which are stored as mutable files, are not controlled by
+    this parameter and will always use SDMF. We may revisit this decision
+    in future versions of Tahoe-LAFS.
 
 Frontend Configuration
 ======================

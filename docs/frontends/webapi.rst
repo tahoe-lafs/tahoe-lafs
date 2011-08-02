@@ -365,10 +365,17 @@ Writing/Uploading A File
  To use the /uri/$FILECAP form, $FILECAP must be a write-cap for a mutable file.
 
  In the /uri/$DIRCAP/[SUBDIRS../]FILENAME form, if the target file is a
- writeable mutable file, that file's contents will be overwritten in-place. If
- it is a read-cap for a mutable file, an error will occur. If it is an
- immutable file, the old file will be discarded, and a new one will be put in
- its place.
+ writeable mutable file, that file's contents will be overwritten
+ in-place. If it is a read-cap for a mutable file, an error will occur.
+ If it is an immutable file, the old file will be discarded, and a new
+ one will be put in its place. If the target file is a writable mutable
+ file, you may also specify an "offset" parameter -- a byte offset that
+ determines where in the mutable file the data from the HTTP request
+ body is placed. This operation is relatively efficient for MDMF mutable
+ files, and is relatively inefficient (but still supported) for SDMF
+ mutable files. If no offset parameter is specified, then the entire
+ file is replaced with the data from the HTTP request body. For an
+ immutable file, the "offset" parameter is not valid.
 
  When creating a new file, if "mutable=true" is in the query arguments, the
  operation will create a mutable file instead of an immutable one.
@@ -389,7 +396,16 @@ Writing/Uploading A File
 
  If "mutable=true" is in the query arguments, the operation will create a
  mutable file, and return its write-cap in the HTTP respose. The default is
- to create an immutable file, returning the read-cap as a response.
+ to create an immutable file, returning the read-cap as a response. If
+ you create a mutable file, you can also use the "mutable-type" query
+ parameter. If "mutable-type=sdmf", then the mutable file will be created
+ in the old SDMF mutable file format. This is desirable for files that
+ need to be read by old clients. If "mutable-type=mdmf", then the file
+ will be created in the new MDMF mutable file format. MDMF mutable files
+ can be downloaded more efficiently, and modified in-place efficiently,
+ but are not compatible with older versions of Tahoe-LAFS. If no
+ "mutable-type" argument is given, the file is created in whatever
+ format was configured in tahoe.cfg.
 
 
 Creating A New Directory
@@ -1082,7 +1098,13 @@ Uploading a File
  If a "mutable=true" argument is provided, the operation will create a
  mutable file, and the response body will contain the write-cap instead of
  the upload results page. The default is to create an immutable file,
- returning the upload results page as a response.
+ returning the upload results page as a response. If you create a
+ mutable file, you may choose to specify the format of that mutable file
+ with the "mutable-type" parameter. If "mutable-type=mdmf", then the
+ file will be created as an MDMF mutable file. If "mutable-type=sdmf",
+ then the file will be created as an SDMF mutable file. If no value is
+ specified, the file will be created in whatever format is specified in
+ tahoe.cfg.
 
 
 ``POST /uri/$DIRCAP/[SUBDIRS../]?t=upload``
