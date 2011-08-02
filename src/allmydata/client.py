@@ -22,7 +22,8 @@ from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.stats import StatsProvider
 from allmydata.history import History
-from allmydata.interfaces import IStatsProducer, RIStubClient
+from allmydata.interfaces import IStatsProducer, RIStubClient, \
+                                 SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
 
 
@@ -338,6 +339,11 @@ class Client(node.Node, pollmixin.PollMixin):
                                    self.terminator,
                                    self.get_encoding_parameters(),
                                    self._key_generator)
+        default = self.get_config("client", "mutable.format", default="sdmf")
+        if default == "mdmf":
+            self.mutable_file_default = MDMF_VERSION
+        else:
+            self.mutable_file_default = SDMF_VERSION
 
     def get_history(self):
         return self.history
@@ -485,15 +491,18 @@ class Client(node.Node, pollmixin.PollMixin):
         # may get an opaque node if there were any problems.
         return self.nodemaker.create_from_cap(write_uri, read_uri, deep_immutable=deep_immutable, name=name)
 
-    def create_dirnode(self, initial_children={}):
-        d = self.nodemaker.create_new_mutable_directory(initial_children)
+    def create_dirnode(self, initial_children={}, version=SDMF_VERSION):
+        d = self.nodemaker.create_new_mutable_directory(initial_children, version=version)
         return d
 
     def create_immutable_dirnode(self, children, convergence=None):
         return self.nodemaker.create_immutable_directory(children, convergence)
 
-    def create_mutable_file(self, contents=None, keysize=None):
-        return self.nodemaker.create_mutable_file(contents, keysize)
+    def create_mutable_file(self, contents=None, keysize=None, version=None):
+        if not version:
+            version = self.mutable_file_default
+        return self.nodemaker.create_mutable_file(contents, keysize,
+                                                  version=version)
 
     def upload(self, uploadable):
         uploader = self.getServiceNamed("uploader")
