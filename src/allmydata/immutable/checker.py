@@ -615,18 +615,21 @@ class Checker(log.PrefixingLogMixin):
             assert isinstance(r, str), r
             # to free up the RAM
             return None
+
         def _get_blocks(vrbp):
             def _get_block(ign, blocknum):
                 db = vrbp.get_block(blocknum)
                 db.addCallback(_discard_result)
                 return db
+
             dbs = defer.succeed(None)
             for blocknum in range(veup.num_segments):
                 dbs.addCallback(_get_block, blocknum)
-                # The Deferred we return will fire after every block of this
-                # share has been downloaded and verified successfully, or else it
-                # will errback as soon as the first error is observed.
-                return dbs
+
+            # The Deferred we return will fire after every block of this
+            # share has been downloaded and verified successfully, or else it
+            # will errback as soon as the first error is observed.
+            return dbs
 
         d.addCallback(_get_blocks)
 
