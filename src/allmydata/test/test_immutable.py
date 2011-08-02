@@ -288,27 +288,31 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         return d
 
     def test_download_to_data(self):
-        d = self.n.download_to_data()
+        d = self.startup("download_to_data")
+        d.addCallback(lambda ign: self.filenode.download_to_data())
         d.addCallback(lambda data:
             self.failUnlessEqual(data, common.TEST_DATA))
         return d
 
 
     def test_download_best_version(self):
-        d = self.n.download_best_version()
+        d = self.startup("download_best_version")
+        d.addCallback(lambda ign: self.filenode.download_best_version())
         d.addCallback(lambda data:
             self.failUnlessEqual(data, common.TEST_DATA))
         return d
 
 
     def test_get_best_readable_version(self):
-        d = self.n.get_best_readable_version()
+        d = self.startup("get_best_readable_version")
+        d.addCallback(lambda ign: self.filenode.get_best_readable_version())
         d.addCallback(lambda n2:
-            self.failUnlessEqual(n2, self.n))
+            self.failUnlessEqual(n2, self.filenode))
         return d
 
     def test_get_size_of_best_version(self):
-        d = self.n.get_size_of_best_version()
+        d = self.startup("get_size_of_best_version")
+        d.addCallback(lambda ign: self.filenode.get_size_of_best_version())
         d.addCallback(lambda size:
             self.failUnlessEqual(size, len(common.TEST_DATA)))
         return d
