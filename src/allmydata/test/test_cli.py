@@ -28,6 +28,7 @@ from allmydata.scripts import cli, debug, runner, backupdb
 from allmydata.test.common_util import StallMixin, ReallyEqualMixin
 from allmydata.test.no_network import GridTestMixin
 from twisted.internet import threads # CLI tests use deferToThread
+from twisted.internet import defer # List uses a DeferredList in one place.
 from twisted.python import usage
 
 from allmydata.util.assertutil import precondition
@@ -1007,6 +1008,146 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("get", "tahoe:uploaded.txt"))
         d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA2))
         return d
+
+    def _check_mdmf_json(self, (rc, json, err)):
+         self.failUnlessEqual(rc, 0)
+         self.failUnlessEqual(err, "")
+         self.failUnlessIn('"mutable-type": "mdmf"', json)
+         # We also want a valid MDMF cap to be in the json.
+         self.failUnlessIn("URI:MDMF", json)
+         self.failUnlessIn("URI:MDMF-RO", json)
+         self.failUnlessIn("URI:MDMF-Verifier", json)
+
+    def _check_sdmf_json(self, (rc, json, err)):
+        self.failUnlessEqual(rc, 0)
+        self.failUnlessEqual(err, "")
+        self.failUnlessIn('"mutable-type": "sdmf"', json)
+        # We also want to see the appropriate SDMF caps.
+        self.failUnlessIn("URI:SSK", json)
+        self.failUnlessIn("URI:SSK-RO", json)
+        self.failUnlessIn("URI:SSK-Verifier", json)
+
+    def test_mutable_type(self):
+        self.basedir = "cli/Put/mutable_type"
+        self.set_up_grid()
+        data = "data" * 100000
+        fn1 = os.path.join(self.basedir, "data")
+        fileutil.write(fn1, data)
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda ignored:
+            self.do_cli("put", "--mutable", "--mutable-type=mdmf",
+                        fn1, "tahoe:uploaded.txt"))
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:uploaded.txt"))
+        d.addCallback(self._check_mdmf_json)
+        d.addCallback(lambda ignored:
+            self.do_cli("put", "--mutable", "--mutable-type=sdmf",
+                        fn1, "tahoe:uploaded2.txt"))
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:uploaded2.txt"))
+        d.addCallback(self._check_sdmf_json)
+        return d
+
+    def test_mutable_type_unlinked(self):
+        self.basedir = "cli/Put/mutable_type_unlinked"
+        self.set_up_grid()
+        data = "data" * 100000
+        fn1 = os.path.join(self.basedir, "data")
+        fileutil.write(fn1, data)
+        d = self.do_cli("put", "--mutable", "--mutable-type=mdmf", fn1)
+        d.addCallback(lambda (rc, cap, err):
+            self.do_cli("ls", "--json", cap))
+        d.addCallback(self._check_mdmf_json)
+        d.addCallback(lambda ignored:
+            self.do_cli("put", "--mutable", "--mutable-type=sdmf", fn1))
+        d.addCallback(lambda (rc, cap, err):
+            self.do_cli("ls", "--json", cap))
+        d.addCallback(self._check_sdmf_json)
+        return d
+
+    def test_put_to_mdmf_cap(self):
+        self.basedir = "cli/Put/put_to_mdmf_cap"
+        self.set_up_grid()
+        data = "data" * 100000
+        fn1 = os.path.join(self.basedir, "data")
+        fileutil.write(fn1, data)
+        d = self.do_cli("put", "--mutable", "--mutable-type=mdmf", fn1)
+        def _got_cap((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.cap = out
+        d.addCallback(_got_cap)
+        # Now try to write something to the cap using put.
+        data2 = "data2" * 100000
+        fn2 = os.path.join(self.basedir, "data2")
+        fileutil.write(fn2, data2)
+        d.addCallback(lambda ignored:
+            self.do_cli("put", fn2, self.cap))
+        def _got_put((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessIn(self.cap, out)
+        d.addCallback(_got_put)
+        # Now get the cap. We should see the data we just put there.
+        d.addCallback(lambda ignored:
+            self.do_cli("get", self.cap))
+        def _got_data((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out, data2)
+        d.addCallback(_got_data)
+        # Now strip the extension information off of the cap and try
+        # to put something to it.
+        def _make_bare_cap(ignored):
+            cap = self.cap.split(":")
+            cap = ":".join(cap[:len(cap) - 2])
+            self.cap = cap
+        d.addCallback(_make_bare_cap)
+        data3 = "data3" * 100000
+        fn3 = os.path.join(self.basedir, "data3")
+        fileutil.write(fn3, data3)
+        d.addCallback(lambda ignored:
+            self.do_cli("put", fn3, self.cap))
+        d.addCallback(lambda ignored:
+            self.do_cli("get", self.cap))
+        def _got_data3((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out, data3)
+        d.addCallback(_got_data3)
+        return d
+
+    def test_put_to_sdmf_cap(self):
+        self.basedir = "cli/Put/put_to_sdmf_cap"
+        self.set_up_grid()
+        data = "data" * 100000
+        fn1 = os.path.join(self.basedir, "data")
+        fileutil.write(fn1, data)
+        d = self.do_cli("put", "--mutable", "--mutable-type=sdmf", fn1)
+        def _got_cap((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.cap = out
+        d.addCallback(_got_cap)
+        # Now try to write something to the cap using put.
+        data2 = "data2" * 100000
+        fn2 = os.path.join(self.basedir, "data2")
+        fileutil.write(fn2, data2)
+        d.addCallback(lambda ignored:
+            self.do_cli("put", fn2, self.cap))
+        def _got_put((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessIn(self.cap, out)
+        d.addCallback(_got_put)
+        # Now get the cap. We should see the data we just put there.
+        d.addCallback(lambda ignored:
+            self.do_cli("get", self.cap))
+        def _got_data((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(out, data2)
+        d.addCallback(_got_data)
+        return d
+
+    def test_mutable_type_invalid_format(self):
+        o = cli.PutOptions()
+        self.failUnlessRaises(usage.UsageError,
+                              o.parseOptions,
+                              ["--mutable", "--mutable-type=ldmf"])
 
     def test_put_with_nonexistent_alias(self):
         # when invoked with an alias that doesn't exist, 'tahoe put'
@@ -2907,6 +3048,78 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
 
         return d
+
+    def test_mkdir_mutable_type(self):
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda ignored:
+            self.do_cli("mkdir", "--mutable-type=sdmf", "tahoe:foo"))
+        def _check((rc, out, err), st):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessIn(st, out)
+            return out
+        def _stash_dircap(cap):
+            self._dircap = cap
+            u = uri.from_string(cap)
+            fn_uri = u.get_filenode_cap()
+            self._filecap = fn_uri.to_string()
+        d.addCallback(_check, "URI:DIR2")
+        d.addCallback(_stash_dircap)
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:foo"))
+        d.addCallback(_check, "URI:DIR2")
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", self._filecap))
+        d.addCallback(_check, '"mutable-type": "sdmf"')
+        d.addCallback(lambda ignored:
+            self.do_cli("mkdir", "--mutable-type=mdmf", "tahoe:bar"))
+        d.addCallback(_check, "URI:DIR2-MDMF")
+        d.addCallback(_stash_dircap)
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", "tahoe:bar"))
+        d.addCallback(_check, "URI:DIR2-MDMF")
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", self._filecap))
+        d.addCallback(_check, '"mutable-type": "mdmf"')
+        return d
+
+    def test_mkdir_mutable_type_unlinked(self):
+        self.basedir = os.path.dirname(self.mktemp())
+        self.set_up_grid()
+        d = self.do_cli("mkdir", "--mutable-type=sdmf")
+        def _check((rc, out, err), st):
+            self.failUnlessReallyEqual(rc, 0)
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessIn(st, out)
+            return out
+        d.addCallback(_check, "URI:DIR2")
+        def _stash_dircap(cap):
+            self._dircap = cap
+            # Now we're going to feed the cap into uri.from_string...
+            u = uri.from_string(cap)
+            # ...grab the underlying filenode uri.
+            fn_uri = u.get_filenode_cap()
+            # ...and stash that.
+            self._filecap = fn_uri.to_string()
+        d.addCallback(_stash_dircap)
+        d.addCallback(lambda res: self.do_cli("ls", "--json",
+                                              self._filecap))
+        d.addCallback(_check, '"mutable-type": "sdmf"')
+        d.addCallback(lambda res: self.do_cli("mkdir", "--mutable-type=mdmf"))
+        d.addCallback(_check, "URI:DIR2-MDMF")
+        d.addCallback(_stash_dircap)
+        d.addCallback(lambda res: self.do_cli("ls", "--json",
+                                              self._filecap))
+        d.addCallback(_check, '"mutable-type": "mdmf"')
+        return d
+
+    def test_mkdir_bad_mutable_type(self):
+        o = cli.MakeDirectoryOptions()
+        self.failUnlessRaises(usage.UsageError,
+                              o.parseOptions,
+                              ["--mutable", "--mutable-type=ldmf"])
 
     def test_mkdir_unicode(self):
         self.basedir = os.path.dirname(self.mktemp())

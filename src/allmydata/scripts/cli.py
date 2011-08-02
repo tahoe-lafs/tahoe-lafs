@@ -50,8 +50,15 @@ class VDriveOptions(BaseOptions):
 
 
 class MakeDirectoryOptions(VDriveOptions):
+    optParameters = [
+        ("mutable-type", None, False, "Create a mutable file in the given format. Valid formats are 'sdmf' for SDMF and 'mdmf' for MDMF"),
+        ]
+
     def parseArgs(self, where=""):
         self.where = argv_to_unicode(where)
+
+        if self['mutable-type'] and self['mutable-type'] not in ("sdmf", "mdmf"):
+            raise usage.UsageError("%s is an invalid format" % self['mutable-type'])
 
     def getSynopsis(self):
         return "Usage:  %s mkdir [options] [REMOTE_DIR]" % (self.command_name,)
@@ -164,6 +171,9 @@ class PutOptions(VDriveOptions):
     optFlags = [
         ("mutable", "m", "Create a mutable file instead of an immutable one."),
         ]
+    optParameters = [
+        ("mutable-type", None, False, "Create a mutable file in the given format. Valid formats are 'sdmf' for SDMF and 'mdmf' for MDMF"),
+        ]
 
     def parseArgs(self, arg1=None, arg2=None):
         # see Examples below
@@ -179,6 +189,10 @@ class PutOptions(VDriveOptions):
             self.to_file = None
         if self.from_file == u"-":
             self.from_file = None
+
+        if self['mutable-type'] and self['mutable-type'] not in ("sdmf", "mdmf"):
+            raise usage.UsageError("%s is an invalid format" % self['mutable-type'])
+
 
     def getSynopsis(self):
         return "Usage:  %s put [options] LOCAL_FILE REMOTE_FILE" % (self.command_name,)
