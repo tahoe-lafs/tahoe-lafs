@@ -1,4 +1,4 @@
-import time, os.path, platform, stat, re, simplejson, struct
+import time, os.path, platform, stat, re, simplejson, struct, shutil
 
 import mock
 
@@ -20,8 +20,16 @@ from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.storage.expirer import LeaseCheckingCrawler
 from allmydata.immutable.layout import WriteBucketProxy, WriteBucketProxy_v2, \
      ReadBucketProxy
+from allmydata.mutable.layout import MDMFSlotWriteProxy, MDMFSlotReadProxy, \
+                                     LayoutInvalid, MDMFSIGNABLEHEADER, \
+                                     SIGNED_PREFIX, MDMFHEADER, \
+                                     MDMFOFFSETS, SDMFSlotWriteProxy, \
+                                     PRIVATE_KEY_SIZE, \
+                                     SIGNATURE_SIZE, \
+                                     VERIFICATION_KEY_SIZE, \
+                                     SHARE_HASH_CHAIN_SIZE
 from allmydata.interfaces import BadWriteEnablerError
-from allmydata.test.common import LoggingServiceParent
+from allmydata.test.common import LoggingServiceParent, ShouldFailMixin
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.test.no_network import NoNetworkServer
 from allmydata.web.storage import StorageStatus, remove_prefix
@@ -100,11 +108,22 @@ class Bucket(unittest.TestCase):
 
 class RemoteBucket:
 
+    def __init__(self):
+        self.read_count = 0
+        self.write_count = 0
+
     def callRemote(self, methname, *args, **kwargs):
         def _call():
             meth = getattr(self.target, "remote_" + methname)
             return meth(*args, **kwargs)
+
+        if methname == "slot_readv":
+            self.read_count += 1
+        if "writev" in methname:
+            self.write_count += 1
+
         return defer.maybeDeferred(_call)
+
 
 class BucketProxy(unittest.TestCase):
     def make_bucket(self, name, size):
@@ -1287,6 +1306,1462 @@ class MutableServer(unittest.TestCase):
         bucketdir = os.path.join(prefixdir, si)
         self.failUnless(os.path.exists(prefixdir), prefixdir)
         self.failIf(os.path.exists(bucketdir), bucketdir)
+
+
+class MDMFProxies(unittest.TestCase, ShouldFailMixin):
+    def setUp(self):
+        self.sparent = LoggingServiceParent()
+        self._lease_secret = itertools.count()
+        self.ss = self.create("MDMFProxies storage test server")
+        self.rref = RemoteBucket()
+        self.rref.target = self.ss
+        self.secrets = (self.write_enabler("we_secret"),
+                        self.renew_secret("renew_secret"),
+                        self.cancel_secret("cancel_secret"))
+        self.segment = "aaaaaa"
+        self.block = "aa"
+        self.salt = "a" * 16
+        self.block_hash = "a" * 32
+        self.block_hash_tree = [self.block_hash for i in xrange(6)]
+        self.share_hash = self.block_hash
+        self.share_hash_chain = dict([(i, self.share_hash) for i in xrange(6)])
+        self.signature = "foobarbaz"
+        self.verification_key = "vvvvvv"
+        self.encprivkey = "private"
+        self.root_hash = self.block_hash
+        self.salt_hash = self.root_hash
+        self.salt_hash_tree = [self.salt_hash for i in xrange(6)]
+        self.block_hash_tree_s = self.serialize_blockhashes(self.block_hash_tree)
+        self.share_hash_chain_s = self.serialize_sharehashes(self.share_hash_chain)
+        # blockhashes and salt hashes are serialized in the same way,
+        # only we lop off the first element and store that in the
+        # header.
+        self.salt_hash_tree_s = self.serialize_blockhashes(self.salt_hash_tree[1:])
+
+
+    def tearDown(self):
+        self.sparent.stopService()
+        shutil.rmtree(self.workdir("MDMFProxies storage test server"))
+
+
+    def write_enabler(self, we_tag):
+        return hashutil.tagged_hash("we_blah", we_tag)
+
+
+    def renew_secret(self, tag):
+        return hashutil.tagged_hash("renew_blah", str(tag))
+
+
+    def cancel_secret(self, tag):
+        return hashutil.tagged_hash("cancel_blah", str(tag))
+
+
+    def workdir(self, name):
+        basedir = os.path.join("storage", "MutableServer", name)
+        return basedir
+
+
+    def create(self, name):
+        workdir = self.workdir(name)
+        ss = StorageServer(workdir, "\x00" * 20)
+        ss.setServiceParent(self.sparent)
+        return ss
+
+
+    def build_test_mdmf_share(self, tail_segment=False, empty=False):
+        # Start with the checkstring
+        data = struct.pack(">BQ32s",
+                           1,
+                           0,
+                           self.root_hash)
+        self.checkstring = data
+        # Next, the encoding parameters
+        if tail_segment:
+            data += struct.pack(">BBQQ",
+                                3,
+                                10,
+                                6,
+                                33)
+        elif empty:
+            data += struct.pack(">BBQQ",
+                                3,
+                                10,
+                                0,
+                                0)
+        else:
+            data += struct.pack(">BBQQ",
+                                3,
+                                10,
+                                6,
+                                36)
+        # Now we'll build the offsets.
+        sharedata = ""
+        if not tail_segment and not empty:
+            for i in xrange(6):
+                sharedata += self.salt + self.block
+        elif tail_segment:
+            for i in xrange(5):
+                sharedata += self.salt + self.block
+            sharedata += self.salt + "a"
+
+        # The encrypted private key comes after the shares + salts
+        offset_size = struct.calcsize(MDMFOFFSETS)
+        encrypted_private_key_offset = len(data) + offset_size
+        # The share has chain comes after the private key
+        sharehashes_offset = encrypted_private_key_offset + \
+            len(self.encprivkey)
+
+        # The signature comes after the share hash chain.
+        signature_offset = sharehashes_offset + len(self.share_hash_chain_s)
+
+        verification_key_offset = signature_offset + len(self.signature)
+        verification_key_end = verification_key_offset + \
+            len(self.verification_key)
+
+        share_data_offset = offset_size
+        share_data_offset += PRIVATE_KEY_SIZE
+        share_data_offset += SIGNATURE_SIZE
+        share_data_offset += VERIFICATION_KEY_SIZE
+        share_data_offset += SHARE_HASH_CHAIN_SIZE
+
+        blockhashes_offset = share_data_offset + len(sharedata)
+        eof_offset = blockhashes_offset + len(self.block_hash_tree_s)
+
+        data += struct.pack(MDMFOFFSETS,
+                            encrypted_private_key_offset,
+                            sharehashes_offset,
+                            signature_offset,
+                            verification_key_offset,
+                            verification_key_end,
+                            share_data_offset,
+                            blockhashes_offset,
+                            eof_offset)
+
+        self.offsets = {}
+        self.offsets['enc_privkey'] = encrypted_private_key_offset
+        self.offsets['block_hash_tree'] = blockhashes_offset
+        self.offsets['share_hash_chain'] = sharehashes_offset
+        self.offsets['signature'] = signature_offset
+        self.offsets['verification_key'] = verification_key_offset
+        self.offsets['share_data'] = share_data_offset
+        self.offsets['verification_key_end'] = verification_key_end
+        self.offsets['EOF'] = eof_offset
+
+        # the private key,
+        data += self.encprivkey
+        # the sharehashes
+        data += self.share_hash_chain_s
+        # the signature,
+        data += self.signature
+        # and the verification key
+        data += self.verification_key
+        # Then we'll add in gibberish until we get to the right point.
+        nulls = "".join([" " for i in xrange(len(data), share_data_offset)])
+        data += nulls
+
+        # Then the share data
+        data += sharedata
+        # the blockhashes
+        data += self.block_hash_tree_s
+        return data
+
+
+    def write_test_share_to_server(self,
+                                   storage_index,
+                                   tail_segment=False,
+                                   empty=False):
+        """
+        I write some data for the read tests to read to self.ss
+
+        If tail_segment=True, then I will write a share that has a
+        smaller tail segment than other segments.
+        """
+        write = self.ss.remote_slot_testv_and_readv_and_writev
+        data = self.build_test_mdmf_share(tail_segment, empty)
+        # Finally, we write the whole thing to the storage server in one
+        # pass.
+        testvs = [(0, 1, "eq", "")]
+        tws = {}
+        tws[0] = (testvs, [(0, data)], None)
+        readv = [(0, 1)]
+        results = write(storage_index, self.secrets, tws, readv)
+        self.failUnless(results[0])
+
+
+    def build_test_sdmf_share(self, empty=False):
+        if empty:
+            sharedata = ""
+        else:
+            sharedata = self.segment * 6
+        self.sharedata = sharedata
+        blocksize = len(sharedata) / 3
+        block = sharedata[:blocksize]
+        self.blockdata = block
+        prefix = struct.pack(">BQ32s16s BBQQ",
+                             0, # version,
+                             0,
+                             self.root_hash,
+                             self.salt,
+                             3,
+                             10,
+                             len(sharedata),
+                             len(sharedata),
+                            )
+        post_offset = struct.calcsize(">BQ32s16sBBQQLLLLQQ")
+        signature_offset = post_offset + len(self.verification_key)
+        sharehashes_offset = signature_offset + len(self.signature)
+        blockhashes_offset = sharehashes_offset + len(self.share_hash_chain_s)
+        sharedata_offset = blockhashes_offset + len(self.block_hash_tree_s)
+        encprivkey_offset = sharedata_offset + len(block)
+        eof_offset = encprivkey_offset + len(self.encprivkey)
+        offsets = struct.pack(">LLLLQQ",
+                              signature_offset,
+                              sharehashes_offset,
+                              blockhashes_offset,
+                              sharedata_offset,
+                              encprivkey_offset,
+                              eof_offset)
+        final_share = "".join([prefix,
+                           offsets,
+                           self.verification_key,
+                           self.signature,
+                           self.share_hash_chain_s,
+                           self.block_hash_tree_s,
+                           block,
+                           self.encprivkey])
+        self.offsets = {}
+        self.offsets['signature'] = signature_offset
+        self.offsets['share_hash_chain'] = sharehashes_offset
+        self.offsets['block_hash_tree'] = blockhashes_offset
+        self.offsets['share_data'] = sharedata_offset
+        self.offsets['enc_privkey'] = encprivkey_offset
+        self.offsets['EOF'] = eof_offset
+        return final_share
+
+
+    def write_sdmf_share_to_server(self,
+                                   storage_index,
+                                   empty=False):
+        # Some tests need SDMF shares to verify that we can still 
+        # read them. This method writes one, which resembles but is not
+        assert self.rref
+        write = self.ss.remote_slot_testv_and_readv_and_writev
+        share = self.build_test_sdmf_share(empty)
+        testvs = [(0, 1, "eq", "")]
+        tws = {}
+        tws[0] = (testvs, [(0, share)], None)
+        readv = []
+        results = write(storage_index, self.secrets, tws, readv)
+        self.failUnless(results[0])
+
+
+    def test_read(self):
+        self.write_test_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        # Check that every method equals what we expect it to.
+        d = defer.succeed(None)
+        def _check_block_and_salt((block, salt)):
+            self.failUnlessEqual(block, self.block)
+            self.failUnlessEqual(salt, self.salt)
+
+        for i in xrange(6):
+            d.addCallback(lambda ignored, i=i:
+                mr.get_block_and_salt(i))
+            d.addCallback(_check_block_and_salt)
+
+        d.addCallback(lambda ignored:
+            mr.get_encprivkey())
+        d.addCallback(lambda encprivkey:
+            self.failUnlessEqual(self.encprivkey, encprivkey))
+
+        d.addCallback(lambda ignored:
+            mr.get_blockhashes())
+        d.addCallback(lambda blockhashes:
+            self.failUnlessEqual(self.block_hash_tree, blockhashes))
+
+        d.addCallback(lambda ignored:
+            mr.get_sharehashes())
+        d.addCallback(lambda sharehashes:
+            self.failUnlessEqual(self.share_hash_chain, sharehashes))
+
+        d.addCallback(lambda ignored:
+            mr.get_signature())
+        d.addCallback(lambda signature:
+            self.failUnlessEqual(signature, self.signature))
+
+        d.addCallback(lambda ignored:
+            mr.get_verification_key())
+        d.addCallback(lambda verification_key:
+            self.failUnlessEqual(verification_key, self.verification_key))
+
+        d.addCallback(lambda ignored:
+            mr.get_seqnum())
+        d.addCallback(lambda seqnum:
+            self.failUnlessEqual(seqnum, 0))
+
+        d.addCallback(lambda ignored:
+            mr.get_root_hash())
+        d.addCallback(lambda root_hash:
+            self.failUnlessEqual(self.root_hash, root_hash))
+
+        d.addCallback(lambda ignored:
+            mr.get_seqnum())
+        d.addCallback(lambda seqnum:
+            self.failUnlessEqual(0, seqnum))
+
+        d.addCallback(lambda ignored:
+            mr.get_encoding_parameters())
+        def _check_encoding_parameters((k, n, segsize, datalen)):
+            self.failUnlessEqual(k, 3)
+            self.failUnlessEqual(n, 10)
+            self.failUnlessEqual(segsize, 6)
+            self.failUnlessEqual(datalen, 36)
+        d.addCallback(_check_encoding_parameters)
+
+        d.addCallback(lambda ignored:
+            mr.get_checkstring())
+        d.addCallback(lambda checkstring:
+            self.failUnlessEqual(checkstring, checkstring))
+        return d
+
+
+    def test_read_with_different_tail_segment_size(self):
+        self.write_test_share_to_server("si1", tail_segment=True)
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d = mr.get_block_and_salt(5)
+        def _check_tail_segment(results):
+            block, salt = results
+            self.failUnlessEqual(len(block), 1)
+            self.failUnlessEqual(block, "a")
+        d.addCallback(_check_tail_segment)
+        return d
+
+
+    def test_get_block_with_invalid_segnum(self):
+        self.write_test_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "test invalid segnum",
+                            None,
+                            mr.get_block_and_salt, 7))
+        return d
+
+
+    def test_get_encoding_parameters_first(self):
+        self.write_test_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d = mr.get_encoding_parameters()
+        def _check_encoding_parameters((k, n, segment_size, datalen)):
+            self.failUnlessEqual(k, 3)
+            self.failUnlessEqual(n, 10)
+            self.failUnlessEqual(segment_size, 6)
+            self.failUnlessEqual(datalen, 36)
+        d.addCallback(_check_encoding_parameters)
+        return d
+
+
+    def test_get_seqnum_first(self):
+        self.write_test_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d = mr.get_seqnum()
+        d.addCallback(lambda seqnum:
+            self.failUnlessEqual(seqnum, 0))
+        return d
+
+
+    def test_get_root_hash_first(self):
+        self.write_test_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d = mr.get_root_hash()
+        d.addCallback(lambda root_hash:
+            self.failUnlessEqual(root_hash, self.root_hash))
+        return d
+
+
+    def test_get_checkstring_first(self):
+        self.write_test_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d = mr.get_checkstring()
+        d.addCallback(lambda checkstring:
+            self.failUnlessEqual(checkstring, self.checkstring))
+        return d
+
+
+    def test_write_read_vectors(self):
+        # When writing for us, the storage server will return to us a
+        # read vector, along with its result. If a write fails because
+        # the test vectors failed, this read vector can help us to
+        # diagnose the problem. This test ensures that the read vector
+        # is working appropriately.
+        mw = self._make_new_mw("si1", 0)
+
+        for i in xrange(6):
+            mw.put_block(self.block, i, self.salt)
+        mw.put_encprivkey(self.encprivkey)
+        mw.put_blockhashes(self.block_hash_tree)
+        mw.put_sharehashes(self.share_hash_chain)
+        mw.put_root_hash(self.root_hash)
+        mw.put_signature(self.signature)
+        mw.put_verification_key(self.verification_key)
+        d = mw.finish_publishing()
+        def _then(results):
+            self.failUnless(len(results), 2)
+            result, readv = results
+            self.failUnless(result)
+            self.failIf(readv)
+            self.old_checkstring = mw.get_checkstring()
+            mw.set_checkstring("")
+        d.addCallback(_then)
+        d.addCallback(lambda ignored:
+            mw.finish_publishing())
+        def _then_again(results):
+            self.failUnlessEqual(len(results), 2)
+            result, readvs = results
+            self.failIf(result)
+            self.failUnlessIn(0, readvs)
+            readv = readvs[0][0]
+            self.failUnlessEqual(readv, self.old_checkstring)
+        d.addCallback(_then_again)
+        # The checkstring remains the same for the rest of the process.
+        return d
+
+
+    def test_private_key_after_share_hash_chain(self):
+        mw = self._make_new_mw("si1", 0)
+        d = defer.succeed(None)
+        for i in xrange(6):
+            d.addCallback(lambda ignored, i=i:
+                mw.put_block(self.block, i, self.salt))
+        d.addCallback(lambda ignored:
+            mw.put_encprivkey(self.encprivkey))
+        d.addCallback(lambda ignored:
+            mw.put_sharehashes(self.share_hash_chain))
+
+        # Now try to put the private key again.
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "test repeat private key",
+                            None,
+                            mw.put_encprivkey, self.encprivkey))
+        return d
+
+
+    def test_signature_after_verification_key(self):
+        mw = self._make_new_mw("si1", 0)
+        d = defer.succeed(None)
+        # Put everything up to and including the verification key.
+        for i in xrange(6):
+            d.addCallback(lambda ignored, i=i:
+                mw.put_block(self.block, i, self.salt))
+        d.addCallback(lambda ignored:
+            mw.put_encprivkey(self.encprivkey))
+        d.addCallback(lambda ignored:
+            mw.put_blockhashes(self.block_hash_tree))
+        d.addCallback(lambda ignored:
+            mw.put_sharehashes(self.share_hash_chain))
+        d.addCallback(lambda ignored:
+            mw.put_root_hash(self.root_hash))
+        d.addCallback(lambda ignored:
+            mw.put_signature(self.signature))
+        d.addCallback(lambda ignored:
+            mw.put_verification_key(self.verification_key))
+        # Now try to put the signature again. This should fail
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "signature after verification",
+                            None,
+                            mw.put_signature, self.signature))
+        return d
+
+
+    def test_uncoordinated_write(self):
+        # Make two mutable writers, both pointing to the same storage
+        # server, both at the same storage index, and try writing to the
+        # same share.
+        mw1 = self._make_new_mw("si1", 0)
+        mw2 = self._make_new_mw("si1", 0)
+
+        def _check_success(results):
+            result, readvs = results
+            self.failUnless(result)
+
+        def _check_failure(results):
+            result, readvs = results
+            self.failIf(result)
+
+        def _write_share(mw):
+            for i in xrange(6):
+                mw.put_block(self.block, i, self.salt)
+            mw.put_encprivkey(self.encprivkey)
+            mw.put_blockhashes(self.block_hash_tree)
+            mw.put_sharehashes(self.share_hash_chain)
+            mw.put_root_hash(self.root_hash)
+            mw.put_signature(self.signature)
+            mw.put_verification_key(self.verification_key)
+            return mw.finish_publishing()
+        d = _write_share(mw1)
+        d.addCallback(_check_success)
+        d.addCallback(lambda ignored:
+            _write_share(mw2))
+        d.addCallback(_check_failure)
+        return d
+
+
+    def test_invalid_salt_size(self):
+        # Salts need to be 16 bytes in size. Writes that attempt to
+        # write more or less than this should be rejected.
+        mw = self._make_new_mw("si1", 0)
+        invalid_salt = "a" * 17 # 17 bytes
+        another_invalid_salt = "b" * 15 # 15 bytes
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "salt too big",
+                            None,
+                            mw.put_block, self.block, 0, invalid_salt))
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "salt too small",
+                            None,
+                            mw.put_block, self.block, 0,
+                            another_invalid_salt))
+        return d
+
+
+    def test_write_test_vectors(self):
+        # If we give the write proxy a bogus test vector at 
+        # any point during the process, it should fail to write when we 
+        # tell it to write.
+        def _check_failure(results):
+            self.failUnlessEqual(len(results), 2)
+            res, d = results
+            self.failIf(res)
+
+        def _check_success(results):
+            self.failUnlessEqual(len(results), 2)
+            res, d = results
+            self.failUnless(results)
+
+        mw = self._make_new_mw("si1", 0)
+        mw.set_checkstring("this is a lie")
+        for i in xrange(6):
+            mw.put_block(self.block, i, self.salt)
+        mw.put_encprivkey(self.encprivkey)
+        mw.put_blockhashes(self.block_hash_tree)
+        mw.put_sharehashes(self.share_hash_chain)
+        mw.put_root_hash(self.root_hash)
+        mw.put_signature(self.signature)
+        mw.put_verification_key(self.verification_key)
+        d = mw.finish_publishing()
+        d.addCallback(_check_failure)
+        d.addCallback(lambda ignored:
+            mw.set_checkstring(""))
+        d.addCallback(lambda ignored:
+            mw.finish_publishing())
+        d.addCallback(_check_success)
+        return d
+
+
+    def serialize_blockhashes(self, blockhashes):
+        return "".join(blockhashes)
+
+
+    def serialize_sharehashes(self, sharehashes):
+        ret = "".join([struct.pack(">H32s", i, sharehashes[i])
+                        for i in sorted(sharehashes.keys())])
+        return ret
+
+
+    def test_write(self):
+        # This translates to a file with 6 6-byte segments, and with 2-byte
+        # blocks.
+        mw = self._make_new_mw("si1", 0)
+        # Test writing some blocks.
+        read = self.ss.remote_slot_readv
+        expected_private_key_offset = struct.calcsize(MDMFHEADER)
+        expected_sharedata_offset = struct.calcsize(MDMFHEADER) + \
+                                    PRIVATE_KEY_SIZE + \
+                                    SIGNATURE_SIZE + \
+                                    VERIFICATION_KEY_SIZE + \
+                                    SHARE_HASH_CHAIN_SIZE
+        written_block_size = 2 + len(self.salt)
+        written_block = self.block + self.salt
+        for i in xrange(6):
+            mw.put_block(self.block, i, self.salt)
+
+        mw.put_encprivkey(self.encprivkey)
+        mw.put_blockhashes(self.block_hash_tree)
+        mw.put_sharehashes(self.share_hash_chain)
+        mw.put_root_hash(self.root_hash)
+        mw.put_signature(self.signature)
+        mw.put_verification_key(self.verification_key)
+        d = mw.finish_publishing()
+        def _check_publish(results):
+            self.failUnlessEqual(len(results), 2)
+            result, ign = results
+            self.failUnless(result, "publish failed")
+            for i in xrange(6):
+                self.failUnlessEqual(read("si1", [0], [(expected_sharedata_offset + (i * written_block_size), written_block_size)]),
+                                {0: [written_block]})
+
+            self.failUnlessEqual(len(self.encprivkey), 7)
+            self.failUnlessEqual(read("si1", [0], [(expected_private_key_offset, 7)]),
+                                 {0: [self.encprivkey]})
+
+            expected_block_hash_offset = expected_sharedata_offset + \
+                        (6 * written_block_size)
+            self.failUnlessEqual(len(self.block_hash_tree_s), 32 * 6)
+            self.failUnlessEqual(read("si1", [0], [(expected_block_hash_offset, 32 * 6)]),
+                                 {0: [self.block_hash_tree_s]})
+
+            expected_share_hash_offset = expected_private_key_offset + len(self.encprivkey)
+            self.failUnlessEqual(read("si1", [0],[(expected_share_hash_offset, (32 + 2) * 6)]),
+                                 {0: [self.share_hash_chain_s]})
+
+            self.failUnlessEqual(read("si1", [0], [(9, 32)]),
+                                 {0: [self.root_hash]})
+            expected_signature_offset = expected_share_hash_offset + \
+                len(self.share_hash_chain_s)
+            self.failUnlessEqual(len(self.signature), 9)
+            self.failUnlessEqual(read("si1", [0], [(expected_signature_offset, 9)]),
+                                 {0: [self.signature]})
+
+            expected_verification_key_offset = expected_signature_offset + len(self.signature)
+            self.failUnlessEqual(len(self.verification_key), 6)
+            self.failUnlessEqual(read("si1", [0], [(expected_verification_key_offset, 6)]),
+                                 {0: [self.verification_key]})
+
+            signable = mw.get_signable()
+            verno, seq, roothash, k, n, segsize, datalen = \
+                                            struct.unpack(">BQ32sBBQQ",
+                                                          signable)
+            self.failUnlessEqual(verno, 1)
+            self.failUnlessEqual(seq, 0)
+            self.failUnlessEqual(roothash, self.root_hash)
+            self.failUnlessEqual(k, 3)
+            self.failUnlessEqual(n, 10)
+            self.failUnlessEqual(segsize, 6)
+            self.failUnlessEqual(datalen, 36)
+            expected_eof_offset = expected_block_hash_offset + \
+                len(self.block_hash_tree_s)
+
+            # Check the version number to make sure that it is correct.
+            expected_version_number = struct.pack(">B", 1)
+            self.failUnlessEqual(read("si1", [0], [(0, 1)]),
+                                 {0: [expected_version_number]})
+            # Check the sequence number to make sure that it is correct
+            expected_sequence_number = struct.pack(">Q", 0)
+            self.failUnlessEqual(read("si1", [0], [(1, 8)]),
+                                 {0: [expected_sequence_number]})
+            # Check that the encoding parameters (k, N, segement size, data
+            # length) are what they should be. These are  3, 10, 6, 36
+            expected_k = struct.pack(">B", 3)
+            self.failUnlessEqual(read("si1", [0], [(41, 1)]),
+                                 {0: [expected_k]})
+            expected_n = struct.pack(">B", 10)
+            self.failUnlessEqual(read("si1", [0], [(42, 1)]),
+                                 {0: [expected_n]})
+            expected_segment_size = struct.pack(">Q", 6)
+            self.failUnlessEqual(read("si1", [0], [(43, 8)]),
+                                 {0: [expected_segment_size]})
+            expected_data_length = struct.pack(">Q", 36)
+            self.failUnlessEqual(read("si1", [0], [(51, 8)]),
+                                 {0: [expected_data_length]})
+            expected_offset = struct.pack(">Q", expected_private_key_offset)
+            self.failUnlessEqual(read("si1", [0], [(59, 8)]),
+                                 {0: [expected_offset]})
+            expected_offset = struct.pack(">Q", expected_share_hash_offset)
+            self.failUnlessEqual(read("si1", [0], [(67, 8)]),
+                                 {0: [expected_offset]})
+            expected_offset = struct.pack(">Q", expected_signature_offset)
+            self.failUnlessEqual(read("si1", [0], [(75, 8)]),
+                                 {0: [expected_offset]})
+            expected_offset = struct.pack(">Q", expected_verification_key_offset)
+            self.failUnlessEqual(read("si1", [0], [(83, 8)]),
+                                 {0: [expected_offset]})
+            expected_offset = struct.pack(">Q", expected_verification_key_offset + len(self.verification_key))
+            self.failUnlessEqual(read("si1", [0], [(91, 8)]),
+                                 {0: [expected_offset]})
+            expected_offset = struct.pack(">Q", expected_sharedata_offset)
+            self.failUnlessEqual(read("si1", [0], [(99, 8)]),
+                                 {0: [expected_offset]})
+            expected_offset = struct.pack(">Q", expected_block_hash_offset)
+            self.failUnlessEqual(read("si1", [0], [(107, 8)]),
+                                 {0: [expected_offset]})
+            expected_offset = struct.pack(">Q", expected_eof_offset)
+            self.failUnlessEqual(read("si1", [0], [(115, 8)]),
+                                 {0: [expected_offset]})
+        d.addCallback(_check_publish)
+        return d
+
+    def _make_new_mw(self, si, share, datalength=36):
+        # This is a file of size 36 bytes. Since it has a segment
+        # size of 6, we know that it has 6 byte segments, which will
+        # be split into blocks of 2 bytes because our FEC k
+        # parameter is 3.
+        mw = MDMFSlotWriteProxy(share, self.rref, si, self.secrets, 0, 3, 10,
+                                6, datalength)
+        return mw
+
+
+    def test_write_rejected_with_too_many_blocks(self):
+        mw = self._make_new_mw("si0", 0)
+
+        # Try writing too many blocks. We should not be able to write
+        # more than 6
+        # blocks into each share.
+        d = defer.succeed(None)
+        for i in xrange(6):
+            d.addCallback(lambda ignored, i=i:
+                mw.put_block(self.block, i, self.salt))
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "too many blocks",
+                            None,
+                            mw.put_block, self.block, 7, self.salt))
+        return d
+
+
+    def test_write_rejected_with_invalid_salt(self):
+        # Try writing an invalid salt. Salts are 16 bytes -- any more or
+        # less should cause an error.
+        mw = self._make_new_mw("si1", 0)
+        bad_salt = "a" * 17 # 17 bytes
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "test_invalid_salt",
+                            None, mw.put_block, self.block, 7, bad_salt))
+        return d
+
+
+    def test_write_rejected_with_invalid_root_hash(self):
+        # Try writing an invalid root hash. This should be SHA256d, and
+        # 32 bytes long as a result.
+        mw = self._make_new_mw("si2", 0)
+        # 17 bytes != 32 bytes
+        invalid_root_hash = "a" * 17
+        d = defer.succeed(None)
+        # Before this test can work, we need to put some blocks + salts,
+        # a block hash tree, and a share hash tree. Otherwise, we'll see
+        # failures that match what we are looking for, but are caused by
+        # the constraints imposed on operation ordering.
+        for i in xrange(6):
+            d.addCallback(lambda ignored, i=i:
+                mw.put_block(self.block, i, self.salt))
+        d.addCallback(lambda ignored:
+            mw.put_encprivkey(self.encprivkey))
+        d.addCallback(lambda ignored:
+            mw.put_blockhashes(self.block_hash_tree))
+        d.addCallback(lambda ignored:
+            mw.put_sharehashes(self.share_hash_chain))
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "invalid root hash",
+                            None, mw.put_root_hash, invalid_root_hash))
+        return d
+
+
+    def test_write_rejected_with_invalid_blocksize(self):
+        # The blocksize implied by the writer that we get from
+        # _make_new_mw is 2bytes -- any more or any less than this
+        # should be cause for failure, unless it is the tail segment, in
+        # which case it may not be failure.
+        invalid_block = "a"
+        mw = self._make_new_mw("si3", 0, 33) # implies a tail segment with
+                                             # one byte blocks
+        # 1 bytes != 2 bytes
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored, invalid_block=invalid_block:
+            self.shouldFail(LayoutInvalid, "test blocksize too small",
+                            None, mw.put_block, invalid_block, 0,
+                            self.salt))
+        invalid_block = invalid_block * 3
+        # 3 bytes != 2 bytes
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "test blocksize too large",
+                            None,
+                            mw.put_block, invalid_block, 0, self.salt))
+        for i in xrange(5):
+            d.addCallback(lambda ignored, i=i:
+                mw.put_block(self.block, i, self.salt))
+        # Try to put an invalid tail segment
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "test invalid tail segment",
+                            None,
+                            mw.put_block, self.block, 5, self.salt))
+        valid_block = "a"
+        d.addCallback(lambda ignored:
+            mw.put_block(valid_block, 5, self.salt))
+        return d
+
+
+    def test_write_enforces_order_constraints(self):
+        # We require that the MDMFSlotWriteProxy be interacted with in a
+        # specific way.
+        # That way is:
+        # 0: __init__
+        # 1: write blocks and salts
+        # 2: Write the encrypted private key
+        # 3: Write the block hashes
+        # 4: Write the share hashes
+        # 5: Write the root hash and salt hash
+        # 6: Write the signature and verification key
+        # 7: Write the file.
+        # 
+        # Some of these can be performed out-of-order, and some can't.
+        # The dependencies that I want to test here are:
+        #  - Private key before block hashes
+        #  - share hashes and block hashes before root hash
+        #  - root hash before signature
+        #  - signature before verification key
+        mw0 = self._make_new_mw("si0", 0)
+        # Write some shares
+        d = defer.succeed(None)
+        for i in xrange(6):
+            d.addCallback(lambda ignored, i=i:
+                mw0.put_block(self.block, i, self.salt))
+
+        # Try to write the share hash chain without writing the
+        # encrypted private key
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "share hash chain before "
+                                           "private key",
+                            None,
+                            mw0.put_sharehashes, self.share_hash_chain))
+        # Write the private key.
+        d.addCallback(lambda ignored:
+            mw0.put_encprivkey(self.encprivkey))
+
+        # Now write the block hashes and try again
+        d.addCallback(lambda ignored:
+            mw0.put_blockhashes(self.block_hash_tree))
+
+        # We haven't yet put the root hash on the share, so we shouldn't
+        # be able to sign it.
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "signature before root hash",
+                            None, mw0.put_signature, self.signature))
+
+        d.addCallback(lambda ignored:
+            self.failUnlessRaises(LayoutInvalid, mw0.get_signable))
+
+        # ..and, since that fails, we also shouldn't be able to put the
+        # verification key.
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "key before signature",
+                            None, mw0.put_verification_key,
+                            self.verification_key))
+
+        # Now write the share hashes.
+        d.addCallback(lambda ignored:
+            mw0.put_sharehashes(self.share_hash_chain))
+        # We should be able to write the root hash now too
+        d.addCallback(lambda ignored:
+            mw0.put_root_hash(self.root_hash))
+
+        # We should still be unable to put the verification key
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "key before signature",
+                            None, mw0.put_verification_key,
+                            self.verification_key))
+
+        d.addCallback(lambda ignored:
+            mw0.put_signature(self.signature))
+
+        # We shouldn't be able to write the offsets to the remote server
+        # until the offset table is finished; IOW, until we have written
+        # the verification key.
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "offsets before verification key",
+                            None,
+                            mw0.finish_publishing))
+
+        d.addCallback(lambda ignored:
+            mw0.put_verification_key(self.verification_key))
+        return d
+
+
+    def test_end_to_end(self):
+        mw = self._make_new_mw("si1", 0)
+        # Write a share using the mutable writer, and make sure that the
+        # reader knows how to read everything back to us.
+        d = defer.succeed(None)
+        for i in xrange(6):
+            d.addCallback(lambda ignored, i=i:
+                mw.put_block(self.block, i, self.salt))
+        d.addCallback(lambda ignored:
+            mw.put_encprivkey(self.encprivkey))
+        d.addCallback(lambda ignored:
+            mw.put_blockhashes(self.block_hash_tree))
+        d.addCallback(lambda ignored:
+            mw.put_sharehashes(self.share_hash_chain))
+        d.addCallback(lambda ignored:
+            mw.put_root_hash(self.root_hash))
+        d.addCallback(lambda ignored:
+            mw.put_signature(self.signature))
+        d.addCallback(lambda ignored:
+            mw.put_verification_key(self.verification_key))
+        d.addCallback(lambda ignored:
+            mw.finish_publishing())
+
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        def _check_block_and_salt((block, salt)):
+            self.failUnlessEqual(block, self.block)
+            self.failUnlessEqual(salt, self.salt)
+
+        for i in xrange(6):
+            d.addCallback(lambda ignored, i=i:
+                mr.get_block_and_salt(i))
+            d.addCallback(_check_block_and_salt)
+
+        d.addCallback(lambda ignored:
+            mr.get_encprivkey())
+        d.addCallback(lambda encprivkey:
+            self.failUnlessEqual(self.encprivkey, encprivkey))
+
+        d.addCallback(lambda ignored:
+            mr.get_blockhashes())
+        d.addCallback(lambda blockhashes:
+            self.failUnlessEqual(self.block_hash_tree, blockhashes))
+
+        d.addCallback(lambda ignored:
+            mr.get_sharehashes())
+        d.addCallback(lambda sharehashes:
+            self.failUnlessEqual(self.share_hash_chain, sharehashes))
+
+        d.addCallback(lambda ignored:
+            mr.get_signature())
+        d.addCallback(lambda signature:
+            self.failUnlessEqual(signature, self.signature))
+
+        d.addCallback(lambda ignored:
+            mr.get_verification_key())
+        d.addCallback(lambda verification_key:
+            self.failUnlessEqual(verification_key, self.verification_key))
+
+        d.addCallback(lambda ignored:
+            mr.get_seqnum())
+        d.addCallback(lambda seqnum:
+            self.failUnlessEqual(seqnum, 0))
+
+        d.addCallback(lambda ignored:
+            mr.get_root_hash())
+        d.addCallback(lambda root_hash:
+            self.failUnlessEqual(self.root_hash, root_hash))
+
+        d.addCallback(lambda ignored:
+            mr.get_encoding_parameters())
+        def _check_encoding_parameters((k, n, segsize, datalen)):
+            self.failUnlessEqual(k, 3)
+            self.failUnlessEqual(n, 10)
+            self.failUnlessEqual(segsize, 6)
+            self.failUnlessEqual(datalen, 36)
+        d.addCallback(_check_encoding_parameters)
+
+        d.addCallback(lambda ignored:
+            mr.get_checkstring())
+        d.addCallback(lambda checkstring:
+            self.failUnlessEqual(checkstring, mw.get_checkstring()))
+        return d
+
+
+    def test_is_sdmf(self):
+        # The MDMFSlotReadProxy should also know how to read SDMF files,
+        # since it will encounter them on the grid. Callers use the
+        # is_sdmf method to test this.
+        self.write_sdmf_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d = mr.is_sdmf()
+        d.addCallback(lambda issdmf:
+            self.failUnless(issdmf))
+        return d
+
+
+    def test_reads_sdmf(self):
+        # The slot read proxy should, naturally, know how to tell us
+        # about data in the SDMF format
+        self.write_sdmf_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            mr.is_sdmf())
+        d.addCallback(lambda issdmf:
+            self.failUnless(issdmf))
+
+        # What do we need to read?
+        #  - The sharedata
+        #  - The salt
+        d.addCallback(lambda ignored:
+            mr.get_block_and_salt(0))
+        def _check_block_and_salt(results):
+            block, salt = results
+            # Our original file is 36 bytes long. Then each share is 12
+            # bytes in size. The share is composed entirely of the
+            # letter a. self.block contains 2 as, so 6 * self.block is
+            # what we are looking for.
+            self.failUnlessEqual(block, self.block * 6)
+            self.failUnlessEqual(salt, self.salt)
+        d.addCallback(_check_block_and_salt)
+
+        #  - The blockhashes
+        d.addCallback(lambda ignored:
+            mr.get_blockhashes())
+        d.addCallback(lambda blockhashes:
+            self.failUnlessEqual(self.block_hash_tree,
+                                 blockhashes,
+                                 blockhashes))
+        #  - The sharehashes
+        d.addCallback(lambda ignored:
+            mr.get_sharehashes())
+        d.addCallback(lambda sharehashes:
+            self.failUnlessEqual(self.share_hash_chain,
+                                 sharehashes))
+        #  - The keys
+        d.addCallback(lambda ignored:
+            mr.get_encprivkey())
+        d.addCallback(lambda encprivkey:
+            self.failUnlessEqual(encprivkey, self.encprivkey, encprivkey))
+        d.addCallback(lambda ignored:
+            mr.get_verification_key())
+        d.addCallback(lambda verification_key:
+            self.failUnlessEqual(verification_key,
+                                 self.verification_key,
+                                 verification_key))
+        #  - The signature
+        d.addCallback(lambda ignored:
+            mr.get_signature())
+        d.addCallback(lambda signature:
+            self.failUnlessEqual(signature, self.signature, signature))
+
+        #  - The sequence number
+        d.addCallback(lambda ignored:
+            mr.get_seqnum())
+        d.addCallback(lambda seqnum:
+            self.failUnlessEqual(seqnum, 0, seqnum))
+
+        #  - The root hash
+        d.addCallback(lambda ignored:
+            mr.get_root_hash())
+        d.addCallback(lambda root_hash:
+            self.failUnlessEqual(root_hash, self.root_hash, root_hash))
+        return d
+
+
+    def test_only_reads_one_segment_sdmf(self):
+        # SDMF shares have only one segment, so it doesn't make sense to
+        # read more segments than that. The reader should know this and
+        # complain if we try to do that.
+        self.write_sdmf_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            mr.is_sdmf())
+        d.addCallback(lambda issdmf:
+            self.failUnless(issdmf))
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "test bad segment",
+                            None,
+                            mr.get_block_and_salt, 1))
+        return d
+
+
+    def test_read_with_prefetched_mdmf_data(self):
+        # The MDMFSlotReadProxy will prefill certain fields if you pass
+        # it data that you have already fetched. This is useful for
+        # cases like the Servermap, which prefetches ~2kb of data while
+        # finding out which shares are on the remote peer so that it
+        # doesn't waste round trips.
+        mdmf_data = self.build_test_mdmf_share()
+        self.write_test_share_to_server("si1")
+        def _make_mr(ignored, length):
+            mr = MDMFSlotReadProxy(self.rref, "si1", 0, mdmf_data[:length])
+            return mr
+
+        d = defer.succeed(None)
+        # This should be enough to fill in both the encoding parameters
+        # and the table of offsets, which will complete the version
+        # information tuple.
+        d.addCallback(_make_mr, 123)
+        d.addCallback(lambda mr:
+            mr.get_verinfo())
+        def _check_verinfo(verinfo):
+            self.failUnless(verinfo)
+            self.failUnlessEqual(len(verinfo), 9)
+            (seqnum,
+             root_hash,
+             salt_hash,
+             segsize,
+             datalen,
+             k,
+             n,
+             prefix,
+             offsets) = verinfo
+            self.failUnlessEqual(seqnum, 0)
+            self.failUnlessEqual(root_hash, self.root_hash)
+            self.failUnlessEqual(segsize, 6)
+            self.failUnlessEqual(datalen, 36)
+            self.failUnlessEqual(k, 3)
+            self.failUnlessEqual(n, 10)
+            expected_prefix = struct.pack(MDMFSIGNABLEHEADER,
+                                          1,
+                                          seqnum,
+                                          root_hash,
+                                          k,
+                                          n,
+                                          segsize,
+                                          datalen)
+            self.failUnlessEqual(expected_prefix, prefix)
+            self.failUnlessEqual(self.rref.read_count, 0)
+        d.addCallback(_check_verinfo)
+        # This is not enough data to read a block and a share, so the
+        # wrapper should attempt to read this from the remote server.
+        d.addCallback(_make_mr, 123)
+        d.addCallback(lambda mr:
+            mr.get_block_and_salt(0))
+        def _check_block_and_salt((block, salt)):
+            self.failUnlessEqual(block, self.block)
+            self.failUnlessEqual(salt, self.salt)
+            self.failUnlessEqual(self.rref.read_count, 1)
+        # This should be enough data to read one block.
+        d.addCallback(_make_mr, 123 + PRIVATE_KEY_SIZE + SIGNATURE_SIZE + VERIFICATION_KEY_SIZE + SHARE_HASH_CHAIN_SIZE + 140)
+        d.addCallback(lambda mr:
+            mr.get_block_and_salt(0))
+        d.addCallback(_check_block_and_salt)
+        return d
+
+
+    def test_read_with_prefetched_sdmf_data(self):
+        sdmf_data = self.build_test_sdmf_share()
+        self.write_sdmf_share_to_server("si1")
+        def _make_mr(ignored, length):
+            mr = MDMFSlotReadProxy(self.rref, "si1", 0, sdmf_data[:length])
+            return mr
+
+        d = defer.succeed(None)
+        # This should be enough to get us the encoding parameters,
+        # offset table, and everything else we need to build a verinfo
+        # string.
+        d.addCallback(_make_mr, 123)
+        d.addCallback(lambda mr:
+            mr.get_verinfo())
+        def _check_verinfo(verinfo):
+            self.failUnless(verinfo)
+            self.failUnlessEqual(len(verinfo), 9)
+            (seqnum,
+             root_hash,
+             salt,
+             segsize,
+             datalen,
+             k,
+             n,
+             prefix,
+             offsets) = verinfo
+            self.failUnlessEqual(seqnum, 0)
+            self.failUnlessEqual(root_hash, self.root_hash)
+            self.failUnlessEqual(salt, self.salt)
+            self.failUnlessEqual(segsize, 36)
+            self.failUnlessEqual(datalen, 36)
+            self.failUnlessEqual(k, 3)
+            self.failUnlessEqual(n, 10)
+            expected_prefix = struct.pack(SIGNED_PREFIX,
+                                          0,
+                                          seqnum,
+                                          root_hash,
+                                          salt,
+                                          k,
+                                          n,
+                                          segsize,
+                                          datalen)
+            self.failUnlessEqual(expected_prefix, prefix)
+            self.failUnlessEqual(self.rref.read_count, 0)
+        d.addCallback(_check_verinfo)
+        # This shouldn't be enough to read any share data.
+        d.addCallback(_make_mr, 123)
+        d.addCallback(lambda mr:
+            mr.get_block_and_salt(0))
+        def _check_block_and_salt((block, salt)):
+            self.failUnlessEqual(block, self.block * 6)
+            self.failUnlessEqual(salt, self.salt)
+            # TODO: Fix the read routine so that it reads only the data
+            #       that it has cached if it can't read all of it.
+            self.failUnlessEqual(self.rref.read_count, 2)
+
+        # This should be enough to read share data.
+        d.addCallback(_make_mr, self.offsets['share_data'])
+        d.addCallback(lambda mr:
+            mr.get_block_and_salt(0))
+        d.addCallback(_check_block_and_salt)
+        return d
+
+
+    def test_read_with_empty_mdmf_file(self):
+        # Some tests upload a file with no contents to test things
+        # unrelated to the actual handling of the content of the file.
+        # The reader should behave intelligently in these cases.
+        self.write_test_share_to_server("si1", empty=True)
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        # We should be able to get the encoding parameters, and they
+        # should be correct.
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            mr.get_encoding_parameters())
+        def _check_encoding_parameters(params):
+            self.failUnlessEqual(len(params), 4)
+            k, n, segsize, datalen = params
+            self.failUnlessEqual(k, 3)
+            self.failUnlessEqual(n, 10)
+            self.failUnlessEqual(segsize, 0)
+            self.failUnlessEqual(datalen, 0)
+        d.addCallback(_check_encoding_parameters)
+
+        # We should not be able to fetch a block, since there are no
+        # blocks to fetch
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "get block on empty file",
+                            None,
+                            mr.get_block_and_salt, 0))
+        return d
+
+
+    def test_read_with_empty_sdmf_file(self):
+        self.write_sdmf_share_to_server("si1", empty=True)
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        # We should be able to get the encoding parameters, and they
+        # should be correct
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            mr.get_encoding_parameters())
+        def _check_encoding_parameters(params):
+            self.failUnlessEqual(len(params), 4)
+            k, n, segsize, datalen = params
+            self.failUnlessEqual(k, 3)
+            self.failUnlessEqual(n, 10)
+            self.failUnlessEqual(segsize, 0)
+            self.failUnlessEqual(datalen, 0)
+        d.addCallback(_check_encoding_parameters)
+
+        # It does not make sense to get a block in this format, so we
+        # should not be able to.
+        d.addCallback(lambda ignored:
+            self.shouldFail(LayoutInvalid, "get block on an empty file",
+                            None,
+                            mr.get_block_and_salt, 0))
+        return d
+
+
+    def test_verinfo_with_sdmf_file(self):
+        self.write_sdmf_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        # We should be able to get the version information.
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            mr.get_verinfo())
+        def _check_verinfo(verinfo):
+            self.failUnless(verinfo)
+            self.failUnlessEqual(len(verinfo), 9)
+            (seqnum,
+             root_hash,
+             salt,
+             segsize,
+             datalen,
+             k,
+             n,
+             prefix,
+             offsets) = verinfo
+            self.failUnlessEqual(seqnum, 0)
+            self.failUnlessEqual(root_hash, self.root_hash)
+            self.failUnlessEqual(salt, self.salt)
+            self.failUnlessEqual(segsize, 36)
+            self.failUnlessEqual(datalen, 36)
+            self.failUnlessEqual(k, 3)
+            self.failUnlessEqual(n, 10)
+            expected_prefix = struct.pack(">BQ32s16s BBQQ",
+                                          0,
+                                          seqnum,
+                                          root_hash,
+                                          salt,
+                                          k,
+                                          n,
+                                          segsize,
+                                          datalen)
+            self.failUnlessEqual(prefix, expected_prefix)
+            self.failUnlessEqual(offsets, self.offsets)
+        d.addCallback(_check_verinfo)
+        return d
+
+
+    def test_verinfo_with_mdmf_file(self):
+        self.write_test_share_to_server("si1")
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d = defer.succeed(None)
+        d.addCallback(lambda ignored:
+            mr.get_verinfo())
+        def _check_verinfo(verinfo):
+            self.failUnless(verinfo)
+            self.failUnlessEqual(len(verinfo), 9)
+            (seqnum,
+             root_hash,
+             IV,
+             segsize,
+             datalen,
+             k,
+             n,
+             prefix,
+             offsets) = verinfo
+            self.failUnlessEqual(seqnum, 0)
+            self.failUnlessEqual(root_hash, self.root_hash)
+            self.failIf(IV)
+            self.failUnlessEqual(segsize, 6)
+            self.failUnlessEqual(datalen, 36)
+            self.failUnlessEqual(k, 3)
+            self.failUnlessEqual(n, 10)
+            expected_prefix = struct.pack(">BQ32s BBQQ",
+                                          1,
+                                          seqnum,
+                                          root_hash,
+                                          k,
+                                          n,
+                                          segsize,
+                                          datalen)
+            self.failUnlessEqual(prefix, expected_prefix)
+            self.failUnlessEqual(offsets, self.offsets)
+        d.addCallback(_check_verinfo)
+        return d
+
+
+    def test_reader_queue(self):
+        self.write_test_share_to_server('si1')
+        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
+        d1 = mr.get_block_and_salt(0, queue=True)
+        d2 = mr.get_blockhashes(queue=True)
+        d3 = mr.get_sharehashes(queue=True)
+        d4 = mr.get_signature(queue=True)
+        d5 = mr.get_verification_key(queue=True)
+        dl = defer.DeferredList([d1, d2, d3, d4, d5])
+        mr.flush()
+        def _print(results):
+            self.failUnlessEqual(len(results), 5)
+            # We have one read for version information and offsets, and
+            # one for everything else.
+            self.failUnlessEqual(self.rref.read_count, 2)
+            block, salt = results[0][1] # results[0] is a boolean that says
+                                           # whether or not the operation
+                                           # worked.
+            self.failUnlessEqual(self.block, block)
+            self.failUnlessEqual(self.salt, salt)
+
+            blockhashes = results[1][1]
+            self.failUnlessEqual(self.block_hash_tree, blockhashes)
+
+            sharehashes = results[2][1]
+            self.failUnlessEqual(self.share_hash_chain, sharehashes)
+
+            signature = results[3][1]
+            self.failUnlessEqual(self.signature, signature)
+
+            verification_key = results[4][1]
+            self.failUnlessEqual(self.verification_key, verification_key)
+        dl.addCallback(_print)
+        return dl
+
+
+    def test_sdmf_writer(self):
+        # Go through the motions of writing an SDMF share to the storage
+        # server. Then read the storage server to see that the share got
+        # written in the way that we think it should have. 
+
+        # We do this first so that the necessary instance variables get
+        # set the way we want them for the tests below.
+        data = self.build_test_sdmf_share()
+        sdmfr = SDMFSlotWriteProxy(0,
+                                   self.rref,
+                                   "si1",
+                                   self.secrets,
+                                   0, 3, 10, 36, 36)
+        # Put the block and salt.
+        sdmfr.put_block(self.blockdata, 0, self.salt)
+
+        # Put the encprivkey
+        sdmfr.put_encprivkey(self.encprivkey)
+
+        # Put the block and share hash chains
+        sdmfr.put_blockhashes(self.block_hash_tree)
+        sdmfr.put_sharehashes(self.share_hash_chain)
+        sdmfr.put_root_hash(self.root_hash)
+
+        # Put the signature
+        sdmfr.put_signature(self.signature)
+
+        # Put the verification key
+        sdmfr.put_verification_key(self.verification_key)
+
+        # Now check to make sure that nothing has been written yet.
+        self.failUnlessEqual(self.rref.write_count, 0)
+
+        # Now finish publishing
+        d = sdmfr.finish_publishing()
+        def _then(ignored):
+            self.failUnlessEqual(self.rref.write_count, 1)
+            read = self.ss.remote_slot_readv
+            self.failUnlessEqual(read("si1", [0], [(0, len(data))]),
+                                 {0: [data]})
+        d.addCallback(_then)
+        return d
+
+
+    def test_sdmf_writer_preexisting_share(self):
+        data = self.build_test_sdmf_share()
+        self.write_sdmf_share_to_server("si1")
+
+        # Now there is a share on the storage server. To successfully
+        # write, we need to set the checkstring correctly. When we
+        # don't, no write should occur.
+        sdmfw = SDMFSlotWriteProxy(0,
+                                   self.rref,
+                                   "si1",
+                                   self.secrets,
+                                   1, 3, 10, 36, 36)
+        sdmfw.put_block(self.blockdata, 0, self.salt)
+
+        # Put the encprivkey
+        sdmfw.put_encprivkey(self.encprivkey)
+
+        # Put the block and share hash chains
+        sdmfw.put_blockhashes(self.block_hash_tree)
+        sdmfw.put_sharehashes(self.share_hash_chain)
+
+        # Put the root hash
+        sdmfw.put_root_hash(self.root_hash)
+
+        # Put the signature
+        sdmfw.put_signature(self.signature)
+
+        # Put the verification key
+        sdmfw.put_verification_key(self.verification_key)
+
+        # We shouldn't have a checkstring yet
+        self.failUnlessEqual(sdmfw.get_checkstring(), "")
+
+        d = sdmfw.finish_publishing()
+        def _then(results):
+            self.failIf(results[0])
+            # this is the correct checkstring
+            self._expected_checkstring = results[1][0][0]
+            return self._expected_checkstring
+
+        d.addCallback(_then)
+        d.addCallback(sdmfw.set_checkstring)
+        d.addCallback(lambda ignored:
+            sdmfw.get_checkstring())
+        d.addCallback(lambda checkstring:
+            self.failUnlessEqual(checkstring, self._expected_checkstring))
+        d.addCallback(lambda ignored:
+            sdmfw.finish_publishing())
+        def _then_again(results):
+            self.failUnless(results[0])
+            read = self.ss.remote_slot_readv
+            self.failUnlessEqual(read("si1", [0], [(1, 8)]),
+                                 {0: [struct.pack(">Q", 1)]})
+            self.failUnlessEqual(read("si1", [0], [(9, len(data) - 9)]),
+                                 {0: [data[9:]]})
+        d.addCallback(_then_again)
+        return d
+
 
 class Stats(unittest.TestCase):
 
