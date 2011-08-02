@@ -30,6 +30,7 @@ from allmydata.util.consumer import download_to_data
 from allmydata.interfaces import IFileNode, IDirectoryNode, ExistingChildError, \
      NoSuchChildError, ChildOfWrongTypeError
 from allmydata.mutable.common import NotWriteableError
+from allmydata.mutable.publish import MutableFileHandle
 from allmydata.immutable.upload import FileHandle
 from allmydata.dirnode import update_metadata
 from allmydata.util.fileutil import EncryptedTemporaryFile
@@ -663,22 +664,17 @@ class GeneralSFTPFile(PrefixingLogMixin):
         else:
             assert IFileNode.providedBy(filenode), filenode
 
-            if filenode.is_mutable():
-                self.async.addCallback(lambda ign: filenode.download_best_version())
-                def _downloaded(data):
-                    self.consumer = OverwriteableFileConsumer(len(data), tempfile_maker)
-                    self.consumer.write(data)
-                    self.consumer.finish()
-                    return None
-                self.async.addCallback(_downloaded)
-            else:
-                download_size = filenode.get_size()
-                assert download_size is not None, "download_size is None"
+            self.async.addCallback(lambda ignored: filenode.get_best_readable_version())
+
+            def _read(version):
+                if noisy: self.log("_read", level=NOISY)
+                download_size = version.get_size()
+                assert download_size is not None
+
                 self.consumer = OverwriteableFileConsumer(download_size, tempfile_maker)
-                def _read(ign):
-                    if noisy: self.log("_read immutable", level=NOISY)
-                    filenode.read(self.consumer, 0, None)
-                self.async.addCallback(_read)
+
+                version.read(self.consumer, 0, None)
+            self.async.addCallback(_read)
 
         eventually(self.async.callback, None)
 
@@ -822,9 +818,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
                     assert parent and childname, (parent, childname, self.metadata)
                     d2.addCallback(lambda ign: parent.set_metadata_for(childname, self.metadata))
 
-                d2.addCallback(lambda ign: self.consumer.get_current_size())
-                d2.addCallback(lambda size: self.consumer.read(0, size))
-                d2.addCallback(lambda new_contents: self.filenode.overwrite(new_contents))
+                d2.addCallback(lambda ign: self.filenode.overwrite(MutableFileHandle(self.consumer.get_file())))
             else:
                 def _add_file(ign):
                     self.log("_add_file childname=%r" % (childname,), level=OPERATIONAL)

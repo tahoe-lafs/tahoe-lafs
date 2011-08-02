@@ -29,6 +29,7 @@ from allmydata.mutable.common import NotWriteableError
 
 from allmydata.util.consumer import download_to_data
 from allmydata.immutable import upload
+from allmydata.mutable import publish
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common import ShouldFailMixin
 from allmydata.test.common_util import ReallyEqualMixin
@@ -76,7 +77,8 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         return d
 
     def _set_up_tree(self):
-        d = self.client.create_mutable_file("mutable file contents")
+        u = publish.MutableData("mutable file contents")
+        d = self.client.create_mutable_file(u)
         d.addCallback(lambda node: self.root.set_node(u"mutable", node))
         def _created_mutable(n):
             self.mutable = n
