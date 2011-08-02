@@ -287,6 +287,32 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         d.addCallback(_try_download)
         return d
 
+    def test_download_to_data(self):
+        d = self.n.download_to_data()
+        d.addCallback(lambda data:
+            self.failUnlessEqual(data, common.TEST_DATA))
+        return d
+
+
+    def test_download_best_version(self):
+        d = self.n.download_best_version()
+        d.addCallback(lambda data:
+            self.failUnlessEqual(data, common.TEST_DATA))
+        return d
+
+
+    def test_get_best_readable_version(self):
+        d = self.n.get_best_readable_version()
+        d.addCallback(lambda n2:
+            self.failUnlessEqual(n2, self.n))
+        return d
+
+    def test_get_size_of_best_version(self):
+        d = self.n.get_size_of_best_version()
+        d.addCallback(lambda size:
+            self.failUnlessEqual(size, len(common.TEST_DATA)))
+        return d
+
 
 # XXX extend these tests to show bad behavior of various kinds from servers:
 # raising exception from each remove_foo() method, for example

@@ -5,10 +5,15 @@ import time
 now = time.time
 from zope.interface import implements
 from twisted.internet import defer
-from twisted.internet.interfaces import IConsumer
 
-from allmydata.interfaces import IImmutableFileNode, IUploadResults
 from allmydata import uri
+from twisted.internet.interfaces import IConsumer
+from twisted.protocols import basic
+from foolscap.api import eventually
+from allmydata.interfaces import IImmutableFileNode, ICheckable, \
+     IDownloadTarget, IUploadResults
+from allmydata.util import dictutil, log, base32, consumer
+from allmydata.immutable.checker import Checker
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.util.dictutil import DictOfSets
 from pycryptopp.cipher.aes import AES
@@ -277,3 +282,33 @@ class ImmutableFileNode:
         return self._cnode.check_and_repair(monitor, verify, add_lease)
     def check(self, monitor, verify=False, add_lease=False):
         return self._cnode.check(monitor, verify, add_lease)
+
+    def get_best_readable_version(self):
+        """
+        Return an IReadable of the best version of this file. Since
+        immutable files can have only one version, we just return the
+        current filenode.
+        """
+        return defer.succeed(self)
+
+
+    def download_best_version(self):
+        """
+        Download the best version of this file, returning its contents
+        as a bytestring. Since there is only one version of an immutable
+        file, we download and return the contents of this file.
+        """
+        d = consumer.download_to_data(self)
+        return d
+
+    # for an immutable file, download_to_data (specified in IReadable)
+    # is the same as download_best_version (specified in IFileNode). For
+    # mutable files, the difference is more meaningful, since they can
+    # have multiple versions.
+    download_to_data = download_best_version
+
+
+    # get_size() (IReadable), get_current_size() (IFilesystemNode), and
+    # get_size_of_best_version(IFileNode) are all the same for immutable
+    # files.
+    get_size_of_best_version = get_current_size
