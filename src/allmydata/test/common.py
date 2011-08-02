@@ -8,12 +8,16 @@ from twisted.web.error import Error as WebError
 from foolscap.api import flushEventualQueue, fireEventually
 from allmydata import uri, dirnode, client
 from allmydata.introducer.server import IntroducerNode
-from allmydata.interfaces import IMutableFileNode, IImmutableFileNode, \
-     FileTooLargeError, NotEnoughSharesError, ICheckable
+from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
+                                 NotEnoughSharesError, ICheckable, \
+                                 IMutableUploadable, SDMF_VERSION, \
+                                 MDMF_VERSION
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
 from allmydata.mutable.common import CorruptShareError
 from allmydata.mutable.layout import unpack_header
+from allmydata.mutable.publish import MutableData
+from allmydata.storage.server import storage_index_to_dir
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.util import hashutil, log, fileutil, pollmixin
 from allmydata.util.assertutil import precondition
@@ -145,6 +149,22 @@ class FakeCHKFileNode:
         consumer.write(data[start:end])
         return consumer
 
+
+    def get_best_readable_version(self):
+        return defer.succeed(self)
+
+
+    def download_to_data(self):
+        return download_to_data(self)
+
+
+    download_best_version = download_to_data
+
+
+    def get_size_of_best_version(self):
+        return defer.succeed(self.get_size)
+
+
 def make_chk_file_cap(size):
     return uri.CHKFileURI(key=os.urandom(16),
                           uri_extension_hash=os.urandom(32),
@@ -169,31 +189,50 @@ class FakeMutableFileNode:
     MUTABLE_SIZELIMIT = 10000
     all_contents = {}
     bad_shares = {}
+    file_types = {} # storage index => MDMF_VERSION or SDMF_VERSION
 
     def __init__(self, storage_broker, secret_holder,
                  default_encoding_parameters, history):
         self.init_from_cap(make_mutable_file_cap())
-    def create(self, contents, key_generator=None, keysize=None):
+        self._k = default_encoding_parameters['k']
+        self._segsize = default_encoding_parameters['max_segment_size']
+    def create(self, contents, key_generator=None, keysize=None,
+               version=SDMF_VERSION):
+        if version == MDMF_VERSION and \
+            isinstance(self.my_uri, (uri.ReadonlySSKFileURI,
+                                 uri.WriteableSSKFileURI)):
+            self.init_from_cap(make_mdmf_mutable_file_cap())
+        self.file_types[self.storage_index] = version
         initial_contents = self._get_initial_contents(contents)
-        if len(initial_contents) > self.MUTABLE_SIZELIMIT:
-            raise FileTooLargeError("SDMF is limited to one segment, and "
-                                    "%d > %d" % (len(initial_contents),
-                                                 self.MUTABLE_SIZELIMIT))
-        self.all_contents[self.storage_index] = initial_contents
+        data = initial_contents.read(initial_contents.get_size())
+        data = "".join(data)
+        self.all_contents[self.storage_index] = data
+        self.my_uri.set_extension_params([self._k, self._segsize])
         return defer.succeed(self)
     def _get_initial_contents(self, contents):
-        if isinstance(contents, str):
-            return contents
         if contents is None:
-            return ""
+            return MutableData("")
+
+        if IMutableUploadable.providedBy(contents):
+            return contents
+
         assert callable(contents), "%s should be callable, not %s" % \
                (contents, type(contents))
         return contents(self)
     def init_from_cap(self, filecap):
         assert isinstance(filecap, (uri.WriteableSSKFileURI,
-                                    uri.ReadonlySSKFileURI))
+                                    uri.ReadonlySSKFileURI,
+                                    uri.WritableMDMFFileURI,
+                                    uri.ReadonlyMDMFFileURI))
         self.my_uri = filecap
         self.storage_index = self.my_uri.get_storage_index()
+        if isinstance(filecap, (uri.WritableMDMFFileURI,
+                                uri.ReadonlyMDMFFileURI)):
+            self.file_types[self.storage_index] = MDMF_VERSION
+
+        else:
+            self.file_types[self.storage_index] = SDMF_VERSION
+
         return self
     def get_cap(self):
         return self.my_uri
@@ -211,6 +250,10 @@ class FakeMutableFileNode:
         return self.my_uri.get_readonly().to_string()
     def get_verify_cap(self):
         return self.my_uri.get_verify_cap()
+    def get_repair_cap(self):
+        if self.my_uri.is_readonly():
+            return None
+        return self.my_uri
     def is_readonly(self):
         return self.my_uri.is_readonly()
     def is_mutable(self):
@@ -232,6 +275,13 @@ class FakeMutableFileNode:
 
     def get_storage_index(self):
         return self.storage_index
+
+    def get_servermap(self, mode):
+        return defer.succeed(None)
+
+    def get_version(self):
+        assert self.storage_index in self.file_types
+        return self.file_types[self.storage_index]
 
     def check(self, monitor, verify=False, add_lease=False):
         r = CheckResults(self.my_uri, self.storage_index)
@@ -291,19 +341,23 @@ class FakeMutableFileNode:
         return d
 
     def download_best_version(self):
+        return defer.succeed(self._download_best_version())
+
+
+    def _download_best_version(self, ignored=None):
         if isinstance(self.my_uri, uri.LiteralFileURI):
-            return defer.succeed(self.my_uri.data)
+            return self.my_uri.data
         if self.storage_index not in self.all_contents:
-            return defer.fail(NotEnoughSharesError(None, 0, 3))
-        return defer.succeed(self.all_contents[self.storage_index])
+            raise NotEnoughSharesError(None, 0, 3)
+        return self.all_contents[self.storage_index]
+
 
     def overwrite(self, new_contents):
-        if len(new_contents) > self.MUTABLE_SIZELIMIT:
-            raise FileTooLargeError("SDMF is limited to one segment, and "
-                                    "%d > %d" % (len(new_contents),
-                                                 self.MUTABLE_SIZELIMIT))
         assert not self.is_readonly()
-        self.all_contents[self.storage_index] = new_contents
+        new_data = new_contents.read(new_contents.get_size())
+        new_data = "".join(new_data)
+        self.all_contents[self.storage_index] = new_data
+        self.my_uri.set_extension_params([self._k, self._segsize])
         return defer.succeed(None)
     def modify(self, modifier):
         # this does not implement FileTooLargeError, but the real one does
@@ -311,18 +365,82 @@ class FakeMutableFileNode:
     def _modify(self, modifier):
         assert not self.is_readonly()
         old_contents = self.all_contents[self.storage_index]
-        self.all_contents[self.storage_index] = modifier(old_contents, None, True)
+        new_data = modifier(old_contents, None, True)
+        self.all_contents[self.storage_index] = new_data
+        self.my_uri.set_extension_params([self._k, self._segsize])
         return None
+
+    # As actually implemented, MutableFilenode and MutableFileVersion
+    # are distinct. However, nothing in the webapi uses (yet) that
+    # distinction -- it just uses the unified download interface
+    # provided by get_best_readable_version and read. When we start
+    # doing cooler things like LDMF, we will want to revise this code to
+    # be less simplistic.
+    def get_best_readable_version(self):
+        return defer.succeed(self)
+
+
+    def get_best_mutable_version(self):
+        return defer.succeed(self)
+
+    # Ditto for this, which is an implementation of IWritable.
+    # XXX: Declare that the same is implemented.
+    def update(self, data, offset):
+        assert not self.is_readonly()
+        def modifier(old, servermap, first_time):
+            new = old[:offset] + "".join(data.read(data.get_size()))
+            new += old[len(new):]
+            return new
+        return self.modify(modifier)
+
+
+    def read(self, consumer, offset=0, size=None):
+        data = self._download_best_version()
+        if size:
+            data = data[offset:offset+size]
+        consumer.write(data)
+        return defer.succeed(consumer)
+
 
 def make_mutable_file_cap():
     return uri.WriteableSSKFileURI(writekey=os.urandom(16),
                                    fingerprint=os.urandom(32))
-def make_mutable_file_uri():
-    return make_mutable_file_cap().to_string()
+
+def make_mdmf_mutable_file_cap():
+    return uri.WritableMDMFFileURI(writekey=os.urandom(16),
+                                   fingerprint=os.urandom(32))
+
+def make_mutable_file_uri(mdmf=False):
+    if mdmf:
+        uri = make_mdmf_mutable_file_cap()
+    else:
+        uri = make_mutable_file_cap()
+
+    return uri.to_string()
 
 def make_verifier_uri():
     return uri.SSKVerifierURI(storage_index=os.urandom(16),
                               fingerprint=os.urandom(32)).to_string()
+
+def create_mutable_filenode(contents, mdmf=False):
+    # XXX: All of these arguments are kind of stupid. 
+    if mdmf:
+        cap = make_mdmf_mutable_file_cap()
+    else:
+        cap = make_mutable_file_cap()
+
+    encoding_params = {}
+    encoding_params['k'] = 3
+    encoding_params['max_segment_size'] = 128*1024
+
+    filenode = FakeMutableFileNode(None, None, encoding_params, None)
+    filenode.init_from_cap(cap)
+    if mdmf:
+        filenode.create(MutableData(contents), version=MDMF_VERSION)
+    else:
+        filenode.create(MutableData(contents), version=SDMF_VERSION)
+    return filenode
+
 
 class FakeDirectoryNode(dirnode.DirectoryNode):
     """This offers IDirectoryNode, but uses a FakeMutableFileNode for the
