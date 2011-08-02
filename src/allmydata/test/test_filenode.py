@@ -95,6 +95,20 @@ class Node(unittest.TestCase):
         def _check_segment(res):
             self.failUnlessEqual(res, DATA[1:1+5])
         d.addCallback(_check_segment)
+        d.addCallback(lambda ignored: fn1.get_best_readable_version())
+        d.addCallback(lambda fn2: self.failUnlessEqual(fn1, fn2))
+        d.addCallback(lambda ignored:
+            fn1.get_size_of_best_version())
+        d.addCallback(lambda size:
+            self.failUnlessEqual(size, len(DATA)))
+        d.addCallback(lambda ignored:
+            fn1.download_to_data())
+        d.addCallback(lambda data:
+            self.failUnlessEqual(data, DATA))
+        d.addCallback(lambda ignored:
+            fn1.download_best_version())
+        d.addCallback(lambda data:
+            self.failUnlessEqual(data, DATA))
 
         return d
 
