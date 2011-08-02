@@ -79,12 +79,15 @@ class NodeMaker:
             return self._create_immutable(cap)
         if isinstance(cap, uri.CHKFileVerifierURI):
             return self._create_immutable_verifier(cap)
-        if isinstance(cap, (uri.ReadonlySSKFileURI, uri.WriteableSSKFileURI)):
+        if isinstance(cap, (uri.ReadonlySSKFileURI, uri.WriteableSSKFileURI,
+                            uri.WritableMDMFFileURI, uri.ReadonlyMDMFFileURI)):
             return self._create_mutable(cap)
         if isinstance(cap, (uri.DirectoryURI,
                             uri.ReadonlyDirectoryURI,
                             uri.ImmutableDirectoryURI,
-                            uri.LiteralDirectoryURI)):
+                            uri.LiteralDirectoryURI,
+                            uri.MDMFDirectoryURI,
+                            uri.ReadonlyMDMFDirectoryURI)):
             filenode = self._create_from_single_cap(cap.get_filenode_cap())
             return self._create_dirnode(filenode)
         return None
