@@ -2,6 +2,7 @@
 from zope.interface import implements
 from twisted.internet import defer
 from allmydata.interfaces import IRepairResults, ICheckResults
+from allmydata.mutable.publish import MutableData
 
 class RepairResults:
     implements(IRepairResults)
@@ -104,6 +105,8 @@ class Repairer:
             raise RepairRequiresWritecapError("Sorry, repair currently requires a writecap, to set the write-enabler properly.")
 
         d = self.node.download_version(smap, best_version, fetch_privkey=True)
+        d.addCallback(lambda data:
+            MutableData(data))
         d.addCallback(self.node.upload, smap)
         d.addCallback(self.get_results, smap)
         return d
