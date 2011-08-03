@@ -246,7 +246,7 @@ class CreateNode(unittest.TestCase):
             # 'create-node', and disabled for 'create-client'.
             tahoe_cfg = os.path.join(n1, "tahoe.cfg")
             self.failUnless(os.path.exists(tahoe_cfg))
-            content = open(tahoe_cfg).read()
+            content = fileutil.read(tahoe_cfg)
             if kind == "client":
                 self.failUnless(re.search(r"\n\[storage\]\n#.*\nenabled = false\n", content), content)
             else:
@@ -352,11 +352,20 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         INTRODUCER_FURL_FILE = os.path.join(c1, "introducer.furl")
+        NODE_URL_FILE = os.path.join(c1, "node.url")
+        CONFIG_FILE = os.path.join(c1, "tahoe.cfg")
 
         d = self.run_bintahoe(["--quiet", "create-introducer", "--basedir", c1])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
+
+            # This makes sure that node.url is written, which allows us to
+            # detect when the introducer restarts in _node_has_restarted below.
+            config = fileutil.read(CONFIG_FILE)
+            self.failUnlessIn('\nweb.port = \n', config)
+            fileutil.write(CONFIG_FILE, config.replace('\nweb.port = \n', '\nweb.port = 0\n'))
+
             # by writing this file, we get ten seconds before the node will
             # exit. This insures that even if the test fails (and the 'stop'
             # command doesn't work), the client should still terminate.
@@ -394,7 +403,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _started(res):
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
-            self.stash_mtime = os.stat(INTRODUCER_FURL_FILE).st_mtime
+            self.failUnless(os.path.exists(NODE_URL_FILE))
+            # rm this so we can detect when the second incarnation is ready
+            os.unlink(NODE_URL_FILE)
             return self.run_bintahoe(["--quiet", "restart", c1])
         d.addCallback(_started)
 
@@ -408,12 +419,10 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_then)
 
         # again, the second incarnation of the node might not be ready yet,
-        # so poll until it is. This time the INTRODUCER_FURL_FILE already
-        # existed (and we couldn't delete it because we wanted to check whether
-        # its existence caused an error), so we check whether its mtime has
-        # changed.
+        # so poll until it is. This time INTRODUCER_FURL_FILE already
+        # exists, so we check for the existence of NODE_URL_FILE instead.
         def _node_has_restarted():
-            return os.stat(INTRODUCER_FURL_FILE).st_mtime != self.stash_mtime
+            return os.path.exists(NODE_URL_FILE)
         d.addCallback(lambda res: self.poll(_node_has_restarted))
 
         # now we can kill it. TODO: On a slow machine, the node might kill
