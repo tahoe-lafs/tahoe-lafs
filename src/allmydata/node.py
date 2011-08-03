@@ -11,7 +11,7 @@ from allmydata.util import log
 from allmydata.util import fileutil, iputil, observer
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import get_filesystem_encoding
+from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
@@ -128,7 +128,8 @@ class Node(service.MultiService):
             if name not in self.GENERATED_FILES:
                 fullfname = os.path.join(self.basedir, name)
                 if os.path.exists(fullfname):
-                    log.err("Found pre-Tahoe-LAFS-v1.3 configuration file: '%s'. See docs/historical/configuration.rst." % (fullfname,))
+                    log.err("Found pre-Tahoe-LAFS-v1.3 configuration file: %s. "
+                            "See docs/historical/configuration.rst." % quote_output(fullfname))
                     oldfnames.add(fullfname)
         if oldfnames:
             raise OldConfigError(oldfnames)
