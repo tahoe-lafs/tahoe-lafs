@@ -46,6 +46,12 @@ class MissingConfigEntry(Exception):
 class OldConfigError(Exception):
     """ An obsolete config file was found. See
     docs/historical/configuration.rst. """
+    def __str__(self):
+        return ("Found pre-Tahoe-LAFS-v1.3 configuration file(s):\n"
+                "%s\n"
+                "See docs/historical/configuration.rst."
+                % "\n".join([quote_output(fname) for fname in self.args[0]]))
+
 
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes and Introducer
@@ -128,11 +134,11 @@ class Node(service.MultiService):
             if name not in self.GENERATED_FILES:
                 fullfname = os.path.join(self.basedir, name)
                 if os.path.exists(fullfname):
-                    log.err("Found pre-Tahoe-LAFS-v1.3 configuration file: %s. "
-                            "See docs/historical/configuration.rst." % quote_output(fullfname))
                     oldfnames.add(fullfname)
         if oldfnames:
-            raise OldConfigError(oldfnames)
+            e = OldConfigError(oldfnames)
+            twlog.msg(e)
+            raise e
 
     def create_tub(self):
         certfile = os.path.join(self.basedir, "private", self.CERTFILE)
