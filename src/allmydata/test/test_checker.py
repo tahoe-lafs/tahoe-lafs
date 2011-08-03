@@ -392,4 +392,5 @@ class TooParallel(GridTestMixin, unittest.TestCase):
             return res
         d.addBoth(_clean_up)
         return d
-    test_immutable.timeout = 10
+
+    test_immutable.timeout = 40
