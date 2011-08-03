@@ -30,36 +30,40 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            BASECONFIG)
         client.Client(basedir)
 
-    @mock.patch('allmydata.util.log.err')
-    def test_warn_on_old_config_files(self, mocklogerr):
-        basedir = "test_client.Basic.test_warn_on_old_config_files"
+    @mock.patch('twisted.python.log.msg')
+    def test_error_on_old_config_files(self, mock_log_msg):
+        basedir = "test_client.Basic.test_error_on_old_config_files"
         os.mkdir(basedir)
-        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
-                           BASECONFIG + \
-                           "[storage]\n" + \
-                           "enabled = false\n" + \
-                           "reserved_space = bogus\n")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG +
+                       "[storage]\n" +
+                       "enabled = false\n" +
+                       "reserved_space = bogus\n")
         fileutil.write(os.path.join(basedir, "introducer.furl"), "")
         fileutil.write(os.path.join(basedir, "no_storage"), "")
         fileutil.write(os.path.join(basedir, "readonly_storage"), "")
         fileutil.write(os.path.join(basedir, "debug_discard_storage"), "")
+
         e = self.failUnlessRaises(OldConfigError, client.Client, basedir)
-        self.failUnlessIn(os.path.abspath(os.path.join(basedir, u"introducer.furl")), e.args[0])
+        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "introducer.furl")), e.args[0])
         self.failUnlessIn(os.path.abspath(os.path.join(basedir, "no_storage")), e.args[0])
         self.failUnlessIn(os.path.abspath(os.path.join(basedir, "readonly_storage")), e.args[0])
         self.failUnlessIn(os.path.abspath(os.path.join(basedir, "debug_discard_storage")), e.args[0])
-        for oldfile in [u'introducer.furl', 'no_storage', 'readonly_storage',
+
+        for oldfile in ['introducer.furl', 'no_storage', 'readonly_storage',
                         'debug_discard_storage']:
-            warned = [ m for m in mocklogerr.call_args_list if ("Found pre-Tahoe-LAFS-v1.3 configuration file" in m[0][0] and oldfile in m[0][0]) ]
-            self.failUnless(warned, (oldfile, mocklogerr.call_args_list))
+            logged = [ m for m in mock_log_msg.call_args_list if
+                       ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m[0][0]) and oldfile in str(m[0][0])) ]
+            self.failUnless(logged, (oldfile, mock_log_msg.call_args_list))
 
         for oldfile in [
             'nickname', 'webport', 'keepalive_timeout', 'log_gatherer.furl',
             'disconnect_timeout', 'advertised_ip_addresses', 'helper.furl',
             'key_generator.furl', 'stats_gatherer.furl', 'sizelimit',
             'run_helper']:
-            warned = [ m for m in mocklogerr.call_args_list if ("Found pre-Tahoe-LAFS-v1.3 configuration file" in m[0][0] and oldfile in m[0][0]) ]
-            self.failIf(warned, oldfile)
+            logged = [ m for m in mock_log_msg.call_args_list if
+                       ("Found pre-Tahoe-LAFS-v1.3 configuration file" in str(m[0][0]) and oldfile in str(m[0][0])) ]
+            self.failIf(logged, oldfile)
 
     def test_secrets(self):
         basedir = "test_client.Basic.test_secrets"
