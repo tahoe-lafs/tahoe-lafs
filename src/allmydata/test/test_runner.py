@@ -394,8 +394,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _started(res):
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
-            # rm this so we can detect when the second incarnation is ready
-            os.unlink(INTRODUCER_FURL_FILE)
+            self.stash_mtime = os.stat(INTRODUCER_FURL_FILE).st_mtime
             return self.run_bintahoe(["--quiet", "restart", c1])
         d.addCallback(_started)
 
@@ -409,8 +408,13 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_then)
 
         # again, the second incarnation of the node might not be ready yet,
-        # so poll until it is
-        d.addCallback(lambda res: self.poll(_node_has_started))
+        # so poll until it is. This time the INTRODUCER_FURL_FILE already
+        # existed (and we couldn't delete it because we wanted to check whether
+        # its existence caused an error), so we check whether its mtime has
+        # changed.
+        def _node_has_restarted():
+            return os.stat(INTRODUCER_FURL_FILE).st_mtime != self.stash_mtime
+        d.addCallback(lambda res: self.poll(_node_has_restarted))
 
         # now we can kill it. TODO: On a slow machine, the node might kill
         # itself before we get a chance too, especially if spawning the
