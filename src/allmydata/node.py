@@ -53,6 +53,7 @@ class Node(service.MultiService):
     NODETYPE = "unknown NODETYPE"
     PORTNUMFILE = None
     CERTFILE = "node.pem"
+    GENERATED_FILES = []
 
     def __init__(self, basedir=u"."):
         service.MultiService.__init__(self)
@@ -62,7 +63,7 @@ class Node(service.MultiService):
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
         open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
 
-        # creates self.config, populates from distinct files if necessary
+        # creates self.config
         self.read_config()
         nickname_utf8 = self.get_config("node", "nickname", "<unspecified>")
         self.nickname = nickname_utf8.decode("utf-8")
@@ -110,11 +111,11 @@ class Node(service.MultiService):
         assert self.config.get(section, option) == value
 
     def read_config(self):
-        self.warn_about_old_config_files()
+        self.error_about_old_config_files()
         self.config = ConfigParser.SafeConfigParser()
         self.config.read([os.path.join(self.basedir, "tahoe.cfg")])
 
-    def warn_about_old_config_files(self):
+    def error_about_old_config_files(self):
         """ If any old configuration files are detected, raise OldConfigError. """
 
         oldfnames = set()
@@ -124,10 +125,11 @@ class Node(service.MultiService):
             'helper.furl', 'key_generator.furl', 'stats_gatherer.furl',
             'no_storage', 'readonly_storage', 'sizelimit',
             'debug_discard_storage', 'run_helper']:
-            fullfname = os.path.join(self.basedir, name)
-            if os.path.exists(fullfname):
-                log.err("Found pre-Tahoe-LAFS-v1.3 configuration file: '%s'. See docs/historical/configuration.rst." % (fullfname,))
-                oldfnames.add(fullfname)
+            if name not in self.GENERATED_FILES:
+                fullfname = os.path.join(self.basedir, name)
+                if os.path.exists(fullfname):
+                    log.err("Found pre-Tahoe-LAFS-v1.3 configuration file: '%s'. See docs/historical/configuration.rst." % (fullfname,))
+                    oldfnames.add(fullfname)
         if oldfnames:
             raise OldConfigError(oldfnames)
 

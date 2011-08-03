@@ -13,6 +13,7 @@ from allmydata.introducer.interfaces import \
 class IntroducerNode(node.Node):
     PORTNUMFILE = "introducer.port"
     NODETYPE = "introducer"
+    GENERATED_FILES = ['introducer.furl']
 
     def __init__(self, basedir="."):
         node.Node.__init__(self, basedir)

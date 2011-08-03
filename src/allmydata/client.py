@@ -165,22 +165,6 @@ class Client(node.Node, pollmixin.PollMixin):
         if webport:
             self.init_web(webport) # strports string
 
-    def read_old_config_files(self):
-        node.Node.read_old_config_files(self)
-        copy = self._copy_config_from_file
-        copy("introducer.furl", "client", "introducer.furl")
-        copy("helper.furl", "client", "helper.furl")
-        copy("key_generator.furl", "client", "key_generator.furl")
-        copy("stats_gatherer.furl", "client", "stats_gatherer.furl")
-        if os.path.exists(os.path.join(self.basedir, "no_storage")):
-            self.set_config("storage", "enabled", "false")
-        if os.path.exists(os.path.join(self.basedir, "readonly_storage")):
-            self.set_config("storage", "readonly", "true")
-        if os.path.exists(os.path.join(self.basedir, "debug_discard_storage")):
-            self.set_config("storage", "debug_discard", "true")
-        if os.path.exists(os.path.join(self.basedir, "run_helper")):
-            self.set_config("helper", "enabled", "true")
-
     def init_introducer_client(self):
         self.introducer_furl = self.get_config("client", "introducer.furl")
         ic = IntroducerClient(self.tub, self.introducer_furl,
