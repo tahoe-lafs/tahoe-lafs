@@ -76,8 +76,8 @@ set the ``tub.location`` option described below.
 ``web.port = (strports string, optional)``
 
     This controls where the node's webserver should listen, providing
-    filesystem access and node status as defined in `webapi.rst
-    <frontends/webapi.rst>`_. This file contains a Twisted "strports"
+    filesystem access and node status as defined in
+    `<frontends/webapi.rst>`_. This file contains a Twisted "strports"
     specification such as "``3456``" or "``tcp:3456:interface=127.0.0.1``".
     The "``tahoe create-node``" or "``tahoe create-client``" commands set the
     ``web.port`` to "``tcp:3456:interface=127.0.0.1``" by default; this is
@@ -296,36 +296,29 @@ Client Configuration
 
     These three values set the default encoding parameters. Each time a new
     file is uploaded, erasure-coding is used to break the ciphertext into
-    separate pieces. There will be ``N`` (i.e. ``shares.total``) pieces
+    separate shares. There will be ``N`` (i.e. ``shares.total``) shares
     created, and the file will be recoverable if any ``k``
-    (i.e. ``shares.needed``) pieces are retrieved. The default values are
+    (i.e. ``shares.needed``) shares are retrieved. The default values are
     3-of-10 (i.e.  ``shares.needed = 3``, ``shares.total = 10``). Setting
     ``k`` to 1 is equivalent to simple replication (uploading ``N`` copies of
     the file).
 
-    These values control the tradeoff between storage overhead, performance,
-    and reliability. To a first approximation, a 1MB file will use (1MB *
+    These values control the tradeoff between storage overhead and
+    reliability. To a first approximation, a 1MB file will use (1MB *
     ``N``/``k``) of backend storage space (the actual value will be a bit
     more, because of other forms of overhead). Up to ``N``-``k`` shares can
-    be lost before the file becomes unrecoverable, so assuming there are at
-    least ``N`` servers, up to ``N``-``k`` servers can be offline without
-    losing the file. So large ``N``/``k`` ratios are more reliable, and small
-    ``N``/``k`` ratios use less disk space.  Clearly, ``k`` must never be
-    greater than ``N``.
+    be lost before the file becomes unrecoverable.  So large ``N``/``k``
+    ratios are more reliable, and small ``N``/``k`` ratios use less disk
+    space. ``N`` cannot be larger than 256, because of the 8-bit
+    erasure-coding algorithm that Tahoe-LAFS uses. ``k`` can not be greater
+    than ``N``. See `<performance.rst>`_ for more details.
 
-    Large values of ``N`` will slow down upload operations slightly, since
-    more servers must be involved, and will slightly increase storage
-    overhead due to the hash trees that are created. Large values of ``k``
-    will cause downloads to be marginally slower, because more servers must
-    be involved.  ``N`` cannot be larger than 256, because of the 8-bit
-    erasure-coding algorithm that Tahoe-LAFS uses.
-
-    ``shares.happy`` allows you control over the distribution of your
-    immutable file. For a successful upload, shares are guaranteed to be
-    initially placed on at least ``shares.happy`` distinct servers, the
-    correct functioning of any ``k`` of which is sufficient to guarantee the
-    availability of the uploaded file. This value should not be larger than
-    the number of servers on your grid.
+    ``shares.happy`` allows you control over how well to "spread out" the
+    shares of an immutable file. For a successful upload, shares are
+    guaranteed to be initially placed on at least ``shares.happy`` distinct
+    servers, the correct functioning of any ``k`` of which is sufficient to
+    guarantee the availability of the uploaded file. This value should not be
+    larger than the number of servers on your grid.
 
     A value of ``shares.happy`` <= ``k`` is allowed, but does not provide any
     redundancy if some servers fail or lose shares.
