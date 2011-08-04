@@ -13,9 +13,9 @@ Configuring a Tahoe-LAFS node
 9.  `Backwards Compatibility Files`_
 10. `Example`_
 
-A Tahoe-LAFS node is configured by writing to files in its base directory. These
-files are read by the node when it starts, so each time you change them, you
-need to restart the node.
+A Tahoe-LAFS node is configured by writing to files in its base
+directory. These files are read by the node when it starts, so each time you
+change them, you need to restart the node.
 
 The node also writes state to its base directory, so it will create files on
 its own.
@@ -26,24 +26,28 @@ base directory.
 
 The main file is named "``tahoe.cfg``", and is an ".INI"-style configuration
 file (parsed by the Python stdlib 'ConfigParser' module: "``[name]``" section
-markers, lines with "``key.subkey: value``", rfc822-style continuations). There
-are also other files containing information that does not easily fit into this
-format. The "``tahoe create-node``" or "``tahoe create-client``" command will
-create an initial ``tahoe.cfg`` file for you. After creation, the node will
-never modify the ``tahoe.cfg`` file: all persistent state is put in other files.
+markers, lines with "``key.subkey: value``", rfc822-style
+continuations). There are also other files containing information that does
+not easily fit into this format. The "``tahoe create-node``" or "``tahoe
+create-client``" command will create an initial ``tahoe.cfg`` file for
+you. After creation, the node will never modify the ``tahoe.cfg`` file: all
+persistent state is put in other files.
 
 The item descriptions below use the following types:
 
 ``boolean``
+
     one of (True, yes, on, 1, False, off, no, 0), case-insensitive
 
 ``strports string``
-    a Twisted listening-port specification string, like "``tcp:80``"
-    or "``tcp:3456:interface=127.0.0.1``". For a full description of
-    the format, see `the Twisted strports documentation
+
+    a Twisted listening-port specification string, like "``tcp:80``" or
+    "``tcp:3456:interface=127.0.0.1``". For a full description of the format,
+    see `the Twisted strports documentation
     <http://twistedmatrix.com/documents/current/api/twisted.application.strports.html>`_.
 
 ``FURL string``
+
     a Foolscap endpoint identifier, like
     ``pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm``
 
@@ -75,24 +79,25 @@ set the ``tub.location`` option described below.
     filesystem access and node status as defined in `webapi.rst
     <frontends/webapi.rst>`_. This file contains a Twisted "strports"
     specification such as "``3456``" or "``tcp:3456:interface=127.0.0.1``".
-    The "``tahoe create-node``" or "``tahoe create-client``" commands set
-    the ``web.port`` to "``tcp:3456:interface=127.0.0.1``" by default; this
-    is overridable by the ``--webport`` option. You can make it use SSL by
+    The "``tahoe create-node``" or "``tahoe create-client``" commands set the
+    ``web.port`` to "``tcp:3456:interface=127.0.0.1``" by default; this is
+    overridable by the ``--webport`` option. You can make it use SSL by
     writing "``ssl:3456:privateKey=mykey.pem:certKey=cert.pem``" instead.
 
     If this is not provided, the node will not run a web server.
 
 ``web.static = (string, optional)``
 
-    This controls where the ``/static`` portion of the URL space is served. The
-    value is a directory name (``~username`` is allowed, and non-absolute names
-    are interpreted relative to the node's basedir), which can contain HTML
-    and other files. This can be used to serve a Javascript-based frontend to
-    the Tahoe-LAFS node, or other services.
+    This controls where the ``/static`` portion of the URL space is
+    served. The value is a directory name (``~username`` is allowed, and
+    non-absolute names are interpreted relative to the node's basedir), which
+    can contain HTML and other files. This can be used to serve a
+    Javascript-based frontend to the Tahoe-LAFS node, or other services.
 
-    The default value is "``public_html``", which will serve ``BASEDIR/public_html`` .
-    With the default settings, ``http://127.0.0.1:3456/static/foo.html`` will
-    serve the contents of ``BASEDIR/public_html/foo.html`` .
+    The default value is "``public_html``", which will serve
+    ``BASEDIR/public_html`` .  With the default settings,
+    ``http://127.0.0.1:3456/static/foo.html`` will serve the contents of
+    ``BASEDIR/public_html/foo.html`` .
 
 ``tub.port = (integer, optional)``
 
@@ -113,10 +118,10 @@ set the ``tub.location`` option described below.
 
     If you don't provide ``tub.location``, the node will try to figure out a
     useful one by itself, by using tools like "``ifconfig``" to determine the
-    set of IP addresses on which it can be reached from nodes both near and far.
-    It will also include the TCP port number on which it is listening (either
-    the one specified by ``tub.port``, or whichever port was assigned by the
-    kernel when ``tub.port`` is left unspecified).
+    set of IP addresses on which it can be reached from nodes both near and
+    far.  It will also include the TCP port number on which it is listening
+    (either the one specified by ``tub.port``, or whichever port was assigned
+    by the kernel when ``tub.port`` is left unspecified).
 
     You might want to override this value if your node lives behind a
     firewall that is doing inbound port forwarding, or if you are using other
@@ -150,11 +155,12 @@ set the ``tub.location`` option described below.
         tub.port = 8098
         tub.location = external-firewall.example.com:7912
 
-    * Run a node behind a Tor proxy (perhaps via ``torsocks``), in client-only
-      mode (i.e. we can make outbound connections, but other nodes will not
-      be able to connect to us). The literal '``unreachable.example.org``' will
-      not resolve, but will serve as a reminder to human observers that this
-      node cannot be reached. "Don't call us.. we'll call you"::
+    * Run a node behind a Tor proxy (perhaps via ``torsocks``), in
+      client-only mode (i.e. we can make outbound connections, but other
+      nodes will not be able to connect to us). The literal
+      '``unreachable.example.org``' will not resolve, but will serve as a
+      reminder to human observers that this node cannot be reached. "Don't
+      call us.. we'll call you"::
 
         tub.port = 8098
         tub.location = unreachable.example.org:0
@@ -180,17 +186,16 @@ set the ``tub.location`` option described below.
 
 ``log_gatherer.furl = (FURL, optional)``
 
-    If provided, this contains a single FURL string that is used to contact
-    a "log gatherer", which will be granted access to the logport. This can
-    be used to gather operational logs in a single place. Note that in
-    previous releases of Tahoe-LAFS, if an old-style
-    ``BASEDIR/log_gatherer.furl`` file existed it would also be used in
-    addition to this value, allowing multiple log gatherers to be used at
-    once. As of Tahoe-LAFS v1.9.0, an old-style file is ignored and a
-    warning will be emitted if one is detected. This means that as of
-    Tahoe-LAFS v1.9.0 you can have at most one log gatherer per node. See
-    ticket `#1423`_ about lifting this restriction and letting you have
-    multiple log gatherers.
+    If provided, this contains a single FURL string that is used to contact a
+    "log gatherer", which will be granted access to the logport. This can be
+    used to gather operational logs in a single place. Note that in previous
+    releases of Tahoe-LAFS, if an old-style ``BASEDIR/log_gatherer.furl``
+    file existed it would also be used in addition to this value, allowing
+    multiple log gatherers to be used at once. As of Tahoe-LAFS v1.9.0, an
+    old-style file is ignored and a warning will be emitted if one is
+    detected. This means that as of Tahoe-LAFS v1.9.0 you can have at most
+    one log gatherer per node. See ticket `#1423`_ about lifting this
+    restriction and letting you have multiple log gatherers.
 
     .. _`#1423`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1423
 
@@ -198,24 +203,25 @@ set the ``tub.location`` option described below.
 
 ``timeout.disconnect = (integer in seconds, optional)``
 
-    If ``timeout.keepalive`` is provided, it is treated as an integral number of
-    seconds, and sets the Foolscap "keepalive timer" to that value. For each
-    connection to another node, if nothing has been heard for a while, we
-    will attempt to provoke the other end into saying something. The duration
-    of silence that passes before sending the PING will be between KT and
-    2*KT. This is mainly intended to keep NAT boxes from expiring idle TCP
-    sessions, but also gives TCP's long-duration keepalive/disconnect timers
-    some traffic to work with. The default value is 240 (i.e. 4 minutes).
+    If ``timeout.keepalive`` is provided, it is treated as an integral number
+    of seconds, and sets the Foolscap "keepalive timer" to that value. For
+    each connection to another node, if nothing has been heard for a while,
+    we will attempt to provoke the other end into saying something. The
+    duration of silence that passes before sending the PING will be between
+    KT and 2*KT. This is mainly intended to keep NAT boxes from expiring idle
+    TCP sessions, but also gives TCP's long-duration keepalive/disconnect
+    timers some traffic to work with. The default value is 240 (i.e. 4
+    minutes).
 
     If timeout.disconnect is provided, this is treated as an integral number
     of seconds, and sets the Foolscap "disconnect timer" to that value. For
     each connection to another node, if nothing has been heard for a while,
     we will drop the connection. The duration of silence that passes before
     dropping the connection will be between DT-2*KT and 2*DT+2*KT (please see
-    ticket `#521`_ for more details). If we are sending a large amount of data
-    to the other end (which takes more than DT-2*KT to deliver), we might
-    incorrectly drop the connection. The default behavior (when this value is
-    not provided) is to disable the disconnect timer.
+    ticket `#521`_ for more details). If we are sending a large amount of
+    data to the other end (which takes more than DT-2*KT to deliver), we
+    might incorrectly drop the connection. The default behavior (when this
+    value is not provided) is to disable the disconnect timer.
 
     See ticket `#521`_ for a discussion of how to pick these timeout values.
     Using 30 minutes means we'll disconnect after 22 to 68 minutes of
@@ -249,8 +255,8 @@ set the ``tub.location`` option described below.
 
     The default value is the ``tmp`` directory in the node's base directory
     (i.e. ``BASEDIR/tmp``), but it can be placed elsewhere. This directory is
-    used for files that usually (on a Unix system) go into ``/tmp``. The string
-    will be interpreted relative to the node's base directory.
+    used for files that usually (on a Unix system) go into ``/tmp``. The
+    string will be interpreted relative to the node's base directory.
 
 
 Client Configuration
@@ -260,11 +266,11 @@ Client Configuration
 
 ``introducer.furl = (FURL string, mandatory)``
 
-    This FURL tells the client how to connect to the introducer. Each Tahoe-LAFS
-    grid is defined by an introducer. The introducer's FURL is created by the
-    introducer node and written into its base directory when it starts,
-    whereupon it should be published to everyone who wishes to attach a
-    client to that grid
+    This FURL tells the client how to connect to the introducer. Each
+    Tahoe-LAFS grid is defined by an introducer. The introducer's FURL is
+    created by the introducer node and written into its base directory when
+    it starts, whereupon it should be published to everyone who wishes to
+    attach a client to that grid
 
 ``helper.furl = (FURL string, optional)``
 
@@ -290,34 +296,36 @@ Client Configuration
 
     These three values set the default encoding parameters. Each time a new
     file is uploaded, erasure-coding is used to break the ciphertext into
-    separate pieces. There will be ``N`` (i.e. ``shares.total``) pieces created,
-    and the file will be recoverable if any ``k`` (i.e. ``shares.needed``)
-    pieces are retrieved. The default values are 3-of-10 (i.e.
-    ``shares.needed = 3``, ``shares.total = 10``). Setting ``k`` to 1 is
-    equivalent to simple replication (uploading ``N`` copies of the file).
+    separate pieces. There will be ``N`` (i.e. ``shares.total``) pieces
+    created, and the file will be recoverable if any ``k``
+    (i.e. ``shares.needed``) pieces are retrieved. The default values are
+    3-of-10 (i.e.  ``shares.needed = 3``, ``shares.total = 10``). Setting
+    ``k`` to 1 is equivalent to simple replication (uploading ``N`` copies of
+    the file).
 
     These values control the tradeoff between storage overhead, performance,
-    and reliability. To a first approximation, a 1MB file will use (1MB * ``N``/``k``)
-    of backend storage space (the actual value will be a bit more, because of
-    other forms of overhead). Up to ``N``-``k`` shares can be lost before the file
-    becomes unrecoverable, so assuming there are at least ``N`` servers, up to
-    ``N``-``k`` servers can be offline without losing the file. So large ``N``/``k``
-    ratios are more reliable, and small ``N``/``k`` ratios use less disk space.
-    Clearly, ``k`` must never be greater than ``N``.
+    and reliability. To a first approximation, a 1MB file will use (1MB *
+    ``N``/``k``) of backend storage space (the actual value will be a bit
+    more, because of other forms of overhead). Up to ``N``-``k`` shares can
+    be lost before the file becomes unrecoverable, so assuming there are at
+    least ``N`` servers, up to ``N``-``k`` servers can be offline without
+    losing the file. So large ``N``/``k`` ratios are more reliable, and small
+    ``N``/``k`` ratios use less disk space.  Clearly, ``k`` must never be
+    greater than ``N``.
 
-    Large values of ``N`` will slow down upload operations slightly, since more
-    servers must be involved, and will slightly increase storage overhead due
-    to the hash trees that are created. Large values of ``k`` will cause
-    downloads to be marginally slower, because more servers must be involved.
-    ``N`` cannot be larger than 256, because of the 8-bit erasure-coding
-    algorithm that Tahoe-LAFS uses.
+    Large values of ``N`` will slow down upload operations slightly, since
+    more servers must be involved, and will slightly increase storage
+    overhead due to the hash trees that are created. Large values of ``k``
+    will cause downloads to be marginally slower, because more servers must
+    be involved.  ``N`` cannot be larger than 256, because of the 8-bit
+    erasure-coding algorithm that Tahoe-LAFS uses.
 
-    ``shares.happy`` allows you control over the distribution of your immutable
-    file. For a successful upload, shares are guaranteed to be initially
-    placed on at least ``shares.happy`` distinct servers, the correct
-    functioning of any ``k`` of which is sufficient to guarantee the availability
-    of the uploaded file. This value should not be larger than the number of
-    servers on your grid.
+    ``shares.happy`` allows you control over the distribution of your
+    immutable file. For a successful upload, shares are guaranteed to be
+    initially placed on at least ``shares.happy`` distinct servers, the
+    correct functioning of any ``k`` of which is sufficient to guarantee the
+    availability of the uploaded file. This value should not be larger than
+    the number of servers on your grid.
 
     A value of ``shares.happy`` <= ``k`` is allowed, but does not provide any
     redundancy if some servers fail or lose shares.
@@ -374,19 +382,19 @@ Storage Server Configuration
 
 ``enabled = (boolean, optional)``
 
-    If this is ``True``, the node will run a storage server, offering space to
-    other clients. If it is ``False``, the node will not run a storage server,
-    meaning that no shares will be stored on this node. Use ``False`` for
-    clients who do not wish to provide storage service. The default value is
-    ``True``.
+    If this is ``True``, the node will run a storage server, offering space
+    to other clients. If it is ``False``, the node will not run a storage
+    server, meaning that no shares will be stored on this node. Use ``False``
+    for clients who do not wish to provide storage service. The default value
+    is ``True``.
 
 ``readonly = (boolean, optional)``
 
     If ``True``, the node will run a storage server but will not accept any
     shares, making it effectively read-only. Use this for storage servers
-    that are being decommissioned: the ``storage/`` directory could be mounted
-    read-only, while shares are moved to other servers. Note that this
-    currently only affects immutable shares. Mutable shares (used for
+    that are being decommissioned: the ``storage/`` directory could be
+    mounted read-only, while shares are moved to other servers. Note that
+    this currently only affects immutable shares. Mutable shares (used for
     directories) will be written and modified anyway. See ticket `#390
     <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/390>`_ for the current
     status of this bug. The default value is ``False``.
@@ -436,27 +444,29 @@ service.
 
 ``enabled = (boolean, optional)``
 
-    If ``True``, the node will run a helper (see `<helper.rst>`_ for details).
-    The helper's contact FURL will be placed in ``private/helper.furl``, from
-    which it can be copied to any clients that wish to use it. Clearly nodes
-    should not both run a helper and attempt to use one: do not create
-    ``helper.furl`` and also define ``[helper]enabled`` in the same node.
-    The default is ``False``.
+    If ``True``, the node will run a helper (see `<helper.rst>`_ for
+    details).  The helper's contact FURL will be placed in
+    ``private/helper.furl``, from which it can be copied to any clients that
+    wish to use it. Clearly nodes should not both run a helper and attempt to
+    use one: do not create ``helper.furl`` and also define
+    ``[helper]enabled`` in the same node.  The default is ``False``.
 
 
 Running An Introducer
 =====================
 
-The introducer node uses a different ``.tac`` file (named "``introducer.tac``"),
-and pays attention to the ``[node]`` section, but not the others.
+The introducer node uses a different ``.tac`` file (named
+"``introducer.tac``"), and pays attention to the ``[node]`` section, but not
+the others.
 
 The Introducer node maintains some different state than regular client nodes.
 
 ``BASEDIR/introducer.furl``
+
   This is generated the first time the introducer node is started, and used
   again on subsequent runs, to give the introduction service a persistent
-  long-term identity. This file should be published and copied into new client
-  nodes before they are started for the first time.
+  long-term identity. This file should be published and copied into new
+  client nodes before they are started for the first time.
 
 
 Other Files in BASEDIR
@@ -474,39 +484,45 @@ directory, next to the configuration knobs.
 This section describes these other files.
 
 ``private/node.pem``
-  This contains an SSL private-key certificate. The node
-  generates this the first time it is started, and re-uses it on subsequent
-  runs. This certificate allows the node to have a cryptographically-strong
-  identifier (the Foolscap "TubID"), and to establish secure connections to
-  other nodes.
+
+  This contains an SSL private-key certificate. The node generates this the
+  first time it is started, and re-uses it on subsequent runs. This
+  certificate allows the node to have a cryptographically-strong identifier
+  (the Foolscap "TubID"), and to establish secure connections to other nodes.
 
 ``storage/``
-  Nodes that host StorageServers will create this directory to hold shares
-  of files on behalf of other clients. There will be a directory underneath
-  it for each StorageIndex for which this node is holding shares. There is
-  also an "incoming" directory where partially-completed shares are held
-  while they are being received.
+
+  Nodes that host StorageServers will create this directory to hold shares of
+  files on behalf of other clients. There will be a directory underneath it
+  for each StorageIndex for which this node is holding shares. There is also
+  an "incoming" directory where partially-completed shares are held while
+  they are being received.
 
 ``tahoe-client.tac``
+
   This file defines the client, by constructing the actual Client instance
   each time the node is started. It is used by the "``twistd``" daemonization
-  program (in the ``-y`` mode), which is run internally by the "``tahoe start``"
-  command. This file is created by the "``tahoe create-node``" or
+  program (in the ``-y`` mode), which is run internally by the "``tahoe
+  start``" command. This file is created by the "``tahoe create-node``" or
   "``tahoe create-client``" commands.
 
 ``tahoe-introducer.tac``
+
   This file is used to construct an introducer, and is created by the
   "``tahoe create-introducer``" command.
 
 ``tahoe-key-generator.tac``
+
   This file is used to construct a key generator, and is created by the
   "``tahoe create-key-gernerator``" command.
 
 ``tahoe-stats-gatherer.tac``
-  This file is used to construct a statistics gatherer, and is created by
-  the "``tahoe create-stats-gatherer``" command.
+
+  This file is used to construct a statistics gatherer, and is created by the
+  "``tahoe create-stats-gatherer``" command.
 
 ``private/control.furl``
+
   This file contains a FURL that provides access to a control port on the
   client node, from which files can be uploaded and downloaded. This file is
   created with permissions that prevent anyone else from reading it (on
@@ -515,21 +531,25 @@ This section describes these other files.
   debugging and testing use.
 
 ``private/logport.furl``
+
   This file contains a FURL that provides access to a 'log port' on the
   client node, from which operational logs can be retrieved. Do not grant
   logport access to strangers, because occasionally secret information may be
   placed in the logs.
 
 ``private/helper.furl``
+
   If the node is running a helper (for use by other clients), its contact
   FURL will be placed here. See `<helper.rst>`_ for more details.
 
 ``private/root_dir.cap`` (optional)
+
   The command-line tools will read a directory cap out of this file and use
   it, if you don't specify a '--dir-cap' option or if you specify
   '--dir-cap=root'.
 
 ``private/convergence`` (automatically generated)
+
   An added secret for encrypting immutable files. Everyone who has this same
   string in their ``private/convergence`` file encrypts their immutable files
   in the same way when uploading them. This causes identical files to
@@ -540,34 +560,36 @@ This section describes these other files.
   contents of a file, then they can use brute-force to learn the remaining
   contents.
 
-  So the set of people who know your ``private/convergence`` string is the set
-  of people who converge their storage space with you when you and they upload
-  identical immutable files, and it is also the set of people who could mount
-  such an attack.
+  So the set of people who know your ``private/convergence`` string is the
+  set of people who converge their storage space with you when you and they
+  upload identical immutable files, and it is also the set of people who
+  could mount such an attack.
 
-  The content of the ``private/convergence`` file is a base-32 encoded string.
-  If the file doesn't exist, then when the Tahoe-LAFS client starts up it will
-  generate a random 256-bit string and write the base-32 encoding of this
-  string into the file. If you want to converge your immutable files with as
-  many people as possible, put the empty string (so that ``private/convergence``
-  is a zero-length file).
+  The content of the ``private/convergence`` file is a base-32 encoded
+  string.  If the file doesn't exist, then when the Tahoe-LAFS client starts
+  up it will generate a random 256-bit string and write the base-32 encoding
+  of this string into the file. If you want to converge your immutable files
+  with as many people as possible, put the empty string (so that
+  ``private/convergence`` is a zero-length file).
 
 
 Other files
 ===========
 
 ``logs/``
-  Each Tahoe-LAFS node creates a directory to hold the log messages produced as
-  the node runs. These logfiles are created and rotated by the "``twistd``"
-  daemonization program, so ``logs/twistd.log`` will contain the most recent
-  messages, ``logs/twistd.log.1`` will contain the previous ones,
+
+  Each Tahoe-LAFS node creates a directory to hold the log messages produced
+  as the node runs. These logfiles are created and rotated by the
+  "``twistd``" daemonization program, so ``logs/twistd.log`` will contain the
+  most recent messages, ``logs/twistd.log.1`` will contain the previous ones,
   ``logs/twistd.log.2`` will be older still, and so on. ``twistd`` rotates
-  logfiles after they grow beyond 1MB in size. If the space consumed by logfiles
-  becomes troublesome, they should be pruned: a cron job to delete all files
-  that were created more than a month ago in this ``logs/`` directory should be
-  sufficient.
+  logfiles after they grow beyond 1MB in size. If the space consumed by
+  logfiles becomes troublesome, they should be pruned: a cron job to delete
+  all files that were created more than a month ago in this ``logs/``
+  directory should be sufficient.
 
 ``my_nodeid``
+
   this is written by all nodes after startup, and contains a base32-encoded
   (i.e. human-readable) NodeID that identifies this specific node. This
   NodeID is the same string that gets displayed on the web page (in the
@@ -578,9 +600,10 @@ Other files
 Example
 =======
 
-The following is a sample ``tahoe.cfg`` file, containing values for some of the
-keys described in the previous section. Note that this is not a recommended
-configuration (most of these are not the default values), merely a legal one.
+The following is a sample ``tahoe.cfg`` file, containing values for some of
+the keys described in the previous section. Note that this is not a
+recommended configuration (most of these are not the default values), merely
+a legal one.
 
 ::
 
@@ -615,7 +638,6 @@ Old Configuration Files
 =======================
 
 Tahoe-LAFS releases before v1.3.0 had no ``tahoe.cfg`` file, and used
-distinct files for each item. This is no longer supported and if you
-have configuration in the old format you must manually convert it to
-the new format for Tahoe-LAFS to detect it. See
-`<historical/configuration.rst>`_.
+distinct files for each item. This is no longer supported and if you have
+configuration in the old format you must manually convert it to the new
+format for Tahoe-LAFS to detect it. See `<historical/configuration.rst>`_.
