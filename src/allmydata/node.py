@@ -121,6 +121,18 @@ class Node(service.MultiService):
         self.config = ConfigParser.SafeConfigParser()
         self.config.read([os.path.join(self.basedir, "tahoe.cfg")])
 
+        cfg_tubport = self.get_config("node", "tub.port", "")
+        if not cfg_tubport:
+            # For 'tub.port', tahoe.cfg overrides the individual file on
+            # disk. So only read self._portnumfile if tahoe.cfg doesn't
+            # provide a value.
+            try:
+                file_tubport = fileutil.read(self._portnumfile).strip()
+                self.set_config("node", "tub.port", file_tubport)
+            except EnvironmentError:
+                if os.path.exists(self._portnumfile):
+                    raise
+
     def error_about_old_config_files(self):
         """ If any old configuration files are detected, raise OldConfigError. """
 
