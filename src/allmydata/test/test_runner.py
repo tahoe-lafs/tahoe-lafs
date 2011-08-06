@@ -426,13 +426,12 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # so poll until it is. This time INTRODUCER_FURL_FILE already
         # exists, so we check for the existence of NODE_URL_FILE instead.
         def _node_has_restarted():
-            return os.path.exists(NODE_URL_FILE)
+            return os.path.exists(NODE_URL_FILE) and os.path.exists(PORTNUM_FILE)
         d.addCallback(lambda res: self.poll(_node_has_restarted))
 
         def _check_same_furl_and_port(res):
             self.failUnless(os.path.exists(INTRODUCER_FURL_FILE))
             self.failUnlessEqual(self.furl, fileutil.read(INTRODUCER_FURL_FILE))
-            self.failUnless(os.path.exists(PORTNUM_FILE))
             self.failUnlessEqual(self.portnum, fileutil.read(PORTNUM_FILE))
         d.addCallback(_check_same_furl_and_port)
 
@@ -584,7 +583,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb2)
 
         def _node_has_started():
-            return os.path.exists(NODE_URL_FILE)
+            return os.path.exists(NODE_URL_FILE) and os.path.exists(PORTNUM_FILE)
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _started(res):
