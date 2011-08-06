@@ -105,9 +105,9 @@ class Node(service.MultiService):
             return self.config.get(section, option)
         except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
             if default is _None:
-                fn = os.path.join(self.basedir, "tahoe.cfg")
+                fn = os.path.join(self.basedir, u"tahoe.cfg")
                 raise MissingConfigEntry("%s is missing the [%s]%s entry"
-                                         % (fn, section, option))
+                                         % (quote_output(fn), section, option))
             return default
 
     def set_config(self, section, option, value):
