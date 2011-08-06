@@ -352,6 +352,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         INTRODUCER_FURL_FILE = os.path.join(c1, "introducer.furl")
+        PORTNUM_FILE = os.path.join(c1, "introducer.port")
         NODE_URL_FILE = os.path.join(c1, "node.url")
         CONFIG_FILE = os.path.join(c1, "tahoe.cfg")
 
@@ -401,9 +402,16 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _started(res):
+            # read the introducer.furl and introducer.port files so we can check that their
+            # contents don't change on restart
+            self.furl = fileutil.read(INTRODUCER_FURL_FILE)
+            self.failUnless(os.path.exists(PORTNUM_FILE))
+            self.portnum = fileutil.read(PORTNUM_FILE)
+
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             self.failUnless(os.path.exists(NODE_URL_FILE))
+
             # rm this so we can detect when the second incarnation is ready
             os.unlink(NODE_URL_FILE)
             return self.run_bintahoe(["--quiet", "restart", c1])
@@ -425,8 +433,15 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             return os.path.exists(NODE_URL_FILE)
         d.addCallback(lambda res: self.poll(_node_has_restarted))
 
+        def _check_same_furl_and_port(res):
+            self.failUnless(os.path.exists(INTRODUCER_FURL_FILE))
+            self.failUnlessEqual(self.furl, fileutil.read(INTRODUCER_FURL_FILE))
+            self.failUnless(os.path.exists(PORTNUM_FILE))
+            self.failUnlessEqual(self.portnum, fileutil.read(PORTNUM_FILE))
+        d.addCallback(_check_same_furl_and_port)
+
         # now we can kill it. TODO: On a slow machine, the node might kill
-        # itself before we get a chance too, especially if spawning the
+        # itself before we get a chance to, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
             open(HOTLINE_FILE, "w").write("")
@@ -472,7 +487,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         c1 = os.path.join(basedir, "c1")
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
-        PORTNUMFILE = os.path.join(c1, "client.port")
+        PORTNUM_FILE = os.path.join(c1, "client.port")
 
         d = self.run_bintahoe(["--quiet", "create-client", "--basedir", c1, "--webport", "0"])
         def _cb(res):
@@ -480,11 +495,11 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             assert rc_or_sig == 0, errstr
             self.failUnlessEqual(rc_or_sig, 0)
-            # By writing this file, we get forty seconds before the client will exit. This insures
+
+            # By writing this file, we get two minutes before the client will exit. This ensures
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
             open(HOTLINE_FILE, "w").write("")
-            fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % "pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -515,7 +530,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb2)
 
         def _node_has_started():
-            return os.path.exists(PORTNUMFILE)
+            return os.path.exists(PORTNUM_FILE)
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         # now we can kill it. TODO: On a slow machine, the node might kill
@@ -533,17 +548,23 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         c1 = os.path.join(basedir, "c1")
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
-        PORTNUMFILE = os.path.join(c1, "client.port")
+        PORTNUM_FILE = os.path.join(c1, "client.port")
+        NODE_URL_FILE = os.path.join(c1, "node.url")
+        CONFIG_FILE = os.path.join(c1, "tahoe.cfg")
 
         d = self.run_bintahoe(["--quiet", "create-node", "--basedir", c1, "--webport", "0"])
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0)
-            # By writing this file, we get sixty seconds before the client will exit. This insures
+
+            # Check that the --webport option worked.
+            config = fileutil.read(CONFIG_FILE)
+            self.failUnlessIn('\nweb.port = 0\n', config)
+
+            # By writing this file, we get two minutes before the client will exit. This ensures
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
             open(HOTLINE_FILE, "w").write("")
-            fileutil.write(os.path.join(c1, "tahoe.cfg"), BASECONFIG_I % "pb://xrndsskn2zuuian5ltnxrte7lnuqdrkz@127.0.0.1:55617/introducer")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -570,15 +591,19 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb2)
 
         def _node_has_started():
-            return os.path.exists(PORTNUMFILE)
+            return os.path.exists(NODE_URL_FILE)
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _started(res):
+            # read the client.port file so we can check that its contents
+            # don't change on restart
+            self.portnum = fileutil.read(PORTNUM_FILE)
+
             open(HOTLINE_FILE, "w").write("")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
-            # rm this so we can detect when the second incarnation is ready
-            os.unlink(PORTNUMFILE)
 
+            # rm this so we can detect when the second incarnation is ready
+            os.unlink(NODE_URL_FILE)
             return self.run_bintahoe(["--quiet", "restart", c1])
         d.addCallback(_started)
 
@@ -596,8 +621,12 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # so poll until it is
         d.addCallback(lambda res: self.poll(_node_has_started))
 
+        def _check_same_port(res):
+            self.failUnlessEqual(self.portnum, fileutil.read(PORTNUM_FILE))
+        d.addCallback(_check_same_port)
+
         # now we can kill it. TODO: On a slow machine, the node might kill
-        # itself before we get a chance too, especially if spawning the
+        # itself before we get a chance to, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
             open(HOTLINE_FILE, "w").write("")
