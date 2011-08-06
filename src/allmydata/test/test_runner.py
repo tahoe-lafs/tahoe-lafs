@@ -366,7 +366,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # by writing this file, we get ten seconds before the node will
             # exit. This insures that even if the test fails (and the 'stop'
             # command doesn't work), the client should still terminate.
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -377,7 +377,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb2(res):
             out, err, rc_or_sig = res
 
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -404,7 +404,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             self.failUnless(os.path.exists(PORTNUM_FILE))
             self.portnum = fileutil.read(PORTNUM_FILE)
 
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             self.failUnless(os.path.exists(NODE_URL_FILE))
 
@@ -415,7 +415,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _then(res):
             out, err, rc_or_sig = res
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -440,7 +440,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # itself before we get a chance to, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
 
             return self.run_bintahoe(["--quiet", "stop", c1])
@@ -448,7 +448,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _after_stopping(res):
             out, err, rc_or_sig = res
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             # the parent has exited by now
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
@@ -459,11 +459,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # gone by now.
             self.failIf(os.path.exists(TWISTD_PID_FILE))
         d.addCallback(_after_stopping)
-
-        def _remove_hotline(res):
-            os.unlink(HOTLINE_FILE)
-            return res
-        d.addBoth(_remove_hotline)
+        d.addBoth(self._remove, HOTLINE_FILE)
         return d
     test_introducer.timeout = 960
 
@@ -495,7 +491,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # By writing this file, we get two minutes before the client will exit. This ensures
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -506,7 +502,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb2(res):
             out, err, rc_or_sig = res
             errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr) # If you emit noise, you fail this test.
             errlines = err.split("\n")
@@ -536,6 +532,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))
             return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
+        d.addBoth(self._remove, HOTLINE_FILE)
         return d
 
     def test_client(self):
@@ -560,7 +557,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # By writing this file, we get two minutes before the client will exit. This ensures
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -570,7 +567,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _cb2(res):
             out, err, rc_or_sig = res
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -595,7 +592,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # don't change on restart
             self.portnum = fileutil.read(PORTNUM_FILE)
 
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
 
             # rm this so we can detect when the second incarnation is ready
@@ -606,7 +603,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb3(res):
             out, err, rc_or_sig = res
 
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -625,7 +622,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # itself before we get a chance to, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))
             return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
@@ -633,7 +630,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb4(res):
             out, err, rc_or_sig = res
 
-            open(HOTLINE_FILE, "w").write("")
+            fileutil.write(HOTLINE_FILE, "")
             # the parent has exited by now
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
@@ -644,11 +641,12 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # gone by now.
             self.failIf(os.path.exists(TWISTD_PID_FILE))
         d.addCallback(_cb4)
-        def _remove_hotline(res):
-            os.unlink(HOTLINE_FILE)
-            return res
-        d.addBoth(_remove_hotline)
+        d.addBoth(self._remove, HOTLINE_FILE)
         return d
+
+    def _remove(self, res, file):
+        fileutil.remove(file)
+        return res
 
     def test_baddir(self):
         self.skip_if_cannot_daemonize()
