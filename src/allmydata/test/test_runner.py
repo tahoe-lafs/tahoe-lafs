@@ -322,10 +322,6 @@ class CreateNode(unittest.TestCase):
                               run_by_human=False)
 
 
-BASECONFIG_I = ("[client]\n"
-                "introducer.furl = %s\n"
-                )
-
 class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
               RunBinTahoeMixin):
     # exercise "tahoe start", for both introducer, client node, and
