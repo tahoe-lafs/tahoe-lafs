@@ -1376,6 +1376,97 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def _create_directory_structure(self):
+        # Create a simple directory structure that we can use for MDMF,
+        # SDMF, and immutable testing.
+        assert self.g
+
+        client = self.g.clients[0]
+        # Create a dirnode
+        d = client.create_dirnode()
+        def _got_rootnode(n):
+            # Add a few nodes.
+            self._dircap = n.get_uri()
+            nm = n._nodemaker
+            # The uploaders may run at the same time, so we need two
+            # MutableData instances or they'll fight over offsets &c and
+            # break.
+            mutable_data = MutableData("data" * 100000)
+            mutable_data2 = MutableData("data" * 100000)
+            # Add both kinds of mutable node.
+            d1 = nm.create_mutable_file(mutable_data,
+                                        version=MDMF_VERSION)
+            d2 = nm.create_mutable_file(mutable_data2,
+                                        version=SDMF_VERSION)
+            # Add an immutable node. We do this through the directory,
+            # with add_file.
+            immutable_data = upload.Data("immutable data" * 100000,
+                                         convergence="")
+            d3 = n.add_file(u"immutable", immutable_data)
+            ds = [d1, d2, d3]
+            dl = defer.DeferredList(ds)
+            def _made_files((r1, r2, r3)):
+                self.failUnless(r1[0])
+                self.failUnless(r2[0])
+                self.failUnless(r3[0])
+
+                # r1, r2, and r3 contain nodes.
+                mdmf_node = r1[1]
+                sdmf_node = r2[1]
+                imm_node = r3[1]
+
+                self._mdmf_uri = mdmf_node.get_uri()
+                self._mdmf_readonly_uri = mdmf_node.get_readonly_uri()
+                self._sdmf_uri = mdmf_node.get_uri()
+                self._sdmf_readonly_uri = sdmf_node.get_readonly_uri()
+                self._imm_uri = imm_node.get_uri()
+
+                d1 = n.set_node(u"mdmf", mdmf_node)
+                d2 = n.set_node(u"sdmf", sdmf_node)
+                return defer.DeferredList([d1, d2])
+            # We can now list the directory by listing self._dircap.
+            dl.addCallback(_made_files)
+            return dl
+        d.addCallback(_got_rootnode)
+        return d
+
+    def test_list_mdmf(self):
+        # 'tahoe ls' should include MDMF files.
+        self.basedir = "cli/List/list_mdmf"
+        self.set_up_grid()
+        d = self._create_directory_structure()
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", self._dircap))
+        def _got_ls((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(err, "")
+            self.failUnlessIn("immutable", out)
+            self.failUnlessIn("mdmf", out)
+            self.failUnlessIn("sdmf", out)
+        d.addCallback(_got_ls)
+        return d
+
+    def test_list_mdmf_json(self):
+        # 'tahoe ls' should include MDMF caps when invoked with MDMF
+        # caps.
+        self.basedir = "cli/List/list_mdmf_json"
+        self.set_up_grid()
+        d = self._create_directory_structure()
+        d.addCallback(lambda ignored:
+            self.do_cli("ls", "--json", self._dircap))
+        def _got_json((rc, out, err)):
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(err, "")
+            self.failUnlessIn(self._mdmf_uri, out)
+            self.failUnlessIn(self._mdmf_readonly_uri, out)
+            self.failUnlessIn(self._sdmf_uri, out)
+            self.failUnlessIn(self._sdmf_readonly_uri, out)
+            self.failUnlessIn(self._imm_uri, out)
+            self.failUnlessIn('"mutable-type": "sdmf"', out)
+            self.failUnlessIn('"mutable-type": "mdmf"', out)
+        d.addCallback(_got_json)
+        return d
+
 
 class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_mv_behavior(self):
