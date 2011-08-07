@@ -17,10 +17,10 @@ from allmydata.check_results import CheckResults, CheckAndRepairResults, \
 from allmydata.mutable.common import CorruptShareError
 from allmydata.mutable.layout import unpack_header
 from allmydata.mutable.publish import MutableData
-from allmydata.storage.server import storage_index_to_dir
 from allmydata.storage.mutable import MutableShareFile
 from allmydata.util import hashutil, log, fileutil, pollmixin
 from allmydata.util.assertutil import precondition
+from allmydata.util.consumer import download_to_data
 from allmydata.stats import StatsGathererService
 from allmydata.key_generator import KeyGeneratorService
 import allmydata.test.common_util as testutil

@@ -7,6 +7,7 @@ from allmydata import uri
 from allmydata.util.consumer import download_to_data
 from allmydata.immutable import upload
 from allmydata.mutable.common import UnrecoverableFileError
+from allmydata.mutable.publish import MutableData
 from allmydata.storage.common import storage_index_to_dir
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common import ShouldFailMixin
@@ -106,7 +107,8 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         self.servers = self.servers[5:] + self.servers[:5]
 
         if mutable:
-            d = nm.create_mutable_file(mutable_plaintext)
+            uploadable = MutableData(mutable_plaintext)
+            d = nm.create_mutable_file(uploadable)
             def _uploaded_mutable(node):
                 self.uri = node.get_uri()
                 self.shares = self.find_uri_shares(self.uri)

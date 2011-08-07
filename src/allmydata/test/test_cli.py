@@ -10,6 +10,8 @@ from mock import patch
 from allmydata.util import fileutil, hashutil, base32
 from allmydata import uri
 from allmydata.immutable import upload
+from allmydata.interfaces import MDMF_VERSION, SDMF_VERSION
+from allmydata.mutable.publish import MutableData
 from allmydata.dirnode import normalize
 
 # Test that the scripts can be imported.
@@ -2145,7 +2147,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("cp", replacement_file_path, "tahoe:test_file.txt"))
         def _check_error_message((rc, out, err)):
             self.failUnlessEqual(rc, 1)
-            self.failUnlessIn("need write capability to publish", err)
+            self.failUnlessIn("replace or update requested with read-only cap", err)
         d.addCallback(_check_error_message)
         # Make extra sure that that didn't work.
         d.addCallback(lambda ignored:
@@ -2707,7 +2709,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
         c0 = self.g.clients[0]
         DATA = "data" * 100
-        d = c0.create_mutable_file(DATA)
+        DATA_uploadable = MutableData(DATA)
+        d = c0.create_mutable_file(DATA_uploadable)
         def _stash_uri(n):
             self.uri = n.get_uri()
         d.addCallback(_stash_uri)
@@ -2808,7 +2811,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                                            upload.Data("literal",
                                                         convergence="")))
         d.addCallback(_stash_uri, "small")
-        d.addCallback(lambda ign: c0.create_mutable_file(DATA+"1"))
+        d.addCallback(lambda ign:
+            c0.create_mutable_file(MutableData(DATA+"1")))
         d.addCallback(lambda fn: self.rootnode.set_node(u"mutable", fn))
         d.addCallback(_stash_uri, "mutable")
 

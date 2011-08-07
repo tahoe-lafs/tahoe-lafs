@@ -9,6 +9,7 @@ from allmydata.monitor import Monitor
 from allmydata.test.no_network import GridTestMixin
 from allmydata.immutable.upload import Data
 from allmydata.test.common_web import WebRenderingMixin
+from allmydata.mutable.publish import MutableData
 
 class FakeClient:
     def get_storage_broker(self):
@@ -288,7 +289,8 @@ class AddLease(GridTestMixin, unittest.TestCase):
         def _stash_immutable(ur):
             self.imm = c0.create_node_from_uri(ur.uri)
         d.addCallback(_stash_immutable)
-        d.addCallback(lambda ign: c0.create_mutable_file("contents"))
+        d.addCallback(lambda ign:
+            c0.create_mutable_file(MutableData("contents")))
         def _stash_mutable(node):
             self.mut = node
         d.addCallback(_stash_mutable)
