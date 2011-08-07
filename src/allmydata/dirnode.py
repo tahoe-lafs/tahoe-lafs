@@ -613,14 +613,21 @@ class DirectoryNode:
         d.addCallback(lambda res: deleter.old_child)
         return d
 
+    # XXX: Too many arguments? Worthwhile to break into mutable/immutable?
     def create_subdirectory(self, namex, initial_children={}, overwrite=True,
-                            mutable=True, metadata=None):
+                            mutable=True, mutable_version=None, metadata=None):
         name = normalize(namex)
         if self.is_readonly():
             return defer.fail(NotWriteableError())
         if mutable:
-            d = self._nodemaker.create_new_mutable_directory(initial_children)
+            if mutable_version:
+                d = self._nodemaker.create_new_mutable_directory(initial_children,
+                                                                 version=mutable_version)
+            else:
+                d = self._nodemaker.create_new_mutable_directory(initial_children)
         else:
+            # mutable version doesn't make sense for immmutable directories.
+            assert mutable_version is None
             d = self._nodemaker.create_immutable_directory(initial_children)
         def _created(child):
             entries = {name: (child, metadata)}

@@ -11,7 +11,8 @@ from allmydata.immutable import upload
 from allmydata.interfaces import IImmutableFileNode, IMutableFileNode, \
      ExistingChildError, NoSuchChildError, MustNotBeUnknownRWError, \
      MustBeDeepImmutableError, MustBeReadonlyError, \
-     IDeepCheckResults, IDeepCheckAndRepairResults
+     IDeepCheckResults, IDeepCheckAndRepairResults, \
+     MDMF_VERSION, SDMF_VERSION
 from allmydata.mutable.filenode import MutableFileNode
 from allmydata.mutable.common import UncoordinatedWriteError
 from allmydata.util import hashutil, base32
@@ -57,603 +58,46 @@ class Dirnode(GridTestMixin, unittest.TestCase,
               testutil.ReallyEqualMixin, testutil.ShouldFailMixin, testutil.StallMixin, ErrorMixin):
     timeout = 480 # It occasionally takes longer than 240 seconds on Francois's arm box.
 
-    def test_basic(self):
-        self.basedir = "dirnode/Dirnode/test_basic"
-        self.set_up_grid()
-        c = self.g.clients[0]
-        d = c.create_dirnode()
-        def _done(res):
-            self.failUnless(isinstance(res, dirnode.DirectoryNode))
-            self.failUnless(res.is_mutable())
-            self.failIf(res.is_readonly())
-            self.failIf(res.is_unknown())
-            self.failIf(res.is_allowed_in_immutable_directory())
-            res.raise_error()
-            rep = str(res)
-            self.failUnless("RW-MUT" in rep)
-        d.addCallback(_done)
-        return d
-
-    def test_initial_children(self):
-        self.basedir = "dirnode/Dirnode/test_initial_children"
-        self.set_up_grid()
-        c = self.g.clients[0]
-        nm = c.nodemaker
-
-        kids = {one_nfd: (nm.create_from_cap(one_uri), {}),
-                u"two": (nm.create_from_cap(setup_py_uri),
-                         {"metakey": "metavalue"}),
-                u"mut": (nm.create_from_cap(mut_write_uri, mut_read_uri), {}),
-                u"fut": (nm.create_from_cap(future_write_uri, future_read_uri), {}),
-                u"fro": (nm.create_from_cap(None, future_read_uri), {}),
-                u"fut-unic": (nm.create_from_cap(future_nonascii_write_uri, future_nonascii_read_uri), {}),
-                u"fro-unic": (nm.create_from_cap(None, future_nonascii_read_uri), {}),
-                u"empty_litdir": (nm.create_from_cap(empty_litdir_uri), {}),
-                u"tiny_litdir": (nm.create_from_cap(tiny_litdir_uri), {}),
-                }
-        d = c.create_dirnode(kids)
-
-        def _created(dn):
-            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
-            self.failUnless(dn.is_mutable())
-            self.failIf(dn.is_readonly())
-            self.failIf(dn.is_unknown())
-            self.failIf(dn.is_allowed_in_immutable_directory())
-            dn.raise_error()
-            rep = str(dn)
-            self.failUnless("RW-MUT" in rep)
-            return dn.list()
-        d.addCallback(_created)
-
-        def _check_kids(children):
-            self.failUnlessReallyEqual(set(children.keys()),
-                                       set([one_nfc, u"two", u"mut", u"fut", u"fro",
-                                            u"fut-unic", u"fro-unic", u"empty_litdir", u"tiny_litdir"]))
-            one_node, one_metadata = children[one_nfc]
-            two_node, two_metadata = children[u"two"]
-            mut_node, mut_metadata = children[u"mut"]
-            fut_node, fut_metadata = children[u"fut"]
-            fro_node, fro_metadata = children[u"fro"]
-            futna_node, futna_metadata = children[u"fut-unic"]
-            frona_node, frona_metadata = children[u"fro-unic"]
-            emptylit_node, emptylit_metadata = children[u"empty_litdir"]
-            tinylit_node, tinylit_metadata = children[u"tiny_litdir"]
-
-            self.failUnlessReallyEqual(one_node.get_size(), 3)
-            self.failUnlessReallyEqual(one_node.get_uri(), one_uri)
-            self.failUnlessReallyEqual(one_node.get_readonly_uri(), one_uri)
-            self.failUnless(isinstance(one_metadata, dict), one_metadata)
-
-            self.failUnlessReallyEqual(two_node.get_size(), 14861)
-            self.failUnlessReallyEqual(two_node.get_uri(), setup_py_uri)
-            self.failUnlessReallyEqual(two_node.get_readonly_uri(), setup_py_uri)
-            self.failUnlessEqual(two_metadata["metakey"], "metavalue")
-
-            self.failUnlessReallyEqual(mut_node.get_uri(), mut_write_uri)
-            self.failUnlessReallyEqual(mut_node.get_readonly_uri(), mut_read_uri)
-            self.failUnless(isinstance(mut_metadata, dict), mut_metadata)
-
-            self.failUnless(fut_node.is_unknown())
-            self.failUnlessReallyEqual(fut_node.get_uri(), future_write_uri)
-            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
-            self.failUnless(isinstance(fut_metadata, dict), fut_metadata)
-
-            self.failUnless(futna_node.is_unknown())
-            self.failUnlessReallyEqual(futna_node.get_uri(), future_nonascii_write_uri)
-            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "ro." + future_nonascii_read_uri)
-            self.failUnless(isinstance(futna_metadata, dict), futna_metadata)
-
-            self.failUnless(fro_node.is_unknown())
-            self.failUnlessReallyEqual(fro_node.get_uri(), "ro." + future_read_uri)
-            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
-            self.failUnless(isinstance(fro_metadata, dict), fro_metadata)
-
-            self.failUnless(frona_node.is_unknown())
-            self.failUnlessReallyEqual(frona_node.get_uri(), "ro." + future_nonascii_read_uri)
-            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "ro." + future_nonascii_read_uri)
-            self.failUnless(isinstance(frona_metadata, dict), frona_metadata)
-
-            self.failIf(emptylit_node.is_unknown())
-            self.failUnlessReallyEqual(emptylit_node.get_storage_index(), None)
-            self.failIf(tinylit_node.is_unknown())
-            self.failUnlessReallyEqual(tinylit_node.get_storage_index(), None)
-
-            d2 = defer.succeed(None)
-            d2.addCallback(lambda ignored: emptylit_node.list())
-            d2.addCallback(lambda children: self.failUnlessEqual(children, {}))
-            d2.addCallback(lambda ignored: tinylit_node.list())
-            d2.addCallback(lambda children: self.failUnlessReallyEqual(set(children.keys()),
-                                                                       set([u"short"])))
-            d2.addCallback(lambda ignored: tinylit_node.list())
-            d2.addCallback(lambda children: children[u"short"][0].read(MemAccum()))
-            d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, "The end."))
-            return d2
-
-        d.addCallback(_check_kids)
-
-        d.addCallback(lambda ign: nm.create_new_mutable_directory(kids))
-        d.addCallback(lambda dn: dn.list())
-        d.addCallback(_check_kids)
-
-        bad_future_node = UnknownNode(future_write_uri, None)
-        bad_kids1 = {one_nfd: (bad_future_node, {})}
-        # This should fail because we don't know how to diminish the future_write_uri
-        # cap (given in a write slot and not prefixed with "ro." or "imm.") to a readcap.
-        d.addCallback(lambda ign:
-                      self.shouldFail(MustNotBeUnknownRWError, "bad_kids1",
-                                      "cannot attach unknown",
-                                      nm.create_new_mutable_directory,
-                                      bad_kids1))
-        bad_kids2 = {one_nfd: (nm.create_from_cap(one_uri), None)}
-        d.addCallback(lambda ign:
-                      self.shouldFail(AssertionError, "bad_kids2",
-                                      "requires metadata to be a dict",
-                                      nm.create_new_mutable_directory,
-                                      bad_kids2))
-        return d
-
-    def test_immutable(self):
-        self.basedir = "dirnode/Dirnode/test_immutable"
-        self.set_up_grid()
-        c = self.g.clients[0]
-        nm = c.nodemaker
-
-        kids = {one_nfd: (nm.create_from_cap(one_uri), {}),
-                u"two": (nm.create_from_cap(setup_py_uri),
-                         {"metakey": "metavalue"}),
-                u"fut": (nm.create_from_cap(None, future_read_uri), {}),
-                u"futna": (nm.create_from_cap(None, future_nonascii_read_uri), {}),
-                u"empty_litdir": (nm.create_from_cap(empty_litdir_uri), {}),
-                u"tiny_litdir": (nm.create_from_cap(tiny_litdir_uri), {}),
-                }
-        d = c.create_immutable_dirnode(kids)
-
-        def _created(dn):
-            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
-            self.failIf(dn.is_mutable())
-            self.failUnless(dn.is_readonly())
-            self.failIf(dn.is_unknown())
-            self.failUnless(dn.is_allowed_in_immutable_directory())
-            dn.raise_error()
-            rep = str(dn)
-            self.failUnless("RO-IMM" in rep)
-            cap = dn.get_cap()
-            self.failUnlessIn("CHK", cap.to_string())
-            self.cap = cap
-            return dn.list()
-        d.addCallback(_created)
-
-        def _check_kids(children):
-            self.failUnlessReallyEqual(set(children.keys()),
-                                       set([one_nfc, u"two", u"fut", u"futna", u"empty_litdir", u"tiny_litdir"]))
-            one_node, one_metadata = children[one_nfc]
-            two_node, two_metadata = children[u"two"]
-            fut_node, fut_metadata = children[u"fut"]
-            futna_node, futna_metadata = children[u"futna"]
-            emptylit_node, emptylit_metadata = children[u"empty_litdir"]
-            tinylit_node, tinylit_metadata = children[u"tiny_litdir"]
-
-            self.failUnlessReallyEqual(one_node.get_size(), 3)
-            self.failUnlessReallyEqual(one_node.get_uri(), one_uri)
-            self.failUnlessReallyEqual(one_node.get_readonly_uri(), one_uri)
-            self.failUnless(isinstance(one_metadata, dict), one_metadata)
-
-            self.failUnlessReallyEqual(two_node.get_size(), 14861)
-            self.failUnlessReallyEqual(two_node.get_uri(), setup_py_uri)
-            self.failUnlessReallyEqual(two_node.get_readonly_uri(), setup_py_uri)
-            self.failUnlessEqual(two_metadata["metakey"], "metavalue")
-
-            self.failUnless(fut_node.is_unknown())
-            self.failUnlessReallyEqual(fut_node.get_uri(), "imm." + future_read_uri)
-            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "imm." + future_read_uri)
-            self.failUnless(isinstance(fut_metadata, dict), fut_metadata)
-
-            self.failUnless(futna_node.is_unknown())
-            self.failUnlessReallyEqual(futna_node.get_uri(), "imm." + future_nonascii_read_uri)
-            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "imm." + future_nonascii_read_uri)
-            self.failUnless(isinstance(futna_metadata, dict), futna_metadata)
-
-            self.failIf(emptylit_node.is_unknown())
-            self.failUnlessReallyEqual(emptylit_node.get_storage_index(), None)
-            self.failIf(tinylit_node.is_unknown())
-            self.failUnlessReallyEqual(tinylit_node.get_storage_index(), None)
-
-            d2 = defer.succeed(None)
-            d2.addCallback(lambda ignored: emptylit_node.list())
-            d2.addCallback(lambda children: self.failUnlessEqual(children, {}))
-            d2.addCallback(lambda ignored: tinylit_node.list())
-            d2.addCallback(lambda children: self.failUnlessReallyEqual(set(children.keys()),
-                                                                       set([u"short"])))
-            d2.addCallback(lambda ignored: tinylit_node.list())
-            d2.addCallback(lambda children: children[u"short"][0].read(MemAccum()))
-            d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, "The end."))
-            return d2
-
-        d.addCallback(_check_kids)
-
-        d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
-        d.addCallback(lambda dn: dn.list())
-        d.addCallback(_check_kids)
-
-        bad_future_node1 = UnknownNode(future_write_uri, None)
-        bad_kids1 = {one_nfd: (bad_future_node1, {})}
-        d.addCallback(lambda ign:
-                      self.shouldFail(MustNotBeUnknownRWError, "bad_kids1",
-                                      "cannot attach unknown",
-                                      c.create_immutable_dirnode,
-                                      bad_kids1))
-        bad_future_node2 = UnknownNode(future_write_uri, future_read_uri)
-        bad_kids2 = {one_nfd: (bad_future_node2, {})}
-        d.addCallback(lambda ign:
-                      self.shouldFail(MustBeDeepImmutableError, "bad_kids2",
-                                      "is not allowed in an immutable directory",
-                                      c.create_immutable_dirnode,
-                                      bad_kids2))
-        bad_kids3 = {one_nfd: (nm.create_from_cap(one_uri), None)}
-        d.addCallback(lambda ign:
-                      self.shouldFail(AssertionError, "bad_kids3",
-                                      "requires metadata to be a dict",
-                                      c.create_immutable_dirnode,
-                                      bad_kids3))
-        bad_kids4 = {one_nfd: (nm.create_from_cap(mut_write_uri), {})}
-        d.addCallback(lambda ign:
-                      self.shouldFail(MustBeDeepImmutableError, "bad_kids4",
-                                      "is not allowed in an immutable directory",
-                                      c.create_immutable_dirnode,
-                                      bad_kids4))
-        bad_kids5 = {one_nfd: (nm.create_from_cap(mut_read_uri), {})}
-        d.addCallback(lambda ign:
-                      self.shouldFail(MustBeDeepImmutableError, "bad_kids5",
-                                      "is not allowed in an immutable directory",
-                                      c.create_immutable_dirnode,
-                                      bad_kids5))
-        d.addCallback(lambda ign: c.create_immutable_dirnode({}))
-        def _created_empty(dn):
-            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
-            self.failIf(dn.is_mutable())
-            self.failUnless(dn.is_readonly())
-            self.failIf(dn.is_unknown())
-            self.failUnless(dn.is_allowed_in_immutable_directory())
-            dn.raise_error()
-            rep = str(dn)
-            self.failUnless("RO-IMM" in rep)
-            cap = dn.get_cap()
-            self.failUnlessIn("LIT", cap.to_string())
-            self.failUnlessReallyEqual(cap.to_string(), "URI:DIR2-LIT:")
-            self.cap = cap
-            return dn.list()
-        d.addCallback(_created_empty)
-        d.addCallback(lambda kids: self.failUnlessEqual(kids, {}))
-        smallkids = {u"o": (nm.create_from_cap(one_uri), {})}
-        d.addCallback(lambda ign: c.create_immutable_dirnode(smallkids))
-        def _created_small(dn):
-            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
-            self.failIf(dn.is_mutable())
-            self.failUnless(dn.is_readonly())
-            self.failIf(dn.is_unknown())
-            self.failUnless(dn.is_allowed_in_immutable_directory())
-            dn.raise_error()
-            rep = str(dn)
-            self.failUnless("RO-IMM" in rep)
-            cap = dn.get_cap()
-            self.failUnlessIn("LIT", cap.to_string())
-            self.failUnlessReallyEqual(cap.to_string(),
-                                       "URI:DIR2-LIT:gi4tumj2n4wdcmz2kvjesosmjfkdu3rvpbtwwlbqhiwdeot3puwcy")
-            self.cap = cap
-            return dn.list()
-        d.addCallback(_created_small)
-        d.addCallback(lambda kids: self.failUnlessReallyEqual(kids.keys(), [u"o"]))
-
-        # now test n.create_subdirectory(mutable=False)
-        d.addCallback(lambda ign: c.create_dirnode())
-        def _made_parent(n):
-            d = n.create_subdirectory(u"subdir", kids, mutable=False)
-            d.addCallback(lambda sd: sd.list())
-            d.addCallback(_check_kids)
-            d.addCallback(lambda ign: n.list())
-            d.addCallback(lambda children:
-                          self.failUnlessReallyEqual(children.keys(), [u"subdir"]))
-            d.addCallback(lambda ign: n.get(u"subdir"))
-            d.addCallback(lambda sd: sd.list())
-            d.addCallback(_check_kids)
-            d.addCallback(lambda ign: n.get(u"subdir"))
-            d.addCallback(lambda sd: self.failIf(sd.is_mutable()))
-            bad_kids = {one_nfd: (nm.create_from_cap(mut_write_uri), {})}
-            d.addCallback(lambda ign:
-                          self.shouldFail(MustBeDeepImmutableError, "YZ",
-                                          "is not allowed in an immutable directory",
-                                          n.create_subdirectory,
-                                          u"sub2", bad_kids, mutable=False))
-            return d
-        d.addCallback(_made_parent)
-        return d
-
-    def test_directory_representation(self):
-        self.basedir = "dirnode/Dirnode/test_directory_representation"
-        self.set_up_grid()
-        c = self.g.clients[0]
-        nm = c.nodemaker
-
-        # This test checks that any trailing spaces in URIs are retained in the
-        # encoded directory, but stripped when we get them out of the directory.
-        # See ticket #925 for why we want that.
-        # It also tests that we store child names as UTF-8 NFC, and normalize
-        # them again when retrieving them.
-
-        stripped_write_uri = "lafs://from_the_future\t"
-        stripped_read_uri = "lafs://readonly_from_the_future\t"
-        spacedout_write_uri = stripped_write_uri + "  "
-        spacedout_read_uri = stripped_read_uri + "  "
-
-        child = nm.create_from_cap(spacedout_write_uri, spacedout_read_uri)
-        self.failUnlessReallyEqual(child.get_write_uri(), spacedout_write_uri)
-        self.failUnlessReallyEqual(child.get_readonly_uri(), "ro." + spacedout_read_uri)
-
-        child_dottedi = u"ch\u0131\u0307ld"
-
-        kids_in   = {child_dottedi: (child, {}), one_nfd: (child, {})}
-        kids_out  = {child_dottedi: (child, {}), one_nfc: (child, {})}
-        kids_norm = {u"child":      (child, {}), one_nfc: (child, {})}
-        d = c.create_dirnode(kids_in)
-
-        def _created(dn):
-            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
-            self.failUnless(dn.is_mutable())
-            self.failIf(dn.is_readonly())
-            dn.raise_error()
-            self.cap = dn.get_cap()
-            self.rootnode = dn
-            return dn._node.download_best_version()
-        d.addCallback(_created)
-
-        def _check_data(data):
-            # Decode the netstring representation of the directory to check that the
-            # spaces are retained when the URIs are stored, and that the names are stored
-            # as NFC.
-            position = 0
-            numkids = 0
-            while position < len(data):
-                entries, position = split_netstring(data, 1, position)
-                entry = entries[0]
-                (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
-                name = name_utf8.decode("utf-8")
-                rw_uri = self.rootnode._decrypt_rwcapdata(rwcapdata)
-                self.failUnlessIn(name, kids_out)
-                (expected_child, ign) = kids_out[name]
-                self.failUnlessReallyEqual(rw_uri, expected_child.get_write_uri())
-                self.failUnlessReallyEqual("ro." + ro_uri, expected_child.get_readonly_uri())
-                numkids += 1
-
-            self.failUnlessReallyEqual(numkids, len(kids_out))
-            return self.rootnode
-        d.addCallback(_check_data)
-
-        # Mock up a hypothetical future version of Unicode that adds a canonical equivalence
-        # between dotless-i + dot-above, and 'i'. That would actually be prohibited by the
-        # stability rules, but similar additions involving currently-unassigned characters
-        # would not be.
-        old_normalize = unicodedata.normalize
-        def future_normalize(form, s):
-            assert form == 'NFC', form
-            return old_normalize(form, s).replace(u"\u0131\u0307", u"i")
-
-        def _list(node):
-            unicodedata.normalize = future_normalize
-            d2 = node.list()
-            def _undo_mock(res):
-                unicodedata.normalize = old_normalize
-                return res
-            d2.addBoth(_undo_mock)
-            return d2
-        d.addCallback(_list)
-
-        def _check_kids(children):
-            # Now when we use the real directory listing code, the trailing spaces
-            # should have been stripped (and "ro." should have been prepended to the
-            # ro_uri, since it's unknown). Also the dotless-i + dot-above should have been
-            # normalized to 'i'.
-
-            self.failUnlessReallyEqual(set(children.keys()), set(kids_norm.keys()))
-            child_node, child_metadata = children[u"child"]
-
-            self.failUnlessReallyEqual(child_node.get_write_uri(), stripped_write_uri)
-            self.failUnlessReallyEqual(child_node.get_readonly_uri(), "ro." + stripped_read_uri)
-        d.addCallback(_check_kids)
-
-        d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
-        d.addCallback(_list)
-        d.addCallback(_check_kids)  # again with dirnode recreated from cap
-        return d
-
-    def test_check(self):
-        self.basedir = "dirnode/Dirnode/test_check"
-        self.set_up_grid()
-        c = self.g.clients[0]
-        d = c.create_dirnode()
-        d.addCallback(lambda dn: dn.check(Monitor()))
-        def _done(res):
-            self.failUnless(res.is_healthy())
-        d.addCallback(_done)
-        return d
-
-    def _test_deepcheck_create(self):
-        # create a small tree with a loop, and some non-directories
-        #  root/
-        #  root/subdir/
-        #  root/subdir/file1
-        #  root/subdir/link -> root
-        #  root/rodir
-        c = self.g.clients[0]
-        d = c.create_dirnode()
-        def _created_root(rootnode):
-            self._rootnode = rootnode
-            return rootnode.create_subdirectory(u"subdir")
-        d.addCallback(_created_root)
-        def _created_subdir(subdir):
-            self._subdir = subdir
-            d = subdir.add_file(u"file1", upload.Data("data"*100, None))
-            d.addCallback(lambda res: subdir.set_node(u"link", self._rootnode))
-            d.addCallback(lambda res: c.create_dirnode())
-            d.addCallback(lambda dn:
-                          self._rootnode.set_uri(u"rodir",
-                                                 dn.get_uri(),
-                                                 dn.get_readonly_uri()))
-            return d
-        d.addCallback(_created_subdir)
-        def _done(res):
-            return self._rootnode
-        d.addCallback(_done)
-        return d
-
-    def test_deepcheck(self):
-        self.basedir = "dirnode/Dirnode/test_deepcheck"
-        self.set_up_grid()
-        d = self._test_deepcheck_create()
-        d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
-        def _check_results(r):
-            self.failUnless(IDeepCheckResults.providedBy(r))
-            c = r.get_counters()
-            self.failUnlessReallyEqual(c,
-                                       {"count-objects-checked": 4,
-                                        "count-objects-healthy": 4,
-                                        "count-objects-unhealthy": 0,
-                                        "count-objects-unrecoverable": 0,
-                                        "count-corrupt-shares": 0,
-                                        })
-            self.failIf(r.get_corrupt_shares())
-            self.failUnlessReallyEqual(len(r.get_all_results()), 4)
-        d.addCallback(_check_results)
-        return d
-
-    def test_deepcheck_and_repair(self):
-        self.basedir = "dirnode/Dirnode/test_deepcheck_and_repair"
-        self.set_up_grid()
-        d = self._test_deepcheck_create()
-        d.addCallback(lambda rootnode:
-                      rootnode.start_deep_check_and_repair().when_done())
-        def _check_results(r):
-            self.failUnless(IDeepCheckAndRepairResults.providedBy(r))
-            c = r.get_counters()
-            self.failUnlessReallyEqual(c,
-                                       {"count-objects-checked": 4,
-                                        "count-objects-healthy-pre-repair": 4,
-                                        "count-objects-unhealthy-pre-repair": 0,
-                                        "count-objects-unrecoverable-pre-repair": 0,
-                                        "count-corrupt-shares-pre-repair": 0,
-                                        "count-objects-healthy-post-repair": 4,
-                                        "count-objects-unhealthy-post-repair": 0,
-                                        "count-objects-unrecoverable-post-repair": 0,
-                                        "count-corrupt-shares-post-repair": 0,
-                                        "count-repairs-attempted": 0,
-                                        "count-repairs-successful": 0,
-                                        "count-repairs-unsuccessful": 0,
-                                        })
-            self.failIf(r.get_corrupt_shares())
-            self.failIf(r.get_remaining_corrupt_shares())
-            self.failUnlessReallyEqual(len(r.get_all_results()), 4)
-        d.addCallback(_check_results)
-        return d
-
-    def _mark_file_bad(self, rootnode):
-        self.delete_shares_numbered(rootnode.get_uri(), [0])
-        return rootnode
-
-    def test_deepcheck_problems(self):
-        self.basedir = "dirnode/Dirnode/test_deepcheck_problems"
-        self.set_up_grid()
-        d = self._test_deepcheck_create()
-        d.addCallback(lambda rootnode: self._mark_file_bad(rootnode))
-        d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
-        def _check_results(r):
-            c = r.get_counters()
-            self.failUnlessReallyEqual(c,
-                                       {"count-objects-checked": 4,
-                                        "count-objects-healthy": 3,
-                                        "count-objects-unhealthy": 1,
-                                        "count-objects-unrecoverable": 0,
-                                        "count-corrupt-shares": 0,
-                                        })
-            #self.failUnlessReallyEqual(len(r.get_problems()), 1) # TODO
-        d.addCallback(_check_results)
-        return d
-
-    def test_readonly(self):
-        self.basedir = "dirnode/Dirnode/test_readonly"
-        self.set_up_grid()
-        c = self.g.clients[0]
-        nm = c.nodemaker
-        filecap = make_chk_file_uri(1234)
-        filenode = nm.create_from_cap(filecap)
-        uploadable = upload.Data("some data", convergence="some convergence string")
-
-        d = c.create_dirnode()
-        def _created(rw_dn):
-            d2 = rw_dn.set_uri(u"child", filecap, filecap)
-            d2.addCallback(lambda res: rw_dn)
-            return d2
-        d.addCallback(_created)
-
-        def _ready(rw_dn):
-            ro_uri = rw_dn.get_readonly_uri()
-            ro_dn = c.create_node_from_uri(ro_uri)
-            self.failUnless(ro_dn.is_readonly())
-            self.failUnless(ro_dn.is_mutable())
-            self.failIf(ro_dn.is_unknown())
-            self.failIf(ro_dn.is_allowed_in_immutable_directory())
-            ro_dn.raise_error()
-
-            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
-                            ro_dn.set_uri, u"newchild", filecap, filecap)
-            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
-                            ro_dn.set_node, u"newchild", filenode)
-            self.shouldFail(dirnode.NotWriteableError, "set_nodes ro", None,
-                            ro_dn.set_nodes, { u"newchild": (filenode, None) })
-            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
-                            ro_dn.add_file, u"newchild", uploadable)
-            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
-                            ro_dn.delete, u"child")
-            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
-                            ro_dn.create_subdirectory, u"newchild")
-            self.shouldFail(dirnode.NotWriteableError, "set_metadata_for ro", None,
-                            ro_dn.set_metadata_for, u"child", {})
-            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
-                            ro_dn.move_child_to, u"child", rw_dn)
-            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
-                            rw_dn.move_child_to, u"child", ro_dn)
-            return ro_dn.list()
-        d.addCallback(_ready)
-        def _listed(children):
-            self.failUnless(u"child" in children)
-        d.addCallback(_listed)
-        return d
-
-    def failUnlessGreaterThan(self, a, b):
-        self.failUnless(a > b, "%r should be > %r" % (a, b))
-
-    def failUnlessGreaterOrEqualThan(self, a, b):
-        self.failUnless(a >= b, "%r should be >= %r" % (a, b))
-
-    def test_create(self):
-        self.basedir = "dirnode/Dirnode/test_create"
-        self.set_up_grid()
+    def _do_create_test(self, mdmf=False):
         c = self.g.clients[0]
 
         self.expected_manifest = []
         self.expected_verifycaps = set()
         self.expected_storage_indexes = set()
 
-        d = c.create_dirnode()
+        d = None
+        if mdmf:
+            d = c.create_dirnode(version=MDMF_VERSION)
+        else:
+            d = c.create_dirnode()
         def _then(n):
             # /
             self.rootnode = n
+            backing_node = n._node
+            if mdmf:
+                self.failUnlessEqual(backing_node.get_version(),
+                                     MDMF_VERSION)
+            else:
+                self.failUnlessEqual(backing_node.get_version(),
+                                     SDMF_VERSION)
             self.failUnless(n.is_mutable())
             u = n.get_uri()
             self.failUnless(u)
-            self.failUnless(u.startswith("URI:DIR2:"), u)
+            cap_formats = []
+            if mdmf:
+                cap_formats = ["URI:DIR2-MDMF:",
+                               "URI:DIR2-MDMF-RO:",
+                               "URI:DIR2-MDMF-Verifier:"]
+            else:
+                cap_formats = ["URI:DIR2:",
+                               "URI:DIR2-RO",
+                               "URI:DIR2-Verifier:"]
+            rw, ro, v = cap_formats
+            self.failUnless(u.startswith(rw), u)
             u_ro = n.get_readonly_uri()
-            self.failUnless(u_ro.startswith("URI:DIR2-RO:"), u_ro)
+            self.failUnless(u_ro.startswith(ro), u_ro)
             u_v = n.get_verify_cap().to_string()
-            self.failUnless(u_v.startswith("URI:DIR2-Verifier:"), u_v)
+            self.failUnless(u_v.startswith(v), u_v)
             u_r = n.get_repair_cap().to_string()
             self.failUnlessReallyEqual(u_r, u)
             self.expected_manifest.append( ((), u) )
@@ -1134,6 +578,689 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addErrback(self.explain_error)
         return d
 
+
+    def _do_initial_children_test(self, mdmf=False):
+        c = self.g.clients[0]
+        nm = c.nodemaker
+
+        kids = {one_nfd: (nm.create_from_cap(one_uri), {}),
+                u"two": (nm.create_from_cap(setup_py_uri),
+                         {"metakey": "metavalue"}),
+                u"mut": (nm.create_from_cap(mut_write_uri, mut_read_uri), {}),
+                u"fut": (nm.create_from_cap(future_write_uri, future_read_uri), {}),
+                u"fro": (nm.create_from_cap(None, future_read_uri), {}),
+                u"fut-unic": (nm.create_from_cap(future_nonascii_write_uri, future_nonascii_read_uri), {}),
+                u"fro-unic": (nm.create_from_cap(None, future_nonascii_read_uri), {}),
+                u"empty_litdir": (nm.create_from_cap(empty_litdir_uri), {}),
+                u"tiny_litdir": (nm.create_from_cap(tiny_litdir_uri), {}),
+                }
+        d = c.create_dirnode(kids)
+        
+        def _created(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            backing_node = dn._node
+            if mdmf:
+                self.failUnlessEqual(backing_node.get_version(),
+                                     MDMF_VERSION)
+            else:
+                self.failUnlessEqual(backing_node.get_version(),
+                                     SDMF_VERSION)
+            self.failUnless(dn.is_mutable())
+            self.failIf(dn.is_readonly())
+            self.failIf(dn.is_unknown())
+            self.failIf(dn.is_allowed_in_immutable_directory())
+            dn.raise_error()
+            rep = str(dn)
+            self.failUnless("RW-MUT" in rep)
+            return dn.list()
+        d.addCallback(_created)
+        
+        def _check_kids(children):
+            self.failUnlessReallyEqual(set(children.keys()),
+                                       set([one_nfc, u"two", u"mut", u"fut", u"fro",
+                                        u"fut-unic", u"fro-unic", u"empty_litdir", u"tiny_litdir"]))
+            one_node, one_metadata = children[one_nfc]
+            two_node, two_metadata = children[u"two"]
+            mut_node, mut_metadata = children[u"mut"]
+            fut_node, fut_metadata = children[u"fut"]
+            fro_node, fro_metadata = children[u"fro"]
+            futna_node, futna_metadata = children[u"fut-unic"]
+            frona_node, frona_metadata = children[u"fro-unic"]
+            emptylit_node, emptylit_metadata = children[u"empty_litdir"]
+            tinylit_node, tinylit_metadata = children[u"tiny_litdir"]
+
+            self.failUnlessReallyEqual(one_node.get_size(), 3)
+            self.failUnlessReallyEqual(one_node.get_uri(), one_uri)
+            self.failUnlessReallyEqual(one_node.get_readonly_uri(), one_uri)
+            self.failUnless(isinstance(one_metadata, dict), one_metadata)
+
+            self.failUnlessReallyEqual(two_node.get_size(), 14861)
+            self.failUnlessReallyEqual(two_node.get_uri(), setup_py_uri)
+            self.failUnlessReallyEqual(two_node.get_readonly_uri(), setup_py_uri)
+            self.failUnlessEqual(two_metadata["metakey"], "metavalue")
+
+            self.failUnlessReallyEqual(mut_node.get_uri(), mut_write_uri)
+            self.failUnlessReallyEqual(mut_node.get_readonly_uri(), mut_read_uri)
+            self.failUnless(isinstance(mut_metadata, dict), mut_metadata)
+
+            self.failUnless(fut_node.is_unknown())
+            self.failUnlessReallyEqual(fut_node.get_uri(), future_write_uri)
+            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnless(isinstance(fut_metadata, dict), fut_metadata)
+
+            self.failUnless(futna_node.is_unknown())
+            self.failUnlessReallyEqual(futna_node.get_uri(), future_nonascii_write_uri)
+            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "ro." + future_nonascii_read_uri)
+            self.failUnless(isinstance(futna_metadata, dict), futna_metadata)
+
+            self.failUnless(fro_node.is_unknown())
+            self.failUnlessReallyEqual(fro_node.get_uri(), "ro." + future_read_uri)
+            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
+            self.failUnless(isinstance(fro_metadata, dict), fro_metadata)
+
+            self.failUnless(frona_node.is_unknown())
+            self.failUnlessReallyEqual(frona_node.get_uri(), "ro." + future_nonascii_read_uri)
+            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "ro." + future_nonascii_read_uri)
+            self.failUnless(isinstance(frona_metadata, dict), frona_metadata)
+
+            self.failIf(emptylit_node.is_unknown())
+            self.failUnlessReallyEqual(emptylit_node.get_storage_index(), None)
+            self.failIf(tinylit_node.is_unknown())
+            self.failUnlessReallyEqual(tinylit_node.get_storage_index(), None)
+
+            d2 = defer.succeed(None)
+            d2.addCallback(lambda ignored: emptylit_node.list())
+            d2.addCallback(lambda children: self.failUnlessEqual(children, {}))
+            d2.addCallback(lambda ignored: tinylit_node.list())
+            d2.addCallback(lambda children: self.failUnlessReallyEqual(set(children.keys()),
+                                                                       set([u"short"])))
+            d2.addCallback(lambda ignored: tinylit_node.list())
+            d2.addCallback(lambda children: children[u"short"][0].read(MemAccum()))
+            d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, "The end."))
+            return d2
+        d.addCallback(_created)
+        d.addCallback(_check_kids)
+
+        d.addCallback(lambda ign: nm.create_new_mutable_directory(kids))
+        d.addCallback(lambda dn: dn.list())
+        d.addCallback(_check_kids)
+
+        bad_future_node = UnknownNode(future_write_uri, None)
+        bad_kids1 = {one_nfd: (bad_future_node, {})}
+        # This should fail because we don't know how to diminish the future_write_uri
+        # cap (given in a write slot and not prefixed with "ro." or "imm.") to a readcap.
+        d.addCallback(lambda ign:
+                      self.shouldFail(MustNotBeUnknownRWError, "bad_kids1",
+                                      "cannot attach unknown",
+                                      nm.create_new_mutable_directory,
+                                      bad_kids1))
+        bad_kids2 = {one_nfd: (nm.create_from_cap(one_uri), None)}
+        d.addCallback(lambda ign:
+                      self.shouldFail(AssertionError, "bad_kids2",
+                                      "requires metadata to be a dict",
+                                      nm.create_new_mutable_directory,
+                                      bad_kids2))
+        return d
+
+    def _do_basic_test(self, mdmf=False):
+        c = self.g.clients[0]
+        d = None
+        if mdmf:
+            d = c.create_dirnode(version=MDMF_VERSION)
+        else:
+            d = c.create_dirnode()
+        def _done(res):
+            self.failUnless(isinstance(res, dirnode.DirectoryNode))
+            self.failUnless(res.is_mutable())
+            self.failIf(res.is_readonly())
+            self.failIf(res.is_unknown())
+            self.failIf(res.is_allowed_in_immutable_directory())
+            res.raise_error()
+            rep = str(res)
+            self.failUnless("RW-MUT" in rep)
+        d.addCallback(_done)
+        return d
+
+    def test_basic(self):
+        self.basedir = "dirnode/Dirnode/test_basic"
+        self.set_up_grid()
+        return self._do_basic_test()
+
+    def test_basic_mdmf(self):
+        self.basedir = "dirnode/Dirnode/test_basic_mdmf"
+        self.set_up_grid()
+        return self._do_basic_test(mdmf=True)
+
+    def test_initial_children(self):
+        self.basedir = "dirnode/Dirnode/test_initial_children"
+        self.set_up_grid()
+        return self._do_initial_children_test()
+
+    def test_immutable(self):
+        self.basedir = "dirnode/Dirnode/test_immutable"
+        self.set_up_grid()
+        c = self.g.clients[0]
+        nm = c.nodemaker
+
+        kids = {one_nfd: (nm.create_from_cap(one_uri), {}),
+                u"two": (nm.create_from_cap(setup_py_uri),
+                         {"metakey": "metavalue"}),
+                u"fut": (nm.create_from_cap(None, future_read_uri), {}),
+                u"futna": (nm.create_from_cap(None, future_nonascii_read_uri), {}),
+                u"empty_litdir": (nm.create_from_cap(empty_litdir_uri), {}),
+                u"tiny_litdir": (nm.create_from_cap(tiny_litdir_uri), {}),
+                }
+        d = c.create_immutable_dirnode(kids)
+
+        def _created(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            self.failIf(dn.is_mutable())
+            self.failUnless(dn.is_readonly())
+            self.failIf(dn.is_unknown())
+            self.failUnless(dn.is_allowed_in_immutable_directory())
+            dn.raise_error()
+            rep = str(dn)
+            self.failUnless("RO-IMM" in rep)
+            cap = dn.get_cap()
+            self.failUnlessIn("CHK", cap.to_string())
+            self.cap = cap
+            return dn.list()
+        d.addCallback(_created)
+
+        def _check_kids(children):
+            self.failUnlessReallyEqual(set(children.keys()),
+                                       set([one_nfc, u"two", u"fut", u"futna", u"empty_litdir", u"tiny_litdir"]))
+            one_node, one_metadata = children[one_nfc]
+            two_node, two_metadata = children[u"two"]
+            fut_node, fut_metadata = children[u"fut"]
+            futna_node, futna_metadata = children[u"futna"]
+            emptylit_node, emptylit_metadata = children[u"empty_litdir"]
+            tinylit_node, tinylit_metadata = children[u"tiny_litdir"]
+
+            self.failUnlessReallyEqual(one_node.get_size(), 3)
+            self.failUnlessReallyEqual(one_node.get_uri(), one_uri)
+            self.failUnlessReallyEqual(one_node.get_readonly_uri(), one_uri)
+            self.failUnless(isinstance(one_metadata, dict), one_metadata)
+
+            self.failUnlessReallyEqual(two_node.get_size(), 14861)
+            self.failUnlessReallyEqual(two_node.get_uri(), setup_py_uri)
+            self.failUnlessReallyEqual(two_node.get_readonly_uri(), setup_py_uri)
+            self.failUnlessEqual(two_metadata["metakey"], "metavalue")
+
+            self.failUnless(fut_node.is_unknown())
+            self.failUnlessReallyEqual(fut_node.get_uri(), "imm." + future_read_uri)
+            self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "imm." + future_read_uri)
+            self.failUnless(isinstance(fut_metadata, dict), fut_metadata)
+
+            self.failUnless(futna_node.is_unknown())
+            self.failUnlessReallyEqual(futna_node.get_uri(), "imm." + future_nonascii_read_uri)
+            self.failUnlessReallyEqual(futna_node.get_readonly_uri(), "imm." + future_nonascii_read_uri)
+            self.failUnless(isinstance(futna_metadata, dict), futna_metadata)
+
+            self.failIf(emptylit_node.is_unknown())
+            self.failUnlessReallyEqual(emptylit_node.get_storage_index(), None)
+            self.failIf(tinylit_node.is_unknown())
+            self.failUnlessReallyEqual(tinylit_node.get_storage_index(), None)
+
+            d2 = defer.succeed(None)
+            d2.addCallback(lambda ignored: emptylit_node.list())
+            d2.addCallback(lambda children: self.failUnlessEqual(children, {}))
+            d2.addCallback(lambda ignored: tinylit_node.list())
+            d2.addCallback(lambda children: self.failUnlessReallyEqual(set(children.keys()),
+                                                                       set([u"short"])))
+            d2.addCallback(lambda ignored: tinylit_node.list())
+            d2.addCallback(lambda children: children[u"short"][0].read(MemAccum()))
+            d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, "The end."))
+            return d2
+
+        d.addCallback(_check_kids)
+
+        d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
+        d.addCallback(lambda dn: dn.list())
+        d.addCallback(_check_kids)
+
+        bad_future_node1 = UnknownNode(future_write_uri, None)
+        bad_kids1 = {one_nfd: (bad_future_node1, {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(MustNotBeUnknownRWError, "bad_kids1",
+                                      "cannot attach unknown",
+                                      c.create_immutable_dirnode,
+                                      bad_kids1))
+        bad_future_node2 = UnknownNode(future_write_uri, future_read_uri)
+        bad_kids2 = {one_nfd: (bad_future_node2, {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(MustBeDeepImmutableError, "bad_kids2",
+                                      "is not allowed in an immutable directory",
+                                      c.create_immutable_dirnode,
+                                      bad_kids2))
+        bad_kids3 = {one_nfd: (nm.create_from_cap(one_uri), None)}
+        d.addCallback(lambda ign:
+                      self.shouldFail(AssertionError, "bad_kids3",
+                                      "requires metadata to be a dict",
+                                      c.create_immutable_dirnode,
+                                      bad_kids3))
+        bad_kids4 = {one_nfd: (nm.create_from_cap(mut_write_uri), {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(MustBeDeepImmutableError, "bad_kids4",
+                                      "is not allowed in an immutable directory",
+                                      c.create_immutable_dirnode,
+                                      bad_kids4))
+        bad_kids5 = {one_nfd: (nm.create_from_cap(mut_read_uri), {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(MustBeDeepImmutableError, "bad_kids5",
+                                      "is not allowed in an immutable directory",
+                                      c.create_immutable_dirnode,
+                                      bad_kids5))
+        d.addCallback(lambda ign: c.create_immutable_dirnode({}))
+        def _created_empty(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            self.failIf(dn.is_mutable())
+            self.failUnless(dn.is_readonly())
+            self.failIf(dn.is_unknown())
+            self.failUnless(dn.is_allowed_in_immutable_directory())
+            dn.raise_error()
+            rep = str(dn)
+            self.failUnless("RO-IMM" in rep)
+            cap = dn.get_cap()
+            self.failUnlessIn("LIT", cap.to_string())
+            self.failUnlessReallyEqual(cap.to_string(), "URI:DIR2-LIT:")
+            self.cap = cap
+            return dn.list()
+        d.addCallback(_created_empty)
+        d.addCallback(lambda kids: self.failUnlessEqual(kids, {}))
+        smallkids = {u"o": (nm.create_from_cap(one_uri), {})}
+        d.addCallback(lambda ign: c.create_immutable_dirnode(smallkids))
+        def _created_small(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            self.failIf(dn.is_mutable())
+            self.failUnless(dn.is_readonly())
+            self.failIf(dn.is_unknown())
+            self.failUnless(dn.is_allowed_in_immutable_directory())
+            dn.raise_error()
+            rep = str(dn)
+            self.failUnless("RO-IMM" in rep)
+            cap = dn.get_cap()
+            self.failUnlessIn("LIT", cap.to_string())
+            self.failUnlessReallyEqual(cap.to_string(),
+                                       "URI:DIR2-LIT:gi4tumj2n4wdcmz2kvjesosmjfkdu3rvpbtwwlbqhiwdeot3puwcy")
+            self.cap = cap
+            return dn.list()
+        d.addCallback(_created_small)
+        d.addCallback(lambda kids: self.failUnlessReallyEqual(kids.keys(), [u"o"]))
+
+        # now test n.create_subdirectory(mutable=False)
+        d.addCallback(lambda ign: c.create_dirnode())
+        def _made_parent(n):
+            d = n.create_subdirectory(u"subdir", kids, mutable=False)
+            d.addCallback(lambda sd: sd.list())
+            d.addCallback(_check_kids)
+            d.addCallback(lambda ign: n.list())
+            d.addCallback(lambda children:
+                          self.failUnlessReallyEqual(children.keys(), [u"subdir"]))
+            d.addCallback(lambda ign: n.get(u"subdir"))
+            d.addCallback(lambda sd: sd.list())
+            d.addCallback(_check_kids)
+            d.addCallback(lambda ign: n.get(u"subdir"))
+            d.addCallback(lambda sd: self.failIf(sd.is_mutable()))
+            bad_kids = {one_nfd: (nm.create_from_cap(mut_write_uri), {})}
+            d.addCallback(lambda ign:
+                          self.shouldFail(MustBeDeepImmutableError, "YZ",
+                                          "is not allowed in an immutable directory",
+                                          n.create_subdirectory,
+                                          u"sub2", bad_kids, mutable=False))
+            return d
+        d.addCallback(_made_parent)
+        return d
+
+    def test_directory_representation(self):
+        self.basedir = "dirnode/Dirnode/test_directory_representation"
+        self.set_up_grid()
+        c = self.g.clients[0]
+        nm = c.nodemaker
+
+        # This test checks that any trailing spaces in URIs are retained in the
+        # encoded directory, but stripped when we get them out of the directory.
+        # See ticket #925 for why we want that.
+        # It also tests that we store child names as UTF-8 NFC, and normalize
+        # them again when retrieving them.
+
+        stripped_write_uri = "lafs://from_the_future\t"
+        stripped_read_uri = "lafs://readonly_from_the_future\t"
+        spacedout_write_uri = stripped_write_uri + "  "
+        spacedout_read_uri = stripped_read_uri + "  "
+
+        child = nm.create_from_cap(spacedout_write_uri, spacedout_read_uri)
+        self.failUnlessReallyEqual(child.get_write_uri(), spacedout_write_uri)
+        self.failUnlessReallyEqual(child.get_readonly_uri(), "ro." + spacedout_read_uri)
+
+        child_dottedi = u"ch\u0131\u0307ld"
+
+        kids_in   = {child_dottedi: (child, {}), one_nfd: (child, {})}
+        kids_out  = {child_dottedi: (child, {}), one_nfc: (child, {})}
+        kids_norm = {u"child":      (child, {}), one_nfc: (child, {})}
+        d = c.create_dirnode(kids_in)
+
+        def _created(dn):
+            self.failUnless(isinstance(dn, dirnode.DirectoryNode))
+            self.failUnless(dn.is_mutable())
+            self.failIf(dn.is_readonly())
+            dn.raise_error()
+            self.cap = dn.get_cap()
+            self.rootnode = dn
+            return dn._node.download_best_version()
+        d.addCallback(_created)
+
+        def _check_data(data):
+            # Decode the netstring representation of the directory to check that the
+            # spaces are retained when the URIs are stored, and that the names are stored
+            # as NFC.
+            position = 0
+            numkids = 0
+            while position < len(data):
+                entries, position = split_netstring(data, 1, position)
+                entry = entries[0]
+                (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
+                name = name_utf8.decode("utf-8")
+                rw_uri = self.rootnode._decrypt_rwcapdata(rwcapdata)
+                self.failUnlessIn(name, kids_out)
+                (expected_child, ign) = kids_out[name]
+                self.failUnlessReallyEqual(rw_uri, expected_child.get_write_uri())
+                self.failUnlessReallyEqual("ro." + ro_uri, expected_child.get_readonly_uri())
+                numkids += 1
+
+            self.failUnlessReallyEqual(numkids, len(kids_out))
+            return self.rootnode
+        d.addCallback(_check_data)
+
+        # Mock up a hypothetical future version of Unicode that adds a canonical equivalence
+        # between dotless-i + dot-above, and 'i'. That would actually be prohibited by the
+        # stability rules, but similar additions involving currently-unassigned characters
+        # would not be.
+        old_normalize = unicodedata.normalize
+        def future_normalize(form, s):
+            assert form == 'NFC', form
+            return old_normalize(form, s).replace(u"\u0131\u0307", u"i")
+
+        def _list(node):
+            unicodedata.normalize = future_normalize
+            d2 = node.list()
+            def _undo_mock(res):
+                unicodedata.normalize = old_normalize
+                return res
+            d2.addBoth(_undo_mock)
+            return d2
+        d.addCallback(_list)
+
+        def _check_kids(children):
+            # Now when we use the real directory listing code, the trailing spaces
+            # should have been stripped (and "ro." should have been prepended to the
+            # ro_uri, since it's unknown). Also the dotless-i + dot-above should have been
+            # normalized to 'i'.
+
+            self.failUnlessReallyEqual(set(children.keys()), set(kids_norm.keys()))
+            child_node, child_metadata = children[u"child"]
+
+            self.failUnlessReallyEqual(child_node.get_write_uri(), stripped_write_uri)
+            self.failUnlessReallyEqual(child_node.get_readonly_uri(), "ro." + stripped_read_uri)
+        d.addCallback(_check_kids)
+
+        d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
+        d.addCallback(_list)
+        d.addCallback(_check_kids)  # again with dirnode recreated from cap
+        return d
+
+    def test_check(self):
+        self.basedir = "dirnode/Dirnode/test_check"
+        self.set_up_grid()
+        c = self.g.clients[0]
+        d = c.create_dirnode()
+        d.addCallback(lambda dn: dn.check(Monitor()))
+        def _done(res):
+            self.failUnless(res.is_healthy())
+        d.addCallback(_done)
+        return d
+
+    def _test_deepcheck_create(self, version=SDMF_VERSION):
+        # create a small tree with a loop, and some non-directories
+        #  root/
+        #  root/subdir/
+        #  root/subdir/file1
+        #  root/subdir/link -> root
+        #  root/rodir
+        c = self.g.clients[0]
+        d = c.create_dirnode(version=version)
+        def _created_root(rootnode):
+            self._rootnode = rootnode
+            self.failUnlessEqual(rootnode._node.get_version(), version)
+            return rootnode.create_subdirectory(u"subdir")
+        d.addCallback(_created_root)
+        def _created_subdir(subdir):
+            self._subdir = subdir
+            d = subdir.add_file(u"file1", upload.Data("data"*100, None))
+            d.addCallback(lambda res: subdir.set_node(u"link", self._rootnode))
+            d.addCallback(lambda res: c.create_dirnode())
+            d.addCallback(lambda dn:
+                          self._rootnode.set_uri(u"rodir",
+                                                 dn.get_uri(),
+                                                 dn.get_readonly_uri()))
+            return d
+        d.addCallback(_created_subdir)
+        def _done(res):
+            return self._rootnode
+        d.addCallback(_done)
+        return d
+
+    def test_deepcheck(self):
+        self.basedir = "dirnode/Dirnode/test_deepcheck"
+        self.set_up_grid()
+        d = self._test_deepcheck_create()
+        d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
+        def _check_results(r):
+            self.failUnless(IDeepCheckResults.providedBy(r))
+            c = r.get_counters()
+            self.failUnlessReallyEqual(c,
+                                       {"count-objects-checked": 4,
+                                        "count-objects-healthy": 4,
+                                        "count-objects-unhealthy": 0,
+                                        "count-objects-unrecoverable": 0,
+                                        "count-corrupt-shares": 0,
+                                        })
+            self.failIf(r.get_corrupt_shares())
+            self.failUnlessReallyEqual(len(r.get_all_results()), 4)
+        d.addCallback(_check_results)
+        return d
+
+    def test_deepcheck_mdmf(self):
+        self.basedir = "dirnode/Dirnode/test_deepcheck_mdmf"
+        self.set_up_grid()
+        d = self._test_deepcheck_create(MDMF_VERSION)
+        d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
+        def _check_results(r):
+            self.failUnless(IDeepCheckResults.providedBy(r))
+            c = r.get_counters()
+            self.failUnlessReallyEqual(c,
+                                       {"count-objects-checked": 4,
+                                        "count-objects-healthy": 4,
+                                        "count-objects-unhealthy": 0,
+                                        "count-objects-unrecoverable": 0,
+                                        "count-corrupt-shares": 0,
+                                        })
+            self.failIf(r.get_corrupt_shares())
+            self.failUnlessReallyEqual(len(r.get_all_results()), 4)
+        d.addCallback(_check_results)
+        return d
+
+    def test_deepcheck_and_repair(self):
+        self.basedir = "dirnode/Dirnode/test_deepcheck_and_repair"
+        self.set_up_grid()
+        d = self._test_deepcheck_create()
+        d.addCallback(lambda rootnode:
+                      rootnode.start_deep_check_and_repair().when_done())
+        def _check_results(r):
+            self.failUnless(IDeepCheckAndRepairResults.providedBy(r))
+            c = r.get_counters()
+            self.failUnlessReallyEqual(c,
+                                       {"count-objects-checked": 4,
+                                        "count-objects-healthy-pre-repair": 4,
+                                        "count-objects-unhealthy-pre-repair": 0,
+                                        "count-objects-unrecoverable-pre-repair": 0,
+                                        "count-corrupt-shares-pre-repair": 0,
+                                        "count-objects-healthy-post-repair": 4,
+                                        "count-objects-unhealthy-post-repair": 0,
+                                        "count-objects-unrecoverable-post-repair": 0,
+                                        "count-corrupt-shares-post-repair": 0,
+                                        "count-repairs-attempted": 0,
+                                        "count-repairs-successful": 0,
+                                        "count-repairs-unsuccessful": 0,
+                                        })
+            self.failIf(r.get_corrupt_shares())
+            self.failIf(r.get_remaining_corrupt_shares())
+            self.failUnlessReallyEqual(len(r.get_all_results()), 4)
+        d.addCallback(_check_results)
+        return d
+
+    def test_deepcheck_and_repair_mdmf(self):
+        self.basedir = "dirnode/Dirnode/test_deepcheck_and_repair_mdmf"
+        self.set_up_grid()
+        d = self._test_deepcheck_create(version=MDMF_VERSION)
+        d.addCallback(lambda rootnode:
+                      rootnode.start_deep_check_and_repair().when_done())
+        def _check_results(r):
+            self.failUnless(IDeepCheckAndRepairResults.providedBy(r))
+            c = r.get_counters()
+            self.failUnlessReallyEqual(c,
+                                       {"count-objects-checked": 4,
+                                        "count-objects-healthy-pre-repair": 4,
+                                        "count-objects-unhealthy-pre-repair": 0,
+                                        "count-objects-unrecoverable-pre-repair": 0,
+                                        "count-corrupt-shares-pre-repair": 0,
+                                        "count-objects-healthy-post-repair": 4,
+                                        "count-objects-unhealthy-post-repair": 0,
+                                        "count-objects-unrecoverable-post-repair": 0,
+                                        "count-corrupt-shares-post-repair": 0,
+                                        "count-repairs-attempted": 0,
+                                        "count-repairs-successful": 0,
+                                        "count-repairs-unsuccessful": 0,
+                                        })
+            self.failIf(r.get_corrupt_shares())
+            self.failIf(r.get_remaining_corrupt_shares())
+            self.failUnlessReallyEqual(len(r.get_all_results()), 4)
+        d.addCallback(_check_results)
+        return d
+
+    def _mark_file_bad(self, rootnode):
+        self.delete_shares_numbered(rootnode.get_uri(), [0])
+        return rootnode
+
+    def test_deepcheck_problems(self):
+        self.basedir = "dirnode/Dirnode/test_deepcheck_problems"
+        self.set_up_grid()
+        d = self._test_deepcheck_create()
+        d.addCallback(lambda rootnode: self._mark_file_bad(rootnode))
+        d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
+        def _check_results(r):
+            c = r.get_counters()
+            self.failUnlessReallyEqual(c,
+                                       {"count-objects-checked": 4,
+                                        "count-objects-healthy": 3,
+                                        "count-objects-unhealthy": 1,
+                                        "count-objects-unrecoverable": 0,
+                                        "count-corrupt-shares": 0,
+                                        })
+            #self.failUnlessReallyEqual(len(r.get_problems()), 1) # TODO
+        d.addCallback(_check_results)
+        return d
+
+    def test_deepcheck_problems_mdmf(self):
+        self.basedir = "dirnode/Dirnode/test_deepcheck_problems_mdmf"
+        self.set_up_grid()
+        d = self._test_deepcheck_create(version=MDMF_VERSION)
+        d.addCallback(lambda rootnode: self._mark_file_bad(rootnode))
+        d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
+        def _check_results(r):
+            c = r.get_counters()
+            self.failUnlessReallyEqual(c,
+                                       {"count-objects-checked": 4,
+                                        "count-objects-healthy": 3,
+                                        "count-objects-unhealthy": 1,
+                                        "count-objects-unrecoverable": 0,
+                                        "count-corrupt-shares": 0,
+                                        })
+            #self.failUnlessReallyEqual(len(r.get_problems()), 1) # TODO
+        d.addCallback(_check_results)
+        return d
+
+    def _do_readonly_test(self, version=SDMF_VERSION):
+        c = self.g.clients[0]
+        nm = c.nodemaker
+        filecap = make_chk_file_uri(1234)
+        filenode = nm.create_from_cap(filecap)
+        uploadable = upload.Data("some data", convergence="some convergence string")
+
+        d = c.create_dirnode(version=version)
+        def _created(rw_dn):
+            backing_node = rw_dn._node
+            self.failUnlessEqual(backing_node.get_version(), version)
+            d2 = rw_dn.set_uri(u"child", filecap, filecap)
+            d2.addCallback(lambda res: rw_dn)
+            return d2
+        d.addCallback(_created)
+
+        def _ready(rw_dn):
+            ro_uri = rw_dn.get_readonly_uri()
+            ro_dn = c.create_node_from_uri(ro_uri)
+            self.failUnless(ro_dn.is_readonly())
+            self.failUnless(ro_dn.is_mutable())
+            self.failIf(ro_dn.is_unknown())
+            self.failIf(ro_dn.is_allowed_in_immutable_directory())
+            ro_dn.raise_error()
+
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
+                            ro_dn.set_uri, u"newchild", filecap, filecap)
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
+                            ro_dn.set_node, u"newchild", filenode)
+            self.shouldFail(dirnode.NotWriteableError, "set_nodes ro", None,
+                            ro_dn.set_nodes, { u"newchild": (filenode, None) })
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
+                            ro_dn.add_file, u"newchild", uploadable)
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
+                            ro_dn.delete, u"child")
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
+                            ro_dn.create_subdirectory, u"newchild")
+            self.shouldFail(dirnode.NotWriteableError, "set_metadata_for ro", None,
+                            ro_dn.set_metadata_for, u"child", {})
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
+                            ro_dn.move_child_to, u"child", rw_dn)
+            self.shouldFail(dirnode.NotWriteableError, "set_uri ro", None,
+                            rw_dn.move_child_to, u"child", ro_dn)
+            return ro_dn.list()
+        d.addCallback(_ready)
+        def _listed(children):
+            self.failUnless(u"child" in children)
+        d.addCallback(_listed)
+        return d
+
+    def test_readonly(self):
+        self.basedir = "dirnode/Dirnode/test_readonly"
+        self.set_up_grid()
+        return self._do_readonly_test()
+
+    def test_readonly_mdmf(self):
+        self.basedir = "dirnode/Dirnode/test_readonly_mdmf"
+        self.set_up_grid()
+        return self._do_readonly_test(version=MDMF_VERSION)
+
+    def failUnlessGreaterThan(self, a, b):
+        self.failUnless(a > b, "%r should be > %r" % (a, b))
+
+    def failUnlessGreaterOrEqualThan(self, a, b):
+        self.failUnless(a >= b, "%r should be >= %r" % (a, b))
+
+    def test_create(self):
+        self.basedir = "dirnode/Dirnode/test_create"
+        self.set_up_grid()
+        return self._do_create_test()
+
     def test_update_metadata(self):
         (t1, t2, t3) = (626644800.0, 634745640.0, 892226160.0)
 
@@ -1151,13 +1278,11 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         self.failUnlessEqual(md4, {"bool": True, "number": 42,
                                    "tahoe":{"linkcrtime": t1, "linkmotime": t1}})
 
-    def test_create_subdirectory(self):
-        self.basedir = "dirnode/Dirnode/test_create_subdirectory"
-        self.set_up_grid()
+    def _do_create_subdirectory_test(self, version=SDMF_VERSION):
         c = self.g.clients[0]
         nm = c.nodemaker
 
-        d = c.create_dirnode()
+        d = c.create_dirnode(version=version)
         def _then(n):
             # /
             self.rootnode = n
@@ -1167,7 +1292,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             kids = {u"kid1": (nm.create_from_cap(fake_file_uri), {}),
                     u"kid2": (nm.create_from_cap(other_file_uri), md),
                     }
-            d = n.create_subdirectory(u"subdir", kids)
+            d = n.create_subdirectory(u"subdir", kids,
+                                      mutable_version=version)
             def _check(sub):
                 d = n.get_child_at_path(u"subdir")
                 d.addCallback(lambda sub2: self.failUnlessReallyEqual(sub2.get_uri(),
@@ -1182,6 +1308,26 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             return d
         d.addCallback(_then)
         return d
+
+    def test_create_subdirectory(self):
+        self.basedir = "dirnode/Dirnode/test_create_subdirectory"
+        self.set_up_grid()
+        return self._do_create_subdirectory_test()
+
+    def test_create_subdirectory_mdmf(self):
+        self.basedir = "dirnode/Dirnode/test_create_subdirectory_mdmf"
+        self.set_up_grid()
+        return self._do_create_subdirectory_test(version=MDMF_VERSION)
+
+    def test_create_mdmf(self):
+        self.basedir = "dirnode/Dirnode/test_mdmf"
+        self.set_up_grid()
+        return self._do_create_test(mdmf=True)
+
+    def test_mdmf_initial_children(self):
+        self.basedir = "dirnode/Dirnode/test_mdmf"
+        self.set_up_grid()
+        return self._do_initial_children_test(mdmf=True)
 
 class MinimalFakeMutableFile:
     def get_writekey(self):
@@ -1301,7 +1447,10 @@ class FakeMutableFile:
     implements(IMutableFileNode)
     counter = 0
     def __init__(self, initial_contents=""):
-        self.data = self._get_initial_contents(initial_contents)
+        data = self._get_initial_contents(initial_contents)
+        self.data = data.read(data.get_size())
+        self.data = "".join(self.data)
+
         counter = FakeMutableFile.counter
         FakeMutableFile.counter += 1
         writekey = hashutil.ssk_writekey_hash(str(counter))
@@ -1348,11 +1497,12 @@ class FakeMutableFile:
         pass
 
     def modify(self, modifier):
-        self.data = modifier(self.data, None, True)
+        data = modifier(self.data, None, True)
+        self.data = data
         return defer.succeed(None)
 
 class FakeNodeMaker(NodeMaker):
-    def create_mutable_file(self, contents="", keysize=None):
+    def create_mutable_file(self, contents="", keysize=None, version=None):
         return defer.succeed(FakeMutableFile(contents))
 
 class FakeClient2(Client):
@@ -1549,6 +1699,7 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
 
         for (i, n) in imm_prefixed:
             self.failUnless(n.get_readonly_uri().startswith("imm."), i)
+
 
 
 class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
