@@ -12,11 +12,11 @@ import allmydata # to display import path
 from allmydata import get_package_versions_string
 from allmydata import provisioning
 from allmydata.util import idlib, log
-from allmydata.interfaces import IFileNode
+from allmydata.interfaces import IFileNode, MDMF_VERSION, SDMF_VERSION
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import reliability, storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
-     get_arg, RenderMixin, boolean_of_arg
+     get_arg, RenderMixin, boolean_of_arg, parse_mutable_type_arg
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -47,7 +47,13 @@ class URIHandler(RenderMixin, rend.Page):
         if t == "":
             mutable = boolean_of_arg(get_arg(req, "mutable", "false").strip())
             if mutable:
-                return unlinked.PUTUnlinkedSSK(req, self.client)
+                arg = get_arg(req, "mutable-type", None)
+                version = parse_mutable_type_arg(arg)
+                if version == "invalid":
+                    errmsg = "Unknown type: %s" % arg
+                    raise WebError(errmsg, http.BAD_REQUEST)
+
+                return unlinked.PUTUnlinkedSSK(req, self.client, version)
             else:
                 return unlinked.PUTUnlinkedCHK(req, self.client)
         if t == "mkdir":
@@ -65,7 +71,11 @@ class URIHandler(RenderMixin, rend.Page):
         if t in ("", "upload"):
             mutable = bool(get_arg(req, "mutable", "").strip())
             if mutable:
-                return unlinked.POSTUnlinkedSSK(req, self.client)
+                arg = get_arg(req, "mutable-type", None)
+                version = parse_mutable_type_arg(arg)
+                if version is "invalid":
+                    raise WebError("Unknown type: %s" % arg, http.BAD_REQUEST)
+                return unlinked.POSTUnlinkedSSK(req, self.client, version)
             else:
                 return unlinked.POSTUnlinkedCHK(req, self.client)
         if t == "mkdir":
@@ -322,6 +332,30 @@ class Root(rend.Page):
 
     def render_upload_form(self, ctx, data):
         # this is a form where users can upload unlinked files
+        #
+        # for mutable files, users can choose the format by selecting
+        # MDMF or SDMF from a radio button. They can also configure a
+        # default format in tahoe.cfg, which they rightly expect us to
+        # obey. we convey to them that we are obeying their choice by
+        # ensuring that the one that they've chosen is selected in the
+        # interface.
+        if self.client.mutable_file_default == MDMF_VERSION:
+            mdmf_input = T.input(type='radio', name='mutable-type',
+                                 value='mdmf', id='mutable-type-mdmf',
+                                 checked='checked')
+        else:
+            mdmf_input = T.input(type='radio', name='mutable-type',
+                                 value='mdmf', id='mutable-type-mdmf')
+
+        if self.client.mutable_file_default == SDMF_VERSION:
+            sdmf_input = T.input(type='radio', name='mutable-type',
+                                 value='sdmf', id='mutable-type-sdmf',
+                                 checked='checked')
+        else:
+            sdmf_input = T.input(type='radio', name='mutable-type',
+                                 value='sdmf', id='mutable-type-sdmf')
+
+
         form = T.form(action="uri", method="post",
                       enctype="multipart/form-data")[
             T.fieldset[
@@ -330,16 +364,28 @@ class Root(rend.Page):
                   T.input(type="file", name="file", class_="freeform-input-file")],
             T.input(type="hidden", name="t", value="upload"),
             T.div[T.input(type="checkbox", name="mutable"), T.label(for_="mutable")["Create mutable file"],
+                  sdmf_input, T.label(for_="mutable-type-sdmf")["SDMF"],
+                  mdmf_input,
+                  T.label(for_='mutable-type-mdmf')['MDMF (experimental)'],
                   " ", T.input(type="submit", value="Upload!")],
             ]]
         return T.div[form]
 
     def render_mkdir_form(self, ctx, data):
         # this is a form where users can create new directories
+        mdmf_input = T.input(type='radio', name='mutable-type',
+                             value='mdmf', id='mutable-directory-mdmf')
+        sdmf_input = T.input(type='radio', name='mutable-type',
+                             value='sdmf', id='mutable-directory-sdmf',
+                             checked='checked')
         form = T.form(action="uri", method="post",
                       enctype="multipart/form-data")[
             T.fieldset[
             T.legend(class_="freeform-form-label")["Create a directory"],
+            T.label(for_='mutable-directory-sdmf')["SDMF"],
+            sdmf_input,
+            T.label(for_='mutable-directory-mdmf')["MDMF"],
+            mdmf_input,
             T.input(type="hidden", name="t", value="mkdir"),
             T.input(type="hidden", name="redirect_to_result", value="true"),
             T.input(type="submit", value="Create a directory"),

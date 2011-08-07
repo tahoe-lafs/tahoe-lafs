@@ -5,7 +5,7 @@ from nevow import rend, tags as T
 from nevow.inevow import IRequest
 
 from allmydata.util import base32
-from allmydata.interfaces import IDirectoryNode, IFileNode
+from allmydata.interfaces import IDirectoryNode, IFileNode, MDMF_VERSION
 from allmydata.web.common import getxmlfile
 from allmydata.mutable.common import UnrecoverableFileError # TODO: move
 
@@ -28,7 +28,12 @@ class MoreInfo(rend.Page):
             si = node.get_storage_index()
             if si:
                 if node.is_mutable():
-                    return "mutable file"
+                    ret = "mutable file"
+                    if node.get_version() == MDMF_VERSION:
+                        ret += " (mdmf)"
+                    else:
+                        ret += " (sdmf)"
+                    return ret
                 return "immutable file"
             return "immutable LIT file"
         return "unknown"

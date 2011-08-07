@@ -16,14 +16,15 @@ from allmydata.util import base32, time_format
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
      IImmutableFileNode, IMutableFileNode, ExistingChildError, \
-     NoSuchChildError, EmptyPathnameComponentError
+     NoSuchChildError, EmptyPathnameComponentError, SDMF_VERSION, MDMF_VERSION
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata import dirnode
 from allmydata.web.common import text_plain, WebError, \
      IOpHandleTable, NeedOperationHandleError, \
      boolean_of_arg, get_arg, get_root, parse_replace_arg, \
      should_create_intermediate_directories, \
-     getxmlfile, RenderMixin, humanize_failure, convert_children_json
+     getxmlfile, RenderMixin, humanize_failure, convert_children_json, \
+     parse_mutable_type_arg
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.check_results import CheckResults, \
@@ -108,8 +109,17 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                     mutable = True
                     if t == "mkdir-immutable":
                         mutable = False
+
+                    mt = None
+                    if mutable:
+                        arg = get_arg(req, "mutable-type", None)
+                        mt = parse_mutable_type_arg(arg)
+                        if mt is "invalid":
+                            raise WebError("Unknown type: %s" % arg,
+                                           http.BAD_REQUEST)
                     d = self.node.create_subdirectory(name, kids,
-                                                      mutable=mutable)
+                                                      mutable=mutable,
+                                                      mutable_version=mt)
                     d.addCallback(make_handler_for,
                                   self.client, self.node, name)
                     return d
@@ -150,7 +160,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         if not t:
             # render the directory as HTML, using the docFactory and Nevow's
             # whole templating thing.
-            return DirectoryAsHTML(self.node)
+            return DirectoryAsHTML(self.node,
+                                   self.client.mutable_file_default)
 
         if t == "json":
             return DirectoryJSONMetadata(ctx, self.node)
@@ -239,7 +250,15 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         name = name.decode("utf-8")
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
         kids = {}
-        d = self.node.create_subdirectory(name, kids, overwrite=replace)
+        arg = get_arg(req, "mutable-type", None)
+        mt = parse_mutable_type_arg(arg)
+        if mt is not None and mt is not "invalid":
+            d = self.node.create_subdirectory(name, kids, overwrite=replace,
+                                          mutable_version=mt)
+        elif mt is "invalid":
+            raise WebError("Unknown type: %s" % arg, http.BAD_REQUEST)
+        else:
+            d = self.node.create_subdirectory(name, kids, overwrite=replace)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 
@@ -255,7 +274,15 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         req.content.seek(0)
         kids_json = req.content.read()
         kids = convert_children_json(self.client.nodemaker, kids_json)
-        d = self.node.create_subdirectory(name, kids, overwrite=False)
+        arg = get_arg(req, "mutable-type", None)
+        mt = parse_mutable_type_arg(arg)
+        if mt is not None and mt is not "invalid":
+            d = self.node.create_subdirectory(name, kids, overwrite=False,
+                                              mutable_version=mt)
+        elif mt is "invalid":
+            raise WebError("Unknown type: %s" % arg)
+        else:
+            d = self.node.create_subdirectory(name, kids, overwrite=False)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 
@@ -552,9 +579,12 @@ class DirectoryAsHTML(rend.Page):
     docFactory = getxmlfile("directory.xhtml")
     addSlash = True
 
-    def __init__(self, node):
+    def __init__(self, node, default_mutable_format):
         rend.Page.__init__(self)
         self.node = node
+
+        assert default_mutable_format in (MDMF_VERSION, SDMF_VERSION)
+        self.default_mutable_format = default_mutable_format
 
     def beforeRender(self, ctx):
         # attempt to get the dirnode's children, stashing them (or the
@@ -753,6 +783,7 @@ class DirectoryAsHTML(rend.Page):
 
         return ctx.tag
 
+    # XXX: Duplicated from root.py.
     def render_forms(self, ctx, data):
         forms = []
 
@@ -761,6 +792,12 @@ class DirectoryAsHTML(rend.Page):
         if self.dirnode_children is None:
             return T.div["No upload forms: directory is unreadable"]
 
+        mdmf_directory_input = T.input(type='radio', name='mutable-type',
+                                       id='mutable-directory-mdmf',
+                                       value='mdmf')
+        sdmf_directory_input = T.input(type='radio', name='mutable-type',
+                                       id='mutable-directory-sdmf',
+                                       value='sdmf', checked='checked')
         mkdir = T.form(action=".", method="post",
                        enctype="multipart/form-data")[
             T.fieldset[
@@ -769,9 +806,33 @@ class DirectoryAsHTML(rend.Page):
             T.legend(class_="freeform-form-label")["Create a new directory in this directory"],
             "New directory name: ",
             T.input(type="text", name="name"), " ",
+            T.label(for_='mutable-directory-sdmf')["SDMF"],
+            sdmf_directory_input,
+            T.label(for_='mutable-directory-mdmf')["MDMF"],
+            mdmf_directory_input,
             T.input(type="submit", value="Create"),
             ]]
         forms.append(T.div(class_="freeform-form")[mkdir])
+
+        # Build input elements for mutable file type. We do this outside
+        # of the list so we can check the appropriate format, based on
+        # the default configured in the client (which reflects the
+        # default configured in tahoe.cfg)
+        if self.default_mutable_format == MDMF_VERSION:
+            mdmf_input = T.input(type='radio', name='mutable-type',
+                                 id='mutable-type-mdmf', value='mdmf',
+                                 checked='checked')
+        else:
+            mdmf_input = T.input(type='radio', name='mutable-type',
+                                 id='mutable-type-mdmf', value='mdmf')
+
+        if self.default_mutable_format == SDMF_VERSION:
+            sdmf_input = T.input(type='radio', name='mutable-type',
+                                 id='mutable-type-sdmf', value='sdmf',
+                                 checked="checked")
+        else:
+            sdmf_input = T.input(type='radio', name='mutable-type',
+                                 id='mutable-type-sdmf', value='sdmf')
 
         upload = T.form(action=".", method="post",
                         enctype="multipart/form-data")[
@@ -785,6 +846,9 @@ class DirectoryAsHTML(rend.Page):
             T.input(type="submit", value="Upload"),
             " Mutable?:",
             T.input(type="checkbox", name="mutable"),
+            sdmf_input, T.label(for_="mutable-type-sdmf")["SDMF"],
+            mdmf_input,
+            T.label(for_="mutable-type-mdmf")["MDMF (experimental)"],
             ]]
         forms.append(T.div(class_="freeform-form")[upload])
 
@@ -820,6 +884,17 @@ def DirectoryJSONMetadata(ctx, dirnode):
                 kiddata = ("filenode", {'size': childnode.get_size(),
                                         'mutable': childnode.is_mutable(),
                                         })
+                if childnode.is_mutable() and \
+                    childnode.get_version() is not None:
+                    mutable_type = childnode.get_version()
+                    assert mutable_type in (SDMF_VERSION, MDMF_VERSION)
+
+                    if mutable_type == MDMF_VERSION:
+                        mutable_type = "mdmf"
+                    else:
+                        mutable_type = "sdmf"
+                    kiddata[1]['mutable-type'] = mutable_type
+
             elif IDirectoryNode.providedBy(childnode):
                 kiddata = ("dirnode", {'mutable': childnode.is_mutable()})
             else:

@@ -9,7 +9,7 @@ from nevow.util import resource_filename
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      FileTooLargeError, NotEnoughSharesError, NoSharesError, \
      EmptyPathnameComponentError, MustBeDeepImmutableError, \
-     MustBeReadonlyError, MustNotBeUnknownRWError
+     MustBeReadonlyError, MustNotBeUnknownRWError, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate
 from allmydata.util.encodingutil import to_str, quote_output
@@ -31,6 +31,32 @@ def parse_replace_arg(replace):
         return replace
     else:
         return boolean_of_arg(replace)
+
+
+def parse_mutable_type_arg(arg):
+    if not arg:
+        return None # interpreted by the caller as "let the nodemaker decide"
+
+    arg = arg.lower()
+    if arg == "mdmf":
+        return MDMF_VERSION
+    elif arg == "sdmf":
+        return SDMF_VERSION
+
+    return "invalid"
+
+
+def parse_offset_arg(offset):
+    # XXX: This will raise a ValueError when invoked on something that
+    # is not an integer. Is that okay? Or do we want a better error
+    # message? Since this call is going to be used by programmers and
+    # their tools rather than users (through the wui), it is not
+    # inconsistent to return that, I guess.
+    if offset is not None:
+        offset = int(offset)
+
+    return offset
+
 
 def get_root(ctx_or_req):
     req = IRequest(ctx_or_req)
