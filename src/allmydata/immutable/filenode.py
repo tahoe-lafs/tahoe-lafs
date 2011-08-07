@@ -8,12 +8,8 @@ from twisted.internet import defer
 
 from allmydata import uri
 from twisted.internet.interfaces import IConsumer
-from twisted.protocols import basic
-from foolscap.api import eventually
-from allmydata.interfaces import IImmutableFileNode, ICheckable, \
-     IDownloadTarget, IUploadResults
-from allmydata.util import dictutil, log, base32, consumer
-from allmydata.immutable.checker import Checker
+from allmydata.interfaces import IImmutableFileNode, IUploadResults
+from allmydata.util import consumer
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.util.dictutil import DictOfSets
 from pycryptopp.cipher.aes import AES
