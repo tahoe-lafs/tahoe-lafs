@@ -359,6 +359,12 @@ FTP, SFTP
     for instructions on configuring these services, and the ``[ftpd]`` and
     ``[sftpd]`` sections of ``tahoe.cfg``.
 
+Drop-Upload
+
+    As of Tahoe-LAFS v1.9.0, a node running on Linux can be configured to
+    automatically upload files that are created or changed in a specified
+    local directory. See `<frontends/drop_upload.rst>`_ for details.
+
 
 
 Storage Server Configuration
