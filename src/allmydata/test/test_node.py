@@ -70,6 +70,21 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(_check_addresses)
         return d
 
+    def test_tahoe_cfg_utf8(self):
+        basedir = "test_node/test_tahoe_cfg_utf8"
+        fileutil.make_dirs(basedir)
+        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
+        f.write(u"\uFEFF[node]\n".encode('utf-8'))
+        f.write(u"nickname = \u2621\n".encode('utf-8'))
+        f.close()
+
+        n = TestNode(basedir)
+        n.setServiceParent(self.parent)
+        d = n.when_tub_ready()
+        d.addCallback(lambda ign: self.failUnlessEqual(n.get_config("node", "nickname").decode('utf-8'),
+                                                       u"\u2621"))
+        return d
+
     def test_timestamp(self):
         # this modified logger doesn't seem to get used during the tests,
         # probably because we don't modify the LogObserver that trial
