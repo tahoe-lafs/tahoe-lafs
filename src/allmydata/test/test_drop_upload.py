@@ -1,13 +1,13 @@
 
-import os, sys, platform
+import os, sys
 
 from twisted.trial import unittest
 from twisted.python import filepath, runtime
-from twisted.internet import defer, base
+from twisted.internet import defer
 
 from allmydata.interfaces import IDirectoryNode, NoSuchChildError
 
-from allmydata.util import fileutil, fake_inotify
+from allmydata.util import fake_inotify
 from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
