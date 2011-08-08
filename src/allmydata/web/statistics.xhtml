@@ -9,6 +9,8 @@
 
 <h1>Node Statistics</h1>
 
+<h2>General</h2>
+
 <ul>
   <li>Load Average: <span n:render="load_average" /></li>
   <li>Peak Load: <span n:render="peak_load" /></li>
@@ -16,6 +18,15 @@
   <li>Files Downloaded (immutable): <span n:render="downloads" /></li>
   <li>Files Published (mutable): <span n:render="publishes" /></li>
   <li>Files Retrieved (mutable): <span n:render="retrieves" /></li>
+</ul>
+
+<h2>Drop-Uploader</h2>
+
+<ul>
+  <li>Local Directories Monitored: <span n:render="drop_monitored" /></li>
+  <li>Files Uploaded: <span n:render="drop_uploads" /></li>
+  <li>File Changes Queued: <span n:render="drop_queued" /></li>
+  <li>Failed Uploads: <span n:render="drop_failed" /></li>
 </ul>
 
 <h2>Raw Stats:</h2>

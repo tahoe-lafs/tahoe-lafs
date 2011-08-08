@@ -19,6 +19,8 @@ install_requires = [
     "zope.interface == 3.3.1, == 3.5.3, == 3.6.1",
 
     # On Windows we need at least Twisted 9.0 to avoid an indirect dependency on pywin32.
+    # On Linux we need at least Twisted 10.1.0 for inotify support used by the drop-upload
+    # frontend.
     # We also need Twisted 10.1 for the FTP frontend in order for Twisted's FTP server to
     # support asynchronous close.
     "Twisted >= 10.1.0",

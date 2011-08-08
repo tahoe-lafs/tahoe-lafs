@@ -152,6 +152,14 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.write("enabled = false\n")
     c.write("\n")
 
+    c.write("[drop_upload]\n")
+    c.write("# Shall this node automatically upload files created or modified in a local directory?\n")
+    c.write("enabled = false\n")
+    c.write("# This must be an URI for a writeable directory.\n")
+    c.write("upload.uri =\n")
+    c.write("local.directory = ~/drop_upload\n")
+    c.write("\n")
+
     c.close()
 
     from allmydata.util import fileutil

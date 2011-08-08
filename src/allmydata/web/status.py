@@ -1290,6 +1290,23 @@ class Statistics(rend.Page):
         return "%s files / %s bytes (%s)" % (files, bytes,
                                              abbreviate_size(bytes))
 
+    def render_drop_monitored(self, ctx, data):
+        dirs = data["counters"].get("drop_upload.dirs_monitored", 0)
+        return "%s directories" % (dirs,)
+
+    def render_drop_uploads(self, ctx, data):
+        # TODO: bytes uploaded
+        files = data["counters"].get("drop_upload.files_uploaded", 0)
+        return "%s files" % (files,)
+
+    def render_drop_queued(self, ctx, data):
+        files = data["counters"].get("drop_upload.files_queued", 0)
+        return "%s files" % (files,)
+
+    def render_drop_failed(self, ctx, data):
+        files = data["counters"].get("drop_upload.files_failed", 0)
+        return "%s files" % (files,)
+
     def render_raw(self, ctx, data):
         raw = pprint.pformat(data)
         return ctx.tag[raw]
