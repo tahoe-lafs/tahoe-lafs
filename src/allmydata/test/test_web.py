@@ -366,9 +366,9 @@ class WebMixin(object):
         self.failUnlessReallyEqual(to_str(kids[u"n\u00fc.txt"][1]["ro_uri"]),
                                    self._bar_txt_uri)
         self.failUnlessIn("quux.txt", kids)
-        self.failUnlessReallyEqual(kids[u"quux.txt"][1]["rw_uri"],
+        self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["rw_uri"]),
                                    self._quux_txt_uri)
-        self.failUnlessReallyEqual(kids[u"quux.txt"][1]["ro_uri"],
+        self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["ro_uri"]),
                                    self._quux_txt_readonly_uri)
 
     def GET(self, urlpath, followRedirect=False, return_response=False,
