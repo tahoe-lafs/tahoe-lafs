@@ -42,16 +42,16 @@ sit at the same level as the web-API interface.
 Since Tahoe-LAFS does not use user accounts or passwords, the FTP/SFTP
 servers must be configured with a way to first authenticate a user (confirm
 that a prospective client has a legitimate claim to whatever authorities we
-might grant a particular user), and second to decide what root directory cap
+might grant a particular user), and second to decide what directory cap
 should be granted to the authenticated username. A username and password is
 used for this purpose. (The SFTP protocol is also capable of using client RSA
 or DSA public keys, but this is not currently implemented.)
 
-Tahoe-LAFS provides two mechanisms to perform this user-to-rootcap
-mapping. The first is a simple flat file with one account per line. The
-second is an HTTP-based login mechanism, backed by simple PHP script and a
-database. The latter form is used by allmydata.com to provide secure access
-to customer rootcaps.
+Tahoe-LAFS provides two mechanisms to perform this user-to-cap mapping. The
+first is a simple flat file with one account per line. The second is an
+HTTP-based login mechanism, backed by simple PHP script and a database. The
+latter form is used by allmydata.com to provide secure access to customer
+caps.
 
 Creating an Account File
 ========================
@@ -61,7 +61,7 @@ BASEDIR/private/ftp.accounts) in which each non-comment/non-blank line is a
 space-separated line of (USERNAME, PASSWORD, ROOTCAP), like so::
 
  % cat BASEDIR/private/ftp.accounts
- # This is a password line, (username, password, rootcap)
+ # This is a password line, (username, password, cap)
  alice password URI:DIR2:ioej8xmzrwilg772gzj4fhdg7a:wtiizszzz2rgmczv4wl6bqvbv33ag4kvbr6prz3u6w3geixa6m6a
  bob sekrit URI:DIR2:6bdmeitystckbl9yqlw7g56f4e:serp5ioqxnh34mlbmzwvkp3odehsyrr7eytt5f64we3k9hhcrcja
 
