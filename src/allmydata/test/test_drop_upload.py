@@ -2,12 +2,12 @@
 import os, sys
 
 from twisted.trial import unittest
-from twisted.python import filepath, runtime
+from twisted.python import filepath, runtime, log
 from twisted.internet import defer
 
 from allmydata.interfaces import IDirectoryNode, NoSuchChildError
 
-from allmydata.util import fake_inotify
+from allmydata.util import fileutil, fake_inotify
 from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
@@ -23,6 +23,27 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin):
     with the real INotify.
     """
 
+    def setUp(self):
+        GridTestMixin.setUp(self)
+        self.nonascii_dirs = []
+
+    def tearDown(self):
+        try:
+            GridTestMixin.tearDown(self)
+        finally:
+            # kludge to work around the fact that buildbot can't remove a directory tree that has any non-ASCII directory names
+            if sys.platform == "win32":
+                for dirpath in self.nonascii_dirs:
+                    try:
+                        fileutil.rm_dir(dirpath)
+                    finally:
+                        log.err("We were unable to delete a non-ASCII directory %r created by the test. "
+                                "This is liable to cause failures on future builds." % (dirpath,))
+
+    def _mkdir_nonascii(self, dirpath):
+        self.nonascii_dirs.append(dirpath)
+        os.mkdir(dirpath)
+
     def _get_count(self, name):
         return self.stats_provider.get_stats()["counters"].get(name, 0)
 
@@ -36,7 +57,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin):
             except UnicodeEncodeError:
                 dirname_u = u"local_dir"
         self.local_dir = os.path.join(self.basedir, dirname_u)
-        os.mkdir(self.local_dir)
+        self._mkdir_nonascii(self.local_dir)
 
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
