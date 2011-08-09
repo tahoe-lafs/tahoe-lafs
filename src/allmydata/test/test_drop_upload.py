@@ -165,21 +165,21 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
             upload_dircap = n.get_uri()
             readonly_dircap = n.get_readonly_uri()
 
-            self.shouldFail(AssertionError, 'invalid local dir', 'could not be represented',
+            self.shouldFail(AssertionError, 'invalid local.directory', 'could not be represented',
                             DropUploader, client, upload_dircap, '\xFF', inotify=fake_inotify)
-            self.shouldFail(AssertionError, 'non-existant local dir', 'there is no directory',
+            self.shouldFail(AssertionError, 'nonexistent local.directory', 'there is no directory',
                             DropUploader, client, upload_dircap, os.path.join(self.basedir, "Laputa"), inotify=fake_inotify)
 
-            fp = filepath.FilePath(self.basedir).child('IM_NOT_A_DIR')
+            fp = filepath.FilePath(self.basedir).child('NOT_A_DIR')
             fp.touch()
-            self.shouldFail(AssertionError, 'non-existant local dir', 'is not a directory',
+            self.shouldFail(AssertionError, 'non-directory local.directory', 'is not a directory',
                             DropUploader, client, upload_dircap, fp.path, inotify=fake_inotify)
 
-            self.shouldFail(AssertionError, 'bad cap', 'does not refer to a directory',
+            self.shouldFail(AssertionError, 'bad upload.dircap', 'does not refer to a directory',
                             DropUploader, client, 'bad', errors_dir, inotify=fake_inotify)
-            self.shouldFail(AssertionError, 'non-directory cap', 'does not refer to a directory',
+            self.shouldFail(AssertionError, 'non-directory upload.dircap', 'does not refer to a directory',
                             DropUploader, client, 'URI:LIT:foo', errors_dir, inotify=fake_inotify)
-            self.shouldFail(AssertionError, 'readonly dircap', 'is not a writecap to a directory',
+            self.shouldFail(AssertionError, 'readonly upload.dircap', 'is not a writecap to a directory',
                             DropUploader, client, readonly_dircap, errors_dir, inotify=fake_inotify)
         d.addCallback(_made_upload_dir)
         return d
