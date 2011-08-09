@@ -66,8 +66,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin):
         def _made_upload_dir(n):
             self.failUnless(IDirectoryNode.providedBy(n))
             self.upload_dirnode = n
-            self.upload_uri = n.get_uri()
-            self.uploader = DropUploader(self.client, self.upload_uri, self.local_dir.encode('utf-8'),
+            self.upload_dircap = n.get_uri()
+            self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir.encode('utf-8'),
                                          inotify=self.inotify)
             return self.uploader.start()
         d.addCallback(_made_upload_dir)
@@ -162,20 +162,20 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
         d = client.create_dirnode()
         def _made_upload_dir(n):
             self.failUnless(IDirectoryNode.providedBy(n))
-            upload_uri = n.get_uri()
-            readonly_uri = n.get_readonly_uri()
+            upload_dircap = n.get_uri()
+            readonly_dircap = n.get_readonly_uri()
 
             self.shouldFail(AssertionError, 'invalid local dir', 'could not be represented',
-                            DropUploader, client, upload_uri, '\xFF', inotify=fake_inotify)
+                            DropUploader, client, upload_dircap, '\xFF', inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-existant local dir', 'not an existing directory',
-                            DropUploader, client, upload_uri, os.path.join(self.basedir, "Laputa"), inotify=fake_inotify)
+                            DropUploader, client, upload_dircap, os.path.join(self.basedir, "Laputa"), inotify=fake_inotify)
 
             self.shouldFail(AssertionError, 'bad URI', 'not a directory URI',
                             DropUploader, client, 'bad', errors_dir, inotify=fake_inotify)
-            self.shouldFail(AssertionError, 'non-directory URI', 'not a directory URI',
+            self.shouldFail(AssertionError, 'non-directory cap', 'does not refer to a directory',
                             DropUploader, client, 'URI:LIT:foo', errors_dir, inotify=fake_inotify)
-            self.shouldFail(AssertionError, 'readonly directory URI', 'does not refer to a writeable directory',
-                            DropUploader, client, readonly_uri, errors_dir, inotify=fake_inotify)
+            self.shouldFail(AssertionError, 'readonly dircap', 'is not a writecap to a directory',
+                            DropUploader, client, readonly_dircap, errors_dir, inotify=fake_inotify)
         d.addCallback(_made_upload_dir)
         return d
 
