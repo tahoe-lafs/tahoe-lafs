@@ -36,8 +36,10 @@ class DropUploader(service.MultiService):
             from twisted.internet import inotify
         self._inotify = inotify
 
+        if not self._local_path.exists():
+            raise AssertionError("The '[drop_upload] local.directory' parameter was %s but there is no directory at that location." % quote_output(local_dir_u))
         if not self._local_path.isdir():
-            raise AssertionError("The drop-upload local path %r was not an existing directory." % quote_output(local_dir_u))
+            raise AssertionError("The '[drop_upload] local.directory' parameter was %s but the thing at that location is not a directory." % quote_output(local_dir_u))
 
         # TODO: allow a path rather than a cap URI.
         self._parent = self._client.create_node_from_uri(upload_dircap)
