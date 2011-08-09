@@ -167,10 +167,15 @@ class MockTest(DropUploadTestMixin, unittest.TestCase):
 
             self.shouldFail(AssertionError, 'invalid local dir', 'could not be represented',
                             DropUploader, client, upload_dircap, '\xFF', inotify=fake_inotify)
-            self.shouldFail(AssertionError, 'non-existant local dir', 'not an existing directory',
+            self.shouldFail(AssertionError, 'non-existant local dir', 'there is no directory',
                             DropUploader, client, upload_dircap, os.path.join(self.basedir, "Laputa"), inotify=fake_inotify)
 
-            self.shouldFail(AssertionError, 'bad URI', 'not a directory URI',
+            fp = filepath.FilePath(self.basedir).child('IM_NOT_A_DIR')
+            fp.touch()
+            self.shouldFail(AssertionError, 'non-existant local dir', 'is not a directory',
+                            DropUploader, client, upload_dircap, fp.path, inotify=fake_inotify)
+
+            self.shouldFail(AssertionError, 'bad cap', 'does not refer to a directory',
                             DropUploader, client, 'bad', errors_dir, inotify=fake_inotify)
             self.shouldFail(AssertionError, 'non-directory cap', 'does not refer to a directory',
                             DropUploader, client, 'URI:LIT:foo', errors_dir, inotify=fake_inotify)
