@@ -43,14 +43,14 @@ gateway's ``tahoe.cfg`` file.
 ``enabled = (boolean, optional)``
 
     If this is ``True``, drop-upload will be enabled (provided that the
-    ``upload.uri`` and ``local.directory`` fields are also set). The default
-    value is ``False``.
+    ``upload.dircap`` and ``local.directory`` fields are also set). The
+    default value is ``False``.
 
-``upload.uri = (URI)``
+``upload.dircap = (directory writecap)``
 
-    This is the Tahoe URI of an existing mutable directory to be used as
-    the target of uploads. It must be the full URI of the directory
-    (starting with ``URI:DIR2:``), and cannot include an alias or path.
+    This is a writecap pointing to an existing mutable directory to be used
+    as the target of uploads. It will start with ``URI:DIR2:``, and cannot
+    include an alias or path.
 
 ``local.directory = (UTF-8 path)``
 

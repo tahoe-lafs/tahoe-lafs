@@ -13,7 +13,7 @@ from allmydata.immutable.upload import FileName
 
 
 class DropUploader(service.MultiService):
-    def __init__(self, client, upload_uri, local_dir_utf8, inotify=None):
+    def __init__(self, client, upload_dircap, local_dir_utf8, inotify=None):
         service.MultiService.__init__(self)
 
         try:
@@ -23,7 +23,8 @@ class DropUploader(service.MultiService):
             else:
                 local_dir = local_dir_u.encode(get_filesystem_encoding())
         except (UnicodeEncodeError, UnicodeDecodeError):
-            raise AssertionError("The drop-upload path %s was not valid UTF-8 or could not be represented in the filesystem encoding."
+            raise AssertionError("The '[drop_upload] local.directory' parameter %s was not valid UTF-8 or "
+                                 "could not be represented in the filesystem encoding."
                                  % quote_output(local_dir_utf8))
 
         self._client = client
@@ -38,12 +39,12 @@ class DropUploader(service.MultiService):
         if not self._local_path.isdir():
             raise AssertionError("The drop-upload local path %r was not an existing directory." % quote_output(local_dir_u))
 
-        # TODO: allow a path rather than an URI.
-        self._parent = self._client.create_node_from_uri(upload_uri)
+        # TODO: allow a path rather than a cap URI.
+        self._parent = self._client.create_node_from_uri(upload_dircap)
         if not IDirectoryNode.providedBy(self._parent):
-            raise AssertionError("The drop-upload remote URI is not a directory URI.")
+            raise AssertionError("The '[drop_upload] upload.dircap' parameter does not refer to a directory.")
         if self._parent.is_unknown() or self._parent.is_readonly():
-            raise AssertionError("The drop-upload remote URI does not refer to a writeable directory.")
+            raise AssertionError("The '[drop_upload] upload.dircap' parameter is not a writecap to a directory.")
 
         self._uploaded_callback = lambda ign: None
 

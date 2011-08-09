@@ -424,19 +424,19 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_drop_uploader(self):
         if self.get_config("drop_upload", "enabled", False, boolean=True):
-            upload_uri = self.get_config("drop_upload", "upload.uri", None)
+            upload_dircap = self.get_config("drop_upload", "upload.dircap", None)
             local_dir_utf8 = self.get_config("drop_upload", "local.directory", None)
 
-            if upload_uri and local_dir_utf8:
+            if upload_dircap and local_dir_utf8:
                 try:
                     from allmydata.frontends import drop_upload
-                    s = drop_upload.DropUploader(self, upload_uri, local_dir_utf8)
+                    s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8)
                     s.setServiceParent(self)
                     s.start()
                 except Exception, e:
                     self.log("couldn't start drop-uploader: %r", args=(e,))
             else:
-                self.log("couldn't start drop-uploader: upload.uri or local.directory not specified")
+                self.log("couldn't start drop-uploader: upload.dircap or local.directory not specified")
 
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):
