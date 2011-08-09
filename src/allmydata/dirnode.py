@@ -546,7 +546,7 @@ class DirectoryNode:
                 writecap, readcap, metadata = e
             precondition(isinstance(writecap, (str,type(None))), writecap)
             precondition(isinstance(readcap, (str,type(None))), readcap)
-            
+
             # We now allow packing unknown nodes, provided they are valid
             # for this type of directory.
             child_node = self._create_and_validate_node(writecap, readcap, namex)

@@ -657,7 +657,7 @@ def from_string(u, deep_immutable=False, name=u"<unknown name>"):
             error = MustBeDeepImmutableError(kind + " used in an immutable context", name)
         else:
             error = MustBeReadonlyError(kind + " used in a read-only context", name)
-            
+
     except BadURIError, e:
         error = e
 

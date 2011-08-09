@@ -90,7 +90,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin):
         previously_disappeared = self._get_count('drop_upload.files_disappeared')
 
         d = defer.Deferred()
- 
+
         # Note: this relies on the fact that we only get one IN_CLOSE_WRITE notification per file
         # (otherwise we would get a defer.AlreadyCalledError). Should we be relying on that?
         self.uploader.set_uploaded_callback(d.callback)

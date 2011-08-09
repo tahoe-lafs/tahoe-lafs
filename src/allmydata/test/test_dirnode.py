@@ -92,7 +92,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 u"tiny_litdir": (nm.create_from_cap(tiny_litdir_uri), {}),
                 }
         d = c.create_dirnode(kids)
-        
+
         def _created(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
             self.failUnless(dn.is_mutable())
@@ -104,7 +104,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnless("RW-MUT" in rep)
             return dn.list()
         d.addCallback(_created)
-        
+
         def _check_kids(children):
             self.failUnlessReallyEqual(set(children.keys()),
                                        set([one_nfc, u"two", u"mut", u"fut", u"fro",
@@ -118,21 +118,21 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             frona_node, frona_metadata = children[u"fro-unic"]
             emptylit_node, emptylit_metadata = children[u"empty_litdir"]
             tinylit_node, tinylit_metadata = children[u"tiny_litdir"]
-            
+
             self.failUnlessReallyEqual(one_node.get_size(), 3)
             self.failUnlessReallyEqual(one_node.get_uri(), one_uri)
             self.failUnlessReallyEqual(one_node.get_readonly_uri(), one_uri)
             self.failUnless(isinstance(one_metadata, dict), one_metadata)
-            
+
             self.failUnlessReallyEqual(two_node.get_size(), 14861)
             self.failUnlessReallyEqual(two_node.get_uri(), setup_py_uri)
             self.failUnlessReallyEqual(two_node.get_readonly_uri(), setup_py_uri)
             self.failUnlessEqual(two_metadata["metakey"], "metavalue")
-            
+
             self.failUnlessReallyEqual(mut_node.get_uri(), mut_write_uri)
             self.failUnlessReallyEqual(mut_node.get_readonly_uri(), mut_read_uri)
             self.failUnless(isinstance(mut_metadata, dict), mut_metadata)
-            
+
             self.failUnless(fut_node.is_unknown())
             self.failUnlessReallyEqual(fut_node.get_uri(), future_write_uri)
             self.failUnlessReallyEqual(fut_node.get_readonly_uri(), "ro." + future_read_uri)
@@ -207,7 +207,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 u"tiny_litdir": (nm.create_from_cap(tiny_litdir_uri), {}),
                 }
         d = c.create_immutable_dirnode(kids)
-        
+
         def _created(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
             self.failIf(dn.is_mutable())
@@ -222,7 +222,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.cap = cap
             return dn.list()
         d.addCallback(_created)
-        
+
         def _check_kids(children):
             self.failUnlessReallyEqual(set(children.keys()),
                                        set([one_nfc, u"two", u"fut", u"futna", u"empty_litdir", u"tiny_litdir"]))
@@ -270,7 +270,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             return d2
 
         d.addCallback(_check_kids)
-        
+
         d.addCallback(lambda ign: nm.create_from_cap(self.cap.to_string()))
         d.addCallback(lambda dn: dn.list())
         d.addCallback(_check_kids)

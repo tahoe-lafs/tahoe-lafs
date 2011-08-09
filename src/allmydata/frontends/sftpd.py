@@ -799,7 +799,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         abandoned = self.abandoned
         parent = self.parent
         childname = self.childname
-        
+
         # has_changed is set when writeChunk is called, not when the write occurs, so
         # it is correct to optimize out the commit if it is False at the close call.
         has_changed = self.has_changed
@@ -1000,7 +1000,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _abandon_any_heisenfiles(self, userpath, direntry):
         request = "._abandon_any_heisenfiles(%r, %r)" % (userpath, direntry)
         self.log(request, level=OPERATIONAL)
-        
+
         assert isinstance(userpath, str), userpath
 
         # First we synchronously mark all heisenfiles matching the userpath or direntry

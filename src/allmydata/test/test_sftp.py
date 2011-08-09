@@ -207,7 +207,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
 
     def test_convert_error(self):
         self.failUnlessReallyEqual(sftpd._convert_error(None, "request"), None)
-        
+
         d = defer.succeed(None)
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_FAILURE, "_convert_error SFTPError",
@@ -997,7 +997,7 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_NO_SUCH_FILE, "removefile ''",
                                          self.handler.removeFile, ""))
-            
+
         # removing a directory should fail
         d.addCallback(lambda ign:
             self.shouldFailWithSFTPError(sftp.FX_PERMISSION_DENIED, "removeFile tiny_lit_dir",

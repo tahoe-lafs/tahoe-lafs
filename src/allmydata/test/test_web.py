@@ -1062,7 +1062,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnless(CSS_STYLE.search(res), res)
         d.addCallback(_check)
         return d
-    
+
     def test_GET_FILEURL_uri_missing(self):
         d = self.GET(self.public_url + "/foo/missing?t=uri")
         d.addBoth(self.should404, "test_GET_FILEURL_uri_missing")
@@ -1120,7 +1120,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnless(re.search(get_sub, res), res)
         d.addCallback(_check)
 
-        # look at a readonly directory 
+        # look at a readonly directory
         d.addCallback(lambda res:
                       self.GET(self.public_url + "/reedownlee", followRedirect=True))
         def _check2(res):
@@ -3143,10 +3143,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             d = self.POST(self.public_url +
                           "/foo/?t=start-manifest&ophandle=%d" % ophandle,
                           followRedirect=True)
-            # By following the initial redirect, we collect the ophandle 
+            # By following the initial redirect, we collect the ophandle
             # we've just created.
             return d
-        # Create a collected ophandle, then collect it after 23 hours 
+        # Create a collected ophandle, then collect it after 23 hours
         # and 59 seconds to make sure that it is still there.
         d = _make_collected_ophandle(133)
         d.addCallback(lambda ign:
@@ -3651,7 +3651,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(lambda ign: self.GET("%s%s?t=json" % (self.rourl, str(name))))
         d.addCallback(_check_json, expect_rw_uri=False)
-        
+
         # TODO: check that getting t=info from the Info link in the ro directory
         # works, and does not include the writecap URI.
         return d
@@ -3671,12 +3671,12 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         lonely_uri = "URI:LIT:n5xgk" # LIT for "one"
         mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
         mut_read_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
-        
+
         # This method tests mainly dirnode, but we'd have to duplicate code in order to
         # test the dirnode and web layers separately.
-        
+
         # 'lonely' is a valid LIT child, 'ro' is a mutant child with an SSK-RO readcap,
-        # and 'write-in-ro' is a mutant child with an SSK writecap in the ro_uri field. 
+        # and 'write-in-ro' is a mutant child with an SSK writecap in the ro_uri field.
         # When the directory is read, the mutants should be silently disposed of, leaving
         # their lonely sibling.
         # We don't test the case of a retrieving a cap from the encrypted rw_uri field,
@@ -3703,7 +3703,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 u"write-in-ro": (mutant_write_in_ro_child, {}),
                 }
         d = c.create_immutable_dirnode(kids)
-        
+
         def _created(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
             self.failIf(dn.is_mutable())
@@ -3741,7 +3741,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessReallyEqual(numkids, 3)
             return self.rootnode.list()
         d.addCallback(_check_data)
-        
+
         # Now when we use the real directory listing code, the mutants should be absent.
         def _check_kids(children):
             self.failUnlessReallyEqual(sorted(children.keys()), [u"lonely"])

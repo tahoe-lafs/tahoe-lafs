@@ -40,7 +40,7 @@ if __name__ == "__main__":
     try:
         tmpdir = tempfile.mkdtemp()
         for fname in TEST_FILENAMES:
-            open(os.path.join(tmpdir, fname), 'w').close() 
+            open(os.path.join(tmpdir, fname), 'w').close()
 
         # Use Unicode API under Windows or MacOS X
         if sys.platform in ('win32', 'darwin'):
@@ -166,7 +166,7 @@ class EncodingUtilNonUnicodePlatform(unittest.TestCase):
         self.failUnlessRaises(FilenameEncodingError,
                               listdir_unicode,
                               u'/dummy')
-        
+
         # We're trying to list a directory whose name cannot be represented in
         # the filesystem encoding.  This should fail.
         mock_getfilesystemencoding.return_value = 'ascii'
@@ -218,7 +218,7 @@ class EncodingUtil(ReallyEqualMixin):
 
         _reload()
         self.failUnlessReallyEqual(unicode_platform(), matrix[self.platform])
- 
+
     @patch('sys.getfilesystemencoding')
     @patch('os.listdir')
     def test_listdir_unicode(self, mock_listdir, mock_getfilesystemencoding):

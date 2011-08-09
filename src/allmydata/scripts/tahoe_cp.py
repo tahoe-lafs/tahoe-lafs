@@ -502,7 +502,7 @@ class Copier:
             return self.copy_file(source, target)
 
         if isinstance(target, (LocalDirectoryTarget, TahoeDirectoryTarget)):
-            # We're copying to an existing directory -- make sure that we 
+            # We're copying to an existing directory -- make sure that we
             # have target names for everything
             for (name, source) in sources:
                 if name is None and isinstance(source, TahoeFileSource):

@@ -352,7 +352,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         charset = get_arg(req, "_charset", "utf-8")
         name = name.decode(charset)
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        
+
         # We mustn't pass childcap for the readcap argument because we don't
         # know whether it is a read cap. Passing a read cap as the writecap
         # argument will work (it ends up calling NodeMaker.create_from_cap,

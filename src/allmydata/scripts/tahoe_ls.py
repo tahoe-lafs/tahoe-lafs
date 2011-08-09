@@ -174,7 +174,7 @@ def list(options):
         piece += "s"
         fmt_pieces.append(piece)
     fmt = " ".join(fmt_pieces)
-    
+
     rc = 0
     for (encoding_error, row) in rows:
         if encoding_error:
