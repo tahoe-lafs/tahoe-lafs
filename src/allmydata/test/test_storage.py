@@ -2546,6 +2546,44 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         self.failUnlessIn("Space Available to Tahoe: ?", s)
         self.failUnlessEqual(ss.get_available_space(), 0)
 
+    @mock.patch('allmydata.util.fileutil.get_disk_stats')
+    def test_status_right_disk_stats(self, mock_get_disk_stats):
+        GB = 1000000000
+        total            = 5*GB
+        free_for_root    = 4*GB
+        free_for_nonroot = 3*GB
+        reserved_space   = 1*GB
+        used = total - free_for_root
+        avail = max(free_for_nonroot - reserved_space, 0)
+        mock_get_disk_stats.return_value = {
+            'total': total,
+            'free_for_root': free_for_root,
+            'free_for_nonroot': free_for_nonroot,
+            'used': used,
+            'avail': avail,
+        }
+
+        basedir = "storage/WebStatus/status_right_disk_stats"
+        fileutil.make_dirs(basedir)
+        ss = StorageServer(basedir, "\x00" * 20, reserved_space=reserved_space)
+        expecteddir = ss.sharedir
+        ss.setServiceParent(self.s)
+        w = StorageStatus(ss)
+        html = w.renderSynchronously()
+
+        self.failIf([True for args in mock_get_disk_stats.call_args_list if args != ((expecteddir, reserved_space), {})],
+                    mock_get_disk_stats.call_args_list)
+
+        self.failUnlessIn("<h1>Storage Server Status</h1>", html)
+        s = remove_tags(html)
+        self.failUnlessIn("Total disk space: 5.00 GB", s)
+        self.failUnlessIn("Disk space used: - 1.00 GB", s)
+        self.failUnlessIn("Disk space free (root): 4.00 GB", s)
+        self.failUnlessIn("Disk space free (non-root): 3.00 GB", s)
+        self.failUnlessIn("Reserved space: - 1.00 GB", s)
+        self.failUnlessIn("Space Available to Tahoe: 2.00 GB", s)
+        self.failUnlessEqual(ss.get_available_space(), 2*GB)
+
     def test_readonly(self):
         basedir = "storage/WebStatus/readonly"
         fileutil.make_dirs(basedir)
