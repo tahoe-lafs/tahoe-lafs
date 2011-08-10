@@ -1,4 +1,3 @@
-
 import time
 import unicodedata
 from zope.interface import implements
@@ -594,8 +593,12 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 u"empty_litdir": (nm.create_from_cap(empty_litdir_uri), {}),
                 u"tiny_litdir": (nm.create_from_cap(tiny_litdir_uri), {}),
                 }
-        d = c.create_dirnode(kids)
-        
+        d = None
+        if mdmf:
+            d = c.create_dirnode(kids, version=MDMF_VERSION)
+        else:
+            d = c.create_dirnode(kids)
+
         def _created(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
             backing_node = dn._node
@@ -613,8 +616,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             rep = str(dn)
             self.failUnless("RW-MUT" in rep)
             return dn.list()
-        d.addCallback(_created)
-        
+
         def _check_kids(children):
             self.failUnlessReallyEqual(set(children.keys()),
                                        set([one_nfc, u"two", u"mut", u"fut", u"fro",
