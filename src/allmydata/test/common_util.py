@@ -1,8 +1,12 @@
-import os, signal, time
+import os, signal, sys, time
 from random import randrange
 
 from twisted.internet import reactor, defer
 from twisted.python import failure
+
+from allmydata.util import fileutil, log
+from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding
+
 
 def insecurerandstr(n):
     return ''.join(map(chr, map(randrange, [0]*n, [256]*n)))
@@ -30,6 +34,30 @@ class ReallyEqualMixin:
     def failUnlessReallyEqual(self, a, b, msg=None):
         self.failUnlessEqual(a, b, msg=msg)
         self.failUnlessEqual(type(a), type(b), msg="a :: %r, b :: %r, %r" % (a, b, msg))
+
+
+class NonASCIIPathMixin:
+    def mkdir_nonascii(self, dirpath):
+        # Kludge to work around the fact that buildbot can't remove a directory tree that has
+        # any non-ASCII directory names on Windows. (#1472)
+        if sys.platform == "win32":
+            def _cleanup():
+                try:
+                    fileutil.rm_dir(dirpath)
+                finally:
+                    log.err("We were unable to delete a non-ASCII directory %r created by the test. "
+                            "This is liable to cause failures on future builds." % (dirpath,))
+            self.addCleanup(self._cleanup_nonascii, dirpath)
+        os.mkdir(dirpath)
+
+    def unicode_or_fallback(self, unicode_name, fallback_name):
+        if unicode_platform():
+            return unicode_name
+        try:
+            unicode_name.encode(get_filesystem_encoding())
+            return unicode_name
+        except UnicodeEncodeError:
+            return fallback_name
 
 
 class SignalMixin:

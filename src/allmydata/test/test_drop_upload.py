@@ -11,38 +11,17 @@ from allmydata.util import fileutil, fake_inotify
 from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.consumer import download_to_data
 from allmydata.test.no_network import GridTestMixin
-from allmydata.test.common_util import ReallyEqualMixin
+from allmydata.test.common_util import ReallyEqualMixin, NonASCIIPathMixin
 from allmydata.test.common import ShouldFailMixin
 
 from allmydata.frontends.drop_upload import DropUploader
 
 
-class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin):
+class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, NonASCIIPathMixin):
     """
     These tests will be run both with a mock notifier, and (on platforms that support it)
     with the real INotify.
     """
-
-    def setUp(self):
-        GridTestMixin.setUp(self)
-        self.nonascii_dirs = []
-
-    def tearDown(self):
-        try:
-            GridTestMixin.tearDown(self)
-        finally:
-            # kludge to work around the fact that buildbot can't remove a directory tree that has any non-ASCII directory names
-            if sys.platform == "win32":
-                for dirpath in self.nonascii_dirs:
-                    try:
-                        fileutil.rm_dir(dirpath)
-                    finally:
-                        log.err("We were unable to delete a non-ASCII directory %r created by the test. "
-                                "This is liable to cause failures on future builds." % (dirpath,))
-
-    def _mkdir_nonascii(self, dirpath):
-        self.nonascii_dirs.append(dirpath)
-        os.mkdir(dirpath)
 
     def _get_count(self, name):
         return self.stats_provider.get_stats()["counters"].get(name, 0)
@@ -50,14 +29,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin):
     def _test(self):
         self.uploader = None
         self.set_up_grid()
-        dirname_u = u"loc\u0101l_dir"
-        if sys.platform != "win32":
-            try:
-                u"loc\u0101l_dir".encode(get_filesystem_encoding())
-            except UnicodeEncodeError:
-                dirname_u = u"local_dir"
-        self.local_dir = os.path.join(self.basedir, dirname_u)
-        self._mkdir_nonascii(self.local_dir)
+        self.local_dir = os.path.join(self.basedir, self.unicode_or_fallback(u"loc\u0101l_dir", u"local_dir"))
+        self.mkdir_nonascii(self.local_dir)
 
         self.client = self.g.clients[0]
         self.stats_provider = self.client.stats_provider
@@ -85,12 +58,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin):
         d.addCallback(lambda ign: os.mkdir(os.path.join(self.local_dir, u"directory")))
 
         # Write something longer, and also try to test a Unicode name if the fs can represent it.
-        name_u = u"l\u00F8ng"
-        if sys.platform != "win32":
-            try:
-                u"l\u00F8ng".encode(get_filesystem_encoding())
-            except UnicodeEncodeError:
-                name_u = u"long"
+        name_u = self.unicode_or_fallback(u"l\u00F8ng", u"long")
         d.addCallback(lambda ign: self._test_file(name_u, "test"*100))
 
         # TODO: test that causes an upload failure.
