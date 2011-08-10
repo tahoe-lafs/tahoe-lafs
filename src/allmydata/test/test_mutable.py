@@ -35,6 +35,8 @@ from allmydata.mutable.layout import unpack_header, MDMFSlotReadProxy
 from allmydata.mutable.repairer import MustForceRepairError
 
 import allmydata.test.common_util as testutil
+from allmydata.test.common import TEST_RSA_KEY_SIZE
+
 
 # this "FakeStorage" exists to put the share data in RAM and avoid using real
 # network connections, both to speed up the tests and to reduce the amount of

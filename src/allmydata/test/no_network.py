@@ -27,6 +27,8 @@ from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import sha1
 from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker
+from allmydata.test.common import TEST_RSA_KEY_SIZE
+
 
 class IntentionalError(Exception):
     pass

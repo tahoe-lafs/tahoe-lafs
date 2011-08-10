@@ -7,6 +7,7 @@ from foolscap.api import Tub, fireEventually, flushEventualQueue
 
 from allmydata import key_generator
 from allmydata.util import pollmixin
+from allmydata.test.common import TEST_RSA_KEY_SIZE
 from pycryptopp.publickey import rsa
 
 def flush_but_dont_ignore(res):
