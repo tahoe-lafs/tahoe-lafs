@@ -539,7 +539,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         self.key_generator_svc = KeyGeneratorService(kgsdir,
                                                      display_furl=False,
-                                                     default_key_size=522)
+                                                     default_key_size=TEST_RSA_KEY_SIZE)
         self.key_generator_svc.key_generator.pool_size = 4
         self.key_generator_svc.key_generator.pool_refresh_delay = 60
         self.add_service(self.key_generator_svc)
@@ -599,7 +599,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         # will have registered the helper furl).
         c = self.add_service(client.Client(basedir=basedirs[0]))
         self.clients.append(c)
-        c.set_default_mutable_keysize(522)
+        c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         d = c.when_tub_ready()
         def _ready(res):
             f = open(os.path.join(basedirs[0],"private","helper.furl"), "r")
@@ -617,7 +617,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             for i in range(1, self.numclients):
                 c = self.add_service(client.Client(basedir=basedirs[i]))
                 self.clients.append(c)
-                c.set_default_mutable_keysize(522)
+                c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
             log.msg("STARTING")
             return self.wait_for_connections()
         d.addCallback(_ready)
@@ -650,7 +650,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         def _stopped(res):
             new_c = client.Client(basedir=self.getdir("client%d" % num))
             self.clients[num] = new_c
-            new_c.set_default_mutable_keysize(522)
+            new_c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
             self.add_service(new_c)
             return new_c.when_tub_ready()
         d.addCallback(_stopped)
@@ -678,7 +678,7 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
 
         c = client.Client(basedir=basedir)
         self.clients.append(c)
-        c.set_default_mutable_keysize(522)
+        c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
         self.numclients += 1
         if add_to_sparent:
             c.setServiceParent(self.sparent)

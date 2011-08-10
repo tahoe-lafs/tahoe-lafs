@@ -236,7 +236,7 @@ class NoNetworkGrid(service.MultiService):
                 c = client_config_hooks[i](clientdir)
             if not c:
                 c = NoNetworkClient(clientdir)
-                c.set_default_mutable_keysize(522)
+                c.set_default_mutable_keysize(TEST_RSA_KEY_SIZE)
             c.nodeid = clientid
             c.short_nodeid = b32encode(clientid).lower()[:8]
             c._servers = self.all_servers # can be updated later

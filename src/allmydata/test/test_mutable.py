@@ -228,7 +228,7 @@ def make_nodemaker(s=None, num_peers=10):
     storage_broker = make_storagebroker(s, num_peers)
     sh = client.SecretHolder("lease secret", "convergence secret")
     keygen = client.KeyGenerator()
-    keygen.set_default_keysize(522)
+    keygen.set_default_keysize(TEST_RSA_KEY_SIZE)
     nodemaker = NodeMaker(storage_broker, sh, None,
                           None, None,
                           {"k": 3, "n": 10}, keygen)
@@ -2600,7 +2600,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # use #467 static-server-selection to disable permutation and force
         # the choice of server for share[0].
 
-        d = nm.key_generator.generate(522)
+        d = nm.key_generator.generate(TEST_RSA_KEY_SIZE)
         def _got_key( (pubkey, privkey) ):
             nm.key_generator = SameKeyGenerator(pubkey, privkey)
             pubkey_s = pubkey.serialize()

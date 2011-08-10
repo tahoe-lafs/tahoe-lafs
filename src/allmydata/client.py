@@ -69,14 +69,14 @@ class KeyGenerator:
         mutable files which don't otherwise specify a size. This will affect
         all subsequent calls to generate() without a keysize= argument. The
         default size is 2048 bits. Test cases should call this method once
-        during setup, to cause me to create smaller (522 bit) keys, so the
-        unit tests run faster."""
+        during setup, to cause me to create smaller keys, so the unit tests
+        run faster."""
         self.default_keysize = keysize
 
     def generate(self, keysize=None):
         """I return a Deferred that fires with a (verifyingkey, signingkey)
-        pair. I accept a keysize in bits (522 bit keys are fast for testing,
-        2048 bit keys are standard). If you do not provide a keysize, I will
+        pair. I accept a keysize in bits (2048 bit keys are standard, smaller
+        keys are used for testing). If you do not provide a keysize, I will
         use my default, which is set by a call to set_default_keysize(). If
         set_default_keysize() has never been called, I will create 2048 bit
         keys."""
