@@ -13,6 +13,8 @@ from allmydata.immutable.upload import FileName
 
 
 class DropUploader(service.MultiService):
+    name = 'drop-upload'
+
     def __init__(self, client, upload_dircap, local_dir_utf8, inotify=None):
         service.MultiService.__init__(self)
 
