@@ -122,6 +122,8 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin):
         else:
             path = filepath.FilePath(path_u.encode(get_filesystem_encoding()))
 
+        # We don't use FilePath.setContent() here because it creates a temporary file that
+        # is renamed into place, which causes events that the test is not expecting.
         f = open(path.path, "wb")
         try:
             if temporary and sys.platform != "win32":
