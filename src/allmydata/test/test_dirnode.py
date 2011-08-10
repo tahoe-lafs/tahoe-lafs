@@ -593,7 +593,6 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 u"empty_litdir": (nm.create_from_cap(empty_litdir_uri), {}),
                 u"tiny_litdir": (nm.create_from_cap(tiny_litdir_uri), {}),
                 }
-        d = None
         if mdmf:
             d = c.create_dirnode(kids, version=MDMF_VERSION)
         else:
@@ -616,6 +615,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             rep = str(dn)
             self.failUnless("RW-MUT" in rep)
             return dn.list()
+        d.addCallback(_created)
 
         def _check_kids(children):
             self.failUnlessReallyEqual(set(children.keys()),
@@ -680,7 +680,6 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d2.addCallback(lambda children: children[u"short"][0].read(MemAccum()))
             d2.addCallback(lambda accum: self.failUnlessReallyEqual(accum.data, "The end."))
             return d2
-        d.addCallback(_created)
         d.addCallback(_check_kids)
 
         d.addCallback(lambda ign: nm.create_new_mutable_directory(kids))
