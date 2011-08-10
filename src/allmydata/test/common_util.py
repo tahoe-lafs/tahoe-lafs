@@ -47,7 +47,7 @@ class NonASCIIPathMixin:
                 finally:
                     log.err("We were unable to delete a non-ASCII directory %r created by the test. "
                             "This is liable to cause failures on future builds." % (dirpath,))
-            self.addCleanup(self._cleanup, dirpath)
+            self.addCleanup(_cleanup)
         os.mkdir(dirpath)
 
     def unicode_or_fallback(self, unicode_name, fallback_name):
