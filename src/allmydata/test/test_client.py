@@ -227,7 +227,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         basedir3 = "test_client.Basic.test_create_drop_uploader3"
         os.mkdir(basedir3)
         fileutil.write(os.path.join(basedir3, "tahoe.cfg"), config)
-        c3 = client.Client(basedir3)
+        client.Client(basedir3)
         self.failUnless([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg) and "something wrong" in repr(arg)],
                         mock_log_msg.call_args_list)
 
