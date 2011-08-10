@@ -432,7 +432,7 @@ class Client(node.Node, pollmixin.PollMixin):
                     from allmydata.frontends import drop_upload
                     s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8)
                     s.setServiceParent(self)
-                    s.start()
+                    s.startService()
                 except Exception, e:
                     self.log("couldn't start drop-uploader: %r", args=(e,))
             else:

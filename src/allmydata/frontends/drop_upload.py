@@ -59,7 +59,8 @@ class DropUploader(service.MultiService):
         mask = inotify.IN_CLOSE_WRITE | inotify.IN_MOVED_TO | inotify.IN_ONLYDIR
         self._notifier.watch(self._local_path, mask=mask, callbacks=[self._notify])
 
-    def start(self):
+    def startService(self):
+        service.MultiService.startService(self)
         d = self._notifier.startReading()
         self._stats_provider.count('drop_upload.dirs_monitored', 1)
         return d

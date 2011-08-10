@@ -69,7 +69,7 @@ class DropUploadTestMixin(GridTestMixin, ShouldFailMixin, ReallyEqualMixin):
             self.upload_dircap = n.get_uri()
             self.uploader = DropUploader(self.client, self.upload_dircap, self.local_dir.encode('utf-8'),
                                          inotify=self.inotify)
-            return self.uploader.start()
+            return self.uploader.startService()
         d.addCallback(_made_upload_dir)
 
         # Write something short enough for a LIT file.
