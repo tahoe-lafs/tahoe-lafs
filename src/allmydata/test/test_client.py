@@ -209,7 +209,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         class Boom(Exception):
             pass
-        mock_drop_uploader.side_effect = Boom("something wrong")
+        mock_drop_uploader.side_effect = Boom()
 
         basedir2 = "test_client.Basic.test_create_drop_uploader2"
         os.mkdir(basedir2)
@@ -219,7 +219,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                        "enabled = true\n")
         c2 = client.Client(basedir2)
         self.failUnlessRaises(KeyError, c2.getServiceNamed, 'drop-upload')
-        self.failIf([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg) or "something wrong" in repr(arg)],
+        self.failIf([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg)],
                     mock_log_msg.call_args_list)
         self.failUnless([True for arg in mock_log_msg.call_args_list if "upload.dircap or local.directory not specified" in repr(arg)],
                         mock_log_msg.call_args_list)
@@ -228,7 +228,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         os.mkdir(basedir3)
         fileutil.write(os.path.join(basedir3, "tahoe.cfg"), config)
         client.Client(basedir3)
-        self.failUnless([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg) and "something wrong" in repr(arg)],
+        self.failUnless([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg)],
                         mock_log_msg.call_args_list)
 
 
