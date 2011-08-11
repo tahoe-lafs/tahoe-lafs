@@ -26,7 +26,7 @@ from allmydata.key_generator import KeyGeneratorService
 import allmydata.test.common_util as testutil
 from allmydata import immutable
 
-TEST_RSA_KEY_SIZE = 2048
+TEST_RSA_KEY_SIZE = 522
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()
