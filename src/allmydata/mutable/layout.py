@@ -548,10 +548,10 @@ MDMFOFFSETS_LENGTH = struct.calcsize(MDMFOFFSETS)
 PRIVATE_KEY_SIZE = 1220
 SIGNATURE_SIZE = 260
 VERIFICATION_KEY_SIZE = 292
-# We know we won't have more than 256 shares, and we know that we won't
-# need to store more than lg 256 of them to validate, so that's our
-# bound. We add 1 to the int cast to round to the next integer.
-SHARE_HASH_CHAIN_SIZE = int(math.log(HASH_SIZE * 256)) + 1
+# We know we won't have more than 256 shares, and we know that we won't need
+# to store more than ln2(256) hash-chain nodes to validate, so that's our
+# bound. Each node requires 2 bytes of node-number plus 32 bytes of hash.
+SHARE_HASH_CHAIN_SIZE = (2+HASH_SIZE)*mathutil.log_ceil(256, 2)
 
 class MDMFSlotWriteProxy:
     implements(IMutableSlotWriter)
