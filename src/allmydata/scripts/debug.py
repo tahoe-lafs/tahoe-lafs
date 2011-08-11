@@ -850,14 +850,14 @@ subcommand.
         # See ticket #1441 for why we print different information when
         # run via /usr/bin/tahoe. Note that argv[0] is the full path.
         if sys.argv[0] == '/usr/bin/tahoe':
-	    t += """
+            t += """
 To get branch coverage for the Tahoe test suite (on the installed copy of
 Tahoe), install the 'python-coverage' package and then use:
 
     python-coverage run --branch /usr/bin/tahoe debug trial
 """
         else:
-	    t += """
+            t += """
 Another debugging feature is that bin%stahoe allows executing an arbitrary
 "runner" command (typically an installed Python script, such as 'coverage'),
 with the Tahoe libraries on the PYTHONPATH. The runner command name is
