@@ -1114,6 +1114,9 @@ class MutableFileVersion:
         end_segment = start_segment
         if offset + data.get_size() < self.get_size():
             end_data = offset + data.get_size()
+            # The last byte we touch is the end_data'th byte, which is actually
+            # byte end_data - 1 because bytes are zero-indexed.
+            end_data -= 1
             end_segment = end_data // segsize
 
         self._start_segment = start_segment
