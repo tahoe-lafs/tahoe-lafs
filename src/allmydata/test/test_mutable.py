@@ -7,7 +7,7 @@ from twisted.internet.interfaces import IConsumer
 from zope.interface import implements
 from allmydata import uri, client
 from allmydata.nodemaker import NodeMaker
-from allmydata.util import base32, consumer, fileutil
+from allmydata.util import base32, consumer, fileutil, mathutil
 from allmydata.util.hashutil import tagged_hash, ssk_writekey_hash, \
      ssk_pubkey_fingerprint_hash
 from allmydata.util.deferredutil import gatherResults
@@ -3222,6 +3222,28 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(_read_data)
         return d
 
+    def test_partial_read_starting_on_segment_boundary(self):
+        d = self.mdmf_node.get_best_readable_version()
+        c = consumer.MemoryConsumer()
+        offset = mathutil.next_multiple(128 * 1024, 3)
+        d.addCallback(lambda version:
+            version.read(c, offset, 50))
+        expected = self.data[offset:offset+50]
+        d.addCallback(lambda ignored:
+            self.failUnlessEqual(expected, "".join(c.chunks)))
+        return d
+
+    def test_partial_read_ending_on_segment_boundary(self):
+        d = self.mdmf_node.get_best_readable_version()
+        c = consumer.MemoryConsumer()
+        offset = mathutil.next_multiple(128 * 1024, 3)
+        start = offset - 50
+        d.addCallback(lambda version:
+            version.read(c, start, 51))
+        expected = self.data[offset-50:offset+1]
+        d.addCallback(lambda ignored:
+            self.failUnlessEqual(expected, "".join(c.chunks)))
+        return d
 
     def test_read(self):
         d = self.mdmf_node.get_best_readable_version()
