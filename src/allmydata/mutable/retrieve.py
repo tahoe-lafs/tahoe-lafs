@@ -385,11 +385,7 @@ class Retrieve:
             self.log("got offset: %d" % self._offset)
             # our start segment is the first segment containing the
             # offset we were given. 
-            start = mathutil.div_ceil(self._offset,
-                                      self._segment_size)
-            # this gets us the first segment after self._offset. Then
-            # our start segment is the one before it.
-            start -= 1
+            start = self._offset // self._segment_size
 
             assert start < self._num_segments
             self._start_segment = start
@@ -403,9 +399,11 @@ class Retrieve:
             # segment that we were asked to read.
             self.log("got read length %d" % self._read_length)
             end_data = self._offset + self._read_length
-            end = mathutil.div_ceil(end_data,
-                                    self._segment_size)
-            end -= 1
+            # We don't actually need to read the byte at end_data, but
+            # the one before it.
+            end_data = end_data - 1
+            end = end_data // self._segment_size
+
             assert end < self._num_segments
             self._last_segment = end
             self.log("got end segment: %d" % self._last_segment)
