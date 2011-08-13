@@ -105,9 +105,8 @@ class Retrieve:
         # during repair, we may be called upon to grab the private key, since
         # it wasn't picked up during a verify=False checker run, and we'll
         # need it for repair to generate a new version.
-        self._need_privkey = fetch_privkey or verify
-        if self._node.get_privkey() and not verify:
-            self._need_privkey = False
+        self._need_privkey = verify or (fetch_privkey
+                                        and not self._node.get_privkey())
 
         if self._need_privkey:
             # TODO: Evaluate the need for this. We'll use it if we want
@@ -126,9 +125,7 @@ class Retrieve:
         # 3. When we are validating readers, we need to validate the
         #    signature on the prefix. Do we? We already do this in the
         #    servermap update?
-        self._verify = False
-        if verify:
-            self._verify = True
+        self._verify = verify
 
         self._status = RetrieveStatus()
         self._status.set_storage_index(self._storage_index)
@@ -140,8 +137,7 @@ class Retrieve:
         self._status.set_size(datalength)
         self._status.set_encoding(k, N)
         self.readers = {}
-        self._paused = False
-        self._paused_deferred = None
+        self._pause_deferred = None
         self._offset = None
         self._read_length = None
         self.log("got seqnum %d" % self.verinfo[0])
@@ -167,7 +163,7 @@ class Retrieve:
         data for it to handle. I make the downloader stop producing new
         data until my resumeProducing method is called.
         """
-        if self._paused:
+        if self._pause_deferred is not None:
             return
 
         # fired when the download is unpaused. 
@@ -175,7 +171,6 @@ class Retrieve:
         self._status.set_status("Paused")
 
         self._pause_deferred = defer.Deferred()
-        self._paused = True
 
 
     def resumeProducing(self):
@@ -183,10 +178,9 @@ class Retrieve:
         I am called by my download target once it is ready to begin
         receiving data again.
         """
-        if not self._paused:
+        if self._pause_deferred is None:
             return
 
-        self._paused = False
         p = self._pause_deferred
         self._pause_deferred = None
         self._status.set_status(self._old_status)
@@ -202,7 +196,7 @@ class Retrieve:
         the Deferred fires immediately. Otherwise, the Deferred fires
         when the downloader is unpaused.
         """
-        if self._paused:
+        if self._pause_deferred is not None:
             d = defer.Deferred()
             self._pause_deferred.addCallback(lambda ignored: d.callback(res))
             return d
@@ -278,7 +272,6 @@ class Retrieve:
         assert len(self.remaining_sharemap) >= k
 
         self.log("starting download")
-        self._paused = False
         self._started_fetching = time.time()
 
         self._add_active_peers()
@@ -302,10 +295,10 @@ class Retrieve:
         segment with. I return the plaintext associated with that
         segment.
         """
-        # shnum => block hash tree. Unusued, but setup_encoding_parameters will
+        # shnum => block hash tree. Unused, but setup_encoding_parameters will
         # want to set this.
         # XXX: Make it so that it won't set this if we're just decoding.
-        self._block_hash_trees = {}
+        self._block_hash_trees = None
         self._setup_encoding_parameters()
         # This is the form expected by decode.
         blocks_and_salts = blocks_and_salts.items()
@@ -370,9 +363,10 @@ class Retrieve:
                  (k, n, self._num_segments, self._segment_size,
                   self._tail_segment_size))
 
-        for i in xrange(self._total_shares):
-            # So we don't have to do this later.
-            self._block_hash_trees[i] = hashtree.IncompleteHashTree(self._num_segments)
+        if self._block_hash_trees is not None:
+            for i in xrange(self._total_shares):
+                # So we don't have to do this later.
+                self._block_hash_trees[i] = hashtree.IncompleteHashTree(self._num_segments)
 
         # Our last task is to tell the downloader where to start and
         # where to stop. We use three parameters for that:
