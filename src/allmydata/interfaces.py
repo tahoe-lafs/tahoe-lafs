@@ -1070,6 +1070,9 @@ class ExistingChildError(Exception):
 
 class NoSuchChildError(Exception):
     """A directory node was asked to fetch a child which does not exist."""
+    def __str__(self):
+        # avoid UnicodeEncodeErrors when converting to str
+        return self.__repr__()
 
 class ChildOfWrongTypeError(Exception):
     """An operation was attempted on a child of the wrong type (file or directory)."""
