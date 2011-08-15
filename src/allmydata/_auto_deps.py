@@ -14,9 +14,9 @@ install_requires = [
     # Feisty has simplejson 1.4
     "simplejson >= 1.4",
 
-    # zope.interface 3.6.4 is incompatible with Nevow.
-    # These are the versions packaged in major versions of Debian or Ubuntu, or in pkgsrc.
-    "zope.interface == 3.3.1, == 3.5.3, == 3.6.1",
+    # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
+    # 3.6.5 is compatible but fails tests due to an unsuppressed warning.
+    "zope.interface <= 3.6.2, >= 3.6.6",
 
     # On Windows we need at least Twisted 9.0 to avoid an indirect dependency on pywin32.
     # On Linux we need at least Twisted 10.1.0 for inotify support used by the drop-upload
