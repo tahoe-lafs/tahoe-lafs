@@ -13,6 +13,8 @@ class CheckRequirement(unittest.TestCase):
         check_requirement("setuptools >= 0.6c6", {"setuptools": ("0.6", "", "distribute")})
         check_requirement("pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.1.0", "", None)})
         check_requirement("pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.4.0", "", None)})
+        check_requirement("zope.interface <= 3.6.2, >= 3.6.6", {"zope.interface": ("3.6.1", "", None)})
+        check_requirement("zope.interface <= 3.6.2, >= 3.6.6", {"zope.interface": ("3.6.6", "", None)})
 
         check_requirement("zope.interface", {"zope.interface": ("unknown", "", None)})
         check_requirement("mock", {"mock": ("0.6.0", "", None)})
@@ -30,6 +32,8 @@ class CheckRequirement(unittest.TestCase):
                               "foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.5.1", "", None)})
         self.failUnlessRaises(PackagingError, check_requirement,
                               "pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.2.0", "", None)})
+        self.failUnlessRaises(PackagingError, check_requirement,
+                              "zope.interface <= 3.6.2, >= 3.6.6", {"zope.interface": ("3.6.4", "", None)})
         self.failUnlessRaises(PackagingError, check_requirement,
                               "foo >= 1.0", {})
         self.failUnlessRaises(PackagingError, check_requirement,

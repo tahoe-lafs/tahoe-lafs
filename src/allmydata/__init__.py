@@ -210,10 +210,10 @@ def get_package_versions_and_locations():
 
 def check_requirement(req, vers_and_locs):
     # TODO: check [] options
-    # We support only disjunctions of >= and ==
+    # We support only disjunctions of <=, >=, and ==
 
     reqlist = req.split(',')
-    name = reqlist[0].split('>=')[0].split('==')[0].strip(' ').split('[')[0]
+    name = reqlist[0].split('<=')[0].split('>=')[0].split('==')[0].strip(' ').split('[')[0]
     if name not in vers_and_locs:
         raise PackagingError("no version info for %s" % (name,))
     if req.strip(' ') == name:
@@ -227,19 +227,25 @@ def check_requirement(req, vers_and_locs):
     actualver = normalized_version(actual, what="actual version %r of %s from %r" % (actual, name, location))
 
     for r in reqlist:
-        s = r.split('>=')
+        s = r.split('<=')
         if len(s) == 2:
             required = s[1].strip(' ')
-            if actualver >= normalized_version(required, what="required minimum version %r in %r" % (required, req)):
-                return  # minimum requirement met
+            if actualver <= normalized_version(required, what="required maximum version %r in %r" % (required, req)):
+                return  # maximum requirement met
         else:
-            s = r.split('==')
+            s = r.split('>=')
             if len(s) == 2:
                 required = s[1].strip(' ')
-                if actualver == normalized_version(required, what="required exact version %r in %r" % (required, req)):
-                    return  # exact requirement met
+                if actualver >= normalized_version(required, what="required minimum version %r in %r" % (required, req)):
+                    return  # minimum requirement met
             else:
-                raise PackagingError("no version info or could not understand requirement %r" % (req,))
+                s = r.split('==')
+                if len(s) == 2:
+                    required = s[1].strip(' ')
+                    if actualver == normalized_version(required, what="required exact version %r in %r" % (required, req)):
+                        return  # exact requirement met
+                else:
+                    raise PackagingError("no version info or could not understand requirement %r" % (req,))
 
     msg = ("We require %s, but could only find version %s.\n" % (req, actual))
     if location and location != 'unknown':
