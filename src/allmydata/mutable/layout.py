@@ -1,5 +1,5 @@
 
-import struct, math
+import struct
 from allmydata.mutable.common import NeedMoreDataError, UnknownVersionError
 from allmydata.interfaces import HASH_SIZE, SALT_SIZE, SDMF_VERSION, \
                                  MDMF_VERSION, IMutableSlotWriter
