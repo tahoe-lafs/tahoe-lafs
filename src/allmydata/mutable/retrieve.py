@@ -275,6 +275,7 @@ class Retrieve:
         self._started_fetching = time.time()
 
         self._add_active_peers()
+
         # The download process beyond this is a state machine.
         # _add_active_peers will select the peers that we want to use
         # for the download, and then attempt to start downloading. After
@@ -297,9 +298,9 @@ class Retrieve:
         """
         # shnum => block hash tree. Unused, but setup_encoding_parameters will
         # want to set this.
-        # XXX: Make it so that it won't set this if we're just decoding.
         self._block_hash_trees = None
         self._setup_encoding_parameters()
+
         # This is the form expected by decode.
         blocks_and_salts = blocks_and_salts.items()
         blocks_and_salts = [(True, [d]) for d in blocks_and_salts]
@@ -399,10 +400,10 @@ class Retrieve:
             # segment that we were asked to read.
             self.log("got read length %d" % self._read_length)
             end_data = self._offset + self._read_length
+
             # We don't actually need to read the byte at end_data, but
             # the one before it.
-            end_data = end_data - 1
-            end = end_data // self._segment_size
+            end = (end_data - 1) // self._segment_size
 
             assert end < self._num_segments
             self._last_segment = end
