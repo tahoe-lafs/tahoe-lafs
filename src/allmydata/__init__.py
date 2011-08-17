@@ -144,7 +144,8 @@ def normalized_version(verstr, what=None):
 
 def get_package_versions_and_locations():
     import warnings
-    from _auto_deps import package_imports, deprecation_messages, deprecation_imports
+    from _auto_deps import package_imports, deprecation_messages,  \
+        deprecation_imports, user_warning_messages
 
     def package_dir(srcfile):
         return os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
@@ -161,11 +162,14 @@ def get_package_versions_and_locations():
         message="BaseException.message has been deprecated as of Python 2.6",
         append=True)
 
-    # This is to suppress various DeprecationWarnings that occur when modules are imported.
-    # See http://allmydata.org/trac/tahoe/ticket/859 and http://divmod.org/trac/ticket/2994 .
+    # This is to suppress various DeprecationWarnings and UserWarnings that
+    # occur when modules are imported.  See #859, #1435 and
+    # http://divmod.org/trac/ticket/2994 .
 
     for msg in deprecation_messages:
         warnings.filterwarnings("ignore", category=DeprecationWarning, message=msg, append=True)
+    for msg in user_warning_messages:
+        warnings.filterwarnings("ignore", category=UserWarning, message=msg, append=True)
     try:
         for modulename in deprecation_imports:
             try:
@@ -174,6 +178,8 @@ def get_package_versions_and_locations():
                 pass
     finally:
         for ign in deprecation_messages:
+            warnings.filters.pop()
+        for ign in user_warning_messages:
             warnings.filters.pop()
 
     packages = []

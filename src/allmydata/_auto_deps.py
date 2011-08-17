@@ -15,8 +15,7 @@ install_requires = [
     "simplejson >= 1.4",
 
     # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
-    # 3.6.5 is compatible but fails tests due to an unsuppressed warning.
-    "zope.interface <= 3.6.2, >= 3.6.6",
+    "zope.interface <= 3.6.2, >= 3.6.5",
 
     # On Windows we need at least Twisted 9.0 to avoid an indirect dependency on pywin32.
     # On Linux we need at least Twisted 10.1.0 for inotify support used by the drop-upload
@@ -123,4 +122,8 @@ deprecation_imports = [
     'twisted.persisted.sob',
     'twisted.python.filepath',
     'Crypto.Hash.SHA',
+]
+
+user_warning_messages = [
+    "Hashing uninitialized InterfaceClass instance",
 ]
