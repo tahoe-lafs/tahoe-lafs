@@ -117,13 +117,13 @@ deprecation_messages = [
     "the sets module is deprecated",
 ]
 
-deprecation_imports = [
+user_warning_messages = [
+    "Hashing uninitialized InterfaceClass instance",
+]
+
+warning_imports = [
     'nevow',
     'twisted.persisted.sob',
     'twisted.python.filepath',
     'Crypto.Hash.SHA',
-]
-
-user_warning_messages = [
-    "Hashing uninitialized InterfaceClass instance",
 ]
