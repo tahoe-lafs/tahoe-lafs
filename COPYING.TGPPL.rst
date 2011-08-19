@@ -112,13 +112,6 @@ the resulting combined work, as long as you follow the requirements of the
 licences of this work in regard to all of the the resulting combined work
 aside from the work licensed under the Open Software License.
 
-This work also comes with the added permission that you may combine it with a
-work licensed under the Non-Profit Open Software License (any version) and
-distribute the resulting combined work, as long as you follow the
-requirements of the licences of this work in regard to all of the the
-resulting combined work aside from the work licensed under the Non-Profit
-Open Software License.
-
 
 
 This Transitive Grace Period Public Licence (the "License") applies to any
