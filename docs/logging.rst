@@ -102,7 +102,7 @@ modest) storage requirements to a different host and provides access to
 logfiles from multiple nodes (web-API, storage, or helper) in a single place.
 
 There are two kinds of gatherers: "log gatherer" and "stats gatherer". Each
-produces a FURL which needs to be placed in the ``NODEDIR/tahoe.cfg `` file
+produces a FURL which needs to be placed in the ``NODEDIR/tahoe.cfg`` file
 of each node that is to publish to the gatherer, under the keys
 "log_gatherer.furl" and "stats_gatherer.furl" respectively. When the Tahoe
 node starts, it will connect to the configured gatherers and offer its
