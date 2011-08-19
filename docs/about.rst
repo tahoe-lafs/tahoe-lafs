@@ -109,7 +109,7 @@ version 1 or, at your option, any later version.  The Transitive Grace Period
 Public Licence has requirements similar to the GPL except that it allows you
 to wait for up to twelve months after you redistribute a derived work before
 releasing the source code of your derived work. See the file `COPYING.TGGPL
-<../COPYING.TGPPL.html>`_ for the terms of the Transitive Grace Period Public
+<../COPYING.TGPPL.rst>`_ for the terms of the Transitive Grace Period Public
 Licence, version 1.
 
 (You may choose to use this package under the terms of either licence, at

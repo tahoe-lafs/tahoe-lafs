@@ -81,7 +81,7 @@ version. (The Transitive Grace Period Public Licence has
 requirements similar to the GPL except that it allows you to
 delay for up to twelve months after you redistribute a derived
 work before releasing the source code of your derived work.)
-See the file "COPYING.TGPPL.html" [6] for the terms of the
+See the file "COPYING.TGPPL.rst" [6] for the terms of the
 Transitive Grace Period Public Licence, version 1.
 
 (You may choose to use this package under the terms of either
@@ -149,7 +149,7 @@ San Francisco, California, USA
 [3] http://tahoe-lafs.org/trac/tahoe/wiki/RelatedProjects
 [4] http://tahoe-lafs.org/trac/tahoe/browser/docs/known_issues.rst
 [5] http://tahoe-lafs.org/trac/tahoe/browser/COPYING.GPL
-[6] http://tahoe-lafs.org/source/tahoe/trunk/COPYING.TGPPL.html
+[6] http://tahoe-lafs.org/trac/tahoe/browser/COPYING.TGPPL.rst
 [7] http://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.rst
 [8] http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [9] http://tahoe-lafs.org/trac/tahoe/roadmap
