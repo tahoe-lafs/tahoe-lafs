@@ -3212,21 +3212,25 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(_read_data)
         return d
 
-    def test_partial_read_starting_on_segment_boundary(self):
+    def _test_partial_read(self, offset, length):
         d = self.do_upload_mdmf()
         d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
         c = consumer.MemoryConsumer()
-        offset = mathutil.next_multiple(128 * 1024, 3)
         d.addCallback(lambda version:
-            version.read(c, offset, 50))
-        expected = self.data[offset:offset+50]
-        d.addCallback(lambda ignored:
-            self.failUnlessEqual(expected, "".join(c.chunks)))
+            version.read(c, offset, length))
+        expected = self.data[offset:offset+length]
+        d.addCallback(lambda ignored: "".join(c.chunks))
+        def _check(results):
+            if results != expected:
+                print
+                print "got: %s ... %s" % (results[:20], results[-20:])
+                print "exp: %s ... %s" % (expected[:20], expected[-20:])
+                self.fail("results != expected")
+        d.addCallback(_check)
         return d
 
     def test_partial_read_ending_on_segment_boundary(self):
-        d = self.do_upload_mdmf()
-        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
+        d = self.mdmf_node.get_best_readable_version()
         c = consumer.MemoryConsumer()
         offset = mathutil.next_multiple(128 * 1024, 3)
         start = offset - 50
@@ -3249,7 +3253,6 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             return d2
         d.addCallback(_read_data)
         return d
-
 
     def test_download_best_version(self):
         d = self.do_upload()
@@ -3308,53 +3311,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         dl.addCallback(_stash)
         return dl
 
-    def test_append(self):
-        # We should be able to append data to the middle of a mutable
-        # file and get what we expect.
-        new_data = self.data + "appended"
-        for node in (self.mdmf_node, self.mdmf_max_shares_node):
-            d = node.get_best_mutable_version()
-            d.addCallback(lambda mv:
-                mv.update(MutableData("appended"), len(self.data)))
-            d.addCallback(lambda ignored, node=node:
-                node.download_best_version())
-            d.addCallback(lambda results:
-                self.failUnlessEqual(results, new_data))
-        return d
 
-    def test_replace(self):
-        # We should be able to replace data in the middle of a mutable
-        # file and get what we expect back. 
-        new_data = self.data[:100]
-        new_data += "appended"
-        new_data += self.data[108:]
-        for node in (self.mdmf_node, self.mdmf_max_shares_node):
-            d = node.get_best_mutable_version()
-            d.addCallback(lambda mv:
-                mv.update(MutableData("appended"), 100))
-            d.addCallback(lambda ignored, node=node:
-                node.download_best_version())
-            d.addCallback(lambda results:
-                self.failUnlessEqual(results, new_data))
-        return d
-
-    def test_replace_beginning(self):
-        # We should be able to replace data at the beginning of the file
-        # without truncating the file
-        B = "beginning"
-        new_data = B + self.data[len(B):]
-        for node in (self.mdmf_node, self.mdmf_max_shares_node):
-            d = node.get_best_mutable_version()
-            d.addCallback(lambda mv: mv.update(MutableData(B), 0))
-            d.addCallback(lambda ignored, node=node:
-                node.download_best_version())
-            d.addCallback(lambda results: self.failUnlessEqual(results, new_data))
-        return d
-
-    def test_replace_segstart1(self):
-        offset = 128*1024+1
-        new_data = "NNNN"
-        expected = self.data[:offset]+new_data+self.data[offset+4:]
+    def _test_replace(self, offset, new_data):
+        expected = self.data[:offset]+new_data+self.data[offset+len(new_data):]
         for node in (self.mdmf_node, self.mdmf_max_shares_node):
             d = node.get_best_mutable_version()
             d.addCallback(lambda mv:
@@ -3370,6 +3329,39 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                     self.fail("results != expected")
             d.addCallback(_check)
         return d
+
+    def test_append(self):
+        # We should be able to append data to a mutable file and get
+        # what we expect.
+        return self._test_replace(len(self.data), "appended")
+
+    def test_replace_middle(self):
+        # We should be able to replace data in the middle of a mutable
+        # file and get what we expect back.
+        return self._test_replace(100, "replaced")
+
+    def test_replace_beginning(self):
+        # We should be able to replace data at the beginning of the file
+        # without truncating the file
+        return self._test_replace(0, "beginning")
+
+    def test_replace_segstart1(self):
+        return self._test_replace(128*1024+1, "NNNN")
+
+    def test_replace_zero_length_beginning(self):
+        return self._test_replace(0, "")
+
+    def test_replace_zero_length_middle(self):
+        return self._test_replace(50, "")
+
+    def test_replace_zero_length_segstart1(self):
+        return self._test_replace(128*1024+1, "")
+
+    def test_replace_and_extend(self):
+        # We should be able to replace data in the middle of a mutable
+        # file and extend that mutable file and get what we expect.
+        return self._test_replace(100, "modified " * 100000)
+
 
     def _check_differences(self, got, expected):
         # displaying arbitrary file corruption is tricky for a
@@ -3445,21 +3437,6 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda ignored:
                           self.mdmf_max_shares_node.download_best_version())
             d.addCallback(self._check_differences, expected)
-        return d
-
-    def test_replace_and_extend(self):
-        # We should be able to replace data in the middle of a mutable
-        # file and extend that mutable file and get what we expect.
-        new_data = self.data[:100]
-        new_data += "modified " * 100000
-        for node in (self.mdmf_node, self.mdmf_max_shares_node):
-            d = node.get_best_mutable_version()
-            d.addCallback(lambda mv:
-                mv.update(MutableData("modified " * 100000), 100))
-            d.addCallback(lambda ignored, node=node:
-                node.download_best_version())
-            d.addCallback(lambda results:
-                self.failUnlessEqual(results, new_data))
         return d
 
 
