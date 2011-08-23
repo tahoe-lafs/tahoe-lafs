@@ -913,9 +913,13 @@ def from_string(u, deep_immutable=False, name=u"<unknown name>"):
         elif s.startswith('URI:SSK-Verifier:'):
             return SSKVerifierURI.init_from_string(s)
         elif s.startswith('URI:MDMF:'):
-            return WriteableMDMFFileURI.init_from_string(s)
+            if can_be_writeable:
+                return WriteableMDMFFileURI.init_from_string(s)
+            kind = "URI:MDMF file writecap"
         elif s.startswith('URI:MDMF-RO:'):
-            return ReadonlyMDMFFileURI.init_from_string(s)
+            if can_be_mutable:
+                return ReadonlyMDMFFileURI.init_from_string(s)
+            kind = "URI:MDMF-RO readcap to a mutable file"
         elif s.startswith('URI:MDMF-Verifier:'):
             return MDMFVerifierURI.init_from_string(s)
         elif s.startswith('URI:DIR2:'):
