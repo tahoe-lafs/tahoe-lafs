@@ -256,7 +256,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             self.failUnlessEqual(len(shnums), 1)
         d.addCallback(_created)
         return d
-    test_create.timeout = 15
 
 
     def test_create_mdmf(self):
@@ -560,7 +559,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(lambda ignored:
             self.failUnlessEqual(self.c.data, "contents1" * 100000))
         return d
-    test_retrieve_pause.timeout = 25
 
 
     def test_download_from_mdmf_cap(self):
@@ -640,7 +638,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             return d
         d.addCallback(_created)
         return d
-    test_create_with_initial_contents.timeout = 15
 
 
     def test_create_mdmf_with_initial_contents(self):
@@ -663,7 +660,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             return d
         d.addCallback(_created)
         return d
-    test_create_mdmf_with_initial_contents.timeout = 20
 
 
     def test_response_cache_memory_leak(self):
@@ -822,7 +818,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             return d
         d.addCallback(_created)
         return d
-    test_modify.timeout = 15
 
 
     def test_modify_backoffer(self):
@@ -1398,7 +1393,6 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
             self.failIf(servermap.all_peers())
         d.addCallback(_check_servermap)
         return d
-    test_no_servers.timeout = 15
 
     def test_no_servers_download(self):
         sb2 = make_storagebroker(num_peers=0)
@@ -1419,7 +1413,6 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         d.addCallback(_restore)
         d.addCallback(_retrieved)
         return d
-    test_no_servers_download.timeout = 15
 
 
     def _test_corrupt_all(self, offset, substring,
@@ -1802,7 +1795,6 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
         d = self._fn.check(Monitor(), verify=True)
         d.addCallback(self.check_good, "test_verify_good")
         return d
-    test_verify_good.timeout = 15
 
     def test_verify_all_bad_sig(self):
         d = corrupt(None, self._storage, 1) # bad sig
@@ -2585,7 +2577,6 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             return d
         d.addCallback(_created)
         return d
-    test_unexpected_shares.timeout = 15
 
     def test_bad_server(self):
         # Break one server, then create the file: the initial publish should
@@ -2701,7 +2692,6 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                             "Ran out of non-bad servers",
                             nm.create_mutable_file, MutableData("contents"))
         return d
-    test_publish_no_servers.timeout = 30
 
 
     def test_privkey_query_error(self):
@@ -3487,7 +3477,6 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda results:
                 self.failUnlessEqual(results, new_data))
         return d
-    test_append_power_of_two.timeout = 15
 
 
     def test_update_sdmf(self):
