@@ -41,9 +41,11 @@ class MemAccum:
 setup_py_uri = "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
 one_uri = "URI:LIT:n5xgk" # LIT for "one"
 mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+mdmf_write_uri = "URI:MDMF:x533rhbm6kiehzl5kj3s44n5ie:4gif5rhneyd763ouo5qjrgnsoa3bg43xycy4robj2rf3tvmhdl3a:1:131072"
 empty_litdir_uri = "URI:DIR2-LIT:"
 tiny_litdir_uri = "URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm" # contains one child which is itself also LIT
 mut_read_uri = "URI:SSK-RO:jf6wkflosyvntwxqcdo7a54jvm:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
+mdmf_read_uri = "URI:MDMF-RO:d4cydxselputycfzkw6qgz4zv4:4gif5rhneyd763ouo5qjrgnsoa3bg43xycy4robj2rf3tvmhdl3a:1:131072"
 future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
 future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
 future_nonascii_write_uri = u"x-tahoe-even-more-crazy://I_am_from_the_future_rw_\u263A".encode('utf-8')
@@ -586,6 +588,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                 u"two": (nm.create_from_cap(setup_py_uri),
                          {"metakey": "metavalue"}),
                 u"mut": (nm.create_from_cap(mut_write_uri, mut_read_uri), {}),
+                u"mdmf": (nm.create_from_cap(mdmf_write_uri, mdmf_read_uri), {}),
                 u"fut": (nm.create_from_cap(future_write_uri, future_read_uri), {}),
                 u"fro": (nm.create_from_cap(None, future_read_uri), {}),
                 u"fut-unic": (nm.create_from_cap(future_nonascii_write_uri, future_nonascii_read_uri), {}),
@@ -619,11 +622,12 @@ class Dirnode(GridTestMixin, unittest.TestCase,
 
         def _check_kids(children):
             self.failUnlessReallyEqual(set(children.keys()),
-                                       set([one_nfc, u"two", u"mut", u"fut", u"fro",
+                                       set([one_nfc, u"two", u"mut", u"mdmf", u"fut", u"fro",
                                         u"fut-unic", u"fro-unic", u"empty_litdir", u"tiny_litdir"]))
             one_node, one_metadata = children[one_nfc]
             two_node, two_metadata = children[u"two"]
             mut_node, mut_metadata = children[u"mut"]
+            mdmf_node, mdmf_metadata = children[u"mdmf"]
             fut_node, fut_metadata = children[u"fut"]
             fro_node, fro_metadata = children[u"fro"]
             futna_node, futna_metadata = children[u"fut-unic"]
@@ -644,6 +648,10 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             self.failUnlessReallyEqual(mut_node.get_uri(), mut_write_uri)
             self.failUnlessReallyEqual(mut_node.get_readonly_uri(), mut_read_uri)
             self.failUnless(isinstance(mut_metadata, dict), mut_metadata)
+
+            self.failUnlessReallyEqual(mdmf_node.get_uri(), mdmf_write_uri)
+            self.failUnlessReallyEqual(mdmf_node.get_readonly_uri(), mdmf_read_uri)
+            self.failUnless(isinstance(mdmf_metadata, dict), mdmf_metadata)
 
             self.failUnless(fut_node.is_unknown())
             self.failUnlessReallyEqual(fut_node.get_uri(), future_write_uri)
@@ -852,6 +860,18 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                       "is not allowed in an immutable directory",
                                       c.create_immutable_dirnode,
                                       bad_kids5))
+        bad_kids6 = {one_nfd: (nm.create_from_cap(mdmf_write_uri), {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(MustBeDeepImmutableError, "bad_kids6",
+                                      "is not allowed in an immutable directory",
+                                      c.create_immutable_dirnode,
+                                      bad_kids6))
+        bad_kids7 = {one_nfd: (nm.create_from_cap(mdmf_read_uri), {})}
+        d.addCallback(lambda ign:
+                      self.shouldFail(MustBeDeepImmutableError, "bad_kids7",
+                                      "is not allowed in an immutable directory",
+                                      c.create_immutable_dirnode,
+                                      bad_kids7))
         d.addCallback(lambda ign: c.create_immutable_dirnode({}))
         def _created_empty(dn):
             self.failUnless(isinstance(dn, dirnode.DirectoryNode))
@@ -903,12 +923,18 @@ class Dirnode(GridTestMixin, unittest.TestCase,
             d.addCallback(_check_kids)
             d.addCallback(lambda ign: n.get(u"subdir"))
             d.addCallback(lambda sd: self.failIf(sd.is_mutable()))
-            bad_kids = {one_nfd: (nm.create_from_cap(mut_write_uri), {})}
+            bad_kids8 = {one_nfd: (nm.create_from_cap(mut_write_uri), {})}
             d.addCallback(lambda ign:
-                          self.shouldFail(MustBeDeepImmutableError, "YZ",
+                          self.shouldFail(MustBeDeepImmutableError, "bad_kids8",
                                           "is not allowed in an immutable directory",
                                           n.create_subdirectory,
-                                          u"sub2", bad_kids, mutable=False))
+                                          u"sub2", bad_kids8, mutable=False))
+            bad_kids9 = {one_nfd: (nm.create_from_cap(mdmf_write_uri), {})}
+            d.addCallback(lambda ign:
+                          self.shouldFail(MustBeDeepImmutableError, "bad_kids9",
+                                          "is not allowed in an immutable directory",
+                                          n.create_subdirectory,
+                                          u"sub2", bad_kids9, mutable=False))
             return d
         d.addCallback(_made_parent)
         return d
@@ -1607,9 +1633,7 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
         self.failUnlessReallyEqual(strip_prefix_for_ro("imm.foo", True),  "foo")
 
     def test_unknownnode(self):
-        mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
-        mut_read_uri = "URI:SSK-RO:jf6wkflosyvntwxqcdo7a54jvm:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
-        lit_uri = "URI:LIT:n5xgk"
+        lit_uri = one_uri
 
         # This does not attempt to be exhaustive.
         no_no        = [# Opaque node, but not an error.
@@ -1622,12 +1646,15 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
                         ( 3, UnknownNode("foo", None, deep_immutable=True)),
                         ( 4, UnknownNode("ro.foo", None, deep_immutable=True)),
                         ( 5, UnknownNode("ro." + mut_read_uri, None, deep_immutable=True)),
+                        ( 5.1, UnknownNode("ro." + mdmf_read_uri, None, deep_immutable=True)),
                         ( 6, UnknownNode("URI:SSK-RO:foo", None, deep_immutable=True)),
                         ( 7, UnknownNode("URI:SSK:foo", None)),
                        ]
         must_be_ro   = [# These are errors because a readonly constraint is not met.
                         ( 8, UnknownNode("ro." + mut_write_uri, None)),
+                        ( 8.1, UnknownNode("ro." + mdmf_write_uri, None)),
                         ( 9, UnknownNode(None, "ro." + mut_write_uri)),
+                        ( 9.1, UnknownNode(None, "ro." + mdmf_write_uri)),
                        ]
         must_be_imm  = [# These are errors because an immutable constraint is not met.
                         (10, UnknownNode(None, "ro.URI:SSK-RO:foo", deep_immutable=True)),
@@ -1637,7 +1664,9 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
                         (14, UnknownNode("bar", "imm.foo", deep_immutable=True)),
                         (15, UnknownNode("bar", "imm." + lit_uri, deep_immutable=True)),
                         (16, UnknownNode("imm." + mut_write_uri, None)),
+                        (16.1, UnknownNode("imm." + mdmf_write_uri, None)),
                         (17, UnknownNode("imm." + mut_read_uri, None)),
+                        (17.1, UnknownNode("imm." + mdmf_read_uri, None)),
                         (18, UnknownNode("bar", "imm.foo")),
                        ]
         bad_uri      = [# These are errors because the URI is bad once we've stripped the prefix.

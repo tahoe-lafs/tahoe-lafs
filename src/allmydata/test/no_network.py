@@ -406,3 +406,6 @@ class GridTestMixin:
         if return_response:
             d.addCallback(_got_data)
         return factory.deferred
+
+    def PUT(self, urlpath, **kwargs):
+        return self.GET(urlpath, method="PUT", **kwargs)

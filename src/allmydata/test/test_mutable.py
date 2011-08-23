@@ -2920,15 +2920,20 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         self.small_data = "test data" * 10 # about 90 B; SDMF
 
 
-    def do_upload_mdmf(self):
-        d = self.nm.create_mutable_file(MutableData(self.data),
-                                        version=MDMF_VERSION)
-        def _then(n):
-            assert isinstance(n, MutableFileNode)
-            self.mdmf_node = n
-            return n
-        d.addCallback(_then)
-        return d
+    def do_upload(self):
+        d1 = self.nm.create_mutable_file(MutableData(self.data),
+                                         version=MDMF_VERSION)
+        d2 = self.nm.create_mutable_file(MutableData(self.small_data))
+        dl = gatherResults([d1, d2])
+        def _then((n1, n2)):
+            assert isinstance(n1, MutableFileNode)
+            assert isinstance(n2, MutableFileNode)
+
+            self.mdmf_node = n1
+            self.sdmf_node = n2
+        dl.addCallback(_then)
+        return dl
+
 
     def do_upload_sdmf(self):
         d = self.nm.create_mutable_file(MutableData(self.small_data))
@@ -3242,21 +3247,21 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
     def test_read(self):
-        d = self.do_upload_mdmf()
-        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
+        d = self.mdmf_node.get_best_readable_version()
         def _read_data(version):
             c = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
             d2.addCallback(lambda ignored: version.read(c))
             d2.addCallback(lambda ignored:
-                self.failUnlessEqual("".join(c.chunks), self.data))
+                self.failUnlessEqual(expected, "".join(c.chunks)))
             return d2
         d.addCallback(_read_data)
+        d.addCallback(lambda ignored: node.download_best_version())
+        d.addCallback(lambda data: self.failUnlessEqual(expected, data))
         return d
 
     def test_download_best_version(self):
-        d = self.do_upload()
-        d.addCallback(lambda ign: self.mdmf_node.download_best_version())
+        d = self.mdmf_node.download_best_version()
         d.addCallback(lambda data:
             self.failUnlessEqual(data, self.data))
         d.addCallback(lambda ignored:
