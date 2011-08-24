@@ -6,6 +6,7 @@ from zope.interface import Interface
 from nevow import loaders, appserver
 from nevow.inevow import IRequest
 from nevow.util import resource_filename
+from allmydata import blacklist
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      FileTooLargeError, NotEnoughSharesError, NoSharesError, \
      EmptyPathnameComponentError, MustBeDeepImmutableError, \
@@ -257,6 +258,9 @@ def humanize_failure(f):
              "The cap is being passed in a read slot (ro_uri), or was retrieved "
              "from a read slot as an unknown cap.") % quoted_name
         return (t, http.BAD_REQUEST)
+    if f.check(blacklist.FileProhibited):
+        t = "Access Prohibited: %s" % quote_output(f.value.reason, encoding="utf-8", quotemarks=False)
+        return (t, http.FORBIDDEN)
     if f.check(WebError):
         return (f.value.text, f.value.code)
     if f.check(FileTooLargeError):

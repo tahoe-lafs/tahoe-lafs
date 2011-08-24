@@ -606,6 +606,13 @@ Other files
   "which peers am I connected to" list), and the shortened form (the first
   few characters) is recorded in various log messages.
 
+``access.blacklist``
+
+  Gateway nodes may find it necessary to prohibit access to certain files. The
+  web-API has a facility to block access to filecaps by their storage index,
+  returning a 403 "Forbidden" error instead of the original file. For more
+  details, see the "Access Blacklist" section of `<frontends/webapi.rst>`_.
+
 
 Example
 =======

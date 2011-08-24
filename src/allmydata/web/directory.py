@@ -17,6 +17,7 @@ from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
      IImmutableFileNode, IMutableFileNode, ExistingChildError, \
      NoSuchChildError, EmptyPathnameComponentError, SDMF_VERSION, MDMF_VERSION
+from allmydata.blacklist import ProhibitedNode
 from allmydata.monitor import Monitor, OperationCancelledError
 from allmydata import dirnode
 from allmydata.web.common import text_plain, WebError, \
@@ -764,6 +765,17 @@ class DirectoryAsHTML(rend.Page):
             ctx.fillSlots("size", "-")
             info_link = "%s/uri/%s/?t=info" % (root, quoted_uri)
 
+        elif isinstance(target, ProhibitedNode):
+            ctx.fillSlots("filename", T.strike[name])
+            if IDirectoryNode.providedBy(target.wrapped_node):
+                blacklisted_type = "DIR-BLACKLISTED"
+            else:
+                blacklisted_type = "BLACKLISTED"
+            ctx.fillSlots("type", blacklisted_type)
+            ctx.fillSlots("size", "-")
+            info_link = None
+            ctx.fillSlots("info", ["Access Prohibited:", T.br, target.reason])
+
         else:
             # unknown
             ctx.fillSlots("filename", html.escape(name))
@@ -779,7 +791,8 @@ class DirectoryAsHTML(rend.Page):
             # writecap and the readcap
             info_link = "%s?t=info" % urllib.quote(name)
 
-        ctx.fillSlots("info", T.a(href=info_link)["More Info"])
+        if info_link:
+            ctx.fillSlots("info", T.a(href=info_link)["More Info"])
 
         return ctx.tag
 

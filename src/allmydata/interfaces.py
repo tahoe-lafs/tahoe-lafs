@@ -784,7 +784,7 @@ class IFilesystemNode(Interface):
         read-only access with others, use get_readonly_uri().
         """
 
-    def get_write_uri(n):
+    def get_write_uri():
         """Return the URI string that can be used by others to get write
         access to this node, if it is writeable. If this is a read-only node,
         return None."""

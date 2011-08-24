@@ -170,6 +170,7 @@ class FakeClient(Client):
         self.history = FakeHistory()
         self.uploader = FakeUploader()
         self.uploader.setServiceParent(self)
+        self.blacklist = None
         self.nodemaker = FakeNodeMaker(None, self._secret_holder, None,
                                        self.uploader, None,
                                        None, None)
@@ -5261,6 +5262,146 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addBoth(_flush_errors)
 
         return d
+
+    def test_blacklist(self):
+        # download from a blacklisted URI, get an error
+        self.basedir = "web/Grid/blacklist"
+        self.set_up_grid()
+        c0 = self.g.clients[0]
+        c0_basedir = c0.basedir
+        fn = os.path.join(c0_basedir, "access.blacklist")
+        self.uris = {}
+        DATA = "off-limits " * 50
+
+        d = c0.upload(upload.Data(DATA, convergence=""))
+        def _stash_uri_and_create_dir(ur):
+            self.uri = ur.uri
+            self.url = "uri/"+self.uri
+            u = uri.from_string_filenode(self.uri)
+            self.si = u.get_storage_index()
+            childnode = c0.create_node_from_uri(self.uri, None)
+            return c0.create_dirnode({u"blacklisted.txt": (childnode,{}) })
+        d.addCallback(_stash_uri_and_create_dir)
+        def _stash_dir(node):
+            self.dir_node = node
+            self.dir_uri = node.get_uri()
+            self.dir_url = "uri/"+self.dir_uri
+        d.addCallback(_stash_dir)
+        d.addCallback(lambda ign: self.GET(self.dir_url, followRedirect=True))
+        def _check_dir_html(body):
+            self.failUnlessIn("<html>", body)
+            self.failUnlessIn("blacklisted.txt</a>", body)
+        d.addCallback(_check_dir_html)
+        d.addCallback(lambda ign: self.GET(self.url))
+        d.addCallback(lambda body: self.failUnlessEqual(DATA, body))
+
+        def _blacklist(ign):
+            f = open(fn, "w")
+            f.write(" # this is a comment\n")
+            f.write(" \n")
+            f.write("\n") # also exercise blank lines
+            f.write("%s %s\n" % (base32.b2a(self.si), "off-limits to you"))
+            f.close()
+            # clients should be checking the blacklist each time, so we don't
+            # need to restart the client
+        d.addCallback(_blacklist)
+        d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_uri",
+                                                       403, "Forbidden",
+                                                       "Access Prohibited: off-limits",
+                                                       self.GET, self.url))
+
+        # We should still be able to list the parent directory, in HTML...
+        d.addCallback(lambda ign: self.GET(self.dir_url, followRedirect=True))
+        def _check_dir_html2(body):
+            self.failUnlessIn("<html>", body)
+            self.failUnlessIn("blacklisted.txt</strike>", body)
+        d.addCallback(_check_dir_html2)
+
+        # ... and in JSON (used by CLI).
+        d.addCallback(lambda ign: self.GET(self.dir_url+"?t=json", followRedirect=True))
+        def _check_dir_json(res):
+            data = simplejson.loads(res)
+            self.failUnless(isinstance(data, list), data)
+            self.failUnlessEqual(data[0], "dirnode")
+            self.failUnless(isinstance(data[1], dict), data)
+            self.failUnlessIn("children", data[1])
+            self.failUnlessIn("blacklisted.txt", data[1]["children"])
+            childdata = data[1]["children"]["blacklisted.txt"]
+            self.failUnless(isinstance(childdata, list), data)
+            self.failUnlessEqual(childdata[0], "filenode")
+            self.failUnless(isinstance(childdata[1], dict), data)
+        d.addCallback(_check_dir_json)
+
+        def _unblacklist(ign):
+            open(fn, "w").close()
+            # the Blacklist object watches mtime to tell when the file has
+            # changed, but on windows this test will run faster than the
+            # filesystem's mtime resolution. So we edit Blacklist.last_mtime
+            # to force a reload.
+            self.g.clients[0].blacklist.last_mtime -= 2.0
+        d.addCallback(_unblacklist)
+
+        # now a read should work
+        d.addCallback(lambda ign: self.GET(self.url))
+        d.addCallback(lambda body: self.failUnlessEqual(DATA, body))
+
+        # read again to exercise the blacklist-is-unchanged logic
+        d.addCallback(lambda ign: self.GET(self.url))
+        d.addCallback(lambda body: self.failUnlessEqual(DATA, body))
+
+        # now add a blacklisted directory, and make sure files under it are
+        # refused too
+        def _add_dir(ign):
+            childnode = c0.create_node_from_uri(self.uri, None)
+            return c0.create_dirnode({u"child": (childnode,{}) })
+        d.addCallback(_add_dir)
+        def _get_dircap(dn):
+            self.dir_si_b32 = base32.b2a(dn.get_storage_index())
+            self.dir_url_base = "uri/"+dn.get_write_uri()
+            self.dir_url_json1 = "uri/"+dn.get_write_uri()+"?t=json"
+            self.dir_url_json2 = "uri/"+dn.get_write_uri()+"/?t=json"
+            self.dir_url_json_ro = "uri/"+dn.get_readonly_uri()+"/?t=json"
+            self.child_url = "uri/"+dn.get_readonly_uri()+"/child"
+        d.addCallback(_get_dircap)
+        d.addCallback(lambda ign: self.GET(self.dir_url_base, followRedirect=True))
+        d.addCallback(lambda body: self.failUnlessIn("<html>", body))
+        d.addCallback(lambda ign: self.GET(self.dir_url_json1))
+        d.addCallback(lambda res: simplejson.loads(res))  # just check it decodes
+        d.addCallback(lambda ign: self.GET(self.dir_url_json2))
+        d.addCallback(lambda res: simplejson.loads(res))  # just check it decodes
+        d.addCallback(lambda ign: self.GET(self.dir_url_json_ro))
+        d.addCallback(lambda res: simplejson.loads(res))  # just check it decodes
+        d.addCallback(lambda ign: self.GET(self.child_url))
+        d.addCallback(lambda body: self.failUnlessEqual(DATA, body))
+
+        def _block_dir(ign):
+            f = open(fn, "w")
+            f.write("%s %s\n" % (self.dir_si_b32, "dir-off-limits to you"))
+            f.close()
+            self.g.clients[0].blacklist.last_mtime -= 2.0
+        d.addCallback(_block_dir)
+        d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_dir base",
+                                                       403, "Forbidden",
+                                                       "Access Prohibited: dir-off-limits",
+                                                       self.GET, self.dir_url_base))
+        d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_dir json1",
+                                                       403, "Forbidden",
+                                                       "Access Prohibited: dir-off-limits",
+                                                       self.GET, self.dir_url_json1))
+        d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_dir json2",
+                                                       403, "Forbidden",
+                                                       "Access Prohibited: dir-off-limits",
+                                                       self.GET, self.dir_url_json2))
+        d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_dir json_ro",
+                                                       403, "Forbidden",
+                                                       "Access Prohibited: dir-off-limits",
+                                                       self.GET, self.dir_url_json_ro))
+        d.addCallback(lambda ign: self.shouldHTTPError("get_from_blacklisted_dir child",
+                                                       403, "Forbidden",
+                                                       "Access Prohibited: dir-off-limits",
+                                                       self.GET, self.child_url))
+        return d
+
 
 class CompletelyUnhandledError(Exception):
     pass

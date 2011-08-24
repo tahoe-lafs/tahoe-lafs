@@ -129,7 +129,7 @@ class WebishServer(service.MultiService):
     name = "webish"
 
     def __init__(self, client, webport, nodeurl_path=None, staticdir=None,
-                                        clock=None):
+                 clock=None):
         service.MultiService.__init__(self)
         # the 'data' argument to all render() methods default to the Client
         # the 'clock' argument to root.Root is, if set, a

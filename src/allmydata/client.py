@@ -25,6 +25,7 @@ from allmydata.history import History
 from allmydata.interfaces import IStatsProducer, RIStubClient, \
                                  SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
+from allmydata.blacklist import Blacklist
 
 
 KiB=1024
@@ -279,6 +280,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.terminator.setServiceParent(self)
         self.add_service(Uploader(helper_furl, self.stats_provider))
         self.init_stub_client()
+        self.init_blacklist()
         self.init_nodemaker()
 
     def init_client_storage_broker(self):
@@ -331,6 +333,10 @@ class Client(node.Node, pollmixin.PollMixin):
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="OEHq3g")
 
+    def init_blacklist(self):
+        fn = os.path.join(self.basedir, "access.blacklist")
+        self.blacklist = Blacklist(fn)
+
     def init_nodemaker(self):
         self.nodemaker = NodeMaker(self.storage_broker,
                                    self._secret_holder,
@@ -338,7 +344,8 @@ class Client(node.Node, pollmixin.PollMixin):
                                    self.getServiceNamed("uploader"),
                                    self.terminator,
                                    self.get_encoding_parameters(),
-                                   self._key_generator)
+                                   self._key_generator,
+                                   self.blacklist)
         default = self.get_config("client", "mutable.format", default="sdmf")
         if default == "mdmf":
             self.mutable_file_default = MDMF_VERSION

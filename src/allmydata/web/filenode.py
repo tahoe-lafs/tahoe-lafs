@@ -12,6 +12,8 @@ from allmydata.immutable.upload import FileHandle
 from allmydata.mutable.publish import MutableFileHandle
 from allmydata.mutable.common import MODE_READ
 from allmydata.util import log, base32
+from allmydata.util.encodingutil import quote_output
+from allmydata.blacklist import FileProhibited, ProhibitedNode
 
 from allmydata.web.common import text_plain, WebError, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories, \
@@ -152,11 +154,13 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
     def childFactory(self, ctx, name):
         req = IRequest(ctx)
+        if isinstance(self.node, ProhibitedNode):
+            raise FileProhibited(self.node.reason)
         if should_create_intermediate_directories(req):
-            raise WebError("Cannot create directory '%s', because its "
-                           "parent is a file, not a directory" % name)
-        raise WebError("Files have no children, certainly not named '%s'"
-                       % name)
+            raise WebError("Cannot create directory %s, because its "
+                           "parent is a file, not a directory" % quote_output(name, encoding='utf-8'))
+        raise WebError("Files have no children, certainly not named %s"
+                       % quote_output(name, encoding='utf-8'))
 
     def render_GET(self, ctx):
         req = IRequest(ctx)

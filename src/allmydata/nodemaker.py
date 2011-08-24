@@ -9,14 +9,17 @@ from allmydata.mutable.filenode import MutableFileNode
 from allmydata.mutable.publish import MutableData
 from allmydata.dirnode import DirectoryNode, pack_children
 from allmydata.unknown import UnknownNode
+from allmydata.blacklist import ProhibitedNode
 from allmydata import uri
+
 
 class NodeMaker:
     implements(INodeMaker)
 
     def __init__(self, storage_broker, secret_holder, history,
                  uploader, terminator,
-                 default_encoding_parameters, key_generator):
+                 default_encoding_parameters, key_generator,
+                 blacklist=None):
         self.storage_broker = storage_broker
         self.secret_holder = secret_holder
         self.history = history
@@ -24,6 +27,7 @@ class NodeMaker:
         self.terminator = terminator
         self.default_encoding_parameters = default_encoding_parameters
         self.key_generator = key_generator
+        self.blacklist = blacklist
 
         self._node_cache = weakref.WeakValueDictionary() # uri -> node
 
@@ -62,14 +66,27 @@ class NodeMaker:
         else:
             memokey = "M" + bigcap
         if memokey in self._node_cache:
-            return self._node_cache[memokey]
-        cap = uri.from_string(bigcap, deep_immutable=deep_immutable, name=name)
-        node = self._create_from_single_cap(cap)
-        if node:
-            self._node_cache[memokey] = node  # note: WeakValueDictionary
+            node = self._node_cache[memokey]
         else:
-            # don't cache UnknownNode
-            node = UnknownNode(writecap, readcap, deep_immutable=deep_immutable, name=name)
+            cap = uri.from_string(bigcap, deep_immutable=deep_immutable,
+                                  name=name)
+            node = self._create_from_single_cap(cap)
+            if node:
+                self._node_cache[memokey] = node  # note: WeakValueDictionary
+            else:
+                # don't cache UnknownNode
+                node = UnknownNode(writecap, readcap,
+                                   deep_immutable=deep_immutable, name=name)
+
+        if self.blacklist:
+            si = node.get_storage_index()
+            # if this node is blacklisted, return the reason, otherwise return None
+            reason = self.blacklist.check_storageindex(si)
+            if reason is not None:
+                # The original node object is cached above, not the ProhibitedNode wrapper.
+                # This ensures that removing the blacklist entry will make the node
+                # accessible if create_from_cap is called again.
+                node = ProhibitedNode(node, reason)
         return node
 
     def _create_from_single_cap(self, cap):
