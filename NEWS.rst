@@ -5,6 +5,8 @@ User-Visible Changes in Tahoe-LAFS
 Release 1.9.0 (2011-??-??)
 --------------------------
 
+WORK IN PROGRESS
+
 - The unmaintained FUSE plugins were removed from the source tree. See
   docs/frontends/FTP-and-SFTP.rst for how to use sshfs. (`#1409`_)
 - Nodes now emit "None" for percentiles with higher implied precision
