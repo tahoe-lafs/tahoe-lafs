@@ -184,9 +184,12 @@ class SystemFramework(pollmixin.PollMixin):
         for i in range(self.numnodes):
             nodedir = os.path.join(self.testdir, "node%d" % i)
             os.mkdir(nodedir)
-            f = open(os.path.join(nodedir, "introducer.furl"), "w")
-            f.write(self.introducer_furl)
-            f.close()
+            f = open(os.path.join(nodedir, "tahoe.cfg"), "w")
+            f.write("[client]\n"
+                    "introducer.furl = %s\n"
+                    "shares.happy = 1\n"
+                    "[storage]\n"
+                    % (self.introducer_furl,))
             # the only tests for which we want the internal nodes to actually
             # retain shares are the ones where somebody's going to download
             # them.
@@ -197,15 +200,12 @@ class SystemFramework(pollmixin.PollMixin):
                 # for these tests, we tell the storage servers to pretend to
                 # accept shares, but really just throw them out, since we're
                 # only testing upload and not download.
-                f = open(os.path.join(nodedir, "debug_no_storage"), "w")
-                f.write("no_storage\n")
-                f.close()
+                f.write("debug_discard = true\n")
             if self.mode in ("receive",):
                 # for this mode, the client-under-test gets all the shares,
                 # so our internal nodes can refuse requests
-                f = open(os.path.join(nodedir, "readonly_storage"), "w")
-                f.write("\n")
-                f.close()
+                f.write("readonly = true\n")
+            f.close()
             c = self.add_service(client.Client(basedir=nodedir))
             self.nodes.append(c)
         # the peers will start running, eventually they will connect to each
@@ -232,31 +232,30 @@ this file are ignored.
         clientdir = self.clientdir = os.path.join(self.testdir, u"client")
         clientdir_str = clientdir.encode(get_filesystem_encoding())
         quiet = StringIO()
-        create_node.create_node(clientdir, {}, out=quiet)
+        create_node.create_node({'basedir': clientdir}, out=quiet)
         log.msg("DONE MAKING CLIENT")
-        f = open(os.path.join(clientdir, "introducer.furl"), "w")
-        f.write(self.introducer_furl + "\n")
-        f.close()
-
+        # now replace tahoe.cfg
         # set webport=0 and then ask the node what port it picked.
-        f = open(os.path.join(clientdir, "webport"), "w")
-        f.write("tcp:0:interface=127.0.0.1\n")
-        f.close()
+        f = open(os.path.join(clientdir, "tahoe.cfg"), "w")
+        f.write("[node]\n"
+                "web.port = tcp:0:interface=127.0.0.1\n"
+                "[client]\n"
+                "introducer.furl = %s\n"
+                "shares.happy = 1\n"
+                "[storage]\n"
+                % (self.introducer_furl,))
 
         if self.mode in ("upload-self", "receive"):
             # accept and store shares, to trigger the memory consumption bugs
             pass
         else:
             # don't accept any shares
-            f = open(os.path.join(clientdir, "readonly_storage"), "w")
-            f.write("true\n")
-            f.close()
+            f.write("readonly = true\n")
             ## also, if we do receive any shares, throw them away
-            #f = open(os.path.join(clientdir, "debug_no_storage"), "w")
-            #f.write("no_storage\n")
-            #f.close()
+            #f.write("debug_discard = true")
         if self.mode == "upload-self":
             pass
+        f.close()
         self.keepalive_file = os.path.join(clientdir,
                                            "suicide_prevention_hotline")
         # now start updating the mtime.
@@ -379,7 +378,8 @@ this file are ignored.
         if self.mode in ("upload", "upload-self"):
             files[name] = self.create_data(name, size)
             d = self.control_rref.callRemote("upload_from_file_to_uri",
-                                             files[name], convergence="check-memory convergence string")
+                                             files[name].encode("utf-8"),
+                                             convergence="check-memory")
             def _done(uri):
                 os.remove(files[name])
                 del files[name]
@@ -403,7 +403,9 @@ this file are ignored.
             files[name] = self.create_data(name, size)
             u = self.nodes[0].getServiceNamed("uploader")
             d = self.nodes[0].debug_wait_for_client_connections(self.numnodes+1)
-            d.addCallback(lambda res: u.upload(upload.FileName(files[name], convergence="check-memory convergence string")))
+            d.addCallback(lambda res:
+                          u.upload(upload.FileName(files[name],
+                                                   convergence="check-memory")))
             d.addCallback(lambda results: results.uri)
         else:
             raise ValueError("unknown mode=%s" % self.mode)
