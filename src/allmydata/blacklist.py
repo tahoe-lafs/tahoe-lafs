@@ -153,3 +153,6 @@ class ProhibitedNode:
 
     def get_writekey(self):
         raise FileProhibited(self.reason)
+
+    def read(self, consumer, offset=0, size=None):
+        raise FileProhibited(self.reason)
