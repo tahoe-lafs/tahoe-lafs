@@ -3260,6 +3260,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
 
 
 class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
+    timeout = 400 # these tests are too big, 120s is not enough on slow
+                  # platforms
     def setUp(self):
         GridTestMixin.setUp(self)
         self.basedir = self.mktemp()
