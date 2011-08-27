@@ -347,7 +347,7 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(u5, u5_h)
 
 
-    def test_writable_mdmf_cap(self):
+    def test_writeable_mdmf_cap(self):
         u1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
         cap = u1.to_string()
         u = uri.WriteableMDMFFileURI.init_from_string(cap)
@@ -359,7 +359,7 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failIf(u.is_readonly())
         self.failUnlessEqual(cap, u.to_string())
 
-        # Now get a readonly cap from the writable cap, and test that it
+        # Now get a readonly cap from the writeable cap, and test that it
         # degrades gracefully.
         ru = u.get_readonly()
         self.failUnlessReallyEqual(self.readkey, ru.readkey)
@@ -387,8 +387,8 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(vu.storage_index, self.storage_index)
         self.failUnlessEqual(vu.fingerprint, self.fingerprint)
 
-    def test_create_writable_mdmf_cap_from_readcap(self):
-        # we shouldn't be able to create a writable MDMF cap given only a
+    def test_create_writeable_mdmf_cap_from_readcap(self):
+        # we shouldn't be able to create a writeable MDMF cap given only a
         # readcap.
         u1 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint)
         cap = u1.to_string()
@@ -396,7 +396,7 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
                               uri.WriteableMDMFFileURI.init_from_string,
                               cap)
 
-    def test_create_writable_mdmf_cap_from_verifycap(self):
+    def test_create_writeable_mdmf_cap_from_verifycap(self):
         u1 = uri.MDMFVerifierURI(self.storage_index, self.fingerprint)
         cap = u1.to_string()
         self.failUnlessRaises(uri.BadURIError,

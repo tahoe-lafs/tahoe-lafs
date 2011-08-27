@@ -220,9 +220,9 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             v0 = server.get_rref().version
             v1 = v0["http://allmydata.org/tahoe/protocols/storage/v1"]
             return v1["maximum-immutable-share-size"]
-        writable_servers = [server for server in all_servers
+        writeable_servers = [server for server in all_servers
                             if _get_maxsize(server) >= allocated_size]
-        readonly_servers = set(all_servers[:2*total_shares]) - set(writable_servers)
+        readonly_servers = set(all_servers[:2*total_shares]) - set(writeable_servers)
 
         # decide upon the renewal/cancel secrets, to include them in the
         # allocate_buckets query.
@@ -257,7 +257,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # second-pass list and repeat the "second" pass (really the third,
         # fourth, etc pass), until all shares are assigned, or we've run out
         # of potential servers.
-        self.first_pass_trackers = _make_trackers(writable_servers)
+        self.first_pass_trackers = _make_trackers(writeable_servers)
         self.second_pass_trackers = [] # servers worth asking again
         self.next_pass_trackers = [] # servers that we have asked again
         self._started_second_pass = False

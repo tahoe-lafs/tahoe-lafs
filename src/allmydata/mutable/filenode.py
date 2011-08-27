@@ -478,7 +478,7 @@ class MutableFileNode:
         I return a Deferred that fires with a MutableFileVersion
         representing the best readable version of the file that I
         represent. I am like get_best_readable_version, except that I
-        will try to make a writable version if I can.
+        will try to make a writeable version if I can.
         """
         return self.get_mutable_version(servermap=servermap)
 
