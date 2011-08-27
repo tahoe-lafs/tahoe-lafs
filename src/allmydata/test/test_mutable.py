@@ -2918,41 +2918,35 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         self.nm = self.c.nodemaker
         self.data = "test data" * 100000 # about 900 KiB; MDMF
         self.small_data = "test data" * 10 # about 90 B; SDMF
-        return self.do_upload()
 
 
-    def do_upload(self):
-        d1 = self.nm.create_mutable_file(MutableData(self.data),
-                                         version=MDMF_VERSION)
-        d2 = self.nm.create_mutable_file(MutableData(self.small_data))
-        dl = gatherResults([d1, d2])
-        def _then((n1, n2)):
-            assert isinstance(n1, MutableFileNode)
-            assert isinstance(n2, MutableFileNode)
-
-            self.mdmf_node = n1
-            self.sdmf_node = n2
-        dl.addCallback(_then)
-        return dl
-
-
-    def test_get_readonly_mutable_version(self):
-        # Attempting to get a mutable version of a mutable file from a
-        # filenode initialized with a readcap should return a readonly
-        # version of that same node.
-        ro = self.mdmf_node.get_readonly()
-        d = ro.get_best_mutable_version()
-        d.addCallback(lambda version:
-            self.failUnless(version.is_readonly()))
-        d.addCallback(lambda ignored:
-            self.sdmf_node.get_readonly())
-        d.addCallback(lambda version:
-            self.failUnless(version.is_readonly()))
+    def do_upload_mdmf(self):
+        d = self.nm.create_mutable_file(MutableData(self.data),
+                                        version=MDMF_VERSION)
+        def _then(n):
+            assert isinstance(n, MutableFileNode)
+            self.mdmf_node = n
+            return n
+        d.addCallback(_then)
         return d
 
+    def do_upload_sdmf(self):
+        d = self.nm.create_mutable_file(MutableData(self.small_data))
+        def _then(n):
+            assert isinstance(n, MutableFileNode)
+            self.sdmf_node = n
+            return n
+        d.addCallback(_then)
+        return d
+
+    def do_upload(self):
+        d = self.do_upload_mdmf()
+        d.addCallback(lambda ign: self.do_upload_sdmf())
+        return d
 
     def test_get_sequence_number(self):
-        d = self.mdmf_node.get_best_readable_version()
+        d = self.do_upload()
+        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
         d.addCallback(lambda bv:
             self.failUnlessEqual(bv.get_sequence_number(), 1))
         d.addCallback(lambda ignored:
@@ -2984,7 +2978,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         # We need to define an API by which an uploader can set the
         # extension parameters, and by which a downloader can retrieve
         # extensions.
-        d = self.mdmf_node.get_best_mutable_version()
+        d = self.do_upload_mdmf()
+        d.addCallback(lambda ign: self.mdmf_node.get_best_mutable_version())
         def _got_version(version):
             hints = version.get_downloader_hints()
             # Should be empty at this point.
@@ -3000,9 +2995,12 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         # If we initialize a mutable file with a cap that has extension
         # parameters in it and then grab the extension parameters using
         # our API, we should see that they're set correctly.
-        mdmf_uri = self.mdmf_node.get_uri()
-        new_node = self.nm.create_from_cap(mdmf_uri)
-        d = new_node.get_best_mutable_version()
+        d = self.do_upload_mdmf()
+        def _then(ign):
+            mdmf_uri = self.mdmf_node.get_uri()
+            new_node = self.nm.create_from_cap(mdmf_uri)
+            return new_node.get_best_mutable_version()
+        d.addCallback(_then)
         def _got_version(version):
             hints = version.get_downloader_hints()
             self.failUnlessIn("k", hints)
@@ -3037,66 +3035,64 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         # it's an MDMF file, we should get an MDMF cap back from that
         # file and should be able to use that.
         # That's essentially what MDMF node is, so just check that.
-        mdmf_uri = self.mdmf_node.get_uri()
-        cap = uri.from_string(mdmf_uri)
-        self.failUnless(isinstance(cap, uri.WriteableMDMFFileURI))
-        readonly_mdmf_uri = self.mdmf_node.get_readonly_uri()
-        cap = uri.from_string(readonly_mdmf_uri)
-        self.failUnless(isinstance(cap, uri.ReadonlyMDMFFileURI))
-
-
-    def test_get_writekey(self):
-        d = self.mdmf_node.get_best_mutable_version()
-        d.addCallback(lambda bv:
-            self.failUnlessEqual(bv.get_writekey(),
-                                 self.mdmf_node.get_writekey()))
-        d.addCallback(lambda ignored:
-            self.sdmf_node.get_best_mutable_version())
-        d.addCallback(lambda bv:
-            self.failUnlessEqual(bv.get_writekey(),
-                                 self.sdmf_node.get_writekey()))
+        d = self.do_upload_mdmf()
+        def _then(ign):
+            mdmf_uri = self.mdmf_node.get_uri()
+            cap = uri.from_string(mdmf_uri)
+            self.failUnless(isinstance(cap, uri.WriteableMDMFFileURI))
+            readonly_mdmf_uri = self.mdmf_node.get_readonly_uri()
+            cap = uri.from_string(readonly_mdmf_uri)
+            self.failUnless(isinstance(cap, uri.ReadonlyMDMFFileURI))
+        d.addCallback(_then)
         return d
 
-
-    def test_get_storage_index(self):
-        d = self.mdmf_node.get_best_mutable_version()
-        d.addCallback(lambda bv:
-            self.failUnlessEqual(bv.get_storage_index(),
-                                 self.mdmf_node.get_storage_index()))
-        d.addCallback(lambda ignored:
-            self.sdmf_node.get_best_mutable_version())
-        d.addCallback(lambda bv:
-            self.failUnlessEqual(bv.get_storage_index(),
-                                 self.sdmf_node.get_storage_index()))
+    def test_mutable_version(self):
+        # assert that getting parameters from the IMutableVersion object
+        # gives us the same data as getting them from the filenode itself
+        d = self.do_upload()
+        d.addCallback(lambda ign: self.mdmf_node.get_best_mutable_version())
+        def _check_mdmf(bv):
+            n = self.mdmf_node
+            self.failUnlessEqual(bv.get_writekey(), n.get_writekey())
+            self.failUnlessEqual(bv.get_storage_index(), n.get_storage_index())
+            self.failIf(bv.is_readonly())
+        d.addCallback(_check_mdmf)
+        d.addCallback(lambda ign: self.sdmf_node.get_best_mutable_version())
+        def _check_sdmf(bv):
+            n = self.sdmf_node
+            self.failUnlessEqual(bv.get_writekey(), n.get_writekey())
+            self.failUnlessEqual(bv.get_storage_index(), n.get_storage_index())
+            self.failIf(bv.is_readonly())
+        d.addCallback(_check_sdmf)
         return d
 
 
     def test_get_readonly_version(self):
-        d = self.mdmf_node.get_best_readable_version()
-        d.addCallback(lambda bv:
-            self.failUnless(bv.is_readonly()))
-        d.addCallback(lambda ignored:
-            self.sdmf_node.get_best_readable_version())
-        d.addCallback(lambda bv:
-            self.failUnless(bv.is_readonly()))
-        return d
+        d = self.do_upload()
+        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
+        d.addCallback(lambda bv: self.failUnless(bv.is_readonly()))
 
+        # Attempting to get a mutable version of a mutable file from a
+        # filenode initialized with a readcap should return a readonly
+        # version of that same node.
+        d.addCallback(lambda ign: self.mdmf_node.get_readonly())
+        d.addCallback(lambda ro: ro.get_best_mutable_version())
+        d.addCallback(lambda v: self.failUnless(v.is_readonly()))
 
-    def test_get_mutable_version(self):
-        d = self.mdmf_node.get_best_mutable_version()
-        d.addCallback(lambda bv:
-            self.failIf(bv.is_readonly()))
-        d.addCallback(lambda ignored:
-            self.sdmf_node.get_best_mutable_version())
-        d.addCallback(lambda bv:
-            self.failIf(bv.is_readonly()))
+        d.addCallback(lambda ign: self.sdmf_node.get_best_readable_version())
+        d.addCallback(lambda bv: self.failUnless(bv.is_readonly()))
+
+        d.addCallback(lambda ign: self.sdmf_node.get_readonly())
+        d.addCallback(lambda ro: ro.get_best_mutable_version())
+        d.addCallback(lambda v: self.failUnless(v.is_readonly()))
         return d
 
 
     def test_toplevel_overwrite(self):
         new_data = MutableData("foo bar baz" * 100000)
         new_small_data = MutableData("foo bar baz" * 10)
-        d = self.mdmf_node.overwrite(new_data)
+        d = self.do_upload()
+        d.addCallback(lambda ign: self.mdmf_node.overwrite(new_data))
         d.addCallback(lambda ignored:
             self.mdmf_node.download_best_version())
         d.addCallback(lambda data:
@@ -3111,9 +3107,10 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
 
 
     def test_toplevel_modify(self):
+        d = self.do_upload()
         def modifier(old_contents, servermap, first_time):
             return old_contents + "modified"
-        d = self.mdmf_node.modify(modifier)
+        d.addCallback(lambda ign: self.mdmf_node.modify(modifier))
         d.addCallback(lambda ignored:
             self.mdmf_node.download_best_version())
         d.addCallback(lambda data:
@@ -3131,9 +3128,10 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         # TODO: When we can publish multiple versions, alter this test
         # to modify a version other than the best usable version, then
         # test to see that the best recoverable version is that.
+        d = self.do_upload()
         def modifier(old_contents, servermap, first_time):
             return old_contents + "modified"
-        d = self.mdmf_node.modify(modifier)
+        d.addCallback(lambda ign: self.mdmf_node.modify(modifier))
         d.addCallback(lambda ignored:
             self.mdmf_node.download_best_version())
         d.addCallback(lambda data:
@@ -3185,7 +3183,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
 
 
     def test_download_nonexistent_version(self):
-        d = self.mdmf_node.get_servermap(mode=MODE_WRITE)
+        d = self.do_upload_mdmf()
+        d.addCallback(lambda ign: self.mdmf_node.get_servermap(mode=MODE_WRITE))
         def _set_servermap(servermap):
             self.servermap = servermap
         d.addCallback(_set_servermap)
@@ -3200,7 +3199,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
     def test_partial_read(self):
         # read only a few bytes at a time, and see that the results are
         # what we expect.
-        d = self.mdmf_node.get_best_readable_version()
+        d = self.do_upload_mdmf()
+        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
         def _read_data(version):
             c = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
@@ -3213,7 +3213,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
     def test_partial_read_starting_on_segment_boundary(self):
-        d = self.mdmf_node.get_best_readable_version()
+        d = self.do_upload_mdmf()
+        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
         c = consumer.MemoryConsumer()
         offset = mathutil.next_multiple(128 * 1024, 3)
         d.addCallback(lambda version:
@@ -3224,7 +3225,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
     def test_partial_read_ending_on_segment_boundary(self):
-        d = self.mdmf_node.get_best_readable_version()
+        d = self.do_upload_mdmf()
+        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
         c = consumer.MemoryConsumer()
         offset = mathutil.next_multiple(128 * 1024, 3)
         start = offset - 50
@@ -3236,7 +3238,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         return d
 
     def test_read(self):
-        d = self.mdmf_node.get_best_readable_version()
+        d = self.do_upload_mdmf()
+        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
         def _read_data(version):
             c = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
@@ -3249,7 +3252,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
 
 
     def test_download_best_version(self):
-        d = self.mdmf_node.download_best_version()
+        d = self.do_upload()
+        d.addCallback(lambda ign: self.mdmf_node.download_best_version())
         d.addCallback(lambda data:
             self.failUnlessEqual(data, self.data))
         d.addCallback(lambda ignored:
