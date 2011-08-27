@@ -2920,26 +2920,33 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         self.small_data = "test data" * 10 # about 90 B; SDMF
 
 
-    def do_upload(self):
-        d1 = self.nm.create_mutable_file(MutableData(self.data),
-                                         version=MDMF_VERSION)
-        d2 = self.nm.create_mutable_file(MutableData(self.small_data))
-        dl = gatherResults([d1, d2])
-        def _then((n1, n2)):
-            assert isinstance(n1, MutableFileNode)
-            assert isinstance(n2, MutableFileNode)
-
-            self.mdmf_node = n1
-            self.sdmf_node = n2
-        dl.addCallback(_then)
-        return dl
-
+    def do_upload_mdmf(self):
+        d = self.nm.create_mutable_file(MutableData(self.data),
+                                        version=MDMF_VERSION)
+        def _then(n):
+            assert isinstance(n, MutableFileNode)
+            assert n._protocol_version == MDMF_VERSION
+            self.mdmf_node = n
+            return n
+        d.addCallback(_then)
+        return d
 
     def do_upload_sdmf(self):
         d = self.nm.create_mutable_file(MutableData(self.small_data))
         def _then(n):
             assert isinstance(n, MutableFileNode)
+            assert n._protocol_version == SDMF_VERSION
             self.sdmf_node = n
+            return n
+        d.addCallback(_then)
+        return d
+
+    def do_upload_empty_sdmf(self):
+        d = self.nm.create_mutable_file(MutableData(""))
+        def _then(n):
+            assert isinstance(n, MutableFileNode)
+            self.sdmf_zero_length_node = n
+            assert n._protocol_version == SDMF_VERSION
             return n
         d.addCallback(_then)
         return d
@@ -3217,6 +3224,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(_read_data)
         return d
 
+
     def _test_partial_read(self, offset, length):
         d = self.do_upload_mdmf()
         d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
@@ -3234,20 +3242,29 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(_check)
         return d
 
-    def test_partial_read_ending_on_segment_boundary(self):
-        d = self.mdmf_node.get_best_readable_version()
-        c = consumer.MemoryConsumer()
-        offset = mathutil.next_multiple(128 * 1024, 3)
-        start = offset - 50
-        d.addCallback(lambda version:
-            version.read(c, start, 51))
-        expected = self.data[offset-50:offset+1]
-        d.addCallback(lambda ignored:
-            self.failUnlessEqual(expected, "".join(c.chunks)))
-        return d
+    def test_partial_read_starting_on_segment_boundary(self):
+        return self._test_partial_read(mathutil.next_multiple(128 * 1024, 3), 50)
 
-    def test_read(self):
-        d = self.mdmf_node.get_best_readable_version()
+    def test_partial_read_ending_one_byte_after_segment_boundary(self):
+        return self._test_partial_read(mathutil.next_multiple(128 * 1024, 3)-50, 51)
+
+    def test_partial_read_zero_length_at_start(self):
+        return self._test_partial_read(0, 0)
+
+    def test_partial_read_zero_length_in_middle(self):
+        return self._test_partial_read(50, 0)
+
+    def test_partial_read_zero_length_at_segment_boundary(self):
+        return self._test_partial_read(mathutil.next_multiple(128 * 1024, 3), 0)
+
+    # XXX factor these into a single upload after they pass
+    _broken = "zero-length reads of mutable files don't work"
+    test_partial_read_zero_length_at_start.todo = _broken
+    test_partial_read_zero_length_in_middle.todo = _broken
+    test_partial_read_zero_length_at_segment_boundary = _broken
+
+    def _test_read_and_download(self, node, expected):
+        d = node.get_best_readable_version()
         def _read_data(version):
             c = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
@@ -3260,14 +3277,19 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(lambda data: self.failUnlessEqual(expected, data))
         return d
 
-    def test_download_best_version(self):
-        d = self.mdmf_node.download_best_version()
-        d.addCallback(lambda data:
-            self.failUnlessEqual(data, self.data))
-        d.addCallback(lambda ignored:
-            self.sdmf_node.download_best_version())
-        d.addCallback(lambda data:
-            self.failUnlessEqual(data, self.small_data))
+    def test_read_and_download_mdmf(self):
+        d = self.do_upload_mdmf()
+        d.addCallback(self._test_read_and_download, self.data)
+        return d
+
+    def test_read_and_download_sdmf(self):
+        d = self.do_upload_sdmf()
+        d.addCallback(self._test_read_and_download, self.small_data)
+        return d
+
+    def test_read_and_download_sdmf_zero_length(self):
+        d = self.do_upload_empty_sdmf()
+        d.addCallback(self._test_read_and_download, "")
         return d
 
 
