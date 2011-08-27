@@ -415,9 +415,9 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
             print >>out, "Literal File URI:"
         print >>out, " data:", quote_output(u.data)
 
-    elif isinstance(u, uri.WriteableSSKFileURI):
+    elif isinstance(u, uri.WriteableSSKFileURI): # SDMF
         if show_header:
-            print >>out, "SSK Writeable URI:"
+            print >>out, "SDMF Writeable URI:"
         print >>out, " writekey:", base32.b2a(u.writekey)
         print >>out, " readkey:", base32.b2a(u.readkey)
         print >>out, " storage index:", si_b2a(u.get_storage_index())
@@ -428,20 +428,54 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
             print >>out, " write_enabler:", base32.b2a(we)
             print >>out
         _dump_secrets(u.get_storage_index(), secret, nodeid, out)
-
     elif isinstance(u, uri.ReadonlySSKFileURI):
         if show_header:
-            print >>out, "SSK Read-only URI:"
+            print >>out, "SDMF Read-only URI:"
         print >>out, " readkey:", base32.b2a(u.readkey)
         print >>out, " storage index:", si_b2a(u.get_storage_index())
         print >>out, " fingerprint:", base32.b2a(u.fingerprint)
     elif isinstance(u, uri.SSKVerifierURI):
         if show_header:
-            print >>out, "SSK Verifier URI:"
+            print >>out, "SDMF Verifier URI:"
         print >>out, " storage index:", si_b2a(u.get_storage_index())
         print >>out, " fingerprint:", base32.b2a(u.fingerprint)
 
-    elif isinstance(u, uri.DirectoryURI):
+    elif isinstance(u, uri.WriteableMDMFFileURI): # MDMF
+        if show_header:
+            print >>out, "MDMF Writeable URI:"
+        print >>out, " writekey:", base32.b2a(u.writekey)
+        print >>out, " readkey:", base32.b2a(u.readkey)
+        print >>out, " storage index:", si_b2a(u.get_storage_index())
+        print >>out, " fingerprint:", base32.b2a(u.fingerprint)
+        print >>out
+        if nodeid:
+            we = hashutil.ssk_write_enabler_hash(u.writekey, nodeid)
+            print >>out, " write_enabler:", base32.b2a(we)
+            print >>out
+        _dump_secrets(u.get_storage_index(), secret, nodeid, out)
+    elif isinstance(u, uri.ReadonlyMDMFFileURI):
+        if show_header:
+            print >>out, "MDMF Read-only URI:"
+        print >>out, " readkey:", base32.b2a(u.readkey)
+        print >>out, " storage index:", si_b2a(u.get_storage_index())
+        print >>out, " fingerprint:", base32.b2a(u.fingerprint)
+    elif isinstance(u, uri.MDMFVerifierURI):
+        if show_header:
+            print >>out, "MDMF Verifier URI:"
+        print >>out, " storage index:", si_b2a(u.get_storage_index())
+        print >>out, " fingerprint:", base32.b2a(u.fingerprint)
+
+
+    elif isinstance(u, uri.ImmutableDirectoryURI): # CHK-based directory
+        if show_header:
+            print >>out, "CHK Directory URI:"
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+    elif isinstance(u, uri.ImmutableDirectoryURIVerifier):
+        if show_header:
+            print >>out, "CHK Directory Verifier URI:"
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+
+    elif isinstance(u, uri.DirectoryURI): # SDMF-based directory
         if show_header:
             print >>out, "Directory Writeable URI:"
         dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
@@ -453,6 +487,20 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
         if show_header:
             print >>out, "Directory Verifier URI:"
         dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+
+    elif isinstance(u, uri.MDMFDirectoryURI): # MDMF-based directory
+        if show_header:
+            print >>out, "Directory Writeable URI:"
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+    elif isinstance(u, uri.ReadonlyMDMFDirectoryURI):
+        if show_header:
+            print >>out, "Directory Read-only URI:"
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+    elif isinstance(u, uri.MDMFDirectoryURIVerifier):
+        if show_header:
+            print >>out, "Directory Verifier URI:"
+        dump_uri_instance(u._filenode_uri, nodeid, secret, out, False)
+
     else:
         print >>out, "unknown cap type"
 

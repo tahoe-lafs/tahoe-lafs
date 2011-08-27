@@ -187,13 +187,13 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("Literal File URI:" in output, output)
         self.failUnless("data: 'this is some data'" in output, output)
 
-    def test_dump_cap_ssk(self):
+    def test_dump_cap_sdmf(self):
         writekey = "\x01" * 16
         fingerprint = "\xfe" * 32
         u = uri.WriteableSSKFileURI(writekey, fingerprint)
 
         output = self._dump_cap(u.to_string())
-        self.failUnless("SSK Writeable URI:" in output, output)
+        self.failUnless("SDMF Writeable URI:" in output, output)
         self.failUnless("writekey: aeaqcaibaeaqcaibaeaqcaibae" in output, output)
         self.failUnless("readkey: nvgh5vj2ekzzkim5fgtb4gey5y" in output, output)
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
@@ -227,18 +227,104 @@ class CLI(CLITestMixin, unittest.TestCase):
 
         u = u.get_readonly()
         output = self._dump_cap(u.to_string())
-        self.failUnless("SSK Read-only URI:" in output, output)
+        self.failUnless("SDMF Read-only URI:" in output, output)
         self.failUnless("readkey: nvgh5vj2ekzzkim5fgtb4gey5y" in output, output)
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
         u = u.get_verify_cap()
         output = self._dump_cap(u.to_string())
-        self.failUnless("SSK Verifier URI:" in output, output)
+        self.failUnless("SDMF Verifier URI:" in output, output)
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
 
-    def test_dump_cap_directory(self):
+    def test_dump_cap_mdmf(self):
+        writekey = "\x01" * 16
+        fingerprint = "\xfe" * 32
+        u = uri.WriteableMDMFFileURI(writekey, fingerprint)
+
+        output = self._dump_cap(u.to_string())
+        self.failUnless("MDMF Writeable URI:" in output, output)
+        self.failUnless("writekey: aeaqcaibaeaqcaibaeaqcaibae" in output, output)
+        self.failUnless("readkey: nvgh5vj2ekzzkim5fgtb4gey5y" in output, output)
+        self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
+
+        output = self._dump_cap("--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
+                                u.to_string())
+        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
+
+        fileutil.make_dirs("cli/test_dump_cap/private")
+        fileutil.write("cli/test_dump_cap/private/secret", "5s33nk3qpvnj2fw3z4mnm2y6fa\n")
+        output = self._dump_cap("--client-dir", "cli/test_dump_cap",
+                                u.to_string())
+        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
+
+        output = self._dump_cap("--client-dir", "cli/test_dump_cap_BOGUS",
+                                u.to_string())
+        self.failIf("file renewal secret:" in output, output)
+
+        output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
+                                u.to_string())
+        self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
+        self.failIf("file renewal secret:" in output, output)
+
+        output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
+                                "--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
+                                u.to_string())
+        self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
+        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
+        self.failUnless("lease renewal secret: 7pjtaumrb7znzkkbvekkmuwpqfjyfyamznfz4bwwvmh4nw33lorq" in output, output)
+
+        u = u.get_readonly()
+        output = self._dump_cap(u.to_string())
+        self.failUnless("MDMF Read-only URI:" in output, output)
+        self.failUnless("readkey: nvgh5vj2ekzzkim5fgtb4gey5y" in output, output)
+        self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
+
+        u = u.get_verify_cap()
+        output = self._dump_cap(u.to_string())
+        self.failUnless("MDMF Verifier URI:" in output, output)
+        self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
+
+
+    def test_dump_cap_chk_directory(self):
+        key = "\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
+        uri_extension_hash = hashutil.uri_extension_hash("stuff")
+        needed_shares = 25
+        total_shares = 100
+        size = 1234
+        u1 = uri.CHKFileURI(key=key,
+                            uri_extension_hash=uri_extension_hash,
+                            needed_shares=needed_shares,
+                            total_shares=total_shares,
+                            size=size)
+        u = uri.ImmutableDirectoryURI(u1)
+
+        output = self._dump_cap(u.to_string())
+        self.failUnless("CHK Directory URI:" in output, output)
+        self.failUnless("key: aaaqeayeaudaocajbifqydiob4" in output, output)
+        self.failUnless("UEB hash: nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa" in output, output)
+        self.failUnless("size: 1234" in output, output)
+        self.failUnless("k/N: 25/100" in output, output)
+        self.failUnless("storage index: hdis5iaveku6lnlaiccydyid7q" in output, output)
+
+        output = self._dump_cap("--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
+                                u.to_string())
+        self.failUnless("file renewal secret: csrvkjgomkyyyil5yo4yk5np37p6oa2ve2hg6xmk2dy7kaxsu6xq" in output, output)
+
+        u = u.get_verify_cap()
+        output = self._dump_cap(u.to_string())
+        self.failUnless("CHK Directory Verifier URI:" in output, output)
+        self.failIf("key: " in output, output)
+        self.failUnless("UEB hash: nf3nimquen7aeqm36ekgxomalstenpkvsdmf6fplj7swdatbv5oa" in output, output)
+        self.failUnless("size: 1234" in output, output)
+        self.failUnless("k/N: 25/100" in output, output)
+        self.failUnless("storage index: hdis5iaveku6lnlaiccydyid7q" in output, output)
+
+    def test_dump_cap_sdmf_directory(self):
         writekey = "\x01" * 16
         fingerprint = "\xfe" * 32
         u1 = uri.WriteableSSKFileURI(writekey, fingerprint)
@@ -281,6 +367,51 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnless("Directory Verifier URI:" in output, output)
         self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
         self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
+
+    def test_dump_cap_mdmf_directory(self):
+        writekey = "\x01" * 16
+        fingerprint = "\xfe" * 32
+        u1 = uri.WriteableMDMFFileURI(writekey, fingerprint)
+        u = uri.MDMFDirectoryURI(u1)
+
+        output = self._dump_cap(u.to_string())
+        self.failUnless("Directory Writeable URI:" in output, output)
+        self.failUnless("writekey: aeaqcaibaeaqcaibaeaqcaibae" in output,
+                        output)
+        self.failUnless("readkey: nvgh5vj2ekzzkim5fgtb4gey5y" in output, output)
+        self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output,
+                        output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
+
+        output = self._dump_cap("--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
+                                u.to_string())
+        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
+
+        output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
+                                u.to_string())
+        self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
+        self.failIf("file renewal secret:" in output, output)
+
+        output = self._dump_cap("--nodeid", "tqc35esocrvejvg4mablt6aowg6tl43j",
+                                "--client-secret", "5s33nk3qpvnj2fw3z4mnm2y6fa",
+                                u.to_string())
+        self.failUnless("write_enabler: mgcavriox2wlb5eer26unwy5cw56elh3sjweffckkmivvsxtaknq" in output, output)
+        self.failUnless("file renewal secret: arpszxzc2t6kb4okkg7sp765xgkni5z7caavj7lta73vmtymjlxq" in output, output)
+        self.failUnless("lease renewal secret: 7pjtaumrb7znzkkbvekkmuwpqfjyfyamznfz4bwwvmh4nw33lorq" in output, output)
+
+        u = u.get_readonly()
+        output = self._dump_cap(u.to_string())
+        self.failUnless("Directory Read-only URI:" in output, output)
+        self.failUnless("readkey: nvgh5vj2ekzzkim5fgtb4gey5y" in output, output)
+        self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
+
+        u = u.get_verify_cap()
+        output = self._dump_cap(u.to_string())
+        self.failUnless("Directory Verifier URI:" in output, output)
+        self.failUnless("storage index: nt4fwemuw7flestsezvo2eveke" in output, output)
+        self.failUnless("fingerprint: 737p57x6737p57x6737p57x6737p57x6737p57x6737p57x6737a" in output, output)
+
 
     def _catalog_shares(self, *basedirs):
         o = debug.CatalogSharesOptions()

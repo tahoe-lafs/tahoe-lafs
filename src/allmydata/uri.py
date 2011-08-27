@@ -930,6 +930,8 @@ def from_string(u, deep_immutable=False, name=u"<unknown name>"):
             return DirectoryURIVerifier.init_from_string(s)
         elif s.startswith('URI:DIR2-CHK:'):
             return ImmutableDirectoryURI.init_from_string(s)
+        elif s.startswith('URI:DIR2-CHK-Verifier:'):
+            return ImmutableDirectoryURIVerifier.init_from_string(s)
         elif s.startswith('URI:DIR2-LIT:'):
             return LiteralDirectoryURI.init_from_string(s)
         elif s.startswith('URI:DIR2-MDMF:'):
@@ -940,6 +942,8 @@ def from_string(u, deep_immutable=False, name=u"<unknown name>"):
             if can_be_mutable:
                 return ReadonlyMDMFDirectoryURI.init_from_string(s)
             kind = "URI:DIR2-MDMF-RO readcap to a mutable directory"
+        elif s.startswith('URI:DIR2-MDMF-Verifier:'):
+            return MDMFDirectoryURIVerifier.init_from_string(s)
         elif s.startswith('x-tahoe-future-test-writeable:') and not can_be_writeable:
             # For testing how future writeable caps would behave in read-only contexts.
             kind = "x-tahoe-future-test-writeable: testing cap"
