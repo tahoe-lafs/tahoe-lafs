@@ -499,7 +499,7 @@ class SDMFSlotWriteProxy:
         """
         for k in ["sharedata", "encprivkey", "signature", "verification_key",
                   "share_hash_chain", "block_hash_tree"]:
-            assert k in self._share_pieces
+            assert k in self._share_pieces, (k, self._share_pieces.keys())
         # This is the only method that actually writes something to the
         # remote server.
         # First, we need to pack the share into data that we can write
