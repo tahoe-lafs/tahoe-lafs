@@ -1080,6 +1080,12 @@ class Retrieve:
         self._status.timings['total'] = now - self._started
         self._status.timings['fetch'] = now - self._started_fetching
 
+        # remember the encoding parameters, use them again next time
+        (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
+         offsets_tuple) = self.verinfo
+        self._node._populate_required_shares(k)
+        self._node._populate_total_shares(N)
+
         if self._verify:
             ret = list(self._bad_shares)
             self.log("done verifying, found %d bad shares" % len(ret))
