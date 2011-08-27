@@ -344,7 +344,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         def _created(n):
             self.failUnless(isinstance(n, MutableFileNode))
             cap = n.get_cap()
-            self.failUnless(isinstance(cap, uri.WritableMDMFFileURI))
+            self.failUnless(isinstance(cap, uri.WriteableMDMFFileURI))
             rcap = n.get_readcap()
             self.failUnless(isinstance(rcap, uri.ReadonlyMDMFFileURI))
             vcap = n.get_verify_cap()
@@ -3039,7 +3039,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         # That's essentially what MDMF node is, so just check that.
         mdmf_uri = self.mdmf_node.get_uri()
         cap = uri.from_string(mdmf_uri)
-        self.failUnless(isinstance(cap, uri.WritableMDMFFileURI))
+        self.failUnless(isinstance(cap, uri.WriteableMDMFFileURI))
         readonly_mdmf_uri = self.mdmf_node.get_readonly_uri()
         cap = uri.from_string(readonly_mdmf_uri)
         self.failUnless(isinstance(cap, uri.ReadonlyMDMFFileURI))

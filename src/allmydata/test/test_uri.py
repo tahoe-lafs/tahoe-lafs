@@ -348,9 +348,9 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
 
 
     def test_writable_mdmf_cap(self):
-        u1 = uri.WritableMDMFFileURI(self.writekey, self.fingerprint)
+        u1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
         cap = u1.to_string()
-        u = uri.WritableMDMFFileURI.init_from_string(cap)
+        u = uri.WriteableMDMFFileURI.init_from_string(cap)
 
         self.failUnless(IMutableFileURI.providedBy(u))
         self.failUnlessReallyEqual(u.fingerprint, self.fingerprint)
@@ -393,14 +393,14 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         u1 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint)
         cap = u1.to_string()
         self.failUnlessRaises(uri.BadURIError,
-                              uri.WritableMDMFFileURI.init_from_string,
+                              uri.WriteableMDMFFileURI.init_from_string,
                               cap)
 
     def test_create_writable_mdmf_cap_from_verifycap(self):
         u1 = uri.MDMFVerifierURI(self.storage_index, self.fingerprint)
         cap = u1.to_string()
         self.failUnlessRaises(uri.BadURIError,
-                              uri.WritableMDMFFileURI.init_from_string,
+                              uri.WriteableMDMFFileURI.init_from_string,
                               cap)
 
     def test_create_readonly_mdmf_cap_from_verifycap(self):
@@ -433,7 +433,7 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_mdmf_cap_extra_information(self):
         # MDMF caps can be arbitrarily extended after the fingerprint
         # and key/storage index fields. 
-        u1 = uri.WritableMDMFFileURI(self.writekey, self.fingerprint)
+        u1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
         self.failUnlessEqual([], u1.get_extension_params())
 
         cap = u1.to_string()
@@ -444,14 +444,14 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
             cap += (":%s" % e)
             expected_extensions.append(e)
 
-            u2 = uri.WritableMDMFFileURI.init_from_string(cap)
+            u2 = uri.WriteableMDMFFileURI.init_from_string(cap)
             self.failUnlessReallyEqual(self.writekey, u2.writekey)
             self.failUnlessReallyEqual(self.fingerprint, u2.fingerprint)
             self.failIf(u2.is_readonly())
             self.failUnless(u2.is_mutable())
 
             c2 = u2.to_string()
-            u2n = uri.WritableMDMFFileURI.init_from_string(c2)
+            u2n = uri.WriteableMDMFFileURI.init_from_string(c2)
             self.failUnlessReallyEqual(u2, u2n)
 
             # We should get the extra back when we ask for it.
@@ -496,11 +496,11 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_extension_character_range(self):
         # As written now, we shouldn't put things other than numbers in
         # the extension fields.
-        writecap = uri.WritableMDMFFileURI(self.writekey, self.fingerprint).to_string()
+        writecap = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint).to_string()
         readcap  = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint).to_string()
         vcap     = uri.MDMFVerifierURI(self.storage_index, self.fingerprint).to_string()
         self.failUnlessRaises(uri.BadURIError,
-                              uri.WritableMDMFFileURI.init_from_string,
+                              uri.WriteableMDMFFileURI.init_from_string,
                               ("%s:invalid" % writecap))
         self.failUnlessRaises(uri.BadURIError,
                               uri.ReadonlyMDMFFileURI.init_from_string,
@@ -516,8 +516,8 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         # With a cap on the end. For each of the cap types, we need to
         # test that a valid cap (with and without the traditional
         # separators) is recognized and accepted by the classes.
-        w1 = uri.WritableMDMFFileURI(self.writekey, self.fingerprint)
-        w2 = uri.WritableMDMFFileURI(self.writekey, self.fingerprint,
+        w1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
+        w2 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint,
                                      ['131073', '3'])
         r1 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint)
         r2 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint,
@@ -549,8 +549,8 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         # With a cap on the end. For each of the cap types, we need to
         # test that a valid cap (with and without the traditional
         # separators) is recognized and accepted by the classes.
-        w1 = uri.WritableMDMFFileURI(self.writekey, self.fingerprint)
-        w2 = uri.WritableMDMFFileURI(self.writekey, self.fingerprint,
+        w1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
+        w2 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint,
                                      ['131073', '3'])
         r1 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint)
         r2 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint,
@@ -571,8 +571,8 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         # With a cap on the end. For each of the cap types, we need to
         # test that a valid cap (with and without the traditional
         # separators) is recognized and accepted by the classes.
-        w1 = uri.WritableMDMFFileURI(self.writekey, self.fingerprint)
-        w2 = uri.WritableMDMFFileURI(self.writekey, self.fingerprint,
+        w1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
+        w2 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint,
                                      ['131073', '3'])
         r1 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint)
         r2 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint,
@@ -595,7 +595,7 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_mdmf_from_string(self):
         # Make sure that the from_string utility function works with
         # MDMF caps.
-        u1 = uri.WritableMDMFFileURI(self.writekey, self.fingerprint)
+        u1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
         cap = u1.to_string()
         self.failUnless(uri.is_uri(cap))
         u2 = uri.from_string(cap)
@@ -604,7 +604,7 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(u3, u1)
 
         # XXX: We should refactor the extension field into setUp
-        u1 = uri.WritableMDMFFileURI(self.writekey, self.fingerprint,
+        u1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint,
                                      ['131073', '3'])
         cap = u1.to_string()
         self.failUnless(uri.is_uri(cap))
@@ -795,7 +795,7 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_mdmf(self):
         writekey = "\x01" * 16
         fingerprint = "\x02" * 32
-        uri1 = uri.WritableMDMFFileURI(writekey, fingerprint)
+        uri1 = uri.WriteableMDMFFileURI(writekey, fingerprint)
         d1 = uri.MDMFDirectoryURI(uri1)
         self.failIf(d1.is_readonly())
         self.failUnless(d1.is_mutable())
@@ -819,7 +819,7 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_mdmf_with_extensions(self):
         writekey = "\x01" * 16
         fingerprint = "\x02" * 32
-        uri1 = uri.WritableMDMFFileURI(writekey, fingerprint)
+        uri1 = uri.WriteableMDMFFileURI(writekey, fingerprint)
         d1 = uri.MDMFDirectoryURI(uri1)
         d1_uri = d1.to_string()
         # Add some extensions, verify that the URI is interpreted
@@ -849,7 +849,7 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
         writekey = "\x01" * 16
         fingerprint = "\x02" * 32
 
-        uri1 = uri.WritableMDMFFileURI(writekey, fingerprint)
+        uri1 = uri.WriteableMDMFFileURI(writekey, fingerprint)
         d1 = uri.MDMFDirectoryURI(uri1)
         self.failUnless(d1.is_mutable())
         self.failIf(d1.is_readonly())
@@ -889,7 +889,7 @@ class Dirnode(testutil.ReallyEqualMixin, unittest.TestCase):
         # I'm not sure what I want to write here yet.
         writekey = "\x01" * 16
         fingerprint = "\x02" * 32
-        uri1 = uri.WritableMDMFFileURI(writekey, fingerprint)
+        uri1 = uri.WriteableMDMFFileURI(writekey, fingerprint)
         d1 = uri.MDMFDirectoryURI(uri1)
         v1 = d1.get_verify_cap()
         self.failUnlessIsInstance(v1, uri.MDMFDirectoryURIVerifier)

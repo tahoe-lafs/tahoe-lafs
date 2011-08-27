@@ -6,11 +6,11 @@ from twisted.internet import defer, reactor
 from foolscap.api import eventually
 from allmydata.interfaces import IMutableFileNode, ICheckable, ICheckResults, \
      NotEnoughSharesError, MDMF_VERSION, SDMF_VERSION, IMutableUploadable, \
-     IMutableFileVersion, IWritable
+     IMutableFileVersion, IWriteable
 from allmydata.util import hashutil, log, consumer, deferredutil, mathutil
 from allmydata.util.assertutil import precondition
 from allmydata.uri import WriteableSSKFileURI, ReadonlySSKFileURI, \
-                          WritableMDMFFileURI, ReadonlyMDMFFileURI
+                          WriteableMDMFFileURI, ReadonlyMDMFFileURI
 from allmydata.monitor import Monitor
 from pycryptopp.cipher.aes import AES
 
@@ -96,7 +96,7 @@ class MutableFileNode:
         # verification key, nor things like 'k' or 'N'. If and when someone
         # wants to get our contents, we'll pull from shares and fill those
         # in.
-        if isinstance(filecap, (WritableMDMFFileURI, ReadonlyMDMFFileURI)):
+        if isinstance(filecap, (WriteableMDMFFileURI, ReadonlyMDMFFileURI)):
             self._protocol_version = MDMF_VERSION
         elif isinstance(filecap, (ReadonlySSKFileURI, WriteableSSKFileURI)):
             self._protocol_version = SDMF_VERSION
@@ -146,7 +146,7 @@ class MutableFileNode:
         self._encprivkey = self._encrypt_privkey(self._writekey, privkey_s)
         self._fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey_s)
         if version == MDMF_VERSION:
-            self._uri = WritableMDMFFileURI(self._writekey, self._fingerprint)
+            self._uri = WriteableMDMFFileURI(self._writekey, self._fingerprint)
             self._protocol_version = version
         elif version == SDMF_VERSION:
             self._uri = WriteableSSKFileURI(self._writekey, self._fingerprint)
@@ -723,7 +723,7 @@ class MutableFileVersion:
     overwrite or modify the contents of the mutable file that I
     reference.
     """
-    implements(IMutableFileVersion, IWritable)
+    implements(IMutableFileVersion, IWriteable)
 
     def __init__(self,
                  node,

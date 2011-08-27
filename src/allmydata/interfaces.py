@@ -641,7 +641,7 @@ class IReadable(Interface):
         """
 
 
-class IWritable(Interface):
+class IWriteable(Interface):
     """
     I define methods that callers can use to update SDMF and MDMF
     mutable files on a Tahoe-LAFS grid.

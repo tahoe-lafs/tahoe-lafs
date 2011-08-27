@@ -97,7 +97,7 @@ class NodeMaker:
         if isinstance(cap, uri.CHKFileVerifierURI):
             return self._create_immutable_verifier(cap)
         if isinstance(cap, (uri.ReadonlySSKFileURI, uri.WriteableSSKFileURI,
-                            uri.WritableMDMFFileURI, uri.ReadonlyMDMFFileURI)):
+                            uri.WriteableMDMFFileURI, uri.ReadonlyMDMFFileURI)):
             return self._create_mutable(cap)
         if isinstance(cap, (uri.DirectoryURI,
                             uri.ReadonlyDirectoryURI,

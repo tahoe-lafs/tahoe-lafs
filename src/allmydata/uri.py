@@ -410,7 +410,7 @@ class SSKVerifierURI(_BaseURI):
     def set_extension_params(self, params):
         pass
 
-class WritableMDMFFileURI(_BaseURI):
+class WriteableMDMFFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:MDMF:'
@@ -753,7 +753,7 @@ class MDMFDirectoryURI(_DirectoryBaseURI):
     BASE_STRING='URI:DIR2-MDMF:'
     BASE_STRING_RE=re.compile('^'+BASE_STRING)
     BASE_HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'DIR2-MDMF'+SEP)
-    INNER_URI_CLASS=WritableMDMFFileURI
+    INNER_URI_CLASS=WriteableMDMFFileURI
 
     def __init__(self, filenode_uri=None):
         if filenode_uri:
@@ -801,7 +801,7 @@ def wrap_dirnode_cap(filecap):
         return ImmutableDirectoryURI(filecap)
     if isinstance(filecap, LiteralFileURI):
         return LiteralDirectoryURI(filecap)
-    if isinstance(filecap, WritableMDMFFileURI):
+    if isinstance(filecap, WriteableMDMFFileURI):
         return MDMFDirectoryURI(filecap)
     if isinstance(filecap, ReadonlyMDMFFileURI):
         return ReadonlyMDMFDirectoryURI(filecap)
@@ -913,7 +913,7 @@ def from_string(u, deep_immutable=False, name=u"<unknown name>"):
         elif s.startswith('URI:SSK-Verifier:'):
             return SSKVerifierURI.init_from_string(s)
         elif s.startswith('URI:MDMF:'):
-            return WritableMDMFFileURI.init_from_string(s)
+            return WriteableMDMFFileURI.init_from_string(s)
         elif s.startswith('URI:MDMF-RO:'):
             return ReadonlyMDMFFileURI.init_from_string(s)
         elif s.startswith('URI:MDMF-Verifier:'):

@@ -223,11 +223,11 @@ class FakeMutableFileNode:
     def init_from_cap(self, filecap):
         assert isinstance(filecap, (uri.WriteableSSKFileURI,
                                     uri.ReadonlySSKFileURI,
-                                    uri.WritableMDMFFileURI,
+                                    uri.WriteableMDMFFileURI,
                                     uri.ReadonlyMDMFFileURI))
         self.my_uri = filecap
         self.storage_index = self.my_uri.get_storage_index()
-        if isinstance(filecap, (uri.WritableMDMFFileURI,
+        if isinstance(filecap, (uri.WriteableMDMFFileURI,
                                 uri.ReadonlyMDMFFileURI)):
             self.file_types[self.storage_index] = MDMF_VERSION
 
@@ -384,7 +384,7 @@ class FakeMutableFileNode:
     def get_best_mutable_version(self):
         return defer.succeed(self)
 
-    # Ditto for this, which is an implementation of IWritable.
+    # Ditto for this, which is an implementation of IWriteable.
     # XXX: Declare that the same is implemented.
     def update(self, data, offset):
         assert not self.is_readonly()
@@ -408,7 +408,7 @@ def make_mutable_file_cap():
                                    fingerprint=os.urandom(32))
 
 def make_mdmf_mutable_file_cap():
-    return uri.WritableMDMFFileURI(writekey=os.urandom(16),
+    return uri.WriteableMDMFFileURI(writekey=os.urandom(16),
                                    fingerprint=os.urandom(32))
 
 def make_mutable_file_uri(mdmf=False):
