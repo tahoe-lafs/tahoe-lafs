@@ -2972,6 +2972,24 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             sharefiles = fso.stdout.getvalue().splitlines()
             expected = self.nm.default_encoding_parameters["n"]
             self.failUnlessEqual(len(sharefiles), expected)
+
+            do = debug.DumpOptions()
+            do["filename"] = sharefiles[0]
+            do.stdout = StringIO()
+            debug.dump_share(do)
+            output = do.stdout.getvalue()
+            lines = set(output.splitlines())
+            self.failUnless("Mutable slot found:" in lines, output)
+            self.failUnless(" share_type: MDMF" in lines, output)
+            self.failUnless(" num_extra_leases: 0" in lines, output)
+            self.failUnless(" MDMF contents:" in lines, output)
+            self.failUnless("  seqnum: 1" in lines, output)
+            self.failUnless("  required_shares: 3" in lines, output)
+            self.failUnless("  total_shares: 10" in lines, output)
+            self.failUnless("  segsize: 131073" in lines, output)
+            self.failUnless("  datalen: %d" % len(self.data) in lines, output)
+            vcap = n.get_verify_cap().to_string()
+            self.failUnless("  verify-cap: %s" % vcap in lines, output)
         d.addCallback(_debug)
         return d
 
