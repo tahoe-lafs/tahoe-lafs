@@ -312,7 +312,6 @@ def dump_MDMF_share(m, length, options):
     from allmydata.util.encodingutil import quote_output, to_str
 
     offset = m.DATA_OFFSET
-
     out = options.stdout
 
     f = open(options['filename'], "rb")
@@ -326,9 +325,7 @@ def dump_MDMF_share(m, length, options):
                 data.append(f.read(length))
             return defer.succeed({shnum: data})
 
-    # assume 2kB will be enough
     p = ShareDumper(None, storage_index, shnum)
-
     def extract(func):
         stash = []
         # these methods return Deferreds, but we happen to know that they run
