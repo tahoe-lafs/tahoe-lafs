@@ -2969,7 +2969,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             fso.stdout = StringIO()
             fso.stderr = StringIO()
             debug.find_shares(fso)
-            sharefiles = fso.stdout.getvalue().split()
+            sharefiles = fso.stdout.getvalue().splitlines()
             expected = self.nm.default_encoding_parameters["n"]
             self.failUnlessEqual(len(sharefiles), expected)
         d.addCallback(_debug)
