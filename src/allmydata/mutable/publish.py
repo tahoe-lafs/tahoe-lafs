@@ -33,6 +33,8 @@ class PublishStatus:
     def __init__(self):
         self.timings = {}
         self.timings["send_per_server"] = {}
+        self.timings["encrypt"] = 0.0
+        self.timings["encode"] = 0.0
         self.servermap = None
         self.problems = {}
         self.active = True
@@ -49,6 +51,10 @@ class PublishStatus:
         if peerid not in self.timings["send_per_server"]:
             self.timings["send_per_server"][peerid] = []
         self.timings["send_per_server"][peerid].append(elapsed)
+    def accumulate_encode_time(self, elapsed):
+        self.timings["encode"] += elapsed
+    def accumulate_encrypt_time(self, elapsed):
+        self.timings["encrypt"] += elapsed
 
     def get_started(self):
         return self.started
@@ -711,7 +717,7 @@ class Publish:
         assert len(crypttext) == len(data)
 
         now = time.time()
-        self._status.timings["encrypt"] = now - started
+        self._status.accumulate_encrypt_time(now - started)
         started = now
 
         # now apply FEC
@@ -732,7 +738,7 @@ class Publish:
         d = fec.encode(crypttext_pieces)
         def _done_encoding(res):
             elapsed = time.time() - started
-            self._status.timings["encode"] = elapsed
+            self._status.accumulate_encode_time(elapsed)
             return (res, salt)
         d.addCallback(_done_encoding)
         return d

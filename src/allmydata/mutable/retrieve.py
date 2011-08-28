@@ -24,6 +24,8 @@ class RetrieveStatus:
     def __init__(self):
         self.timings = {}
         self.timings["fetch_per_server"] = {}
+        self.timings["decode"] = 0.0
+        self.timings["decrypt"] = 0.0
         self.timings["cumulative_verify"] = 0.0
         self.problems = {}
         self.active = True
@@ -59,6 +61,10 @@ class RetrieveStatus:
         if peerid not in self.timings["fetch_per_server"]:
             self.timings["fetch_per_server"][peerid] = []
         self.timings["fetch_per_server"][peerid].append(elapsed)
+    def accumulate_decode_time(self, elapsed):
+        self.timings["decode"] += elapsed
+    def accumulate_decrypt_time(self, elapsed):
+        self.timings["decrypt"] += elapsed
     def set_storage_index(self, si):
         self.storage_index = si
     def set_helper(self, helper):
@@ -153,6 +159,9 @@ class Retrieve:
             kwargs["facility"] = "tahoe.mutable.retrieve"
         return log.msg(*args, **kwargs)
 
+    def _set_current_status(self, state):
+        seg = "%d/%d" % (self._current_segment, self._last_segment)
+        self._status.set_status("segment %s (%s)" % (seg, state))
 
     ###################
     # IPushProducer
@@ -168,7 +177,7 @@ class Retrieve:
 
         # fired when the download is unpaused. 
         self._old_status = self._status.get_status()
-        self._status.set_status("Paused")
+        self._set_current_status("paused")
 
         self._pause_deferred = defer.Deferred()
 
@@ -806,8 +815,9 @@ class Retrieve:
         # validate this block, then generate the block hash root.
         self.log("validating share %d for segment %d" % (reader.shnum,
                                                              segnum))
-        self._status.add_fetch_timing(reader.peerid, started)
-        self._status.set_status("Valdiating blocks for segment %d" % segnum)
+        elapsed = time.time() - started
+        self._status.add_fetch_timing(reader.peerid, elapsed)
+        self._set_current_status("validating blocks")
         # Did we fail to fetch either of the things that we were
         # supposed to? Fail if so.
         if not results[0][0] and results[1][0]:
@@ -946,7 +956,7 @@ class Retrieve:
             shareids.append(shareid)
             shares.append(share)
 
-        self._status.set_status("Decoding")
+        self._set_current_status("decoding")
         started = time.time()
         assert len(shareids) >= self._required_shares, len(shareids)
         # zfec really doesn't want extra shares
@@ -971,8 +981,7 @@ class Retrieve:
                 size_to_use = self._segment_size
             segment = segment[:size_to_use]
             self.log(" segment len=%d" % len(segment))
-            self._status.timings.setdefault("decode", 0)
-            self._status.timings['decode'] = time.time() - started
+            self._status.accumulate_decode_time(time.time() - started)
             return segment, salt
         d.addCallback(_process)
         return d
@@ -984,14 +993,13 @@ class Retrieve:
         the plaintext of the segment that is in my argument.
         """
         segment, salt = segment_and_salt
-        self._status.set_status("decrypting")
+        self._set_current_status("decrypting")
         self.log("decrypting segment %d" % self._current_segment)
         started = time.time()
         key = hashutil.ssk_readkey_data_hash(salt, self._node.get_readkey())
         decryptor = AES(key)
         plaintext = decryptor.process(segment)
-        self._status.timings.setdefault("decrypt", 0)
-        self._status.timings['decrypt'] = time.time() - started
+        self._status.accumulate_decrypt_time(time.time() - started)
         return plaintext
 
 
@@ -1079,6 +1087,8 @@ class Retrieve:
         now = time.time()
         self._status.timings['total'] = now - self._started
         self._status.timings['fetch'] = now - self._started_fetching
+        self._status.set_status("Finished")
+        self._status.set_progress(1.0)
 
         # remember the encoding parameters, use them again next time
         (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
@@ -1109,6 +1119,7 @@ class Retrieve:
         now = time.time()
         self._status.timings['total'] = now - self._started
         self._status.timings['fetch'] = now - self._started_fetching
+        self._status.set_status("Failed")
 
         if self._verify:
             ret = list(self._bad_shares)
