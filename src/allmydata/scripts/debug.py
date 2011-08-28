@@ -307,7 +307,6 @@ def dump_SDMF_share(m, length, options):
 
 def dump_MDMF_share(m, length, options):
     from allmydata.mutable.layout import MDMFSlotReadProxy
-    from allmydata.mutable.common import NeedMoreDataError
     from allmydata.util import base32, hashutil
     from allmydata.uri import MDMFVerifierURI
     from allmydata.util.encodingutil import quote_output, to_str
