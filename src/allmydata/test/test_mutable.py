@@ -3261,7 +3261,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
     _broken = "zero-length reads of mutable files don't work"
     test_partial_read_zero_length_at_start.todo = _broken
     test_partial_read_zero_length_in_middle.todo = _broken
-    test_partial_read_zero_length_at_segment_boundary = _broken
+    test_partial_read_zero_length_at_segment_boundary.todo = _broken
 
     def _test_read_and_download(self, node, expected):
         d = node.get_best_readable_version()
