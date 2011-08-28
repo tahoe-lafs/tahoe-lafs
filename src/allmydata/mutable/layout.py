@@ -567,7 +567,7 @@ class MDMFSlotWriteProxy:
     # offset:     size:       name:
     #-- signed part --
     # 0           1           version number (01)
-    # 1           8           sequence number 
+    # 1           8           sequence number
     # 9           32          share tree root hash
     # 41          1           The "k" encoding parameter
     # 42          1           The "N" encoding parameter
@@ -575,18 +575,22 @@ class MDMFSlotWriteProxy:
     # 51          8           The data length of the original plaintext
     #-- end signed part --
     # 59          8           The offset of the encrypted private key
-    # 67          8           The offset of the signature
-    # 75          8           The offset of the verification key
-    # 83          8           The offset of the end of the v. key.
-    # 92          8           The offset of the share data 
-    # 100         8           The offset of the block hash tree
-    # 108         8           The offset of the share hash chain
-    # 116         8           The offset of EOF
-    # 
-    # followed by the encrypted private key, signature, verification
-    # key, share hash chain, data, and block hash tree. We order the
-    # fields that way to make smart downloaders -- downloaders which
-    # prempetively read a big part of the share -- possible.
+    # 67          8           The offset of the share hash chain
+    # 75          8           The offset of the signature
+    # 83          8           The offset of the verification key
+    # 91          8           The offset of the end of the v. key.
+    # 99          8           The offset of the share data
+    # 107         8           The offset of the block hash tree
+    # 115         8           The offset of EOF
+    # 123         var         encrypted private key
+    # var         var         share hash chain
+    # var         var         signature
+    # var         var         verification key
+    # var         large       share data
+    # var         var         block hash tree
+    #
+    # We order the fields that way to make smart downloaders -- downloaders
+    # which prempetively read a big part of the share -- possible.
     #
     # The checkstring is the first three fields -- the version number,
     # sequence number, root hash and root salt hash. This is consistent
