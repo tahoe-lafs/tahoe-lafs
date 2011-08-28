@@ -701,7 +701,7 @@ class MutableFileNode:
 
     def set_downloader_hints(self, hints):
         self._downloader_hints = hints
-        extensions = hints.values()
+        extensions = [ hints["k"], hints["segsize"] ]
         self._uri.set_extension_params(extensions)
 
 
