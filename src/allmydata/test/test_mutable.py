@@ -20,6 +20,7 @@ from foolscap.api import eventually, fireEventually
 from foolscap.logging import log
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.common import storage_index_to_dir
+from allmydata.scripts import debug
 
 from allmydata.mutable.filenode import MutableFileNode, BackoffAgent
 from allmydata.mutable.common import ResponseCache, \
@@ -2954,6 +2955,24 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
     def do_upload(self):
         d = self.do_upload_mdmf()
         d.addCallback(lambda ign: self.do_upload_sdmf())
+        return d
+
+    def test_debug(self):
+        d = self.do_upload_mdmf()
+        def _debug(n):
+            fso = debug.FindSharesOptions()
+            storage_index = base32.b2a(n.get_storage_index())
+            fso.si_s = storage_index
+            fso.nodedirs = [unicode(os.path.dirname(os.path.abspath(storedir)))
+                            for (i,ss,storedir)
+                            in self.iterate_servers()]
+            fso.stdout = StringIO()
+            fso.stderr = StringIO()
+            debug.find_shares(fso)
+            sharefiles = fso.stdout.getvalue().split()
+            expected = self.nm.default_encoding_parameters["n"]
+            self.failUnlessEqual(len(sharefiles), expected)
+        d.addCallback(_debug)
         return d
 
     def test_get_sequence_number(self):

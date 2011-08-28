@@ -248,7 +248,7 @@ class NoNetworkGrid(service.MultiService):
     def make_server(self, i, readonly=False):
         serverid = hashutil.tagged_hash("serverid", str(i))[:20]
         serverdir = os.path.join(self.basedir, "servers",
-                                 idlib.shortnodeid_b2a(serverid))
+                                 idlib.shortnodeid_b2a(serverid), "storage")
         fileutil.make_dirs(serverdir)
         ss = StorageServer(serverdir, serverid, stats_provider=SimpleStats(),
                            readonly_storage=readonly)
@@ -344,7 +344,7 @@ class GridTestMixin:
         shares = []
         for i,ss in self.g.servers_by_number.items():
             serverid = ss.my_nodeid
-            basedir = os.path.join(ss.storedir, "shares", prefixdir)
+            basedir = os.path.join(ss.sharedir, prefixdir)
             if not os.path.exists(basedir):
                 continue
             for f in os.listdir(basedir):
