@@ -728,9 +728,12 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
 
         share_type = "unknown"
         f.seek(m.DATA_OFFSET)
-        if f.read(1) == "\x00":
+        version = f.read(1)
+        if version == "\x00":
             # this slot contains an SMDF share
             share_type = "SDMF"
+        elif version == "\x01":
+            share_type = "MDMF"
 
         if share_type == "SDMF":
             f.seek(m.DATA_OFFSET)
@@ -749,6 +752,35 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
              share_data, enc_privkey) = pieces
 
             print >>out, "SDMF %s %d/%d %d #%d:%s %d %s" % \
+                  (si_s, k, N, datalen,
+                   seqnum, base32.b2a(root_hash),
+                   expiration, quote_output(abs_sharefile))
+        elif share_type == "MDMF":
+            from allmydata.mutable.layout import MDMFSlotReadProxy
+            fake_shnum = 0
+            # TODO: factor this out with dump_MDMF_share()
+            class ShareDumper(MDMFSlotReadProxy):
+                def _read(self, readvs, force_remote=False, queue=False):
+                    data = []
+                    for (where,length) in readvs:
+                        f.seek(m.DATA_OFFSET+where)
+                        data.append(f.read(length))
+                    return defer.succeed({fake_shnum: data})
+
+            p = ShareDumper(None, "fake-si", fake_shnum)
+            def extract(func):
+                stash = []
+                # these methods return Deferreds, but we happen to know that
+                # they run synchronously when not actually talking to a
+                # remote server
+                d = func()
+                d.addCallback(stash.append)
+                return stash[0]
+
+            verinfo = extract(p.get_verinfo)
+            (seqnum, root_hash, salt_to_use, segsize, datalen, k, N, prefix,
+             offsets) = verinfo
+            print >>out, "MDMF %s %d/%d %d #%d:%s %d %s" % \
                   (si_s, k, N, datalen,
                    seqnum, base32.b2a(root_hash),
                    expiration, quote_output(abs_sharefile))

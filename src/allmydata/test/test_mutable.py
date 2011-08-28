@@ -2990,6 +2990,26 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             self.failUnless("  datalen: %d" % len(self.data) in lines, output)
             vcap = n.get_verify_cap().to_string()
             self.failUnless("  verify-cap: %s" % vcap in lines, output)
+
+            cso = debug.CatalogSharesOptions()
+            cso.nodedirs = fso.nodedirs
+            cso.stdout = StringIO()
+            cso.stderr = StringIO()
+            debug.catalog_shares(cso)
+            shares = cso.stdout.getvalue().splitlines()
+            oneshare = shares[0] # all shares should be MDMF
+            self.failIf(oneshare.startswith("UNKNOWN"), oneshare)
+            self.failUnless(oneshare.startswith("MDMF"), oneshare)
+            fields = oneshare.split()
+            self.failUnlessEqual(fields[0], "MDMF")
+            self.failUnlessEqual(fields[1], storage_index)
+            self.failUnlessEqual(fields[2], "3/10")
+            self.failUnlessEqual(fields[3], "%d" % len(self.data))
+            self.failUnless(fields[4].startswith("#1:"), fields[3])
+            # the rest of fields[4] is the roothash, which depends upon
+            # encryption salts and is not constant. fields[5] is the
+            # remaining time on the longest lease, which is timing dependent.
+            # The rest of the line is the quoted pathname to the share.
         d.addCallback(_debug)
         return d
 
