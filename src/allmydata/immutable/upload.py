@@ -1409,9 +1409,10 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
     name = "uploader"
     URI_LIT_SIZE_THRESHOLD = 55
 
-    def __init__(self, helper_furl=None, stats_provider=None):
+    def __init__(self, helper_furl=None, stats_provider=None, history=None):
         self._helper_furl = helper_furl
         self.stats_provider = stats_provider
+        self._history = history
         self._helper = None
         self._all_uploads = weakref.WeakKeyDictionary() # for debugging
         log.PrefixingLogMixin.__init__(self, facility="tahoe.immutable.upload")
@@ -1447,7 +1448,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
         return (self._helper_furl, bool(self._helper))
 
 
-    def upload(self, uploadable, history=None):
+    def upload(self, uploadable):
         """
         Returns a Deferred that will fire with the UploadResults instance.
         """
@@ -1483,8 +1484,8 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
                     d2.addCallback(lambda x: uploader.start(eu))
 
                 self._all_uploads[uploader] = None
-                if history:
-                    history.add_upload(uploader.get_upload_status())
+                if self._history:
+                    self._history.add_upload(uploader.get_upload_status())
                 def turn_verifycap_into_read_cap(uploadresults):
                     # Generate the uri from the verifycap plus the key.
                     d3 = uploadable.get_encryption_key()

@@ -278,7 +278,8 @@ class Client(node.Node, pollmixin.PollMixin):
         self.history = History(self.stats_provider)
         self.terminator = Terminator()
         self.terminator.setServiceParent(self)
-        self.add_service(Uploader(helper_furl, self.stats_provider))
+        self.add_service(Uploader(helper_furl, self.stats_provider,
+                                  self.history))
         self.init_stub_client()
         self.init_blacklist()
         self.init_nodemaker()
@@ -513,4 +514,4 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def upload(self, uploadable):
         uploader = self.getServiceNamed("uploader")
-        return uploader.upload(uploadable, history=self.get_history())
+        return uploader.upload(uploadable)

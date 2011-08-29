@@ -69,7 +69,7 @@ class FakeNodeMaker(NodeMaker):
 
 class FakeUploader(service.Service):
     name = "uploader"
-    def upload(self, uploadable, history=None):
+    def upload(self, uploadable):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
         def _got_data(datav):
