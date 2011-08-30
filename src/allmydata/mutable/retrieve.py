@@ -404,18 +404,24 @@ class Retrieve:
             self._start_segment = 0
 
 
-        if self._read_length:
+        # If self._read_length is None, then we want to read the whole
+        # file. Otherwise, we want to read only part of the file, and
+        # need to figure out where to stop reading.
+        if self._read_length is not None:
             # our end segment is the last segment containing part of the
             # segment that we were asked to read.
             self.log("got read length %d" % self._read_length)
-            end_data = self._offset + self._read_length
+            if self._read_length != 0:
+                end_data = self._offset + self._read_length
 
-            # We don't actually need to read the byte at end_data, but
-            # the one before it.
-            end = (end_data - 1) // self._segment_size
+                # We don't actually need to read the byte at end_data,
+                # but the one before it.
+                end = (end_data - 1) // self._segment_size
 
-            assert end < self._num_segments
-            self._last_segment = end
+                assert end < self._num_segments
+                self._last_segment = end
+            else:
+                self._last_segment = self._start_segment
             self.log("got end segment: %d" % self._last_segment)
         else:
             self._last_segment = self._num_segments - 1

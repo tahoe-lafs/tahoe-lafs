@@ -3305,6 +3305,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
     def test_partial_read_ending_one_byte_after_segment_boundary(self):
         return self._test_partial_read(mathutil.next_multiple(128 * 1024, 3)-50, 51)
 
+    # XXX factor these into a single upload after they pass
     def test_partial_read_zero_length_at_start(self):
         return self._test_partial_read(0, 0)
 
@@ -3314,11 +3315,6 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
     def test_partial_read_zero_length_at_segment_boundary(self):
         return self._test_partial_read(mathutil.next_multiple(128 * 1024, 3), 0)
 
-    # XXX factor these into a single upload after they pass
-    _broken = "zero-length reads of mutable files don't work"
-    test_partial_read_zero_length_at_start.todo = _broken
-    test_partial_read_zero_length_in_middle.todo = _broken
-    test_partial_read_zero_length_at_segment_boundary.todo = _broken
 
     def _test_read_and_download(self, node, expected):
         d = node.get_best_readable_version()
