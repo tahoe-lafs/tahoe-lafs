@@ -7,12 +7,56 @@ Release 1.9.0 (2011-??-??)
 
 WORK IN PROGRESS
 
+
+New Features
+''''''''''''
+- MDMF! #393
+- blacklist #1425
+- immutable-download timeline viz (#?)
+- drop-upload feature (experimental) #1429
+
+Configuration/Behavior Changes
+'''''''''''''''''''''
+- reject old-style (discrete) config files from <v1.3 #1385
+- measure space of storage/shares/, not storage/ #1384
+- 'tahoe cp xyz MUTABLE' will modify the existing mutable file instead of
+  creating a new one
+- WUI button says "unlink" instead of "del", change docs, allow 'tahoe
+  unlink' #1104
+
+Notable Bugfixes
+''''''''''''''''
+- 'tahoe put/cp' uploads didn't appear in history #1079
+- verifier: serialize block fetches, reduce RAM footprint #1395
+- make large immutable downloads faster (coalesce Share.loop() calls) #1268
+
+Packaging Changes
+'''''''''''''''''
+- remove debian packaging #1454
+- remove contrib/fuse #1409
 - The unmaintained FUSE plugins were removed from the source tree. See
   docs/frontends/FTP-and-SFTP.rst for how to use sshfs. (`#1409`_)
+- replace foolscap[secure_connections] dep with one on pyopenssl #1383
+- bump Twisted dependency to >=10.1
+- bump zope.interface dep to <=3.6.2 or >=3.6.6 #1435
+- extra-permission changes in license
+- no longer need to patch Twisted for FTP, when using Twisted >= 10.1
+
+Minor Changes
+'''''''''''''
+- minor: #1355, #1366, #1388, #1389, #1391, #1297, #1342, #1404, #1392,
+  #1412, #1344, #1345, #1347, #1334, #1274, #1438, #1120, #1359, #636, #1469,
+  #1149, #1441, #1503, #1510, #1507, #1505
+- minor SFTP fixes: #1442, #1446
+- finish .rst-ifying all docs
+- shuffle configuration.rst to add Frontend section
+- add man page #1420
+- IServer refactoring #1363
 - Nodes now emit "None" for percentiles with higher implied precision
   than the number of observations can support. Older stats gatherers
   will throw an exception if they gather stats from a new storage
   server and it sends a "None" for a percentile. (`#1392`_)
+
 
 Compatibility and Dependencies
 ''''''''''''''''''''''''''''''
