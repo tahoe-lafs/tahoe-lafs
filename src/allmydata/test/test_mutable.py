@@ -3266,10 +3266,21 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
 
 
     def test_partial_read(self):
-        # read only a few bytes at a time, and see that the results are
-        # what we expect.
         d = self.do_upload_mdmf()
         d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
+        modes = [("start_on_segment_boundary",
+                  mathutil.next_multiple(128 * 1024, 3), 50),
+                 ("ending_one_byte_after_segment_boundary",
+                  mathutil.next_multiple(128 * 1024, 3)-50, 51),
+                 ("zero_length_at_start", 0, 0),
+                 ("zero_length_in_middle", 50, 0),
+                 ("zero_length_at_segment_boundary",
+                  mathutil.next_multiple(128 * 1024, 3), 0),
+                 ]
+        for (name, offset, length) in modes:
+            d.addCallback(self._do_partial_read, name, offset, length)
+        # then read only a few bytes at a time, and see that the results are
+        # what we expect.
         def _read_data(version):
             c = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
@@ -3280,14 +3291,9 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             return d2
         d.addCallback(_read_data)
         return d
-
-
-    def _test_partial_read(self, offset, length):
-        d = self.do_upload_mdmf()
-        d.addCallback(lambda ign: self.mdmf_node.get_best_readable_version())
+    def _do_partial_read(self, version, name, offset, length):
         c = consumer.MemoryConsumer()
-        d.addCallback(lambda version:
-            version.read(c, offset, length))
+        d = version.read(c, offset, length)
         expected = self.data[offset:offset+length]
         d.addCallback(lambda ignored: "".join(c.chunks))
         def _check(results):
@@ -3295,25 +3301,10 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
                 print
                 print "got: %s ... %s" % (results[:20], results[-20:])
                 print "exp: %s ... %s" % (expected[:20], expected[-20:])
-                self.fail("results != expected")
+                self.fail("results[%s] != expected" % name)
+            return version # daisy-chained to next call
         d.addCallback(_check)
         return d
-
-    def test_partial_read_starting_on_segment_boundary(self):
-        return self._test_partial_read(mathutil.next_multiple(128 * 1024, 3), 50)
-
-    def test_partial_read_ending_one_byte_after_segment_boundary(self):
-        return self._test_partial_read(mathutil.next_multiple(128 * 1024, 3)-50, 51)
-
-    # XXX factor these into a single upload after they pass
-    def test_partial_read_zero_length_at_start(self):
-        return self._test_partial_read(0, 0)
-
-    def test_partial_read_zero_length_in_middle(self):
-        return self._test_partial_read(50, 0)
-
-    def test_partial_read_zero_length_at_segment_boundary(self):
-        return self._test_partial_read(mathutil.next_multiple(128 * 1024, 3), 0)
 
 
     def _test_read_and_download(self, node, expected):
