@@ -28,8 +28,10 @@ from allmydata.storage.common import UnknownMutableContainerVersionError, \
 # 9   ??        n*92    extra leases
 
 
-assert struct.calcsize(">L") == 4 # The struct module doc says that L's are 4 bytes in size.
-assert struct.calcsize(">Q") == 8 # The struct module doc says that Q's are 8 bytes in size (at least with big-endian ordering).
+# The struct module doc says that L's are 4 bytes in size., and that Q's are
+# 8 bytes in size. Since compatibility depends upon this, double-check it.
+assert struct.calcsize(">L") == 4, struct.calcsize(">L")
+assert struct.calcsize(">Q") == 8, struct.calcsize(">Q")
 
 class MutableShareFile:
 
