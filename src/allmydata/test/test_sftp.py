@@ -913,6 +913,9 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                       self.handler.openFile("small", sftp.FXF_READ | sftp.FXF_WRITE, {}))
         def _read_write(rwf):
             d2 = rwf.writeChunk(8, "0123")
+            # test immediate read starting after the old end-of-file
+            d2.addCallback(lambda ign: rwf.readChunk(11, 1))
+            d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "3"))
             d2.addCallback(lambda ign: rwf.readChunk(0, 100))
             d2.addCallback(lambda data: self.failUnlessReallyEqual(data, "012345670123"))
             d2.addCallback(lambda ign: rwf.close())

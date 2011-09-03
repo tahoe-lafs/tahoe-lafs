@@ -461,6 +461,12 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
         The caller must perform no more overwrites until the Deferred has fired."""
 
         if noisy: self.log(".read(%r, %r), current_size = %r" % (offset, length, self.current_size), level=NOISY)
+
+        # Note that the overwrite method is synchronous. When a write request is processed
+        # (e.g. a writeChunk request on the async queue of GeneralSFTPFile), overwrite will
+        # be called and will update self.current_size if necessary before returning. Therefore,
+        # self.current_size will be up-to-date for a subsequent call to this read method, and
+        # so it is correct to do the check for a read past the end-of-file here.
         if offset >= self.current_size:
             def _eof(): raise EOFError("read past end of file")
             return defer.execute(_eof)
