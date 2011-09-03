@@ -1198,6 +1198,25 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(self._check_sdmf_json)
         return d
 
+    def test_mutable_type_implies_mutable(self):
+        self.basedir = "cli/Put/mutable_type_implies_mutable"
+        self.set_up_grid()
+        data = "data" * 100000
+        fn1 = os.path.join(self.basedir, "data")
+        fileutil.write(fn1, data)
+        d = self.do_cli("put", "--mutable-type=mdmf", fn1)
+        d.addCallback(lambda (rc, cap, err):
+            self.do_cli("ls", "--json", cap))
+        # This will fail if an immutable file is created instead of a
+        # mutable file.
+        d.addCallback(self._check_mdmf_json)
+        d.addCallback(lambda ignored:
+            self.do_cli("put", "--mutable-type=sdmf", fn1))
+        d.addCallback(lambda (rc, cap, err):
+            self.do_cli("ls", "--json", cap))
+        d.addCallback(self._check_sdmf_json)
+        return d
+
     def test_put_to_mdmf_cap(self):
         self.basedir = "cli/Put/put_to_mdmf_cap"
         self.set_up_grid()

@@ -193,6 +193,9 @@ class PutOptions(VDriveOptions):
         if self['mutable-type'] and self['mutable-type'] not in ("sdmf", "mdmf"):
             raise usage.UsageError("%s is an invalid format" % self['mutable-type'])
 
+        if self['mutable-type']:
+            self['mutable'] = True
+
 
     def getSynopsis(self):
         return "Usage:  %s put [options] LOCAL_FILE REMOTE_FILE" % (self.command_name,)
