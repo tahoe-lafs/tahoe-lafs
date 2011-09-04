@@ -1055,6 +1055,9 @@ class NotEnoughSharesError(Exception):
 class NoSharesError(Exception):
     """Download was unable to get any shares at all."""
 
+class DownloadStopped(Exception):
+    pass
+
 class UploadUnhappinessError(Exception):
     """Upload was unable to satisfy 'servers_of_happiness'"""
 

@@ -13,9 +13,10 @@ from allmydata.util.consumer import download_to_data, MemoryConsumer
 from allmydata.immutable import upload, layout
 from allmydata.test.no_network import GridTestMixin, NoNetworkServer
 from allmydata.test.common import ShouldFailMixin
-from allmydata.interfaces import NotEnoughSharesError, NoSharesError
+from allmydata.interfaces import NotEnoughSharesError, NoSharesError, \
+     DownloadStopped
 from allmydata.immutable.downloader.common import BadSegmentNumberError, \
-     BadCiphertextHashError, DownloadStopped, COMPLETE, OVERDUE, DEAD
+     BadCiphertextHashError, COMPLETE, OVERDUE, DEAD
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.immutable.downloader.fetcher import SegmentFetcher
 from allmydata.codec import CRSDecoder

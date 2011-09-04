@@ -8,6 +8,3 @@ class WrongSegmentError(Exception):
     pass
 class BadCiphertextHashError(Exception):
     pass
-
-class DownloadStopped(Exception):
-    pass
