@@ -222,11 +222,38 @@ class Retrieve:
             self._consumer.registerProducer(self, streaming=True)
 
         self._done_deferred = defer.Deferred()
+        self._offset = offset
+        self._read_length = size
+        self._setup_download()
+        self._setup_encoding_parameters()
+        self.log("starting download")
+        self._started_fetching = time.time()
+        d = self._add_active_peers()
+        # ...
+        # The download process beyond this is a state machine.
+        # _add_active_peers will select the peers that we want to use
+        # for the download, and then attempt to start downloading. After
+        # each segment, it will check for doneness, reacting to broken
+        # peers and corrupt shares as necessary. If it runs out of good
+        # peers before downloading all of the segments, _done_deferred
+        # will errback.  Otherwise, it will eventually callback with the
+        # contents of the mutable file.
+        return self._done_deferred
+
+    def _setup_download(self):
         self._started = time.time()
         self._status.set_status("Retrieving Shares")
 
-        self._offset = offset
-        self._read_length = size
+        # how many shares do we need?
+        (seqnum,
+         root_hash,
+         IV,
+         segsize,
+         datalength,
+         k,
+         N,
+         prefix,
+         offsets_tuple) = self.verinfo
 
         # first, which servers can we use?
         versionmap = self.servermap.make_versionmap()
@@ -248,7 +275,7 @@ class Retrieve:
                                        any_cache)
             reader.peerid = peerid
             self.readers[shnum] = reader
-
+        assert len(self.remaining_sharemap) >= k
 
         self.shares = {} # maps shnum to validated blocks
         self._active_readers = [] # list of active readers for this dl.
@@ -256,45 +283,11 @@ class Retrieve:
                                         # validated the prefix of
         self._block_hash_trees = {} # shnum => hashtree
 
-        # how many shares do we need?
-        (seqnum,
-         root_hash,
-         IV,
-         segsize,
-         datalength,
-         k,
-         N,
-         prefix,
-         offsets_tuple) = self.verinfo
-
-
         # We need one share hash tree for the entire file; its leaves
         # are the roots of the block hash trees for the shares that
         # comprise it, and its root is in the verinfo.
         self.share_hash_tree = hashtree.IncompleteHashTree(N)
         self.share_hash_tree.set_hashes({0: root_hash})
-
-        # This will set up both the segment decoder and the tail segment
-        # decoder, as well as a variety of other instance variables that
-        # the download process will use.
-        self._setup_encoding_parameters()
-        assert len(self.remaining_sharemap) >= k
-
-        self.log("starting download")
-        self._started_fetching = time.time()
-
-        self._add_active_peers()
-
-        # The download process beyond this is a state machine.
-        # _add_active_peers will select the peers that we want to use
-        # for the download, and then attempt to start downloading. After
-        # each segment, it will check for doneness, reacting to broken
-        # peers and corrupt shares as necessary. If it runs out of good
-        # peers before downloading all of the segments, _done_deferred
-        # will errback.  Otherwise, it will eventually callback with the
-        # contents of the mutable file.
-        return self._done_deferred
-
 
     def decode(self, blocks_and_salts, segnum):
         """
@@ -322,7 +315,7 @@ class Retrieve:
     def _setup_encoding_parameters(self):
         """
         I set up the encoding parameters, including k, n, the number
-        of segments associated with this file, and the segment decoder.
+        of segments associated with this file, and the segment decoders.
         """
         (seqnum,
          root_hash,
