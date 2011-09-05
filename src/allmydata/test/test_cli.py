@@ -1167,17 +1167,20 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         fn1 = os.path.join(self.basedir, "data")
         fileutil.write(fn1, data)
         d = self.do_cli("create-alias", "tahoe")
-        d.addCallback(lambda ignored:
-            self.do_cli("put", "--mutable", "--mutable-type=mdmf",
-                        fn1, "tahoe:uploaded.txt"))
-        d.addCallback(lambda ignored:
-            self.do_cli("ls", "--json", "tahoe:uploaded.txt"))
+
+        def _put_and_ls(ign, mutable_type, filename):
+            d2 = self.do_cli("put", "--mutable", "--mutable-type="+mutable_type,
+                             fn1, filename)
+            d2.addCallback(lambda ign: self.do_cli("ls", "--json", filename))
+            return d2
+
+        d.addCallback(_put_and_ls, "mdmf", "tahoe:uploaded.txt")
         d.addCallback(self._check_mdmf_json)
-        d.addCallback(lambda ignored:
-            self.do_cli("put", "--mutable", "--mutable-type=sdmf",
-                        fn1, "tahoe:uploaded2.txt"))
-        d.addCallback(lambda ignored:
-            self.do_cli("ls", "--json", "tahoe:uploaded2.txt"))
+        d.addCallback(_put_and_ls, "MDMF", "tahoe:uploaded2.txt")
+        d.addCallback(self._check_mdmf_json)
+        d.addCallback(_put_and_ls, "sdmf", "tahoe:uploaded3.txt")
+        d.addCallback(self._check_sdmf_json)
+        d.addCallback(_put_and_ls, "SDMF", "tahoe:uploaded4.txt")
         d.addCallback(self._check_sdmf_json)
         return d
 
@@ -3319,7 +3322,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("ls", "--json", self._filecap))
         d.addCallback(_check, '"mutable-type": "sdmf"')
         d.addCallback(lambda ignored:
-            self.do_cli("mkdir", "--mutable-type=mdmf", "tahoe:bar"))
+            self.do_cli("mkdir", "--mutable-type=MDMF", "tahoe:bar"))
         d.addCallback(_check, "URI:DIR2-MDMF")
         d.addCallback(_stash_dircap)
         d.addCallback(lambda ignored:

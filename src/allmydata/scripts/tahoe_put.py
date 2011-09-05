@@ -18,10 +18,7 @@ def put(options):
     from_file = options.from_file
     to_file = options.to_file
     mutable = options['mutable']
-    mutable_type = False
-
-    if mutable:
-        mutable_type = options['mutable-type']
+    mutable_type = options['mutable-type']
     if options['quiet']:
         verbosity = 0
     else:

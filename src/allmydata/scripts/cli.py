@@ -51,14 +51,17 @@ class VDriveOptions(BaseOptions):
 
 class MakeDirectoryOptions(VDriveOptions):
     optParameters = [
-        ("mutable-type", None, False, "Create a mutable file in the given format. Valid formats are 'sdmf' for SDMF and 'mdmf' for MDMF"),
+        ("mutable-type", None, None, "Create a mutable directory in the given format. "
+                                     "Valid formats are SDMF and MDMF, case-insensitive."),
         ]
 
     def parseArgs(self, where=""):
         self.where = argv_to_unicode(where)
 
-        if self['mutable-type'] and self['mutable-type'] not in ("sdmf", "mdmf"):
-            raise usage.UsageError("%s is an invalid format" % self['mutable-type'])
+        if self['mutable-type']:
+            if self['mutable-type'].lower() not in ("sdmf", "mdmf"):
+                raise usage.UsageError("%s is an invalid format" % self['mutable-type'])
+            self['mutable-type'] = self['mutable-type'].lower()
 
     def getSynopsis(self):
         return "Usage:  %s mkdir [options] [REMOTE_DIR]" % (self.command_name,)
@@ -172,7 +175,8 @@ class PutOptions(VDriveOptions):
         ("mutable", "m", "Create a mutable file instead of an immutable one."),
         ]
     optParameters = [
-        ("mutable-type", None, False, "Create a mutable file in the given format. Valid formats are 'sdmf' for SDMF and 'mdmf' for MDMF"),
+        ("mutable-type", None, None, "Create a mutable file in the given format (implies --mutable). "
+                                     "Valid formats are SDMF and MDMF, case-insensitive."),
         ]
 
     def parseArgs(self, arg1=None, arg2=None):
@@ -190,12 +194,13 @@ class PutOptions(VDriveOptions):
         if self.from_file == u"-":
             self.from_file = None
 
-        if self['mutable-type'] and self['mutable-type'] not in ("sdmf", "mdmf"):
-            raise usage.UsageError("%s is an invalid format" % self['mutable-type'])
+        if self['mutable-type']:
+            if self['mutable-type'].lower() not in ("sdmf", "mdmf"):
+                raise usage.UsageError("%s is an invalid format" % self['mutable-type'])
+            self['mutable-type'] = self['mutable-type'].lower()
 
         if self['mutable-type']:
             self['mutable'] = True
-
 
     def getSynopsis(self):
         return "Usage:  %s put [options] LOCAL_FILE REMOTE_FILE" % (self.command_name,)
