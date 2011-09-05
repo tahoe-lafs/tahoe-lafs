@@ -72,7 +72,9 @@ class FakeStorage:
         d = defer.Deferred()
         if not self._pending:
             self._pending_timer = reactor.callLater(1.0, self._fire_readers)
-        self._pending[peerid] = (d, shares)
+        if peerid not in self._pending:
+            self._pending[peerid] = []
+        self._pending[peerid].append( (d, shares) )
         return d
 
     def _fire_readers(self):
@@ -81,10 +83,11 @@ class FakeStorage:
         self._pending = {}
         for peerid in self._sequence:
             if peerid in pending:
-                d, shares = pending.pop(peerid)
+                for (d, shares) in pending.pop(peerid):
+                    eventually(d.callback, shares)
+        for peerid in pending:
+            for (d, shares) in pending[peerid]:
                 eventually(d.callback, shares)
-        for (d, shares) in pending.values():
-            eventually(d.callback, shares)
 
     def write(self, peerid, storage_index, shnum, offset, data):
         if peerid not in self._peers:

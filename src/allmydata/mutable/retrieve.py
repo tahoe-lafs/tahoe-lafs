@@ -700,13 +700,12 @@ class Retrieve:
         ds = []
         for reader in self._active_readers:
             started = time.time()
-            d = reader.get_block_and_salt(segnum, queue=True)
+            d = reader.get_block_and_salt(segnum)
             d2 = self._get_needed_hashes(reader, segnum)
             dl = defer.DeferredList([d, d2], consumeErrors=True)
             dl.addCallback(self._validate_block, segnum, reader, started)
             dl.addErrback(self._validation_or_decoding_failed, [reader])
             ds.append(dl)
-            reader.flush()
         dl = defer.DeferredList(ds)
         if self._verify:
             dl.addCallback(lambda ignored: "")
@@ -910,12 +909,12 @@ class Retrieve:
         #needed.discard(0)
         self.log("getting blockhashes for segment %d, share %d: %s" % \
                  (segnum, reader.shnum, str(needed)))
-        d1 = reader.get_blockhashes(needed, queue=True, force_remote=True)
+        d1 = reader.get_blockhashes(needed, force_remote=True)
         if self.share_hash_tree.needed_hashes(reader.shnum):
             need = self.share_hash_tree.needed_hashes(reader.shnum)
             self.log("also need sharehashes for share %d: %s" % (reader.shnum,
                                                                  str(need)))
-            d2 = reader.get_sharehashes(need, queue=True, force_remote=True)
+            d2 = reader.get_sharehashes(need, force_remote=True)
         else:
             d2 = defer.succeed({}) # the logic in the next method
                                    # expects a dict

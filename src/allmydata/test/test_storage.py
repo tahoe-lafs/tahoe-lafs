@@ -2624,42 +2624,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         return d
 
 
-    def test_reader_queue(self):
-        self.write_test_share_to_server('si1')
-        mr = MDMFSlotReadProxy(self.rref, "si1", 0)
-        d1 = mr.get_block_and_salt(0, queue=True)
-        d2 = mr.get_blockhashes(queue=True)
-        d3 = mr.get_sharehashes(queue=True)
-        d4 = mr.get_signature(queue=True)
-        d5 = mr.get_verification_key(queue=True)
-        dl = defer.DeferredList([d1, d2, d3, d4, d5])
-        mr.flush()
-        def _print(results):
-            self.failUnlessEqual(len(results), 5)
-            # We have one read for version information and offsets, and
-            # one for everything else.
-            self.failUnlessEqual(self.rref.read_count, 2)
-            block, salt = results[0][1] # results[0] is a boolean that says
-                                           # whether or not the operation
-                                           # worked.
-            self.failUnlessEqual(self.block, block)
-            self.failUnlessEqual(self.salt, salt)
-
-            blockhashes = results[1][1]
-            self.failUnlessEqual(self.block_hash_tree, blockhashes)
-
-            sharehashes = results[2][1]
-            self.failUnlessEqual(self.share_hash_chain, sharehashes)
-
-            signature = results[3][1]
-            self.failUnlessEqual(self.signature, signature)
-
-            verification_key = results[4][1]
-            self.failUnlessEqual(self.verification_key, verification_key)
-        dl.addCallback(_print)
-        return dl
-
-
     def test_sdmf_writer(self):
         # Go through the motions of writing an SDMF share to the storage
         # server. Then read the storage server to see that the share got

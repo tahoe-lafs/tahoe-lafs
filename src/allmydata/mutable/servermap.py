@@ -676,7 +676,7 @@ class ServermapUpdater:
             #     public key. We use this to validate the signature.
             if not self._node.get_pubkey():
                 # fetch and set the public key.
-                d = reader.get_verification_key(queue=True)
+                d = reader.get_verification_key()
                 d.addCallback(lambda results, shnum=shnum, peerid=peerid:
                     self._try_to_set_pubkey(results, peerid, shnum, lp))
                 # XXX: Make self._pubkey_query_failed?
@@ -702,7 +702,7 @@ class ServermapUpdater:
             #   to get the version information. In MDMF, this lives at
             #   the end of the share, so unless the file is quite small,
             #   we'll need to do a remote fetch to get it.
-            d3 = reader.get_signature(queue=True)
+            d3 = reader.get_signature()
             d3.addErrback(lambda error, shnum=shnum, peerid=peerid:
                 self._got_corrupt_share(error, shnum, peerid, data, lp))
             #  Once we have all three of these responses, we can move on
@@ -711,7 +711,7 @@ class ServermapUpdater:
             # Does the node already have a privkey? If not, we'll try to
             # fetch it here.
             if self._need_privkey:
-                d4 = reader.get_encprivkey(queue=True)
+                d4 = reader.get_encprivkey()
                 d4.addCallback(lambda results, shnum=shnum, peerid=peerid:
                     self._try_to_validate_privkey(results, peerid, shnum, lp))
                 d4.addErrback(lambda error, shnum=shnum, peerid=peerid:
@@ -730,11 +730,9 @@ class ServermapUpdater:
                 # make the two routines share the value without
                 # introducing more roundtrips?
                 ds.append(reader.get_verinfo())
-                ds.append(reader.get_blockhashes(queue=True))
-                ds.append(reader.get_block_and_salt(self.start_segment,
-                                                    queue=True))
-                ds.append(reader.get_block_and_salt(self.end_segment,
-                                                    queue=True))
+                ds.append(reader.get_blockhashes())
+                ds.append(reader.get_block_and_salt(self.start_segment))
+                ds.append(reader.get_block_and_salt(self.end_segment))
                 d5 = deferredutil.gatherResults(ds)
                 d5.addCallback(self._got_update_results_one_share, shnum)
             else:
@@ -742,7 +740,6 @@ class ServermapUpdater:
 
             dl = defer.DeferredList([d, d2, d3, d4, d5])
             dl.addBoth(self._turn_barrier)
-            reader.flush()
             dl.addCallback(lambda results, shnum=shnum, peerid=peerid:
                 self._got_signature_one_share(results, shnum, peerid, lp))
             dl.addErrback(lambda error, shnum=shnum, data=data:
