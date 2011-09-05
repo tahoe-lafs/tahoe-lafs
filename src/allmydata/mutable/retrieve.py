@@ -460,32 +460,29 @@ class Retrieve:
         #  instead of just reasoning about what the effect might be. Out
         #  of scope for MDMF, though.)
 
-        # We need at least self._required_shares readers to download a
-        # segment. If we're verifying, we need all shares.
-        if self._verify:
-            needed = self._total_shares
-        else:
-            needed = self._required_shares
         # XXX: Why don't format= log messages work here?
-        self.log("adding %d peers to the active peers list" % needed)
 
-        if len(self._active_readers) >= needed:
-            # enough shares are active
-            return
-
-        more = needed - len(self._active_readers)
         known_shnums = set(self.remaining_sharemap.keys())
         used_shnums = set([r.shnum for r in self._active_readers])
         unused_shnums = known_shnums - used_shnums
-        # We favor lower numbered shares, since FEC is faster with
-        # primary shares than with other shares, and lower-numbered
-        # shares are more likely to be primary than higher numbered
-        # shares.
-        new_shnums = sorted(unused_shnums)[:more]
-        if len(new_shnums) < more and not self._verify:
-            # We don't have enough readers to retrieve the file; fail.
-            self._raise_notenoughshareserror()
 
+        if self._verify:
+            new_shnums = unused_shnums # use them all
+        elif len(self._active_readers) < self._required_shares:
+            # need more shares
+            more = self._required_shares - len(self._active_readers)
+            # We favor lower numbered shares, since FEC is faster with
+            # primary shares than with other shares, and lower-numbered
+            # shares are more likely to be primary than higher numbered
+            # shares.
+            new_shnums = sorted(unused_shnums)[:more]
+            if len(new_shnums) < more:
+                # We don't have enough readers to retrieve the file; fail.
+                self._raise_notenoughshareserror()
+        else:
+            new_shnums = []
+
+        self.log("adding %d new peers to the active list" % len(new_shnums))
         for shnum in new_shnums:
             reader = self.readers[shnum]
             self._active_readers.append(reader)
