@@ -286,8 +286,6 @@ class Retrieve:
 
         self.shares = {} # maps shnum to validated blocks
         self._active_readers = [] # list of active readers for this dl.
-        self._validated_readers = set() # set of readers that we have
-                                        # validated the prefix of
         self._block_hash_trees = {} # shnum => hashtree
 
         # We need one share hash tree for the entire file; its leaves
@@ -484,9 +482,8 @@ class Retrieve:
         for shnum in new_shnums:
             reader = self.readers[shnum]
             self._active_readers.append(reader)
-            self._validated_readers.add(reader)
             self.log("added reader for share %d" % shnum)
-            # Each time we validate a reader, we check to see if we need the
+            # Each time we add a reader, we check to see if we need the
             # private key. If we do, we politely ask for it and then continue
             # computing. If we find that we haven't gotten it at the end of
             # segment decoding, then we'll take more drastic measures.
