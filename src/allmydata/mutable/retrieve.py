@@ -474,36 +474,7 @@ class Retrieve:
             self._active_readers.append(self.readers[shnum])
             self.log("added reader for share %d" % shnum)
         assert len(self._active_readers) >= self._required_shares
-        # Conceptually, this is part of the _add_active_peers step. It
-        # validates the prefixes of newly added readers to make sure
-        # that they match what we are expecting for self.verinfo. If
-        # validation is successful, _validate_active_prefixes will call
-        # _download_current_segment for us. If validation is
-        # unsuccessful, then _validate_prefixes will remove the peer and
-        # call _add_active_peers again, where we will attempt to rectify
-        # the problem by choosing another peer.
-        return self._validate_active_prefixes()
-
-
-    def _validate_active_prefixes(self):
-        """
-        I check to make sure that the prefixes on the peers that I am
-        currently reading from match the prefix that we want to see, as
-        said in self.verinfo.
-
-        If I find that all of the active peers have acceptable prefixes,
-        I pass control to _download_current_segment, which will use
-        those peers to do cool things. If I find that some of the active
-        peers have unacceptable prefixes, I will remove them from active
-        peers (and from further consideration) and call
-        _add_active_peers to attempt to rectify the situation. I keep
-        track of which peers I have already validated so that I don't
-        need to do so again.
-        """
-        assert self._active_readers, "No more active readers"
-
         new_readers = set(self._active_readers) - self._validated_readers
-        self.log('validating %d newly-added active readers' % len(new_readers))
 
         for reader in new_readers:
             self._validated_readers.add(reader)
