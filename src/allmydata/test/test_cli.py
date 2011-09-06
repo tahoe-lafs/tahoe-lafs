@@ -3301,8 +3301,6 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = os.path.dirname(self.mktemp())
         self.set_up_grid()
         d = self.do_cli("create-alias", "tahoe")
-        d.addCallback(lambda ignored:
-            self.do_cli("mkdir", "--mutable-type=sdmf", "tahoe:foo"))
         def _check((rc, out, err), st):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
