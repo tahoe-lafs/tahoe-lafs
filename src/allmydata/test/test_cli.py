@@ -3308,29 +3308,24 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn(st, out)
             return out
-        def _stash_dircap(cap):
-            self._dircap = cap
-            u = uri.from_string(cap)
-            fn_uri = u.get_filenode_cap()
-            self._filecap = fn_uri.to_string()
-        d.addCallback(_check, "URI:DIR2")
-        d.addCallback(_stash_dircap)
-        d.addCallback(lambda ignored:
-            self.do_cli("ls", "--json", "tahoe:foo"))
-        d.addCallback(_check, "URI:DIR2")
-        d.addCallback(lambda ignored:
-            self.do_cli("ls", "--json", self._filecap))
-        d.addCallback(_check, '"mutable-type": "sdmf"')
-        d.addCallback(lambda ignored:
-            self.do_cli("mkdir", "--mutable-type=MDMF", "tahoe:bar"))
-        d.addCallback(_check, "URI:DIR2-MDMF")
-        d.addCallback(_stash_dircap)
-        d.addCallback(lambda ignored:
-            self.do_cli("ls", "--json", "tahoe:bar"))
-        d.addCallback(_check, "URI:DIR2-MDMF")
-        d.addCallback(lambda ignored:
-            self.do_cli("ls", "--json", self._filecap))
-        d.addCallback(_check, '"mutable-type": "mdmf"')
+        def _mkdir(ign, mutable_type, uri_prefix, dirname):
+            d2 = self.do_cli("mkdir", "--mutable-type="+mutable_type, dirname)
+            d2.addCallback(_check, uri_prefix)
+            def _stash_filecap(cap):
+                u = uri.from_string(cap)
+                fn_uri = u.get_filenode_cap()
+                self._filecap = fn_uri.to_string()
+            d2.addCallback(_stash_filecap)
+            d2.addCallback(lambda ign: self.do_cli("ls", "--json", dirname))
+            d2.addCallback(_check, uri_prefix)
+            d2.addCallback(lambda ign: self.do_cli("ls", "--json", self._filecap))
+            d2.addCallback(_check, '"mutable-type": "%s"' % (mutable_type.lower(),))
+            return d2
+
+        d.addCallback(_mkdir, "sdmf", "URI:DIR2", "tahoe:foo")
+        d.addCallback(_mkdir, "SDMF", "URI:DIR2", "tahoe:foo2")
+        d.addCallback(_mkdir, "mdmf", "URI:DIR2-MDMF", "tahoe:bar")
+        d.addCallback(_mkdir, "MDMF", "URI:DIR2-MDMF", "tahoe:bar2")
         return d
 
     def test_mkdir_mutable_type_unlinked(self):
