@@ -837,22 +837,81 @@ class MutableServer(unittest.TestCase):
                          [])
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
 
-        # trying to make the container too large will raise an exception
+        # Trying to make the container too large (by sending a write vector
+        # whose offset is too high) will raise an exception.
         TOOBIG = MutableShareFile.MAX_SIZE + 10
         self.failUnlessRaises(DataTooLargeError,
                               rstaraw, "si1", secrets,
-                              {0: ([], [(0,data)], TOOBIG)},
+                              {0: ([], [(TOOBIG,data)], None)},
                               [])
 
-        # it should be possible to make the container smaller, although at
-        # the moment this doesn't actually affect the share, unless the
-        # container size is dropped to zero, in which case the share is
-        # deleted.
         answer = rstaraw("si1", secrets,
-                         {0: ([], [(0,data)], len(data)+8)},
+                         {0: ([], [(0,data)], None)},
                          [])
         self.failUnlessEqual(answer, (True, {0:[],1:[],2:[]}) )
 
+        read_answer = read("si1", [0], [(0,10)])
+        self.failUnlessEqual(read_answer, {0: [data[:10]]})
+
+        # Sending a new_length shorter than the current length truncates the
+        # data.
+        answer = rstaraw("si1", secrets,
+                         {0: ([], [], 9)},
+                         [])
+        read_answer = read("si1", [0], [(0,10)])
+        self.failUnlessEqual(read_answer, {0: [data[:9]]})
+
+        # Sending a new_length longer than the current length doesn't change
+        # the data.
+        answer = rstaraw("si1", secrets,
+                         {0: ([], [], 20)},
+                         [])
+        assert answer == (True, {0:[],1:[],2:[]})
+        read_answer = read("si1", [0], [(0, 20)])
+        self.failUnlessEqual(read_answer, {0: [data[:9]]})
+
+        # Sending a write vector whose start is after the end of the current
+        # data doesn't reveal "whatever was there last time" (palimpsest),
+        # but instead fills with zeroes.
+
+        # To test this, we fill the data area with a recognizable pattern.
+        pattern = ''.join([chr(i) for i in range(100)])
+        answer = rstaraw("si1", secrets,
+                         {0: ([], [(0, pattern)], None)},
+                         [])
+        assert answer == (True, {0:[],1:[],2:[]})
+        # Then truncate the data...
+        answer = rstaraw("si1", secrets,
+                         {0: ([], [], 20)},
+                         [])
+        assert answer == (True, {0:[],1:[],2:[]})
+        # Just confirm that you get an empty string if you try to read from
+        # past the (new) endpoint now.
+        answer = rstaraw("si1", secrets,
+                         {0: ([], [], None)},
+                         [(20, 1980)])
+        self.failUnlessEqual(answer, (True, {0:[''],1:[''],2:['']}))
+
+        # Then the extend the file by writing a vector which starts out past
+        # the end...
+        answer = rstaraw("si1", secrets,
+                         {0: ([], [(50, 'hellothere')], None)},
+                         [])
+        assert answer == (True, {0:[],1:[],2:[]})
+        # Now if you read the stuff between 20 (where we earlier truncated)
+        # and 50, it had better be all zeroes.
+        answer = rstaraw("si1", secrets,
+                         {0: ([], [], None)},
+                         [(20, 30)])
+        self.failUnlessEqual(answer, (True, {0:['\x00'*30],1:[''],2:['']}))
+
+        # Also see if the server explicitly declares that it supports this
+        # feature.
+        ver = ss.remote_get_version()
+        storage_v1_ver = ver["http://allmydata.org/tahoe/protocols/storage/v1"]
+        self.failUnless(storage_v1_ver.get("fills-holes-with-zero-bytes"))
+
+        # If the size is dropped to zero the share is deleted.
         answer = rstaraw("si1", secrets,
                          {0: ([], [(0,data)], 0)},
                          [])
