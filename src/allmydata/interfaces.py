@@ -209,12 +209,31 @@ class RIStorageServer(RemoteInterface):
         necessary. A write vector applied to a share number that did not
         exist previously will cause that share to be created.
 
-        Each write vector is accompanied by a 'new_length' argument. If
-        new_length is not None, use it to set the size of the container. This
-        can be used to pre-allocate space for a series of upcoming writes, or
-        truncate existing data. If the container is growing, new_length will
-        be applied before datav. If the container is shrinking, it will be
-        applied afterwards. If new_length==0, the share will be deleted.
+        In Tahoe-LAFS v1.8.3 or later (except 1.9.0a1), if you send a write
+        vector whose offset is beyond the end of the current data, the space
+        between the end of the current data and the beginning of the write
+        vector will be filled with zero bytes. In earlier versions the
+        contents of this space was unspecified (and might end up containing
+        secrets).
+
+        Each write vector is accompanied by a 'new_length' argument, which
+        can be used to truncate the data. If new_length is not None and it is
+        less than the current size of the data (after applying all write
+        vectors), then the data will be truncated to new_length. If
+        new_length==0, the share will be deleted.
+
+        In Tahoe-LAFS v1.8.2 and earlier, new_length could also be used to
+        enlarge the file by sending a number larger than the size of the data
+        after applying all write vectors. That behavior was not used, and as
+        of Tahoe-LAFS v1.8.3 it no longer works and the new_length is ignored
+        in that case.
+
+        If a storage client can rely on a server being of version v1.8.3 or
+        later, it can extend the file efficiently by writing a single zero
+        byte just before the new end-of-file. Otherwise it must explicitly
+        write zeroes to all bytes between the old and new end-of-file. In any
+        case it should avoid sending new_length larger than the size of the
+        data after applying all write vectors.
 
         The read vector is used to extract data from all known shares,
         *before* any writes have been applied. The same vector is used for

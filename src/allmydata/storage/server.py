@@ -222,6 +222,7 @@ class StorageServer(service.MultiService, Referenceable):
                     { "maximum-immutable-share-size": remaining_space,
                       "tolerates-immutable-read-overrun": True,
                       "delete-mutable-shares-with-zero-length-writev": True,
+                      "fills-holes-with-zero-bytes": True,
                       "prevents-read-past-end-of-share-data": True,
                       },
                     "application-version": str(allmydata.__full_version__),

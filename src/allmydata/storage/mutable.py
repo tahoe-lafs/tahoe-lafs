@@ -146,11 +146,19 @@ class MutableShareFile:
             return
         num_extra_leases = self._read_num_extra_leases(f)
         f.seek(old_extra_lease_offset)
-        extra_lease_data = f.read(4 + num_extra_leases * self.LEASE_SIZE)
+        leases_size = 4 + num_extra_leases * self.LEASE_SIZE
+        extra_lease_data = f.read(leases_size)
+
+        # Zero out the old lease info (in order to minimize the chance that
+        # it could accidentally be exposed to a reader later, re #1528).
+        f.seek(old_extra_lease_offset)
+        f.write('\x00' * leases_size)
+        f.flush()
+
+        # An interrupt here will corrupt the leases.
+
         f.seek(new_extra_lease_offset)
         f.write(extra_lease_data)
-        # an interrupt here will corrupt the leases, iff the move caused the
-        # extra leases to overlap.
         self._write_extra_lease_offset(f, new_extra_lease_offset)
 
     def _write_share_data(self, f, offset, data):
@@ -161,7 +169,11 @@ class MutableShareFile:
 
         if offset+length >= data_length:
             # They are expanding their data size.
+
             if self.DATA_OFFSET+offset+length > extra_lease_offset:
+                # TODO: allow containers to shrink. For now, they remain
+                # large.
+
                 # Their new data won't fit in the current container, so we
                 # have to move the leases. With luck, they're expanding it
                 # more than the size of the extra lease block, which will
@@ -175,6 +187,13 @@ class MutableShareFile:
             assert self.DATA_OFFSET+offset+length <= extra_lease_offset
             # Their data now fits in the current container. We must write
             # their new data and modify the recorded data size.
+
+            # Fill any newly exposed empty space with 0's.
+            if offset > data_length:
+                f.seek(self.DATA_OFFSET+data_length)
+                f.write('\x00'*(offset - data_length))
+                f.flush()
+
             new_data_length = offset+length
             self._write_data_length(f, new_data_length)
             # an interrupt here will result in a corrupted share
@@ -398,9 +417,12 @@ class MutableShareFile:
         for (offset, data) in datav:
             self._write_share_data(f, offset, data)
         if new_length is not None:
-            self._change_container_size(f, new_length)
-            f.seek(self.DATA_LENGTH_OFFSET)
-            f.write(struct.pack(">Q", new_length))
+            cur_length = self._read_data_length(f)
+            if new_length < cur_length:
+                self._write_data_length(f, new_length)
+                # TODO: if we're going to shrink the share file when the
+                # share data has shrunk, then call
+                # self._change_container_size() here.
         f.close()
 
 def testv_compare(a, op, b):
