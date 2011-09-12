@@ -86,7 +86,7 @@ D: patch Makefile to build .debs for Ubuntu Intrepid
 
 N: Kevan Carstensen
 E: kevan@isnotajoke.com
-D: servers of happiness, other improvements, code review, docs, upload
+D: Tahoe-LAFS Hacker; security, upload, other improvements, code review, docs
 
 N: Marc Tooley
 W: http://rune.ca
@@ -99,7 +99,7 @@ D: edited docs/running.rst
 N: David-Sarah Hopwood
 E: david-sarah@jacaranda.org
 P: 12F8 A95C C90B B68E 369C 003D 5947 3C63 3CB3 A807
-D: Tahoe-LAFS Hacker; ticket gardening, code, code review, docs, (S)FTP, cli
+D: Tahoe-LAFS Hacker
 
 N: Jacob Appelbaum
 E: jacob@appelbaum.com
