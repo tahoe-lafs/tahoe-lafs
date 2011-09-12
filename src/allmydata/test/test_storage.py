@@ -106,6 +106,54 @@ class Bucket(unittest.TestCase):
         self.failUnlessEqual(br.remote_read(25, 25), "b"*25)
         self.failUnlessEqual(br.remote_read(50, 7), "c"*7)
 
+    def test_read_past_end_of_share_data(self):
+        # test vector for immutable files (hard-coded contents of an immutable share
+        # file):
+
+        # The following immutable share file content is identical to that
+        # generated with storage.immutable.ShareFile from Tahoe-LAFS v1.8.2
+        # with share data == 'a'. The total size of this content is 85
+        # bytes.
+
+        containerdata = struct.pack('>LLL', 1, 1, 1)
+
+        # A Tahoe-LAFS storage client would send as the share_data a
+        # complicated string involving hash trees and a URI Extension Block
+        # -- see allmydata/immutable/layout.py . This test, which is
+        # simulating a client, just sends 'a'.
+        share_data = 'a'
+
+        ownernumber = struct.pack('>L', 0)
+        renewsecret  = 'THIS LETS ME RENEW YOUR FILE....'
+        assert len(renewsecret) == 32
+        cancelsecret = 'THIS LETS ME KILL YOUR FILE HAHA'
+        assert len(cancelsecret) == 32
+        expirationtime = struct.pack('>L', 60*60*24*31) # 31 days in seconds
+
+        lease_data = ownernumber + renewsecret + cancelsecret + expirationtime
+
+        share_file_data = containerdata + share_data + lease_data
+
+        incoming, final = self.make_workdir("test_read_past_end_of_share_data")
+
+        fileutil.write(final, share_file_data)
+
+        mockstorageserver = mock.Mock()
+
+        # Now read from it.
+        br = BucketReader(mockstorageserver, final)
+
+        self.failUnlessEqual(br.remote_read(0, len(share_data)), share_data)
+
+        # Read past the end of share data to get the cancel secret.
+        read_length = len(share_data) + len(ownernumber) + len(renewsecret) + len(cancelsecret)
+
+        result_of_read = br.remote_read(0, read_length)
+        self.failUnlessEqual(result_of_read, share_data)
+
+        result_of_read = br.remote_read(0, len(share_data)+1)
+        self.failUnlessEqual(result_of_read, share_data)
+
 class RemoteBucket:
 
     def __init__(self):
@@ -270,6 +318,12 @@ class Server(unittest.TestCase):
 
     def test_create(self):
         self.create("test_create")
+
+    def test_declares_fixed_1528(self):
+        ss = self.create("test_declares_fixed_1528")
+        ver = ss.remote_get_version()
+        sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
+        self.failUnless(sv1.get('prevents-read-past-end-of-share-data'), sv1)
 
     def allocate(self, ss, storage_index, sharenums, size, canary=None):
         renew_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
