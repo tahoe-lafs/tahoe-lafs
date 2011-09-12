@@ -648,42 +648,10 @@ class Server(unittest.TestCase):
         readers = ss.remote_get_buckets("si0")
         self.failUnlessEqual(len(readers), 5)
 
-        # now cancel it
-        self.failUnlessRaises(IndexError, ss.remote_cancel_lease, "si0", rs0)
-        self.failUnlessRaises(IndexError, ss.remote_cancel_lease, "si0", cs1)
-        ss.remote_cancel_lease("si0", cs0)
-
-        # si0 should now be gone
-        readers = ss.remote_get_buckets("si0")
-        self.failUnlessEqual(len(readers), 0)
-        # and the renew should no longer work
-        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si0", rs0)
-
-
-        # cancel the first lease on si1, leaving the second and third in place
-        ss.remote_cancel_lease("si1", cs1)
-        readers = ss.remote_get_buckets("si1")
-        self.failUnlessEqual(len(readers), 5)
-        # the corresponding renew should no longer work
-        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs1)
-
-        leases = list(ss.get_leases("si1"))
-        self.failUnlessEqual(len(leases), 2)
-        self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs2, rs2a]))
-
-        ss.remote_renew_lease("si1", rs2)
-        # cancelling the second and third should make it go away
-        ss.remote_cancel_lease("si1", cs2)
-        ss.remote_cancel_lease("si1", cs2a)
-        readers = ss.remote_get_buckets("si1")
-        self.failUnlessEqual(len(readers), 0)
-        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs1)
-        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs2)
-        self.failUnlessRaises(IndexError, ss.remote_renew_lease, "si1", rs2a)
-
-        leases = list(ss.get_leases("si1"))
-        self.failUnlessEqual(len(leases), 0)
-
+        # There is no such method as remote_cancel_lease for now -- see
+        # ticket #1528.
+        self.failIf(hasattr(ss, 'remote_cancel_lease'), \
+                        "ss should not have a 'remote_cancel_lease' method/attribute")
 
         # test overlapping uploads
         rs3,cs3 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
@@ -1233,10 +1201,6 @@ class MutableServer(unittest.TestCase):
 
         self.failUnlessEqual(len(list(s0.get_leases())), 6)
 
-        # cancel one of them
-        ss.remote_cancel_lease("si1", secrets(5)[2])
-        self.failUnlessEqual(len(list(s0.get_leases())), 5)
-
         all_leases = list(s0.get_leases())
         # and write enough data to expand the container, forcing the server
         # to move the leases
@@ -1269,10 +1233,6 @@ class MutableServer(unittest.TestCase):
         self.failUnlessIn("I have leases accepted by nodeids:", e_s)
         self.failUnlessIn("nodeids: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' .", e_s)
 
-        # same for cancelling
-        self.failUnlessRaises(IndexError,
-                              ss.remote_cancel_lease, "si1",
-                              secrets(20)[2])
         self.compare_leases(all_leases, list(s0.get_leases()))
 
         # reading shares should not modify the timestamp
@@ -1286,35 +1246,6 @@ class MutableServer(unittest.TestCase):
         write("si1", secrets(0),
               {0: ([], [(500, "make me really bigger")], None)}, [])
         self.compare_leases_without_timestamps(all_leases, list(s0.get_leases()))
-
-        # now cancel them all
-        ss.remote_cancel_lease("si1", secrets(0)[2])
-        ss.remote_cancel_lease("si1", secrets(1)[2])
-        ss.remote_cancel_lease("si1", secrets(2)[2])
-        ss.remote_cancel_lease("si1", secrets(3)[2])
-
-        # the slot should still be there
-        remaining_shares = read("si1", [], [(0,10)])
-        self.failUnlessEqual(len(remaining_shares), 1)
-        self.failUnlessEqual(len(list(s0.get_leases())), 1)
-
-        # cancelling a non-existent lease should raise an IndexError
-        self.failUnlessRaises(IndexError,
-                              ss.remote_cancel_lease, "si1", "nonsecret")
-
-        # and the slot should still be there
-        remaining_shares = read("si1", [], [(0,10)])
-        self.failUnlessEqual(len(remaining_shares), 1)
-        self.failUnlessEqual(len(list(s0.get_leases())), 1)
-
-        ss.remote_cancel_lease("si1", secrets(4)[2])
-        # now the slot should be gone
-        no_shares = read("si1", [], [(0,10)])
-        self.failUnlessEqual(no_shares, {})
-
-        # cancelling a lease on a non-existent share should raise an IndexError
-        self.failUnlessRaises(IndexError,
-                              ss.remote_cancel_lease, "si2", "nonsecret")
 
     def test_remove(self):
         ss = self.create("test_remove")
