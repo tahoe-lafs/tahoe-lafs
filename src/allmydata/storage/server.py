@@ -345,34 +345,6 @@ class StorageServer(service.MultiService, Referenceable):
         if not found_buckets:
             raise IndexError("no such lease to renew")
 
-    def remote_cancel_lease(self, storage_index, cancel_secret):
-        start = time.time()
-        self.count("cancel")
-
-        total_space_freed = 0
-        found_buckets = False
-        for sf in self._iter_share_files(storage_index):
-            # note: if we can't find a lease on one share, we won't bother
-            # looking in the others. Unless something broke internally
-            # (perhaps we ran out of disk space while adding a lease), the
-            # leases on all shares will be identical.
-            found_buckets = True
-            # this raises IndexError if the lease wasn't present XXXX
-            total_space_freed += sf.cancel_lease(cancel_secret)
-
-        if found_buckets:
-            storagedir = os.path.join(self.sharedir,
-                                      storage_index_to_dir(storage_index))
-            if not os.listdir(storagedir):
-                os.rmdir(storagedir)
-
-        if self.stats_provider:
-            self.stats_provider.count('storage_server.bytes_freed',
-                                      total_space_freed)
-        self.add_latency("cancel", time.time() - start)
-        if not found_buckets:
-            raise IndexError("no such storage index")
-
     def bucket_writer_closed(self, bw, consumed_size):
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_added', consumed_size)

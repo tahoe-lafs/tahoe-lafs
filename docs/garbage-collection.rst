@@ -18,7 +18,7 @@ making room for other shares. Tahoe currently uses a garbage collection
 one or more "leases", which are managed by clients who want the
 file/directory to be retained. The storage server accepts each share for a
 pre-defined period of time, and is allowed to delete the share if all of the
-leases are cancelled or allowed to expire.
+leases expire.
 
 Garbage collection is not enabled by default: storage servers will not delete
 shares without being explicitly configured to do so. When GC is enabled,
@@ -266,18 +266,12 @@ replace the previous set.
 The GC mechanism is also not immediate: a client which deletes a file will
 nevertheless be consuming extra disk space (and might be charged or otherwise
 held accountable for it) until the ex-file's leases finally expire on their
-own. If the client is certain that they've removed their last reference to
-the file, they could accelerate the GC process by cancelling their lease. The
-current storage server API provides a method to cancel a lease, but the
-client must be careful to coordinate with anyone else who might be
-referencing the same lease (perhaps a second directory in the same virtual
-drive), otherwise they might accidentally remove a lease that should have
-been retained.
+own.
 
 In the current release, these leases are each associated with a single "node
 secret" (stored in $BASEDIR/private/secret), which is used to generate
-renewal- and cancel- secrets for each lease. Two nodes with different secrets
-will produce separate leases, and will not be able to renew or cancel each
+renewal-secrets for each lease. Two nodes with different secrets
+will produce separate leases, and will not be able to renew each
 others' leases.
 
 Once the Accounting project is in place, leases will be scoped by a

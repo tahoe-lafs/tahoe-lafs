@@ -148,21 +148,6 @@ class RIStorageServer(RemoteInterface):
         """
         return Any()
 
-    def cancel_lease(storage_index=StorageIndex,
-                     cancel_secret=LeaseCancelSecret):
-        """
-        Cancel the lease on a given bucket. If this was the last lease on the
-        bucket, the bucket will be deleted. If there is no bucket for the
-        given storage_index, IndexError will be raised.
-
-        For mutable shares, if the given cancel_secret does not match an
-        existing lease, IndexError will be raised with a note listing the
-        server-nodeids on the existing leases, so leases on migrated shares
-        can be renewed or cancelled. For immutable shares, IndexError
-        (without the note) will be raised.
-        """
-        return Any()
-
     def get_buckets(storage_index=StorageIndex):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
 
