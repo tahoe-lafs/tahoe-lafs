@@ -128,6 +128,9 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
             self._check_right_code(lines[1])
         d.addCallback(_cb)
         return d
+    # The timeout was exceeded on FreeStorm's CentOS:
+    # http://tahoe-lafs.org/buildbot/builders/FreeStorm%20CentOS5-i386/builds/503/steps/test/logs/stdio
+    test_import_in_repl.timeout = 480
 
     def test_path(self):
         d = self.run_bintahoe(["--version-and-path"])
