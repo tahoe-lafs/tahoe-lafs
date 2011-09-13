@@ -2,7 +2,108 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-* Release 1.8.2 (2011-01-30)
+Release 1.9.0 (2011-??-??)
+--------------------------
+
+WORK IN PROGRESS
+
+
+New Features
+''''''''''''
+- MDMF! #393
+- blacklist #1425
+- immutable-download timeline viz (#?)
+- drop-upload feature (experimental) #1429
+
+Configuration/Behavior Changes
+'''''''''''''''''''''
+- reject old-style (discrete) config files from <v1.3 #1385
+- measure space of storage/shares/, not storage/ #1384
+- 'tahoe cp xyz MUTABLE' will modify the existing mutable file instead of
+  creating a new one
+- WUI button says "unlink" instead of "del", change docs, allow 'tahoe
+  unlink' #1104
+
+Notable Bugfixes
+''''''''''''''''
+- 'tahoe put/cp' uploads didn't appear in history #1079
+- verifier: serialize block fetches, reduce RAM footprint #1395
+- make large immutable downloads faster (coalesce Share.loop() calls) #1268
+
+Packaging Changes
+'''''''''''''''''
+- remove debian packaging #1454
+- remove contrib/fuse #1409
+- The unmaintained FUSE plugins were removed from the source tree. See
+  docs/frontends/FTP-and-SFTP.rst for how to use sshfs. (`#1409`_)
+- replace foolscap[secure_connections] dep with one on pyopenssl #1383
+- bump Twisted dependency to >=10.1
+- bump zope.interface dep to <=3.6.2 or >=3.6.6 #1435
+- extra-permission changes in license
+- no longer need to patch Twisted for FTP, when using Twisted >= 10.1
+
+Minor Changes
+'''''''''''''
+- minor: #1355, #1366, #1388, #1389, #1391, #1297, #1342, #1404, #1392,
+  #1412, #1344, #1345, #1347, #1334, #1274, #1438, #1120, #1359, #636, #1469,
+  #1149, #1441, #1503, #1510, #1507, #1505
+- minor SFTP fixes: #1442, #1446
+- finish .rst-ifying all docs
+- shuffle configuration.rst to add Frontend section
+- add man page #1420
+- IServer refactoring #1363
+- Nodes now emit "None" for percentiles with higher implied precision
+  than the number of observations can support. Older stats gatherers
+  will throw an exception if they gather stats from a new storage
+  server and it sends a "None" for a percentile. (`#1392`_)
+
+
+Compatibility and Dependencies
+''''''''''''''''''''''''''''''
+
+- An incompatibility of zope.interface version 3.6.4 with Nevow has
+  been resolved. Tahoe-LAFS now requires one of the exact versions
+  v3.3.1, v3.5.3, or v3.6.1 of zope.interface. (`#1435`_)
+- The Twisted dependency has been raised to version 10.1. This ensures
+  that we no longer require pywin32 on Windows, and that it is never
+  necessary to patch Twisted in order to use the FTP frontend.
+  (`#1274`_, `#1438`_)
+
+.. _`#1274`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1274
+.. _`#1392`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1392
+.. _`#1409`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1409
+.. _`#1435`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1435
+.. _`#1438`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1438
+
+
+** Security-related Bugfix
+
+ - Fix flaw that would allow a person who knows a storage index of a file to
+   delete shares of that file (#1528).
+ - Remove corner cases in mutable file bounds management which could expose
+   extra lease info or old share data (from prior versions of the mutable
+   file) if someone with write authority to that mutable file exercised these
+   corner cases in a way that no actual Tahoe-LAFS client does. (Probably not
+   exploitable.) (#1528).
+
+
+Release 1.8.3 (2011-09-13)
+--------------------------
+
+Security-related Bugfix
+'''''''''''''''''''''''
+
+- Fix flaw that would allow a person who knows a storage index of a file to
+  delete shares of that file (#1528).
+- Remove corner cases in mutable file bounds management which could expose
+  extra lease info or old share data (from prior versions of the mutable
+  file) if someone with write authority to that mutable file exercised these
+  corner cases in a way that no actual Tahoe-LAFS client does. (Probably not
+  exploitable.) (#1528).
+
+
+Release 1.8.2 (2011-01-30)
+--------------------------
 
 Compatibility and Dependencies
 ''''''''''''''''''''''''''''''
