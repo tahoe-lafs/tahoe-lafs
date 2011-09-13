@@ -214,7 +214,10 @@ class RIStorageServer(RemoteInterface):
         between the end of the current data and the beginning of the write
         vector will be filled with zero bytes. In earlier versions the
         contents of this space was unspecified (and might end up containing
-        secrets).
+        secrets). Storage servers with the new zero-filling behavior will
+        advertise a true value for the 'fills-holes-with-zero-bytes' key
+        (under 'http://allmydata.org/tahoe/protocols/storage/v1') in their
+        version information.
 
         Each write vector is accompanied by a 'new_length' argument, which
         can be used to truncate the data. If new_length is not None and it is
@@ -228,12 +231,13 @@ class RIStorageServer(RemoteInterface):
         of Tahoe-LAFS v1.8.3 it no longer works and the new_length is ignored
         in that case.
 
-        If a storage client can rely on a server being of version v1.8.3 or
-        later, it can extend the file efficiently by writing a single zero
-        byte just before the new end-of-file. Otherwise it must explicitly
-        write zeroes to all bytes between the old and new end-of-file. In any
-        case it should avoid sending new_length larger than the size of the
-        data after applying all write vectors.
+        If a storage client knows that the server supports zero-filling, for
+        example from the 'fills-holes-with-zero-bytes' key in its version
+        information, it can extend the file efficiently by writing a single
+        zero byte just before the new end-of-file. Otherwise it must
+        explicitly write zeroes to all bytes between the old and new
+        end-of-file. In any case it should avoid sending new_length larger
+        than the size of the data after applying all write vectors.
 
         The read vector is used to extract data from all known shares,
         *before* any writes have been applied. The same vector is used for
