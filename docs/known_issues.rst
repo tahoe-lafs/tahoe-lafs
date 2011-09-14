@@ -1,20 +1,5 @@
-﻿==============
- Known Issues
-==============
-
-* `Overview`_
-* `Issues in Tahoe-LAFS v1.8.2, released 2011-01-30`
-
-  *  `Unauthorized deletion of an immutable file by its storage index`_
-  *  `Potential unauthorized access by JavaScript in unrelated files`_
-  *  `Potential disclosure of file through embedded hyperlinks or JavaScript in that file`_
-  *  `Command-line arguments are leaked to other local users`_
-  *  `Capabilities may be leaked to web browser phishing filter / "safe browsing" servers`_
-  *  `Known issues in the FTP and SFTP frontends`_
-
-Overview
-========
-
+﻿Known Issues
+````````````
 Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
 manage them.  The current version of this file can be found at
 `<http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/known_issues.rst>`_.
@@ -24,9 +9,14 @@ just curious about what sort of mistakes we've made in the past, then you might
 want to read `the "historical known issues" document
 <historical/historical_known_issues.txt>`_.
 
-
 Issues in Tahoe-LAFS v1.8.2, released 2011-01-30
-================================================
+
+  *  `Unauthorized deletion of an immutable file by its storage index`_
+  *  `Potential unauthorized access by JavaScript in unrelated files`_
+  *  `Potential disclosure of file through embedded hyperlinks or JavaScript in that file`_
+  *  `Command-line arguments are leaked to other local users`_
+  *  `Capabilities may be leaked to web browser phishing filter / "safe browsing" servers`_
+  *  `Known issues in the FTP and SFTP frontends`_
 
 Unauthorized deletion of an immutable file by its storage index
 ---------------------------------------------------------------
@@ -235,7 +225,7 @@ very limited effectiveness (see
 or malware attackers have learnt how to bypass them.
 
 To disable the filter in IE7 or IE8:
-````````````````````````````````````
+++++++++++++++++++++++++++++++++++++
 
 - Click Internet Options from the Tools menu.
 
@@ -251,7 +241,7 @@ If you have a version of IE that splits the settings between security
 zones, do this for all zones.
 
 To disable the filter in Firefox:
-`````````````````````````````````
++++++++++++++++++++++++++++++++++
 
 - Click Options from the Tools menu.
 
@@ -263,7 +253,7 @@ To disable the filter in Firefox:
 - Click OK.
 
 To disable the filter in Chrome:
-````````````````````````````````
+++++++++++++++++++++++++++++++++
 
 - Click Options from the Tools menu.
 
