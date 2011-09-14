@@ -1,5 +1,7 @@
-﻿Known Issues
-````````````
+﻿==============
+ Known Issues
+==============
+
 Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
 manage them.  The current version of this file can be found at
 `<http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/known_issues.rst>`_.
@@ -17,12 +19,13 @@ Issues in Tahoe-LAFS v1.8.2, released 2011-01-30
   *  `Command-line arguments are leaked to other local users`_
   *  `Capabilities may be leaked to web browser phishing filter / "safe browsing" servers`_
   *  `Known issues in the FTP and SFTP frontends`_
+  *  `Traffic analysis based on sizes of files/directories, storage indices, and timing`_
 
 Unauthorized deletion of an immutable file by its storage index
 ---------------------------------------------------------------
 
 Due to a flaw in the Tahoe-LAFS storage server software in v1.3.0 through
-v1.8.2 a person who knows the "storage index" that identifies an immutable
+v1.8.2, a person who knows the "storage index" that identifies an immutable
 file can cause the server to delete its shares of that file.
 
 If an attacker can cause enough shares to be deleted from enough storage
@@ -35,25 +38,26 @@ authorization (confidentiality), nor to change the contents of a file
 A person could learn the storage index of a file in several ways:
 
 1. By being granted the authority to read the immutable file—i.e. by being
-granted a read capability to the file. They can determine the file's storage
-index from its read capability.
+   granted a read capability to the file. They can determine the file's
+   storage index from its read capability.
 
 2. By being granted a verify capability to the file. They can determine the
-file's storage index from its verify capability. This case probably doesn't
-happen often because users typically don't share verify caps.
+   file's storage index from its verify capability. This case probably
+   doesn't happen often because users typically don't share verify caps.
 
 3. By operating a storage server, and receiving a request from a client that
-has a read cap or a verify cap. If the client attempts to upload, download,
-or verify the file with their storage server, even if it doesn't actually
-have the file, then they can learn the storage index of the file.
+   has a read cap or a verify cap. If the client attempts to upload,
+   download, or verify the file with their storage server, even if it doesn't
+   actually have the file, then they can learn the storage index of the file.
 
 4. By gaining read access to an existing storage server's local filesystem,
-and inspecting the directory structure that it stores its shares in. They can
-thus learn the storage indexes of all files that the server is holding at
-least one share of. Normally only the operator of an existing storage server
-would be able to inspect its local filesystem, so this requires either being
-such an operator of an existing storage server, or somehow gaining the
-ability to inspect the local filesystem of an existing storage server.
+   and inspecting the directory structure that it stores its shares in. They
+   can thus learn the storage indexes of all files that the server is holding
+   at least one share of. Normally only the operator of an existing storage
+   server would be able to inspect its local filesystem, so this requires
+   either being such an operator of an existing storage server, or somehow
+   gaining the ability to inspect the local filesystem of an existing storage
+   server.
 
 how to manage it
 ~~~~~~~~~~~~~~~~
