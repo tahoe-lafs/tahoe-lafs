@@ -1,6 +1,6 @@
-﻿============
-Known Issues
-============
+﻿==============
+ Known Issues
+==============
 
 * `Overview`_
 * `Issues in Tahoe-LAFS v1.8.2, released 2011-01-30`
