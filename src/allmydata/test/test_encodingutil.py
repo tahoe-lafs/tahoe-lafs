@@ -211,6 +211,7 @@ class EncodingUtil(ReallyEqualMixin):
     def test_unicode_platform(self):
         matrix = {
           'linux2': False,
+          'linux3': False,
           'openbsd4': False,
           'win32':  True,
           'darwin': True,

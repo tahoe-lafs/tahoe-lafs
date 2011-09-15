@@ -139,6 +139,7 @@ _platform_map = {
     "linux-i386": "linux", # redhat
     "linux-ppc": "linux",  # redhat
     "linux2": "linux",     # debian
+    "linux3": "linux",     # debian
     "win32": "win32",
     "irix6-n32": "irix",
     "irix6-n64": "irix",

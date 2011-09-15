@@ -1398,7 +1398,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             self.failUnlessEqual(data, expected_data)
         d.addCallback(_check)
         d.addCallback(lambda res: rref.callRemote("speed_test", 1, 200, False))
-        if sys.platform == "linux2":
+        if sys.platform in ("linux2", "linux3"):
             d.addCallback(lambda res: rref.callRemote("get_memory_usage"))
         d.addCallback(lambda res: rref.callRemote("measure_peer_response_time"))
         return d
