@@ -121,12 +121,26 @@ upload-coverage:
 	false
 endif
 
+code-checks: build version-and-path check-interfaces -find-trailing-spaces -check-umids pyflakes
+
+version-and-path:
+	$(TAHOE) --version-and-path
+
+check-interfaces:
+	$(TAHOE) @misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
+	@echo
 
 pyflakes:
 	$(PYTHON) -OOu `which pyflakes` $(SOURCES) |sort |uniq
+	@echo
 
 check-umids:
 	$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py'`
+	@echo
+
+-check-umids:
+	-$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py'`
+	@echo
 
 count-lines:
 	@echo -n "files: "
@@ -213,6 +227,11 @@ clean:
 
 find-trailing-spaces:
 	$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r $(SOURCES)
+	@echo
+
+-find-trailing-spaces:
+	-$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r $(SOURCES)
+	@echo
 
 # The test-desert-island target grabs the tahoe-deps tarball, unpacks it,
 # does a build, then asserts that the build did not try to download anything
