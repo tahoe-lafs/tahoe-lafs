@@ -4875,7 +4875,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         for shnum, serverid, fn in shares:
             sf = get_share_file(fn)
             num_leases = len(list(sf.get_leases()))
-        lease_counts.append( (fn, num_leases) )
+            lease_counts.append( (fn, num_leases) )
         return lease_counts
 
     def _assert_leasecount(self, lease_counts, expected):
