@@ -60,21 +60,20 @@ zi.implements = strictly_implements
 sys.argv = ['', '--help']
 
 
-from twisted.python.filepath import FilePath
-
 # import modules under src/
-src = FilePath('src')
-for fp in src.walk():
-    (basepath, ext) = fp.splitext()
-    if ext == '.py' and not excluded_file_basenames.match(fp.basename()):
-        relpath = os.path.relpath(basepath, src.path)
-        module = relpath.replace(os.path.sep, '/').replace('/', '.')
-        try:
-            __import__(module)
-        except ImportError:
-            import traceback
-            traceback.print_exc()
-            print >>sys.stderr
+srcdir = 'src'
+for (dirpath, dirnames, filenames) in os.walk(srcdir):
+    for fn in filenames:
+        (basename, ext) = os.path.splitext(fn)
+        if ext == '.py' and not excluded_file_basenames.match(basename):
+            relpath = os.path.join(dirpath[len(srcdir)+1:], basename)
+            module = relpath.replace(os.sep, '/').replace('/', '.')
+            try:
+                __import__(module)
+            except ImportError:
+                import traceback
+                traceback.print_exc()
+                print >>sys.stderr
 
 others = list(other_modules_with_violations)
 others.sort()
