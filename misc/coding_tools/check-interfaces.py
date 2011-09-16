@@ -12,8 +12,8 @@ from zope.interface.advice import addClassAdvisor
 
 
 interesting_modules = re.compile(r'(allmydata)|(foolscap)\..*')
-excluded_classnames = re.compile(r'(_)|(Mock)|(Fake).*')
-excluded_file_basenames = re.compile(r'check_.*')
+excluded_classnames = re.compile(r'(_)|(Mock)|(Fake)|(Dummy).*')
+excluded_file_basenames = re.compile(r'(check)|(bench)_.*')
 
 
 other_modules_with_violations = set()
