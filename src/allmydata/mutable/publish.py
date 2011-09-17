@@ -867,12 +867,12 @@ class Publish:
         for (shnum, writer) in self.writers.iteritems():
             writer.put_verification_key(verification_key)
             d = writer.finish_publishing()
+            d.addErrback(self._connection_problem, writer)
             # Add the (peerid, shnum) tuple to our list of outstanding
             # queries. This gets used by _loop if some of our queries
             # fail to place shares.
             self.outstanding.add((writer.peerid, writer.shnum))
             d.addCallback(self._got_write_answer, writer, started)
-            d.addErrback(self._connection_problem, writer)
             ds.append(d)
         self._record_verinfo()
         self._status.timings['pack'] = time.time() - started
