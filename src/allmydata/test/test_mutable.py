@@ -2500,11 +2500,12 @@ class FirstServerGetsDeleted:
         return retval
 
 class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
-    def test_publish_surprise(self):
-        self.basedir = "mutable/Problems/test_publish_surprise"
+    def do_publish_surprise(self, version):
+        self.basedir = "mutable/Problems/test_publish_surprise_%s" % version
         self.set_up_grid()
         nm = self.g.clients[0].nodemaker
-        d = nm.create_mutable_file(MutableData("contents 1"))
+        d = nm.create_mutable_file(MutableData("contents 1"),
+                                    version=version)
         def _created(n):
             d = defer.succeed(None)
             d.addCallback(lambda res: n.get_servermap(MODE_WRITE))
@@ -2527,6 +2528,9 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             return d
         d.addCallback(_created)
         return d
+
+    def test_publish_surprise(self):
+        return self.do_publish_surprise(SDMF_VERSION)
 
     def test_retrieve_surprise(self):
         self.basedir = "mutable/Problems/test_retrieve_surprise"
