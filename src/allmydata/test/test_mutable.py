@@ -2529,8 +2529,11 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         return d
 
-    def test_publish_surprise(self):
+    def test_publish_surprise_sdmf(self):
         return self.do_publish_surprise(SDMF_VERSION)
+
+    def test_publish_surprise_mdmf(self):
+        return self.do_publish_surprise(MDMF_VERSION)
 
     def test_retrieve_surprise(self):
         self.basedir = "mutable/Problems/test_retrieve_surprise"
