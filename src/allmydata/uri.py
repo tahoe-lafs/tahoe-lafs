@@ -826,6 +826,13 @@ class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
     def is_mutable(self):
         return False
 
+    def is_readonly(self):
+        return True
+
+    def get_readonly(self):
+        return self
+
+
 class DirectoryURIVerifier(_DirectoryBaseURI):
     implements(IVerifierURI)
 
@@ -844,6 +851,12 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
 
     def is_mutable(self):
         return False
+
+    def is_readonly(self):
+        return True
+
+    def get_readonly(self):
+        return self
 
 
 class ImmutableDirectoryURIVerifier(DirectoryURIVerifier):
