@@ -36,22 +36,15 @@
 (^|/)Thumbs\.db$
 (^|/)autom4te\.cache($|/)
 
-^client-basedir
-^queen-basedir($|/)
 ^_trial_temp.*($|/)
 ^\.buildbot($|/)
 ^MANIFEST$
 ^dist($|/)
 ^debian($|/)
 
-^misc/(dapper|sid|feisty)/debian/allmydata-tahoe($|/)
-^misc/(dapper|sid|feisty)/debian/allmydata-tahoe\.\w+\.debhelper$
-^misc/(dapper|sid|feisty)/debian/allmydata-tahoe\.substvars$
-^misc/(dapper|sid|feisty)/debian/files$
-
 ^build($|/)
 ^build-stamp$
-^python-build-stamp-2.[45]$
+^python-build-stamp-2.[4567]$
 ^\.coverage$
 ^coverage-html($|/)
 ^twisted/plugins/dropin\.cache$
@@ -62,8 +55,6 @@
 ^src/allmydata/_version\.py$
 # _appname.py is generated at build time, and never checked in
 ^src/allmydata/_appname\.py$
-# src/allmydata/_auto_deps.py is copied into place at build time, and never checked in
-^src/allmydata/_auto_deps\.py$
 
 # bin/tahoe scripts (not including tahoe-script.template) are generated files
 ^bin/tahoe$
