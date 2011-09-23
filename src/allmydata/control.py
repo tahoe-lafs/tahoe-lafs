@@ -8,6 +8,7 @@ from foolscap.api import Referenceable
 from allmydata.interfaces import RIControlClient, IFileNode
 from allmydata.util import fileutil, mathutil
 from allmydata.immutable import upload
+from allmydata.mutable.publish import MutableData
 from twisted.python import log
 
 def get_memory_usage():
@@ -180,7 +181,7 @@ class SpeedTest:
                 d1.addCallback(lambda n: n.get_uri())
             elif self.mutable_mode == "upload":
                 data = open(fn,"rb").read()
-                d1 = self._n.overwrite(data)
+                d1 = self._n.overwrite(MutableData(data))
                 d1.addCallback(lambda res: self._n.get_uri())
             else:
                 up = upload.FileName(fn, convergence=None)
