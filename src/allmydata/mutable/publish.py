@@ -861,10 +861,7 @@ class Publish:
         ds = []
         verification_key = self._pubkey.serialize()
 
-
-        # TODO: Bad, since we remove from this same dict. We need to
-        # make a copy, or just use a non-iterated value.
-        for (shnum, writer) in self.writers.iteritems():
+        for (shnum, writer) in self.writers.copy().iteritems():
             writer.put_verification_key(verification_key)
             self.num_outstanding += 1
             def _no_longer_outstanding(res):
