@@ -228,11 +228,11 @@ class Publish:
         # existing servermap.
         self.goal = set() # pairs of (peerid, shnum) tuples
 
-        # the second table is our list of outstanding queries: those which
-        # are in flight and may or may not be delivered, accepted, or
-        # acknowledged. Items are added to this table when the request is
-        # sent, and removed when the response returns (or errbacks).
-        self.outstanding = set() # (peerid, shnum) tuples
+        # the number of outstanding queries: those that are in flight and
+        # may or may not be delivered, accepted, or acknowledged. This is
+        # incremented when a query is sent, and decremented when the response
+        # returns or errbacks.
+        self.num_outstanding = 0
 
         # the third is a table of successes: share which have actually been
         # placed. These are populated when responses come back with success.
@@ -425,11 +425,11 @@ class Publish:
         # existing servermap.
         self.goal = set() # pairs of (peerid, shnum) tuples
 
-        # the second table is our list of outstanding queries: those which
-        # are in flight and may or may not be delivered, accepted, or
-        # acknowledged. Items are added to this table when the request is
-        # sent, and removed when the response returns (or errbacks).
-        self.outstanding = set() # (peerid, shnum) tuples
+        # the number of outstanding queries: those that are in flight and
+        # may or may not be delivered, accepted, or acknowledged. This is
+        # incremented when a query is sent, and decremented when the response
+        # returns or errbacks.
+        self.num_outstanding = 0
 
         # the third is a table of successes: share which have actually been
         # placed. These are populated when responses come back with success.
@@ -535,7 +535,7 @@ class Publish:
                                 "%d messages outstanding" %
                                 (len(self.placed),
                                  len(self.goal),
-                                 len(self.outstanding)))
+                                 self.num_outstanding))
         self._status.set_progress(1.0 * len(self.placed) / len(self.goal))
 
 
@@ -866,12 +866,14 @@ class Publish:
         # make a copy, or just use a non-iterated value.
         for (shnum, writer) in self.writers.iteritems():
             writer.put_verification_key(verification_key)
+            self.num_outstanding += 1
+            def _no_longer_outstanding(res):
+                self.num_outstanding -= 1
+                return res
+
             d = writer.finish_publishing()
+            d.addBoth(_no_longer_outstanding)
             d.addErrback(self._connection_problem, writer)
-            # Add the (peerid, shnum) tuple to our list of outstanding
-            # queries. This gets used by _loop if some of our queries
-            # fail to place shares.
-            self.outstanding.add((writer.peerid, writer.shnum))
             d.addCallback(self._got_write_answer, writer, started)
             ds.append(d)
         self._record_verinfo()
