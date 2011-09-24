@@ -2533,7 +2533,6 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         return self.do_publish_surprise(SDMF_VERSION)
 
     def test_publish_surprise_mdmf(self):
-        raise unittest.SkipTest("this currently triggers a decoding error in unpack_checkstring (see #1540)")
         return self.do_publish_surprise(MDMF_VERSION)
 
     def test_retrieve_surprise(self):
