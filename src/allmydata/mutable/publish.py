@@ -18,8 +18,11 @@ from foolscap.api import eventually, fireEventually
 from allmydata.mutable.common import MODE_WRITE, MODE_CHECK, \
      UncoordinatedWriteError, NotEnoughServersError
 from allmydata.mutable.servermap import ServerMap
-from allmydata.mutable.layout import unpack_checkstring, MDMFSlotWriteProxy, \
-                                     SDMFSlotWriteProxy
+from allmydata.mutable.layout import get_version_from_checkstring,\
+                                     unpack_mdmf_checkstring, \
+                                     unpack_sdmf_checkstring, \
+                                     MDMFSlotWriteProxy, \
+                                     SDMFSlotWriteProxy, MDMFCHECKSTRING
 
 KiB = 1024
 DEFAULT_MAX_SEGMENT_SIZE = 128 * KiB
@@ -1101,9 +1104,14 @@ class Publish:
             # use the checkstring to add information to the log message
             for (shnum,readv) in read_data.items():
                 checkstring = readv[0]
-                (other_seqnum,
-                 other_roothash,
-                 other_salt) = unpack_checkstring(checkstring)
+                version = get_version_from_checkstring(checkstring)
+                if version == MDMF_VERSION:
+                    (other_seqnum,
+                     other_roothash) = unpack_mdmf_checkstring(checkstring)
+                else:
+                    (other_seqnum,
+                     other_roothash,
+                     other_salt) = unpack_sdmf_checkstring(checkstring)
                 expected_version = self._servermap.version_on_peer(peerid,
                                                                    shnum)
                 if expected_version:
