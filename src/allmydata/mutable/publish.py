@@ -22,7 +22,7 @@ from allmydata.mutable.layout import get_version_from_checkstring,\
                                      unpack_mdmf_checkstring, \
                                      unpack_sdmf_checkstring, \
                                      MDMFSlotWriteProxy, \
-                                     SDMFSlotWriteProxy, MDMFCHECKSTRING
+                                     SDMFSlotWriteProxy
 
 KiB = 1024
 DEFAULT_MAX_SEGMENT_SIZE = 128 * KiB
