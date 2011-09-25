@@ -1,4 +1,5 @@
-﻿==================================
+﻿
+==================================
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
@@ -72,17 +73,17 @@ Packaging Changes
   Unix via sshfs. (`#1409`_)
 - The Tahoe licenses now give explicit permission to combine Tahoe-LAFS
   with code distributed under the following additional open-source licenses
-  (any version of each)::
-   * Academic Free License
-   * Apple Public Source License
-   * BitTorrent Open Source License
-   * Lucent Public License
-   * Jabber Open Source License
-   * Common Development and Distribution License
-   * Microsoft Public License
-   * Microsoft Reciprocal License
-   * Sun Industry Standards Source License
-   * Open Software License
+  (any version of each):
+  * Academic Free License
+  * Apple Public Source License
+  * BitTorrent Open Source License
+  * Lucent Public License
+  * Jabber Open Source License
+  * Common Development and Distribution License
+  * Microsoft Public License
+  * Microsoft Reciprocal License
+  * Sun Industry Standards Source License
+  * Open Software License
 
 Compatibility and Dependencies
 ''''''''''''''''''''''''''''''
