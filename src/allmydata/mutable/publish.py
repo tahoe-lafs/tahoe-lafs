@@ -1112,7 +1112,7 @@ class Publish:
                 elif version == SDMF_VERSION:
                     (other_seqnum,
                      other_roothash,
-                     other_salt) = unpack_sdmf_checkstring(checkstring)
+                     other_IV) = unpack_sdmf_checkstring(checkstring)
                 else:
                     unknown_format = True
                 expected_version = self._servermap.version_on_peer(peerid,

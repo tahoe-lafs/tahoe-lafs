@@ -143,16 +143,13 @@ def get_version_from_checkstring(checkstring):
 def unpack_sdmf_checkstring(checkstring):
     cs_len = struct.calcsize(PREFIX)
     version, seqnum, root_hash, IV = struct.unpack(PREFIX, checkstring[:cs_len])
-    if version != 0: # TODO: just ignore the share
-        raise UnknownVersionError("got mutable share version %d, but I only understand version 0" % version)
+    assert version == SDMF_VERSION, version
     return (seqnum, root_hash, IV)
 
 def unpack_mdmf_checkstring(checkstring):
     cs_len = struct.calcsize(MDMFCHECKSTRING)
-    checkstring = checkstring[:cs_len]
-    version, seqnum, root_hash = struct.unpack(MDMFCHECKSTRING, checkstring)
-
-    assert version == 1
+    version, seqnum, root_hash = struct.unpack(MDMFCHECKSTRING, checkstring[:cs_len])
+    assert version == MDMF_VERSION, version
     return (seqnum, root_hash)
 
 def pack_offsets(verification_key_length, signature_length,
