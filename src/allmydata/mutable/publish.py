@@ -1102,28 +1102,35 @@ class Publish:
             self.surprised = True
             self.bad_peers.add(writer) # don't ask them again
             # use the checkstring to add information to the log message
+            unknown_format = False
             for (shnum,readv) in read_data.items():
                 checkstring = readv[0]
                 version = get_version_from_checkstring(checkstring)
                 if version == MDMF_VERSION:
                     (other_seqnum,
                      other_roothash) = unpack_mdmf_checkstring(checkstring)
-                else:
+                elif version == SDMF_VERSION:
                     (other_seqnum,
                      other_roothash,
                      other_salt) = unpack_sdmf_checkstring(checkstring)
+                else:
+                    unknown_format = True
                 expected_version = self._servermap.version_on_peer(peerid,
                                                                    shnum)
                 if expected_version:
                     (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
                      offsets_tuple) = expected_version
-                    self.log("somebody modified the share on us:"
-                             " shnum=%d: I thought they had #%d:R=%s,"
-                             " but testv reported #%d:R=%s" %
-                             (shnum,
-                              seqnum, base32.b2a(root_hash)[:4],
-                              other_seqnum, base32.b2a(other_roothash)[:4]),
-                             parent=lp, level=log.NOISY)
+                    msg = ("somebody modified the share on us:"
+                           " shnum=%d: I thought they had #%d:R=%s," %
+                           (shnum,
+                            seqnum, base32.b2a(root_hash)[:4]))
+                    if unknown_format:
+                        msg += (" but I don't know how to read share"
+                                " format %d" % version)
+                    else:
+                        msg += " but testv reported #%d:R=%s" % \
+                               (other_seqnum, other_roothash)
+                    self.log(msg, parent=lp, level=log.NOISY)
                 # if expected_version==None, then we didn't expect to see a
                 # share on that peer, and the 'surprise_shares' clause above
                 # will have logged it.
