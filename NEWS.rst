@@ -5,86 +5,138 @@ User-Visible Changes in Tahoe-LAFS
 Release 1.9.0 (2011-??-??)
 --------------------------
 
-WORK IN PROGRESS
+Alpha 2 preview
 
 
 New Features
 ''''''''''''
-- MDMF! #393
-- blacklist #1425
-- immutable-download timeline viz (#?)
-- drop-upload feature (experimental) #1429
+
+- The most significant new feature in this release is MDMF, which stands
+  for "Medium Density Mutable Files". These are capable of providing more
+  efficient access and update of parts of a file. To ensure compatibility
+  with previous versions, MDMF is not yet the default format for mutable
+  files. Memory usage of a gateway when uploading and downloading MDMF
+  files may be higher than expected in this release. (`#393`_, `#1507`_)
+- A "drop-upload" feature has been added, which allows you to upload
+  files to a Tahoe-LAFS directory just by writing them to a local
+  directory. This feature is experimental and should not be relied on
+  to store the only copy of valuable data. It is currently available
+  only on Linux. See `<docs/frontends/drop-upload.rst>`_ for documentation.
+  (`#1429`_)
+- A "blacklist" feature allows blocking access to specific files through
+  a particular gateway. See the "Access Blacklist" section of
+  `<docs/configuration.rst>`_ for more details. (`#1425`_)
+- The timeline of immutable downloads can be viewed using a zoomable and
+  pannable JavaScript-based visualization. This is accessed using the
+  'timeline' link on the File Download Status page for the download, which
+  can be reached from the Recent Uploads and Downloads page.
 
 Configuration/Behavior Changes
-'''''''''''''''''''''
-- reject old-style (discrete) config files from <v1.3 #1385
-- measure space of storage/shares/, not storage/ #1384
+''''''''''''''''''''''''''''''
+
+- Prior to Tahoe-LAFS v1.3, the configuration of some node options could
+  be specified using individual config files rather than via ``tahoe.cfg``.
+  These files now cause an error if present. (`#1385`_)
+- Storage servers now calculate their remaining space based on the
+  filesystem containing the storage/shares/ directory. Previously they
+  looked at the filesystem containing the storage/ directory. This allows
+  storage/shares/, rather than storage/, to be a mount point or a symlink
+  pointing to another filesystem. (`#1384`_)
 - 'tahoe cp xyz MUTABLE' will modify the existing mutable file instead of
-  creating a new one
-- WUI button says "unlink" instead of "del", change docs, allow 'tahoe
-  unlink' #1104
+  creating a new one. (`#1304`_)
+- The button for unlinking a file from its directory on a WUI directory
+  listing is now labelled "unlink" rather than "del". (`#1104`_)
 
 Notable Bugfixes
 ''''''''''''''''
-- 'tahoe put/cp' uploads didn't appear in history #1079
-- verifier: serialize block fetches, reduce RAM footprint #1395
-- make large immutable downloads faster (coalesce Share.loop() calls) #1268
+
+- The security bugfix for the vulnerability allowing deletion of shares,
+  detailed in the news for v1.8.3 below, is also included in this
+  release. (`#1528`_)
+- Some cases of immutable upload, for example using the 'tahoe put' and
+  'tahoe cp' commands or SFTP, did not appear in the history of Recent
+  Uploads and Downloads. (`#1079`_)
+- The memory footprint of the verifier has been reduced by serializing
+  block fetches. (`#1395`_)
+- Large immutable downloads are now a little faster than in v1.8.2 (about
+  5% on a fast network). (`#1268`_)
 
 Packaging Changes
 '''''''''''''''''
-- remove debian packaging #1454
-- remove contrib/fuse #1409
+
+- The files related to Debian packaging have been removed from the Tahoe
+  source tree, since they are now maintained as part of the official
+  Debian packages. (`#1454`_)
 - The unmaintained FUSE plugins were removed from the source tree. See
-  docs/frontends/FTP-and-SFTP.rst for how to use sshfs. (`#1409`_)
-- replace foolscap[secure_connections] dep with one on pyopenssl #1383
-- bump Twisted dependency to >=10.1
-- bump zope.interface dep to <=3.6.2 or >=3.6.6 #1435
-- extra-permission changes in license
-- no longer need to patch Twisted for FTP, when using Twisted >= 10.1
-
-Minor Changes
-'''''''''''''
-- minor: #1355, #1366, #1388, #1389, #1391, #1297, #1342, #1404, #1392,
-  #1412, #1344, #1345, #1347, #1334, #1274, #1438, #1120, #1359, #636, #1469,
-  #1149, #1441, #1503, #1510, #1507, #1505
-- minor SFTP fixes: #1442, #1446
-- finish .rst-ifying all docs
-- shuffle configuration.rst to add Frontend section
-- add man page #1420
-- IServer refactoring #1363
-- Nodes now emit "None" for percentiles with higher implied precision
-  than the number of observations can support. Older stats gatherers
-  will throw an exception if they gather stats from a new storage
-  server and it sends a "None" for a percentile. (`#1392`_)
-
+  docs/frontends/FTP-and-SFTP.rst for how to mount a Tahoe filesystem on
+  Unix via sshfs. (`#1409`_)
+- The Tahoe licenses now give explicit permission to combine Tahoe-LAFS
+  with code distributed under the following additional open-source licenses
+  (any version of each)::
+   * Academic Free License
+   * Apple Public Source License
+   * BitTorrent Open Source License
+   * Lucent Public License
+   * Jabber Open Source License
+   * Common Development and Distribution License
+   * Microsoft Public License
+   * Microsoft Reciprocal License
+   * Sun Industry Standards Source License
+   * Open Software License
 
 Compatibility and Dependencies
 ''''''''''''''''''''''''''''''
 
-- An incompatibility of zope.interface version 3.6.4 with Nevow has
-  been resolved. Tahoe-LAFS now requires one of the exact versions
-  v3.3.1, v3.5.3, or v3.6.1 of zope.interface. (`#1435`_)
+- An incompatibility of zope.interface versions 3.6.4 and 3.6.5 with Nevow
+  has been resolved. Tahoe-LAFS now requires an earlier or later version
+  of zope.interface. (`#1435`_)
 - The Twisted dependency has been raised to version 10.1. This ensures
-  that we no longer require pywin32 on Windows, and that it is never
-  necessary to patch Twisted in order to use the FTP frontend.
-  (`#1274`_, `#1438`_)
+  that we no longer require pywin32 on Windows, that the new drop-upload
+  feature has the required support from Twisted on Linux, and that it is
+  never necessary to patch Twisted in order to use the FTP frontend.
+  (`#1274`_, `#1429`_, `#1438`_)
+- An explicit dependency on pyOpenSSL has been added, replacing the indirect
+  dependency via the "secure_connections" option of foolscap. (`#1383`_)
 
+Minor Changes
+'''''''''''''
+
+- When the '--version' or '--version-and-path' options to 'tahoe' were
+  used and the version of a dependency could not be parsed, an unhelpful
+  error message would be given. (`#1355`_, `#1388`_)
+- The tahoe_files munin plugin reported an incorrect count of the number of
+  share files. (`#1391`_)
+- A ``man`` page has been added. (`#1420`_)
+- Nodes now emit "None" for percentiles with higher implied precision
+  than the number of observations can support. Older stats gatherers
+  will throw an exception if they gather stats from a new storage server
+  and it sends a "None" for a percentile. (`#1392`_)
+- Minor documentation updates: #627, #1104, #1225, #1297, #1342, #1404
+- Other minor changes: #636, #1366, #1412, #1344, #1347, #1359, #1389, #1441,
+  #1474, #1503, #1507
+
+.. _`#393`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/393
+.. _`#1079`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1079
+.. _`#1104`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1104
+.. _`#1268`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1268
 .. _`#1274`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1274
+.. _`#1304`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1304
+.. _`#1355`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1355
+.. _`#1383`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1383
+.. _`#1384`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1384
+.. _`#1385`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1385
+.. _`#1388`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1388
+.. _`#1391`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1391
 .. _`#1392`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1392
+.. _`#1395`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1395
 .. _`#1409`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1409
+.. _`#1420`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1420
+.. _`#1425`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1425
+.. _`#1429`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1429
 .. _`#1435`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1435
 .. _`#1438`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1438
-
-
-** Security-related Bugfix
-
- - Fix flaw that would allow a person who knows a storage index of a file to
-   delete shares of that file (#1528).
- - Remove corner cases in mutable file bounds management which could expose
-   extra lease info or old share data (from prior versions of the mutable
-   file) if someone with write authority to that mutable file exercised these
-   corner cases in a way that no actual Tahoe-LAFS client does. (Probably not
-   exploitable.) (#1528).
+.. _`#1454`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1454
+.. _`#1507`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1507
 
 
 Release 1.8.3 (2011-09-13)
@@ -94,12 +146,14 @@ Security-related Bugfix
 '''''''''''''''''''''''
 
 - Fix flaw that would allow a person who knows a storage index of a file to
-  delete shares of that file (#1528).
+  delete shares of that file. (`#1528`_)
 - Remove corner cases in mutable file bounds management which could expose
   extra lease info or old share data (from prior versions of the mutable
   file) if someone with write authority to that mutable file exercised these
   corner cases in a way that no actual Tahoe-LAFS client does. (Probably not
-  exploitable.) (#1528).
+  exploitable.) (`#1528`_)
+
+.. _`#1528`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1528
 
 
 Release 1.8.2 (2011-01-30)
