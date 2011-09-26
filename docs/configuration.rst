@@ -2,19 +2,20 @@
 Configuring a Tahoe-LAFS node
 =============================
 
-1. `Overall Node Configuration`_
-2. `Client Configuration`_
-3. `Storage Server Configuration`_
-4. `Frontend Configuration`_
-5. `Running A Helper`_
-6. `Running An Introducer`_
-7. `Other Files in BASEDIR`_
-8. `Other files`_
-9. `Example`_
+1.   `Node Types`_
+2.  `Overall Node Configuration`_
+3.  `Client Configuration`_
+4.  `Storage Server Configuration`_
+5.  `Frontend Configuration`_
+6.  `Running A Helper`_
+7.  `Running An Introducer`_
+8.  `Other Files in BASEDIR`_
+9.  `Other files`_
+10. `Example`_
 
-A Tahoe-LAFS node is configured by writing to files in its base
-directory. These files are read by the node when it starts, so each time you
-change them, you need to restart the node.
+A Tahoe-LAFS node is configured by writing to files in its base directory.
+These files are read by the node when it starts, so each time you change
+them, you need to restart the node.
 
 The node also writes state to its base directory, so it will create files on
 its own.
@@ -51,13 +52,35 @@ The item descriptions below use the following types:
     ``pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm``
 
 
+Node Types
+==========
+
+A node can be a client/server, an introducer, a statistics gatherer, or a
+key generator.
+
+Client/server nodes provide one or more of the following services:
+
+* web-API service
+* SFTP service
+* FTP service
+* drop-upload service
+* helper service
+* storage service.
+
+A client/server that provides storage service (i.e. storing shares for
+clients) is called a "storage server". If it provides any of the other
+services, it is a "storage client" (a node can be both a storage server and a
+storage client). A client/server node that provides web-API service is called
+a "gateway".
+
+
 Overall Node Configuration
 ==========================
 
 This section controls the network behavior of the node overall: which ports
 and IP addresses are used, when connections are timed out, etc. This
-configuration is independent of the services that the node is offering: the
-same controls are used for client and introducer nodes.
+configuration applies to all node types and is independent of the services
+that the node is offering.
 
 If your node is behind a firewall or NAT device and you want other clients to
 connect to it, you'll need to open a port in the firewall or NAT, and specify
@@ -74,14 +97,16 @@ set the ``tub.location`` option described below.
 
 ``web.port = (strports string, optional)``
 
-    This controls where the node's webserver should listen, providing
-    filesystem access and node status as defined in
-    `<frontends/webapi.rst>`_. This file contains a Twisted "strports"
-    specification such as "``3456``" or "``tcp:3456:interface=127.0.0.1``".
-    The "``tahoe create-node``" or "``tahoe create-client``" commands set the
-    ``web.port`` to "``tcp:3456:interface=127.0.0.1``" by default; this is
-    overridable by the ``--webport`` option. You can make it use SSL by
-    writing "``ssl:3456:privateKey=mykey.pem:certKey=cert.pem``" instead.
+    This controls where the node's web server should listen, providing node
+    status and, if the node is a client/server, providing web-API service as
+    defined in `webapi.rst <frontends/webapi.rst>_`.
+
+    This file contains a Twisted "strports" specification such as "``3456``"
+    or "``tcp:3456:interface=127.0.0.1``". The "``tahoe create-node``" or
+    "``tahoe create-client``" commands set the ``web.port`` to
+    "``tcp:3456:interface=127.0.0.1``" by default; this is overridable by the
+    ``--webport`` option. You can make it use SSL by writing
+    "``ssl:3456:privateKey=mykey.pem:certKey=cert.pem``" instead.
 
     If this is not provided, the node will not run a web server.
 
@@ -340,8 +365,8 @@ Client Configuration
 
     Note that this parameter only applies to mutable files. Mutable
     directories, which are stored as mutable files, are not controlled by
-    this parameter and will always use SDMF. We may revisit this decision
-    in future versions of Tahoe-LAFS.
+    this parameter and will always use SDMF. We may revisit this decision in
+    future versions of Tahoe-LAFS.
 
 Frontend Configuration
 ======================
@@ -607,10 +632,11 @@ Other files
 
 ``access.blacklist``
 
-  Gateway nodes may find it necessary to prohibit access to certain files. The
-  web-API has a facility to block access to filecaps by their storage index,
-  returning a 403 "Forbidden" error instead of the original file. For more
-  details, see the "Access Blacklist" section of `<frontends/webapi.rst>`_.
+  Gateway nodes may find it necessary to prohibit access to certain
+  files. The web-API has a facility to block access to filecaps by their
+  storage index, returning a 403 "Forbidden" error instead of the original
+  file. For more details, see the "Access Blacklist" section of
+  `<frontends/webapi.rst>`_.
 
 
 Example
