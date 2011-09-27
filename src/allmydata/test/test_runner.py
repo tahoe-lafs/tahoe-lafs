@@ -150,14 +150,16 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
                              "with a _version.py and 'setup.py darcsver' hasn't been run.")
 
             srcdir = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
-            info = (res, allmydata.__appname__, required_verstr, srcdir)
+            info = repr((res, allmydata.__appname__, required_verstr, srcdir))
 
             appverpath = out.split(')')[0]
             (appver, path) = appverpath.split(' (')
             (app, ver) = appver.split(': ')
 
             self.failUnlessEqual(app, allmydata.__appname__, info)
-            self.failUnlessEqual(normalized_version(ver), normalized_version(required_verstr), info)
+            norm_ver = normalized_version(ver)
+            norm_required = normalized_version(required_verstr)
+            self.failUnlessEqual(norm_ver, norm_required, info)
             self.failUnlessEqual(path, srcdir, info)
         d.addCallback(_cb)
         return d
