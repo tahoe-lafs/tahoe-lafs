@@ -375,28 +375,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         return d
 
 
-    def test_create_from_mdmf_writecap_with_extensions(self):
-        # Test that the nodemaker is capable of creating an MDMF
-        # filenode when given a writecap with extension parameters in
-        # them.
-        d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
-        def _created(n):
-            self.failUnless(isinstance(n, MutableFileNode))
-            s = n.get_uri()
-            # We need to cheat a little and delete the nodemaker's
-            # cache, otherwise we'll get the same node instance back.
-            self.failUnlessIn(":3:131073", s)
-            n2 = self.nodemaker.create_from_cap(s)
-
-            self.failUnlessEqual(n2.get_storage_index(), n.get_storage_index())
-            self.failUnlessEqual(n.get_writekey(), n2.get_writekey())
-            hints = n2._downloader_hints
-            self.failUnlessEqual(hints['k'], 3)
-            self.failUnlessEqual(hints['segsize'], 131073)
-        d.addCallback(_created)
-        return d
-
-
     def test_create_from_mdmf_readcap(self):
         d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
         def _created(n):
@@ -407,26 +385,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
 
             # Check that it's a readonly node
             self.failUnless(n2.is_readonly())
-        d.addCallback(_created)
-        return d
-
-
-    def test_create_from_mdmf_readcap_with_extensions(self):
-        # We should be able to create an MDMF filenode with the
-        # extension parameters without it breaking.
-        d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
-        def _created(n):
-            self.failUnless(isinstance(n, MutableFileNode))
-            s = n.get_readonly_uri()
-            self.failUnlessIn(":3:131073", s)
-
-            n2 = self.nodemaker.create_from_cap(s)
-            self.failUnless(isinstance(n2, MutableFileNode))
-            self.failUnless(n2.is_readonly())
-            self.failUnlessEqual(n.get_storage_index(), n2.get_storage_index())
-            hints = n2._downloader_hints
-            self.failUnlessEqual(hints["k"], 3)
-            self.failUnlessEqual(hints["segsize"], 131073)
         d.addCallback(_created)
         return d
 
@@ -606,6 +564,9 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d = self.nodemaker.create_mutable_file(version=MDMF_VERSION)
         def _created(node):
             self.uri = node.get_uri()
+            # also confirm that the cap has no extension fields
+            pieces = self.uri.split(":")
+            self.failUnlessEqual(len(pieces), 4)
 
             return node.overwrite(MutableData("contents1" * 100000))
         def _then(ignored):
@@ -616,37 +577,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         d.addCallback(_then)
         d.addCallback(_downloaded)
-        return d
-
-
-    def test_create_and_download_from_bare_mdmf_cap(self):
-        # MDMF caps have extension parameters on them by default. We
-        # need to make sure that they work without extension parameters.
-        contents = MutableData("contents" * 100000)
-        d = self.nodemaker.create_mutable_file(version=MDMF_VERSION,
-                                               contents=contents)
-        def _created(node):
-            uri = node.get_uri()
-            self._created = node
-            self.failUnlessIn(":3:131073", uri)
-            # Now strip that off the end of the uri, then try creating
-            # and downloading the node again.
-            bare_uri = uri.replace(":3:131073", "")
-            assert ":3:131073" not in bare_uri
-
-            return self.nodemaker.create_from_cap(bare_uri)
-        d.addCallback(_created)
-        def _created_bare(node):
-            self.failUnlessEqual(node.get_writekey(),
-                                 self._created.get_writekey())
-            self.failUnlessEqual(node.get_readkey(),
-                                 self._created.get_readkey())
-            self.failUnlessEqual(node.get_storage_index(),
-                                 self._created.get_storage_index())
-            return node.download_best_version()
-        d.addCallback(_created_bare)
-        d.addCallback(lambda data:
-            self.failUnlessEqual(data, "contents" * 100000))
         return d
 
 
@@ -3065,62 +2995,6 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             self.sdmf_node.get_best_readable_version())
         d.addCallback(lambda bv:
             self.failUnlessEqual(bv.get_sequence_number(), 2))
-        return d
-
-
-    def test_version_extension_api(self):
-        # We need to define an API by which an uploader can set the
-        # extension parameters, and by which a downloader can retrieve
-        # extensions.
-        d = self.do_upload_mdmf()
-        d.addCallback(lambda ign: self.mdmf_node.get_best_mutable_version())
-        def _got_version(version):
-            hints = version.get_downloader_hints()
-            # Should be empty at this point.
-            self.failUnlessIn("k", hints)
-            self.failUnlessEqual(hints['k'], 3)
-            self.failUnlessIn('segsize', hints)
-            self.failUnlessEqual(hints['segsize'], 131073)
-        d.addCallback(_got_version)
-        return d
-
-
-    def test_extensions_from_cap(self):
-        # If we initialize a mutable file with a cap that has extension
-        # parameters in it and then grab the extension parameters using
-        # our API, we should see that they're set correctly.
-        d = self.do_upload_mdmf()
-        def _then(ign):
-            mdmf_uri = self.mdmf_node.get_uri()
-            new_node = self.nm.create_from_cap(mdmf_uri)
-            return new_node.get_best_mutable_version()
-        d.addCallback(_then)
-        def _got_version(version):
-            hints = version.get_downloader_hints()
-            self.failUnlessIn("k", hints)
-            self.failUnlessEqual(hints["k"], 3)
-            self.failUnlessIn("segsize", hints)
-            self.failUnlessEqual(hints["segsize"], 131073)
-        d.addCallback(_got_version)
-        return d
-
-
-    def test_extensions_from_upload(self):
-        # If we create a new mutable file with some contents, we should
-        # get back an MDMF cap with the right hints in place.
-        contents = "foo bar baz" * 100000
-        d = self.nm.create_mutable_file(contents, version=MDMF_VERSION)
-        def _got_mutable_file(n):
-            rw_uri = n.get_uri()
-            expected_k = str(self.c.DEFAULT_ENCODING_PARAMETERS['k'])
-            self.failUnlessIn(expected_k, rw_uri)
-            # XXX: Get this more intelligently.
-            self.failUnlessIn("131073", rw_uri)
-
-            ro_uri = n.get_readonly_uri()
-            self.failUnlessIn(expected_k, ro_uri)
-            self.failUnlessIn("131073", ro_uri)
-        d.addCallback(_got_mutable_file)
         return d
 
 

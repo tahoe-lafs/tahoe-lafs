@@ -892,22 +892,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILE_URI_mdmf_extensions(self):
-        base = "/uri/%s" % urllib.quote("%s:3:131073" % self._quux_txt_uri)
-        d = self.GET(base)
-        d.addCallback(self.failUnlessIsQuuxDotTxt)
-        return d
-
-    def test_GET_FILE_URI_mdmf_bare_cap(self):
-        cap_elements = self._quux_txt_uri.split(":")
-        # 6 == expected cap length with two extensions.
-        self.failUnlessEqual(len(cap_elements), 6)
-
-        # Now lop off the extension parameters and stitch everything
-        # back together
-        quux_uri = ":".join(cap_elements[:len(cap_elements) - 2])
-
-        # Now GET that. We should get back quux.
-        base = "/uri/%s" % urllib.quote(quux_uri)
+        base = "/uri/%s" % urllib.quote("%s:RANDOMSTUFF" % self._quux_txt_uri)
         d = self.GET(base)
         d.addCallback(self.failUnlessIsQuuxDotTxt)
         return d
@@ -949,7 +934,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_FILE_URI_mdmf_extensions(self):
-        base = "/uri/%s" % urllib.quote("%s:3:131073" % self._quux_txt_uri)
+        base = "/uri/%s" % urllib.quote("%s:EXTENSIONSTUFF" % self._quux_txt_uri)
         self._quux_new_contents = "new_contents"
         d = self.GET(base)
         d.addCallback(lambda res: self.failUnlessIsQuuxDotTxt(res))
@@ -957,22 +942,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ignored: self.GET(base))
         d.addCallback(lambda res: self.failUnlessEqual(self._quux_new_contents,
                                                        res))
-        return d
-
-    def test_PUT_FILE_URI_mdmf_bare_cap(self):
-        elements = self._quux_txt_uri.split(":")
-        self.failUnlessEqual(len(elements), 6)
-
-        quux_uri = ":".join(elements[:len(elements) - 2])
-        base = "/uri/%s" % urllib.quote(quux_uri)
-        self._quux_new_contents = "new_contents" * 50000
-
-        d = self.GET(base)
-        d.addCallback(self.failUnlessIsQuuxDotTxt)
-        d.addCallback(lambda ignored: self.PUT(base, self._quux_new_contents))
-        d.addCallback(lambda ignored: self.GET(base))
-        d.addCallback(lambda res:
-            self.failUnlessEqual(res, self._quux_new_contents))
         return d
 
     def test_PUT_FILE_URI_mdmf_readonly(self):
@@ -1043,24 +1012,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILEURL_info_mdmf_extensions(self):
-        d = self.GET("/uri/%s:3:131073?t=info" % self._quux_txt_uri)
+        d = self.GET("/uri/%s:STUFF?t=info" % self._quux_txt_uri)
         def _got(res):
             self.failUnlessIn("mutable file (mdmf)", res)
             self.failUnlessIn(self._quux_txt_uri, res)
             self.failUnlessIn(self._quux_txt_readonly_uri, res)
-        d.addCallback(_got)
-        return d
-
-    def test_GET_FILEURL_info_mdmf_bare_cap(self):
-        elements = self._quux_txt_uri.split(":")
-        self.failUnlessEqual(len(elements), 6)
-
-        quux_uri = ":".join(elements[:len(elements) - 2])
-        base = "/uri/%s?t=info" % urllib.quote(quux_uri)
-        d = self.GET(base)
-        def _got(res):
-            self.failUnlessIn("mutable file (mdmf)", res)
-            self.failUnlessIn(quux_uri, res)
         d.addCallback(_got)
         return d
 
@@ -1286,51 +1242,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                       self.NEWFILE_CONTENTS * 300000))
         d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
         d.addCallback(_got_json, "sdmf")
-        return d
-
-    def test_GET_FILEURL_json_mdmf_extensions(self):
-        # A GET invoked against a URL that includes an MDMF cap with
-        # extensions should fetch the same JSON information as a GET
-        # invoked against a bare cap.
-        self._quux_txt_uri = "%s:3:131073" % self._quux_txt_uri
-        self._quux_txt_readonly_uri = "%s:3:131073" % self._quux_txt_readonly_uri
-        d = self.GET("/uri/%s?t=json" % urllib.quote(self._quux_txt_uri))
-        d.addCallback(self.failUnlessIsQuuxJSON)
-        return d
-
-    def test_GET_FILEURL_json_mdmf_bare_cap(self):
-        elements = self._quux_txt_uri.split(":")
-        self.failUnlessEqual(len(elements), 6)
-
-        quux_uri = ":".join(elements[:len(elements) - 2])
-        # so failUnlessIsQuuxJSON will work.
-        self._quux_txt_uri = quux_uri
-
-        # we need to alter the readonly URI in the same way, again so
-        # failUnlessIsQuuxJSON will work
-        elements = self._quux_txt_readonly_uri.split(":")
-        self.failUnlessEqual(len(elements), 6)
-        quux_ro_uri = ":".join(elements[:len(elements) - 2])
-        self._quux_txt_readonly_uri = quux_ro_uri
-
-        base = "/uri/%s?t=json" % urllib.quote(quux_uri)
-        d = self.GET(base)
-        d.addCallback(self.failUnlessIsQuuxJSON)
-        return d
-
-    def test_GET_FILEURL_json_mdmf_bare_readonly_cap(self):
-        elements = self._quux_txt_readonly_uri.split(":")
-        self.failUnlessEqual(len(elements), 6)
-
-        quux_readonly_uri = ":".join(elements[:len(elements) - 2])
-        # so failUnlessIsQuuxJSON will work
-        self._quux_txt_readonly_uri = quux_readonly_uri
-        base = "/uri/%s?t=json" % quux_readonly_uri
-        d = self.GET(base)
-        # XXX: We may need to make a method that knows how to check for
-        # readonly JSON, or else alter that one so that it knows how to
-        # do that.
-        d.addCallback(self.failUnlessIsQuuxJSON, readonly=True)
         return d
 
     def test_GET_FILEURL_json_mdmf(self):

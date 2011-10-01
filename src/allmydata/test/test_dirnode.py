@@ -41,11 +41,11 @@ class MemAccum:
 setup_py_uri = "URI:CHK:n7r3m6wmomelk4sep3kw5cvduq:os7ijw5c3maek7pg65e5254k2fzjflavtpejjyhshpsxuqzhcwwq:3:20:14861"
 one_uri = "URI:LIT:n5xgk" # LIT for "one"
 mut_write_uri = "URI:SSK:vfvcbdfbszyrsaxchgevhmmlii:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
-mdmf_write_uri = "URI:MDMF:x533rhbm6kiehzl5kj3s44n5ie:4gif5rhneyd763ouo5qjrgnsoa3bg43xycy4robj2rf3tvmhdl3a:1:131072"
+mdmf_write_uri = "URI:MDMF:x533rhbm6kiehzl5kj3s44n5ie:4gif5rhneyd763ouo5qjrgnsoa3bg43xycy4robj2rf3tvmhdl3a"
 empty_litdir_uri = "URI:DIR2-LIT:"
 tiny_litdir_uri = "URI:DIR2-LIT:gqytunj2onug64tufqzdcosvkjetutcjkq5gw4tvm5vwszdgnz5hgyzufqydulbshj5x2lbm" # contains one child which is itself also LIT
 mut_read_uri = "URI:SSK-RO:jf6wkflosyvntwxqcdo7a54jvm:euw4iw7bbnkrrwpzuburbhppuxhc3gwxv26f6imekhz7zyw2ojnq"
-mdmf_read_uri = "URI:MDMF-RO:d4cydxselputycfzkw6qgz4zv4:4gif5rhneyd763ouo5qjrgnsoa3bg43xycy4robj2rf3tvmhdl3a:1:131072"
+mdmf_read_uri = "URI:MDMF-RO:d4cydxselputycfzkw6qgz4zv4:4gif5rhneyd763ouo5qjrgnsoa3bg43xycy4robj2rf3tvmhdl3a"
 future_write_uri = "x-tahoe-crazy://I_am_from_the_future."
 future_read_uri = "x-tahoe-crazy-readonly://I_am_from_the_future."
 future_nonascii_write_uri = u"x-tahoe-even-more-crazy://I_am_from_the_future_rw_\u263A".encode('utf-8')

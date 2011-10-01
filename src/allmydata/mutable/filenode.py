@@ -118,17 +118,6 @@ class MutableFileNode:
         self._privkey = None
         self._encprivkey = None
 
-        # Starting with MDMF caps, we allowed arbitrary extensions in
-        # caps. If we were initialized with a cap that had extensions,
-        # we want to remember them so we can tell MutableFileVersions
-        # about them.
-        extensions = self._uri.get_extension_params()
-        if extensions:
-            extensions = map(int, extensions)
-            suspected_k, suspected_segsize = extensions
-            self._downloader_hints['k'] = suspected_k
-            self._downloader_hints['segsize'] = suspected_segsize
-
         return self
 
     def create_with_keys(self, (pubkey, privkey), contents,
@@ -701,9 +690,6 @@ class MutableFileNode:
 
     def set_downloader_hints(self, hints):
         self._downloader_hints = hints
-        extensions = [ hints["k"], hints["segsize"] ]
-        self._uri.set_extension_params(extensions)
-
 
     def _did_upload(self, res, size):
         self._most_recent_size = size

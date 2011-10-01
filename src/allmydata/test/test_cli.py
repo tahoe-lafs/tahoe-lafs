@@ -1229,7 +1229,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("put", "--mutable", "--mutable-type=mdmf", fn1)
         def _got_cap((rc, out, err)):
             self.failUnlessEqual(rc, 0)
-            self.cap = out
+            self.cap = out.strip()
         d.addCallback(_got_cap)
         # Now try to write something to the cap using put.
         data2 = "data2" * 100000
@@ -1248,13 +1248,11 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(out, data2)
         d.addCallback(_got_data)
-        # Now strip the extension information off of the cap and try
-        # to put something to it.
-        def _make_bare_cap(ignored):
-            cap = self.cap.split(":")
-            cap = ":".join(cap[:len(cap) - 2])
-            self.cap = cap
-        d.addCallback(_make_bare_cap)
+        # add some extension information to the cap and try to put something
+        # to it.
+        def _make_extended_cap(ignored):
+            self.cap = self.cap + ":Extension-Stuff"
+        d.addCallback(_make_extended_cap)
         data3 = "data3" * 100000
         fn3 = os.path.join(self.basedir, "data3")
         fileutil.write(fn3, data3)
@@ -1277,7 +1275,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("put", "--mutable", "--mutable-type=sdmf", fn1)
         def _got_cap((rc, out, err)):
             self.failUnlessEqual(rc, 0)
-            self.cap = out
+            self.cap = out.strip()
         d.addCallback(_got_cap)
         # Now try to write something to the cap using put.
         data2 = "data2" * 100000

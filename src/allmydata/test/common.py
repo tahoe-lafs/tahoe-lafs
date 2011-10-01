@@ -208,7 +208,6 @@ class FakeMutableFileNode:
         data = initial_contents.read(initial_contents.get_size())
         data = "".join(data)
         self.all_contents[self.storage_index] = data
-        self.my_uri.set_extension_params([self._k, self._segsize])
         return defer.succeed(self)
     def _get_initial_contents(self, contents):
         if contents is None:
@@ -358,7 +357,6 @@ class FakeMutableFileNode:
         new_data = new_contents.read(new_contents.get_size())
         new_data = "".join(new_data)
         self.all_contents[self.storage_index] = new_data
-        self.my_uri.set_extension_params([self._k, self._segsize])
         return defer.succeed(None)
     def modify(self, modifier):
         # this does not implement FileTooLargeError, but the real one does
@@ -368,7 +366,6 @@ class FakeMutableFileNode:
         old_contents = self.all_contents[self.storage_index]
         new_data = modifier(old_contents, None, True)
         self.all_contents[self.storage_index] = new_data
-        self.my_uri.set_extension_params([self._k, self._segsize])
         return None
 
     # As actually implemented, MutableFilenode and MutableFileVersion

@@ -369,8 +369,7 @@ def dump_MDMF_share(m, length, options):
         if base32.could_be_base32_encoded(piece):
             storage_index = base32.a2b(piece)
             fingerprint = hashutil.ssk_pubkey_fingerprint_hash(pubkey)
-            hints = [str(k), str(segsize)]
-            u = MDMFVerifierURI(storage_index, fingerprint, hints)
+            u = MDMFVerifierURI(storage_index, fingerprint)
             verify_cap = u.to_string()
             print >>out, "  verify-cap:", quote_output(verify_cap, quotemarks=False)
 

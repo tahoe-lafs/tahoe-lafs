@@ -28,7 +28,6 @@ BASE32STR_256bits = '(%s{51}%s)' % (base32.BASE32CHAR, base32.BASE32CHAR_1bits)
 SEP='(?::|%3A)'
 NUMBER='([0-9]+)'
 NUMBER_IGNORE='(?:[0-9]+)'
-OPTIONAL_EXTENSION_FIELD = '(' + SEP + '[0-9' + SEP + ']+|)'
 
 # "human-encoded" URIs are allowed to come with a leading
 # 'http://127.0.0.1:(8123|3456)/uri/' that will be ignored.
@@ -294,12 +293,6 @@ class WriteableSSKFileURI(_BaseURI):
     def get_verify_cap(self):
         return SSKVerifierURI(self.storage_index, self.fingerprint)
 
-    def get_extension_params(self):
-        return []
-
-    def set_extension_params(self, params):
-        pass
-
 class ReadonlySSKFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
 
@@ -354,12 +347,6 @@ class ReadonlySSKFileURI(_BaseURI):
     def get_verify_cap(self):
         return SSKVerifierURI(self.storage_index, self.fingerprint)
 
-    def get_extension_params(self):
-        return []
-
-    def set_extension_params(self, params):
-        pass
-
 class SSKVerifierURI(_BaseURI):
     implements(IVerifierURI)
 
@@ -404,53 +391,39 @@ class SSKVerifierURI(_BaseURI):
     def get_verify_cap(self):
         return self
 
-    def get_extension_params(self):
-        return []
-
-    def set_extension_params(self, params):
-        pass
-
 class WriteableMDMFFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:MDMF:'
-    STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+OPTIONAL_EXTENSION_FIELD+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'MDMF'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+OPTIONAL_EXTENSION_FIELD+'$')
+    STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
+    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'MDMF'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'(:|$)')
 
-    def __init__(self, writekey, fingerprint, params=[]):
+    def __init__(self, writekey, fingerprint):
         self.writekey = writekey
         self.readkey = hashutil.ssk_readkey_hash(writekey)
         self.storage_index = hashutil.ssk_storage_index_hash(self.readkey)
         assert len(self.storage_index) == 16
         self.fingerprint = fingerprint
-        self.extension = params
 
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        params = filter(lambda x: x != '', re.split(SEP, mo.group(3)))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)), params)
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        params = mo.group(3)
-        params = filter(lambda x: x != '', params.split(":"))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)), params)
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
         assert isinstance(self.writekey, str)
         assert isinstance(self.fingerprint, str)
         ret = 'URI:MDMF:%s:%s' % (base32.b2a(self.writekey),
                                   base32.b2a(self.fingerprint))
-        if self.extension:
-            ret += ":"
-            ret += ":".join(self.extension)
-
         return ret
 
     def __repr__(self):
@@ -469,40 +442,30 @@ class WriteableMDMFFileURI(_BaseURI):
         return True
 
     def get_readonly(self):
-        return ReadonlyMDMFFileURI(self.readkey, self.fingerprint, self.extension)
+        return ReadonlyMDMFFileURI(self.readkey, self.fingerprint)
 
     def get_verify_cap(self):
-        return MDMFVerifierURI(self.storage_index, self.fingerprint, self.extension)
-
-    def get_extension_params(self):
-        return self.extension
-
-    def set_extension_params(self, params):
-        params = map(str, params)
-        self.extension = params
+        return MDMFVerifierURI(self.storage_index, self.fingerprint)
 
 class ReadonlyMDMFFileURI(_BaseURI):
     implements(IURI, IMutableFileURI)
 
     BASE_STRING='URI:MDMF-RO:'
-    STRING_RE=re.compile('^' +BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+OPTIONAL_EXTENSION_FIELD+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'MDMF-RO'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+OPTIONAL_EXTENSION_FIELD+'$')
+    STRING_RE=re.compile('^' +BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
+    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'MDMF-RO'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'(:|$)')
 
-    def __init__(self, readkey, fingerprint, params=[]):
+    def __init__(self, readkey, fingerprint):
         self.readkey = readkey
         self.storage_index = hashutil.ssk_storage_index_hash(self.readkey)
         assert len(self.storage_index) == 16
         self.fingerprint = fingerprint
-        self.extension = params
 
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        params = mo.group(3)
-        params = filter(lambda x: x!= '', re.split(SEP, params))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)), params)
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
@@ -510,19 +473,13 @@ class ReadonlyMDMFFileURI(_BaseURI):
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
 
-        params = mo.group(3)
-        params = filter(lambda x: x != '', params.split(":"))
-        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)), params)
+        return cls(base32.a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
         assert isinstance(self.readkey, str)
         assert isinstance(self.fingerprint, str)
         ret = 'URI:MDMF-RO:%s:%s' % (base32.b2a(self.readkey),
                                      base32.b2a(self.fingerprint))
-        if self.extension:
-            ret += ":"
-            ret += ":".join(self.extension)
-
         return ret
 
     def __repr__(self):
@@ -544,55 +501,39 @@ class ReadonlyMDMFFileURI(_BaseURI):
         return self
 
     def get_verify_cap(self):
-        return MDMFVerifierURI(self.storage_index, self.fingerprint, self.extension)
-
-    def get_extension_params(self):
-        return self.extension
-
-    def set_extension_params(self, params):
-        params = map(str, params)
-        self.extension = params
+        return MDMFVerifierURI(self.storage_index, self.fingerprint)
 
 class MDMFVerifierURI(_BaseURI):
     implements(IVerifierURI)
 
     BASE_STRING='URI:MDMF-Verifier:'
-    STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+OPTIONAL_EXTENSION_FIELD+'$')
-    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'MDMF-Verifier'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+OPTIONAL_EXTENSION_FIELD+'$')
+    STRING_RE=re.compile('^'+BASE_STRING+BASE32STR_128bits+':'+BASE32STR_256bits+'(:|$)')
+    HUMAN_RE=re.compile('^'+OPTIONALHTTPLEAD+'URI'+SEP+'MDMF-Verifier'+SEP+BASE32STR_128bits+SEP+BASE32STR_256bits+'(:|$)')
 
-    def __init__(self, storage_index, fingerprint, params=[]):
+    def __init__(self, storage_index, fingerprint):
         assert len(storage_index) == 16
         self.storage_index = storage_index
         self.fingerprint = fingerprint
-        self.extension = params
 
     @classmethod
     def init_from_human_encoding(cls, uri):
         mo = cls.HUMAN_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        params = mo.group(3)
-        params = filter(lambda x: x != '', re.split(SEP, params))
-        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)), params)
+        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     @classmethod
     def init_from_string(cls, uri):
         mo = cls.STRING_RE.search(uri)
         if not mo:
             raise BadURIError("'%s' doesn't look like a %s cap" % (uri, cls))
-        params = mo.group(3)
-        params = filter(lambda x: x != '', params.split(":"))
-        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)), params)
+        return cls(si_a2b(mo.group(1)), base32.a2b(mo.group(2)))
 
     def to_string(self):
         assert isinstance(self.storage_index, str)
         assert isinstance(self.fingerprint, str)
         ret = 'URI:MDMF-Verifier:%s:%s' % (si_b2a(self.storage_index),
                                            base32.b2a(self.fingerprint))
-        if self.extension:
-            ret += ':'
-            ret += ":".join(self.extension)
-
         return ret
 
     def is_readonly(self):
@@ -606,9 +547,6 @@ class MDMFVerifierURI(_BaseURI):
 
     def get_verify_cap(self):
         return self
-
-    def get_extension_params(self):
-        return self.extension
 
 class _DirectoryBaseURI(_BaseURI):
     implements(IURI, IDirnodeURI)
