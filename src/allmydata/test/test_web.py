@@ -1689,7 +1689,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_POST_NEWDIRURL_emptyname(self):
         # an empty pathname component (i.e. a double-slash) is disallowed
-        d = self.shouldFail2(error.Error, "test_POST_NEWDIRURL_emptyname",
+        d = self.shouldFail2(error.Error, "POST_NEWDIRURL_emptyname",
                              "400 Bad Request",
                              "The webapi does not allow empty pathname components, i.e. a double slash",
                              self.POST, self.public_url + "//?t=mkdir")
@@ -2810,7 +2810,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_POST_mkdir_immutable_bad(self):
         (newkids, caps) = self._create_initial_children()
-        d = self.shouldFail2(error.Error, "test_POST_mkdir_immutable_bad",
+        d = self.shouldFail2(error.Error, "POST_mkdir_immutable_bad",
                              "400 Bad Request",
                              "needed to be immutable but was not",
                              self.POST2,
@@ -2997,7 +2997,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # the regular /uri?t=mkdir operation is specified to ignore its body.
         # Only t=mkdir-with-children pays attention to it.
         (newkids, caps) = self._create_initial_children()
-        d = self.shouldHTTPError("POST t=mkdir unexpected children",
+        d = self.shouldHTTPError("POST_mkdir_no_parentdir_unexpected_children",
                                  400, "Bad Request",
                                  "t=mkdir does not accept children=, "
                                  "try t=mkdir-with-children instead",
@@ -3006,7 +3006,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_noparent_bad(self):
-        d = self.shouldHTTPError("POST /uri?t=bogus", 400, "Bad Request",
+        d = self.shouldHTTPError("POST_noparent_bad",
+                                 400, "Bad Request",
                                  "/uri accepts only PUT, PUT?t=mkdir, "
                                  "POST?t=upload, and POST?t=mkdir",
                                  self.POST, "/uri?t=bogus")
@@ -3118,7 +3119,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_bad_t(self):
-        d = self.shouldFail2(error.Error, "POST_bad_t", "400 Bad Request",
+        d = self.shouldFail2(error.Error, "POST_bad_t",
+                             "400 Bad Request",
                              "POST to a directory with bad t=BOGUS",
                              self.POST, self.public_url + "/foo", t="BOGUS")
         return d
@@ -3461,8 +3463,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_PUT_DIRURL_bad_t(self):
         d = self.shouldFail2(error.Error, "test_PUT_DIRURL_bad_t",
-                                 "400 Bad Request", "PUT to a directory",
-                                 self.PUT, self.public_url + "/foo?t=BOGUS", "")
+                             "400 Bad Request", "PUT to a directory",
+                             self.PUT, self.public_url + "/foo?t=BOGUS", "")
         d.addCallback(lambda res:
                       self.failUnlessRWChildURIIs(self.public_root,
                                                   u"foo",
@@ -3530,7 +3532,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_PUT_NEWFILEURL_uri_no_replace(self):
         contents, n, new_uri = self.makefile(8)
         d = self.PUT(self.public_url + "/foo/bar.txt?t=uri&replace=false", new_uri)
-        d.addBoth(self.shouldFail, error.Error, "PUT_NEWFILEURL_uri_no_replace",
+        d.addBoth(self.shouldFail, error.Error,
+                  "PUT_NEWFILEURL_uri_no_replace",
                   "409 Conflict",
                   "There was already a child by that name, and you asked me "
                   "to not replace it")
@@ -3707,7 +3710,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_then)
         # Negative offsets should cause an error.
         d.addCallback(lambda ignored:
-            self.shouldHTTPError("test mutable invalid offset negative",
+            self.shouldHTTPError("PUT_update_at_invalid_offset",
                                  400, "Bad Request",
                                  "Invalid offset",
                                  self.PUT,
@@ -3722,7 +3725,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.filecap = filecap
         d.addCallback(_then)
         d.addCallback(lambda ignored:
-            self.shouldHTTPError("test immutable update",
+            self.shouldHTTPError("PUT_update_at_offset_immutable",
                                  400, "Bad Request",
                                  "immutable",
                                  self.PUT,
@@ -3733,7 +3736,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_bad_method(self):
         url = self.webish_url + self.public_url + "/foo/bar.txt"
-        d = self.shouldHTTPError("test_bad_method",
+        d = self.shouldHTTPError("bad_method",
                                  501, "Not Implemented",
                                  "I don't know how to treat a BOGUS request.",
                                  client.getPage, url, method="BOGUS")
@@ -3741,14 +3744,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_short_url(self):
         url = self.webish_url + "/uri"
-        d = self.shouldHTTPError("test_short_url", 501, "Not Implemented",
+        d = self.shouldHTTPError("short_url", 501, "Not Implemented",
                                  "I don't know how to treat a DELETE request.",
                                  client.getPage, url, method="DELETE")
         return d
 
     def test_ophandle_bad(self):
         url = self.webish_url + "/operations/bogus?t=status"
-        d = self.shouldHTTPError("test_ophandle_bad", 404, "404 Not Found",
+        d = self.shouldHTTPError("ophandle_bad", 404, "404 Not Found",
                                  "unknown/expired handle 'bogus'",
                                  client.getPage, url)
         return d
@@ -3772,7 +3775,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return d
         d.addCallback(_check1)
         d.addCallback(lambda ignored:
-                      self.shouldHTTPError("test_ophandle_cancel",
+                      self.shouldHTTPError("ophandle_cancel",
                                            404, "404 Not Found",
                                            "unknown/expired handle '128'",
                                            self.GET,
@@ -3792,7 +3795,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ign:
             self.clock.advance(2.0))
         d.addCallback(lambda ignored:
-                      self.shouldHTTPError("test_ophandle_retainfor",
+                      self.shouldHTTPError("ophandle_retainfor",
                                            404, "404 Not Found",
                                            "unknown/expired handle '129'",
                                            self.GET,
@@ -3807,7 +3810,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                       self.GET("/operations/130?t=status&output=JSON&release-after-complete=true"))
         # the release-after-complete=true will cause the handle to be expired
         d.addCallback(lambda ignored:
-                      self.shouldHTTPError("test_ophandle_release_after_complete",
+                      self.shouldHTTPError("ophandle_release_after_complete",
                                            404, "404 Not Found",
                                            "unknown/expired handle '130'",
                                            self.GET,
@@ -3849,7 +3852,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ign:
             self.clock.advance(96*60*60))
         d.addCallback(lambda ign:
-            self.shouldHTTPError("test_uncollected_ophandle_expired_after_100_hours",
+            self.shouldHTTPError("uncollected_ophandle_expired_after_100_hours",
                                  404, "404 Not Found",
                                  "unknown/expired handle '132'",
                                  self.GET,
@@ -3883,7 +3886,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda ign:
             self.clock.advance(24*60*60))
         d.addCallback(lambda ign:
-            self.shouldHTTPError("test_collected_ophandle_expired_after_1000_minutes",
+            self.shouldHTTPError("collected_ophandle_expired_after_1_day",
                                  404, "404 Not Found",
                                  "unknown/expired handle '134'",
                                  self.GET,
