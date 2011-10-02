@@ -1287,67 +1287,33 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addBoth(self.should404, "test_GET_FILEURL_uri_missing")
         return d
 
+    def _check_upload_and_mkdir_forms(self, html):
+        # We should have a form to create a file, with radio buttons that allow
+        # the user to toggle whether it is a CHK/LIT (default), SDMF, or MDMF file.
+        self.failUnlessIn('name="t" value="upload"', html)
+        self.failUnlessIn('input checked="checked" type="radio" id="upload-chk" value="chk" name="format"', html)
+        self.failUnlessIn('input type="radio" id="upload-sdmf" value="sdmf" name="format"', html)
+        self.failUnlessIn('input type="radio" id="upload-mdmf" value="mdmf" name="format"', html)
+
+        # We should also have the ability to create a mutable directory, with
+        # radio buttons that allow the user to toggle whether it is an SDMF (default)
+        # or MDMF directory.
+        self.failUnlessIn('name="t" value="mkdir"', html)
+        self.failUnlessIn('input checked="checked" type="radio" id="mkdir-sdmf" value="sdmf" name="format"', html)
+        self.failUnlessIn('input type="radio" id="mkdir-mdmf" value="mdmf" name="format"', html)
+
     def test_GET_DIRECTORY_html(self):
         d = self.GET(self.public_url + "/foo", followRedirect=True)
-        def _check(res):
-            self.failUnlessIn('<div class="toolbar-item"><a href="../../..">Return to Welcome page</a></div>',res)
-            # These are radio buttons that allow a user to toggle
-            # whether a particular mutable file is SDMF or MDMF.
-            self.failUnlessIn("mutable-type-mdmf", res)
-            self.failUnlessIn("mutable-type-sdmf", res)
-            # Similarly, these toggle whether a particular directory
-            # should be MDMF or SDMF.
-            self.failUnlessIn("mutable-directory-mdmf", res)
-            self.failUnlessIn("mutable-directory-sdmf", res)
-            self.failUnlessIn("quux", res)
+        def _check(html):
+            self.failUnlessIn('<div class="toolbar-item"><a href="../../..">Return to Welcome page</a></div>', html)
+            self._check_upload_and_mkdir_forms(html)
+            self.failUnlessIn("quux", html)
         d.addCallback(_check)
         return d
 
     def test_GET_root_html(self):
-        # make sure that we have the option to upload an unlinked
-        # mutable file in SDMF and MDMF formats.
         d = self.GET("/")
-        def _got_html(html):
-            # These are radio buttons that allow the user to toggle
-            # whether a particular mutable file is MDMF or SDMF.
-            self.failUnlessIn("mutable-type-mdmf", html)
-            self.failUnlessIn("mutable-type-sdmf", html)
-            # We should also have the ability to create a mutable directory.
-            self.failUnlessIn("mkdir", html)
-            # ...and we should have the ability to say whether that's an
-            # MDMF or SDMF directory
-            self.failUnlessIn("mutable-directory-mdmf", html)
-            self.failUnlessIn("mutable-directory-sdmf", html)
-        d.addCallback(_got_html)
-        return d
-
-    def test_mutable_type_defaults(self):
-        # The checked="checked" attribute of the inputs corresponding to
-        # the mutable-type parameter should change as expected with the
-        # value configured in tahoe.cfg.
-        #
-        # By default, the value configured with the client is
-        # SDMF_VERSION, so that should be checked.
-        assert self.s.mutable_file_default == SDMF_VERSION
-
-        d = self.GET("/")
-        def _got_html(html, value):
-            i = 'input checked="checked" type="radio" id="mutable-type-%s"'
-            self.failUnlessIn(i % value, html)
-        d.addCallback(_got_html, "sdmf")
-        d.addCallback(lambda ignored:
-            self.GET(self.public_url + "/foo", followRedirect=True))
-        d.addCallback(_got_html, "sdmf")
-        # Now switch the configuration value to MDMF. The MDMF radio
-        # buttons should now be checked on these pages.
-        def _swap_values(ignored):
-            self.s.mutable_file_default = MDMF_VERSION
-        d.addCallback(_swap_values)
-        d.addCallback(lambda ignored: self.GET("/"))
-        d.addCallback(_got_html, "mdmf")
-        d.addCallback(lambda ignored:
-            self.GET(self.public_url + "/foo", followRedirect=True))
-        d.addCallback(_got_html, "mdmf")
+        d.addCallback(self._check_upload_and_mkdir_forms)
         return d
 
     def test_GET_DIRURL(self):
