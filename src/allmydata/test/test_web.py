@@ -1065,7 +1065,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # this should get us a few segments of an MDMF mutable file,
         # which we can then test for.
         contents = self.NEWFILE_CONTENTS * 300000
-        d = self.PUT("/uri?mutable=true&mutable-type=mdmf",
+        d = self.PUT("/uri?format=mdmf",
                      contents)
         def _got_filecap(filecap):
             self.failUnless(filecap.startswith("URI:MDMF"))
@@ -1077,17 +1077,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
     def test_PUT_NEWFILEURL_unlinked_sdmf(self):
         contents = self.NEWFILE_CONTENTS * 300000
-        d = self.PUT("/uri?mutable=true&mutable-type=sdmf",
+        d = self.PUT("/uri?format=sdmf",
                      contents)
         d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
         d.addCallback(lambda json: self.failUnlessIn("sdmf", json))
         return d
 
-    def test_PUT_NEWFILEURL_unlinked_bad_mutable_type(self):
+    def test_PUT_NEWFILEURL_unlinked_bad_format(self):
         contents = self.NEWFILE_CONTENTS * 300000
-        return self.shouldHTTPError("test bad mutable type",
-                                    400, "Bad Request", "Unknown type: foo",
-                                    self.PUT, "/uri?mutable=true&mutable-type=foo",
+        return self.shouldHTTPError("PUT_NEWFILEURL_unlinked_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
+                                    self.PUT, "/uri?format=foo",
                                     contents)
 
     def test_PUT_NEWFILEURL_range_bad(self):
@@ -1221,9 +1221,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_GET_FILEURL_json_mutable_type(self):
-        # The JSON should include mutable-type, which says whether the
+        # The JSON should include format, which says whether the
         # file is SDMF or MDMF
-        d = self.PUT("/uri?mutable=true&mutable-type=mdmf",
+        d = self.PUT("/uri?format=mdmf",
                      self.NEWFILE_CONTENTS * 300000)
         d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
         def _got_json(json, version):
@@ -1232,13 +1232,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             data = data[1]
             assert isinstance(data, dict)
 
-            self.failUnlessIn("mutable-type", data)
-            self.failUnlessEqual(data['mutable-type'], version)
+            self.failUnlessIn("format", data)
+            self.failUnlessEqual(data["format"], version)
 
         d.addCallback(_got_json, "mdmf")
         # Now make an SDMF file and check that it is reported correctly.
         d.addCallback(lambda ignored:
-            self.PUT("/uri?mutable=true&mutable-type=sdmf",
+            self.PUT("/uri?format=sdmf",
                       self.NEWFILE_CONTENTS * 300000))
         d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
         d.addCallback(_got_json, "sdmf")
@@ -1443,13 +1443,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
-    def test_GET_DIRURL_json_mutable_type(self):
+    def test_GET_DIRURL_json_format(self):
         d = self.PUT(self.public_url + \
-                     "/foo/sdmf.txt?mutable=true&mutable-type=sdmf",
+                     "/foo/sdmf.txt?format=sdmf",
                      self.NEWFILE_CONTENTS * 300000)
         d.addCallback(lambda ignored:
             self.PUT(self.public_url + \
-                     "/foo/mdmf.txt?mutable=true&mutable-type=mdmf",
+                     "/foo/mdmf.txt?format=mdmf",
                      self.NEWFILE_CONTENTS * 300000))
         # Now we have an MDMF and SDMF file in the directory. If we GET
         # its JSON, we should see their encodings.
@@ -1463,12 +1463,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             kids = data['children']
 
             mdmf_data = kids['mdmf.txt'][1]
-            self.failUnlessIn("mutable-type", mdmf_data)
-            self.failUnlessEqual(mdmf_data['mutable-type'], "mdmf")
+            self.failUnlessIn("format", mdmf_data)
+            self.failUnlessEqual(mdmf_data["format"], "mdmf")
 
             sdmf_data = kids['sdmf.txt'][1]
-            self.failUnlessIn("mutable-type", sdmf_data)
-            self.failUnlessEqual(sdmf_data['mutable-type'], "sdmf")
+            self.failUnlessIn("format", sdmf_data)
+            self.failUnlessEqual(sdmf_data["format"], "sdmf")
         d.addCallback(_got_json)
         return d
 
@@ -1631,7 +1631,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_NEWDIRURL_mdmf(self):
-        d = self.PUT(self.public_url + "/foo/newdir?t=mkdir&mutable-type=mdmf", "")
+        d = self.PUT(self.public_url + "/foo/newdir?t=mkdir&format=mdmf", "")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -1640,7 +1640,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_NEWDIRURL_sdmf(self):
-        d = self.PUT(self.public_url + "/foo/newdir?t=mkdir&mutable-type=sdmf",
+        d = self.PUT(self.public_url + "/foo/newdir?t=mkdir&format=sdmf",
                      "")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
@@ -1649,11 +1649,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(node._node.get_version(), SDMF_VERSION))
         return d
 
-    def test_PUT_NEWDIRURL_bad_mutable_type(self):
-        return self.shouldHTTPError("test bad mutable type",
-                             400, "Bad Request", "Unknown type: foo",
-                             self.PUT, self.public_url + \
-                             "/foo/newdir=?t=mkdir&mutable-type=foo", "")
+    def test_PUT_NEWDIRURL_bad_format(self):
+        return self.shouldHTTPError("PUT_NEWDIRURL_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
+                                    self.PUT, self.public_url +
+                                    "/foo/newdir=?t=mkdir&format=foo", "")
 
     def test_POST_NEWDIRURL(self):
         d = self.POST2(self.public_url + "/foo/newdir?t=mkdir", "")
@@ -1664,7 +1664,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_NEWDIRURL_mdmf(self):
-        d = self.POST2(self.public_url + "/foo/newdir?t=mkdir&mutable-type=mdmf", "")
+        d = self.POST2(self.public_url + "/foo/newdir?t=mkdir&format=mdmf", "")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -1673,7 +1673,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_NEWDIRURL_sdmf(self):
-        d = self.POST2(self.public_url + "/foo/newdir?t=mkdir&mutable-type=sdmf", "")
+        d = self.POST2(self.public_url + "/foo/newdir?t=mkdir&format=sdmf", "")
         d.addCallback(lambda res:
             self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
@@ -1681,11 +1681,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(node._node.get_version(), SDMF_VERSION))
         return d
 
-    def test_POST_NEWDIRURL_bad_mutable_type(self):
-        return self.shouldHTTPError("test bad mutable type",
-                                    400, "Bad Request", "Unknown type: foo",
+    def test_POST_NEWDIRURL_bad_format(self):
+        return self.shouldHTTPError("POST_NEWDIRURL_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
                                     self.POST2, self.public_url + \
-                                    "/foo/newdir?t=mkdir&mutable-type=foo", "")
+                                    "/foo/newdir?t=mkdir&format=foo", "")
 
     def test_POST_NEWDIRURL_emptyname(self):
         # an empty pathname component (i.e. a double-slash) is disallowed
@@ -1699,9 +1699,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         (newkids, caps) = self._create_initial_children()
         query = "/foo/newdir?t=mkdir-with-children"
         if version == MDMF_VERSION:
-            query += "&mutable-type=mdmf"
+            query += "&format=mdmf"
         elif version == SDMF_VERSION:
-            query += "&mutable-type=sdmf"
+            query += "&format=sdmf"
         else:
             version = SDMF_VERSION # for later
         d = self.POST2(self.public_url + query,
@@ -1756,12 +1756,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_NEWDIRURL_initial_children_sdmf(self):
         return self._do_POST_NEWDIRURL_initial_children_test(SDMF_VERSION)
 
-    def test_POST_NEWDIRURL_initial_children_bad_mutable_type(self):
+    def test_POST_NEWDIRURL_initial_children_bad_format(self):
         (newkids, caps) = self._create_initial_children()
-        return self.shouldHTTPError("test bad mutable type",
-                                    400, "Bad Request", "Unknown type: foo",
+        return self.shouldHTTPError("POST_NEWDIRURL_initial_children_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
                                     self.POST2, self.public_url + \
-                                    "/foo/newdir?t=mkdir-with-children&mutable-type=foo",
+                                    "/foo/newdir?t=mkdir-with-children&format=foo",
                                     simplejson.dumps(newkids))
 
     def test_POST_NEWDIRURL_immutable(self):
@@ -1865,7 +1865,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_NEWDIRURL_mkdirs_mdmf(self):
-        d = self.PUT(self.public_url + "/foo/subdir/newdir?t=mkdir&mutable-type=mdmf", "")
+        d = self.PUT(self.public_url + "/foo/subdir/newdir?t=mkdir&format=mdmf", "")
         d.addCallback(lambda ignored:
             self.failUnlessNodeHasChild(self._foo_node, u"subdir"))
         d.addCallback(lambda ignored:
@@ -1883,7 +1883,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_NEWDIRURL_mkdirs_sdmf(self):
-        d = self.PUT(self.public_url + "/foo/subdir/newdir?t=mkdir&mutable-type=sdmf", "")
+        d = self.PUT(self.public_url + "/foo/subdir/newdir?t=mkdir&format=sdmf", "")
         d.addCallback(lambda ignored:
             self.failUnlessNodeHasChild(self._foo_node, u"subdir"))
         d.addCallback(lambda ignored:
@@ -1900,11 +1900,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(newdir._node.get_version(), SDMF_VERSION))
         return d
 
-    def test_PUT_NEWDIRURL_mkdirs_bad_mutable_type(self):
-        return self.shouldHTTPError("test bad mutable type",
-                                    400, "Bad Request", "Unknown type: foo",
+    def test_PUT_NEWDIRURL_mkdirs_bad_format(self):
+        return self.shouldHTTPError("PUT_NEWDIRURL_mkdirs_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
                                     self.PUT, self.public_url + \
-                                    "/foo/subdir/newdir?t=mkdir&mutable-type=foo",
+                                    "/foo/subdir/newdir?t=mkdir&format=foo",
                                     "")
 
     def test_DELETE_DIRURL(self):
@@ -2152,69 +2152,68 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
 
-    def test_POST_upload_mutable_type_unlinked(self):
-        d = self.POST("/uri?t=upload&mutable=true&mutable-type=sdmf",
-                      file=("sdmf.txt", self.NEWFILE_CONTENTS * 300000))
-        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
-        def _got_json(json, version):
-            data = simplejson.loads(json)
-            data = data[1]
+    def test_POST_upload_format_unlinked(self):
+        def _check_upload_unlinked(ign, format, uri_prefix):
+            filename = format + ".txt"
+            d = self.POST("/uri?t=upload&format=" + format,
+                          file=(filename, self.NEWFILE_CONTENTS * 300000))
+            def _got_filecap(filecap):
+                self.failUnless(filecap.startswith(uri_prefix))
+                return self.GET("/uri/%s?t=json" % filecap)
+            d.addCallback(_got_filecap)
+            def _got_json(json):
+                data = simplejson.loads(json)
+                data = data[1]
+                self.failUnlessIn("format", data)
+                self.failUnlessEqual(data["format"], format)
+            d.addCallback(_got_json)
 
-            self.failUnlessIn("mutable-type", data)
-            self.failUnlessEqual(data['mutable-type'], version)
-        d.addCallback(_got_json, "sdmf")
-        d.addCallback(lambda ignored:
-            self.POST("/uri?t=upload&mutable=true&mutable-type=mdmf",
-                      file=('mdmf.txt', self.NEWFILE_CONTENTS * 300000)))
-        def _got_filecap(filecap):
-            self.failUnless(filecap.startswith("URI:MDMF"))
-            return filecap
-        d.addCallback(_got_filecap)
-        d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
-        d.addCallback(_got_json, "mdmf")
+        d = defer.succeed(None)
+        d.addCallback(_check_upload_unlinked, "chk", "URI:CHK")
+        d.addCallback(_check_upload_unlinked, "CHK", "URI:CHK")
+        d.addCallback(_check_upload_unlinked, "sdmf", "URI:SSK")
+        d.addCallback(_check_upload_unlinked, "mdmf", "URI:MDMF")
         return d
 
-    def test_POST_upload_mutable_type_unlinked_bad_mutable_type(self):
-        return self.shouldHTTPError("test bad mutable type",
-                                    400, "Bad Request", "Unknown type: foo",
+    def test_POST_upload_bad_format_unlinked(self):
+        return self.shouldHTTPError("POST_upload_bad_format_unlinked",
+                                    400, "Bad Request", "Unknown format: foo",
                                     self.POST,
-                                    "/uri?5=upload&mutable=true&mutable-type=foo",
+                                    "/uri?t=upload&format=foo",
                                     file=("foo.txt", self.NEWFILE_CONTENTS * 300000))
 
-    def test_POST_upload_mutable_type(self):
-        d = self.POST(self.public_url + \
-                      "/foo?t=upload&mutable=true&mutable-type=sdmf",
-                      file=("sdmf.txt", self.NEWFILE_CONTENTS * 300000))
-        fn = self._foo_node
-        def _got_cap(filecap, filename):
-            filenameu = unicode(filename)
-            self.failUnlessURIMatchesRWChild(filecap, fn, filenameu)
-            return self.GET(self.public_url + "/foo/%s?t=json" % filename)
-        def _got_mdmf_cap(filecap):
-            self.failUnless(filecap.startswith("URI:MDMF"))
-            return filecap
-        d.addCallback(_got_cap, "sdmf.txt")
-        def _got_json(json, version):
-            data = simplejson.loads(json)
-            data = data[1]
+    def test_POST_upload_format(self):
+        def _check_upload(ign, format, uri_prefix, fn=None):
+            filename = format + ".txt"
+            d = self.POST(self.public_url +
+                          "/foo?t=upload&format=" + format,
+                          file=(filename, self.NEWFILE_CONTENTS * 300000))
+            def _got_filecap(filecap):
+                if fn is not None:
+                    filenameu = unicode(filename)
+                    self.failUnlessURIMatchesRWChild(filecap, fn, filenameu)
+                self.failUnless(filecap.startswith(uri_prefix))
+                return self.GET(self.public_url + "/foo/%s?t=json" % filename)
+            d.addCallback(_got_filecap)
+            def _got_json(json):
+                data = simplejson.loads(json)
+                data = data[1]
+                self.failUnlessIn("format", data)
+                self.failUnlessEqual(data["format"], format)
+            d.addCallback(_got_json)
 
-            self.failUnlessIn("mutable-type", data)
-            self.failUnlessEqual(data['mutable-type'], version)
-        d.addCallback(_got_json, "sdmf")
-        d.addCallback(lambda ignored:
-            self.POST(self.public_url + \
-                      "/foo?t=upload&mutable=true&mutable-type=mdmf",
-                      file=("mdmf.txt", self.NEWFILE_CONTENTS * 300000)))
-        d.addCallback(_got_mdmf_cap)
-        d.addCallback(_got_cap, "mdmf.txt")
-        d.addCallback(_got_json, "mdmf")
+        d = defer.succeed(None)
+        d.addCallback(_check_upload, "chk", "URI:CHK")
+        d.addCallback(_check_upload, "sdmf", "URI:SSK", self._foo_node)
+        d.addCallback(_check_upload, "mdmf", "URI:MDMF")
+        d.addCallback(_check_upload, "MDMF", "URI:MDMF")
         return d
 
-    def test_POST_upload_bad_mutable_type(self):
-        return self.shouldHTTPError("test bad mutable type",
-                                    400, "Bad Request", "Unknown type: foo",
+    def test_POST_upload_bad_format(self):
+        return self.shouldHTTPError("POST_upload_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
                                     self.POST, self.public_url + \
-                                    "/foo?t=upload&mutable=true&mutable-type=foo",
+                                    "/foo?t=upload&format=foo",
                                     file=("foo.txt", self.NEWFILE_CONTENTS * 300000))
 
     def test_POST_upload_mutable(self):
@@ -2717,24 +2716,24 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_mkdir_mdmf(self):
-        d = self.POST(self.public_url + "/foo?t=mkdir&name=newdir&mutable-type=mdmf")
+        d = self.POST(self.public_url + "/foo?t=mkdir&name=newdir&format=mdmf")
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(lambda node:
             self.failUnlessEqual(node._node.get_version(), MDMF_VERSION))
         return d
 
     def test_POST_mkdir_sdmf(self):
-        d = self.POST(self.public_url + "/foo?t=mkdir&name=newdir&mutable-type=sdmf")
+        d = self.POST(self.public_url + "/foo?t=mkdir&name=newdir&format=sdmf")
         d.addCallback(lambda res: self._foo_node.get(u"newdir"))
         d.addCallback(lambda node:
             self.failUnlessEqual(node._node.get_version(), SDMF_VERSION))
         return d
 
-    def test_POST_mkdir_bad_mutable_type(self):
-        return self.shouldHTTPError("test bad mutable type",
-                                    400, "Bad Request", "Unknown type: foo",
-                                    self.POST, self.public_url + \
-                                    "/foo?t=mkdir&name=newdir&mutable-type=foo")
+    def test_POST_mkdir_bad_format(self):
+        return self.shouldHTTPError("POST_mkdir_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
+                                    self.POST, self.public_url +
+                                    "/foo?t=mkdir&name=newdir&format=foo")
 
     def test_POST_mkdir_initial_children(self):
         (newkids, caps) = self._create_initial_children()
@@ -2752,7 +2751,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_mkdir_initial_children_mdmf(self):
         (newkids, caps) = self._create_initial_children()
         d = self.POST2(self.public_url +
-                       "/foo?t=mkdir-with-children&name=newdir&mutable-type=mdmf",
+                       "/foo?t=mkdir-with-children&name=newdir&format=mdmf",
                        simplejson.dumps(newkids))
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
@@ -2768,7 +2767,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_mkdir_initial_children_sdmf(self):
         (newkids, caps) = self._create_initial_children()
         d = self.POST2(self.public_url +
-                       "/foo?t=mkdir-with-children&name=newdir&mutable-type=sdmf",
+                       "/foo?t=mkdir-with-children&name=newdir&format=sdmf",
                        simplejson.dumps(newkids))
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"newdir"))
@@ -2780,12 +2779,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                        caps['filecap1'])
         return d
 
-    def test_POST_mkdir_initial_children_bad_mutable_type(self):
+    def test_POST_mkdir_initial_children_bad_format(self):
         (newkids, caps) = self._create_initial_children()
-        return self.shouldHTTPError("test bad mutable type",
-                                    400, "Bad Request", "Unknown type: foo",
+        return self.shouldHTTPError("POST_mkdir_initial_children_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
                                     self.POST, self.public_url + \
-                                    "/foo?t=mkdir-with-children&name=newdir&mutable-type=foo",
+                                    "/foo?t=mkdir-with-children&name=newdir&format=foo",
                                     simplejson.dumps(newkids))
 
     def test_POST_mkdir_immutable(self):
@@ -2845,7 +2844,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_mkdir_no_parentdir_noredirect_mdmf(self):
-        d = self.POST("/uri?t=mkdir&mutable-type=mdmf")
+        d = self.POST("/uri?t=mkdir&format=mdmf")
         def _after_mkdir(res):
             u = uri.from_string(res)
             # Check that this is an MDMF writecap
@@ -2854,18 +2853,18 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_mkdir_no_parentdir_noredirect_sdmf(self):
-        d = self.POST("/uri?t=mkdir&mutable-type=sdmf")
+        d = self.POST("/uri?t=mkdir&format=sdmf")
         def _after_mkdir(res):
             u = uri.from_string(res)
             self.failUnlessIsInstance(u, uri.DirectoryURI)
         d.addCallback(_after_mkdir)
         return d
 
-    def test_POST_mkdir_no_parentdir_noredirect_bad_mutable_type(self):
-        return self.shouldHTTPError("test bad mutable type",
-                                    400, "Bad Request", "Unknown type: foo",
-                                    self.POST, self.public_url + \
-                                    "/uri?t=mkdir&mutable-type=foo")
+    def test_POST_mkdir_no_parentdir_noredirect_bad_format(self):
+        return self.shouldHTTPError("POST_mkdir_no_parentdir_noredirect_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
+                                    self.POST, self.public_url +
+                                    "/uri?t=mkdir&format=foo")
 
     def test_POST_mkdir_no_parentdir_noredirect2(self):
         # make sure form-based arguments (as on the welcome page) still work
@@ -3482,15 +3481,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_PUT_NEWFILEURL_mdmf(self):
         new_contents = self.NEWFILE_CONTENTS * 300000
         d = self.PUT(self.public_url + \
-                     "/foo/mdmf.txt?mutable=true&mutable-type=mdmf",
+                     "/foo/mdmf.txt?format=mdmf",
                      new_contents)
         d.addCallback(lambda ignored:
             self.GET(self.public_url + "/foo/mdmf.txt?t=json"))
         def _got_json(json):
             data = simplejson.loads(json)
             data = data[1]
-            self.failUnlessIn("mutable-type", data)
-            self.failUnlessEqual(data['mutable-type'], "mdmf")
+            self.failUnlessIn("format", data)
+            self.failUnlessEqual(data["format"], "mdmf")
             self.failUnless(data['rw_uri'].startswith("URI:MDMF"))
             self.failUnless(data['ro_uri'].startswith("URI:MDMF"))
         d.addCallback(_got_json)
@@ -3499,24 +3498,24 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_PUT_NEWFILEURL_sdmf(self):
         new_contents = self.NEWFILE_CONTENTS * 300000
         d = self.PUT(self.public_url + \
-                     "/foo/sdmf.txt?mutable=true&mutable-type=sdmf",
+                     "/foo/sdmf.txt?format=sdmf",
                      new_contents)
         d.addCallback(lambda ignored:
             self.GET(self.public_url + "/foo/sdmf.txt?t=json"))
         def _got_json(json):
             data = simplejson.loads(json)
             data = data[1]
-            self.failUnlessIn("mutable-type", data)
-            self.failUnlessEqual(data['mutable-type'], "sdmf")
+            self.failUnlessIn("format", data)
+            self.failUnlessEqual(data["format"], "sdmf")
         d.addCallback(_got_json)
         return d
 
-    def test_PUT_NEWFILEURL_bad_mutable_type(self):
+    def test_PUT_NEWFILEURL_bad_format(self):
        new_contents = self.NEWFILE_CONTENTS * 300000
-       return self.shouldHTTPError("test bad mutable type",
-                                   400, "Bad Request", "Unknown type: foo",
+       return self.shouldHTTPError("PUT_NEWFILEURL_bad_format",
+                                   400, "Bad Request", "Unknown format: foo",
                                    self.PUT, self.public_url + \
-                                   "/foo/foo.txt?mutable=true&mutable-type=foo",
+                                   "/foo/foo.txt?format=foo",
                                    new_contents)
 
     def test_PUT_NEWFILEURL_uri_replace(self):
@@ -3629,7 +3628,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_mkdir_mdmf(self):
-        d = self.PUT("/uri?t=mkdir&mutable-type=mdmf", "")
+        d = self.PUT("/uri?t=mkdir&format=mdmf", "")
         def _got(res):
             u = uri.from_string(res)
             # Check that this is an MDMF writecap
@@ -3638,17 +3637,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_mkdir_sdmf(self):
-        d = self.PUT("/uri?t=mkdir&mutable-type=sdmf", "")
+        d = self.PUT("/uri?t=mkdir&format=sdmf", "")
         def _got(res):
             u = uri.from_string(res)
             self.failUnlessIsInstance(u, uri.DirectoryURI)
         d.addCallback(_got)
         return d
 
-    def test_PUT_mkdir_bad_mutable_type(self):
-        return self.shouldHTTPError("bad mutable type",
-                                    400, "Bad Request", "Unknown type: foo",
-                                    self.PUT, "/uri?t=mkdir&mutable-type=foo",
+    def test_PUT_mkdir_bad_format(self):
+        return self.shouldHTTPError("PUT_mkdir_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
+                                    self.PUT, "/uri?t=mkdir&format=foo",
                                     "")
 
     def test_POST_check(self):
