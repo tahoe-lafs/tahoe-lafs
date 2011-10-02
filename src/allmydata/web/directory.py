@@ -574,6 +574,8 @@ def abbreviated_dirnode(dirnode):
     u = from_string_dirnode(dirnode.get_uri())
     return u.abbrev_si()
 
+SPACE = u"\u00A0"*2
+
 class DirectoryAsHTML(rend.Page):
     # The remainder of this class is to render the directory into
     # human+browser -oriented HTML.
@@ -796,7 +798,7 @@ class DirectoryAsHTML(rend.Page):
 
         return ctx.tag
 
-    # XXX: Duplicated from root.py.
+    # XXX: similar to render_upload_form and render_mkdir_form in root.py.
     def render_forms(self, ctx, data):
         forms = []
 
@@ -805,79 +807,62 @@ class DirectoryAsHTML(rend.Page):
         if self.dirnode_children is None:
             return T.div["No upload forms: directory is unreadable"]
 
-        mdmf_directory_input = T.input(type='radio', name='mutable-type',
-                                       id='mutable-directory-mdmf',
-                                       value='mdmf')
-        sdmf_directory_input = T.input(type='radio', name='mutable-type',
-                                       id='mutable-directory-sdmf',
-                                       value='sdmf', checked='checked')
-        mkdir = T.form(action=".", method="post",
-                       enctype="multipart/form-data")[
+        mkdir_sdmf = T.input(type='radio', name='format',
+                             value='sdmf', id='mkdir-sdmf',
+                             checked='checked')
+        mkdir_mdmf = T.input(type='radio', name='format',
+                             value='mdmf', id='mkdir-mdmf')
+
+        mkdir_form = T.form(action=".", method="post",
+                            enctype="multipart/form-data")[
             T.fieldset[
             T.input(type="hidden", name="t", value="mkdir"),
             T.input(type="hidden", name="when_done", value="."),
             T.legend(class_="freeform-form-label")["Create a new directory in this directory"],
-            "New directory name: ",
-            T.input(type="text", name="name"), " ",
-            T.label(for_='mutable-directory-sdmf')["SDMF"],
-            sdmf_directory_input,
-            T.label(for_='mutable-directory-mdmf')["MDMF"],
-            mdmf_directory_input,
-            T.input(type="submit", value="Create"),
+            "New directory name:"+SPACE,
+            T.input(type="text", name="name"), SPACE,
+            T.input(type="submit", value="Create"), SPACE*2,
+            mkdir_sdmf, T.label(for_='mutable-directory-sdmf')[" SDMF"], SPACE,
+            mkdir_mdmf, T.label(for_='mutable-directory-mdmf')[" MDMF (experimental)"],
             ]]
-        forms.append(T.div(class_="freeform-form")[mkdir])
+        forms.append(T.div(class_="freeform-form")[mkdir_form])
 
-        # Build input elements for mutable file type. We do this outside
-        # of the list so we can check the appropriate format, based on
-        # the default configured in the client (which reflects the
-        # default configured in tahoe.cfg)
-        if self.default_mutable_format == MDMF_VERSION:
-            mdmf_input = T.input(type='radio', name='mutable-type',
-                                 id='mutable-type-mdmf', value='mdmf',
-                                 checked='checked')
-        else:
-            mdmf_input = T.input(type='radio', name='mutable-type',
-                                 id='mutable-type-mdmf', value='mdmf')
+        upload_chk  = T.input(type='radio', name='format',
+                              value='chk', id='upload-chk',
+                              checked='checked')
+        upload_sdmf = T.input(type='radio', name='format',
+                              value='sdmf', id='upload-sdmf')
+        upload_mdmf = T.input(type='radio', name='format',
+                              value='mdmf', id='upload-mdmf')
 
-        if self.default_mutable_format == SDMF_VERSION:
-            sdmf_input = T.input(type='radio', name='mutable-type',
-                                 id='mutable-type-sdmf', value='sdmf',
-                                 checked="checked")
-        else:
-            sdmf_input = T.input(type='radio', name='mutable-type',
-                                 id='mutable-type-sdmf', value='sdmf')
-
-        upload = T.form(action=".", method="post",
-                        enctype="multipart/form-data")[
+        upload_form = T.form(action=".", method="post",
+                             enctype="multipart/form-data")[
             T.fieldset[
             T.input(type="hidden", name="t", value="upload"),
             T.input(type="hidden", name="when_done", value="."),
             T.legend(class_="freeform-form-label")["Upload a file to this directory"],
-            "Choose a file to upload: ",
-            T.input(type="file", name="file", class_="freeform-input-file"),
-            " ",
-            T.input(type="submit", value="Upload"),
-            " Mutable?:",
-            T.input(type="checkbox", name="mutable"),
-            sdmf_input, T.label(for_="mutable-type-sdmf")["SDMF"],
-            mdmf_input,
-            T.label(for_="mutable-type-mdmf")["MDMF (experimental)"],
+            "Choose a file to upload:"+SPACE,
+            T.input(type="file", name="file", class_="freeform-input-file"), SPACE,
+            T.input(type="submit", value="Upload"),                          SPACE*2,
+            upload_chk,  T.label(for_="upload-chk") [" Immutable"],          SPACE,
+            upload_sdmf, T.label(for_="upload-sdmf")[" SDMF"],               SPACE,
+            upload_mdmf, T.label(for_="upload-mdmf")[" MDMF (experimental)"],
             ]]
-        forms.append(T.div(class_="freeform-form")[upload])
+        forms.append(T.div(class_="freeform-form")[upload_form])
 
-        mount = T.form(action=".", method="post",
-                        enctype="multipart/form-data")[
+        attach_form = T.form(action=".", method="post",
+                             enctype="multipart/form-data")[
             T.fieldset[
             T.input(type="hidden", name="t", value="uri"),
             T.input(type="hidden", name="when_done", value="."),
             T.legend(class_="freeform-form-label")["Add a link to a file or directory which is already in Tahoe-LAFS."],
-            "New child name: ",
-            T.input(type="text", name="name"), " ",
-            "URI of new child: ",
-            T.input(type="text", name="uri"), " ",
+            "New child name:"+SPACE,
+            T.input(type="text", name="name"), SPACE*2,
+            "URI of new child:"+SPACE,
+            T.input(type="text", name="uri"), SPACE,
             T.input(type="submit", value="Attach"),
             ]]
-        forms.append(T.div(class_="freeform-form")[mount])
+        forms.append(T.div(class_="freeform-form")[attach_form])
         return forms
 
     def render_results(self, ctx, data):

@@ -12,7 +12,7 @@ import allmydata # to display import path
 from allmydata import get_package_versions_string
 from allmydata import provisioning
 from allmydata.util import idlib, log
-from allmydata.interfaces import IFileNode, MDMF_VERSION, SDMF_VERSION
+from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import reliability, storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
@@ -149,6 +149,8 @@ class NoReliability(rend.Page):
   </body>
 </html>
 ''')
+
+SPACE = u"\u00A0"*2
 
 class Root(rend.Page):
 
@@ -309,9 +311,9 @@ class Root(rend.Page):
                       enctype="multipart/form-data")[
             T.fieldset[
             T.legend(class_="freeform-form-label")["Download a file"],
-            T.div["Tahoe-URI to download: ",
+            T.div["Tahoe-URI to download:"+SPACE,
                   T.input(type="text", name="uri")],
-            T.div["Filename to download as: ",
+            T.div["Filename to download as:"+SPACE,
                   T.input(type="text", name="filename")],
             T.input(type="submit", value="Download!"),
             ]]
@@ -324,68 +326,54 @@ class Root(rend.Page):
                       enctype="multipart/form-data")[
             T.fieldset[
             T.legend(class_="freeform-form-label")["View a file or directory"],
-            "Tahoe-URI to view: ",
-            T.input(type="text", name="uri"), " ",
+            "Tahoe-URI to view:"+SPACE,
+            T.input(type="text", name="uri"), SPACE*2,
             T.input(type="submit", value="View!"),
             ]]
         return T.div[form]
 
     def render_upload_form(self, ctx, data):
-        # this is a form where users can upload unlinked files
-        #
-        # for mutable files, users can choose the format by selecting
-        # MDMF or SDMF from a radio button. They can also configure a
-        # default format in tahoe.cfg, which they rightly expect us to
-        # obey. we convey to them that we are obeying their choice by
-        # ensuring that the one that they've chosen is selected in the
-        # interface.
-        if self.client.mutable_file_default == MDMF_VERSION:
-            mdmf_input = T.input(type='radio', name='mutable-type',
-                                 value='mdmf', id='mutable-type-mdmf',
-                                 checked='checked')
-        else:
-            mdmf_input = T.input(type='radio', name='mutable-type',
-                                 value='mdmf', id='mutable-type-mdmf')
+        # This is a form where users can upload unlinked files.
+        # Users can choose immutable, SDMF, or MDMF from a radio button.
 
-        if self.client.mutable_file_default == SDMF_VERSION:
-            sdmf_input = T.input(type='radio', name='mutable-type',
-                                 value='sdmf', id='mutable-type-sdmf',
-                                 checked='checked')
-        else:
-            sdmf_input = T.input(type='radio', name='mutable-type',
-                                 value='sdmf', id='mutable-type-sdmf')
-
+        upload_chk  = T.input(type='radio', name='format',
+                              value='chk', id='upload-chk',
+                              checked='checked')
+        upload_sdmf = T.input(type='radio', name='format',
+                              value='sdmf', id='upload-sdmf')
+        upload_mdmf = T.input(type='radio', name='format',
+                              value='mdmf', id='upload-mdmf')
 
         form = T.form(action="uri", method="post",
                       enctype="multipart/form-data")[
             T.fieldset[
             T.legend(class_="freeform-form-label")["Upload a file"],
-            T.div["Choose a file: ",
+            T.div["Choose a file:"+SPACE,
                   T.input(type="file", name="file", class_="freeform-input-file")],
             T.input(type="hidden", name="t", value="upload"),
-            T.div[T.input(type="checkbox", name="mutable"), T.label(for_="mutable")["Create mutable file"],
-                  sdmf_input, T.label(for_="mutable-type-sdmf")["SDMF"],
-                  mdmf_input,
-                  T.label(for_='mutable-type-mdmf')['MDMF (experimental)'],
-                  " ", T.input(type="submit", value="Upload!")],
+            T.div[upload_chk,  T.label(for_="upload-chk") [" Immutable"],           SPACE,
+                  upload_sdmf, T.label(for_="upload-sdmf")[" SDMF"],                SPACE,
+                  upload_mdmf, T.label(for_="upload-mdmf")[" MDMF (experimental)"], SPACE*2,
+                  T.input(type="submit", value="Upload!")],
             ]]
         return T.div[form]
 
     def render_mkdir_form(self, ctx, data):
-        # this is a form where users can create new directories
-        mdmf_input = T.input(type='radio', name='mutable-type',
-                             value='mdmf', id='mutable-directory-mdmf')
-        sdmf_input = T.input(type='radio', name='mutable-type',
-                             value='sdmf', id='mutable-directory-sdmf',
+        # This is a form where users can create new directories.
+        # Users can choose SDMF or MDMF from a radio button.
+
+        mkdir_sdmf = T.input(type='radio', name='format',
+                             value='sdmf', id='mkdir-sdmf',
                              checked='checked')
+        mkdir_mdmf = T.input(type='radio', name='format',
+                             value='mdmf', id='mkdir-mdmf')
+
         form = T.form(action="uri", method="post",
                       enctype="multipart/form-data")[
             T.fieldset[
             T.legend(class_="freeform-form-label")["Create a directory"],
-            T.label(for_='mutable-directory-sdmf')["SDMF"],
-            sdmf_input,
-            T.label(for_='mutable-directory-mdmf')["MDMF"],
-            mdmf_input,
+            mkdir_sdmf, T.label(for_='mkdir-sdmf')[" SDMF"],                SPACE,
+            mkdir_mdmf, T.label(for_='mkdir-mdmf')[" MDMF (experimental)"], SPACE*2,
             T.input(type="hidden", name="t", value="mkdir"),
             T.input(type="hidden", name="redirect_to_result", value="true"),
             T.input(type="submit", value="Create a directory"),
@@ -399,8 +387,8 @@ class Root(rend.Page):
             T.fieldset[
             T.legend(class_="freeform-form-label")["Report an Incident"],
             T.input(type="hidden", name="t", value="report-incident"),
-            "What went wrong?: ",
-            T.input(type="text", name="details"), " ",
+            "What went wrong?:"+SPACE,
+            T.input(type="text", name="details"), SPACE,
             T.input(type="submit", value="Report!"),
             ]]
         return T.div[form]
