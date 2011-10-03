@@ -46,8 +46,13 @@ class _ImmutableFileNodeBase(object):
 
 class LiteralProducer:
     implements(IPushProducer)
+
+    def pauseProducing(self):
+        pass
+
     def resumeProducing(self):
         pass
+
     def stopProducing(self):
         pass
 
