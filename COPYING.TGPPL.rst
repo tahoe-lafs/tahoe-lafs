@@ -1,8 +1,4 @@
-﻿=========================================================
- Transitive Grace Period Public Licence ("TGPPL") v. 1.0
-=========================================================
-
-This work also comes with the added permission that you may combine it with a
+﻿This work also comes with the added permission that you may combine it with a
 work licensed under the OpenSSL license (any version) and distribute the
 resulting combined work, as long as you follow the requirements of the
 licences of this work in regard to all of the resulting combined work
@@ -112,35 +108,37 @@ the resulting combined work, as long as you follow the requirements of the
 licences of this work in regard to all of the resulting combined work
 aside from the work licensed under the Open Software License.
 
-
+=======================================================
+Transitive Grace Period Public Licence ("TGPPL") v. 1.0
+=======================================================
 
 This Transitive Grace Period Public Licence (the "License") applies to any
 original work of authorship (the "Original Work") whose owner (the
 "Licensor") has placed the following licensing notice adjacent to the
 copyright notice for the Original Work:
 
- Licensed under the Transitive Grace Period Public Licence version 1.0
+ *Licensed under the Transitive Grace Period Public Licence version 1.0*
 
 1.  **Grant of Copyright License.** Licensor grants You a worldwide,
     royalty-free, non-exclusive, sublicensable license, for the duration of
     the copyright, to do the following:
 
-  a. to reproduce the Original Work in copies, either alone or as part of a
-     collective work;
+    a. to reproduce the Original Work in copies, either alone or as part of a
+       collective work;
 
-  b. to translate, adapt, alter, transform, modify, or arrange the Original
-     Work, thereby creating derivative works ("Derivative Works") based upon
-     the Original Work;
+    b. to translate, adapt, alter, transform, modify, or arrange the Original
+       Work, thereby creating derivative works ("Derivative Works") based upon
+       the Original Work;
 
-  c. to distribute or communicate copies of the Original Work and Derivative
-     Works to the public, with the proviso that copies of Original Work or
-     Derivative Works that You distribute or communicate shall be licensed
-     under this Transitive Grace Period Public Licence no later than 12
-     months after You distributed or communicated said copies;
+    c. to distribute or communicate copies of the Original Work and Derivative
+       Works to the public, with the proviso that copies of Original Work or
+       Derivative Works that You distribute or communicate shall be licensed
+       under this Transitive Grace Period Public Licence no later than 12
+       months after You distributed or communicated said copies;
 
-  d. to perform the Original Work publicly; and
+    d. to perform the Original Work publicly; and
 
-  e. to display the Original Work publicly.
+    e. to display the Original Work publicly.
 
 2.  **Grant of Patent License.** Licensor grants You a worldwide,
     royalty-free, non-exclusive, sublicensable license, under patent claims
@@ -217,7 +215,7 @@ copyright notice for the Original Work:
     limitation of liability shall not apply to the extent applicable law
     prohibits such limitation.
 
-8.  **Acceptance and Termination.** If, at any time, You expressly assented
+9.  **Acceptance and Termination.** If, at any time, You expressly assented
     to this License, that assent indicates your clear and irrevocable
     acceptance of this License and all of its terms and conditions. If You
     distribute or communicate copies of the Original Work or a Derivative
@@ -233,7 +231,7 @@ copyright notice for the Original Work:
     You by this License upon your failure to honor the conditions in Section
     1(c).
 
-9.  **Termination for Patent Action.** This License shall terminate
+10. **Termination for Patent Action.** This License shall terminate
     automatically and You may no longer exercise any of the rights granted to
     You by this License as of the date You commence an action, including a
     cross-claim or counterclaim, against Licensor or any licensee alleging
@@ -241,7 +239,7 @@ copyright notice for the Original Work:
     shall not apply for an action alleging patent infringement by
     combinations of the Original Work with other software or hardware.
 
-10. **Jurisdiction, Venue and Governing Law.** Any action or suit relating to
+11. **Jurisdiction, Venue and Governing Law.** Any action or suit relating to
     this License may be brought only in the courts of a jurisdiction wherein
     the Licensor resides or in which Licensor conducts its primary business,
     and under the laws of that jurisdiction excluding its conflict-of-law
@@ -252,18 +250,18 @@ copyright notice for the Original Work:
     law in the appropriate jurisdiction. This section shall survive the
     termination of this License.
 
-11. **Attorneys' Fees.** In any action to enforce the terms of this License
+12. **Attorneys' Fees.** In any action to enforce the terms of this License
     or seeking damages relating thereto, the prevailing party shall be
     entitled to recover its costs and expenses, including, without
     limitation, reasonable attorneys' fees and costs incurred in connection
     with such action, including any appeal of such action. This section shall
     survive the termination of this License.
 
-12. **Miscellaneous.** If any provision of this License is held to be
+13. **Miscellaneous.** If any provision of this License is held to be
     unenforceable, such provision shall be reformed only to the extent
     necessary to make it enforceable.
 
-13. **Definition of "You" in This License.** "You" throughout this License,
+14. **Definition of "You" in This License.** "You" throughout this License,
     whether in upper or lower case, means an individual or a legal entity
     exercising rights under, and complying with all of the terms of, this
     License. For legal entities, "You" includes any entity that controls, is
@@ -273,11 +271,11 @@ copyright notice for the Original Work:
     otherwise, or (ii) ownership of fifty percent (50%) or more of the
     outstanding shares, or (iii) beneficial ownership of such entity.
 
-14. **Right to Use.** You may use the Original Work in all ways not otherwise
+15. **Right to Use.** You may use the Original Work in all ways not otherwise
     restricted or conditioned by this License or by law, and Licensor
     promises not to interfere with or be responsible for such uses by You.
 
-15. **Modification of This License.** This License is Copyright © 2007 Zooko
+16. **Modification of This License.** This License is Copyright © 2007 Zooko
     Wilcox-O'Hearn. Permission is granted to copy, distribute, or communicate
     this License without modification. Nothing in this License permits You to
     modify this License as applied to the Original Work or to Derivative
