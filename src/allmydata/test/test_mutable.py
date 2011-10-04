@@ -3289,7 +3289,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         def _run(ign):
             d = defer.succeed(None)
             for node in (self.mdmf_node, self.mdmf_max_shares_node):
-                d.addCallback(lambda ign: node.get_best_mutable_version())
+                # close over 'node'.
+                d.addCallback(lambda ign, node=node:
+                              node.get_best_mutable_version())
                 d.addCallback(lambda mv:
                     mv.update(MutableData(new_data), offset))
                 # close around node.
@@ -3439,7 +3441,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         def _run(ign):
             d = defer.succeed(None)
             for node in (self.mdmf_node, self.mdmf_max_shares_node):
-                d.addCallback(lambda ign: node.get_best_mutable_version())
+                # close over 'node'.
+                d.addCallback(lambda ign, node=node:
+                              node.get_best_mutable_version())
                 d.addCallback(lambda mv:
                     mv.update(MutableData(segment * 2), len(self.data)))
                 d.addCallback(lambda ignored, node=node:
@@ -3457,7 +3461,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         def _run(ign):
             d = defer.succeed(None)
             for node in (self.sdmf_node, self.sdmf_max_shares_node):
-                d.addCallback(lambda ign: node.get_best_mutable_version())
+                # close over 'node'.
+                d.addCallback(lambda ign, node=node:
+                              node.get_best_mutable_version())
                 d.addCallback(lambda mv:
                     mv.update(MutableData("appended"), len(self.small_data)))
                 d.addCallback(lambda ignored, node=node:
@@ -3479,7 +3485,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         def _run(ign):
             d = defer.succeed(None)
             for node in (self.mdmf_node, self.mdmf_max_shares_node):
-                d.addCallback(lambda ign: node.get_best_mutable_version())
+                # close over 'node'.
+                d.addCallback(lambda ign, node=node:
+                              node.get_best_mutable_version())
                 d.addCallback(lambda mv:
                     mv.update(MutableData("replaced"), replace_offset))
                 d.addCallback(lambda ignored, node=node:
@@ -3502,7 +3510,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         def _run(ign):
             d = defer.succeed(None)
             for node in (self.mdmf_node, self.mdmf_max_shares_node):
-                d.addCallback(lambda ign: node.get_best_mutable_version())
+                # close over 'node'.
+                d.addCallback(lambda ign, node=node:
+                              node.get_best_mutable_version())
                 d.addCallback(lambda mv:
                     mv.update(MutableData((2 * new_segment) + "replaced"),
                               replace_offset))
