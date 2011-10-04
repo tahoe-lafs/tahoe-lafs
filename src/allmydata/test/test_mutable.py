@@ -3293,10 +3293,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                 d.addCallback(lambda ign, node=node:
                               node.get_best_mutable_version())
                 d.addCallback(lambda mv:
-                    mv.update(MutableData(new_data), offset))
-                # close around node.
-                d.addCallback(lambda ignored, node=node:
-                    node.download_best_version())
+                              mv.update(MutableData(new_data), offset))
+                d.addCallback(lambda ign, node=node:
+                              node.download_best_version())
                 def _check(results):
                     if results != expected:
                         print
@@ -3445,11 +3444,11 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                 d.addCallback(lambda ign, node=node:
                               node.get_best_mutable_version())
                 d.addCallback(lambda mv:
-                    mv.update(MutableData(segment * 2), len(self.data)))
-                d.addCallback(lambda ignored, node=node:
-                    node.download_best_version())
+                              mv.update(MutableData(segment * 2), len(self.data)))
+                d.addCallback(lambda ign, node=node:
+                              node.download_best_version())
                 d.addCallback(lambda results:
-                    self.failUnlessEqual(results, new_data))
+                              self.failUnlessEqual(results, new_data))
             return d
         d0.addCallback(_run)
         return d0
@@ -3465,11 +3464,11 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                 d.addCallback(lambda ign, node=node:
                               node.get_best_mutable_version())
                 d.addCallback(lambda mv:
-                    mv.update(MutableData("appended"), len(self.small_data)))
-                d.addCallback(lambda ignored, node=node:
-                    node.download_best_version())
+                              mv.update(MutableData("appended"), len(self.small_data)))
+                d.addCallback(lambda ign, node=node:
+                              node.download_best_version())
                 d.addCallback(lambda results:
-                    self.failUnlessEqual(results, new_data))
+                              self.failUnlessEqual(results, new_data))
             return d
         d0.addCallback(_run)
         return d0
@@ -3489,11 +3488,11 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                 d.addCallback(lambda ign, node=node:
                               node.get_best_mutable_version())
                 d.addCallback(lambda mv:
-                    mv.update(MutableData("replaced"), replace_offset))
-                d.addCallback(lambda ignored, node=node:
-                    node.download_best_version())
+                              mv.update(MutableData("replaced"), replace_offset))
+                d.addCallback(lambda ign, node=node:
+                              node.download_best_version())
                 d.addCallback(lambda results:
-                    self.failUnlessEqual(results, new_data))
+                              self.failUnlessEqual(results, new_data))
             return d
         d0.addCallback(_run)
         return d0
@@ -3514,12 +3513,12 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                 d.addCallback(lambda ign, node=node:
                               node.get_best_mutable_version())
                 d.addCallback(lambda mv:
-                    mv.update(MutableData((2 * new_segment) + "replaced"),
-                              replace_offset))
+                              mv.update(MutableData((2 * new_segment) + "replaced"),
+                                        replace_offset))
                 d.addCallback(lambda ignored, node=node:
-                    node.download_best_version())
+                              node.download_best_version())
                 d.addCallback(lambda results:
-                    self.failUnlessEqual(results, new_data))
+                              self.failUnlessEqual(results, new_data))
             return d
         d0.addCallback(_run)
         return d0
