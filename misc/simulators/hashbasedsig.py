@@ -19,7 +19,7 @@ cycles_per_byte = 15.8      # cost of hash
 Mcycles_per_block = cycles_per_byte * L_block / (8 * 1000000.0)
 
 
-from math import floor, ceil, log, log1p, pow, e, sqrt
+from math import floor, ceil, log, log1p, pow, e
 from sys import stderr
 from gc import collect
 
@@ -138,17 +138,17 @@ def calculate(K, K1, K2, q_max, L_hash, trees):
         for x in xrange(1, j):
             lg_px[x] = lg_px[x-1] - lg(x) + lg_px_step
 
-        def find_min_q():
-            for q in xrange(1, q_max+1):
-                lg_q = lg(q)
-                lg_pforge = [lg_px[x] + (lg_q*x - lg_K2)*q for x in xrange(1, j)]
-                if max(lg_pforge) < -L_hash + lg(j) and lg_px[j-1] + 1.0 < -L_hash:
-                    #print "K = %d, K1 = %d, K2 = %d, L_hash = %d, lg_K2 = %.3f, q = %d, lg_pforge_1 = %.3f, lg_pforge_2 = %.3f, lg_pforge_3 = %.3f" \
-                    #      % (K, K1, K2, L_hash, lg_K2, q, lg_pforge_1, lg_pforge_2, lg_pforge_3)
-                    return q
-            return None
+        q = None
+        # Find the minimum acceptable value of q.
+        for q_cand in xrange(1, q_max+1):
+            lg_q = lg(q_cand)
+            lg_pforge = [lg_px[x] + (lg_q*x - lg_K2)*q_cand for x in xrange(1, j)]
+            if max(lg_pforge) < -L_hash + lg(j) and lg_px[j-1] + 1.0 < -L_hash:
+                #print "K = %d, K1 = %d, K2 = %d, L_hash = %d, lg_K2 = %.3f, q = %d, lg_pforge_1 = %.3f, lg_pforge_2 = %.3f, lg_pforge_3 = %.3f" \
+                #      % (K, K1, K2, L_hash, lg_K2, q, lg_pforge_1, lg_pforge_2, lg_pforge_3)
+                q = q_cand
+                break
 
-        q = find_min_q()
         if q is None or q == last_q:
             # if q hasn't decreased, this will be strictly worse than the previous candidate
             continue
