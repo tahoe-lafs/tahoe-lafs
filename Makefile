@@ -121,13 +121,17 @@ upload-coverage:
 	false
 endif
 
-code-checks: build version-and-path check-interfaces -find-trailing-spaces -check-umids pyflakes
+code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
 
 version-and-path:
 	$(TAHOE) --version-and-path
 
 check-interfaces:
 	$(TAHOE) @misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
+	@echo
+
+check-miscaptures:
+	$(PYTHON) misc/coding_tools/check-miscaptures.py $(SOURCES) 2>&1 |tee miscaptures.txt
 	@echo
 
 pyflakes:
