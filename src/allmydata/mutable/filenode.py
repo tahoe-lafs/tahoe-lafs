@@ -1136,14 +1136,14 @@ class MutableFileVersion:
         start_segments = {} # shnum -> start segment
         end_segments = {} # shnum -> end segment
         blockhashes = {} # shnum -> blockhash tree
-        for (shnum, data) in update_data.iteritems():
-            data = [d[1] for d in data if d[0] == self._version]
+        for (shnum, original_data) in update_data.iteritems():
+            data = [d[1] for d in original_data if d[0] == self._version]
 
             # Every data entry in our list should now be share shnum for
             # a particular version of the mutable file, so all of the
             # entries should be identical.
             datum = data[0]
-            assert filter(lambda x: x != datum, data) == []
+            assert [x for x in data if x != datum] == []
 
             blockhashes[shnum] = datum[0]
             start_segments[shnum] = datum[1]

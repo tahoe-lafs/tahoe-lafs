@@ -680,7 +680,7 @@ class ServermapUpdater:
                 d.addCallback(lambda results, shnum=shnum, peerid=peerid:
                     self._try_to_set_pubkey(results, peerid, shnum, lp))
                 # XXX: Make self._pubkey_query_failed?
-                d.addErrback(lambda error, shnum=shnum, peerid=peerid:
+                d.addErrback(lambda error, shnum=shnum, peerid=peerid, data=data:
                     self._got_corrupt_share(error, shnum, peerid, data, lp))
             else:
                 # we already have the public key.
@@ -695,7 +695,7 @@ class ServermapUpdater:
             #   bytes of the share on the storage server, so we
             #   shouldn't need to fetch anything at this step.
             d2 = reader.get_verinfo()
-            d2.addErrback(lambda error, shnum=shnum, peerid=peerid:
+            d2.addErrback(lambda error, shnum=shnum, peerid=peerid, data=data:
                 self._got_corrupt_share(error, shnum, peerid, data, lp))
             # - Next, we need the signature. For an SDMF share, it is
             #   likely that we fetched this when doing our initial fetch
@@ -703,7 +703,7 @@ class ServermapUpdater:
             #   the end of the share, so unless the file is quite small,
             #   we'll need to do a remote fetch to get it.
             d3 = reader.get_signature()
-            d3.addErrback(lambda error, shnum=shnum, peerid=peerid:
+            d3.addErrback(lambda error, shnum=shnum, peerid=peerid, data=data:
                 self._got_corrupt_share(error, shnum, peerid, data, lp))
             #  Once we have all three of these responses, we can move on
             #  to validating the signature
@@ -714,7 +714,7 @@ class ServermapUpdater:
                 d4 = reader.get_encprivkey()
                 d4.addCallback(lambda results, shnum=shnum, peerid=peerid:
                     self._try_to_validate_privkey(results, peerid, shnum, lp))
-                d4.addErrback(lambda error, shnum=shnum, peerid=peerid:
+                d4.addErrback(lambda error, shnum=shnum, peerid=peerid, data=data:
                     self._privkey_query_failed(error, shnum, data, lp))
             else:
                 d4 = defer.succeed(None)
