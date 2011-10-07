@@ -1115,7 +1115,7 @@ class Corruption(_Base, unittest.TestCase):
             for i,which,substring in corrupt_me:
                 # All these tests result in a failed download.
                 d.addCallback(self._corrupt_flip_all, imm_uri, i)
-                d.addCallback(lambda ign:
+                d.addCallback(lambda ign, which=which, substring=substring:
                               self.shouldFail(NoSharesError, which,
                                               substring,
                                               _download, imm_uri))

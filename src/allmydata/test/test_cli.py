@@ -757,9 +757,9 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("cannot contain", stderr)
 
         for invalid in ['foo:bar', 'foo bar', 'foobar::']:
-            d.addCallback(lambda res: self.do_cli("create-alias", invalid))
+            d.addCallback(lambda res, invalid=invalid: self.do_cli("create-alias", invalid))
             d.addCallback(_check_invalid)
-            d.addCallback(lambda res: self.do_cli("add-alias", invalid, self.two_uri))
+            d.addCallback(lambda res, invalid=invalid: self.do_cli("add-alias", invalid, self.two_uri))
             d.addCallback(_check_invalid)
 
         def _test_urls(junk):

@@ -1710,16 +1710,16 @@ class Dirnode2(testutil.ReallyEqualMixin, testutil.ShouldFailMixin, unittest.Tes
             n.raise_error()
 
         for (i, n) in unknown_rw:
-            self.failUnlessRaises(MustNotBeUnknownRWError, lambda: n.raise_error())
+            self.failUnlessRaises(MustNotBeUnknownRWError, lambda n=n: n.raise_error())
 
         for (i, n) in must_be_ro:
-            self.failUnlessRaises(MustBeReadonlyError, lambda: n.raise_error())
+            self.failUnlessRaises(MustBeReadonlyError, lambda n=n: n.raise_error())
 
         for (i, n) in must_be_imm:
-            self.failUnlessRaises(MustBeDeepImmutableError, lambda: n.raise_error())
+            self.failUnlessRaises(MustBeDeepImmutableError, lambda n=n: n.raise_error())
 
         for (i, n) in bad_uri:
-            self.failUnlessRaises(uri.BadURIError, lambda: n.raise_error())
+            self.failUnlessRaises(uri.BadURIError, lambda n=n: n.raise_error())
 
         for (i, n) in ok:
             self.failIf(n.get_readonly_uri() is None, i)
