@@ -190,7 +190,7 @@ def corrupt(res, s, offset, shnums_to_corrupt=None, offset_offset=0):
             reader = MDMFSlotReadProxy(None, None, shnum, data)
             # We need to get the offsets for the next part.
             d = reader.get_verinfo()
-            def _do_corruption(verinfo, data, shnum):
+            def _do_corruption(verinfo, data, shnum, shares):
                 (seqnum,
                  root_hash,
                  IV,
@@ -215,7 +215,7 @@ def corrupt(res, s, offset, shnums_to_corrupt=None, offset_offset=0):
                 else:
                     f = flip_bit
                 shares[shnum] = f(data, real_offset)
-            d.addCallback(_do_corruption, data, shnum)
+            d.addCallback(_do_corruption, data, shnum, shares)
             ds.append(d)
     dl = defer.DeferredList(ds)
     dl.addCallback(lambda ignored: res)
@@ -283,7 +283,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         self.nodemaker.default_encoding_parameters['n'] = 1
         d = defer.succeed(None)
         for v in (SDMF_VERSION, MDMF_VERSION):
-            d.addCallback(lambda ignored:
+            d.addCallback(lambda ignored, v=v:
                 self.nodemaker.create_mutable_file(version=v))
             def _created(n):
                 self.failUnless(isinstance(n, MutableFileNode))
