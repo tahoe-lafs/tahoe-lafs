@@ -2,9 +2,9 @@
 
 # used to discuss ticket #302: "stop permuting peerlist?"
 
-import time
+# import time
 import math
-from hashlib import sha1, md5, sha256
+from hashlib import md5  # sha1, sha256
 myhash = md5
 # md5: 1520 "uploads" per second
 # sha1: 1350 ups
@@ -168,7 +168,6 @@ class Options(usage.Options):
 def do_run(ring, opts):
     avg_space_per_file = avg_filesize * opts["N"] / opts["k"]
     fileseed = opts["fileseed"]
-    start = time.time()
     all_servers_have_room = True
     no_files_have_wrapped = True
     for filenum in count(0):
@@ -228,7 +227,7 @@ def do_ring(opts):
     seed = opts["seed"]
 
     ring = Ring(opts["servers"], seed, opts["permute"])
-    num_files = do_run(ring, opts)
+    do_run(ring, opts)
 
 def run(opts):
     do_ring(opts)
