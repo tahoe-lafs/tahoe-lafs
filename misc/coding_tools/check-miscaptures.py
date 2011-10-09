@@ -49,7 +49,7 @@ def check_loop(ast, results):
     for funcnode in nested:
         # Check for captured variables in this function.
         captured = set()
-        collect_captured(funcnode, assigned, captured)
+        collect_captured(funcnode, assigned, captured, False)
         for name in captured:
             # We want to report the outermost capturing function
             # (since that is where the workaround will need to be
@@ -87,7 +87,7 @@ def collect_assigned_and_nested(ast, assigned, nested):
             if isinstance(ast, Node):
                 collect_assigned_and_nested(child, assigned, nested)
 
-def collect_captured(ast, assigned, captured):
+def collect_captured(ast, assigned, captured, in_function_yet):
     """Collect any captured variables that are also in assigned."""
     if isinstance(ast, Name):
         if ast.name in assigned:
@@ -100,17 +100,20 @@ def collect_captured(ast, assigned, captured):
             new_assigned = assigned.copy()
             remove_argnames(ast.argnames, new_assigned)
 
-            for child in childnodes[len(ast.defaults):]:
-                collect_captured(child, assigned, captured)
+            if len(new_assigned) > 0:
+                for child in childnodes[len(ast.defaults):]:
+                    collect_captured(child, new_assigned, captured, True)
 
-            # The default argument expressions are "outside" the
-            # function, even though they are children of the
-            # Lambda or Function node.
+            # The default argument expressions are "outside" *this*
+            # function, even though they are children of the Lambda or
+            # Function node.
+            if not in_function_yet:
+                return
             childnodes = childnodes[:len(ast.defaults)]
 
         for child in childnodes:
             if isinstance(ast, Node):
-                collect_captured(child, assigned, captured)
+                collect_captured(child, assigned, captured, True)
 
 
 def remove_argnames(names, fromset):
