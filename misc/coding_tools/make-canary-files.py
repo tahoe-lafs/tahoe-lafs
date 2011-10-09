@@ -116,7 +116,7 @@ def find_share_for_target(target):
         u = upload.Data(data, convergence)
         eu = upload.EncryptAnUploadable(u)
         d = eu.get_storage_index() # this happens to run synchronously
-        def _got_si(si):
+        def _got_si(si, data=data):
             if verbose: print "SI", base32.b2a(si),
             peerlist = get_permuted_peers(si)
             if peerlist[0] == target:
