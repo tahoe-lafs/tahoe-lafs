@@ -14,7 +14,7 @@ def check_thing(parser, thing):
     try:
         ast = parser(thing)
     except SyntaxError, e:
-        return [e]
+        return e
     else:
         results = []
         check_ast(ast, results)
@@ -133,25 +133,27 @@ def make_result(funcnode, var_name, var_lineno):
 
 def report(out, path, results):
     for r in results:
-        if isinstance(r, SyntaxError):
-            print >>out, path + (" NOT ANALYSED due to syntax error: %s" % r)
-        else:
-            print >>out, path + (":%r %s captures %r assigned at line %d" % r)
+        print >>out, path + (":%r %s captures %r assigned at line %d" % r)
 
 def check(sources, out):
     class Counts:
         n = 0
         processed_files = 0
         suspect_files = 0
+        error_files = 0
     counts = Counts()
 
     def _process(path):
         results = check_file(path)
-        report(out, path, results)
-        counts.n += len(results)
-        counts.processed_files += 1
-        if len(results) > 0:
-            counts.suspect_files += 1
+        if isinstance(results, SyntaxError):
+            print >>out, path + (" NOT ANALYSED due to syntax error: %s" % results)
+            counts.error_files += 1
+        else:
+            report(out, path, results)
+            counts.n += len(results)
+            counts.processed_files += 1
+            if len(results) > 0:
+                counts.suspect_files += 1
 
     for source in sources:
         print >>out, "Checking %s..." % (source,)
@@ -164,8 +166,11 @@ def check(sources, out):
                     if ext == '.py':
                         _process(os.path.join(dirpath, fn))
 
-    print >>out, ("%d suspiciously captured variables in %d out of %d files"
+    print >>out, ("%d suspiciously captured variables in %d out of %d file(s)."
                   % (counts.n, counts.suspect_files, counts.processed_files))
+    if counts.error_files > 0:
+        print >>out, ("%d file(s) not processed due to syntax errors."
+                      % (counts.error_files,))
     return counts.n
 
 
