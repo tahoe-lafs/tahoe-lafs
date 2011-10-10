@@ -378,8 +378,17 @@ Writing/Uploading A File
  file is replaced with the data from the HTTP request body. For an
  immutable file, the "offset" parameter is not valid.
 
- When creating a new file, if "mutable=true" is in the query arguments, the
- operation will create a mutable file instead of an immutable one.
+ When creating a new file, you can control the type of file created by
+ specifying a format= argument in the query string. format=mdmf creates an MDMF
+ mutable file. format=sdmf creates an SDMF mutable file. format=chk creates an
+ immutable file. The value of the format argument is case-insensitive. For
+ compatibility with previous versions of Tahoe-LAFS, the webapi will also
+ accept a mutable=true argument in the query string. If mutable=true is given,
+ then the new file will be mutable, and its format will be the default mutable
+ file format, as configured on the Tahoe-LAFS node hosting the webapi server.
+ Use of mutable=true is discouraged; new code should use format= instead of
+ mutable=true.  If neither format= nor mutable=true are given, the
+ newly-created file will be immutable.
 
  This returns the file-cap of the resulting file. If a new file was created
  by this method, the HTTP response code (as dictated by rfc2616) will be set
@@ -395,19 +404,9 @@ Writing/Uploading A File
  attach the file into the filesystem. No directories will be modified by
  this operation. The file-cap is returned as the body of the HTTP response.
 
- If "mutable=true" is in the query arguments, the operation will create a
- mutable file, and return its write-cap in the HTTP respose. The default is
- to create an immutable file, returning the read-cap as a response. If
- you create a mutable file, you can also use the "mutable-type" query
- parameter. If "mutable-type=sdmf", then the mutable file will be created
- in the old SDMF mutable file format. This is desirable for files that
- need to be read by old clients. If "mutable-type=mdmf", then the file
- will be created in the new MDMF mutable file format. MDMF mutable files
- can be downloaded more efficiently, and modified in-place efficiently,
- but are not compatible with older versions of Tahoe-LAFS. If no
- "mutable-type" argument is given, the file is created in whatever
- format was configured in tahoe.cfg.
-
+ This method accepts format= and mutable=true as query string arguments, and
+ interprets those arguments in the same way as the linked forms of PUT
+ described immediately above.
 
 Creating A New Directory
 ------------------------
@@ -421,11 +420,22 @@ Creating A New Directory
  filesystem. The "PUT" operation is provided for backwards compatibility:
  new code should use POST.
 
+ This supports a format= argument in the query string. The format=
+ argument, if specified, controls the format of the directory. format=mdmf
+ indicates that the directory should be stored as an MDMF file; format=sdmf
+ indicates that the directory should be stored as an SDMF file. The value of
+ the format= argument is case-insensitive. If no format= argument is
+ given, the directory's format is determined by the default mutable file
+ format, as configured on the Tahoe-LAFS node responding to the request.
+
 ``POST /uri?t=mkdir-with-children``
 
  Create a new directory, populated with a set of child nodes, and return its
  write-cap as the HTTP response body. The new directory is not attached to
  any other directory: the returned write-cap is the only reference to it.
+
+ The format of the directory can be controlled with the format= argument in
+ the query string, as described above.
 
  Initial children are provided as the body of the POST form (this is more
  efficient than doing separate mkdir and set_children operations). If the
@@ -538,6 +548,14 @@ Creating A New Directory
 
  If the final directory is created, it will be empty.
 
+ This accepts a format= argument in the query string, which controls the
+ format of the named target directory, if it does not already exist. format=
+ is interpreted in the same way as in the POST /uri?t=mkdir form. Note that
+ format= only controls the format of the named target directory;
+ intermediate directories, if created, are created based on the default
+ mutable type, as configured on the Tahoe-LAFS server responding to the
+ request.
+
  This operation will return an error if a blocking file is present at any of
  the parent names, preventing the server from creating the necessary parent
  directory; or if it would require changing an immutable directory.
@@ -552,6 +570,14 @@ Creating A New Directory
  intermediate mutable directories as necessary. If the final directory is
  created, it will be populated with initial children from the POST request
  body, as described above.
+
+ This accepts a format= argument in the query string, which controls the
+ format of the target directory, if the target directory is created as part
+ of the operation. format= is interpreted in the same way as in the POST/
+ uri?t=mkdir-with-children operation. Note that format= only controls the
+ format of the named target directory; intermediate directories, if created,
+ are created using the default mutable type setting, as configured on the
+ Tahoe-LAFS server responding to the request.
  
  This operation will return an error if a blocking file is present at any of
  the parent names, preventing the server from creating the necessary parent
@@ -576,6 +602,14 @@ Creating A New Directory
  Create a new empty mutable directory and attach it to the given existing
  directory. This will create additional intermediate directories as necessary.
 
+ This accepts a format= argument in the query string, which controls the
+ format of the named target directory, if it does not already exist. format=
+ is interpreted in the same way as in the POST /uri?t=mkdir form. Note that
+ format= only controls the format of the named target directory;
+ intermediate directories, if created, are created based on the default
+ mutable type, as configured on the Tahoe-LAFS server responding to the
+ request.
+
  This operation will return an error if a blocking file is present at any of
  the parent names, preventing the server from creating the necessary parent
  directory, or if it would require changing any immutable directory.
@@ -589,7 +623,15 @@ Creating A New Directory
  Like /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=NAME, but the new directory will
  be populated with initial children via the POST request body. This command
  will create additional intermediate mutable directories as necessary.
- 
+
+ This accepts a format= argument in the query string, which controls the
+ format of the target directory, if the target directory is created as part
+ of the operation. format= is interpreted in the same way as in the POST/
+ uri?t=mkdir-with-children operation. Note that format= only controls the
+ format of the named target directory; intermediate directories, if created,
+ are created using the default mutable type setting, as configured on the
+ Tahoe-LAFS server responding to the request.
+
  This operation will return an error if a blocking file is present at any of
  the parent names, preventing the server from creating the necessary parent
  directory; or if it would require changing an immutable directory; or if
@@ -635,7 +677,8 @@ Getting Information About A File Or Directory (as JSON)
 	 "ro_uri": file_uri,
 	 "verify_uri": verify_uri,
 	 "size": bytes,
-	 "mutable": false
+	 "mutable": false,
+     "format": "chk"
 	 } ]
 
  If it is a capability to a directory followed by a path from that directory
@@ -649,6 +692,7 @@ Getting Information About A File Or Directory (as JSON)
 	 "verify_uri": verify_uri,
 	 "size": bytes,
 	 "mutable": false,
+     "format": "chk",
 	 "metadata": {
 	   "ctime": 1202777696.7564139,
 	   "mtime": 1202777696.7564139,
@@ -672,6 +716,7 @@ Getting Information About A File Or Directory (as JSON)
 	 "ro_uri": read_only_uri,
 	 "verify_uri": verify_uri,
 	 "mutable": true,
+     "format": "sdmf",
 	 "children": {
 	   "foo.txt": [ "filenode", {
 		   "ro_uri": uri,
@@ -1031,7 +1076,7 @@ Getting Information About A File Or Directory (as HTML)
  * access caps (URIs): verify-cap, read-cap, write-cap (for mutable objects)
  * check/verify/repair form
  * deep-check/deep-size/deep-stats/manifest (for directories)
- * replace-conents form (for mutable files)
+ * replace-contents form (for mutable files)
 
 
 Creating a Directory
@@ -1051,6 +1096,10 @@ Creating a Directory
  /uri/$DIRCAP page. There is a "create directory" button on the Welcome page
  to invoke this action.
 
+ This accepts a format= argument in the query string. Refer to the
+ documentation of the PUT /uri?t=mkdir operation in `Creating A
+ New Directory`_ for information on the behavior of the format= argument.
+
  If "redirect_to_result=true" is not provided (or is given a value of
  "false"), then the HTTP response body will simply be the write-cap of the
  new directory.
@@ -1059,6 +1108,11 @@ Creating a Directory
 
  This creates a new empty directory as a child of the designated SUBDIR. This
  will create additional intermediate directories as necessary.
+
+ This accepts a format= argument in the query string. Refer to the
+ documentation of POST /uri/$DIRCAP/[SUBDIRS../]?t=mkdir&name=CHILDNAME in
+ `Creating A New Directory`_ for information on the behavior of the format=
+ argument.
 
  If a "when_done=URL" argument is provided, the HTTP response will cause the
  web browser to redirect to the given URL. This provides a convenient way to
@@ -1096,17 +1150,9 @@ Uploading a File
  about which storage servers were used for the upload, how long each
  operation took, etc.
 
- If a "mutable=true" argument is provided, the operation will create a
- mutable file, and the response body will contain the write-cap instead of
- the upload results page. The default is to create an immutable file,
- returning the upload results page as a response. If you create a
- mutable file, you may choose to specify the format of that mutable file
- with the "mutable-type" parameter. If "mutable-type=mdmf", then the
- file will be created as an MDMF mutable file. If "mutable-type=sdmf",
- then the file will be created as an SDMF mutable file. If no value is
- specified, the file will be created in whatever format is specified in
- tahoe.cfg.
-
+ This accepts format= and mutable=true query string arguments. Refer to
+ `Writing/Uploading A File`_ for information on the behavior of format= and
+ mutable=true.
 
 ``POST /uri/$DIRCAP/[SUBDIRS../]?t=upload``
 
@@ -1142,9 +1188,9 @@ Uploading a File
  /uri/$DIRCAP/[SUBDIRS../]", it is likely that the parent directory will
  already exist.
 
- If a "mutable=true" argument is provided, any new file that is created will
- be a mutable file instead of an immutable one. <input type="checkbox"
- name="mutable" /> will give the user a way to set this option.
+ This accepts format= and mutable=true query string arguments. Refer to
+ `Writing/Uploading A File`_ for information on the behavior of format= and
+ mutable=true.
 
  If a "when_done=URL" argument is provided, the HTTP response will cause the
  web browser to redirect to the given URL. This provides a convenient way to
