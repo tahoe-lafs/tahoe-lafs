@@ -550,12 +550,7 @@ class IImmutableFileURI(IFileURI):
     pass
 
 class IMutableFileURI(Interface):
-    """I am a URI which represents a mutable filenode."""
-    def get_extension_params():
-        """Return the extension parameters in the URI"""
-
-    def set_extension_params():
-        """Set the extension parameters that should be in the URI"""
+    pass
 
 class IDirectoryURI(Interface):
     pass
