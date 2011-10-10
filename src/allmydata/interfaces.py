@@ -457,7 +457,7 @@ class IMutableSlotWriter(Interface):
         Add a block and salt to the share.
         """
 
-    def put_encprivey(encprivkey):
+    def put_encprivkey(encprivkey):
         """
         Add the encrypted private key to the share.
         """
