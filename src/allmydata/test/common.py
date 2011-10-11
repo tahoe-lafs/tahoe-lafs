@@ -1069,8 +1069,8 @@ class ShouldFailMixin:
                 if substring:
                     message = repr(res.value.args[0])
                     self.failUnless(substring in message,
-                                    "substring '%s' not in '%s'"
-                                    % (substring, message))
+                                    "%s: substring '%s' not in '%s'"
+                                    % (which, substring, message))
             else:
                 self.fail("%s was supposed to raise %s, not get '%s'" %
                           (which, expected_failure, res))
@@ -1103,17 +1103,17 @@ class WebErrorMixin:
         assert callable
         def _validate(f):
             if code is not None:
-                self.failUnlessEqual(f.value.status, str(code))
+                self.failUnlessEqual(f.value.status, str(code), which)
             if substring:
                 code_string = str(f)
                 self.failUnless(substring in code_string,
-                                "substring '%s' not in '%s'"
-                                % (substring, code_string))
+                                "%s: substring '%s' not in '%s'"
+                                % (which, substring, code_string))
             response_body = f.value.response
             if response_substring:
                 self.failUnless(response_substring in response_body,
-                                "response substring '%s' not in '%s'"
-                                % (response_substring, response_body))
+                                "%s: response substring '%s' not in '%s'"
+                                % (which, response_substring, response_body))
             return response_body
         d = defer.maybeDeferred(callable, *args, **kwargs)
         d.addBoth(self._shouldHTTPError, which, _validate)
