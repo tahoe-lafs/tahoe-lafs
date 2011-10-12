@@ -65,6 +65,10 @@ def check():
     for (dirpath, dirnames, filenames) in os.walk(srcdir):
         for fn in filenames:
             (basename, ext) = os.path.splitext(fn)
+            if ext in ('.pyc', '.pyo') and not os.path.exists(os.path.join(dirpath, basename+'.py')):
+                print >>sys.stderr, ("Warning: no .py source file for %r.\n"
+                                     % (os.path.join(dirpath, fn),))
+
             if ext == '.py' and not excluded_file_basenames.match(basename):
                 relpath = os.path.join(dirpath[len(srcdir)+1:], basename)
                 module = relpath.replace(os.sep, '/').replace('/', '.')
