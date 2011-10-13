@@ -173,7 +173,7 @@ class FakeClient(Client):
         self.blacklist = None
         self.nodemaker = FakeNodeMaker(None, self._secret_holder, None,
                                        self.uploader, None,
-                                       None, None)
+                                       None, None, None)
         self.mutable_file_default = SDMF_VERSION
 
     def startService(self):
