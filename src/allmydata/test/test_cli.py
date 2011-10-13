@@ -1145,7 +1145,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
     def _check_mdmf_json(self, (rc, json, err)):
          self.failUnlessEqual(rc, 0)
          self.failUnlessEqual(err, "")
-         self.failUnlessIn('"format": "mdmf"', json)
+         self.failUnlessIn('"format": "MDMF"', json)
          # We also want a valid MDMF cap to be in the json.
          self.failUnlessIn("URI:MDMF", json)
          self.failUnlessIn("URI:MDMF-RO", json)
@@ -1154,7 +1154,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
     def _check_sdmf_json(self, (rc, json, err)):
         self.failUnlessEqual(rc, 0)
         self.failUnlessEqual(err, "")
-        self.failUnlessIn('"format": "sdmf"', json)
+        self.failUnlessIn('"format": "SDMF"', json)
         # We also want to see the appropriate SDMF caps.
         self.failUnlessIn("URI:SSK", json)
         self.failUnlessIn("URI:SSK-RO", json)
@@ -1618,8 +1618,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn(self._sdmf_uri, out)
             self.failUnlessIn(self._sdmf_readonly_uri, out)
             self.failUnlessIn(self._imm_uri, out)
-            self.failUnlessIn('"format": "sdmf"', out)
-            self.failUnlessIn('"format": "mdmf"', out)
+            self.failUnlessIn('"format": "SDMF"', out)
+            self.failUnlessIn('"format": "MDMF"', out)
         d.addCallback(_got_json)
         return d
 
@@ -3318,7 +3318,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
             d2.addCallback(lambda ign: self.do_cli("ls", "--json", dirname))
             d2.addCallback(_check, uri_prefix)
             d2.addCallback(lambda ign: self.do_cli("ls", "--json", self._filecap))
-            d2.addCallback(_check, '"format": "%s"' % (mutable_type.lower(),))
+            d2.addCallback(_check, '"format": "%s"' % (mutable_type.upper(),))
             return d2
 
         d.addCallback(_mkdir, "sdmf", "URI:DIR2", "tahoe:foo")
@@ -3348,13 +3348,13 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_dircap)
         d.addCallback(lambda res: self.do_cli("ls", "--json",
                                               self._filecap))
-        d.addCallback(_check, '"format": "sdmf"')
+        d.addCallback(_check, '"format": "SDMF"')
         d.addCallback(lambda res: self.do_cli("mkdir", "--mutable-type=mdmf"))
         d.addCallback(_check, "URI:DIR2-MDMF")
         d.addCallback(_stash_dircap)
         d.addCallback(lambda res: self.do_cli("ls", "--json",
                                               self._filecap))
-        d.addCallback(_check, '"format": "mdmf"')
+        d.addCallback(_check, '"format": "MDMF"')
         return d
 
     def test_mkdir_bad_mutable_type(self):

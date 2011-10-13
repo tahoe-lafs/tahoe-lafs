@@ -379,8 +379,8 @@ Writing/Uploading A File
  immutable file, the "offset" parameter is not valid.
 
  When creating a new file, you can control the type of file created by
- specifying a format= argument in the query string. format=mdmf creates an MDMF
- mutable file. format=sdmf creates an SDMF mutable file. format=chk creates an
+ specifying a format= argument in the query string. format=MDMF creates an MDMF
+ mutable file. format=SDMF creates an SDMF mutable file. format=CHK creates an
  immutable file. The value of the format argument is case-insensitive. For
  compatibility with previous versions of Tahoe-LAFS, the webapi will also
  accept a mutable=true argument in the query string. If mutable=true is given,
@@ -421,8 +421,8 @@ Creating A New Directory
  new code should use POST.
 
  This supports a format= argument in the query string. The format=
- argument, if specified, controls the format of the directory. format=mdmf
- indicates that the directory should be stored as an MDMF file; format=sdmf
+ argument, if specified, controls the format of the directory. format=MDMF
+ indicates that the directory should be stored as an MDMF file; format=SDMF
  indicates that the directory should be stored as an SDMF file. The value of
  the format= argument is case-insensitive. If no format= argument is
  given, the directory's format is determined by the default mutable file
@@ -678,7 +678,7 @@ Getting Information About A File Or Directory (as JSON)
       "verify_uri": verify_uri,
       "size": bytes,
       "mutable": false,
-      "format": "chk"
+      "format": "CHK"
      } ]
 
  If it is a capability to a directory followed by a path from that directory
@@ -692,7 +692,7 @@ Getting Information About A File Or Directory (as JSON)
       "verify_uri": verify_uri,
       "size": bytes,
       "mutable": false,
-      "format": "chk",
+      "format": "CHK",
       "metadata": {
        "ctime": 1202777696.7564139,
        "mtime": 1202777696.7564139,
@@ -716,7 +716,7 @@ Getting Information About A File Or Directory (as JSON)
      "ro_uri": read_only_uri,
      "verify_uri": verify_uri,
      "mutable": true,
-     "format": "sdmf",
+     "format": "SDMF",
      "children": {
       "foo.txt": [ "filenode",
                    {

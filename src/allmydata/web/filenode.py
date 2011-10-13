@@ -514,11 +514,11 @@ def FileJSONMetadata(ctx, filenode, edge_metadata):
         mutable_type = filenode.get_version()
         assert mutable_type in (SDMF_VERSION, MDMF_VERSION)
         if mutable_type == MDMF_VERSION:
-            file_format = "mdmf"
+            file_format = "MDMF"
         else:
-            file_format = "sdmf"
+            file_format = "SDMF"
     else:
-        file_format = "chk"
+        file_format = "CHK"
     data[1]['format'] = file_format
 
     return text_plain(simplejson.dumps(data, indent=1) + "\n", ctx)

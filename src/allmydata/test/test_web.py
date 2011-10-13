@@ -1072,7 +1072,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return filecap
         d.addCallback(_got_filecap)
         d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
-        d.addCallback(lambda json: self.failUnlessIn("mdmf", json))
+        d.addCallback(lambda json: self.failUnlessIn("MDMF", json))
         return d
 
     def test_PUT_NEWFILEURL_unlinked_sdmf(self):
@@ -1080,7 +1080,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.PUT("/uri?format=sdmf",
                      contents)
         d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
-        d.addCallback(lambda json: self.failUnlessIn("sdmf", json))
+        d.addCallback(lambda json: self.failUnlessIn("SDMF", json))
         return d
 
     def test_PUT_NEWFILEURL_unlinked_bad_format(self):
@@ -1235,13 +1235,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn("format", data)
             self.failUnlessEqual(data["format"], version)
 
-        d.addCallback(_got_json, "mdmf")
+        d.addCallback(_got_json, "MDMF")
         # Now make an SDMF file and check that it is reported correctly.
         d.addCallback(lambda ignored:
             self.PUT("/uri?format=sdmf",
                       self.NEWFILE_CONTENTS * 300000))
         d.addCallback(lambda filecap: self.GET("/uri/%s?t=json" % filecap))
-        d.addCallback(_got_json, "sdmf")
+        d.addCallback(_got_json, "SDMF")
         return d
 
     def test_GET_FILEURL_json_mdmf(self):
@@ -1430,11 +1430,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
             mdmf_data = kids['mdmf.txt'][1]
             self.failUnlessIn("format", mdmf_data)
-            self.failUnlessEqual(mdmf_data["format"], "mdmf")
+            self.failUnlessEqual(mdmf_data["format"], "MDMF")
 
             sdmf_data = kids['sdmf.txt'][1]
             self.failUnlessIn("format", sdmf_data)
-            self.failUnlessEqual(sdmf_data["format"], "sdmf")
+            self.failUnlessEqual(sdmf_data["format"], "SDMF")
         d.addCallback(_got_json)
         return d
 
@@ -2141,7 +2141,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 data = simplejson.loads(json)
                 data = data[1]
                 self.failUnlessIn("format", data)
-                self.failUnlessEqual(data["format"], format.lower())
+                self.failUnlessEqual(data["format"], format.upper())
             d.addCallback(_got_json)
             return d
         d = defer.succeed(None)
@@ -2175,7 +2175,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 data = simplejson.loads(json)
                 data = data[1]
                 self.failUnlessIn("format", data)
-                self.failUnlessEqual(data["format"], format.lower())
+                self.failUnlessEqual(data["format"], format.upper())
             d.addCallback(_got_json)
             return d
 
@@ -3468,7 +3468,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             data = simplejson.loads(json)
             data = data[1]
             self.failUnlessIn("format", data)
-            self.failUnlessEqual(data["format"], "mdmf")
+            self.failUnlessEqual(data["format"], "MDMF")
             self.failUnless(data['rw_uri'].startswith("URI:MDMF"))
             self.failUnless(data['ro_uri'].startswith("URI:MDMF"))
         d.addCallback(_got_json)
@@ -3485,7 +3485,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             data = simplejson.loads(json)
             data = data[1]
             self.failUnlessIn("format", data)
-            self.failUnlessEqual(data["format"], "sdmf")
+            self.failUnlessEqual(data["format"], "SDMF")
         d.addCallback(_got_json)
         return d
 

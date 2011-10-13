@@ -869,11 +869,11 @@ def DirectoryJSONMetadata(ctx, dirnode):
                     mutable_type = childnode.get_version()
                     assert mutable_type in (SDMF_VERSION, MDMF_VERSION)
                     if mutable_type == MDMF_VERSION:
-                        file_format = "mdmf"
+                        file_format = "MDMF"
                     else:
-                        file_format = "sdmf"
+                        file_format = "SDMF"
                 else:
-                    file_format = "chk"
+                    file_format = "CHK"
                 kiddata[1]['format'] = file_format
 
             elif IDirectoryNode.providedBy(childnode):
