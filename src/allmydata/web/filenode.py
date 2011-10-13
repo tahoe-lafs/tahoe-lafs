@@ -452,13 +452,10 @@ class FileDownloader(rend.Page):
         if req.method == "HEAD":
             return ""
 
-        # Twisted >=9.0 throws an error if we call req.finish() on a closed
-        # HTTP connection. It also has req.notifyFinish() to help avoid it.
         finished = []
         def _request_finished(ign):
             finished.append(True)
-        if hasattr(req, "notifyFinish"):
-            req.notifyFinish().addBoth(_request_finished)
+        req.notifyFinish().addBoth(_request_finished)
 
         d = self.filenode.read(req, first, size)
 
