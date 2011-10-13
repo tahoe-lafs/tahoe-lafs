@@ -34,17 +34,29 @@ def parse_replace_arg(replace):
         return boolean_of_arg(replace)
 
 
-def parse_mutable_type_arg(arg):
+def get_format(req, default="CHK"):
+    arg = get_arg(req, "format", None)
     if not arg:
-        return None # interpreted by the caller as "let the nodemaker decide"
+        if boolean_of_arg(get_arg(req, "mutable", "false")):
+            return "SDMF"
+        return default
+    if arg.upper() == "CHK":
+        return "CHK"
+    elif arg.upper() == "SDMF":
+        return "SDMF"
+    elif arg.upper() == "MDMF":
+        return "MDMF"
+    else:
+        raise WebError("Unknown format: %s, I know CHK, SDMF, MDMF" % arg,
+                       http.BAD_REQUEST)
 
-    arg = arg.lower()
-    if arg == "mdmf":
-        return MDMF_VERSION
-    elif arg == "sdmf":
+def get_mutable_type(file_format): # accepts result of get_format()
+    if file_format == "SDMF":
         return SDMF_VERSION
-
-    return "invalid"
+    elif file_format == "MDMF":
+        return MDMF_VERSION
+    else:
+        return None
 
 
 def parse_offset_arg(offset):

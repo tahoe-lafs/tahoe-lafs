@@ -499,7 +499,7 @@ class Client(node.Node, pollmixin.PollMixin):
         # may get an opaque node if there were any problems.
         return self.nodemaker.create_from_cap(write_uri, read_uri, deep_immutable=deep_immutable, name=name)
 
-    def create_dirnode(self, initial_children={}, version=SDMF_VERSION):
+    def create_dirnode(self, initial_children={}, version=None):
         d = self.nodemaker.create_new_mutable_directory(initial_children, version=version)
         return d
 

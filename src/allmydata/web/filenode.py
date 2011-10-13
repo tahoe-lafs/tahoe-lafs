@@ -18,7 +18,7 @@ from allmydata.blacklist import FileProhibited, ProhibitedNode
 from allmydata.web.common import text_plain, WebError, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories, \
      MyExceptionHandler, parse_replace_arg, parse_offset_arg, \
-     parse_mutable_type_arg
+     get_format, get_mutable_type
 from allmydata.web.check_results import CheckResults, \
      CheckAndRepairResults, LiteralCheckResults
 from allmydata.web.info import MoreInfo
@@ -26,13 +26,9 @@ from allmydata.web.info import MoreInfo
 class ReplaceMeMixin:
     def replace_me_with_a_child(self, req, client, replace):
         # a new file is being uploaded in our place.
-        mutable = boolean_of_arg(get_arg(req, "mutable", "false"))
-        if mutable:
-            arg = get_arg(req, "mutable-type", None)
-            mutable_type = parse_mutable_type_arg(arg)
-            if mutable_type is "invalid":
-                raise WebError("Unknown type: %s" % arg, http.BAD_REQUEST)
-
+        file_format = get_format(req, "CHK")
+        if file_format in ("SDMF", "MDMF"):
+            mutable_type = get_mutable_type(file_format)
             data = MutableFileHandle(req.content)
             d = client.create_mutable_file(data, version=mutable_type)
             def _uploaded(newnode):
@@ -42,6 +38,7 @@ class ReplaceMeMixin:
                 return d2
             d.addCallback(_uploaded)
         else:
+            assert file_format == "CHK"
             uploadable = FileHandle(req.content, convergence=client.convergence)
             d = self.parentnode.add_file(self.name, uploadable,
                                          overwrite=replace)
@@ -70,15 +67,10 @@ class ReplaceMeMixin:
 
     def replace_me_with_a_formpost(self, req, client, replace):
         # create a new file, maybe mutable, maybe immutable
-        mutable = boolean_of_arg(get_arg(req, "mutable", "false"))
-
-        # create an immutable file
+        file_format = get_format(req, "CHK")
         contents = req.fields["file"]
-        if mutable:
-            arg = get_arg(req, "mutable-type", None)
-            mutable_type = parse_mutable_type_arg(arg)
-            if mutable_type is "invalid":
-                raise WebError("Unknown type: %s" % arg, http.BAD_REQUEST)
+        if file_format in ("SDMF", "MDMF"):
+            mutable_type = get_mutable_type(file_format)
             uploadable = MutableFileHandle(contents.file)
             d = client.create_mutable_file(uploadable, version=mutable_type)
             def _uploaded(newnode):
@@ -518,14 +510,16 @@ def FileJSONMetadata(ctx, filenode, edge_metadata):
     if edge_metadata is not None:
         data[1]['metadata'] = edge_metadata
 
-    if filenode.is_mutable() and filenode.get_version() is not None:
+    if filenode.is_mutable():
         mutable_type = filenode.get_version()
-        assert mutable_type in (MDMF_VERSION, SDMF_VERSION)
+        assert mutable_type in (SDMF_VERSION, MDMF_VERSION)
         if mutable_type == MDMF_VERSION:
-            mutable_type = "mdmf"
+            file_format = "mdmf"
         else:
-            mutable_type = "sdmf"
-        data[1]['mutable-type'] = mutable_type
+            file_format = "sdmf"
+    else:
+        file_format = "chk"
+    data[1]['format'] = file_format
 
     return text_plain(simplejson.dumps(data, indent=1) + "\n", ctx)
 

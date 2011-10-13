@@ -109,8 +109,9 @@ class NodeMaker:
             return self._create_dirnode(filenode)
         return None
 
-    def create_mutable_file(self, contents=None, keysize=None,
-                            version=SDMF_VERSION):
+    def create_mutable_file(self, contents=None, keysize=None, version=None):
+        if version is None:
+            version = SDMF_VERSION
         n = MutableFileNode(self.storage_broker, self.secret_holder,
                             self.default_encoding_parameters, self.history)
         d = self.key_generator.generate(keysize)
@@ -118,8 +119,7 @@ class NodeMaker:
         d.addCallback(lambda res: n)
         return d
 
-    def create_new_mutable_directory(self, initial_children={},
-                                     version=SDMF_VERSION):
+    def create_new_mutable_directory(self, initial_children={}, version=None):
         # initial_children must have metadata (i.e. {} instead of None)
         for (name, (node, metadata)) in initial_children.iteritems():
             precondition(isinstance(metadata, dict),

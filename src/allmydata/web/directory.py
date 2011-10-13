@@ -25,7 +25,7 @@ from allmydata.web.common import text_plain, WebError, \
      boolean_of_arg, get_arg, get_root, parse_replace_arg, \
      should_create_intermediate_directories, \
      getxmlfile, RenderMixin, humanize_failure, convert_children_json, \
-     parse_mutable_type_arg
+     get_format, get_mutable_type
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.check_results import CheckResults, \
@@ -107,17 +107,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                         kids_json = req.content.read()
                         kids = convert_children_json(self.client.nodemaker,
                                                      kids_json)
+                    file_format = get_format(req, None)
                     mutable = True
+                    mt = get_mutable_type(file_format)
                     if t == "mkdir-immutable":
                         mutable = False
 
-                    mt = None
-                    if mutable:
-                        arg = get_arg(req, "mutable-type", None)
-                        mt = parse_mutable_type_arg(arg)
-                        if mt is "invalid":
-                            raise WebError("Unknown type: %s" % arg,
-                                           http.BAD_REQUEST)
                     d = self.node.create_subdirectory(name, kids,
                                                       mutable=mutable,
                                                       mutable_version=mt)
@@ -251,15 +246,9 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         name = name.decode("utf-8")
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
         kids = {}
-        arg = get_arg(req, "mutable-type", None)
-        mt = parse_mutable_type_arg(arg)
-        if mt is not None and mt is not "invalid":
-            d = self.node.create_subdirectory(name, kids, overwrite=replace,
+        mt = get_mutable_type(get_format(req, None))
+        d = self.node.create_subdirectory(name, kids, overwrite=replace,
                                           mutable_version=mt)
-        elif mt is "invalid":
-            raise WebError("Unknown type: %s" % arg, http.BAD_REQUEST)
-        else:
-            d = self.node.create_subdirectory(name, kids, overwrite=replace)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 
@@ -275,15 +264,9 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         req.content.seek(0)
         kids_json = req.content.read()
         kids = convert_children_json(self.client.nodemaker, kids_json)
-        arg = get_arg(req, "mutable-type", None)
-        mt = parse_mutable_type_arg(arg)
-        if mt is not None and mt is not "invalid":
-            d = self.node.create_subdirectory(name, kids, overwrite=False,
-                                              mutable_version=mt)
-        elif mt is "invalid":
-            raise WebError("Unknown type: %s" % arg)
-        else:
-            d = self.node.create_subdirectory(name, kids, overwrite=False)
+        mt = get_mutable_type(get_format(req, None))
+        d = self.node.create_subdirectory(name, kids, overwrite=False,
+                                          mutable_version=mt)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
         return d
 
@@ -882,16 +865,16 @@ def DirectoryJSONMetadata(ctx, dirnode):
                 kiddata = ("filenode", {'size': childnode.get_size(),
                                         'mutable': childnode.is_mutable(),
                                         })
-                if childnode.is_mutable() and \
-                    childnode.get_version() is not None:
+                if childnode.is_mutable():
                     mutable_type = childnode.get_version()
                     assert mutable_type in (SDMF_VERSION, MDMF_VERSION)
-
                     if mutable_type == MDMF_VERSION:
-                        mutable_type = "mdmf"
+                        file_format = "mdmf"
                     else:
-                        mutable_type = "sdmf"
-                    kiddata[1]['mutable-type'] = mutable_type
+                        file_format = "sdmf"
+                else:
+                    file_format = "chk"
+                kiddata[1]['format'] = file_format
 
             elif IDirectoryNode.providedBy(childnode):
                 kiddata = ("dirnode", {'mutable': childnode.is_mutable()})

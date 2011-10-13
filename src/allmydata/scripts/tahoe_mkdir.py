@@ -23,7 +23,7 @@ def mkdir(options):
         # create a new unlinked directory
         url = nodeurl + "uri?t=mkdir"
         if options["mutable-type"]:
-            url += "&mutable-type=%s" % urllib.quote(options['mutable-type'])
+            url += "&format=%s" % urllib.quote(options['mutable-type'])
         resp = do_http("POST", url)
         rc = check_http_error(resp, stderr)
         if rc:
@@ -40,7 +40,7 @@ def mkdir(options):
     url = nodeurl + "uri/%s/%s?t=mkdir" % (urllib.quote(rootcap),
                                            urllib.quote(path))
     if options['mutable-type']:
-        url += "&mutable-type=%s" % urllib.quote(options['mutable-type'])
+        url += "&format=%s" % urllib.quote(options['mutable-type'])
 
     resp = do_http("POST", url)
     check_http_error(resp, stderr)

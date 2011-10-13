@@ -16,7 +16,7 @@ from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import reliability, storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
-     get_arg, RenderMixin, boolean_of_arg, parse_mutable_type_arg
+     get_arg, RenderMixin, get_format, get_mutable_type
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -45,14 +45,9 @@ class URIHandler(RenderMixin, rend.Page):
         # "PUT /uri?t=mkdir" to create an unlinked directory
         t = get_arg(req, "t", "").strip()
         if t == "":
-            mutable = boolean_of_arg(get_arg(req, "mutable", "false").strip())
-            if mutable:
-                arg = get_arg(req, "mutable-type", None)
-                version = parse_mutable_type_arg(arg)
-                if version == "invalid":
-                    errmsg = "Unknown type: %s" % arg
-                    raise WebError(errmsg, http.BAD_REQUEST)
-
+            file_format = get_format(req, "CHK")
+            if file_format in ("SDMF", "MDMF"):
+                version = get_mutable_type(file_format)
                 return unlinked.PUTUnlinkedSSK(req, self.client, version)
             else:
                 return unlinked.PUTUnlinkedCHK(req, self.client)
@@ -69,12 +64,9 @@ class URIHandler(RenderMixin, rend.Page):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
         if t in ("", "upload"):
-            mutable = bool(get_arg(req, "mutable", "").strip())
-            if mutable:
-                arg = get_arg(req, "mutable-type", None)
-                version = parse_mutable_type_arg(arg)
-                if version is "invalid":
-                    raise WebError("Unknown type: %s" % arg, http.BAD_REQUEST)
+            file_format = get_format(req)
+            if file_format in ("SDMF", "MDMF"):
+                version = get_mutable_type(file_format)
                 return unlinked.POSTUnlinkedSSK(req, self.client, version)
             else:
                 return unlinked.POSTUnlinkedCHK(req, self.client)

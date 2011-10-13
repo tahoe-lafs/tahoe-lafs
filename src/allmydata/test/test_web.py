@@ -2123,17 +2123,27 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             filename = format + ".txt"
             d = self.POST("/uri?t=upload&format=" + format,
                           file=(filename, self.NEWFILE_CONTENTS * 300000))
-            def _got_filecap(filecap):
-                self.failUnless(filecap.startswith(uri_prefix))
+            def _got_results(results):
+                if format.upper() in ("SDMF", "MDMF"):
+                    # webapi.rst says this returns a filecap
+                    filecap = results
+                else:
+                    # for immutable, it returns an "upload results page", and
+                    # the filecap is buried inside
+                    line = [l for l in results.split("\n") if "URI: " in l][0]
+                    mo = re.search(r'<span>([^<]+)</span>', line)
+                    filecap = mo.group(1)
+                self.failUnless(filecap.startswith(uri_prefix),
+                                (uri_prefix, filecap))
                 return self.GET("/uri/%s?t=json" % filecap)
-            d.addCallback(_got_filecap)
+            d.addCallback(_got_results)
             def _got_json(json):
                 data = simplejson.loads(json)
                 data = data[1]
                 self.failUnlessIn("format", data)
-                self.failUnlessEqual(data["format"], format)
+                self.failUnlessEqual(data["format"], format.lower())
             d.addCallback(_got_json)
-
+            return d
         d = defer.succeed(None)
         d.addCallback(_check_upload_unlinked, "chk", "URI:CHK")
         d.addCallback(_check_upload_unlinked, "CHK", "URI:CHK")
@@ -2165,8 +2175,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 data = simplejson.loads(json)
                 data = data[1]
                 self.failUnlessIn("format", data)
-                self.failUnlessEqual(data["format"], format)
+                self.failUnlessEqual(data["format"], format.lower())
             d.addCallback(_got_json)
+            return d
 
         d = defer.succeed(None)
         d.addCallback(_check_upload, "chk", "URI:CHK")

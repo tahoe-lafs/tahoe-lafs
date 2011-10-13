@@ -63,11 +63,15 @@ def put(options):
     else:
         # unlinked upload
         url = nodeurl + "uri"
+
+    file_format = None
     if mutable:
-        url += "?mutable=true"
+        file_format = "SDMF"
     if mutable_type:
         assert mutable
-        url += "&mutable-type=%s" % mutable_type
+        file_format = mutable_type.upper()
+    if file_format:
+        url += "?format=%s" % file_format
 
     if from_file:
         infileobj = open(os.path.expanduser(from_file), "rb")

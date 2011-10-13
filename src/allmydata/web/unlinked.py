@@ -6,7 +6,7 @@ from nevow import rend, url, tags as T
 from allmydata.immutable.upload import FileHandle
 from allmydata.mutable.publish import MutableFileHandle
 from allmydata.web.common import getxmlfile, get_arg, boolean_of_arg, \
-     convert_children_json, WebError, parse_mutable_type_arg
+     convert_children_json, WebError, get_format, get_mutable_type
 from allmydata.web import status
 
 def PUTUnlinkedCHK(req, client):
@@ -27,15 +27,14 @@ def PUTUnlinkedSSK(req, client, version):
 
 def PUTUnlinkedCreateDirectory(req, client):
     # "PUT /uri?t=mkdir", to create an unlinked directory.
-    arg = get_arg(req, "mutable-type", None)
-    mt = parse_mutable_type_arg(arg)
-    if mt is not None and mt is not "invalid":
-        d = client.create_dirnode(version=mt)
-    elif mt is "invalid":
-        msg = "Unknown type: %s" % arg
-        raise WebError(msg, http.BAD_REQUEST)
-    else:
-        d = client.create_dirnode()
+    file_format = get_format(req, None)
+    if file_format == "CHK":
+        raise WebError("format=CHK not currently accepted for PUT /uri?t=mkdir",
+                       http.BAD_REQUEST)
+    mt = None
+    if file_format:
+        mt = get_mutable_type(file_format)
+    d = client.create_dirnode(version=mt)
     d.addCallback(lambda dirnode: dirnode.get_uri())
     # XXX add redirect_to_result
     return d
@@ -112,15 +111,14 @@ def POSTUnlinkedCreateDirectory(req, client):
             raise WebError("t=mkdir does not accept children=, "
                            "try t=mkdir-with-children instead",
                            http.BAD_REQUEST)
-    arg = get_arg(req, "mutable-type", None)
-    mt = parse_mutable_type_arg(arg)
-    if mt is not None and mt is not "invalid":
-        d = client.create_dirnode(version=mt)
-    elif mt is "invalid":
-        msg = "Unknown type: %s" % arg
-        raise WebError(msg, http.BAD_REQUEST)
-    else:
-        d = client.create_dirnode()
+    file_format = get_format(req, None)
+    if file_format == "CHK":
+        raise WebError("format=CHK not currently accepted for POST /uri?t=mkdir",
+                       http.BAD_REQUEST)
+    mt = None
+    if file_format:
+        mt = get_mutable_type(file_format)
+    d = client.create_dirnode(version=mt)
     redirect = get_arg(req, "redirect_to_result", "false")
     if boolean_of_arg(redirect):
         def _then_redir(res):
