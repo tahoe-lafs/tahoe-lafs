@@ -674,12 +674,12 @@ Getting Information About A File Or Directory (as JSON)
   GET /uri/$FILECAP?t=json :
 
    [ "filenode", {
-	 "ro_uri": file_uri,
-	 "verify_uri": verify_uri,
-	 "size": bytes,
-	 "mutable": false,
-     "format": "chk"
-	 } ]
+      "ro_uri": file_uri,
+      "verify_uri": verify_uri,
+      "size": bytes,
+      "mutable": false,
+      "format": "chk"
+     } ]
 
  If it is a capability to a directory followed by a path from that directory
  to a file, then the information also includes metadata from the link to the
@@ -688,18 +688,18 @@ Getting Information About A File Or Directory (as JSON)
   GET /uri/$DIRCAP/[SUBDIRS../]FILENAME?t=json
 
    [ "filenode", {
-	 "ro_uri": file_uri,
-	 "verify_uri": verify_uri,
-	 "size": bytes,
-	 "mutable": false,
-     "format": "chk",
-	 "metadata": {
-	   "ctime": 1202777696.7564139,
-	   "mtime": 1202777696.7564139,
-	   "tahoe": {
-		 "linkcrtime": 1202777696.7564139,
-		 "linkmotime": 1202777696.7564139
-		 } } } ]
+      "ro_uri": file_uri,
+      "verify_uri": verify_uri,
+      "size": bytes,
+      "mutable": false,
+      "format": "chk",
+      "metadata": {
+       "ctime": 1202777696.7564139,
+       "mtime": 1202777696.7564139,
+       "tahoe": {
+        "linkcrtime": 1202777696.7564139,
+        "linkmotime": 1202777696.7564139
+       } } } ]
 
  If it is a directory, then it includes information about the children of
  this directory, as a mapping from child name to a set of data about the
@@ -712,33 +712,35 @@ Getting Information About A File Or Directory (as JSON)
   GET /uri/$DIRCAP/[SUBDIRS../]SUBDIR?t=json :
 
    [ "dirnode", {
-	 "rw_uri": read_write_uri,
-	 "ro_uri": read_only_uri,
-	 "verify_uri": verify_uri,
-	 "mutable": true,
+     "rw_uri": read_write_uri,
+     "ro_uri": read_only_uri,
+     "verify_uri": verify_uri,
+     "mutable": true,
      "format": "sdmf",
-	 "children": {
-	   "foo.txt": [ "filenode", {
-		   "ro_uri": uri,
-		   "size": bytes,
-		   "metadata": {
-			 "ctime": 1202777696.7564139,
-			 "mtime": 1202777696.7564139,
-			 "tahoe": {
-			   "linkcrtime": 1202777696.7564139,
-			   "linkmotime": 1202777696.7564139
-			   } } } ],
-	   "subdir":  [ "dirnode", {
-		   "rw_uri": rwuri,
-		   "ro_uri": rouri,
-		   "metadata": {
-			 "ctime": 1202778102.7589991,
-			 "mtime": 1202778111.2160511,
-			 "tahoe": {
-			   "linkcrtime": 1202777696.7564139,
-			   "linkmotime": 1202777696.7564139
-			 } } } ]
-	 } } ]
+     "children": {
+      "foo.txt": [ "filenode",
+                   {
+                     "ro_uri": uri,
+                     "size": bytes,
+                     "metadata": {
+                       "ctime": 1202777696.7564139,
+                       "mtime": 1202777696.7564139,
+                       "tahoe": {
+                         "linkcrtime": 1202777696.7564139,
+                         "linkmotime": 1202777696.7564139
+                       } } } ],
+      "subdir":  [ "dirnode",
+                   {
+                     "rw_uri": rwuri,
+                     "ro_uri": rouri,
+                     "metadata": {
+                       "ctime": 1202778102.7589991,
+                       "mtime": 1202778111.2160511,
+                       "tahoe": {
+                         "linkcrtime": 1202777696.7564139,
+                         "linkmotime": 1202777696.7564139
+                       } } } ]
+      } } ]
 
  In the above example, note how 'children' is a dictionary in which the keys
  are child names and the values depend upon whether the child is a file or a
@@ -758,22 +760,22 @@ Getting Information About A File Or Directory (as JSON)
   GET /uri/$UNKNOWNCAP?t=json :
 
    [ "unknown", {
-	 "ro_uri": unknown_read_uri
-	 } ]
+       "ro_uri": unknown_read_uri
+       } ]
 
   GET /uri/$DIRCAP/[SUBDIRS../]UNKNOWNCHILDNAME?t=json :
 
    [ "unknown", {
-	 "rw_uri": unknown_write_uri,
-	 "ro_uri": unknown_read_uri,
-	 "mutable": true,
-	 "metadata": {
-	   "ctime": 1202777696.7564139,
-	   "mtime": 1202777696.7564139,
-	   "tahoe": {
-		 "linkcrtime": 1202777696.7564139,
-		 "linkmotime": 1202777696.7564139
-		 } } } ]
+       "rw_uri": unknown_write_uri,
+       "ro_uri": unknown_read_uri,
+       "mutable": true,
+       "metadata": {
+         "ctime": 1202777696.7564139,
+         "mtime": 1202777696.7564139,
+         "tahoe": {
+           "linkcrtime": 1202777696.7564139,
+           "linkmotime": 1202777696.7564139
+         } } } ]
 
  As in the case of file nodes, the metadata will only be present when the
  capability is to a directory followed by a path. The "mutable" field is also
