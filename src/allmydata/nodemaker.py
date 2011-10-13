@@ -1,7 +1,7 @@
 import weakref
 from zope.interface import implements
 from allmydata.util.assertutil import precondition
-from allmydata.interfaces import INodeMaker, SDMF_VERSION
+from allmydata.interfaces import INodeMaker
 from allmydata.immutable.literal import LiteralFileNode
 from allmydata.immutable.filenode import ImmutableFileNode, CiphertextFileNode
 from allmydata.immutable.upload import Data
@@ -18,14 +18,15 @@ class NodeMaker:
 
     def __init__(self, storage_broker, secret_holder, history,
                  uploader, terminator,
-                 default_encoding_parameters, key_generator,
-                 blacklist=None):
+                 default_encoding_parameters, mutable_file_default,
+                 key_generator, blacklist=None):
         self.storage_broker = storage_broker
         self.secret_holder = secret_holder
         self.history = history
         self.uploader = uploader
         self.terminator = terminator
         self.default_encoding_parameters = default_encoding_parameters
+        self.mutable_file_default = mutable_file_default
         self.key_generator = key_generator
         self.blacklist = blacklist
 
@@ -111,7 +112,7 @@ class NodeMaker:
 
     def create_mutable_file(self, contents=None, keysize=None, version=None):
         if version is None:
-            version = SDMF_VERSION
+            version = self.mutable_file_default
         n = MutableFileNode(self.storage_broker, self.secret_holder,
                             self.default_encoding_parameters, self.history)
         d = self.key_generator.generate(keysize)

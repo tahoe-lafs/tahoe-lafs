@@ -339,19 +339,20 @@ class Client(node.Node, pollmixin.PollMixin):
         self.blacklist = Blacklist(fn)
 
     def init_nodemaker(self):
+        default = self.get_config("client", "mutable.format", default="SDMF")
+        if default.upper() == "MDMF":
+            self.mutable_file_default = MDMF_VERSION
+        else:
+            self.mutable_file_default = SDMF_VERSION
         self.nodemaker = NodeMaker(self.storage_broker,
                                    self._secret_holder,
                                    self.get_history(),
                                    self.getServiceNamed("uploader"),
                                    self.terminator,
                                    self.get_encoding_parameters(),
+                                   self.mutable_file_default,
                                    self._key_generator,
                                    self.blacklist)
-        default = self.get_config("client", "mutable.format", default="sdmf")
-        if default == "mdmf":
-            self.mutable_file_default = MDMF_VERSION
-        else:
-            self.mutable_file_default = SDMF_VERSION
 
     def get_history(self):
         return self.history
@@ -507,8 +508,6 @@ class Client(node.Node, pollmixin.PollMixin):
         return self.nodemaker.create_immutable_directory(children, convergence)
 
     def create_mutable_file(self, contents=None, keysize=None, version=None):
-        if not version:
-            version = self.mutable_file_default
         return self.nodemaker.create_mutable_file(contents, keysize,
                                                   version=version)
 

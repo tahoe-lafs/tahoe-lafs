@@ -27,8 +27,8 @@ class ReplaceMeMixin:
     def replace_me_with_a_child(self, req, client, replace):
         # a new file is being uploaded in our place.
         file_format = get_format(req, "CHK")
-        if file_format in ("SDMF", "MDMF"):
-            mutable_type = get_mutable_type(file_format)
+        mutable_type = get_mutable_type(file_format)
+        if mutable_type is not None:
             data = MutableFileHandle(req.content)
             d = client.create_mutable_file(data, version=mutable_type)
             def _uploaded(newnode):

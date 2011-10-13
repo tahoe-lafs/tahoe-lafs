@@ -1376,7 +1376,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         known_tree = b32decode(self.known_tree)
         nodemaker = NodeMaker(None, None, None,
                               None, None,
-                              {"k": 3, "n": 10}, None)
+                              {"k": 3, "n": 10}, None, None)
         write_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
         filenode = nodemaker.create_from_cap(write_uri)
         node = dirnode.DirectoryNode(filenode, nodemaker, None)
@@ -1437,7 +1437,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         return kids
 
     def test_deep_immutable(self):
-        nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None)
+        nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None, None)
         fn = MinimalFakeMutableFile()
 
         kids = self._make_kids(nm, ["imm", "lit", "write", "read",
@@ -1536,7 +1536,7 @@ class FakeClient2(Client):
     def __init__(self):
         self.nodemaker = FakeNodeMaker(None, None, None,
                                        None, None,
-                                       {"k":3,"n":10}, None)
+                                       {"k":3,"n":10}, None, None)
     def create_node_from_uri(self, rwcap, rocap):
         return self.nodemaker.create_from_cap(rwcap, rocap)
 
@@ -1825,6 +1825,7 @@ class Deleter(GridTestMixin, testutil.ReallyEqualMixin, unittest.TestCase):
                                   c0.get_history(), c0.getServiceNamed("uploader"),
                                   c0.terminator,
                                   c0.get_encoding_parameters(),
+                                  c0.mutable_file_default,
                                   c0._key_generator)
             n = nm.create_from_cap(self.root_uri)
             assert n._node.please_ucwe_after_next_upload == False

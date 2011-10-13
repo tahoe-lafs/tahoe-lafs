@@ -56,6 +56,11 @@ def get_mutable_type(file_format): # accepts result of get_format()
     elif file_format == "MDMF":
         return MDMF_VERSION
     else:
+        # this is also used to identify which formats are mutable. Use
+        #  if get_mutable_type(file_format) is not None:
+        #      do_mutable()
+        #  else:
+        #      do_immutable()
         return None
 
 

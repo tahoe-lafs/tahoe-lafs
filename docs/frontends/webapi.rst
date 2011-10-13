@@ -379,15 +379,20 @@ Writing/Uploading A File
  immutable file, the "offset" parameter is not valid.
 
  When creating a new file, you can control the type of file created by
- specifying a format= argument in the query string. format=MDMF creates an MDMF
- mutable file. format=SDMF creates an SDMF mutable file. format=CHK creates an
- immutable file. The value of the format argument is case-insensitive. For
- compatibility with previous versions of Tahoe-LAFS, the webapi will also
- accept a mutable=true argument in the query string. If mutable=true is given,
- then the new file will be mutable, and its format will be the default mutable
- file format, as configured on the Tahoe-LAFS node hosting the webapi server.
- Use of mutable=true is discouraged; new code should use format= instead of
- mutable=true.  If neither format= nor mutable=true are given, the
+ specifying a format= argument in the query string. format=MDMF creates an
+ MDMF mutable file. format=SDMF creates an SDMF mutable file. format=CHK
+ creates an immutable file. The value of the format argument is
+ case-insensitive. If no format is specified, the newly-created file will be
+ immutable (but see below).
+
+ For compatibility with previous versions of Tahoe-LAFS, the web-API will
+ also accept a mutable=true argument in the query string. If mutable=true is
+ given, then the new file will be mutable, and its format will be the default
+ mutable file format, as configured by the [client]mutable.format option of
+ tahoe.cfg on the Tahoe-LAFS node hosting the webapi server. Use of
+ mutable=true is discouraged; new code should use format= instead of
+ mutable=true (unless it needs to be compatible with web-API servers older
+ than v1.9.0). If neither format= nor mutable=true are given, the
  newly-created file will be immutable.
 
  This returns the file-cap of the resulting file. If a new file was created

@@ -29,7 +29,7 @@ def PUTUnlinkedCreateDirectory(req, client):
     # "PUT /uri?t=mkdir", to create an unlinked directory.
     file_format = get_format(req, None)
     if file_format == "CHK":
-        raise WebError("format=CHK not currently accepted for PUT /uri?t=mkdir",
+        raise WebError("format=CHK not accepted for PUT /uri?t=mkdir",
                        http.BAD_REQUEST)
     mt = None
     if file_format:

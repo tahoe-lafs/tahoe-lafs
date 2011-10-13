@@ -46,9 +46,9 @@ class URIHandler(RenderMixin, rend.Page):
         t = get_arg(req, "t", "").strip()
         if t == "":
             file_format = get_format(req, "CHK")
-            if file_format in ("SDMF", "MDMF"):
-                version = get_mutable_type(file_format)
-                return unlinked.PUTUnlinkedSSK(req, self.client, version)
+            mutable_type = get_mutable_type(file_format)
+            if mutable_type is not None:
+                return unlinked.PUTUnlinkedSSK(req, self.client, mutable_type)
             else:
                 return unlinked.PUTUnlinkedCHK(req, self.client)
         if t == "mkdir":
@@ -65,9 +65,9 @@ class URIHandler(RenderMixin, rend.Page):
         t = get_arg(req, "t", "").strip()
         if t in ("", "upload"):
             file_format = get_format(req)
-            if file_format in ("SDMF", "MDMF"):
-                version = get_mutable_type(file_format)
-                return unlinked.POSTUnlinkedSSK(req, self.client, version)
+            mutable_type = get_mutable_type(file_format)
+            if mutable_type is not None:
+                return unlinked.POSTUnlinkedSSK(req, self.client, mutable_type)
             else:
                 return unlinked.POSTUnlinkedCHK(req, self.client)
         if t == "mkdir":

@@ -239,7 +239,7 @@ def make_nodemaker(s=None, num_peers=10):
     keygen.set_default_keysize(TEST_RSA_KEY_SIZE)
     nodemaker = NodeMaker(storage_broker, sh, None,
                           None, None,
-                          {"k": 3, "n": 10}, keygen)
+                          {"k": 3, "n": 10}, SDMF_VERSION, keygen)
     return nodemaker
 
 class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
