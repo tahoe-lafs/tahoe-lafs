@@ -1160,67 +1160,79 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.failUnlessIn("URI:SSK-RO", json)
         self.failUnlessIn("URI:SSK-Verifier", json)
 
-    def test_mutable_type(self):
-        self.basedir = "cli/Put/mutable_type"
+    def _check_chk_json(self, (rc, json, err)):
+        self.failUnlessEqual(rc, 0)
+        self.failUnlessEqual(err, "")
+        self.failUnlessIn('"format": "CHK"', json)
+        # We also want to see the appropriate CHK caps.
+        self.failUnlessIn("URI:CHK", json)
+        self.failUnlessIn("URI:CHK-Verifier", json)
+
+    def test_format(self):
+        self.basedir = "cli/Put/format"
         self.set_up_grid()
-        data = "data" * 100000
+        data = "data" * 40000 # 160kB total, two segments
         fn1 = os.path.join(self.basedir, "data")
         fileutil.write(fn1, data)
         d = self.do_cli("create-alias", "tahoe")
 
-        def _put_and_ls(ign, mutable_type, filename):
-            d2 = self.do_cli("put", "--mutable", "--mutable-type="+mutable_type,
-                             fn1, filename)
-            def _dont_fail((rc, out, err)):
-                self.failUnlessEqual(rc, 0)
-            d2.addCallback(_dont_fail)
-            d2.addCallback(lambda ign: self.do_cli("ls", "--json", filename))
+        def _put_and_ls(ign, cmdargs, expected, filename=None):
+            if filename:
+                args = ["put"] + cmdargs + [fn1, filename]
+            else:
+                # unlinked
+                args = ["put"] + cmdargs + [fn1]
+            d2 = self.do_cli(*args)
+            def _list((rc, out, err)):
+                self.failUnlessEqual(rc, 0) # don't allow failure
+                if filename:
+                    return self.do_cli("ls", "--json", filename)
+                else:
+                    cap = out.strip()
+                    return self.do_cli("ls", "--json", cap)
+            d2.addCallback(_list)
             return d2
 
-        d.addCallback(_put_and_ls, "mdmf", "tahoe:uploaded.txt")
-        d.addCallback(self._check_mdmf_json)
-        d.addCallback(_put_and_ls, "MDMF", "tahoe:uploaded2.txt")
-        d.addCallback(self._check_mdmf_json)
-        d.addCallback(_put_and_ls, "sdmf", "tahoe:uploaded3.txt")
+        # 'tahoe put' to a directory
+        d.addCallback(_put_and_ls, ["--mutable"], "SDMF", "tahoe:s1.txt")
+        d.addCallback(self._check_sdmf_json) # backwards-compatibility
+        d.addCallback(_put_and_ls, ["--format=SDMF"], "SDMF", "tahoe:s2.txt")
         d.addCallback(self._check_sdmf_json)
-        d.addCallback(_put_and_ls, "SDMF", "tahoe:uploaded4.txt")
+        d.addCallback(_put_and_ls, ["--format=sdmf"], "SDMF", "tahoe:s3.txt")
         d.addCallback(self._check_sdmf_json)
-        return d
+        d.addCallback(_put_and_ls, ["--mutable", "--format=SDMF"], "SDMF", "tahoe:s4.txt")
+        d.addCallback(self._check_sdmf_json)
 
-    def test_mutable_type_unlinked(self):
-        self.basedir = "cli/Put/mutable_type_unlinked"
-        self.set_up_grid()
-        data = "data" * 100000
-        fn1 = os.path.join(self.basedir, "data")
-        fileutil.write(fn1, data)
-        d = self.do_cli("put", "--mutable", "--mutable-type=mdmf", fn1)
-        d.addCallback(lambda (rc, cap, err):
-            self.do_cli("ls", "--json", cap))
+        d.addCallback(_put_and_ls, ["--format=MDMF"], "MDMF", "tahoe:m1.txt")
         d.addCallback(self._check_mdmf_json)
-        d.addCallback(lambda ignored:
-            self.do_cli("put", "--mutable", "--mutable-type=sdmf", fn1))
-        d.addCallback(lambda (rc, cap, err):
-            self.do_cli("ls", "--json", cap))
-        d.addCallback(self._check_sdmf_json)
-        return d
+        d.addCallback(_put_and_ls, ["--mutable", "--format=MDMF"], "MDMF", "tahoe:m2.txt")
+        d.addCallback(self._check_mdmf_json)
 
-    def test_mutable_type_implies_mutable(self):
-        self.basedir = "cli/Put/mutable_type_implies_mutable"
-        self.set_up_grid()
-        data = "data" * 100000
-        fn1 = os.path.join(self.basedir, "data")
-        fileutil.write(fn1, data)
-        d = self.do_cli("put", "--mutable-type=mdmf", fn1)
-        d.addCallback(lambda (rc, cap, err):
-            self.do_cli("ls", "--json", cap))
-        # This will fail if an immutable file is created instead of a
-        # mutable file.
-        d.addCallback(self._check_mdmf_json)
-        d.addCallback(lambda ignored:
-            self.do_cli("put", "--mutable-type=sdmf", fn1))
-        d.addCallback(lambda (rc, cap, err):
-            self.do_cli("ls", "--json", cap))
+        d.addCallback(_put_and_ls, ["--format=CHK"], "CHK", "tahoe:c1.txt")
+        d.addCallback(self._check_chk_json)
+        d.addCallback(_put_and_ls, [], "CHK", "tahoe:c1.txt")
+        d.addCallback(self._check_chk_json)
+
+        # 'tahoe put' unlinked
+        d.addCallback(_put_and_ls, ["--mutable"], "SDMF")
+        d.addCallback(self._check_sdmf_json) # backwards-compatibility
+        d.addCallback(_put_and_ls, ["--format=SDMF"], "SDMF")
         d.addCallback(self._check_sdmf_json)
+        d.addCallback(_put_and_ls, ["--format=sdmf"], "SDMF")
+        d.addCallback(self._check_sdmf_json)
+        d.addCallback(_put_and_ls, ["--mutable", "--format=SDMF"], "SDMF")
+        d.addCallback(self._check_sdmf_json)
+
+        d.addCallback(_put_and_ls, ["--format=MDMF"], "MDMF")
+        d.addCallback(self._check_mdmf_json)
+        d.addCallback(_put_and_ls, ["--mutable", "--format=MDMF"], "MDMF")
+        d.addCallback(self._check_mdmf_json)
+
+        d.addCallback(_put_and_ls, ["--format=CHK"], "CHK")
+        d.addCallback(self._check_chk_json)
+        d.addCallback(_put_and_ls, [], "CHK")
+        d.addCallback(self._check_chk_json)
+
         return d
 
     def test_put_to_mdmf_cap(self):
@@ -1229,7 +1241,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         data = "data" * 100000
         fn1 = os.path.join(self.basedir, "data")
         fileutil.write(fn1, data)
-        d = self.do_cli("put", "--mutable", "--mutable-type=mdmf", fn1)
+        d = self.do_cli("put", "--format=MDMF", fn1)
         def _got_cap((rc, out, err)):
             self.failUnlessEqual(rc, 0)
             self.cap = out.strip()
@@ -1275,7 +1287,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         data = "data" * 100000
         fn1 = os.path.join(self.basedir, "data")
         fileutil.write(fn1, data)
-        d = self.do_cli("put", "--mutable", "--mutable-type=sdmf", fn1)
+        d = self.do_cli("put", "--format=SDMF", fn1)
         def _got_cap((rc, out, err)):
             self.failUnlessEqual(rc, 0)
             self.cap = out.strip()
@@ -1303,7 +1315,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         o = cli.PutOptions()
         self.failUnlessRaises(usage.UsageError,
                               o.parseOptions,
-                              ["--mutable", "--mutable-type=ldmf"])
+                              ["--format=LDMF"])
 
     def test_put_with_nonexistent_alias(self):
         # when invoked with an alias that doesn't exist, 'tahoe put'
@@ -3308,7 +3320,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn(st, out)
             return out
         def _mkdir(ign, mutable_type, uri_prefix, dirname):
-            d2 = self.do_cli("mkdir", "--mutable-type="+mutable_type, dirname)
+            d2 = self.do_cli("mkdir", "--format="+mutable_type, dirname)
             d2.addCallback(_check, uri_prefix)
             def _stash_filecap(cap):
                 u = uri.from_string(cap)
@@ -3330,7 +3342,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_mkdir_mutable_type_unlinked(self):
         self.basedir = os.path.dirname(self.mktemp())
         self.set_up_grid()
-        d = self.do_cli("mkdir", "--mutable-type=sdmf")
+        d = self.do_cli("mkdir", "--format=SDMF")
         def _check((rc, out, err), st):
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
@@ -3349,7 +3361,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("ls", "--json",
                                               self._filecap))
         d.addCallback(_check, '"format": "SDMF"')
-        d.addCallback(lambda res: self.do_cli("mkdir", "--mutable-type=mdmf"))
+        d.addCallback(lambda res: self.do_cli("mkdir", "--format=MDMF"))
         d.addCallback(_check, "URI:DIR2-MDMF")
         d.addCallback(_stash_dircap)
         d.addCallback(lambda res: self.do_cli("ls", "--json",
@@ -3361,7 +3373,7 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         o = cli.MakeDirectoryOptions()
         self.failUnlessRaises(usage.UsageError,
                               o.parseOptions,
-                              ["--mutable", "--mutable-type=ldmf"])
+                              ["--format=LDMF"])
 
     def test_mkdir_unicode(self):
         self.basedir = os.path.dirname(self.mktemp())

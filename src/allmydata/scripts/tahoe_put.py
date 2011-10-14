@@ -18,7 +18,7 @@ def put(options):
     from_file = options.from_file
     to_file = options.to_file
     mutable = options['mutable']
-    mutable_type = options['mutable-type']
+    format = options['format']
     if options['quiet']:
         verbosity = 0
     else:
@@ -64,14 +64,13 @@ def put(options):
         # unlinked upload
         url = nodeurl + "uri"
 
-    file_format = None
+    queryargs = []
     if mutable:
-        file_format = "SDMF"
-    if mutable_type:
-        assert mutable
-        file_format = mutable_type.upper()
-    if file_format:
-        url += "?format=%s" % file_format
+        queryargs.append("mutable=true")
+    if format:
+        queryargs.append("format=%s" % format)
+    if queryargs:
+        url += "?" + "&".join(queryargs)
 
     if from_file:
         infileobj = open(os.path.expanduser(from_file), "rb")

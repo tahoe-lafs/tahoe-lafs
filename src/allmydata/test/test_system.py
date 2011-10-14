@@ -1518,7 +1518,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(run, "put", files[1], "subdir/tahoe-file1")
         #  tahoe put bar tahoe:FOO
         d.addCallback(run, "put", files[2], "tahoe:file2")
-        d.addCallback(run, "put", "--mutable", files[3], "tahoe:file3")
+        d.addCallback(run, "put", "--format=SDMF", files[3], "tahoe:file3")
         def _check_put_mutable((out,err)):
             self._mutable_file3_uri = out.strip()
         d.addCallback(_check_put_mutable)
