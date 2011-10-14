@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # from the Python Standard Library
 import string
 

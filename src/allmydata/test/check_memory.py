@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 import os, shutil, sys, urllib, time, stat
 from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error

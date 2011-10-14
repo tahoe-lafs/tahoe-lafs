@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 this is a load-generating client program. It does all of its work through a
 given tahoe node (specified by URL), and performs random reads and writes

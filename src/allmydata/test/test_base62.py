@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import random, unittest
 
 from allmydata.util import base62, mathutil
