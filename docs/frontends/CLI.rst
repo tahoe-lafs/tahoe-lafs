@@ -261,9 +261,9 @@ Command Syntax Summary
 
 ``tahoe webopen [PATH]``
 
-``tahoe put [--format=FORMAT] [FROMLOCAL|-]``
+``tahoe put [--mutable] [FROMLOCAL|-]``
 
-``tahoe put [--format=FORMAT] FROMLOCAL|- TOPATH``
+``tahoe put [--mutable] FROMLOCAL|- TOPATH``
 
 ``tahoe put [FROMLOCAL|-] mutable-file-writecap``
 
@@ -394,7 +394,7 @@ Command Examples
  from the following path. When the source file is named "``-``", the contents
  are taken from stdin.
 
-``tahoe put file.txt --format=SDMF``
+``tahoe put file.txt --mutable``
 
  Create a new (SDMF) mutable file, fill it with the contents of ``file.txt``,
  and print the new write-cap to stdout.
@@ -402,7 +402,7 @@ Command Examples
 ``tahoe put file.txt MUTABLE-FILE-WRITECAP``
 
  Replace the contents of the given mutable file with the contents of
- ``file.txt`` and prints the same write-cap to stdout.
+ ``file.txt`` and print the same write-cap to stdout.
 
 ``tahoe cp file.txt tahoe:uploaded.txt``
 

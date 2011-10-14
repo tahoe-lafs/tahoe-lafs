@@ -51,14 +51,14 @@ class VDriveOptions(BaseOptions):
 
 class MakeDirectoryOptions(VDriveOptions):
     optParameters = [
-        ("format", None, None, "Create directory with the given format: SDMF and MDMF for mutable. (case-insensitive)"),
+        ("format", None, None, "Create a directory with the given format: SDMF or MDMF (case-insensitive)"),
         ]
 
     def parseArgs(self, where=""):
         self.where = argv_to_unicode(where)
 
         if self['format']:
-            if self['format'].upper() not in ("SDMF", "MDMF", "CHK"):
+            if self['format'].upper() not in ("SDMF", "MDMF"):
                 raise usage.UsageError("%s is an invalid format" % self['format'])
 
     def getSynopsis(self):
@@ -170,10 +170,10 @@ Examples:
 
 class PutOptions(VDriveOptions):
     optFlags = [
-        ("mutable", "m", "Create a mutable file instead of an immutable one. (DEPRECATED, use --format=SDMF)"),
+        ("mutable", "m", "Create a mutable file instead of an immutable one (like --format=SDMF)"),
         ]
     optParameters = [
-        ("format", None, None, "Create file with the given format: SDMF and MDMF for mutable, CHK (default) for immutable. (case-insensitive)"),
+        ("format", None, None, "Create a file with the given format: SDMF and MDMF for mutable, CHK (default) for immutable. (case-insensitive)"),
         ]
 
     def parseArgs(self, arg1=None, arg2=None):

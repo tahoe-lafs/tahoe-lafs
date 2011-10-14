@@ -30,8 +30,8 @@ To set up the client node, do the following:
   tahoe put -d DIR FILE testgrid:old.MD5SUM
   tahoe put -d DIR FILE testgrid:recent.MD5SUM
   tahoe put -d DIR FILE testgrid:recentdir/recent.MD5SUM
-  echo "" | tahoe put -d DIR --format=SDMF testgrid:log
-  echo "" | tahoe put -d DIR --format=SDMF testgrid:recentlog
+  echo "" | tahoe put -d DIR --mutable testgrid:log
+  echo "" | tahoe put -d DIR --mutable testgrid:recentlog
 
 This script will perform the following steps (the kind of compatibility that
 is being tested is in [brackets]):
@@ -189,7 +189,7 @@ class GridTester:
         self.cli("put", "-", "testgrid:"+fn, stdin=data, ignore_stderr=True)
 
     def put_mutable(self, fn, data):
-        self.cli("put", "--format=SDMF", "-", "testgrid:"+fn,
+        self.cli("put", "--mutable", "-", "testgrid:"+fn,
                  stdin=data, ignore_stderr=True)
 
     def update(self, fn):
