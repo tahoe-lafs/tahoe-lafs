@@ -18,7 +18,9 @@ New Features
   instead of the whole thing). MDMF is opt-in (it is not yet the default
   format for mutable files), both to ensure compatibility with previous
   versions, and because the algorithm does not yet meet memory-usage goals.
-  (`#393`_, `#1507`_)
+  Enable it with ``--format=MDMF`` in the CLI (``tahoe put`` and ``tahoe
+  mkdir``), or the "format" radioboxes in the web interface. (`#393`_,
+  `#1507`_)
 - A "blacklist" feature allows blocking access to specific files through
   a particular gateway. See the "Access Blacklist" section of
   `<docs/configuration.rst>`_ for more details. (`#1425`_)
