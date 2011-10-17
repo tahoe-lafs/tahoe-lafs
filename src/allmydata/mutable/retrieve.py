@@ -176,7 +176,7 @@ class Retrieve:
         if self._pause_deferred is not None:
             return
 
-        # fired when the download is unpaused. 
+        # fired when the download is unpaused.
         self._old_status = self._status.get_status()
         self._set_current_status("paused")
 
@@ -210,13 +210,16 @@ class Retrieve:
         the Deferred fires immediately. Otherwise, the Deferred fires
         when the downloader is unpaused.
         """
-        if self._stopped:
-            raise DownloadStopped("our Consumer called stopProducing()")
         if self._pause_deferred is not None:
             d = defer.Deferred()
             self._pause_deferred.addCallback(lambda ignored: d.callback(res))
             return d
-        return defer.succeed(res)
+        return res
+
+    def _check_for_stopped(self, res):
+        if self._stopped:
+            raise DownloadStopped("our Consumer called stopProducing()")
+        return res
 
 
     def download(self, consumer=None, offset=0, size=None):
@@ -665,6 +668,7 @@ class Retrieve:
             # check to see whether we've been paused before writing
             # anything.
             d.addCallback(self._check_for_paused)
+            d.addCallback(self._check_for_stopped)
             d.addCallback(self._set_segment)
             return d
         else:

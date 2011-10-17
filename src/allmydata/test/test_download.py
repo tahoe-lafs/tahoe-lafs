@@ -20,7 +20,7 @@ from allmydata.immutable.downloader.common import BadSegmentNumberError, \
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.immutable.downloader.fetcher import SegmentFetcher
 from allmydata.codec import CRSDecoder
-from foolscap.eventual import fireEventually, flushEventualQueue
+from foolscap.eventual import eventually, fireEventually, flushEventualQueue
 
 plaintext = "This is a moderate-sized file.\n" * 10
 mutable_plaintext = "This is a moderate-sized mutable file.\n" * 10
@@ -898,10 +898,14 @@ class PausingConsumer(MemoryConsumer):
         self.producer.resumeProducing()
 
 class PausingAndStoppingConsumer(PausingConsumer):
+    debug_stopped = False
     def write(self, data):
+        if self.debug_stopped:
+            raise Exception("I'm stopped, don't write to me")
         self.producer.pauseProducing()
-        reactor.callLater(0.5, self._stop)
+        eventually(self._stop)
     def _stop(self):
+        self.debug_stopped = True
         self.producer.stopProducing()
 
 class StoppingConsumer(PausingConsumer):
