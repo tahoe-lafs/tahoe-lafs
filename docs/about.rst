@@ -50,10 +50,11 @@ integrity-checked by the gateway, so that the servers can neither read nor
 modify the contents of the files.
 
 Users do rely on storage servers for *availability*.  The ciphertext is
-erasure-coded and distributed across ``N`` storage servers (the default value
-for ``N`` is 10) so that it can be recovered from any ``K`` of these servers
-(the default value of ``K`` is 3).  Therefore only the simultaneous failure
-of ``N-K+1`` (with the defaults, 8) servers can make the data unavailable.
+erasure-coded into ``N`` shares distributed across at least ``H`` distinct
+storage servers (the default value for ``N`` is 10 and for ``H`` is 7) so
+that it can be recovered from any ``K`` of these servers (the default
+value of ``K`` is 3).  Therefore only the failure of ``H-K+1`` (with the
+defaults, 5) servers can make the data unavailable.
 
 In the typical deployment mode each user runs her own gateway on her own
 machine.  This way she relies on her own machine for the confidentiality and
