@@ -2872,7 +2872,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         self.set_up_grid()
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
-        self.data = "test data" * 32 # about 900 KiB; MDMF
+        self.data = "test data" * 100000 # about 900 KiB; MDMF
         self.small_data = "test data" * 10 # about 90 B; SDMF
 
 
@@ -3245,7 +3245,7 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.set_up_grid()
         self.c = self.g.clients[0]
         self.nm = self.c.nodemaker
-        self.data = "testdata " * 30 # about 900 KiB; MDMF
+        self.data = "testdata " * 100000 # about 900 KiB; MDMF
         self.small_data = "test data" * 10 # about 90 B; SDMF
 
 

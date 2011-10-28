@@ -25,7 +25,7 @@ from allmydata.mutable.layout import get_version_from_checkstring,\
                                      SDMFSlotWriteProxy
 
 KiB = 1024
-DEFAULT_MAX_SEGMENT_SIZE = 64
+DEFAULT_MAX_SEGMENT_SIZE = 128 * KiB
 PUSHING_BLOCKS_STATE = 0
 PUSHING_EVERYTHING_ELSE_STATE = 1
 DONE_STATE = 2
@@ -763,7 +763,6 @@ class Publish:
                 hashed = sharedata
             block_hash = hashutil.block_hash(hashed)
             self.blockhashes[shareid][segnum] = block_hash
-            log.msg("yyy 0 shareid: %s, segnum: %s, blockhash: %s, sharedata: %s, salt: %s" % (shareid, segnum, base32.b2a(block_hash), base32.b2a(sharedata), base32.b2a(salt),))
             # find the writer for this share
             writer = self.writers[shareid]
             writer.put_block(sharedata, segnum, salt)

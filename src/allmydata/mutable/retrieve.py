@@ -772,9 +772,6 @@ class Retrieve:
                  sharehashes[1].keys())
         bht = self._block_hash_trees[reader.shnum]
 
-        for bhk, bhv in blockhashes.iteritems():
-            log.msg("xxx 0 blockhash: %s %s" % (bhk, base32.b2a(bhv),))
-
         if bht.needed_hashes(segnum, include_leaf=True):
             try:
                 bht.set_hashes(blockhashes)
