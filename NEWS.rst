@@ -114,28 +114,28 @@ Minor Changes
 - Other minor changes: #636, #1355, #1363, #1366, #1388, #1392, #1412, #1344,
   #1347, #1359, #1389, #1441, #1442, #1446, #1474, #1503
 
-.. _`#393`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/393
-.. _`#1079`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1079
-.. _`#1104`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1104
-.. _`#1268`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1268
-.. _`#1274`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1274
-.. _`#1304`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1304
-.. _`#1355`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1355
-.. _`#1383`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1383
-.. _`#1384`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1384
-.. _`#1385`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1385
-.. _`#1388`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1388
-.. _`#1391`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1391
-.. _`#1392`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1392
-.. _`#1395`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1395
-.. _`#1409`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1409
-.. _`#1420`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1420
-.. _`#1425`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1425
-.. _`#1429`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1429
-.. _`#1435`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1435
-.. _`#1438`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1438
-.. _`#1454`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1454
-.. _`#1507`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1507
+.. _`#393`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/393
+.. _`#1079`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1079
+.. _`#1104`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1104
+.. _`#1268`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1268
+.. _`#1274`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1274
+.. _`#1304`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1304
+.. _`#1355`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1355
+.. _`#1383`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1383
+.. _`#1384`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1384
+.. _`#1385`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1385
+.. _`#1388`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1388
+.. _`#1391`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1391
+.. _`#1392`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1392
+.. _`#1395`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1395
+.. _`#1409`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1409
+.. _`#1420`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1420
+.. _`#1425`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1425
+.. _`#1429`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1429
+.. _`#1435`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1435
+.. _`#1438`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1438
+.. _`#1454`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1454
+.. _`#1507`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1507
 
 
 Release 1.8.3 (2011-09-13)
@@ -152,7 +152,7 @@ Security-related Bugfix
   corner cases in a way that no actual Tahoe-LAFS client does. (Probably not
   exploitable.) (`#1528`_)
 
-.. _`#1528`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1528
+.. _`#1528`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1528
 
 
 Release 1.8.2 (2011-01-30)
@@ -188,13 +188,13 @@ Other Changes
 - "tahoe --version" should now report correct values in situations
   where 1.8.1 might have been wrong (`#1287`_)
 
-.. _`#174`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/174
-.. _`#1208`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1208
-.. _`#1282`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1282
-.. _`#1286`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1286
-.. _`#1287`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1287
-.. _`#1296`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1296
-.. _`#1337`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1337
+.. _`#174`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/174
+.. _`#1208`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1208
+.. _`#1282`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1282
+.. _`#1286`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1286
+.. _`#1287`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1287
+.. _`#1296`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1296
+.. _`#1337`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1337
 
 
 Release 1.8.1 (2010-10-28)
@@ -243,7 +243,7 @@ Packaging
 
 - We now host binary packages so that users on certain operating
   systems can install without having a compiler.
-  <http://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-lafs-dep-eggs/README.html>
+  <https://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-lafs-dep-eggs/README.html>
 - Use a newer version of a dependency if needed, even if an older
   version is installed. This would previously cause a VersionConflict
   error. (`#1190`_)
@@ -261,21 +261,21 @@ Documentation
   Tahoe-LAFS, or add anything to facilitate government access to data.
   (`#1216`_)
 
-.. _`#71`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/71
-.. _`#174`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/174
-.. _`#1212`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1212
-.. _`#1045`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1045
-.. _`#1190`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1190
-.. _`#1216`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1216
-.. _`#1223`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1223
-.. _`#1224`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1224
-.. _`#1225`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1225
-.. _`#1232`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1232
-.. _`#1233`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1233
-.. _`#1241`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1241
-.. _`#1253`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1253
-.. _`#1255`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1255
-.. _`#1262`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1262
+.. _`#71`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/71
+.. _`#174`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/174
+.. _`#1212`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1212
+.. _`#1045`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1045
+.. _`#1190`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1190
+.. _`#1216`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1216
+.. _`#1223`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1223
+.. _`#1224`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1224
+.. _`#1225`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1225
+.. _`#1232`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1232
+.. _`#1233`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1233
+.. _`#1241`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1241
+.. _`#1253`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1253
+.. _`#1255`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1255
+.. _`#1262`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1262
 
 
 Release 1.8.0 (2010-09-23)
@@ -323,30 +323,30 @@ Dependency Updates
 - on x86 and x86-64 platforms, pycryptopp >= 0.5.20
 - pycrypto 2.2 is excluded due to a bug
 
-.. _`#188`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/188
-.. _`#287`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/287
-.. _`#288`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/288
-.. _`#448`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/448
-.. _`#685`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/685
-.. _`#706`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/706
-.. _`#715`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/715
-.. _`#772`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/772
-.. _`#798`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/798
-.. _`#800`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/800
-.. _`#890`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/890
-.. _`#983`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/983
-.. _`#990`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/990
-.. _`#1055`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1055
-.. _`#1074`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1074
-.. _`#1108`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1108
-.. _`#1155`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1155
-.. _`#1170`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1170
-.. _`#1191`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1191
-.. _`#1127`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1127
-.. _`#1129`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1129
-.. _`#1131`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1131
-.. _`#1166`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1166
-.. _`#1175`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1175
+.. _`#188`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/188
+.. _`#287`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/287
+.. _`#288`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/288
+.. _`#448`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/448
+.. _`#685`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/685
+.. _`#706`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/706
+.. _`#715`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/715
+.. _`#772`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/772
+.. _`#798`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/798
+.. _`#800`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/800
+.. _`#890`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/890
+.. _`#983`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/983
+.. _`#990`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/990
+.. _`#1055`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1055
+.. _`#1074`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1074
+.. _`#1108`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1108
+.. _`#1155`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1155
+.. _`#1170`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1170
+.. _`#1191`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1191
+.. _`#1127`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1127
+.. _`#1129`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1129
+.. _`#1131`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1131
+.. _`#1166`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1166
+.. _`#1175`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1175
 
 Release 1.7.1 (2010-07-18)
 --------------------------
@@ -379,19 +379,19 @@ Code improvements
 - Simplify and tidy-up directories, unicode support, test code
   (`#923`_, `#967`_, `#1072`_)
 
-.. _`#776`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/776
-.. _`#923`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/923
-.. _`#961`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/961
-.. _`#967`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/967
-.. _`#1051`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1051
-.. _`#1067`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1067
-.. _`#1072`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1072
-.. _`#1083`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1083
-.. _`#1097`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1097
-.. _`#1098`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1098
-.. _`#1099`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1099
-.. _`#1117`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1117
-.. _`#1118`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1118
+.. _`#776`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/776
+.. _`#923`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/923
+.. _`#961`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/961
+.. _`#967`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/967
+.. _`#1051`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1051
+.. _`#1067`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1067
+.. _`#1072`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1072
+.. _`#1083`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1083
+.. _`#1097`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1097
+.. _`#1098`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1098
+.. _`#1099`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1099
+.. _`#1117`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1117
+.. _`#1118`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1118
 
 
 Release 1.7.0 (2010-06-18)
@@ -484,29 +484,29 @@ Dependency Updates
 - pyasn1 >= 0.0.8a
 - mock (only required by unit tests)
 
-.. _`#534`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/534
-.. _`#608`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/608
-.. _`#778`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/778
-.. _`#803`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/803
-.. _`#902`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/902
-.. _`#911`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/911
-.. _`#924`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/924
-.. _`#937`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/937
-.. _`#933`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/933
-.. _`#968`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/968
-.. _`#973`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/973
-.. _`#1024`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1024
-.. _`#1027`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1027
-.. _`#1028`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1028
-.. _`#1033`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1033
-.. _`#1034`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1034
-.. _`#1037`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1037
-.. _`#1054`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1054
-.. _`#1062`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1062
-.. _`#1066`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1066
-.. _`#1068`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1068
-.. _`#1076`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1076
-.. _`#1082`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1082
+.. _`#534`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/534
+.. _`#608`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/608
+.. _`#778`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/778
+.. _`#803`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/803
+.. _`#902`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/902
+.. _`#911`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/911
+.. _`#924`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/924
+.. _`#937`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/937
+.. _`#933`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/933
+.. _`#968`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/968
+.. _`#973`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/973
+.. _`#1024`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1024
+.. _`#1027`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1027
+.. _`#1028`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1028
+.. _`#1033`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1033
+.. _`#1034`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1034
+.. _`#1037`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1037
+.. _`#1054`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1054
+.. _`#1062`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1062
+.. _`#1066`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1066
+.. _`#1068`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1068
+.. _`#1076`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1076
+.. _`#1082`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1082
 .. _architecture.rst: docs/architecture.rst
 .. _FTP-and-SFTP.rst: docs/frontends/FTP-and-SFTP.rst
 
@@ -727,41 +727,41 @@ Minor Changes
   has been improved. (`#773`_)
 
 For other changes not mentioned here, see
-<http://tahoe-lafs.org/trac/tahoe/query?milestone=1.6.0&keywords=!~news-done>.
+<https://tahoe-lafs.org/trac/tahoe/query?milestone=1.6.0&keywords=!~news-done>.
 To include the tickets mentioned above, go to
-<http://tahoe-lafs.org/trac/tahoe/query?milestone=1.6.0>.
+<https://tahoe-lafs.org/trac/tahoe/query?milestone=1.6.0>.
 
-.. _`#121`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/121
-.. _`#287`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/287
-.. _`#381`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/381
-.. _`#457`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/457
-.. _`#533`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/533
-.. _`#577`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/577
-.. _`#606`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/606
-.. _`#607`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/607
-.. _`#637`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/637
-.. _`#641`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/641
-.. _`#646`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/646
-.. _`#681`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/681
-.. _`#729`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/729
-.. _`#741`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/741
-.. _`#760`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/760
-.. _`#761`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/761
-.. _`#768`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/768
-.. _`#773`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/773
-.. _`#786`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/786
-.. _`#828`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/828
-.. _`#833`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/833
-.. _`#859`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/859
-.. _`#874`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/874
-.. _`#875`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/875
-.. _`#931`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/931
-.. _`#837`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/837
-.. _`#850`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/850
-.. _`#927`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/927
-.. _`#928`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/928
-.. _`#939`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/939
-.. _`#948`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/948
+.. _`#121`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/121
+.. _`#287`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/287
+.. _`#381`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/381
+.. _`#457`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/457
+.. _`#533`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/533
+.. _`#577`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/577
+.. _`#606`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/606
+.. _`#607`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/607
+.. _`#637`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/637
+.. _`#641`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/641
+.. _`#646`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/646
+.. _`#681`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/681
+.. _`#729`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/729
+.. _`#741`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/741
+.. _`#760`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/760
+.. _`#761`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/761
+.. _`#768`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/768
+.. _`#773`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/773
+.. _`#786`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/786
+.. _`#828`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/828
+.. _`#833`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/833
+.. _`#859`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/859
+.. _`#874`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/874
+.. _`#875`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/875
+.. _`#931`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/931
+.. _`#837`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/837
+.. _`#850`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/850
+.. _`#927`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/927
+.. _`#928`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/928
+.. _`#939`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/939
+.. _`#948`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/948
 .. _webapi.rst: docs/frontends/webapi.rst
 
 Release 1.5.0 (2009-08-01)
@@ -863,15 +863,15 @@ dependency updates
 - no python-3.x
 - pycryptopp-0.5.15
 
-.. _#392: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/392
-.. _#625: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/625
-.. _#653: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/653
-.. _#683: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/683
-.. _#694: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/694
-.. _#705: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/705
-.. _#722: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/722
-.. _#750: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/750
-.. _#752: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/752
+.. _#392: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/392
+.. _#625: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/625
+.. _#653: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/653
+.. _#683: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/683
+.. _#694: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/694
+.. _#705: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/705
+.. _#722: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/722
+.. _#750: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/750
+.. _#752: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/752
 
 Release 1.4.1 (2009-04-13)
 --------------------------
@@ -1014,8 +1014,8 @@ other fixes
   slightly, to accomodate more SFTP clients, although there are still
   issues (`#645`_).
 
-.. _#442: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/442
-.. _#645: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/645
+.. _#442: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/442
+.. _#645: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/645
 .. _garbage-collection.rst: docs/garbage-collection.rst
 
 Release 1.3.0 (2009-02-13)
@@ -1199,7 +1199,7 @@ The cli might not correctly handle arguments which contain non-ascii
 characters in Tahoe v1.3 (although depending on your platform it
 might, especially if your platform can be configured to pass such
 characters on the command-line in utf-8 encoding).  See
-http://tahoe-lafs.org/trac/tahoe/ticket/565 for details.
+https://tahoe-lafs.org/trac/tahoe/ticket/565 for details.
 
 Web changes
 '''''''''''
@@ -1316,7 +1316,7 @@ Packaging
 - Similarly, tahoe-lafs.org now hosts a "tahoe-deps" tarball which
   contains the latest versions of all these dependencies. This
   tarball, located at
-  http://tahoe-lafs.org/source/tahoe/deps/tahoe-deps.tar.gz, can be
+  https://tahoe-lafs.org/source/tahoe/deps/tahoe-deps.tar.gz, can be
   unpacked in the tahoe source tree (or in its parent directory), and
   the build process should satisfy its downloading needs from it
   instead of reaching out to PyPI.  This can be useful if you want to
@@ -1427,7 +1427,7 @@ Other Changes
 
 - Clients now declare which versions of the protocols they
   support. This is part of a new backwards-compatibility system:
-  http://tahoe-lafs.org/trac/tahoe/wiki/Versioning .
+  https://tahoe-lafs.org/trac/tahoe/wiki/Versioning .
 
 - The version strings for human inspection (as displayed on the
   Welcome web page, and included in logs) now includes a platform
@@ -1462,10 +1462,10 @@ Other Changes
 
 - The Mac GUI in src/allmydata/gui/ has been improved.
 
-.. _#512: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/512
-.. _#518: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/518
-.. _#521: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/521
-.. _#531: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/531
+.. _#512: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/512
+.. _#518: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/518
+.. _#521: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/521
+.. _#531: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/531
 
 Release 1.2.0 (2008-07-21)
 --------------------------
@@ -1594,8 +1594,8 @@ Other
   "self._paused_at not defined" whenever a file download was stopped
   from the web browser end.
 
-.. _#463: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/463
-.. _#491: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/491
+.. _#463: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/463
+.. _#491: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/491
 .. _debian.rst: docs/debian.rst
 
 Release 1.1.0 (2008-06-11)
@@ -1725,8 +1725,8 @@ other features
   linear order.  The rsync tool is known to perform writes in this
   order. This has been fixed.
 
-.. _#221: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/221
-.. _#374: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/374
-.. _#391: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/391
-.. _#439: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/439
+.. _#221: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/221
+.. _#374: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/374
+.. _#391: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/391
+.. _#439: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/439
 .. _CLI.rst: docs/CLI.rst

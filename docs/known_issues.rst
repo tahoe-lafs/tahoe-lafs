@@ -5,7 +5,7 @@ Known Issues
 
 Below is a list of known issues in recent releases of Tahoe-LAFS, and how to
 manage them.  The current version of this file can be found at
-http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/known_issues.rst .
+https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/known_issues.rst .
 
 If you've been using Tahoe-LAFS since v1.1 (released 2008-06-11) or if you're
 just curious about what sort of mistakes we've made in the past, then you might
@@ -103,7 +103,7 @@ reset to empty when the process is restarted.
 
 See ticket `#1528`_ for technical details.
 
-.. _#1528: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1528
+.. _#1528: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1528
 
 
 ----
@@ -130,7 +130,7 @@ web user interface, or turn off JavaScript in your web browser before
 doing so, or limit your viewing to files which you know don't contain
 malicious JavaScript.
 
-.. _#615: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/615
+.. _#615: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/615
 
 
 ----
@@ -164,7 +164,7 @@ remove from that file any hyperlinks pointing to other people's servers
 and remove any JavaScript unless you are sure that the JavaScript is not
 written to maliciously leak access.
 
-.. _#127: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/127
+.. _#127: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/127
 
 
 ----
@@ -292,7 +292,7 @@ Known issues in the FTP and SFTP frontends
 These are documented in `docs/frontends/FTP-and-SFTP.rst`_ and on `the SftpFrontend page`_ on the wiki. 
 
 .. _docs/frontends/FTP-and-SFTP.rst: frontends/FTP-and-SFTP.rst
-.. _the SftpFrontend page: http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend
+.. _the SftpFrontend page: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend
 
 
 ----

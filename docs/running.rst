@@ -20,7 +20,7 @@ responsible for getting the other nodes talking to each other.
 
 If you're getting started we recommend you try connecting to
 the `public test grid
-<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid>`_ as you only
+<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid>`_ as you only
 need to create a client node. When you want to create your own grid
 you'll need to create the introducer and several initial storage nodes
 (see the note about small grids below).
@@ -32,7 +32,7 @@ To construct a client node, run "``tahoe create-client``", which will
 create ``~/.tahoe`` to be the node's base directory. Acquire the
 ``introducer.furl`` (see below if you are running your own introducer,
 or use the one from the `TestGrid page
-<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid>`_), and paste it
+<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/TestGrid>`_), and paste it
 after ``introducer.furl =`` in the ``[client]`` section of
 ``~/.tahoe/tahoe.cfg``. Then use "``tahoe run ~/.tahoe``". After that,
 the node should be off and running. The first thing it will do is
@@ -121,7 +121,7 @@ this up. On most Unix platforms, you can also use SFTP to plug
 Tahoe-LAFS into your computer's local filesystem via ``sshfs``.
 
 The `SftpFrontend
-<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_ page on the
+<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_ page on the
 wiki has more information about using SFTP with Tahoe-LAFS.
 
 The WAPI
@@ -136,4 +136,4 @@ Socialize
 You can chat with other users of and hackers of this software on the
 #tahoe-lafs IRC channel at ``irc.freenode.net``, or on the `tahoe-dev
 mailing list
-<http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`_.
+<https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`_.

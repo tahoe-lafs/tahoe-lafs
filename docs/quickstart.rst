@@ -2,7 +2,7 @@
 Getting Tahoe-LAFS
 ==================
 
-Welcome to `the Tahoe-LAFS project <http://tahoe-lafs.org>`_, a secure, 
+Welcome to `the Tahoe-LAFS project <https://tahoe-lafs.org>`_, a secure, 
 decentralized, fault-tolerant storage system. `About Tahoe-LAFS 
 <about.rst>`_.
 
@@ -20,7 +20,7 @@ There are a few 3rd party libraries that Tahoe-LAFS depends on that
 might not be easy to set up on your platform.  If the following 
 instructions don't Just Work without any further effort on your part, 
 then please write to `the tahoe-dev mailing list 
-<http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`_ where 
+<https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`_ where 
 friendly hackers will help you out. You might also find clues in the 
 `Advanced Installation`_ section described below.
 
@@ -42,7 +42,7 @@ Get Tahoe-LAFS
 --------------
 
 `Download the latest stable release, v1.8.3
-<http://tahoe-lafs.org/source/tahoe-lafs/releases/allmydata-tahoe-1.8.3.zip>`_
+<https://tahoe-lafs.org/source/tahoe-lafs/releases/allmydata-tahoe-1.8.3.zip>`_
 
 Set Up Tahoe-LAFS
 -----------------
@@ -77,11 +77,11 @@ Advanced Installation
 
 For optional features such as tighter integration with your operating 
 system's package manager, you can see the `AdvancedInstall 
-<http://tahoe-lafs.org/trac/tahoe/wiki/AdvancedInstall>`_ wiki page. 
+<https://tahoe-lafs.org/trac/tahoe/wiki/AdvancedInstall>`_ wiki page. 
 The options on that page are not necessary to use Tahoe-LAFS and can be 
 complicated, so we do not recommend following that page unless you have 
 unusual requirements for advanced optional features. For most people, 
 you should first follow the instructions on this page, and if that 
 doesn't work then ask for help by writing to `the tahoe-dev mailing 
-list <http://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`_.
+list <https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev>`_.
 

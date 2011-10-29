@@ -323,7 +323,7 @@ setup(name=APPNAME,
       long_description=open('README.txt', 'rU').read(),
       author='the Tahoe-LAFS project',
       author_email='tahoe-dev@tahoe-lafs.org',
-      url='http://tahoe-lafs.org/',
+      url='https://tahoe-lafs.org/',
       license='GNU GPL', # see README.txt -- there is an alternative licence
       cmdclass={"trial": Trial,
                 "make_executable": MakeExecutable,
