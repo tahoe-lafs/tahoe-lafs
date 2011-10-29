@@ -6,7 +6,7 @@ User-Visible Changes in Tahoe-LAFS
 Release 1.9.0 (2011-??-??)
 --------------------------
 
-Alpha 2 preview
+Beta 1 preview
 
 
 New Features
