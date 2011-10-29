@@ -2,7 +2,7 @@
 Welcome to Tahoe-LAFS!
 ======================
 
-Welcome to `Tahoe-LAFS <http://tahoe-lafs.org>`_, the first decentralized
+Welcome to `Tahoe-LAFS <https://tahoe-lafs.org>`_, the first decentralized
 storage system with *provider-independent security*.
 
 What is "provider-independent security"?
@@ -37,7 +37,7 @@ using cloud storage in the first place -- convenience.)
 
 Here's how it works:
 
-.. image:: http://tahoe-lafs.org/~zooko/network-and-reliance-topology.png
+.. image:: https://tahoe-lafs.org/~zooko/network-and-reliance-topology.png
 
 A "storage grid" is made up of a number of storage servers.  A storage server
 has direct attached storage (typically one or more hard disks).  A "gateway"
@@ -90,7 +90,7 @@ link, then anyone who has either read-write or read-only access to the parent
 directory can gain read-only access to the child.
 
 For more technical detail, please see the `the doc page
-<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/Doc>`_ on the Wiki.
+<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Doc>`_ on the Wiki.
 
 Get Started
 ===========
