@@ -221,7 +221,7 @@ set the ``tub.location`` option described below.
     one log gatherer per node. See ticket `#1423`_ about lifting this
     restriction and letting you have multiple log gatherers.
 
-    .. _`#1423`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1423
+    .. _`#1423`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1423
 
 ``timeout.keepalive = (integer in seconds, optional)``
 
@@ -255,7 +255,7 @@ set the ``tub.location`` option described below.
     contact us, our ping might be delayed, so we may disconnect them by
     accident.
 
-    .. _`#521`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/521
+    .. _`#521`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/521
 
 ``ssh.port = (strports string, optional)``
 
@@ -430,7 +430,7 @@ Storage Server Configuration
     mounted read-only, while shares are moved to other servers. Note that
     this currently only affects immutable shares. Mutable shares (used for
     directories) will be written and modified anyway. See ticket `#390
-    <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/390>`_ for the current
+    <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/390>`_ for the current
     status of this bug. The default value is ``False``.
 
 ``reserved_space = (str, optional)``
