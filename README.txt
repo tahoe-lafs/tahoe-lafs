@@ -22,7 +22,7 @@ the Transitive Grace Period Public Licence, version 1.0.
 
 See `TGPPL.PDF`_ for why the TGPPL exists, graphically illustrated on three slides.
 
-.. _quickstart.rst: http://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.rst
-.. _COPYING.GPL: http://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.GPL
-.. _COPYING.TGPPL.rst: http://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.TGPPL.rst
-.. _TGPPL.PDF: http://tahoe-lafs.org/~zooko/tgppl.pdf
+.. _quickstart.rst: https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.rst
+.. _COPYING.GPL: https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.GPL
+.. _COPYING.TGPPL.rst: https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.TGPPL.rst
+.. _TGPPL.PDF: https://tahoe-lafs.org/~zooko/tgppl.pdf
