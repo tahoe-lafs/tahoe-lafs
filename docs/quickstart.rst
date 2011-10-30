@@ -41,8 +41,8 @@ in the "Program Files" directory).
 Get Tahoe-LAFS
 --------------
 
-`Download the latest stable release, v1.8.3
-<https://tahoe-lafs.org/source/tahoe-lafs/releases/allmydata-tahoe-1.8.3.zip>`_
+`Download the latest stable release, v1.9.0
+<https://tahoe-lafs.org/source/tahoe-lafs/releases/allmydata-tahoe-1.9.0.zip>`_
 
 Set Up Tahoe-LAFS
 -----------------
