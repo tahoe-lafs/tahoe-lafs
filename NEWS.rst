@@ -727,9 +727,9 @@ Minor Changes
   has been improved. (`#773`_)
 
 For other changes not mentioned here, see
-<https://tahoe-lafs.org/trac/tahoe/query?milestone=1.6.0&keywords=!~news-done>.
+<https://tahoe-lafs.org/trac/tahoe-lafs/query?milestone=1.6.0&keywords=!~news-done>.
 To include the tickets mentioned above, go to
-<https://tahoe-lafs.org/trac/tahoe/query?milestone=1.6.0>.
+<https://tahoe-lafs.org/trac/tahoe-lafs/query?milestone=1.6.0>.
 
 .. _`#121`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/121
 .. _`#287`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/287
@@ -1199,7 +1199,7 @@ The cli might not correctly handle arguments which contain non-ascii
 characters in Tahoe v1.3 (although depending on your platform it
 might, especially if your platform can be configured to pass such
 characters on the command-line in utf-8 encoding).  See
-https://tahoe-lafs.org/trac/tahoe/ticket/565 for details.
+https://tahoe-lafs.org/trac/tahoe-lafs/ticket/565 for details.
 
 Web changes
 '''''''''''
@@ -1427,7 +1427,7 @@ Other Changes
 
 - Clients now declare which versions of the protocols they
   support. This is part of a new backwards-compatibility system:
-  https://tahoe-lafs.org/trac/tahoe/wiki/Versioning .
+  https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Versioning .
 
 - The version strings for human inspection (as displayed on the
   Welcome web page, and included in logs) now includes a platform

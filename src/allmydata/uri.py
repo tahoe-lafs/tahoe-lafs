@@ -834,7 +834,7 @@ def from_string(u, deep_immutable=False, name=u"<unknown name>"):
     # on all URIs, even though we would only strictly need to do so for caps of
     # new formats (post Tahoe-LAFS 1.6). URIs that are not consistent with their
     # prefix are treated as unknown. This should be revisited when we add the
-    # new cap formats. See <http://allmydata.org/trac/tahoe/ticket/833#comment:31>.
+    # new cap formats. See <http://allmydata.org/trac/tahoe-lafs/ticket/833#comment:31>.
     s = u
     can_be_mutable = can_be_writeable = not deep_immutable
     if s.startswith(ALLEGED_IMMUTABLE_PREFIX):

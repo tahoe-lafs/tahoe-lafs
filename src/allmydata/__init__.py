@@ -29,7 +29,7 @@ except ImportError:
 
 # __full_version__ is the one that you ought to use when identifying yourself in the
 # "application" part of the Tahoe versioning scheme:
-# http://allmydata.org/trac/tahoe/wiki/Versioning
+# http://allmydata.org/trac/tahoe-lafs/wiki/Versioning
 __full_version__ = __appname__ + '/' + str(__version__)
 
 import os, platform, re, subprocess, sys, traceback

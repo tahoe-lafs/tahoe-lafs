@@ -77,7 +77,7 @@ Advanced Installation
 
 For optional features such as tighter integration with your operating
 system's package manager, you can see the `AdvancedInstall
-<https://tahoe-lafs.org/trac/tahoe/wiki/AdvancedInstall>`_ wiki page.
+<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/AdvancedInstall>`_ wiki page.
 The options on that page are not necessary to use Tahoe-LAFS and can be
 complicated, so we do not recommend following that page unless you have
 unusual requirements for advanced optional features. For most people,

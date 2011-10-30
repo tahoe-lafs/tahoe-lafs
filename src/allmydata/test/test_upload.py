@@ -959,7 +959,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.basedir = self.mktemp()
         _basedir()
         # This scenario is at
-        # http://allmydata.org/trac/tahoe/ticket/778#comment:52
+        # http://allmydata.org/trac/tahoe-lafs/ticket/778#comment:52
         #
         # The scenario in comment:52 proposes that we have a layout
         # like:
@@ -1051,7 +1051,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
     def test_problem_layout_comment_53(self):
         # This scenario is at
-        # http://allmydata.org/trac/tahoe/ticket/778#comment:53
+        # http://allmydata.org/trac/tahoe-lafs/ticket/778#comment:53
         #
         # Set up the grid to have one server
         def _change_basedir(ign):

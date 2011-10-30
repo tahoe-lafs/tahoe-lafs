@@ -133,15 +133,15 @@ September 13, 2011
 Boulder, Colorado, USA
 
 
-[1] https://tahoe-lafs.org/trac/tahoe/browser/relnotes.txt?rev=5164
+[1] https://tahoe-lafs.org/trac/tahoe-lafs/browser/relnotes.txt?rev=5164
 [2] https://tahoe-lafs.org/trac/tahoe-lafs/browser/1.8.3/NEWS.rst?rev=5014
-[3] https://tahoe-lafs.org/trac/tahoe/browser/docs/known_issues.rst
-[4] https://tahoe-lafs.org/trac/tahoe/wiki/RelatedProjects
-[5] https://tahoe-lafs.org/trac/tahoe/browser/COPYING.GPL
-[6] https://tahoe-lafs.org/trac/tahoe/browser/COPYING.TGPPL.rst
+[3] https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/known_issues.rst
+[4] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
+[5] https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.GPL
+[6] https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.TGPPL.rst
 [7] https://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.rst
 [8] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
-[9] https://tahoe-lafs.org/trac/tahoe/roadmap
+[9] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
 [10] https://tahoe-lafs.org/trac/tahoe-lafs/browser/1.8.3/CREDITS?rev=5003
-[11] https://tahoe-lafs.org/trac/tahoe/wiki/Dev
+[11] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Dev
 [12] https://tahoe-lafs.org/hacktahoelafs/

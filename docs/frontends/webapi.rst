@@ -158,7 +158,7 @@ listening on this port::
 
 So, to access the directory named above (which happens to be the
 publically-writeable sample directory on the Tahoe test grid, described at
-http://allmydata.org/trac/tahoe/wiki/TestGrid), the URL would be::
+http://allmydata.org/trac/tahoe-lafs/wiki/TestGrid), the URL would be::
 
  http://127.0.0.1:3456/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/
 
