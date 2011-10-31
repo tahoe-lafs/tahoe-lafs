@@ -242,6 +242,8 @@ time are likely to be related even if they are not linked in the directory
 structure. Also, users that access the same files may be related to each other.
 
 
+----
+
 Known Issues in Tahoe-LAFS v1.8.2, released 30-Jan-2011
 =======================================================
 

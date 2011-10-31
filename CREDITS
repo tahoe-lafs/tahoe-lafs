@@ -86,7 +86,7 @@ D: patch Makefile to build .debs for Ubuntu Intrepid
 
 N: Kevan Carstensen
 E: kevan@isnotajoke.com
-D: Tahoe-LAFS Hacker; security, upload, other improvements, code review, docs
+D: Tahoe-LAFS Hacker; MDMF, security, other improvements, code review, docs
 
 N: Marc Tooley
 W: http://rune.ca
