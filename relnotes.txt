@@ -15,12 +15,12 @@ unique security and fault-tolerance properties:
 https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/about.rst
 
 The previous stable release of Tahoe-LAFS was v1.8.3, which was
-released September 13, 2011 [1].
+released September 13, 2011.
 
 v1.9.0 offers a new mutable-file format (more efficient for
 large files), a file-blacklisting feature, and a new
-"drop-upload" feature. See the NEWS file [2] and
-known_issues.rst [3] file for details.
+"drop-upload" feature. See the NEWS file [3] and
+known_issues.rst [4] file for details.
 
 
 WHAT IS IT GOOD FOR?
@@ -37,7 +37,7 @@ have built other projects on top of Tahoe-LAFS and have
 integrated Tahoe-LAFS with existing systems, including
 Windows, JavaScript, iPhone, Android, Hadoop, Flume, Django,
 Puppet, bzr, mercurial, perforce, duplicity, TiddlyWiki, and
-more. See the Related Projects page on the wiki [4].
+more. See the Related Projects page on the wiki [5].
 
 We believe that strong cryptography, Free and Open Source
 Software, erasure coding, and principled engineering practices
@@ -48,7 +48,7 @@ This software is developed under test-driven development, and
 there are no known bugs or security flaws which would
 compromise confidentiality or data integrity under recommended
 use. (For all important issues that we are currently aware of
-please see the known_issues.rst file [3].)
+please see the known_issues.rst file [2].)
 
 
 COMPATIBILITY
@@ -73,7 +73,7 @@ LICENCE
 
 You may use this package under the GNU General Public License,
 version 2 or, at your option, any later version. See the file
-"COPYING.GPL" [5] for the terms of the GNU General Public
+"COPYING.GPL" [4] for the terms of the GNU General Public
 License, version 2.
 
 You may use this package under the Transitive Grace Period
@@ -82,7 +82,7 @@ version. (The Transitive Grace Period Public Licence has
 requirements similar to the GPL except that it allows you to
 delay for up to twelve months after you redistribute a derived
 work before releasing the source code of your derived work.)
-See the file "COPYING.TGPPL.rst" [6] for the terms of the
+See the file "COPYING.TGPPL.rst" [5] for the terms of the
 Transitive Grace Period Public Licence, version 1.
 
 (You may choose to use this package under the terms of either
@@ -93,24 +93,27 @@ INSTALLATION
 
 Tahoe-LAFS works on Linux, Mac OS X, Windows, Solaris, *BSD,
 and probably most other systems. Start with
-"docs/quickstart.rst" [7].
+"docs/quickstart.rst" [6].
 
 
 HACKING AND COMMUNITY
 
-Please join us on the mailing list [8]. Patches are gratefully
-accepted -- the RoadMap page [9] shows the next improvements
-that we plan to make and CREDITS [10] lists the names of people
-who've contributed to the project. The Dev page [11] contains
+Please join us on the mailing list [7]. Patches are gratefully
+accepted -- the RoadMap page [8] shows the next improvements
+that we plan to make and CREDITS [9] lists the names of people
+who've contributed to the project. The Dev page [10] contains
 resources for hackers.
 
 
 SPONSORSHIP
 
 Atlas Networks has contributed several hosted servers for
-performance testing. Thank you to Atlas Networks for their
-generous and public-spirited support.
+performance testing. Thank you to Atlas Networks [11] for
+their generous and public-spirited support.
 
+And a special thanks to Least Authority Enterprises [12],
+which employs several Tahoe-LAFS developers, for their
+continued support.
 
 HACK TAHOE-LAFS!
 
@@ -118,7 +121,7 @@ If you can find a security flaw in Tahoe-LAFS which is serious
 enough that we feel compelled to warn our users and issue a fix,
 then we will award you with a customized t-shirts with your
 exploit printed on it and add you to the "Hack Tahoe-LAFS Hall
-Of Fame" [12].
+Of Fame" [13].
 
 
 ACKNOWLEDGEMENTS
@@ -135,15 +138,16 @@ October 31, 2011
 San Francisco, California, USA
 
 
-[1] https://tahoe-lafs.org/trac/tahoe-lafs/browser/relnotes.txt?rev=5164
-[2] https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/NEWS.rst?rev=5352
-[3] https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/known_issues.rst
-[4] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
-[5] https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.GPL
-[6] https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.TGPPL.rst
-[7] https://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.rst
-[8] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
-[9] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
-[10] https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/CREDITS?rev=5352
-[11] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Dev
-[12] https://tahoe-lafs.org/hacktahoelafs/
+[1] https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/NEWS.rst?rev=5356
+[2] https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/known_issues.rst
+[3] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
+[4] https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.GPL
+[5] https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.TGPPL.rst
+[6] https://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.rst
+[7] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
+[8] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
+[9] https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/CREDITS?rev=5356
+[10] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Dev
+[11] http://atlasnetworks.us/
+[12] http://leastauthority.com/
+[13] https://tahoe-lafs.org/hacktahoelafs/
