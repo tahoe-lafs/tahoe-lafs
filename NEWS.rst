@@ -19,8 +19,8 @@ New Features
   format for mutable files), both to ensure compatibility with previous
   versions, and because the algorithm does not yet meet memory-usage goals.
   Enable it with ``--format=MDMF`` in the CLI (``tahoe put`` and ``tahoe
-  mkdir``), or the "format" radioboxes in the web interface. (`#393`_,
-  `#1507`_)
+  mkdir``), or the "format" radioboxes in the web interface. See
+  `<docs/specifications/mutable.rst>`_ for more details (`#393`_, `#1507`_)
 - A "blacklist" feature allows blocking access to specific files through
   a particular gateway. See the "Access Blacklist" section of
   `<docs/configuration.rst>`_ for more details. (`#1425`_)

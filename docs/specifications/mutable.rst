@@ -4,9 +4,10 @@ Mutable Files
 
 This describes the "RSA-based mutable files" which were shipped in Tahoe v0.8.0.
 
-1.  `Consistency vs. Availability`_
-2.  `The Prime Coordination Directive: "Don't Do That"`_
-3.  `Small Distributed Mutable Files`_
+1.  `Mutable Formats`_
+2.  `Consistency vs. Availability`_
+3.  `The Prime Coordination Directive: "Don't Do That"`_
+4.  `Small Distributed Mutable Files`_
 
     1. `SDMF slots overview`_
     2. `Server Storage Protocol`_
@@ -14,9 +15,9 @@ This describes the "RSA-based mutable files" which were shipped in Tahoe v0.8.0.
     4. `SMDF Slot Format`_
     5. `Recovery`_
 
-4.  `Medium Distributed Mutable Files`_
-5.  `Large Distributed Mutable Files`_
-6.  `TODO`_
+5.  `Medium Distributed Mutable Files`_
+6.  `Large Distributed Mutable Files`_
+7.  `TODO`_
 
 Mutable File Slots are places with a stable identifier that can hold data
 that changes over time. In contrast to CHK slots, for which the
@@ -41,6 +42,61 @@ as being written by someone with the read-write URI. The servers who hold the
 shares cannot read or modify them: the worst they can do is deny service (by
 deleting or corrupting the shares), or attempt a rollback attack (which can
 only succeed with the cooperation of at least k servers).
+
+Mutable Formats
+===============
+
+When mutable files first shipped in Tahoe-0.8.0 (15-Feb-2008), the only
+version available was "SDMF", described below. This was a
+limited-functionality placeholder, intended to be replaced with
+improved-efficiency "MDMF" files shortly afterwards. The development process
+took longer than expected, and MDMF didn't ship until Tahoe-1.9.0
+(31-Oct-2011), and even then it was opt-in (not used by default).
+
+SDMF was intended for relatively small mutable files, up to a few megabytes.
+It uses only one segment, so alacrity (the measure of how quickly the first
+byte of plaintext is returned to the client) suffers, as the whole file must
+be downloaded even if you only want to get a single byte. The memory used by
+both clients and servers also scales with the size of the file, instead of
+being limited to the half-a-MB-or-so that immutable file operations use, so
+large files cause significant memory usage. To discourage the use of SDMF
+outside it's design parameters, the early versions of Tahoe enforced a
+maximum size on mutable files (maybe 10MB). Since most directories are built
+out of mutable files, this imposed a limit of about 30k entries per
+directory. In subsequent releases, this limit was removed, but the
+performance problems inherent in the SDMF implementation remained.
+
+In the summer of 2010, Google-Summer-of-Code student Kevan Carstensen took on
+the project of finally implementing MDMF. Because of my (Brian) design
+mistake in SDMF (not including a separate encryption seed in each segment),
+the share format for SDMF could not be used for MDMF, resulting in a larger
+gap between the two implementations (my original intention had been to make
+SDMF a clean subset of MDMF, where any single-segment MDMF file could be
+handled by the old SDMF code). In the fall of 2011, Kevan's code was finally
+integrated, and first made available in the Tahoe-1.9.0 release.
+
+The main improvement of MDMF is the use of multiple segments: individual
+128KiB sections of the file can be retrieved or modified independently. The
+improvement can be seen when fetching just a portion of the file (using a
+Range: header on the webapi), or when modifying a portion (again with a
+Range: header). It can also be seen indirectly when fetching the whole file:
+the first segment of data should be delivered faster from a large MDMF file
+than from an SDMF file, although the overall download will then proceed at
+the same rate.
+
+We've decided to make it opt-in for the first release while we shake out the
+bugs, just in case a problem is found which requires an incompatible format
+change. All new mutable files will be in SDMF format unless the user
+specifically chooses to use MDMF instead. The code can read and modify
+existing files of either format without user intervention. We expect to make
+MDMF the default in a subsequent release, perhaps 2.0.
+
+Which format should you use? SDMF works well for files up to a few MB, and
+can be handled by older versions (Tahoe-1.8.3 and earlier). If you do not
+need to support older clients, want to efficiently work with mutable files,
+and have code which will use Range: headers that make partial reads and
+writes, then MDMF is for you.
+
 
 Consistency vs. Availability
 ============================
