@@ -150,7 +150,6 @@ print_setuptools_ver()
 
 print_py_pkg_ver('coverage')
 print_py_pkg_ver('trialcoverage')
-print_py_pkg_ver('setuptools_trial')
 print_py_pkg_ver('pyflakes')
 print_py_pkg_ver('zope.interface')
 print_py_pkg_ver('setuptools_darcs')
