@@ -1,10 +1,10 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.8.3
+﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.9.0
 
 The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.8.3 of Tahoe-LAFS, an extremely
+availability of version 1.9.0 of Tahoe-LAFS, an extremely
 reliable distributed storage system. Get it here:
 
-https://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.rst
+https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.rst
 
 Tahoe-LAFS is the first distributed storage system to offer
 "provider-independent security" — meaning that not even the
@@ -12,13 +12,13 @@ operators of your storage servers can read or alter your data
 without your consent. Here is the one-page explanation of its
 unique security and fault-tolerance properties:
 
-https://tahoe-lafs.org/source/tahoe/trunk/docs/about.rst
+https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/about.rst
 
-The previous stable release of Tahoe-LAFS was v1.8.2, which was
-released January 30, 2011 [1].
+The previous stable release of Tahoe-LAFS was v1.8.3, which was
+released September 13, 2011 [1].
 
-v1.8.3 is a stable bugfix release which fixes a security issue. See the file
-[2] and known_issues.rst [3] file for details.
+v1.9.0 offers new features. See the NEWS file [2] and known_issues.rst [3]
+file for details.
 
 
 WHAT IS IT GOOD FOR?
@@ -60,7 +60,7 @@ all versions since v1.0. Servers from this release can serve
 clients of all versions back to v1.0 and clients from this
 release can use servers of all versions back to v1.0.
 
-This is the fourteenth release in the version 1 series. This
+This is the fifteenth release in the version 1 series. This
 series of Tahoe-LAFS will be actively supported and maintained
 for the foreseeable future, and future versions of Tahoe-LAFS
 will retain the ability to read and write files compatible
@@ -105,9 +105,9 @@ resources for hackers.
 
 SPONSORSHIP
 
-Atlas Networks has contributed several hosted servers for performance
-testing. Thank you to Atlas Networks for their generous and public-spirited
-support.
+Atlas Networks has contributed several hosted servers for
+performance testing. Thank you to Atlas Networks for their
+generous and public-spirited support.
 
 
 HACK TAHOE-LAFS!
@@ -121,20 +121,20 @@ Of Fame" [12].
 
 ACKNOWLEDGEMENTS
 
-This is the eighth release of Tahoe-LAFS to be created solely
+This is the ninth release of Tahoe-LAFS to be created solely
 as a labor of love by volunteers. Thank you very much to the
 team of "hackers in the public interest" who make Tahoe-LAFS
 possible.
 
-Zooko Wilcox-O'Hearn
+Brian Warner
 on behalf of the Tahoe-LAFS team
 
-September 13, 2011
-Boulder, Colorado, USA
+October 31, 2011
+San Francisco, California, USA
 
 
 [1] https://tahoe-lafs.org/trac/tahoe-lafs/browser/relnotes.txt?rev=5164
-[2] https://tahoe-lafs.org/trac/tahoe-lafs/browser/1.8.3/NEWS.rst?rev=5014
+[2] https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/NEWS.rst?rev=5352
 [3] https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/known_issues.rst
 [4] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
 [5] https://tahoe-lafs.org/trac/tahoe-lafs/browser/COPYING.GPL
@@ -142,6 +142,6 @@ Boulder, Colorado, USA
 [7] https://tahoe-lafs.org/source/tahoe/trunk/docs/quickstart.rst
 [8] https://tahoe-lafs.org/cgi-bin/mailman/listinfo/tahoe-dev
 [9] https://tahoe-lafs.org/trac/tahoe-lafs/roadmap
-[10] https://tahoe-lafs.org/trac/tahoe-lafs/browser/1.8.3/CREDITS?rev=5003
+[10] https://tahoe-lafs.org/trac/tahoe-lafs/browser/trunk/CREDITS?rev=5352
 [11] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Dev
 [12] https://tahoe-lafs.org/hacktahoelafs/

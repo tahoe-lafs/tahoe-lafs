@@ -14,97 +14,14 @@ want to read `the "historical known issues" document`_.
 .. _the "historical known issues" document: historical/historical_known_issues.txt
 
 
-Issues in Tahoe-LAFS v1.8.2, released 2011-01-30
+Known Issues in Tahoe-LAFS v1.9.0, released 31-Oct-2011
 
-  *  `Unauthorized deletion of an immutable file by its storage index`_
   *  `Potential unauthorized access by JavaScript in unrelated files`_
   *  `Potential disclosure of file through embedded hyperlinks or JavaScript in that file`_
   *  `Command-line arguments are leaked to other local users`_
   *  `Capabilities may be leaked to web browser phishing filter / "safe browsing" servers`_
   *  `Known issues in the FTP and SFTP frontends`_
   *  `Traffic analysis based on sizes of files/directories, storage indices, and timing`_
-
-----
-
-Unauthorized deletion of an immutable file by its storage index
----------------------------------------------------------------
-
-Due to a flaw in the Tahoe-LAFS storage server software in v1.3.0 through
-v1.8.2, a person who knows the "storage index" that identifies an immutable
-file can cause the server to delete its shares of that file.
-
-If an attacker can cause enough shares to be deleted from enough storage
-servers, this deletes the file.
-
-This vulnerability does not enable anyone to read file contents without
-authorization (confidentiality), nor to change the contents of a file
-(integrity).
-
-A person could learn the storage index of a file in several ways:
-
-1. By being granted the authority to read the immutable file—i.e. by being
-   granted a read capability to the file. They can determine the file's
-   storage index from its read capability.
-
-2. By being granted a verify capability to the file. They can determine the
-   file's storage index from its verify capability. This case probably
-   doesn't happen often because users typically don't share verify caps.
-
-3. By operating a storage server, and receiving a request from a client that
-   has a read cap or a verify cap. If the client attempts to upload,
-   download, or verify the file with their storage server, even if it doesn't
-   actually have the file, then they can learn the storage index of the file.
-
-4. By gaining read access to an existing storage server's local filesystem,
-   and inspecting the directory structure that it stores its shares in. They
-   can thus learn the storage indexes of all files that the server is holding
-   at least one share of. Normally only the operator of an existing storage
-   server would be able to inspect its local filesystem, so this requires
-   either being such an operator of an existing storage server, or somehow
-   gaining the ability to inspect the local filesystem of an existing storage
-   server.
-
-*how to manage it*
-
-Tahoe-LAFS version v1.8.3 or newer (except v1.9a1) no longer has this flaw;
-if you upgrade a storage server to a fixed release then that server is no
-longer vulnerable to this problem.
-
-Note that the issue is local to each storage server independently of other
-storage servers—when you upgrade a storage server then that particular
-storage server can no longer be tricked into deleting its shares of the
-target file.
-
-If you can't immediately upgrade your storage server to a version of
-Tahoe-LAFS that eliminates this vulnerability, then you could temporarily
-shut down your storage server. This would of course negatively impact
-availability—clients would not be able to upload or download shares to that
-particular storage server while it was shut down—but it would protect the
-shares already stored on that server from being deleted as long as the server
-is shut down.
-
-If the servers that store shares of your file are running a version of
-Tahoe-LAFS with this vulnerability, then you should think about whether
-someone can learn the storage indexes of your files by one of the methods
-described above. A person can not exploit this vulnerability unless they have
-received a read cap or verify cap, or they control a storage server that has
-been queried about this file by a client that has a read cap or a verify cap.
-
-Tahoe-LAFS does not currently have a mechanism to limit which storage servers
-can connect to your grid, but it does have a way to see which storage servers
-have been connected to the grid. The Introducer's front page in the Web User
-Interface has a list of all storage servers that the Introducer has ever seen
-and the first time and the most recent time that it saw them. Each Tahoe-LAFS
-gateway maintains a similar list on its front page in its Web User Interface,
-showing all of the storage servers that it learned about from the Introducer,
-when it first connected to that storage server, and when it most recently
-connected to that storage server. These lists are stored in memory and are
-reset to empty when the process is restarted.
-
-See ticket `#1528`_ for technical details.
-
-.. _#1528: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1528
-
 
 ----
 
