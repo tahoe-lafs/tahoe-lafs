@@ -19,8 +19,8 @@ released September 13, 2011.
 
 v1.9.0 offers a new mutable-file format (more efficient for
 large files), a file-blacklisting feature, and a new
-"drop-upload" feature. See the NEWS file [3] and
-known_issues.rst [4] file for details.
+"drop-upload" feature. See the NEWS file [1] and
+known_issues.rst [2] file for details.
 
 
 WHAT IS IT GOOD FOR?
@@ -37,7 +37,7 @@ have built other projects on top of Tahoe-LAFS and have
 integrated Tahoe-LAFS with existing systems, including
 Windows, JavaScript, iPhone, Android, Hadoop, Flume, Django,
 Puppet, bzr, mercurial, perforce, duplicity, TiddlyWiki, and
-more. See the Related Projects page on the wiki [5].
+more. See the Related Projects page on the wiki [3].
 
 We believe that strong cryptography, Free and Open Source
 Software, erasure coding, and principled engineering practices
