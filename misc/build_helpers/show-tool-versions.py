@@ -94,6 +94,9 @@ def print_setuptools_ver():
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
         pass
+    except pkg_resources.DistributionNotFound:
+        print 'setuptools: DistributionNotFound'
+        pass
 
 def print_py_pkg_ver(pkgname, modulename=None):
     if modulename is None:
