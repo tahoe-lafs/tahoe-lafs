@@ -447,10 +447,14 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         data = { } # this will be returned to the GET
         ds = self.download_status
 
+        data["misc"] = self._find_overlap(ds.misc_events,
+                                          "start_time", "finish_time")
         data["read"] = self._find_overlap(ds.read_events,
                                           "start_time", "finish_time")
         data["segment"] = self._find_overlap(ds.segment_events,
                                              "start_time", "finish_time")
+        # TODO: overlap on DYHB isn't very useful, and usually gets in the
+        # way. So don't do it.
         data["dyhb"] = self._find_overlap(ds.dyhb_requests,
                                           "start_time", "finish_time")
         data["block"],data["block_rownums"] = self._find_overlap_requests(ds.block_requests)

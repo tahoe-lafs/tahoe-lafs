@@ -172,7 +172,8 @@ class Root(rend.Page):
             return nevow_File(resource_filename('allmydata.web', name))
         self.putChild("download_status_timeline.js", f("download_status_timeline.js"))
         self.putChild("jquery-1.6.1.min.js", f("jquery-1.6.1.min.js"))
-        self.putChild("protovis-3.3.1.min.js", f("protovis-3.3.1.min.js"))
+        self.putChild("d3-2.4.6.min.js", f("d3-2.4.6.min.js"))
+        self.putChild("d3-2.4.6.time.min.js", f("d3-2.4.6.time.min.js"))
 
     def child_helper_status(self, ctx):
         # the Helper isn't attached until after the Tub starts, so this child

@@ -128,6 +128,13 @@ class DownloadStatus:
         self.known_shares = [] # (server, shnum)
         self.problems = []
 
+        self.misc_events = []
+
+    def add_misc_event(self, what, start, finish=None):
+        self.misc_events.append( {"what": what,
+                                  "start_time": start,
+                                  "finish_time": finish,
+                                  } )
 
     def add_read_event(self, start, length, when):
         if self.first_timestamp is None:

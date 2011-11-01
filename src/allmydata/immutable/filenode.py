@@ -168,6 +168,7 @@ class DecryptingConsumer:
     def __init__(self, consumer, readkey, offset):
         self._consumer = consumer
         self._read_ev = None
+        self._download_status = None
         # TODO: pycryptopp CTR-mode needs random-access operations: I want
         # either a=AES(readkey, offset) or better yet both of:
         #  a=AES(readkey, offset=0)
@@ -181,6 +182,8 @@ class DecryptingConsumer:
 
     def set_download_status_read_event(self, read_ev):
         self._read_ev = read_ev
+    def set_download_status(self, ds):
+        self._download_status = ds
 
     def registerProducer(self, producer, streaming):
         # this passes through, so the real consumer can flow-control the real
@@ -196,6 +199,8 @@ class DecryptingConsumer:
         if self._read_ev:
             elapsed = now() - started
             self._read_ev.update(0, elapsed, 0)
+        if self._download_status:
+            self._download_status.add_misc_event("AES", started, now())
         self._consumer.write(plaintext)
 
 class ImmutableFileNode:
