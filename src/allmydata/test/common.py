@@ -14,7 +14,6 @@ from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
                                  MDMF_VERSION
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
-from allmydata.mutable.common import CorruptShareError
 from allmydata.mutable.layout import unpack_header
 from allmydata.mutable.publish import MutableData
 from allmydata.storage.mutable import MutableShareFile
@@ -86,7 +85,10 @@ class FakeCHKFileNode:
             r.set_recoverable(True)
             data["count-shares-good"] = 9
             data["list-corrupt-shares"] = [(nodeid, self.storage_index, 0)]
-            r.problems = failure.Failure(CorruptShareError(is_bad))
+            # XXX: this whole 'is_bad' clause is unused. When a test is added
+            # to take advantage of it, we must find a way to provide 'server'
+            # (and IServer instance) to the CorruptShareError
+            #r.problems = failure.Failure(CorruptShareError(server, 0, is_bad))
         else:
             r.set_healthy(True)
             r.set_recoverable(True)
@@ -301,9 +303,10 @@ class FakeMutableFileNode:
             r.set_healthy(False)
             r.set_recoverable(True)
             data["count-shares-good"] = 9
-            r.problems = failure.Failure(CorruptShareError("peerid",
-                                                           0, # shnum
-                                                           is_bad))
+            # XXX: this whole 'is_bad' clause is unused. When a test is added
+            # to take advantage of it, we must find a way to provide 'server'
+            # (and IServer instance) to the CorruptShareError
+            #r.problems = failure.Failure(CorruptShareError(server, 0, is_bad))
         else:
             r.set_healthy(True)
             r.set_recoverable(True)

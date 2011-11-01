@@ -137,7 +137,6 @@ class StorageFarmBroker:
             return self.servers[serverid].get_nickname()
         return None
 
-
 class IServer(Interface):
     """I live in the client, and represent a single server."""
     def start_connecting(tub, trigger_cb):

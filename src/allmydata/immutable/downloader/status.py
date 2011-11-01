@@ -125,7 +125,7 @@ class DownloadStatus:
         #  response_length (None until success)
         self.block_requests = []
 
-        self.known_shares = [] # (serverid, shnum)
+        self.known_shares = [] # (server, shnum)
         self.problems = []
 
 
