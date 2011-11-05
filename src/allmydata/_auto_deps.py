@@ -44,7 +44,8 @@ install_requires = [
 
     # Needed for SFTP. pyasn1 is needed by twisted.conch in Twisted >= 9.0.
     # pycrypto 2.2 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/620253
-    "pycrypto == 2.0.1, == 2.1.0, >= 2.3",
+    # pycrypto 2.4 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/881130
+    "pycrypto == 2.0.1, == 2.1.0, == 2.3, >= 2.4.1",
     "pyasn1 >= 0.0.8a",
 
     # http://www.voidspace.org.uk/python/mock/
