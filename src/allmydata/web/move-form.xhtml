@@ -1,0 +1,30 @@
+<html xmlns:n="http://nevow.com/ns/nevow/0.1">
+  <head>
+    <title n:render="title"></title>
+    <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  </head>
+
+<body>
+
+<h2 n:render="header" />
+
+<div class="freeform-form">
+    <form action="." method="post" enctype="multipart/form-data">
+        <fieldset>
+            <legend class="freeform-form-label">Rename child</legend>
+            <input type="hidden" name="t" value="move" />
+            <input n:render="when_done" />
+
+            Move child:
+            <input type="text" name="from_name" readonly="true" n:render="get_name" />
+            to
+            <input type="text" name="to_dir" /><br />
+            New name?
+            <input type="text" name="to_name" />
+            <input type="submit" value="move" />
+        </fieldset>
+    </form>
+</div>
+
+</body></html>

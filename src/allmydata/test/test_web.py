@@ -245,6 +245,7 @@ class WebMixin(object):
             self._sub_uri = sub_uri
             foo.set_uri(u"sub", sub_uri, sub_uri)
             sub = self.s.create_node_from_uri(sub_uri)
+            self._sub_node = sub
 
             _ign, n, blocking_uri = self.makefile(1)
             foo.set_uri(u"blockingfile", blocking_uri, blocking_uri)
@@ -254,7 +255,7 @@ class WebMixin(object):
             # still think of it as an umlaut
             foo.set_uri(unicode_filename, self._bar_txt_uri, self._bar_txt_uri)
 
-            _ign, n, baz_file = self.makefile(2)
+            self.SUBBAZ_CONTENTS, n, baz_file = self.makefile(2)
             self._baz_file_uri = baz_file
             sub.set_uri(u"baz.txt", baz_file, baz_file)
 
@@ -308,6 +309,9 @@ class WebMixin(object):
 
     def failUnlessIsBazDotTxt(self, res):
         self.failUnlessReallyEqual(res, self.BAZ_CONTENTS, res)
+
+    def failUnlessIsSubBazDotTxt(self, res):
+        self.failUnlessReallyEqual(res, self.SUBBAZ_CONTENTS, res)
 
     def failUnlessIsBarJSON(self, res):
         data = simplejson.loads(res)
@@ -1258,7 +1262,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                r'\s+<td align="right">%d</td>' % len(self.BAR_CONTENTS),
                                ])
             self.failUnless(re.search(get_bar, res), res)
-            for label in ['unlink', 'rename']:
+            for label in ['unlink', 'rename', 'move']:
                 for line in res.split("\n"):
                     # find the line that contains the relevant button for bar.txt
                     if ("form action" in line and
@@ -3242,6 +3246,151 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessIsFooJSON)
         return d
 
+    def test_POST_move_file(self):
+        """"""
+        d = self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", to_dir="sub")
+        d.addCallback(lambda res:
+                      self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
+        d.addCallback(lambda res:
+                      self.failUnlessNodeHasChild(self._sub_node, u"bar.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/bar.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        return d
+
+    def test_POST_move_file_new_name(self):
+        d = self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", to_name="wibble.txt", to_dir="sub")
+        d.addCallback(lambda res:
+                      self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
+        d.addCallback(lambda res:
+                      self.failIfNodeHasChild(self._sub_node, u"bar.txt"))
+        d.addCallback(lambda res:
+                      self.failUnlessNodeHasChild(self._sub_node, u"wibble.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/wibble.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/wibble.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        return d
+
+    def test_POST_move_file_replace(self):
+        d = self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", to_name="baz.txt", to_dir="sub")
+        d.addCallback(lambda res:
+                      self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/baz.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/baz.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        return d
+
+    def test_POST_move_file_no_replace(self):
+        d = self.POST(self.public_url + "/foo", t="move", replace="false",
+                      from_name="bar.txt", to_name="baz.txt", to_dir="sub")
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_move_file_no_replace",
+                  "409 Conflict",
+                  "There was already a child by that name, and you asked me "
+                  "to not replace it")
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/baz.txt"))
+        d.addCallback(self.failUnlessIsSubBazDotTxt)
+        return d
+
+    def test_POST_move_file_slash_fail(self):
+        d = self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", to_name="slash/fail.txt", to_dir="sub")
+        d.addBoth(self.shouldFail, error.Error,
+                  "test_POST_rename_file_slash_fail",
+                  "400 Bad Request",
+                  "to_name= may not contain a slash",
+                  )
+        d.addCallback(lambda res:
+                      self.failUnlessNodeHasChild(self._foo_node, u"bar.txt"))
+        d.addCallback(lambda res:
+                      self.failIfNodeHasChild(self._sub_node, u"slash/fail.txt"))
+        return d
+
+    def test_POST_move_file_no_target(self):
+        d = self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", to_name="baz.txt")
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_move_file_no_target",
+                  "400 Bad Request",
+                  "move requires from_name and to_dir")
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/baz.txt"))
+        d.addCallback(self.failUnlessIsBazDotTxt)
+        return d
+
+    def test_POST_move_file_multi_level(self):
+        d = self.POST(self.public_url + "/foo/sub/level2?t=mkdir", "")
+        d.addCallback(lambda res: self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", to_dir="sub/level2"))
+        d.addCallback(lambda res: self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
+        d.addCallback(lambda res: self.failIfNodeHasChild(self._sub_node, u"bar.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/level2/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/level2/bar.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        return d
+
+    def test_POST_move_file_to_uri(self):
+        d = self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", to_dir=self._sub_uri)
+        d.addCallback(lambda res:
+                      self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/sub/bar.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        return d
+
+    def test_POST_move_file_to_nonexist_dir(self):
+        d = self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", to_dir="notchucktesta")
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_move_file_to_nonexist_dir",
+                  "404 Not Found",
+                  "No such child: notchucktesta")
+        return d
+
+    def test_POST_move_file_into_file(self):
+        d = self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", to_dir="baz.txt")
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_move_file_into_file",
+                  "410 Gone",
+                  "to_dir is not a usable directory")
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/baz.txt"))
+        d.addCallback(self.failUnlessIsBazDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        return d
+
+    def test_POST_move_file_to_bad_uri(self):
+        d = self.POST(self.public_url + "/foo", t="move", from_name="bar.txt",
+                      to_dir="URI:DIR2:mn5jlyjnrjeuydyswlzyui72i:rmneifcj6k6sycjljjhj3f6majsq2zqffydnnul5hfa4j577arma")
+        d.addBoth(self.shouldFail, error.Error,
+                  "POST_move_file_to_bad_uri",
+                  "410 Gone",
+                  "to_dir is not a usable directory")
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt?t=json"))
+        d.addCallback(self.failUnlessIsBarJSON)
+        return d
+
     def shouldRedirect(self, res, target=None, statuscode=None, which=""):
         """ If target is not None then the redirection has to go to target.  If
         statuscode is not None then the redirection has to be accomplished with
@@ -3296,6 +3445,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn('name="when_done" value="."', res)
             self.failUnless(re.search(r'name="from_name" value="bar\.txt"', res))
             self.failUnlessIn(FAVICON_MARKUP, res)
+        d.addCallback(_check)
+        return d
+
+    def test_GET_move_form(self):
+        d = self.GET(self.public_url + "/foo?t=move-form&name=bar.txt",
+                     followRedirect=True)
+        def _check(res):
+            self.failUnless('name="when_done" value="."' in res, res)
+            self.failUnless(re.search(r'name="from_name" value="bar\.txt"', res))
         d.addCallback(_check)
         return d
 

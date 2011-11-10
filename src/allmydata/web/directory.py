@@ -13,7 +13,7 @@ from nevow.inevow import IRequest
 from foolscap.api import fireEventually
 
 from allmydata.util import base32, time_format
-from allmydata.uri import from_string_dirnode
+from allmydata.uri import from_string_dirnode, is_writeable_directory_uri
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
      IImmutableFileNode, IMutableFileNode, ExistingChildError, \
      NoSuchChildError, EmptyPathnameComponentError, SDMF_VERSION, MDMF_VERSION
@@ -169,6 +169,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             return DirectoryReadonlyURI(ctx, self.node)
         if t == 'rename-form':
             return RenameForm(self.node)
+        if t == 'move-form':
+            return MoveForm(self.node)
 
         raise WebError("GET directory: bad t=%s" % t)
 
@@ -213,6 +215,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d = self._POST_unlink(req)
         elif t == "rename":
             d = self._POST_rename(req)
+        elif t == "move":
+            d = self._POST_move(req)
         elif t == "check":
             d = self._POST_check(req)
         elif t == "start-deep-check":
@@ -416,6 +420,52 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
         d = self.node.move_child_to(from_name, self.node, to_name, replace)
         d.addCallback(lambda res: "thing renamed")
+        return d
+
+    def _POST_move(self, req):
+        charset = get_arg(req, "_charset", "utf-8")
+        from_name = get_arg(req, "from_name")
+        if from_name is not None:
+            from_name = from_name.strip()
+            from_name = from_name.decode(charset)
+            assert isinstance(from_name, unicode)
+        to_name = get_arg(req, "to_name")
+        if to_name is not None:
+            to_name = to_name.strip()
+            to_name = to_name.decode(charset)
+            assert isinstance(to_name, unicode)
+        if not to_name:
+            to_name = from_name
+        to_dir = get_arg(req, "to_dir")
+        if to_dir is not None:
+            to_dir = to_dir.strip()
+            to_dir = to_dir.decode(charset)
+            assert isinstance(to_dir, unicode)
+        if not from_name or not to_dir:
+            raise WebError("move requires from_name and to_dir")
+        replace = boolean_of_arg(get_arg(req, "replace", "true"))
+
+        # allow from_name to contain slashes, so they can fix names that
+        # were accidentally created with them. But disallow them in to_name
+        # (if it's specified), to discourage the practice.
+        if to_name and "/" in to_name:
+            raise WebError("to_name= may not contain a slash", http.BAD_REQUEST)
+
+        d = self.node.has_child(to_dir.split('/')[0])
+        def get_target_node(isname):
+            if isname or not is_writeable_directory_uri(str(to_dir)):
+                return self.node.get_child_at_path(to_dir)
+            else:
+                return self.client.create_node_from_uri(str(to_dir))
+        d.addCallback(get_target_node)
+        def is_target_node_usable(target_node):
+            if not IDirectoryNode.providedBy(target_node):
+                raise WebError("to_dir is not a usable directory", http.GONE)
+            return target_node
+        d.addCallback(is_target_node_usable)
+        d.addCallback(lambda new_parent: self.node.move_child_to(
+                      from_name, new_parent, to_name, replace))
+        d.addCallback(lambda res: "thing moved")
         return d
 
     def _maybe_literal(self, res, Results_Class):
@@ -662,6 +712,7 @@ class DirectoryAsHTML(rend.Page):
         if self.node.is_unknown() or self.node.is_readonly():
             unlink = "-"
             rename = "-"
+            move = "-"
         else:
             # this creates a button which will cause our _POST_unlink method
             # to be invoked, which unlinks the file and then redirects the
@@ -680,8 +731,16 @@ class DirectoryAsHTML(rend.Page):
                 T.input(type='submit', value='rename', name="rename"),
                 ]
 
+            move = T.form(action=here, method="get")[
+                T.input(type='hidden', name='t', value='move-form'),
+                T.input(type='hidden', name='name', value=name),
+                T.input(type='hidden', name='when_done', value="."),
+                T.input(type='submit', value='move', name="move"),
+                ]
+
         ctx.fillSlots("unlink", unlink)
         ctx.fillSlots("rename", rename)
+        ctx.fillSlots("move", move)
 
         times = []
         linkcrtime = metadata.get('tahoe', {}).get("linkcrtime")
@@ -927,6 +986,32 @@ class RenameForm(rend.Page):
     def render_header(self, ctx, data):
         header = ["Rename "
                   "in directory SI=%s" % abbreviated_dirnode(self.original),
+                  ]
+
+        if self.original.is_readonly():
+            header.append(" (readonly!)")
+        header.append(":")
+        return ctx.tag[header]
+
+    def render_when_done(self, ctx, data):
+        return T.input(type="hidden", name="when_done", value=".")
+
+    def render_get_name(self, ctx, data):
+        req = IRequest(ctx)
+        name = get_arg(req, "name", "")
+        ctx.tag.attributes['value'] = name
+        return ctx.tag
+
+class MoveForm(rend.Page):
+    addSlash = True
+    docFactory = getxmlfile("move-form.xhtml")
+
+    def render_title(self, ctx, data):
+        return ctx.tag["Directory SI=%s" % abbreviated_dirnode(self.original)]
+
+    def render_header(self, ctx, data):
+        header = ["Move "
+                  "from directory SI=%s" % abbreviated_dirnode(self.original),
                   ]
 
         if self.original.is_readonly():
