@@ -147,6 +147,7 @@ _platform_map = {
     "openbsd2": "bsd",
     "openbsd3": "bsd",
     "openbsd4": "bsd",
+    "openbsd5": "bsd",
     "darwin": "bsd",       # Mac OS X
     "freebsd4": "bsd",
     "freebsd5": "bsd",
