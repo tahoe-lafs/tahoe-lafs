@@ -1276,7 +1276,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_CSS_FILE(self):
-        d = self.GET("/tahoe_css", followRedirect=True)
+        d = self.GET("/tahoe.css", followRedirect=True)
         def _check(res):
             CSS_STYLE=re.compile('toolbar\s{.+text-align:\scenter.+toolbar-item.+display:\sinline',re.DOTALL)
             self.failUnless(CSS_STYLE.search(res), res)

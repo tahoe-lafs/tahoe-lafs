@@ -1,4 +1,4 @@
-import time
+import time, os
 
 from twisted.internet import address
 from twisted.web import http
@@ -168,20 +168,14 @@ class Root(rend.Page):
         self.child_named = FileHandler(client)
         self.child_status = status.Status(client.get_history())
         self.child_statistics = status.Statistics(client.stats_provider)
-        def f(name):
-            return nevow_File(resource_filename('allmydata.web', name))
-        self.putChild("download_status_timeline.js", f("download_status_timeline.js"))
-        self.putChild("jquery-1.6.1.min.js", f("jquery-1.6.1.min.js"))
-        self.putChild("d3-2.4.6.min.js", f("d3-2.4.6.min.js"))
-        self.putChild("d3-2.4.6.time.min.js", f("d3-2.4.6.time.min.js"))
+        static_dir = resource_filename("allmydata.web", "static")
+        for filen in os.listdir(static_dir):
+            self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
 
     def child_helper_status(self, ctx):
         # the Helper isn't attached until after the Tub starts, so this child
         # needs to created on each request
         return status.HelperStatus(self.client.helper)
-
-    child_webform_css = webform.defaultCSS
-    child_tahoe_css = nevow_File(resource_filename('allmydata.web', 'tahoe.css'))
 
     child_provisioning = provisioning.ProvisioningTool()
     if reliability.is_available():
