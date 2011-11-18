@@ -642,7 +642,7 @@ class MutableFileNode:
     #def set_version(self, version):
         # I can be set in two ways:
         #  1. When the node is created.
-        #  2. (for an existing share) when the Servermap is updated 
+        #  2. (for an existing share) when the Servermap is updated
         #     before I am read.
     #    assert version in (MDMF_VERSION, SDMF_VERSION)
     #    self._protocol_version = version
@@ -1053,7 +1053,7 @@ class MutableFileVersion:
         log.msg("got %d old segments, %d new segments" % \
                         (num_old_segments, num_new_segments))
 
-        # We do a whole file re-encode if the file is an SDMF file. 
+        # We do a whole file re-encode if the file is an SDMF file.
         if self._version[2]: # version[2] == SDMF salt, which MDMF lacks
             log.msg("doing re-encode instead of in-place update")
             return self._do_modify_update(data, offset)
