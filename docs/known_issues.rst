@@ -26,13 +26,13 @@ Known Issues in Tahoe-LAFS v1.9.0, released 31-Oct-2011
 
 ----
 
-Potential unauthorized access by JavaScript in unrelated files
+Unauthorized access by JavaScript in unrelated files
 --------------------------------------------------------------
 
 If you view a file stored in Tahoe-LAFS through a web user interface,
-JavaScript embedded in that file might be able to access other files or
-directories stored in Tahoe-LAFS which you view through the same web
-user interface.  Such a script would be able to send the contents of
+JavaScript embedded in that file can, in some circumstances, access other
+files or directories stored in Tahoe-LAFS that you view through the same
+web user interface.  Such a script would be able to send the contents of
 those other files or directories to the author of the script, and if you
 have the ability to modify the contents of those files or directories,
 then that script could modify or delete those files or directories.
