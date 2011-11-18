@@ -71,12 +71,12 @@ class MutableChecker:
         # downloader. I bet we could pass the downloader a flag that
         # makes it do this, and piggyback onto that instead of
         # duplicating a bunch of code.
-        # 
+        #
         # Like:
         #  r = Retrieve(blah, blah, blah, verify=True)
         #  d = r.download()
         #  (wait, wait, wait, d.callback)
-        #  
+        #
         #  Then, when it has finished, we can check the servermap (which
         #  we provided to Retrieve) to figure out which shares are bad,
         #  since the Retrieve process will have updated the servermap as
@@ -84,7 +84,7 @@ class MutableChecker:
         #
         #  By passing the verify=True flag to the constructor, we are
         #  telling the downloader a few things.
-        # 
+        #
         #  1. It needs to download all N shares, not just K shares.
         #  2. It doesn't need to decrypt or decode the shares, only
         #     verify them.
