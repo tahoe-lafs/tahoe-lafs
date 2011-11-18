@@ -1,6 +1,6 @@
-===============================
+==========
 Tahoe-LAFS
-===============================
+==========
 
 Tahoe-LAFS is a Free Software/Open Source decentralized data store. It
 distributes your filesystem across multiple servers, and even if some of the
