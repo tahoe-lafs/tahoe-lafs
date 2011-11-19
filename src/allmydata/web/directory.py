@@ -13,7 +13,7 @@ from nevow.inevow import IRequest
 from foolscap.api import fireEventually
 
 from allmydata.util import base32, time_format
-from allmydata.uri import from_string_dirnode, is_writeable_directory_uri
+from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
      IImmutableFileNode, IMutableFileNode, ExistingChildError, \
      NoSuchChildError, EmptyPathnameComponentError, SDMF_VERSION, MDMF_VERSION
@@ -444,23 +444,30 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         if not from_name or not to_dir:
             raise WebError("move requires from_name and to_dir")
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
+        target_type = get_arg(req, "target_type", "name")
+        if not target_type in ["name", "uri"]:
+            raise WebError("invalid target_type parameter",
+                           http.BAD_REQUEST)
 
         # allow from_name to contain slashes, so they can fix names that
         # were accidentally created with them. But disallow them in to_name
         # (if it's specified), to discourage the practice.
         if to_name and "/" in to_name:
-            raise WebError("to_name= may not contain a slash", http.BAD_REQUEST)
+            raise WebError("to_name= may not contain a slash",
+                           http.BAD_REQUEST)
 
-        d = self.node.has_child(to_dir.split('/')[0])
-        def get_target_node(isname):
-            if isname or not is_writeable_directory_uri(str(to_dir)):
+        d = defer.Deferred()
+        def get_target_node(target_type):
+            if target_type == "name":
                 return self.node.get_child_at_path(to_dir)
-            else:
+            elif target_type == "uri":
                 return self.client.create_node_from_uri(str(to_dir))
         d.addCallback(get_target_node)
+        d.callback(target_type)
         def is_target_node_usable(target_node):
             if not IDirectoryNode.providedBy(target_node):
-                raise WebError("to_dir is not a usable directory", http.GONE)
+                raise WebError("to_dir is not a usable directory",
+                               http.GONE)
             return target_node
         d.addCallback(is_target_node_usable)
         d.addCallback(lambda new_parent: self.node.move_child_to(

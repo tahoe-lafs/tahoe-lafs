@@ -934,13 +934,6 @@ def is_literal_file_uri(s):
             s.startswith(ALLEGED_READONLY_PREFIX + 'URI:LIT:') or
             s.startswith(ALLEGED_IMMUTABLE_PREFIX + 'URI:LIT:'))
 
-def is_writeable_directory_uri(s):
-    if not isinstance(s, str):
-        return False
-    return (s.startswith('URI:DIR2:') or
-            s.startswith(ALLEGED_READONLY_PREFIX + 'URI:DIR2:') or
-            s.startswith(ALLEGED_IMMUTABLE_PREFIX + 'URI:DIR2:'))
-
 def has_uri_prefix(s):
     if not isinstance(s, str):
         return False

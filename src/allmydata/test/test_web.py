@@ -3247,7 +3247,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_move_file(self):
-        """"""
         d = self.POST(self.public_url + "/foo", t="move",
                       from_name="bar.txt", to_dir="sub")
         d.addCallback(lambda res:
@@ -3331,6 +3330,16 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessIsBazDotTxt)
         return d
 
+    def test_POST_move_file_bad_target_type(self):
+        d = self.POST(self.public_url + "/foo", t="move", target_type="*D",
+                      from_name="bar.txt", to_dir="sub")
+        d.addBoth(self.shouldFail, error.Error,
+                  "test_POST_rename_file_slash_fail",
+                  "400 Bad Request",
+                  "invalid target_type parameter",
+                  )
+        return d
+
     def test_POST_move_file_multi_level(self):
         d = self.POST(self.public_url + "/foo/sub/level2?t=mkdir", "")
         d.addCallback(lambda res: self.POST(self.public_url + "/foo", t="move",
@@ -3344,7 +3353,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_move_file_to_uri(self):
-        d = self.POST(self.public_url + "/foo", t="move",
+        d = self.POST(self.public_url + "/foo", t="move", target_type="uri",
                       from_name="bar.txt", to_dir=self._sub_uri)
         d.addCallback(lambda res:
                       self.failIfNodeHasChild(self._foo_node, u"bar.txt"))
@@ -3379,7 +3388,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_move_file_to_bad_uri(self):
-        d = self.POST(self.public_url + "/foo", t="move", from_name="bar.txt",
+        d = self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", target_type="uri",
                       to_dir="URI:DIR2:mn5jlyjnrjeuydyswlzyui72i:rmneifcj6k6sycjljjhj3f6majsq2zqffydnnul5hfa4j577arma")
         d.addBoth(self.shouldFail, error.Error,
                   "POST_move_file_to_bad_uri",

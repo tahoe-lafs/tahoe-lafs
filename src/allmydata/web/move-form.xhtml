@@ -17,12 +17,18 @@
             <input n:render="when_done" />
 
             Move child:
-            <input type="text" name="from_name" readonly="true" n:render="get_name" />
+            <input type="text" name="from_name" readonly="true"
+             n:render="get_name" /><br />
             to
             <input type="text" name="to_dir" /><br />
+            <input checked="checked" type="radio" id="tt-name"
+             value="name" name="target_type" />
+            <label for="tt-name"> Subdirectory</label>
+            <input type="radio" id="tt-uri" value="uri" name="target_type"/>
+            <label for="tt-uri"> URI</label> <br /><br />
             New name?
             <input type="text" name="to_name" />
-            <input type="submit" value="move" />
+            <input type="submit" value="move" /><br />
         </fieldset>
     </form>
 </div>
