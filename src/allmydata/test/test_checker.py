@@ -22,15 +22,16 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         for (peerid, nickname) in [("\x00"*20, "peer-0"),
                                    ("\xff"*20, "peer-f"),
                                    ("\x11"*20, "peer-11")] :
-            ann_d = { "version": 0,
-                      "service-name": "storage",
-                      "FURL": "fake furl",
-                      "nickname": unicode(nickname),
-                      "app-versions": {}, # need #466 and v2 introducer
-                      "my-version": "ver",
-                      "oldest-supported": "oldest",
-                      }
-            s = NativeStorageServer(peerid, ann_d)
+            ann = { "version": 0,
+                    "service-name": "storage",
+                    "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+                    "permutation-seed-base32": "",
+                    "nickname": unicode(nickname),
+                    "app-versions": {}, # need #466 and v2 introducer
+                    "my-version": "ver",
+                    "oldest-supported": "oldest",
+                    }
+            s = NativeStorageServer(peerid, ann)
             sb.test_add_server(peerid, s)
         c = FakeClient()
         c.storage_broker = sb

@@ -99,6 +99,11 @@ class StorageServer(service.MultiService, Referenceable):
     def __repr__(self):
         return "<StorageServer %s>" % (idlib.shortnodeid_b2a(self.my_nodeid),)
 
+    def have_shares(self):
+        # quick test to decide if we need to commit to an implicit
+        # permutation-seed or if we should use a new one
+        return bool(set(os.listdir(self.sharedir)) - set(["incoming"]))
+
     def add_bucket_counter(self):
         statefile = os.path.join(self.storedir, "bucket_counter.state")
         self.bucket_counter = BucketCountingCrawler(self, statefile)
