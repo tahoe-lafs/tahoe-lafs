@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from twisted.application import service
 
 import allmydata
-from allmydata.node import OldConfigError
+from allmydata.node import OldConfigError, OldConfigOptionError, MissingConfigEntry
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.util import base32, fileutil
@@ -191,13 +191,24 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                   "[storage]\n" +
                   "enabled = false\n" +
                   "[drop_upload]\n" +
-                  "enabled = true\n" +
-                  "upload.dircap = " + upload_dircap + "\n" +
-                  "local.directory = " + local_dir_utf8 + "\n")
+                  "enabled = true\n")
 
         basedir1 = "test_client.Basic.test_create_drop_uploader1"
         os.mkdir(basedir1)
+        fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
+                       config + "local.directory = " + local_dir_utf8 + "\n")
+        self.failUnlessRaises(MissingConfigEntry, client.Client, basedir1)
+
         fileutil.write(os.path.join(basedir1, "tahoe.cfg"), config)
+        fileutil.write(os.path.join(basedir1, "private", "drop_upload_dircap"), "URI:DIR2:blah")
+        self.failUnlessRaises(MissingConfigEntry, client.Client, basedir1)
+
+        fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
+                       config + "upload.dircap = " + upload_dircap + "\n")
+        self.failUnlessRaises(OldConfigOptionError, client.Client, basedir1)
+
+        fileutil.write(os.path.join(basedir1, "tahoe.cfg"),
+                       config + "local.directory = " + local_dir_utf8 + "\n")
         c1 = client.Client(basedir1)
         uploader = c1.getServiceNamed('drop-upload')
         self.failUnless(isinstance(uploader, MockDropUploader), uploader)
@@ -213,21 +224,15 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         basedir2 = "test_client.Basic.test_create_drop_uploader2"
         os.mkdir(basedir2)
+        os.mkdir(os.path.join(basedir2, "private"))
         fileutil.write(os.path.join(basedir2, "tahoe.cfg"),
                        BASECONFIG +
                        "[drop_upload]\n" +
-                       "enabled = true\n")
+                       "enabled = true\n" +
+                       "local.directory = " + local_dir_utf8 + "\n")
+        fileutil.write(os.path.join(basedir2, "private", "drop_upload_dircap"), "URI:DIR2:blah")
         c2 = client.Client(basedir2)
         self.failUnlessRaises(KeyError, c2.getServiceNamed, 'drop-upload')
-        self.failIf([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg)],
-                    mock_log_msg.call_args_list)
-        self.failUnless([True for arg in mock_log_msg.call_args_list if "upload.dircap or local.directory not specified" in repr(arg)],
-                        mock_log_msg.call_args_list)
-
-        basedir3 = "test_client.Basic.test_create_drop_uploader3"
-        os.mkdir(basedir3)
-        fileutil.write(os.path.join(basedir3, "tahoe.cfg"), config)
-        client.Client(basedir3)
         self.failUnless([True for arg in mock_log_msg.call_args_list if "Boom" in repr(arg)],
                         mock_log_msg.call_args_list)
 

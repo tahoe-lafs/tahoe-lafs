@@ -52,6 +52,9 @@ class OldConfigError(Exception):
                 "See docs/historical/configuration.rst."
                 % "\n".join([quote_output(fname) for fname in self.args[0]]))
 
+class OldConfigOptionError(Exception):
+    pass
+
 
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes and Introducer
@@ -201,21 +204,27 @@ class Node(service.MultiService):
         privname = os.path.join(self.basedir, "private", name)
         open(privname, "w").write(value.strip())
 
-    def get_or_create_private_config(self, name, default):
+    def get_or_create_private_config(self, name, default=_None):
         """Try to get the (string) contents of a private config file (which
         is a config file that resides within the subdirectory named
         'private'), and return it. Any leading or trailing whitespace will be
         stripped from the data.
 
-        If the file does not exist, try to create it using default, and
-        then return the value that was written. If 'default' is a string,
-        use it as a default value. If not, treat it as a 0-argument callable
-        which is expected to return a string.
+        If the file does not exist, and default is not given, report an error.
+        If the file does not exist and a default is specified, try to create
+        it using that default, and then return the value that was written.
+        If 'default' is a string, use it as a default value. If not, treat it
+        as a zero-argument callable that is expected to return a string.
         """
         privname = os.path.join(self.basedir, "private", name)
         try:
             value = fileutil.read(privname)
         except EnvironmentError:
+            if os.path.exists(privname):
+                raise
+            if default is _None:
+                raise MissingConfigEntry("The required configuration file %s is missing."
+                                         % (quote_output(privname),))
             if isinstance(default, basestring):
                 value = default
             else:

@@ -26,6 +26,7 @@ from allmydata.interfaces import IStatsProducer, RIStubClient, \
                                  SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
+from allmydata.node import OldConfigOptionError
 
 
 KiB=1024
@@ -439,19 +440,20 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_drop_uploader(self):
         if self.get_config("drop_upload", "enabled", False, boolean=True):
-            upload_dircap = self.get_config("drop_upload", "upload.dircap", None)
-            local_dir_utf8 = self.get_config("drop_upload", "local.directory", None)
+            if self.get_config("drop_upload", "upload.dircap", None):
+                raise OldConfigOptionError("The [drop_upload]upload.dircap option is no longer supported; please "
+                                           "put the cap in a 'private/drop_upload_dircap' file, and delete this option.")
 
-            if upload_dircap and local_dir_utf8:
-                try:
-                    from allmydata.frontends import drop_upload
-                    s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8)
-                    s.setServiceParent(self)
-                    s.startService()
-                except Exception, e:
-                    self.log("couldn't start drop-uploader: %r", args=(e,))
-            else:
-                self.log("couldn't start drop-uploader: upload.dircap or local.directory not specified")
+            upload_dircap = self.get_or_create_private_config("drop_upload_dircap")
+            local_dir_utf8 = self.get_config("drop_upload", "local.directory")
+
+            try:
+                from allmydata.frontends import drop_upload
+                s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8)
+                s.setServiceParent(self)
+                s.startService()
+            except Exception, e:
+                self.log("couldn't start drop-uploader: %r", args=(e,))
 
     def _check_hotline(self, hotline_file):
         if os.path.exists(hotline_file):

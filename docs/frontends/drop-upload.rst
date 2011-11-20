@@ -20,8 +20,8 @@ Tahoe-LAFS Summit in June 2011, and is not currently in as mature a state as
 the other frontends (web, CLI, FTP and SFTP). This means that you probably
 should not keep important data in the upload directory, and should not rely
 on all changes to files in the local directory to result in successful uploads.
-There might be incompatible changes to how the feature is configured in
-future versions. There is even the possibility that it may be abandoned, for
+There might be (and have been) incompatible changes to how the feature is
+configured. There is even the possibility that it may be abandoned, for
 example if unsolveable reliability issues are found.
 
 We are very interested in feedback on how well this feature works for you, and
@@ -42,15 +42,8 @@ gateway's ``tahoe.cfg`` file.
 
 ``enabled = (boolean, optional)``
 
-    If this is ``True``, drop-upload will be enabled (provided that the
-    ``upload.dircap`` and ``local.directory`` fields are also set). The
-    default value is ``False``.
-
-``upload.dircap = (directory writecap)``
-
-    This is a writecap pointing to an existing mutable directory to be used
-    as the target of uploads. It will start with ``URI:DIR2:``, and cannot
-    include an alias or path.
+    If this is ``True``, drop-upload will be enabled. The default value is
+    ``False``.
 
 ``local.directory = (UTF-8 path)``
 
@@ -58,6 +51,11 @@ gateway's ``tahoe.cfg`` file.
     files. If the path contains non-ASCII characters, it should be encoded
     in UTF-8 regardless of the system's filesystem encoding. Relative paths
     will be interpreted starting from the node's base directory.
+
+In addition, the file  ``private/drop_upload_dircap`` must contain a
+writecap pointing to an existing mutable directory to be used as the target
+of uploads. It will start with ``URI:DIR2:``, and cannot include an alias
+or path.
 
 After setting the above fields and starting or restarting the gateway,
 you can confirm that the feature is working by copying a file into the
