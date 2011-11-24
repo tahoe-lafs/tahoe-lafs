@@ -3401,6 +3401,24 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.failUnlessIsBarJSON)
         return d
 
+    def test_POST_move_dir(self):
+        d = self.POST(self.public_url + "/foo", t="move",
+                      from_name="bar.txt", to_dir="empty")
+        d.addCallback(lambda res: self.POST(self.public_url + "/foo",
+                      t="move", from_name="empty", to_dir="sub"))
+        d.addCallback(lambda res:
+                      self.failIfNodeHasChild(self._foo_node, u"empty"))
+        d.addCallback(lambda res:
+                      self.failUnlessNodeHasChild(self._sub_node, u"empty"))
+        d.addCallback(lambda res:
+                      self._sub_node.get_child_at_path(u"empty"))
+        d.addCallback(lambda node:
+                      self.failUnlessNodeHasChild(node, u"bar.txt"))
+        d.addCallback(lambda res:
+                      self.GET(self.public_url + "/foo/sub/empty/bar.txt"))
+        d.addCallback(self.failUnlessIsBarDotTxt)
+        return d
+
     def shouldRedirect(self, res, target=None, statuscode=None, which=""):
         """ If target is not None then the redirection has to go to target.  If
         statuscode is not None then the redirection has to be accomplished with
