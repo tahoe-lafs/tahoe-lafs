@@ -268,6 +268,15 @@ class MakeExecutable(Command):
                 raise
 
 
+DARCS_VERSION_BODY = '''
+# This _version.py is generated from darcs metadata by the tahoe setup.py
+# and the "darcsver" package.
+
+__pkgname__ = "%(pkgname)s"
+verstr = "%(pkgversion)s"
+__version__ = verstr
+'''
+
 GIT_VERSION_BODY = '''
 # This _version.py is generated from git metadata by the tahoe setup.py.
 
@@ -275,13 +284,7 @@ __pkgname__ = "%(pkgname)s"
 real_version = "%(version)s"
 full_version = "%(full)s"
 verstr = "%(normalized)s"
-try:
-    from pyutil.version_class import Version as pyutil_Version
-    __version__ = pyutil_Version(verstr)
-except (ImportError, ValueError):
-    # Maybe there is no pyutil installed.
-    from distutils.version import LooseVersion as distutils_Version
-    __version__ = distutils_Version(verstr)
+__version__ = verstr
 '''
 
 def run_command(args, cwd=None, verbose=False):
@@ -349,6 +352,7 @@ def versions_from_git(tag_prefix, verbose=False):
     full = stdout.strip()
     if version.endswith("-dirty"):
         full += "-dirty"
+        normalized_version += ".dev0"
     return {"version": version, "normalized": normalized_version, "full": full}
 
 
@@ -376,7 +380,8 @@ class UpdateVersion(Command):
         from darcsver.darcsvermodule import update
         (rc, verstr) = update(pkgname=self.distribution.get_name(),
                               verfilename=self.distribution.versionfiles,
-                              revision_number=True)
+                              revision_number=True,
+                              version_body=DARCS_VERSION_BODY)
         if rc == 0:
             return verstr
 
