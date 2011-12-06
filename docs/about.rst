@@ -1,9 +1,11 @@
-======================
+﻿======================
 Welcome to Tahoe-LAFS!
 ======================
 
-Welcome to `Tahoe-LAFS <https://tahoe-lafs.org>`_, the first decentralized
-storage system with *provider-independent security*.
+Welcome to Tahoe-LAFS_, the first decentralized storage system with
+*provider-independent security*.
+
+.. _Tahoe-LAFS: https://tahoe-lafs.org
 
 What is "provider-independent security"?
 ========================================
@@ -22,18 +24,18 @@ these service providers spend considerable effort and expense trying to
 mitigate these risks.
 
 What we mean by "security" is something different.  *The service provider
-never has the ability to read or modify your data in the first place --
-never.* If you use Tahoe-LAFS, then all of the threats described above are
-non-issues to you.  Not only is it easy and inexpensive for the service
-provider to maintain the security of your data, but in fact they couldn't
-violate its security if they tried.  This is what we call
-*provider-independent security*.
+never has the ability to read or modify your data in the first place—never.*
+If you use Tahoe-LAFS, then all of the threats described above are non-issues
+to you.  Not only is it easy and inexpensive for the service provider to
+maintain the security of your data, but in fact they couldn't violate its
+security if they tried.  This is what we call *provider-independent
+security*.
 
 This guarantee is integrated naturally into the Tahoe-LAFS storage system and
 doesn't require you to perform a manual pre-encryption step or cumbersome key
 management.  (After all, having to do cumbersome manual operations when
 storing or accessing your data would nullify one of the primary benefits of
-using cloud storage in the first place -- convenience.)
+using cloud storage in the first place—convenience.)
 
 Here's how it works:
 
@@ -70,11 +72,12 @@ software installed, such as an Internet kiosk or cell phone.
 Access Control
 ==============
 
-There are two kinds of files: immutable and mutable.  Immutable files have
-the property that once they have been uploaded to the storage grid they can't
-be modified.  Mutable ones can be modified.  A user can have read-write
-access to a mutable file or read-only access to it (or no access to it at
-all).
+There are two kinds of files: immutable and mutable. When you upload a file
+to the storage grid you can choose which kind of file it will be in the
+grid. Immutable files can't be modified once they have been uploaded.  A
+mutable file can be modified by someone with read-write access to it. A user
+can have read-write access to a mutable file or read-only access to it, or no
+access to it at all.
 
 A user who has read-write access to a mutable file or directory can give
 another user read-write access to that file or directory, or they can give
@@ -89,29 +92,34 @@ directory can gain read-only access to the child.  If you use a read-only
 link, then anyone who has either read-write or read-only access to the parent
 directory can gain read-only access to the child.
 
-For more technical detail, please see the `the doc page
-<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Doc>`_ on the Wiki.
+For more technical detail, please see the `the doc page`_ on the Wiki.
+
+.. _the doc page: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Doc
 
 Get Started
 ===========
 
-To use Tahoe-LAFS, please see `quickstart.rst <quickstart.rst>`_.
+To use Tahoe-LAFS, please see quickstart.rst_.
+
+.. _quickstart.rst: quickstart.rst
 
 License
 =======
 
 You may use this package under the GNU General Public License, version 2 or,
-at your option, any later version.  See the file `COPYING.GPL
-<../COPYING.GPL>`_ for the terms of the GNU General Public License, version
-2.
+at your option, any later version.  See the file COPYING.GPL_ for the terms
+of the GNU General Public License, version 2.
 
 You may use this package under the Transitive Grace Period Public Licence,
 version 1 or, at your option, any later version.  The Transitive Grace Period
 Public Licence has requirements similar to the GPL except that it allows you
 to wait for up to twelve months after you redistribute a derived work before
-releasing the source code of your derived work. See the file `COPYING.TGGPL
-<../COPYING.TGPPL.rst>`_ for the terms of the Transitive Grace Period Public
+releasing the source code of your derived work. See the file
+COPYING.TGPPL.rst_ for the terms of the Transitive Grace Period Public
 Licence, version 1.
 
 (You may choose to use this package under the terms of either licence, at
 your option.)
+
+.. _COPYING.GPL: ../COPYING.GPL
+.. _COPYING.TGPPL.rst: ../COPYING.TGPPL.rst
