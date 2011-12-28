@@ -289,6 +289,7 @@ class NoNetworkGrid(service.MultiService):
         del self.wrappers_by_id[serverid]
         del self.proxies_by_id[serverid]
         self.rebuild_serverlist()
+        return ss
 
     def break_server(self, serverid):
         # mark the given server as broken, so it will throw exceptions when
