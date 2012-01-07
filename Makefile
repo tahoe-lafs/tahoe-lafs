@@ -209,6 +209,10 @@ test-darcs-boringfile:
 	$(MAKE)
 	$(PYTHON) misc/build_helpers/test-darcs-boringfile.py
 
+test-git-ignore:
+	$(MAKE)
+	$(PYTHON) misc/build_helpers/test-git-ignore.py
+
 test-clean:
 	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.old
 	$(MAKE)
