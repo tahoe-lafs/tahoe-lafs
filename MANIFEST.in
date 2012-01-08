@@ -1,0 +1,4 @@
+include src/allmydata/web/*.xhtml
+include src/allmydata/web/static/*.js
+include src/allmydata/web/static/*.png
+include src/allmydata/web/static/*.css
