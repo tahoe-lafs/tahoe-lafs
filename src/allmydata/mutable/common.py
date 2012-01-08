@@ -10,7 +10,13 @@ MODE_READ = "MODE_READ"
 class NotWriteableError(Exception):
     pass
 
-class NeedMoreDataError(Exception):
+class BadShareError(Exception):
+    """This represents an error discovered in a particular share, during
+    retrieve, from which we can recover by using some other share. This does
+    *not* include local coding errors.
+    """
+
+class NeedMoreDataError(BadShareError):
     def __init__(self, needed_bytes, encprivkey_offset, encprivkey_length):
         Exception.__init__(self)
         self.needed_bytes = needed_bytes # up through EOF
@@ -40,7 +46,7 @@ class NotEnoughServersError(Exception):
         Exception.__init__(self, why, first_error)
         self.first_error = first_error
 
-class CorruptShareError(Exception):
+class CorruptShareError(BadShareError):
     def __init__(self, server, shnum, reason):
         self.args = (server, shnum, reason)
         self.server = server
@@ -50,7 +56,7 @@ class CorruptShareError(Exception):
         return "<CorruptShareError server=%s shnum[%d]: %s" % \
                (self.server.get_name(), self.shnum, self.reason)
 
-class UnknownVersionError(Exception):
+class UnknownVersionError(BadShareError):
     """The share we received was of a version we don't recognize."""
 
 class ResponseCache:

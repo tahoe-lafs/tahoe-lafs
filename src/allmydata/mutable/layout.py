@@ -1,6 +1,7 @@
 
 import struct
-from allmydata.mutable.common import NeedMoreDataError, UnknownVersionError
+from allmydata.mutable.common import NeedMoreDataError, UnknownVersionError, \
+     BadShareError
 from allmydata.interfaces import HASH_SIZE, SALT_SIZE, SDMF_VERSION, \
                                  MDMF_VERSION, IMutableSlotWriter
 from allmydata.util import mathutil
@@ -116,7 +117,9 @@ def unpack_share(data):
     share_hash_chain_s = data[o['share_hash_chain']:o['block_hash_tree']]
     share_hash_format = ">H32s"
     hsize = struct.calcsize(share_hash_format)
-    assert len(share_hash_chain_s) % hsize == 0, len(share_hash_chain_s)
+    if len(share_hash_chain_s) % hsize != 0:
+        raise BadShareError("hash chain is %d bytes, not multiple of %d"
+                            % (len(share_hash_chain_s), hsize))
     share_hash_chain = []
     for i in range(0, len(share_hash_chain_s), hsize):
         chunk = share_hash_chain_s[i:i+hsize]
@@ -124,7 +127,9 @@ def unpack_share(data):
         share_hash_chain.append( (hid, h) )
     share_hash_chain = dict(share_hash_chain)
     block_hash_tree_s = data[o['block_hash_tree']:o['share_data']]
-    assert len(block_hash_tree_s) % 32 == 0, len(block_hash_tree_s)
+    if len(block_hash_tree_s) % 32 != 0:
+        raise BadShareError("block_hash_tree is %d bytes, not multiple of %d"
+                            % (len(block_hash_tree_s), 32))
     block_hash_tree = []
     for i in range(0, len(block_hash_tree_s), 32):
         block_hash_tree.append(block_hash_tree_s[i:i+32])
@@ -1168,6 +1173,11 @@ class MDMFSlotWriteProxy:
         d.addCallback(_result)
         return d
 
+def _handle_bad_struct(f):
+    # struct.unpack errors mean the server didn't give us enough data, so
+    # this share is bad
+    f.trap(struct.error)
+    raise BadShareError(f.value.args[0])
 
 class MDMFSlotReadProxy:
     """
@@ -1238,11 +1248,13 @@ class MDMFSlotReadProxy:
         d = self._read(readvs, force_remote)
         d.addCallback(self._process_encoding_parameters)
         d.addCallback(self._process_offsets)
+        d.addErrback(_handle_bad_struct)
         return d
 
 
     def _process_encoding_parameters(self, encoding_parameters):
-        assert self.shnum in encoding_parameters
+        if self.shnum not in encoding_parameters:
+            raise BadShareError("no data for shnum %d" % self.shnum)
         encoding_parameters = encoding_parameters[self.shnum][0]
         # The first byte is the version number. It will tell us what
         # to do next.
@@ -1387,7 +1399,8 @@ class MDMFSlotReadProxy:
         d.addCallback(_then)
         d.addCallback(lambda readvs: self._read(readvs))
         def _process_results(results):
-            assert self.shnum in results
+            if self.shnum not in results:
+                raise BadShareError("no data for shnum %d" % self.shnum)
             if self._version_number == 0:
                 # We only read the share data, but we know the salt from
                 # when we fetched the header
@@ -1395,7 +1408,8 @@ class MDMFSlotReadProxy:
                 if not data:
                     data = ""
                 else:
-                    assert len(data) == 1
+                    if len(data) != 1:
+                        raise BadShareError("got %d vectors, not 1" % len(data))
                     data = data[0]
                 salt = self._salt
             else:
@@ -1445,7 +1459,8 @@ class MDMFSlotReadProxy:
         d.addCallback(lambda readvs:
             self._read(readvs, force_remote=force_remote))
         def _build_block_hash_tree(results):
-            assert self.shnum in results
+            if self.shnum not in results:
+                raise BadShareError("no data for shnum %d" % self.shnum)
 
             rawhashes = results[self.shnum][0]
             results = [rawhashes[i:i+HASH_SIZE]
@@ -1484,7 +1499,8 @@ class MDMFSlotReadProxy:
         d.addCallback(lambda readvs:
             self._read(readvs, force_remote=force_remote))
         def _build_share_hash_chain(results):
-            assert self.shnum in results
+            if self.shnum not in results:
+                raise BadShareError("no data for shnum %d" % self.shnum)
 
             sharehashes = results[self.shnum][0]
             results = [sharehashes[i:i+(HASH_SIZE + 2)]
@@ -1493,6 +1509,7 @@ class MDMFSlotReadProxy:
                             for data in results])
             return results
         d.addCallback(_build_share_hash_chain)
+        d.addErrback(_handle_bad_struct)
         return d
 
 
@@ -1513,7 +1530,8 @@ class MDMFSlotReadProxy:
         d.addCallback(_make_readvs)
         d.addCallback(lambda readvs: self._read(readvs))
         def _process_results(results):
-            assert self.shnum in results
+            if self.shnum not in results:
+                raise BadShareError("no data for shnum %d" % self.shnum)
             privkey = results[self.shnum][0]
             return privkey
         d.addCallback(_process_results)
@@ -1537,7 +1555,8 @@ class MDMFSlotReadProxy:
         d.addCallback(_make_readvs)
         d.addCallback(lambda readvs: self._read(readvs))
         def _process_results(results):
-            assert self.shnum in results
+            if self.shnum not in results:
+                raise BadShareError("no data for shnum %d" % self.shnum)
             signature = results[self.shnum][0]
             return signature
         d.addCallback(_process_results)
@@ -1562,7 +1581,8 @@ class MDMFSlotReadProxy:
         d.addCallback(_make_readvs)
         d.addCallback(lambda readvs: self._read(readvs))
         def _process_results(results):
-            assert self.shnum in results
+            if self.shnum not in results:
+                raise BadShareError("no data for shnum %d" % self.shnum)
             verification_key = results[self.shnum][0]
             return verification_key
         d.addCallback(_process_results)
@@ -1738,7 +1758,7 @@ class MDMFSlotReadProxy:
         return d
 
 
-class LayoutInvalid(Exception):
+class LayoutInvalid(BadShareError):
     """
     This isn't a valid MDMF mutable file
     """
