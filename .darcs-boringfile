@@ -29,7 +29,6 @@
 (^|/)ChangeSet($|/)
 (^|/)\.svn($|/)
 (^|/)\.git($|/)
-\.gitignore$
 \.py[co]$
 \#
 \.cvsignore$
