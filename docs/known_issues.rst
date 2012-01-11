@@ -17,12 +17,53 @@ want to read `the "historical known issues" document`_.
 Known Issues in Tahoe-LAFS v1.9.0, released 31-Oct-2011
 =======================================================
 
+  *  `Integrity Failure during Mutable Downloads`_
   *  `Potential unauthorized access by JavaScript in unrelated files`_
   *  `Potential disclosure of file through embedded hyperlinks or JavaScript in that file`_
   *  `Command-line arguments are leaked to other local users`_
   *  `Capabilities may be leaked to web browser phishing filter / "safe browsing" servers`_
   *  `Known issues in the FTP and SFTP frontends`_
   *  `Traffic analysis based on sizes of files/directories, storage indices, and timing`_
+
+----
+
+Integrity Failure during Mutable Downloads
+--------------------------------------------------------------
+
+Under certain circumstances, the integrity-verification code of the mutable
+downloader could be bypassed. Clients who receive carefully crafted shares
+(from attackers) will emit incorrect file contents, and the usual
+share-corruption errors would not be raised. This only affects mutable files
+(not immutable), and only affects downloads that use doctored shares. It is
+not persistent: the threat is resolved once you upgrade your client to a
+version without the bug. However, read-modify-write operations (such as
+directory manipulations) performed by vulnerable clients could cause the
+attacker's modifications to be written back out to the mutable file, making
+the corruption permanent.
+
+The attacker's ability to manipulate the file contents is limited. They can
+modify FEC-encoded ciphertext in all but one share. This gives them the
+ability to blindly flip bits in roughly 2/3rds of the file (for the default
+k=3 encoding parameter). Confidentiality remains intact, unless the attacker
+can deduce the file's contents by observing your reactions to corrupted
+downloads.
+
+This bug was introduced in 1.9.0, as part of the MDMF-capable downloader, and
+affects both SDMF and MDMF files. It was not present in 1.8.3.
+
+*how to manage it*
+
+There are three options:
+
+* Upgrade to 1.9.1, which fixes the bug
+* Downgrade to 1.8.3, which does not contain the bug
+* If using 1.9.0, do not trust the contents of mutable files (whether SDMF or
+  MDMF) that the 1.9.0 client emits, and do not modify directories (which
+  could write the corrupted data back into place, making the damage
+  persistent)
+
+
+.. _#1654: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1654
 
 ----
 
