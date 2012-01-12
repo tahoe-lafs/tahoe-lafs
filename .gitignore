@@ -20,3 +20,5 @@ Twisted-*.egg
 /_trial_temp*
 /dist/
 /twisted/plugins/dropin.cache
+/tahoe-deps/
+/tahoe-deps.tar.gz
