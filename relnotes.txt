@@ -18,8 +18,8 @@ The previous stable release of Tahoe-LAFS was v1.9.0, released
 on October 31, 2011.
 
 v1.9.1 is a critical bugfix release which fixes a significant
-security issue. See the NEWS file [1] and known_issues.rst [2]
-file for details.
+security issue [#1654]. See the NEWS file [1] and known_issues.rst
+[2] file for details.
 
 
 WHAT IS IT GOOD FOR?
@@ -137,6 +137,7 @@ January 12, 2011
 San Francisco, California, USA
 
 
+[#1654] https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1654
 [1] https://tahoe-lafs.org/trac/tahoe-lafs/browser/NEWS.rst
 [2] https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/known_issues.rst
 [3] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
