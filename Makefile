@@ -14,11 +14,10 @@ SOURCES=src/allmydata src/buildtest static misc/build_helpers bin/tahoe-script.t
 
 .PHONY: make-version build
 
-# The 'darcsver' setup.py command comes in the 'darcsver' package:
-# http://pypi.python.org/pypi/darcsver It is necessary only if you want to
-# automatically produce a new _version.py file from the current darcs history.
+# This is necessary only if you want to automatically produce a new
+# _version.py file from the current git/darcs history.
 make-version:
-	$(PYTHON) ./setup.py darcsver --count-all-patches
+	$(PYTHON) ./setup.py update_version
 
 .built:
 	$(MAKE) build
