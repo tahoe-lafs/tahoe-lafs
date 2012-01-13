@@ -22,3 +22,6 @@ Twisted-*.egg
 /twisted/plugins/dropin.cache
 /tahoe-deps/
 /tahoe-deps.tar.gz
+/.coverage
+/.coverage.el
+/coverage-html/
