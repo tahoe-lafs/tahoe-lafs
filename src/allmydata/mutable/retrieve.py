@@ -505,7 +505,6 @@ class Retrieve:
                 d.addCallback(self._try_to_validate_privkey, reader, reader.server)
                 # XXX: don't just drop the Deferred. We need error-reporting
                 # but not flow-control here.
-        assert len(self._active_readers) >= self._required_shares
 
     def _try_to_validate_prefix(self, prefix, reader):
         """
@@ -602,10 +601,12 @@ class Retrieve:
         I download, validate, decode, decrypt, and assemble the segment
         that this Retrieve is currently responsible for downloading.
         """
-        assert len(self._active_readers) >= self._required_shares
         if self._current_segment > self._last_segment:
             # No more segments to download, we're done.
             self.log("got plaintext, done")
+            return self._done()
+        elif self._verify and len(self._active_readers) == 0:
+            self.log("no more good shares, no need to keep verifying")
             return self._done()
         self.log("on segment %d of %d" %
                  (self._current_segment + 1, self._num_segments))
@@ -625,7 +626,6 @@ class Retrieve:
 
         # TODO: The old code uses a marker. Should this code do that
         # too? What did the Marker do?
-        assert len(self._active_readers) >= self._required_shares
 
         # We need to ask each of our active readers for its block and
         # salt. We will then validate those. If validation is
