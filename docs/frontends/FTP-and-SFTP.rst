@@ -76,15 +76,28 @@ the next sections.
 accounts.url Directive
 ======================
 
-The accounts.url directive should point to a secure, preferably
-localhost-only service.  This makes it harder for attackers to brute force
-the password or use DNS poisoning to cause the Tahoe-LAFS gateway to talk
-with the wrong server, thereby revealing the username and passwords.
+The accounts.url directive allows access requests to be controlled by an
+HTTP-based login service, useful for centralized deployments. This was
+used by AllMyData to provide web-based file access, where the service
+used a simple PHP script and database lookups to map an account email
+address and password into a tahoe rootcap. The service will receive a
+multipart/form-data POST, just like one created with a <form> and <input>
+fields, with three parameters:
 
-Tahoe-LAFS will send the credentials, email address and password to the
-URI specified in the accounts.url directive.  If the credentials are correct,
-the server will return a rootcap string.  Otherwise, it returns the string
-"0" which means bad username and/or password.
+* action: "authenticate" (this is a static string, for backwards
+  compatibility with the old AllMyData authentication service)
+* email: USERNAME (Tahoe has no notion of email addresses, but the
+  authentication service uses them as account names, so the interface
+  presents this argument as "email" rather than "username").
+* passwd: PASSWORD
+
+And should return a single string that either contains a Tahoe rootcap
+(URI:DIR2:...), or "0" to indicate a login failure.
+
+Tahoe-LAFS recommends the service be secure, preferably localhost-only.  This
+makes it harder for attackers to brute force the password or use DNS
+poisoning to cause the Tahoe-LAFS gateway to talk with the wrong server,
+thereby revealing the usernames and passwords.
 
 Configuring FTP Access
 ======================
