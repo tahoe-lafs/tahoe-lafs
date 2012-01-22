@@ -1,5 +1,4 @@
-﻿======================
-Statement on Backdoors
+﻿Statement on Backdoors
 ======================
 
 October 5, 2010
