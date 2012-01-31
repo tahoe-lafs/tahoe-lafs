@@ -650,7 +650,6 @@ recommended configuration (most of these are not the default values), merely
 a legal one.
 
 ::
-
   [node]
   nickname = Bob's Tahoe-LAFS Node
   tub.port = 34912
@@ -661,19 +660,16 @@ a legal one.
   timeout.disconnect = 1800
   ssh.port = 8022
   ssh.authorized_keys_file = ~/.ssh/authorized_keys
-
-
+  
   [client]
   introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
   helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@helper.tahoe.example:7054/kk8lhr
-
-
+  
   [storage]
   enabled = True
   readonly = True
-  sizelimit = 10000000000
-
-
+  reserved_space = 10000000000
+  
   [helper]
   enabled = True
 
