@@ -140,11 +140,13 @@ class ProvisioningTool(rend.Page):
                                 (10e9, "10GB"),
                                 (100e9, "100GB"),
                                 (1e12, "1TB"),
+                                (2e12, "2TB"),
+                                (5e12, "5TB"),
                                 ]
-        # current allmydata average utilization 127MB per user
+        # Estimate ~5gb per user as a more realistic case
         space_per_user, i_space_per_user = get_and_set("space_per_user",
                                                        space_per_user_sizes,
-                                                       200e6)
+                                                       5e9)
         add_input("Users",
                   "How much data for each user? (avg)",
                   i_space_per_user)
@@ -240,9 +242,12 @@ class ProvisioningTool(rend.Page):
                                (250, "250 GB"),
                                (500, "500 GB"),
                                (750, "750 GB"),
+                               (1000, "1000 GB"),
+                               (2000, "2000 GB"),
+                               (3000, "3000 GB"),
                                ]
         drive_size, i_drive_size = \
-                    get_and_set("drive_size", drive_size_choices, 750, int)
+                    get_and_set("drive_size", drive_size_choices, 3000, int)
         drive_size = drive_size * 1e9
         add_input("Drives",
                   "What is the capacity of each hard drive?", i_drive_size)
@@ -571,8 +576,8 @@ class ProvisioningTool(rend.Page):
                        T.div["Drives per server: ", drives_per_server])
 
             # costs
-            if drive_size == 750 * 1e9:
-                add_output("Servers", T.div["750GB drive: $250 each"])
+            if drive_size == 3000 * 1e9:
+                add_output("Servers", T.div["3000GB drive: $250 each"])
                 drive_cost = 250
             else:
                 add_output("Servers",
