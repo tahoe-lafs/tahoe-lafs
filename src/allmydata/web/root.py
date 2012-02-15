@@ -2,18 +2,17 @@ import time, os
 
 from twisted.internet import address
 from twisted.web import http
-from nevow import rend, url, loaders, tags as T
+from nevow import rend, url, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
 
 import allmydata # to display import path
 from allmydata import get_package_versions_string
-from allmydata import provisioning
 from allmydata.util import idlib, log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
-from allmydata.web import reliability, storage
+from allmydata.web import storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
      get_arg, RenderMixin, get_format, get_mutable_type
 
@@ -126,20 +125,6 @@ class IncidentReporter(RenderMixin, rend.Page):
         req.setHeader("content-type", "text/plain")
         return "Thank you for your report!"
 
-class NoReliability(rend.Page):
-    docFactory = loaders.xmlstr('''\
-<html xmlns:n="http://nevow.com/ns/nevow/0.1">
-  <head>
-    <title>AllMyData - Tahoe</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  </head>
-  <body>
-  <h2>"Reliability" page not available</h2>
-  <p>Please install the python "NumPy" module to enable this page.</p>
-  </body>
-</html>
-''')
-
 SPACE = u"\u00A0"*2
 
 class Root(rend.Page):
@@ -174,12 +159,6 @@ class Root(rend.Page):
         # the Helper isn't attached until after the Tub starts, so this child
         # needs to created on each request
         return status.HelperStatus(self.client.helper)
-
-    child_provisioning = provisioning.ProvisioningTool()
-    if reliability.is_available():
-        child_reliability = reliability.ReliabilityTool()
-    else:
-        child_reliability = NoReliability()
 
     child_report_incident = IncidentReporter()
     #child_server # let's reserve this for storage-server-over-HTTP

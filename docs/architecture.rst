@@ -553,9 +553,3 @@ will be able to reduce the expansion factor down to a bare minimum while
 still retaining high reliability, but large unstable grids (where nodes are
 coming and going very quickly) may require more repair/verification bandwidth
 than actual upload/download traffic.
-
-Tahoe-LAFS nodes that run a webserver have a page dedicated to provisioning
-decisions: this tool may help you evaluate different expansion factors and
-view the disk consumption of each. It is also acquiring some sections with
-availability/reliability numbers, as well as preliminary cost analysis data.
-This tool will continue to evolve as our analysis improves.

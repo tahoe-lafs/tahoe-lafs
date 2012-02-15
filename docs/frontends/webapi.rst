@@ -1805,17 +1805,6 @@ This is the "Welcome Page", and contains a few distinct sections::
  implementation hashes synchronously, so clients will probably never see
  progress-hash!=1.0).
 
-``GET /provisioning/``
-
- This page provides a basic tool to predict the likely storage and bandwidth
- requirements of a large Tahoe grid. It provides forms to input things like
- total number of users, number of files per user, average file size, number
- of servers, expansion ratio, hard drive failure rate, etc. It then provides
- numbers like how many disks per server will be needed, how many read
- operations per second should be expected, and the likely MTBF for files in
- the grid. This information is very preliminary, and the model upon which it
- is based still needs a lot of work.
-
 ``GET /helper_status/``
 
  If the node is running a helper (i.e. if [helper]enabled is set to True in
