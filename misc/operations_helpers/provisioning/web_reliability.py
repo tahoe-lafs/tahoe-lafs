@@ -1,11 +1,27 @@
 
-from nevow import rend, tags as T
-reliability = None # might not be usable
-try:
-    from allmydata import reliability # requires NumPy
-except ImportError:
-    pass
-from allmydata.web.common import getxmlfile, get_arg
+from nevow import rend, loaders, tags as T
+from nevow.inevow import IRequest
+import reliability # requires NumPy
+import util
+
+def get_arg(ctx_or_req, argname, default=None, multiple=False):
+    """Extract an argument from either the query args (req.args) or the form
+    body fields (req.fields). If multiple=False, this returns a single value
+    (or the default, which defaults to None), and the query args take
+    precedence. If multiple=True, this returns a tuple of arguments (possibly
+    empty), starting with all those in the query args.
+    """
+    req = IRequest(ctx_or_req)
+    results = []
+    if argname in req.args:
+        results.extend(req.args[argname])
+    if req.fields and argname in req.fields:
+        results.append(req.fields[argname].value)
+    if multiple:
+        return tuple(results)
+    if results:
+        return results[0]
+    return default
 
 
 DAY=24*60*60
@@ -22,7 +38,7 @@ def yandm(seconds):
 
 class ReliabilityTool(rend.Page):
     addSlash = True
-    docFactory = getxmlfile("reliability.xhtml")
+    docFactory = loaders.xmlfile(util.sibling("reliability.xhtml"))
 
     DEFAULT_PARAMETERS = [
         ("drive_lifetime", "8Y", "time",

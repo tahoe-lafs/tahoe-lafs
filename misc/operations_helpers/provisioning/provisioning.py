@@ -1,11 +1,16 @@
 
-from nevow import inevow, rend, tags as T
+from nevow import inevow, rend, loaders, tags as T
 import math
-from allmydata.util import mathutil
-from allmydata.web.common import getxmlfile
+import util
 
 # factorial and binomial copied from
 # http://mail.python.org/pipermail/python-list/2007-April/435718.html
+
+def div_ceil(n, d):
+    """
+    The smallest integer k such that k*d >= n.
+    """
+    return (n/d) + (n%d != 0)
 
 def factorial(n):
     """factorial(n): return the factorial of the integer n.
@@ -35,7 +40,7 @@ def binomial(n, k):
 
 class ProvisioningTool(rend.Page):
     addSlash = True
-    docFactory = getxmlfile("provisioning.xhtml")
+    docFactory = loaders.xmlfile(util.sibling("provisioning.xhtml"))
 
     def render_forms(self, ctx, data):
         req = inevow.IRequest(ctx)
@@ -566,12 +571,12 @@ class ProvisioningTool(rend.Page):
                              number(total_file_check_rate,
                                     "Hz")])
 
-            total_drives = max(mathutil.div_ceil(int(total_share_space),
-                                                 int(drive_size)),
+            total_drives = max(div_ceil(int(total_share_space),
+                                        int(drive_size)),
                                num_servers)
             add_output("Drives",
                        T.div["Total drives: ", number(total_drives), " drives"])
-            drives_per_server = mathutil.div_ceil(total_drives, num_servers)
+            drives_per_server = div_ceil(total_drives, num_servers)
             add_output("Servers",
                        T.div["Drives per server: ", drives_per_server])
 
@@ -606,8 +611,7 @@ class ProvisioningTool(rend.Page):
             # $44/server/mo power+space
             server_bandwidth = max(server_inbound_byte_rate,
                                    server_outbound_byte_rate)
-            server_bandwidth_mbps = mathutil.div_ceil(int(server_bandwidth*8),
-                                                      int(1e6))
+            server_bandwidth_mbps = div_ceil(int(server_bandwidth*8), int(1e6))
             server_monthly_cost = 70*server_bandwidth_mbps + 44
             add_output("Servers", T.div["Monthly cost per server: $",
                                         server_monthly_cost])

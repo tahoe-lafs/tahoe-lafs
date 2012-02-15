@@ -1,0 +1,163 @@
+
+pre.overflow {
+               background: #f7f7f7;
+               border: 1px solid #d7d7d7;
+               margin: 1em 1.75em;
+               padding: .25em;
+               overflow: auto;
+               }
+               
+/* ----------------------------------------------------------------------- */
+
+/* colors borrowed from the Allmydata logo */
+
+/* general style */
+h1 {
+  text-align: center;
+}
+table { 
+  margin: 1em auto;
+  border: .2em solid #3289b4; 
+  border-spacing: 1px;
+}
+th { 
+  color: white;
+  background-color: #58a1c3;
+}
+td {
+    padding: .3em .3em;
+}
+
+th {
+    padding: .3em .3em;
+}
+
+.table-headings-top th {
+    text-align: center;
+    
+}
+.table-headings-left th {
+    text-align: right;
+    vertical-align: top;
+}
+legend {
+  font-weight: bold;
+}
+
+.connected-yes, .connected-True {
+  border: 1px solid #75d24a;
+  background-color: #EFE;
+}
+.connected-no, .connected-False {
+  border: 1px solid #F00;
+  background-color: #FBB;
+}
+
+.encoded, .nodeid {
+  font-family: monospace;
+  font-size: 80%;
+}
+
+.empty-marker {
+  background-color: white;
+  color: gray;
+}
+table td.empty-marker {
+  padding: 6em 10em;
+  text-align: center;
+  vertical-align: center;
+}
+
+/* styles for server listings in tables (nickname above nodeid) */
+th.nickname-and-peerid {
+  text-align: left;
+}
+.nickname {
+  font: inherit;
+  font-family: sans-serif;
+  font-weight: bold;
+}
+
+
+/* just in case, make sure floats don't stomp on big tables etc. */
+#section { clear: both; }
+
+/* section-specific styles - turn this client info into a sidebar */
+#this-client {
+  font-size: 60%;
+  border: .2em solid #3289b4;
+  float: right;
+  width: 40%;
+  margin: 0 0 .5em .5em;
+  padding: 3px;
+}
+#this-client .nodeid { font-size: inherit; }
+#this-client h2 {
+  text-align: center;
+  background: #3289b4;
+  color: white;
+  margin: -2px -2px 0 -2px; /* matches padding */
+  padding: .3em;
+}
+#this-client table { 
+  font-size: inherit;
+  margin: 0 -3px -3px -3px; /* matches padding */
+}
+#this-client td > ul {
+  list-style-type: outside;
+  margin: 0 0 0 2.3em;
+  padding-left: 0;
+}
+
+
+/* services table */
+.services {
+}
+
+/* --- Directory page styles --- */
+
+body.tahoe-directory-page {
+  color: black;
+  background: #c0d9e6;
+  margin: 1em 0; /* zero margin so the table can be flush */
+}
+table.tahoe-directory {
+  color: black;
+  background: white;
+  width: 100%;
+  /*border-left-color: #D7E0E5;
+  border-right-color: #D7E0E5;*/
+  border-left: 0;
+  border-right: 0;
+}
+.tahoe-directory-footer {
+  color: black;
+  background: #c0d9e6;
+  margin: 0 1em; /* compensate for page 0 margin */
+}
+
+/* directory-screen toolbar */
+.toolbar {
+  display: table;
+  margin: .2em auto;
+  text-align: center;
+  /*width: 100%;*/
+}
+.toolbar .toolbar-item {
+  display: inline;
+  text-align: center;
+  padding: 0 1em;
+}
+
+/* recent upload/download status pages */
+
+table.status-download-events {
+  #border: 1px solid #aaa;
+  margin: 1em auto;
+  border: .2em solid #3289b4; 
+  border-spacing: 1px;
+}
+table.status-download-events td {
+  border: 1px solid #a00;
+  padding: 2px
+}
