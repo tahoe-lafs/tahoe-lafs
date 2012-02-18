@@ -198,12 +198,28 @@ class Root(rend.Page):
 
         return ctx.tag[ul]
 
-    def data_introducer_furl(self, ctx, data):
-        return self.client.introducer_furl
-    def data_connected_to_introducer(self, ctx, data):
-        if self.client.connected_to_introducer():
-            return "yes"
-        return "no"
+    # In case we configure multiple introducers
+    def data_introducers(self, ctx, data):
+        connection_status = []
+        connection_status = self.client.connected_to_introducer()
+        s = []
+        furls = self.client.introducer_furls
+        for furl in furls:
+            if connection_status:
+                i = furls.index(furl)
+                if connection_status[i]:
+                    s.append( (furl, "Yes") )
+                else:
+                    s.append( (furl, "No") )
+        s.sort()
+        return s
+
+    def render_introducers_row(self, ctx, s):
+        (furl, connected) = s
+        #connected =
+        ctx.fillSlots("introducer_furl", "%s" % (furl))
+        ctx.fillSlots("connected", "%s" % (connected))
+        return ctx.tag
 
     def data_helper_furl(self, ctx, data):
         try:

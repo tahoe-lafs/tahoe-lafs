@@ -42,7 +42,7 @@ from allmydata.introducer import IntroducerNode
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
-timeout = 480 # Most of these take longer than 240 seconds on Francois's arm box.
+timeout = 960 # allmydata.test.test_web.Grid.test_deep_check took longer than 480 seconds on zomp
 
 unknown_rwcap = u"lafs://from_the_future_rw_\u263A".encode('utf-8')
 unknown_rocap = u"ro.lafs://readonly_from_the_future_ro_\u263A".encode('utf-8')
@@ -169,13 +169,13 @@ class FakeClient(Client):
         service.MultiService.__init__(self)
         self.nodeid = "fake_nodeid"
         self.nickname = "fake_nickname"
-        self.introducer_furl = "None"
+        self.introducer_furls = "None"
         self.stats_provider = FakeStatsProvider()
         self._secret_holder = SecretHolder("lease secret", "convergence secret")
         self.helper = None
         self.convergence = "some random string"
         self.storage_broker = StorageFarmBroker(None, permute_peers=True)
-        self.introducer_client = None
+        self.introducer_clients = None
         self.history = FakeHistory()
         self.uploader = FakeUploader()
         self.uploader.setServiceParent(self)

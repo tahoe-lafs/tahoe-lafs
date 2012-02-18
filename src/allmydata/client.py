@@ -32,6 +32,8 @@ GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
 
+MULTI_INTRODUCERS_CFG = "introducers"
+
 def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
 
@@ -131,7 +133,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.started_timestamp = time.time()
         self.logSource="Client"
         self.DEFAULT_ENCODING_PARAMETERS = self.DEFAULT_ENCODING_PARAMETERS.copy()
-        self.init_introducer_client()
+        self.init_introducer_clients()
         self.init_stats_provider()
         self.init_secrets()
         self.init_storage()
@@ -163,14 +165,48 @@ class Client(node.Node, pollmixin.PollMixin):
         if webport:
             self.init_web(webport) # strports string
 
-    def init_introducer_client(self):
-        self.introducer_furl = self.get_config("client", "introducer.furl")
-        ic = IntroducerClient(self.tub, self.introducer_furl,
+    def init_introducer_clients(self):
+        self.introducer_furls = []
+        self.warn_flag = False
+        # Try to load ""BASEDIR/introducers" cfg file
+        cfg = os.path.join(self.basedir, MULTI_INTRODUCERS_CFG)
+        if os.path.exists(cfg):
+           f = open(cfg, 'r')
+           for introducer_furl in  f.read().split('\n'):
+                if not introducer_furl.strip():
+                    continue
+                self.introducer_furls.append(introducer_furl)
+           f.close()
+        furl_count = len(self.introducer_furls)
+        #print "@icfg: furls: %d" %furl_count
+
+        # read furl from tahoe.cfg
+        ifurl = self.get_config("client", "introducer.furl", None)
+        if ifurl and ifurl not in self.introducer_furls:
+            self.introducer_furls.append(ifurl)
+            f = open(cfg, 'a')
+            f.write(ifurl)
+            f.write('\n')
+            f.close()
+            if furl_count > 1:
+                self.warn_flag = True
+                self.log("introducers config file modified.")
+                print "Warning! introducers config file modified."
+
+        # create a pool of introducer_clients
+        self.introducer_clients = []
+        for introducer_furl in self.introducer_furls:
+            ic = IntroducerClient(self.tub, introducer_furl,
                               self.nickname,
                               str(allmydata.__full_version__),
                               str(self.OLDEST_SUPPORTED_VERSION),
                               self.get_app_versions())
-        self.introducer_client = ic
+            self.introducer_clients.append(ic)
+        # init introducer_clients as usual
+        for ic in self.introducer_clients:
+            self.init_introducer_client(ic)
+
+    def init_introducer_client(self, ic):
         # hold off on starting the IntroducerClient until our tub has been
         # started, so we'll have a useful address on our RemoteReference, so
         # that the introducer's status page will show us.
@@ -294,7 +330,8 @@ class Client(node.Node, pollmixin.PollMixin):
             ann = {"anonymous-storage-FURL": furl,
                    "permutation-seed-base32": self._init_permutation_seed(ss),
                    }
-            self.introducer_client.publish("storage", ann, self._server_key)
+            for ic in self.introducer_clients:
+                ic.publish("storage", ann, self._server_key)
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="aLGBKw")
@@ -346,7 +383,10 @@ class Client(node.Node, pollmixin.PollMixin):
         # check to see if we're supposed to use the introducer too
         if self.get_config("client-server-selection", "use_introducer",
                            default=True, boolean=True):
-            sb.use_introducer(self.introducer_client)
+
+            # Now, use our multiple introducers
+            for ic in self.introducer_clients:
+                sb.use_introducer(ic)
 
     def get_storage_broker(self):
         return self.storage_broker
@@ -485,10 +525,15 @@ class Client(node.Node, pollmixin.PollMixin):
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
 
+    # In case we configure multiple introducers
     def connected_to_introducer(self):
-        if self.introducer_client:
-            return self.introducer_client.connected_to_introducer()
-        return False
+        status = []
+        if self.introducer_clients:
+            s = False
+            for ic in self.introducer_clients:
+                s = ic.connected_to_introducer()
+                status.append(s)
+        return status
 
     def get_renewal_secret(self): # this will go away
         return self._secret_holder.get_renewal_secret()

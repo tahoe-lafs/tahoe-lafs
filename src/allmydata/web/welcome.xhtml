@@ -35,14 +35,26 @@
   <div n:render="download_form" />
 </div>
 
+<h2>Connected Introducer(s)</h2>
+
+<div>
+<table n:render="sequence" n:data="introducers">
+  <tr n:pattern="header">
+    <td>Introducer FURL</td>
+    <td>Connected?</td>
+  </tr>
+  <tr n:pattern="item" n:render="introducers_row">
+    <td><tt><n:slot name="introducer_furl"/></tt></td>
+    <td><tt><n:slot name="connected"/></tt></td>
+  </tr>
+  <tr n:pattern="empty"><td>no introducers!</td></tr>
+</table>
+</div>
+
+
+
 <div class="section" id="grid">
   <h2>Status of the Storage Grid</h2>
-
-  <div>
-    <n:attr name="class">connected-<n:invisible n:render="string" n:data="connected_to_introducer" /></n:attr>
-    <div>Introducer: <span class="data-chars" n:render="string" n:data="introducer_furl" /></div>
-    <div>Connected to introducer?: <span n:render="string" n:data="connected_to_introducer" /></div>
-  </div>
 
   <div>
     <n:attr name="class">connected-<n:invisible n:render="string" n:data="connected_to_helper" /></n:attr>
