@@ -45,7 +45,10 @@
   </tr>
   <tr n:pattern="item" n:render="introducers_row">
     <td><tt><n:slot name="introducer_furl"/></tt></td>
-    <td><tt><n:slot name="connected"/></tt></td>
+    <td>
+      <n:slot name="connected"/>
+      <n:attr name="class">service-connected connected-<n:slot name="connected-bool"/></n:attr>
+    </td>
   </tr>
   <tr n:pattern="empty"><td>no introducers!</td></tr>
 </table>

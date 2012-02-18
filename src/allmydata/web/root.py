@@ -207,18 +207,16 @@ class Root(rend.Page):
         for furl in furls:
             if connection_status:
                 i = furls.index(furl)
-                if connection_status[i]:
-                    s.append( (furl, "Yes") )
-                else:
-                    s.append( (furl, "No") )
+                s.append((furl, bool(connection_status[i])))
         s.sort()
         return s
 
     def render_introducers_row(self, ctx, s):
         (furl, connected) = s
-        #connected =
+        status = ("No", "Yes")
         ctx.fillSlots("introducer_furl", "%s" % (furl))
-        ctx.fillSlots("connected", "%s" % (connected))
+        ctx.fillSlots("connected-bool", "%s" % (connected))
+        ctx.fillSlots("connected", "%s" % (status[int(connected)]))
         return ctx.tag
 
     def data_helper_furl(self, ctx, data):
