@@ -120,6 +120,7 @@ deprecation_messages = [
 
 user_warning_messages = [
     "Hashing uninitialized InterfaceClass instance",
+    "Reliable disconnection notification requires pywin32 215 or later",
 ]
 
 warning_imports = [
