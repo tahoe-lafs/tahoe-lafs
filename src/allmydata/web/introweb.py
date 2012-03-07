@@ -1,6 +1,8 @@
 
-import time
+import time, os
 from nevow import rend, inevow
+from nevow.static import File as nevow_File
+from nevow.util import resource_filename
 from foolscap.api import SturdyRef
 from twisted.internet import address
 import allmydata
@@ -20,6 +22,9 @@ class IntroducerRoot(rend.Page):
         self.introducer_node = introducer_node
         self.introducer_service = introducer_node.getServiceNamed("introducer")
         rend.Page.__init__(self, introducer_node)
+        static_dir = resource_filename("allmydata.web", "static")
+        for filen in os.listdir(static_dir):
+            self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
 
     def renderHTTP(self, ctx):
         t = get_arg(inevow.IRequest(ctx), "t")
@@ -104,7 +109,8 @@ class IntroducerRoot(rend.Page):
         sr = SturdyRef(furl)
         nodeid = sr.tubID
         advertised = self.show_location_hints(sr)
-        ctx.fillSlots("peerid", "%s %s" % (nodeid, nickname))
+        ctx.fillSlots("peerid", nodeid)
+        ctx.fillSlots("nickname", nickname)
         ctx.fillSlots("advertised", " ".join(advertised))
         ctx.fillSlots("connected", "?")
         TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
@@ -147,7 +153,8 @@ class IntroducerRoot(rend.Page):
         sr = rref.getSturdyRef()
         # if the subscriber didn't do Tub.setLocation, nodeid will be None
         nodeid = sr.tubID or "?"
-        ctx.fillSlots("peerid", "%s %s" % (nodeid, nickname))
+        ctx.fillSlots("peerid", nodeid)
+        ctx.fillSlots("nickname", nickname)
         advertised = self.show_location_hints(sr)
         ctx.fillSlots("advertised", " ".join(advertised))
         remote_host = rref.tracker.broker.transport.getPeer()
