@@ -504,6 +504,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check(res):
             self.failUnlessIn('Welcome To Tahoe-LAFS', res)
             self.failUnlessIn(FAVICON_MARKUP, res)
+            self.failUnlessIn('href="https://tahoe-lafs.org/"', res)
 
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
