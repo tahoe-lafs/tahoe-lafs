@@ -785,12 +785,16 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnless((appverstr in res) or (newappverstr in res), (appverstr, newappverstr, res))
                 self.failUnless("Announcement Summary: storage: 5, stub_client: 5" in res)
                 self.failUnless("Subscription Summary: storage: 5" in res)
+                self.failUnless("tahoe.css" in res)
             except unittest.FailTest:
                 print
                 print "GET %s output was:" % self.introweb_url
                 print res
                 raise
         d.addCallback(_check)
+        # make sure it serves the CSS too
+        d.addCallback(lambda res:
+                      getPage(self.introweb_url+"tahoe.css", method="GET"))
         d.addCallback(lambda res:
                       getPage(self.introweb_url + "?t=json",
                               method="GET", followRedirect=True))
