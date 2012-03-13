@@ -122,8 +122,8 @@ leveraging DNS:
   GET http://tahoe-$HASH.org/introducer/gridid/$GRIDID
   GET http://tahoe-$HASH.tv/introducer/gridid/$GRIDID
   GET http://tahoe-$HASH.info/introducer/gridid/$GRIDID
-   etc
-  GET http://tahoe-grids.allmydata.com/introducer/gridid/$GRIDID
+   etc.
+  GET http://grids.tahoe-lafs.org/introducer/gridid/$GRIDID
 
  The first few introducers should be able to announce other introducers, via
  the distributed gossip-based introduction scheme of #68.
