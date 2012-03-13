@@ -128,8 +128,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
             self._check_right_code(lines[1])
         d.addCallback(_cb)
         return d
-    # The timeout was exceeded on FreeStorm's CentOS:
-    # http://tahoe-lafs.org/buildbot/builders/FreeStorm%20CentOS5-i386/builds/503/steps/test/logs/stdio
+    # The timeout was exceeded on FreeStorm's CentOS5-i386.
     test_import_in_repl.timeout = 480
 
     def test_path(self):
@@ -467,10 +466,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_after_stopping)
         d.addBoth(self._remove, HOTLINE_FILE)
         return d
+    # This test has hit a 240-second timeout on our feisty2.5 buildslave, and a 480-second timeout
+    # on Francois's Lenny-armv5tel buildslave.
     test_introducer.timeout = 960
-
-    # This test hit the 120-second timeout on "Francois Lenny-armv5tel", then it hit a 240-second timeout on our feisty2.5 buildslave: http://allmydata.org/buildbot/builders/feisty2.5/builds/2381/steps/test/logs/test.log
-    # Then it hit the 480 second timeout on Francois's machine: http://tahoe-lafs.org/buildbot/builders/FranXois%20lenny-armv5tel/builds/449/steps/test/logs/stdio
 
     def test_client_no_noise(self):
         self.skip_if_cannot_daemonize()

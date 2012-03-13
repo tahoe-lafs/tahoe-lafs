@@ -149,5 +149,5 @@ San Francisco, California, USA
 [9] https://tahoe-lafs.org/trac/tahoe-lafs/browser/CREDITS
 [10] https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Dev
 [11] http://atlasnetworks.us/
-[12] http://leastauthority.com/
+[12] https://leastauthority.com/
 [13] https://tahoe-lafs.org/hacktahoelafs/
