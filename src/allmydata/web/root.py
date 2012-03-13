@@ -142,7 +142,7 @@ class Root(rend.Page):
             s = client.getServiceNamed("storage")
         except KeyError:
             s = None
-        self.child_storage = storage.StorageStatus(s)
+        self.child_storage = storage.StorageStatus(s, self.client.nickname)
 
         self.child_uri = URIHandler(client)
         self.child_cap = URIHandler(client)

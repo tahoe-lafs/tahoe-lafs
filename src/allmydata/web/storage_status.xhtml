@@ -1,6 +1,7 @@
 <html xmlns:n="http://nevow.com/ns/nevow/0.1">
   <head>
     <title>Tahoe-LAFS - Storage Server Status</title>
+    <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
     <link href="/icon.png" rel="shortcut icon" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   </head>
@@ -53,12 +54,11 @@
       </tr>
   </table>
 
-  <ul n:data="stats">
-    <li>Accepting new shares:
-       <span n:render="bool" n:data="accepting_immutable_shares" /></li>
-  </ul>
-
   <ul>
+    <li>Server Nickname: <span class="nickname mine" n:render="string" n:data="nickname" /></li>
+    <li>Server Nodeid: <span class="nodeid mine data-chars" n:render="string" n:data="nodeid" /></li>
+    <li n:data="stats">Accepting new shares:
+     <span n:render="bool" n:data="accepting_immutable_shares" /></li>
     <li>Total buckets:
        <span n:render="string" n:data="last_complete_bucket_count" />
        (the number of files and directories for which this server is holding
