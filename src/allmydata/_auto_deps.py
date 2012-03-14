@@ -51,6 +51,9 @@ install_requires = [
     # http://www.voidspace.org.uk/python/mock/
     "mock",
 
+    # pycryptopp-0.6.0 includes ed25519
+    "pycryptopp >= 0.6.0",
+
     # Will be needed to test web apps, but not yet. See #1001.
     #"windmill >= 1.3",
 ]
@@ -75,9 +78,7 @@ package_imports = [
 ]
 
 def require_more():
-    import platform, sys
-    # pycryptopp-0.6.0 includes ed25519
-    install_requires.append("pycryptopp >= 0.6.0")
+    import sys
 
     # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
     # distribution for Python 2.4.

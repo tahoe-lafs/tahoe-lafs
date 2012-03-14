@@ -134,7 +134,7 @@ check-miscaptures:
 	@echo
 
 pyflakes:
-	$(PYTHON) -OOu `which pyflakes` $(SOURCES) |sort |uniq
+	@$(PYTHON) -OOu `which pyflakes` $(SOURCES) |sort |uniq
 	@echo
 
 check-umids:
