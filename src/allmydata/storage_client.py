@@ -190,9 +190,16 @@ class NativeStorageServer:
         ps = base32.a2b(str(ann["permutation-seed-base32"]))
         self._permutation_seed = ps
 
-        name = key_s or tubid_s
-        self._long_description = name
-        self._short_description = name[:8] # TODO: decide who adds []
+        if key_s:
+            self._long_description = key_s
+            if key_s.startswith("v0-"):
+                # remove v0- prefix from abbreviated name
+                self._short_description = key_s[3:3+8]
+            else:
+                self._short_description = key_s[:8]
+        else:
+            self._long_description = tubid_s
+            self._short_description = tubid_s[:8]
 
         self.announcement_time = time.time()
         self.last_connect_time = None
@@ -213,6 +220,8 @@ class NativeStorageServer:
             return self.rref.version
         return None
     def get_name(self): # keep methodname short
+        # TODO: decide who adds [] in the short description. It should
+        # probably be the output side, not here.
         return self._short_description
     def get_longname(self):
         return self._long_description
