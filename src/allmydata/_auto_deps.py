@@ -76,18 +76,8 @@ package_imports = [
 
 def require_more():
     import platform, sys
-
-    if platform.machine().lower() in ['i386', 'x86', 'i686', 'x86_64', 'amd64', '']:
-        # pycryptopp v0.5.20 fixes bugs in SHA-256 and AES on x86 or amd64
-        # (from Crypto++ revisions 470, 471, 480, 492).  The '' is there
-        # in case platform.machine is broken and this is actually an x86
-        # or amd64 machine.
-        install_requires.append("pycryptopp >= 0.5.20")
-    else:
-        # pycryptopp v0.5.13 had a new bundled version of Crypto++
-        # (v5.6.0) and a new bundled version of setuptools (although that
-        # shouldn't make any difference to users of pycryptopp).
-        install_requires.append("pycryptopp >= 0.5.14")
+    # pycryptopp-0.6.0 includes ed25519
+    install_requires.append("pycryptopp >= 0.6.0")
 
     # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
     # distribution for Python 2.4.
