@@ -35,11 +35,10 @@ class UpdateStatus:
         self.finished = None
 
     def add_per_server_time(self, server, op, sent, elapsed):
-        serverid = server.get_serverid()
         assert op in ("query", "late", "privkey")
-        if serverid not in self.timings["per_server"]:
-            self.timings["per_server"][serverid] = []
-        self.timings["per_server"][serverid].append((op,sent,elapsed))
+        if server not in self.timings["per_server"]:
+            self.timings["per_server"][server] = []
+        self.timings["per_server"][server].append((op,sent,elapsed))
 
     def get_started(self):
         return self.started
@@ -71,7 +70,7 @@ class UpdateStatus:
     def set_mode(self, mode):
         self.mode = mode
     def set_privkey_from(self, server):
-        self.privkey_from = server.get_serverid()
+        self.privkey_from = server
     def set_status(self, status):
         self.status = status
     def set_progress(self, value):

@@ -1968,7 +1968,7 @@ class IDownloadResults(Interface):
        cumulative_decode : just time spent in zfec
        cumulative_decrypt : just time spent in decryption
        total : total download time, start to finish
-       fetch_per_server : dict of peerid to list of per-segment fetch times
+       fetch_per_server : dict of server to list of per-segment fetch times
 
     """
 
