@@ -407,7 +407,7 @@ Drop-Upload
 
     As of Tahoe-LAFS v1.9.0, a node running on Linux can be configured to
     automatically upload files that are created or changed in a specified
-    local directory. See `<frontends/drop_upload.rst>`_ for details.
+    local directory. See `<frontends/drop-upload.rst>`_ for details.
 
 
 

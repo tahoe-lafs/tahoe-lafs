@@ -31,6 +31,10 @@ Both FTP and SFTP were developed assuming a UNIX-like server, with accounts
 and passwords, octal file modes (user/group/other, read/write/execute), and
 ctime/mtime timestamps.
 
+We recommend SFTP over FTP, because the protocol is better, and the server
+implementation in Tahoe-LAFS is more complete. See `Known Issues`_, below,
+for details.
+
 Tahoe-LAFS Support
 ==================
 
