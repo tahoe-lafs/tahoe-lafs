@@ -1,19 +1,19 @@
 =================================
-Tahoe-LAFS FTP and SFTP Frontends
+Tahoe-LAFS SFTP and FTP Frontends
 =================================
 
-1.  `FTP/SFTP Background`_
+1.  `SFTP/FTP Background`_
 2.  `Tahoe-LAFS Support`_
 3.  `Creating an Account File`_
 4.  `Running An Account Server (accounts.url)`_
-5.  `Configuring FTP Access`_
-6.  `Configuring SFTP Access`_
+5.  `Configuring SFTP Access`_
+6.  `Configuring FTP Access`_
 7.  `Dependencies`_
 8.  `Immutable and Mutable Files`_
 9.  `Known Issues`_
 
 
-FTP/SFTP Background
+SFTP/FTP Background
 ===================
 
 FTP is the venerable internet file-transfer protocol, first developed in
@@ -34,19 +34,22 @@ ctime/mtime timestamps.
 Tahoe-LAFS Support
 ==================
 
-All Tahoe-LAFS client nodes can run a frontend FTP server, allowing regular
-FTP clients (like /usr/bin/ftp, ncftp, and countless others) to access the
-virtual filesystem. They can also run an SFTP server, so SFTP clients (like
-/usr/bin/sftp, the sshfs FUSE plugin, and others) can too. These frontends
-sit at the same level as the web-API interface.
+All Tahoe-LAFS client nodes can run an SFTP server, so SFTP clients (like
+/usr/bin/sftp, the sshfs FUSE plugin, and others) can access the virtual filesystem. 
 
-Since Tahoe-LAFS does not use user accounts or passwords, the FTP/SFTP
+They can also run a frontend FTP server, allowing regular FTP clients (like
+/usr/bin/ftp, ncftp, and countless others) to as well.
+
+These frontends sit at the same level as the web-API interface.
+
+Since Tahoe-LAFS does not use user accounts or passwords, the SFTP/FTP
 servers must be configured with a way to first authenticate a user (confirm
 that a prospective client has a legitimate claim to whatever authorities we
 might grant a particular user), and second to decide what directory cap
 should be granted to the authenticated username. A username and password is
 used for this purpose. (The SFTP protocol is also capable of using client RSA
-or DSA public keys, but this is not currently implemented.)
+or DSA public keys, but this is not currently implemented in the Tahoe-LAFS
+SFTP server.)
 
 Tahoe-LAFS provides two mechanisms to perform this user-to-cap mapping. The
 first is a simple flat file with one account per line. The second is an
@@ -85,12 +88,12 @@ address and password into a tahoe rootcap. The service will receive a
 multipart/form-data POST, just like one created with a <form> and <input>
 fields, with three parameters:
 
-* action: "authenticate" (this is a static string, for backwards
+• action: "authenticate" (this is a static string, for backwards
   compatibility with the old AllMyData authentication service)
-* email: USERNAME (Tahoe has no notion of email addresses, but the
+• email: USERNAME (Tahoe has no notion of email addresses, but the
   authentication service uses them as account names, so the interface
   presents this argument as "email" rather than "username").
-* passwd: PASSWORD
+• passwd: PASSWORD
 
 It should return a single string that either contains a Tahoe rootcap
 (URI:DIR2:...), or "0" to indicate a login failure.
@@ -99,37 +102,6 @@ Tahoe-LAFS recommends the service be secure, preferably localhost-only.  This
 makes it harder for attackers to brute force the password or use DNS
 poisoning to cause the Tahoe-LAFS gateway to talk with the wrong server,
 thereby revealing the usernames and passwords.
-
-Configuring FTP Access
-======================
-
-To enable the FTP server with an accounts file, add the following lines to
-the BASEDIR/tahoe.cfg file::
-
- [ftpd]
- enabled = true
- port = tcp:8021:interface=127.0.0.1
- accounts.file = private/ftp.accounts
-
-The FTP server will listen on the given port number and on the loopback
-interface only. The "accounts.file" pathname will be interpreted relative to
-the node's BASEDIR.
-
-To enable the FTP server with an account server instead, provide the URL of
-that server in an "accounts.url" directive::
-
- [ftpd]
- enabled = true
- port = tcp:8021:interface=127.0.0.1
- accounts.url = https://example.com/login
-
-You can provide both accounts.file and accounts.url, although it probably
-isn't very useful except for testing.
-
-FTP provides no security, and so your password or caps could be eavesdropped
-if you connect to the FTP server remotely. The examples above include
-":interface=127.0.0.1" in the "port" option, which causes the server to only
-accept connections from localhost.
 
 Configuring SFTP Access
 =======================
@@ -190,6 +162,37 @@ isn't very useful except for testing.
 For further information on SFTP compatibility and known issues with various
 clients and with the sshfs filesystem, see
 `<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
+
+Configuring FTP Access
+======================
+
+To enable the FTP server with an accounts file, add the following lines to
+the BASEDIR/tahoe.cfg file::
+
+ [ftpd]
+ enabled = true
+ port = tcp:8021:interface=127.0.0.1
+ accounts.file = private/ftp.accounts
+
+The FTP server will listen on the given port number and on the loopback
+interface only. The "accounts.file" pathname will be interpreted relative to
+the node's BASEDIR.
+
+To enable the FTP server with an account server instead, provide the URL of
+that server in an "accounts.url" directive::
+
+ [ftpd]
+ enabled = true
+ port = tcp:8021:interface=127.0.0.1
+ accounts.url = https://example.com/login
+
+You can provide both accounts.file and accounts.url, although it probably
+isn't very useful except for testing.
+
+FTP provides no security, and so your password or caps could be eavesdropped
+if you connect to the FTP server remotely. The examples above include
+":interface=127.0.0.1" in the "port" option, which causes the server to only
+accept connections from localhost.
 
 Dependencies
 ============
