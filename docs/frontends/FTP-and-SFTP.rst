@@ -160,8 +160,9 @@ You can provide both accounts.file and accounts.url, although it probably
 isn't very useful except for testing.
 
 For further information on SFTP compatibility and known issues with various
-clients and with the sshfs filesystem, see
-`<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
+clients and with the sshfs filesystem, see wiki:SftpFrontend_
+
+.. _wiki:SftpFrontend: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend
 
 Configuring FTP Access
 ======================
@@ -217,8 +218,8 @@ be relinked to a different file. Normally, when the path of an immutable file
 is opened for writing by SFTP, the directory entry is relinked to another
 file with the newly written contents when the file handle is closed. The old
 file is still present on the grid, and any other caps to it will remain
-valid. (See `docs/garbage-collection.rst <../garbage-collection.rst>`_ for
-how to reclaim the space used by files that are no longer needed.)
+valid. (See `docs/garbage-collection.rst`_ for how to reclaim the space used
+by files that are no longer needed.)
 
 The 'no-write' metadata field of a directory entry can override this
 behaviour. If the 'no-write' field holds a true value, then a permission
@@ -235,29 +236,49 @@ mutable file or directory, that link will become read-only.
 If SFTP is used to write to an existing mutable file, it will publish a new
 version when the file handle is closed.
 
+.. _docs/garbage-collection.rst: file:../garbage-collection.rst
+
 Known Issues
 ============
 
-Mutable files are not supported by the FTP frontend (`ticket #680
-<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/680>`_). Currently, a directory
-containing mutable files cannot even be listed over FTP.
+Known Issues in the SFTP Frontend
+---------------------------------
+
+Upload errors may not be reported when writing files using SFTP via sshfs
+(`ticket #1059`_).
+
+Non-ASCII filenames are supported with SFTP only if the client encodes
+filenames as UTF-8 (`ticket #1089`_).
+
+The gateway node may hang or consume 100% CPU if the client tries to rekey.
+(`ticket #1297`_).  This is due to a bug in Twisted (`Twisted ticket #4395`_)
+which was fixed in Twisted 11.0 (released 3-April-2011).
+
+See also wiki:SftpFrontend_.
+
+.. _ticket #1059: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1059
+.. _ticket #1089: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1089
+.. _ticket #1297: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1297
+.. _Twisted ticket #4395: https://twistedmatrix.com/trac/ticket/4395
+
+Known Issues in the FTP Frontend
+--------------------------------
+
+Mutable files are not supported by the FTP frontend (`ticket
+#680`_). Currently, a directory containing mutable files cannot even be
+listed over FTP.
+
+Non-ASCII filenames are not supported by FTP (`ticket #682`_).
+
+The FTP frontend returns all timestamps as being Jan 1, 1970 (`ticket
+#1688`_).
 
 The FTP frontend sometimes fails to report errors, for example if an upload
 fails because it does meet the "servers of happiness" threshold (`ticket
-#1081 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1081>`_). Upload errors
-also may not be reported when writing files using SFTP via sshfs (`ticket
-#1059 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1059>`_).
+#1081`_).
 
-Non-ASCII filenames are not supported by FTP (`ticket #682
-<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/682>`_). They can be used with
-SFTP only if the client encodes filenames as UTF-8 (`ticket #1089
-<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1089>`_).
+.. _ticket #680: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/680
+.. _ticket #682: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/682
+.. _ticket #1081: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1081
+.. _ticket #1688: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1688
 
-The gateway node may hang or consume 100% CPU if the client tries to rekey.
-(`ticket #1297 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1297>`_).  This
-is due to `a bug in Twisted <http://twistedmatrix.com/trac/ticket/4395>`_
-which was fixed in Twisted 11.0 (released 3-April-2011).
-
-For options to disable rekeying in various clients in order to work around
-this issue, and for other known issues in SFTP, see
-`<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
