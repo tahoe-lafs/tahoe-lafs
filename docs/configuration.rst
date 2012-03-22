@@ -396,12 +396,12 @@ CLI
     filesystem, uploading/downloading files, and creating/running Tahoe
     nodes. See `<frontends/CLI.rst>`_ for details.
 
-FTP, SFTP
+SFTP, FTP
 
-    Tahoe can also run both FTP and SFTP servers, and map a username/password
+    Tahoe can also run both SFTP and FTP servers, and map a username/password
     pair to a top-level Tahoe directory. See `<frontends/FTP-and-SFTP.rst>`_
-    for instructions on configuring these services, and the ``[ftpd]`` and
-    ``[sftpd]`` sections of ``tahoe.cfg``.
+    for instructions on configuring these services, and the ``[sftpd]`` and
+    ``[ftpd]`` sections of ``tahoe.cfg``.
 
 Drop-Upload
 
