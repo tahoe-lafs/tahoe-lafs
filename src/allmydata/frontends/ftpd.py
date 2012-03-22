@@ -193,7 +193,7 @@ class Handler:
                 if isdir:
                     value = 0
                 else:
-                    value = childnode.get_size()
+                    value = childnode.get_size() or 0
             elif key == "directory":
                 value = isdir
             elif key == "permissions":
