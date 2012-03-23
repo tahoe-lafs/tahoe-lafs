@@ -1,4 +1,8 @@
 ﻿
+See also cautions.rst_.
+
+.. _cautions.rst: file:cautions.rst
+
 ============
 Known Issues
 ============
