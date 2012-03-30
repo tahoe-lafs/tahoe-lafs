@@ -201,7 +201,11 @@ class Handler:
             elif key == "hardlinks":
                 value = 1
             elif key == "modified":
-                value = metadata.get("mtime", 0)
+                # follow sftpd convention (i.e. linkmotime in preference to mtime)
+                if "linkmotime" in metadata.get("tahoe", {}):
+                    value = metadata["tahoe"]["linkmotime"]
+                else:
+                    value = metadata.get("mtime", 0)
             elif key == "owner":
                 value = self.username
             elif key == "group":
