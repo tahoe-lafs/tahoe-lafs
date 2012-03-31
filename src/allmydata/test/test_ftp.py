@@ -1,6 +1,4 @@
 
-import time, calendar
-
 from twisted.trial import unittest
 
 from allmydata.frontends import ftpd
