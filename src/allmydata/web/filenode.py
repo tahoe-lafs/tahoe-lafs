@@ -157,6 +157,14 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def render_GET(self, ctx):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
+
+        if not self.node.is_mutable():
+            # if the client already has the ETag then we can
+            # short-circuit the whole process.
+            si = self.node.get_storage_index()
+            if si and req.setETag('%s-%s' % (base32.b2a(si), t or "")):
+                return ""
+
         if not t:
             # just get the contents
             # the filename arrives as part of the URL or in a form input
@@ -206,7 +214,7 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
         if t:
-            raise WebError("GET file: bad t=%s" % t)
+            raise WebError("HEAD file: bad t=%s" % t)
         filename = get_arg(req, "filename", self.name) or "unknown"
         d = self.node.get_best_readable_version()
         d.addCallback(lambda dn: FileDownloader(dn, filename))
@@ -414,13 +422,7 @@ class FileDownloader(rend.Page):
         first, size = 0, None
         contentsize = filesize
         req.setHeader("accept-ranges", "bytes")
-        if not self.filenode.is_mutable():
-            # TODO: look more closely at Request.setETag and how it interacts
-            # with a conditional "if-etag-equals" request, I think this may
-            # need to occur after the setResponseCode below
-            si = self.filenode.get_storage_index()
-            if si:
-                req.setETag(base32.b2a(si))
+
         # TODO: for mutable files, use the roothash. For LIT, hash the data.
         # or maybe just use the URI for CHK and LIT.
         rangeheader = req.getHeader('range')
