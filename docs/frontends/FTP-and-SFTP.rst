@@ -44,9 +44,10 @@ Since Tahoe-LAFS does not use user accounts or passwords, the FTP/SFTP
 servers must be configured with a way to first authenticate a user (confirm
 that a prospective client has a legitimate claim to whatever authorities we
 might grant a particular user), and second to decide what directory cap
-should be granted to the authenticated username. A username and password is
-used for this purpose. (The SFTP protocol is also capable of using client RSA
-or DSA public keys, but this is not currently implemented.)
+should be used as the root directory for a log-in by the authenticated user.
+A username and password is used for this purpose. (The SFTP protocol is also
+capable of using client RSA or DSA public keys, but this is not currently
+implemented.)
 
 Tahoe-LAFS provides two mechanisms to perform this user-to-cap mapping. The
 first is a simple flat file with one account per line. The second is an
@@ -81,7 +82,7 @@ The accounts.url directive allows access requests to be controlled by an
 HTTP-based login service, useful for centralized deployments. This was
 used by AllMyData to provide web-based file access, where the service
 used a simple PHP script and database lookups to map an account email
-address and password into a tahoe rootcap. The service will receive a
+address and password into a Tahoe directory cap. The service will receive a
 multipart/form-data POST, just like one created with a <form> and <input>
 fields, with three parameters:
 
@@ -92,7 +93,7 @@ fields, with three parameters:
   presents this argument as "email" rather than "username").
 * passwd: PASSWORD
 
-It should return a single string that either contains a Tahoe rootcap
+It should return a single string that either contains a Tahoe directory cap
 (URI:DIR2:...), or "0" to indicate a login failure.
 
 Tahoe-LAFS recommends the service be secure, preferably localhost-only.  This
