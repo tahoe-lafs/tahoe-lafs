@@ -6,7 +6,7 @@ import allmydata # for __full_version__
 
 from allmydata.util.encodingutil import quote_output
 from allmydata.scripts.common import TahoeError
-
+from socket import error as socket_error
 
 # copied from twisted/web/client.py
 def parse_url(url, defaultPort=None):
@@ -58,8 +58,16 @@ def do_http(method, url, body=""):
     length = body.tell()
     body.seek(old)
     c.putheader("Content-Length", str(length))
-    c.endheaders()
 
+    try:
+        c.endheaders()
+    except socket_error, err:
+        class BadResponse(object):
+            status=-1
+            reason="Error trying to connect to %s: %s" % (url, err)
+            read=lambda _: ""
+        return BadResponse()
+        
     while True:
         data = body.read(8192)
         if not data:

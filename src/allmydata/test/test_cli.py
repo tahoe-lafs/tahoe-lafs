@@ -13,6 +13,8 @@ from allmydata.immutable import upload
 from allmydata.interfaces import MDMF_VERSION, SDMF_VERSION
 from allmydata.mutable.publish import MutableData
 from allmydata.dirnode import normalize
+from allmydata.scripts.common_http import socket_error
+import allmydata.scripts.common_http
 from pycryptopp.publickey import ed25519
 
 # Test that the scripts can be imported.
@@ -3277,6 +3279,28 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failIf(os.path.exists(targetf))
         d.addCallback(_check2)
 
+        return d
+
+    def test_broken_socket(self):
+        # When the http connection breaks (such as when node.url is overwritten
+        # by a confused user), a user friendly error message should be printed.
+        self.basedir = "cli/Errors/test_broken_socket"
+        self.set_up_grid()
+
+        # Simulate a connection error
+        endheaders = allmydata.scripts.common_http.httplib.HTTPConnection.endheaders
+        def _fix_endheaders(*args):
+            allmydata.scripts.common_http.httplib.HTTPConnection.endheaders = endheaders
+        def _socket_error(*args, **kwargs):
+            raise socket_error('test error')
+        allmydata.scripts.common_http.httplib.HTTPConnection.endheaders = _socket_error
+
+        d = self.do_cli("mkdir")
+        def _check_invalid((rc,stdout,stderr)):
+            self.failIfEqual(rc, 0)
+            self.failUnlessIn("Error trying to connect to http://127.0.0.1", stderr)
+        d.addCallback(_check_invalid)
+        d.addCallback(_fix_endheaders)
         return d
 
 
