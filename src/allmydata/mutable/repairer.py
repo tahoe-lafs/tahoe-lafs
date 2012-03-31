@@ -3,6 +3,8 @@ from zope.interface import implements
 from twisted.internet import defer
 from allmydata.interfaces import IRepairResults, ICheckResults
 from allmydata.mutable.publish import MutableData
+from allmydata.mutable.common import MODE_REPAIR
+from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 
 class RepairResults:
     implements(IRepairResults)
@@ -23,10 +25,13 @@ class MustForceRepairError(Exception):
     pass
 
 class Repairer:
-    def __init__(self, node, check_results):
+    def __init__(self, node, check_results, storage_broker, history, monitor):
         self.node = node
         self.check_results = ICheckResults(check_results)
         assert check_results.storage_index == self.node.get_storage_index()
+        self._storage_broker = storage_broker
+        self._history = history
+        self._monitor = monitor
 
     def start(self, force=False):
         # download, then re-publish. If a server had a bad share, try to
@@ -55,8 +60,17 @@ class Repairer:
         #  old shares: replace old shares with the latest version
         #  bogus shares (bad sigs): replace the bad one with a good one
 
-        smap = self.check_results.get_servermap()
+        # first, update the servermap in MODE_REPAIR, which files all shares
+        # and makes sure we get the privkey.
+        u = ServermapUpdater(self.node, self._storage_broker, self._monitor,
+                             ServerMap(), MODE_REPAIR)
+        if self._history:
+            self._history.notify_mapupdate(u.get_status())
+        d = u.update()
+        d.addCallback(self._got_full_servermap, force)
+        return d
 
+    def _got_full_servermap(self, smap, force):
         best_version = smap.best_recoverable_version()
         if not best_version:
             # the file is damaged beyond repair

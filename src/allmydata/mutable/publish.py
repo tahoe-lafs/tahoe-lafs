@@ -15,7 +15,7 @@ from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
 from foolscap.api import eventually, fireEventually
 
-from allmydata.mutable.common import MODE_WRITE, MODE_CHECK, \
+from allmydata.mutable.common import MODE_WRITE, MODE_CHECK, MODE_REPAIR, \
      UncoordinatedWriteError, NotEnoughServersError
 from allmydata.mutable.servermap import ServerMap
 from allmydata.mutable.layout import get_version_from_checkstring,\
@@ -187,7 +187,7 @@ class Publish:
         # servermap was updated in MODE_WRITE, so we can depend upon the
         # serverlist computed by that process instead of computing our own.
         assert self._servermap
-        assert self._servermap.get_last_update()[0] in (MODE_WRITE, MODE_CHECK)
+        assert self._servermap.get_last_update()[0] in (MODE_WRITE, MODE_CHECK, MODE_REPAIR)
         # we will push a version that is one larger than anything present
         # in the grid, according to the servermap.
         self._new_seqnum = self._servermap.highest_seqnum() + 1
@@ -373,7 +373,7 @@ class Publish:
         # servermap was updated in MODE_WRITE, so we can depend upon the
         # serverlist computed by that process instead of computing our own.
         if self._servermap:
-            assert self._servermap.get_last_update()[0] in (MODE_WRITE, MODE_CHECK)
+            assert self._servermap.get_last_update()[0] in (MODE_WRITE, MODE_CHECK, MODE_REPAIR)
             # we will push a version that is one larger than anything present
             # in the grid, according to the servermap.
             self._new_seqnum = self._servermap.highest_seqnum() + 1
