@@ -689,6 +689,16 @@ class Help(unittest.TestCase):
         self.failUnlessIn(" debug trial [options] [[file|package|module|TestCase|testmethod]...]", help)
         self.failUnlessIn("The 'tahoe debug trial' command uses the correct imports", help)
 
+    def test_debug_flogtool(self):
+        options = debug.FlogtoolOptions()
+        help = str(options)
+        self.failUnlessIn(" debug flogtool ", help)
+        self.failUnlessIn("The 'tahoe debug flogtool' command uses the correct imports", help)
+
+        for (option, shortcut, oClass, desc) in options.subCommands:
+            subhelp = str(oClass())
+            self.failUnlessIn(" debug flogtool %s " % (option,), subhelp)
+
 
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 

@@ -5,6 +5,7 @@ import struct, time, os, sys
 from twisted.python import usage, failure
 from twisted.internet import defer
 from twisted.scripts import trial as twisted_trial
+from foolscap.logging import cli as foolscap_cli
 
 
 class DumpOptions(usage.Options):
@@ -998,6 +999,49 @@ def trial(config):
     twisted_trial.run()
 
 
+def fixOptionsClass( (subcmd, shortcut, OptionsClass, desc) ):
+    class FixedOptionsClass(OptionsClass):
+        def getSynopsis(self):
+            t = OptionsClass.getSynopsis(self)
+            i = t.find("Usage: flogtool ")
+            if i >= 0:
+                return "Usage: tahoe debug flogtool " + t[i+len("Usage: flogtool "):]
+            else:
+                return "Usage: tahoe debug flogtool %s [options]" % (subcmd,)
+    return (subcmd, shortcut, FixedOptionsClass, desc)
+
+class FlogtoolOptions(foolscap_cli.Options):
+    def __init__(self):
+        super(FlogtoolOptions, self).__init__()
+        self.subCommands = map(fixOptionsClass, self.subCommands)
+
+    def getSynopsis(self):
+        return "Usage: tahoe debug flogtool (%s) [command options]" % ("|".join([x[0] for x in self.subCommands]))
+
+    def parseOptions(self, all_subargs, *a, **kw):
+        self.flogtool_args = list(all_subargs)
+        return super(FlogtoolOptions, self).parseOptions(self.flogtool_args, *a, **kw)
+
+    def getUsage(self, width=None):
+        t = super(FlogtoolOptions, self).getUsage(width)
+        t += """
+The 'tahoe debug flogtool' command uses the correct imports for this instance
+of Tahoe-LAFS.
+
+Please run 'tahoe debug flogtool SUBCOMMAND --help' for more details on each
+subcommand.
+"""
+        return t
+
+    def opt_help(self):
+        print str(self)
+        sys.exit(0)
+
+def flogtool(config):
+    sys.argv = ['flogtool'] + config.flogtool_args
+    return foolscap_cli.run_flogtool()
+
+
 class DebugCommand(usage.Options):
     subCommands = [
         ["dump-share", None, DumpOptions,
@@ -1008,15 +1052,16 @@ class DebugCommand(usage.Options):
         ["corrupt-share", None, CorruptShareOptions, "Corrupt a share by flipping a bit."],
         ["repl", None, ReplOptions, "Open a Python interpreter."],
         ["trial", None, TrialOptions, "Run tests using Twisted Trial with the right imports."],
+        ["flogtool", None, FlogtoolOptions, "Utilities to access log files."],
         ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a subcommand")
     def getSynopsis(self):
-        return "Usage: tahoe debug SUBCOMMAND"
+        return ""
     def getUsage(self, width=None):
         #t = usage.Options.getUsage(self, width)
-        t = """
+        t = """Usage: tahoe debug SUBCOMMAND
 Subcommands:
     tahoe debug dump-share      Unpack and display the contents of a share.
     tahoe debug dump-cap        Unpack a read-cap or write-cap.
@@ -1025,6 +1070,7 @@ Subcommands:
     tahoe debug corrupt-share   Corrupt a share by flipping a bit.
     tahoe debug repl            Open a Python interpreter.
     tahoe debug trial           Run tests using Twisted Trial with the right imports.
+    tahoe debug flogtool        Utilities to access log files.
 
 Please run e.g. 'tahoe debug dump-share --help' for more details on each
 subcommand.
@@ -1065,6 +1111,7 @@ subDispatch = {
     "corrupt-share": corrupt_share,
     "repl": repl,
     "trial": trial,
+    "flogtool": flogtool,
     }
 
 
