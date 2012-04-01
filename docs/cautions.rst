@@ -1,8 +1,14 @@
-Things To Be Careful About As We Venture Boldly Forth
-=====================================================
+﻿
+=======================================================
+ Things To Be Careful About As We Venture Boldly Forth
+=======================================================
+
+See also known_issues.rst_.
+
+.. _known_issues.rst: file:known_issues.rst
 
 Timing Attacks
---------------
+==============
 
 Asymmetric-key cryptography operations are particularly sensitive to
 side-channel attacks. Unless the library is carefully hardened against timing
