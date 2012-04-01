@@ -1063,7 +1063,7 @@ class ServermapUpdater:
                          parent=lp)
                 return self._done()
 
-        if self.mode == (MODE_CHECK, MODE_REPAIR):
+        if self.mode in (MODE_CHECK, MODE_REPAIR):
             # we used self._must_query, and we know there aren't any
             # responses still waiting, so that means we must be done
             self.log("done", parent=lp)
