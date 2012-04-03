@@ -19,8 +19,8 @@ from allmydata.web.common import text_plain, WebError, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories, \
      MyExceptionHandler, parse_replace_arg, parse_offset_arg, \
      get_format, get_mutable_type
-from allmydata.web.check_results import CheckResults, \
-     CheckAndRepairResults, LiteralCheckResults
+from allmydata.web.check_results import CheckResultsRenderer, \
+     CheckAndRepairResultsRenderer, LiteralCheckResultsRenderer
 from allmydata.web.info import MoreInfo
 
 class ReplaceMeMixin:
@@ -285,7 +285,7 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def _maybe_literal(self, res, Results_Class):
         if res:
             return Results_Class(self.client, res)
-        return LiteralCheckResults(self.client)
+        return LiteralCheckResultsRenderer(self.client)
 
     def _POST_check(self, req):
         verify = boolean_of_arg(get_arg(req, "verify", "false"))
@@ -293,10 +293,10 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         add_lease = boolean_of_arg(get_arg(req, "add-lease", "false"))
         if repair:
             d = self.node.check_and_repair(Monitor(), verify, add_lease)
-            d.addCallback(self._maybe_literal, CheckAndRepairResults)
+            d.addCallback(self._maybe_literal, CheckAndRepairResultsRenderer)
         else:
             d = self.node.check(Monitor(), verify, add_lease)
-            d.addCallback(self._maybe_literal, CheckResults)
+            d.addCallback(self._maybe_literal, CheckResultsRenderer)
         return d
 
     def render_DELETE(self, ctx):

@@ -28,9 +28,9 @@ from allmydata.web.common import text_plain, WebError, \
      get_format, get_mutable_type
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
-from allmydata.web.check_results import CheckResults, \
-     CheckAndRepairResults, DeepCheckResults, DeepCheckAndRepairResults, \
-     LiteralCheckResults
+from allmydata.web.check_results import CheckResultsRenderer, \
+     CheckAndRepairResultsRenderer, DeepCheckResultsRenderer, \
+     DeepCheckAndRepairResultsRenderer, LiteralCheckResultsRenderer
 from allmydata.web.info import MoreInfo
 from allmydata.web.operations import ReloadMixin
 from allmydata.web.check_results import json_check_results, \
@@ -421,7 +421,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
     def _maybe_literal(self, res, Results_Class):
         if res:
             return Results_Class(self.client, res)
-        return LiteralCheckResults(self.client)
+        return LiteralCheckResultsRenderer(self.client)
 
     def _POST_check(self, req):
         # check this directory
@@ -430,10 +430,10 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         add_lease = boolean_of_arg(get_arg(req, "add-lease", "false"))
         if repair:
             d = self.node.check_and_repair(Monitor(), verify, add_lease)
-            d.addCallback(self._maybe_literal, CheckAndRepairResults)
+            d.addCallback(self._maybe_literal, CheckAndRepairResultsRenderer)
         else:
             d = self.node.check(Monitor(), verify, add_lease)
-            d.addCallback(self._maybe_literal, CheckResults)
+            d.addCallback(self._maybe_literal, CheckResultsRenderer)
         return d
 
     def _start_operation(self, monitor, renderer, ctx):
@@ -450,10 +450,10 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         add_lease = boolean_of_arg(get_arg(ctx, "add-lease", "false"))
         if repair:
             monitor = self.node.start_deep_check_and_repair(verify, add_lease)
-            renderer = DeepCheckAndRepairResults(self.client, monitor)
+            renderer = DeepCheckAndRepairResultsRenderer(self.client, monitor)
         else:
             monitor = self.node.start_deep_check(verify, add_lease)
-            renderer = DeepCheckResults(self.client, monitor)
+            renderer = DeepCheckResultsRenderer(self.client, monitor)
         return self._start_operation(monitor, renderer, ctx)
 
     def _POST_stream_deep_check(self, ctx):
