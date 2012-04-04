@@ -44,7 +44,6 @@ class FakeCHKFileNode:
     class-level dictionary."""
     implements(IImmutableFileNode)
     all_contents = {}
-    bad_shares = {}
 
     def __init__(self, filecap):
         precondition(isinstance(filecap, (uri.CHKFileURI, uri.LiteralFileURI)), filecap)
@@ -68,7 +67,6 @@ class FakeCHKFileNode:
 
     def check(self, monitor, verify=False, add_lease=False):
         r = CheckResults(self.my_uri, self.storage_index)
-        is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
         data["count-shares-needed"] = 3
         data["count-shares-expected"] = 10
@@ -80,20 +78,10 @@ class FakeCHKFileNode:
         data["servers-responding"] = [nodeid]
         data["count-recoverable-versions"] = 1
         data["count-unrecoverable-versions"] = 0
-        if is_bad:
-            r.set_healthy(False)
-            r.set_recoverable(True)
-            data["count-shares-good"] = 9
-            data["list-corrupt-shares"] = [(nodeid, self.storage_index, 0)]
-            # XXX: this whole 'is_bad' clause is unused. When a test is added
-            # to take advantage of it, we must find a way to provide 'server'
-            # (and IServer instance) to the CorruptShareError
-            #r.problems = failure.Failure(CorruptShareError(server, 0, is_bad))
-        else:
-            r.set_healthy(True)
-            r.set_recoverable(True)
-            data["count-shares-good"] = 10
-            r.problems = []
+        r.set_healthy(True)
+        r.set_recoverable(True)
+        data["count-shares-good"] = 10
+        r.problems = []
         r.set_data(data)
         r.set_needs_rebalancing(False)
         return defer.succeed(r)
@@ -191,7 +179,6 @@ class FakeMutableFileNode:
     implements(IMutableFileNode, ICheckable)
     MUTABLE_SIZELIMIT = 10000
     all_contents = {}
-    bad_shares = {}
     file_types = {} # storage index => MDMF_VERSION or SDMF_VERSION
 
     def __init__(self, storage_broker, secret_holder,
@@ -287,7 +274,6 @@ class FakeMutableFileNode:
 
     def check(self, monitor, verify=False, add_lease=False):
         r = CheckResults(self.my_uri, self.storage_index)
-        is_bad = self.bad_shares.get(self.storage_index, None)
         data = {}
         data["count-shares-needed"] = 3
         data["count-shares-expected"] = 10
@@ -299,19 +285,10 @@ class FakeMutableFileNode:
         data["servers-responding"] = [nodeid]
         data["count-recoverable-versions"] = 1
         data["count-unrecoverable-versions"] = 0
-        if is_bad:
-            r.set_healthy(False)
-            r.set_recoverable(True)
-            data["count-shares-good"] = 9
-            # XXX: this whole 'is_bad' clause is unused. When a test is added
-            # to take advantage of it, we must find a way to provide 'server'
-            # (and IServer instance) to the CorruptShareError
-            #r.problems = failure.Failure(CorruptShareError(server, 0, is_bad))
-        else:
-            r.set_healthy(True)
-            r.set_recoverable(True)
-            data["count-shares-good"] = 10
-            r.problems = []
+        r.set_healthy(True)
+        r.set_recoverable(True)
+        data["count-shares-good"] = 10
+        r.problems = []
         r.set_data(data)
         r.set_needs_rebalancing(False)
         return defer.succeed(r)
