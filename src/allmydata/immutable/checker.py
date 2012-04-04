@@ -737,25 +737,26 @@ class Checker(log.PrefixingLogMixin):
         return d
 
     def _format_results(self, results):
-        cr = CheckResults(self._verifycap, self._verifycap.get_storage_index())
+        SI = self._verifycap.get_storage_index()
+        cr = CheckResults(self._verifycap, SI)
         d = {}
         d['count-shares-needed'] = self._verifycap.needed_shares
         d['count-shares-expected'] = self._verifycap.total_shares
 
         verifiedshares = dictutil.DictOfSets() # {sharenum: set(serverid)}
         servers = {} # {serverid: set(sharenums)}
-        corruptsharelocators = [] # (serverid, storageindex, sharenum)
-        incompatiblesharelocators = [] # (serverid, storageindex, sharenum)
+        corruptshare_locators = [] # (serverid, storageindex, sharenum)
+        incompatibleshare_locators = [] # (serverid, storageindex, sharenum)
 
-        for theseverifiedshares, thisserver, thesecorruptshares, theseincompatibleshares, thisresponded in results:
-            thisserverid = thisserver.get_serverid()
-            servers.setdefault(thisserverid, set()).update(theseverifiedshares)
-            for sharenum in theseverifiedshares:
-                verifiedshares.setdefault(sharenum, set()).add(thisserverid)
-            for sharenum in thesecorruptshares:
-                corruptsharelocators.append((thisserverid, self._verifycap.get_storage_index(), sharenum))
-            for sharenum in theseincompatibleshares:
-                incompatiblesharelocators.append((thisserverid, self._verifycap.get_storage_index(), sharenum))
+        for verified, server, corrupt, incompatible, responded in results:
+            server_id = server.get_serverid()
+            servers.setdefault(server_id, set()).update(verified)
+            for sharenum in verified:
+                verifiedshares.setdefault(sharenum, set()).add(server_id)
+            for sharenum in corrupt:
+                corruptshare_locators.append((server_id, SI, sharenum))
+            for sharenum in incompatible:
+                incompatibleshare_locators.append((server_id, SI, sharenum))
 
         d['count-shares-good'] = len(verifiedshares)
         d['count-good-share-hosts'] = len([s for s in servers.keys() if servers[s]])
@@ -783,10 +784,10 @@ class Checker(log.PrefixingLogMixin):
         d['sharemap'] = verifiedshares
         # no such thing as wrong shares of an immutable file
         d['count-wrong-shares'] = 0
-        d['list-corrupt-shares'] = corruptsharelocators
-        d['count-corrupt-shares'] = len(corruptsharelocators)
-        d['list-incompatible-shares'] = incompatiblesharelocators
-        d['count-incompatible-shares'] = len(incompatiblesharelocators)
+        d['list-corrupt-shares'] = corruptshare_locators
+        d['count-corrupt-shares'] = len(corruptshare_locators)
+        d['list-incompatible-shares'] = incompatibleshare_locators
+        d['count-incompatible-shares'] = len(incompatibleshare_locators)
 
 
         # The file needs rebalancing if the set of servers that have at least
