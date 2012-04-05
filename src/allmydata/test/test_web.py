@@ -1,13 +1,18 @@
 import os.path, re, urllib, time
 import simplejson
 from StringIO import StringIO
+
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
+
+from foolscap.api import fireEventually, flushEventualQueue
+
 from nevow import rend
+
 from allmydata import interfaces, uri, webish, dirnode
 from allmydata.storage.shares import get_share_file
 from allmydata.storage_client import StorageFarmBroker
@@ -32,6 +37,7 @@ from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_web import HTTPClientGETFactory, \
      HTTPClientHEADFactory
 from allmydata.client import Client, SecretHolder
+from allmydata.introducer import IntroducerNode
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -502,7 +508,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_welcome(self):
         d = self.GET("/")
         def _check(res):
-            self.failUnlessIn('Welcome To Tahoe-LAFS', res)
+            self.failUnlessIn('Welcome to Tahoe-LAFS', res)
             self.failUnlessIn(FAVICON_MARKUP, res)
             self.failUnlessIn('href="https://tahoe-lafs.org/"', res)
 
@@ -3812,6 +3818,52 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessReallyEqual(res, "hello")
         d.addCallback(_check)
         return d
+
+
+class IntroducerWeb(unittest.TestCase):
+    def setUp(self):
+        self.node = None
+
+    def tearDown(self):
+        d = defer.succeed(None)
+        if self.node:
+            d.addCallback(lambda ign: self.node.stopService())
+        d.addCallback(flushEventualQueue)
+        return d
+
+    def test_welcome(self):
+        basedir = "web.IntroducerWeb.test_welcome"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), "[node]\nweb.port = tcp:0\n")
+        self.node = IntroducerNode(basedir)
+        self.ws = self.node.getServiceNamed("webish")
+
+        d = fireEventually(None)
+        d.addCallback(lambda ign: self.node.startService())
+        d.addCallback(lambda ign: self.node.when_tub_ready())
+
+        d.addCallback(lambda ign: self.GET("/"))
+        def _check(res):
+            self.failUnlessIn('Welcome to the Tahoe-LAFS Introducer', res)
+            self.failUnlessIn(FAVICON_MARKUP, res)
+        d.addCallback(_check)
+        return d
+
+    def GET(self, urlpath, followRedirect=False, return_response=False,
+            **kwargs):
+        # if return_response=True, this fires with (data, statuscode,
+        # respheaders) instead of just data.
+        assert not isinstance(urlpath, unicode)
+        url = self.ws.getURL().rstrip('/') + urlpath
+        factory = HTTPClientGETFactory(url, method="GET",
+                                       followRedirect=followRedirect, **kwargs)
+        reactor.connectTCP("localhost", self.ws.getPortnum(), factory)
+        d = factory.deferred
+        def _got_data(data):
+            return (data, factory.status, factory.response_headers)
+        if return_response:
+            d.addCallback(_got_data)
+        return factory.deferred
 
 
 class Util(ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):
