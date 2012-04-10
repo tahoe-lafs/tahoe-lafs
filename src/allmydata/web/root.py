@@ -255,10 +255,12 @@ class Root(rend.Page):
                 rhost_s = "%s:%d" % (rhost.host, rhost.port)
             else:
                 rhost_s = str(rhost)
-            connected = "Yes: to " + rhost_s
+            addr = rhost_s
+            connected = "yes"
             since = server.get_last_connect_time()
         else:
-            connected = "No"
+            addr = "N/A"
+            connected = "no"
             since = server.get_last_loss_time()
         announced = server.get_announcement_time()
         announcement = server.get_announcement()
@@ -266,6 +268,7 @@ class Root(rend.Page):
         service_name = announcement["service-name"]
 
         TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        ctx.fillSlots("address", addr)
         ctx.fillSlots("connected", connected)
         ctx.fillSlots("connected-bool", bool(rhost))
         ctx.fillSlots("since", time.strftime(TIME_FORMAT,
