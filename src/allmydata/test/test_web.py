@@ -1,13 +1,18 @@
 import os.path, re, urllib, time
 import simplejson
 from StringIO import StringIO
+
 from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.internet.task import Clock
 from twisted.web import client, error, http
 from twisted.python import failure, log
+
+from foolscap.api import fireEventually, flushEventualQueue
+
 from nevow import rend
+
 from allmydata import interfaces, uri, webish, dirnode
 from allmydata.storage.shares import get_share_file
 from allmydata.storage_client import StorageFarmBroker
@@ -32,6 +37,7 @@ from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common_web import HTTPClientGETFactory, \
      HTTPClientHEADFactory
 from allmydata.client import Client, SecretHolder
+from allmydata.introducer import IntroducerNode
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -502,98 +508,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_welcome(self):
         d = self.GET("/")
         def _check(res):
-            self.failUnlessIn('Welcome To Tahoe-LAFS', res)
+            self.failUnlessIn('Welcome to Tahoe-LAFS', res)
             self.failUnlessIn(FAVICON_MARKUP, res)
+            self.failUnlessIn('href="https://tahoe-lafs.org/"', res)
 
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
             fileutil.make_dirs("web/test_welcome/private")
             return self.GET("/")
         d.addCallback(_check)
-        return d
-
-    def test_provisioning(self):
-        d = self.GET("/provisioning/")
-        def _check(res):
-            self.failUnlessIn('Provisioning Tool', res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
-
-            fields = {'filled': True,
-                      "num_users": int(50e3),
-                      "files_per_user": 1000,
-                      "space_per_user": int(1e9),
-                      "sharing_ratio": 1.0,
-                      "encoding_parameters": "3-of-10-5",
-                      "num_servers": 30,
-                      "ownership_mode": "A",
-                      "download_rate": 100,
-                      "upload_rate": 10,
-                      "delete_rate": 10,
-                      "lease_timer": 7,
-                      }
-            return self.POST("/provisioning/", **fields)
-
-        d.addCallback(_check)
-        def _check2(res):
-            self.failUnlessIn('Provisioning Tool', res)
-            self.failUnlessIn(FAVICON_MARKUP, res)
-            self.failUnlessIn("Share space consumed: 167.01TB", res)
-
-            fields = {'filled': True,
-                      "num_users": int(50e6),
-                      "files_per_user": 1000,
-                      "space_per_user": int(5e9),
-                      "sharing_ratio": 1.0,
-                      "encoding_parameters": "25-of-100-50",
-                      "num_servers": 30000,
-                      "ownership_mode": "E",
-                      "drive_failure_model": "U",
-                      "drive_size": 1000,
-                      "download_rate": 1000,
-                      "upload_rate": 100,
-                      "delete_rate": 100,
-                      "lease_timer": 7,
-                      }
-            return self.POST("/provisioning/", **fields)
-        d.addCallback(_check2)
-        def _check3(res):
-            self.failUnlessIn("Share space consumed: huge!", res)
-            fields = {'filled': True}
-            return self.POST("/provisioning/", **fields)
-        d.addCallback(_check3)
-        def _check4(res):
-            self.failUnlessIn("Share space consumed:", res)
-        d.addCallback(_check4)
-        return d
-
-    def test_reliability_tool(self):
-        try:
-            from allmydata import reliability
-            _hush_pyflakes = reliability
-            del _hush_pyflakes
-        except:
-            raise unittest.SkipTest("reliability tool requires NumPy")
-
-        d = self.GET("/reliability/")
-        def _check(res):
-            self.failUnlessIn('Reliability Tool', res)
-            fields = {'drive_lifetime': "8Y",
-                      "k": "3",
-                      "R": "7",
-                      "N": "10",
-                      "delta": "100000",
-                      "check_period": "1M",
-                      "report_period": "3M",
-                      "report_span": "5Y",
-                      }
-            return self.POST("/reliability/", **fields)
-
-        d.addCallback(_check)
-        def _check2(res):
-            self.failUnlessIn('Reliability Tool', res)
-            r = r'Probability of loss \(no maintenance\):\s+<span>0.033591'
-            self.failUnless(re.search(r, res), res)
-        d.addCallback(_check2)
         return d
 
     def test_status(self):
@@ -3895,6 +3818,52 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessReallyEqual(res, "hello")
         d.addCallback(_check)
         return d
+
+
+class IntroducerWeb(unittest.TestCase):
+    def setUp(self):
+        self.node = None
+
+    def tearDown(self):
+        d = defer.succeed(None)
+        if self.node:
+            d.addCallback(lambda ign: self.node.stopService())
+        d.addCallback(flushEventualQueue)
+        return d
+
+    def test_welcome(self):
+        basedir = "web.IntroducerWeb.test_welcome"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), "[node]\nweb.port = tcp:0\n")
+        self.node = IntroducerNode(basedir)
+        self.ws = self.node.getServiceNamed("webish")
+
+        d = fireEventually(None)
+        d.addCallback(lambda ign: self.node.startService())
+        d.addCallback(lambda ign: self.node.when_tub_ready())
+
+        d.addCallback(lambda ign: self.GET("/"))
+        def _check(res):
+            self.failUnlessIn('Welcome to the Tahoe-LAFS Introducer', res)
+            self.failUnlessIn(FAVICON_MARKUP, res)
+        d.addCallback(_check)
+        return d
+
+    def GET(self, urlpath, followRedirect=False, return_response=False,
+            **kwargs):
+        # if return_response=True, this fires with (data, statuscode,
+        # respheaders) instead of just data.
+        assert not isinstance(urlpath, unicode)
+        url = self.ws.getURL().rstrip('/') + urlpath
+        factory = HTTPClientGETFactory(url, method="GET",
+                                       followRedirect=followRedirect, **kwargs)
+        reactor.connectTCP("localhost", self.ws.getPortnum(), factory)
+        d = factory.deferred
+        def _got_data(data):
+            return (data, factory.status, factory.response_headers)
+        if return_response:
+            d.addCallback(_got_data)
+        return factory.deferred
 
 
 class Util(ShouldFailMixin, testutil.ReallyEqualMixin, unittest.TestCase):

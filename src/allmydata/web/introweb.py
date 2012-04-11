@@ -1,6 +1,8 @@
 
-import time
+import time, os
 from nevow import rend, inevow
+from nevow.static import File as nevow_File
+from nevow.util import resource_filename
 from foolscap.api import SturdyRef
 from twisted.internet import address
 import allmydata
@@ -20,6 +22,9 @@ class IntroducerRoot(rend.Page):
         self.introducer_node = introducer_node
         self.introducer_service = introducer_node.getServiceNamed("introducer")
         rend.Page.__init__(self, introducer_node)
+        static_dir = resource_filename("allmydata.web", "static")
+        for filen in os.listdir(static_dir):
+            self.putChild(filen, nevow_File(os.path.join(static_dir, filen)))
 
     def renderHTTP(self, ctx):
         t = get_arg(inevow.IRequest(ctx), "t")
@@ -29,15 +34,20 @@ class IntroducerRoot(rend.Page):
 
     def render_JSON(self, ctx):
         res = {}
-        clients = self.introducer_service.get_subscribers()
-        subscription_summary = dict([ (name, len(clients[name]))
-                                      for name in clients ])
-        res["subscription_summary"] = subscription_summary
+
+        counts = {}
+        subscribers = self.introducer_service.get_subscribers()
+        for (service_name, ign, ign, ign) in subscribers:
+            if service_name not in counts:
+                counts[service_name] = 0
+            counts[service_name] += 1
+        res["subscription_summary"] = counts
 
         announcement_summary = {}
         service_hosts = {}
-        for (ann,when) in self.introducer_service.get_announcements().values():
-            (furl, service_name, ri_name, nickname, ver, oldest) = ann
+        for a in self.introducer_service.get_announcements().values():
+            (_, _, ann, when) = a
+            service_name = ann["service-name"]
             if service_name not in announcement_summary:
                 announcement_summary[service_name] = 0
             announcement_summary[service_name] += 1
@@ -50,6 +60,7 @@ class IntroducerRoot(rend.Page):
             # enough: when multiple services are run on a single host,
             # they're usually either configured with the same addresses,
             # or setLocationAutomatically picks up the same interfaces.
+            furl = ann["anonymous-storage-FURL"]
             locations = SturdyRef(furl).getTubRef().getLocations()
             # list of tuples, ("ipv4", host, port)
             host = frozenset([hint[1]
@@ -74,8 +85,9 @@ class IntroducerRoot(rend.Page):
 
     def render_announcement_summary(self, ctx, data):
         services = {}
-        for (ann,when) in self.introducer_service.get_announcements().values():
-            (furl, service_name, ri_name, nickname, ver, oldest) = ann
+        for a in self.introducer_service.get_announcements().values():
+            (_, _, ann, when) = a
+            service_name = ann["service-name"]
             if service_name not in services:
                 services[service_name] = 0
             services[service_name] += 1
@@ -85,69 +97,58 @@ class IntroducerRoot(rend.Page):
                           for service_name in service_names])
 
     def render_client_summary(self, ctx, data):
+        counts = {}
         clients = self.introducer_service.get_subscribers()
-        service_names = clients.keys()
-        service_names.sort()
-        return ", ".join(["%s: %d" % (service_name, len(clients[service_name]))
-                          for service_name in service_names])
+        for (service_name, ign, ign, ign) in clients:
+            if service_name not in counts:
+                counts[service_name] = 0
+            counts[service_name] += 1
+        return ", ".join([ "%s: %d" % (name, counts[name])
+                           for name in sorted(counts.keys()) ] )
 
     def data_services(self, ctx, data):
         introsvc = self.introducer_service
-        ann = [(since,a)
-               for (a,since) in introsvc.get_announcements().values()
-               if a[1] != "stub_client"]
-        ann.sort(lambda a,b: cmp( (a[1][1], a), (b[1][1], b) ) )
-        return ann
+        services = []
+        for a in introsvc.get_announcements().values():
+            (_, _, ann, when) = a
+            if ann["service-name"] == "stub_client":
+                continue
+            services.append( (when, ann) )
+        services.sort(key=lambda x: (x[1]["service-name"], x[1]["nickname"]))
+        # this used to be:
+        #services.sort(lambda a,b: cmp( (a[1][1], a), (b[1][1], b) ) )
+        # service_name was the primary key, then the whole tuple (starting
+        # with the furl) was the secondary key
+        return services
 
-    def render_service_row(self, ctx, (since,announcement)):
-        (furl, service_name, ri_name, nickname, ver, oldest) = announcement
-        sr = SturdyRef(furl)
+    def render_service_row(self, ctx, (since,ann)):
+        sr = SturdyRef(ann["anonymous-storage-FURL"])
         nodeid = sr.tubID
         advertised = self.show_location_hints(sr)
-        ctx.fillSlots("peerid", "%s %s" % (nodeid, nickname))
+        ctx.fillSlots("peerid", nodeid)
+        ctx.fillSlots("nickname", ann["nickname"])
         ctx.fillSlots("advertised", " ".join(advertised))
         ctx.fillSlots("connected", "?")
         TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
         ctx.fillSlots("announced",
                       time.strftime(TIME_FORMAT, time.localtime(since)))
-        ctx.fillSlots("version", ver)
-        ctx.fillSlots("service_name", service_name)
+        ctx.fillSlots("version", ann["my-version"])
+        ctx.fillSlots("service_name", ann["service-name"])
         return ctx.tag
 
     def data_subscribers(self, ctx, data):
-        # use the "stub_client" announcements to get information per nodeid
-        clients = {}
-        for (ann,when) in self.introducer_service.get_announcements().values():
-            if ann[1] != "stub_client":
-                continue
-            (furl, service_name, ri_name, nickname, ver, oldest) = ann
-            sr = SturdyRef(furl)
-            nodeid = sr.tubID
-            clients[nodeid] = ann
-
-        # then we actually provide information per subscriber
-        s = []
-        introsvc = self.introducer_service
-        for service_name, subscribers in introsvc.get_subscribers().items():
-            for (rref, timestamp) in subscribers.items():
-                sr = rref.getSturdyRef()
-                nodeid = sr.tubID
-                ann = clients.get(nodeid)
-                s.append( (service_name, rref, timestamp, ann) )
-        s.sort()
-        return s
+        return self.introducer_service.get_subscribers()
 
     def render_subscriber_row(self, ctx, s):
-        (service_name, rref, since, ann) = s
-        nickname = "?"
-        version = "?"
-        if ann:
-            (furl, service_name_2, ri_name, nickname, version, oldest) = ann
+        (service_name, since, info, rref) = s
+        nickname = info.get("nickname", "?")
+        version = info.get("my-version", "?")
 
         sr = rref.getSturdyRef()
         # if the subscriber didn't do Tub.setLocation, nodeid will be None
         nodeid = sr.tubID or "?"
-        ctx.fillSlots("peerid", "%s %s" % (nodeid, nickname))
+        ctx.fillSlots("peerid", nodeid)
+        ctx.fillSlots("nickname", nickname)
         advertised = self.show_location_hints(sr)
         ctx.fillSlots("advertised", " ".join(advertised))
         remote_host = rref.tracker.broker.transport.getPeer()

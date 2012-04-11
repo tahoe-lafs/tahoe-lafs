@@ -1,19 +1,19 @@
 =================================
-Tahoe-LAFS FTP and SFTP Frontends
+Tahoe-LAFS SFTP and FTP Frontends
 =================================
 
-1.  `FTP/SFTP Background`_
+1.  `SFTP/FTP Background`_
 2.  `Tahoe-LAFS Support`_
 3.  `Creating an Account File`_
 4.  `Running An Account Server (accounts.url)`_
-5.  `Configuring FTP Access`_
-6.  `Configuring SFTP Access`_
+5.  `Configuring SFTP Access`_
+6.  `Configuring FTP Access`_
 7.  `Dependencies`_
 8.  `Immutable and Mutable Files`_
 9.  `Known Issues`_
 
 
-FTP/SFTP Background
+SFTP/FTP Background
 ===================
 
 FTP is the venerable internet file-transfer protocol, first developed in
@@ -31,22 +31,27 @@ Both FTP and SFTP were developed assuming a UNIX-like server, with accounts
 and passwords, octal file modes (user/group/other, read/write/execute), and
 ctime/mtime timestamps.
 
+We recommend SFTP over FTP, because the protocol is better, and the server
+implementation in Tahoe-LAFS is more complete. See `Known Issues`_, below,
+for details.
+
 Tahoe-LAFS Support
 ==================
 
-All Tahoe-LAFS client nodes can run a frontend FTP server, allowing regular
-FTP clients (like /usr/bin/ftp, ncftp, and countless others) to access the
-virtual filesystem. They can also run an SFTP server, so SFTP clients (like
-/usr/bin/sftp, the sshfs FUSE plugin, and others) can too. These frontends
-sit at the same level as the web-API interface.
+All Tahoe-LAFS client nodes can run a frontend SFTP server, allowing regular
+SFTP clients (like ``/usr/bin/sftp``, the ``sshfs`` FUSE plugin, and many
+others) to access the virtual filesystem. They can also run an FTP server,
+so FTP clients (like ``/usr/bin/ftp``, ``ncftp``, and others) can too. These
+frontends sit at the same level as the web-API interface.
 
-Since Tahoe-LAFS does not use user accounts or passwords, the FTP/SFTP
+Since Tahoe-LAFS does not use user accounts or passwords, the SFTP/FTP
 servers must be configured with a way to first authenticate a user (confirm
 that a prospective client has a legitimate claim to whatever authorities we
 might grant a particular user), and second to decide what directory cap
-should be granted to the authenticated username. A username and password is
-used for this purpose. (The SFTP protocol is also capable of using client RSA
-or DSA public keys, but this is not currently implemented.)
+should be used as the root directory for a log-in by the authenticated user.
+A username and password is used for this purpose. (The SFTP protocol is also
+capable of using client RSA or DSA public keys, but this is not currently
+implemented in Tahoe-LAFS.)
 
 Tahoe-LAFS provides two mechanisms to perform this user-to-cap mapping. The
 first is a simple flat file with one account per line. The second is an
@@ -57,11 +62,11 @@ caps.
 Creating an Account File
 ========================
 
-To use the first form, create a file (probably in
-BASEDIR/private/ftp.accounts) in which each non-comment/non-blank line is a
-space-separated line of (USERNAME, PASSWORD, ROOTCAP), like so::
+To use the first form, create a file (for example ``BASEDIR/private/accounts``)
+in which each non-comment/non-blank line is a space-separated line of
+(USERNAME, PASSWORD, ROOTCAP), like so::
 
- % cat BASEDIR/private/ftp.accounts
+ % cat BASEDIR/private/accounts
  # This is a password line, (username, password, cap)
  alice password URI:DIR2:ioej8xmzrwilg772gzj4fhdg7a:wtiizszzz2rgmczv4wl6bqvbv33ag4kvbr6prz3u6w3geixa6m6a
  bob sekrit URI:DIR2:6bdmeitystckbl9yqlw7g56f4e:serp5ioqxnh34mlbmzwvkp3odehsyrr7eytt5f64we3k9hhcrcja
@@ -71,65 +76,34 @@ The words "ssh-rsa" and "ssh-dsa" after the username are reserved to specify
 the public key format, so users cannot have a password equal to either of
 these strings.
 
-Now add an 'accounts.file' directive to your tahoe.cfg file, as described in
+Now add an ``accounts.file`` directive to your ``tahoe.cfg`` file, as described in
 the next sections.
 
 Running An Account Server (accounts.url)
 ========================================
 
 The accounts.url directive allows access requests to be controlled by an
-HTTP-based login service, useful for centralized deployments. This was
-used by AllMyData to provide web-based file access, where the service
-used a simple PHP script and database lookups to map an account email
-address and password into a tahoe rootcap. The service will receive a
+HTTP-based login service, useful for centralized deployments. This was used
+by AllMyData to provide web-based file access, where the service used a
+simple PHP script and database lookups to map an account email address and
+password to a Tahoe-LAFS directory cap. The service will receive a
 multipart/form-data POST, just like one created with a <form> and <input>
 fields, with three parameters:
 
-* action: "authenticate" (this is a static string, for backwards
+• action: "authenticate" (this is a static string, for backwards
   compatibility with the old AllMyData authentication service)
-* email: USERNAME (Tahoe has no notion of email addresses, but the
+• email: USERNAME (Tahoe-LAFS has no notion of email addresses, but the
   authentication service uses them as account names, so the interface
   presents this argument as "email" rather than "username").
-* passwd: PASSWORD
+• passwd: PASSWORD
 
-It should return a single string that either contains a Tahoe rootcap
-(URI:DIR2:...), or "0" to indicate a login failure.
+It should return a single string that either contains a Tahoe-LAFS directory
+cap (URI:DIR2:...), or "0" to indicate a login failure.
 
 Tahoe-LAFS recommends the service be secure, preferably localhost-only.  This
 makes it harder for attackers to brute force the password or use DNS
 poisoning to cause the Tahoe-LAFS gateway to talk with the wrong server,
 thereby revealing the usernames and passwords.
-
-Configuring FTP Access
-======================
-
-To enable the FTP server with an accounts file, add the following lines to
-the BASEDIR/tahoe.cfg file::
-
- [ftpd]
- enabled = true
- port = tcp:8021:interface=127.0.0.1
- accounts.file = private/ftp.accounts
-
-The FTP server will listen on the given port number and on the loopback
-interface only. The "accounts.file" pathname will be interpreted relative to
-the node's BASEDIR.
-
-To enable the FTP server with an account server instead, provide the URL of
-that server in an "accounts.url" directive::
-
- [ftpd]
- enabled = true
- port = tcp:8021:interface=127.0.0.1
- accounts.url = https://example.com/login
-
-You can provide both accounts.file and accounts.url, although it probably
-isn't very useful except for testing.
-
-FTP provides no security, and so your password or caps could be eavesdropped
-if you connect to the FTP server remotely. The examples above include
-":interface=127.0.0.1" in the "port" option, which causes the server to only
-accept connections from localhost.
 
 Configuring SFTP Access
 =======================
@@ -154,7 +128,7 @@ the server to only accept connections from localhost.
 
 You will use directives in the tahoe.cfg file to tell the SFTP code where to
 find these keys. To create one, use the ``ssh-keygen`` tool (which comes with
-the standard openssh client distribution)::
+the standard OpenSSH client distribution)::
 
  % cd BASEDIR
  % ssh-keygen -f private/ssh_host_rsa_key
@@ -169,7 +143,7 @@ lines to the BASEDIR/tahoe.cfg file::
  port = tcp:8022:interface=127.0.0.1
  host_pubkey_file = private/ssh_host_rsa_key.pub
  host_privkey_file = private/ssh_host_rsa_key
- accounts.file = private/ftp.accounts
+ accounts.file = private/accounts
 
 The SFTP server will listen on the given port number and on the loopback
 interface only. The "accounts.file" pathname will be interpreted relative to
@@ -188,8 +162,40 @@ You can provide both accounts.file and accounts.url, although it probably
 isn't very useful except for testing.
 
 For further information on SFTP compatibility and known issues with various
-clients and with the sshfs filesystem, see
-`<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
+clients and with the sshfs filesystem, see wiki:SftpFrontend_
+
+.. _wiki:SftpFrontend: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend
+
+Configuring FTP Access
+======================
+
+To enable the FTP server with an accounts file, add the following lines to
+the BASEDIR/tahoe.cfg file::
+
+ [ftpd]
+ enabled = true
+ port = tcp:8021:interface=127.0.0.1
+ accounts.file = private/accounts
+
+The FTP server will listen on the given port number and on the loopback
+interface only. The "accounts.file" pathname will be interpreted relative to
+the node's BASEDIR.
+
+To enable the FTP server with an account server instead, provide the URL of
+that server in an "accounts.url" directive::
+
+ [ftpd]
+ enabled = true
+ port = tcp:8021:interface=127.0.0.1
+ accounts.url = https://example.com/login
+
+You can provide both accounts.file and accounts.url, although it probably
+isn't very useful except for testing.
+
+FTP provides no security, and so your password or caps could be eavesdropped
+if you connect to the FTP server remotely. The examples above include
+":interface=127.0.0.1" in the "port" option, which causes the server to only
+accept connections from localhost.
 
 Dependencies
 ============
@@ -214,8 +220,8 @@ be relinked to a different file. Normally, when the path of an immutable file
 is opened for writing by SFTP, the directory entry is relinked to another
 file with the newly written contents when the file handle is closed. The old
 file is still present on the grid, and any other caps to it will remain
-valid. (See `docs/garbage-collection.rst <../garbage-collection.rst>`_ for
-how to reclaim the space used by files that are no longer needed.)
+valid. (See `docs/garbage-collection.rst`_ for how to reclaim the space used
+by files that are no longer needed.)
 
 The 'no-write' metadata field of a directory entry can override this
 behaviour. If the 'no-write' field holds a true value, then a permission
@@ -224,37 +230,56 @@ writeable directory. This does not prevent the directory entry from being
 unlinked or replaced.
 
 When using sshfs, the 'no-write' field can be set by clearing the 'w' bits in
-the Unix permissions, for example using the command 'chmod 444
-path/to/file'. Note that this does not mean that arbitrary combinations of
-Unix permissions are supported. If the 'w' bits are cleared on a link to a
-mutable file or directory, that link will become read-only.
+the Unix permissions, for example using the command ``chmod 444 path/to/file``.
+Note that this does not mean that arbitrary combinations of Unix permissions
+are supported. If the 'w' bits are cleared on a link to a mutable file or
+directory, that link will become read-only.
 
 If SFTP is used to write to an existing mutable file, it will publish a new
 version when the file handle is closed.
 
+.. _docs/garbage-collection.rst: file:../garbage-collection.rst
+
 Known Issues
 ============
 
-Mutable files are not supported by the FTP frontend (`ticket #680
-<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/680>`_). Currently, a directory
-containing mutable files cannot even be listed over FTP.
+Known Issues in the SFTP Frontend
+---------------------------------
+
+Upload errors may not be reported when writing files using SFTP via sshfs
+(`ticket #1059`_).
+
+Non-ASCII filenames are supported with SFTP only if the client encodes
+filenames as UTF-8 (`ticket #1089`_).
+
+The gateway node may hang or consume 100% CPU if the client tries to rekey.
+(`ticket #1297`_).  This is due to a bug in Twisted (`Twisted ticket #4395`_)
+which was fixed in Twisted 11.0 (released 3-April-2011).
+
+See also wiki:SftpFrontend_.
+
+.. _ticket #1059: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1059
+.. _ticket #1089: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1089
+.. _ticket #1297: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1297
+.. _Twisted ticket #4395: https://twistedmatrix.com/trac/ticket/4395
+
+Known Issues in the FTP Frontend
+--------------------------------
+
+Mutable files are not supported by the FTP frontend (`ticket
+#680`_). Currently, a directory containing mutable files cannot even be
+listed over FTP.
+
+Non-ASCII filenames are not supported by FTP (`ticket #682`_).
+
+The FTP frontend returns all timestamps as being Jan 1, 1970 (`ticket
+#1688`_).
 
 The FTP frontend sometimes fails to report errors, for example if an upload
 fails because it does meet the "servers of happiness" threshold (`ticket
-#1081 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1081>`_). Upload errors
-also may not be reported when writing files using SFTP via sshfs (`ticket
-#1059 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1059>`_).
+#1081`_).
 
-Non-ASCII filenames are not supported by FTP (`ticket #682
-<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/682>`_). They can be used with
-SFTP only if the client encodes filenames as UTF-8 (`ticket #1089
-<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1089>`_).
-
-The gateway node may hang or consume 100% CPU if the client tries to rekey.
-(`ticket #1297 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1297>`_).  This
-is due to `a bug in Twisted <http://twistedmatrix.com/trac/ticket/4395>`_
-which was fixed in Twisted 11.0 (released 3-April-2011).
-
-For options to disable rekeying in various clients in order to work around
-this issue, and for other known issues in SFTP, see
-`<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
+.. _ticket #680: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/680
+.. _ticket #682: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/682
+.. _ticket #1081: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1081
+.. _ticket #1688: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1688

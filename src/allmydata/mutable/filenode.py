@@ -308,9 +308,10 @@ class MutableFileNode:
     #################################
     # IRepairable
 
-    def repair(self, check_results, force=False):
+    def repair(self, check_results, force=False, monitor=None):
         assert ICheckResults(check_results)
-        r = Repairer(self, check_results)
+        r = Repairer(self, check_results, self._storage_broker,
+                     self._history, monitor)
         d = r.start(force)
         return d
 

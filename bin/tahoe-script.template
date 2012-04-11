@@ -12,8 +12,8 @@ else:
     perhaps_installed_tahoe = "/usr/bin/tahoe"
 
 whoami = '''\
-I am a "bin%stahoe" executable who is only for the convenience of running
-Tahoe from its source distribution -- I work only when invoked as the "tahoe"
+I am a "bin%stahoe" executable for the convenience of running Tahoe-LAFS
+from its source distribution -- I work only when invoked as the "tahoe"
 script that lives in the "bin" subdirectory of a Tahoe source code
 distribution, and only if you have already run "python setup.py build".
 ''' % (os.path.sep,)
@@ -85,16 +85,6 @@ else:
     script = os.path.join(base, "support", "bin", "tahoe")
     args = sys.argv[1:]
 
-if not os.path.exists(script):
-    print whoami
-    print '''\
-I just tried to run and could not find my brother at
-"%s". To run Tahoe when it is installed, please execute my
-brother, who gets installed into the appropriate place for executables
-when you run "python setup.py install" (perhaps as "%s").
-''' % (script, perhaps_installed_tahoe)
-    sys.exit(1)
-
 # Support indirection via another "runner" script (e.g. coverage).
 # For example: bin/tahoe @RUNNER RUNNER_ARGS @tahoe TAHOE_ARGS
 
@@ -110,16 +100,29 @@ if len(args) >= 1 and args[0].startswith('@'):
         return a
     command = prefix + [runner] + map(_subst, args[1:])
 else:
+    runner = script
     command = prefix + [script] + args
+
+    if not os.path.exists(script):
+        print whoami
+        print '''\
+I could not find the support script
+"%s".
+
+To run an installed version of Tahoe-LAFS, please execute the "tahoe"
+script that is installed into the appropriate place for executables
+when you run "python setup.py install" (perhaps as "%s").
+''' % (script, perhaps_installed_tahoe)
+        sys.exit(1)
 
 try:
     res = subprocess.call(command, env=os.environ)
 except Exception, le:
     print whoami
     print '''\
-I just tried to invoke my brother at "%s"
+I just tried to invoke "%s"
 and got an exception.
-''' % (script,)
+''' % (runner,)
     raise
 else:
     sys.exit(res)

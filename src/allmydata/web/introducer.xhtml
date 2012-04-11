@@ -1,65 +1,76 @@
-<html xmlns:n="http://nevow.com/ns/nevow/0.1">
-  <head>
-    <title>Tahoe-LAFS - Introducer Status</title>
-    <link href="/icon.png" rel="shortcut icon" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  </head>
-  <body>
+<html xmlns:n="http://nevow.com/ns/nevow/0.1"><head>
+  <title>Tahoe-LAFS - Introducer Status</title>
+  <link href="/tahoe.css" rel="stylesheet" type="text/css"/>
+  <link href="/icon.png" rel="shortcut icon" />
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+</head><body>
 
-<h1>Welcome To The Tahoe-LAFS Introducer</h1>
+<h1>Welcome to the Tahoe-LAFS Introducer</h1>
 
-<h2>My Code</h2>
+<div class="section" id="this-client">
+  <h2>This Introducer</h2>
 
-<div>My nodeid: <span n:render="string" n:data="my_nodeid" /></div>
-<div>My versions: <span n:render="string" n:data="version" /></div>
-<div>Tahoe-LAFS code imported from: <span n:render="string" n:data="import_path" /></div>
-
-<br />
+  <table class="node-info table-headings-left">
+    <tr><th>My nodeid:</th> <td class="nodeid mine data-chars" n:render="string" n:data="my_nodeid" /></tr>
+    <tr><th>My versions:</th> <td n:render="string" n:data="version" /></tr>
+    <tr><th>Tahoe-LAFS code imported from:</th> <td n:render="string" n:data="import_path" /></tr>
+  </table>
+</div>
 
 <div>Announcement Summary: <span n:render="announcement_summary" /></div>
 <div>Subscription Summary: <span n:render="client_summary" /></div>
 
-<h2>Service Announcements</h2>
+<br />
 
-<div>
-<table n:render="sequence" n:data="services">
+
+<div class="section">
+<h2>Service Announcements</h2>
+<table class="services table-headings-top" n:render="sequence" n:data="services">
   <tr n:pattern="header">
-    <td>PeerID / Nickname</td>
-    <td>Advertised IPs</td>
-    <td>Announced</td>
-    <td>Version</td>
-    <td>Service Name</td>
+    <th class="nickname-and-peerid">
+      <div class="service-nickname">Nickname</div>
+      <div class="nodeid data-chars">PeerID</div></th>
+    <th>Advertised IPs</th>
+    <th>Announced</th>
+    <th>Version</th>
+    <th>Service Name</th>
   </tr>
   <tr n:pattern="item" n:render="service_row">
-    <td><tt><n:slot name="peerid"/></tt></td>
-    <td><tt><n:slot name="advertised"/></tt></td>
-    <td><tt><n:slot name="announced"/></tt></td>
-    <td><tt><n:slot name="version"/></tt></td>
-    <td><tt><n:slot name="service_name"/></tt></td>
+    <td class="nickname-and-peerid">
+      <div class="nickname"><n:slot name="nickname"/></div>
+      <div class="nodeid data-chars"><n:slot name="peerid"/></div></td>
+    <td><n:slot name="advertised"/></td>
+    <td class="service-announced"><n:slot name="announced"/></td>
+    <td class="service-version"><n:slot name="version"/></td>
+    <td class="service-service-name"><n:slot name="service_name"/></td>
   </tr>
   <tr n:pattern="empty"><td>no peers!</td></tr>
 </table>
 </div>
 
-<h2>Subscribed Clients</h2>
 
 <div>
-<table n:render="sequence" n:data="subscribers">
+<h2>Subscribed Clients</h2>
+<table class="services table-headings-top" n:render="sequence" n:data="subscribers">
   <tr n:pattern="header">
-    <td>PeerID / Nickname</td>
-    <td>Advertised IPs</td>
-    <td>Connected From</td>
-    <td>Since</td>
-    <td>Version</td>
-    <td>Subscribed To</td>
+    <th class="nickname-and-peerid">
+      <div class="service-nickname">Nickname</div>
+      <div class="nodeid data-chars">PeerID</div></th>
+    <th>Advertised IPs</th>
+    <th>Connected From</th>
+    <th>Since</th>
+    <th>Version</th>
+    <th>Subscribed To</th>
   </tr>
   <tr n:pattern="item" n:render="subscriber_row">
-    <td><tt><n:slot name="peerid"/></tt></td>
-    <td><tt><n:slot name="advertised"/></tt></td>
-    <td><tt><n:slot name="connected"/></tt></td>
-    <td><tt><n:slot name="since"/></tt></td>
-    <td><tt><n:slot name="version"/></tt></td>
-    <td><tt><n:slot name="service_name"/></tt></td>
+    <td class="nickname-and-peerid">
+      <div class="nickname"><n:slot name="nickname"/></div>
+      <div class="nodeid data-chars"><n:slot name="peerid"/></div></td>
+    <td><n:slot name="advertised"/></td>
+    <td><n:slot name="connected"/></td>
+    <td class="service-since"><n:slot name="since"/></td>
+    <td class="service-version"><n:slot name="version"/></td>
+    <td class="service-service-name"><n:slot name="service_name"/></td>
   </tr>
   <tr n:pattern="empty"><td>no peers!</td></tr>
 </table>

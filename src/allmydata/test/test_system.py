@@ -783,14 +783,18 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 newappverstr = "%s: %s" % (allmydata.__appname__, altverstr)
 
                 self.failUnless((appverstr in res) or (newappverstr in res), (appverstr, newappverstr, res))
-                self.failUnless("Announcement Summary: storage: 5, stub_client: 5" in res)
+                self.failUnless("Announcement Summary: storage: 5" in res)
                 self.failUnless("Subscription Summary: storage: 5" in res)
+                self.failUnless("tahoe.css" in res)
             except unittest.FailTest:
                 print
                 print "GET %s output was:" % self.introweb_url
                 print res
                 raise
         d.addCallback(_check)
+        # make sure it serves the CSS too
+        d.addCallback(lambda res:
+                      getPage(self.introweb_url+"tahoe.css", method="GET"))
         d.addCallback(lambda res:
                       getPage(self.introweb_url + "?t=json",
                               method="GET", followRedirect=True))
@@ -800,9 +804,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnlessEqual(data["subscription_summary"],
                                      {"storage": 5})
                 self.failUnlessEqual(data["announcement_summary"],
-                                     {"storage": 5, "stub_client": 5})
+                                     {"storage": 5})
                 self.failUnlessEqual(data["announcement_distinct_hosts"],
-                                     {"storage": 1, "stub_client": 1})
+                                     {"storage": 1})
             except unittest.FailTest:
                 print
                 print "GET %s?t=json output was:" % self.introweb_url

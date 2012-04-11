@@ -39,6 +39,12 @@ from allmydata.test.test_download import PausingConsumer, \
      PausingAndStoppingConsumer, StoppingConsumer, \
      ImmediatelyStoppingConsumer
 
+def eventuaaaaaly(res=None):
+    d = fireEventually(res)
+    d.addCallback(fireEventually)
+    d.addCallback(fireEventually)
+    return d
+
 
 # this "FakeStorage" exists to put the share data in RAM and avoid using real
 # network connections, both to speed up the tests and to reduce the amount of
@@ -69,7 +75,7 @@ class FakeStorage:
     def read(self, peerid, storage_index):
         shares = self._peers.get(peerid, {})
         if self._sequence is None:
-            return defer.succeed(shares)
+            return eventuaaaaaly(shares)
         d = defer.Deferred()
         if not self._pending:
             self._pending_timer = reactor.callLater(1.0, self._fire_readers)
@@ -228,14 +234,17 @@ def make_storagebroker(s=None, num_peers=10):
     storage_broker = StorageFarmBroker(None, True)
     for peerid in peerids:
         fss = FakeStorageServer(peerid, s)
-        storage_broker.test_add_rref(peerid, fss)
+        ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(peerid),
+               "permutation-seed-base32": base32.b2a(peerid) }
+        storage_broker.test_add_rref(peerid, fss, ann)
     return storage_broker
 
-def make_nodemaker(s=None, num_peers=10):
+def make_nodemaker(s=None, num_peers=10, keysize=TEST_RSA_KEY_SIZE):
     storage_broker = make_storagebroker(s, num_peers)
     sh = client.SecretHolder("lease secret", "convergence secret")
     keygen = client.KeyGenerator()
-    keygen.set_default_keysize(TEST_RSA_KEY_SIZE)
+    if keysize:
+        keygen.set_default_keysize(keysize)
     nodemaker = NodeMaker(storage_broker, sh, None,
                           None, None,
                           {"k": 3, "n": 10}, SDMF_VERSION, keygen)
@@ -949,6 +958,20 @@ class PublishMixin:
         self._nodemaker = make_nodemaker(self._storage)
         self._storage_broker = self._nodemaker.storage_broker
         d = self._nodemaker.create_mutable_file(self.uploadable, version=SDMF_VERSION)
+        def _created(node):
+            self._fn = node
+            self._fn2 = self._nodemaker.create_from_cap(node.get_uri())
+        d.addCallback(_created)
+        return d
+
+    def publish_empty_sdmf(self):
+        self.CONTENTS = ""
+        self.uploadable = MutableData(self.CONTENTS)
+        self._storage = FakeStorage()
+        self._nodemaker = make_nodemaker(self._storage, keysize=None)
+        self._storage_broker = self._nodemaker.storage_broker
+        d = self._nodemaker.create_mutable_file(self.uploadable,
+                                                version=SDMF_VERSION)
         def _created(node):
             self._fn = node
             self._fn2 = self._nodemaker.create_from_cap(node.get_uri())
@@ -2153,6 +2176,26 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
             self.failIf(crr.get_repair_attempted())
             self.failIf(crr.get_post_repair_results().is_healthy())
         d.addCallback(_check_results)
+        return d
+
+    def test_repair_empty(self):
+        # bug 1689: delete one share of an empty mutable file, then repair.
+        # In the buggy version, the check that precedes the retrieve+publish
+        # cycle uses MODE_READ, instead of MODE_REPAIR, and fails to get the
+        # privkey that repair needs.
+        d = self.publish_empty_sdmf()
+        def _delete_one_share(ign):
+            shares = self._storage._peers
+            for peerid in shares:
+                for shnum in list(shares[peerid]):
+                    if shnum == 0:
+                        del shares[peerid][shnum]
+        d.addCallback(_delete_one_share)
+        d.addCallback(lambda ign: self._fn2.check(Monitor()))
+        d.addCallback(lambda check_results: self._fn2.repair(check_results))
+        def _check(crr):
+            self.failUnlessEqual(crr.get_successful(), True)
+        d.addCallback(_check)
         return d
 
 class DevNullDictionary(dict):

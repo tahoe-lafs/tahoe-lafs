@@ -80,7 +80,7 @@ th.nickname-and-peerid {
 
 
 /* just in case, make sure floats don't stomp on big tables etc. */
-.section { clear: both; }
+#section { clear: both; }
 
 /* section-specific styles - turn this client info into a sidebar */
 #this-client {

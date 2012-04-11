@@ -17,7 +17,7 @@ several platforms, but it currently works only on Linux.
 
 The implementation was written as a prototype at the First International
 Tahoe-LAFS Summit in June 2011, and is not currently in as mature a state as
-the other frontends (web, CLI, FTP and SFTP). This means that you probably
+the other frontends (web, CLI, SFTP and FTP). This means that you probably
 should not keep important data in the upload directory, and should not rely
 on all changes to files in the local directory to result in successful uploads.
 There might be (and have been) incompatible changes to how the feature is
@@ -116,9 +116,19 @@ Attempts to read the mutable directory at about the same time as an uploaded
 file is being linked into it, might fail, even if they are done through the
 same gateway. (`#1105`_)
 
+When a local file is changed and closed several times in quick succession,
+it may be uploaded more times than necessary to keep the remote copy
+up-to-date. (`#1440`_)
+
+Files deleted from the local directory will not be unlinked from the upload
+directory. (`#1710`_)
+
+The ``private/drop_upload_dircap`` file cannot use an alias or path to
+specify the upload directory. (`#1711`_)
+
 Files are always uploaded as immutable. If there is an existing mutable file
 of the same name in the upload directory, it will be unlinked and replaced
-with an immutable file.
+with an immutable file. (`#1712`_)
 
 If a file in the upload directory is changed (actually relinked to a new
 file), then the old file is still present on the grid, and any other caps
@@ -130,11 +140,15 @@ Unicode names are supported, but the local name of a file must be encoded
 correctly in order for it to be uploaded. The expected encoding is that
 printed by ``python -c "import sys; print sys.getfilesystemencoding()"``.
 
-.. _`#1105`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1105
-.. _`#1430`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1430
-.. _`#1431`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1431
-.. _`#1432`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1432
-.. _`#1433`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1433
-.. _`#1449`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1449
-.. _`#1458`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1458
-.. _`#1459`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1459
+.. _`#1105`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1105
+.. _`#1430`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1430
+.. _`#1431`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1431
+.. _`#1432`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1432
+.. _`#1433`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1433
+.. _`#1440`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1440
+.. _`#1449`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1449
+.. _`#1458`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1458
+.. _`#1459`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1459
+.. _`#1710`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1710
+.. _`#1711`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1711
+.. _`#1712`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1712

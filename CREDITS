@@ -129,3 +129,6 @@ D: converted docs from .txt to .rst
 
 N: Josh Wilcox
 D: docs, return None from get_stats() when there aren't enough samples
+
+N: Vince_II
+D: fix incorrect name of other doc file in docs/configuration.rst

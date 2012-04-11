@@ -21,7 +21,7 @@ document is to explain what it all means. It was written by Brian
 Warner, who wrote the v1.8.0 downloader code and the code which
 generates this status report about the v1.8.0 downloader's
 behavior. Brian posted it to the trac:
-http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1169#comment:1
+https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1169#comment:1
 
 Then Zooko lightly edited it while copying it into the docs/
 directory.

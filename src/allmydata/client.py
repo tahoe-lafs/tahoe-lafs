@@ -1,12 +1,10 @@
 import os, stat, time, weakref
-from allmydata.interfaces import RIStorageServer
 from allmydata import node
 
 from zope.interface import implements
 from twisted.internet import reactor, defer
 from twisted.application import service
 from twisted.application.internet import TimerService
-from foolscap.api import Referenceable
 from pycryptopp.publickey import rsa
 
 import allmydata
@@ -16,14 +14,13 @@ from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import hashutil, base32, pollmixin, log
+from allmydata.util import hashutil, base32, pollmixin, log, keyutil
 from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.stats import StatsProvider
 from allmydata.history import History
-from allmydata.interfaces import IStatsProducer, RIStubClient, \
-                                 SDMF_VERSION, MDMF_VERSION
+from allmydata.interfaces import IStatsProducer, SDMF_VERSION, MDMF_VERSION
 from allmydata.nodemaker import NodeMaker
 from allmydata.blacklist import Blacklist
 from allmydata.node import OldConfigOptionError
@@ -34,9 +31,6 @@ MiB=1024*KiB
 GiB=1024*MiB
 TiB=1024*GiB
 PiB=1024*TiB
-
-class StubClient(Referenceable):
-    implements(RIStubClient)
 
 def _make_secret():
     return base32.b2a(os.urandom(hashutil.CRYPTO_VAL_SIZE)) + "\n"
@@ -174,7 +168,8 @@ class Client(node.Node, pollmixin.PollMixin):
         ic = IntroducerClient(self.tub, self.introducer_furl,
                               self.nickname,
                               str(allmydata.__full_version__),
-                              str(self.OLDEST_SUPPORTED_VERSION))
+                              str(self.OLDEST_SUPPORTED_VERSION),
+                              self.get_app_versions())
         self.introducer_client = ic
         # hold off on starting the IntroducerClient until our tub has been
         # started, so we'll have a useful address on our RemoteReference, so
@@ -203,11 +198,45 @@ class Client(node.Node, pollmixin.PollMixin):
         self.convergence = base32.a2b(convergence_s)
         self._secret_holder = SecretHolder(lease_secret, self.convergence)
 
+    def _maybe_create_server_key(self):
+        # we only create the key once. On all subsequent runs, we re-use the
+        # existing key
+        def _make_key():
+            sk_vs,vk_vs = keyutil.make_keypair()
+            return sk_vs+"\n"
+        sk_vs = self.get_or_create_private_config("server.privkey", _make_key)
+        sk,vk_vs = keyutil.parse_privkey(sk_vs.strip())
+        self.write_config("server.pubkey", vk_vs+"\n")
+        self._server_key = sk
+
+    def _init_permutation_seed(self, ss):
+        seed = self.get_config_from_file("permutation-seed")
+        if not seed:
+            have_shares = ss.have_shares()
+            if have_shares:
+                # if the server has shares but not a recorded
+                # permutation-seed, then it has been around since pre-#466
+                # days, and the clients who uploaded those shares used our
+                # TubID as a permutation-seed. We should keep using that same
+                # seed to keep the shares in the same place in the permuted
+                # ring, so those clients don't have to perform excessive
+                # searches.
+                seed = base32.b2a(self.nodeid)
+            else:
+                # otherwise, we're free to use the more natural seed of our
+                # pubkey-based serverid
+                vk_bytes = self._server_key.get_verifying_key_bytes()
+                seed = base32.b2a(vk_bytes)
+            self.write_config("permutation-seed", seed+"\n")
+        return seed.strip()
+
     def init_storage(self):
         # should we run a storage server (and publish it for others to use)?
         if not self.get_config("storage", "enabled", True, boolean=True):
             return
         readonly = self.get_config("storage", "readonly", False, boolean=True)
+
+        self._maybe_create_server_key()
 
         storedir = os.path.join(self.basedir, self.STOREDIR)
 
@@ -262,8 +291,10 @@ class Client(node.Node, pollmixin.PollMixin):
         def _publish(res):
             furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
             furl = self.tub.registerReference(ss, furlFile=furl_file)
-            ri_name = RIStorageServer.__remote_name__
-            self.introducer_client.publish(furl, "storage", ri_name)
+            ann = {"anonymous-storage-FURL": furl,
+                   "permutation-seed-base32": self._init_permutation_seed(ss),
+                   }
+            self.introducer_client.publish("storage", ann, self._server_key)
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="aLGBKw")
@@ -281,7 +312,6 @@ class Client(node.Node, pollmixin.PollMixin):
         self.terminator.setServiceParent(self)
         self.add_service(Uploader(helper_furl, self.stats_provider,
                                   self.history))
-        self.init_stub_client()
         self.init_blacklist()
         self.init_nodemaker()
 
@@ -320,20 +350,6 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def get_storage_broker(self):
         return self.storage_broker
-
-    def init_stub_client(self):
-        def _publish(res):
-            # we publish an empty object so that the introducer can count how
-            # many clients are connected and see what versions they're
-            # running.
-            sc = StubClient()
-            furl = self.tub.registerReference(sc)
-            ri_name = RIStubClient.__remote_name__
-            self.introducer_client.publish(furl, "stub_client", ri_name)
-        d = self.when_tub_ready()
-        d.addCallback(_publish)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="OEHq3g")
 
     def init_blacklist(self):
         fn = os.path.join(self.basedir, "access.blacklist")

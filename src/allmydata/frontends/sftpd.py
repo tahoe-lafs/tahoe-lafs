@@ -150,9 +150,10 @@ def _lsLine(name, attrs):
     # We don't know how many links there really are to this object.
     st_nlink = 1
 
-    # Based on <http://twistedmatrix.com/trac/browser/trunk/twisted/conch/ls.py?rev=25412>.
-    # We can't call the version in Twisted because we might have a version earlier than
-    # <http://twistedmatrix.com/trac/changeset/25412> (released in Twisted 8.2).
+    # Based on <https://twistedmatrix.com/trac/browser/trunk/twisted/conch/ls.py?rev=25412>.
+    # We previously could not call the version in Twisted because we needed the change
+    # <https://twistedmatrix.com/trac/changeset/25412> (released in Twisted v8.2).
+    # Since we now depend on Twisted v10.1, consider calling Twisted's version.
 
     mode = st_mode
     perms = array.array('c', '-'*10)

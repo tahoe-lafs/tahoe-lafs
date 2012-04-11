@@ -3,7 +3,7 @@ import time, simplejson
 from nevow import rend, tags as T, inevow
 from allmydata.web.common import getxmlfile, abbreviate_time, get_arg
 from allmydata.util.abbreviate import abbreviate_space
-from allmydata.util import time_format
+from allmydata.util import time_format, idlib
 
 def remove_prefix(s, prefix):
     if not s.startswith(prefix):
@@ -14,9 +14,10 @@ class StorageStatus(rend.Page):
     docFactory = getxmlfile("storage_status.xhtml")
     # the default 'data' argument is the StorageServer instance
 
-    def __init__(self, storage):
+    def __init__(self, storage, nickname=""):
         rend.Page.__init__(self, storage)
         self.storage = storage
+        self.nickname = nickname
 
     def renderHTTP(self, ctx):
         req = inevow.IRequest(ctx)
@@ -33,6 +34,11 @@ class StorageStatus(rend.Page):
              "lease-checker-progress": self.storage.lease_checker.get_progress(),
              }
         return simplejson.dumps(d, indent=1) + "\n"
+
+    def data_nickname(self, ctx, storage):
+        return self.nickname
+    def data_nodeid(self, ctx, storage):
+        return idlib.nodeid_b2a(self.storage.my_nodeid)
 
     def render_storage_running(self, ctx, storage):
         if storage:

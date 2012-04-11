@@ -62,10 +62,9 @@ class RetrieveStatus:
         return self._problems
 
     def add_fetch_timing(self, server, elapsed):
-        serverid = server.get_serverid()
-        if serverid not in self.timings["fetch_per_server"]:
-            self.timings["fetch_per_server"][serverid] = []
-        self.timings["fetch_per_server"][serverid].append(elapsed)
+        if server not in self.timings["fetch_per_server"]:
+            self.timings["fetch_per_server"][server] = []
+        self.timings["fetch_per_server"][server].append(elapsed)
     def accumulate_decode_time(self, elapsed):
         self.timings["decode"] += elapsed
     def accumulate_decrypt_time(self, elapsed):

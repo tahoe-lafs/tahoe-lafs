@@ -10,45 +10,42 @@ from twisted.internet import defer
 from zope.interface import implements
 
 
-# These strings describe the format of the packed structs they help process
+# These strings describe the format of the packed structs they help process.
 # Here's what they mean:
 #
 #  PREFIX:
 #    >: Big-endian byte order; the most significant byte is first (leftmost).
-#    B: The version information; an 8 bit version identifier. Stored as
-#       an unsigned char. This is currently 00 00 00 00; our modifications
-#       will turn it into 00 00 00 01.
+#    B: The container version information; stored as an unsigned 8-bit integer.
+#       This is currently either SDMF_VERSION or MDMF_VERSION.
 #    Q: The sequence number; this is sort of like a revision history for
 #       mutable files; they start at 1 and increase as they are changed after
-#       being uploaded. Stored as an unsigned long long, which is 8 bytes in
-#       length.
+#       being uploaded. Stored as an unsigned 64-bit integer.
 #  32s: The root hash of the share hash tree. We use sha-256d, so we use 32 
-#       characters = 32 bytes to store the value.
-#  16s: The salt for the readkey. This is a 16-byte random value, stored as
-#       16 characters.
+#       bytes to store the value.
+#  16s: The salt for the readkey. This is a 16-byte random value.
 #
 #  SIGNED_PREFIX additions, things that are covered by the signature:
-#    B: The "k" encoding parameter. We store this as an 8-bit character, 
-#       which is convenient because our erasure coding scheme cannot 
-#       encode if you ask for more than 255 pieces.
-#    B: The "N" encoding parameter. Stored as an 8-bit character for the 
-#       same reasons as above.
-#    Q: The segment size of the uploaded file. This will essentially be the
-#       length of the file in SDMF. An unsigned long long, so we can store 
-#       files of quite large size.
-#    Q: The data length of the uploaded file. Modulo padding, this will be
-#       the same of the data length field. Like the data length field, it is
-#       an unsigned long long and can be quite large.
+#    B: The "k" encoding parameter. We store this as an unsigned 8-bit
+#       integer, since our erasure coding scheme cannot encode to more than
+#       255 pieces.
+#    B: The "N" encoding parameter. Stored as an unsigned 8-bit integer for
+#       the same reason as above.
+#    Q: The segment size of the uploaded file. This is an unsigned 64-bit
+#       integer, to allow handling large segments and files. For SDMF the
+#       segment size is the data length plus padding; for MDMF it can be
+#       smaller.
+#    Q: The data length of the uploaded file. Like the segment size field,
+#       it is an unsigned 64-bit integer.
 #
 #   HEADER additions:
-#     L: The offset of the signature of this. An unsigned long.
-#     L: The offset of the share hash chain. An unsigned long.
-#     L: The offset of the block hash tree. An unsigned long.
-#     L: The offset of the share data. An unsigned long.
-#     Q: The offset of the encrypted private key. An unsigned long long, to
-#        account for the possibility of a lot of share data.
-#     Q: The offset of the EOF. An unsigned long long, to account for the
-#        possibility of a lot of share data.
+#     L: The offset of the signature. An unsigned 32-bit integer.
+#     L: The offset of the share hash chain. An unsigned 32-bit integer.
+#     L: The offset of the block hash tree. An unsigned 32-bit integer.
+#     L: The offset of the share data. An unsigned 32-bit integer.
+#     Q: The offset of the encrypted private key. An unsigned 64-bit integer,
+#        to account for the possibility of a lot of share data.
+#     Q: The offset of the EOF. An unsigned 64-bit integer, to account for
+#        the possibility of a lot of share data.
 # 
 #  After all of these, we have the following:
 #    - The verification key: Occupies the space between the end of the header
@@ -66,7 +63,7 @@ from zope.interface import implements
 #  Given this, we may need to check to see how many bytes a reasonably sized
 #  block hash tree will take up.
 
-PREFIX = ">BQ32s16s" # each version has a different prefix
+PREFIX = ">BQ32s16s" # each version may have a different prefix
 SIGNED_PREFIX = ">BQ32s16s BBQQ" # this is covered by the signature
 SIGNED_PREFIX_LENGTH = struct.calcsize(SIGNED_PREFIX)
 HEADER = ">BQ32s16s BBQQ LLLLQQ" # includes offsets
@@ -74,7 +71,8 @@ HEADER_LENGTH = struct.calcsize(HEADER)
 OFFSETS = ">LLLLQQ"
 OFFSETS_LENGTH = struct.calcsize(OFFSETS)
 
-# These are still used for some tests.
+
+# These are still used for some tests of SDMF files.
 def unpack_header(data):
     o = {}
     (version,

@@ -185,7 +185,7 @@ class ResultsBase:
             target = target + "?output=%s" % output
         return T.a(href=target)[si_s]
 
-class LiteralCheckResults(rend.Page, ResultsBase):
+class LiteralCheckResultsRenderer(rend.Page, ResultsBase):
     docFactory = getxmlfile("literal-check-results.xhtml")
 
     def __init__(self, client):
@@ -226,7 +226,7 @@ class CheckerBase:
             return T.div[T.a(href=return_to)["Return to file/directory."]]
         return ""
 
-class CheckResults(CheckerBase, rend.Page, ResultsBase):
+class CheckResultsRenderer(CheckerBase, rend.Page, ResultsBase):
     docFactory = getxmlfile("check-results.xhtml")
 
     def __init__(self, client, results):
@@ -269,7 +269,7 @@ class CheckResults(CheckerBase, rend.Page, ResultsBase):
         cr = self._render_results(ctx, data)
         return ctx.tag[cr]
 
-class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
+class CheckAndRepairResultsRenderer(CheckerBase, rend.Page, ResultsBase):
     docFactory = getxmlfile("check-and-repair-results.xhtml")
 
     def __init__(self, client, results):
@@ -316,7 +316,7 @@ class CheckAndRepairResults(CheckerBase, rend.Page, ResultsBase):
         return ""
 
 
-class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
+class DeepCheckResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
     docFactory = getxmlfile("deep-check-results.xhtml")
 
     def __init__(self, client, monitor):
@@ -331,8 +331,8 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         si = base32.a2b(name)
         r = self.monitor.get_status()
         try:
-            return CheckResults(self.client,
-                                r.get_results_for_storage_index(si))
+            return CheckResultsRenderer(self.client,
+                                        r.get_results_for_storage_index(si))
         except KeyError:
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)
@@ -470,7 +470,7 @@ class DeepCheckResults(rend.Page, ResultsBase, ReloadMixin):
         runtime = time.time() - req.processing_started_timestamp
         return ctx.tag["runtime: %s seconds" % runtime]
 
-class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
+class DeepCheckAndRepairResultsRenderer(rend.Page, ResultsBase, ReloadMixin):
     docFactory = getxmlfile("deep-check-and-repair-results.xhtml")
 
     def __init__(self, client, monitor):
@@ -483,10 +483,10 @@ class DeepCheckAndRepairResults(rend.Page, ResultsBase, ReloadMixin):
         # /operation/$OPHANDLE/$STORAGEINDEX provides detailed information
         # about a specific file or directory that was checked
         si = base32.a2b(name)
-        r = self.monitor.get_status()
+        s = self.monitor.get_status()
         try:
-            return CheckAndRepairResults(self.client,
-                                         r.get_results_for_storage_index(si))
+            results = s.get_results_for_storage_index(si)
+            return CheckAndRepairResultsRenderer(self.client, results)
         except KeyError:
             raise WebError("No detailed results for SI %s" % html.escape(name),
                            http.NOT_FOUND)

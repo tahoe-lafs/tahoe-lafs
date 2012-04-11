@@ -22,15 +22,16 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         for (peerid, nickname) in [("\x00"*20, "peer-0"),
                                    ("\xff"*20, "peer-f"),
                                    ("\x11"*20, "peer-11")] :
-            ann_d = { "version": 0,
-                      "service-name": "storage",
-                      "FURL": "fake furl",
-                      "nickname": unicode(nickname),
-                      "app-versions": {}, # need #466 and v2 introducer
-                      "my-version": "ver",
-                      "oldest-supported": "oldest",
-                      }
-            s = NativeStorageServer(peerid, ann_d)
+            ann = { "version": 0,
+                    "service-name": "storage",
+                    "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+                    "permutation-seed-base32": "",
+                    "nickname": unicode(nickname),
+                    "app-versions": {}, # need #466 and v2 introducer
+                    "my-version": "ver",
+                    "oldest-supported": "oldest",
+                    }
+            s = NativeStorageServer(peerid, ann)
             sb.test_add_server(peerid, s)
         c = FakeClient()
         c.storage_broker = sb
@@ -42,7 +43,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def test_literal(self):
         c = self.create_fake_client()
-        lcr = web_check_results.LiteralCheckResults(c)
+        lcr = web_check_results.LiteralCheckResultsRenderer(c)
 
         d = self.render1(lcr)
         def _check(html):
@@ -87,7 +88,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  }
         cr.set_data(data)
 
-        w = web_check_results.CheckResults(c, cr)
+        w = web_check_results.CheckResultsRenderer(c, cr)
         html = self.render2(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
@@ -210,7 +211,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         crr.post_repair_results = post_cr
         crr.repair_attempted = False
 
-        w = web_check_results.CheckAndRepairResults(c, crr)
+        w = web_check_results.CheckAndRepairResultsRenderer(c, crr)
         html = self.render2(w)
         s = self.remove_tags(html)
 
@@ -265,7 +266,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
             self.failUnlessEqual(j["post-repair-results"]["summary"], "worse")
         d.addCallback(_got_json)
 
-        w2 = web_check_results.CheckAndRepairResults(c, None)
+        w2 = web_check_results.CheckAndRepairResultsRenderer(c, None)
         d.addCallback(lambda ignored: self.render_json(w2))
         def _got_lit_results(data):
             j = simplejson.loads(data)

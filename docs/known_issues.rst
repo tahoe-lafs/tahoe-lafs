@@ -1,4 +1,8 @@
 ﻿
+See also cautions.rst_.
+
+.. _cautions.rst: file:cautions.rst
+
 ============
 Known Issues
 ============
@@ -153,9 +157,9 @@ Opera also has a similar facility that is disabled by default. A previous
 version of this file stated that Firefox had abandoned their phishing
 filter; this was incorrect.
 
-.. _a brief description of their filter's operation: http://blogs.msdn.com/ie/archive/2005/09/09/463204.aspx
-.. _"safe browsing API": http://code.google.com/apis/safebrowsing/
-.. _specification: http://code.google.com/p/google-safe-browsing/wiki/Protocolv2Spec
+.. _a brief description of their filter's operation: https://blogs.msdn.com/ie/archive/2005/09/09/463204.aspx
+.. _"safe browsing API": https://code.google.com/apis/safebrowsing/
+.. _specification: https://code.google.com/p/google-safe-browsing/wiki/Protocolv2Spec
 .. _Firefox bugzilla ticket #368255: https://bugzilla.mozilla.org/show_bug.cgi?id=368255
 
 

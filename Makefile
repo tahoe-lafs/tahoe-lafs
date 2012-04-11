@@ -134,7 +134,7 @@ check-miscaptures:
 	@echo
 
 pyflakes:
-	$(PYTHON) -OOu `which pyflakes` $(SOURCES) |sort |uniq
+	@$(PYTHON) -OOu `which pyflakes` $(SOURCES) |sort |uniq
 	@echo
 
 check-umids:
@@ -198,6 +198,10 @@ check-grid: .built
 
 bench-dirnode: .built
 	$(TAHOE) @src/allmydata/test/bench_dirnode.py
+
+# the provisioning tool runs as a stand-alone webapp server
+run-provisioning-tool: .built
+	$(TAHOE) @misc/operations_helpers/provisioning/run.py
 
 # 'make repl' is a simple-to-type command to get a Python interpreter loop
 # from which you can type 'import allmydata'

@@ -1,9 +1,10 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+u"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.4.4 and 2.7.x inclusive."
 
 # Tahoe-LAFS -- secure, distributed storage grid
 #
-# Copyright © 2008-2011 Allmydata, Inc.
+# Copyright © 2006-2012 The Tahoe-LAFS Software Foundation
 #
 # This file is part of Tahoe-LAFS.
 #

@@ -30,14 +30,6 @@ WriteEnablerSecret = Hash # used to protect mutable bucket modifications
 LeaseRenewSecret = Hash # used to protect bucket lease renewal requests
 LeaseCancelSecret = Hash # used to protect bucket lease cancellation requests
 
-class RIStubClient(RemoteInterface):
-    """Each client publishes a service announcement for a dummy object called
-    the StubClient. This object doesn't actually offer any services, but the
-    announcement helps the Introducer keep track of which clients are
-    subscribed (so the grid admin can keep track of things like the size of
-    the grid and the client versions in use. This is the (empty)
-    RemoteInterface for the StubClient."""
-
 class RIBucketWriter(RemoteInterface):
     """ Objects of this kind live on the server side. """
     def write(offset=Offset, data=ShareData):
@@ -427,6 +419,15 @@ class IStorageBroker(Interface):
         permutation keyed by KEY. This randomizes the service list in a
         repeatable way, to distribute load over many peers.
         """
+
+class IServer(Interface):
+    """I live in the client, and represent a single server."""
+    def start_connecting(tub, trigger_cb):
+        pass
+    def get_nickname():
+        pass
+    def get_rref():
+        pass
 
 
 class IMutableSlotWriter(Interface):
@@ -1078,6 +1079,9 @@ class ExistingChildError(Exception):
 
 class NoSuchChildError(Exception):
     """A directory node was asked to fetch a child which does not exist."""
+    def __str__(self):
+        # avoid UnicodeEncodeErrors when converting to str
+        return self.__repr__()
 
 class ChildOfWrongTypeError(Exception):
     """An operation was attempted on a child of the wrong type (file or directory)."""
@@ -1976,7 +1980,7 @@ class IDownloadResults(Interface):
        cumulative_decode : just time spent in zfec
        cumulative_decrypt : just time spent in decryption
        total : total download time, start to finish
-       fetch_per_server : dict of peerid to list of per-segment fetch times
+       fetch_per_server : dict of server to list of per-segment fetch times
 
     """
 

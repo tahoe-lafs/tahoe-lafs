@@ -12,8 +12,8 @@ from allmydata.storage.server import si_b2a
 from allmydata.interfaces import IServermapUpdaterStatus
 from pycryptopp.publickey import rsa
 
-from allmydata.mutable.common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
-     CorruptShareError
+from allmydata.mutable.common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, \
+     MODE_READ, MODE_REPAIR, CorruptShareError
 from allmydata.mutable.layout import SIGNED_PREFIX_LENGTH, MDMFSlotReadProxy
 
 class UpdateStatus:
@@ -35,11 +35,10 @@ class UpdateStatus:
         self.finished = None
 
     def add_per_server_time(self, server, op, sent, elapsed):
-        serverid = server.get_serverid()
         assert op in ("query", "late", "privkey")
-        if serverid not in self.timings["per_server"]:
-            self.timings["per_server"][serverid] = []
-        self.timings["per_server"][serverid].append((op,sent,elapsed))
+        if server not in self.timings["per_server"]:
+            self.timings["per_server"][server] = []
+        self.timings["per_server"][server].append((op,sent,elapsed))
 
     def get_started(self):
         return self.started
@@ -71,7 +70,7 @@ class UpdateStatus:
     def set_mode(self, mode):
         self.mode = mode
     def set_privkey_from(self, server):
-        self.privkey_from = server.get_serverid()
+        self.privkey_from = server
     def set_status(self, status):
         self.status = status
     def set_progress(self, value):
@@ -427,7 +426,7 @@ class ServermapUpdater:
             self._read_size = 1000
         self._need_privkey = False
 
-        if mode == MODE_WRITE and not self._node.get_privkey():
+        if mode in (MODE_WRITE, MODE_REPAIR) and not self._node.get_privkey():
             self._need_privkey = True
         # check+repair: repair requires the privkey, so if we didn't happen
         # to ask for it during the check, we'll have problems doing the
@@ -498,7 +497,7 @@ class ServermapUpdater:
         # might not wait for all of their answers to come back)
         self.num_servers_to_query = k + self.EPSILON
 
-        if self.mode == MODE_CHECK:
+        if self.mode in (MODE_CHECK, MODE_REPAIR):
             # We want to query all of the servers.
             initial_servers_to_query = list(full_serverlist)
             must_query = set(initial_servers_to_query)
@@ -1064,7 +1063,7 @@ class ServermapUpdater:
                          parent=lp)
                 return self._done()
 
-        if self.mode == MODE_CHECK:
+        if self.mode in (MODE_CHECK, MODE_REPAIR):
             # we used self._must_query, and we know there aren't any
             # responses still waiting, so that means we must be done
             self.log("done", parent=lp)

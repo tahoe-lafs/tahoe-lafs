@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-import locale, os, subprocess, sys, traceback
+import locale, os, platform, subprocess, sys, traceback
 
 added_zetuptoolz_egg = False
 try:
@@ -134,15 +134,19 @@ print_stdout(['locale'])
 print_python_encoding_settings()
 print
 print_stdout(['buildbot', '--version'])
-print_stdout(['cl'])
+print_stdout(['buildslave', '--version'])
+if 'windows' in platform.system().lower():
+    print_stdout(['cl'])
 print_stdout(['gcc', '--version'], numlines=1)
 print_stdout(['g++', '--version'], numlines=1)
 print_stdout(['cryptest', 'V'])
+print_stdout(['git', '--version'])
+print_stdout(['openssl', 'version'])
 print_stdout(['darcs', '--version'])
 print_stdout(['darcs', '--exact-version'], label='darcs-exact-version')
-print_stdout(['7za'], numlines=3)
 print_stdout(['flappclient', '--version'])
 print_stdout(['valgrind', '--version'])
+print_stdout(['lzip', '--version'])
 
 print_as_ver()
 

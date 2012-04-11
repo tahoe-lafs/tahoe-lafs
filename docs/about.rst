@@ -109,6 +109,8 @@ To use Tahoe-LAFS, please see quickstart.rst_.
 License
 =======
 
+Copyright 2006-2012 The Tahoe-LAFS Software Foundation
+
 You may use this package under the GNU General Public License, version 2 or,
 at your option, any later version.  See the file COPYING.GPL_ for the terms
 of the GNU General Public License, version 2.

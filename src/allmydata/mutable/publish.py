@@ -15,7 +15,7 @@ from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
 from foolscap.api import eventually, fireEventually
 
-from allmydata.mutable.common import MODE_WRITE, MODE_CHECK, \
+from allmydata.mutable.common import MODE_WRITE, MODE_CHECK, MODE_REPAIR, \
      UncoordinatedWriteError, NotEnoughServersError
 from allmydata.mutable.servermap import ServerMap
 from allmydata.mutable.layout import get_version_from_checkstring,\
@@ -51,10 +51,9 @@ class PublishStatus:
         self.started = time.time()
 
     def add_per_server_time(self, server, elapsed):
-        serverid = server.get_serverid()
-        if serverid not in self.timings["send_per_server"]:
-            self.timings["send_per_server"][serverid] = []
-        self.timings["send_per_server"][serverid].append(elapsed)
+        if server not in self.timings["send_per_server"]:
+            self.timings["send_per_server"][server] = []
+        self.timings["send_per_server"][server].append(elapsed)
     def accumulate_encode_time(self, elapsed):
         self.timings["encode"] += elapsed
     def accumulate_encrypt_time(self, elapsed):
@@ -188,7 +187,7 @@ class Publish:
         # servermap was updated in MODE_WRITE, so we can depend upon the
         # serverlist computed by that process instead of computing our own.
         assert self._servermap
-        assert self._servermap.get_last_update()[0] in (MODE_WRITE, MODE_CHECK)
+        assert self._servermap.get_last_update()[0] in (MODE_WRITE, MODE_CHECK, MODE_REPAIR)
         # we will push a version that is one larger than anything present
         # in the grid, according to the servermap.
         self._new_seqnum = self._servermap.highest_seqnum() + 1
@@ -374,7 +373,7 @@ class Publish:
         # servermap was updated in MODE_WRITE, so we can depend upon the
         # serverlist computed by that process instead of computing our own.
         if self._servermap:
-            assert self._servermap.get_last_update()[0] in (MODE_WRITE, MODE_CHECK)
+            assert self._servermap.get_last_update()[0] in (MODE_WRITE, MODE_CHECK, MODE_REPAIR)
             # we will push a version that is one larger than anything present
             # in the grid, according to the servermap.
             self._new_seqnum = self._servermap.highest_seqnum() + 1

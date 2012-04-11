@@ -14,7 +14,7 @@ def initialize():
     from allmydata.util import log
     from allmydata.util.encodingutil import canonical_encoding
 
-    # <http://msdn.microsoft.com/en-us/library/ms680621%28VS.85%29.aspx>
+    # <https://msdn.microsoft.com/en-us/library/ms680621%28VS.85%29.aspx>
     SetErrorMode = WINFUNCTYPE(UINT, UINT)(("SetErrorMode", windll.kernel32))
     SEM_FAILCRITICALERRORS = 0x0001
     SEM_NOOPENFILEERRORBOX = 0x8000
@@ -36,18 +36,18 @@ def initialize():
 
     # Make Unicode console output work independently of the current code page.
     # This also fixes <http://bugs.python.org/issue1602>.
-    # Credit to Michael Kaplan <http://blogs.msdn.com/b/michkap/archive/2010/04/07/9989346.aspx>
+    # Credit to Michael Kaplan <https://blogs.msdn.com/b/michkap/archive/2010/04/07/9989346.aspx>
     # and TZOmegaTZIOY
     # <http://stackoverflow.com/questions/878972/windows-cmd-encoding-change-causes-python-crash/1432462#1432462>.
     try:
-        # <http://msdn.microsoft.com/en-us/library/ms683231(VS.85).aspx>
+        # <https://msdn.microsoft.com/en-us/library/ms683231(VS.85).aspx>
         # HANDLE WINAPI GetStdHandle(DWORD nStdHandle);
         # returns INVALID_HANDLE_VALUE, NULL, or a valid handle
         #
-        # <http://msdn.microsoft.com/en-us/library/aa364960(VS.85).aspx>
+        # <https://msdn.microsoft.com/en-us/library/aa364960(VS.85).aspx>
         # DWORD WINAPI GetFileType(DWORD hFile);
         #
-        # <http://msdn.microsoft.com/en-us/library/ms683167(VS.85).aspx>
+        # <https://msdn.microsoft.com/en-us/library/ms683167(VS.85).aspx>
         # BOOL WINAPI GetConsoleMode(HANDLE hConsole, LPDWORD lpMode);
 
         GetStdHandle = WINFUNCTYPE(HANDLE, DWORD)(("GetStdHandle", windll.kernel32))

@@ -29,11 +29,11 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 # 6: implement other sorts of IStorageClient classes: S3, etc
 
 
-import time
-from zope.interface import implements, Interface
+import re, time
+from zope.interface import implements
 from foolscap.api import eventually
-from allmydata.interfaces import IStorageBroker
-from allmydata.util import idlib, log
+from allmydata.interfaces import IStorageBroker, IServer
+from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.util.hashutil import sha1
@@ -74,8 +74,8 @@ class StorageFarmBroker:
         self.introducer_client = None
 
     # these two are used in unit tests
-    def test_add_rref(self, serverid, rref):
-        s = NativeStorageServer(serverid, {})
+    def test_add_rref(self, serverid, rref, ann):
+        s = NativeStorageServer(serverid, ann.copy())
         s.rref = rref
         self.servers[serverid] = s
 
@@ -86,21 +86,23 @@ class StorageFarmBroker:
         self.introducer_client = ic = introducer_client
         ic.subscribe_to("storage", self._got_announcement)
 
-    def _got_announcement(self, serverid, ann_d):
-        precondition(isinstance(serverid, str), serverid)
-        precondition(len(serverid) == 20, serverid)
-        assert ann_d["service-name"] == "storage"
+    def _got_announcement(self, key_s, ann):
+        if key_s is not None:
+            precondition(isinstance(key_s, str), key_s)
+            precondition(key_s.startswith("v0-"), key_s)
+        assert ann["service-name"] == "storage"
+        s = NativeStorageServer(key_s, ann)
+        serverid = s.get_serverid()
         old = self.servers.get(serverid)
         if old:
-            if old.get_announcement() == ann_d:
+            if old.get_announcement() == ann:
                 return # duplicate
             # replacement
             del self.servers[serverid]
             old.stop_connecting()
             # now we forget about them and start using the new one
-        dsc = NativeStorageServer(serverid, ann_d)
-        self.servers[serverid] = dsc
-        dsc.start_connecting(self.tub, self._trigger_connections)
+        self.servers[serverid] = s
+        s.start_connecting(self.tub, self._trigger_connections)
         # the descriptor will manage their own Reconnector, and each time we
         # need servers, we'll ask them if they're connected or not.
 
@@ -137,15 +139,6 @@ class StorageFarmBroker:
             return self.servers[serverid].get_nickname()
         return None
 
-class IServer(Interface):
-    """I live in the client, and represent a single server."""
-    def start_connecting(tub, trigger_cb):
-        pass
-    def get_nickname():
-        pass
-    def get_rref():
-        pass
-
 class NativeStorageServer:
     """I hold information about a storage server that we want to connect to.
     If we are connected, I hold the RemoteReference, their host address, and
@@ -173,13 +166,32 @@ class NativeStorageServer:
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, serverid, ann_d, min_shares=1):
-        self.serverid = serverid
-        self._tubid = serverid
-        self.announcement = ann_d
+    def __init__(self, key_s, ann, min_shares=1):
+        self.key_s = key_s
+        self.announcement = ann
         self.min_shares = min_shares
 
-        self.serverid_s = idlib.shortnodeid_b2a(self.serverid)
+        assert "anonymous-storage-FURL" in ann, ann
+        furl = str(ann["anonymous-storage-FURL"])
+        m = re.match(r'pb://(\w+)@', furl)
+        assert m, furl
+        tubid_s = m.group(1).lower()
+        self._tubid = base32.a2b(tubid_s)
+        assert "permutation-seed-base32" in ann, ann
+        ps = base32.a2b(str(ann["permutation-seed-base32"]))
+        self._permutation_seed = ps
+
+        if key_s:
+            self._long_description = key_s
+            if key_s.startswith("v0-"):
+                # remove v0- prefix from abbreviated name
+                self._short_description = key_s[3:3+8]
+            else:
+                self._short_description = key_s[:8]
+        else:
+            self._long_description = tubid_s
+            self._short_description = tubid_s[:8]
+
         self.announcement_time = time.time()
         self.last_connect_time = None
         self.last_loss_time = None
@@ -188,20 +200,31 @@ class NativeStorageServer:
         self._reconnector = None
         self._trigger_cb = None
 
+    # Special methods used by copy.copy() and copy.deepcopy(). When those are
+    # used in allmydata.immutable.filenode to copy CheckResults during
+    # repair, we want it to treat the IServer instances as singletons, and
+    # not attempt to duplicate them..
+    def __copy__(self):
+        return self
+    def __deepcopy__(self, memodict):
+        return self
+
     def __repr__(self):
         return "<NativeStorageServer for %s>" % self.get_name()
     def get_serverid(self):
-        return self._tubid
+        return self._tubid # XXX replace with self.key_s
     def get_permutation_seed(self):
-        return self._tubid
+        return self._permutation_seed
     def get_version(self):
         if self.rref:
             return self.rref.version
         return None
     def get_name(self): # keep methodname short
-        return self.serverid_s
+        # TODO: decide who adds [] in the short description. It should
+        # probably be the output side, not here.
+        return self._short_description
     def get_longname(self):
-        return idlib.nodeid_b2a(self._tubid)
+        return self._long_description
     def get_lease_seed(self):
         return self._tubid
     def get_foolscap_write_enabler_seed(self):
@@ -221,7 +244,7 @@ class NativeStorageServer:
         return self.announcement_time
 
     def start_connecting(self, tub, trigger_cb):
-        furl = self.announcement["FURL"]
+        furl = str(self.announcement["anonymous-storage-FURL"])
         self._trigger_cb = trigger_cb
         self._reconnector = tub.connectTo(furl, self._got_connection)
 

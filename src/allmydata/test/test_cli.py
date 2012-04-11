@@ -7,12 +7,13 @@ import simplejson
 
 from mock import patch
 
-from allmydata.util import fileutil, hashutil, base32
+from allmydata.util import fileutil, hashutil, base32, keyutil
 from allmydata import uri
 from allmydata.immutable import upload
 from allmydata.interfaces import MDMF_VERSION, SDMF_VERSION
 from allmydata.mutable.publish import MutableData
 from allmydata.dirnode import normalize
+from pycryptopp.publickey import ed25519
 
 # Test that the scripts can be imported.
 from allmydata.scripts import create_node, debug, keygen, startstop_node, \
@@ -1365,6 +1366,55 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.failUnlessReallyEqual(out, DATA))
 
         return d
+
+class Admin(unittest.TestCase):
+    def do_cli(self, *args, **kwargs):
+        argv = list(args)
+        stdin = kwargs.get("stdin", "")
+        stdout, stderr = StringIO(), StringIO()
+        d = threads.deferToThread(runner.runner, argv, run_by_human=False,
+                                  stdin=StringIO(stdin),
+                                  stdout=stdout, stderr=stderr)
+        def _done(res):
+            return stdout.getvalue(), stderr.getvalue()
+        d.addCallback(_done)
+        return d
+
+    def test_generate_keypair(self):
+        d = self.do_cli("admin", "generate-keypair")
+        def _done( (stdout, stderr) ):
+            lines = [line.strip() for line in stdout.splitlines()]
+            privkey_bits = lines[0].split()
+            pubkey_bits = lines[1].split()
+            sk_header = "private:"
+            vk_header = "public:"
+            self.failUnlessEqual(privkey_bits[0], sk_header, lines[0])
+            self.failUnlessEqual(pubkey_bits[0], vk_header, lines[1])
+            self.failUnless(privkey_bits[1].startswith("priv-v0-"), lines[0])
+            self.failUnless(pubkey_bits[1].startswith("pub-v0-"), lines[1])
+            sk_bytes = base32.a2b(keyutil.remove_prefix(privkey_bits[1], "priv-v0-"))
+            sk = ed25519.SigningKey(sk_bytes)
+            vk_bytes = base32.a2b(keyutil.remove_prefix(pubkey_bits[1], "pub-v0-"))
+            self.failUnlessEqual(sk.get_verifying_key_bytes(), vk_bytes)
+        d.addCallback(_done)
+        return d
+
+    def test_derive_pubkey(self):
+        priv1,pub1 = keyutil.make_keypair()
+        d = self.do_cli("admin", "derive-pubkey", priv1)
+        def _done( (stdout, stderr) ):
+            lines = stdout.split("\n")
+            privkey_line = lines[0].strip()
+            pubkey_line = lines[1].strip()
+            sk_header = "private: priv-v0-"
+            vk_header = "public: pub-v0-"
+            self.failUnless(privkey_line.startswith(sk_header), privkey_line)
+            self.failUnless(pubkey_line.startswith(vk_header), pubkey_line)
+            pub2 = pubkey_line[len(vk_header):]
+            self.failUnlessEqual("pub-v0-"+pub2, pub1)
+        d.addCallback(_done)
+        return d
+
 
 class List(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_list(self):

@@ -122,7 +122,21 @@ class Node(service.MultiService):
     def read_config(self):
         self.error_about_old_config_files()
         self.config = ConfigParser.SafeConfigParser()
-        self.config.read([os.path.join(self.basedir, "tahoe.cfg")])
+
+        tahoe_cfg = os.path.join(self.basedir, "tahoe.cfg")
+        try:
+            f = open(tahoe_cfg, "rb")
+            try:
+                # Skip any initial Byte Order Mark. Since this is an ordinary file, we
+                # don't need to handle incomplete reads, and can assume seekability.
+                if f.read(3) != '\xEF\xBB\xBF':
+                    f.seek(0)
+                self.config.readfp(f)
+            finally:
+                f.close()
+        except EnvironmentError:
+            if os.path.exists(tahoe_cfg):
+                raise
 
         cfg_tubport = self.get_config("node", "tub.port", "")
         if not cfg_tubport:
@@ -194,6 +208,19 @@ class Node(service.MultiService):
     def get_app_versions(self):
         # TODO: merge this with allmydata.get_package_versions
         return dict(app_versions.versions)
+
+    def get_config_from_file(self, name, required=False):
+        """Get the (string) contents of a config file, or None if the file
+        did not exist. If required=True, raise an exception rather than
+        returning None. Any leading or trailing whitespace will be stripped
+        from the data."""
+        fn = os.path.join(self.basedir, name)
+        try:
+            return fileutil.read(fn).strip()
+        except EnvironmentError:
+            if not required:
+                return None
+            raise
 
     def write_private_config(self, name, value):
         """Write the (string) contents of a private config file (which is a

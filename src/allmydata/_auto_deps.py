@@ -51,6 +51,9 @@ install_requires = [
     # http://www.voidspace.org.uk/python/mock/
     "mock",
 
+    # pycryptopp-0.6.0 includes ed25519
+    "pycryptopp >= 0.6.0",
+
     # Will be needed to test web apps, but not yet. See #1001.
     #"windmill >= 1.3",
 ]
@@ -75,19 +78,7 @@ package_imports = [
 ]
 
 def require_more():
-    import platform, sys
-
-    if platform.machine().lower() in ['i386', 'x86', 'i686', 'x86_64', 'amd64', '']:
-        # pycryptopp v0.5.20 fixes bugs in SHA-256 and AES on x86 or amd64
-        # (from Crypto++ revisions 470, 471, 480, 492).  The '' is there
-        # in case platform.machine is broken and this is actually an x86
-        # or amd64 machine.
-        install_requires.append("pycryptopp >= 0.5.20")
-    else:
-        # pycryptopp v0.5.13 had a new bundled version of Crypto++
-        # (v5.6.0) and a new bundled version of setuptools (although that
-        # shouldn't make any difference to users of pycryptopp).
-        install_requires.append("pycryptopp >= 0.5.14")
+    import sys
 
     # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
     # distribution for Python 2.4.
@@ -115,11 +106,13 @@ deprecation_messages = [
     "The popen2 module is deprecated.  Use the subprocess module.",
     "the md5 module is deprecated; use hashlib instead",
     "twisted.web.error.NoResource is deprecated since Twisted 9.0.  See twisted.web.resource.NoResource.",
+    "twisted.internet.interfaces.IFinishableConsumer was deprecated in Twisted 11.1.0: Please use IConsumer (and IConsumer.unregisterProducer) instead.",
     "the sets module is deprecated",
 ]
 
 user_warning_messages = [
     "Hashing uninitialized InterfaceClass instance",
+    "Reliable disconnection notification requires pywin32 215 or later",
 ]
 
 warning_imports = [

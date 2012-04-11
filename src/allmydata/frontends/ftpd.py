@@ -193,7 +193,7 @@ class Handler:
                 if isdir:
                     value = 0
                 else:
-                    value = childnode.get_size()
+                    value = childnode.get_size() or 0
             elif key == "directory":
                 value = isdir
             elif key == "permissions":
@@ -201,7 +201,11 @@ class Handler:
             elif key == "hardlinks":
                 value = 1
             elif key == "modified":
-                value = metadata.get("mtime", 0)
+                # follow sftpd convention (i.e. linkmotime in preference to mtime)
+                if "linkmotime" in metadata.get("tahoe", {}):
+                    value = metadata["tahoe"]["linkmotime"]
+                else:
+                    value = metadata.get("mtime", 0)
             elif key == "owner":
                 value = self.username
             elif key == "group":
