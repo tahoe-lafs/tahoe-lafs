@@ -183,6 +183,8 @@ server prefix. They will be displayed like this::
  /uri/$DIRCAP/
  /uri/$FILECAP
 
+/cap can be used as a synonym for /uri.  If interoperability with older web-API
+servers is required, /uri should be used.
 
 Child Lookup
 ------------
