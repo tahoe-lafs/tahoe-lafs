@@ -1,6 +1,7 @@
 
 import re, simplejson
-from allmydata.util import keyutil, base32
+from foolscap.api import SturdyRef
+from allmydata.util import keyutil, base32, rrefutil
 
 def make_index(ann, key_s):
     """Return something that can be used as an index (e.g. a tuple of
@@ -34,7 +35,7 @@ def convert_announcement_v1_to_v2(ann_t):
     assert type(ver) is str
     assert type(oldest) is str
     ann = {"version": 0,
-           "nickname": nickname.decode("utf-8"),
+           "nickname": nickname.decode("utf-8", "replace"),
            "app-versions": {},
            "my-version": ver,
            "oldest-supported": oldest,
@@ -90,3 +91,67 @@ def unsign_from_foolscap(ann_t):
         key_vs = claimed_key_vs
     ann = simplejson.loads(msg.decode("utf-8"))
     return (ann, key_vs)
+
+class SubscriberDescriptor:
+    """This describes a subscriber, for status display purposes. It contains
+    the following attributes:
+
+    .service_name: what they subscribed to (string)
+    .when: time when they subscribed (seconds since epoch)
+    .nickname: their self-provided nickname, or "?" (unicode)
+    .version: their self-provided version (string)
+    .app_versions: versions of each library they use (dict str->str)
+    .advertised_addresses: what hosts they listen on (list of strings)
+    .remote_address: the external address from which they connected (string)
+    .tubid: for subscribers connecting with Foolscap, their tubid (string)
+    """
+
+    def __init__(self, service_name, when,
+                 nickname, version, app_versions,
+                 advertised_addresses, remote_address, tubid):
+        self.service_name = service_name
+        self.when = when
+        self.nickname = nickname
+        self.version = version
+        self.app_versions = app_versions
+        self.advertised_addresses = advertised_addresses
+        self.remote_address = remote_address
+        self.tubid = tubid
+
+class AnnouncementDescriptor:
+    """This describes an announcement, for status display purposes. It
+    contains the following attributes, which will be empty ("" for
+    strings) if the client did not provide them:
+
+     .when: time the announcement was first received (seconds since epoch)
+     .index: the announcements 'index', a tuple of (string-or-None).
+             The server remembers one announcement per index.
+     .canary: a Referenceable on the announcer, so the server can learn
+              when they disconnect (for the status display)
+     .announcement: raw dictionary of announcement data
+     .service_name: which service they are announcing (string)
+     .version: 'my-version' portion of announcement (string)
+     .nickname: their self-provided nickname, or "" (unicode)
+
+    The following attributes will be empty ([] for lists, "" for strings)
+    unless the announcement included an 'anonymous-storage-FURL'.
+
+     .advertised_addresses: which hosts they listen on (list of strings)
+     .tubid: their tubid (string)
+    """
+
+    def __init__(self, when, index, canary, ann_d):
+        self.when = when
+        self.index = index
+        self.canary = canary
+        self.announcement = ann_d
+        self.service_name = ann_d["service-name"]
+        self.version = ann_d.get("my-version", "")
+        self.nickname = ann_d.get("nickname", u"")
+        furl = ann_d.get("anonymous-storage-FURL")
+        if furl:
+            self.advertised_addresses = rrefutil.hosts_for_furl(furl)
+            self.tubid = SturdyRef(furl).tubID
+        else:
+            self.advertised_addresses = []
+            self.tubid = ""

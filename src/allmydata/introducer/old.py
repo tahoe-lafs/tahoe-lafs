@@ -8,6 +8,8 @@ from allmydata.interfaces import InsufficientVersionError
 from allmydata.util import log, idlib, rrefutil
 from foolscap.api import StringConstraint, TupleOf, SetOf, DictOf, Any, \
     RemoteInterface, Referenceable, eventually, SturdyRef
+from allmydata.introducer.common import SubscriberDescriptor, \
+     AnnouncementDescriptor
 FURL = StringConstraint(1000)
 
 # We keep a copy of the old introducer (both client and server) here to
@@ -362,7 +364,7 @@ class IntroducerService_v1(service.MultiService, Referenceable):
         self.introducer_url = None
         # 'index' is (service_name, tubid)
         self._announcements = {} # dict of index -> (announcement, timestamp)
-        self._subscribers = {} # dict of (rref->timestamp) dicts
+        self._subscribers = {} # [service_name]->[rref]->timestamp
         self._debug_counts = {"inbound_message": 0,
                               "inbound_duplicate": 0,
                               "inbound_update": 0,
@@ -380,10 +382,35 @@ class IntroducerService_v1(service.MultiService, Referenceable):
             kwargs["facility"] = "tahoe.introducer"
         return log.msg(*args, **kwargs)
 
-    def get_announcements(self):
-        return self._announcements
+    def get_announcements(self, include_stub_clients=True):
+        announcements = []
+        for index, (ann_t, when) in self._announcements.items():
+            (furl, service_name, ri_name, nickname, ver, oldest) = ann_t
+            if service_name == "stub_client" and not include_stub_clients:
+                continue
+            ann_d = {"nickname": nickname.decode("utf-8", "replace"),
+                     "my-version": ver,
+                     "service-name": service_name,
+                     "anonymous-storage-FURL": furl,
+                     }
+            ad = AnnouncementDescriptor(when, index, None, ann_d)
+            announcements.append(ad)
+        return announcements
+
     def get_subscribers(self):
-        return self._subscribers
+        s = []
+        for service_name, subscribers in self._subscribers.items():
+            for rref, when in subscribers.items():
+                tubid = rref.getRemoteTubID() or "?"
+                advertised_addresses = rrefutil.hosts_for_rref(rref)
+                remote_address = rrefutil.stringify_remote_address(rref)
+                nickname, version, app_versions = u"?", u"?", {}
+                sd = SubscriberDescriptor(service_name, when,
+                                          nickname, version, app_versions,
+                                          advertised_addresses, remote_address,
+                                          tubid)
+                s.append(sd)
+        return s
 
     def remote_get_version(self):
         return self.VERSION

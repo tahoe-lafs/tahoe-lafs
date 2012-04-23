@@ -5,12 +5,12 @@ from twisted.application import service
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
-from allmydata.util import log
+from allmydata.util import log, rrefutil
 from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService_v2
 from allmydata.introducer.common import convert_announcement_v1_to_v2, \
      convert_announcement_v2_to_v1, unsign_from_foolscap, make_index, \
-     get_tubid_string_from_ann
+     get_tubid_string_from_ann, SubscriberDescriptor, AnnouncementDescriptor
 
 class IntroducerNode(node.Node):
     PORTNUMFILE = "introducer.port"
@@ -56,7 +56,7 @@ class WrapV1SubscriberInV2Interface: # for_v1
     """
 
     def __init__(self, original):
-        self.original = original
+        self.original = original # also used for tests
     def __eq__(self, them):
         return self.original == them
     def __ne__(self, them):
@@ -69,6 +69,8 @@ class WrapV1SubscriberInV2Interface: # for_v1
         return self.original.getSturdyRef()
     def getPeer(self):
         return self.original.getPeer()
+    def getLocationHints(self):
+        return self.original.getLocationHints()
     def callRemote(self, methname, *args, **kwargs):
         m = getattr(self, "wrap_" + methname)
         return m(*args, **kwargs)
@@ -133,16 +135,42 @@ class IntroducerService(service.MultiService, Referenceable):
             kwargs["facility"] = "tahoe.introducer.server"
         return log.msg(*args, **kwargs)
 
-    def get_announcements(self):
-        return self._announcements
+    def get_announcements(self, include_stub_clients=True):
+        """Return a list of AnnouncementDescriptor for all announcements"""
+        announcements = []
+        for (index, (_, canary, ann, when)) in self._announcements.items():
+            if ann["service-name"] == "stub_client":
+                if not include_stub_clients:
+                    continue
+            ad = AnnouncementDescriptor(when, index, canary, ann)
+            announcements.append(ad)
+        return announcements
+
     def get_subscribers(self):
-        """Return a list of (service_name, when, subscriber_info, rref) for
-        all subscribers. subscriber_info is a dict with the following keys:
-        version, nickname, app-versions, my-version, oldest-supported"""
+        """Return a list of SubscriberDescriptor objects for all subscribers"""
         s = []
         for service_name, subscriptions in self._subscribers.items():
             for rref,(subscriber_info,when) in subscriptions.items():
-                s.append( (service_name, when, subscriber_info, rref) )
+                # note that if the subscriber didn't do Tub.setLocation,
+                # tubid will be None. Also, subscribers do not tell us which
+                # pubkey they use; only publishers do that.
+                tubid = rref.getRemoteTubID() or "?"
+                advertised_addresses = rrefutil.hosts_for_rref(rref)
+                remote_address = rrefutil.stringify_remote_address(rref)
+                # these three assume subscriber_info["version"]==0, but
+                # should tolerate other versions
+                if not subscriber_info:
+                     # V1 clients that haven't yet sent their stub_info data
+                    subscriber_info = {}
+                nickname = subscriber_info.get("nickname", u"?")
+                version = subscriber_info.get("my-version", u"?")
+                app_versions = subscriber_info.get("app-versions", {})
+                # 'when' is the time they subscribed
+                sd = SubscriberDescriptor(service_name, when,
+                                          nickname, version, app_versions,
+                                          advertised_addresses, remote_address,
+                                          tubid)
+                s.append(sd)
         return s
 
     def remote_get_version(self):
