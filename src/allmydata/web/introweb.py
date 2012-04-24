@@ -100,7 +100,7 @@ class IntroducerRoot(rend.Page):
         return services
 
     def render_service_row(self, ctx, ad):
-        ctx.fillSlots("peerid", ad.tubid)
+        ctx.fillSlots("serverid", ad.serverid)
         ctx.fillSlots("nickname", ad.nickname)
         ctx.fillSlots("advertised", " ".join(ad.advertised_addresses))
         ctx.fillSlots("connected", "?")

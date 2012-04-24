@@ -393,7 +393,10 @@ class IntroducerService_v1(service.MultiService, Referenceable):
                      "service-name": service_name,
                      "anonymous-storage-FURL": furl,
                      }
-            ad = AnnouncementDescriptor(when, index, None, ann_d)
+            # the V2 introducer uses (service_name, key_s, tubid_s) as an
+            # index, so match that format for AnnouncementDescriptor
+            new_index = (index[0], None, idlib.nodeid_b2a(index[1]))
+            ad = AnnouncementDescriptor(when, new_index, None, ann_d)
             announcements.append(ad)
         return announcements
 

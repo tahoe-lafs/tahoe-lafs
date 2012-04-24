@@ -20,7 +20,7 @@ from allmydata.introducer import old
 # test compatibility with old introducer .tac files
 from allmydata.introducer import IntroducerNode
 from allmydata.web import introweb
-from allmydata.util import pollmixin, keyutil
+from allmydata.util import pollmixin, keyutil, idlib
 import allmydata.test.common_util as testutil
 
 class LoggingMultiService(service.MultiService):
@@ -391,6 +391,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
         received_announcements = {}
         subscribing_clients = []
         publishing_clients = []
+        printable_serverids = {}
         self.the_introducer = introducer
         privkeys = {}
         expected_announcements = [0 for c in range(NUM_CLIENTS)]
@@ -430,14 +431,21 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             if i < NUM_STORAGE:
                 if i == 0:
                     c.publish(node_furl, "storage", "ri_name")
+                    printable_serverids[i] = get_tubid_string(node_furl)
                 elif i == 1:
                     # sign the announcement
                     privkey_s, pubkey_s = keyutil.make_keypair()
                     privkey, _ignored = keyutil.parse_privkey(privkey_s)
                     privkeys[c] = privkey
                     c.publish("storage", make_ann(node_furl), privkey)
+                    if server_version == V1:
+                        printable_serverids[i] = get_tubid_string(node_furl)
+                    else:
+                        assert pubkey_s.startswith("pub-")
+                        printable_serverids[i] = pubkey_s[len("pub-"):]
                 else:
                     c.publish("storage", make_ann(node_furl))
+                    printable_serverids[i] = get_tubid_string(node_furl)
                 publishing_clients.append(c)
             else:
                 # the last one does not publish anything
@@ -576,6 +584,12 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             text = ir.renderSynchronously().decode("utf-8")
             self.failUnlessIn(NICKNAME % "0", text) # the v1 client
             self.failUnlessIn(NICKNAME % "1", text) # a v2 client
+            for i in range(NUM_STORAGE):
+                self.failUnlessIn(printable_serverids[i], text,
+                                  (i,printable_serverids[i],text))
+                # make sure there isn't a double-base32ed string too
+                self.failIfIn(idlib.nodeid_b2a(printable_serverids[i]), text,
+                              (i,printable_serverids[i],text))
             log.msg("_check1 done")
         d.addCallback(_check1)
 

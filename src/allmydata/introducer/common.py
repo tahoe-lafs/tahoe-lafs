@@ -1,21 +1,20 @@
 
 import re, simplejson
-from foolscap.api import SturdyRef
 from allmydata.util import keyutil, base32, rrefutil
 
 def make_index(ann, key_s):
     """Return something that can be used as an index (e.g. a tuple of
     strings), such that two messages that refer to the same 'thing' will have
     the same index. This is a tuple of (service-name, signing-key, None) for
-    signed announcements, or (service-name, None, tubid) for unsigned
+    signed announcements, or (service-name, None, tubid_s) for unsigned
     announcements."""
 
     service_name = str(ann["service-name"])
     if key_s:
         return (service_name, key_s, None)
     else:
-        tubid = get_tubid_string_from_ann(ann)
-        return (service_name, None, tubid)
+        tubid_s = get_tubid_string_from_ann(ann)
+        return (service_name, None, tubid_s)
 
 def get_tubid_string_from_ann(ann):
     return get_tubid_string(str(ann.get("anonymous-storage-FURL")
@@ -132,12 +131,11 @@ class AnnouncementDescriptor:
      .service_name: which service they are announcing (string)
      .version: 'my-version' portion of announcement (string)
      .nickname: their self-provided nickname, or "" (unicode)
-
-    The following attributes will be empty ([] for lists, "" for strings)
-    unless the announcement included an 'anonymous-storage-FURL'.
-
+     .serverid: the server identifier. This is a pubkey (for V2 clients),
+                or a tubid (for V1 clients).
      .advertised_addresses: which hosts they listen on (list of strings)
-     .tubid: their tubid (string)
+                            if the announcement included a key for
+                            'anonymous-storage-FURL', else an empty list.
     """
 
     def __init__(self, when, index, canary, ann_d):
@@ -148,10 +146,10 @@ class AnnouncementDescriptor:
         self.service_name = ann_d["service-name"]
         self.version = ann_d.get("my-version", "")
         self.nickname = ann_d.get("nickname", u"")
+        (service_name, key_s, tubid_s) = index
+        self.serverid = key_s or tubid_s
         furl = ann_d.get("anonymous-storage-FURL")
         if furl:
             self.advertised_addresses = rrefutil.hosts_for_furl(furl)
-            self.tubid = SturdyRef(furl).tubID
         else:
             self.advertised_addresses = []
-            self.tubid = ""
