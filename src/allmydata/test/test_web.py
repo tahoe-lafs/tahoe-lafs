@@ -3286,13 +3286,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_move_file_no_replace(self):
-        d = self.POST(self.public_url + "/foo", t="move", replace="false",
-                      from_name="bar.txt", to_name="baz.txt", to_dir="sub")
-        d.addBoth(self.shouldFail, error.Error,
-                  "POST_move_file_no_replace",
-                  "409 Conflict",
-                  "There was already a child by that name, and you asked me "
-                  "to not replace it")
+        d = self.shouldFail2(error.Error, "POST_move_file_no_replace",
+                             "409 Conflict",
+                             "There was already a child by that name, and you asked me to not replace it",
+                             self.POST, self.public_url + "/foo", t="move",
+                             replace="false", from_name="bar.txt",
+                             to_name="baz.txt", to_dir="sub")
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt?t=json"))
@@ -3302,26 +3301,33 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_move_file_slash_fail(self):
-        d = self.POST(self.public_url + "/foo", t="move",
-                      from_name="bar.txt", to_name="slash/fail.txt", to_dir="sub")
-        d.addBoth(self.shouldFail, error.Error,
-                  "test_POST_rename_file_slash_fail",
-                  "400 Bad Request",
-                  "to_name= may not contain a slash",
-                  )
+        d = self.shouldFail2(error.Error, "test_POST_rename_file_slash_fail",
+                             "400 Bad Request",
+                             "to_name= may not contain a slash",
+                             self.POST, self.public_url + "/foo", t="move",
+                             from_name="bar.txt",
+                             to_name="slash/fail.txt", to_dir="sub")
         d.addCallback(lambda res:
                       self.failUnlessNodeHasChild(self._foo_node, u"bar.txt"))
         d.addCallback(lambda res:
                       self.failIfNodeHasChild(self._sub_node, u"slash/fail.txt"))
+        d.addCallback(lambda ign:
+                      self.shouldFail2(error.Error,
+                                       "test_POST_rename_file_slash_fail2",
+                                       "400 Bad Request",
+                                       "from_name= may not contain a slash",
+                                       self.POST, self.public_url + "/foo",
+                                       t="move",
+                                       from_name="nope/bar.txt",
+                                       to_name="fail.txt", to_dir="sub"))
         return d
 
     def test_POST_move_file_no_target(self):
-        d = self.POST(self.public_url + "/foo", t="move",
-                      from_name="bar.txt", to_name="baz.txt")
-        d.addBoth(self.shouldFail, error.Error,
-                  "POST_move_file_no_target",
-                  "400 Bad Request",
-                  "move requires from_name and to_dir")
+        d = self.shouldFail2(error.Error, "POST_move_file_no_target",
+                             "400 Bad Request",
+                             "move requires from_name and to_dir",
+                             self.POST, self.public_url + "/foo", t="move",
+                             from_name="bar.txt", to_name="baz.txt")
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt?t=json"))
@@ -3331,13 +3337,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_move_file_bad_target_type(self):
-        d = self.POST(self.public_url + "/foo", t="move", target_type="*D",
-                      from_name="bar.txt", to_dir="sub")
-        d.addBoth(self.shouldFail, error.Error,
-                  "test_POST_rename_file_slash_fail",
-                  "400 Bad Request",
-                  "invalid target_type parameter",
-                  )
+        d = self.shouldFail2(error.Error, "test_POST_move_file_bad_target_type",
+                             "400 Bad Request", "invalid target_type parameter",
+                             self.POST,
+                             self.public_url + "/foo", t="move",
+                             target_type="*D", from_name="bar.txt",
+                             to_dir="sub")
         return d
 
     def test_POST_move_file_multi_level(self):
@@ -3364,21 +3369,17 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_move_file_to_nonexist_dir(self):
-        d = self.POST(self.public_url + "/foo", t="move",
-                      from_name="bar.txt", to_dir="notchucktesta")
-        d.addBoth(self.shouldFail, error.Error,
-                  "POST_move_file_to_nonexist_dir",
-                  "404 Not Found",
-                  "No such child: notchucktesta")
+        d = self.shouldFail2(error.Error, "POST_move_file_to_nonexist_dir",
+                            "404 Not Found", "No such child: nopechucktesta",
+                            self.POST, self.public_url + "/foo", t="move",
+                            from_name="bar.txt", to_dir="nopechucktesta")
         return d
 
     def test_POST_move_file_into_file(self):
-        d = self.POST(self.public_url + "/foo", t="move",
-                      from_name="bar.txt", to_dir="baz.txt")
-        d.addBoth(self.shouldFail, error.Error,
-                  "POST_move_file_into_file",
-                  "410 Gone",
-                  "to_dir is not a usable directory")
+        d = self.shouldFail2(error.Error, "POST_move_file_into_file",
+                             "400 Bad Request", "to_dir is not a directory",
+                             self.POST, self.public_url + "/foo", t="move",
+                             from_name="bar.txt", to_dir="baz.txt")
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/baz.txt"))
         d.addCallback(self.failUnlessIsBazDotTxt)
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
@@ -3388,13 +3389,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_POST_move_file_to_bad_uri(self):
-        d = self.POST(self.public_url + "/foo", t="move",
-                      from_name="bar.txt", target_type="uri",
-                      to_dir="URI:DIR2:mn5jlyjnrjeuydyswlzyui72i:rmneifcj6k6sycjljjhj3f6majsq2zqffydnnul5hfa4j577arma")
-        d.addBoth(self.shouldFail, error.Error,
-                  "POST_move_file_to_bad_uri",
-                  "410 Gone",
-                  "to_dir is not a usable directory")
+        d =  self.shouldFail2(error.Error, "POST_move_file_to_bad_uri",
+                              "400 Bad Request", "to_dir is not a directory",
+                              self.POST, self.public_url + "/foo", t="move",
+                              from_name="bar.txt", target_type="uri",
+                              to_dir="URI:DIR2:mn5jlyjnrjeuydyswlzyui72i:rmneifcj6k6sycjljjhj3f6majsq2zqffydnnul5hfa4j577arma")
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt"))
         d.addCallback(self.failUnlessIsBarDotTxt)
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/bar.txt?t=json"))

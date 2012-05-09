@@ -444,34 +444,33 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         if not from_name or not to_dir:
             raise WebError("move requires from_name and to_dir")
         replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        target_type = get_arg(req, "target_type", "name")
-        if not target_type in ["name", "uri"]:
-            raise WebError("invalid target_type parameter",
-                           http.BAD_REQUEST)
 
-        # allow from_name to contain slashes, so they can fix names that
-        # were accidentally created with them. But disallow them in to_name
-        # (if it's specified), to discourage the practice.
-        if to_name and "/" in to_name:
+        # Disallow slashes in both from_name and to_name, that would only
+        # cause confusion. t=move is only for moving things from the
+        # *current* directory into a second directory named by to_dir=
+        if "/" in from_name:
+            raise WebError("from_name= may not contain a slash",
+                           http.BAD_REQUEST)
+        if "/" in to_name:
             raise WebError("to_name= may not contain a slash",
                            http.BAD_REQUEST)
 
-        d = defer.Deferred()
-        def get_target_node(target_type):
-            if target_type == "name":
-                return self.node.get_child_at_path(to_dir)
-            elif target_type == "uri":
-                return self.client.create_node_from_uri(str(to_dir))
-        d.addCallback(get_target_node)
-        d.callback(target_type)
+        target_type = get_arg(req, "target_type", "name")
+        if target_type == "name":
+            d = self.node.get_child_at_path(to_dir)
+        elif target_type == "uri":
+            d = defer.succeed(self.client.create_node_from_uri(str(to_dir)))
+        else:
+            raise WebError("invalid target_type parameter", http.BAD_REQUEST)
+
         def is_target_node_usable(target_node):
             if not IDirectoryNode.providedBy(target_node):
-                raise WebError("to_dir is not a usable directory",
-                               http.GONE)
+                raise WebError("to_dir is not a directory", http.BAD_REQUEST)
             return target_node
         d.addCallback(is_target_node_usable)
-        d.addCallback(lambda new_parent: self.node.move_child_to(
-                      from_name, new_parent, to_name, replace))
+        d.addCallback(lambda new_parent:
+                      self.node.move_child_to(from_name, new_parent,
+                                              to_name, replace))
         d.addCallback(lambda res: "thing moved")
         return d
 
