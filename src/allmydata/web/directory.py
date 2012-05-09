@@ -169,8 +169,6 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             return DirectoryReadonlyURI(ctx, self.node)
         if t == 'rename-form':
             return RenameForm(self.node)
-        if t == 'move-form':
-            return MoveForm(self.node)
 
         raise WebError("GET directory: bad t=%s" % t)
 
@@ -718,7 +716,6 @@ class DirectoryAsHTML(rend.Page):
         if self.node.is_unknown() or self.node.is_readonly():
             unlink = "-"
             rename = "-"
-            move = "-"
         else:
             # this creates a button which will cause our _POST_unlink method
             # to be invoked, which unlinks the file and then redirects the
@@ -734,19 +731,11 @@ class DirectoryAsHTML(rend.Page):
                 T.input(type='hidden', name='t', value='rename-form'),
                 T.input(type='hidden', name='name', value=name),
                 T.input(type='hidden', name='when_done', value="."),
-                T.input(type='submit', value='rename', name="rename"),
-                ]
-
-            move = T.form(action=here, method="get")[
-                T.input(type='hidden', name='t', value='move-form'),
-                T.input(type='hidden', name='name', value=name),
-                T.input(type='hidden', name='when_done', value="."),
-                T.input(type='submit', value='move', name="move"),
+                T.input(type='submit', value='rename/move', name="rename"),
                 ]
 
         ctx.fillSlots("unlink", unlink)
         ctx.fillSlots("rename", rename)
-        ctx.fillSlots("move", move)
 
         times = []
         linkcrtime = metadata.get('tahoe', {}).get("linkcrtime")
@@ -1007,33 +996,6 @@ class RenameForm(rend.Page):
         name = get_arg(req, "name", "")
         ctx.tag.attributes['value'] = name
         return ctx.tag
-
-class MoveForm(rend.Page):
-    addSlash = True
-    docFactory = getxmlfile("move-form.xhtml")
-
-    def render_title(self, ctx, data):
-        return ctx.tag["Directory SI=%s" % abbreviated_dirnode(self.original)]
-
-    def render_header(self, ctx, data):
-        header = ["Move "
-                  "from directory SI=%s" % abbreviated_dirnode(self.original),
-                  ]
-
-        if self.original.is_readonly():
-            header.append(" (readonly!)")
-        header.append(":")
-        return ctx.tag[header]
-
-    def render_when_done(self, ctx, data):
-        return T.input(type="hidden", name="when_done", value=".")
-
-    def render_get_name(self, ctx, data):
-        req = IRequest(ctx)
-        name = get_arg(req, "name", "")
-        ctx.tag.attributes['value'] = name
-        return ctx.tag
-
 
 class ManifestResults(rend.Page, ReloadMixin):
     docFactory = getxmlfile("manifest.xhtml")

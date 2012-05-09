@@ -18,12 +18,33 @@
             <input n:render="when_done" />
 
             Rename child:
-            <input type="text" name="from_name" readonly="true" n:render="get_name" />
-            to
-            <input type="text" name="to_name" />
+            <input type="text" name="from_name" readonly="true" n:render="get_name" /><br />
+            to name:
+            <input type="text" name="to_name" /><br />
             <input type="submit" value="rename" />
         </fieldset>
     </form>
+
+    <form action="." method="post" enctype="multipart/form-data">
+        <fieldset>
+            <legend class="freeform-form-label">Move Child to Different Directory</legend>
+            <input type="hidden" name="t" value="move" />
+            <input n:render="when_done" />
+
+            Move child: <input type="text" name="from_name" readonly="true"
+                         n:render="get_name" /><br />
+            to name: <input type="text" name="to_name" n:render="get_name"/><br />
+            in directory: <input type="text" name="to_dir" />
+            <input checked="checked" type="radio" id="tt-name"
+             value="name" name="target_type" />
+             <label for="tt-name"> Subdirectory</label>
+             <input type="radio" id="tt-uri" value="uri" name="target_type"/>
+             <label for="tt-uri"> URI</label>
+            <br />
+            <input type="submit" value="move" /><br />
+        </fieldset>
+    </form>
+
 </div>
 
 </body></html>

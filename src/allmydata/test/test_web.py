@@ -1267,7 +1267,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                r'\s+<td align="right">%d</td>' % len(self.BAR_CONTENTS),
                                ])
             self.failUnless(re.search(get_bar, res), res)
-            for label in ['unlink', 'rename', 'move']:
+            for label in ['unlink', 'rename/move']:
                 for line in res.split("\n"):
                     # find the line that contains the relevant button for bar.txt
                     if ("form action" in line and
@@ -1285,7 +1285,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                             self.failUnlessIn('method="post"', line)
                         break
                 else:
-                    self.fail("unable to find '%s bar.txt' line" % (label,), res)
+                    self.fail("unable to find '%s bar.txt' line" % (label,))
 
             # the DIR reference just points to a URI
             sub_url = ("%s/uri/%s/" % (ROOT, urllib.quote(self._sub_uri)))
@@ -3477,15 +3477,6 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn('name="when_done" value="."', res)
             self.failUnless(re.search(r'name="from_name" value="bar\.txt"', res))
             self.failUnlessIn(FAVICON_MARKUP, res)
-        d.addCallback(_check)
-        return d
-
-    def test_GET_move_form(self):
-        d = self.GET(self.public_url + "/foo?t=move-form&name=bar.txt",
-                     followRedirect=True)
-        def _check(res):
-            self.failUnless('name="when_done" value="."' in res, res)
-            self.failUnless(re.search(r'name="from_name" value="bar\.txt"', res))
         d.addCallback(_check)
         return d
 
