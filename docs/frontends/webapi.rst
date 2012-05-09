@@ -1275,28 +1275,34 @@ Renaming A Child
  same child-cap under the new name, except that it preserves metadata. This
  operation cannot move the child to a different directory.
 
- This operation will replace any existing child of the new name, making it
- behave like the UNIX "``mv -f``" command.
+ By default, this operation will replace any existing child of the new name,
+ making it behave like the UNIX "``mv -f``" command. Adding a "replace=false"
+ argument causes the command to throw an HTTP 409 Conflict error if there is
+ already a child with the new name.
 
 Moving A Child
 ----------------
 
-``POST /uri/$DIRCAP/[SUBDIRS../]?t=move&from_name=OLD&to_dir=TARGET``
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=move&from_name=OLD&to_dir=TARGETNAME[&target_type=name][&to_name=NEWNAME]``
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=move&from_name=OLD&to_dir=TARGETURI&target_type=uri[&to_name=NEWNAME]``
 
  This instructs the node to move a child of the given directory to a
- different directory, both of which must be mutable. The child can also
- be renamed in the process. The to_dir parameter should contain the name
- of a subdirectory of the dircap from which the child is being moved
- (multiple levels of descent are supported), unless the file is to be
- moved to an unrelated directory. In the latter case, this can be
- specified by passing a target_type=uri argument and the target URI in
- to_dir=. If the target is the name of a subdirectory, this can be
- signified by passing target_type=name. A new name for the child can
- also be specified using the to_name= parameter.
+ different directory, both of which must be mutable. If target_type=name
+ or is omitted, the to_dir= parameter should contain the name of a
+ subdirectory of the child's current parent directory (multiple levels of
+ descent are supported). If target_uri=, then to_dir= will be treated as
+ a dircap, allowing the child to be moved to an unrelated directory.
 
- This operation will replace any existing child of the new name, making
- it behave like the UNIX "``mv -f``" command. The original child is not
- unlinked until it is linked into the target directory.
+ The child can also be renamed in the process, by providing a new name in
+ the to_name= parameter. If omitted, the child will retain its existing
+ name.
+
+ By default, this operation will replace any existing child of the new name,
+ making it behave like the UNIX "``mv -f``" command. Adding a "replace=false"
+ argument causes the command to throw an HTTP 409 Conflict error if there is
+ already a child with the new name. For safety, the child is not unlinked
+ from the old directory until its has been successfully added to the new
+ directory.
 
 Other Utilities
 ---------------
