@@ -907,8 +907,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             d2 = _get_etag(uri, 'json')
             d = defer.DeferredList([d1, d2], consumeErrors=True)
             def _check(results):
-                assert all([r[0] for r in results])  # All deferred must succeed
-                assert results[0][1] + 'json' == results[1][1]
+                # All deferred must succeed
+                self.failUnless(all([r[0] for r in results]))
+                # the etag for the t=json form should be just like the etag
+                # fo the default t='' form, but with a 'json' suffix
+                self.failUnlessEqual(results[0][1] + 'json', results[1][1])
             d.addCallback(_check)
             return d
 
@@ -918,7 +921,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             def _just_the_etag(result):
                 data, response, headers = result
                 etag = headers['etag'][0]
-                if uri.startswith('URI:DIR'): assert etag.startswith('DIR:')
+                if uri.startswith('URI:DIR'):
+                    self.failUnless(etag.startswith('DIR:'), etag)
                 return etag
             return d.addCallback(_just_the_etag)
 
@@ -930,6 +934,23 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         # Check that etags work with immutable files
         d.addCallback(lambda _: _check_etags(self._bar_txt_uri))
+
+        # use the ETag on GET
+        def _check_match(ign):
+            uri = "/uri/%s" % self._bar_txt_uri
+            d = self.GET(uri, return_response=True)
+            # extract the ETag
+            d.addCallback(lambda (data, code, headers):
+                          headers['etag'][0])
+            # do a GET that's supposed to match the ETag
+            d.addCallback(lambda etag:
+                          self.GET(uri, return_response=True,
+                                   headers={"If-None-Match": etag}))
+            # make sure it short-circuited (304 instead of 200)
+            d.addCallback(lambda (data, code, headers):
+                          self.failUnlessEqual(int(code), http.NOT_MODIFIED))
+            return d
+        d.addCallback(_check_match)
         return d
 
     # TODO: version of this with a Unicode filename

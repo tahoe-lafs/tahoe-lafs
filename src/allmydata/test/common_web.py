@@ -61,7 +61,8 @@ class WebRenderingMixin:
 
 
 class MyGetter(client.HTTPPageGetter):
-    handleStatus_206 = lambda self: self.handleStatus_200()
+    handleStatus_206 = lambda self: self.handleStatus_200() # PARTIAL_CONTENT
+    handleStatus_304 = lambda self: self.handleStatus_200() # NOT_MODIFIED
 
 class HTTPClientHEADFactory(client.HTTPClientFactory):
     protocol = MyGetter
