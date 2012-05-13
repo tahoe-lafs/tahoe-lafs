@@ -5331,7 +5331,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                       self.shouldHTTPError("GET errorboom_html",
                                            500, "Internal Server Error", None,
                                            self.GET, "ERRORBOOM",
-                                           headers={"accept": ["*/*"]}))
+                                           headers={"accept": "*/*"}))
         def _internal_error_html1(body):
             self.failUnlessIn("<html>", "expected HTML, not '%s'" % body)
         d.addCallback(_internal_error_html1)
@@ -5340,7 +5340,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                       self.shouldHTTPError("GET errorboom_text",
                                            500, "Internal Server Error", None,
                                            self.GET, "ERRORBOOM",
-                                           headers={"accept": ["text/plain"]}))
+                                           headers={"accept": "text/plain"}))
         def _internal_error_text2(body):
             self.failIfIn("<html>", body)
             self.failUnless(body.startswith("Traceback "), body)
@@ -5351,7 +5351,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                       self.shouldHTTPError("GET errorboom_text",
                                            500, "Internal Server Error", None,
                                            self.GET, "ERRORBOOM",
-                                           headers={"accept": [CLI_accepts]}))
+                                           headers={"accept": CLI_accepts}))
         def _internal_error_text3(body):
             self.failIfIn("<html>", body)
             self.failUnless(body.startswith("Traceback "), body)
