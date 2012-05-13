@@ -289,7 +289,7 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         self.g.add_server(server_number, ss)
 
     def add_server_with_share(self, server_number, uri, share_number=None,
-                               readonly=False):
+                              readonly=False):
         self.add_server(server_number, readonly)
         if share_number is not None:
             self.copy_share_to_server(uri, share_number, server_number)
@@ -322,13 +322,14 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         assert len(self.g.servers_by_number) < len(letters), \
             "This little printing function is only meant for < 26 servers"
         shares_chart = {}
-        names = dict(zip([ss.my_nodeid for _,ss in 
-                          self.g.servers_by_number.iteritems()], letters))
+        names = dict(zip([ss.my_nodeid
+                          for _,ss in self.g.servers_by_number.iteritems()],
+                         letters))
         for shnum, serverid, _ in self.find_uri_shares(uri):
             shares_chart.setdefault(shnum, []).append(names[serverid])
         return shares_chart
 
-    def test_1115(self):
+    def test_good_share_hosts(self):
         self.basedir = "checker/BalancingAct/1115"
         self.set_up_grid(num_servers=1)
         c0 = self.g.clients[0]
@@ -354,17 +355,18 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
             #print self._pretty_shares_chart(self.uri)
         for i in range(1,5):
             d.addCallback(add_three, i)
-    
+
         def _check_and_repair(_):
             return self.imm.check_and_repair(Monitor())
         def _check_counts(crr, shares_good, good_share_hosts):
             p_crr = crr.get_post_repair_results().data
             #print self._pretty_shares_chart(self.uri)
-            self.failUnless(p_crr['count-shares-good'] == shares_good)
-            self.failUnless(p_crr['count-good-share-hosts'] == good_share_hosts)
+            self.failUnlessEqual(p_crr['count-shares-good'], shares_good)
+            self.failUnlessEqual(p_crr['count-good-share-hosts'],
+                                 good_share_hosts)
 
         """
-        Initial sharemap: 
+        Initial sharemap:
             0:[A] 1:[A] 2:[A] 3:[A,B,C,D,E]
           4 good shares, but 5 good hosts
         After deleting all instances of share #3 and repairing:
@@ -376,8 +378,8 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         d.addCallback(lambda _: self.delete_shares_numbered(self.uri, [3]))
         d.addCallback(_check_and_repair)
         d.addCallback(_check_counts, 4, 5)
-        d.addCallback(lambda _: [self.g.break_server(sid) for sid 
-                                 in self.g.get_all_serverids()])
+        d.addCallback(lambda _: [self.g.break_server(sid)
+                                 for sid in self.g.get_all_serverids()])
         d.addCallback(_check_and_repair)
         d.addCallback(_check_counts, 0, 0)
         return d

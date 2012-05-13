@@ -122,8 +122,8 @@ class CiphertextFileNode:
                     servers_responding.union(ur.sharemap.iterkeys())
                     prr.data['servers-responding'] = list(servers_responding)
                     prr.data['count-shares-good'] = len(sm)
-                    prr.data['count-good-share-hosts'] = len(reduce(set.union, 
-                                                       sm.itervalues(), set()))
+                    good_hosts = len(reduce(set.union, sm.itervalues(), set()))
+                    prr.data['count-good-share-hosts'] = good_hosts
                     is_healthy = bool(len(sm) >= verifycap.total_shares)
                     is_recoverable = bool(len(sm) >= verifycap.needed_shares)
                     prr.set_healthy(is_healthy)

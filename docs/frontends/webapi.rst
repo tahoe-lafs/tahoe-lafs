@@ -1375,10 +1375,8 @@ mainly intended for developers.
     count-shares-good: the number of good shares that were found
     count-shares-needed: 'k', the number of shares required for recovery
     count-shares-expected: 'N', the number of total shares generated
-    count-good-share-hosts: this was intended to be the number of distinct
-                            storage servers with good shares. It is currently
-                            (as of Tahoe-LAFS v1.8.0) computed incorrectly;
-                            see ticket #1115.
+    count-good-share-hosts: the number of distinct storage servers with good
+                            shares
     count-wrong-shares: for mutable files, the number of shares for
                         versions other than the 'best' one (highest
                         sequence number, highest roothash). These are
