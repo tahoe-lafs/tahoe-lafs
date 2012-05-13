@@ -158,7 +158,9 @@ class FileNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         req = IRequest(ctx)
         t = get_arg(req, "t", "").strip()
 
-        if not self.node.is_mutable():
+        # t=info contains variable ophandles, so is not allowed an ETag.
+        FIXED_OUTPUT_TYPES = ["", "json", "uri", "readonly-uri"]
+        if not self.node.is_mutable() and t in FIXED_OUTPUT_TYPES:
             # if the client already has the ETag then we can
             # short-circuit the whole process.
             si = self.node.get_storage_index()

@@ -113,6 +113,8 @@ class FakeCHKFileNode:
         except KeyError, le:
             raise NotEnoughSharesError(le, 0, 3)
         return len(data)
+    def get_current_size(self):
+        return defer.succeed(self.get_size())
 
     def read(self, consumer, offset=0, size=None):
         # we don't bother to call registerProducer/unregisterProducer,

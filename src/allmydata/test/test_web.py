@@ -930,6 +930,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         (newkids, caps) = self._create_immutable_children()
         d = self.POST2(self.public_url + "/foo/newdir?t=mkdir-immutable",
                       simplejson.dumps(newkids))
+        def _stash_immdir_uri(uri):
+            self._immdir_uri = uri
+            return uri
+        d.addCallback(_stash_immdir_uri)
         d.addCallback(_check_etags)
 
         # Check that etags work with immutable files
@@ -951,6 +955,33 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                           self.failUnlessEqual(int(code), http.NOT_MODIFIED))
             return d
         d.addCallback(_check_match)
+
+        def _no_etag(uri, t):
+            target = "/uri/%s?t=%s" % (uri, t)
+            d = self.GET(target, return_response=True, followRedirect=True)
+            d.addCallback(lambda (data, code, headers):
+                          self.failIf("etag" in headers, target))
+            return d
+        def _yes_etag(uri, t):
+            target = "/uri/%s?t=%s" % (uri, t)
+            d = self.GET(target, return_response=True, followRedirect=True)
+            d.addCallback(lambda (data, code, headers):
+                          self.failUnless("etag" in headers, target))
+            return d
+
+        d.addCallback(lambda ign: _yes_etag(self._bar_txt_uri, ""))
+        d.addCallback(lambda ign: _yes_etag(self._bar_txt_uri, "json"))
+        d.addCallback(lambda ign: _yes_etag(self._bar_txt_uri, "uri"))
+        d.addCallback(lambda ign: _yes_etag(self._bar_txt_uri, "readonly-uri"))
+        d.addCallback(lambda ign: _no_etag(self._bar_txt_uri, "info"))
+
+        d.addCallback(lambda ign: _yes_etag(self._immdir_uri, ""))
+        d.addCallback(lambda ign: _yes_etag(self._immdir_uri, "json"))
+        d.addCallback(lambda ign: _yes_etag(self._immdir_uri, "uri"))
+        d.addCallback(lambda ign: _yes_etag(self._immdir_uri, "readonly-uri"))
+        d.addCallback(lambda ign: _no_etag(self._immdir_uri, "info"))
+        d.addCallback(lambda ign: _no_etag(self._immdir_uri, "rename-form"))
+
         return d
 
     # TODO: version of this with a Unicode filename

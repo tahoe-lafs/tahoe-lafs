@@ -154,7 +154,10 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         # This is where all of the directory-related ?t=* code goes.
         t = get_arg(req, "t", "").strip()
 
-        if not self.node.is_mutable():
+        # t=info contains variable ophandles, t=rename-form contains the name
+        # of the child being renamed. Neither is allowed an ETag.
+        FIXED_OUTPUT_TYPES =  ["", "json", "uri", "readonly-uri"]
+        if not self.node.is_mutable() and t in FIXED_OUTPUT_TYPES:
             si = self.node.get_storage_index()
             if si and req.setETag('DIR:%s-%s' % (base32.b2a(si), t or "")):
                 return ""
