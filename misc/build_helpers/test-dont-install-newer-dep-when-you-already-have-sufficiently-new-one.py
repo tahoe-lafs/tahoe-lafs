@@ -12,7 +12,8 @@ def test():
     #
     #   python setup.py --fakedependency -v test -s buildtest.test_build_with_fake_dist
     #
-    # which imports fakedependency and passes if fakedependency.__version__ == '1.0.0'.
+    # which requires "fakedependency >= 1.0.0", imports fakedependency
+    # and passes if fakedependency.__version__ == '1.0.0'.
     #
     # The goal is to turn red if the build system tries to build the
     # source dist when it could have used the binary dist.
