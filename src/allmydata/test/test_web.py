@@ -900,6 +900,38 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                              self.PUT, base, "new_data"))
         return d
 
+    def test_GET_etags(self):
+        
+        def _check_etags(uri):
+            d1 = _get_etag(uri)
+            d2 = _get_etag(uri, 'json')
+            d = defer.DeferredList([d1, d2], consumeErrors=True)
+            def _check(results):
+                assert all([r[0] for r in results])  # All deferred must succeed
+                assert results[0][1] + 'json' == results[1][1]
+            d.addCallback(_check)
+            return d
+
+        def _get_etag(uri, t=''):
+            targetbase = "/uri/%s?t=%s" % (urllib.quote(uri.strip()), t)
+            d = self.GET(targetbase, return_response=True, followRedirect=True)
+            def _just_the_etag(result):
+                data, response, headers = result
+                etag = headers['etag'][0]
+                if uri.startswith('URI:DIR'): assert etag.startswith('DIR:')
+                return etag
+            return d.addCallback(_just_the_etag)
+
+        # Check that etags work with immutable directories
+        (newkids, caps) = self._create_immutable_children()
+        d = self.POST2(self.public_url + "/foo/newdir?t=mkdir-immutable",
+                      simplejson.dumps(newkids))
+        d.addCallback(_check_etags)
+
+        # Check that etags work with immutable files
+        d.addCallback(lambda _: _check_etags(self._bar_txt_uri))
+        return d
+
     # TODO: version of this with a Unicode filename
     def test_GET_FILEURL_save(self):
         d = self.GET(self.public_url + "/foo/bar.txt?filename=bar.txt&save=true",

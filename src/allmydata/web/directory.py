@@ -153,6 +153,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         req = IRequest(ctx)
         # This is where all of the directory-related ?t=* code goes.
         t = get_arg(req, "t", "").strip()
+
+        if not self.node.is_mutable():
+            si = self.node.get_storage_index()
+            if si and req.setETag('DIR:%s-%s' % (base32.b2a(si), t or "")):
+                return ""
+
         if not t:
             # render the directory as HTML, using the docFactory and Nevow's
             # whole templating thing.
