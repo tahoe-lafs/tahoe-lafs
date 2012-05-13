@@ -415,12 +415,12 @@ class FileDownloader(rend.Page):
         contentsize = filesize
         req.setHeader("accept-ranges", "bytes")
         if not self.filenode.is_mutable():
-            # TODO: look more closely at Request.setETag and how it interacts
-            # with a conditional "if-etag-equals" request, I think this may
-            # need to occur after the setResponseCode below
+            # if the client already has the ETag then we can short-circuit
+            # the whole process.
             si = self.filenode.get_storage_index()
-            if si:
-                req.setETag(base32.b2a(si))
+            if si and req.setETag(base32.b2a(si)):
+                return ""
+
         # TODO: for mutable files, use the roothash. For LIT, hash the data.
         # or maybe just use the URI for CHK and LIT.
         rangeheader = req.getHeader('range')
