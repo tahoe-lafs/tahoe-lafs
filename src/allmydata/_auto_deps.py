@@ -115,6 +115,10 @@ user_warning_messages = [
     "Reliable disconnection notification requires pywin32 215 or later",
 ]
 
+runtime_warning_messages = [
+    "Not using mpz_powm_sec.  You should rebuild using libgmp >= 5 to avoid timing attack vulnerability.",
+]
+
 warning_imports = [
     'nevow',
     'twisted.persisted.sob',

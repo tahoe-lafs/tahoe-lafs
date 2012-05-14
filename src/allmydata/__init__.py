@@ -145,7 +145,7 @@ def normalized_version(verstr, what=None):
 def get_package_versions_and_locations():
     import warnings
     from _auto_deps import package_imports, deprecation_messages, \
-        user_warning_messages, warning_imports
+        user_warning_messages, runtime_warning_messages, warning_imports
 
     def package_dir(srcfile):
         return os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
@@ -169,6 +169,8 @@ def get_package_versions_and_locations():
         warnings.filterwarnings("ignore", category=DeprecationWarning, message=msg, append=True)
     for msg in user_warning_messages:
         warnings.filterwarnings("ignore", category=UserWarning, message=msg, append=True)
+    for msg in runtime_warning_messages:
+        warnings.filterwarnings("ignore", category=RuntimeWarning, message=msg, append=True)
     try:
         for modulename in warning_imports:
             try:
@@ -176,9 +178,7 @@ def get_package_versions_and_locations():
             except ImportError:
                 pass
     finally:
-        for ign in user_warning_messages:
-            warnings.filters.pop()
-        for ign in deprecation_messages:
+        for ign in runtime_warning_messages + user_warning_messages + deprecation_messages:
             warnings.filters.pop()
 
     packages = []
