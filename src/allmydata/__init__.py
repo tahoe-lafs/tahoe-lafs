@@ -161,9 +161,8 @@ def get_package_versions_and_locations():
         message="BaseException.message has been deprecated as of Python 2.6",
         append=True)
 
-    # This is to suppress various DeprecationWarnings and UserWarnings that
-    # occur when modules are imported.  See #859, #1435 and
-    # http://divmod.org/trac/ticket/2994 [broken link].
+    # This is to suppress various DeprecationWarnings, UserWarnings, and RuntimeWarnings
+    # (listed in _auto_deps.py) that occur when modules are imported.
 
     for msg in deprecation_messages:
         warnings.filterwarnings("ignore", category=DeprecationWarning, message=msg, append=True)
