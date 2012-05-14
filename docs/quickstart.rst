@@ -64,7 +64,8 @@ Optionally run ``python setup.py test`` to verify that it passes all of its
 self-tests.
 
 Run ``bin/tahoe --version`` (on Windows, ``bin\tahoe --version``) to verify
-that the executable tool prints out the right version number.
+that the executable tool prints out the right version number after
+"``allmydata-tahoe: ``".
 
 Run Tahoe-LAFS
 --------------
