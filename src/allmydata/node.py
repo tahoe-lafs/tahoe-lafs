@@ -360,7 +360,7 @@ class Node(service.MultiService):
         portnum = l.getPortnum()
         # record which port we're listening on, so we can grab the same one
         # next time
-        open(self._portnumfile, "w").write("%d\n" % portnum)
+        fileutil.write_atomically(self._portnumfile, "%d\n" % portnum, mode="")
 
         base_location = ",".join([ "%s:%d" % (addr, portnum)
                                    for addr in local_addresses ])

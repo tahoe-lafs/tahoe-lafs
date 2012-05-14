@@ -588,6 +588,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(_cb2)
 
         def _node_has_started():
+            # this depends upon both files being created atomically
             return os.path.exists(NODE_URL_FILE) and os.path.exists(PORTNUM_FILE)
         d.addCallback(lambda res: self.poll(_node_has_started))
 
@@ -627,7 +628,9 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # 'tahoe stop' command takes a while.
         def _stop(res):
             fileutil.write(HOTLINE_FILE, "")
-            self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))
+            self.failUnless(os.path.exists(TWISTD_PID_FILE),
+                            (TWISTD_PID_FILE,
+                             os.listdir(os.path.dirname(TWISTD_PID_FILE))))
             return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
 
