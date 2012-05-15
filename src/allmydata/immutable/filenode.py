@@ -126,20 +126,21 @@ class CiphertextFileNode:
         # clone the cr (check results) to form the basis of the
         # prr (post-repair results)
         prr = CheckResults(cr.uri, cr.storage_index)
-        prr.data = copy.deepcopy(cr.data)
+        prr_data = copy.deepcopy(cr.get_data())
 
-        servers_responding = set(prr.data['servers-responding'])
-        sm = prr.data['sharemap']
+        servers_responding = set(prr_data['servers-responding'])
+        sm = prr_data['sharemap']
         assert isinstance(sm, DictOfSets), sm
         for shnum, servers in ur.get_sharemap().items():
             for s in servers:
                 sm.add(shnum, s.get_serverid())
                 servers_responding.add(s.get_serverid())
         servers_responding = sorted(servers_responding)
-        prr.data['servers-responding'] = servers_responding
-        prr.data['count-shares-good'] = len(sm)
+        prr_data['servers-responding'] = servers_responding
+        prr_data['count-shares-good'] = len(sm)
         good_hosts = len(reduce(set.union, sm.itervalues(), set()))
-        prr.data['count-good-share-hosts'] = good_hosts
+        prr_data['count-good-share-hosts'] = good_hosts
+        prr.set_data(prr_data)
         verifycap = self._verifycap
         is_healthy = bool(len(sm) >= verifycap.total_shares)
         is_recoverable = bool(len(sm) >= verifycap.needed_shares)

@@ -498,7 +498,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             self.failIfBigger(delta_reads, MAX_DELTA_READS)
             self.failIfBigger(delta_allocates, (DELTA_WRITES_PER_SHARE * 7))
             self.failIf(pre.is_healthy())
-            self.failUnless(post.is_healthy(), post.data)
+            self.failUnless(post.is_healthy(), post.get_data())
 
             # Make sure we really have 10 shares.
             shares = self.find_uri_shares(self.uri)
@@ -724,7 +724,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             # not respond to the pre-repair filecheck
             prr = rr.get_post_repair_results()
             expected = set(self.g.get_all_serverids())
-            self.failUnlessEqual(expected, set(prr.data["servers-responding"]))
+            self.failUnlessEqual(expected, set(prr.get_data()["servers-responding"]))
         d.addCallback(_check)
         return d
 

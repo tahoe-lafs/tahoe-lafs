@@ -12,9 +12,9 @@ class CheckResults:
         self.uri = uri
         self.storage_index = storage_index
         self.problems = []
-        self.data = {"count-corrupt-shares": 0,
-                     "list-corrupt-shares": [],
-                     }
+        self._data = {"count-corrupt-shares": 0,
+                      "list-corrupt-shares": [],
+                      }
         self.summary = ""
         self.report = []
 
@@ -34,7 +34,7 @@ class CheckResults:
     def set_needs_rebalancing(self, needs_rebalancing):
         self.needs_rebalancing_p = bool(needs_rebalancing)
     def set_data(self, data):
-        self.data.update(data)
+        self._data.update(data)
     def set_summary(self, summary):
         assert isinstance(summary, str) # should be a single string
         self.summary = summary
@@ -62,7 +62,7 @@ class CheckResults:
     def needs_rebalancing(self):
         return self.needs_rebalancing_p
     def get_data(self):
-        return self.data
+        return self._data
 
     def get_summary(self):
         return self.summary
