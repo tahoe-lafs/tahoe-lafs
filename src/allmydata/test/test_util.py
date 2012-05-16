@@ -1119,16 +1119,13 @@ class DictUtil(unittest.TestCase):
         ds.discard(2, "c")
         self.failIf(2 in ds)
 
-        ds.union(1, ["a", "e"])
-        ds.union(3, ["f"])
-        self.failUnlessEqual(ds[1], set(["a","e"]))
-        self.failUnlessEqual(ds[3], set(["f"]))
+        ds.add(3, "f")
         ds2 = dictutil.DictOfSets()
         ds2.add(3, "f")
         ds2.add(3, "g")
         ds2.add(4, "h")
         ds.update(ds2)
-        self.failUnlessEqual(ds[1], set(["a","e"]))
+        self.failUnlessEqual(ds[1], set(["a"]))
         self.failUnlessEqual(ds[3], set(["f", "g"]))
         self.failUnlessEqual(ds[4], set(["h"]))
 
