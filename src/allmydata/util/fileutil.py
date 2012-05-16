@@ -249,8 +249,10 @@ def move_into_place(source, dest):
 
 def write_atomically(target, contents, mode="b"):
     f = open(target+".tmp", "w"+mode)
-    f.write(contents)
-    f.close()
+    try:
+        f.write(contents)
+    finally:
+        f.close()
     move_into_place(target+".tmp", target)
 
 def write(path, data):
