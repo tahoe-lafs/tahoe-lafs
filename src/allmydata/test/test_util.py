@@ -437,7 +437,7 @@ class FileUtil(unittest.TestCase):
         f.write("stuff.")
         f.close()
         f = fileutil.open_or_create(fn)
-        f.seek(0, 2)
+        f.seek(0, os.SEEK_END)
         f.write("more.")
         f.close()
         f = open(fn, "r")

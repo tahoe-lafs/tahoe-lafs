@@ -1224,7 +1224,7 @@ class MutableFileHandle:
             old_position = self._filehandle.tell()
             # Seek to the end of the file by seeking 0 bytes from the
             # file's end
-            self._filehandle.seek(0, 2) # 2 == os.SEEK_END in 2.5+
+            self._filehandle.seek(0, os.SEEK_END)
             self._size = self._filehandle.tell()
             # Restore the previous position, in case this was called
             # after a read.

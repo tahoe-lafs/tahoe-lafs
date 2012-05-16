@@ -1363,7 +1363,7 @@ class FileHandle(BaseUploadable):
     def get_size(self):
         if self._size is not None:
             return defer.succeed(self._size)
-        self._filehandle.seek(0,2)
+        self._filehandle.seek(0, os.SEEK_END)
         size = self._filehandle.tell()
         self._size = size
         self._filehandle.seek(0)
