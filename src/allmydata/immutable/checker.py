@@ -747,6 +747,7 @@ class Checker(log.PrefixingLogMixin):
         servers = {} # {serverid: set(sharenums)}
         corruptshare_locators = [] # (serverid, storageindex, sharenum)
         incompatibleshare_locators = [] # (serverid, storageindex, sharenum)
+        servers_responding = set() # serverid
 
         for verified, server, corrupt, incompatible, responded in results:
             server_id = server.get_serverid()
@@ -757,6 +758,8 @@ class Checker(log.PrefixingLogMixin):
                 corruptshare_locators.append((server_id, SI, sharenum))
             for sharenum in incompatible:
                 incompatibleshare_locators.append((server_id, SI, sharenum))
+            if responded:
+                servers_responding.add(server_id)
 
         d['count-shares-good'] = len(verifiedshares)
         d['count-good-share-hosts'] = len([s for s in servers.keys() if servers[s]])
@@ -780,7 +783,7 @@ class Checker(log.PrefixingLogMixin):
             d['count-recoverable-versions'] = 0
             d['count-unrecoverable-versions'] = 1
 
-        d['servers-responding'] = list(servers)
+        d['servers-responding'] = list(servers_responding)
         d['sharemap'] = verifiedshares
         # no such thing as wrong shares of an immutable file
         d['count-wrong-shares'] = 0

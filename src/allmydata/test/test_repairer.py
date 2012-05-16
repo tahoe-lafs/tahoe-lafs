@@ -170,7 +170,7 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         self.failUnless(data['count-shares-needed'] == 3, data)
         self.failUnless(data['count-shares-expected'] == 10, data)
         self.failUnless(data['count-good-share-hosts'] == 9, data)
-        self.failUnless(len(data['servers-responding']) == 10, data)
+        self.failUnless(len(data['servers-responding']) == 9, data)
         self.failUnless(len(data['list-corrupt-shares']) == 0, data)
 
     def test_corrupt_file_verno(self):
@@ -706,6 +706,27 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         d.addCallback(_check)
         return d
 
+    def test_servers_responding(self):
+        self.basedir = "repairer/Repairer/servers_responding"
+        self.set_up_grid(num_clients=2)
+        d = self.upload_and_stash()
+        # now cause one of the servers to not respond during the pre-repair
+        # filecheck, but then *do* respond to the post-repair filecheck
+        def _then(ign):
+            ss = self.g.servers_by_number[0]
+            self.g.break_server(ss.my_nodeid, count=1)
+            self.delete_shares_numbered(self.uri, [9])
+            return self.c0_filenode.check_and_repair(Monitor())
+        d.addCallback(_then)
+        def _check(rr):
+            # this exercises a bug in which the servers-responding list did
+            # not include servers that responded to the Repair, but which did
+            # not respond to the pre-repair filecheck
+            prr = rr.get_post_repair_results()
+            expected = set(self.g.get_all_serverids())
+            self.failUnlessEqual(expected, set(prr.data["servers-responding"]))
+        d.addCallback(_check)
+        return d
 
 # XXX extend these tests to show that the checker detects which specific
 # share on which specific server is broken -- this is necessary so that the
