@@ -67,6 +67,8 @@ class LocalWrapper:
 
         def _call():
             if self.broken:
+                if self.broken is not True: # a counter, not boolean
+                    self.broken -= 1
                 raise IntentionalError("I was asked to break")
             if self.hung_until:
                 d2 = defer.Deferred()
@@ -299,10 +301,11 @@ class NoNetworkGrid(service.MultiService):
         self.rebuild_serverlist()
         return ss
 
-    def break_server(self, serverid):
+    def break_server(self, serverid, count=True):
         # mark the given server as broken, so it will throw exceptions when
-        # asked to hold a share or serve a share
-        self.wrappers_by_id[serverid].broken = True
+        # asked to hold a share or serve a share. If count= is a number,
+        # throw that many exceptions before starting to work again.
+        self.wrappers_by_id[serverid].broken = count
 
     def hang_server(self, serverid):
         # hang the given server
