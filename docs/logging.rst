@@ -27,11 +27,11 @@ The Foolscap logging system is documented at
 `<http://foolscap.lothar.com/docs/logging.html>`_.
 
 The Foolscap distribution includes a utility named "``flogtool``" that is
-used to get access to many Foolscap logging features. However, using this
-command directly on Tahoe log files may fail, due to use of an incorrect
-PYTHONPATH. To avoid this problem, Tahoe-LAFS v1.10.0 and later include a
-``tahoe debug flogtool`` command; to use this, prefix all of the example
-commands below with ``tahoe debug``.
+used to get access to many Foolscap logging features. This command only
+works when foolscap and its dependencies are installed correctly.
+Tahoe-LAFS v1.10.0 and later include a ``tahoe debug flogtool`` command
+that can be used even when foolscap is not installed; to use this, prefix
+all of the example commands below with ``tahoe debug``.
 
 For earlier versions since Tahoe-LAFS v1.8.2, installing Foolscap v0.6.1
 or later and then running ``bin/tahoe @flogtool`` from the root of a
