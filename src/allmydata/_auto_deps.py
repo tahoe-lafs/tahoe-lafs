@@ -80,17 +80,6 @@ package_imports = [
 def require_more():
     import sys
 
-    # Sqlite comes built into Python >= 2.5, and is provided by the "pysqlite"
-    # distribution for Python 2.4.
-    try:
-        import sqlite3
-        sqlite3 # hush pyflakes
-        package_imports.append(('sqlite3', 'sqlite3'))
-    except ImportError:
-        # pysqlite v2.0.5 was shipped in Ubuntu 6.06 LTS "dapper" and Nexenta NCP 1.
-        install_requires.append("pysqlite >= 2.0.5")
-        package_imports.append(('pysqlite', 'pysqlite2.dbapi2'))
-
     # Don't try to get the version number of setuptools in frozen builds, because
     # that triggers 'site' processing that causes failures. Note that frozen
     # builds still (unfortunately) import pkg_resources in .tac files, so the

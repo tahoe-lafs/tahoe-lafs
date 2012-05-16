@@ -1,11 +1,6 @@
 
-# the backupdb is only available if sqlite3 is available. Python-2.5.x and
-# beyond include sqlite3 in the standard library. For python-2.4, the
-# "pysqlite2" "package" (or "module") (which, despite the confusing name, uses
-# sqlite3, and which, confusingly, comes in the "pysqlite" "distribution" (or
-# "package")) must be installed. On debian, install python-pysqlite2
-
 import os.path, sys, time, random, stat
+
 from allmydata.util.netstring import netstring
 from allmydata.util.hashutil import backupdb_dirhash
 from allmydata.util import base32
@@ -68,19 +63,12 @@ def get_backupdb(dbfile, stderr=sys.stderr,
                  create_version=(SCHEMA_v2, 2), just_create=False):
     # open or create the given backupdb file. The parent directory must
     # exist.
-    try:
-        import sqlite3
-        sqlite = sqlite3 # pyflakes whines about 'import sqlite3 as sqlite' ..
-    except ImportError:
-        from pysqlite2 import dbapi2
-        sqlite = dbapi2 # .. when this clause does it too
-        # This import should never fail, because setuptools requires that the
-        # "pysqlite" distribution is present at start time (if on Python < 2.5).
+    import sqlite3
 
     must_create = not os.path.exists(dbfile)
     try:
-        db = sqlite.connect(dbfile)
-    except (EnvironmentError, sqlite.OperationalError), e:
+        db = sqlite3.connect(dbfile)
+    except (EnvironmentError, sqlite3.OperationalError), e:
         print >>stderr, "Unable to create/open backupdb file %s: %s" % (dbfile, e)
         return None
 
@@ -94,7 +82,7 @@ def get_backupdb(dbfile, stderr=sys.stderr,
     try:
         c.execute("SELECT version FROM version")
         version = c.fetchone()[0]
-    except sqlite.DatabaseError, e:
+    except sqlite3.DatabaseError, e:
         # this indicates that the file is not a compatible database format.
         # Perhaps it was created with an old version, or it might be junk.
         print >>stderr, "backupdb file is unusable: %s" % e
@@ -108,7 +96,7 @@ def get_backupdb(dbfile, stderr=sys.stderr,
         db.commit()
         version = 2
     if version == 2:
-        return BackupDB_v2(sqlite, db)
+        return BackupDB_v2(sqlite3, db)
     print >>stderr, "Unable to handle backupdb version %s" % version
     return None
 
@@ -263,7 +251,7 @@ class BackupDB_v2:
             c.execute("INSERT INTO caps (filecap) VALUES (?)", (filecap,))
         except (self.sqlite_module.IntegrityError, self.sqlite_module.OperationalError):
             # sqlite3 on sid gives IntegrityError
-            # pysqlite2 on dapper gives OperationalError
+            # pysqlite2 (which we don't use, so maybe no longer relevant) on dapper gives OperationalError
             pass
         c.execute("SELECT fileid FROM caps WHERE filecap=?", (filecap,))
         foundrow = c.fetchone()

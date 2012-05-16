@@ -2461,8 +2461,9 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         # is the backupdb available? If so, we test that a second backup does
         # not create new directories.
         hush = StringIO()
-        have_bdb = backupdb.get_backupdb(os.path.join(self.basedir, "dbtest"),
-                                         hush)
+        bdb = backupdb.get_backupdb(os.path.join(self.basedir, "dbtest"),
+                                    hush)
+        self.failUnless(bdb)
 
         # create a small local directory with a couple of files
         source = os.path.join(self.basedir, "home")
@@ -2480,13 +2481,6 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             return self.do_cli(*cmd)
 
         d = self.do_cli("create-alias", "tahoe")
-
-        if not have_bdb:
-            d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:backups"))
-            def _should_complain((rc, out, err)):
-                self.failUnless("I was unable to import a python sqlite library" in err, err)
-            d.addCallback(_should_complain)
-            d.addCallback(self.stall, 1.1) # make sure the backups get distinct timestamps
 
         d.addCallback(lambda res: do_backup())
         def _check0((rc, out, err)):
@@ -2548,61 +2542,56 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             # available
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
-            if have_bdb:
-                fu, fr, fs, dc, dr, ds = self.count_output(out)
-                # foo.txt, bar.txt, blah.txt
-                self.failUnlessReallyEqual(fu, 0)
-                self.failUnlessReallyEqual(fr, 3)
-                self.failUnlessReallyEqual(fs, 0)
-                # empty, home, home/parent, home/parent/subdir
-                self.failUnlessReallyEqual(dc, 0)
-                self.failUnlessReallyEqual(dr, 4)
-                self.failUnlessReallyEqual(ds, 0)
+            fu, fr, fs, dc, dr, ds = self.count_output(out)
+            # foo.txt, bar.txt, blah.txt
+            self.failUnlessReallyEqual(fu, 0)
+            self.failUnlessReallyEqual(fr, 3)
+            self.failUnlessReallyEqual(fs, 0)
+            # empty, home, home/parent, home/parent/subdir
+            self.failUnlessReallyEqual(dc, 0)
+            self.failUnlessReallyEqual(dr, 4)
+            self.failUnlessReallyEqual(ds, 0)
         d.addCallback(_check4a)
 
-        if have_bdb:
-            # sneak into the backupdb, crank back the "last checked"
-            # timestamp to force a check on all files
-            def _reset_last_checked(res):
-                dbfile = os.path.join(self.get_clientdir(),
-                                      "private", "backupdb.sqlite")
-                self.failUnless(os.path.exists(dbfile), dbfile)
-                bdb = backupdb.get_backupdb(dbfile)
-                bdb.cursor.execute("UPDATE last_upload SET last_checked=0")
-                bdb.cursor.execute("UPDATE directories SET last_checked=0")
-                bdb.connection.commit()
+        # sneak into the backupdb, crank back the "last checked"
+        # timestamp to force a check on all files
+        def _reset_last_checked(res):
+            dbfile = os.path.join(self.get_clientdir(),
+                                  "private", "backupdb.sqlite")
+            self.failUnless(os.path.exists(dbfile), dbfile)
+            bdb = backupdb.get_backupdb(dbfile)
+            bdb.cursor.execute("UPDATE last_upload SET last_checked=0")
+            bdb.cursor.execute("UPDATE directories SET last_checked=0")
+            bdb.connection.commit()
 
-            d.addCallback(_reset_last_checked)
+        d.addCallback(_reset_last_checked)
 
-            d.addCallback(self.stall, 1.1)
-            d.addCallback(lambda res: do_backup(verbose=True))
-            def _check4b((rc, out, err)):
-                # we should check all files, and re-use all of them. None of
-                # the directories should have been changed, so we should
-                # re-use all of them too.
-                self.failUnlessReallyEqual(err, "")
-                self.failUnlessReallyEqual(rc, 0)
-                fu, fr, fs, dc, dr, ds = self.count_output(out)
-                fchecked, dchecked = self.count_output2(out)
-                self.failUnlessReallyEqual(fchecked, 3)
-                self.failUnlessReallyEqual(fu, 0)
-                self.failUnlessReallyEqual(fr, 3)
-                self.failUnlessReallyEqual(fs, 0)
-                self.failUnlessReallyEqual(dchecked, 4)
-                self.failUnlessReallyEqual(dc, 0)
-                self.failUnlessReallyEqual(dr, 4)
-                self.failUnlessReallyEqual(ds, 0)
-            d.addCallback(_check4b)
+        d.addCallback(self.stall, 1.1)
+        d.addCallback(lambda res: do_backup(verbose=True))
+        def _check4b((rc, out, err)):
+            # we should check all files, and re-use all of them. None of
+            # the directories should have been changed, so we should
+            # re-use all of them too.
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
+            fu, fr, fs, dc, dr, ds = self.count_output(out)
+            fchecked, dchecked = self.count_output2(out)
+            self.failUnlessReallyEqual(fchecked, 3)
+            self.failUnlessReallyEqual(fu, 0)
+            self.failUnlessReallyEqual(fr, 3)
+            self.failUnlessReallyEqual(fs, 0)
+            self.failUnlessReallyEqual(dchecked, 4)
+            self.failUnlessReallyEqual(dc, 0)
+            self.failUnlessReallyEqual(dr, 4)
+            self.failUnlessReallyEqual(ds, 0)
+        d.addCallback(_check4b)
 
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check5((rc, out, err)):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.new_archives = out.split()
-            expected_new = 2
-            if have_bdb:
-                expected_new += 1
-            self.failUnlessReallyEqual(len(self.new_archives), expected_new, out)
+            self.failUnlessReallyEqual(len(self.new_archives), 3, out)
             # the original backup should still be the oldest (i.e. sorts
             # alphabetically towards the beginning)
             self.failUnlessReallyEqual(sorted(self.new_archives)[0],
@@ -2627,27 +2616,23 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             # and upload the rest. None of the directories can be reused.
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
-            if have_bdb:
-                fu, fr, fs, dc, dr, ds = self.count_output(out)
-                # new foo.txt, surprise file, subfile, empty
-                self.failUnlessReallyEqual(fu, 4)
-                # old bar.txt
-                self.failUnlessReallyEqual(fr, 1)
-                self.failUnlessReallyEqual(fs, 0)
-                # home, parent, subdir, blah.txt, surprisedir
-                self.failUnlessReallyEqual(dc, 5)
-                self.failUnlessReallyEqual(dr, 0)
-                self.failUnlessReallyEqual(ds, 0)
+            fu, fr, fs, dc, dr, ds = self.count_output(out)
+            # new foo.txt, surprise file, subfile, empty
+            self.failUnlessReallyEqual(fu, 4)
+            # old bar.txt
+            self.failUnlessReallyEqual(fr, 1)
+            self.failUnlessReallyEqual(fs, 0)
+            # home, parent, subdir, blah.txt, surprisedir
+            self.failUnlessReallyEqual(dc, 5)
+            self.failUnlessReallyEqual(dr, 0)
+            self.failUnlessReallyEqual(ds, 0)
         d.addCallback(_check5a)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
         def _check6((rc, out, err)):
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.new_archives = out.split()
-            expected_new = 3
-            if have_bdb:
-                expected_new += 1
-            self.failUnlessReallyEqual(len(self.new_archives), expected_new)
+            self.failUnlessReallyEqual(len(self.new_archives), 4)
             self.failUnlessReallyEqual(sorted(self.new_archives)[0],
                                  self.old_archives[0])
         d.addCallback(_check6)

@@ -195,15 +195,11 @@ def get_package_versions_and_locations():
                 trace_info = (etype, str(emsg), ([None] + traceback.extract_tb(etrace))[-1])
                 packages.append( (pkgname, (None, None, trace_info)) )
             else:
-                if 'sqlite' in pkgname:
-                    packages.append( (pkgname, (get_version(module, 'version'), package_dir(module.__file__),
-                                               'sqlite %s' % (get_version(module, 'sqlite_version'),))) )
-                else:
-                    comment = None
-                    if pkgname == 'setuptools' and hasattr(module, '_distribute'):
-                        # distribute does not report its version in any module variables
-                        comment = 'distribute'
-                    packages.append( (pkgname, (get_version(module, '__version__'), package_dir(module.__file__), comment)) )
+                comment = None
+                if pkgname == 'setuptools' and hasattr(module, '_distribute'):
+                    # distribute does not report its version in any module variables
+                    comment = 'distribute'
+                packages.append( (pkgname, (get_version(module, '__version__'), package_dir(module.__file__), comment)) )
         elif pkgname == 'python':
             packages.append( (pkgname, (platform.python_version(), sys.executable, None)) )
         elif pkgname == 'platform':
@@ -278,7 +274,7 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     """This function returns a list of errors due to any failed cross-checks."""
 
     errors = []
-    not_pkg_resourceable = set(['sqlite3', 'python', 'platform', __appname__.lower()])
+    not_pkg_resourceable = set(['python', 'platform', __appname__.lower()])
     not_import_versionable = set(['zope.interface', 'mock', 'pyasn1'])
     ignorable = set(['argparse', 'pyutil', 'zbase32', 'distribute', 'twisted-web', 'twisted-core'])
 
