@@ -53,7 +53,7 @@ def strictly_implements(*interfaces):
     addClassAdvisor(_implements_advice, depth=2)
 
 
-def check():
+def check(err):
     # patchee-monkey
     zi.implements = strictly_implements
 
@@ -66,8 +66,8 @@ def check():
         for fn in filenames:
             (basename, ext) = os.path.splitext(fn)
             if ext in ('.pyc', '.pyo') and not os.path.exists(os.path.join(dirpath, basename+'.py')):
-                print >>sys.stderr, ("Warning: no .py source file for %r.\n"
-                                     % (os.path.join(dirpath, fn),))
+                print >>err, ("Warning: no .py source file for %r.\n"
+                              % (os.path.join(dirpath, fn),))
 
             if ext == '.py' and not excluded_file_basenames.match(basename):
                 relpath = os.path.join(dirpath[len(srcdir)+1:], basename)
@@ -76,12 +76,12 @@ def check():
                     __import__(module)
                 except ImportError:
                     import traceback
-                    traceback.print_exc()
-                    print >>sys.stderr
+                    traceback.print_exc(2, err)
+                    print >>err
 
     others = list(other_modules_with_violations)
     others.sort()
-    print >>sys.stderr, "There were also interface violations in:\n", ", ".join(others), "\n"
+    print >>err, "There were also interface violations in:\n", ", ".join(others), "\n"
 
 
 # Forked from
@@ -211,4 +211,7 @@ def _incompat(required, implemented):
         return "implementation doesn't support variable arguments"
 
 
-check()
+if __name__ == "__main__":
+    check(sys.stderr)
+    # Avoid spurious warnings about ignored exceptions during shutdown by doing a hard exit.
+    os._exit(0)
