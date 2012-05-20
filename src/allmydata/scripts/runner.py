@@ -109,9 +109,15 @@ def runner(argv,
 
 
 def run(install_node_control=True):
-    if sys.platform == "win32":
-        from allmydata.windows.fixups import initialize
-        initialize()
+    try:
+        if sys.platform == "win32":
+            from allmydata.windows.fixups import initialize
+            initialize()
 
-    rc = runner(sys.argv[1:], install_node_control=install_node_control)
+        rc = runner(sys.argv[1:], install_node_control=install_node_control)
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        rc = 1
+
     sys.exit(rc)
