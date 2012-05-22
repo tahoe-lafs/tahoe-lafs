@@ -137,14 +137,13 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
     def __init__(self, storage_index,
                  helper, storage_broker, secret_holder,
                  incoming_file, encoding_file,
-                 results, log_number):
+                 log_number):
         self._storage_index = storage_index
         self._helper = helper
         self._incoming_file = incoming_file
         self._encoding_file = encoding_file
         self._upload_id = si_b2a(storage_index)[:5]
         self._log_number = log_number
-        self._results = results
         self._upload_status = upload.UploadStatus()
         self._upload_status.set_helper(False)
         self._upload_status.set_storage_index(storage_index)
@@ -201,19 +200,31 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         # and inform the client when the upload has finished
         return self._finished_observers.when_fired()
 
-    def _finished(self, uploadresults):
-        precondition(isinstance(uploadresults.verifycapstr, str), uploadresults.verifycapstr)
-        assert interfaces.IUploadResults.providedBy(uploadresults), uploadresults
-        r = uploadresults
-        v = uri.from_string(r.verifycapstr)
-        r.uri_extension_hash = v.uri_extension_hash
+    def _finished(self, ur):
+        precondition(isinstance(ur.verifycapstr, str), ur.verifycapstr)
+        assert interfaces.IUploadResults.providedBy(ur), ur
+        v = uri.from_string(ur.verifycapstr)
         f_times = self._fetcher.get_times()
-        r.timings["cumulative_fetch"] = f_times["cumulative_fetch"]
-        r.ciphertext_fetched = self._fetcher.get_ciphertext_fetched()
-        r.timings["total_fetch"] = f_times["total"]
+
+        hur = upload.HelperUploadResults()
+        hur.timings = {"cumulative_fetch": f_times["cumulative_fetch"],
+                       "total_fetch": f_times["total"],
+                       }
+        for k in ur.timings:
+            hur.timings[k] = ur.timings[k]
+        hur.uri_extension_hash = v.uri_extension_hash
+        hur.ciphertext_fetched = self._fetcher.get_ciphertext_fetched()
+        hur.preexisting_shares = ur.preexisting_shares
+        hur.sharemap = ur.sharemap
+        hur.servermap = ur.servermap
+        hur.pushed_shares = ur.pushed_shares
+        hur.file_size = ur.file_size
+        hur.uri_extension_data = ur.uri_extension_data
+        hur.verifycapstr = ur.verifycapstr
+
         self._reader.close()
         os.unlink(self._encoding_file)
-        self._finished_observers.fire(r)
+        self._finished_observers.fire(hur)
         self._helper.upload_finished(self._storage_index, v.size)
         del self._reader
 
@@ -561,7 +572,6 @@ class Helper(Referenceable):
 
     def remote_upload_chk(self, storage_index):
         self.count("chk_upload_helper.upload_requests")
-        r = upload.UploadResults()
         lp = self.log(format="helper: upload_chk query for SI %(si)s",
                       si=si_b2a(storage_index))
         if storage_index in self._active_uploads:
@@ -569,8 +579,8 @@ class Helper(Referenceable):
             uh = self._active_uploads[storage_index]
             return (None, uh)
 
-        d = self._check_chk(storage_index, r, lp)
-        d.addCallback(self._did_chk_check, storage_index, r, lp)
+        d = self._check_chk(storage_index, lp)
+        d.addCallback(self._did_chk_check, storage_index, lp)
         def _err(f):
             self.log("error while checking for chk-already-in-grid",
                      failure=f, level=log.WEIRD, parent=lp, umid="jDtxZg")
@@ -578,7 +588,7 @@ class Helper(Referenceable):
         d.addErrback(_err)
         return d
 
-    def _check_chk(self, storage_index, results, lp):
+    def _check_chk(self, storage_index, lp):
         # see if this file is already in the grid
         lp2 = self.log("doing a quick check+UEBfetch",
                        parent=lp, level=log.NOISY)
@@ -589,17 +599,18 @@ class Helper(Referenceable):
             if res:
                 (sharemap, ueb_data, ueb_hash) = res
                 self.log("found file in grid", level=log.NOISY, parent=lp)
-                results.uri_extension_hash = ueb_hash
-                results.sharemap = sharemap
-                results.uri_extension_data = ueb_data
-                results.preexisting_shares = len(sharemap)
-                results.pushed_shares = 0
-                return results
+                hur = upload.HelperUploadResults()
+                hur.uri_extension_hash = ueb_hash
+                hur.sharemap = sharemap
+                hur.uri_extension_data = ueb_data
+                hur.preexisting_shares = len(sharemap)
+                hur.pushed_shares = 0
+                return hur
             return None
         d.addCallback(_checked)
         return d
 
-    def _did_chk_check(self, already_present, storage_index, r, lp):
+    def _did_chk_check(self, already_present, storage_index, lp):
         if already_present:
             # the necessary results are placed in the UploadResults
             self.count("chk_upload_helper.upload_already_present")
@@ -618,12 +629,12 @@ class Helper(Referenceable):
             uh = self._active_uploads[storage_index]
         else:
             self.log("creating new upload helper", parent=lp)
-            uh = self._make_chk_upload_helper(storage_index, r, lp)
+            uh = self._make_chk_upload_helper(storage_index, lp)
             self._active_uploads[storage_index] = uh
             self._add_upload(uh)
         return (None, uh)
 
-    def _make_chk_upload_helper(self, storage_index, r, lp):
+    def _make_chk_upload_helper(self, storage_index, lp):
         si_s = si_b2a(storage_index)
         incoming_file = os.path.join(self._chk_incoming, si_s)
         encoding_file = os.path.join(self._chk_encoding, si_s)
@@ -631,7 +642,7 @@ class Helper(Referenceable):
                              self._storage_broker,
                              self._secret_holder,
                              incoming_file, encoding_file,
-                             r, lp)
+                             lp)
         return uh
 
     def _add_upload(self, uh):

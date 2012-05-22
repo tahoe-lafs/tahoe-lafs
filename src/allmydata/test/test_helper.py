@@ -22,24 +22,31 @@ class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
         def _got_size(size):
             d2 = eu.get_all_encoding_parameters()
             def _got_parms(parms):
+                # just pretend we did the upload
                 needed_shares, happy, total_shares, segsize = parms
                 ueb_data = {"needed_shares": needed_shares,
                             "total_shares": total_shares,
                             "segment_size": segsize,
                             "size": size,
                             }
-                self._results.uri_extension_data = ueb_data
-                self._results.verifycapstr = uri.CHKFileVerifierURI(self._storage_index, "x"*32,
-                                                                 needed_shares, total_shares,
-                                                                 size).to_string()
-                return self._results
+
+                r = upload.UploadResults()
+                r.preexisting_shares = 0
+                r.pushed_shares = total_shares
+                r.file_size = size
+                r.uri_extension_data = ueb_data
+                v = uri.CHKFileVerifierURI(self._storage_index, "x"*32,
+                                           needed_shares, total_shares,
+                                           size)
+                r.verifycapstr = v.to_string()
+                return r
             d2.addCallback(_got_parms)
             return d2
         d.addCallback(_got_size)
         return d
 
 class Helper_fake_upload(offloaded.Helper):
-    def _make_chk_upload_helper(self, storage_index, r, lp):
+    def _make_chk_upload_helper(self, storage_index, lp):
         si_s = si_b2a(storage_index)
         incoming_file = os.path.join(self._chk_incoming, si_s)
         encoding_file = os.path.join(self._chk_encoding, si_s)
@@ -47,12 +54,12 @@ class Helper_fake_upload(offloaded.Helper):
                                   self._storage_broker,
                                   self._secret_holder,
                                   incoming_file, encoding_file,
-                                  r, lp)
+                                  lp)
         return uh
 
 class Helper_already_uploaded(Helper_fake_upload):
-    def _check_chk(self, storage_index, results, lp):
-        res = upload.UploadResults()
+    def _check_chk(self, storage_index, lp):
+        res = upload.HelperUploadResults()
         res.uri_extension_hash = hashutil.uri_extension_hash("")
 
         # we're pretending that the file they're trying to upload was already
