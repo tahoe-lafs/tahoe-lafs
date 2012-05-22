@@ -404,7 +404,7 @@ this file are ignored.
             d.addCallback(lambda res:
                           u.upload(upload.FileName(files[name],
                                                    convergence="check-memory")))
-            d.addCallback(lambda results: results.uri)
+            d.addCallback(lambda results: results.get_uri())
         else:
             raise ValueError("unknown mode=%s" % self.mode)
         def _complete(uri):
