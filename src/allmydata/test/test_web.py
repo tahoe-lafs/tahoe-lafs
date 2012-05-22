@@ -64,16 +64,17 @@ class FakeNodeMaker(NodeMaker):
         'max_segment_size':128*1024 # 1024=KiB
     }
     def _create_lit(self, cap):
-        return FakeCHKFileNode(cap)
+        return FakeCHKFileNode(cap, self.all_contents)
     def _create_immutable(self, cap):
-        return FakeCHKFileNode(cap)
+        return FakeCHKFileNode(cap, self.all_contents)
     def _create_mutable(self, cap):
-        return FakeMutableFileNode(None,
-                                   None,
-                                   self.encoding_params, None).init_from_cap(cap)
+        return FakeMutableFileNode(None, None,
+                                   self.encoding_params, None,
+                                   self.all_contents).init_from_cap(cap)
     def create_mutable_file(self, contents="", keysize=None,
                             version=SDMF_VERSION):
-        n = FakeMutableFileNode(None, None, self.encoding_params, None)
+        n = FakeMutableFileNode(None, None, self.encoding_params, None,
+                                self.all_contents)
         return n.create(contents, version=version)
 
 class FakeUploader(service.Service):
@@ -83,7 +84,7 @@ class FakeUploader(service.Service):
         d.addCallback(lambda size: uploadable.read(size))
         def _got_data(datav):
             data = "".join(datav)
-            n = create_chk_filenode(data)
+            n = create_chk_filenode(data, self.all_contents)
             ur = upload.UploadResults(file_size=len(data),
                                       ciphertext_fetched=0,
                                       preexisting_shares=0,
@@ -176,6 +177,7 @@ class FakeClient(Client):
         # don't upcall to Client.__init__, since we only want to initialize a
         # minimal subset
         service.MultiService.__init__(self)
+        self.all_contents = {}
         self.nodeid = "fake_nodeid"
         self.nickname = "fake_nickname"
         self.introducer_furl = "None"
@@ -187,11 +189,13 @@ class FakeClient(Client):
         self.introducer_client = None
         self.history = FakeHistory()
         self.uploader = FakeUploader()
+        self.uploader.all_contents = self.all_contents
         self.uploader.setServiceParent(self)
         self.blacklist = None
         self.nodemaker = FakeNodeMaker(None, self._secret_holder, None,
                                        self.uploader, None,
                                        None, None, None)
+        self.nodemaker.all_contents = self.all_contents
         self.mutable_file_default = SDMF_VERSION
 
     def startService(self):
@@ -270,7 +274,7 @@ class WebMixin(object):
 
             _ign, n, self._bad_file_uri = self.makefile(3)
             # this uri should not be downloadable
-            del FakeCHKFileNode.all_contents[self._bad_file_uri]
+            del self.s.all_contents[self._bad_file_uri]
 
             rodir = res[5][1]
             self.public_root.set_uri(u"reedownlee", rodir.get_readonly_uri(),
@@ -297,14 +301,17 @@ class WebMixin(object):
         d.addCallback(_got_metadata)
         return d
 
+    def get_all_contents(self):
+        return self.s.all_contents
+
     def makefile(self, number):
         contents = "contents of file %s\n" % number
-        n = create_chk_filenode(contents)
+        n = create_chk_filenode(contents, self.get_all_contents())
         return contents, n, n.get_uri()
 
     def makefile_mutable(self, number, mdmf=False):
         contents = "contents of mutable file %s\n" % number
-        n = create_mutable_filenode(contents, mdmf)
+        n = create_mutable_filenode(contents, mdmf, self.s.all_contents)
         return contents, n, n.get_uri(), n.get_readonly_uri()
 
     def tearDown(self):
@@ -1997,7 +2004,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def failUnlessCHKURIHasContents(self, got_uri, contents):
-        self.failUnless(FakeCHKFileNode.all_contents[got_uri] == contents)
+        self.failUnless(self.get_all_contents()[got_uri] == contents)
 
     def test_POST_upload(self):
         d = self.POST(self.public_url + "/foo", t="upload",
@@ -2100,7 +2107,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnless(filecap.startswith("URI:SSK:"), filecap)
             self.filecap = filecap
             u = uri.WriteableSSKFileURI.init_from_string(filecap)
-            self.failUnlessIn(u.get_storage_index(), FakeMutableFileNode.all_contents)
+            self.failUnlessIn(u.get_storage_index(), self.get_all_contents())
             n = self.s.create_node_from_uri(filecap)
             return n.download_best_version()
         d.addCallback(_check)
@@ -2929,7 +2936,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def _create_immutable_children(self):
         contents, n, filecap1 = self.makefile(12)
         md1 = {"metakey1": "metavalue1"}
-        tnode = create_chk_filenode("immutable directory contents\n"*10)
+        tnode = create_chk_filenode("immutable directory contents\n"*10,
+                                    self.get_all_contents())
         dnode = DirectoryNode(tnode, None, None)
         assert not dnode.is_mutable()
         immdircap = dnode.get_uri()
@@ -3724,8 +3732,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.PUT("/uri", file_contents)
         def _check(uri):
             assert isinstance(uri, str), uri
-            self.failUnlessIn(uri, FakeCHKFileNode.all_contents)
-            self.failUnlessReallyEqual(FakeCHKFileNode.all_contents[uri],
+            self.failUnlessIn(uri, self.get_all_contents())
+            self.failUnlessReallyEqual(self.get_all_contents()[uri],
                                        file_contents)
             return self.GET("/uri/%s" % uri)
         d.addCallback(_check)
@@ -3739,8 +3747,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.PUT("/uri?mutable=false", file_contents)
         def _check(uri):
             assert isinstance(uri, str), uri
-            self.failUnlessIn(uri, FakeCHKFileNode.all_contents)
-            self.failUnlessReallyEqual(FakeCHKFileNode.all_contents[uri],
+            self.failUnlessIn(uri, self.get_all_contents())
+            self.failUnlessReallyEqual(self.get_all_contents()[uri],
                                        file_contents)
             return self.GET("/uri/%s" % uri)
         d.addCallback(_check)
@@ -3765,7 +3773,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnless(filecap.startswith("URI:SSK:"), filecap)
             self.filecap = filecap
             u = uri.WriteableSSKFileURI.init_from_string(filecap)
-            self.failUnlessIn(u.get_storage_index(), FakeMutableFileNode.all_contents)
+            self.failUnlessIn(u.get_storage_index(), self.get_all_contents())
             n = self.s.create_node_from_uri(filecap)
             return n.download_best_version()
         d.addCallback(_check1)
