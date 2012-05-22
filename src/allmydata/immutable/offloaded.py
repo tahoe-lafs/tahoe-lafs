@@ -201,26 +201,27 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         return self._finished_observers.when_fired()
 
     def _finished(self, ur):
-        precondition(isinstance(ur.verifycapstr, str), ur.verifycapstr)
         assert interfaces.IUploadResults.providedBy(ur), ur
-        v = uri.from_string(ur.verifycapstr)
+        vcapstr = ur.get_verifycapstr()
+        precondition(isinstance(vcapstr, str), vcapstr)
+        v = uri.from_string(vcapstr)
         f_times = self._fetcher.get_times()
 
         hur = upload.HelperUploadResults()
         hur.timings = {"cumulative_fetch": f_times["cumulative_fetch"],
                        "total_fetch": f_times["total"],
                        }
-        for k in ur.timings:
-            hur.timings[k] = ur.timings[k]
+        for key,val in ur.get_timings().items():
+            hur.timings[key] = val
         hur.uri_extension_hash = v.uri_extension_hash
         hur.ciphertext_fetched = self._fetcher.get_ciphertext_fetched()
-        hur.preexisting_shares = ur.preexisting_shares
-        hur.sharemap = ur.sharemap
-        hur.servermap = ur.servermap
-        hur.pushed_shares = ur.pushed_shares
-        hur.file_size = ur.file_size
-        hur.uri_extension_data = ur.uri_extension_data
-        hur.verifycapstr = ur.verifycapstr
+        hur.preexisting_shares = ur.get_preexisting_shares()
+        hur.sharemap = ur.get_sharemap()
+        hur.servermap = ur.get_servermap()
+        hur.pushed_shares = ur.get_pushed_shares()
+        hur.file_size = ur.get_file_size()
+        hur.uri_extension_data = ur.get_uri_extension_data()
+        hur.verifycapstr = vcapstr
 
         self._reader.close()
         os.unlink(self._encoding_file)

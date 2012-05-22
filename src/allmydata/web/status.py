@@ -22,17 +22,17 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
 
     def render_pushed_shares(self, ctx, data):
         d = self.upload_results()
-        d.addCallback(lambda res: res.pushed_shares)
+        d.addCallback(lambda res: res.get_pushed_shares())
         return d
 
     def render_preexisting_shares(self, ctx, data):
         d = self.upload_results()
-        d.addCallback(lambda res: res.preexisting_shares)
+        d.addCallback(lambda res: res.get_preexisting_shares())
         return d
 
     def render_sharemap(self, ctx, data):
         d = self.upload_results()
-        d.addCallback(lambda res: res.sharemap)
+        d.addCallback(lambda res: res.get_sharemap())
         def _render(sharemap):
             if sharemap is None:
                 return "None"
@@ -46,7 +46,7 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
 
     def render_servermap(self, ctx, data):
         d = self.upload_results()
-        d.addCallback(lambda res: res.servermap)
+        d.addCallback(lambda res: res.get_servermap())
         def _render(servermap):
             if servermap is None:
                 return "None"
@@ -64,12 +64,12 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
 
     def data_file_size(self, ctx, data):
         d = self.upload_results()
-        d.addCallback(lambda res: res.file_size)
+        d.addCallback(lambda res: res.get_file_size())
         return d
 
     def _get_time(self, name):
         d = self.upload_results()
-        d.addCallback(lambda res: res.timings.get(name))
+        d.addCallback(lambda res: res.get_timings().get(name))
         return d
 
     def data_time_total(self, ctx, data):
@@ -105,8 +105,8 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
     def _get_rate(self, name):
         d = self.upload_results()
         def _convert(r):
-            file_size = r.file_size
-            time = r.timings.get(name)
+            file_size = r.get_file_size()
+            time = r.get_timings().get(name)
             return compute_rate(file_size, time)
         d.addCallback(_convert)
         return d
@@ -126,9 +126,9 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
     def data_rate_encode_and_push(self, ctx, data):
         d = self.upload_results()
         def _convert(r):
-            file_size = r.file_size
-            time1 = r.timings.get("cumulative_encoding")
-            time2 = r.timings.get("cumulative_sending")
+            file_size = r.get_file_size()
+            time1 = r.get_timings().get("cumulative_encoding")
+            time2 = r.get_timings().get("cumulative_sending")
             if (time1 is None or time2 is None):
                 return None
             else:
@@ -139,8 +139,8 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
     def data_rate_ciphertext_fetch(self, ctx, data):
         d = self.upload_results()
         def _convert(r):
-            fetch_size = r.ciphertext_fetched
-            time = r.timings.get("cumulative_fetch")
+            fetch_size = r.get_ciphertext_fetched()
+            time = r.get_timings().get("cumulative_fetch")
             return compute_rate(fetch_size, time)
         d.addCallback(_convert)
         return d

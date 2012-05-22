@@ -70,21 +70,39 @@ class UploadResults:
                  uri_extension_data,
                  uri_extension_hash,
                  verifycapstr):
-        self.file_size = file_size
-        self.ciphertext_fetched = ciphertext_fetched
-        self.preexisting_shares = preexisting_shares
-        self.pushed_shares = pushed_shares
-        self.sharemap = sharemap
-        self.servermap = servermap
-        self.timings = timings
-        self.uri_extension_data = uri_extension_data
-        self.uri_extension_hash = uri_extension_hash
-        self.verifycapstr = verifycapstr
+        self._file_size = file_size
+        self._ciphertext_fetched = ciphertext_fetched
+        self._preexisting_shares = preexisting_shares
+        self._pushed_shares = pushed_shares
+        self._sharemap = sharemap
+        self._servermap = servermap
+        self._timings = timings
+        self._uri_extension_data = uri_extension_data
+        self._uri_extension_hash = uri_extension_hash
+        self._verifycapstr = verifycapstr
         self.uri = None
 
     def set_uri(self, uri):
         self.uri = uri
 
+    def get_file_size(self):
+        return self._file_size
+    def get_ciphertext_fetched(self):
+        return self._ciphertext_fetched
+    def get_preexisting_shares(self):
+        return self._preexisting_shares
+    def get_pushed_shares(self):
+        return self._pushed_shares
+    def get_sharemap(self):
+        return self._sharemap
+    def get_servermap(self):
+        return self._servermap
+    def get_timings(self):
+        return self._timings
+    def get_uri_extension_data(self):
+        return self._uri_extension_data
+    def get_verifycapstr(self):
+        return self._verifycapstr
 
 # our current uri_extension is 846 bytes for small files, a few bytes
 # more for larger ones (since the filesize is encoded in decimal in a
@@ -1552,7 +1570,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
                     # Generate the uri from the verifycap plus the key.
                     d3 = uploadable.get_encryption_key()
                     def put_readcap_into_results(key):
-                        v = uri.from_string(uploadresults.verifycapstr)
+                        v = uri.from_string(uploadresults.get_verifycapstr())
                         r = uri.CHKFileURI(key, v.uri_extension_hash, v.needed_shares, v.total_shares, v.size)
                         uploadresults.set_uri(r.to_string())
                         return uploadresults

@@ -1927,36 +1927,53 @@ class IMutableUploadable(Interface):
         """
 
 class IUploadResults(Interface):
-    """I am returned by upload() methods. I contain a number of public
-    attributes which can be read to determine the results of the upload. Some
-    of these are functional, some are timing information. All of these may be
-    None.
+    """I am returned by immutable upload() methods and contain the results of
+    the upload.
 
-     .file_size : the size of the file, in bytes
+    I contain one public attribute:
      .uri : the CHK read-cap for the file
-     .ciphertext_fetched : how many bytes were fetched by the helper
-     .sharemap: dict mapping share identifier to set of serverids
-                   (binary strings). This indicates which servers were given
-                   which shares. For immutable files, the shareid is an
-                   integer (the share number, from 0 to N-1). For mutable
-                   files, it is a string of the form 'seq%d-%s-sh%d',
-                   containing the sequence number, the roothash, and the
-                   share number.
-     .servermap : dict mapping server peerid to a set of share numbers
-     .timings : dict of timing information, mapping name to seconds (float)
-       total : total upload time, start to finish
-       storage_index : time to compute the storage index
-       peer_selection : time to decide which peers will be used
-       contacting_helper : initial helper query to upload/no-upload decision
-       helper_total : initial helper query to helper finished pushing
-       cumulative_fetch : helper waiting for ciphertext requests
-       total_fetch : helper start to last ciphertext response
-       cumulative_encoding : just time spent in zfec
-       cumulative_sending : just time spent waiting for storage servers
-       hashes_and_close : last segment push to shareholder close
-       total_encode_and_push : first encode to shareholder close
-
     """
+
+    # some methods return empty values (0 or an empty dict) when called for
+    # non-distributed LIT files
+    def get_file_size():
+        """Return the file size, in bytes."""
+    def get_ciphertext_fetched():
+        """Return the number of bytes fetched by the helpe for this upload,
+        or 0 if the helper did not need to fetch any bytes (or if there was
+        no helper)."""
+    def get_preexisting_shares():
+        """Return the number of shares that were already present in the grid."""
+    def get_pushed_shares():
+        """Return the number of shares that were uploaded."""
+    def get_sharemap():
+        """Return a dict mapping share identifier to set of serverids (binary
+        strings). This indicates which servers were given which shares. For
+        immutable files, the shareid is an integer (the share number, from 0
+        to N-1). For mutable files, it is a string of the form
+        'seq%d-%s-sh%d', containing the sequence number, the roothash, and
+        the share number."""
+    def get_servermap():
+        """Return dict mapping server peerid to a set of share numbers."""
+    def get_timings():
+        """Return dict of timing information, mapping name to seconds. All
+        times are floats:
+          total : total upload time, start to finish
+          storage_index : time to compute the storage index
+          peer_selection : time to decide which peers will be used
+          contacting_helper : initial helper query to upload/no-upload decision
+          helper_total : initial helper query to helper finished pushing
+          cumulative_fetch : helper waiting for ciphertext requests
+          total_fetch : helper start to last ciphertext response
+          cumulative_encoding : just time spent in zfec
+          cumulative_sending : just time spent waiting for storage servers
+          hashes_and_close : last segment push to shareholder close
+          total_encode_and_push : first encode to shareholder close
+        """
+    def get_uri_extension_data():
+        """Return the dict of UEB data created for this file."""
+    def get_verifycapstr():
+        """Return the (string) verify-cap URI for the uploaded object."""
 
 class IDownloadResults(Interface):
     """I am created internally by download() methods. I contain a number of

@@ -117,9 +117,9 @@ class CiphertextFileNode:
 
                     sm = prr.data['sharemap']
                     assert isinstance(sm, DictOfSets), sm
-                    sm.update(ur.sharemap)
+                    sm.update(ur.get_sharemap())
                     servers_responding = set(prr.data['servers-responding'])
-                    for shnum, serverids in ur.sharemap.items():
+                    for shnum, serverids in ur.get_sharemap().items():
                         servers_responding.update(serverids)
                     servers_responding = sorted(servers_responding)
                     prr.data['servers-responding'] = servers_responding

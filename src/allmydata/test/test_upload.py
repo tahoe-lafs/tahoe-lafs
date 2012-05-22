@@ -1161,7 +1161,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # Make sure that only as many shares as necessary to satisfy
         # servers of happiness were pushed.
         d.addCallback(lambda results:
-            self.failUnlessEqual(results.pushed_shares, 3))
+            self.failUnlessEqual(results.get_pushed_shares(), 3))
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d

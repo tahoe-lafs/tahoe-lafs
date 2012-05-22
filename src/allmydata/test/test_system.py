@@ -326,7 +326,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
                 # this is really bytes received rather than sent, but it's
                 # convenient and basically measures the same thing
-                bytes_sent = results.ciphertext_fetched
+                bytes_sent = results.get_ciphertext_fetched()
                 self.failUnless(isinstance(bytes_sent, (int, long)), bytes_sent)
 
                 # We currently don't support resumption of upload if the data is
