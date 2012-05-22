@@ -37,9 +37,9 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
             if sharemap is None:
                 return "None"
             l = T.ul()
-            for shnum, peerids in sorted(sharemap.items()):
-                peerids = ', '.join([idlib.shortnodeid_b2a(i) for i in peerids])
-                l[T.li["%d -> placed on [%s]" % (shnum, peerids)]]
+            for shnum, servers in sorted(sharemap.items()):
+                server_names = ', '.join([s.get_name() for s in servers])
+                l[T.li["%d -> placed on [%s]" % (shnum, server_names)]]
             return l
         d.addCallback(_render)
         return d
@@ -51,13 +51,10 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
             if servermap is None:
                 return "None"
             l = T.ul()
-            for peerid in sorted(servermap.keys()):
-                peerid_s = idlib.shortnodeid_b2a(peerid)
-                shares_s = ",".join(["#%d" % shnum
-                                     for shnum in servermap[peerid]])
-                l[T.li["[%s] got share%s: %s" % (peerid_s,
-                                                 plural(servermap[peerid]),
-                                                 shares_s)]]
+            for server, shnums in sorted(servermap.items()):
+                shares_s = ",".join(["#%d" % shnum for shnum in shnums])
+                l[T.li["[%s] got share%s: %s" % (server.get_name(),
+                                                 plural(shnums), shares_s)]]
             return l
         d.addCallback(_render)
         return d

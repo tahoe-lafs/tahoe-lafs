@@ -95,17 +95,9 @@ class UploadResults:
     def get_pushed_shares(self):
         return self._pushed_shares
     def get_sharemap(self):
-        # returns {shnum: set(serverid)}
-        sharemap = {}
-        for shnum, servers in self._sharemap.items():
-            sharemap[shnum] = set([s.get_serverid() for s in servers])
-        return sharemap
+        return self._sharemap
     def get_servermap(self):
-        # returns {serverid: set(shnum)}
-        servermap = {}
-        for server, shnums in self._servermap.items():
-            servermap[server.get_serverid()] = set(shnums)
-        return servermap
+        return self._servermap
     def get_timings(self):
         return self._timings
     def get_uri_extension_data(self):

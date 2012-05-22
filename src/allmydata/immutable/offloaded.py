@@ -216,8 +216,14 @@ class CHKUploadHelper(Referenceable, upload.CHKUploader):
         hur.uri_extension_hash = v.uri_extension_hash
         hur.ciphertext_fetched = self._fetcher.get_ciphertext_fetched()
         hur.preexisting_shares = ur.get_preexisting_shares()
-        hur.sharemap = ur.get_sharemap()
-        hur.servermap = ur.get_servermap()
+        # hur.sharemap needs to be {shnum: set(serverid)}
+        hur.sharemap = {}
+        for shnum, servers in ur.get_sharemap().items():
+            hur.sharemap[shnum] = set([s.get_serverid() for s in servers])
+        # and hur.servermap needs to be {serverid: set(shnum)}
+        hur.servermap = {}
+        for server, shnums in ur.get_servermap().items():
+            hur.servermap[server.get_serverid()] = set(shnums)
         hur.pushed_shares = ur.get_pushed_shares()
         hur.file_size = ur.get_file_size()
         hur.uri_extension_data = ur.get_uri_extension_data()

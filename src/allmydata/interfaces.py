@@ -1952,14 +1952,14 @@ class IUploadResults(Interface):
     def get_pushed_shares():
         """Return the number of shares that were uploaded."""
     def get_sharemap():
-        """Return a dict mapping share identifier to set of serverids (binary
-        strings). This indicates which servers were given which shares. For
+        """Return a dict mapping share identifier to set of IServer
+        instances. This indicates which servers were given which shares. For
         immutable files, the shareid is an integer (the share number, from 0
         to N-1). For mutable files, it is a string of the form
         'seq%d-%s-sh%d', containing the sequence number, the roothash, and
         the share number."""
     def get_servermap():
-        """Return dict mapping server peerid to a set of share numbers."""
+        """Return dict mapping IServer instance to a set of share numbers."""
     def get_timings():
         """Return dict of timing information, mapping name to seconds. All
         times are floats:

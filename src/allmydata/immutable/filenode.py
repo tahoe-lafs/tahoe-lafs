@@ -115,12 +115,13 @@ class CiphertextFileNode:
                     prr = CheckResults(cr.uri, cr.storage_index)
                     prr.data = copy.deepcopy(cr.data)
 
+                    servers_responding = set(prr.data['servers-responding'])
                     sm = prr.data['sharemap']
                     assert isinstance(sm, DictOfSets), sm
-                    sm.update(ur.get_sharemap())
-                    servers_responding = set(prr.data['servers-responding'])
-                    for shnum, serverids in ur.get_sharemap().items():
-                        servers_responding.update(serverids)
+                    for shnum, servers in ur.get_sharemap().items():
+                        for s in servers:
+                            sm.add(shnum, s.get_serverid())
+                            servers_responding.add(s.get_serverid())
                     servers_responding = sorted(servers_responding)
                     prr.data['servers-responding'] = servers_responding
                     prr.data['count-shares-good'] = len(sm)
