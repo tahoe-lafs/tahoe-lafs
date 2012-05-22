@@ -89,6 +89,8 @@ class FakeClient(service.MultiService):
 
     def get_encoding_parameters(self):
         return self.DEFAULT_ENCODING_PARAMETERS
+    def get_storage_broker(self):
+        return self.storage_broker
 
 def flush_but_dont_ignore(res):
     d = flushEventualQueue()
@@ -114,8 +116,8 @@ class AssistedUpload(unittest.TestCase):
     timeout = 240 # It takes longer than 120 seconds on Francois's arm box.
     def setUp(self):
         self.s = FakeClient()
-        self.storage_broker = StorageFarmBroker(None, True)
-        self.secret_holder = client.SecretHolder("lease secret", "convergence")
+        self.s.storage_broker = StorageFarmBroker(None, True)
+        self.s.secret_holder = client.SecretHolder("lease secret", "converge")
         self.s.startService()
 
         self.tub = t = Tub()
@@ -129,8 +131,8 @@ class AssistedUpload(unittest.TestCase):
     def setUpHelper(self, basedir, helper_class=Helper_fake_upload):
         fileutil.make_dirs(basedir)
         self.helper = h = helper_class(basedir,
-                                       self.storage_broker,
-                                       self.secret_holder,
+                                       self.s.storage_broker,
+                                       self.s.secret_holder,
                                        None, None)
         self.helper_furl = self.tub.registerReference(h)
 
