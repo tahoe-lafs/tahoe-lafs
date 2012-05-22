@@ -847,12 +847,10 @@ class CHKUploader:
         self._secret_holder = secret_holder
         self._log_number = self.log("CHKUploader starting", parent=None)
         self._encoder = None
-        self._results = UploadResults()
         self._storage_index = None
         self._upload_status = UploadStatus()
         self._upload_status.set_helper(False)
         self._upload_status.set_active(True)
-        self._upload_status.set_results(self._results)
 
         # locate_all_shareholders() will create the following attribute:
         # self._server_trackers = {} # k: shnum, v: instance of ServerTracker
@@ -950,7 +948,7 @@ class CHKUploader:
                    for st in upload_trackers], already_serverids)
         self.log(msgtempl % values, level=log.OPERATIONAL)
         # record already-present shares in self._results
-        self._results.preexisting_shares = len(already_serverids)
+        self._count_preexisting_shares = len(already_serverids)
 
         self._server_trackers = {} # k: shnum, v: instance of ServerTracker
         for tracker in upload_trackers:
@@ -974,12 +972,13 @@ class CHKUploader:
 
     def _encrypted_done(self, verifycap):
         """ Returns a Deferred that will fire with the UploadResults instance. """
-        r = self._results
+        r = UploadResults()
         for shnum in self._encoder.get_shares_placed():
             server_tracker = self._server_trackers[shnum]
             serverid = server_tracker.get_serverid()
             r.sharemap.add(shnum, serverid)
             r.servermap.add(serverid, shnum)
+        r.preexisting_shares = self._count_preexisting_shares
         r.pushed_shares = len(self._encoder.get_shares_placed())
         now = time.time()
         r.file_size = self._encoder.file_size
@@ -989,6 +988,7 @@ class CHKUploader:
         r.timings.update(self._encoder.get_times())
         r.uri_extension_data = self._encoder.get_uri_extension_data()
         r.verifycapstr = verifycap.to_string()
+        self._upload_status.set_results(r)
         return r
 
     def get_upload_status(self):
@@ -1197,7 +1197,6 @@ class AssistedUploader:
             return d
         self.log("helper says file is already uploaded", level=log.OPERATIONAL)
         self._upload_status.set_progress(1, 1.0)
-        self._upload_status.set_results(upload_results)
         return upload_results
 
     def _convert_old_upload_results(self, upload_results):
