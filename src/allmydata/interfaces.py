@@ -420,11 +420,17 @@ class IStorageBroker(Interface):
         repeatable way, to distribute load over many peers.
         """
 
-class IServer(Interface):
+class IDisplayableServer(Interface):
+    def get_nickname():
+        pass
+    def get_name():
+        pass
+    def get_longname():
+        pass
+
+class IServer(IDisplayableServer):
     """I live in the client, and represent a single server."""
     def start_connecting(tub, trigger_cb):
-        pass
-    def get_nickname():
         pass
     def get_rref():
         pass
