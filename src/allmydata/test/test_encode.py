@@ -395,7 +395,7 @@ class Roundtrip(GridTestMixin, unittest.TestCase):
         u.encoding_param_happy = 1
         u.encoding_param_n = 100
         d = self.c0.upload(u)
-        d.addCallback(lambda ur: self.c0.create_node_from_uri(ur.uri))
+        d.addCallback(lambda ur: self.c0.create_node_from_uri(ur.get_uri()))
         # returns a FileNode
         return d
 

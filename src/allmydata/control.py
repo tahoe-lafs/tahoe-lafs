@@ -64,7 +64,7 @@ class ControlServer(Referenceable, service.Service):
         uploader = self.parent.getServiceNamed("uploader")
         u = upload.FileName(filename, convergence=convergence)
         d = uploader.upload(u)
-        d.addCallback(lambda results: results.uri)
+        d.addCallback(lambda results: results.get_uri())
         return d
 
     def remote_download_from_uri_to_file(self, uri, filename):
@@ -186,7 +186,7 @@ class SpeedTest:
             else:
                 up = upload.FileName(fn, convergence=None)
                 d1 = self.parent.upload(up)
-                d1.addCallback(lambda results: results.uri)
+                d1.addCallback(lambda results: results.get_uri())
             d1.addCallback(_record_uri, i)
             d1.addCallback(_upload_one_file, i+1)
             return d1

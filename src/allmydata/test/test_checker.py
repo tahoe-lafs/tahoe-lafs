@@ -5,6 +5,7 @@ from twisted.trial import unittest
 from twisted.internet import defer
 from allmydata import check_results, uri
 from allmydata import uri as tahoe_uri
+from allmydata.util import base32
 from allmydata.web import check_results as web_check_results
 from allmydata.storage_client import StorageFarmBroker, NativeStorageServer
 from allmydata.storage.server import storage_index_to_dir
@@ -22,20 +23,26 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def create_fake_client(self):
         sb = StorageFarmBroker(None, True)
-        for (peerid, nickname) in [("\x00"*20, "peer-0"),
-                                   ("\xff"*20, "peer-f"),
-                                   ("\x11"*20, "peer-11")] :
+        # s.get_name() (the "short description") will be "v0-00000000".
+        # s.get_longname() will include the -long suffix.
+        # s.get_peerid() (i.e. tubid) will be "aaa.." or "777.." or "ceir.."
+        servers = [("v0-00000000-long", "\x00"*20, "peer-0"),
+                   ("v0-ffffffff-long", "\xff"*20, "peer-f"),
+                   ("v0-11111111-long", "\x11"*20, "peer-11")]
+        for (key_s, peerid, nickname) in servers:
+            tubid_b32 = base32.b2a(peerid)
+            furl = "pb://%s@nowhere/fake" % tubid_b32
             ann = { "version": 0,
                     "service-name": "storage",
-                    "anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+                    "anonymous-storage-FURL": furl,
                     "permutation-seed-base32": "",
                     "nickname": unicode(nickname),
                     "app-versions": {}, # need #466 and v2 introducer
                     "my-version": "ver",
                     "oldest-supported": "oldest",
                     }
-            s = NativeStorageServer(peerid, ann)
-            sb.test_add_server(peerid, s)
+            s = NativeStorageServer(key_s, ann)
+            sb.test_add_server(peerid, s) # XXX: maybe use key_s?
         c = FakeClient()
         c.storage_broker = sb
         return c
@@ -340,7 +347,7 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         DATA = "data" * 100
         d = c0.upload(Data(DATA, convergence=""))
         def _stash_immutable(ur):
-            self.imm = c0.create_node_from_uri(ur.uri)
+            self.imm = c0.create_node_from_uri(ur.get_uri())
             self.uri = self.imm.get_uri()
         d.addCallback(_stash_immutable)
         d.addCallback(lambda ign:
@@ -397,7 +404,7 @@ class AddLease(GridTestMixin, unittest.TestCase):
         DATA = "data" * 100
         d = c0.upload(Data(DATA, convergence=""))
         def _stash_immutable(ur):
-            self.imm = c0.create_node_from_uri(ur.uri)
+            self.imm = c0.create_node_from_uri(ur.get_uri())
         d.addCallback(_stash_immutable)
         d.addCallback(lambda ign:
             c0.create_mutable_file(MutableData("contents")))
@@ -490,7 +497,7 @@ class TooParallel(GridTestMixin, unittest.TestCase):
             return self.c0.upload(Data(DATA, convergence=""))
         d.addCallback(_start)
         def _do_check(ur):
-            n = self.c0.create_node_from_uri(ur.uri)
+            n = self.c0.create_node_from_uri(ur.get_uri())
             return n.check(Monitor(), verify=True)
         d.addCallback(_do_check)
         def _check(cr):

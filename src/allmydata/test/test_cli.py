@@ -3247,8 +3247,8 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         DATA = "data" * 100
         d = c0.upload(upload.Data(DATA, convergence=""))
         def _stash_bad(ur):
-            self.uri_1share = ur.uri
-            self.delete_shares_numbered(ur.uri, range(1,10))
+            self.uri_1share = ur.get_uri()
+            self.delete_shares_numbered(ur.get_uri(), range(1,10))
         d.addCallback(_stash_bad)
 
         # the download is abandoned as soon as it's clear that we won't get

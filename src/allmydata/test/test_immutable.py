@@ -146,8 +146,8 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         c1.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
         d = c1.upload(Data(TEST_DATA, convergence=""))
         def _after_upload(ur):
-            self.uri = ur.uri
-            self.filenode = self.g.clients[0].create_node_from_uri(ur.uri)
+            self.uri = ur.get_uri()
+            self.filenode = self.g.clients[0].create_node_from_uri(ur.get_uri())
             return self.uri
         d.addCallback(_after_upload)
         return d

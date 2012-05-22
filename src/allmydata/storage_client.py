@@ -32,7 +32,7 @@ the foolscap-based server implemented in src/allmydata/storage/*.py .
 import re, time
 from zope.interface import implements
 from foolscap.api import eventually
-from allmydata.interfaces import IStorageBroker, IServer
+from allmydata.interfaces import IStorageBroker, IDisplayableServer, IServer
 from allmydata.util import log, base32
 from allmydata.util.assertutil import precondition
 from allmydata.util.rrefutil import add_version_to_remote_reference
@@ -138,6 +138,24 @@ class StorageFarmBroker:
         if serverid in self.servers:
             return self.servers[serverid].get_nickname()
         return None
+
+    def get_stub_server(self, serverid):
+        if serverid in self.servers:
+            return self.servers[serverid]
+        return StubServer(serverid)
+
+class StubServer:
+    implements(IDisplayableServer)
+    def __init__(self, serverid):
+        self.serverid = serverid # binary tubid
+    def get_serverid(self):
+        return self.serverid
+    def get_name(self):
+        return base32.b2a(self.serverid)[:8]
+    def get_longname(self):
+        return base32.b2a(self.serverid)
+    def get_nickname(self):
+        return "?"
 
 class NativeStorageServer:
     """I hold information about a storage server that we want to connect to.

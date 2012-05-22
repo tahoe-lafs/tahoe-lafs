@@ -31,7 +31,7 @@ class Harness(unittest.TestCase):
         data = Data(DATA, "")
         d = c0.upload(data)
         def _uploaded(res):
-            n = c0.create_node_from_uri(res.uri)
+            n = c0.create_node_from_uri(res.get_uri())
             return download_to_data(n)
         d.addCallback(_uploaded)
         def _check(res):
