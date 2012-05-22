@@ -81,9 +81,6 @@ class UploadResultsRendererMixin(RateAndTimeMixin):
     def data_time_contacting_helper(self, ctx, data):
         return self._get_time("contacting_helper")
 
-    def data_time_existence_check(self, ctx, data):
-        return self._get_time("existence_check")
-
     def data_time_cumulative_fetch(self, ctx, data):
         return self._get_time("cumulative_fetch")
 

@@ -567,7 +567,6 @@ class Helper(Referenceable):
     def remote_upload_chk(self, storage_index):
         self.count("chk_upload_helper.upload_requests")
         r = upload.UploadResults()
-        started = time.time()
         si_s = si_b2a(storage_index)
         lp = self.log(format="helper: upload_chk query for SI %(si)s", si=si_s)
         incoming_file = os.path.join(self._chk_incoming, si_s)
@@ -579,8 +578,6 @@ class Helper(Referenceable):
 
         d = self._check_for_chk_already_in_grid(storage_index, r, lp)
         def _checked(already_present):
-            elapsed = time.time() - started
-            r.timings['existence_check'] = elapsed
             if already_present:
                 # the necessary results are placed in the UploadResults
                 self.count("chk_upload_helper.upload_already_present")

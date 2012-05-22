@@ -1948,7 +1948,6 @@ class IUploadResults(Interface):
        storage_index : time to compute the storage index
        peer_selection : time to decide which peers will be used
        contacting_helper : initial helper query to upload/no-upload decision
-       existence_check : helper pre-upload existence check
        helper_total : initial helper query to helper finished pushing
        cumulative_fetch : helper waiting for ciphertext requests
        total_fetch : helper start to last ciphertext response
