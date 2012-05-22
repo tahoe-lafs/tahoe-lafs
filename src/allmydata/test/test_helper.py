@@ -155,7 +155,7 @@ class AssistedUpload(unittest.TestCase):
             return upload_data(u, DATA, convergence="some convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
-            the_uri = results.uri
+            the_uri = results.get_uri()
             assert "CHK" in the_uri
         d.addCallback(_uploaded)
 
@@ -205,7 +205,7 @@ class AssistedUpload(unittest.TestCase):
             return upload_data(u, DATA, convergence="test convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
-            the_uri = results.uri
+            the_uri = results.get_uri()
             assert "CHK" in the_uri
         d.addCallback(_uploaded)
 
@@ -232,7 +232,7 @@ class AssistedUpload(unittest.TestCase):
             return upload_data(u, DATA, convergence="some convergence string")
         d.addCallback(_ready)
         def _uploaded(results):
-            the_uri = results.uri
+            the_uri = results.get_uri()
             assert "CHK" in the_uri
         d.addCallback(_uploaded)
 

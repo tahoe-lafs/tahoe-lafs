@@ -122,7 +122,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             return d1
         d.addCallback(_do_upload)
         def _upload_done(results):
-            theuri = results.uri
+            theuri = results.get_uri()
             log.msg("upload finished: uri is %s" % (theuri,))
             self.uri = theuri
             assert isinstance(self.uri, str), self.uri
@@ -218,7 +218,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             u = upload.Data(HELPER_DATA, convergence=convergence)
             d = self.extra_node.upload(u)
             def _uploaded(results):
-                n = self.clients[1].create_node_from_uri(results.uri)
+                n = self.clients[1].create_node_from_uri(results.get_uri())
                 return download_to_data(n)
             d.addCallback(_uploaded)
             def _check(newdata):
@@ -232,7 +232,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             u.debug_stash_RemoteEncryptedUploadable = True
             d = self.extra_node.upload(u)
             def _uploaded(results):
-                n = self.clients[1].create_node_from_uri(results.uri)
+                n = self.clients[1].create_node_from_uri(results.get_uri())
                 return download_to_data(n)
             d.addCallback(_uploaded)
             def _check(newdata):
@@ -320,7 +320,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d.addCallback(lambda res: self.extra_node.upload(u2))
 
             def _uploaded(results):
-                cap = results.uri
+                cap = results.get_uri()
                 log.msg("Second upload complete", level=log.NOISY,
                         facility="tahoe.test.test_system")
 

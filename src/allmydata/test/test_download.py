@@ -87,9 +87,9 @@ class _Base(GridTestMixin, ShouldFailMixin):
         def _created_immutable(ur):
             # write the generated shares and URI to a file, which can then be
             # incorporated into this one next time.
-            f.write('immutable_uri = "%s"\n' % ur.uri)
+            f.write('immutable_uri = "%s"\n' % ur.get_uri())
             f.write('immutable_shares = {\n')
-            si = uri.from_string(ur.uri).get_storage_index()
+            si = uri.from_string(ur.get_uri()).get_storage_index()
             si_dir = storage_index_to_dir(si)
             for (i,ss,ssdir) in self.iterate_servers():
                 sharedir = os.path.join(ssdir, "shares", si_dir)
@@ -284,7 +284,7 @@ class DownloadTest(_Base, unittest.TestCase):
         u.max_segment_size = 70 # 5 segs
         d = self.c0.upload(u)
         def _uploaded(ur):
-            self.uri = ur.uri
+            self.uri = ur.get_uri()
             self.n = self.c0.create_node_from_uri(self.uri)
             return download_to_data(self.n)
         d.addCallback(_uploaded)
@@ -372,7 +372,7 @@ class DownloadTest(_Base, unittest.TestCase):
         con2 = MemoryConsumer()
         d = self.c0.upload(u)
         def _uploaded(ur):
-            n = self.c0.create_node_from_uri(ur.uri)
+            n = self.c0.create_node_from_uri(ur.get_uri())
             d1 = n.read(con1, 70, 20)
             d2 = n.read(con2, 140, 20)
             return defer.gatherResults([d1,d2])
@@ -397,7 +397,7 @@ class DownloadTest(_Base, unittest.TestCase):
         con2 = MemoryConsumer()
         d = self.c0.upload(u)
         def _uploaded(ur):
-            n = self.c0.create_node_from_uri(ur.uri)
+            n = self.c0.create_node_from_uri(ur.get_uri())
             n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             d1 = n.read(con1, 70, 20)
@@ -425,7 +425,7 @@ class DownloadTest(_Base, unittest.TestCase):
         con2 = MemoryConsumer()
         d = self.c0.upload(u)
         def _uploaded(ur):
-            n = self.c0.create_node_from_uri(ur.uri)
+            n = self.c0.create_node_from_uri(ur.get_uri())
             n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             d = n.read(con1, 12000, 20)
@@ -515,8 +515,8 @@ class DownloadTest(_Base, unittest.TestCase):
             def _corruptor(s, debug=False):
                 which = 48 # first byte of block0
                 return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
-            self.corrupt_all_shares(ur.uri, _corruptor)
-            n = self.c0.create_node_from_uri(ur.uri)
+            self.corrupt_all_shares(ur.get_uri(), _corruptor)
+            n = self.c0.create_node_from_uri(ur.get_uri())
             n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             con1 = MemoryConsumer()
@@ -556,8 +556,8 @@ class DownloadTest(_Base, unittest.TestCase):
             def _corruptor(s, debug=False):
                 which = 48 # first byte of block0
                 return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
-            self.corrupt_all_shares(ur.uri, _corruptor)
-            n = self.c0.create_node_from_uri(ur.uri)
+            self.corrupt_all_shares(ur.get_uri(), _corruptor)
+            n = self.c0.create_node_from_uri(ur.get_uri())
             n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             con1 = MemoryConsumer()
@@ -771,7 +771,7 @@ class DownloadTest(_Base, unittest.TestCase):
         u.max_segment_size = 60 # 6 segs
         d = self.c0.upload(u)
         def _uploaded(ur):
-            n = self.c0.create_node_from_uri(ur.uri)
+            n = self.c0.create_node_from_uri(ur.get_uri())
             n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
 
@@ -810,7 +810,7 @@ class DownloadTest(_Base, unittest.TestCase):
         con2 = MemoryConsumer()
         d = self.c0.upload(u)
         def _uploaded(ur):
-            n = self.c0.create_node_from_uri(ur.uri)
+            n = self.c0.create_node_from_uri(ur.get_uri())
             n._cnode._maybe_create_download_node()
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             d1 = n.read(con1, 70, 20)
@@ -1002,7 +1002,7 @@ class Corruption(_Base, unittest.TestCase):
 
         d = self.c0.upload(u)
         def _uploaded(ur):
-            imm_uri = ur.uri
+            imm_uri = ur.get_uri()
             self.shares = self.copy_shares(imm_uri)
             d = defer.succeed(None)
             # 'victims' is a list of corruption tests to run. Each one flips
@@ -1099,7 +1099,7 @@ class Corruption(_Base, unittest.TestCase):
 
         d = self.c0.upload(u)
         def _uploaded(ur):
-            imm_uri = ur.uri
+            imm_uri = ur.get_uri()
             self.shares = self.copy_shares(imm_uri)
 
             corrupt_me = [(48, "block data", "Last failure: None"),
@@ -1159,7 +1159,7 @@ class DownloadV2(_Base, unittest.TestCase):
         u = upload.Data(plaintext, None)
         d = self.c0.upload(u)
         def _uploaded(ur):
-            imm_uri = ur.uri
+            imm_uri = ur.get_uri()
             n = self.c0.create_node_from_uri(imm_uri)
             return download_to_data(n)
         d.addCallback(_uploaded)
@@ -1182,7 +1182,7 @@ class DownloadV2(_Base, unittest.TestCase):
         u = upload.Data(plaintext, None)
         d = self.c0.upload(u)
         def _uploaded(ur):
-            imm_uri = ur.uri
+            imm_uri = ur.get_uri()
             n = self.c0.create_node_from_uri(imm_uri)
             return download_to_data(n)
         d.addCallback(_uploaded)
@@ -1202,7 +1202,7 @@ class DownloadV2(_Base, unittest.TestCase):
         u = upload.Data(plaintext, None)
         d = self.c0.upload(u)
         def _uploaded(ur):
-            imm_uri = ur.uri
+            imm_uri = ur.get_uri()
             def _do_corrupt(which, newvalue):
                 def _corruptor(s, debug=False):
                     return s[:which] + chr(newvalue) + s[which+1:]

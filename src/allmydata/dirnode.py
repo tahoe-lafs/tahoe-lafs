@@ -597,7 +597,8 @@ class DirectoryNode:
             return defer.fail(NotWriteableError())
         d = self._uploader.upload(uploadable)
         d.addCallback(lambda results:
-                      self._create_and_validate_node(results.uri, None, name))
+                      self._create_and_validate_node(results.get_uri(), None,
+                                                     name))
         d.addCallback(lambda node:
                       self.set_node(name, node, metadata, overwrite))
         return d

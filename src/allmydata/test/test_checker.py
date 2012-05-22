@@ -347,7 +347,7 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         DATA = "data" * 100
         d = c0.upload(Data(DATA, convergence=""))
         def _stash_immutable(ur):
-            self.imm = c0.create_node_from_uri(ur.uri)
+            self.imm = c0.create_node_from_uri(ur.get_uri())
             self.uri = self.imm.get_uri()
         d.addCallback(_stash_immutable)
         d.addCallback(lambda ign:
@@ -404,7 +404,7 @@ class AddLease(GridTestMixin, unittest.TestCase):
         DATA = "data" * 100
         d = c0.upload(Data(DATA, convergence=""))
         def _stash_immutable(ur):
-            self.imm = c0.create_node_from_uri(ur.uri)
+            self.imm = c0.create_node_from_uri(ur.get_uri())
         d.addCallback(_stash_immutable)
         d.addCallback(lambda ign:
             c0.create_mutable_file(MutableData("contents")))
@@ -497,7 +497,7 @@ class TooParallel(GridTestMixin, unittest.TestCase):
             return self.c0.upload(Data(DATA, convergence=""))
         d.addCallback(_start)
         def _do_check(ur):
-            n = self.c0.create_node_from_uri(ur.uri)
+            n = self.c0.create_node_from_uri(ur.get_uri())
             return n.check(Monitor(), verify=True)
         d.addCallback(_do_check)
         def _check(cr):

@@ -4199,7 +4199,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         DATA = "data" * 100
         d = c0.upload(upload.Data(DATA, convergence=""))
         def _stash_uri(ur, which):
-            self.uris[which] = ur.uri
+            self.uris[which] = ur.get_uri()
         d.addCallback(_stash_uri, "good")
         d.addCallback(lambda ign:
                       c0.upload(upload.Data(DATA+"1", convergence="")))
@@ -4344,7 +4344,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         DATA = "data" * 100
         d = c0.upload(upload.Data(DATA, convergence=""))
         def _stash_uri(ur, which):
-            self.uris[which] = ur.uri
+            self.uris[which] = ur.get_uri()
         d.addCallback(_stash_uri, "good")
         d.addCallback(lambda ign:
                       c0.upload(upload.Data(DATA+"1", convergence="")))
@@ -4425,7 +4425,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         DATA = "data" * 100
         d = c0.upload(upload.Data(DATA+"1", convergence=""))
         def _stash_uri(ur, which):
-            self.uris[which] = ur.uri
+            self.uris[which] = ur.get_uri()
         d.addCallback(_stash_uri, "sick")
 
         def _compute_fileurls(ignored):
@@ -5011,7 +5011,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         DATA = "data" * 100
         d = c0.upload(upload.Data(DATA, convergence=""))
         def _stash_uri(ur, which):
-            self.uris[which] = ur.uri
+            self.uris[which] = ur.get_uri()
         d.addCallback(_stash_uri, "one")
         d.addCallback(lambda ign:
                       c0.upload(upload.Data(DATA+"1", convergence="")))
@@ -5180,10 +5180,10 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_stash_root)
         d.addCallback(lambda ign: c0.upload(upload.Data(DATA, convergence="")))
         def _stash_bad(ur):
-            self.fileurls["1share"] = "uri/" + urllib.quote(ur.uri)
-            self.delete_shares_numbered(ur.uri, range(1,10))
+            self.fileurls["1share"] = "uri/" + urllib.quote(ur.get_uri())
+            self.delete_shares_numbered(ur.get_uri(), range(1,10))
 
-            u = uri.from_string(ur.uri)
+            u = uri.from_string(ur.get_uri())
             u.key = testutil.flip_bit(u.key, 0)
             baduri = u.to_string()
             self.fileurls["0shares"] = "uri/" + urllib.quote(baduri)
@@ -5394,7 +5394,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d = c0.upload(upload.Data(DATA, convergence=""))
         def _stash_uri_and_create_dir(ur):
-            self.uri = ur.uri
+            self.uri = ur.get_uri()
             self.url = "uri/"+self.uri
             u = uri.from_string_filenode(self.uri)
             self.si = u.get_storage_index()

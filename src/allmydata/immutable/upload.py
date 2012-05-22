@@ -80,13 +80,14 @@ class UploadResults:
         self._uri_extension_data = uri_extension_data
         self._uri_extension_hash = uri_extension_hash
         self._verifycapstr = verifycapstr
-        self.uri = None
 
     def set_uri(self, uri):
-        self.uri = uri
+        self._uri = uri
 
     def get_file_size(self):
         return self._file_size
+    def get_uri(self):
+        return self._uri
     def get_ciphertext_fetched(self):
         return self._ciphertext_fetched
     def get_preexisting_shares(self):

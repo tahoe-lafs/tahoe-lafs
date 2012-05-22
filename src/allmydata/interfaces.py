@@ -1930,14 +1930,13 @@ class IUploadResults(Interface):
     """I am returned by immutable upload() methods and contain the results of
     the upload.
 
-    I contain one public attribute:
-     .uri : the CHK read-cap for the file
-    """
+    Note that some of my methods return empty values (0 or an empty dict)
+    when called for non-distributed LIT files."""
 
-    # some methods return empty values (0 or an empty dict) when called for
-    # non-distributed LIT files
     def get_file_size():
         """Return the file size, in bytes."""
+    def get_uri():
+        """Return the (string) URI of the object uploaded, a CHK readcap."""
     def get_ciphertext_fetched():
         """Return the number of bytes fetched by the helpe for this upload,
         or 0 if the helper did not need to fetch any bytes (or if there was

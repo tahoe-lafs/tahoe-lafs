@@ -24,7 +24,7 @@ from allmydata.storage.server import storage_index_to_dir
 MiB = 1024*1024
 
 def extract_uri(results):
-    return results.uri
+    return results.get_uri()
 
 # Some of these took longer than 480 seconds on Zandr's arm box, but this may
 # have been due to an earlier test ERROR'ing out due to timeout, which seems
@@ -863,7 +863,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.data = data
         d = client.upload(data)
         def _store_uri(ur):
-            self.uri = ur.uri
+            self.uri = ur.get_uri()
         d.addCallback(_store_uri)
         d.addCallback(lambda ign:
             self.find_uri_shares(self.uri))
@@ -881,7 +881,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         DATA = "data" * 100
         u = upload.Data(DATA, convergence="")
         d = c0.upload(u)
-        d.addCallback(lambda ur: c0.create_node_from_uri(ur.uri))
+        d.addCallback(lambda ur: c0.create_node_from_uri(ur.get_uri()))
         m = monitor.Monitor()
         d.addCallback(lambda fn: fn.check(m))
         def _check(cr):

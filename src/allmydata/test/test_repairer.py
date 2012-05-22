@@ -62,9 +62,9 @@ class RepairTestMixin:
         c0.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
         d = c0.upload(upload.Data(common.TEST_DATA, convergence=""))
         def _stash_uri(ur):
-            self.uri = ur.uri
-            self.c0_filenode = c0.create_node_from_uri(ur.uri)
-            self.c1_filenode = c1.create_node_from_uri(ur.uri)
+            self.uri = ur.get_uri()
+            self.c0_filenode = c0.create_node_from_uri(ur.get_uri())
+            self.c1_filenode = c1.create_node_from_uri(ur.get_uri())
         d.addCallback(_stash_uri)
         return d
 
@@ -690,9 +690,9 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         c0.DEFAULT_ENCODING_PARAMETERS['n'] = 66
         d = c0.upload(upload.Data(DATA, convergence=""))
         def _then(ur):
-            self.uri = ur.uri
+            self.uri = ur.get_uri()
             self.delete_shares_numbered(self.uri, [0])
-            self.c0_filenode = c0.create_node_from_uri(ur.uri)
+            self.c0_filenode = c0.create_node_from_uri(ur.get_uri())
             self._stash_counts()
             return self.c0_filenode.check_and_repair(Monitor())
         d.addCallback(_then)

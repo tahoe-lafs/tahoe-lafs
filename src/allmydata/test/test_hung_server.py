@@ -117,7 +117,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
             data = upload.Data(immutable_plaintext, convergence="")
             d = self.c0.upload(data)
             def _uploaded_immutable(upload_res):
-                self.uri = upload_res.uri
+                self.uri = upload_res.get_uri()
                 self.shares = self.find_uri_shares(self.uri)
             d.addCallback(_uploaded_immutable)
         return d

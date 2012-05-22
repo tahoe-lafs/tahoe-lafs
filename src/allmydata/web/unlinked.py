@@ -13,7 +13,7 @@ def PUTUnlinkedCHK(req, client):
     # "PUT /uri", to create an unlinked file.
     uploadable = FileHandle(req.content, client.convergence)
     d = client.upload(uploadable)
-    d.addCallback(lambda results: results.uri)
+    d.addCallback(lambda results: results.get_uri())
     # that fires with the URI of the new file
     return d
 
@@ -50,7 +50,7 @@ def POSTUnlinkedCHK(req, client):
         # usual upload-results page
         def _done(upload_results, redir_to):
             if "%(uri)s" in redir_to:
-                redir_to = redir_to % {"uri": urllib.quote(upload_results.uri)
+                redir_to = redir_to % {"uri": urllib.quote(upload_results.get_uri())
                                          }
             return url.URL.fromString(redir_to)
         d.addCallback(_done, when_done)
@@ -78,13 +78,14 @@ class UploadResultsPage(status.UploadResultsRendererMixin, rend.Page):
 
     def data_uri(self, ctx, data):
         d = self.upload_results()
-        d.addCallback(lambda res: res.uri)
+        d.addCallback(lambda res: res.get_uri())
         return d
 
     def render_download_link(self, ctx, data):
         d = self.upload_results()
-        d.addCallback(lambda res: T.a(href="/uri/" + urllib.quote(res.uri))
-                      ["/uri/" + res.uri])
+        d.addCallback(lambda res:
+                      T.a(href="/uri/" + urllib.quote(res.get_uri()))
+                      ["/uri/" + res.get_uri()])
         return d
 
 def POSTUnlinkedSSK(req, client, version):
