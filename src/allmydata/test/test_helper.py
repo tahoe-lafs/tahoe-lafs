@@ -1,4 +1,5 @@
 import os
+from twisted.internet import defer
 from twisted.trial import unittest
 from twisted.application import service
 
@@ -37,8 +38,20 @@ class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
         d.addCallback(_got_size)
         return d
 
-class CHKUploadHelper_already_uploaded(offloaded.CHKUploadHelper):
-    def start(self):
+class Helper_fake_upload(offloaded.Helper):
+    def _make_chk_upload_helper(self, storage_index, r, lp):
+        si_s = si_b2a(storage_index)
+        incoming_file = os.path.join(self._chk_incoming, si_s)
+        encoding_file = os.path.join(self._chk_encoding, si_s)
+        uh = CHKUploadHelper_fake(storage_index, self,
+                                  self._storage_broker,
+                                  self._secret_holder,
+                                  incoming_file, encoding_file,
+                                  r, lp)
+        return uh
+
+class Helper_already_uploaded(Helper_fake_upload):
+    def _check_chk(self, storage_index, results, lp):
         res = upload.UploadResults()
         res.uri_extension_hash = hashutil.uri_extension_hash("")
 
@@ -53,7 +66,7 @@ class CHKUploadHelper_already_uploaded(offloaded.CHKUploadHelper):
                     "size": len(DATA),
                     }
         res.uri_extension_data = ueb_data
-        return (res, None)
+        return defer.succeed(res)
 
 class FakeClient(service.MultiService):
     DEFAULT_ENCODING_PARAMETERS = {"k":25,
@@ -101,13 +114,12 @@ class AssistedUpload(unittest.TestCase):
         # bogus host/port
         t.setLocation("bogus:1234")
 
-    def setUpHelper(self, basedir):
+    def setUpHelper(self, basedir, helper_class=Helper_fake_upload):
         fileutil.make_dirs(basedir)
-        self.helper = h = offloaded.Helper(basedir,
-                                           self.storage_broker,
-                                           self.secret_holder,
-                                           None, None)
-        h.chk_upload_helper_class = CHKUploadHelper_fake
+        self.helper = h = helper_class(basedir,
+                                       self.storage_broker,
+                                       self.secret_holder,
+                                       None, None)
         self.helper_furl = self.tub.registerReference(h)
 
     def tearDown(self):
@@ -196,8 +208,7 @@ class AssistedUpload(unittest.TestCase):
 
     def test_already_uploaded(self):
         self.basedir = "helper/AssistedUpload/test_already_uploaded"
-        self.setUpHelper(self.basedir)
-        self.helper.chk_upload_helper_class = CHKUploadHelper_already_uploaded
+        self.setUpHelper(self.basedir, helper_class=Helper_already_uploaded)
         u = upload.Uploader(self.helper_furl)
         u.setServiceParent(self.s)
 
