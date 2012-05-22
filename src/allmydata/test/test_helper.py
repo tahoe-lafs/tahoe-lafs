@@ -29,17 +29,22 @@ class CHKUploadHelper_fake(offloaded.CHKUploadHelper):
                             "segment_size": segsize,
                             "size": size,
                             }
-
-                r = upload.UploadResults()
-                r.preexisting_shares = 0
-                r.pushed_shares = total_shares
-                r.file_size = size
-                r.uri_extension_data = ueb_data
+                ueb_hash = "fake"
                 v = uri.CHKFileVerifierURI(self._storage_index, "x"*32,
-                                           needed_shares, total_shares,
-                                           size)
-                r.verifycapstr = v.to_string()
-                return r
+                                           needed_shares, total_shares, size)
+                _UR = upload.UploadResults
+                ur = _UR(file_size=size,
+                         ciphertext_fetched=0,
+                         preexisting_shares=0,
+                         pushed_shares=total_shares,
+                         sharemap={},
+                         servermap={},
+                         timings={},
+                         uri_extension_data=ueb_data,
+                         uri_extension_hash=ueb_hash,
+                         verifycapstr=v.to_string())
+                self._upload_status.set_results(ur)
+                return ur
             d2.addCallback(_got_parms)
             return d2
         d.addCallback(_got_size)

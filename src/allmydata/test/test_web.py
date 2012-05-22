@@ -84,9 +84,18 @@ class FakeUploader(service.Service):
         def _got_data(datav):
             data = "".join(datav)
             n = create_chk_filenode(data)
-            results = upload.UploadResults()
-            results.uri = n.get_uri()
-            return results
+            ur = upload.UploadResults(file_size=len(data),
+                                      ciphertext_fetched=0,
+                                      preexisting_shares=0,
+                                      pushed_shares=10,
+                                      sharemap={},
+                                      servermap={},
+                                      timings={},
+                                      uri_extension_data={},
+                                      uri_extension_hash="fake",
+                                      verifycapstr="fakevcap")
+            ur.set_uri(n.get_uri())
+            return ur
         d.addCallback(_got_data)
         return d
     def get_helper_info(self):

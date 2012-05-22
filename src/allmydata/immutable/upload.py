@@ -60,15 +60,30 @@ class HelperUploadResults(Copyable, RemoteCopy):
 class UploadResults:
     implements(IUploadResults)
 
-    def __init__(self):
-        self.timings = {} # dict of name to number of seconds
-        self.sharemap = dictutil.DictOfSets() # {shnum: set(serverid)}
-        self.servermap = dictutil.DictOfSets() # {serverid: set(shnum)}
-        self.file_size = None
-        self.ciphertext_fetched = None # how much the helper fetched
+    def __init__(self, file_size,
+                 ciphertext_fetched, # how much the helper fetched
+                 preexisting_shares, # count of shares already present
+                 pushed_shares, # count of shares we pushed
+                 sharemap, # {shnum: set(serverid)}
+                 servermap, # {serverid: set(shnum)}
+                 timings, # dict of name to number of seconds
+                 uri_extension_data,
+                 uri_extension_hash,
+                 verifycapstr):
+        self.file_size = file_size
+        self.ciphertext_fetched = ciphertext_fetched
+        self.preexisting_shares = preexisting_shares
+        self.pushed_shares = pushed_shares
+        self.sharemap = sharemap
+        self.servermap = servermap
+        self.timings = timings
+        self.uri_extension_data = uri_extension_data
+        self.uri_extension_hash = uri_extension_hash
+        self.verifycapstr = verifycapstr
         self.uri = None
-        self.preexisting_shares = None # count of shares already present
-        self.pushed_shares = None # count of shares we pushed
+
+    def set_uri(self, uri):
+        self.uri = uri
 
 
 # our current uri_extension is 846 bytes for small files, a few bytes
@@ -986,25 +1001,33 @@ class CHKUploader:
         encoder.set_shareholders(buckets, servermap)
 
     def _encrypted_done(self, verifycap):
-        """ Returns a Deferred that will fire with the UploadResults instance. """
-        r = UploadResults()
-        for shnum in self._encoder.get_shares_placed():
+        """Returns a Deferred that will fire with the UploadResults instance."""
+        e = self._encoder
+        sharemap = dictutil.DictOfSets()
+        servermap = dictutil.DictOfSets()
+        for shnum in e.get_shares_placed():
             server_tracker = self._server_trackers[shnum]
             serverid = server_tracker.get_serverid()
-            r.sharemap.add(shnum, serverid)
-            r.servermap.add(serverid, shnum)
-        r.preexisting_shares = self._count_preexisting_shares
-        r.pushed_shares = len(self._encoder.get_shares_placed())
+            sharemap.add(shnum, serverid)
+            servermap.add(serverid, shnum)
         now = time.time()
-        r.file_size = self._encoder.file_size
-        r.timings["total"] = now - self._started
-        r.timings["storage_index"] = self._storage_index_elapsed
-        r.timings["peer_selection"] = self._server_selection_elapsed
-        r.timings.update(self._encoder.get_times())
-        r.uri_extension_data = self._encoder.get_uri_extension_data()
-        r.verifycapstr = verifycap.to_string()
-        self._upload_status.set_results(r)
-        return r
+        timings = {}
+        timings["total"] = now - self._started
+        timings["storage_index"] = self._storage_index_elapsed
+        timings["peer_selection"] = self._server_selection_elapsed
+        timings.update(e.get_times())
+        ur = UploadResults(file_size=e.file_size,
+                           ciphertext_fetched=0,
+                           preexisting_shares=self._count_preexisting_shares,
+                           pushed_shares=len(e.get_shares_placed()),
+                           sharemap=sharemap,
+                           servermap=servermap,
+                           timings=timings,
+                           uri_extension_data=e.get_uri_extension_data(),
+                           uri_extension_hash=e.get_uri_extension_hash(),
+                           verifycapstr=verifycap.to_string())
+        self._upload_status.set_results(ur)
+        return ur
 
     def get_upload_status(self):
         return self._upload_status
@@ -1029,13 +1052,11 @@ def read_this_many_bytes(uploadable, size, prepend_data=[]):
 class LiteralUploader:
 
     def __init__(self):
-        self._results = UploadResults()
         self._status = s = UploadStatus()
         s.set_storage_index(None)
         s.set_helper(False)
         s.set_progress(0, 1.0)
         s.set_active(False)
-        s.set_results(self._results)
 
     def start(self, uploadable):
         uploadable = IUploadable(uploadable)
@@ -1043,7 +1064,6 @@ class LiteralUploader:
         def _got_size(size):
             self._size = size
             self._status.set_size(size)
-            self._results.file_size = size
             return read_this_many_bytes(uploadable, size)
         d.addCallback(_got_size)
         d.addCallback(lambda data: uri.LiteralFileURI("".join(data)))
@@ -1052,11 +1072,22 @@ class LiteralUploader:
         return d
 
     def _build_results(self, uri):
-        self._results.uri = uri
+        ur = UploadResults(file_size=self._size,
+                           ciphertext_fetched=0,
+                           preexisting_shares=0,
+                           pushed_shares=0,
+                           sharemap={},
+                           servermap={},
+                           timings={},
+                           uri_extension_data=None,
+                           uri_extension_hash=None,
+                           verifycapstr=None)
+        ur.set_uri(uri)
         self._status.set_status("Finished")
         self._status.set_progress(1, 1.0)
         self._status.set_progress(2, 1.0)
-        return self._results
+        self._status.set_results(ur)
+        return ur
 
     def close(self):
         pass
@@ -1240,29 +1271,35 @@ class AssistedUploader:
         assert hur.uri_extension_data["total_shares"] == self._total_shares
         assert hur.uri_extension_data["segment_size"] == self._segment_size
         assert hur.uri_extension_data["size"] == self._size
-        ur = UploadResults()
+
         # hur.verifycap doesn't exist if already found
         v = uri.CHKFileVerifierURI(self._storage_index,
                                    uri_extension_hash=hur.uri_extension_hash,
                                    needed_shares=self._needed_shares,
                                    total_shares=self._total_shares,
                                    size=self._size)
-        ur.verifycapstr = v.to_string()
-        ur.timings = hur.timings
-        ur.uri_extension_data = hur.uri_extension_data
-        ur.uri_extension_hash = hur.uri_extension_hash
-        ur.preexisting_shares = hur.preexisting_shares
-        ur.pushed_shares = hur.pushed_shares
-        ur.sharemap = hur.sharemap
-        ur.servermap = hur.servermap # not if already found
-        ur.ciphertext_fetched = hur.ciphertext_fetched # not if already found
+        timings = {}
+        timings["storage_index"] = self._storage_index_elapsed
+        timings["contacting_helper"] = self._elapsed_time_contacting_helper
+        for key,val in hur.timings.items():
+            if key == "total":
+                key = "helper_total"
+            timings[key] = val
         now = time.time()
-        ur.file_size = self._size
-        ur.timings["storage_index"] = self._storage_index_elapsed
-        ur.timings["contacting_helper"] = self._elapsed_time_contacting_helper
-        if "total" in ur.timings:
-            ur.timings["helper_total"] = ur.timings["total"]
-        ur.timings["total"] = now - self._started
+        timings["total"] = now - self._started
+
+        ur = UploadResults(file_size=self._size,
+                           # not if already found
+                           ciphertext_fetched=hur.ciphertext_fetched,
+                           preexisting_shares=hur.preexisting_shares,
+                           pushed_shares=hur.pushed_shares,
+                           sharemap=hur.sharemap,
+                           servermap=hur.servermap, # not if already found
+                           timings=timings,
+                           uri_extension_data=hur.uri_extension_data,
+                           uri_extension_hash=hur.uri_extension_hash,
+                           verifycapstr=v.to_string())
+
         self._upload_status.set_status("Finished")
         self._upload_status.set_results(ur)
         return ur
@@ -1517,7 +1554,7 @@ class Uploader(service.MultiService, log.PrefixingLogMixin):
                     def put_readcap_into_results(key):
                         v = uri.from_string(uploadresults.verifycapstr)
                         r = uri.CHKFileURI(key, v.uri_extension_hash, v.needed_shares, v.total_shares, v.size)
-                        uploadresults.uri = r.to_string()
+                        uploadresults.set_uri(r.to_string())
                         return uploadresults
                     d3.addCallback(put_readcap_into_results)
                     return d3
