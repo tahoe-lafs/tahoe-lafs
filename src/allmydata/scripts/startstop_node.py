@@ -1,16 +1,19 @@
 
 import os, sys, signal, time
 from allmydata.scripts.common import BasedirOptions
+from twisted.scripts import twistd
+from twisted.python import usage
 from allmydata.util import fileutil
-from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, quote_output
 
 
 class StartOptions(BasedirOptions):
-    optFlags = [
-        ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
-        ["syslog", None, "Tell the node to log to syslog, not a file."],
-        ]
+    def parseArgs(self, basedir=None, *twistd_args):
+        # this can't handle e.g. 'tahoe start --nodaemon', since then
+        # --nodaemon looks like a basedir. So you can either use 'tahoe
+        # start' or 'tahoe start BASEDIR --TWISTD-OPTIONS'.
+        BasedirOptions.parseArgs(self, basedir)
+        self.twistd_args = twistd_args
 
     def getSynopsis(self):
         return "Usage:  %s [global-opts] start [options] [NODEDIR]" % (self.command_name,)
@@ -21,59 +24,125 @@ class StopOptions(BasedirOptions):
         return "Usage:  %s [global-opts] stop [options] [NODEDIR]" % (self.command_name,)
 
 
-class RestartOptions(BasedirOptions):
-    optFlags = [
-        ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
-        ["syslog", None, "Tell the node to log to syslog, not a file."],
-        ]
-
+class RestartOptions(StartOptions):
     def getSynopsis(self):
         return "Usage:  %s [global-opts] restart [options] [NODEDIR]" % (self.command_name,)
 
 
-class RunOptions(BasedirOptions):
-    default_nodedir = u"."
-
+class RunOptions(StartOptions):
     def getSynopsis(self):
         return "Usage:  %s [global-opts] run [options] [NODEDIR]" % (self.command_name,)
 
 
-def start(opts, out=sys.stdout, err=sys.stderr):
-    basedir = opts['basedir']
-    print >>out, "STARTING", quote_output(basedir)
-    if not os.path.isdir(basedir):
-        print >>err, "%s does not look like a directory at all" % quote_output(basedir)
-        return 1
+class MyTwistdConfig(twistd.ServerOptions):
+    subCommands = [("XYZ", None, usage.Options, "node")]
+
+class NodeStartingPlugin:
+    tapname = "xyznode"
+    def __init__(self, nodetype, basedir):
+        self.nodetype = nodetype
+        self.basedir = basedir
+    def makeService(self, so):
+        # delay this import as late as possible, to allow twistd's code to
+        # accept --reactor= selection. N.B.: this can't actually work until
+        # this file, and all the __init__.py files above it, also respect the
+        # prohibition on importing anything that transitively imports
+        # twisted.internet.reactor . That will take a lot of work.
+        if self.nodetype == "client":
+            from allmydata.client import Client
+            return Client(self.basedir)
+        if self.nodetype == "introducer":
+            from allmydata.introducer.server import IntroducerNode
+            return IntroducerNode(self.basedir)
+        if self.nodetype == "key-generator":
+            from allmydata.key_generator import KeyGeneratorService
+            return KeyGeneratorService(default_key_size=2048)
+        if self.nodetype == "stats-gatherer":
+            from allmydata.stats import StatsGathererService
+            return StatsGathererService(verbose=True)
+        raise ValueError("unknown nodetype %s" % self.nodetype)
+
+def identify_node_type(basedir):
     for fn in listdir_unicode(basedir):
         if fn.endswith(u".tac"):
             tac = str(fn)
             break
     else:
-        print >>err, "%s does not look like a node directory (no .tac file)" % quote_output(basedir)
-        return 1
-    if "client" in tac:
-        nodetype = "client"
-    elif "introducer" in tac:
-        nodetype = "introducer"
-    else:
-        nodetype = "unknown (%s)" % tac
+        return None
 
-    args = ["twistd", "-y", tac]
-    if opts["syslog"]:
-        args.append("--syslog")
-    elif nodetype in ("client", "introducer"):
-        fileutil.make_dirs(os.path.join(basedir, "logs"))
-        args.extend(["--logfile", os.path.join("logs", "twistd.log")])
-    if opts["profile"]:
-        args.extend(["--profile=profiling_results.prof", "--savestats",])
-    # now we're committed
+    for t in ("client", "introducer", "key-generator", "stats-gatherer"):
+        if t in tac:
+            return t
+    return None
+
+def start(config, out=sys.stdout, err=sys.stderr):
+    basedir = config['basedir']
+    print >>out, "STARTING", quote_output(basedir)
+    if not os.path.isdir(basedir):
+        print >>err, "%s does not look like a directory at all" % quote_output(basedir)
+        return 1
+    nodetype = identify_node_type(basedir)
+    if not nodetype:
+        print >>err, "%s is not a recognizable node directory" % quote_output(basedir)
+        return 1
+    # Now prepare to turn into a twistd process. This os.chdir is the point
+    # of no return.
     os.chdir(basedir)
-    from twisted.scripts import twistd
-    sys.argv = args
-    twistd.run()
-    # run() doesn't return: the parent does os._exit(0) in daemonize(), so
-    # we'll never get here. If application setup fails (e.g. ImportError),
-    # run() will raise an exception.
+    twistd_args = []
+    if (nodetype in ("client", "introducer")
+        and "--nodaemon" not in config.twistd_args
+        and "--syslog" not in config.twistd_args
+        and "--logfile" not in config.twistd_args):
+        fileutil.make_dirs(os.path.join(basedir, "logs"))
+        twistd_args.extend(["--logfile", os.path.join("logs", "twistd.log")])
+    twistd_args.extend(config.twistd_args)
+    twistd_args.append("XYZ") # point at our NodeStartingPlugin
+
+    twistd_config = MyTwistdConfig()
+    try:
+        twistd_config.parseOptions(twistd_args)
+    except usage.error, ue:
+        # these arguments were unsuitable for 'twistd'
+        print >>err, twistd_config
+        print >>err, "tahoe start: %s" % (config.subCommand, ue)
+        return 1
+    twistd_config.loadedPlugins = {"XYZ": NodeStartingPlugin(nodetype, basedir)}
+
+    # On Unix-like platforms:
+    #   Unless --nodaemon was provided, the twistd.runApp() below spawns off a
+    #   child process, and the parent calls os._exit(0), so there's no way for
+    #   us to get control afterwards, even with 'except SystemExit'. If
+    #   application setup fails (e.g. ImportError), runApp() will raise an
+    #   exception.
+    #
+    #   So if we wanted to do anything with the running child, we'd have two
+    #   options:
+    #
+    #    * fork first, and have our child wait for the runApp() child to get
+    #      running. (note: just fork(). This is easier than fork+exec, since we
+    #      don't have to get PATH and PYTHONPATH set up, since we're not
+    #      starting a *different* process, just cloning a new instance of the
+    #      current process)
+    #    * or have the user run a separate command some time after this one
+    #      exits.
+    #
+    #   For Tahoe, we don't need to do anything with the child, so we can just
+    #   let it exit.
+    #
+    # On Windows:
+    #   twistd does not fork; it just runs in the current process whether or not
+    #   --nodaemon is specified. (As on Unix, --nodaemon does have the side effect
+    #   of causing us to log to stdout/stderr.)
+
+    if "--nodaemon" in twistd_args or sys.platform == "win32":
+        verb = "running"
+    else:
+        verb = "starting"
+
+    print >>out, "%s node in %s" % (verb, basedir)
+    twistd.runApp(twistd_config)
+    # we should only reach here if --nodaemon or equivalent was used
+    return 0
 
 def stop(config, out=sys.stdout, err=sys.stderr):
     basedir = config['basedir']
@@ -143,44 +212,12 @@ def restart(config, stdout, stderr):
     return start(config, stdout, stderr)
 
 def run(config, stdout, stderr):
-    from twisted.internet import reactor
-    from twisted.python import log, logfile
-    from allmydata import client
+    config.twistd_args = config.twistd_args + ("--nodaemon",)
+    # Previously we would do the equivalent of adding ("--logfile", "tahoesvc.log"),
+    # but that redirects stdout/stderr which is often unhelpful, and the user can
+    # add that option explicitly if they want.
 
-    basedir = config['basedir']
-    precondition(isinstance(basedir, unicode), basedir)
-
-    if not os.path.isdir(basedir):
-        print >>stderr, "%s does not look like a directory at all" % quote_output(basedir)
-        return 1
-    for fn in listdir_unicode(basedir):
-        if fn.endswith(u".tac"):
-            tac = str(fn)
-            break
-    else:
-        print >>stderr, "%s does not look like a node directory (no .tac file)" % quote_output(basedir)
-        return 1
-    if "client" not in tac:
-        print >>stderr, ("%s looks like it contains a non-client node (%s).\n"
-                         "Use 'tahoe start' instead of 'tahoe run'."
-                         % (quote_output(basedir), tac))
-        return 1
-
-    os.chdir(basedir)
-
-    # set up twisted logging. this will become part of the node rsn.
-    logdir = os.path.join(basedir, 'logs')
-    if not os.path.exists(logdir):
-        os.makedirs(logdir)
-    lf = logfile.LogFile('tahoesvc.log', logdir)
-    log.startLogging(lf)
-
-    # run the node itself
-    c = client.Client(basedir)
-    reactor.callLater(0, c.startService) # after reactor startup
-    reactor.run()
-
-    return 0
+    return start(config, stdout, stderr)
 
 
 subCommands = [

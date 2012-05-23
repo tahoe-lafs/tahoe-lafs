@@ -668,7 +668,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnless("does not look like a node directory" in err, err)
+            self.failUnless("is not a recognizable node directory" in err, err)
         d.addCallback(_cb)
 
         def _then_stop_it(res):
@@ -689,7 +689,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb3(res):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 1)
-            self.failUnless("does not look like a directory at all" in err, err)
+            self.failUnlessIn("does not look like a directory at all", err)
         d.addCallback(_cb3)
         return d
 
