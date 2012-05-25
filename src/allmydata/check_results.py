@@ -7,36 +7,41 @@ from allmydata.util import base32
 class CheckResults:
     implements(ICheckResults)
 
-    def __init__(self, uri, storage_index):
-        assert IURI.providedBy(uri), uri
-        self.uri = uri
-        self.storage_index = storage_index
-        self.problems = []
-        self.summary = ""
-        self.report = []
-
-    def set_healthy(self, healthy):
-        self.healthy = bool(healthy)
-        if self.healthy:
-            assert (not hasattr(self, 'recoverable')) or self.recoverable, hasattr(self, 'recoverable') and self.recoverable
-            self.recoverable = True
-            self.summary = "healthy"
-        else:
-            self.summary = "not healthy"
-    def set_recoverable(self, recoverable):
-        self.recoverable = recoverable
-        if not self.recoverable:
-            assert (not hasattr(self, 'healthy')) or not self.healthy
-            self.healthy = False
-    def set_needs_rebalancing(self, needs_rebalancing):
-        self.needs_rebalancing_p = bool(needs_rebalancing)
-    def set_data(self,
+    def __init__(self, uri, storage_index,
+                 healthy, recoverable, needs_rebalancing,
                  count_shares_needed, count_shares_expected,
                  count_shares_good, count_good_share_hosts,
                  count_recoverable_versions, count_unrecoverable_versions,
                  servers_responding, sharemap,
                  count_wrong_shares, list_corrupt_shares, count_corrupt_shares,
-                 list_incompatible_shares, count_incompatible_shares):
+                 list_incompatible_shares, count_incompatible_shares,
+                 summary, report, share_problems, servermap):
+        assert IURI.providedBy(uri), uri
+        self.uri = uri
+        self.storage_index = storage_index
+        self.summary = ""
+        self.report = []
+        self.healthy = bool(healthy)
+        if self.healthy:
+            assert recoverable
+            if not summary:
+                summary = "healthy"
+        else:
+            if not summary:
+                summary = "not healthy"
+        self.recoverable = recoverable
+        if not self.recoverable:
+            assert not self.healthy
+        self.needs_rebalancing_p = bool(needs_rebalancing)
+        for s in servers_responding:
+            assert isinstance(s, str), s
+        for shnum, serverids in sharemap.items():
+            for serverid in serverids:
+                assert isinstance(serverid, str), serverid
+        for (serverid, SI, shnum) in list_corrupt_shares:
+            assert isinstance(serverid, str), serverid
+        for (serverid, SI, shnum) in list_incompatible_shares:
+            assert isinstance(serverid, str), serverid
         data = {"count-shares-needed": count_shares_needed,
                 "count-shares-expected": count_shares_expected,
                 "count-shares-good": count_shares_good,
@@ -52,17 +57,15 @@ class CheckResults:
                 "count-incompatible-shares": count_incompatible_shares,
                 }
         self._data = data
-    def set_summary(self, summary):
         assert isinstance(summary, str) # should be a single string
         self.summary = summary
-    def set_report(self, report):
         assert not isinstance(report, str) # should be list of strings
         self.report = report
-
-    def set_servermap(self, smap):
-        # mutable only
-        self.servermap = smap
-
+        if servermap:
+            from allmydata.mutable.servermap import ServerMap
+            assert isinstance(servermap, ServerMap), servermap
+        self.servermap = servermap # mutable only
+        self._share_problems = share_problems
 
     def get_storage_index(self):
         return self.storage_index
@@ -116,6 +119,8 @@ class CheckResults:
         return self.summary
     def get_report(self):
         return self.report
+    def get_share_problems(self):
+        return self._share_problems
     def get_servermap(self):
         return self.servermap
 

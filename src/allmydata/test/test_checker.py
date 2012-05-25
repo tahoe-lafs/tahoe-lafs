@@ -81,10 +81,6 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         serverid_1 = "\x00"*20
         serverid_f = "\xff"*20
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
-        cr = check_results.CheckResults(u, u.get_storage_index())
-        cr.set_healthy(True)
-        cr.set_needs_rebalancing(False)
-        cr.set_summary("groovy")
         data = { "count_shares_needed": 3,
                  "count_shares_expected": 9,
                  "count_shares_good": 10,
@@ -98,9 +94,13 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  "count_corrupt_shares": 0,
                  "list_incompatible_shares": [],
                  "count_incompatible_shares": 0,
+                 "report": [], "share_problems": [], "servermap": None,
                  }
-        cr.set_data(**data)
-
+        cr = check_results.CheckResults(u, u.get_storage_index(),
+                                        healthy=True, recoverable=True,
+                                        needs_rebalancing=False,
+                                        summary="groovy",
+                                        **data)
         w = web_check_results.CheckResultsRenderer(c, cr)
         html = self.render2(w)
         s = self.remove_tags(html)
@@ -113,20 +113,25 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Recoverable Versions: 1", s)
         self.failUnlessIn("Unrecoverable Versions: 0", s)
 
-        cr.set_healthy(False)
-        cr.set_recoverable(True)
-        cr.set_summary("ungroovy")
+        cr = check_results.CheckResults(u, u.get_storage_index(),
+                                        healthy=False, recoverable=True,
+                                        needs_rebalancing=False,
+                                        summary="ungroovy",
+                                        **data)
+        w = web_check_results.CheckResultsRenderer(c, cr)
         html = self.render2(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Healthy! : ungroovy", s)
 
-        cr.set_healthy(False)
-        cr.set_recoverable(False)
-        cr.set_summary("rather dead")
         data["count_corrupt_shares"] = 1
         data["list_corrupt_shares"] = [(serverid_1, u.get_storage_index(), 2)]
-        cr.set_data(**data)
+        cr = check_results.CheckResults(u, u.get_storage_index(),
+                                        healthy=False, recoverable=False,
+                                        needs_rebalancing=False,
+                                        summary="rather dead",
+                                        **data)
+        w = web_check_results.CheckResultsRenderer(c, cr)
         html = self.render2(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
@@ -184,11 +189,6 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         serverid_f = "\xff"*20
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
 
-        pre_cr = check_results.CheckResults(u, u.get_storage_index())
-        pre_cr.set_healthy(False)
-        pre_cr.set_recoverable(True)
-        pre_cr.set_needs_rebalancing(False)
-        pre_cr.set_summary("illing")
         data = { "count_shares_needed": 3,
                  "count_shares_expected": 10,
                  "count_shares_good": 6,
@@ -202,14 +202,14 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  "count_corrupt_shares": 0,
                  "list_incompatible_shares": [],
                  "count_incompatible_shares": 0,
+                 "report": [], "share_problems": [], "servermap": None,
                  }
-        pre_cr.set_data(**data)
+        pre_cr = check_results.CheckResults(u, u.get_storage_index(),
+                                            healthy=False, recoverable=True,
+                                            needs_rebalancing=False,
+                                            summary="illing",
+                                            **data)
 
-        post_cr = check_results.CheckResults(u, u.get_storage_index())
-        post_cr.set_healthy(True)
-        post_cr.set_recoverable(True)
-        post_cr.set_needs_rebalancing(False)
-        post_cr.set_summary("groovy")
         data = { "count_shares_needed": 3,
                  "count_shares_expected": 10,
                  "count_shares_good": 10,
@@ -223,8 +223,13 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  "list_corrupt_shares": [],
                  "list_incompatible_shares": [],
                  "count_incompatible_shares": 0,
+                 "report": [], "share_problems": [], "servermap": None,
                  }
-        post_cr.set_data(**data)
+        post_cr = check_results.CheckResults(u, u.get_storage_index(),
+                                             healthy=True, recoverable=True,
+                                             needs_rebalancing=False,
+                                             summary="groovy",
+                                             **data)
 
         crr = check_results.CheckAndRepairResults(u.get_storage_index())
         crr.pre_repair_results = pre_cr
@@ -253,8 +258,12 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
         crr.repair_attempted = True
         crr.repair_successful = False
-        post_cr.set_healthy(False)
-        post_cr.set_summary("better")
+        post_cr = check_results.CheckResults(u, u.get_storage_index(),
+                                             healthy=False, recoverable=True,
+                                             needs_rebalancing=False,
+                                             summary="better",
+                                             **data)
+        crr.post_repair_results = post_cr
         html = self.render2(w)
         s = self.remove_tags(html)
 
@@ -265,9 +274,12 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
         crr.repair_attempted = True
         crr.repair_successful = False
-        post_cr.set_healthy(False)
-        post_cr.set_recoverable(False)
-        post_cr.set_summary("worse")
+        post_cr = check_results.CheckResults(u, u.get_storage_index(),
+                                             healthy=False, recoverable=False,
+                                             needs_rebalancing=False,
+                                             summary="worse",
+                                             **data)
+        crr.post_repair_results = post_cr
         html = self.render2(w)
         s = self.remove_tags(html)
 

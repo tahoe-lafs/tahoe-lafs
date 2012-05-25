@@ -738,7 +738,6 @@ class Checker(log.PrefixingLogMixin):
 
     def _format_results(self, results):
         SI = self._verifycap.get_storage_index()
-        cr = CheckResults(self._verifycap, SI)
 
         verifiedshares = dictutil.DictOfSets() # {sharenum: set(serverid)}
         servers = {} # {serverid: set(sharenums)}
@@ -762,43 +761,46 @@ class Checker(log.PrefixingLogMixin):
 
         assert len(verifiedshares) <= self._verifycap.total_shares, (verifiedshares.keys(), self._verifycap.total_shares)
         if len(verifiedshares) == self._verifycap.total_shares:
-            cr.set_healthy(True)
-            cr.set_summary("Healthy")
+            healthy = True
+            summary = "Healthy"
         else:
-            cr.set_healthy(False)
-            cr.set_summary("Not Healthy: %d shares (enc %d-of-%d)" %
-                           (len(verifiedshares),
-                            self._verifycap.needed_shares,
-                            self._verifycap.total_shares))
+            healthy = False
+            summary = ("Not Healthy: %d shares (enc %d-of-%d)" %
+                       (len(verifiedshares),
+                        self._verifycap.needed_shares,
+                        self._verifycap.total_shares))
         if len(verifiedshares) >= self._verifycap.needed_shares:
-            cr.set_recoverable(True)
             recoverable = 1
             unrecoverable = 0
         else:
-            cr.set_recoverable(False)
             recoverable = 0
             unrecoverable = 1
 
         # The file needs rebalancing if the set of servers that have at least
         # one share is less than the number of uniquely-numbered shares
         # available.
-        cr.set_needs_rebalancing(good_share_hosts < len(verifiedshares))
+        needs_rebalancing = bool(good_share_hosts < len(verifiedshares))
 
-        cr.set_data(
-            count_shares_needed=self._verifycap.needed_shares,
-            count_shares_expected=self._verifycap.total_shares,
-            count_shares_good=len(verifiedshares),
-            count_good_share_hosts=good_share_hosts,
-            count_recoverable_versions=recoverable,
-            count_unrecoverable_versions=unrecoverable,
-            servers_responding=list(servers_responding),
-            sharemap=verifiedshares,
-            count_wrong_shares=0, # no such thing as wrong, for immutable
-            list_corrupt_shares=corruptshare_locators,
-            count_corrupt_shares=len(corruptshare_locators),
-            list_incompatible_shares=incompatibleshare_locators,
-            count_incompatible_shares=len(incompatibleshare_locators),
-            )
+        cr = CheckResults(self._verifycap, SI,
+                          healthy=healthy, recoverable=bool(recoverable),
+                          needs_rebalancing=needs_rebalancing,
+                          count_shares_needed=self._verifycap.needed_shares,
+                          count_shares_expected=self._verifycap.total_shares,
+                          count_shares_good=len(verifiedshares),
+                          count_good_share_hosts=good_share_hosts,
+                          count_recoverable_versions=recoverable,
+                          count_unrecoverable_versions=unrecoverable,
+                          servers_responding=list(servers_responding),
+                          sharemap=verifiedshares,
+                          count_wrong_shares=0, # no such thing, for immutable
+                          list_corrupt_shares=corruptshare_locators,
+                          count_corrupt_shares=len(corruptshare_locators),
+                          list_incompatible_shares=incompatibleshare_locators,
+                          count_incompatible_shares=len(incompatibleshare_locators),
+                          summary=summary,
+                          report=[],
+                          share_problems=[],
+                          servermap=None)
 
         return cr
 

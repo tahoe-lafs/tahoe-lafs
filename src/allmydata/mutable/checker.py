@@ -121,10 +121,7 @@ class MutableChecker:
         return counters
 
     def _make_checker_results(self, smap):
-        r = CheckResults(from_string(self._node.get_uri()),
-                         self._storage_index)
         self._monitor.raise_if_cancelled()
-        r.set_servermap(smap.copy())
         healthy = True
         report = []
         summary = []
@@ -190,6 +187,7 @@ class MutableChecker:
                 }
 
         corrupt_share_locators = []
+        problems = []
         if self.bad_shares:
             report.append("Corrupt Shares:")
             summary.append("Corrupt Shares:")
@@ -205,7 +203,7 @@ class MutableChecker:
             report.append(" %s: %s" % (s, ft))
             summary.append(s)
             p = (serverid, self._storage_index, shnum, f)
-            r.problems.append(p)
+            problems.append(p)
             msg = ("CorruptShareError during mutable verify, "
                    "serverid=%(serverid)s, si=%(si)s, shnum=%(shnum)d, "
                    "where=%(where)s")
@@ -224,31 +222,33 @@ class MutableChecker:
                 sharemap[shareid].append(server.get_serverid())
         servers_responding = [s.get_serverid() for s in
                               list(smap.get_reachable_servers())]
-        r.set_data(
-            count_shares_needed=counters["count-shares-needed"],
-            count_shares_expected=counters["count-shares-expected"],
-            count_shares_good=counters["count-shares-good"],
-            count_good_share_hosts=counters["count-good-share-hosts"],
-            count_recoverable_versions=len(recoverable),
-            count_unrecoverable_versions=len(unrecoverable),
-            servers_responding=servers_responding,
-            sharemap=sharemap,
-            count_wrong_shares=counters["count-wrong-shares"],
-            list_corrupt_shares=corrupt_share_locators,
-            count_corrupt_shares=len(corrupt_share_locators),
-            list_incompatible_shares=[],
-            count_incompatible_shares=0,
-            )
-
-        r.set_healthy(healthy)
-        r.set_recoverable(bool(recoverable))
-        r.set_needs_rebalancing(needs_rebalancing)
         if healthy:
-            r.set_summary("Healthy")
+            summary = "Healthy"
         else:
-            r.set_summary("Unhealthy: " + " ".join(summary))
-        r.set_report(report)
-        return r
+            summary = "Unhealthy: " + " ".join(summary)
+
+        cr = CheckResults(from_string(self._node.get_uri()),
+                          self._storage_index,
+                          healthy=healthy, recoverable=bool(recoverable),
+                          needs_rebalancing=needs_rebalancing,
+                          count_shares_needed=counters["count-shares-needed"],
+                          count_shares_expected=counters["count-shares-expected"],
+                          count_shares_good=counters["count-shares-good"],
+                          count_good_share_hosts=counters["count-good-share-hosts"],
+                          count_recoverable_versions=len(recoverable),
+                          count_unrecoverable_versions=len(unrecoverable),
+                          servers_responding=servers_responding,
+                          sharemap=sharemap,
+                          count_wrong_shares=counters["count-wrong-shares"],
+                          list_corrupt_shares=corrupt_share_locators,
+                          count_corrupt_shares=len(corrupt_share_locators),
+                          list_incompatible_shares=[],
+                          count_incompatible_shares=0,
+                          summary=summary,
+                          report=report,
+                          share_problems=problems,
+                          servermap=smap.copy())
+        return cr
 
 
 class MutableCheckAndRepairer(MutableChecker):

@@ -1660,14 +1660,14 @@ class CheckerMixin:
         return r
 
     def check_expected_failure(self, r, expected_exception, substring, where):
-        for (peerid, storage_index, shnum, f) in r.problems:
+        for (peerid, storage_index, shnum, f) in r.get_share_problems():
             if f.check(expected_exception):
                 self.failUnless(substring in str(f),
                                 "%s: substring '%s' not in '%s'" %
                                 (where, substring, str(f)))
                 return
         self.fail("%s: didn't see expected exception %s in problems %s" %
-                  (where, expected_exception, r.problems))
+                  (where, expected_exception, r.get_share_problems()))
 
 
 class Checker(unittest.TestCase, CheckerMixin, PublishMixin):

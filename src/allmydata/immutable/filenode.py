@@ -124,7 +124,6 @@ class CiphertextFileNode:
         assert IUploadResults.providedBy(ur), ur
         # clone the cr (check results) to form the basis of the
         # prr (post-repair results)
-        prr = CheckResults(cr.uri, cr.storage_index)
 
         verifycap = self._verifycap
         servers_responding = set(cr.get_servers_responding())
@@ -142,26 +141,28 @@ class CiphertextFileNode:
         good_hosts = len(reduce(set.union, sm.values(), set()))
         is_healthy = bool(len(sm) >= verifycap.total_shares)
         is_recoverable = bool(len(sm) >= verifycap.needed_shares)
-        prr.set_data(
-            count_shares_needed=verifycap.needed_shares,
-            count_shares_expected=verifycap.total_shares,
-            count_shares_good=len(sm),
-            count_good_share_hosts=good_hosts,
-            count_recoverable_versions=int(is_recoverable),
-            count_unrecoverable_versions=int(not is_recoverable),
-            servers_responding=list(servers_responding),
-            sharemap=sm,
-            count_wrong_shares=0, # no such thing as wrong, for immutable
-            list_corrupt_shares=cr.get_corrupt_shares(),
-            count_corrupt_shares=len(cr.get_corrupt_shares()),
-            list_incompatible_shares=cr.get_incompatible_shares(),
-            count_incompatible_shares=len(cr.get_incompatible_shares()),
-            )
-        prr.set_healthy(is_healthy)
-        prr.set_recoverable(is_recoverable)
+        needs_rebalancing = bool(len(sm) >= verifycap.total_shares)
+        prr = CheckResults(cr.uri, cr.storage_index,
+                           healthy=is_healthy, recoverable=is_recoverable,
+                           needs_rebalancing=needs_rebalancing,
+                           count_shares_needed=verifycap.needed_shares,
+                           count_shares_expected=verifycap.total_shares,
+                           count_shares_good=len(sm),
+                           count_good_share_hosts=good_hosts,
+                           count_recoverable_versions=int(is_recoverable),
+                           count_unrecoverable_versions=int(not is_recoverable),
+                           servers_responding=list(servers_responding),
+                           sharemap=sm,
+                           count_wrong_shares=0, # no such thing as wrong, for immutable
+                           list_corrupt_shares=cr.get_corrupt_shares(),
+                           count_corrupt_shares=len(cr.get_corrupt_shares()),
+                           list_incompatible_shares=cr.get_incompatible_shares(),
+                           count_incompatible_shares=len(cr.get_incompatible_shares()),
+                           summary="",
+                           report=[],
+                           share_problems=[],
+                           servermap=None)
         crr.repair_successful = is_healthy
-        prr.set_needs_rebalancing(len(sm) >= verifycap.total_shares)
-
         crr.post_repair_results = prr
         return crr
 
