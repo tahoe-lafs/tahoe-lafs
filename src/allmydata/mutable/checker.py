@@ -17,7 +17,6 @@ class MutableChecker:
         self._monitor = monitor
         self.bad_shares = [] # list of (server,shnum,failure)
         self._storage_index = self._node.get_storage_index()
-        self.results = CheckResults(from_string(node.get_uri()), self._storage_index)
         self.need_repair = False
         self.responded = set() # set of (binary) nodeids
 
@@ -36,8 +35,7 @@ class MutableChecker:
         if verify:
             d.addCallback(self._verify_all_shares)
         d.addCallback(lambda res: servermap)
-        d.addCallback(self._fill_checker_results, self.results)
-        d.addCallback(lambda res: self.results)
+        d.addCallback(self._make_checker_results)
         return d
 
     def _got_mapupdate_results(self, servermap):
@@ -122,7 +120,9 @@ class MutableChecker:
 
         return counters
 
-    def _fill_checker_results(self, smap, r):
+    def _make_checker_results(self, smap):
+        r = CheckResults(from_string(self._node.get_uri()),
+                         self._storage_index)
         self._monitor.raise_if_cancelled()
         r.set_servermap(smap.copy())
         healthy = True
@@ -248,6 +248,7 @@ class MutableChecker:
         else:
             r.set_summary("Unhealthy: " + " ".join(summary))
         r.set_report(report)
+        return r
 
 
 class MutableCheckAndRepairer(MutableChecker):
@@ -256,38 +257,42 @@ class MutableCheckAndRepairer(MutableChecker):
     def __init__(self, node, storage_broker, history, monitor):
         MutableChecker.__init__(self, node, storage_broker, history, monitor)
         self.cr_results = CheckAndRepairResults(self._storage_index)
-        self.cr_results.pre_repair_results = self.results
         self.need_repair = False
 
     def check(self, verify=False, add_lease=False):
         d = MutableChecker.check(self, verify, add_lease)
+        d.addCallback(self._stash_pre_repair_results)
         d.addCallback(self._maybe_repair)
         d.addCallback(lambda res: self.cr_results)
         return d
 
-    def _maybe_repair(self, res):
+    def _stash_pre_repair_results(self, pre_repair_results):
+        self.cr_results.pre_repair_results = pre_repair_results
+        return pre_repair_results
+
+    def _maybe_repair(self, pre_repair_results):
+        crr = self.cr_results
         self._monitor.raise_if_cancelled()
         if not self.need_repair:
-            self.cr_results.post_repair_results = self.results
+            crr.post_repair_results = pre_repair_results
             return
         if self._node.is_readonly():
             # ticket #625: we cannot yet repair read-only mutable files
-            self.cr_results.post_repair_results = self.results
-            self.cr_results.repair_attempted = False
+            crr.post_repair_results = pre_repair_results
+            crr.repair_attempted = False
             return
-        self.cr_results.repair_attempted = True
-        d = self._node.repair(self.results, monitor=self._monitor)
-        def _repair_finished(repair_results):
-            self.cr_results.repair_successful = repair_results.get_successful()
-            r = CheckResults(from_string(self._node.get_uri()), self._storage_index)
-            self.cr_results.post_repair_results = r
-            self._fill_checker_results(repair_results.servermap, r)
-            self.cr_results.repair_results = repair_results # TODO?
+        crr.repair_attempted = True
+        d = self._node.repair(pre_repair_results, monitor=self._monitor)
+        def _repair_finished(rr):
+            crr.repair_successful = rr.get_successful()
+            crr.post_repair_results = self._make_checker_results(rr.servermap)
+            crr.repair_results = rr # TODO?
+            return
         def _repair_error(f):
             # I'm not sure if I want to pass through a failure or not.
-            self.cr_results.repair_successful = False
-            self.cr_results.repair_failure = f # TODO?
-            #self.cr_results.post_repair_results = ??
+            crr.repair_successful = False
+            crr.repair_failure = f # TODO?
+            #crr.post_repair_results = ??
             return f
         d.addCallbacks(_repair_finished, _repair_error)
         return d
