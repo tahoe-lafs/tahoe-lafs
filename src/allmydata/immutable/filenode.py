@@ -1,6 +1,5 @@
 
 import binascii
-import copy
 import time
 now = time.time
 from zope.interface import implements
@@ -126,19 +125,21 @@ class CiphertextFileNode:
         # clone the cr (check results) to form the basis of the
         # prr (post-repair results)
         prr = CheckResults(cr.uri, cr.storage_index)
-        prr_data = copy.deepcopy(cr.get_data())
 
         verifycap = self._verifycap
-        servers_responding = set(prr_data['servers-responding'])
-        sm = prr_data['sharemap']
-        assert isinstance(sm, DictOfSets), sm
+        servers_responding = set(cr.get_servers_responding())
+        sm = DictOfSets()
+        assert isinstance(cr.get_sharemap(), DictOfSets)
+        for shnum, serverids in cr.get_sharemap().items():
+            for serverid in serverids:
+                sm.add(shnum, serverid)
         for shnum, servers in ur.get_sharemap().items():
             for s in servers:
                 sm.add(shnum, s.get_serverid())
                 servers_responding.add(s.get_serverid())
         servers_responding = sorted(servers_responding)
 
-        good_hosts = len(reduce(set.union, sm.itervalues(), set()))
+        good_hosts = len(reduce(set.union, sm.values(), set()))
         is_healthy = bool(len(sm) >= verifycap.total_shares)
         is_recoverable = bool(len(sm) >= verifycap.needed_shares)
         prr.set_data(
@@ -151,10 +152,10 @@ class CiphertextFileNode:
             servers_responding=list(servers_responding),
             sharemap=sm,
             count_wrong_shares=0, # no such thing as wrong, for immutable
-            list_corrupt_shares=prr_data["list-corrupt-shares"],
-            count_corrupt_shares=prr_data["count-corrupt-shares"],
-            list_incompatible_shares=prr_data["list-incompatible-shares"],
-            count_incompatible_shares=prr_data["count-incompatible-shares"],
+            list_corrupt_shares=cr.get_corrupt_shares(),
+            count_corrupt_shares=len(cr.get_corrupt_shares()),
+            list_incompatible_shares=cr.get_incompatible_shares(),
+            count_incompatible_shares=len(cr.get_incompatible_shares()),
             )
         prr.set_healthy(is_healthy)
         prr.set_recoverable(is_recoverable)

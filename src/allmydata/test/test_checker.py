@@ -376,10 +376,10 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         def _check_and_repair(_):
             return self.imm.check_and_repair(Monitor())
         def _check_counts(crr, shares_good, good_share_hosts):
-            p_crr = crr.get_post_repair_results().get_data()
+            prr = crr.get_post_repair_results()
             #print self._pretty_shares_chart(self.uri)
-            self.failUnlessEqual(p_crr['count-shares-good'], shares_good)
-            self.failUnlessEqual(p_crr['count-good-share-hosts'],
+            self.failUnlessEqual(prr.get_share_counter_good(), shares_good)
+            self.failUnlessEqual(prr.get_host_counter_good_shares(),
                                  good_share_hosts)
 
         """

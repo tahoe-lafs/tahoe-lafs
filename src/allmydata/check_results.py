@@ -196,7 +196,7 @@ class DeepCheckResults(DeepResultsBase):
             self.objects_unrecoverable += 1
         self.all_results[tuple(path)] = r
         self.all_results_by_storage_index[r.get_storage_index()] = r
-        self.corrupt_shares.extend(r.get_data()["list-corrupt-shares"])
+        self.corrupt_shares.extend(r.get_corrupt_shares())
 
     def get_counters(self):
         return {"count-objects-checked": self.objects_checked,
@@ -234,7 +234,7 @@ class DeepCheckAndRepairResults(DeepResultsBase):
             self.objects_unhealthy += 1
         if not pre_repair.is_recoverable():
             self.objects_unrecoverable += 1
-        self.corrupt_shares.extend(pre_repair.get_data()["list-corrupt-shares"])
+        self.corrupt_shares.extend(pre_repair.get_corrupt_shares())
         if r.get_repair_attempted():
             self.repairs_attempted += 1
             if r.get_repair_successful():
@@ -249,7 +249,7 @@ class DeepCheckAndRepairResults(DeepResultsBase):
             self.objects_unrecoverable_post_repair += 1
         self.all_results[tuple(path)] = r
         self.all_results_by_storage_index[r.get_storage_index()] = r
-        self.corrupt_shares_post_repair.extend(post_repair.get_data()["list-corrupt-shares"])
+        self.corrupt_shares_post_repair.extend(post_repair.get_corrupt_shares())
 
     def get_counters(self):
         return {"count-objects-checked": self.objects_checked,

@@ -81,21 +81,20 @@ class ResultsBase:
         assert ICheckResults(cr)
         c = self.client
         sb = c.get_storage_broker()
-        data = cr.get_data()
         r = []
         def add(name, value):
             r.append(T.li[name + ": ", value])
 
         add("Report", T.pre["\n".join(self._html(cr.get_report()))])
         add("Share Counts",
-            "need %d-of-%d, have %d" % (data["count-shares-needed"],
-                                        data["count-shares-expected"],
-                                        data["count-shares-good"]))
-        add("Hosts with good shares", data["count-good-share-hosts"])
+            "need %d-of-%d, have %d" % (cr.get_encoding_needed(),
+                                        cr.get_encoding_expected(),
+                                        cr.get_share_counter_good()))
+        add("Hosts with good shares", cr.get_host_counter_good_shares())
 
-        if data["list-corrupt-shares"]:
+        if cr.get_corrupt_shares():
             badsharemap = []
-            for (serverid, si, shnum) in data["list-corrupt-shares"]:
+            for (serverid, si, shnum) in cr.get_corrupt_shares():
                 nickname = sb.get_nickname_for_serverid(serverid)
                 badsharemap.append(T.tr[T.td["sh#%d" % shnum],
                                         T.td[T.div(class_="nickname")[nickname],
@@ -108,15 +107,15 @@ class ResultsBase:
         else:
             add("Corrupt shares", "none")
 
-        add("Wrong Shares", data["count-wrong-shares"])
+        add("Wrong Shares", cr.get_share_counter_wrong())
 
         sharemap = []
         servers = {}
 
         # FIXME: The two tables below contain nickname-and-nodeid table column markup which is duplicated with each other, introducer.xhtml, and deep-check-results.xhtml. All of these (and any other presentations of nickname-and-nodeid) should be combined.
 
-        for shareid in sorted(data["sharemap"].keys()):
-            serverids = data["sharemap"][shareid]
+        for shareid in sorted(cr.get_sharemap().keys()):
+            serverids = cr.get_sharemap()[shareid]
             for i,serverid in enumerate(serverids):
                 if serverid not in servers:
                     servers[serverid] = []
@@ -134,8 +133,8 @@ class ResultsBase:
                       sharemap])
 
 
-        add("Recoverable Versions", data["count-recoverable-versions"])
-        add("Unrecoverable Versions", data["count-unrecoverable-versions"])
+        add("Recoverable Versions", cr.get_version_counter_recoverable())
+        add("Unrecoverable Versions", cr.get_version_counter_unrecoverable())
 
         # this table is sorted by permuted order
         sb = c.get_storage_broker()
