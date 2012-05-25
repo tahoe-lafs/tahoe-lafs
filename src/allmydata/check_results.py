@@ -17,22 +17,21 @@ class CheckResults:
                  list_incompatible_shares, count_incompatible_shares,
                  summary, report, share_problems, servermap):
         assert IURI.providedBy(uri), uri
-        self.uri = uri
-        self.storage_index = storage_index
-        self.summary = ""
-        self.report = []
-        self.healthy = bool(healthy)
-        if self.healthy:
+        self._uri = uri
+        self._storage_index = storage_index
+        self._summary = ""
+        self._healthy = bool(healthy)
+        if self._healthy:
             assert recoverable
             if not summary:
                 summary = "healthy"
         else:
             if not summary:
                 summary = "not healthy"
-        self.recoverable = recoverable
-        if not self.recoverable:
-            assert not self.healthy
-        self.needs_rebalancing_p = bool(needs_rebalancing)
+        self._recoverable = recoverable
+        if not self._recoverable:
+            assert not self._healthy
+        self._needs_rebalancing_p = bool(needs_rebalancing)
         for s in servers_responding:
             assert isinstance(s, str), s
         for shnum, serverids in sharemap.items():
@@ -58,29 +57,29 @@ class CheckResults:
                 }
         self._data = data
         assert isinstance(summary, str) # should be a single string
-        self.summary = summary
+        self._summary = summary
         assert not isinstance(report, str) # should be list of strings
-        self.report = report
+        self._report = report
         if servermap:
             from allmydata.mutable.servermap import ServerMap
             assert isinstance(servermap, ServerMap), servermap
-        self.servermap = servermap # mutable only
+        self._servermap = servermap # mutable only
         self._share_problems = share_problems
 
     def get_storage_index(self):
-        return self.storage_index
+        return self._storage_index
     def get_storage_index_string(self):
-        return base32.b2a(self.storage_index)
+        return base32.b2a(self._storage_index)
     def get_uri(self):
-        return self.uri
+        return self._uri
 
     def is_healthy(self):
-        return self.healthy
+        return self._healthy
     def is_recoverable(self):
-        return self.recoverable
+        return self._recoverable
 
     def needs_rebalancing(self):
-        return self.needs_rebalancing_p
+        return self._needs_rebalancing_p
 
     def get_encoding_needed(self):
         return self._data["count-shares-needed"]
@@ -116,13 +115,13 @@ class CheckResults:
         return self._data
 
     def get_summary(self):
-        return self.summary
+        return self._summary
     def get_report(self):
-        return self.report
+        return self._report
     def get_share_problems(self):
         return self._share_problems
     def get_servermap(self):
-        return self.servermap
+        return self._servermap
 
 class CheckAndRepairResults:
     implements(ICheckAndRepairResults)

@@ -142,7 +142,7 @@ class CiphertextFileNode:
         is_healthy = bool(len(sm) >= verifycap.total_shares)
         is_recoverable = bool(len(sm) >= verifycap.needed_shares)
         needs_rebalancing = bool(len(sm) >= verifycap.total_shares)
-        prr = CheckResults(cr.uri, cr.storage_index,
+        prr = CheckResults(cr.get_uri(), cr.get_storage_index(),
                            healthy=is_healthy, recoverable=is_recoverable,
                            needs_rebalancing=needs_rebalancing,
                            count_shares_needed=verifycap.needed_shares,
