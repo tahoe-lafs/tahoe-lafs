@@ -39,8 +39,8 @@ class CheckResults:
         self._count_good_share_hosts = count_good_share_hosts
         self._count_recoverable_versions = count_recoverable_versions
         self._count_unrecoverable_versions = count_unrecoverable_versions
-        for s in servers_responding:
-            assert isinstance(s, str), s
+        for server in servers_responding:
+            assert IDisplayableServer.providedBy(server), server
         self._servers_responding = servers_responding
         for shnum, servers in sharemap.items():
             for server in servers:
@@ -97,8 +97,10 @@ class CheckResults:
     def get_incompatible_shares(self):
         return self._list_incompatible_shares
 
-    def get_servers_responding(self):
+    def get_new_servers_responding(self):
         return self._servers_responding
+    def get_servers_responding(self):
+        return [s.get_serverid() for s in self._servers_responding]
 
     def get_host_counter_good_shares(self):
         return self._count_good_share_hosts
@@ -122,13 +124,14 @@ class CheckResults:
         sharemap = {}
         for shnum, servers in self._sharemap.items():
             sharemap[shnum] = sorted([s.get_serverid() for s in servers])
+        responding = [s.get_serverid() for s in self._servers_responding]
         d = {"count-shares-needed": self._count_shares_needed,
              "count-shares-expected": self._count_shares_expected,
              "count-shares-good": self._count_shares_good,
              "count-good-share-hosts": self._count_good_share_hosts,
              "count-recoverable-versions": self._count_recoverable_versions,
              "count-unrecoverable-versions": self._count_unrecoverable_versions,
-             "servers-responding": self._servers_responding,
+             "servers-responding": responding,
              "sharemap": sharemap,
              "count-wrong-shares": self._count_wrong_shares,
              "list-corrupt-shares": self._list_corrupt_shares,

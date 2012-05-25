@@ -218,8 +218,6 @@ class MutableChecker:
             for (shnum, server, timestamp) in vmap[verinfo]:
                 shareid = "%s-sh%d" % (smap.summarize_version(verinfo), shnum)
                 sharemap.add(shareid, server)
-        servers_responding = [s.get_serverid() for s in
-                              list(smap.get_reachable_servers())]
         if healthy:
             summary = "Healthy"
         else:
@@ -235,7 +233,7 @@ class MutableChecker:
                           count_good_share_hosts=counters["count-good-share-hosts"],
                           count_recoverable_versions=len(recoverable),
                           count_unrecoverable_versions=len(unrecoverable),
-                          servers_responding=servers_responding,
+                          servers_responding=list(smap.get_reachable_servers()),
                           sharemap=sharemap,
                           count_wrong_shares=counters["count-wrong-shares"],
                           list_corrupt_shares=corrupt_share_locators,

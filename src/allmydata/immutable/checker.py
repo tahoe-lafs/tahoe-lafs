@@ -740,14 +740,14 @@ class Checker(log.PrefixingLogMixin):
         SI = self._verifycap.get_storage_index()
 
         verifiedshares = dictutil.DictOfSets() # {sharenum: set(server)}
-        servers = {} # {serverid: set(sharenums)}
+        servers = {} # {server: set(sharenums)}
         corruptshare_locators = [] # (serverid, storageindex, sharenum)
         incompatibleshare_locators = [] # (serverid, storageindex, sharenum)
         servers_responding = set() # serverid
 
         for verified, server, corrupt, incompatible, responded in results:
             server_id = server.get_serverid()
-            servers.setdefault(server_id, set()).update(verified)
+            servers.setdefault(server, set()).update(verified)
             for sharenum in verified:
                 verifiedshares.setdefault(sharenum, set()).add(server)
             for sharenum in corrupt:
@@ -755,7 +755,7 @@ class Checker(log.PrefixingLogMixin):
             for sharenum in incompatible:
                 incompatibleshare_locators.append((server_id, SI, sharenum))
             if responded:
-                servers_responding.add(server_id)
+                servers_responding.add(server)
 
         good_share_hosts = len([s for s in servers.keys() if servers[s]])
 

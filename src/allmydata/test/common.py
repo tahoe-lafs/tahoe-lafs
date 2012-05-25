@@ -67,8 +67,7 @@ class FakeCHKFileNode:
         return self.storage_index
 
     def check(self, monitor, verify=False, add_lease=False):
-        nodeid = "\x00"*20
-        s = StubServer(nodeid)
+        s = StubServer("\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          needs_rebalancing=False,
@@ -78,7 +77,7 @@ class FakeCHKFileNode:
                          count_good_share_hosts=10,
                          count_recoverable_versions=1,
                          count_unrecoverable_versions=0,
-                         servers_responding=[nodeid],
+                         servers_responding=[s],
                          sharemap={1: [s]},
                          count_wrong_shares=0,
                          list_corrupt_shares=[],
@@ -280,8 +279,7 @@ class FakeMutableFileNode:
         return self.file_types[self.storage_index]
 
     def check(self, monitor, verify=False, add_lease=False):
-        nodeid = "\x00"*20
-        s = StubServer(nodeid)
+        s = StubServer("\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          needs_rebalancing=False,
@@ -291,7 +289,7 @@ class FakeMutableFileNode:
                          count_good_share_hosts=10,
                          count_recoverable_versions=1,
                          count_unrecoverable_versions=0,
-                         servers_responding=[nodeid],
+                         servers_responding=[s],
                          sharemap={"seq1-abcd-sh0": [s]},
                          count_wrong_shares=0,
                          list_corrupt_shares=[],
