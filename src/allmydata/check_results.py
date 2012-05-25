@@ -32,30 +32,30 @@ class CheckResults:
         if not self._recoverable:
             assert not self._healthy
         self._needs_rebalancing_p = bool(needs_rebalancing)
+
+        self._count_shares_needed = count_shares_needed
+        self._count_shares_expected = count_shares_expected
+        self._count_shares_good = count_shares_good
+        self._count_good_share_hosts = count_good_share_hosts
+        self._count_recoverable_versions = count_recoverable_versions
+        self._count_unrecoverable_versions = count_unrecoverable_versions
         for s in servers_responding:
             assert isinstance(s, str), s
+        self._servers_responding = servers_responding
         for shnum, serverids in sharemap.items():
             for serverid in serverids:
                 assert isinstance(serverid, str), serverid
+        self._sharemap = sharemap
+        self._count_wrong_shares = count_wrong_shares
         for (serverid, SI, shnum) in list_corrupt_shares:
             assert isinstance(serverid, str), serverid
+        self._list_corrupt_shares = list_corrupt_shares
+        self._count_corrupt_shares = count_corrupt_shares
         for (serverid, SI, shnum) in list_incompatible_shares:
             assert isinstance(serverid, str), serverid
-        data = {"count-shares-needed": count_shares_needed,
-                "count-shares-expected": count_shares_expected,
-                "count-shares-good": count_shares_good,
-                "count-good-share-hosts": count_good_share_hosts,
-                "count-recoverable-versions": count_recoverable_versions,
-                "count-unrecoverable-versions": count_unrecoverable_versions,
-                "servers-responding": servers_responding,
-                "sharemap": sharemap,
-                "count-wrong-shares": count_wrong_shares,
-                "list-corrupt-shares": list_corrupt_shares,
-                "count-corrupt-shares": count_corrupt_shares,
-                "list-incompatible-shares": list_incompatible_shares,
-                "count-incompatible-shares": count_incompatible_shares,
-                }
-        self._data = data
+        self._list_incompatible_shares = list_incompatible_shares
+        self._count_incompatible_shares = count_incompatible_shares
+
         assert isinstance(summary, str) # should be a single string
         self._summary = summary
         assert not isinstance(report, str) # should be list of strings
@@ -82,37 +82,51 @@ class CheckResults:
         return self._needs_rebalancing_p
 
     def get_encoding_needed(self):
-        return self._data["count-shares-needed"]
+        return self._count_shares_needed
     def get_encoding_expected(self):
-        return self._data["count-shares-expected"]
+        return self._count_shares_expected
 
     def get_share_counter_good(self):
-        return self._data["count-shares-good"]
+        return self._count_shares_good
     def get_share_counter_wrong(self):
-        return self._data["count-wrong-shares"]
+        return self._count_wrong_shares
 
     def get_corrupt_shares(self):
-        return self._data["list-corrupt-shares"]
+        return self._list_corrupt_shares
 
     def get_incompatible_shares(self):
-        return self._data["list-incompatible-shares"]
+        return self._list_incompatible_shares
 
     def get_servers_responding(self):
-        return self._data["servers-responding"]
+        return self._servers_responding
 
     def get_host_counter_good_shares(self):
-        return self._data["count-good-share-hosts"]
+        return self._count_good_share_hosts
 
     def get_version_counter_recoverable(self):
-        return self._data["count-recoverable-versions"]
+        return self._count_recoverable_versions
     def get_version_counter_unrecoverable(self):
-        return self._data["count-unrecoverable-versions"]
+        return self._count_unrecoverable_versions
 
     def get_sharemap(self):
-        return self._data["sharemap"]
+        return self._sharemap
 
     def as_dict(self):
-        return self._data
+        d = {"count-shares-needed": self._count_shares_needed,
+             "count-shares-expected": self._count_shares_expected,
+             "count-shares-good": self._count_shares_good,
+             "count-good-share-hosts": self._count_good_share_hosts,
+             "count-recoverable-versions": self._count_recoverable_versions,
+             "count-unrecoverable-versions": self._count_unrecoverable_versions,
+             "servers-responding": self._servers_responding,
+             "sharemap": self._sharemap,
+             "count-wrong-shares": self._count_wrong_shares,
+             "list-corrupt-shares": self._list_corrupt_shares,
+             "count-corrupt-shares": self._count_corrupt_shares,
+             "list-incompatible-shares": self._list_incompatible_shares,
+             "count-incompatible-shares": self._count_incompatible_shares,
+             }
+        return d
 
     def get_summary(self):
         return self._summary
