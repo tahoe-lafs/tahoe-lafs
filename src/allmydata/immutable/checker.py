@@ -739,9 +739,6 @@ class Checker(log.PrefixingLogMixin):
     def _format_results(self, results):
         SI = self._verifycap.get_storage_index()
         cr = CheckResults(self._verifycap, SI)
-        d = {}
-        d['count-shares-needed'] = self._verifycap.needed_shares
-        d['count-shares-expected'] = self._verifycap.total_shares
 
         verifiedshares = dictutil.DictOfSets() # {sharenum: set(serverid)}
         servers = {} # {serverid: set(sharenums)}
@@ -761,8 +758,7 @@ class Checker(log.PrefixingLogMixin):
             if responded:
                 servers_responding.add(server_id)
 
-        d['count-shares-good'] = len(verifiedshares)
-        d['count-good-share-hosts'] = len([s for s in servers.keys() if servers[s]])
+        good_share_hosts = len([s for s in servers.keys() if servers[s]])
 
         assert len(verifiedshares) <= self._verifycap.total_shares, (verifiedshares.keys(), self._verifycap.total_shares)
         if len(verifiedshares) == self._verifycap.total_shares:
@@ -776,29 +772,33 @@ class Checker(log.PrefixingLogMixin):
                             self._verifycap.total_shares))
         if len(verifiedshares) >= self._verifycap.needed_shares:
             cr.set_recoverable(True)
-            d['count-recoverable-versions'] = 1
-            d['count-unrecoverable-versions'] = 0
+            recoverable = 1
+            unrecoverable = 0
         else:
             cr.set_recoverable(False)
-            d['count-recoverable-versions'] = 0
-            d['count-unrecoverable-versions'] = 1
-
-        d['servers-responding'] = list(servers_responding)
-        d['sharemap'] = verifiedshares
-        # no such thing as wrong shares of an immutable file
-        d['count-wrong-shares'] = 0
-        d['list-corrupt-shares'] = corruptshare_locators
-        d['count-corrupt-shares'] = len(corruptshare_locators)
-        d['list-incompatible-shares'] = incompatibleshare_locators
-        d['count-incompatible-shares'] = len(incompatibleshare_locators)
-
+            recoverable = 0
+            unrecoverable = 1
 
         # The file needs rebalancing if the set of servers that have at least
         # one share is less than the number of uniquely-numbered shares
         # available.
-        cr.set_needs_rebalancing(d['count-good-share-hosts'] < d['count-shares-good'])
+        cr.set_needs_rebalancing(good_share_hosts < len(verifiedshares))
 
-        cr.set_data(d)
+        cr.set_data(
+            count_shares_needed=self._verifycap.needed_shares,
+            count_shares_expected=self._verifycap.total_shares,
+            count_shares_good=len(verifiedshares),
+            count_good_share_hosts=good_share_hosts,
+            count_recoverable_versions=recoverable,
+            count_unrecoverable_versions=unrecoverable,
+            servers_responding=list(servers_responding),
+            sharemap=verifiedshares,
+            count_wrong_shares=0, # no such thing as wrong, for immutable
+            list_corrupt_shares=corruptshare_locators,
+            count_corrupt_shares=len(corruptshare_locators),
+            list_incompatible_shares=incompatibleshare_locators,
+            count_incompatible_shares=len(incompatibleshare_locators),
+            )
 
         return cr
 

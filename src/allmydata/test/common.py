@@ -67,23 +67,25 @@ class FakeCHKFileNode:
 
     def check(self, monitor, verify=False, add_lease=False):
         r = CheckResults(self.my_uri, self.storage_index)
-        data = {}
-        data["count-shares-needed"] = 3
-        data["count-shares-expected"] = 10
-        data["count-good-share-hosts"] = 10
-        data["count-wrong-shares"] = 0
         nodeid = "\x00"*20
-        data["count-corrupt-shares"] = 0
-        data["list-corrupt-shares"] = []
-        data["sharemap"] = {1: [nodeid]}
-        data["servers-responding"] = [nodeid]
-        data["count-recoverable-versions"] = 1
-        data["count-unrecoverable-versions"] = 0
+        r.set_data(
+             count_shares_needed=3,
+             count_shares_expected=10,
+             count_shares_good=10,
+             count_good_share_hosts=10,
+             count_recoverable_versions=1,
+             count_unrecoverable_versions=0,
+             servers_responding=[nodeid],
+             sharemap={1: [nodeid]},
+             count_wrong_shares=0,
+             list_corrupt_shares=[],
+             count_corrupt_shares=0,
+             list_incompatible_shares=[],
+             count_incompatible_shares=0,
+             )
         r.set_healthy(True)
         r.set_recoverable(True)
-        data["count-shares-good"] = 10
         r.problems = []
-        r.set_data(data)
         r.set_needs_rebalancing(False)
         return defer.succeed(r)
     def check_and_repair(self, monitor, verify=False, add_lease=False):
@@ -277,23 +279,25 @@ class FakeMutableFileNode:
 
     def check(self, monitor, verify=False, add_lease=False):
         r = CheckResults(self.my_uri, self.storage_index)
-        data = {}
-        data["count-shares-needed"] = 3
-        data["count-shares-expected"] = 10
-        data["count-good-share-hosts"] = 10
-        data["count-wrong-shares"] = 0
-        data["count-corrupt-shares"] = 0
-        data["list-corrupt-shares"] = []
         nodeid = "\x00"*20
-        data["sharemap"] = {"seq1-abcd-sh0": [nodeid]}
-        data["servers-responding"] = [nodeid]
-        data["count-recoverable-versions"] = 1
-        data["count-unrecoverable-versions"] = 0
+        r.set_data(
+             count_shares_needed=3,
+             count_shares_expected=10,
+             count_shares_good=10,
+             count_good_share_hosts=10,
+             count_recoverable_versions=1,
+             count_unrecoverable_versions=0,
+             servers_responding=[nodeid],
+             sharemap={"seq1-abcd-sh0": [nodeid]},
+             count_wrong_shares=0,
+             list_corrupt_shares=[],
+             count_corrupt_shares=0,
+             list_incompatible_shares=[],
+             count_incompatible_shares=0,
+             )
         r.set_healthy(True)
         r.set_recoverable(True)
-        data["count-shares-good"] = 10
         r.problems = []
-        r.set_data(data)
         r.set_needs_rebalancing(False)
         return defer.succeed(r)
 

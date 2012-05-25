@@ -128,6 +128,7 @@ class CiphertextFileNode:
         prr = CheckResults(cr.uri, cr.storage_index)
         prr_data = copy.deepcopy(cr.get_data())
 
+        verifycap = self._verifycap
         servers_responding = set(prr_data['servers-responding'])
         sm = prr_data['sharemap']
         assert isinstance(sm, DictOfSets), sm
@@ -136,14 +137,25 @@ class CiphertextFileNode:
                 sm.add(shnum, s.get_serverid())
                 servers_responding.add(s.get_serverid())
         servers_responding = sorted(servers_responding)
-        prr_data['servers-responding'] = servers_responding
-        prr_data['count-shares-good'] = len(sm)
+
         good_hosts = len(reduce(set.union, sm.itervalues(), set()))
-        prr_data['count-good-share-hosts'] = good_hosts
-        prr.set_data(prr_data)
-        verifycap = self._verifycap
         is_healthy = bool(len(sm) >= verifycap.total_shares)
         is_recoverable = bool(len(sm) >= verifycap.needed_shares)
+        prr.set_data(
+            count_shares_needed=verifycap.needed_shares,
+            count_shares_expected=verifycap.total_shares,
+            count_shares_good=len(sm),
+            count_good_share_hosts=good_hosts,
+            count_recoverable_versions=int(is_recoverable),
+            count_unrecoverable_versions=int(not is_recoverable),
+            servers_responding=list(servers_responding),
+            sharemap=sm,
+            count_wrong_shares=0, # no such thing as wrong, for immutable
+            list_corrupt_shares=prr_data["list-corrupt-shares"],
+            count_corrupt_shares=prr_data["count-corrupt-shares"],
+            list_incompatible_shares=prr_data["list-incompatible-shares"],
+            count_incompatible_shares=prr_data["count-incompatible-shares"],
+            )
         prr.set_healthy(is_healthy)
         prr.set_recoverable(is_recoverable)
         crr.repair_successful = is_healthy

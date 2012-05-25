@@ -30,7 +30,27 @@ class CheckResults:
             self.healthy = False
     def set_needs_rebalancing(self, needs_rebalancing):
         self.needs_rebalancing_p = bool(needs_rebalancing)
-    def set_data(self, data):
+    def set_data(self,
+                 count_shares_needed, count_shares_expected,
+                 count_shares_good, count_good_share_hosts,
+                 count_recoverable_versions, count_unrecoverable_versions,
+                 servers_responding, sharemap,
+                 count_wrong_shares, list_corrupt_shares, count_corrupt_shares,
+                 list_incompatible_shares, count_incompatible_shares):
+        data = {"count-shares-needed": count_shares_needed,
+                "count-shares-expected": count_shares_expected,
+                "count-shares-good": count_shares_good,
+                "count-good-share-hosts": count_good_share_hosts,
+                "count-recoverable-versions": count_recoverable_versions,
+                "count-unrecoverable-versions": count_unrecoverable_versions,
+                "servers-responding": servers_responding,
+                "sharemap": sharemap,
+                "count-wrong-shares": count_wrong_shares,
+                "list-corrupt-shares": list_corrupt_shares,
+                "count-corrupt-shares": count_corrupt_shares,
+                "list-incompatible-shares": list_incompatible_shares,
+                "count-incompatible-shares": count_incompatible_shares,
+                }
         self._data = data
     def set_summary(self, summary):
         assert isinstance(summary, str) # should be a single string

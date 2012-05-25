@@ -126,14 +126,11 @@ class MutableChecker:
         self._monitor.raise_if_cancelled()
         r.set_servermap(smap.copy())
         healthy = True
-        data = {}
         report = []
         summary = []
         vmap = smap.make_versionmap()
         recoverable = smap.recoverable_versions()
         unrecoverable = smap.unrecoverable_versions()
-        data["count-recoverable-versions"] = len(recoverable)
-        data["count-unrecoverable-versions"] = len(unrecoverable)
 
         if recoverable:
             report.append("Recoverable Versions: " +
@@ -164,7 +161,6 @@ class MutableChecker:
             report.append("Best Recoverable Version: " +
                           smap.summarize_version(best_version))
             counters = self._count_shares(smap, best_version)
-            data.update(counters)
             s = counters["count-shares-good"]
             k = counters["count-shares-needed"]
             N = counters["count-shares-expected"]
@@ -180,45 +176,44 @@ class MutableChecker:
             # find a k and N from somewhere
             first = list(unrecoverable)[0]
             # not exactly the best version, but that doesn't matter too much
-            data.update(self._count_shares(smap, first))
+            counters = self._count_shares(smap, first)
             # leave needs_rebalancing=False: the file being unrecoverable is
             # the bigger problem
         else:
             # couldn't find anything at all
-            data["count-shares-good"] = 0
-            data["count-shares-needed"] = 3 # arbitrary defaults
-            data["count-shares-expected"] = 10
-            data["count-good-share-hosts"] = 0
-            data["count-wrong-shares"] = 0
+            counters = {
+                "count-shares-good": 0,
+                "count-shares-needed": 3, # arbitrary defaults
+                "count-shares-expected": 10,
+                "count-good-share-hosts": 0,
+                "count-wrong-shares": 0,
+                }
 
+        corrupt_share_locators = []
         if self.bad_shares:
-            data["count-corrupt-shares"] = len(self.bad_shares)
-            data["list-corrupt-shares"] = locators = []
             report.append("Corrupt Shares:")
             summary.append("Corrupt Shares:")
-            for (server, shnum, f) in sorted(self.bad_shares):
-                serverid = server.get_serverid()
-                locators.append( (serverid, self._storage_index, shnum) )
-                s = "%s-sh%d" % (server.get_name(), shnum)
-                if f.check(CorruptShareError):
-                    ft = f.value.reason
-                else:
-                    ft = str(f)
-                report.append(" %s: %s" % (s, ft))
-                summary.append(s)
-                p = (serverid, self._storage_index, shnum, f)
-                r.problems.append(p)
-                msg = ("CorruptShareError during mutable verify, "
-                       "serverid=%(serverid)s, si=%(si)s, shnum=%(shnum)d, "
-                       "where=%(where)s")
-                log.msg(format=msg, serverid=server.get_name(),
-                        si=base32.b2a(self._storage_index),
-                        shnum=shnum,
-                        where=ft,
-                        level=log.WEIRD, umid="EkK8QA")
-        else:
-            data["count-corrupt-shares"] = 0
-            data["list-corrupt-shares"] = []
+        for (server, shnum, f) in sorted(self.bad_shares):
+            serverid = server.get_serverid()
+            locator = (serverid, self._storage_index, shnum)
+            corrupt_share_locators.append(locator)
+            s = "%s-sh%d" % (server.get_name(), shnum)
+            if f.check(CorruptShareError):
+                ft = f.value.reason
+            else:
+                ft = str(f)
+            report.append(" %s: %s" % (s, ft))
+            summary.append(s)
+            p = (serverid, self._storage_index, shnum, f)
+            r.problems.append(p)
+            msg = ("CorruptShareError during mutable verify, "
+                   "serverid=%(serverid)s, si=%(si)s, shnum=%(shnum)d, "
+                   "where=%(where)s")
+            log.msg(format=msg, serverid=server.get_name(),
+                    si=base32.b2a(self._storage_index),
+                    shnum=shnum,
+                    where=ft,
+                    level=log.WEIRD, umid="EkK8QA")
 
         sharemap = {}
         for verinfo in vmap:
@@ -227,14 +222,27 @@ class MutableChecker:
                 if shareid not in sharemap:
                     sharemap[shareid] = []
                 sharemap[shareid].append(server.get_serverid())
-        data["sharemap"] = sharemap
-        data["servers-responding"] = [s.get_serverid() for s in
-                                      list(smap.get_reachable_servers())]
+        servers_responding = [s.get_serverid() for s in
+                              list(smap.get_reachable_servers())]
+        r.set_data(
+            count_shares_needed=counters["count-shares-needed"],
+            count_shares_expected=counters["count-shares-expected"],
+            count_shares_good=counters["count-shares-good"],
+            count_good_share_hosts=counters["count-good-share-hosts"],
+            count_recoverable_versions=len(recoverable),
+            count_unrecoverable_versions=len(unrecoverable),
+            servers_responding=servers_responding,
+            sharemap=sharemap,
+            count_wrong_shares=counters["count-wrong-shares"],
+            list_corrupt_shares=corrupt_share_locators,
+            count_corrupt_shares=len(corrupt_share_locators),
+            list_incompatible_shares=[],
+            count_incompatible_shares=0,
+            )
 
         r.set_healthy(healthy)
         r.set_recoverable(bool(recoverable))
         r.set_needs_rebalancing(needs_rebalancing)
-        r.set_data(data)
         if healthy:
             r.set_summary("Healthy")
         else:
