@@ -91,17 +91,11 @@ class CheckResults:
     def get_share_counter_wrong(self):
         return self._count_wrong_shares
 
-    def get_new_corrupt_shares(self):
-        return self._list_corrupt_shares
     def get_corrupt_shares(self):
-        return [(s.get_serverid(), SI, shnum)
-                for (s, SI, shnum) in self._list_corrupt_shares]
+        return self._list_corrupt_shares
 
-    def get_new_incompatible_shares(self):
-        return self._list_incompatible_shares
     def get_incompatible_shares(self):
-        return [(s.get_serverid(), SI, shnum)
-                for (s, SI, shnum) in self._list_incompatible_shares]
+        return self._list_incompatible_shares
 
     def get_servers_responding(self):
         return self._servers_responding

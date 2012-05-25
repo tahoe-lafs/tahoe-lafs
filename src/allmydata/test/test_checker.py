@@ -140,7 +140,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Recoverable! : rather dead", s)
-        self.failUnlessIn("Corrupt shares: Share ID Nickname Node ID sh#2 peer-0 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", s)
+        self.failUnlessIn("Corrupt shares: Share ID Nickname Node ID sh#2 peer-0 00000000", s)
 
         html = self.render2(w)
         s = self.remove_tags(html)
@@ -166,8 +166,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                                      ["v0-00000000-long", "v0-ffffffff-long"]},
                         'count-recoverable-versions': 1,
                         'list-corrupt-shares':
-                        [["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                          "2k6avpjga3dho3zsjo6nnkt7n4", 2]],
+                        [["v0-00000000-long", "2k6avpjga3dho3zsjo6nnkt7n4", 2]],
                         'count-good-share-hosts': 11,
                         'count-wrong-shares': 0,
                         'count-shares-good': 10,

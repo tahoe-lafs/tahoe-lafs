@@ -2159,12 +2159,12 @@ class ICheckResults(Interface):
     def get_corrupt_shares():
         """Return a list of 'share locators', one for each share that was
         found to be corrupt (integrity failure). Each share locator is a list
-        of (serverid, storage_index, sharenum)."""
+        of (IServer, storage_index, sharenum)."""
 
     def get_incompatible_shares():
         """Return a list of 'share locators', one for each share that was
         found to be of an unknown format. Each share locator is a list of
-        (serverid, storage_index, sharenum)."""
+        (IServer, storage_index, sharenum)."""
 
     def get_servers_responding():
         """Return a list of IServer objects, one for each server which
@@ -2255,10 +2255,8 @@ class IDeepCheckResults(Interface):
         """
 
     def get_corrupt_shares():
-        """Return a set of (serverid, storage_index, sharenum) for all shares
-        that were found to be corrupt. Both serverid and storage_index are
-        binary.
-        """
+        """Return a set of (IServer, storage_index, sharenum) for all shares
+        that were found to be corrupt. storage_index is binary."""
     def get_all_results():
         """Return a dictionary mapping pathname (a tuple of strings, ready to
         be slash-joined) to an ICheckResults instance, one for each object
@@ -2323,15 +2321,15 @@ class IDeepCheckAndRepairResults(Interface):
         IDirectoryNode.deep_stats()."""
 
     def get_corrupt_shares():
-        """Return a set of (serverid, storage_index, sharenum) for all shares
-        that were found to be corrupt before any repair was attempted. Both
-        serverid and storage_index are binary.
+        """Return a set of (IServer, storage_index, sharenum) for all shares
+        that were found to be corrupt before any repair was attempted.
+        storage_index is binary.
         """
     def get_remaining_corrupt_shares():
-        """Return a set of (serverid, storage_index, sharenum) for all shares
-        that were found to be corrupt after any repair was completed. Both
-        serverid and storage_index are binary. These are shares that need
-        manual inspection and probably deletion.
+        """Return a set of (IServer, storage_index, sharenum) for all shares
+        that were found to be corrupt after any repair was completed.
+        storage_index is binary. These are shares that need manual inspection
+        and probably deletion.
         """
     def get_all_results():
         """Return a dictionary mapping pathname (a tuple of strings, ready to
