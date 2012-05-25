@@ -73,6 +73,7 @@ class FakeCHKFileNode:
         data["count-good-share-hosts"] = 10
         data["count-wrong-shares"] = 0
         nodeid = "\x00"*20
+        data["count-corrupt-shares"] = 0
         data["list-corrupt-shares"] = []
         data["sharemap"] = {1: [nodeid]}
         data["servers-responding"] = [nodeid]
@@ -281,6 +282,7 @@ class FakeMutableFileNode:
         data["count-shares-expected"] = 10
         data["count-good-share-hosts"] = 10
         data["count-wrong-shares"] = 0
+        data["count-corrupt-shares"] = 0
         data["list-corrupt-shares"] = []
         nodeid = "\x00"*20
         data["sharemap"] = {"seq1-abcd-sh0": [nodeid]}

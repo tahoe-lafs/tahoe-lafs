@@ -89,6 +89,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  "count-shares-expected": 9,
                  "count-shares-good": 10,
                  "count-good-share-hosts": 11,
+                 "count-corrupt-shares": 0,
                  "list-corrupt-shares": [],
                  "count-wrong-shares": 0,
                  "sharemap": {"shareid1": [serverid_1, serverid_f]},
@@ -121,6 +122,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         cr.set_healthy(False)
         cr.set_recoverable(False)
         cr.set_summary("rather dead")
+        data["count-corrupt-shares"] = 1
         data["list-corrupt-shares"] = [(serverid_1, u.get_storage_index(), 2)]
         cr.set_data(data)
         html = self.render2(w)
@@ -159,7 +161,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                         'count-good-share-hosts': 11,
                         'count-wrong-shares': 0,
                         'count-shares-good': 10,
-                        'count-corrupt-shares': 0,
+                        'count-corrupt-shares': 1,
                         'servers-responding': [],
                         'recoverable': False,
                         }
@@ -189,6 +191,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  "count-shares-expected": 10,
                  "count-shares-good": 6,
                  "count-good-share-hosts": 7,
+                 "count-corrupt-shares": 0,
                  "list-corrupt-shares": [],
                  "count-wrong-shares": 0,
                  "sharemap": {"shareid1": [serverid_1, serverid_f]},
@@ -207,6 +210,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  "count-shares-expected": 10,
                  "count-shares-good": 10,
                  "count-good-share-hosts": 11,
+                 "count-corrupt-shares": 0,
                  "list-corrupt-shares": [],
                  "count-wrong-shares": 0,
                  "sharemap": {"shareid1": [serverid_1, serverid_f]},
