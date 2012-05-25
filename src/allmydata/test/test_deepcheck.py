@@ -289,7 +289,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                                  num_servers, where)
         self.failUnlessEqual(cr.get_corrupt_shares(), [], where)
         if not incomplete:
-            self.failUnlessEqual(sorted(cr.get_servers_responding()),
+            self.failUnlessEqual(sorted([s.get_serverid()
+                                         for s in cr.get_servers_responding()]),
                                  sorted(self.g.get_all_serverids()),
                                  where)
             all_serverids = set()

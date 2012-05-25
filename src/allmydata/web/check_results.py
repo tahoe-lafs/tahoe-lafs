@@ -18,8 +18,8 @@ def json_check_counts(r):
                                    base32.b2a(si), shnum)
                                   for (serverid, si, shnum)
                                   in r.get_corrupt_shares() ],
-         "servers-responding": [idlib.nodeid_b2a(serverid)
-                                for serverid in r.get_servers_responding()],
+         "servers-responding": [s.get_longname()
+                                for s in r.get_servers_responding()],
          "sharemap": dict([(shareid,
                             sorted([s.get_longname() for s in servers]))
                            for (shareid, servers)

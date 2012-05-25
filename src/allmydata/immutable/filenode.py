@@ -126,7 +126,7 @@ class CiphertextFileNode:
         # prr (post-repair results)
 
         verifycap = self._verifycap
-        servers_responding = set(cr.get_new_servers_responding())
+        servers_responding = set(cr.get_servers_responding())
         sm = DictOfSets()
         assert isinstance(cr.get_sharemap(), DictOfSets)
         for shnum, servers in cr.get_sharemap().items():

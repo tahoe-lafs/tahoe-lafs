@@ -2167,12 +2167,12 @@ class ICheckResults(Interface):
         (serverid, storage_index, sharenum)."""
 
     def get_servers_responding():
-        """Return a list of (binary) storage server identifiers, one for each
-        server which responded to the share query (even if they said they
-        didn't have shares, and even if they said they did have shares but
-        then didn't send them when asked, or dropped the connection, or
-        returned a Failure, and even if they said they did have shares and
-        sent incorrect ones when asked)"""
+        """Return a list of IServer objects, one for each server which
+        responded to the share query (even if they said they didn't have
+        shares, and even if they said they did have shares but then didn't
+        send them when asked, or dropped the connection, or returned a
+        Failure, and even if they said they did have shares and sent
+        incorrect ones when asked)"""
 
     def get_host_counter_good_shares():
         """Return the number of distinct storage servers with good shares. If

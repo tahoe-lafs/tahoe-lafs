@@ -103,10 +103,8 @@ class CheckResults:
         return [(s.get_serverid(), SI, shnum)
                 for (s, SI, shnum) in self._list_incompatible_shares]
 
-    def get_new_servers_responding(self):
-        return self._servers_responding
     def get_servers_responding(self):
-        return [s.get_serverid() for s in self._servers_responding]
+        return self._servers_responding
 
     def get_host_counter_good_shares(self):
         return self._count_good_share_hosts

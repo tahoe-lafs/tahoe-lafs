@@ -716,7 +716,9 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             # not respond to the pre-repair filecheck
             prr = rr.get_post_repair_results()
             expected = set(self.g.get_all_serverids())
-            self.failUnlessEqual(expected, set(prr.get_servers_responding()))
+            self.failUnlessEqual(expected,
+                                 set([s.get_serverid()
+                                      for s in prr.get_servers_responding()]))
         d.addCallback(_check)
         return d
 
