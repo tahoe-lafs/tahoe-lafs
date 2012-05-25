@@ -1,6 +1,6 @@
 
 from allmydata.uri import from_string
-from allmydata.util import base32, log
+from allmydata.util import base32, log, dictutil
 from allmydata.check_results import CheckAndRepairResults, CheckResults
 
 from allmydata.mutable.common import MODE_CHECK, MODE_WRITE, CorruptShareError
@@ -213,13 +213,11 @@ class MutableChecker:
                     where=ft,
                     level=log.WEIRD, umid="EkK8QA")
 
-        sharemap = {}
+        sharemap = dictutil.DictOfSets()
         for verinfo in vmap:
             for (shnum, server, timestamp) in vmap[verinfo]:
                 shareid = "%s-sh%d" % (smap.summarize_version(verinfo), shnum)
-                if shareid not in sharemap:
-                    sharemap[shareid] = []
-                sharemap[shareid].append(server.get_serverid())
+                sharemap.add(shareid, server)
         servers_responding = [s.get_serverid() for s in
                               list(smap.get_reachable_servers())]
         if healthy:

@@ -78,6 +78,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def test_check(self):
         c = self.create_fake_client()
+        sb = c.storage_broker
         serverid_1 = "\x00"*20
         serverid_f = "\xff"*20
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
@@ -88,7 +89,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  "count_recoverable_versions": 1,
                  "count_unrecoverable_versions": 0,
                  "servers_responding": [],
-                 "sharemap": {"shareid1": [serverid_1, serverid_f]},
+                 "sharemap": {"shareid1": [sb.get_stub_server(serverid_1),
+                                           sb.get_stub_server(serverid_f)]},
                  "count_wrong_shares": 0,
                  "list_corrupt_shares": [],
                  "count_corrupt_shares": 0,
@@ -159,8 +161,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                         'count-unrecoverable-versions': 0,
                         'count-shares-needed': 3,
                         'sharemap': {"shareid1":
-                                     ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                                      "77777777777777777777777777777777"]},
+                                     ["77777777777777777777777777777777",
+                                      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]},
                         'count-recoverable-versions': 1,
                         'list-corrupt-shares':
                         [["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -185,6 +187,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def test_check_and_repair(self):
         c = self.create_fake_client()
+        sb = c.storage_broker
         serverid_1 = "\x00"*20
         serverid_f = "\xff"*20
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
@@ -196,7 +199,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  "count_recoverable_versions": 1,
                  "count_unrecoverable_versions": 0,
                  "servers_responding": [],
-                 "sharemap": {"shareid1": [serverid_1, serverid_f]},
+                 "sharemap": {"shareid1": [sb.get_stub_server(serverid_1),
+                                           sb.get_stub_server(serverid_f)]},
                  "count_wrong_shares": 0,
                  "list_corrupt_shares": [],
                  "count_corrupt_shares": 0,
@@ -217,7 +221,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  "count_recoverable_versions": 1,
                  "count_unrecoverable_versions": 0,
                  "servers_responding": [],
-                 "sharemap": {"shareid1": [serverid_1, serverid_f]},
+                 "sharemap": {"shareid1": [sb.get_stub_server(serverid_1),
+                                           sb.get_stub_server(serverid_f)]},
                  "count_wrong_shares": 0,
                  "count_corrupt_shares": 0,
                  "list_corrupt_shares": [],

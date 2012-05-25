@@ -14,6 +14,7 @@ from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
                                  MDMF_VERSION
 from allmydata.check_results import CheckResults, CheckAndRepairResults, \
      DeepCheckResults, DeepCheckAndRepairResults
+from allmydata.storage_client import StubServer
 from allmydata.mutable.layout import unpack_header
 from allmydata.mutable.publish import MutableData
 from allmydata.storage.mutable import MutableShareFile
@@ -67,6 +68,7 @@ class FakeCHKFileNode:
 
     def check(self, monitor, verify=False, add_lease=False):
         nodeid = "\x00"*20
+        s = StubServer(nodeid)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          needs_rebalancing=False,
@@ -77,7 +79,7 @@ class FakeCHKFileNode:
                          count_recoverable_versions=1,
                          count_unrecoverable_versions=0,
                          servers_responding=[nodeid],
-                         sharemap={1: [nodeid]},
+                         sharemap={1: [s]},
                          count_wrong_shares=0,
                          list_corrupt_shares=[],
                          count_corrupt_shares=0,
@@ -279,6 +281,7 @@ class FakeMutableFileNode:
 
     def check(self, monitor, verify=False, add_lease=False):
         nodeid = "\x00"*20
+        s = StubServer(nodeid)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
                          needs_rebalancing=False,
@@ -289,7 +292,7 @@ class FakeMutableFileNode:
                          count_recoverable_versions=1,
                          count_unrecoverable_versions=0,
                          servers_responding=[nodeid],
-                         sharemap={"seq1-abcd-sh0": [nodeid]},
+                         sharemap={"seq1-abcd-sh0": [s]},
                          count_wrong_shares=0,
                          list_corrupt_shares=[],
                          count_corrupt_shares=0,

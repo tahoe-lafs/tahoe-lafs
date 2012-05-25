@@ -129,13 +129,13 @@ class CiphertextFileNode:
         servers_responding = set(cr.get_servers_responding())
         sm = DictOfSets()
         assert isinstance(cr.get_sharemap(), DictOfSets)
-        for shnum, serverids in cr.get_sharemap().items():
-            for serverid in serverids:
-                sm.add(shnum, serverid)
+        for shnum, servers in cr.get_new_sharemap().items():
+            for server in servers:
+                sm.add(shnum, server)
         for shnum, servers in ur.get_sharemap().items():
-            for s in servers:
-                sm.add(shnum, s.get_serverid())
-                servers_responding.add(s.get_serverid())
+            for server in servers:
+                sm.add(shnum, server)
+                servers_responding.add(server.get_serverid())
         servers_responding = sorted(servers_responding)
 
         good_hosts = len(reduce(set.union, sm.values(), set()))

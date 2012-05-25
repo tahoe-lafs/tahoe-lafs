@@ -1,8 +1,8 @@
 
 from zope.interface import implements
 from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
-     IDeepCheckResults, IDeepCheckAndRepairResults, IURI
-from allmydata.util import base32
+     IDeepCheckResults, IDeepCheckAndRepairResults, IURI, IDisplayableServer
+from allmydata.util import base32, dictutil
 
 class CheckResults:
     implements(ICheckResults)
@@ -42,9 +42,9 @@ class CheckResults:
         for s in servers_responding:
             assert isinstance(s, str), s
         self._servers_responding = servers_responding
-        for shnum, serverids in sharemap.items():
-            for serverid in serverids:
-                assert isinstance(serverid, str), serverid
+        for shnum, servers in sharemap.items():
+            for server in servers:
+                assert IDisplayableServer.providedBy(server), server
         self._sharemap = sharemap
         self._count_wrong_shares = count_wrong_shares
         for (serverid, SI, shnum) in list_corrupt_shares:
@@ -109,9 +109,19 @@ class CheckResults:
         return self._count_unrecoverable_versions
 
     def get_sharemap(self):
+        sharemap = dictutil.DictOfSets()
+        for shnum, servers in self._sharemap.items():
+            for s in servers:
+                sharemap.add(shnum, s.get_serverid())
+        return sharemap
+    def get_new_sharemap(self):
+        # this one returns IServers, even when get_sharemap returns serverids
         return self._sharemap
 
     def as_dict(self):
+        sharemap = {}
+        for shnum, servers in self._sharemap.items():
+            sharemap[shnum] = sorted([s.get_serverid() for s in servers])
         d = {"count-shares-needed": self._count_shares_needed,
              "count-shares-expected": self._count_shares_expected,
              "count-shares-good": self._count_shares_good,
@@ -119,7 +129,7 @@ class CheckResults:
              "count-recoverable-versions": self._count_recoverable_versions,
              "count-unrecoverable-versions": self._count_unrecoverable_versions,
              "servers-responding": self._servers_responding,
-             "sharemap": self._sharemap,
+             "sharemap": sharemap,
              "count-wrong-shares": self._count_wrong_shares,
              "list-corrupt-shares": self._list_corrupt_shares,
              "count-corrupt-shares": self._count_corrupt_shares,
