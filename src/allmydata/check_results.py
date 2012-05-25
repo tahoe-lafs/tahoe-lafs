@@ -78,6 +78,37 @@ class CheckResults:
 
     def needs_rebalancing(self):
         return self.needs_rebalancing_p
+
+    def get_encoding_needed(self):
+        return self._data["count-shares-needed"]
+    def get_encoding_expected(self):
+        return self._data["count-shares-expected"]
+
+    def get_share_counter_good(self):
+        return self._data["count-shares-good"]
+    def get_share_counter_wrong(self):
+        return self._data["count-wrong-shares"]
+
+    def get_corrupt_shares(self):
+        return self._data["list-corrupt-shares"]
+
+    def get_incompatible_shares(self):
+        return self._data["list-incompatible-shares"]
+
+    def get_servers_responding(self):
+        return self._data["servers-responding"]
+
+    def get_host_counter_good_shares(self):
+        return self._data["count-good-share-hosts"]
+
+    def get_version_counter_recoverable(self):
+        return self._data["count-recoverable-versions"]
+    def get_version_counter_unrecoverable(self):
+        return self._data["count-unrecoverable-versions"]
+
+    def get_sharemap(self):
+        return self._data["sharemap"]
+
     def get_data(self):
         return self._data
 
