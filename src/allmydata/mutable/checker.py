@@ -193,7 +193,7 @@ class MutableChecker:
             summary.append("Corrupt Shares:")
         for (server, shnum, f) in sorted(self.bad_shares):
             serverid = server.get_serverid()
-            locator = (serverid, self._storage_index, shnum)
+            locator = (server, self._storage_index, shnum)
             corrupt_share_locators.append(locator)
             s = "%s-sh%d" % (server.get_name(), shnum)
             if f.check(CorruptShareError):

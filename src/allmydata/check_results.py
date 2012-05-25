@@ -47,12 +47,12 @@ class CheckResults:
                 assert IDisplayableServer.providedBy(server), server
         self._sharemap = sharemap
         self._count_wrong_shares = count_wrong_shares
-        for (serverid, SI, shnum) in list_corrupt_shares:
-            assert isinstance(serverid, str), serverid
+        for (server, SI, shnum) in list_corrupt_shares:
+            assert IDisplayableServer.providedBy(server), server
         self._list_corrupt_shares = list_corrupt_shares
         self._count_corrupt_shares = count_corrupt_shares
-        for (serverid, SI, shnum) in list_incompatible_shares:
-            assert isinstance(serverid, str), serverid
+        for (server, SI, shnum) in list_incompatible_shares:
+            assert IDisplayableServer.providedBy(server), server
         self._list_incompatible_shares = list_incompatible_shares
         self._count_incompatible_shares = count_incompatible_shares
 
@@ -91,11 +91,17 @@ class CheckResults:
     def get_share_counter_wrong(self):
         return self._count_wrong_shares
 
-    def get_corrupt_shares(self):
+    def get_new_corrupt_shares(self):
         return self._list_corrupt_shares
+    def get_corrupt_shares(self):
+        return [(s.get_serverid(), SI, shnum)
+                for (s, SI, shnum) in self._list_corrupt_shares]
 
-    def get_incompatible_shares(self):
+    def get_new_incompatible_shares(self):
         return self._list_incompatible_shares
+    def get_incompatible_shares(self):
+        return [(s.get_serverid(), SI, shnum)
+                for (s, SI, shnum) in self._list_incompatible_shares]
 
     def get_new_servers_responding(self):
         return self._servers_responding
@@ -125,6 +131,10 @@ class CheckResults:
         for shnum, servers in self._sharemap.items():
             sharemap[shnum] = sorted([s.get_serverid() for s in servers])
         responding = [s.get_serverid() for s in self._servers_responding]
+        corrupt = [(s.get_serverid(), SI, shnum)
+                   for (s, SI, shnum) in self._list_corrupt_shares]
+        incompatible = [(s.get_serverid(), SI, shnum)
+                        for (s, SI, shnum) in self._list_incompatible_shares]
         d = {"count-shares-needed": self._count_shares_needed,
              "count-shares-expected": self._count_shares_expected,
              "count-shares-good": self._count_shares_good,
@@ -134,9 +144,9 @@ class CheckResults:
              "servers-responding": responding,
              "sharemap": sharemap,
              "count-wrong-shares": self._count_wrong_shares,
-             "list-corrupt-shares": self._list_corrupt_shares,
+             "list-corrupt-shares": corrupt,
              "count-corrupt-shares": self._count_corrupt_shares,
-             "list-incompatible-shares": self._list_incompatible_shares,
+             "list-incompatible-shares": incompatible,
              "count-incompatible-shares": self._count_incompatible_shares,
              }
         return d

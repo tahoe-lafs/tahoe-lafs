@@ -741,19 +741,18 @@ class Checker(log.PrefixingLogMixin):
 
         verifiedshares = dictutil.DictOfSets() # {sharenum: set(server)}
         servers = {} # {server: set(sharenums)}
-        corruptshare_locators = [] # (serverid, storageindex, sharenum)
-        incompatibleshare_locators = [] # (serverid, storageindex, sharenum)
-        servers_responding = set() # serverid
+        corruptshare_locators = [] # (server, storageindex, sharenum)
+        incompatibleshare_locators = [] # (server, storageindex, sharenum)
+        servers_responding = set() # server
 
         for verified, server, corrupt, incompatible, responded in results:
-            server_id = server.get_serverid()
             servers.setdefault(server, set()).update(verified)
             for sharenum in verified:
                 verifiedshares.setdefault(sharenum, set()).add(server)
             for sharenum in corrupt:
-                corruptshare_locators.append((server_id, SI, sharenum))
+                corruptshare_locators.append((server, SI, sharenum))
             for sharenum in incompatible:
-                incompatibleshare_locators.append((server_id, SI, sharenum))
+                incompatibleshare_locators.append((server, SI, sharenum))
             if responded:
                 servers_responding.add(server)
 

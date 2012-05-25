@@ -154,9 +154,9 @@ class CiphertextFileNode:
                            servers_responding=list(servers_responding),
                            sharemap=sm,
                            count_wrong_shares=0, # no such thing as wrong, for immutable
-                           list_corrupt_shares=cr.get_corrupt_shares(),
+                           list_corrupt_shares=cr.get_new_corrupt_shares(),
                            count_corrupt_shares=len(cr.get_corrupt_shares()),
-                           list_incompatible_shares=cr.get_incompatible_shares(),
+                           list_incompatible_shares=cr.get_new_incompatible_shares(),
                            count_incompatible_shares=len(cr.get_incompatible_shares()),
                            summary="",
                            report=[],

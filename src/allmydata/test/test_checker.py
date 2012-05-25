@@ -81,6 +81,8 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         sb = c.storage_broker
         serverid_1 = "\x00"*20
         serverid_f = "\xff"*20
+        server_1 = sb.get_stub_server(serverid_1)
+        server_f = sb.get_stub_server(serverid_f)
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
         data = { "count_shares_needed": 3,
                  "count_shares_expected": 9,
@@ -89,8 +91,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  "count_recoverable_versions": 1,
                  "count_unrecoverable_versions": 0,
                  "servers_responding": [],
-                 "sharemap": {"shareid1": [sb.get_stub_server(serverid_1),
-                                           sb.get_stub_server(serverid_f)]},
+                 "sharemap": {"shareid1": [server_1, server_f]},
                  "count_wrong_shares": 0,
                  "list_corrupt_shares": [],
                  "count_corrupt_shares": 0,
@@ -127,7 +128,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Not Healthy! : ungroovy", s)
 
         data["count_corrupt_shares"] = 1
-        data["list_corrupt_shares"] = [(serverid_1, u.get_storage_index(), 2)]
+        data["list_corrupt_shares"] = [(server_1, u.get_storage_index(), 2)]
         cr = check_results.CheckResults(u, u.get_storage_index(),
                                         healthy=False, recoverable=False,
                                         needs_rebalancing=False,
