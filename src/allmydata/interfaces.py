@@ -2191,12 +2191,11 @@ class ICheckResults(Interface):
          healthy file, this will be 0."""
 
     def get_sharemap():
-        """Return a dict mapping share identifier to list of serverids
-        (binary strings). This indicates which servers are holding which
-        shares. For immutable files, the shareid is an integer (the share
-        number, from 0 to N-1). For mutable files, it is a string of the form
-        'seq%d-%s-sh%d', containing the sequence number, the roothash, and
-        the share number."""
+        """Return a dict mapping share identifier to list of IServer objects.
+        This indicates which servers are holding which shares. For immutable
+        files, the shareid is an integer (the share number, from 0 to N-1).
+        For mutable files, it is a string of the form 'seq%d-%s-sh%d',
+        containing the sequence number, the roothash, and the share number."""
 
     def get_summary():
         """Return a string with a brief (one-line) summary of the results."""

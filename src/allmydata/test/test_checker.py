@@ -115,6 +115,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Wrong Shares: 0", s)
         self.failUnlessIn("Recoverable Versions: 1", s)
         self.failUnlessIn("Unrecoverable Versions: 0", s)
+        self.failUnlessIn("Good Shares (sorted in share order): Share ID Nickname Node ID shareid1 peer-0 00000000 peer-f ffffffff", s)
 
         cr = check_results.CheckResults(u, u.get_storage_index(),
                                         healthy=False, recoverable=True,
@@ -162,8 +163,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                         'count-unrecoverable-versions': 0,
                         'count-shares-needed': 3,
                         'sharemap': {"shareid1":
-                                     ["77777777777777777777777777777777",
-                                      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]},
+                                     ["v0-00000000-long", "v0-ffffffff-long"]},
                         'count-recoverable-versions': 1,
                         'list-corrupt-shares':
                         [["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

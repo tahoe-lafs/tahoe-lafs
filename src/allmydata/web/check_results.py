@@ -6,7 +6,7 @@ from twisted.web import http, html
 from allmydata.web.common import getxmlfile, get_arg, get_root, WebError
 from allmydata.web.operations import ReloadMixin
 from allmydata.interfaces import ICheckAndRepairResults, ICheckResults
-from allmydata.util import base32, idlib
+from allmydata.util import base32, idlib, dictutil
 
 def json_check_counts(r):
     d = {"count-shares-good": r.get_share_counter_good(),
@@ -20,9 +20,9 @@ def json_check_counts(r):
                                   in r.get_corrupt_shares() ],
          "servers-responding": [idlib.nodeid_b2a(serverid)
                                 for serverid in r.get_servers_responding()],
-         "sharemap": dict([(shareid, [idlib.nodeid_b2a(serverid)
-                                      for serverid in serverids])
-                           for (shareid, serverids)
+         "sharemap": dict([(shareid,
+                            sorted([s.get_longname() for s in servers]))
+                           for (shareid, servers)
                            in r.get_sharemap().items()]),
          "count-wrong-shares": r.get_share_counter_wrong(),
          "count-recoverable-versions": r.get_version_counter_recoverable(),
@@ -106,50 +106,49 @@ class ResultsBase:
 
         add("Wrong Shares", cr.get_share_counter_wrong())
 
-        sharemap = []
-        servers = {}
+        sharemap_data = []
+        shares_on_server = dictutil.DictOfSets()
 
         # FIXME: The two tables below contain nickname-and-nodeid table column markup which is duplicated with each other, introducer.xhtml, and deep-check-results.xhtml. All of these (and any other presentations of nickname-and-nodeid) should be combined.
 
         for shareid in sorted(cr.get_sharemap().keys()):
-            serverids = cr.get_sharemap()[shareid]
-            for i,serverid in enumerate(serverids):
-                if serverid not in servers:
-                    servers[serverid] = []
-                servers[serverid].append(shareid)
+            servers = sorted(cr.get_sharemap()[shareid],
+                             key=lambda s: s.get_longname())
+            for i,s in enumerate(servers):
+                shares_on_server.add(s, shareid)
                 shareid_s = ""
                 if i == 0:
                     shareid_s = shareid
-                nickname = sb.get_nickname_for_serverid(serverid)
-                sharemap.append(T.tr[T.td[shareid_s],
-                                     T.td[T.div(class_="nickname")[nickname],
-                                          T.div(class_="nodeid")[T.tt[base32.b2a(serverid)]]]
-                                     ])
+                d = T.tr[T.td[shareid_s],
+                         T.td[T.div(class_="nickname")[s.get_nickname()],
+                              T.div(class_="nodeid")[T.tt[s.get_name()]]]
+                         ]
+                sharemap_data.append(d)
         add("Good Shares (sorted in share order)",
             T.table()[T.tr[T.th["Share ID"], T.th(class_="nickname-and-peerid")[T.div["Nickname"], T.div(class_="nodeid")["Node ID"]]],
-                      sharemap])
+                      sharemap_data])
 
 
         add("Recoverable Versions", cr.get_version_counter_recoverable())
         add("Unrecoverable Versions", cr.get_version_counter_unrecoverable())
 
         # this table is sorted by permuted order
-        sb = c.get_storage_broker()
         permuted_servers = [s
                             for s
                             in sb.get_servers_for_psi(cr.get_storage_index())]
 
-        num_shares_left = sum([len(shares) for shares in servers.values()])
+        num_shares_left = sum([len(shareids)
+                               for shareids in shares_on_server.values()])
         servermap = []
         for s in permuted_servers:
-            nickname = s.get_nickname()
-            shareids = servers.get(s.get_serverid(), [])
+            shareids = list(shares_on_server.get(s, []))
             shareids.reverse()
             shareids_s = [ T.tt[shareid, " "] for shareid in sorted(shareids) ]
-            servermap.append(T.tr[T.td[T.div(class_="nickname")[nickname],
-                                       T.div(class_="nodeid")[T.tt[s.get_name()]]],
-                                  T.td[shareids_s],
-                                  ])
+            d = T.tr[T.td[T.div(class_="nickname")[s.get_nickname()],
+                          T.div(class_="nodeid")[T.tt[s.get_name()]]],
+                     T.td[shareids_s],
+                     ]
+            servermap.append(d)
             num_shares_left -= len(shareids)
             if not num_shares_left:
                 break

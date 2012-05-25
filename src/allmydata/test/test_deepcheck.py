@@ -293,8 +293,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
                                  sorted(self.g.get_all_serverids()),
                                  where)
             all_serverids = set()
-            for (shareid, serverids) in cr.get_sharemap().items():
-                all_serverids.update(serverids)
+            for (shareid, servers) in cr.get_sharemap().items():
+                all_serverids.update([s.get_serverid() for s in servers])
             self.failUnlessEqual(sorted(all_serverids),
                                  sorted(self.g.get_all_serverids()),
                                  where)

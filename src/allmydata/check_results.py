@@ -2,7 +2,7 @@
 from zope.interface import implements
 from allmydata.interfaces import ICheckResults, ICheckAndRepairResults, \
      IDeepCheckResults, IDeepCheckAndRepairResults, IURI, IDisplayableServer
-from allmydata.util import base32, dictutil
+from allmydata.util import base32
 
 class CheckResults:
     implements(ICheckResults)
@@ -117,13 +117,6 @@ class CheckResults:
         return self._count_unrecoverable_versions
 
     def get_sharemap(self):
-        sharemap = dictutil.DictOfSets()
-        for shnum, servers in self._sharemap.items():
-            for s in servers:
-                sharemap.add(shnum, s.get_serverid())
-        return sharemap
-    def get_new_sharemap(self):
-        # this one returns IServers, even when get_sharemap returns serverids
         return self._sharemap
 
     def as_dict(self):

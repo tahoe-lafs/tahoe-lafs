@@ -129,7 +129,7 @@ class CiphertextFileNode:
         servers_responding = set(cr.get_new_servers_responding())
         sm = DictOfSets()
         assert isinstance(cr.get_sharemap(), DictOfSets)
-        for shnum, servers in cr.get_new_sharemap().items():
+        for shnum, servers in cr.get_sharemap().items():
             for server in servers:
                 sm.add(shnum, server)
         for shnum, servers in ur.get_sharemap().items():
