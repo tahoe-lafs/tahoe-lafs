@@ -885,9 +885,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         m = monitor.Monitor()
         d.addCallback(lambda fn: fn.check(m))
         def _check(cr):
-            data = cr.get_data()
-            self.failUnlessEqual(data["count-shares-needed"], 7)
-            self.failUnlessEqual(data["count-shares-expected"], 12)
+            self.failUnlessEqual(cr.get_encoding_needed(), 7)
+            self.failUnlessEqual(cr.get_encoding_expected(), 12)
         d.addCallback(_check)
         return d
 

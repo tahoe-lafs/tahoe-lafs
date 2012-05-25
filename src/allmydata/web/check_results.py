@@ -8,30 +8,27 @@ from allmydata.web.operations import ReloadMixin
 from allmydata.interfaces import ICheckAndRepairResults, ICheckResults
 from allmydata.util import base32, idlib
 
-def json_check_counts(d):
-    r = {}
-    r["count-shares-good"] = d["count-shares-good"]
-    r["count-shares-needed"] = d["count-shares-needed"]
-    r["count-shares-expected"] = d["count-shares-expected"]
-    r["count-good-share-hosts"] = d["count-good-share-hosts"]
-    r["count-corrupt-shares"] = d["count-corrupt-shares"]
-    r["list-corrupt-shares"] = [ (idlib.nodeid_b2a(serverid),
-                                  base32.b2a(si), shnum)
-                                 for (serverid, si, shnum)
-                                 in d["list-corrupt-shares"] ]
-    r["servers-responding"] = [idlib.nodeid_b2a(serverid)
-                               for serverid in d["servers-responding"]]
-    sharemap = {}
-    for (shareid, serverids) in d["sharemap"].items():
-        sharemap[shareid] = [idlib.nodeid_b2a(serverid)
-                             for serverid in serverids]
-    r["sharemap"] = sharemap
-
-    r["count-wrong-shares"] = d["count-wrong-shares"]
-    r["count-recoverable-versions"] = d["count-recoverable-versions"]
-    r["count-unrecoverable-versions"] = d["count-unrecoverable-versions"]
-
-    return r
+def json_check_counts(r):
+    d = {"count-shares-good": r.get_share_counter_good(),
+         "count-shares-needed": r.get_encoding_needed(),
+         "count-shares-expected": r.get_encoding_expected(),
+         "count-good-share-hosts": r.get_host_counter_good_shares(),
+         "count-corrupt-shares": len(r.get_corrupt_shares()),
+         "list-corrupt-shares": [ (idlib.nodeid_b2a(serverid),
+                                   base32.b2a(si), shnum)
+                                  for (serverid, si, shnum)
+                                  in r.get_corrupt_shares() ],
+         "servers-responding": [idlib.nodeid_b2a(serverid)
+                                for serverid in r.get_servers_responding()],
+         "sharemap": dict([(shareid, [idlib.nodeid_b2a(serverid)
+                                      for serverid in serverids])
+                           for (shareid, serverids)
+                           in r.get_sharemap().items()]),
+         "count-wrong-shares": r.get_share_counter_wrong(),
+         "count-recoverable-versions": r.get_version_counter_recoverable(),
+         "count-unrecoverable-versions": r.get_version_counter_unrecoverable(),
+         }
+    return d
 
 def json_check_results(r):
     if r is None:
@@ -43,7 +40,7 @@ def json_check_results(r):
     data = {}
     data["storage-index"] = r.get_storage_index_string()
     data["summary"] = r.get_summary()
-    data["results"] = json_check_counts(r.get_data())
+    data["results"] = json_check_counts(r)
     data["results"]["needs-rebalancing"] = r.needs_rebalancing()
     data["results"]["healthy"] = r.is_healthy()
     data["results"]["recoverable"] = r.is_recoverable()

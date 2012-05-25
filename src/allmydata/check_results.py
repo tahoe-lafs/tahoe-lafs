@@ -109,7 +109,7 @@ class CheckResults:
     def get_sharemap(self):
         return self._data["sharemap"]
 
-    def get_data(self):
+    def as_dict(self):
         return self._data
 
     def get_summary(self):

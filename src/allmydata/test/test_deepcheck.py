@@ -280,7 +280,7 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         needs_rebalancing = bool( num_servers < 10 )
         if not incomplete:
             self.failUnlessEqual(cr.needs_rebalancing(), needs_rebalancing,
-                                 str((where, cr, cr.get_data())))
+                                 str((where, cr, cr.as_dict())))
         self.failUnlessEqual(cr.get_share_counter_good(), 10, where)
         self.failUnlessEqual(cr.get_encoding_needed(), 3, where)
         self.failUnlessEqual(cr.get_encoding_expected(), 10, where)
