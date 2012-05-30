@@ -225,11 +225,10 @@ class Node(service.MultiService):
     def write_private_config(self, name, value):
         """Write the (string) contents of a private config file (which is a
         config file that resides within the subdirectory named 'private'), and
-        return it. Any leading or trailing whitespace will be stripped from
-        the data.
+        return it.
         """
         privname = os.path.join(self.basedir, "private", name)
-        open(privname, "w").write(value.strip())
+        open(privname, "w").write(value)
 
     def get_or_create_private_config(self, name, default=_None):
         """Try to get the (string) contents of a private config file (which
