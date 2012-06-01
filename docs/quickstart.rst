@@ -65,7 +65,7 @@ self-tests.
 
 Run ``bin/tahoe --version`` (on Windows, ``bin\tahoe --version``) to verify
 that the executable tool prints out the right version number after
-"``allmydata-tahoe: ``".
+"``allmydata-tahoe:``".
 
 Run Tahoe-LAFS
 --------------
