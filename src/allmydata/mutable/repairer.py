@@ -28,7 +28,7 @@ class Repairer:
     def __init__(self, node, check_results, storage_broker, history, monitor):
         self.node = node
         self.check_results = ICheckResults(check_results)
-        assert check_results.storage_index == self.node.get_storage_index()
+        assert check_results.get_storage_index() == node.get_storage_index()
         self._storage_broker = storage_broker
         self._history = history
         self._monitor = monitor

@@ -1,6 +1,5 @@
 
 import binascii
-import copy
 import time
 now = time.time
 from zope.interface import implements
@@ -89,67 +88,83 @@ class CiphertextFileNode:
 
 
     def check_and_repair(self, monitor, verify=False, add_lease=False):
-        verifycap = self._verifycap
-        storage_index = verifycap.storage_index
-        sb = self._storage_broker
-        servers = sb.get_connected_servers()
-        sh = self._secret_holder
-
-        c = Checker(verifycap=verifycap, servers=servers,
-                    verify=verify, add_lease=add_lease, secret_holder=sh,
+        c = Checker(verifycap=self._verifycap,
+                    servers=self._storage_broker.get_connected_servers(),
+                    verify=verify, add_lease=add_lease,
+                    secret_holder=self._secret_holder,
                     monitor=monitor)
         d = c.start()
-        def _maybe_repair(cr):
-            crr = CheckAndRepairResults(storage_index)
-            crr.pre_repair_results = cr
-            if cr.is_healthy():
-                crr.post_repair_results = cr
-                return defer.succeed(crr)
-            else:
-                crr.repair_attempted = True
-                crr.repair_successful = False # until proven successful
-                def _gather_repair_results(ur):
-                    assert IUploadResults.providedBy(ur), ur
-                    # clone the cr (check results) to form the basis of the
-                    # prr (post-repair results)
-                    prr = CheckResults(cr.uri, cr.storage_index)
-                    prr.data = copy.deepcopy(cr.data)
-
-                    servers_responding = set(prr.data['servers-responding'])
-                    sm = prr.data['sharemap']
-                    assert isinstance(sm, DictOfSets), sm
-                    for shnum, servers in ur.get_sharemap().items():
-                        for s in servers:
-                            sm.add(shnum, s.get_serverid())
-                            servers_responding.add(s.get_serverid())
-                    servers_responding = sorted(servers_responding)
-                    prr.data['servers-responding'] = servers_responding
-                    prr.data['count-shares-good'] = len(sm)
-                    good_hosts = len(reduce(set.union, sm.itervalues(), set()))
-                    prr.data['count-good-share-hosts'] = good_hosts
-                    is_healthy = bool(len(sm) >= verifycap.total_shares)
-                    is_recoverable = bool(len(sm) >= verifycap.needed_shares)
-                    prr.set_healthy(is_healthy)
-                    prr.set_recoverable(is_recoverable)
-                    crr.repair_successful = is_healthy
-                    prr.set_needs_rebalancing(len(sm) >= verifycap.total_shares)
-
-                    crr.post_repair_results = prr
-                    return crr
-                def _repair_error(f):
-                    # as with mutable repair, I'm not sure if I want to pass
-                    # through a failure or not. TODO
-                    crr.repair_successful = False
-                    crr.repair_failure = f
-                    return f
-                r = Repairer(self, storage_broker=sb, secret_holder=sh,
-                             monitor=monitor)
-                d = r.start()
-                d.addCallbacks(_gather_repair_results, _repair_error)
-                return d
-
-        d.addCallback(_maybe_repair)
+        d.addCallback(self._maybe_repair, monitor)
         return d
+
+    def _maybe_repair(self, cr, monitor):
+        crr = CheckAndRepairResults(self._verifycap.storage_index)
+        crr.pre_repair_results = cr
+        if cr.is_healthy():
+            crr.post_repair_results = cr
+            return defer.succeed(crr)
+
+        crr.repair_attempted = True
+        crr.repair_successful = False # until proven successful
+        def _repair_error(f):
+            # as with mutable repair, I'm not sure if I want to pass
+            # through a failure or not. TODO
+            crr.repair_successful = False
+            crr.repair_failure = f
+            return f
+        r = Repairer(self, storage_broker=self._storage_broker,
+                     secret_holder=self._secret_holder,
+                     monitor=monitor)
+        d = r.start()
+        d.addCallbacks(self._gather_repair_results, _repair_error,
+                       callbackArgs=(cr, crr,))
+        return d
+
+    def _gather_repair_results(self, ur, cr, crr):
+        assert IUploadResults.providedBy(ur), ur
+        # clone the cr (check results) to form the basis of the
+        # prr (post-repair results)
+
+        verifycap = self._verifycap
+        servers_responding = set(cr.get_servers_responding())
+        sm = DictOfSets()
+        assert isinstance(cr.get_sharemap(), DictOfSets)
+        for shnum, servers in cr.get_sharemap().items():
+            for server in servers:
+                sm.add(shnum, server)
+        for shnum, servers in ur.get_sharemap().items():
+            for server in servers:
+                sm.add(shnum, server)
+                servers_responding.add(server)
+        servers_responding = sorted(servers_responding)
+
+        good_hosts = len(reduce(set.union, sm.values(), set()))
+        is_healthy = bool(len(sm) >= verifycap.total_shares)
+        is_recoverable = bool(len(sm) >= verifycap.needed_shares)
+        needs_rebalancing = bool(len(sm) >= verifycap.total_shares)
+        prr = CheckResults(cr.get_uri(), cr.get_storage_index(),
+                           healthy=is_healthy, recoverable=is_recoverable,
+                           needs_rebalancing=needs_rebalancing,
+                           count_shares_needed=verifycap.needed_shares,
+                           count_shares_expected=verifycap.total_shares,
+                           count_shares_good=len(sm),
+                           count_good_share_hosts=good_hosts,
+                           count_recoverable_versions=int(is_recoverable),
+                           count_unrecoverable_versions=int(not is_recoverable),
+                           servers_responding=list(servers_responding),
+                           sharemap=sm,
+                           count_wrong_shares=0, # no such thing as wrong, for immutable
+                           list_corrupt_shares=cr.get_corrupt_shares(),
+                           count_corrupt_shares=len(cr.get_corrupt_shares()),
+                           list_incompatible_shares=cr.get_incompatible_shares(),
+                           count_incompatible_shares=len(cr.get_incompatible_shares()),
+                           summary="",
+                           report=[],
+                           share_problems=[],
+                           servermap=None)
+        crr.repair_successful = is_healthy
+        crr.post_repair_results = prr
+        return crr
 
     def check(self, monitor, verify=False, add_lease=False):
         verifycap = self._verifycap

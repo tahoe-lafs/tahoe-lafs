@@ -1,6 +1,6 @@
 
 from allmydata.uri import from_string
-from allmydata.util import base32, log
+from allmydata.util import base32, log, dictutil
 from allmydata.check_results import CheckAndRepairResults, CheckResults
 
 from allmydata.mutable.common import MODE_CHECK, MODE_WRITE, CorruptShareError
@@ -17,7 +17,6 @@ class MutableChecker:
         self._monitor = monitor
         self.bad_shares = [] # list of (server,shnum,failure)
         self._storage_index = self._node.get_storage_index()
-        self.results = CheckResults(from_string(node.get_uri()), self._storage_index)
         self.need_repair = False
         self.responded = set() # set of (binary) nodeids
 
@@ -36,8 +35,7 @@ class MutableChecker:
         if verify:
             d.addCallback(self._verify_all_shares)
         d.addCallback(lambda res: servermap)
-        d.addCallback(self._fill_checker_results, self.results)
-        d.addCallback(lambda res: self.results)
+        d.addCallback(self._make_checker_results)
         return d
 
     def _got_mapupdate_results(self, servermap):
@@ -122,18 +120,14 @@ class MutableChecker:
 
         return counters
 
-    def _fill_checker_results(self, smap, r):
+    def _make_checker_results(self, smap):
         self._monitor.raise_if_cancelled()
-        r.set_servermap(smap.copy())
         healthy = True
-        data = {}
         report = []
         summary = []
         vmap = smap.make_versionmap()
         recoverable = smap.recoverable_versions()
         unrecoverable = smap.unrecoverable_versions()
-        data["count-recoverable-versions"] = len(recoverable)
-        data["count-unrecoverable-versions"] = len(unrecoverable)
 
         if recoverable:
             report.append("Recoverable Versions: " +
@@ -164,7 +158,6 @@ class MutableChecker:
             report.append("Best Recoverable Version: " +
                           smap.summarize_version(best_version))
             counters = self._count_shares(smap, best_version)
-            data.update(counters)
             s = counters["count-shares-good"]
             k = counters["count-shares-needed"]
             N = counters["count-shares-expected"]
@@ -180,66 +173,78 @@ class MutableChecker:
             # find a k and N from somewhere
             first = list(unrecoverable)[0]
             # not exactly the best version, but that doesn't matter too much
-            data.update(self._count_shares(smap, first))
+            counters = self._count_shares(smap, first)
             # leave needs_rebalancing=False: the file being unrecoverable is
             # the bigger problem
         else:
             # couldn't find anything at all
-            data["count-shares-good"] = 0
-            data["count-shares-needed"] = 3 # arbitrary defaults
-            data["count-shares-expected"] = 10
-            data["count-good-share-hosts"] = 0
-            data["count-wrong-shares"] = 0
+            counters = {
+                "count-shares-good": 0,
+                "count-shares-needed": 3, # arbitrary defaults
+                "count-shares-expected": 10,
+                "count-good-share-hosts": 0,
+                "count-wrong-shares": 0,
+                }
 
+        corrupt_share_locators = []
+        problems = []
         if self.bad_shares:
-            data["count-corrupt-shares"] = len(self.bad_shares)
-            data["list-corrupt-shares"] = locators = []
             report.append("Corrupt Shares:")
             summary.append("Corrupt Shares:")
-            for (server, shnum, f) in sorted(self.bad_shares):
-                serverid = server.get_serverid()
-                locators.append( (serverid, self._storage_index, shnum) )
-                s = "%s-sh%d" % (server.get_name(), shnum)
-                if f.check(CorruptShareError):
-                    ft = f.value.reason
-                else:
-                    ft = str(f)
-                report.append(" %s: %s" % (s, ft))
-                summary.append(s)
-                p = (serverid, self._storage_index, shnum, f)
-                r.problems.append(p)
-                msg = ("CorruptShareError during mutable verify, "
-                       "serverid=%(serverid)s, si=%(si)s, shnum=%(shnum)d, "
-                       "where=%(where)s")
-                log.msg(format=msg, serverid=server.get_name(),
-                        si=base32.b2a(self._storage_index),
-                        shnum=shnum,
-                        where=ft,
-                        level=log.WEIRD, umid="EkK8QA")
-        else:
-            data["count-corrupt-shares"] = 0
-            data["list-corrupt-shares"] = []
+        for (server, shnum, f) in sorted(self.bad_shares):
+            serverid = server.get_serverid()
+            locator = (server, self._storage_index, shnum)
+            corrupt_share_locators.append(locator)
+            s = "%s-sh%d" % (server.get_name(), shnum)
+            if f.check(CorruptShareError):
+                ft = f.value.reason
+            else:
+                ft = str(f)
+            report.append(" %s: %s" % (s, ft))
+            summary.append(s)
+            p = (serverid, self._storage_index, shnum, f)
+            problems.append(p)
+            msg = ("CorruptShareError during mutable verify, "
+                   "serverid=%(serverid)s, si=%(si)s, shnum=%(shnum)d, "
+                   "where=%(where)s")
+            log.msg(format=msg, serverid=server.get_name(),
+                    si=base32.b2a(self._storage_index),
+                    shnum=shnum,
+                    where=ft,
+                    level=log.WEIRD, umid="EkK8QA")
 
-        sharemap = {}
+        sharemap = dictutil.DictOfSets()
         for verinfo in vmap:
             for (shnum, server, timestamp) in vmap[verinfo]:
                 shareid = "%s-sh%d" % (smap.summarize_version(verinfo), shnum)
-                if shareid not in sharemap:
-                    sharemap[shareid] = []
-                sharemap[shareid].append(server.get_serverid())
-        data["sharemap"] = sharemap
-        data["servers-responding"] = [s.get_serverid() for s in
-                                      list(smap.get_reachable_servers())]
-
-        r.set_healthy(healthy)
-        r.set_recoverable(bool(recoverable))
-        r.set_needs_rebalancing(needs_rebalancing)
-        r.set_data(data)
+                sharemap.add(shareid, server)
         if healthy:
-            r.set_summary("Healthy")
+            summary = "Healthy"
         else:
-            r.set_summary("Unhealthy: " + " ".join(summary))
-        r.set_report(report)
+            summary = "Unhealthy: " + " ".join(summary)
+
+        cr = CheckResults(from_string(self._node.get_uri()),
+                          self._storage_index,
+                          healthy=healthy, recoverable=bool(recoverable),
+                          needs_rebalancing=needs_rebalancing,
+                          count_shares_needed=counters["count-shares-needed"],
+                          count_shares_expected=counters["count-shares-expected"],
+                          count_shares_good=counters["count-shares-good"],
+                          count_good_share_hosts=counters["count-good-share-hosts"],
+                          count_recoverable_versions=len(recoverable),
+                          count_unrecoverable_versions=len(unrecoverable),
+                          servers_responding=list(smap.get_reachable_servers()),
+                          sharemap=sharemap,
+                          count_wrong_shares=counters["count-wrong-shares"],
+                          list_corrupt_shares=corrupt_share_locators,
+                          count_corrupt_shares=len(corrupt_share_locators),
+                          list_incompatible_shares=[],
+                          count_incompatible_shares=0,
+                          summary=summary,
+                          report=report,
+                          share_problems=problems,
+                          servermap=smap.copy())
+        return cr
 
 
 class MutableCheckAndRepairer(MutableChecker):
@@ -248,38 +253,42 @@ class MutableCheckAndRepairer(MutableChecker):
     def __init__(self, node, storage_broker, history, monitor):
         MutableChecker.__init__(self, node, storage_broker, history, monitor)
         self.cr_results = CheckAndRepairResults(self._storage_index)
-        self.cr_results.pre_repair_results = self.results
         self.need_repair = False
 
     def check(self, verify=False, add_lease=False):
         d = MutableChecker.check(self, verify, add_lease)
+        d.addCallback(self._stash_pre_repair_results)
         d.addCallback(self._maybe_repair)
         d.addCallback(lambda res: self.cr_results)
         return d
 
-    def _maybe_repair(self, res):
+    def _stash_pre_repair_results(self, pre_repair_results):
+        self.cr_results.pre_repair_results = pre_repair_results
+        return pre_repair_results
+
+    def _maybe_repair(self, pre_repair_results):
+        crr = self.cr_results
         self._monitor.raise_if_cancelled()
         if not self.need_repair:
-            self.cr_results.post_repair_results = self.results
+            crr.post_repair_results = pre_repair_results
             return
         if self._node.is_readonly():
             # ticket #625: we cannot yet repair read-only mutable files
-            self.cr_results.post_repair_results = self.results
-            self.cr_results.repair_attempted = False
+            crr.post_repair_results = pre_repair_results
+            crr.repair_attempted = False
             return
-        self.cr_results.repair_attempted = True
-        d = self._node.repair(self.results, monitor=self._monitor)
-        def _repair_finished(repair_results):
-            self.cr_results.repair_successful = repair_results.get_successful()
-            r = CheckResults(from_string(self._node.get_uri()), self._storage_index)
-            self.cr_results.post_repair_results = r
-            self._fill_checker_results(repair_results.servermap, r)
-            self.cr_results.repair_results = repair_results # TODO?
+        crr.repair_attempted = True
+        d = self._node.repair(pre_repair_results, monitor=self._monitor)
+        def _repair_finished(rr):
+            crr.repair_successful = rr.get_successful()
+            crr.post_repair_results = self._make_checker_results(rr.servermap)
+            crr.repair_results = rr # TODO?
+            return
         def _repair_error(f):
             # I'm not sure if I want to pass through a failure or not.
-            self.cr_results.repair_successful = False
-            self.cr_results.repair_failure = f # TODO?
-            #self.cr_results.post_repair_results = ??
+            crr.repair_successful = False
+            crr.repair_failure = f # TODO?
+            #crr.post_repair_results = ??
             return f
         d.addCallbacks(_repair_finished, _repair_error)
         return d

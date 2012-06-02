@@ -117,7 +117,7 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
                 judgement(vr)
             except unittest.FailTest, e:
                 # FailTest just uses e.args[0] == str
-                new_arg = str(e.args[0]) + "\nvr.data is: " + str(vr.get_data())
+                new_arg = str(e.args[0]) + "\nvr.data is: " + str(vr.as_dict())
                 e.args = (new_arg,)
                 raise
         d.addCallback(_check)
@@ -127,15 +127,14 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         """ Verify says the file is healthy when none of the shares have been
         touched in a way that matters. It doesn't use more than seven times
         as many reads as it needs."""
-        self.failUnless(vr.is_healthy(), (vr, vr.is_healthy(), vr.get_data()))
-        data = vr.get_data()
-        self.failUnless(data['count-shares-good'] == 10, data)
-        self.failUnless(len(data['sharemap']) == 10, data)
-        self.failUnless(data['count-shares-needed'] == 3, data)
-        self.failUnless(data['count-shares-expected'] == 10, data)
-        self.failUnless(data['count-good-share-hosts'] == 10, data)
-        self.failUnless(len(data['servers-responding']) == 10, data)
-        self.failUnless(len(data['list-corrupt-shares']) == 0, data)
+        self.failUnless(vr.is_healthy(), (vr, vr.is_healthy(), vr.as_dict()))
+        self.failUnlessEqual(vr.get_share_counter_good(), 10)
+        self.failUnlessEqual(len(vr.get_sharemap()), 10)
+        self.failUnlessEqual(vr.get_encoding_needed(), 3)
+        self.failUnlessEqual(vr.get_encoding_expected(), 10)
+        self.failUnlessEqual(vr.get_host_counter_good_shares(), 10)
+        self.failUnlessEqual(len(vr.get_servers_responding()), 10)
+        self.failUnlessEqual(len(vr.get_corrupt_shares()), 0)
 
     def test_ok_no_corruption(self):
         self.basedir = "repairer/Verifier/ok_no_corruption"
@@ -163,15 +162,14 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         giving you the share data. Test that verifier handles these answers
         correctly. It doesn't use more than seven times as many reads as it
         needs."""
-        self.failIf(vr.is_healthy(), (vr, vr.is_healthy(), vr.get_data()))
-        data = vr.get_data()
-        self.failUnless(data['count-shares-good'] == 9, data)
-        self.failUnless(len(data['sharemap']) == 9, data)
-        self.failUnless(data['count-shares-needed'] == 3, data)
-        self.failUnless(data['count-shares-expected'] == 10, data)
-        self.failUnless(data['count-good-share-hosts'] == 9, data)
-        self.failUnless(len(data['servers-responding']) == 9, data)
-        self.failUnless(len(data['list-corrupt-shares']) == 0, data)
+        self.failIf(vr.is_healthy(), (vr, vr.is_healthy(), vr.as_dict()))
+        self.failUnlessEqual(vr.get_share_counter_good(), 9)
+        self.failUnlessEqual(len(vr.get_sharemap()), 9)
+        self.failUnlessEqual(vr.get_encoding_needed(), 3)
+        self.failUnlessEqual(vr.get_encoding_expected(), 10)
+        self.failUnlessEqual(vr.get_host_counter_good_shares(), 9)
+        self.failUnlessEqual(len(vr.get_servers_responding()), 9)
+        self.failUnlessEqual(len(vr.get_corrupt_shares()), 0)
 
     def test_corrupt_file_verno(self):
         self.basedir = "repairer/Verifier/corrupt_file_verno"
@@ -184,18 +182,15 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         # offsets) to something larger than 2 will trigger a
         # ShareVersionIncompatible exception, which should be counted in
         # list-incompatible-shares, rather than list-corrupt-shares.
-        self.failIf(vr.is_healthy(), (vr, vr.is_healthy(), vr.get_data()))
-        data = vr.get_data()
-        self.failUnlessEqual(data['count-shares-good'], 9)
-        self.failUnlessEqual(len(data['sharemap']), 9)
-        self.failUnlessEqual(data['count-shares-needed'], 3)
-        self.failUnlessEqual(data['count-shares-expected'], 10)
-        self.failUnlessEqual(data['count-good-share-hosts'], 9)
-        self.failUnlessEqual(len(data['servers-responding']), 10)
-        self.failUnlessEqual(len(data['list-corrupt-shares']), 0)
-        self.failUnlessEqual(data['count-corrupt-shares'], 0)
-        self.failUnlessEqual(len(data['list-incompatible-shares']), 1)
-        self.failUnlessEqual(data['count-incompatible-shares'], 1)
+        self.failIf(vr.is_healthy(), (vr, vr.is_healthy(), vr.as_dict()))
+        self.failUnlessEqual(vr.get_share_counter_good(), 9)
+        self.failUnlessEqual(len(vr.get_sharemap()), 9)
+        self.failUnlessEqual(vr.get_encoding_needed(), 3)
+        self.failUnlessEqual(vr.get_encoding_expected(), 10)
+        self.failUnlessEqual(vr.get_host_counter_good_shares(), 9)
+        self.failUnlessEqual(len(vr.get_servers_responding()), 10)
+        self.failUnlessEqual(len(vr.get_corrupt_shares()), 0)
+        self.failUnlessEqual(len(vr.get_incompatible_shares()), 1)
 
     def test_corrupt_share_verno(self):
         self.basedir = "repairer/Verifier/corrupt_share_verno"
@@ -206,18 +201,15 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         # corruption of fields that the server does not check (which is most
         # of them), which will be detected by the client as it downloads
         # those shares.
-        self.failIf(vr.is_healthy(), (vr, vr.is_healthy(), vr.get_data()))
-        data = vr.get_data()
-        self.failUnlessEqual(data['count-shares-good'], 9)
-        self.failUnlessEqual(data['count-shares-needed'], 3)
-        self.failUnlessEqual(data['count-shares-expected'], 10)
-        self.failUnlessEqual(data['count-good-share-hosts'], 9)
-        self.failUnlessEqual(data['count-corrupt-shares'], 1)
-        self.failUnlessEqual(len(data['list-corrupt-shares']), 1)
-        self.failUnlessEqual(data['count-incompatible-shares'], 0)
-        self.failUnlessEqual(len(data['list-incompatible-shares']), 0)
-        self.failUnlessEqual(len(data['servers-responding']), 10)
-        self.failUnlessEqual(len(data['sharemap']), 9)
+        self.failIf(vr.is_healthy(), (vr, vr.is_healthy(), vr.as_dict()))
+        self.failUnlessEqual(vr.get_share_counter_good(), 9)
+        self.failUnlessEqual(vr.get_encoding_needed(), 3)
+        self.failUnlessEqual(vr.get_encoding_expected(), 10)
+        self.failUnlessEqual(vr.get_host_counter_good_shares(), 9)
+        self.failUnlessEqual(len(vr.get_corrupt_shares()), 1)
+        self.failUnlessEqual(len(vr.get_incompatible_shares()), 0)
+        self.failUnlessEqual(len(vr.get_servers_responding()), 10)
+        self.failUnlessEqual(len(vr.get_sharemap()), 9)
 
     def test_corrupt_sharedata_offset(self):
         self.basedir = "repairer/Verifier/corrupt_sharedata_offset"
@@ -498,7 +490,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             self.failIfBigger(delta_reads, MAX_DELTA_READS)
             self.failIfBigger(delta_allocates, (DELTA_WRITES_PER_SHARE * 7))
             self.failIf(pre.is_healthy())
-            self.failUnless(post.is_healthy(), post.data)
+            self.failUnless(post.is_healthy(), post.as_dict())
 
             # Make sure we really have 10 shares.
             shares = self.find_uri_shares(self.uri)
@@ -724,7 +716,9 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
             # not respond to the pre-repair filecheck
             prr = rr.get_post_repair_results()
             expected = set(self.g.get_all_serverids())
-            self.failUnlessEqual(expected, set(prr.data["servers-responding"]))
+            self.failUnlessEqual(expected,
+                                 set([s.get_serverid()
+                                      for s in prr.get_servers_responding()]))
         d.addCallback(_check)
         return d
 

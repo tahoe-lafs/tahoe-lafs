@@ -78,26 +78,32 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def test_check(self):
         c = self.create_fake_client()
+        sb = c.storage_broker
         serverid_1 = "\x00"*20
         serverid_f = "\xff"*20
+        server_1 = sb.get_stub_server(serverid_1)
+        server_f = sb.get_stub_server(serverid_f)
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
-        cr = check_results.CheckResults(u, u.get_storage_index())
-        cr.set_healthy(True)
-        cr.set_needs_rebalancing(False)
-        cr.set_summary("groovy")
-        data = { "count-shares-needed": 3,
-                 "count-shares-expected": 9,
-                 "count-shares-good": 10,
-                 "count-good-share-hosts": 11,
-                 "list-corrupt-shares": [],
-                 "count-wrong-shares": 0,
-                 "sharemap": {"shareid1": [serverid_1, serverid_f]},
-                 "count-recoverable-versions": 1,
-                 "count-unrecoverable-versions": 0,
-                 "servers-responding": [],
+        data = { "count_shares_needed": 3,
+                 "count_shares_expected": 9,
+                 "count_shares_good": 10,
+                 "count_good_share_hosts": 11,
+                 "count_recoverable_versions": 1,
+                 "count_unrecoverable_versions": 0,
+                 "servers_responding": [],
+                 "sharemap": {"shareid1": [server_1, server_f]},
+                 "count_wrong_shares": 0,
+                 "list_corrupt_shares": [],
+                 "count_corrupt_shares": 0,
+                 "list_incompatible_shares": [],
+                 "count_incompatible_shares": 0,
+                 "report": [], "share_problems": [], "servermap": None,
                  }
-        cr.set_data(data)
-
+        cr = check_results.CheckResults(u, u.get_storage_index(),
+                                        healthy=True, recoverable=True,
+                                        needs_rebalancing=False,
+                                        summary="groovy",
+                                        **data)
         w = web_check_results.CheckResultsRenderer(c, cr)
         html = self.render2(w)
         s = self.remove_tags(html)
@@ -109,25 +115,32 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         self.failUnlessIn("Wrong Shares: 0", s)
         self.failUnlessIn("Recoverable Versions: 1", s)
         self.failUnlessIn("Unrecoverable Versions: 0", s)
+        self.failUnlessIn("Good Shares (sorted in share order): Share ID Nickname Node ID shareid1 peer-0 00000000 peer-f ffffffff", s)
 
-        cr.set_healthy(False)
-        cr.set_recoverable(True)
-        cr.set_summary("ungroovy")
+        cr = check_results.CheckResults(u, u.get_storage_index(),
+                                        healthy=False, recoverable=True,
+                                        needs_rebalancing=False,
+                                        summary="ungroovy",
+                                        **data)
+        w = web_check_results.CheckResultsRenderer(c, cr)
         html = self.render2(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Healthy! : ungroovy", s)
 
-        cr.set_healthy(False)
-        cr.set_recoverable(False)
-        cr.set_summary("rather dead")
-        data["list-corrupt-shares"] = [(serverid_1, u.get_storage_index(), 2)]
-        cr.set_data(data)
+        data["count_corrupt_shares"] = 1
+        data["list_corrupt_shares"] = [(server_1, u.get_storage_index(), 2)]
+        cr = check_results.CheckResults(u, u.get_storage_index(),
+                                        healthy=False, recoverable=False,
+                                        needs_rebalancing=False,
+                                        summary="rather dead",
+                                        **data)
+        w = web_check_results.CheckResultsRenderer(c, cr)
         html = self.render2(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
         self.failUnlessIn("Not Recoverable! : rather dead", s)
-        self.failUnlessIn("Corrupt shares: Share ID Nickname Node ID sh#2 peer-0 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", s)
+        self.failUnlessIn("Corrupt shares: Share ID Nickname Node ID sh#2 peer-0 00000000", s)
 
         html = self.render2(w)
         s = self.remove_tags(html)
@@ -150,16 +163,14 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                         'count-unrecoverable-versions': 0,
                         'count-shares-needed': 3,
                         'sharemap': {"shareid1":
-                                     ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                                      "77777777777777777777777777777777"]},
+                                     ["v0-00000000-long", "v0-ffffffff-long"]},
                         'count-recoverable-versions': 1,
                         'list-corrupt-shares':
-                        [["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                          "2k6avpjga3dho3zsjo6nnkt7n4", 2]],
+                        [["v0-00000000-long", "2k6avpjga3dho3zsjo6nnkt7n4", 2]],
                         'count-good-share-hosts': 11,
                         'count-wrong-shares': 0,
                         'count-shares-good': 10,
-                        'count-corrupt-shares': 0,
+                        'count-corrupt-shares': 1,
                         'servers-responding': [],
                         'recoverable': False,
                         }
@@ -176,45 +187,54 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def test_check_and_repair(self):
         c = self.create_fake_client()
+        sb = c.storage_broker
         serverid_1 = "\x00"*20
         serverid_f = "\xff"*20
         u = uri.CHKFileURI("\x00"*16, "\x00"*32, 3, 10, 1234)
 
-        pre_cr = check_results.CheckResults(u, u.get_storage_index())
-        pre_cr.set_healthy(False)
-        pre_cr.set_recoverable(True)
-        pre_cr.set_needs_rebalancing(False)
-        pre_cr.set_summary("illing")
-        data = { "count-shares-needed": 3,
-                 "count-shares-expected": 10,
-                 "count-shares-good": 6,
-                 "count-good-share-hosts": 7,
-                 "list-corrupt-shares": [],
-                 "count-wrong-shares": 0,
-                 "sharemap": {"shareid1": [serverid_1, serverid_f]},
-                 "count-recoverable-versions": 1,
-                 "count-unrecoverable-versions": 0,
-                 "servers-responding": [],
+        data = { "count_shares_needed": 3,
+                 "count_shares_expected": 10,
+                 "count_shares_good": 6,
+                 "count_good_share_hosts": 7,
+                 "count_recoverable_versions": 1,
+                 "count_unrecoverable_versions": 0,
+                 "servers_responding": [],
+                 "sharemap": {"shareid1": [sb.get_stub_server(serverid_1),
+                                           sb.get_stub_server(serverid_f)]},
+                 "count_wrong_shares": 0,
+                 "list_corrupt_shares": [],
+                 "count_corrupt_shares": 0,
+                 "list_incompatible_shares": [],
+                 "count_incompatible_shares": 0,
+                 "report": [], "share_problems": [], "servermap": None,
                  }
-        pre_cr.set_data(data)
+        pre_cr = check_results.CheckResults(u, u.get_storage_index(),
+                                            healthy=False, recoverable=True,
+                                            needs_rebalancing=False,
+                                            summary="illing",
+                                            **data)
 
-        post_cr = check_results.CheckResults(u, u.get_storage_index())
-        post_cr.set_healthy(True)
-        post_cr.set_recoverable(True)
-        post_cr.set_needs_rebalancing(False)
-        post_cr.set_summary("groovy")
-        data = { "count-shares-needed": 3,
-                 "count-shares-expected": 10,
-                 "count-shares-good": 10,
-                 "count-good-share-hosts": 11,
-                 "list-corrupt-shares": [],
-                 "count-wrong-shares": 0,
-                 "sharemap": {"shareid1": [serverid_1, serverid_f]},
-                 "count-recoverable-versions": 1,
-                 "count-unrecoverable-versions": 0,
-                 "servers-responding": [],
+        data = { "count_shares_needed": 3,
+                 "count_shares_expected": 10,
+                 "count_shares_good": 10,
+                 "count_good_share_hosts": 11,
+                 "count_recoverable_versions": 1,
+                 "count_unrecoverable_versions": 0,
+                 "servers_responding": [],
+                 "sharemap": {"shareid1": [sb.get_stub_server(serverid_1),
+                                           sb.get_stub_server(serverid_f)]},
+                 "count_wrong_shares": 0,
+                 "count_corrupt_shares": 0,
+                 "list_corrupt_shares": [],
+                 "list_incompatible_shares": [],
+                 "count_incompatible_shares": 0,
+                 "report": [], "share_problems": [], "servermap": None,
                  }
-        post_cr.set_data(data)
+        post_cr = check_results.CheckResults(u, u.get_storage_index(),
+                                             healthy=True, recoverable=True,
+                                             needs_rebalancing=False,
+                                             summary="groovy",
+                                             **data)
 
         crr = check_results.CheckAndRepairResults(u.get_storage_index())
         crr.pre_repair_results = pre_cr
@@ -243,8 +263,12 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
         crr.repair_attempted = True
         crr.repair_successful = False
-        post_cr.set_healthy(False)
-        post_cr.set_summary("better")
+        post_cr = check_results.CheckResults(u, u.get_storage_index(),
+                                             healthy=False, recoverable=True,
+                                             needs_rebalancing=False,
+                                             summary="better",
+                                             **data)
+        crr.post_repair_results = post_cr
         html = self.render2(w)
         s = self.remove_tags(html)
 
@@ -255,9 +279,12 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
         crr.repair_attempted = True
         crr.repair_successful = False
-        post_cr.set_healthy(False)
-        post_cr.set_recoverable(False)
-        post_cr.set_summary("worse")
+        post_cr = check_results.CheckResults(u, u.get_storage_index(),
+                                             healthy=False, recoverable=False,
+                                             needs_rebalancing=False,
+                                             summary="worse",
+                                             **data)
+        crr.post_repair_results = post_cr
         html = self.render2(w)
         s = self.remove_tags(html)
 
@@ -366,10 +393,10 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         def _check_and_repair(_):
             return self.imm.check_and_repair(Monitor())
         def _check_counts(crr, shares_good, good_share_hosts):
-            p_crr = crr.get_post_repair_results().data
+            prr = crr.get_post_repair_results()
             #print self._pretty_shares_chart(self.uri)
-            self.failUnlessEqual(p_crr['count-shares-good'], shares_good)
-            self.failUnlessEqual(p_crr['count-good-share-hosts'],
+            self.failUnlessEqual(prr.get_share_counter_good(), shares_good)
+            self.failUnlessEqual(prr.get_host_counter_good_shares(),
                                  good_share_hosts)
 
         """
