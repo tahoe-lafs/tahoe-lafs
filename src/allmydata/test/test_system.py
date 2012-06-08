@@ -1218,8 +1218,12 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             return self.GET("status/publish-%d" % self._publish_status)
         d.addCallback(_got_update)
         def _got_publish(res):
+            self.failUnlessIn("Publish Results", res)
             return self.GET("status/retrieve-%d" % self._retrieve_status)
         d.addCallback(_got_publish)
+        def _got_retrieve(res):
+            self.failUnlessIn("Retrieve Results", res)
+        d.addCallback(_got_retrieve)
 
         # check that the helper status page exists
         d.addCallback(lambda res:
