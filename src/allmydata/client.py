@@ -198,15 +198,20 @@ class Client(node.Node, pollmixin.PollMixin):
         self.convergence = base32.a2b(convergence_s)
         self._secret_holder = SecretHolder(lease_secret, self.convergence)
 
-    def _maybe_create_server_key(self):
+    def _maybe_create_node_key(self):
         # we only create the key once. On all subsequent runs, we re-use the
         # existing key
         def _make_key():
             sk_vs,vk_vs = keyutil.make_keypair()
             return sk_vs+"\n"
-        sk_vs = self.get_or_create_private_config("server.privkey", _make_key)
+        # for a while (between releases, before 1.10) this was known as
+        # server.privkey, but now it lives in node.privkey. This fallback can
+        # be removed after 1.10 is released.
+        sk_vs = self.get_private_config("server.privkey", None)
+        if not sk_vs:
+            sk_vs = self.get_or_create_private_config("node.privkey", _make_key)
         sk,vk_vs = keyutil.parse_privkey(sk_vs.strip())
-        self.write_config("server.pubkey", vk_vs+"\n")
+        self.write_config("node.pubkey", vk_vs+"\n")
         self._server_key = sk
 
     def _init_permutation_seed(self, ss):
@@ -236,7 +241,7 @@ class Client(node.Node, pollmixin.PollMixin):
             return
         readonly = self.get_config("storage", "readonly", False, boolean=True)
 
-        self._maybe_create_server_key()
+        self._maybe_create_node_key()
 
         storedir = os.path.join(self.basedir, self.STOREDIR)
 
