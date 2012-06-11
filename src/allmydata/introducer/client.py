@@ -201,8 +201,9 @@ class IntroducerClient(service.Service, Referenceable):
         d.addCallback(_publish_stub_client)
         return d
 
-    def create_announcement(self, service_name, ann, signing_key):
+    def create_announcement(self, service_name, ann, signing_key, _mod=None):
         full_ann = { "version": 0,
+                     "seqnum": time.time(),
                      "nickname": self._nickname,
                      "app-versions": self._app_versions,
                      "my-version": self._my_version,
@@ -211,6 +212,8 @@ class IntroducerClient(service.Service, Referenceable):
                      "service-name": service_name,
                      }
         full_ann.update(ann)
+        if _mod:
+            full_ann = _mod(full_ann) # for unit tests
         return sign_to_foolscap(full_ann, signing_key)
 
     def publish(self, service_name, ann, signing_key=None):
@@ -303,8 +306,27 @@ class IntroducerClient(service.Service, Referenceable):
                      parent=lp2, level=log.UNUSUAL, umid="B1MIdA")
             self._debug_counts["duplicate_announcement"] += 1
             return
+
         # does it update an existing one?
         if index in self._current_announcements:
+            old,_,_ = self._current_announcements[index]
+            if "seqnum" in old:
+                # must beat previous sequence number to replace
+                if "seqnum" not in ann:
+                    self.log("not replacing old announcement, no seqnum: %s"
+                             % (ann,),
+                             parent=lp2, level=log.NOISY, umid="zFGH3Q")
+                    return
+                if ann["seqnum"] <= old["seqnum"]:
+                    # note that exact replays are caught earlier, by
+                    # comparing the entire signed announcement.
+                    self.log("not replacing old announcement, "
+                             "new seqnum is too old (%s <= %s) "
+                             "(replay attack?): %s"
+                             % (ann["seqnum"], old["seqnum"], ann),
+                             parent=lp2, level=log.UNUSUAL, umid="JAAAoQ")
+                    return
+                # ok, seqnum is newer, allow replacement
             self._debug_counts["update"] += 1
             self.log("replacing old announcement: %s" % (ann,),
                      parent=lp2, level=log.NOISY, umid="wxwgIQ")

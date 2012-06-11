@@ -117,8 +117,13 @@ def make_ann(furl):
             "permutation-seed-base32": get_tubid_string(furl) }
     return ann
 
-def make_ann_t(ic, furl, privkey):
-    return ic.create_announcement("storage", make_ann(furl), privkey)
+def make_ann_t(ic, furl, privkey, seqnum):
+    def mod(ann):
+        ann["seqnum"] = seqnum
+        if seqnum is None:
+            del ann["seqnum"]
+        return ann
+    return ic.create_announcement("storage", make_ann(furl), privkey, mod)
 
 class Client(unittest.TestCase):
     def test_duplicate_receive_v1(self):
@@ -196,10 +201,12 @@ class Client(unittest.TestCase):
         # ann1b: ic2, furl1
         # ann2: ic2, furl2
 
-        self.ann1 = make_ann_t(ic1, furl1, privkey)
-        self.ann1a = make_ann_t(ic1, furl1a, privkey)
-        self.ann1b = make_ann_t(ic2, furl1, privkey)
-        self.ann2 = make_ann_t(ic2, furl2, privkey)
+        self.ann1 = make_ann_t(ic1, furl1, privkey, seqnum=10)
+        self.ann1old = make_ann_t(ic1, furl1, privkey, seqnum=9)
+        self.ann1noseqnum = make_ann_t(ic1, furl1, privkey, seqnum=None)
+        self.ann1b = make_ann_t(ic2, furl1, privkey, seqnum=11)
+        self.ann1a = make_ann_t(ic1, furl1a, privkey, seqnum=12)
+        self.ann2 = make_ann_t(ic2, furl2, privkey, seqnum=13)
 
         ic1.remote_announce_v2([self.ann1]) # queues eventual-send
         d = fireEventually()
@@ -218,6 +225,20 @@ class Client(unittest.TestCase):
         def _then2(ign):
             self.failUnlessEqual(len(announcements), 1)
         d.addCallback(_then2)
+
+        # an older announcement shouldn't fire the subscriber either
+        d.addCallback(lambda ign: ic1.remote_announce_v2([self.ann1old]))
+        d.addCallback(fireEventually)
+        def _then2a(ign):
+            self.failUnlessEqual(len(announcements), 1)
+        d.addCallback(_then2a)
+
+        # announcement with no seqnum cannot replace one with-seqnum
+        d.addCallback(lambda ign: ic1.remote_announce_v2([self.ann1noseqnum]))
+        d.addCallback(fireEventually)
+        def _then2b(ign):
+            self.failUnlessEqual(len(announcements), 1)
+        d.addCallback(_then2b)
 
         # and a replacement announcement: same FURL, new other stuff. The
         # subscriber *should* be fired.
@@ -297,6 +318,73 @@ class Client(unittest.TestCase):
                                  furl2)
         d.addCallback(_then2)
         return d
+
+class Server(unittest.TestCase):
+    def test_duplicate(self):
+        i = IntroducerService()
+        ic1 = IntroducerClient(None,
+                               "introducer.furl", u"my_nickname",
+                               "ver23", "oldest_version", {})
+        furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
+
+        privkey_s, _ = keyutil.make_keypair()
+        privkey, _ = keyutil.parse_privkey(privkey_s)
+
+        ann1 = make_ann_t(ic1, furl1, privkey, seqnum=10)
+        ann1_old = make_ann_t(ic1, furl1, privkey, seqnum=9)
+        ann1_new = make_ann_t(ic1, furl1, privkey, seqnum=11)
+        ann1_noseqnum = make_ann_t(ic1, furl1, privkey, seqnum=None)
+
+        i.remote_publish_v2(ann1, None)
+        all = i.get_announcements()
+        self.failUnlessEqual(len(all), 1)
+        self.failUnlessEqual(all[0].announcement["seqnum"], 10)
+        self.failUnlessEqual(i._debug_counts["inbound_message"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_duplicate"], 0)
+        self.failUnlessEqual(i._debug_counts["inbound_no_seqnum"], 0)
+        self.failUnlessEqual(i._debug_counts["inbound_old_replay"], 0)
+        self.failUnlessEqual(i._debug_counts["inbound_update"], 0)
+
+        i.remote_publish_v2(ann1, None)
+        all = i.get_announcements()
+        self.failUnlessEqual(len(all), 1)
+        self.failUnlessEqual(all[0].announcement["seqnum"], 10)
+        self.failUnlessEqual(i._debug_counts["inbound_message"], 2)
+        self.failUnlessEqual(i._debug_counts["inbound_duplicate"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_no_seqnum"], 0)
+        self.failUnlessEqual(i._debug_counts["inbound_old_replay"], 0)
+        self.failUnlessEqual(i._debug_counts["inbound_update"], 0)
+
+        i.remote_publish_v2(ann1_old, None)
+        all = i.get_announcements()
+        self.failUnlessEqual(len(all), 1)
+        self.failUnlessEqual(all[0].announcement["seqnum"], 10)
+        self.failUnlessEqual(i._debug_counts["inbound_message"], 3)
+        self.failUnlessEqual(i._debug_counts["inbound_duplicate"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_no_seqnum"], 0)
+        self.failUnlessEqual(i._debug_counts["inbound_old_replay"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_update"], 0)
+
+        i.remote_publish_v2(ann1_new, None)
+        all = i.get_announcements()
+        self.failUnlessEqual(len(all), 1)
+        self.failUnlessEqual(all[0].announcement["seqnum"], 11)
+        self.failUnlessEqual(i._debug_counts["inbound_message"], 4)
+        self.failUnlessEqual(i._debug_counts["inbound_duplicate"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_no_seqnum"], 0)
+        self.failUnlessEqual(i._debug_counts["inbound_old_replay"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_update"], 1)
+
+        i.remote_publish_v2(ann1_noseqnum, None)
+        all = i.get_announcements()
+        self.failUnlessEqual(len(all), 1)
+        self.failUnlessEqual(all[0].announcement["seqnum"], 11)
+        self.failUnlessEqual(i._debug_counts["inbound_message"], 5)
+        self.failUnlessEqual(i._debug_counts["inbound_duplicate"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_no_seqnum"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_old_replay"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_update"], 1)
+
 
 NICKNAME = u"n\u00EDickname-%s" # LATIN SMALL LETTER I WITH ACUTE
 
@@ -736,7 +824,7 @@ class ClientInfo(unittest.TestCase):
         client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
                                      "my_version", "oldest", app_versions)
         #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
-        #ann_s = make_ann_t(client_v2, furl1, None)
+        #ann_s = make_ann_t(client_v2, furl1, None, 10)
         #introducer.remote_publish_v2(ann_s, Referenceable())
         subscriber = FakeRemoteReference()
         introducer.remote_subscribe_v2(subscriber, "storage",
@@ -798,7 +886,7 @@ class Announcements(unittest.TestCase):
                                      "my_version", "oldest", app_versions)
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         tubid = "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
-        ann_s0 = make_ann_t(client_v2, furl1, None)
+        ann_s0 = make_ann_t(client_v2, furl1, None, 10.0)
         canary0 = Referenceable()
         introducer.remote_publish_v2(ann_s0, canary0)
         a = introducer.get_announcements()
@@ -821,7 +909,7 @@ class Announcements(unittest.TestCase):
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
         pks = keyutil.remove_prefix(vk_s, "pub-")
-        ann_t0 = make_ann_t(client_v2, furl1, sk)
+        ann_t0 = make_ann_t(client_v2, furl1, sk, 10.0)
         canary0 = Referenceable()
         introducer.remote_publish_v2(ann_t0, canary0)
         a = introducer.get_announcements()

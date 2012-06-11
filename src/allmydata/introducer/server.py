@@ -120,6 +120,8 @@ class IntroducerService(service.MultiService, Referenceable):
 
         self._debug_counts = {"inbound_message": 0,
                               "inbound_duplicate": 0,
+                              "inbound_no_seqnum": 0,
+                              "inbound_old_replay": 0,
                               "inbound_update": 0,
                               "outbound_message": 0,
                               "outbound_announcements": 0,
@@ -216,6 +218,21 @@ class IntroducerService(service.MultiService, Referenceable):
                 self._debug_counts["inbound_duplicate"] += 1
                 return
             else:
+                if "seqnum" in old_ann:
+                    # must beat previous sequence number to replace
+                    if "seqnum" not in ann:
+                        self.log("not replacing old ann, no seqnum",
+                                 level=log.NOISY, umid="ySbaVw")
+                        self._debug_counts["inbound_no_seqnum"] += 1
+                        return
+                    if ann["seqnum"] <= old_ann["seqnum"]:
+                        self.log("not replacing old ann, new seqnum is too old"
+                                 " (%s <= %s) (replay attack?)"
+                                 % (ann["seqnum"], old_ann["seqnum"]),
+                                 level=log.UNUSUAL, umid="sX7yqQ")
+                        self._debug_counts["inbound_old_replay"] += 1
+                        return
+                    # ok, seqnum is newer, allow replacement
                 self.log("old announcement being updated", level=log.NOISY,
                          umid="304r9g")
                 self._debug_counts["inbound_update"] += 1
