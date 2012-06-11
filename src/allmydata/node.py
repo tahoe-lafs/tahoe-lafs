@@ -230,6 +230,23 @@ class Node(service.MultiService):
         privname = os.path.join(self.basedir, "private", name)
         open(privname, "w").write(value)
 
+    def get_private_config(self, name, default=_None):
+        """Read the (string) contents of a private config file (which is a
+        config file that resides within the subdirectory named 'private'),
+        and return it. Return a default, or raise an error if one was not
+        given.
+        """
+        privname = os.path.join(self.basedir, "private", name)
+        try:
+            return fileutil.read(privname)
+        except EnvironmentError:
+            if os.path.exists(privname):
+                raise
+            if default is _None:
+                raise MissingConfigEntry("The required configuration file %s is missing."
+                                         % (quote_output(privname),))
+            return default
+
     def get_or_create_private_config(self, name, default=_None):
         """Try to get the (string) contents of a private config file (which
         is a config file that resides within the subdirectory named

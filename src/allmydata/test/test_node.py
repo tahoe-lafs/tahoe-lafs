@@ -8,7 +8,7 @@ from mock import patch
 
 from foolscap.api import flushEventualQueue
 from twisted.application import service
-from allmydata.node import Node, formatTimeTahoeStyle
+from allmydata.node import Node, formatTimeTahoeStyle, MissingConfigEntry
 from allmydata.util import fileutil
 import allmydata.test.common_util as testutil
 
@@ -86,6 +86,34 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.failUnlessEqual(n.get_config("node", "nickname").decode('utf-8'),
                                                        u"\u2621"))
         return d
+
+    def test_private_config(self):
+        basedir = "test_node/test_private_config"
+        privdir = os.path.join(basedir, "private")
+        fileutil.make_dirs(privdir)
+        f = open(os.path.join(privdir, 'already'), 'wt')
+        f.write("secret")
+        f.close()
+
+        n = TestNode(basedir)
+        self.failUnlessEqual(n.get_private_config("already"), "secret")
+        self.failUnlessEqual(n.get_private_config("not", "default"), "default")
+        self.failUnlessRaises(MissingConfigEntry, n.get_private_config, "not")
+        value = n.get_or_create_private_config("new", "start")
+        self.failUnlessEqual(value, "start")
+        self.failUnlessEqual(n.get_private_config("new"), "start")
+        counter = []
+        def make_newer():
+            counter.append("called")
+            return "newer"
+        value = n.get_or_create_private_config("newer", make_newer)
+        self.failUnlessEqual(len(counter), 1)
+        self.failUnlessEqual(value, "newer")
+        self.failUnlessEqual(n.get_private_config("newer"), "newer")
+
+        value = n.get_or_create_private_config("newer", make_newer)
+        self.failUnlessEqual(len(counter), 1) # don't call unless necessary
+        self.failUnlessEqual(value, "newer")
 
     def test_timestamp(self):
         # this modified logger doesn't seem to get used during the tests,
