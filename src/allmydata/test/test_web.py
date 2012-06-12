@@ -15,7 +15,7 @@ from nevow import rend
 
 from allmydata import interfaces, uri, webish, dirnode
 from allmydata.storage.shares import get_share_file
-from allmydata.storage_client import StorageFarmBroker
+from allmydata.storage_client import StorageFarmBroker, StubServer
 from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.dirnode import DirectoryNode
@@ -102,19 +102,12 @@ class FakeUploader(service.Service):
     def get_helper_info(self):
         return (None, False)
 
-class FakeIServer:
-    def __init__(self, binaryserverid):
-        self.binaryserverid = binaryserverid
-    def get_name(self): return "short"
-    def get_longname(self): return "long"
-    def get_serverid(self): return self.binaryserverid
-
 def build_one_ds():
     ds = DownloadStatus("storage_index", 1234)
     now = time.time()
 
-    serverA = FakeIServer(hashutil.tagged_hash("foo", "serverid_a")[:20])
-    serverB = FakeIServer(hashutil.tagged_hash("foo", "serverid_b")[:20])
+    serverA = StubServer(hashutil.tagged_hash("foo", "serverid_a")[:20])
+    serverB = StubServer(hashutil.tagged_hash("foo", "serverid_b")[:20])
     storage_index = hashutil.storage_index_hash("SI")
     e0 = ds.add_segment_request(0, now)
     e0.activate(now+0.5)
@@ -586,11 +579,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             cmpu_id = base32.b2a(hashutil.tagged_hash("foo", "serverid_b")[:20])
             # serverids[] keys are strings, since that's what JSON does, but
             # we'd really like them to be ints
-            self.failUnlessEqual(data["serverids"]["0"], "phwr")
-            self.failUnless(data["serverids"].has_key("1"), data["serverids"])
-            self.failUnlessEqual(data["serverids"]["1"], "cmpu", data["serverids"])
-            self.failUnlessEqual(data["server_info"][phwr_id]["short"], "phwr")
-            self.failUnlessEqual(data["server_info"][cmpu_id]["short"], "cmpu")
+            self.failUnlessEqual(data["serverids"]["0"], "phwrsjte")
+            self.failUnless(data["serverids"].has_key("1"),
+                            str(data["serverids"]))
+            self.failUnlessEqual(data["serverids"]["1"], "cmpuvkjm",
+                                 str(data["serverids"]))
+            self.failUnlessEqual(data["server_info"][phwr_id]["short"],
+                                 "phwrsjte")
+            self.failUnlessEqual(data["server_info"][cmpu_id]["short"],
+                                 "cmpuvkjm")
             self.failUnlessIn("dyhb", data)
             self.failUnlessIn("misc", data)
         d.addCallback(_check_dl_json)

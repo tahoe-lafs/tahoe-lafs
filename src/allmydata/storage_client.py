@@ -208,7 +208,7 @@ class NativeStorageServer:
                 self._short_description = key_s[:8]
         else:
             self._long_description = tubid_s
-            self._short_description = tubid_s[:8]
+            self._short_description = tubid_s[:6]
 
         self.announcement_time = time.time()
         self.last_connect_time = None

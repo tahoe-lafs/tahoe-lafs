@@ -365,7 +365,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         for ev in events:
             ev = ev.copy()
             if ev.has_key('server'):
-                ev["serverid"] = base32.b2a(ev["server"].get_serverid())
+                ev["serverid"] = ev["server"].get_longname()
                 del ev["server"]
             # find an empty slot in the rows
             free_slot = None
@@ -405,7 +405,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         for ev in events:
             # DownloadStatus promises to give us events in temporal order
             ev = ev.copy()
-            ev["serverid"] = base32.b2a(ev["server"].get_serverid())
+            ev["serverid"] = ev["server"].get_longname()
             del ev["server"]
             if ev["serverid"] not in serverid_to_group:
                 groupnum = len(serverid_to_group)
@@ -453,23 +453,23 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                                           "start_time", "finish_time")
         data["block"],data["block_rownums"] = self._find_overlap_requests(ds.block_requests)
 
-        servernums = {}
-        serverid_strings = {}
-        for d_ev in data["dyhb"]:
-            if d_ev["serverid"] not in servernums:
-                servernum = len(servernums)
-                servernums[d_ev["serverid"]] = servernum
-                #title= "%s: %s" % ( ",".join([str(shnum) for shnum in shnums]))
-                serverid_strings[servernum] = d_ev["serverid"][:4]
-        data["server_info"] = dict([(serverid, {"num": servernums[serverid],
-                                                "color": self.color(base32.a2b(serverid)),
-                                                "short": serverid_strings[servernums[serverid]],
-                                                })
-                                   for serverid in servernums.keys()])
-        data["num_serverids"] = len(serverid_strings)
+        server_info = {} # maps longname to {num,color,short}
+        server_shortnames = {} # maps servernum to shortname
+        for d_ev in ds.dyhb_requests:
+            s = d_ev["server"]
+            longname = s.get_longname()
+            if longname not in server_info:
+                num = len(server_info)
+                server_info[longname] = {"num": num,
+                                         "color": self.color(s),
+                                         "short": s.get_name() }
+                server_shortnames[str(num)] = s.get_name()
+
+        data["server_info"] = server_info
+        data["num_serverids"] = len(server_info)
         # we'd prefer the keys of serverids[] to be ints, but this is JSON,
         # so they get converted to strings. Stupid javascript.
-        data["serverids"] = serverid_strings
+        data["serverids"] = server_shortnames
         data["bounds"] = {"min": ds.first_timestamp, "max": ds.last_timestamp}
         return simplejson.dumps(data, indent=1) + "\n"
 
@@ -503,7 +503,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                 rtt = received - sent
             if not shnums:
                 shnums = ["-"]
-            t[T.tr(style="background: %s" % self.color(server.get_serverid()))[
+            t[T.tr(style="background: %s" % self.color(server))[
                 [T.td[server.get_name()], T.td[srt(sent)], T.td[srt(received)],
                  T.td[",".join([str(shnum) for shnum in shnums])],
                  T.td[self.render_time(None, rtt)],
@@ -583,7 +583,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
             rtt = None
             if r_ev["finish_time"] is not None:
                 rtt = r_ev["finish_time"] - r_ev["start_time"]
-            color = self.color(server.get_serverid())
+            color = self.color(server)
             t[T.tr(style="background: %s" % color)[
                 T.td[server.get_name()], T.td[r_ev["shnum"]],
                 T.td["[%d:+%d]" % (r_ev["start"], r_ev["length"])],
@@ -597,7 +597,8 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
 
         return l
 
-    def color(self, peerid):
+    def color(self, server):
+        peerid = server.get_serverid() # binary
         def m(c):
             return min(ord(c) / 2 + 0x80, 0xff)
         return "#%02x%02x%02x" % (m(peerid[0]), m(peerid[1]), m(peerid[2]))
