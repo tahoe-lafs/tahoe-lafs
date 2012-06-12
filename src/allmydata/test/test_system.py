@@ -194,7 +194,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                     facility="tahoe.tests")
             d1 = download_to_data(badnode)
             def _baduri_should_fail(res):
-                log.msg("finished downloading non-existend URI",
+                log.msg("finished downloading non-existent URI",
                         level=log.UNUSUAL, facility="tahoe.tests")
                 self.failUnless(isinstance(res, Failure))
                 self.failUnless(res.check(NoSharesError),
