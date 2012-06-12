@@ -325,14 +325,12 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
             # else.
             have = os.stat(self._encoding_file)[stat.ST_SIZE]
             d = self.call("read_encrypted", have-1, 1)
-            d.addCallback(self._done2, started)
-            return
-
-        # first, find out how large the file is going to be
-        d = self.call("get_size")
-        d.addCallback(self._got_size)
-        d.addCallback(self._start_reading)
-        d.addCallback(self._done)
+        else:
+            # first, find out how large the file is going to be
+            d = self.call("get_size")
+            d.addCallback(self._got_size)
+            d.addCallback(self._start_reading)
+            d.addCallback(self._done)
         d.addCallback(self._done2, started)
         d.addErrback(self._failed)
 
