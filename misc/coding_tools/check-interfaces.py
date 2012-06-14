@@ -4,7 +4,7 @@
 #
 #   bin/tahoe @misc/coding_tools/check-interfaces.py
 
-import os, sys, re
+import os, sys, re, platform
 
 import zope.interface as zi
 # We use the forked version of verifyClass below.
@@ -17,7 +17,10 @@ excluded_classnames = re.compile(r'(_)|(Mock)|(Fake)|(Dummy).*')
 excluded_file_basenames = re.compile(r'(check)|(bench)_.*')
 
 
-other_modules_with_violations = set()
+_other_modules_with_violations = set()
+_err = sys.stderr
+_report_argname_mismatch = False  # very noisy and usually not important
+
 
 # deep magic
 def strictly_implements(*interfaces):
@@ -42,46 +45,60 @@ def strictly_implements(*interfaces):
                     try:
                         verifyClass(interface, cls)
                     except Exception, e:
-                        print >>sys.stderr, ("%s.%s does not correctly implement %s.%s:\n%s"
-                                             % (cls.__module__, cls.__name__,
-                                                interface.__module__, interface.__name__, e))
+                        print >>_err, ("%s.%s does not correctly implement %s.%s:\n%s"
+                                       % (cls.__module__, cls.__name__,
+                                          interface.__module__, interface.__name__, e))
         else:
-            other_modules_with_violations.add(cls.__module__)
+            _other_modules_with_violations.add(cls.__module__)
         return cls
 
     f_locals['__implements_advice_data__'] = interfaces, zi.classImplements
     addClassAdvisor(_implements_advice, depth=2)
 
 
-def check(err):
+def check():
     # patchee-monkey
     zi.implements = strictly_implements
+
+    if len(sys.argv) >= 2:
+        if sys.argv[1] == '--help' or len(sys.argv) > 2:
+            print >>_err, "Usage: check-miscaptures.py [SOURCEDIR]"
+            return
+        srcdir = sys.argv[1]
+    else:
+        # import modules under src/ by default
+        srcdir = 'src'
 
     # attempt to avoid side-effects from importing command scripts
     sys.argv = ['', '--help']
 
-    # import modules under src/
-    srcdir = 'src'
+    syslow = platform.system().lower()
+    is_windows = 'cygwin' in syslow or 'windows' in syslow
+
     for (dirpath, dirnames, filenames) in os.walk(srcdir):
         for fn in filenames:
             (basename, ext) = os.path.splitext(fn)
             if ext in ('.pyc', '.pyo') and not os.path.exists(os.path.join(dirpath, basename+'.py')):
-                print >>err, ("Warning: no .py source file for %r.\n"
-                              % (os.path.join(dirpath, fn),))
+                print >>_err, ("Warning: no .py source file for %r.\n"
+                               % (os.path.join(dirpath, fn),))
 
             if ext == '.py' and not excluded_file_basenames.match(basename):
                 relpath = os.path.join(dirpath[len(srcdir)+1:], basename)
                 module = relpath.replace(os.sep, '/').replace('/', '.')
                 try:
                     __import__(module)
-                except ImportError:
-                    import traceback
-                    traceback.print_exc(2, err)
-                    print >>err
+                except ImportError, e:
+                    if not is_windows and (' _win' in str(e) or 'win32' in str(e)):
+                        print >>_err, ("Warning: %r imports a Windows-specific module, so we cannot check it (%s).\n"
+                                       % (module, str(e)))
+                    else:
+                        import traceback
+                        traceback.print_exc(file=_err)
+                        print >>_err
 
-    others = list(other_modules_with_violations)
+    others = list(_other_modules_with_violations)
     others.sort()
-    print >>err, "There were also interface violations in:\n", ", ".join(others), "\n"
+    print >>_err, "There were also interface violations in:\n", ", ".join(others), "\n"
 
 
 # Forked from
@@ -196,10 +213,6 @@ def verifyObject(iface, candidate, tentative=0):
     return _verify(iface, candidate, tentative, vtype='o')
 
 def _incompat(required, implemented):
-    #if (required['positional'] !=
-    #    implemented['positional'][:len(required['positional'])]
-    #    and implemented['kwargs'] is None):
-    #    return 'imlementation has different argument names'
     if len(implemented['required']) > len(required['required']):
         return 'implementation requires too many arguments'
     if ((len(implemented['positional']) < len(required['positional']))
@@ -209,9 +222,13 @@ def _incompat(required, implemented):
         return "implementation doesn't support keyword arguments"
     if required['varargs'] and not implemented['varargs']:
         return "implementation doesn't support variable arguments"
+    if (_report_argname_mismatch and required['positional'] !=
+        implemented['positional'][:len(required['positional'])]
+        and implemented['kwargs'] is None):
+        return 'implementation has different argument names'
 
 
 if __name__ == "__main__":
-    check(sys.stderr)
+    check()
     # Avoid spurious warnings about ignored exceptions during shutdown by doing a hard exit.
     os._exit(0)
