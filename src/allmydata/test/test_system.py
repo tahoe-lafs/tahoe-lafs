@@ -1883,3 +1883,33 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             return d
         d.addCallback(_got_lit_filenode)
         return d
+
+class Connections(SystemTestMixin, unittest.TestCase):
+    def test_rref(self):
+        self.basedir = "system/Connections/rref"
+        d = self.set_up_nodes(2)
+        def _start(ign):
+            self.c0 = self.clients[0]
+            for s in self.c0.storage_broker.get_connected_servers():
+                if "pub-"+s.get_longname() != self.c0.node_key_s:
+                    break
+            self.s1 = s # s1 is the server, not c0
+            self.s1_rref = s.get_rref()
+            self.failIfEqual(self.s1_rref, None)
+            self.failUnless(self.s1.is_connected())
+        d.addCallback(_start)
+
+        # now shut down the server
+        d.addCallback(lambda ign: self.clients[1].disownServiceParent())
+        # and wait for the client to notice
+        def _poll():
+            return len(self.c0.storage_broker.get_connected_servers()) < 2
+        d.addCallback(lambda ign: self.poll(_poll))
+
+        def _down(ign):
+            self.failIf(self.s1.is_connected())
+            rref = self.s1.get_rref()
+            self.failUnless(rref)
+            self.failUnlessIdentical(rref, self.s1_rref)
+        d.addCallback(_down)
+        return d

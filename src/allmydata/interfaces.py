@@ -444,7 +444,12 @@ class IServer(IDisplayableServer):
     def start_connecting(tub, trigger_cb):
         pass
     def get_rref():
-        pass
+        """Once a server is connected, I return a RemoteReference.
+        Before a server is connected for the first time, I return None.
+
+        Note that the rref I return will start producing DeadReferenceErrors
+        once the connection is lost.
+        """
 
 
 class IMutableSlotWriter(Interface):

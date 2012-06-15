@@ -213,6 +213,7 @@ class Client(node.Node, pollmixin.PollMixin):
         sk,vk_vs = keyutil.parse_privkey(sk_vs.strip())
         self.write_config("node.pubkey", vk_vs+"\n")
         self._server_key = sk
+        self.node_key_s = vk_vs
 
     def _init_permutation_seed(self, ss):
         seed = self.get_config_from_file("permutation-seed")
