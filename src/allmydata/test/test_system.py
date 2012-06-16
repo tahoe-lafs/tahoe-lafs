@@ -1887,6 +1887,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_got_lit_filenode)
         return d
 
+
 class Connections(SystemTestMixin, unittest.TestCase):
     def test_rref(self):
         if NormalizedVersion(foolscap.__version__) < NormalizedVersion('0.6.4'):
@@ -1897,11 +1898,12 @@ class Connections(SystemTestMixin, unittest.TestCase):
         d = self.set_up_nodes(2)
         def _start(ign):
             self.c0 = self.clients[0]
-            for s in self.c0.storage_broker.get_connected_servers():
-                if "pub-"+s.get_longname() != self.c0.node_key_s:
-                    break
-            self.s1 = s # s1 is the server, not c0
-            self.s1_rref = s.get_rref()
+            nonclients = [s for s in self.c0.storage_broker.get_connected_servers()
+                          if s.get_serverid() != self.c0.nodeid]
+            self.failUnlessEqual(len(nonclients), 1)
+
+            self.s1 = nonclients[0]  # s1 is the server, not c0
+            self.s1_rref = self.s1.get_rref()
             self.failIfEqual(self.s1_rref, None)
             self.failUnless(self.s1.is_connected())
         d.addCallback(_start)
