@@ -270,9 +270,6 @@ listed over FTP.
 
 Non-ASCII filenames are not supported by FTP (`ticket #682`_).
 
-The FTP frontend returns all timestamps as being Jan 1, 1970 (`ticket
-#1688`_).
-
 The FTP frontend sometimes fails to report errors, for example if an upload
 fails because it does meet the "servers of happiness" threshold (`ticket
 #1081`_).
