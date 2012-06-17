@@ -22,7 +22,11 @@ install_requires = [
     # frontend.
     # We also need Twisted 10.1 for the FTP frontend in order for Twisted's FTP server to
     # support asynchronous close.
-    "Twisted >= 10.1.0",
+    # When the cloud backend lands, it will depend on Twisted 10.2.0 which includes the fix to
+    # https://twistedmatrix.com/trac/ticket/411
+    # The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server rekeying bug
+    # http://twistedmatrix.com/trac/ticket/4395
+    "Twisted >= 11.0.0",
 
     # foolscap < 0.5.1 had a performance bug which spent
     # O(N**2) CPU for transferring large mutable files
