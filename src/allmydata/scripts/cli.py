@@ -8,7 +8,7 @@ NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 
 _default_nodedir = get_default_nodedir()
 
-class VDriveOptions(BaseOptions):
+class FilesystemOptions(BaseOptions):
     optParameters = [
         ["node-url", "u", None,
          "Specify the URL of the Tahoe gateway node, such as "
@@ -45,7 +45,7 @@ class VDriveOptions(BaseOptions):
         self.aliases = aliases # maps alias name to dircap
 
 
-class MakeDirectoryOptions(VDriveOptions):
+class MakeDirectoryOptions(FilesystemOptions):
     optParameters = [
         ("format", None, None, "Create a directory with the given format: SDMF or MDMF (case-insensitive)"),
         ]
@@ -62,7 +62,7 @@ class MakeDirectoryOptions(VDriveOptions):
 
     longdesc = """Create a new directory, either unlinked or as a subdirectory."""
 
-class AddAliasOptions(VDriveOptions):
+class AddAliasOptions(FilesystemOptions):
     def parseArgs(self, alias, cap):
         self.alias = argv_to_unicode(alias)
         if self.alias.endswith(u':'):
@@ -74,7 +74,7 @@ class AddAliasOptions(VDriveOptions):
 
     longdesc = """Add a new alias for an existing directory."""
 
-class CreateAliasOptions(VDriveOptions):
+class CreateAliasOptions(FilesystemOptions):
     def parseArgs(self, alias):
         self.alias = argv_to_unicode(alias)
         if self.alias.endswith(u':'):
@@ -85,13 +85,13 @@ class CreateAliasOptions(VDriveOptions):
 
     longdesc = """Create a new directory and add an alias for it."""
 
-class ListAliasesOptions(VDriveOptions):
+class ListAliasesOptions(FilesystemOptions):
     def getSynopsis(self):
         return "Usage:  %s list-aliases [options]" % (self.command_name,)
 
     longdesc = """Display a table of all configured aliases."""
 
-class ListOptions(VDriveOptions):
+class ListOptions(FilesystemOptions):
     optFlags = [
         ("long", "l", "Use long format: show file sizes, and timestamps."),
         ("uri", "u", "Show file/directory URIs."),
@@ -133,7 +133,7 @@ class ListOptions(VDriveOptions):
     last modified.
     """
 
-class GetOptions(VDriveOptions):
+class GetOptions(FilesystemOptions):
     def parseArgs(self, arg1, arg2=None):
         # tahoe get FOO |less            # write to stdout
         # tahoe get tahoe:FOO |less      # same
@@ -159,7 +159,7 @@ class GetOptions(VDriveOptions):
     stdout."""
 
     def getUsage(self, width=None):
-        t = VDriveOptions.getUsage(self, width)
+        t = FilesystemOptions.getUsage(self, width)
         t += """
 Examples:
  % tahoe get FOO |less            # write to stdout
@@ -169,7 +169,7 @@ Examples:
 """
         return t
 
-class PutOptions(VDriveOptions):
+class PutOptions(FilesystemOptions):
     optFlags = [
         ("mutable", "m", "Create a mutable file instead of an immutable one (like --format=SDMF)"),
         ]
@@ -211,7 +211,7 @@ class PutOptions(VDriveOptions):
     creation of new files.)"""
 
     def getUsage(self, width=None):
-        t = VDriveOptions.getUsage(self, width)
+        t = FilesystemOptions.getUsage(self, width)
         t += """
 Examples:
  % cat FILE | tahoe put                # create unlinked file from stdin
@@ -224,7 +224,7 @@ Examples:
 """
         return t
 
-class CpOptions(VDriveOptions):
+class CpOptions(FilesystemOptions):
     optFlags = [
         ("recursive", "r", "Copy source directory recursively."),
         ("verbose", "v", "Be noisy about what is happening."),
@@ -267,7 +267,7 @@ class CpOptions(VDriveOptions):
     slashes.
     """
 
-class UnlinkOptions(VDriveOptions):
+class UnlinkOptions(FilesystemOptions):
     def parseArgs(self, where):
         self.where = argv_to_unicode(where)
 
@@ -278,7 +278,7 @@ class RmOptions(UnlinkOptions):
     def getSynopsis(self):
         return "Usage:  %s rm [options] REMOTE_FILE" % (self.command_name,)
 
-class MvOptions(VDriveOptions):
+class MvOptions(FilesystemOptions):
     def parseArgs(self, frompath, topath):
         self.from_file = argv_to_unicode(frompath)
         self.to_file = argv_to_unicode(topath)
@@ -298,7 +298,7 @@ class MvOptions(VDriveOptions):
     the grid -- use 'tahoe cp' for that.
     """
 
-class LnOptions(VDriveOptions):
+class LnOptions(FilesystemOptions):
     def parseArgs(self, frompath, topath):
         self.from_file = argv_to_unicode(frompath)
         self.to_file = argv_to_unicode(topath)
@@ -331,7 +331,7 @@ class LnOptions(VDriveOptions):
 class BackupConfigurationError(Exception):
     pass
 
-class BackupOptions(VDriveOptions):
+class BackupOptions(FilesystemOptions):
     optFlags = [
         ("verbose", "v", "Be noisy about what is happening."),
         ("ignore-timestamps", None, "Do not use backupdb timestamps to decide whether a local file is unchanged."),
@@ -401,7 +401,7 @@ class BackupOptions(VDriveOptions):
     --link-dest=TO/Archives/(previous) FROM TO/Archives/(new); ln -sf
     TO/Archives/(new) TO/Latest'."""
 
-class WebopenOptions(VDriveOptions):
+class WebopenOptions(FilesystemOptions):
     optFlags = [
         ("info", "i", "Open the t=info page for the file"),
         ]
@@ -415,7 +415,7 @@ class WebopenOptions(VDriveOptions):
     directory on the grid. When run without arguments, open the Welcome
     page."""
 
-class ManifestOptions(VDriveOptions):
+class ManifestOptions(FilesystemOptions):
     optFlags = [
         ("storage-index", "s", "Only print storage index strings, not pathname+cap."),
         ("verify-cap", None, "Only print verifycap, not pathname+cap."),
@@ -431,7 +431,7 @@ class ManifestOptions(VDriveOptions):
     longdesc = """Print a list of all files and directories reachable from
     the given starting point."""
 
-class StatsOptions(VDriveOptions):
+class StatsOptions(FilesystemOptions):
     optFlags = [
         ("raw", "r", "Display raw JSON data instead of parsed"),
         ]
@@ -444,7 +444,7 @@ class StatsOptions(VDriveOptions):
     longdesc = """Print statistics about of all files and directories
     reachable from the given starting point."""
 
-class CheckOptions(VDriveOptions):
+class CheckOptions(FilesystemOptions):
     optFlags = [
         ("raw", None, "Display raw JSON data instead of parsed."),
         ("verify", None, "Verify all hashes, instead of merely querying share presence."),
@@ -462,7 +462,7 @@ class CheckOptions(VDriveOptions):
     verify their hashes. Optionally repair the file if any problems were
     found."""
 
-class DeepCheckOptions(VDriveOptions):
+class DeepCheckOptions(FilesystemOptions):
     optFlags = [
         ("raw", None, "Display raw JSON data instead of parsed."),
         ("verify", None, "Verify all hashes, instead of merely querying share presence."),
