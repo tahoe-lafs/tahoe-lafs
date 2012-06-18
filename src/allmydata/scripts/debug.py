@@ -11,7 +11,7 @@ from allmydata.scripts.common import BaseOptions
 
 class DumpOptions(BaseOptions):
     def getSynopsis(self):
-        return "Usage: tahoe debug dump-share SHARE_FILENAME"
+        return "Usage: tahoe [global-opts] debug dump-share SHARE_FILENAME"
 
     optFlags = [
         ["offsets", None, "Display a table of section offsets."],
@@ -408,7 +408,7 @@ def dump_MDMF_share(m, length, options):
 
 class DumpCapOptions(BaseOptions):
     def getSynopsis(self):
-        return "Usage: tahoe debug dump-cap [options] FILECAP"
+        return "Usage: tahoe [global-opts] debug dump-cap [options] FILECAP"
     optParameters = [
         ["nodeid", "n",
          None, "Specify the storage server nodeid (ASCII), to construct WE and secrets."],
@@ -610,7 +610,7 @@ def dump_uri_instance(u, nodeid, secret, out, show_header=True):
 
 class FindSharesOptions(BaseOptions):
     def getSynopsis(self):
-        return "Usage: tahoe debug find-shares STORAGE_INDEX NODEDIRS.."
+        return "Usage: tahoe [global-opts] debug find-shares STORAGE_INDEX NODEDIRS.."
 
     def parseArgs(self, storage_index_s, *nodedirs):
         from allmydata.util.encodingutil import argv_to_abspath
@@ -669,7 +669,7 @@ class CatalogSharesOptions(BaseOptions):
             raise usage.UsageError("must specify at least one node directory")
 
     def getSynopsis(self):
-        return "Usage: tahoe debug catalog-shares NODEDIRS.."
+        return "Usage: tahoe [global-opts] debug catalog-shares NODEDIRS.."
 
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
@@ -882,7 +882,7 @@ def catalog_shares_one_abbrevdir(si_s, si_dir, now, out, err):
 
 class CorruptShareOptions(BaseOptions):
     def getSynopsis(self):
-        return "Usage: tahoe debug corrupt-share SHARE_FILENAME"
+        return "Usage: tahoe [global-opts] debug corrupt-share SHARE_FILENAME"
 
     optParameters = [
         ["offset", "o", "block-random", "Specify which bit to flip."],
@@ -962,7 +962,7 @@ def corrupt_share(options):
 
 class ReplOptions(BaseOptions):
     def getSynopsis(self):
-        return "Usage: tahoe debug repl"
+        return "Usage: tahoe [global-opts] debug repl"
 
 def repl(options):
     import code
@@ -973,7 +973,7 @@ DEFAULT_TESTSUITE = 'allmydata'
 
 class TrialOptions(twisted_trial.Options):
     def getSynopsis(self):
-        return "Usage: tahoe debug trial [options] [[file|package|module|TestCase|testmethod]...]"
+        return "Usage: tahoe [global-opts] debug trial [options] [[file|package|module|TestCase|testmethod]...]"
 
     def parseOptions(self, all_subargs, *a, **kw):
         self.trial_args = list(all_subargs)
@@ -1006,9 +1006,9 @@ def fixOptionsClass( (subcmd, shortcut, OptionsClass, desc) ):
             t = OptionsClass.getSynopsis(self)
             i = t.find("Usage: flogtool ")
             if i >= 0:
-                return "Usage: tahoe debug flogtool " + t[i+len("Usage: flogtool "):]
+                return "Usage: tahoe [global-opts] debug flogtool " + t[i+len("Usage: flogtool "):]
             else:
-                return "Usage: tahoe debug flogtool %s [options]" % (subcmd,)
+                return "Usage: tahoe [global-opts] debug flogtool %s [options]" % (subcmd,)
     return (subcmd, shortcut, FixedOptionsClass, desc)
 
 class FlogtoolOptions(foolscap_cli.Options):
@@ -1017,7 +1017,7 @@ class FlogtoolOptions(foolscap_cli.Options):
         self.subCommands = map(fixOptionsClass, self.subCommands)
 
     def getSynopsis(self):
-        return "Usage: tahoe debug flogtool (%s) [command options]" % ("|".join([x[0] for x in self.subCommands]))
+        return "Usage: tahoe [global-opts] debug flogtool (%s) [command options]" % ("|".join([x[0] for x in self.subCommands]))
 
     def parseOptions(self, all_subargs, *a, **kw):
         self.flogtool_args = list(all_subargs)

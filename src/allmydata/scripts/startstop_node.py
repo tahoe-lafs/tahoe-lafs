@@ -13,12 +13,12 @@ class StartOptions(BasedirOptions):
         ]
 
     def getSynopsis(self):
-        return "Usage:  %s start [options] [NODEDIR]" % (self.command_name,)
+        return "Usage:  %s [global-opts] start [options] [NODEDIR]" % (self.command_name,)
 
 
 class StopOptions(BasedirOptions):
     def getSynopsis(self):
-        return "Usage:  %s stop [options] [NODEDIR]" % (self.command_name,)
+        return "Usage:  %s [global-opts] stop [options] [NODEDIR]" % (self.command_name,)
 
 
 class RestartOptions(BasedirOptions):
@@ -28,14 +28,14 @@ class RestartOptions(BasedirOptions):
         ]
 
     def getSynopsis(self):
-        return "Usage:  %s restart [options] [NODEDIR]" % (self.command_name,)
+        return "Usage:  %s [global-opts] restart [options] [NODEDIR]" % (self.command_name,)
 
 
 class RunOptions(BasedirOptions):
     default_nodedir = u"."
 
     def getSynopsis(self):
-        return "Usage:  %s run [options] [NODEDIR]" % (self.command_name,)
+        return "Usage:  %s [global-opts] run [options] [NODEDIR]" % (self.command_name,)
 
 
 def start(opts, out=sys.stdout, err=sys.stderr):

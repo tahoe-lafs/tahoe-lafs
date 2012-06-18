@@ -8,7 +8,7 @@ class CreateKeyGeneratorOptions(BasedirOptions):
     default_nodedir = None
 
     def getSynopsis(self):
-        return "Usage:  %s create-key-generator [options] NODEDIR" % (self.command_name,)
+        return "Usage:  %s [global-opts] create-key-generator [options] NODEDIR" % (self.command_name,)
 
 
 keygen_tac = """

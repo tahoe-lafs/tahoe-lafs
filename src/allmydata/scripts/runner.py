@@ -67,7 +67,7 @@ class Options(usage.Options):
         self.no_command_needed = True
 
     def getSynopsis(self):
-        return "\nUsage: tahoe [global-options] <command> [command-options]"
+        return "\nUsage: tahoe [global-opts] <command> [command-options]"
 
     def getUsage(self, **kwargs):
         t = usage.Options.getUsage(self, **kwargs)

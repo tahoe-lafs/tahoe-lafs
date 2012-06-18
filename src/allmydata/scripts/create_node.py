@@ -17,7 +17,7 @@ class CreateClientOptions(BasedirOptions):
         ]
 
     def getSynopsis(self):
-        return "Usage:  %s create-client [options] [NODEDIR]" % (self.command_name,)
+        return "Usage:  %s [global-opts] create-client [options] [NODEDIR]" % (self.command_name,)
 
 
 class CreateNodeOptions(CreateClientOptions):
@@ -26,14 +26,14 @@ class CreateNodeOptions(CreateClientOptions):
         ]
 
     def getSynopsis(self):
-        return "Usage:  %s create-node [options] [NODEDIR]" % (self.command_name,)
+        return "Usage:  %s [global-opts] create-node [options] [NODEDIR]" % (self.command_name,)
 
 
 class CreateIntroducerOptions(BasedirOptions):
     default_nodedir = None
 
     def getSynopsis(self):
-        return "Usage:  %s create-introducer [options] NODEDIR" % (self.command_name,)
+        return "Usage:  %s [global-opts] create-introducer [options] NODEDIR" % (self.command_name,)
 
 
 client_tac = """

@@ -8,7 +8,7 @@ class CreateStatsGathererOptions(BasedirOptions):
     default_nodedir = None
 
     def getSynopsis(self):
-        return "Usage:  %s create-stats-gatherer [options] NODEDIR" % (self.command_name,)
+        return "Usage:  %s [global-opts] create-stats-gatherer [options] NODEDIR" % (self.command_name,)
 
 
 stats_gatherer_tac = """
