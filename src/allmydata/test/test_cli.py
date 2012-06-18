@@ -44,13 +44,19 @@ from allmydata.util.fileutil import abspath_expanduser_unicode
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
+def parse_options(basedir, command, args):
+    o = runner.Options()
+    o.parseOptions(["--node-directory", basedir, command] + args)
+    while hasattr(o, "subOptions"):
+        o = o.subOptions
+    return o
 
 class CLITestMixin(ReallyEqualMixin):
     def do_cli(self, verb, *args, **kwargs):
         nodeargs = [
             "--node-directory", self.get_clientdir(),
             ]
-        argv = [verb] + nodeargs + list(args)
+        argv = nodeargs + [verb] + list(args)
         stdin = kwargs.get("stdin", "")
         stdout, stderr = StringIO(), StringIO()
         d = threads.deferToThread(runner.runner, argv, run_by_human=False,
@@ -73,69 +79,6 @@ class CLITestMixin(ReallyEqualMixin):
 
 
 class CLI(CLITestMixin, unittest.TestCase):
-    # this test case only looks at argument-processing and simple stuff.
-    def test_options(self):
-        fileutil.rm_dir("cli/test_options")
-        fileutil.make_dirs("cli/test_options")
-        fileutil.make_dirs("cli/test_options/private")
-        fileutil.write("cli/test_options/node.url", "http://localhost:8080/\n")
-        filenode_uri = uri.WriteableSSKFileURI(writekey="\x00"*16,
-                                               fingerprint="\x00"*32)
-        private_uri = uri.DirectoryURI(filenode_uri).to_string()
-        fileutil.write("cli/test_options/private/root_dir.cap", private_uri + "\n")
-        o = cli.ListOptions()
-        o.parseOptions(["--node-directory", "cli/test_options"])
-        self.failUnlessReallyEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessReallyEqual(o.aliases[DEFAULT_ALIAS], private_uri)
-        self.failUnlessReallyEqual(o.where, u"")
-
-        o = cli.ListOptions()
-        o.parseOptions(["--node-directory", "cli/test_options",
-                        "--node-url", "http://example.org:8111/"])
-        self.failUnlessReallyEqual(o['node-url'], "http://example.org:8111/")
-        self.failUnlessReallyEqual(o.aliases[DEFAULT_ALIAS], private_uri)
-        self.failUnlessReallyEqual(o.where, u"")
-
-        o = cli.ListOptions()
-        o.parseOptions(["--node-directory", "cli/test_options",
-                        "--dir-cap", "root"])
-        self.failUnlessReallyEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessReallyEqual(o.aliases[DEFAULT_ALIAS], "root")
-        self.failUnlessReallyEqual(o.where, u"")
-
-        o = cli.ListOptions()
-        other_filenode_uri = uri.WriteableSSKFileURI(writekey="\x11"*16,
-                                                     fingerprint="\x11"*32)
-        other_uri = uri.DirectoryURI(other_filenode_uri).to_string()
-        o.parseOptions(["--node-directory", "cli/test_options",
-                        "--dir-cap", other_uri])
-        self.failUnlessReallyEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessReallyEqual(o.aliases[DEFAULT_ALIAS], other_uri)
-        self.failUnlessReallyEqual(o.where, u"")
-
-        o = cli.ListOptions()
-        o.parseOptions(["--node-directory", "cli/test_options",
-                        "--dir-cap", other_uri, "subdir"])
-        self.failUnlessReallyEqual(o['node-url'], "http://localhost:8080/")
-        self.failUnlessReallyEqual(o.aliases[DEFAULT_ALIAS], other_uri)
-        self.failUnlessReallyEqual(o.where, u"subdir")
-
-        o = cli.ListOptions()
-        self.failUnlessRaises(usage.UsageError,
-                              o.parseOptions,
-                              ["--node-directory", "cli/test_options",
-                               "--node-url", "NOT-A-URL"])
-
-        o = cli.ListOptions()
-        o.parseOptions(["--node-directory", "cli/test_options",
-                        "--node-url", "http://localhost:8080"])
-        self.failUnlessReallyEqual(o["node-url"], "http://localhost:8080/")
-
-        o = cli.ListOptions()
-        o.parseOptions(["--node-directory", "cli/test_options",
-                        "--node-url", "https://localhost/"])
-        self.failUnlessReallyEqual(o["node-url"], "https://localhost/")
-
     def _dump_cap(self, *args):
         config = debug.DumpCapOptions()
         config.stdout,config.stderr = StringIO(), StringIO()
@@ -730,11 +673,11 @@ class Help(unittest.TestCase):
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def _test_webopen(self, args, expected_url):
-        woo = cli.WebopenOptions()
-        all_args = ["--node-directory", self.get_clientdir()] + list(args)
-        woo.parseOptions(all_args)
+        o = runner.Options()
+        o.parseOptions(["--node-directory", self.get_clientdir(), "webopen"]
+                       + list(args))
         urls = []
-        rc = cli.webopen(woo, urls.append)
+        rc = cli.webopen(o, urls.append)
         self.failUnlessReallyEqual(rc, 0)
         self.failUnlessReallyEqual(len(urls), 1)
         self.failUnlessReallyEqual(urls[0], expected_url)
@@ -2747,25 +2690,20 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         fileutil.make_dirs(basedir)
         nodeurl_path = os.path.join(basedir, 'node.url')
         fileutil.write(nodeurl_path, 'http://example.net:2357/')
+        def parse(args): return parse_options(basedir, "backup", args)
 
         # test simple exclude
-        backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', '*lyx', '--node-directory',
-                                     basedir, 'from', 'to'])
+        backup_options = parse(['--exclude', '*lyx', 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         self._check_filtering(filtered, root_listdir, (u'lib.a', u'_darcs', u'subdir'),
                               (u'nice_doc.lyx',))
         # multiple exclude
-        backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', '*lyx', '--exclude', 'lib.?', '--node-directory',
-                                     basedir, 'from', 'to'])
+        backup_options = parse(['--exclude', '*lyx', '--exclude', 'lib.?', 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                               (u'nice_doc.lyx', u'lib.a'))
         # vcs metadata exclusion
-        backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude-vcs', '--node-directory',
-                                     basedir, 'from', 'to'])
+        backup_options = parse(['--exclude-vcs', 'from', 'to'])
         filtered = list(backup_options.filter_listdir(subdir_listdir))
         self._check_filtering(filtered, subdir_listdir, (u'another_doc.lyx', u'run_snake_run.py',),
                               (u'CVS', u'.svn', u'_darcs'))
@@ -2773,22 +2711,17 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         exclusion_string = "_darcs\n*py\n.svn"
         excl_filepath = os.path.join(basedir, 'exclusion')
         fileutil.write(excl_filepath, exclusion_string)
-        backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude-from', excl_filepath, '--node-directory',
-                                     basedir, 'from', 'to'])
+        backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(subdir_listdir))
         self._check_filtering(filtered, subdir_listdir, (u'another_doc.lyx', u'CVS'),
                               (u'.svn', u'_darcs', u'run_snake_run.py'))
         # test BackupConfigurationError
         self.failUnlessRaises(cli.BackupConfigurationError,
-                              backup_options.parseOptions,
-                              ['--exclude-from', excl_filepath + '.no', '--node-directory',
-                               basedir, 'from', 'to'])
+                              parse,
+                              ['--exclude-from', excl_filepath + '.no', 'from', 'to'])
 
         # test that an iterator works too
-        backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', '*lyx', '--node-directory',
-                                     basedir, 'from', 'to'])
+        backup_options = parse(['--exclude', '*lyx', 'from', 'to'])
         filtered = list(backup_options.filter_listdir(iter(root_listdir)))
         self._check_filtering(filtered, root_listdir, (u'lib.a', u'_darcs', u'subdir'),
                               (u'nice_doc.lyx',))
@@ -2805,18 +2738,15 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         fileutil.make_dirs(basedir)
         nodeurl_path = os.path.join(basedir, 'node.url')
         fileutil.write(nodeurl_path, 'http://example.net:2357/')
+        def parse(args): return parse_options(basedir, "backup", args)
 
         # test simple exclude
-        backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', doc_pattern_arg, '--node-directory',
-                                     basedir, 'from', 'to'])
+        backup_options = parse(['--exclude', doc_pattern_arg, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         self._check_filtering(filtered, root_listdir, (u'lib.a', u'_darcs', u'subdir'),
                               (nice_doc,))
         # multiple exclude
-        backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', doc_pattern_arg, '--exclude', 'lib.?', '--node-directory',
-                                     basedir, 'from', 'to'])
+        backup_options = parse(['--exclude', doc_pattern_arg, '--exclude', 'lib.?', 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
@@ -2824,17 +2754,13 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         exclusion_string = doc_pattern_arg + "\nlib.?"
         excl_filepath = os.path.join(basedir, 'exclusion')
         fileutil.write(excl_filepath, exclusion_string)
-        backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude-from', excl_filepath, '--node-directory',
-                                     basedir, 'from', 'to'])
+        backup_options = parse(['--exclude-from', excl_filepath, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(root_listdir))
         self._check_filtering(filtered, root_listdir, (u'_darcs', u'subdir'),
                              (nice_doc, u'lib.a'))
 
         # test that an iterator works too
-        backup_options = cli.BackupOptions()
-        backup_options.parseOptions(['--exclude', doc_pattern_arg, '--node-directory',
-                                     basedir, 'from', 'to'])
+        backup_options = parse(['--exclude', doc_pattern_arg, 'from', 'to'])
         filtered = list(backup_options.filter_listdir(iter(root_listdir)))
         self._check_filtering(filtered, root_listdir, (u'lib.a', u'_darcs', u'subdir'),
                               (nice_doc,))
@@ -2845,14 +2771,13 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         fileutil.make_dirs(basedir)
         nodeurl_path = os.path.join(basedir, 'node.url')
         fileutil.write(nodeurl_path, 'http://example.net:2357/')
+        def parse(args): return parse_options(basedir, "backup", args)
 
         # ensure that tilde expansion is performed on exclude-from argument
         exclude_file = u'~/.tahoe/excludes.dummy'
-        backup_options = cli.BackupOptions()
 
         mock.return_value = StringIO()
-        backup_options.parseOptions(['--exclude-from', unicode_to_argv(exclude_file),
-                                     '--node-directory', basedir, 'from', 'to'])
+        parse(['--exclude-from', unicode_to_argv(exclude_file), 'from', 'to'])
         self.failUnlessIn(((abspath_expanduser_unicode(exclude_file),), {}), mock.call_args_list)
 
     def test_ignore_symlinks(self):
@@ -3765,3 +3690,111 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
             _cleanup(None)
             raise
         return d
+
+class Options(unittest.TestCase):
+    # this test case only looks at argument-processing and simple stuff.
+
+    def parse(self, args, stdout=None):
+        o = runner.Options()
+        if stdout is not None:
+            o.stdout = stdout
+        o.parseOptions(args)
+        while hasattr(o, "subOptions"):
+            o = o.subOptions
+        return o
+
+    def test_list(self):
+        fileutil.rm_dir("cli/test_options")
+        fileutil.make_dirs("cli/test_options")
+        fileutil.make_dirs("cli/test_options/private")
+        fileutil.write("cli/test_options/node.url", "http://localhost:8080/\n")
+        filenode_uri = uri.WriteableSSKFileURI(writekey="\x00"*16,
+                                               fingerprint="\x00"*32)
+        private_uri = uri.DirectoryURI(filenode_uri).to_string()
+        fileutil.write("cli/test_options/private/root_dir.cap", private_uri + "\n")
+        def parse2(args): return parse_options("cli/test_options", "ls", args)
+        o = parse2([])
+        self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.where, u"")
+
+        o = parse2(["--node-url", "http://example.org:8111/"])
+        self.failUnlessEqual(o['node-url'], "http://example.org:8111/")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], private_uri)
+        self.failUnlessEqual(o.where, u"")
+
+        o = parse2(["--dir-cap", "root"])
+        self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], "root")
+        self.failUnlessEqual(o.where, u"")
+
+        other_filenode_uri = uri.WriteableSSKFileURI(writekey="\x11"*16,
+                                                     fingerprint="\x11"*32)
+        other_uri = uri.DirectoryURI(other_filenode_uri).to_string()
+        o = parse2(["--dir-cap", other_uri])
+        self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
+        self.failUnlessEqual(o.where, u"")
+
+        o = parse2(["--dir-cap", other_uri, "subdir"])
+        self.failUnlessEqual(o['node-url'], "http://localhost:8080/")
+        self.failUnlessEqual(o.aliases[DEFAULT_ALIAS], other_uri)
+        self.failUnlessEqual(o.where, u"subdir")
+
+        self.failUnlessRaises(usage.UsageError, parse2,
+                              ["--node-url", "NOT-A-URL"])
+
+        o = parse2(["--node-url", "http://localhost:8080"])
+        self.failUnlessEqual(o["node-url"], "http://localhost:8080/")
+
+        o = parse2(["--node-url", "https://localhost/"])
+        self.failUnlessEqual(o["node-url"], "https://localhost/")
+
+    def test_version(self):
+        # "tahoe --version" dumps text to stdout and exits
+        stdout = StringIO()
+        self.failUnlessRaises(SystemExit, self.parse, ["--version"], stdout)
+        self.failUnlessIn("allmydata-tahoe", stdout.getvalue())
+        # but "tahoe SUBCOMMAND --version" should be rejected
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["start", "--version"])
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["start", "--version-and-path"])
+
+    def test_quiet(self):
+        # accepted as an overall option, but not on subcommands
+        o = self.parse(["--quiet", "start"])
+        self.failUnless(o.parent["quiet"])
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["start", "--quiet"])
+
+    def test_basedir(self):
+        # accept a --node-directory option before the verb, or a --basedir
+        # option after, or a basedir argument after, but none in the wrong
+        # place, and not more than one of the three.
+        o = self.parse(["start"])
+        self.failUnlessEqual(o["basedir"], os.path.expanduser("~/.tahoe"))
+        o = self.parse(["start", "here"])
+        self.failUnlessEqual(o["basedir"], os.path.abspath("here"))
+        o = self.parse(["start", "--basedir", "there"])
+        self.failUnlessEqual(o["basedir"], os.path.abspath("there"))
+        o = self.parse(["--node-directory", "there", "start"])
+        self.failUnlessEqual(o["basedir"], os.path.abspath("there"))
+
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["--basedir", "there", "start"])
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["start", "--node-directory", "there"])
+
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["--node-directory=there",
+                               "start", "--basedir=here"])
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["start", "--basedir=here", "anywhere"])
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["--node-directory=there",
+                               "start", "anywhere"])
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["--node-directory=there",
+                               "start", "--basedir=here", "anywhere"])
+

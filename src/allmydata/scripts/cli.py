@@ -1,6 +1,7 @@
 import os.path, re, fnmatch
 from twisted.python import usage
-from allmydata.scripts.common import BaseOptions, get_aliases, get_default_nodedir, DEFAULT_ALIAS
+from allmydata.scripts.common import get_aliases, get_default_nodedir, \
+     DEFAULT_ALIAS, BaseOptions
 from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_output
 
 NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
@@ -9,23 +10,18 @@ _default_nodedir = get_default_nodedir()
 
 class VDriveOptions(BaseOptions):
     optParameters = [
-        ["node-directory", "d", None,
-         "Specify which Tahoe node directory should be used. The directory "
-         "should either contain a full Tahoe node, or a file named node.url "
-         "that points to some other Tahoe node. It should also contain a file "
-         "named '" + os.path.join('private', 'aliases') + "' which contains the "
-         "mapping from alias name to root dirnode URI." + (
-            _default_nodedir and (" [default: " + quote_output(_default_nodedir) + "]") or "")],
         ["node-url", "u", None,
-         "Specify the URL of the Tahoe gateway node, such as 'http://127.0.0.1:3456'. "
+         "Specify the URL of the Tahoe gateway node, such as "
+         "'http://127.0.0.1:3456'. "
          "This overrides the URL found in the --node-directory ."],
         ["dir-cap", None, None,
          "Specify which dirnode URI should be used as the 'tahoe' alias."]
         ]
 
     def postOptions(self):
-        if self['node-directory']:
-            self['node-directory'] = argv_to_abspath(self['node-directory'])
+        self["quiet"] = self.parent["quiet"]
+        if self.parent['node-directory']:
+            self['node-directory'] = argv_to_abspath(self.parent['node-directory'])
         else:
             self['node-directory'] = _default_nodedir
 

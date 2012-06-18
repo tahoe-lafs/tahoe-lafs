@@ -759,8 +759,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream1(self):
         basedir = self.get_clientdir(0)
-        d = self._run_cli(["manifest",
-                           "--node-directory", basedir,
+        d = self._run_cli(["--node-directory", basedir,
+                           "manifest",
                            self.root_uri])
         def _check((out,err)):
             self.failUnlessEqual(err, "")
@@ -787,8 +787,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream2(self):
         basedir = self.get_clientdir(0)
-        d = self._run_cli(["manifest",
-                           "--node-directory", basedir,
+        d = self._run_cli(["--node-directory", basedir,
+                           "manifest",
                            "--raw",
                            self.root_uri])
         def _check((out,err)):
@@ -800,8 +800,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream3(self):
         basedir = self.get_clientdir(0)
-        d = self._run_cli(["manifest",
-                           "--node-directory", basedir,
+        d = self._run_cli(["--node-directory", basedir,
+                           "manifest",
                            "--storage-index",
                            self.root_uri])
         def _check((out,err)):
@@ -812,8 +812,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream4(self):
         basedir = self.get_clientdir(0)
-        d = self._run_cli(["manifest",
-                           "--node-directory", basedir,
+        d = self._run_cli(["--node-directory", basedir,
+                           "manifest",
                            "--verify-cap",
                            self.root_uri])
         def _check((out,err)):
@@ -828,8 +828,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_manifest_stream5(self):
         basedir = self.get_clientdir(0)
-        d = self._run_cli(["manifest",
-                           "--node-directory", basedir,
+        d = self._run_cli(["--node-directory", basedir,
+                           "manifest",
                            "--repair-cap",
                            self.root_uri])
         def _check((out,err)):
@@ -844,8 +844,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_stats1(self):
         basedir = self.get_clientdir(0)
-        d = self._run_cli(["stats",
-                           "--node-directory", basedir,
+        d = self._run_cli(["--node-directory", basedir,
+                           "stats",
                            self.root_uri])
         def _check3((out,err)):
             lines = [l.strip() for l in out.split("\n") if l]
@@ -864,8 +864,8 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
 
     def do_cli_stats2(self):
         basedir = self.get_clientdir(0)
-        d = self._run_cli(["stats",
-                           "--node-directory", basedir,
+        d = self._run_cli(["--node-directory", basedir,
+                           "stats",
                            "--raw",
                            self.root_uri])
         def _check4((out,err)):

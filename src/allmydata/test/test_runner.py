@@ -284,7 +284,7 @@ class CreateNode(unittest.TestCase):
 
         # test the --node-directory form
         n3 = os.path.join(basedir, command + "-n3")
-        argv = ["--quiet", command, "--node-directory", n3]
+        argv = ["--quiet", "--node-directory", n3, command]
         rc, out, err = self.run_tahoe(argv)
         self.failUnlessEqual(err, "")
         self.failUnlessEqual(out, "")

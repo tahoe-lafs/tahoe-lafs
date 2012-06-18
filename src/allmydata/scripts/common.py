@@ -25,58 +25,42 @@ def get_default_nodedir():
 
 
 class BaseOptions(usage.Options):
-    # unit tests can override these to point at StringIO instances
-    stdin = sys.stdin
-    stdout = sys.stdout
-    stderr = sys.stderr
-
-    optFlags = [
-        ["quiet", "q", "Operate silently."],
-        ["version", "V", "Display version numbers."],
-        ["version-and-path", None, "Display version numbers and paths to their locations."],
-    ]
-    optParameters = [
-        ["node-directory", "d", None, "Specify which Tahoe node directory should be used." + (
-            _default_nodedir and (" [default for most commands: " + quote_output(_default_nodedir) + "]") or "")],
-    ]
-
     def __init__(self):
         super(BaseOptions, self).__init__()
         self.command_name = os.path.basename(sys.argv[0])
         if self.command_name == 'trial':
             self.command_name = 'tahoe'
 
+    # Only allow "tahoe --version", not e.g. "tahoe start --version"
     def opt_version(self):
-        import allmydata
-        print >>self.stdout, allmydata.get_package_versions_string(debug=True)
-        self.no_command_needed = True
+        raise usage.UsageError("--version not allowed on subcommands")
 
-    def opt_version_and_path(self):
-        import allmydata
-        print >>self.stdout, allmydata.get_package_versions_string(show_paths=True, debug=True)
-        self.no_command_needed = True
-
-
-class BasedirMixin:
+class BasedirOptions(BaseOptions):
     default_nodedir = _default_nodedir
 
     optParameters = [
-        ["basedir", "C", None, "Same as --node-directory."],
+        ["basedir", "C", None, "Same as --node-directory (default %s)."
+         % get_default_nodedir()],
     ]
 
     def parseArgs(self, basedir=None):
-        if self['node-directory'] and self['basedir']:
-            raise usage.UsageError("The --node-directory (or -d) and --basedir (or -C) "
-                                   "options cannot both be used.")
+        if self.parent['node-directory'] and self['basedir']:
+            raise usage.UsageError("The --node-directory (or -d) and --basedir (or -C) options cannot both be used.")
+        if self.parent['node-directory'] and basedir:
+            raise usage.UsageError("The --node-directory (or -d) option and a basedir argument cannot both be used.")
+        if self['basedir'] and basedir:
+            raise usage.UsageError("The --basedir (or -C) option and a basedir argument cannot both be used.")
 
         if basedir:
             b = argv_to_abspath(basedir)
         elif self['basedir']:
             b = argv_to_abspath(self['basedir'])
-        elif self['node-directory']:
-            b = argv_to_abspath(self['node-directory'])
-        else:
+        elif self.parent['node-directory']:
+            b = argv_to_abspath(self.parent['node-directory'])
+        elif self.default_nodedir:
             b = self.default_nodedir
+        else:
+            raise usage.UsageError("No default basedir available, you must provide one with --node-directory, --basedir, or a basedir argument")
         self['basedir'] = b
 
     def postOptions(self):
