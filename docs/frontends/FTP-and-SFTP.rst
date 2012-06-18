@@ -250,16 +250,10 @@ Upload errors may not be reported when writing files using SFTP via sshfs
 Non-ASCII filenames are supported with SFTP only if the client encodes
 filenames as UTF-8 (`ticket #1089`_).
 
-The gateway node may hang or consume 100% CPU if the client tries to rekey.
-(`ticket #1297`_).  This is due to a bug in Twisted (`Twisted ticket #4395`_)
-which was fixed in Twisted 11.0 (released 3-April-2011).
-
 See also wiki:SftpFrontend_.
 
 .. _ticket #1059: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1059
 .. _ticket #1089: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1089
-.. _ticket #1297: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1297
-.. _Twisted ticket #4395: https://twistedmatrix.com/trac/ticket/4395
 
 Known Issues in the FTP Frontend
 --------------------------------
