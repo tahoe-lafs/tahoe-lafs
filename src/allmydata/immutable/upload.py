@@ -16,7 +16,7 @@ from allmydata.util import base32, dictutil, idlib, log, mathutil
 from allmydata.util.happinessutil import servers_of_happiness, \
                                          shares_by_server, merge_servers, \
                                          failure_message
-from allmydata.util.assertutil import precondition
+from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.rrefutil import add_version_to_remote_reference
 from allmydata.interfaces import IUploadable, IUploader, IUploadResults, \
      IEncryptedUploadable, RIEncryptedUploadable, IUploadStatus, \
@@ -624,6 +624,8 @@ class EncryptAnUploadable:
     CHUNKSIZE = 50*1024
 
     def __init__(self, original, log_parent=None):
+        precondition(original.default_params_set,
+                     "set_default_encoding_parameters not called on %r before wrapping with EncryptAnUploadable" % (original,))
         self.original = IUploadable(original)
         self._log_number = log_parent
         self._encryptor = None
@@ -1340,9 +1342,7 @@ class AssistedUploader:
 class BaseUploadable:
     # this is overridden by max_segment_size
     default_max_segment_size = DEFAULT_MAX_SEGMENT_SIZE
-    default_encoding_param_k = 3 # overridden by encoding_parameters
-    default_encoding_param_happy = 7
-    default_encoding_param_n = 10
+    default_params_set = False
 
     max_segment_size = None
     encoding_param_k = None
@@ -1368,8 +1368,10 @@ class BaseUploadable:
             self.default_encoding_param_n = default_params["n"]
         if "max_segment_size" in default_params:
             self.default_max_segment_size = default_params["max_segment_size"]
+        self.default_params_set = True
 
     def get_all_encoding_parameters(self):
+        _assert(self.default_params_set, "set_default_encoding_parameters not called on %r" % (self,))
         if self._all_encoding_parameters:
             return defer.succeed(self._all_encoding_parameters)
 

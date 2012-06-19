@@ -20,6 +20,7 @@ from allmydata.util.happinessutil import servers_of_happiness, \
                                          shares_by_server, merge_servers
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.server import storage_index_to_dir
+from allmydata.client import Client
 
 MiB = 1024*1024
 
@@ -635,42 +636,52 @@ class ServerSelection(unittest.TestCase):
 class StorageIndex(unittest.TestCase):
     def test_params_must_matter(self):
         DATA = "I am some data"
+        PARAMS = Client.DEFAULT_ENCODING_PARAMETERS
+
         u = upload.Data(DATA, convergence="")
+        u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1 = eu.get_storage_index()
 
         # CHK means the same data should encrypt the same way
         u = upload.Data(DATA, convergence="")
+        u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1a = eu.get_storage_index()
 
         # but if we use a different convergence string it should be different
         u = upload.Data(DATA, convergence="wheee!")
+        u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1salt1 = eu.get_storage_index()
 
         # and if we add yet a different convergence it should be different again
         u = upload.Data(DATA, convergence="NOT wheee!")
+        u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1salt2 = eu.get_storage_index()
 
         # and if we use the first string again it should be the same as last time
         u = upload.Data(DATA, convergence="wheee!")
+        u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d1salt1a = eu.get_storage_index()
 
         # and if we change the encoding parameters, it should be different (from the same convergence string with different encoding parameters)
         u = upload.Data(DATA, convergence="")
+        u.set_default_encoding_parameters(PARAMS)
         u.encoding_param_k = u.default_encoding_param_k + 1
         eu = upload.EncryptAnUploadable(u)
         d2 = eu.get_storage_index()
 
         # and if we use a random key, it should be different than the CHK
         u = upload.Data(DATA, convergence=None)
+        u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d3 = eu.get_storage_index()
         # and different from another instance
         u = upload.Data(DATA, convergence=None)
+        u.set_default_encoding_parameters(PARAMS)
         eu = upload.EncryptAnUploadable(u)
         d4 = eu.get_storage_index()
 
@@ -767,9 +778,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         broker = self.g.clients[0].storage_broker
         sh     = self.g.clients[0]._secret_holder
         data = upload.Data("data" * 10000, convergence="")
-        data.encoding_param_k = 3
-        data.encoding_param_happy = 4
-        data.encoding_param_n = 10
+        data.set_default_encoding_parameters({'k': 3, 'happy': 4, 'n': 10})
         uploadable = upload.EncryptAnUploadable(data)
         encoder = encode.Encoder()
         encoder.set_encrypted_uploadable(uploadable)
