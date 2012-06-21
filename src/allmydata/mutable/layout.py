@@ -1102,10 +1102,11 @@ class MDMFSlotWriteProxy:
     def get_verinfo(self):
         return (self._seqnum,
                 self._root_hash,
-                self._required_shares,
-                self._total_shares,
+                None,
                 self._segment_size,
                 self._data_length,
+                self._required_shares,
+                self._total_shares,
                 self.get_signable(),
                 self._get_offsets_tuple())
 
