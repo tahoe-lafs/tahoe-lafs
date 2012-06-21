@@ -1974,101 +1974,77 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         self.failUnlessEqual(old_shares, current_shares)
 
 
-    def test_unrepairable_0shares(self):
-        d = self.publish_one()
-        def _delete_all_shares(ign):
-            shares = self._storage._peers
-            for peerid in shares:
-                shares[peerid] = {}
-        d.addCallback(_delete_all_shares)
-        d.addCallback(lambda ign: self._fn.check(Monitor()))
-        d.addCallback(lambda check_results: self._fn.repair(check_results))
-        def _check(crr):
-            self.failUnlessEqual(crr.get_successful(), False)
-        d.addCallback(_check)
-        return d
-
-    def test_mdmf_unrepairable_0shares(self):
-        d = self.publish_mdmf()
-        def _delete_all_shares(ign):
-            shares = self._storage._peers
-            for peerid in shares:
-                shares[peerid] = {}
-        d.addCallback(_delete_all_shares)
-        d.addCallback(lambda ign: self._fn.check(Monitor()))
-        d.addCallback(lambda check_results: self._fn.repair(check_results))
-        d.addCallback(lambda crr: self.failIf(crr.get_successful()))
-        return d
-
-
-    def test_unrepairable_1share(self):
-        d = self.publish_one()
-        def _delete_all_shares(ign):
-            shares = self._storage._peers
-            for peerid in shares:
-                for shnum in list(shares[peerid]):
-                    if shnum > 0:
-                        del shares[peerid][shnum]
-        d.addCallback(_delete_all_shares)
-        d.addCallback(lambda ign: self._fn.check(Monitor()))
-        d.addCallback(lambda check_results: self._fn.repair(check_results))
-        def _check(crr):
-            self.failUnlessEqual(crr.get_successful(), False)
-        d.addCallback(_check)
-        return d
-
-    def test_mdmf_unrepairable_1share(self):
-        d = self.publish_mdmf()
-        def _delete_all_shares(ign):
-            shares = self._storage._peers
-            for peerid in shares:
-                for shnum in list(shares[peerid]):
-                    if shnum > 0:
-                        del shares[peerid][shnum]
-        d.addCallback(_delete_all_shares)
-        d.addCallback(lambda ign: self._fn.check(Monitor()))
-        d.addCallback(lambda check_results: self._fn.repair(check_results))
-        def _check(crr):
-            self.failUnlessEqual(crr.get_successful(), False)
-        d.addCallback(_check)
-        return d
-
-    def test_repairable_5shares(self):
-        d = self.publish_mdmf()
-        def _delete_all_shares(ign):
-            shares = self._storage._peers
-            for peerid in shares:
-                for shnum in list(shares[peerid]):
-                    if shnum > 4:
-                        del shares[peerid][shnum]
-        d.addCallback(_delete_all_shares)
-        d.addCallback(lambda ign: self._fn.check(Monitor()))
-        d.addCallback(lambda check_results: self._fn.repair(check_results))
-        def _check(crr):
-            self.failUnlessEqual(crr.get_successful(), True)
-        d.addCallback(_check)
-        return d
-
-    def test_mdmf_repairable_5shares(self):
-        d = self.publish_mdmf()
+    def _test_whether_repairable(self, publisher, nshares, expected_result):
+        d = publisher()
         def _delete_some_shares(ign):
             shares = self._storage._peers
             for peerid in shares:
                 for shnum in list(shares[peerid]):
-                    if shnum > 5:
+                    if shnum >= nshares:
                         del shares[peerid][shnum]
         d.addCallback(_delete_some_shares)
         d.addCallback(lambda ign: self._fn.check(Monitor()))
         def _check(cr):
             self.failIf(cr.is_healthy())
-            self.failUnless(cr.is_recoverable())
+            self.failUnlessEqual(cr.is_recoverable(), expected_result)
             return cr
         d.addCallback(_check)
         d.addCallback(lambda check_results: self._fn.repair(check_results))
-        def _check1(crr):
-            self.failUnlessEqual(crr.get_successful(), True)
-        d.addCallback(_check1)
+        d.addCallback(lambda crr: self.failUnlessEqual(crr.get_successful(), expected_result))
         return d
+
+    def test_unrepairable_0shares(self):
+        return self._test_whether_repairable(self.publish_one, 0, False)
+
+    def test_mdmf_unrepairable_0shares(self):
+        return self._test_whether_repairable(self.publish_mdmf, 0, False)
+
+    def test_unrepairable_1share(self):
+        return self._test_whether_repairable(self.publish_one, 1, False)
+
+    def test_mdmf_unrepairable_1share(self):
+        return self._test_whether_repairable(self.publish_mdmf, 1, False)
+
+    def test_repairable_5shares(self):
+        return self._test_whether_repairable(self.publish_one, 5, True)
+
+    def test_mdmf_repairable_5shares(self):
+        return self._test_whether_repairable(self.publish_mdmf, 5, True)
+
+    def _test_whether_checkandrepairable(self, publisher, nshares, expected_result):
+        """
+        Like the _test_whether_repairable tests, but invoking check_and_repair
+        instead of invoking check and then invoking repair.
+        """
+        d = publisher()
+        def _delete_some_shares(ign):
+            shares = self._storage._peers
+            for peerid in shares:
+                for shnum in list(shares[peerid]):
+                    if shnum >= nshares:
+                        del shares[peerid][shnum]
+        d.addCallback(_delete_some_shares)
+        d.addCallback(lambda ign: self._fn.check_and_repair(Monitor()))
+        d.addCallback(lambda crr: self.failUnlessEqual(crr.get_repair_successful(), expected_result))
+        return d
+
+    def test_unrepairable_0shares_checkandrepair(self):
+        return self._test_whether_checkandrepairable(self.publish_one, 0, False)
+
+    def test_mdmf_unrepairable_0shares_checkandrepair(self):
+        return self._test_whether_checkandrepairable(self.publish_mdmf, 0, False)
+
+    def test_unrepairable_1share_checkandrepair(self):
+        return self._test_whether_checkandrepairable(self.publish_one, 1, False)
+
+    def test_mdmf_unrepairable_1share_checkandrepair(self):
+        return self._test_whether_checkandrepairable(self.publish_mdmf, 1, False)
+
+    def test_repairable_5shares_checkandrepair(self):
+        return self._test_whether_checkandrepairable(self.publish_one, 5, True)
+
+    def test_mdmf_repairable_5shares_checkandrepair(self):
+        return self._test_whether_checkandrepairable(self.publish_mdmf, 5, True)
 
 
     def test_merge(self):
