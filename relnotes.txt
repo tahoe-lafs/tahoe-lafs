@@ -1,8 +1,8 @@
 ﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.9.1
 
-The Tahoe-LAFS team has announced the immediate availability of
-version 1.9.1 of Tahoe-LAFS, an extremely reliable distributed
-storage system. Get it here:
+The Tahoe-LAFS team is pleased to announce the immediate
+availability of version 1.9.1 of Tahoe-LAFS, an extremely
+reliable distributed storage system. Get it here:
 
 https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.rst
 

@@ -3,6 +3,18 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
+Release 1.9.1 (2012-01-12)
+--------------------------
+
+Security-related Bugfix
+'''''''''''''''''''''''
+
+- Fix flaw that would allow servers to cause undetected corruption when
+  retrieving the contents of mutable files (both SDMF and MDMF). (`#1654`_)
+
+.. _`#1654`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1654
+
+
 Release 1.9.0 (2011-10-30)
 --------------------------
 
