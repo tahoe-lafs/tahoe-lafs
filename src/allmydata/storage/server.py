@@ -13,6 +13,7 @@ _pyflakes_hush = [si_b2a, si_a2b, storage_index_to_dir] # re-exported
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.mutable import MutableShareFile, EmptyShare, \
      create_mutable_sharefile
+from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
 from allmydata.storage.immutable import ShareFile, BucketWriter, BucketReader
 from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.storage.expirer import LeaseCheckingCrawler
@@ -225,6 +226,7 @@ class StorageServer(service.MultiService, Referenceable):
 
         version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
                     { "maximum-immutable-share-size": remaining_space,
+                      "maximum-mutable-share-size": MAX_MUTABLE_SHARE_SIZE,
                       "tolerates-immutable-read-overrun": True,
                       "delete-mutable-shares-with-zero-length-writev": True,
                       "fills-holes-with-zero-bytes": True,

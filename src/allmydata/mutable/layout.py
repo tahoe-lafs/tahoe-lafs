@@ -71,6 +71,8 @@ HEADER_LENGTH = struct.calcsize(HEADER)
 OFFSETS = ">LLLLQQ"
 OFFSETS_LENGTH = struct.calcsize(OFFSETS)
 
+MAX_MUTABLE_SHARE_SIZE = 69105*1000*1000*1000*1000 # 69105 TB, kind of arbitrary
+
 
 # These are still used for some tests of SDMF files.
 def unpack_header(data):
