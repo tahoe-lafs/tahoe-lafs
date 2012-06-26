@@ -390,7 +390,7 @@ def get_package_versions_string(show_paths=False, debug=False):
             info = info + " (%s)" % str(loc)
         res.append(info)
 
-    output = ",\n".join(res) + "\n"
+    output = "\n".join(res) + "\n"
 
     if not hasattr(sys, 'frozen'):
         errors = cross_check_pkg_resources_versus_import()
