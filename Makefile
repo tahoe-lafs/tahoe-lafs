@@ -138,11 +138,11 @@ pyflakes:
 	@echo
 
 check-umids:
-	$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py'`
+	$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py' -not -name 'old.py'`
 	@echo
 
 -check-umids:
-	-$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py'`
+	-$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py' -not -name 'old.py'`
 	@echo
 
 doc-checks: check-rst
