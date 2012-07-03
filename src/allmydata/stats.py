@@ -256,7 +256,8 @@ class PickleStatsGatherer(StdOutStatsGatherer):
             try:
                 self.gathered_stats = pickle.load(f)
             except Exception:
-                print ("Error while attempting to load pickle file %s.\nYou may need to delete this file.\n" %
+                print ("Error while attempting to load pickle file %s.\n"
+                       "You may need to restore this file from a backup, or delete it if no backup is available.\n" %
                        quote_output(os.path.abspath(self.picklefile)))
                 raise
             f.close()
