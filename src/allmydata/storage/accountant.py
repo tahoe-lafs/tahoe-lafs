@@ -20,8 +20,8 @@ class Accountant(service.MultiService):
         self._leasedb = LeaseDB(dbfile)
         self._active_accounts = weakref.WeakValueDictionary()
         self._accountant_window = None
-        self._anonymous_account = AnonymousAccount(0, self.storage_server,
-                                                   self._leasedb)
+        self._anonymous_account = Account(0, None,
+                                          self.storage_server, self._leasedb)
 
         crawler = AccountingCrawler(storage_server, statefile, self._leasedb)
         self.accounting_crawler = crawler

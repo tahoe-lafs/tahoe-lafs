@@ -8,11 +8,29 @@ FURLification dance is established, each client will get a different instance
 (with a dedicated ownerid).
 """
 
-class BaseAccount(Referenceable):
-    def __init__(self, owner_num, server, leasedb):
+class Account(Referenceable):
+    implements(RIStorageServer)
+
+    def __init__(self, owner_num, pubkey_vs, server, leasedb):
         self.owner_num = owner_num
         self.server = server
         self._leasedb = leasedb
+        # for static accounts ("starter", "anonymous"), pubkey_vs is None,
+        # and the "connected" attributes are unused
+        self.pubkey_vs = pubkey_vs
+        self.connected = False
+        self.connected_since = None
+        self.connection = None
+        import random
+        def maybe(): return bool(random.randint(0,1))
+        self.status = {"write": maybe(),
+                       "read": maybe(),
+                       "save": maybe(),
+                       }
+        self.account_message = {
+            "message": "free storage! %d" % random.randint(0,10),
+            "fancy": "free pony if you knew how to ask",
+            }
 
     def is_static(self):
         return self.owner_num in (0,1)
@@ -104,26 +122,8 @@ class BaseAccount(Referenceable):
         return self.server.client_advise_corrupt_share(
             share_type, storage_index, shnum, reason, self)
 
-class AnonymousAccount(BaseAccount):
-    implements(RIStorageServer)
 
-class Account(BaseAccount):
-    def __init__(self, owner_num, pubkey_vs, server, leasedb):
-        BaseAccount.__init__(self, owner_num, server, leasedb)
-        self.pubkey_vs = pubkey_vs
-        self.connected = False
-        self.connected_since = None
-        self.connection = None
-        import random
-        def maybe(): return bool(random.randint(0,1))
-        self.status = {"write": maybe(),
-                       "read": maybe(),
-                       "save": maybe(),
-                       }
-        self.account_message = {
-            "message": "free storage! %d" % random.randint(0,10),
-            "fancy": "free pony if you knew how to ask",
-            }
+    # these are the non-RIStorageServer methods, some remote, some local
 
     def get_account_attribute(self, name):
         return self._leasedb.get_account_attribute(self.owner_num, name)
@@ -136,8 +136,6 @@ class Account(BaseAccount):
         return self.status
     def remote_get_account_message(self):
         return self.account_message
-
-    # these are the non-RIStorageServer methods, some remote, some local
 
     def set_nickname(self, nickname):
         if len(nickname) > 1000:
