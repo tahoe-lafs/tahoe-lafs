@@ -329,31 +329,6 @@ class StorageServer(service.MultiService, Referenceable):
                 continue # non-sharefile
             yield sf
 
-    def remote_add_lease(self, storage_index, renew_secret, cancel_secret,
-                         owner_num=1):
-        start = time.time()
-        self.count("add-lease")
-        new_expire_time = time.time() + 31*24*60*60
-        lease_info = LeaseInfo(owner_num,
-                               renew_secret, cancel_secret,
-                               new_expire_time, self.my_nodeid)
-        for sf in self._iter_share_files(storage_index):
-            sf.add_or_renew_lease(lease_info)
-        self.add_latency("add-lease", time.time() - start)
-        return None
-
-    def remote_renew_lease(self, storage_index, renew_secret):
-        start = time.time()
-        self.count("renew")
-        new_expire_time = time.time() + 31*24*60*60
-        found_buckets = False
-        for sf in self._iter_share_files(storage_index):
-            found_buckets = True
-            sf.renew_lease(renew_secret, new_expire_time)
-        self.add_latency("renew", time.time() - start)
-        if not found_buckets:
-            raise IndexError("no such lease to renew")
-
     def bucket_writer_closed(self, bw, consumed_size):
         if self.stats_provider:
             self.stats_provider.count('storage_server.bytes_added', consumed_size)
@@ -384,22 +359,6 @@ class StorageServer(service.MultiService, Referenceable):
                                                 storage_index, shnum)
         self.add_latency("get", time.time() - start)
         return bucketreaders
-
-    def get_leases(self, storage_index):
-        """Provide an iterator that yields all of the leases attached to this
-        bucket. Each lease is returned as a LeaseInfo instance.
-
-        This method is not for client use.
-        """
-
-        # since all shares get the same lease data, we just grab the leases
-        # from the first share
-        try:
-            shnum, filename = self._get_bucket_shares(storage_index).next()
-            sf = ShareFile(filename)
-            return sf.get_leases()
-        except StopIteration:
-            return iter([])
 
     def remote_slot_testv_and_readv_and_writev(self, storage_index,
                                                secrets,
