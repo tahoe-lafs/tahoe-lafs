@@ -33,19 +33,14 @@ NUM_RE=re.compile("^[0-9]+$")
 
 
 
-class StorageServer(service.MultiService, Referenceable):
-    implements(RIStorageServer, IStatsProducer)
+class StorageServer(service.MultiService):
+    implements(IStatsProducer)
     name = 'storage'
     LeaseCheckerClass = LeaseCheckingCrawler
 
     def __init__(self, storedir, nodeid, reserved_space=0,
                  discard_storage=False, readonly_storage=False,
-                 stats_provider=None,
-                 expiration_enabled=False,
-                 expiration_mode="age",
-                 expiration_override_lease_duration=None,
-                 expiration_cutoff_date=None,
-                 expiration_sharetypes=("mutable", "immutable")):
+                 stats_provider=None):
         service.MultiService.__init__(self)
         assert isinstance(nodeid, str)
         assert len(nodeid) == 20
@@ -86,16 +81,6 @@ class StorageServer(service.MultiService, Referenceable):
                           "cancel": [],
                           }
         self.add_bucket_counter()
-
-        statefile = os.path.join(self.storedir, "lease_checker.state")
-        historyfile = os.path.join(self.storedir, "lease_checker.history")
-        klass = self.LeaseCheckerClass
-        self.lease_checker = klass(self, statefile, historyfile,
-                                   expiration_enabled, expiration_mode,
-                                   expiration_override_lease_duration,
-                                   expiration_cutoff_date,
-                                   expiration_sharetypes)
-        self.lease_checker.setServiceParent(self)
 
     def __repr__(self):
         return "<StorageServer %s>" % (idlib.shortnodeid_b2a(self.my_nodeid),)
@@ -218,7 +203,7 @@ class StorageServer(service.MultiService, Referenceable):
             space += bw.allocated_size()
         return space
 
-    def remote_get_version(self):
+    def client_get_version(self):
         remaining_space = self.get_available_space()
         if remaining_space is None:
             # We're on a platform that has no API to get disk stats.
@@ -236,13 +221,10 @@ class StorageServer(service.MultiService, Referenceable):
                     }
         return version
 
-    def remote_allocate_buckets(self, storage_index,
+    def client_allocate_buckets(self, storage_index,
                                 renew_secret, cancel_secret,
                                 sharenums, allocated_size,
-                                canary, owner_num=0):
-        # owner_num is not for clients to set, but rather it should be
-        # curried into the PersonalStorageServer instance that is dedicated
-        # to a particular owner.
+                                canary, account):
         start = time.time()
         self.count("allocate")
         alreadygot = set()
@@ -252,14 +234,8 @@ class StorageServer(service.MultiService, Referenceable):
 
         log.msg("storage: allocate_buckets %s" % si_s)
 
-        # in this implementation, the lease information (including secrets)
-        # goes into the share files themselves. It could also be put into a
-        # separate database. Note that the lease should not be added until
-        # the BucketWriter has been closed.
-        expire_time = time.time() + 31*24*60*60
-        lease_info = LeaseInfo(owner_num,
-                               renew_secret, cancel_secret,
-                               expire_time, self.my_nodeid)
+        # Note that the lease should not be added until the BucketWriter has
+        # been closed. This is handled in BucketWriter.close()
 
         max_space_per_bucket = allocated_size
 
@@ -295,8 +271,8 @@ class StorageServer(service.MultiService, Referenceable):
                 pass
             elif (not limited) or (remaining_space >= max_space_per_bucket):
                 # ok! we need to create the new share file.
-                bw = BucketWriter(self, incominghome, finalhome,
-                                  max_space_per_bucket, lease_info, canary)
+                bw = BucketWriter(self, account, incominghome, finalhome,
+                                  max_space_per_bucket, canary)
                 if self.no_storage:
                     bw.throw_out_all_data = True
                 bucketwriters[shnum] = bw
@@ -348,7 +324,7 @@ class StorageServer(service.MultiService, Referenceable):
             # Commonly caused by there being no buckets at all.
             pass
 
-    def remote_get_buckets(self, storage_index):
+    def client_get_buckets(self, storage_index, self):
         start = time.time()
         self.count("get")
         si_s = si_b2a(storage_index)
@@ -360,16 +336,15 @@ class StorageServer(service.MultiService, Referenceable):
         self.add_latency("get", time.time() - start)
         return bucketreaders
 
-    def remote_slot_testv_and_readv_and_writev(self, storage_index,
-                                               secrets,
+    def client_slot_testv_and_readv_and_writev(self, storage_index,
+                                               write_enabler,
                                                test_and_write_vectors,
-                                               read_vector):
+                                               read_vector, account):
         start = time.time()
         self.count("writev")
         si_s = si_b2a(storage_index)
         log.msg("storage: slot_writev %s" % si_s)
         si_dir = storage_index_to_dir(storage_index)
-        (write_enabler, renew_secret, cancel_secret) = secrets
         # shares exist if there is a file for them
         bucketdir = os.path.join(self.sharedir, si_dir)
         shares = {}
@@ -407,12 +382,6 @@ class StorageServer(service.MultiService, Referenceable):
         read_data = {}
         for sharenum, share in shares.items():
             read_data[sharenum] = share.readv(read_vector)
-
-        ownerid = 1 # TODO
-        expire_time = time.time() + 31*24*60*60   # one month
-        lease_info = LeaseInfo(ownerid,
-                               renew_secret, cancel_secret,
-                               expire_time, self.my_nodeid)
 
         if testv_is_good:
             # now apply the write vectors
@@ -454,7 +423,7 @@ class StorageServer(service.MultiService, Referenceable):
                                          self)
         return share
 
-    def remote_slot_readv(self, storage_index, shares, readv):
+    def client_slot_readv(self, storage_index, shares, readv, account):
         start = time.time()
         self.count("readv")
         si_s = si_b2a(storage_index)
@@ -481,8 +450,8 @@ class StorageServer(service.MultiService, Referenceable):
         self.add_latency("readv", time.time() - start)
         return datavs
 
-    def remote_advise_corrupt_share(self, share_type, storage_index, shnum,
-                                    reason):
+    def client_advise_corrupt_share(self, share_type, storage_index, shnum,
+                                    reason, account):
         fileutil.make_dirs(self.corruption_advisory_dir)
         now = time_format.iso_utc(sep="T")
         si_s = si_b2a(storage_index)
