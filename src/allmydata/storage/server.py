@@ -216,6 +216,7 @@ class StorageServer(service.MultiService):
                       "delete-mutable-shares-with-zero-length-writev": True,
                       "fills-holes-with-zero-bytes": True,
                       "prevents-read-past-end-of-share-data": True,
+                      "accounting-v1": {},
                       },
                     "application-version": str(allmydata.__full_version__),
                     }
