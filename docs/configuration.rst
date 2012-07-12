@@ -346,8 +346,13 @@ Client Configuration
     guarantee the availability of the uploaded file. This value should not be
     larger than the number of servers on your grid.
 
-    A value of ``shares.happy`` <= ``k`` is allowed, but does not provide any
-    redundancy if some servers fail or lose shares.
+    A value of ``shares.happy`` <= ``k`` is allowed, but this is not
+    guaranteed to provide any redundancy if some servers fail or lose shares.
+    It may still provide redundancy in practice if ``N`` is greater than
+    the number of connected servers, because in that case there will typically
+    be more than one share on at least some storage nodes. However, since a
+    successful upload only guarantees that at least ``shares.happy`` shares
+    have been stored, the worst case is still that there is no redundancy.
 
     (Mutable files use a different share placement algorithm that does not
     currently consider this parameter.)
