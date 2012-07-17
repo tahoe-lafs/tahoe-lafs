@@ -27,6 +27,10 @@ def int_or_none(s):
         return s
     return int(s)
 
+STATE_COMING = 0
+STATE_STABLE = 1
+STATE_GOING = 2
+
 # try to get rid of all the AUTOINCREMENT keys, use things like "SI/shnum"
 # and pubkey as the index
 LEASE_SCHEMA_V1 = """
@@ -42,7 +46,7 @@ CREATE TABLE shares
  `storage_index` VARCHAR(26),
  `shnum` INTEGER,
  `size` INTEGER,
- `garbage` INTEGER -- set after last lease is removed, before file is deleted
+ `state` INTEGER -- 0=coming, 1=stable, 2=going
 );
 
 CREATE INDEX `prefix` ON shares (`prefix`);
@@ -55,7 +59,8 @@ CREATE TABLE leases
  -- FOREIGN KEY (`account_id`) REFERENCES accounts(id),
  `share_id` INTEGER,
  `account_id` INTEGER,
- `expiration_time` INTEGER
+ `renewal_time` INTEGER, -- duration is implicit: expiration-renewal
+ `expiration_time` INTEGER -- seconds since epoch
 );
 
 CREATE INDEX `account_id` ON `leases` (`account_id`);
