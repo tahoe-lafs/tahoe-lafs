@@ -375,8 +375,8 @@ Client Configuration
     controlled by this parameter and will always use SDMF. We may revisit
     this decision in future versions of Tahoe-LAFS.
 
-    See `<frontends/specifications/mutable.rst>`_ for details about mutable
-    file formats.
+    See `<specifications/mutable.rst>`_ for details about mutable file
+    formats.
 
 Frontend Configuration
 ======================
