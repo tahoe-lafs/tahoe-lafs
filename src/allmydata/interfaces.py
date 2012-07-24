@@ -2157,7 +2157,7 @@ class ICheckResults(Interface):
         files always return True."""
 
     def needs_rebalancing():
-        """Return a boolean, True if the file/dirs reliability could be
+        """Return a boolean, True if the file/dir's reliability could be
         improved by moving shares to new servers. Non-distributed LIT files
         always return False."""
 
@@ -2624,8 +2624,8 @@ class NotCapableError(Exception):
 class BadWriteEnablerError(Exception):
     pass
 
-class RIControlClient(RemoteInterface):
 
+class RIControlClient(RemoteInterface):
     def wait_for_client_connections(num_clients=int):
         """Do not return until we have connections to at least NUM_CLIENTS
         storage servers.

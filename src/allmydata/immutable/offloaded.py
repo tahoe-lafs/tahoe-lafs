@@ -317,6 +317,9 @@ class CHKCiphertextFetcher(AskUntilSuccessMixin):
         if os.path.exists(self._encoding_file):
             self.log("ciphertext already present, bypassing fetch",
                      level=log.UNUSUAL)
+            # XXX the following comment is probably stale, since
+            # LocalCiphertextReader.get_plaintext_hashtree_leaves does not exist.
+            #
             # we'll still need the plaintext hashes (when
             # LocalCiphertextReader.get_plaintext_hashtree_leaves() is
             # called), and currently the easiest way to get them is to ask
