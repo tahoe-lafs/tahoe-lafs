@@ -290,33 +290,33 @@ class IStorageBucketWriter(Interface):
     """
     Objects of this kind live on the client side.
     """
-    def put_block(segmentnum=int, data=ShareData):
-        """@param data: For most segments, this data will be 'blocksize'
+    def put_block(segmentnum, data):
+        """
+        @param segmentnum=int
+        @param data=ShareData: For most segments, this data will be 'blocksize'
         bytes in length. The last segment might be shorter.
         @return: a Deferred that fires (with None) when the operation completes
         """
 
-    def put_plaintext_hashes(hashes=ListOf(Hash)):
+    def put_crypttext_hashes(hashes):
         """
+        @param hashes=ListOf(Hash)
         @return: a Deferred that fires (with None) when the operation completes
         """
 
-    def put_crypttext_hashes(hashes=ListOf(Hash)):
+    def put_block_hashes(blockhashes):
         """
+        @param blockhashes=ListOf(Hash)
         @return: a Deferred that fires (with None) when the operation completes
         """
 
-    def put_block_hashes(blockhashes=ListOf(Hash)):
+    def put_share_hashes(sharehashes):
         """
+        @param sharehashes=ListOf(TupleOf(int, Hash))
         @return: a Deferred that fires (with None) when the operation completes
         """
 
-    def put_share_hashes(sharehashes=ListOf(TupleOf(int, Hash))):
-        """
-        @return: a Deferred that fires (with None) when the operation completes
-        """
-
-    def put_uri_extension(data=URIExtensionData):
+    def put_uri_extension(data):
         """This block of data contains integrity-checking information (hashes
         of plaintext, crypttext, and shares), as well as encoding parameters
         that are necessary to recover the data. This is a serialized dict
@@ -329,6 +329,7 @@ class IStorageBucketWriter(Interface):
             assert re.match(r'^[a-zA-Z_\-]+$', k)
             write(k + ':' + netstring(dict[k]))
 
+        @param data=URIExtensionData
         @return: a Deferred that fires (with None) when the operation completes
         """
 
@@ -341,12 +342,15 @@ class IStorageBucketWriter(Interface):
         @return: a Deferred that fires (with None) when the operation completes
         """
 
-class IStorageBucketReader(Interface):
 
-    def get_block_data(blocknum=int, blocksize=int, size=int):
+class IStorageBucketReader(Interface):
+    def get_block_data(blocknum, blocksize, size):
         """Most blocks will be the same size. The last block might be shorter
         than the others.
 
+        @param blocknum=int
+        @param blocksize=int
+        @param size=int
         @return: ShareData
         """
 
@@ -355,12 +359,13 @@ class IStorageBucketReader(Interface):
         @return: ListOf(Hash)
         """
 
-    def get_block_hashes(at_least_these=SetOf(int)):
+    def get_block_hashes(at_least_these=()):
         """
+        @param at_least_these=SetOf(int)
         @return: ListOf(Hash)
         """
 
-    def get_share_hashes(at_least_these=SetOf(int)):
+    def get_share_hashes():
         """
         @return: ListOf(TupleOf(int, Hash))
         """
@@ -495,13 +500,15 @@ class IMutableSlotWriter(Interface):
         Add the encrypted private key to the share.
         """
 
-    def put_blockhashes(blockhashes=list):
+    def put_blockhashes(blockhashes):
         """
+        @param blockhashes=list
         Add the block hash tree to the share.
         """
 
-    def put_sharehashes(sharehashes=dict):
+    def put_sharehashes(sharehashes):
         """
+        @param sharehashes=dict
         Add the share hash chain to the share.
         """
 
