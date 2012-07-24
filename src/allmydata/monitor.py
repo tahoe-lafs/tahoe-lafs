@@ -27,27 +27,27 @@ class IMonitor(Interface):
 
     # the following methods are provided for the operation code
 
-    def is_cancelled(self):
+    def is_cancelled():
         """Returns True if the operation has been cancelled. If True,
         operation code should stop creating new work, and attempt to stop any
         work already in progress."""
 
-    def raise_if_cancelled(self):
+    def raise_if_cancelled():
         """Raise OperationCancelledError if the operation has been cancelled.
         Operation code that has a robust error-handling path can simply call
         this periodically."""
 
-    def set_status(self, status):
+    def set_status(status):
         """Sets the Monitor's 'status' object to an arbitrary value.
         Different operations will store different sorts of status information
         here. Operation code should use get+modify+set sequences to update
         this."""
 
-    def get_status(self):
+    def get_status():
         """Return the status object. If the operation failed, this will be a
         Failure instance."""
 
-    def finish(self, status):
+    def finish(status):
         """Call this when the operation is done, successful or not. The
         Monitor's lifetime is influenced by the completion of the operation
         it is monitoring. The Monitor's 'status' value will be set with the
@@ -60,16 +60,16 @@ class IMonitor(Interface):
 
     # the following methods are provided for the initiator of the operation
 
-    def is_finished(self):
+    def is_finished():
         """Return a boolean, True if the operation is done (whether
         successful or failed), False if it is still running."""
 
-    def when_done(self):
+    def when_done():
         """Return a Deferred that fires when the operation is complete. It
         will fire with the operation status, the same value as returned by
         get_status()."""
 
-    def cancel(self):
+    def cancel():
         """Cancel the operation as soon as possible. is_cancelled() will
         start returning True after this is called."""
 
