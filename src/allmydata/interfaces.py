@@ -59,8 +59,8 @@ class RIBucketReader(RemoteInterface):
         failures. I will record their concern so that my operator can
         manually inspect the shares in question. I return None.
 
-        This is a wrapper around RIStorageServer.advise_corrupt_share(),
-        which is tied to a specific share, and therefore does not need the
+        This is a wrapper around RIStorageServer.advise_corrupt_share()
+        that is tied to a specific share, and therefore does not need the
         extra share-identifying arguments. Please see that method for full
         documentation.
         """
@@ -279,7 +279,7 @@ class RIStorageServer(RemoteInterface):
         (binary) storage index string, and 'shnum' is the integer share
         number. 'reason' is a human-readable explanation of the problem,
         probably including some expected hash values and the computed ones
-        which did not match. Corruption advisories for mutable shares should
+        that did not match. Corruption advisories for mutable shares should
         include a hash of the public key (the same value that appears in the
         mutable-file verify-cap), since the current share format does not
         store that on disk.
@@ -423,7 +423,7 @@ class IStorageBroker(Interface):
           remote_host: the IAddress, if connected, otherwise None
 
         This method is intended for monitoring interfaces, such as a web page
-        which describes connecting and connected peers.
+        that describes connecting and connected peers.
         """
 
     def get_all_peerids():
@@ -552,7 +552,7 @@ class IURI(Interface):
 
     # TODO: rename to get_read_cap()
     def get_readonly():
-        """Return another IURI instance, which represents a read-only form of
+        """Return another IURI instance that represents a read-only form of
         this one. If is_readonly() is True, this returns self."""
 
     def get_verify_cap():
@@ -581,10 +581,11 @@ class IVerifierURI(Interface, IURI):
 
 
 class IDirnodeURI(Interface):
-    """I am a URI which represents a dirnode."""
+    """I am a URI that represents a dirnode."""
+
 
 class IFileURI(Interface):
-    """I am a URI which represents a filenode."""
+    """I am a URI that represents a filenode."""
     def get_size():
         """Return the length (in bytes) of the file that I represent."""
 
@@ -893,7 +894,7 @@ class IFilesystemNode(Interface):
 
 
 class IFileNode(IFilesystemNode):
-    """I am a node which represents a file: a sequence of bytes. I am not a
+    """I am a node that represents a file: a sequence of bytes. I am not a
     container, like IDirectoryNode."""
     def get_best_readable_version():
         """Return a Deferred that fires with an IReadable for the 'best'
@@ -942,7 +943,7 @@ class IMutableFileNode(IFileNode):
     multiple versions of a file present in the grid, some of which might be
     unrecoverable (i.e. have fewer than 'k' shares). These versions are
     loosely ordered: each has a sequence number and a hash, and any version
-    with seqnum=N was uploaded by a node which has seen at least one version
+    with seqnum=N was uploaded by a node that has seen at least one version
     with seqnum=N-1.
 
     The 'servermap' (an instance of IMutableFileServerMap) is used to
@@ -1051,7 +1052,7 @@ class IMutableFileNode(IFileNode):
         as a guide to where the shares are located.
 
         I return a Deferred that fires with the requested contents, or
-        errbacks with UnrecoverableFileError. Note that a servermap which was
+        errbacks with UnrecoverableFileError. Note that a servermap that was
         updated with MODE_ANYTHING or MODE_READ may not know about shares for
         all versions (those modes stop querying servers as soon as they can
         fulfil their goals), so you may want to use MODE_CHECK (which checks
@@ -1111,7 +1112,7 @@ class UploadUnhappinessError(Exception):
     """Upload was unable to satisfy 'servers_of_happiness'"""
 
 class UnableToFetchCriticalDownloadDataError(Exception):
-    """I was unable to fetch some piece of critical data which is supposed to
+    """I was unable to fetch some piece of critical data that is supposed to
     be identically present in all shares."""
 
 class NoServersError(Exception):
@@ -1123,7 +1124,7 @@ class ExistingChildError(Exception):
     exists, and overwrite= was set to False."""
 
 class NoSuchChildError(Exception):
-    """A directory node was asked to fetch a child which does not exist."""
+    """A directory node was asked to fetch a child that does not exist."""
     def __str__(self):
         # avoid UnicodeEncodeErrors when converting to str
         return self.__repr__()
@@ -1446,7 +1447,7 @@ class ICodecEncoder(Interface):
         if you initially thought you were going to use 10 peers, started
         encoding, and then two of the peers dropped out: you could use
         desired_share_ids= to skip the work (both memory and CPU) of
-        producing shares for the peers which are no longer available.
+        producing shares for the peers that are no longer available.
 
         """
 
@@ -1521,7 +1522,7 @@ class ICodecEncoder(Interface):
         if you initially thought you were going to use 10 peers, started
         encoding, and then two of the peers dropped out: you could use
         desired_share_ids= to skip the work (both memory and CPU) of
-        producing shares for the peers which are no longer available.
+        producing shares for the peers that are no longer available.
 
         For each call, encode() will return a Deferred that fires with two
         lists, one containing shares and the other containing the shareids.
@@ -1578,7 +1579,7 @@ class ICodecDecoder(Interface):
         required to be of the same length.  The i'th element of their_shareids
         is required to be the shareid of the i'th buffer in some_shares.
 
-        This returns a Deferred which fires with a sequence of buffers. This
+        This returns a Deferred that fires with a sequence of buffers. This
         sequence will contain all of the segments of the original data, in
         order. The sum of the lengths of all of the buffers will be the
         'data_size' value passed into the original ICodecEncode.set_params()
@@ -1909,13 +1910,13 @@ class IUploadable(Interface):
         be used to encrypt the data. The key will also be hashed to derive
         the StorageIndex.
 
-        Uploadables which want to achieve convergence should hash their file
+        Uploadables that want to achieve convergence should hash their file
         contents and the serialized_encoding_parameters to form the key
         (which of course requires a full pass over the data). Uploadables can
         use the upload.ConvergentUploadMixin class to achieve this
         automatically.
 
-        Uploadables which do not care about convergence (or do not wish to
+        Uploadables that do not care about convergence (or do not wish to
         make multiple passes over the data) can simply return a
         strongly-random 16 byte string.
 
@@ -1925,7 +1926,7 @@ class IUploadable(Interface):
 
     def read(length):
         """Return a Deferred that fires with a list of strings (perhaps with
-        only a single element) which, when concatenated together, contain the
+        only a single element) that, when concatenated together, contain the
         next 'length' bytes of data. If EOF is near, this may provide fewer
         than 'length' bytes. The total number of bytes provided by read()
         before it signals EOF must equal the size provided by get_size().
@@ -1972,7 +1973,7 @@ class IMutableUploadable(Interface):
 
     def read(length):
         """
-        Returns a list of strings which, when concatenated, are the next
+        Returns a list of strings that, when concatenated, are the next
         length bytes of the file, or fewer if there are fewer bytes
         between the current location and the end of the file.
         """
@@ -2044,7 +2045,7 @@ class IUploadResults(Interface):
 
 class IDownloadResults(Interface):
     """I am created internally by download() methods. I contain a number of
-    public attributes which contain details about the download process.::
+    public attributes that contain details about the download process.::
 
      .file_size : the size of the file, in bytes
      .servers_used : set of server peerids that were used during download
@@ -2070,7 +2071,7 @@ class IDownloadResults(Interface):
 class IUploader(Interface):
     def upload(uploadable):
         """Upload the file. 'uploadable' must impement IUploadable. This
-        returns a Deferred which fires with an IUploadResults instance, from
+        returns a Deferred that fires with an IUploadResults instance, from
         which the URI of the file can be obtained as results.uri ."""
 
     def upload_ssk(write_capability, new_version, uploadable):
@@ -2120,7 +2121,7 @@ class ICheckable(Interface):
         kind of lease that is obtained (which account number to claim, etc).
 
         TODO: any problems seen during checking will be reported to the
-        health-manager.furl, a centralized object which is responsible for
+        health-manager.furl, a centralized object that is responsible for
         figuring out why files are unhealthy so corrective action can be
         taken.
         """
@@ -2135,7 +2136,7 @@ class ICheckable(Interface):
         will be put in the check-and-repair results. The Deferred will not
         fire until the repair is complete.
 
-        This returns a Deferred which fires with an instance of
+        This returns a Deferred that fires with an instance of
         ICheckAndRepairResults."""
 
 
@@ -2235,7 +2236,7 @@ class ICheckResults(Interface):
         (IServer, storage_index, sharenum)."""
 
     def get_servers_responding():
-        """Return a list of IServer objects, one for each server which
+        """Return a list of IServer objects, one for each server that
         responded to the share query (even if they said they didn't have
         shares, and even if they said they did have shares but then didn't
         send them when asked, or dropped the connection, or returned a
@@ -2523,7 +2524,7 @@ class INodeMaker(Interface):
         methods to create new objects. I return synchronously."""
 
     def create_mutable_file(contents=None, keysize=None):
-        """I create a new mutable file, and return a Deferred which will fire
+        """I create a new mutable file, and return a Deferred that will fire
         with the IMutableFileNode instance when it is ready. If contents= is
         provided (a bytestring), it will be used as the initial contents of
         the new file, otherwise the file will contain zero bytes. keysize= is
@@ -2531,7 +2532,7 @@ class INodeMaker(Interface):
         usual."""
 
     def create_new_mutable_directory(initial_children={}):
-        """I create a new mutable directory, and return a Deferred which will
+        """I create a new mutable directory, and return a Deferred that will
         fire with the IDirectoryNode instance when it is ready. If
         initial_children= is provided (a dict mapping unicode child name to
         (childnode, metadata_dict) tuples), the directory will be populated
@@ -2540,7 +2541,7 @@ class INodeMaker(Interface):
 
 class IClientStatus(Interface):
     def list_all_uploads():
-        """Return a list of uploader objects, one for each upload which
+        """Return a list of uploader objects, one for each upload that
         currently has an object available (tracked with weakrefs). This is
         intended for debugging purposes."""
 
@@ -2552,7 +2553,7 @@ class IClientStatus(Interface):
         started uploads."""
 
     def list_all_downloads():
-        """Return a list of downloader objects, one for each download which
+        """Return a list of downloader objects, one for each download that
         currently has an object available (tracked with weakrefs). This is
         intended for debugging purposes."""
 
@@ -2804,7 +2805,7 @@ class RIStatsGatherer(RemoteInterface):
 
     def provide(provider=RIStatsProvider, nickname=str):
         """
-        @param provider: a stats collector instance which should be polled
+        @param provider: a stats collector instance that should be polled
                          periodically by the gatherer to collect stats.
         @param nickname: a name useful to identify the provided client
         """
@@ -2838,7 +2839,7 @@ class FileTooLargeError(Exception):
 
 class IValidatedThingProxy(Interface):
     def start():
-        """ Acquire a thing and validate it. Return a deferred which is
+        """ Acquire a thing and validate it. Return a deferred that is
         eventually fired with self if the thing is valid or errbacked if it
         can't be acquired or validated."""
 
