@@ -48,6 +48,7 @@ class RIBucketWriter(RemoteInterface):
         """
         return None
 
+
 class RIBucketReader(RemoteInterface):
     def read(offset=Offset, length=ReadSize):
         return ShareData
@@ -64,6 +65,7 @@ class RIBucketReader(RemoteInterface):
         documentation.
         """
 
+
 TestVector = ListOf(TupleOf(Offset, ReadSize, str, str))
 # elements are (offset, length, operator, specimen)
 # operator is one of "lt, le, eq, ne, ge, gt"
@@ -79,6 +81,7 @@ TestAndWriteVectorsForShares = DictOf(int,
 ReadVector = ListOf(TupleOf(Offset, ReadSize))
 ReadData = ListOf(ShareData)
 # returns data[offset:offset+length] for each element of TestVector
+
 
 class RIStorageServer(RemoteInterface):
     __remote_name__ = "RIStorageServer.tahoe.allmydata.com"
@@ -282,6 +285,7 @@ class RIStorageServer(RemoteInterface):
         store that on disk.
         """
 
+
 class IStorageBucketWriter(Interface):
     """
     Objects of this kind live on the client side.
@@ -366,6 +370,7 @@ class IStorageBucketReader(Interface):
         @return: URIExtensionData
         """
 
+
 class IStorageBroker(Interface):
     def get_servers_for_psi(peer_selection_index):
         """
@@ -431,18 +436,23 @@ class IStorageBroker(Interface):
         repeatable way, to distribute load over many peers.
         """
 
+
 class IDisplayableServer(Interface):
     def get_nickname():
         pass
+
     def get_name():
         pass
+
     def get_longname():
         pass
+
 
 class IServer(IDisplayableServer):
     """I live in the client, and represent a single server."""
     def start_connecting(tub, trigger_cb):
         pass
+
     def get_rref():
         """Once a server is connected, I return a RemoteReference.
         Before a server is connected for the first time, I return None.
@@ -550,6 +560,7 @@ class IURI(Interface):
         """Return a string of printable ASCII characters, suitable for
         passing into init_from_string."""
 
+
 class IVerifierURI(Interface, IURI):
     def init_from_string(uri):
         """Accept a string (as created by my to_string() method) and populate
@@ -561,6 +572,7 @@ class IVerifierURI(Interface, IURI):
         """Return a string of printable ASCII characters, suitable for
         passing into init_from_string."""
 
+
 class IDirnodeURI(Interface):
     """I am a URI which represents a dirnode."""
 
@@ -568,6 +580,7 @@ class IFileURI(Interface):
     """I am a URI which represents a filenode."""
     def get_size():
         """Return the length (in bytes) of the file that I represent."""
+
 
 class IImmutableFileURI(IFileURI):
     pass
@@ -580,6 +593,7 @@ class IDirectoryURI(Interface):
 
 class IReadonlyDirectoryURI(Interface):
     pass
+
 
 class CapConstraintError(Exception):
     """A constraint on a cap was violated."""
@@ -870,6 +884,7 @@ class IFilesystemNode(Interface):
         data this node represents.
         """
 
+
 class IFileNode(IFilesystemNode):
     """I am a node which represents a file: a sequence of bytes. I am not a
     container, like IDirectoryNode."""
@@ -1075,6 +1090,7 @@ class IMutableFileNode(IFileNode):
     def get_version():
         """Returns the mutable file protocol version."""
 
+
 class NotEnoughSharesError(Exception):
     """Download was unable to get enough shares"""
 
@@ -1107,6 +1123,7 @@ class NoSuchChildError(Exception):
 
 class ChildOfWrongTypeError(Exception):
     """An operation was attempted on a child of the wrong type (file or directory)."""
+
 
 class IDirectoryNode(IFilesystemNode):
     """I represent a filesystem node that is a container, with a
@@ -1341,6 +1358,7 @@ class IDirectoryNode(IFilesystemNode):
         takes several minutes of 100% CPU for ~1700 directories).
         """
 
+
 class ICodecEncoder(Interface):
     def set_params(data_size, required_shares, max_shares):
         """Set up the parameters of this encoder.
@@ -1573,6 +1591,7 @@ class ICodecDecoder(Interface):
         call.
         """
 
+
 class IEncoder(Interface):
     """I take an object that provides IEncryptedUploadable, which provides
     encrypted data, and a list of shareholders. I then encode, hash, and
@@ -1681,6 +1700,7 @@ class IEncoder(Interface):
         sufficient to construct the read cap.
         """
 
+
 class IDecoder(Interface):
     """I take a list of shareholders and some setup information, then
     download, validate, decode, and decrypt data from them, writing the
@@ -1715,6 +1735,7 @@ class IDecoder(Interface):
         complete.
         """
 
+
 class IDownloadTarget(Interface):
     # Note that if the IDownloadTarget is also an IConsumer, the downloader
     # will register itself as a producer. This allows the target to invoke
@@ -1728,21 +1749,26 @@ class IDownloadTarget(Interface):
 
     def write(data):
         """Output some data to the target."""
+
     def close():
         """Inform the target that there is no more data to be written."""
+
     def fail(why):
         """fail() is called to indicate that the download has failed. 'why'
         is a Failure object indicating what went wrong. No further methods
         will be invoked on the IDownloadTarget after fail()."""
+
     def register_canceller(cb):
         """The CiphertextDownloader uses this to register a no-argument function
         that the target can call to cancel the download. Once this canceller
         is invoked, no further calls to write() or close() will be made."""
+
     def finish():
         """When the CiphertextDownloader is done, this finish() function will be
         called. Whatever it returns will be returned to the invoker of
         Downloader.download.
         """
+
 
 class IDownloader(Interface):
     def download(uri, target):
@@ -1751,6 +1777,7 @@ class IDownloader(Interface):
 
         Returns a Deferred that fires (with the results of target.finish)
         when the download is finished, or errbacks if something went wrong."""
+
 
 class IEncryptedUploadable(Interface):
     def set_upload_status(upload_status):
@@ -1820,6 +1847,7 @@ class IEncryptedUploadable(Interface):
 
     def close():
         """Just like IUploadable.close()."""
+
 
 class IUploadable(Interface):
     def set_upload_status(upload_status):
@@ -1948,6 +1976,7 @@ class IMutableUploadable(Interface):
         the uploadable may be closed.
         """
 
+
 class IUploadResults(Interface):
     """I am returned by immutable upload() methods and contain the results of
     the upload.
@@ -1957,16 +1986,21 @@ class IUploadResults(Interface):
 
     def get_file_size():
         """Return the file size, in bytes."""
+
     def get_uri():
         """Return the (string) URI of the object uploaded, a CHK readcap."""
+
     def get_ciphertext_fetched():
         """Return the number of bytes fetched by the helpe for this upload,
         or 0 if the helper did not need to fetch any bytes (or if there was
         no helper)."""
+
     def get_preexisting_shares():
         """Return the number of shares that were already present in the grid."""
+
     def get_pushed_shares():
         """Return the number of shares that were uploaded."""
+
     def get_sharemap():
         """Return a dict mapping share identifier to set of IServer
         instances. This indicates which servers were given which shares. For
@@ -1974,8 +2008,10 @@ class IUploadResults(Interface):
         to N-1). For mutable files, it is a string of the form
         'seq%d-%s-sh%d', containing the sequence number, the roothash, and
         the share number."""
+
     def get_servermap():
         """Return dict mapping IServer instance to a set of share numbers."""
+
     def get_timings():
         """Return dict of timing information, mapping name to seconds. All
         times are floats:
@@ -1991,10 +2027,13 @@ class IUploadResults(Interface):
           hashes_and_close : last segment push to shareholder close
           total_encode_and_push : first encode to shareholder close
         """
+
     def get_uri_extension_data():
         """Return the dict of UEB data created for this file."""
+
     def get_verifycapstr():
         """Return the (string) verify-cap URI for the uploaded object."""
+
 
 class IDownloadResults(Interface):
     """I am created internally by download() methods. I contain a number of
@@ -2018,8 +2057,8 @@ class IDownloadResults(Interface):
        cumulative_decrypt : just time spent in decryption
        total : total download time, start to finish
        fetch_per_server : dict of server to list of per-segment fetch times
-
     """
+
 
 class IUploader(Interface):
     def upload(uploadable):
@@ -2092,6 +2131,7 @@ class ICheckable(Interface):
         This returns a Deferred which fires with an instance of
         ICheckAndRepairResults."""
 
+
 class IDeepCheckable(Interface):
     def start_deep_check(verify=False, add_lease=False):
         """Check upon the health of me and everything I can reach.
@@ -2125,14 +2165,17 @@ class IDeepCheckable(Interface):
         failure.
         """
 
+
 class ICheckResults(Interface):
     """I contain the detailed results of a check/verify operation.
     """
 
     def get_storage_index():
         """Return a string with the (binary) storage index."""
+
     def get_storage_index_string():
         """Return a string with the (printable) abbreviated storage index."""
+
     def get_uri():
         """Return the (string) URI of the object that was checked."""
 
@@ -2155,12 +2198,14 @@ class ICheckResults(Interface):
 
     def get_encoding_needed():
         """Return 'k', the number of shares required for recovery"""
+
     def get_encoding_expected():
         """Return 'N', the number of total shares generated"""
 
     def get_share_counter_good():
         """Return the number of distinct good shares that were found. For
         mutable files, this counts shares for the 'best' version."""
+
     def get_share_counter_wrong():
         """For mutable files, return the number of shares for versions other
         than the 'best' one (which is defined as being the recoverable
@@ -2219,6 +2264,7 @@ class ICheckResults(Interface):
     def get_report():
         """Return a list of strings with more detailed results."""
 
+
 class ICheckAndRepairResults(Interface):
     """I contain the detailed results of a check/verify/repair operation.
 
@@ -2228,20 +2274,25 @@ class ICheckAndRepairResults(Interface):
 
     def get_storage_index():
         """Return a string with the (binary) storage index."""
+
     def get_storage_index_string():
         """Return a string with the (printable) abbreviated storage index."""
+
     def get_repair_attempted():
         """Return a boolean, True if a repair was attempted. We might not
         attempt to repair the file because it was healthy, or healthy enough
         (i.e. some shares were missing but not enough to exceed some
         threshold), or because we don't know how to repair this object."""
+
     def get_repair_successful():
         """Return a boolean, True if repair was attempted and the file/dir
         was fully healthy afterwards. False if no repair was attempted or if
         a repair attempt failed."""
+
     def get_pre_repair_results():
         """Return an ICheckResults instance that describes the state of the
         file/dir before any repair was attempted."""
+
     def get_post_repair_results():
         """Return an ICheckResults instance that describes the state of the
         file/dir after any repair was attempted. If no repair was attempted,
@@ -2257,6 +2308,7 @@ class IDeepCheckResults(Interface):
     def get_root_storage_index_string():
         """Return the storage index (abbreviated human-readable string) of
         the first object checked."""
+
     def get_counters():
         """Return a dictionary with the following keys::
 
@@ -2273,6 +2325,7 @@ class IDeepCheckResults(Interface):
     def get_corrupt_shares():
         """Return a set of (IServer, storage_index, sharenum) for all shares
         that were found to be corrupt. storage_index is binary."""
+
     def get_all_results():
         """Return a dictionary mapping pathname (a tuple of strings, ready to
         be slash-joined) to an ICheckResults instance, one for each object
@@ -2287,6 +2340,7 @@ class IDeepCheckResults(Interface):
         """Return a dictionary with the same keys as
         IDirectoryNode.deep_stats()."""
 
+
 class IDeepCheckAndRepairResults(Interface):
     """I contain the results of a deep-check-and-repair operation.
 
@@ -2296,6 +2350,7 @@ class IDeepCheckAndRepairResults(Interface):
     def get_root_storage_index_string():
         """Return the storage index (abbreviated human-readable string) of
         the first object checked."""
+
     def get_counters():
         """Return a dictionary with the following keys::
 
@@ -2379,6 +2434,7 @@ class IRepairable(Interface):
          return d
         """
 
+
 class IRepairResults(Interface):
     """I contain the results of a repair operation."""
     def get_successful(self):
@@ -2440,6 +2496,7 @@ class IClient(Interface):
                  DirectoryNode.
         """
 
+
 class INodeMaker(Interface):
     """The NodeMaker is used to create IFilesystemNode instances. It can
     accept a filecap/dircap string and return the node right away. It can
@@ -2473,13 +2530,16 @@ class INodeMaker(Interface):
         (childnode, metadata_dict) tuples), the directory will be populated
         with those children, otherwise it will be empty."""
 
+
 class IClientStatus(Interface):
     def list_all_uploads():
         """Return a list of uploader objects, one for each upload which
         currently has an object available (tracked with weakrefs). This is
         intended for debugging purposes."""
+
     def list_active_uploads():
         """Return a list of active IUploadStatus objects."""
+
     def list_recent_uploads():
         """Return a list of IUploadStatus objects for the most recently
         started uploads."""
@@ -2488,29 +2548,36 @@ class IClientStatus(Interface):
         """Return a list of downloader objects, one for each download which
         currently has an object available (tracked with weakrefs). This is
         intended for debugging purposes."""
+
     def list_active_downloads():
         """Return a list of active IDownloadStatus objects."""
+
     def list_recent_downloads():
         """Return a list of IDownloadStatus objects for the most recently
         started downloads."""
+
 
 class IUploadStatus(Interface):
     def get_started():
         """Return a timestamp (float with seconds since epoch) indicating
         when the operation was started."""
+
     def get_storage_index():
         """Return a string with the (binary) storage index in use on this
         upload. Returns None if the storage index has not yet been
         calculated."""
+
     def get_size():
         """Return an integer with the number of bytes that will eventually
         be uploaded for this file. Returns None if the size is not yet known.
         """
     def using_helper():
         """Return True if this upload is using a Helper, False if not."""
+
     def get_status():
         """Return a string describing the current state of the upload
         process."""
+
     def get_progress():
         """Returns a tuple of floats, (chk, ciphertext, encode_and_push),
         each from 0.0 to 1.0 . 'chk' describes how much progress has been
@@ -2522,51 +2589,66 @@ class IUploadStatus(Interface):
         process has finished: for helper uploads this is dependent upon the
         helper providing progress reports. It might be reasonable to add all
         three numbers and report the sum to the user."""
+
     def get_active():
         """Return True if the upload is currently active, False if not."""
+
     def get_results():
         """Return an instance of UploadResults (which contains timing and
         sharemap information). Might return None if the upload is not yet
         finished."""
+
     def get_counter():
         """Each upload status gets a unique number: this method returns that
         number. This provides a handle to this particular upload, so a web
         page can generate a suitable hyperlink."""
 
+
 class IDownloadStatus(Interface):
     def get_started():
         """Return a timestamp (float with seconds since epoch) indicating
         when the operation was started."""
+
     def get_storage_index():
         """Return a string with the (binary) storage index in use on this
         download. This may be None if there is no storage index (i.e. LIT
         files)."""
+
     def get_size():
         """Return an integer with the number of bytes that will eventually be
         retrieved for this file. Returns None if the size is not yet known.
         """
+
     def using_helper():
         """Return True if this download is using a Helper, False if not."""
+
     def get_status():
         """Return a string describing the current state of the download
         process."""
+
     def get_progress():
         """Returns a float (from 0.0 to 1.0) describing the amount of the
         download that has completed. This value will remain at 0.0 until the
         first byte of plaintext is pushed to the download target."""
+
     def get_active():
         """Return True if the download is currently active, False if not."""
+
     def get_counter():
         """Each download status gets a unique number: this method returns
         that number. This provides a handle to this particular download, so a
         web page can generate a suitable hyperlink."""
 
+
 class IServermapUpdaterStatus(Interface):
     pass
+
 class IPublishStatus(Interface):
     pass
+
 class IRetrieveStatus(Interface):
     pass
+
 
 class NotCapableError(Exception):
     """You have tried to write to a read-only node."""
@@ -2630,7 +2712,9 @@ class RIControlClient(RemoteInterface):
 
         return DictOf(str, float)
 
+
 UploadResults = Any() #DictOf(str, str)
+
 
 class RIEncryptedUploadable(RemoteInterface):
     __remote_name__ = "RIEncryptedUploadable.tahoe.allmydata.com"
@@ -2704,6 +2788,7 @@ class RIStatsProvider(RemoteInterface):
         """
         return DictOf(str, DictOf(str, ChoiceOf(float, int, long, None)))
 
+
 class RIStatsGatherer(RemoteInterface):
     __remote_name__ = "RIStatsGatherer.tahoe.allmydata.com"
     """
@@ -2743,16 +2828,19 @@ class RIKeyGenerator(RemoteInterface):
 class FileTooLargeError(Exception):
     pass
 
+
 class IValidatedThingProxy(Interface):
     def start():
         """ Acquire a thing and validate it. Return a deferred which is
         eventually fired with self if the thing is valid or errbacked if it
         can't be acquired or validated."""
 
+
 class InsufficientVersionError(Exception):
     def __init__(self, needed, got):
         self.needed = needed
         self.got = got
+
     def __repr__(self):
         return "InsufficientVersionError(need '%s', got %s)" % (self.needed,
                                                                 self.got)

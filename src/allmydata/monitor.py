@@ -75,8 +75,10 @@ class IMonitor(Interface):
 
     #   get_status() is useful too, but it is operation-specific
 
+
 class OperationCancelledError(Exception):
     pass
+
 
 class Monitor:
     implements(IMonitor)
