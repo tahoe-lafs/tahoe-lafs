@@ -27,6 +27,13 @@ def parse_url(url, defaultPort=None):
         path = "/"
     return scheme, host, port, path
 
+class BadResponse(object):
+    def __init__(self, url, err):
+        self.status = -1
+        self.reason = "Error trying to connect to %s: %s" % (url, err)
+    def read(self):
+        return ""
+
 
 def do_http(method, url, body=""):
     if isinstance(body, str):
@@ -62,12 +69,8 @@ def do_http(method, url, body=""):
     try:
         c.endheaders()
     except socket_error, err:
-        class BadResponse(object):
-            status=-1
-            reason="Error trying to connect to %s: %s" % (url, err)
-            read=lambda _: ""
-        return BadResponse()
-        
+        return BadResponse(url, err)
+
     while True:
         data = body.read(8192)
         if not data:

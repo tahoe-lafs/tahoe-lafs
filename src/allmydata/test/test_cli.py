@@ -3288,19 +3288,16 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.set_up_grid()
 
         # Simulate a connection error
-        endheaders = allmydata.scripts.common_http.httplib.HTTPConnection.endheaders
-        def _fix_endheaders(*args):
-            allmydata.scripts.common_http.httplib.HTTPConnection.endheaders = endheaders
         def _socket_error(*args, **kwargs):
             raise socket_error('test error')
-        allmydata.scripts.common_http.httplib.HTTPConnection.endheaders = _socket_error
+        self.patch(allmydata.scripts.common_http.httplib.HTTPConnection,
+                   "endheaders", _socket_error)
 
         d = self.do_cli("mkdir")
         def _check_invalid((rc,stdout,stderr)):
             self.failIfEqual(rc, 0)
             self.failUnlessIn("Error trying to connect to http://127.0.0.1", stderr)
         d.addCallback(_check_invalid)
-        d.addCallback(_fix_endheaders)
         return d
 
 
