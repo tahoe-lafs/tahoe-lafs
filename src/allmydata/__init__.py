@@ -291,6 +291,12 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                 continue
 
             pr_ver, pr_loc = pkg_resources_vers_and_locs[name]
+            if imp_ver is None and imp_loc is None:
+                errors.append("Warning: dependency %r could not be imported. pkg_resources thought it should be possible "
+                              "to import version %r from %r.\nThe exception trace was %r."
+                              % (name, pr_ver, pr_loc, imp_comment))
+                continue
+
             try:
                 pr_normver = normalized_version(pr_ver)
             except Exception, e:
