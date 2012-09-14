@@ -60,12 +60,12 @@ On Windows, the ``build`` step might tell you to open a new Command Prompt
 (or, on XP and earlier, to log out and back in again). This is needed the
 first time you set up Tahoe-LAFS on a particular installation of Windows.
 
-Optionally run ``python setup.py test`` to verify that it passes all of its
-self-tests.
-
 Run ``bin/tahoe --version`` (on Windows, ``bin\tahoe --version``) to verify
 that the executable tool prints out the right version number after
 "``allmydata-tahoe:``".
+
+Optionally run ``python setup.py trial`` to verify that it passes all of its
+self-tests.
 
 Run Tahoe-LAFS
 --------------
