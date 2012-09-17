@@ -1,5 +1,6 @@
 *.pyc
 *.pyo
+*~
 
 /build/
 /support/
@@ -25,3 +26,5 @@ Twisted-*.egg
 /.coverage
 /.coverage.el
 /coverage-html/
+/miscaptures.txt
+/violations.txt
