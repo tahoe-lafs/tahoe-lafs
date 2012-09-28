@@ -103,7 +103,7 @@ class LocalDirectorySource:
         self.children = {}
         children = listdir_unicode(self.pathname)
         for i,n in enumerate(children):
-            self.progressfunc("examining %d of %d" % (i, len(children)))
+            self.progressfunc("examining %d of %d" % (i+1, len(children)))
             pn = os.path.join(self.pathname, n)
             if os.path.isdir(pn):
                 child = LocalDirectorySource(self.progressfunc, pn)
@@ -131,7 +131,7 @@ class LocalDirectoryTarget:
         self.children = {}
         children = listdir_unicode(self.pathname)
         for i,n in enumerate(children):
-            self.progressfunc("examining %d of %d" % (i, len(children)))
+            self.progressfunc("examining %d of %d" % (i+1, len(children)))
             n = unicode(n)
             pn = os.path.join(self.pathname, n)
             if os.path.isdir(pn):
@@ -239,7 +239,7 @@ class TahoeDirectorySource:
             return
         self.children = {}
         for i,(name, data) in enumerate(self.children_d.items()):
-            self.progressfunc("examining %d of %d" % (i, len(self.children_d)))
+            self.progressfunc("examining %d of %d" % (i+1, len(self.children_d)))
             if data[0] == "filenode":
                 mutable = data[1].get("mutable", False)
                 writecap = to_str(data[1].get("rw_uri"))
@@ -333,7 +333,7 @@ class TahoeDirectoryTarget:
             return
         self.children = {}
         for i,(name, data) in enumerate(self.children_d.items()):
-            self.progressfunc("examining %d of %d" % (i, len(self.children_d)))
+            self.progressfunc("examining %d of %d" % (i+1, len(self.children_d)))
             if data[0] == "filenode":
                 mutable = data[1].get("mutable", False)
                 writecap = to_str(data[1].get("rw_uri"))
