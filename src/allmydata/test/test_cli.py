@@ -2031,8 +2031,14 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             results = fileutil.read(fn3)
             self.failUnlessReallyEqual(results, DATA1)
         d.addCallback(_get_resp2)
+        #  cp --verbose filename3 dircap:test_file
+        d.addCallback(lambda ign:
+                      self.do_cli("cp", "--verbose", '--recursive', self.basedir, self.dircap))        
+        def _test_for_wrong_indices((rc, out, err)):
+            self.failUnless('examining 1 of 1\n' in err)          
+        d.addCallback(_test_for_wrong_indices)
         return d
-
+ 
     def test_cp_with_nonexistent_alias(self):
         # when invoked with an alias or aliases that don't exist, 'tahoe cp'
         # should output a sensible error message rather than a stack trace.
