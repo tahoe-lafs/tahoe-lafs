@@ -73,6 +73,8 @@ print '  <meta http-equiv="Content-Type" content="text/html;charset=us-ascii">'
 print '  <title>Software packages that Tahoe-LAFS depends on</title>'
 print '</head>'
 print '<body>'
+print '<h2>What is this?</h2>'
+print '<p>See <a href="https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/quickstart.rst">quickstart.rst</a>, <a href="https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Installation">wiki:Installation</a>, and <a href="https://tahoe-lafs.org/trac/tahoe-lafs/wiki/CompileError">wiki:CompileError</a>.'
 print '<h2>Software packages that Tahoe-LAFS depends on</h2>'
 print
 for pyver in reversed(sorted(python_versions)):
