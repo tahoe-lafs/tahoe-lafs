@@ -459,7 +459,6 @@ Creating A New Directory
   {
     "Fran\u00e7ais": [ "filenode", {
         "ro_uri": "URI:CHK:...",
-        "size": bytes,
         "metadata": {
           "ctime": 1202777696.7564139,
           "mtime": 1202777696.7564139,
