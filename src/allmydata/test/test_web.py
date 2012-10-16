@@ -6,11 +6,12 @@ from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.internet.task import Clock
-from twisted.web import client, error, http
+from twisted.web import client, error, http, html
 from twisted.python import failure, log
 
 from foolscap.api import fireEventually, flushEventualQueue
 
+from nevow.util import escapeToXML
 from nevow import rend
 
 from allmydata import interfaces, uri, webish, dirnode
@@ -256,6 +257,16 @@ class WebMixin(object):
             _ign, n, blocking_uri = self.makefile(1)
             foo.set_uri(u"blockingfile", blocking_uri, blocking_uri)
 
+            # filenode to test for html encoding issues
+            self._htmlname_unicode = u"<&weirdly'named\"file>>>_<iframe />.txt"
+            self._htmlname_raw = self._htmlname_unicode.encode('utf-8')
+            self._htmlname_urlencoded = urllib.quote(self._htmlname_raw, '')
+            self._htmlname_escaped = escapeToXML(self._htmlname_raw)
+            self._htmlname_escaped_attr = html.escape(self._htmlname_raw)
+            self._htmlname_escaped_double = escapeToXML(html.escape(self._htmlname_raw))
+            self.HTMLNAME_CONTENTS, n, self._htmlname_txt_uri = self.makefile(0)
+            foo.set_uri(self._htmlname_unicode, self._htmlname_txt_uri, self._htmlname_txt_uri)
+
             unicode_filename = u"n\u00fc.txt" # n u-umlaut . t x t
             # ok, unicode calls it LATIN SMALL LETTER U WITH DIAERESIS but I
             # still think of it as an umlaut
@@ -280,6 +291,7 @@ class WebMixin(object):
             # public/foo/baz.txt
             # public/foo/quux.txt
             # public/foo/blockingfile
+            # public/foo/<&weirdly'named\"file>>>_<iframe />.txt
             # public/foo/empty/
             # public/foo/sub/
             # public/foo/sub/baz.txt
@@ -365,8 +377,8 @@ class WebMixin(object):
 
         kidnames = sorted([unicode(n) for n in data[1]["children"]])
         self.failUnlessEqual(kidnames,
-                             [u"bar.txt", u"baz.txt", u"blockingfile",
-                              u"empty", u"n\u00fc.txt", u"quux.txt", u"sub"])
+                             [self._htmlname_unicode, u"bar.txt", u"baz.txt",
+                              u"blockingfile", u"empty", u"n\u00fc.txt", u"quux.txt", u"sub"])
         kids = dict( [(unicode(name),value)
                       for (name,value)
                       in data[1]["children"].iteritems()] )
@@ -1341,6 +1353,23 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check)
         return d
 
+    def test_GET_DIRECTORY_html_filenode_encoding(self):
+        d = self.GET(self.public_url + "/foo", followRedirect=True)
+        def _check(html):
+            # Check if encoded entries are there
+            self.failUnlessIn('@@named=/' + self._htmlname_urlencoded + '">'
+                              + self._htmlname_escaped + '</a>', html)
+            self.failUnlessIn('value="' + self._htmlname_escaped_attr + '"', html)
+            self.failIfIn(self._htmlname_escaped_double, html)
+            # Make sure that Nevow escaping actually works by checking for predefinded xml entities
+            for entity in '<>':
+                self.failUnlessIn(entity, self._htmlname_raw)
+                self.failIfIn(entity, self._htmlname_escaped)
+            self.failUnlessIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_raw))
+            self.failIfIn('&', re.sub(r'&(amp|lt|gt|quot|apos);', '', self._htmlname_escaped))
+        d.addCallback(_check)
+        return d
+
     def test_GET_root_html(self):
         d = self.GET("/")
         d.addCallback(self._check_upload_and_mkdir_forms)
@@ -1563,16 +1592,16 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.wait_for_operation, "127")
         d.addCallback(self.get_operation_results, "127", "json")
         def _got_json(stats):
-            expected = {"count-immutable-files": 3,
+            expected = {"count-immutable-files": 4,
                         "count-mutable-files": 2,
                         "count-literal-files": 0,
-                        "count-files": 5,
+                        "count-files": 6,
                         "count-directories": 3,
-                        "size-immutable-files": 57,
+                        "size-immutable-files": 76,
                         "size-literal-files": 0,
                         #"size-directories": 1912, # varies
                         #"largest-directory": 1590,
-                        "largest-directory-children": 7,
+                        "largest-directory-children": 8,
                         "largest-immutable-file": 19,
                         }
             for k,v in expected.iteritems():
@@ -1580,7 +1609,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                            "stats[%s] was %s, not %s" %
                                            (k, stats[k], v))
             self.failUnlessReallyEqual(stats["size-files-histogram"],
-                                       [ [11, 31, 3] ])
+                                       [ [11, 31, 4] ])
         d.addCallback(_got_json)
         return d
 
@@ -1589,7 +1618,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check(res):
             self.failUnless(res.endswith("\n"))
             units = [simplejson.loads(t) for t in res[:-1].split("\n")]
-            self.failUnlessReallyEqual(len(units), 9)
+            self.failUnlessReallyEqual(len(units), 10)
             self.failUnlessEqual(units[-1]["type"], "stats")
             first = units[0]
             self.failUnlessEqual(first["path"], [])
@@ -2434,7 +2463,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # make sure that nothing was added
         d.addCallback(lambda res:
                       self.failUnlessNodeKeysAre(self._foo_node,
-                                                 [u"bar.txt", u"baz.txt", u"blockingfile",
+                                                 [self._htmlname_unicode,
+                                                  u"bar.txt", u"baz.txt", u"blockingfile",
                                                   u"empty", u"n\u00fc.txt", u"quux.txt",
                                                   u"sub"]))
         return d
@@ -2626,13 +2656,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.wait_for_operation, "123")
         def _check_json(data):
             self.failUnlessReallyEqual(data["finished"], True)
-            self.failUnlessReallyEqual(data["count-objects-checked"], 10)
-            self.failUnlessReallyEqual(data["count-objects-healthy"], 10)
+            self.failUnlessReallyEqual(data["count-objects-checked"], 11)
+            self.failUnlessReallyEqual(data["count-objects-healthy"], 11)
         d.addCallback(_check_json)
         d.addCallback(self.get_operation_results, "123", "html")
         def _check_html(res):
-            self.failUnlessIn("Objects Checked: <span>10</span>", res)
-            self.failUnlessIn("Objects Healthy: <span>10</span>", res)
+            self.failUnlessIn("Objects Checked: <span>11</span>", res)
+            self.failUnlessIn("Objects Healthy: <span>11</span>", res)
             self.failUnlessIn(FAVICON_MARKUP, res)
         d.addCallback(_check_html)
 
@@ -2662,22 +2692,22 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(self.wait_for_operation, "124")
         def _check_json(data):
             self.failUnlessReallyEqual(data["finished"], True)
-            self.failUnlessReallyEqual(data["count-objects-checked"], 10)
-            self.failUnlessReallyEqual(data["count-objects-healthy-pre-repair"], 10)
+            self.failUnlessReallyEqual(data["count-objects-checked"], 11)
+            self.failUnlessReallyEqual(data["count-objects-healthy-pre-repair"], 11)
             self.failUnlessReallyEqual(data["count-objects-unhealthy-pre-repair"], 0)
             self.failUnlessReallyEqual(data["count-corrupt-shares-pre-repair"], 0)
             self.failUnlessReallyEqual(data["count-repairs-attempted"], 0)
             self.failUnlessReallyEqual(data["count-repairs-successful"], 0)
             self.failUnlessReallyEqual(data["count-repairs-unsuccessful"], 0)
-            self.failUnlessReallyEqual(data["count-objects-healthy-post-repair"], 10)
+            self.failUnlessReallyEqual(data["count-objects-healthy-post-repair"], 11)
             self.failUnlessReallyEqual(data["count-objects-unhealthy-post-repair"], 0)
             self.failUnlessReallyEqual(data["count-corrupt-shares-post-repair"], 0)
         d.addCallback(_check_json)
         d.addCallback(self.get_operation_results, "124", "html")
         def _check_html(res):
-            self.failUnlessIn("Objects Checked: <span>10</span>", res)
+            self.failUnlessIn("Objects Checked: <span>11</span>", res)
 
-            self.failUnlessIn("Objects Healthy (before repair): <span>10</span>", res)
+            self.failUnlessIn("Objects Healthy (before repair): <span>11</span>", res)
             self.failUnlessIn("Objects Unhealthy (before repair): <span>0</span>", res)
             self.failUnlessIn("Corrupt Shares (before repair): <span>0</span>", res)
 
@@ -2685,7 +2715,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn("Repairs Successful: <span>0</span>", res)
             self.failUnlessIn("Repairs Unsuccessful: <span>0</span>", res)
 
-            self.failUnlessIn("Objects Healthy (after repair): <span>10</span>", res)
+            self.failUnlessIn("Objects Healthy (after repair): <span>11</span>", res)
             self.failUnlessIn("Objects Unhealthy (after repair): <span>0</span>", res)
             self.failUnlessIn("Corrupt Shares (after repair): <span>0</span>", res)
 
@@ -3678,12 +3708,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def test_PUT_NEWFILEURL_bad_format(self):
-       new_contents = self.NEWFILE_CONTENTS * 300000
-       return self.shouldHTTPError("PUT_NEWFILEURL_bad_format",
-                                   400, "Bad Request", "Unknown format: foo",
-                                   self.PUT, self.public_url + \
-                                   "/foo/foo.txt?format=foo",
-                                   new_contents)
+        new_contents = self.NEWFILE_CONTENTS * 300000
+        return self.shouldHTTPError("PUT_NEWFILEURL_bad_format",
+                                    400, "Bad Request", "Unknown format: foo",
+                                    self.PUT, self.public_url + \
+                                    "/foo/foo.txt?format=foo",
+                                    new_contents)
 
     def test_PUT_NEWFILEURL_uri_replace(self):
         contents, n, new_uri = self.makefile(8)
