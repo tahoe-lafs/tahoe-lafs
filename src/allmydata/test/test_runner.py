@@ -194,12 +194,6 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
     def test_version_no_noise(self):
         self.skip_if_cannot_run_bintahoe()
 
-        from allmydata import get_package_versions, normalized_version
-        twisted_ver = get_package_versions()['Twisted']
-
-        if not normalized_version(twisted_ver) >= normalized_version('9.0.0'):
-            raise unittest.SkipTest("We pass this test only with Twisted >= v9.0.0")
-
         d = self.run_bintahoe(["--version"])
         def _cb(res):
             out, err, rc_or_sig = res
@@ -472,12 +466,6 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
     def test_client_no_noise(self):
         self.skip_if_cannot_daemonize()
-
-        from allmydata import get_package_versions, normalized_version
-        twisted_ver = get_package_versions()['Twisted']
-
-        if not normalized_version(twisted_ver) >= normalized_version('9.0.0'):
-            raise unittest.SkipTest("We pass this test only with Twisted >= v9.0.0")
 
         basedir = self.workdir("test_client_no_noise")
         c1 = os.path.join(basedir, "c1")
