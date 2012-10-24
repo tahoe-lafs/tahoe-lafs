@@ -88,7 +88,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         if os.path.basename(root_from_cwd) == 'src':
             root_from_cwd = os.path.dirname(root_from_cwd)
 
-        # This is needed if we are running in a temporary directory created by 'make quicktest'.
+        # This is needed if we are running in a temporary directory created by 'make quickertest'.
         if os.path.basename(root_from_cwd).startswith('tmp'):
             root_from_cwd = os.path.dirname(root_from_cwd)
 
@@ -109,7 +109,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
             if os.path.basename(root_from_cwdu) == u'src':
                 root_from_cwdu = os.path.dirname(root_from_cwdu)
 
-            # This is needed if we are running in a temporary directory created by 'make quicktest'.
+            # This is needed if we are running in a temporary directory created by 'make quickertest'.
             if os.path.basename(root_from_cwdu).startswith(u'tmp'):
                 root_from_cwdu = os.path.dirname(root_from_cwdu)
 
