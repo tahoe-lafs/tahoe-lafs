@@ -75,6 +75,18 @@ test-coverage: build
 quicktest:
 	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
 
+# "make tmpfstest" may be a faster way of running tests on Linux. It works best when you have
+# at least 330 MiB of free physical memory (to run the whole test suite). Since it uses sudo
+# to mount/unmount the tmpfs filesystem, it might prompt for your password.
+tmpfstest:
+	time make _tmpfstest 'TMPDIR=$(shell mktemp -d --tmpdir=.)'
+
+_tmpfstest:
+	sudo mount -t tmpfs -o size=330m tmpfs '$(TMPDIR)'
+	-$(TAHOE) debug trial --rterrors '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
+	sudo umount '$(TMPDIR)'
+	rmdir '$(TMPDIR)'
+
 # code-coverage: install the "coverage" package from PyPI, do "make
 # quicktest-coverage" to do a unit test run with coverage-gathering enabled,
 # then use "make coverate-output-text" for a brief report, or "make

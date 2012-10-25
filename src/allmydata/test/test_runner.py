@@ -88,6 +88,10 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         if os.path.basename(root_from_cwd) == 'src':
             root_from_cwd = os.path.dirname(root_from_cwd)
 
+        # This is needed if we are running in a temporary directory created by 'make tmpfstest'.
+        if os.path.basename(root_from_cwd).startswith('tmp'):
+            root_from_cwd = os.path.dirname(root_from_cwd)
+
         same = (root_from_cwd == root_to_check)
         if not same:
             try:
@@ -103,6 +107,10 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
 
             root_from_cwdu = os.path.dirname(os.path.normcase(os.path.normpath(os.getcwdu())))
             if os.path.basename(root_from_cwdu) == u'src':
+                root_from_cwdu = os.path.dirname(root_from_cwdu)
+
+            # This is needed if we are running in a temporary directory created by 'make tmpfstest'.
+            if os.path.basename(root_from_cwdu).startswith(u'tmp'):
                 root_from_cwdu = os.path.dirname(root_from_cwdu)
 
             if not isinstance(root_from_cwd, unicode) and root_from_cwd.decode(get_filesystem_encoding(), 'replace') != root_from_cwdu:
