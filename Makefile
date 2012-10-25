@@ -75,6 +75,15 @@ test-coverage: build
 quicktest:
 	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
 
+quickertest:
+	time make _quickertest 'TMPDIR=$(shell mktemp -d --tmpdir=.)'
+
+_quickertest:
+	sudo mount -t tmpfs -o size=330m tmpfs '$(TMPDIR)'
+	-$(TAHOE) debug trial --rterrors '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
+	sudo umount '$(TMPDIR)'
+	rmdir '$(TMPDIR)'
+
 # code-coverage: install the "coverage" package from PyPI, do "make
 # quicktest-coverage" to do a unit test run with coverage-gathering enabled,
 # then use "make coverate-output-text" for a brief report, or "make
