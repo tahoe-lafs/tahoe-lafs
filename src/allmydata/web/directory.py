@@ -6,7 +6,7 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.internet.interfaces import IPushProducer
 from twisted.python.failure import Failure
-from twisted.web import http, html
+from twisted.web import http
 from nevow import url, rend, inevow, tags as T
 from nevow.inevow import IRequest
 
@@ -750,8 +750,7 @@ class DirectoryAsHTML(rend.Page):
             # page that doesn't know about the directory at all
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
 
-            ctx.fillSlots("filename",
-                          T.a(href=dlurl)[html.escape(name)])
+            ctx.fillSlots("filename", T.a(href=dlurl)[name])
             ctx.fillSlots("type", "SSK")
 
             ctx.fillSlots("size", "?")
@@ -761,8 +760,7 @@ class DirectoryAsHTML(rend.Page):
         elif IImmutableFileNode.providedBy(target):
             dlurl = "%s/file/%s/@@named=/%s" % (root, quoted_uri, nameurl)
 
-            ctx.fillSlots("filename",
-                          T.a(href=dlurl)[html.escape(name)])
+            ctx.fillSlots("filename", T.a(href=dlurl)[name])
             ctx.fillSlots("type", "FILE")
 
             ctx.fillSlots("size", target.get_size())
@@ -772,8 +770,7 @@ class DirectoryAsHTML(rend.Page):
         elif IDirectoryNode.providedBy(target):
             # directory
             uri_link = "%s/uri/%s/" % (root, urllib.quote(target_uri))
-            ctx.fillSlots("filename",
-                          T.a(href=uri_link)[html.escape(name)])
+            ctx.fillSlots("filename", T.a(href=uri_link)[name])
             if not target.is_mutable():
                 dirtype = "DIR-IMM"
             elif target.is_readonly():
@@ -797,7 +794,7 @@ class DirectoryAsHTML(rend.Page):
 
         else:
             # unknown
-            ctx.fillSlots("filename", html.escape(name))
+            ctx.fillSlots("filename", name)
             if target.get_write_uri() is not None:
                 unknowntype = "?"
             elif not self.node.is_mutable() or target.is_alleged_immutable():
