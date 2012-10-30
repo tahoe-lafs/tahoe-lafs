@@ -218,24 +218,20 @@ The ``tahoe.cfg`` file uses the following keys to control lease expiration:
 Expiration Progress
 ===================
 
-In the current release, leases are stored as metadata in each share file, and
-no separate database is maintained. As a result, checking and expiring leases
-on a large server may require multiple reads from each of several million
-share files. This process can take a long time and be very disk-intensive, so
-a "share crawler" is used. The crawler limits the amount of time looking at
-shares to a reasonable percentage of the storage server's overall usage: by
-default it uses no more than 10% CPU, and yields to other code after 100ms. A
-typical server with 1.1M shares was observed to take 3.5 days to perform this
-rate-limited crawl through the whole set of shares, with expiration disabled.
-It is expected to take perhaps 4 or 5 days to do the crawl with expiration
-turned on.
+As of Tahoe-LAFS v1.11.0, leases are stored in a database that can be queried
+and updated quickly, rather than in share files. However, an "accounting
+crawler" is still needed to discover shares when upgrading from a previous
+version, and to actually delete expired shares. The crawler limits the amount
+of time looking at shares to a reasonable percentage of the storage server's
+overall usage: by default it uses no more than 10% CPU, and yields to other
+code after 100ms.
 
 The crawler's status is displayed on the "Storage Server Status Page", a web
 page dedicated to the storage server. This page resides at $NODEURL/storage,
-and there is a link to it from the front "welcome" page. The "Lease
-Expiration crawler" section of the status page shows the progress of the
-current crawler cycle, expected completion time, amount of space recovered,
-and details of how many shares have been examined.
+and there is a link to it from the front "welcome" page. The "Accounting
+Crawler" section of the status page shows the progress of the current crawler
+cycle, expected completion time, amount of space recovered, and details of how
+many shares have been examined.
 
 The crawler's state is persistent: restarting the node will not cause it to
 lose significant progress. The state file is located in two files
@@ -275,19 +271,12 @@ nevertheless be consuming extra disk space (and might be charged or otherwise
 held accountable for it) until the ex-file's leases finally expire on their
 own.
 
-In the current release, these leases are each associated with a single "node
-secret" (stored in $BASEDIR/private/secret), which is used to generate
-renewal-secrets for each lease. Two nodes with different secrets
-will produce separate leases, and will not be able to renew each
-others' leases.
-
-Once the Accounting project is in place, leases will be scoped by a
-sub-delegatable "account id" instead of a node secret, so clients will be able
-to manage multiple leases per file. In addition, servers will be able to
-identify which shares are leased by which clients, so that clients can safely
-reconcile their idea of which files/directories are active against the
-server's list, and explicitly cancel leases on objects that aren't on the
-active list.
+Once more of the Accounting project has been implemented, leases will be
+scoped by an "account id", and clients will be able to manage multiple
+leases per file. In addition, servers will be able to identify which shares
+are leased by which clients, so that clients can safely reconcile their
+idea of which files/directories are active against the server's list, and
+explicitly cancel leases on objects that aren't on the active list.
 
 By reducing the size of the "lease scope", the coordination problem is made
 easier. In general, mark-and-sweep is easier to implement (it requires mere
