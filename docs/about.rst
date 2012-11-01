@@ -42,7 +42,7 @@ using cloud storage in the first place—convenience.)
 
 Here's how it works:
 
-.. image:: https://tahoe-lafs.org/~zooko/network-and-reliance-topology.png
+.. image:: network-and-reliance-topology.svg
 
 A "storage grid" is made up of a number of storage servers.  A storage server
 has direct attached storage (typically one or more hard disks).  A "gateway"
