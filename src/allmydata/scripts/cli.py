@@ -106,8 +106,13 @@ class ListOptions(VDriveOptions):
     def parseArgs(self, where=""):
         self.where = argv_to_unicode(where)
 
+    def getSynopsis(self):
+        return "Usage:  %s ls [options] [PATH]" % (self.command_name,)
+
     longdesc = """
     List the contents of some portion of the grid.
+
+    If PATH is omitted, "tahoe:" is assumed.
 
     When the -l or --long option is used, each line is shown in the
     following format:

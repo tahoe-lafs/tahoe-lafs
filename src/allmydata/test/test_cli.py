@@ -594,6 +594,10 @@ class Help(unittest.TestCase):
         self.failUnlessIn(" put [options] LOCAL_FILE REMOTE_FILE", help)
         self.failUnlessIn("% cat FILE | tahoe put", help)
 
+    def test_ls(self):
+        help = str(cli.ListOptions())
+        self.failUnlessIn(" ls [options] [PATH]", help)
+
     def test_unlink(self):
         help = str(cli.UnlinkOptions())
         self.failUnlessIn(" unlink [options] REMOTE_FILE", help)
