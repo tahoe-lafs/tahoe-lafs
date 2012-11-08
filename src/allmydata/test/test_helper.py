@@ -86,9 +86,10 @@ class FakeClient(service.MultiService):
                                    "n": 100,
                                    "max_segment_size": 1*MiB,
                                    }
-
+    def __init__(self):
+        self._encoding_parameters = self.DEFAULT_ENCODING_PARAMETERS.copy()
     def get_encoding_parameters(self):
-        return self.DEFAULT_ENCODING_PARAMETERS
+        return self._encoding_parameters
     def get_storage_broker(self):
         return self.storage_broker
 

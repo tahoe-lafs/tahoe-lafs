@@ -130,7 +130,7 @@ class Client(node.Node, pollmixin.PollMixin):
         node.Node.__init__(self, basedir)
         self.started_timestamp = time.time()
         self.logSource="Client"
-        self.DEFAULT_ENCODING_PARAMETERS = self.DEFAULT_ENCODING_PARAMETERS.copy()
+        self._encoding_parameters = self.DEFAULT_ENCODING_PARAMETERS.copy()
         self.init_introducer_client()
         self.init_stats_provider()
         self.init_secrets()
@@ -306,10 +306,10 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_client(self):
         helper_furl = self.get_config("client", "helper.furl", None)
-        DEP = self.DEFAULT_ENCODING_PARAMETERS
-        DEP["k"] = int(self.get_config("client", "shares.needed", DEP["k"]))
-        DEP["n"] = int(self.get_config("client", "shares.total", DEP["n"]))
-        DEP["happy"] = int(self.get_config("client", "shares.happy", DEP["happy"]))
+        params = self._encoding_parameters
+        params["k"] = int(self.get_config("client", "shares.needed", params["k"]))
+        params["n"] = int(self.get_config("client", "shares.total", params["n"]))
+        params["happy"] = int(self.get_config("client", "shares.happy", params["happy"]))
 
         self.init_client_storage_broker()
         self.history = History(self.stats_provider)
@@ -488,7 +488,7 @@ class Client(node.Node, pollmixin.PollMixin):
         reactor.stop()
 
     def get_encoding_parameters(self):
-        return self.DEFAULT_ENCODING_PARAMETERS
+        return self._encoding_parameters
 
     def connected_to_introducer(self):
         if self.introducer_client:

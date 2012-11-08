@@ -59,7 +59,7 @@ class RepairTestMixin:
     def upload_and_stash(self):
         c0 = self.g.clients[0]
         c1 = self.g.clients[1]
-        c0.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
+        c0._encoding_parameters['max_segment_size'] = 12
         d = c0.upload(upload.Data(common.TEST_DATA, convergence=""))
         def _stash_uri(ur):
             self.uri = ur.get_uri()
@@ -678,8 +678,8 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         self.set_up_grid()
         c0 = self.g.clients[0]
         DATA = "a"*135
-        c0.DEFAULT_ENCODING_PARAMETERS['k'] = 22
-        c0.DEFAULT_ENCODING_PARAMETERS['n'] = 66
+        c0._encoding_parameters['k'] = 22
+        c0._encoding_parameters['n'] = 66
         d = c0.upload(upload.Data(DATA, convergence=""))
         def _then(ur):
             self.uri = ur.get_uri()
