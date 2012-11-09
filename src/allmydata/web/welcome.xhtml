@@ -40,19 +40,71 @@
       <div class="row-fluid">
         <div class="span3">
           <div class="well sidebar-nav nav">
-            <div class="nav-header">Open URI</div>
-            <div class="open-uri">
-              <form action="/">
-                <input type="text"/>
-                <p><a class="btn" href="#">View URI &#187;</a> <a class="btn" href="#">Download URI &#187;</a></p>
+             <div class="nav-header">Open Tahoe-URI:</div>
+             <div class="nav-form">
+               <form action="uri" method="get" enctype="multipart/form-data">
+                 <input type="text" name="uri" />
+                 <p><input type="submit" class="btn" value="View File or Directory &#187;" /></p>
+               </form>
+            </div>
+
+            <div class="nav-header">Download Tahoe-URI:</div>
+            <div class="nav-form">
+              <form action="uri" method="get" enctype="multipart/form-data">
+                <input type="text" name="uri" />
+                <input type="text" name="filename" />
+                <p><input type="submit" class="btn" value="Download File or Directory &#187;" /></p>
               </form>
             </div>
+
+            <div class="nav-header">Upload File or Directory</div>
+            <div class="nav-form">
+              <form action="uri" method="post" enctype="multipart/form-data">
+                <input type="file" class="freeform-input-file" name="file" />
+                <input type="hidden" name="t" value="upload" />
+
+                <label for="upload-chk" class="radio"> 
+                  <input checked="checked" type="radio" id="upload-chk" value="chk" name="format" />
+                  Immutable
+                </label>
+
+                <label for="upload-sdmf" class="radio">
+                  <input type="radio" id="upload-sdmf" value="sdmf" name="format" />
+                  SDMF
+                </label>
+
+                <label for="upload-mdmf" class="radio">
+                  <input type="radio" id="upload-mdmf" value="mdmf" name="format" />
+                  MDMF (experimental)
+                </label>
+
+                <p><input type="submit" class="btn" value="Upload" /></p>
+              </form>
+            </div>
+
+            <div class="nav-header">Create Directory</div>
+            <div class="nav-form">
+              <form action="uri" method="post" enctype="multipart/form-data">
+                <label for="mkdir-sdmf" class="radio"> 
+                  <input checked="checked" type="radio" id="mkdir-sdmf" value="sdmf" name="format" />  
+                  SDMF
+                </label>
+
+                <label for="mkdir-mdmf" class="radio">
+                  <input type="radio" id="mkdir-mdmf" value="mdmf" name="format" />
+                  MDMF (experimental)
+                </label>
+
+                <input type="hidden" name="t" value="mkdir" />
+                <input type="hidden" name="redirect_to_result" value="true" />
+                <input type="submit" class="btn" value="Create a directory" />
+              </form>
+            </div>
+
           </div><!--/.well -->
           <div class="well sidebar-nav">
             <ul class="nav nav-list">
               <li class="nav-header">Tools</li>
-              <li><a href="#">Create Directory</a></li>
-              <li><a href="#">Upload File</a></li>
               <li><a href="/status">Recent Uploads/Downloads</a></li>
               <li><a href="/statistics">Statistics</a></li>
               <li><a href="/provisioning">Provisioning Tool</a></li>

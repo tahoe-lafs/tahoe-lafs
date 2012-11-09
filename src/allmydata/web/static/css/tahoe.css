@@ -23,16 +23,8 @@ body {
     color: white;
 }
 
-.open-uri {
+.nav-form {
     padding-left: 10px;
-}
-
-.open-uri form {
-    margin: 0;
-}
-
-.open-uri input {
-    width: 92%;
 }
 
 .status {
