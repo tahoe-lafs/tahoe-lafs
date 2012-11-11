@@ -56,11 +56,18 @@ functionality) and including versions for a number of dependent libraries,
 like Twisted, Foolscap, pycryptopp, and zfec. "``tahoe --version-and-path``"
 will also show the path from which each library was imported.
 
-On Unix systems, the shell expands filename wildcards (``*`` and ``?``)
+On Unix systems, the shell expands filename wildcards (`` * and ? ``)
 before the program is able to read them, which may produce unexpected
-results for many ``tahoe`` comands. We recommend that you avoid using them.
-On Windows, wildcards cannot be used to specify multiple filenames to
-``tahoe``.
+results for many ``tahoe`` comands. We recommend, if you use wildcards,
+to start the path with "``./``", for example "``tahoe cp -r ./* somewhere:``".
+This prevents the expanded filename from being interpreted as an option
+or as an alias, allowing filenames that start with a dash or contain
+colons to be handled correctly.
+
+On Windows, a single letter followed by a colon is treated as a drive
+specification rather than an alias (and is invalid unless a local path is
+allowed in that context). Wildcards cannot be used to specify multiple
+filenames to ``tahoe`` on Windows.
 
 Unicode Support
 ---------------
@@ -136,7 +143,7 @@ Filesystem Manipulation
 These commands let you exmaine a Tahoe-LAFS filesystem, providing basic
 list/upload/download/unlink/rename/mkdir functionality. They can be used as
 primitives by other scripts. Most of these commands are fairly thin wrappers
-around web-API calls, which are described in `<webapi.rst>`_.
+around web-API calls, which are described in `<webapi.rst>`__.
 
 By default, all filesystem-manipulation commands look in ``~/.tahoe/`` to
 figure out which Tahoe-LAFS node they should use. When the CLI command makes
@@ -152,7 +159,7 @@ they ought to use a starting point. This is explained in more detail below.
 Starting Directories
 --------------------
 
-As described in `docs/architecture.rst <../architecture.rst>`_, the
+As described in `docs/architecture.rst <../architecture.rst>`__, the
 Tahoe-LAFS distributed filesystem consists of a collection of directories
 and files, each of which has a "read-cap" or a "write-cap" (also known as
 a URI). Each directory is simply a table that maps a name to a child file
@@ -286,6 +293,11 @@ In these summaries, ``PATH``, ``TOPATH`` or ``FROMPATH`` can be one of:
 * ``DIRCAP/[SUBDIRS/]FILENAME`` or ``DIRCAP:./[SUBDIRS/]FILENAME`` for a path
   relative to a directory cap.
 
+See `CLI Command Overview`_ above for information on using wildcards with
+local paths, and different treatment of colons between Unix and Windows.
+
+``FROMLOCAL`` or ``TOLOCAL`` is a path in the local filesystem.
+
 
 Command Examples
 ----------------
@@ -303,6 +315,9 @@ Command Examples
 
  Since Tahoe-LAFS v1.8.2, the alias name can be given with or without the
  trailing colon.
+
+ On Windows, the alias should not be a single character, because it would be
+ confused with the drive letter of a local path.
 
 ``tahoe create-alias fun``
 
@@ -480,7 +495,7 @@ Command Examples
  Same as above, but this time the backup process will ignore any
  filename that will end with '~'. ``--exclude`` will accept any standard
  Unix shell-style wildcards, as implemented by the
- `Python fnmatch module <http://docs.python.org/library/fnmatch.html>`_.
+ `Python fnmatch module <http://docs.python.org/library/fnmatch.html>`__.
  You may give multiple ``--exclude`` options.  Please pay attention that
  the pattern will be matched against any level of the directory tree;
  it's still impossible to specify absolute path exclusions.
