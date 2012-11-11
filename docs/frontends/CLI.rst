@@ -56,7 +56,7 @@ functionality) and including versions for a number of dependent libraries,
 like Twisted, Foolscap, pycryptopp, and zfec. "``tahoe --version-and-path``"
 will also show the path from which each library was imported.
 
-On Unix systems, the shell expands filename wildcards (`` * and ? ``)
+On Unix systems, the shell expands filename wildcards — ``'*'`` and ``'?'`` —
 before the program is able to read them, which may produce unexpected
 results for many ``tahoe`` comands. We recommend, if you use wildcards,
 to start the path with "``./``", for example "``tahoe cp -r ./* somewhere:``".
