@@ -166,7 +166,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             # render the directory as HTML, using the docFactory and Nevow's
             # whole templating thing.
             return DirectoryAsHTML(self.node,
-                                   self.client.mutable_file_default)
+                                   self.client.mutable_file_default,
+                                   public_root=self.client.get_config("client","public_root",None))
 
         if t == "json":
             return DirectoryJSONMetadata(ctx, self.node)
@@ -599,9 +600,10 @@ class DirectoryAsHTML(rend.Page):
     docFactory = getxmlfile("directory.xhtml")
     addSlash = True
 
-    def __init__(self, node, default_mutable_format):
+    def __init__(self, node, default_mutable_format, public_root=None):
         rend.Page.__init__(self)
         self.node = node
+        self.public_root = public_root
 
         assert default_mutable_format in (MDMF_VERSION, SDMF_VERSION)
         self.default_mutable_format = default_mutable_format
@@ -673,6 +675,20 @@ class DirectoryAsHTML(rend.Page):
         uri_link = "%s/uri/%s/" % (root, urllib.quote(rocap))
         return ctx.tag[T.a(href=uri_link)["Read-Only Version"]]
 
+    def _render_permalink(self,url,title):
+        """
+        The javascript: is to avoid accidental referrer leaks (although it goes to our own gateway, no such thing as too careful).
+        Perhaps this should be a readonly input tag (avoid js)?
+        """
+        return T.a(href="javascript:{prompt('Copy public permalink','%s'); void(0);}" % url)[title]
+
+    def render_show_public(self, ctx, data):
+        if not self.public_root or self.node.is_unknown():
+            return ""
+        rocap = self.node.get_readonly_uri()
+        uri_link = "%s/uri/%s/" % (self.public_root, urllib.quote(rocap))
+        return ctx.tag[self._render_permalink(uri_link,"Public URL")]
+
     def render_try_children(self, ctx, data):
         # if the dirnode can be retrived, render a table of children.
         # Otherwise, render an apologetic error message.
@@ -716,6 +732,13 @@ class DirectoryAsHTML(rend.Page):
 
         ctx.fillSlots("unlink", unlink)
         ctx.fillSlots("rename", rename)
+
+        if self.public_root:
+            rocap = self.node.get_readonly_uri()
+            pub_uri_link = "%s/uri/%s/%s" % (self.public_root, urllib.quote(rocap),nameurl)
+            ctx.fillSlots("public_permalink", self._render_permalink(pub_uri_link,"Pub"))
+        else:
+            ctx.fillSlots("public_permalink", "-")
 
         times = []
         linkcrtime = metadata.get('tahoe', {}).get("linkcrtime")
