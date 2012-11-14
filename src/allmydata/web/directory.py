@@ -163,10 +163,28 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                 return ""
 
         if not t:
-            # render the directory as HTML, using the docFactory and Nevow's
-            # whole templating thing.
-            return DirectoryAsHTML(self.node,
-                                   self.client.mutable_file_default)
+            # On public gateways: if there's index.html - redirect to it.
+            if self.client.get_config("client","redirect_to_index_html",False,boolean=True):
+                def cb(has_index,req=req,self=self,ctx=ctx):
+                    if has_index: # redirect to index.html
+                        root = get_root(ctx)
+                        rocap = self.node.get_readonly_uri()
+                        index_uri = "%s/uri/%s/index.html" % (root, urllib.quote(rocap))
+                        req.setResponseCode(http.SEE_OTHER) # 303
+                        req.setHeader('location', index_uri)
+                        req.finish()
+                        return ''
+                    else: # No index.html
+                        # render the directory as HTML, using the docFactory and Nevow's
+                        # whole templating thing.
+                        return DirectoryAsHTML(self.node,
+                                               self.client.mutable_file_default)
+                d = self.node.has_child(u'index.html')
+                d.addCallback(cb)
+                return d
+            else: # No need to check for index.html. Just do the Nevow thing
+                return DirectoryAsHTML(self.node,
+                                       self.client.mutable_file_default)
 
         if t == "json":
             return DirectoryJSONMetadata(ctx, self.node)
