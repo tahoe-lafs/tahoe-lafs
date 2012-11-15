@@ -2117,10 +2117,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessReallyEqual(statuscode, str(http.FOUND))
             self.failUnless(target.startswith(self.webish_url), target)
             return client.getPage(target, method="GET")
+        # We encode "uri" as "%75ri" to exercise a case affected by ticket #1860.
         d = self.shouldRedirect2("test_POST_upload_no_link_whendone_results",
                                  check,
                                  self.POST, "/uri", t="upload",
-                                 when_done="/uri/%(uri)s",
+                                 when_done="/%75ri/%(uri)s",
                                  file=("new.txt", self.NEWFILE_CONTENTS))
         d.addCallback(lambda res:
                       self.failUnlessReallyEqual(res, self.NEWFILE_CONTENTS))

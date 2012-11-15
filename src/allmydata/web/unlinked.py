@@ -50,8 +50,7 @@ def POSTUnlinkedCHK(req, client):
         # usual upload-results page
         def _done(upload_results, redir_to):
             if "%(uri)s" in redir_to:
-                redir_to = redir_to % {"uri": urllib.quote(upload_results.get_uri())
-                                         }
+                redir_to = redir_to.replace("%(uri)s", urllib.quote(upload_results.get_uri()))
             return url.URL.fromString(redir_to)
         d.addCallback(_done, when_done)
     else:
