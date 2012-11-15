@@ -676,11 +676,13 @@ class DirectoryAsHTML(rend.Page):
         return ctx.tag[T.a(href=uri_link)["Read-Only Version"]]
 
     def _render_permalink(self,url,title):
-        """
-        The javascript: is to avoid accidental referrer leaks (although it goes to our own gateway, no such thing as too careful).
-        Perhaps this should be a readonly input tag (avoid js)?
-        """
-        return T.a(href="javascript:{prompt('Copy public permalink','%s'); void(0);}" % url)[title]
+        tag = T.input(type="text",size="4", value=url)
+        tag.attributes['readonly']='readonly'
+        # If javascript is disabled, functionality doesn't "break"
+        # (it only gets a wee bit less friendly, and only if public_url is set),
+        # so I hope this onclick doesn't get frowned upon :)
+        tag.attributes['onclick']='this.select()'
+        return T.span[title+": ",tag]
 
     def render_show_public(self, ctx, data):
         if not self.public_root or self.node.is_unknown():
@@ -732,13 +734,6 @@ class DirectoryAsHTML(rend.Page):
 
         ctx.fillSlots("unlink", unlink)
         ctx.fillSlots("rename", rename)
-
-        if self.public_root:
-            rocap = self.node.get_readonly_uri()
-            pub_uri_link = "%s/uri/%s/%s" % (self.public_root, urllib.quote(rocap),nameurl)
-            ctx.fillSlots("public_permalink", self._render_permalink(pub_uri_link,"Pub"))
-        else:
-            ctx.fillSlots("public_permalink", "-")
 
         times = []
         linkcrtime = metadata.get('tahoe', {}).get("linkcrtime")
