@@ -166,7 +166,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             # render the directory as HTML, using the docFactory and Nevow's
             # whole templating thing.
             return DirectoryAsHTML(self.node,
-                                   self.client.mutable_file_default)
+                                   self.client.mutable_file_default,
+                                   public_root=self.client.get_config("client","public_root",None))
 
         if t == "json":
             return DirectoryJSONMetadata(ctx, self.node)
@@ -599,9 +600,10 @@ class DirectoryAsHTML(rend.Page):
     docFactory = getxmlfile("directory.xhtml")
     addSlash = True
 
-    def __init__(self, node, default_mutable_format):
+    def __init__(self, node, default_mutable_format, public_root=None):
         rend.Page.__init__(self)
         self.node = node
+        self.public_root = public_root
 
         assert default_mutable_format in (MDMF_VERSION, SDMF_VERSION)
         self.default_mutable_format = default_mutable_format
@@ -672,6 +674,22 @@ class DirectoryAsHTML(rend.Page):
         root = get_root(ctx)
         uri_link = "%s/uri/%s/" % (root, urllib.quote(rocap))
         return ctx.tag[T.a(href=uri_link)["Read-Only Version"]]
+
+    def _render_permalink(self,url,title):
+        tag = T.input(type="text",size="4", value=url)
+        tag.attributes['readonly']='readonly'
+        # If javascript is disabled, functionality doesn't "break"
+        # (it only gets a wee bit less friendly, and only if public_url is set),
+        # so I hope this onclick doesn't get frowned upon :)
+        tag.attributes['onclick']='this.select()'
+        return T.span[title+": ",tag]
+
+    def render_show_public(self, ctx, data):
+        if not self.public_root or self.node.is_unknown():
+            return ""
+        rocap = self.node.get_readonly_uri()
+        uri_link = "%s/uri/%s/" % (self.public_root, urllib.quote(rocap))
+        return ctx.tag[self._render_permalink(uri_link,"Public URL")]
 
     def render_try_children(self, ctx, data):
         # if the dirnode can be retrived, render a table of children.
