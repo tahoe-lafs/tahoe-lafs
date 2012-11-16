@@ -426,3 +426,38 @@ def get_available_space(whichdir, reserved_space):
     except EnvironmentError:
         log.msg("OS call to get disk statistics failed")
         return 0
+
+
+def get_used_space(path):
+    if path is None:
+        return 0
+    try:
+        s = os.stat(path)
+    except EnvironmentError:
+        if not os.path.exists(path):
+            return 0
+        raise
+    else:
+        # POSIX defines st_blocks (originally a BSDism):
+        #   <http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/stat.h.html>
+        # but does not require stat() to give it a "meaningful value"
+        #   <http://pubs.opengroup.org/onlinepubs/009695399/functions/stat.html>
+        # and says:
+        #   "The unit for the st_blocks member of the stat structure is not defined
+        #    within IEEE Std 1003.1-2001. In some implementations it is 512 bytes.
+        #    It may differ on a file system basis. There is no correlation between
+        #    values of the st_blocks and st_blksize, and the f_bsize (from <sys/statvfs.h>)
+        #    structure members."
+        #
+        # The Linux docs define it as "the number of blocks allocated to the file,
+        # [in] 512-byte units." It is also defined that way on MacOS X. Python does
+        # not set the attribute on Windows.
+        #
+        # We consider platforms that define st_blocks but give it a wrong value, or
+        # measure it in a unit other than 512 bytes, to be broken. See also
+        # <http://bugs.python.org/issue12350>.
+
+        if hasattr(s, 'st_blocks'):
+            return s.st_blocks * 512
+        else:
+            return s.st_size
