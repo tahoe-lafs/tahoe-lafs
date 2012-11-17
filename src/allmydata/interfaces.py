@@ -27,8 +27,8 @@ Number = IntegerConstraint(8) # 2**(8*8) == 16EiB ~= 18e18 ~= 18 exabytes
 Offset = Number
 ReadSize = int # the 'int' constraint is 2**31 == 2Gib -- large files are processed in not-so-large increments
 WriteEnablerSecret = Hash # used to protect mutable share modifications
-LeaseRenewSecret = Hash # used to protect lease renewal requests
-LeaseCancelSecret = Hash # was used to protect lease cancellation requests
+LeaseRenewSecret   = Hash # previously used to protect lease renewal requests; for backward compatibility
+LeaseCancelSecret  = Hash # previously used to protect lease cancellation requests; for backward compatibility
 
 
 class RIBucketWriter(RemoteInterface):
@@ -124,32 +124,50 @@ class RIStorageServer(RemoteInterface):
                   renew_secret=LeaseRenewSecret,
                   cancel_secret=LeaseCancelSecret):
         """
-        Add a new lease on the given bucket. If the renew_secret matches an
-        existing lease, that lease will be renewed instead. If there is no
-        bucket for the given storage_index, return silently. (note that in
-        tahoe-1.3.0 and earlier, IndexError was raised if there was no
-        bucket)
+        Add or renew a lease for this account on every share with the given
+        storage index held by the server. If there are no shares held by the
+        server with the given storage_index, return silently. (In Tahoe-LAFS
+        v1.3.0 and earlier, IndexError was raised in that case.)
+
+        The duration of leases is set to 31 days (unless there is already a
+        longer lease), but expiration behaviour also depends on the server's
+        configured policy (see docs/garbage-collection.rst).
+
+        renew_secret and cancel_secret are ignored as of Tahoe-LAFS v1.11.0,
+        but for backward compatibility with older servers, should be
+        calculated in the same way as previous clients (see
+        allmydata.util.hashutil.file_{renewal,cancel}_secret_hash).
         """
-        return Any() # returns None now, but future versions might change
+        return Any() # always None
 
     def renew_lease(storage_index=StorageIndex, renew_secret=LeaseRenewSecret):
         """
-        Renew the lease on a given bucket, resetting the timer to 31 days.
-        Some networks will use this, some will not. If there is no bucket for
-        the given storage_index, IndexError will be raised.
+        Add or renew a lease for this account on every share with the given
+        storage index held by the server. If there are no shares held by the
+        server with the given storage_index, raise IndexError.
 
-        For mutable shares, if the given renew_secret does not match an
-        existing lease, IndexError will be raised with a note listing the
-        server-nodeids on the existing leases, so leases on migrated shares
-        can be renewed. For immutable shares, IndexError (without the note)
-        will be raised.
+        The duration of leases is set to 31 days (unless there is already a
+        longer lease), but expiration behaviour also depends on the server's
+        configured policy (see docs/garbage-collection.rst).
+
+        renew_secret is ignored as of Tahoe-LAFS v1.11.0, but for backward
+        compatibility with older servers, should be calculated in the same
+        way as previous clients (see
+        allmydata.util.hashutil.file_renewal_secret_hash). In versions
+        prior to v1.X.0, this method would only renew leases with the given
+        renew_secret.
+
+        Note that as of Tahoe-LAFS v1.11.0, the lease database does not retain
+        information about the node ids of lease holders, so if an IndexError
+        is raised for a mutable share, it no longer includes that information.
         """
-        return Any()
+        return Any() # always None
+
+    # XXX add a method that allows adding/renewing leases on only some shnums.
+    # See ticket #1816.
 
     def get_buckets(storage_index=StorageIndex):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
-
-
 
     def slot_readv(storage_index=StorageIndex,
                    shares=ListOf(int), readv=ReadVector):
