@@ -272,12 +272,11 @@ class Client(node.Node, pollmixin.PollMixin):
             cutoff_date = self.get_config("storage", "expire.cutoff_date")
             cutoff_date = parse_date(cutoff_date)
 
-        sharetypes = []
-        if self.get_config("storage", "expire.immutable", True, boolean=True):
-            sharetypes.append("immutable")
-        if self.get_config("storage", "expire.mutable", True, boolean=True):
-            sharetypes.append("mutable")
-        expiration_sharetypes = tuple(sharetypes)
+        if not self.get_config("storage", "expire.immutable", True, boolean=True):
+            raise OldConfigOptionError("[storage]expire.immutable = False is no longer supported.")
+        if not self.get_config("storage", "expire.mutable", True, boolean=True):
+            raise OldConfigOptionError("[storage]expire.mutable = False is no longer supported.")
+        expiration_sharetypes = ('mutable', 'immutable')
 
         ss = StorageServer(storedir, self.nodeid,
                            reserved_space=reserved,

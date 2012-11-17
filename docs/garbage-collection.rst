@@ -196,17 +196,10 @@ The ``tahoe.cfg`` file uses the following keys to control lease expiration:
     "expire.mode = cutoff-date"). It will be rejected if age-based expiration
     is in use.
 
-  expire.immutable = (boolean, optional)
-
-    If this is False, then immutable shares will never be deleted, even if
-    their leases have expired. This can be used in special situations to
-    perform GC on mutable files but not immutable ones. The default is True.
-
-  expire.mutable = (boolean, optional)
-
-    If this is False, then mutable shares will never be deleted, even if
-    their leases have expired. This can be used in special situations to
-    perform GC on immutable files but not mutable ones. The default is True.
+In previous versions, the ``expire.immutable`` and ``expire.mutable`` keys
+could be used to selectively expire only mutable or only immutable shares.
+As of Tahoe-LAFS v1.11.0, these are no longer supported and will cause an
+error if set to ``False``.
 
 Expiration Progress
 ===================

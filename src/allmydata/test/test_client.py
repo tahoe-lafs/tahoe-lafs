@@ -135,6 +135,26 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         c = client.Client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 0)
 
+    def test_expire_mutable_false_unsupported(self):
+        basedir = "client.Basic.test_expire_mutable_false_unsupported"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                       BASECONFIG + \
+                       "[storage]\n" + \
+                       "enabled = true\n" + \
+                       "expire.mutable = False\n")
+        self.failUnlessRaises(OldConfigOptionError, client.Client, basedir)
+
+    def test_expire_immutable_false_unsupported(self):
+        basedir = "client.Basic.test_expire_immutable_false_unsupported"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                       BASECONFIG + \
+                       "[storage]\n" + \
+                       "enabled = true\n" + \
+                       "expire.immutable = False\n")
+        self.failUnlessRaises(OldConfigOptionError, client.Client, basedir)
+
     def test_debug_discard_true_unsupported(self):
         basedir = "client.Basic.test_debug_discard_true_unsupported"
         os.mkdir(basedir)
