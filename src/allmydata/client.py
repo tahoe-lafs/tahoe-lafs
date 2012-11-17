@@ -267,8 +267,8 @@ class Client(node.Node, pollmixin.PollMixin):
             raise
         if reserved is None:
             reserved = 0
-        discard = self.get_config("storage", "debug_discard", False,
-                                  boolean=True)
+        if self.get_config("storage", "debug_discard", False, boolean=True):
+            raise OldConfigOptionError("[storage]debug_discard = True is no longer supported.")
 
         expire = self.get_config("storage", "expire.enabled", False, boolean=True)
         if expire:
@@ -294,7 +294,6 @@ class Client(node.Node, pollmixin.PollMixin):
 
         ss = StorageServer(storedir, self.nodeid,
                            reserved_space=reserved,
-                           discard_storage=discard,
                            readonly_storage=readonly,
                            stats_provider=self.stats_provider,
                            expiration_enabled=expire,

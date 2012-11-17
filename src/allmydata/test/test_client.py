@@ -150,6 +150,16 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            "reserved_space = bogus\n")
         self.failUnlessRaises(ValueError, client.Client, basedir)
 
+    def test_debug_discard_true_unsupported(self):
+        basedir = "client.Basic.test_debug_discard_true_unsupported"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                       BASECONFIG + \
+                       "[storage]\n" + \
+                       "enabled = true\n" + \
+                       "debug_discard = true\n")
+        self.failUnlessRaises(OldConfigOptionError, client.Client, basedir)
+
     def _permute(self, sb, key):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 

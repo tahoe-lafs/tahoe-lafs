@@ -188,17 +188,13 @@ class SystemFramework(pollmixin.PollMixin):
                     "shares.happy = 1\n"
                     "[storage]\n"
                     % (self.introducer_furl,))
-            # the only tests for which we want the internal nodes to actually
-            # retain shares are the ones where somebody's going to download
-            # them.
-            if self.mode in ("download", "download-GET", "download-GET-slow"):
-                # retain shares
-                pass
-            else:
-                # for these tests, we tell the storage servers to pretend to
-                # accept shares, but really just throw them out, since we're
-                # only testing upload and not download.
-                f.write("debug_discard = true\n")
+
+            # We used to set the [storage]debug_discard option to discard
+            # shares when they will not be needed, i.e. when self.mode not in
+            # ("download", "download-GET", "download-GET-slow").
+            # But debug_discard is no longer supported. It should be OK to
+            # retain the shares anyway.
+
             if self.mode in ("receive",):
                 # for this mode, the client-under-test gets all the shares,
                 # so our internal nodes can refuse requests
@@ -249,8 +245,7 @@ this file are ignored.
         else:
             # don't accept any shares
             f.write("readonly = true\n")
-            ## also, if we do receive any shares, throw them away
-            #f.write("debug_discard = true")
+
         if self.mode == "upload-self":
             pass
         f.close()
