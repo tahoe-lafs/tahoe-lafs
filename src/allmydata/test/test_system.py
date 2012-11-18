@@ -509,9 +509,6 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnless("share_type: SDMF\n" in output)
                 peerid = idlib.nodeid_b2a(self.clients[client_num].nodeid)
                 self.failUnless(" WE for nodeid: %s\n" % peerid in output)
-                self.failUnless(" num_extra_leases: 0\n" in output)
-                self.failUnless("  secrets are for nodeid: %s\n" % peerid
-                                in output)
                 self.failUnless(" SDMF contents:\n" in output)
                 self.failUnless("  seqnum: 1\n" in output)
                 self.failUnless("  required_shares: 3\n" in output)
