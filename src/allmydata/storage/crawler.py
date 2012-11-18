@@ -1,15 +1,20 @@
 
 import os, time, struct
 import cPickle as pickle
-from twisted.internet import reactor
+
+from twisted.internet import defer, reactor
 from twisted.application import service
+
 from allmydata.storage.common import si_b2a
 from allmydata.util import fileutil
+from allmydata.util.deferredutil import HookMixin, async_iterate
+
 
 class TimeSliceExceeded(Exception):
     pass
 
-class ShareCrawler(service.MultiService):
+
+class ShareCrawler(HookMixin, service.MultiService):
     """A ShareCrawler subclass is attached to a StorageServer, and
     periodically walks all of its shares, processing each one in some
     fashion. This crawl is rate-limited, to reduce the IO burden on the host,
@@ -17,9 +22,9 @@ class ShareCrawler(service.MultiService):
     million files, which can take hours or days to read.
 
     Once the crawler starts a cycle, it will proceed at a rate limited by the
-    allowed_cpu_percentage= and cpu_slice= parameters: yielding the reactor
+    allowed_cpu_proportion= and cpu_slice= parameters: yielding the reactor
     after it has worked for 'cpu_slice' seconds, and not resuming right away,
-    always trying to use less than 'allowed_cpu_percentage'.
+    always trying to use less than 'allowed_cpu_proportion'.
 
     Once the crawler finishes a cycle, it will put off starting the next one
     long enough to ensure that 'minimum_cycle_time' elapses between the start
@@ -61,14 +66,14 @@ class ShareCrawler(service.MultiService):
 
     slow_start = 300 # don't start crawling for 5 minutes after startup
     # all three of these can be changed at any time
-    allowed_cpu_percentage = .10 # use up to 10% of the CPU, on average
+    allowed_cpu_proportion = .10 # use up to 10% of the CPU, on average
     cpu_slice = 1.0 # use up to 1.0 seconds before yielding
     minimum_cycle_time = 300 # don't run a cycle faster than this
 
-    def __init__(self, server, statefile, allowed_cpu_percentage=None):
+    def __init__(self, server, statefile, allowed_cpu_proportion=None):
         service.MultiService.__init__(self)
-        if allowed_cpu_percentage is not None:
-            self.allowed_cpu_percentage = allowed_cpu_percentage
+        if allowed_cpu_proportion is not None:
+            self.allowed_cpu_proportion = allowed_cpu_proportion
         self.server = server
         self.sharedir = server.sharedir
         self.statefile = statefile
@@ -84,6 +89,9 @@ class ShareCrawler(service.MultiService):
         self.last_cycle_started_time = None
         self.last_cycle_elapsed_time = None
         self.load_state()
+
+        # used by tests
+        self._hooks = {'after_prefix': None, 'after_cycle': None, 'yield': None}
 
     def minus_or_none(self, a, b):
         if a is None:
@@ -257,39 +265,46 @@ class ShareCrawler(service.MultiService):
         self.sleeping_between_cycles = False
         self.current_sleep_time = None
         self.next_wake_time = None
-        try:
-            self.start_current_prefix(start_slice)
-            finished_cycle = True
-        except TimeSliceExceeded:
-            finished_cycle = False
-        self.save_state()
-        if not self.running:
-            # someone might have used stopService() to shut us down
-            return
-        # either we finished a whole cycle, or we ran out of time
-        now = time.time()
-        this_slice = now - start_slice
-        # this_slice/(this_slice+sleep_time) = percentage
-        # this_slice/percentage = this_slice+sleep_time
-        # sleep_time = (this_slice/percentage) - this_slice
-        sleep_time = (this_slice / self.allowed_cpu_percentage) - this_slice
-        # if the math gets weird, or a timequake happens, don't sleep
-        # forever. Note that this means that, while a cycle is running, we
-        # will process at least one bucket every 5 minutes, no matter how
-        # long that bucket takes.
-        sleep_time = max(0.0, min(sleep_time, 299))
-        if finished_cycle:
-            # how long should we sleep between cycles? Don't run faster than
-            # allowed_cpu_percentage says, but also run faster than
-            # minimum_cycle_time
-            self.sleeping_between_cycles = True
-            sleep_time = max(sleep_time, self.minimum_cycle_time)
-        else:
-            self.sleeping_between_cycles = False
-        self.current_sleep_time = sleep_time # for status page
-        self.next_wake_time = now + sleep_time
-        self.yielding(sleep_time)
-        self.timer = reactor.callLater(sleep_time, self.start_slice)
+
+        d = self.start_current_prefix(start_slice)
+        def _err(f):
+            f.trap(TimeSliceExceeded)
+            return False
+        def _ok(ign):
+            return True
+        d.addCallbacks(_ok, _err)
+        def _done(finished_cycle):
+            self.save_state()
+            if not self.running:
+                # someone might have used stopService() to shut us down
+                return
+            # either we finished a whole cycle, or we ran out of time
+            now = time.time()
+            this_slice = now - start_slice
+            # this_slice/(this_slice+sleep_time) = percentage
+            # this_slice/percentage = this_slice+sleep_time
+            # sleep_time = (this_slice/percentage) - this_slice
+            sleep_time = (this_slice / self.allowed_cpu_proportion) - this_slice
+            # if the math gets weird, or a timequake happens, don't sleep
+            # forever. Note that this means that, while a cycle is running, we
+            # will process at least one bucket every 5 minutes, no matter how
+            # long that bucket takes.
+            sleep_time = max(0.0, min(sleep_time, 299))
+            if finished_cycle:
+                # how long should we sleep between cycles? Don't run faster than
+                # allowed_cpu_proportion says, but also run faster than
+                # minimum_cycle_time
+                self.sleeping_between_cycles = True
+                sleep_time = max(sleep_time, self.minimum_cycle_time)
+            else:
+                self.sleeping_between_cycles = False
+            self.current_sleep_time = sleep_time # for status page
+            self.next_wake_time = now + sleep_time
+            self.yielding(sleep_time)
+            self.timer = reactor.callLater(sleep_time, self.start_slice)
+        d.addCallback(_done)
+        d.addBoth(self._call_hook, 'yield')
+        return d
 
     def start_current_prefix(self, start_slice):
         state = self.state
@@ -303,21 +318,47 @@ class ShareCrawler(service.MultiService):
             self.started_cycle(state["current-cycle"])
         cycle = state["current-cycle"]
 
-        for i in range(self.last_complete_prefix_index+1, len(self.prefixes)):
-            # if we want to yield earlier, just raise TimeSliceExceeded()
-            prefix = self.prefixes[i]
-            prefixdir = os.path.join(self.sharedir, prefix)
-            if i == self.bucket_cache[0]:
-                buckets = self.bucket_cache[1]
-            else:
-                try:
-                    buckets = os.listdir(prefixdir)
-                    buckets.sort()
-                except EnvironmentError:
-                    buckets = []
-                self.bucket_cache = (i, buckets)
-            self.process_prefixdir(cycle, prefix, prefixdir,
-                                   buckets, start_slice)
+        def _prefix_loop(i):
+            d2 = self._do_prefix(cycle, i, start_slice)
+            d2.addBoth(self._call_hook, 'after_prefix')
+            d2.addCallback(lambda ign: True)
+            return d2
+        d = async_iterate(_prefix_loop, xrange(self.last_complete_prefix_index + 1, len(self.prefixes)))
+
+        def _cycle_done(ign):
+            # yay! we finished the whole cycle
+            self.last_complete_prefix_index = -1
+            self.last_prefix_finished_time = None # don't include the sleep
+            now = time.time()
+            if self.last_cycle_started_time is not None:
+                self.last_cycle_elapsed_time = now - self.last_cycle_started_time
+            state["last-complete-bucket"] = None
+            state["last-cycle-finished"] = cycle
+            state["current-cycle"] = None
+
+            self.finished_cycle(cycle)
+            self.save_state()
+            return cycle
+        d.addCallback(_cycle_done)
+        d.addBoth(self._call_hook, 'after_cycle')
+        return d
+
+    def _do_prefix(self, cycle, i, start_slice):
+        prefix = self.prefixes[i]
+        prefixdir = os.path.join(self.sharedir, prefix)
+        if i == self.bucket_cache[0]:
+            buckets = self.bucket_cache[1]
+        else:
+            try:
+                buckets = os.listdir(prefixdir)
+                buckets.sort()
+            except EnvironmentError:
+                buckets = []
+            self.bucket_cache = (i, buckets)
+
+        d = defer.maybeDeferred(self.process_prefixdir,
+                                cycle, prefix, prefixdir, buckets, start_slice)
+        def _done(ign):
             self.last_complete_prefix_index = i
 
             now = time.time()
@@ -327,24 +368,19 @@ class ShareCrawler(service.MultiService):
             self.last_prefix_finished_time = now
 
             self.finished_prefix(cycle, prefix)
+
             if time.time() >= start_slice + self.cpu_slice:
                 raise TimeSliceExceeded()
 
-        # yay! we finished the whole cycle
-        self.last_complete_prefix_index = -1
-        self.last_prefix_finished_time = None # don't include the sleep
-        now = time.time()
-        if self.last_cycle_started_time is not None:
-            self.last_cycle_elapsed_time = now - self.last_cycle_started_time
-        state["last-complete-bucket"] = None
-        state["last-cycle-finished"] = cycle
-        state["current-cycle"] = None
-        self.finished_cycle(cycle)
-        self.save_state()
+            return prefix
+        d.addCallback(_done)
+        return d
 
     def process_prefixdir(self, cycle, prefix, prefixdir, buckets, start_slice):
         """This gets a list of bucket names (i.e. storage index strings,
         base32-encoded) in sorted order.
+        FIXME: it would probably make more sense for the storage indices
+        to be binary.
 
         You can override this if your crawler doesn't care about the actual
         shares, for example a crawler which merely keeps track of how many
@@ -387,7 +423,7 @@ class ShareCrawler(service.MultiService):
         process_bucket() method. This will reduce the maximum duplicated work
         to one bucket per SIGKILL. It will also add overhead, probably 1-20ms
         per bucket (and some disk writes), which will count against your
-        allowed_cpu_percentage, and which may be considerable if
+        allowed_cpu_proportion, and which may be considerable if
         process_bucket() runs quickly.
 
         This method is for subclasses to override. No upcall is necessary.
