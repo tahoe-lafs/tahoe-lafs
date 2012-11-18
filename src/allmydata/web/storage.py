@@ -208,19 +208,8 @@ class StorageStatus(rend.Page):
             add("The whole cycle is expected to examine %s shares in %s buckets"
                 % (maybe(ecr["examined-shares"]), maybe(ecr["examined-buckets"])))
             add("and to recover: ", self.format_recovered(ecr, "actual"))
-
         else:
-            add("If expiration were enabled, we would have recovered: ",
-                self.format_recovered(sr, "configured"), " by now")
-            add("and the remainder of this cycle would probably recover: ",
-                self.format_recovered(esr, "configured"))
-            add("and the whole cycle would probably recover: ",
-                self.format_recovered(ecr, "configured"))
-
-        add("if we were strictly using each lease's default 31-day lease lifetime "
-            "(instead of our configured behavior), "
-            "this cycle would be expected to recover: ",
-            self.format_recovered(ecr, "original"))
+            add("Expiration was not enabled.")
 
         if so_far["corrupt-shares"]:
             add("Corrupt shares:",
@@ -252,9 +241,7 @@ class StorageStatus(rend.Page):
         add("and saw a total of ", saw)
 
         if not last["expiration-enabled"]:
-            rec = self.format_recovered(last["space-recovered"], "configured")
-            add("but expiration was not enabled. If it had been, "
-                "it would have recovered: ", rec)
+            add("but expiration was not enabled.")
 
         if last["corrupt-shares"]:
             add("Corrupt shares:",
