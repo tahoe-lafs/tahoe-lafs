@@ -276,7 +276,8 @@ class NoNetworkGrid(service.MultiService):
         ss.setServiceParent(middleman)
         serverid = ss.my_nodeid
         self.servers_by_number[i] = ss
-        wrapper = wrap_storage_server(ss)
+        aa = ss.get_accountant().get_anonymous_account()
+        wrapper = wrap_storage_server(aa)
         self.wrappers_by_id[serverid] = wrapper
         self.proxies_by_id[serverid] = NoNetworkServer(serverid, wrapper)
         self.rebuild_serverlist()

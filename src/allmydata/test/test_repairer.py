@@ -699,26 +699,37 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         return d
 
     def test_servers_responding(self):
+        # This test exercises a bug (ticket #1739) in which the servers-responding list
+        # did not include servers that responded to the Repair, but not the pre-repair
+        # filecheck.
         self.basedir = "repairer/Repairer/servers_responding"
         self.set_up_grid(num_clients=2)
         d = self.upload_and_stash()
-        # now cause one of the servers to not respond during the pre-repair
-        # filecheck, but then *do* respond to the post-repair filecheck
+
         def _then(ign):
+            # Cause one of the servers to not respond during the pre-repair
+            # filecheck, but then *do* respond to the post-repair filecheck.
             ss = self.g.servers_by_number[0]
-            self.g.break_server(ss.my_nodeid, count=1)
+            self.g.break_server(ss.get_nodeid(), count=1)
+
+            shares = self.find_uri_shares(self.uri)
+            self.failUnlessEqual(len(shares), 10)
             self.delete_shares_numbered(self.uri, [9])
             return self.c0_filenode.check_and_repair(Monitor())
         d.addCallback(_then)
         def _check(rr):
-            # this exercises a bug in which the servers-responding list did
-            # not include servers that responded to the Repair, but which did
-            # not respond to the pre-repair filecheck
             prr = rr.get_post_repair_results()
+
+            # We expect the repair to have restored all shares...
+            self.failUnlessEqual(prr.get_share_counter_good(), 10)
+
+            # ... and all the servers should be in servers-responding.
             expected = set(self.g.get_all_serverids())
-            self.failUnlessEqual(expected,
-                                 set([s.get_serverid()
-                                      for s in prr.get_servers_responding()]))
+            responding = set([s.get_serverid() for s in prr.get_servers_responding()])
+            self.failUnlessEqual(expected, responding,
+                                 ("\nexpected - responding = %r"
+                                  "\nresponding - expected = %r")
+                                  % (expected - responding, responding - expected))
         d.addCallback(_check)
         return d
 

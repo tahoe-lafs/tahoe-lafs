@@ -8,7 +8,7 @@ from allmydata.util import base32, consumer, fileutil, mathutil
 from allmydata.util.hashutil import tagged_hash, ssk_writekey_hash, \
      ssk_pubkey_fingerprint_hash
 from allmydata.util.consumer import MemoryConsumer
-from allmydata.util.deferredutil import gatherResults
+from allmydata.util.deferredutil import gatherResults, WaitForDelayedCallsMixin
 from allmydata.interfaces import IRepairResults, ICheckAndRepairResults, \
      NotEnoughSharesError, SDMF_VERSION, MDMF_VERSION, DownloadStopped
 from allmydata.monitor import Monitor
@@ -229,14 +229,14 @@ def corrupt(res, s, offset, shnums_to_corrupt=None, offset_offset=0):
 def make_storagebroker(s=None, num_peers=10):
     if not s:
         s = FakeStorage()
-    peerids = [tagged_hash("peerid", "%d" % i)[:20]
-               for i in range(num_peers)]
+    serverids = [tagged_hash("peerid", "%d" % i)[:20]
+                 for i in range(num_peers)]
     storage_broker = StorageFarmBroker(None, True)
-    for peerid in peerids:
-        fss = FakeStorageServer(peerid, s)
-        ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(peerid),
-               "permutation-seed-base32": base32.b2a(peerid) }
-        storage_broker.test_add_rref(peerid, fss, ann)
+    for serverid in serverids:
+        fss = FakeStorageServer(serverid, s)
+        ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(serverid),
+               "permutation-seed-base32": base32.b2a(serverid) }
+        storage_broker.test_add_rref(serverid, fss, ann)
     return storage_broker
 
 def make_nodemaker(s=None, num_peers=10, keysize=TEST_RSA_KEY_SIZE):
@@ -250,7 +250,7 @@ def make_nodemaker(s=None, num_peers=10, keysize=TEST_RSA_KEY_SIZE):
                           {"k": 3, "n": 10}, SDMF_VERSION, keygen)
     return nodemaker
 
-class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
+class Filenode(unittest.TestCase, testutil.ShouldFailMixin, WaitForDelayedCallsMixin):
     # this used to be in Publish, but we removed the limit. Some of
     # these tests test whether the new code correctly allows files
     # larger than the limit.
@@ -861,6 +861,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
 
             return d
         d.addCallback(_created)
+        d.addBoth(self.wait_for_delayed_calls)
         return d
 
     def test_upload_and_download_full_size_keys(self):
@@ -913,6 +914,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         d.addCallback(lambda ignored:
             self.failUnlessEqual(self.n.get_size(), 9))
+        d.addBoth(self.wait_for_delayed_calls)
         return d
 
 
