@@ -131,17 +131,17 @@ class ShareCrawler(HookMixin, service.MultiService):
                                    cycle
         """
 
-        d = {}
+        p = {}
 
         if self.state["current-cycle"] is None:
-            d["cycle-in-progress"] = False
-            d["next-crawl-time"] = self.next_wake_time
-            d["remaining-wait-time"] = self.minus_or_none(self.next_wake_time,
+            p["cycle-in-progress"] = False
+            p["next-crawl-time"] = self.next_wake_time
+            p["remaining-wait-time"] = self.minus_or_none(self.next_wake_time,
                                                           time.time())
         else:
-            d["cycle-in-progress"] = True
+            p["cycle-in-progress"] = True
             pct = 100.0 * self.last_complete_prefix_index / len(self.prefixes)
-            d["cycle-complete-percentage"] = pct
+            p["cycle-complete-percentage"] = pct
             remaining = None
             if self.last_prefix_elapsed_time is not None:
                 left = len(self.prefixes) - self.last_complete_prefix_index
@@ -150,18 +150,18 @@ class ShareCrawler(HookMixin, service.MultiService):
                 # per-bucket time, probably by measuring the time spent on
                 # this prefix so far, divided by the number of buckets we've
                 # processed.
-            d["estimated-cycle-complete-time-left"] = remaining
+            p["estimated-cycle-complete-time-left"] = remaining
             # it's possible to call get_progress() from inside a crawler's
             # finished_prefix() function
-            d["remaining-sleep-time"] = self.minus_or_none(self.next_wake_time,
+            p["remaining-sleep-time"] = self.minus_or_none(self.next_wake_time,
                                                            time.time())
         per_cycle = None
         if self.last_cycle_elapsed_time is not None:
             per_cycle = self.last_cycle_elapsed_time
         elif self.last_prefix_elapsed_time is not None:
             per_cycle = len(self.prefixes) * self.last_prefix_elapsed_time
-        d["estimated-time-per-cycle"] = per_cycle
-        return d
+        p["estimated-time-per-cycle"] = per_cycle
+        return p
 
     def get_state(self):
         """I return the current state of the crawler. This is a copy of my
