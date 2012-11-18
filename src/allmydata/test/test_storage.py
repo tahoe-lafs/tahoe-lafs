@@ -311,10 +311,10 @@ class Server(unittest.TestCase):
 
     def create(self, name, reserved_space=0, klass=StorageServer):
         workdir = self.workdir(name)
-        ss = klass(workdir, "\x00" * 20, reserved_space=reserved_space,
-                   stats_provider=FakeStatsProvider())
-        ss.setServiceParent(self.sparent)
-        return ss
+        server = klass(workdir, "\x00" * 20, reserved_space=reserved_space,
+                       stats_provider=FakeStatsProvider())
+        server.setServiceParent(self.sparent)
+        return server
 
     def test_create(self):
         self.create("test_create")
@@ -763,9 +763,9 @@ class MutableServer(unittest.TestCase):
 
     def create(self, name):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir, "\x00" * 20)
-        ss.setServiceParent(self.sparent)
-        return ss
+        server = StorageServer(workdir, "\x00" * 20)
+        server.setServiceParent(self.sparent)
+        return server
 
     def test_create(self):
         self.create("test_create")
@@ -1395,10 +1395,10 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def create(self, name):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir, "\x00" * 20)
-        ss.setServiceParent(self.sparent)
-        return ss
 
+        server = StorageServer(workdir, "\x00" * 20)
+        server.setServiceParent(self.sparent)
+        return server
 
     def build_test_mdmf_share(self, tail_segment=False, empty=False):
         # Start with the checkstring
@@ -2773,27 +2773,27 @@ class Stats(unittest.TestCase):
 
     def create(self, name):
         workdir = self.workdir(name)
-        ss = StorageServer(workdir, "\x00" * 20)
-        ss.setServiceParent(self.sparent)
-        return ss
+        server = StorageServer(workdir, "\x00" * 20)
+        server.setServiceParent(self.sparent)
+        return server
 
     def test_latencies(self):
-        ss = self.create("test_latencies")
+        server = self.create("test_latencies")
         for i in range(10000):
-            ss.add_latency("allocate", 1.0 * i)
+            server.add_latency("allocate", 1.0 * i)
         for i in range(1000):
-            ss.add_latency("renew", 1.0 * i)
+            server.add_latency("renew", 1.0 * i)
         for i in range(20):
-            ss.add_latency("write", 1.0 * i)
+            server.add_latency("write", 1.0 * i)
         for i in range(10):
-            ss.add_latency("cancel", 2.0 * i)
-        ss.add_latency("get", 5.0)
+            server.add_latency("cancel", 2.0 * i)
+        server.add_latency("get", 5.0)
 
-        output = ss.get_latencies()
+        output = server.get_latencies()
 
         self.failUnlessEqual(sorted(output.keys()),
                              sorted(["allocate", "renew", "cancel", "write", "get"]))
-        self.failUnlessEqual(len(ss.latencies["allocate"]), 1000)
+        self.failUnlessEqual(len(server.latencies["allocate"]), 1000)
         self.failUnless(abs(output["allocate"]["mean"] - 9500) < 1, output)
         self.failUnless(abs(output["allocate"]["01_0_percentile"] - 9010) < 1, output)
         self.failUnless(abs(output["allocate"]["10_0_percentile"] - 9100) < 1, output)
@@ -2803,7 +2803,7 @@ class Stats(unittest.TestCase):
         self.failUnless(abs(output["allocate"]["99_0_percentile"] - 9990) < 1, output)
         self.failUnless(abs(output["allocate"]["99_9_percentile"] - 9999) < 1, output)
 
-        self.failUnlessEqual(len(ss.latencies["renew"]), 1000)
+        self.failUnlessEqual(len(server.latencies["renew"]), 1000)
         self.failUnless(abs(output["renew"]["mean"] - 500) < 1, output)
         self.failUnless(abs(output["renew"]["01_0_percentile"] -  10) < 1, output)
         self.failUnless(abs(output["renew"]["10_0_percentile"] - 100) < 1, output)
@@ -2813,7 +2813,7 @@ class Stats(unittest.TestCase):
         self.failUnless(abs(output["renew"]["99_0_percentile"] - 990) < 1, output)
         self.failUnless(abs(output["renew"]["99_9_percentile"] - 999) < 1, output)
 
-        self.failUnlessEqual(len(ss.latencies["write"]), 20)
+        self.failUnlessEqual(len(server.latencies["write"]), 20)
         self.failUnless(abs(output["write"]["mean"] - 9) < 1, output)
         self.failUnless(output["write"]["01_0_percentile"] is None, output)
         self.failUnless(abs(output["write"]["10_0_percentile"] -  2) < 1, output)
@@ -2823,7 +2823,7 @@ class Stats(unittest.TestCase):
         self.failUnless(output["write"]["99_0_percentile"] is None, output)
         self.failUnless(output["write"]["99_9_percentile"] is None, output)
 
-        self.failUnlessEqual(len(ss.latencies["cancel"]), 10)
+        self.failUnlessEqual(len(server.latencies["cancel"]), 10)
         self.failUnless(abs(output["cancel"]["mean"] - 9) < 1, output)
         self.failUnless(output["cancel"]["01_0_percentile"] is None, output)
         self.failUnless(abs(output["cancel"]["10_0_percentile"] -  2) < 1, output)
@@ -2833,7 +2833,7 @@ class Stats(unittest.TestCase):
         self.failUnless(output["cancel"]["99_0_percentile"] is None, output)
         self.failUnless(output["cancel"]["99_9_percentile"] is None, output)
 
-        self.failUnlessEqual(len(ss.latencies["get"]), 1)
+        self.failUnlessEqual(len(server.latencies["get"]), 1)
         self.failUnless(output["get"]["mean"] is None, output)
         self.failUnless(output["get"]["01_0_percentile"] is None, output)
         self.failUnless(output["get"]["10_0_percentile"] is None, output)
@@ -2860,17 +2860,18 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
     def test_bucket_counter(self):
         basedir = "storage/BucketCounter/bucket_counter"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        server = StorageServer(basedir, "\x00" * 20)
+        bucket_counter = server.bucket_counter
 
         # finish as fast as possible
-        ss.bucket_counter.slow_start = 0
-        ss.bucket_counter.cpu_slice = 100.0
+        bucket_counter.slow_start = 0
+        bucket_counter.cpu_slice = 100.0
 
-        d = ss.bucket_counter.set_hook('after_prefix')
+        d = server.bucket_counter.set_hook('after_prefix')
 
-        ss.setServiceParent(self.s)
+        server.setServiceParent(self.s)
 
-        w = StorageStatus(ss)
+        w = StorageStatus(server)
 
         # this sample is before the crawler has started doing anything
         html = w.renderSynchronously()
@@ -2882,25 +2883,25 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
         self.failUnlessIn("Next crawl in", s)
 
         def _after_first_prefix(prefix):
-            ss.bucket_counter.save_state()
-            state = ss.bucket_counter.get_state()
+            server.bucket_counter.save_state()
+            state = bucket_counter.get_state()
             self.failUnlessEqual(prefix, state["last-complete-prefix"])
-            self.failUnlessEqual(prefix, ss.bucket_counter.prefixes[0])
+            self.failUnlessEqual(prefix, bucket_counter.prefixes[0])
 
             html = w.renderSynchronously()
             s = remove_tags(html)
             self.failUnlessIn(" Current crawl ", s)
             self.failUnlessIn(" (next work in ", s)
 
-            return ss.bucket_counter.set_hook('after_cycle')
+            return bucket_counter.set_hook('after_cycle')
         d.addCallback(_after_first_prefix)
 
         def _after_first_cycle(cycle):
             self.failUnlessEqual(cycle, 0)
-            progress = ss.bucket_counter.get_progress()
+            progress = bucket_counter.get_progress()
             self.failUnlessReallyEqual(progress["cycle-in-progress"], False)
         d.addCallback(_after_first_cycle)
-        d.addBoth(self._wait_for_yield, ss.bucket_counter)
+        d.addBoth(self._wait_for_yield, bucket_counter)
 
         def _after_yield(ign):
             html = w.renderSynchronously()
@@ -2913,58 +2914,60 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
     def test_bucket_counter_cleanup(self):
         basedir = "storage/BucketCounter/bucket_counter_cleanup"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        server = StorageServer(basedir, "\x00" * 20)
+        bucket_counter = server.bucket_counter
 
         # finish as fast as possible
-        ss.bucket_counter.slow_start = 0
-        ss.bucket_counter.cpu_slice = 100.0
+        bucket_counter.slow_start = 0
+        bucket_counter.cpu_slice = 100.0
 
-        d = ss.bucket_counter.set_hook('after_prefix')
+        d = bucket_counter.set_hook('after_prefix')
 
-        ss.setServiceParent(self.s)
+        server.setServiceParent(self.s)
 
         def _after_first_prefix(prefix):
-            ss.bucket_counter.save_state()
-            state = ss.bucket_counter.state
+            bucket_counter.save_state()
+            state = bucket_counter.state
             self.failUnlessEqual(prefix, state["last-complete-prefix"])
-            self.failUnlessEqual(prefix, ss.bucket_counter.prefixes[0])
+            self.failUnlessEqual(prefix, bucket_counter.prefixes[0])
 
             # now sneak in and mess with its state, to make sure it cleans up
             # properly at the end of the cycle
             state["bucket-counts"][-12] = {}
             state["storage-index-samples"]["bogusprefix!"] = (-12, [])
-            ss.bucket_counter.save_state()
+            bucket_counter.save_state()
 
-            return ss.bucket_counter.set_hook('after_cycle')
+            return bucket_counter.set_hook('after_cycle')
         d.addCallback(_after_first_prefix)
 
         def _after_first_cycle(cycle):
             self.failUnlessEqual(cycle, 0)
-            progress = ss.bucket_counter.get_progress()
+            progress = bucket_counter.get_progress()
             self.failUnlessReallyEqual(progress["cycle-in-progress"], False)
 
-            s = ss.bucket_counter.get_state()
+            s = bucket_counter.get_state()
             self.failIf(-12 in s["bucket-counts"], s["bucket-counts"].keys())
             self.failIf("bogusprefix!" in s["storage-index-samples"],
                         s["storage-index-samples"].keys())
         d.addCallback(_after_first_cycle)
-        d.addBoth(self._wait_for_yield, ss.bucket_counter)
+        d.addBoth(self._wait_for_yield, bucket_counter)
         return d
 
     def test_bucket_counter_eta(self):
         basedir = "storage/BucketCounter/bucket_counter_eta"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        server = StorageServer(basedir, "\x00" * 20)
+        bucket_counter = server.bucket_counter
 
         # finish as fast as possible
-        ss.bucket_counter.slow_start = 0
-        ss.bucket_counter.cpu_slice = 100.0
+        bucket_counter.slow_start = 0
+        bucket_counter.cpu_slice = 100.0
 
-        d = ss.bucket_counter.set_hook('after_prefix')
+        d = bucket_counter.set_hook('after_prefix')
 
-        ss.setServiceParent(self.s)
+        server.setServiceParent(self.s)
 
-        w = StorageStatus(ss)
+        w = StorageStatus(server)
 
         def _check_1(prefix1):
             # no ETA is available yet
@@ -2972,7 +2975,7 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
             s = remove_tags(html)
             self.failUnlessIn("complete (next work", s)
 
-            return ss.bucket_counter.set_hook('after_prefix')
+            return bucket_counter.set_hook('after_prefix')
         d.addCallback(_check_1)
 
         def _check_2(prefix2):
@@ -2981,7 +2984,7 @@ class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
             s = remove_tags(html)
             self.failUnlessIn("complete (ETA ", s)
         d.addCallback(_check_2)
-        d.addBoth(self._wait_for_yield, ss.bucket_counter)
+        d.addBoth(self._wait_for_yield, bucket_counter)
         return d
 
 class InstrumentedLeaseCheckingCrawler(LeaseCheckingCrawler):
@@ -3071,20 +3074,20 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
     def BROKEN_test_basic(self):
         basedir = "storage/LeaseCrawler/basic"
         fileutil.make_dirs(basedir)
-        ss = InstrumentedStorageServer(basedir, "\x00" * 20)
+        server = InstrumentedStorageServer(basedir, "\x00" * 20)
         # make it start sooner than usual.
-        lc = ss.lease_checker
+        lc = server.lease_checker
         lc.slow_start = 0
         lc.cpu_slice = 500
         lc.stop_after_first_bucket = True
-        webstatus = StorageStatus(ss)
+        webstatus = StorageStatus(server)
 
         # create a few shares, with some leases on them
-        self.make_shares(ss)
+        self.make_shares(server)
         [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3] = self.sis
 
         # add a non-sharefile to exercise another code path
-        fn = os.path.join(ss.sharedir,
+        fn = os.path.join(server.sharedir,
                           storage_index_to_dir(immutable_si_0),
                           "not-a-share")
         f = open(fn, "wb")
@@ -3100,7 +3103,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         self.failUnlessIn("history", initial_state)
         self.failUnlessEqual(initial_state["history"], {})
 
-        ss.setServiceParent(self.s)
+        server.setServiceParent(self.s)
 
         DAY = 24*60*60
 
@@ -3211,7 +3214,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
             self.failUnlessEqual(rec["configured-sharebytes"], 0)
 
             def _get_sharefile(si):
-                return list(ss._iter_share_files(si))[0]
+                return list(server._iter_share_files(si))[0]
             def count_leases(si):
                 return len(list(_get_sharefile(si).get_leases()))
             self.failUnlessEqual(count_leases(immutable_si_0), 1)
@@ -3254,24 +3257,24 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         fileutil.make_dirs(basedir)
         # setting expiration_time to 2000 means that any lease which is more
         # than 2000s old will be expired.
-        ss = InstrumentedStorageServer(basedir, "\x00" * 20,
-                                       expiration_enabled=True,
-                                       expiration_mode="age",
-                                       expiration_override_lease_duration=2000)
+        server = InstrumentedStorageServer(basedir, "\x00" * 20,
+                                           expiration_enabled=True,
+                                           expiration_mode="age",
+                                           expiration_override_lease_duration=2000)
         # make it start sooner than usual.
-        lc = ss.lease_checker
+        lc = server.lease_checker
         lc.slow_start = 0
         lc.stop_after_first_bucket = True
-        webstatus = StorageStatus(ss)
+        webstatus = StorageStatus(server)
 
         # create a few shares, with some leases on them
-        self.make_shares(ss)
+        self.make_shares(server)
         [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3] = self.sis
 
         def count_shares(si):
-            return len(list(ss._iter_share_files(si)))
+            return len(list(server._iter_share_files(si)))
         def _get_sharefile(si):
-            return list(ss._iter_share_files(si))[0]
+            return list(server._iter_share_files(si))[0]
         def count_leases(si):
             return len(list(_get_sharefile(si).get_leases()))
 
@@ -3308,7 +3311,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         sf3 = _get_sharefile(mutable_si_3)
         self.backdate_lease(sf3, self.renew_secrets[4], now - 1000)
 
-        ss.setServiceParent(self.s)
+        server.setServiceParent(self.s)
 
         d = fireEventually()
         # examine the state right after the first bucket has been processed
@@ -3394,24 +3397,24 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # is more than 2000s old will be expired.
         now = time.time()
         then = int(now - 2000)
-        ss = InstrumentedStorageServer(basedir, "\x00" * 20,
-                                       expiration_enabled=True,
-                                       expiration_mode="cutoff-date",
-                                       expiration_cutoff_date=then)
+        server = InstrumentedStorageServer(basedir, "\x00" * 20,
+                                           expiration_enabled=True,
+                                           expiration_mode="cutoff-date",
+                                           expiration_cutoff_date=then)
         # make it start sooner than usual.
-        lc = ss.lease_checker
+        lc = server.lease_checker
         lc.slow_start = 0
         lc.stop_after_first_bucket = True
-        webstatus = StorageStatus(ss)
+        webstatus = StorageStatus(server)
 
         # create a few shares, with some leases on them
-        self.make_shares(ss)
+        self.make_shares(server)
         [immutable_si_0, immutable_si_1, mutable_si_2, mutable_si_3] = self.sis
 
         def count_shares(si):
-            return len(list(ss._iter_share_files(si)))
+            return len(list(server._iter_share_files(si)))
         def _get_sharefile(si):
-            return list(ss._iter_share_files(si))[0]
+            return list(server._iter_share_files(si))[0]
         def count_leases(si):
             return len(list(_get_sharefile(si).get_leases()))
 
@@ -3452,7 +3455,7 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         sf3 = _get_sharefile(mutable_si_3)
         self.backdate_lease(sf3, self.renew_secrets[4], new_expiration_time)
 
-        ss.setServiceParent(self.s)
+        server.setServiceParent(self.s)
 
         d = fireEventually()
         # examine the state right after the first bucket has been processed
@@ -3567,17 +3570,17 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
     def BROKEN_test_limited_history(self):
         basedir = "storage/LeaseCrawler/limited_history"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        server = StorageServer(basedir, "\x00" * 20)
         # make it start sooner than usual.
-        lc = ss.lease_checker
+        lc = server.lease_checker
         lc.slow_start = 0
         lc.cpu_slice = 500
 
         # create a few shares, with some leases on them
-        self.make_shares(ss)
 
-        ss.setServiceParent(self.s)
+        self.make_shares(server)
 
+        server.setServiceParent(self.s)
         def _wait_until_15_cycles_done():
             last = lc.state["last-cycle-finished"]
             if last is not None and last >= 15:
@@ -3599,15 +3602,15 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
     def BROKEN_test_unpredictable_future(self):
         basedir = "storage/LeaseCrawler/unpredictable_future"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        server = StorageServer(basedir, "\x00" * 20)
         # make it start sooner than usual.
-        lc = ss.lease_checker
+        lc = server.lease_checker
         lc.slow_start = 0
         lc.cpu_slice = -1.0 # stop quickly
 
-        self.make_shares(ss)
+        self.make_shares(server)
 
-        ss.setServiceParent(self.s)
+        server.setServiceParent(self.s)
 
         d = fireEventually()
         def _check(ignored):
@@ -3820,9 +3823,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         basedir = "storage/WebStatus/status"
         fileutil.make_dirs(basedir)
         nodeid = "\x00" * 20
-        ss = StorageServer(basedir, nodeid)
-        ss.setServiceParent(self.s)
-        w = StorageStatus(ss, "nickname")
+        server = StorageServer(basedir, nodeid)
+        server.setServiceParent(self.s)
+        w = StorageStatus(server, "nickname")
         d = self.render1(w)
         def _check_html(html):
             self.failUnlessIn("<h1>Storage Server Status</h1>", html)
@@ -3843,6 +3846,7 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         d.addCallback(_check_json)
         return d
 
+
     def render_json(self, page):
         d = self.render1(page, args={"t": ["json"]})
         return d
@@ -3855,16 +3859,16 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # (test runs on all platforms).
         basedir = "storage/WebStatus/status_no_disk_stats"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
-        ss.setServiceParent(self.s)
-        w = StorageStatus(ss)
+        server = StorageServer(basedir, "\x00" * 20)
+        server.setServiceParent(self.s)
+        w = StorageStatus(server)
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: Yes", s)
         self.failUnlessIn("Total disk space: ?", s)
         self.failUnlessIn("Space Available to Tahoe: ?", s)
-        self.failUnless(ss.get_available_space() is None)
+        self.failUnless(server.get_available_space() is None)
 
     @mock.patch('allmydata.util.fileutil.get_disk_stats')
     def test_status_bad_disk_stats(self, mock_get_disk_stats):
@@ -3874,16 +3878,16 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         # show that no shares will be accepted, and get_available_space() should be 0.
         basedir = "storage/WebStatus/status_bad_disk_stats"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
-        ss.setServiceParent(self.s)
-        w = StorageStatus(ss)
+        server = StorageServer(basedir, "\x00" * 20)
+        server.setServiceParent(self.s)
+        w = StorageStatus(server)
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
         self.failUnlessIn("Accepting new shares: No", s)
         self.failUnlessIn("Total disk space: ?", s)
         self.failUnlessIn("Space Available to Tahoe: ?", s)
-        self.failUnlessEqual(ss.get_available_space(), 0)
+        self.failUnlessEqual(server.get_available_space(), 0)
 
     @mock.patch('allmydata.util.fileutil.get_disk_stats')
     def test_status_right_disk_stats(self, mock_get_disk_stats):
@@ -3904,10 +3908,10 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
 
         basedir = "storage/WebStatus/status_right_disk_stats"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20, reserved_space=reserved_space)
-        expecteddir = ss.sharedir
-        ss.setServiceParent(self.s)
-        w = StorageStatus(ss)
+        server = StorageServer(basedir, "\x00" * 20, reserved_space=reserved_space)
+        expecteddir = server.sharedir
+        server.setServiceParent(self.s)
+        w = StorageStatus(server)
         html = w.renderSynchronously()
 
         self.failIf([True for args in mock_get_disk_stats.call_args_list if args != ((expecteddir, reserved_space), {})],
@@ -3921,14 +3925,14 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
         self.failUnlessIn("Disk space free (non-root): 3.00 GB", s)
         self.failUnlessIn("Reserved space: - 1.00 GB", s)
         self.failUnlessIn("Space Available to Tahoe: 2.00 GB", s)
-        self.failUnlessEqual(ss.get_available_space(), 2*GB)
+        self.failUnlessEqual(server.get_available_space(), 2*GB)
 
     def test_readonly(self):
         basedir = "storage/WebStatus/readonly"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20, readonly_storage=True)
-        ss.setServiceParent(self.s)
-        w = StorageStatus(ss)
+        server = StorageServer(basedir, "\x00" * 20, readonly_storage=True)
+        server.setServiceParent(self.s)
+        w = StorageStatus(server)
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
@@ -3937,9 +3941,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
     def test_reserved(self):
         basedir = "storage/WebStatus/reserved"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
-        ss.setServiceParent(self.s)
-        w = StorageStatus(ss)
+        server = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
+        server.setServiceParent(self.s)
+        w = StorageStatus(server)
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
@@ -3948,9 +3952,9 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
     def test_huge_reserved(self):
         basedir = "storage/WebStatus/reserved"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
-        ss.setServiceParent(self.s)
-        w = StorageStatus(ss)
+        server = StorageServer(basedir, "\x00" * 20, reserved_space=10e6)
+        server.setServiceParent(self.s)
+        w = StorageStatus(server)
         html = w.renderSynchronously()
         self.failUnlessIn("<h1>Storage Server Status</h1>", html)
         s = remove_tags(html)
