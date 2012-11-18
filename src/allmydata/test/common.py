@@ -430,6 +430,34 @@ def create_mutable_filenode(contents, mdmf=False, all_contents=None):
     return filenode
 
 
+class CrawlerTestMixin:
+    def _wait_for_yield(self, res, crawler):
+        """
+        Wait for the crawler to yield. This should be called at the end of a test
+        so that we leave a clean reactor.
+        """
+        if isinstance(res, failure.Failure):
+            print res
+        d = crawler.set_hook('yield')
+        d.addCallback(lambda ign: res)
+        return d
+
+    def _after_prefix(self, prefix, target_prefix, crawler):
+        """
+        Wait for the crawler to reach a given target_prefix. Return a deferred
+        for the crawler state at that point.
+        """
+        if prefix != target_prefix:
+            d = crawler.set_hook('after_prefix')
+            d.addCallback(self._after_prefix, target_prefix, crawler)
+            return d
+
+        crawler.save_state()
+        state = crawler.get_state()
+        self.failUnlessEqual(prefix, state["last-complete-prefix"])
+        return defer.succeed(state)
+
+
 class LoggingServiceParent(service.MultiService):
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
