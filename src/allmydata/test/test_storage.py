@@ -159,8 +159,8 @@ class Bucket(unittest.TestCase):
         result_of_read = br.remote_read(0, len(share_data)+1)
         self.failUnlessEqual(result_of_read, share_data)
 
-class RemoteBucket:
 
+class RemoteBucket:
     def __init__(self):
         self.read_count = 0
         self.write_count = 0
@@ -302,13 +302,14 @@ class BucketProxy(unittest.TestCase):
                                        0x44, WriteBucketProxy_v2, ReadBucketProxy)
 
 class Server(unittest.TestCase):
-
     def setUp(self):
         self.sparent = LoggingServiceParent()
         self.sparent.startService()
         self._lease_secret = itertools.count()
+
     def tearDown(self):
         return self.sparent.stopService()
+
 
     def workdir(self, name):
         basedir = os.path.join("storage", "Server", name)
@@ -320,6 +321,7 @@ class Server(unittest.TestCase):
                        stats_provider=FakeStatsProvider())
         server.setServiceParent(self.sparent)
         return server
+
 
     def test_create(self):
         self.create("test_create")
@@ -757,14 +759,14 @@ class Server(unittest.TestCase):
         self.failUnlessIn("This share tastes like dust.", report)
 
 
-
 class MutableServer(unittest.TestCase):
-
     def setUp(self):
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
+
     def tearDown(self):
         return self.sparent.stopService()
+
 
     def workdir(self, name):
         basedir = os.path.join("storage", "MutableServer", name)
@@ -778,6 +780,7 @@ class MutableServer(unittest.TestCase):
 
     def test_create(self):
         self.create("test_create")
+
 
     def write_enabler(self, we_tag):
         return hashutil.tagged_hash("we_blah", we_tag)
@@ -804,6 +807,7 @@ class MutableServer(unittest.TestCase):
         self.failUnless(did_write)
         self.failUnless(isinstance(readv_data, dict))
         self.failUnlessEqual(len(readv_data), 0)
+
 
     def test_bad_magic(self):
         ss = self.create("test_bad_magic")
@@ -985,7 +989,6 @@ class MutableServer(unittest.TestCase):
                                        2: [""]},
                                       ))
         self.failUnlessEqual(read("si1", [0], [(0,100)]), {0: [data]})
-
 
     def test_operators(self):
         # test operators, the data we're comparing is '11111' in all cases.
@@ -1379,7 +1382,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # header.
         self.salt_hash_tree_s = self.serialize_blockhashes(self.salt_hash_tree[1:])
 
-
     def tearDown(self):
         self.sparent.stopService()
         shutil.rmtree(self.workdir("MDMFProxies storage test server"))
@@ -1388,23 +1390,18 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
     def write_enabler(self, we_tag):
         return hashutil.tagged_hash("we_blah", we_tag)
 
-
     def renew_secret(self, tag):
         return hashutil.tagged_hash("renew_blah", str(tag))
 
-
     def cancel_secret(self, tag):
         return hashutil.tagged_hash("cancel_blah", str(tag))
-
 
     def workdir(self, name):
         basedir = os.path.join("storage", "MutableServer", name)
         return basedir
 
-
     def create(self, name):
         workdir = self.workdir(name)
-
         server = StorageServer(workdir, "\x00" * 20)
         server.setServiceParent(self.sparent)
         return server
@@ -1506,7 +1503,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         data += self.block_hash_tree_s
         return data
 
-
     def write_test_share_to_server(self,
                                    storage_index,
                                    tail_segment=False,
@@ -1578,7 +1574,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         self.offsets['enc_privkey'] = encprivkey_offset
         self.offsets['EOF'] = eof_offset
         return final_share
-
 
     def write_sdmf_share_to_server(self,
                                    storage_index,
@@ -1665,7 +1660,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(checkstring, checkstring))
         return d
 
-
     def test_read_with_different_tail_segment_size(self):
         self.write_test_share_to_server("si1", tail_segment=True)
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
@@ -1677,7 +1671,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_check_tail_segment)
         return d
 
-
     def test_get_block_with_invalid_segnum(self):
         self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
@@ -1687,7 +1680,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                             None,
                             mr.get_block_and_salt, 7))
         return d
-
 
     def test_get_encoding_parameters_first(self):
         self.write_test_share_to_server("si1")
@@ -1701,7 +1693,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_check_encoding_parameters)
         return d
 
-
     def test_get_seqnum_first(self):
         self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
@@ -1709,7 +1700,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda seqnum:
             self.failUnlessEqual(seqnum, 0))
         return d
-
 
     def test_get_root_hash_first(self):
         self.write_test_share_to_server("si1")
@@ -1719,7 +1709,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(root_hash, self.root_hash))
         return d
 
-
     def test_get_checkstring_first(self):
         self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
@@ -1727,7 +1716,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda checkstring:
             self.failUnlessEqual(checkstring, self.checkstring))
         return d
-
 
     def test_write_read_vectors(self):
         # When writing for us, the storage server will return to us a
@@ -1767,7 +1755,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # The checkstring remains the same for the rest of the process.
         return d
 
-
     def test_private_key_after_share_hash_chain(self):
         mw = self._make_new_mw("si1", 0)
         d = defer.succeed(None)
@@ -1785,7 +1772,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                             None,
                             mw.put_encprivkey, self.encprivkey))
         return d
-
 
     def test_signature_after_verification_key(self):
         mw = self._make_new_mw("si1", 0)
@@ -1812,7 +1798,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                             None,
                             mw.put_signature, self.signature))
         return d
-
 
     def test_uncoordinated_write(self):
         # Make two mutable writers, both pointing to the same storage
@@ -1846,7 +1831,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_check_failure)
         return d
 
-
     def test_invalid_salt_size(self):
         # Salts need to be 16 bytes in size. Writes that attempt to
         # write more or less than this should be rejected.
@@ -1864,7 +1848,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                             mw.put_block, self.block, 0,
                             another_invalid_salt))
         return d
-
 
     def test_write_test_vectors(self):
         # If we give the write proxy a bogus test vector at
@@ -1902,7 +1885,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
     def serialize_blockhashes(self, blockhashes):
         return "".join(blockhashes)
-
 
     def serialize_sharehashes(self, sharehashes):
         ret = "".join([struct.pack(">H32s", i, sharehashes[i])
@@ -2032,6 +2014,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_check_publish)
         return d
 
+
     def _make_new_mw(self, si, share, datalength=36):
         # This is a file of size 36 bytes. Since it has a segment
         # size of 6, we know that it has 6 byte segments, which will
@@ -2040,7 +2023,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mw = MDMFSlotWriteProxy(share, self.rref, si, self.secrets, 0, 3, 10,
                                 6, datalength)
         return mw
-
 
     def test_write_rejected_with_too_many_blocks(self):
         mw = self._make_new_mw("si0", 0)
@@ -2058,7 +2040,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                             mw.put_block, self.block, 7, self.salt))
         return d
 
-
     def test_write_rejected_with_invalid_salt(self):
         # Try writing an invalid salt. Salts are 16 bytes -- any more or
         # less should cause an error.
@@ -2069,7 +2050,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.shouldFail(LayoutInvalid, "test_invalid_salt",
                             None, mw.put_block, self.block, 7, bad_salt))
         return d
-
 
     def test_write_rejected_with_invalid_root_hash(self):
         # Try writing an invalid root hash. This should be SHA256d, and
@@ -2095,7 +2075,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.shouldFail(LayoutInvalid, "invalid root hash",
                             None, mw.put_root_hash, invalid_root_hash))
         return d
-
 
     def test_write_rejected_with_invalid_blocksize(self):
         # The blocksize implied by the writer that we get from
@@ -2129,7 +2108,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda ignored:
             mw.put_block(valid_block, 5, self.salt))
         return d
-
 
     def test_write_enforces_order_constraints(self):
         # We require that the MDMFSlotWriteProxy be interacted with in a
@@ -2216,7 +2194,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             mw0.put_verification_key(self.verification_key))
         return d
 
-
     def test_end_to_end(self):
         mw = self._make_new_mw("si1", 0)
         # Write a share using the mutable writer, and make sure that the
@@ -2300,7 +2277,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(checkstring, mw.get_checkstring()))
         return d
 
-
     def test_is_sdmf(self):
         # The MDMFSlotReadProxy should also know how to read SDMF files,
         # since it will encounter them on the grid. Callers use the
@@ -2311,7 +2287,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(lambda issdmf:
             self.failUnless(issdmf))
         return d
-
 
     def test_reads_sdmf(self):
         # The slot read proxy should, naturally, know how to tell us
@@ -2382,7 +2357,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(root_hash, self.root_hash, root_hash))
         return d
 
-
     def test_only_reads_one_segment_sdmf(self):
         # SDMF shares have only one segment, so it doesn't make sense to
         # read more segments than that. The reader should know this and
@@ -2399,7 +2373,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                             None,
                             mr.get_block_and_salt, 1))
         return d
-
 
     def test_read_with_prefetched_mdmf_data(self):
         # The MDMFSlotReadProxy will prefill certain fields if you pass
@@ -2465,7 +2438,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_check_block_and_salt)
         return d
 
-
     def test_read_with_prefetched_sdmf_data(self):
         sdmf_data = self.build_test_sdmf_share()
         self.write_sdmf_share_to_server("si1")
@@ -2529,7 +2501,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_check_block_and_salt)
         return d
 
-
     def test_read_with_empty_mdmf_file(self):
         # Some tests upload a file with no contents to test things
         # unrelated to the actual handling of the content of the file.
@@ -2558,7 +2529,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                             mr.get_block_and_salt, 0))
         return d
 
-
     def test_read_with_empty_sdmf_file(self):
         self.write_sdmf_share_to_server("si1", empty=True)
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
@@ -2583,7 +2553,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                             None,
                             mr.get_block_and_salt, 0))
         return d
-
 
     def test_verinfo_with_sdmf_file(self):
         self.write_sdmf_share_to_server("si1")
@@ -2625,7 +2594,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_check_verinfo)
         return d
 
-
     def test_verinfo_with_mdmf_file(self):
         self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
@@ -2663,7 +2631,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(offsets, self.offsets)
         d.addCallback(_check_verinfo)
         return d
-
 
     def test_sdmf_writer(self):
         # Go through the motions of writing an SDMF share to the storage
@@ -2707,7 +2674,6 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                                  {0: [data]})
         d.addCallback(_then)
         return d
-
 
     def test_sdmf_writer_preexisting_share(self):
         data = self.build_test_sdmf_share()
@@ -2769,12 +2735,13 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
 class Stats(unittest.TestCase):
-
     def setUp(self):
         self.sparent = LoggingServiceParent()
         self._lease_secret = itertools.count()
+
     def tearDown(self):
         return self.sparent.stopService()
+
 
     def workdir(self, name):
         basedir = os.path.join("storage", "Server", name)
@@ -2785,6 +2752,7 @@ class Stats(unittest.TestCase):
         server = StorageServer(workdir, "\x00" * 20)
         server.setServiceParent(self.sparent)
         return server
+
 
     def test_latencies(self):
         server = self.create("test_latencies")
@@ -2852,6 +2820,7 @@ class Stats(unittest.TestCase):
         self.failUnless(output["get"]["99_0_percentile"] is None, output)
         self.failUnless(output["get"]["99_9_percentile"] is None, output)
 
+
 def remove_tags(s):
     s = re.sub(r'<[^>]*>', ' ', s)
     s = re.sub(r'\s+', ' ', s)
@@ -2859,12 +2828,13 @@ def remove_tags(s):
 
 
 class BucketCounterTest(unittest.TestCase, CrawlerTestMixin, ReallyEqualMixin):
-
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
+
     def tearDown(self):
         return self.s.stopService()
+
 
     def test_bucket_counter(self):
         basedir = "storage/BucketCounter/bucket_counter"
@@ -3031,8 +3001,10 @@ class LeaseCrawler(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
+
     def tearDown(self):
         return self.s.stopService()
+
 
     def make_shares(self, ss):
         def make(si):
@@ -3820,8 +3792,10 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
+
     def tearDown(self):
         return self.s.stopService()
+
 
     def test_no_server(self):
         w = StorageStatus(None)
