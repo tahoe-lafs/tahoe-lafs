@@ -37,6 +37,12 @@ Packaging Changes
 
 - Tahoe-LAFS can be built correctly from a git repository as well as
   from darcs.
+
+Compatibility and Dependencies
+''''''''''''''''''''''''''''''
+
+- foolscap >= 0.6.3 is required, in order to make Tahoe-LAFS compatible
+  with Twisted >= 11.1.0. (`#1788`_)
 - Versions 2.0.1 and 2.4 of PyCrypto are excluded. (`#1631`_, `#1574`_)
 
 .. _`#680`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/680
@@ -55,6 +61,7 @@ Packaging Changes
 .. _`#1689`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1689
 .. _`#1725`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1725
 .. _`#1749`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1749
+.. _`#1788`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1788
 
 
 Release 1.9.1 (2012-01-12)
