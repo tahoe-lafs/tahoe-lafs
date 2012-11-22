@@ -1,7 +1,7 @@
 #! /usr/bin/python
 
-from allmydata.storage.mutable import MutableShareFile
-from allmydata.storage.immutable import ShareFile
+from allmydata.storage.backends.disk.mutable import MutableShareFile
+from allmydata.storage.backends.disk.immutable import ShareFile
 
 def get_share_file(filename):
     f = open(filename, "rb")

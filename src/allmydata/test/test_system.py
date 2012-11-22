@@ -8,7 +8,7 @@ from twisted.internet import threads # CLI tests use deferToThread
 
 import allmydata
 from allmydata import uri
-from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.backends.disk.mutable import MutableShareFile
 from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
 from allmydata.immutable.literal import LiteralFileNode

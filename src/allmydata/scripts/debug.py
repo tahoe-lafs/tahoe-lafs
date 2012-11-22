@@ -35,7 +35,7 @@ verify-cap for the file that uses the share.
         self['filename'] = argv_to_abspath(filename)
 
 def dump_share(options):
-    from allmydata.storage.mutable import MutableShareFile
+    from allmydata.storage.backends.disk.mutable import MutableShareFile
     from allmydata.util.encodingutil import quote_output
 
     out = options.stdout
@@ -52,7 +52,7 @@ def dump_share(options):
     return dump_immutable_share(options)
 
 def dump_immutable_share(options):
-    from allmydata.storage.immutable import ShareFile
+    from allmydata.storage.backends.disk.immutable import ShareFile
 
     out = options.stdout
     f = ShareFile(options['filename'])
@@ -153,7 +153,7 @@ def format_expiration_time(expiration_time):
 
 
 def dump_mutable_share(options):
-    from allmydata.storage.mutable import MutableShareFile
+    from allmydata.storage.backends.disk.mutable import MutableShareFile
     from allmydata.util import base32, idlib
     out = options.stdout
     m = MutableShareFile(options['filename'])
@@ -635,8 +635,8 @@ def call(c, *args, **kwargs):
 
 def describe_share(abs_sharefile, si_s, shnum_s, now, out):
     from allmydata import uri
-    from allmydata.storage.mutable import MutableShareFile
-    from allmydata.storage.immutable import ShareFile
+    from allmydata.storage.backends.disk.mutable import MutableShareFile
+    from allmydata.storage.backends.disk.immutable import ShareFile
     from allmydata.mutable.layout import unpack_share
     from allmydata.mutable.common import NeedMoreDataError
     from allmydata.immutable.layout import ReadBucketProxy
@@ -829,8 +829,8 @@ Obviously, this command should not be used in normal operation.
 
 def corrupt_share(options):
     import random
-    from allmydata.storage.mutable import MutableShareFile
-    from allmydata.storage.immutable import ShareFile
+    from allmydata.storage.backends.disk.mutable import MutableShareFile
+    from allmydata.storage.backends.disk.immutable import ShareFile
     from allmydata.mutable.layout import unpack_header
     from allmydata.immutable.layout import ReadBucketProxy
     out = options.stdout
