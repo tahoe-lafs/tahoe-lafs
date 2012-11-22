@@ -17,7 +17,7 @@ from allmydata.check_results import CheckResults, CheckAndRepairResults, \
 from allmydata.storage_client import StubServer
 from allmydata.mutable.layout import unpack_header
 from allmydata.mutable.publish import MutableData
-from allmydata.storage.mutable import MutableShareFile
+from allmydata.storage.backends.disk.mutable import MutableShareFile
 from allmydata.util import hashutil, log, fileutil, pollmixin
 from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
