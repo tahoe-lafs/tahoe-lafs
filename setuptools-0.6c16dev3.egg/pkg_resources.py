@@ -528,11 +528,14 @@ class WorkingSet(object):
         # dist is unsatisfactory, in which case we won't add it.
         if __requires__ is not None:
             for thisreqstr in __requires__:
-                for thisreq in parse_requirements(thisreqstr):
-                    if thisreq.key == dist.key:
-                        if dist not in thisreq:
-                            return
-
+                try:
+                    for thisreq in parse_requirements(thisreqstr):
+                        if thisreq.key == dist.key:
+                            if dist not in thisreq:
+                                return
+                except ValueError, e:
+                    e.args = tuple(e.args + ({'thisreqstr': thisreqstr},))
+                    raise
 
         self.by_key[dist.key] = dist
         if dist.key not in keys:
