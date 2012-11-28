@@ -453,8 +453,8 @@ def get_used_space(fp):
         # [in] 512-byte units." It is also defined that way on MacOS X. Python does
         # not set the attribute on Windows.
         #
-        # We consider platforms that define st_blocks but give it a wrong value, or
-        # measure it in a unit other than 512 bytes, to be broken. See also
+        # We assume that the underlying platform either defines st_blocks in
+        # units of 512 bytes or else doesn't define st_blocks. See also
         # <http://bugs.python.org/issue12350>.
 
         if hasattr(s, 'st_blocks'):
