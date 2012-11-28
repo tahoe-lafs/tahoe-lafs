@@ -163,9 +163,6 @@ class RIStorageServer(RemoteInterface):
         """
         return Any() # always None
 
-    # XXX add a method that allows adding/renewing leases on only some shnums.
-    # See ticket #1816.
-
     def get_buckets(storage_index=StorageIndex):
         return DictOf(int, RIBucketReader, maxKeys=MAX_BUCKETS)
 
