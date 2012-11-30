@@ -1,12 +1,12 @@
 
 """
 This file contains the cross-account management code. It creates per-client
-Account objects for the FURLification dance, as well as the 'anonymous
-account for use until the server admin decides to make accounting mandatory.
-It also provides usage statistics and reports for the status UI. This will
-also implement the backend of the control UI (once we figure out how to
-express that: maybe a CLI command, or tahoe.cfg settings, or a web frontend),
-for things like enabling/disabling accounts and setting quotas.
+Account objects, as well as the "anonymous account" for use until a future
+version of Tahoe-LAFS implements the FURLification dance. It also provides
+usage statistics and reports for the status UI. This will also implement the
+backend of the control UI (once we figure out how to express that: maybe a
+CLI command, or tahoe.cfg settings, or a web frontend), for things like
+enabling/disabling accounts and setting quotas.
 
 The name 'accountant.py' could be better, preferably something that doesn't
 share a prefix with 'account.py' so my tab-autocomplete will work nicely.

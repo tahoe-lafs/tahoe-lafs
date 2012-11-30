@@ -1,11 +1,11 @@
 
 """
-This file contains the client-facing interface for manipulating shares. It
-implements RIStorageServer, and contains an embedded owner id which is used
-for all operations that touch leases. Initially, clients will receive a
-special 'anonymous' instance of this class with ownerid=0. Later, when the
-FURLification dance is established, each client will get a different instance
-(with a dedicated ownerid).
+This file contains the client-facing interface for manipulating shares, named
+"Account". It implements RIStorageServer. The Account instance contains an
+owner id which is used for all operations that touch leases. In the current
+version of the code, clients will receive a special 'anonymous' instance of
+this class with ownerid=0. In a future version each client will get a
+different instance (with a dedicated ownerid).
 """
 
 import time

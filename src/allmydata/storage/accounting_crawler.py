@@ -23,6 +23,10 @@ class AccountingCrawler(ShareCrawler):
     - Recover from a situation where the leasedb is lost or detectably
       corrupted. This is handled in the same way as upgrading.
     - Detect shares that have unexpectedly disappeared from storage.
+
+    See https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1834 for a proposal to
+    greatly reduce the scope of what I am responsible for, and the times when
+    I might do work.
     """
 
     slow_start = 600 # don't start crawling for 10 minutes after startup
