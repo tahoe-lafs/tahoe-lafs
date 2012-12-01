@@ -51,9 +51,15 @@
             <div class="nav-header">Download Tahoe-URI:</div>
             <div class="nav-form">
               <form action="uri" method="get" enctype="multipart/form-data">
-                <input type="text" name="uri" />
-                <input type="text" name="filename" />
-                <p><input type="submit" class="btn" value="Download File or Directory &#187;" /></p>
+                <label for="download-uri">
+                  URI
+                  <input type="text" name="uri" />
+                </label>
+                <label for="download-filename">
+                  Filename
+                  <input type="text" name="filename" />
+                </label>
+                <p><input type="submit" class="btn" value="Download File &#187;" /></p>
               </form>
             </div>
 
