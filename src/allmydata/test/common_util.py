@@ -45,8 +45,11 @@ class NonASCIIPathMixin:
                 try:
                     fileutil.rm_dir(dirpath)
                 finally:
-                    log.err("We were unable to delete a non-ASCII directory %r created by the test. "
-                            "This is liable to cause failures on future builds." % (dirpath,))
+                    if os.path.exists(dirpath):
+                        msg = ("We were unable to delete a non-ASCII directory %r created by the test. "
+                               "This is liable to cause failures on future builds." % (dirpath,))
+                        print msg
+                        log.err(msg)
             self.addCleanup(_cleanup)
         os.mkdir(dirpath)
 
