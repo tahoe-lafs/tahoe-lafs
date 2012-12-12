@@ -35,10 +35,31 @@ def flush_but_dont_ignore(res):
     d.addCallback(_done)
     return d
 
+
 class DummyProducer:
     implements(IPullProducer)
     def resumeProducing(self):
         pass
+
+
+class Marker:
+    pass
+
+class FakeCanary:
+    def __init__(self, ignore_disconnectors=False):
+        self.ignore = ignore_disconnectors
+        self.disconnectors = {}
+    def notifyOnDisconnect(self, f, *args, **kwargs):
+        if self.ignore:
+            return
+        m = Marker()
+        self.disconnectors[m] = (f, args, kwargs)
+        return m
+    def dontNotifyOnDisconnect(self, marker):
+        if self.ignore:
+            return
+        del self.disconnectors[marker]
+
 
 class FakeCHKFileNode:
     """I provide IImmutableFileNode, but all of my data is stored in a
@@ -485,6 +506,9 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d.addBoth(flush_but_dont_ignore)
         return d
 
+    def workdir(self, name):
+        return os.path.join("system", self.__class__.__name__, name)
+
     def getdir(self, subdir):
         return os.path.join(self.basedir, subdir)
 
@@ -603,11 +627,10 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             else:
                 config += nodeconfig
 
-            fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
+            # give subclasses a chance to append lines to the nodes' tahoe.cfg files.
+            config += self._get_extra_config(i)
 
-        # give subclasses a chance to append lines to the node's tahoe.cfg
-        # files before they are launched.
-        self._set_up_nodes_extra_config()
+            fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
 
         # start clients[0], wait for it's tub to be ready (at which point it
         # will have registered the helper furl).
@@ -645,9 +668,9 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         d.addCallback(_connected)
         return d
 
-    def _set_up_nodes_extra_config(self):
+    def _get_extra_config(self, i):
         # for overriding by subclasses
-        pass
+        return ""
 
     def _grab_stats(self, res):
         d = self.stats_gatherer.poll()
