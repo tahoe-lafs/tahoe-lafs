@@ -1,14 +1,13 @@
 
-import os, time
+import time
 
 from twisted.internet import defer
 
 from allmydata.util.deferredutil import for_items
-from allmydata.util.fileutil import get_used_space
 from allmydata.util import log
 from allmydata.storage.crawler import ShareCrawler
 from allmydata.storage.common import si_a2b
-from allmydata.storage.leasedb import SHARETYPES, SHARETYPE_UNKNOWN
+from allmydata.storage.leasedb import SHARETYPES, SHARETYPE_UNKNOWN, SHARETYPE_CORRUPTED
 
 
 class AccountingCrawler(ShareCrawler):
@@ -22,116 +21,134 @@ class AccountingCrawler(ShareCrawler):
     - Recover from a situation where the leasedb is lost or detectably
       corrupted. This is handled in the same way as upgrading.
     - Detect shares that have unexpectedly disappeared from storage.
+
+    See ticket #1834 for a proposal to greatly reduce the scope of what I am
+    responsible for, and the times when I might do work.
     """
 
     slow_start = 600 # don't start crawling for 10 minutes after startup
     minimum_cycle_time = 12*60*60 # not more than twice per day
 
-    def __init__(self, server, statefile, leasedb):
-        ShareCrawler.__init__(self, server, statefile)
+    def __init__(self, backend, statefile, leasedb, clock=None):
+        ShareCrawler.__init__(self, backend, statefile, clock=clock)
         self._leasedb = leasedb
 
-    def process_prefixdir(self, cycle, prefix, prefixdir, buckets, start_slice):
-        # assume that we can list every prefixdir in this prefix quickly.
-        # Otherwise we have to retain more state between timeslices.
+    def process_prefix(self, cycle, prefix, start_slice):
+        # Assume that we can list every prefixdir in this prefix quickly.
+        # Otherwise we would have to retain more state between timeslices.
 
-        # we define "shareid" as (SI string, shnum)
-        disk_shares = set() # shareid
-        for si_s in buckets:
-            bucketdir = os.path.join(prefixdir, si_s)
-            for sharefile in os.listdir(bucketdir):
-                try:
-                    shnum = int(sharefile)
-                except ValueError:
-                    continue # non-numeric means not a sharefile
-                shareid = (si_s, shnum)
-                disk_shares.add(shareid)
-
-        # now check the database for everything in this prefix
-        db_sharemap = self._leasedb.get_shares_for_prefix(prefix)
-        db_shares = set(db_sharemap)
-
-        rec = self.state["cycle-to-date"]["space-recovered"]
-        examined_sharesets = [set() for st in xrange(len(SHARETYPES))]
-
-        # The lease crawler used to calculate the lease age histogram while
-        # crawling shares, and tests currently rely on that, but it would be
-        # more efficient to maintain the histogram as leases are added,
-        # updated, and removed.
-        for key, value in db_sharemap.iteritems():
-            (si_s, shnum) = key
-            (used_space, sharetype) = value
-
-            examined_sharesets[sharetype].add(si_s)
-
-            for age in self._leasedb.get_lease_ages(si_a2b(si_s), shnum, start_slice):
-                self.add_lease_age_to_histogram(age)
-
-            self.increment(rec, "examined-shares", 1)
-            self.increment(rec, "examined-sharebytes", used_space)
-            self.increment(rec, "examined-shares-" + SHARETYPES[sharetype], 1)
-            self.increment(rec, "examined-sharebytes-" + SHARETYPES[sharetype], used_space)
-
-        self.increment(rec, "examined-buckets", sum([len(s) for s in examined_sharesets]))
-        for st in SHARETYPES:
-            self.increment(rec, "examined-buckets-" + SHARETYPES[st], len(examined_sharesets[st]))
-
-        # add new shares to the DB
-        new_shares = disk_shares - db_shares
-        for (si_s, shnum) in new_shares:
-            sharefile = os.path.join(prefixdir, si_s, str(shnum))
-            used_space = get_used_space(sharefile)
-            # FIXME
-            sharetype = SHARETYPE_UNKNOWN
-            self._leasedb.add_new_share(si_a2b(si_s), shnum, used_space, sharetype)
-            self._leasedb.add_starter_lease(si_s, shnum)
-
-        # remove disappeared shares from DB
-        disappeared_shares = db_shares - disk_shares
-        for (si_s, shnum) in disappeared_shares:
-            log.msg(format="share SI=%(si_s)s shnum=%(shnum)s unexpectedly disappeared",
-                    si_s=si_s, shnum=shnum, level=log.WEIRD)
-            self._leasedb.remove_deleted_share(si_a2b(si_s), shnum)
-
-        recovered_sharesets = [set() for st in xrange(len(SHARETYPES))]
-
-        def _delete_share(ign, key, value):
-            (si_s, shnum) = key
-            (used_space, sharetype) = value
-            storage_index = si_a2b(si_s)
+        d = self.backend.get_sharesets_for_prefix(prefix)
+        def _got_sharesets(sharesets):
+            stored_sharemap = {}  # (SI string, shnum) -> (used_space, sharetype)
             d2 = defer.succeed(None)
-            def _mark_and_delete(ign):
-                self._leasedb.mark_share_as_going(storage_index, shnum)
-                return self.server.delete_share(storage_index, shnum)
-            d2.addCallback(_mark_and_delete)
-            def _deleted(ign):
-                self._leasedb.remove_deleted_share(storage_index, shnum)
+            for shareset in sharesets:
+                d2.addCallback(lambda ign, shareset=shareset: shareset.get_shares())
+                def _got_some_shares( (valid, corrupted) ):
+                    for share in valid:
+                        shareid = (share.get_storage_index_string(), share.get_shnum())
+                        sharetype = SHARETYPE_UNKNOWN  # FIXME
+                        stored_sharemap[shareid] = (share.get_used_space(), sharetype)
 
-                recovered_sharesets[sharetype].add(si_s)
+                    for share in corrupted:
+                        shareid = (share.get_storage_index_string(), share.get_shnum())
+                        sharetype = SHARETYPE_CORRUPTED
+                        stored_sharemap[shareid] = (share.get_used_space(), sharetype)
 
-                self.increment(rec, "actual-shares", 1)
-                self.increment(rec, "actual-sharebytes", used_space)
-                self.increment(rec, "actual-shares-" + SHARETYPES[sharetype], 1)
-                self.increment(rec, "actual-sharebytes-" + SHARETYPES[sharetype], used_space)
-            def _not_deleted(f):
-                log.err(format="accounting crawler could not delete share SI=%(si_s)s shnum=%(shnum)s",
-                        si_s=si_s, shnum=shnum, failure=f, level=log.WEIRD)
-                try:
-                    self._leasedb.mark_share_as_stable(storage_index, shnum)
-                except Exception, e:
-                    log.err(e)
-                # discard the failure
-            d2.addCallbacks(_deleted, _not_deleted)
+                d2.addCallback(_got_some_shares)
+
+            d2.addCallback(lambda ign: stored_sharemap)
             return d2
+        d.addCallback(_got_sharesets)
 
-        unleased_sharemap = self._leasedb.get_unleased_shares_for_prefix(prefix)
-        d = for_items(_delete_share, unleased_sharemap)
+        def _got_stored_sharemap(stored_sharemap):
+            # now check the database for everything in this prefix
+            db_sharemap = self._leasedb.get_shares_for_prefix(prefix)
 
-        def _inc_recovered_sharesets(ign):
-            self.increment(rec, "actual-buckets", sum([len(s) for s in recovered_sharesets]))
+            rec = self.state["cycle-to-date"]["space-recovered"]
+            examined_sharesets = [set() for st in xrange(len(SHARETYPES))]
+
+            # The lease crawler used to calculate the lease age histogram while
+            # crawling shares, and tests currently rely on that, but it would be
+            # more efficient to maintain the histogram as leases are added,
+            # updated, and removed.
+            for key, value in db_sharemap.iteritems():
+                (si_s, shnum) = key
+                (used_space, sharetype) = value
+
+                examined_sharesets[sharetype].add(si_s)
+
+                for age in self._leasedb.get_lease_ages(si_a2b(si_s), shnum, start_slice):
+                    self.add_lease_age_to_histogram(age)
+
+                self.increment(rec, "examined-shares", 1)
+                self.increment(rec, "examined-sharebytes", used_space)
+                self.increment(rec, "examined-shares-" + SHARETYPES[sharetype], 1)
+                self.increment(rec, "examined-sharebytes-" + SHARETYPES[sharetype], used_space)
+
+            self.increment(rec, "examined-buckets", sum([len(s) for s in examined_sharesets]))
             for st in SHARETYPES:
-                self.increment(rec, "actual-buckets-" + SHARETYPES[st], len(recovered_sharesets[st]))
-        d.addCallback(_inc_recovered_sharesets)
+                self.increment(rec, "examined-buckets-" + SHARETYPES[st], len(examined_sharesets[st]))
+
+            stored_shares = set(stored_sharemap)
+            db_shares = set(db_sharemap)
+
+            # add new shares to the DB
+            new_shares = stored_shares - db_shares
+            for shareid in new_shares:
+                (si_s, shnum) = shareid
+                (used_space, sharetype) = stored_sharemap[shareid]
+
+                self._leasedb.add_new_share(si_a2b(si_s), shnum, used_space, sharetype)
+                self._leasedb.add_starter_lease(si_s, shnum)
+
+            # remove disappeared shares from DB
+            disappeared_shares = db_shares - stored_shares
+            for (si_s, shnum) in disappeared_shares:
+                log.msg(format="share SI=%(si_s)s shnum=%(shnum)s unexpectedly disappeared",
+                        si_s=si_s, shnum=shnum, level=log.WEIRD)
+                self._leasedb.remove_deleted_share(si_a2b(si_s), shnum)
+
+            recovered_sharesets = [set() for st in xrange(len(SHARETYPES))]
+
+            def _delete_share(ign, key, value):
+                (si_s, shnum) = key
+                (used_space, sharetype) = value
+                storage_index = si_a2b(si_s)
+                d3 = defer.succeed(None)
+                def _mark_and_delete(ign):
+                    self._leasedb.mark_share_as_going(storage_index, shnum)
+                    return self.backend.get_shareset(storage_index).delete_share(shnum)
+                d3.addCallback(_mark_and_delete)
+                def _deleted(ign):
+                    self._leasedb.remove_deleted_share(storage_index, shnum)
+
+                    recovered_sharesets[sharetype].add(si_s)
+
+                    self.increment(rec, "actual-shares", 1)
+                    self.increment(rec, "actual-sharebytes", used_space)
+                    self.increment(rec, "actual-shares-" + SHARETYPES[sharetype], 1)
+                    self.increment(rec, "actual-sharebytes-" + SHARETYPES[sharetype], used_space)
+                def _not_deleted(f):
+                    log.err(format="accounting crawler could not delete share SI=%(si_s)s shnum=%(shnum)s",
+                            si_s=si_s, shnum=shnum, failure=f, level=log.WEIRD)
+                    try:
+                        self._leasedb.mark_share_as_stable(storage_index, shnum)
+                    except Exception, e:
+                        log.err(e)
+                    # discard the failure
+                d3.addCallbacks(_deleted, _not_deleted)
+                return d3
+
+            unleased_sharemap = self._leasedb.get_unleased_shares_for_prefix(prefix)
+            d2 = for_items(_delete_share, unleased_sharemap)
+
+            def _inc_recovered_sharesets(ign):
+                self.increment(rec, "actual-buckets", sum([len(s) for s in recovered_sharesets]))
+                for st in SHARETYPES:
+                    self.increment(rec, "actual-buckets-" + SHARETYPES[st], len(recovered_sharesets[st]))
+            d2.addCallback(_inc_recovered_sharesets)
+            return d2
+        d.addCallback(_got_stored_sharemap)
         return d
 
     # these methods are for outside callers to use
