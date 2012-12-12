@@ -1,15 +1,12 @@
 
 """
 This file contains the cross-account management code. It creates per-client
-Account objects for the FURLification dance, as well as the 'anonymous
-account for use until the server admin decides to make accounting mandatory.
-It also provides usage statistics and reports for the status UI. This will
-also implement the backend of the control UI (once we figure out how to
-express that: maybe a CLI command, or tahoe.cfg settings, or a web frontend),
-for things like enabling/disabling accounts and setting quotas.
-
-The name 'accountant.py' could be better, preferably something that doesn't
-share a prefix with 'account.py' so my tab-autocomplete will work nicely.
+Account objects, as well as the "anonymous account" for use until a future
+version of Tahoe-LAFS implements the FURLification dance. It also provides
+usage statistics and reports for the status UI. This will also implement the
+backend of the control UI (once we figure out how to express that: maybe a
+CLI command, or tahoe.cfg settings, or a web frontend), for things like
+enabling/disabling accounts and setting quotas.
 """
 
 import weakref
@@ -22,17 +19,17 @@ from allmydata.storage.account import Account
 
 
 class Accountant(service.MultiService):
-    def __init__(self, storage_server, dbfile, statefile):
+    def __init__(self, storage_server, dbfile, statefile, clock=None):
         service.MultiService.__init__(self)
-        self.storage_server = storage_server
+        self._storage_server = storage_server
         self._leasedb = LeaseDB(dbfile)
         self._active_accounts = weakref.WeakValueDictionary()
         self._anonymous_account = Account(LeaseDB.ANONYMOUS_ACCOUNTID, None,
-                                          self.storage_server, self._leasedb)
+                                          self._storage_server, self._leasedb)
         self._starter_account = Account(LeaseDB.STARTER_LEASE_ACCOUNTID, None,
-                                        self.storage_server, self._leasedb)
+                                        self._storage_server, self._leasedb)
 
-        crawler = AccountingCrawler(storage_server, statefile, self._leasedb)
+        crawler = AccountingCrawler(self._storage_server.backend, statefile, self._leasedb, clock=clock)
         self._accounting_crawler = crawler
         crawler.setServiceParent(self)
 
