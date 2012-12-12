@@ -75,6 +75,8 @@ _tmpfstest: make-version
 	-time $(TAHOE) debug trial --rterrors '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
 	sudo umount '$(TMPDIR)'
 	rmdir '$(TMPDIR)'
+	-sudo umount tmp.* 2>/dev/null
+	-rmdir --ignore-fail-on-non-empty tmp.* 2>/dev/null
 
 # code-coverage: install the "coverage" package from PyPI, do "make
 # quicktest-coverage" to do a unit test run with coverage-gathering enabled,
