@@ -1,11 +1,11 @@
 
 """
-This file contains the client-facing interface for manipulating shares. It
-implements RIStorageServer, and contains an embedded owner id which is used
-for all operations that touch leases. Initially, clients will receive a
-special 'anonymous' instance of this class with ownerid=0. Later, when the
-FURLification dance is established, each client will get a different instance
-(with a dedicated ownerid).
+This file contains the client-facing interface for manipulating shares, named
+"Account". It implements RIStorageServer. Each Account instance contains an
+owner_num that is used for all operations that touch leases. In the current
+version of the code, clients will receive a special 'anonymous' instance of
+this class with owner_num=0. In a future version each client will get a
+different instance, with a dedicated owner_num.
 """
 
 import time
@@ -15,7 +15,6 @@ from foolscap.api import Referenceable
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer
 
-from allmydata.storage.leasedb import int_or_none
 from allmydata.storage.common import si_b2a
 
 
@@ -26,12 +25,8 @@ class Account(Referenceable):
         self.owner_num = owner_num
         self.server = server
         self._leasedb = leasedb
-        # for static accounts ("starter", "anonymous"), pubkey_vs is None,
-        # and the "connected" attributes are unused
+        # for static accounts ("starter", "anonymous"), pubkey_vs is None
         self.pubkey_vs = pubkey_vs
-        self.connected = False
-        self.connected_since = None
-        self.connection = None
         self.debug = False
 
     def is_static(self):
@@ -96,8 +91,7 @@ class Account(Referenceable):
         return self.server.client_get_version(self)
 
     # all other RIStorageServer methods should pass through to self.server
-    # but (except for remote_advise_corrupt_share) add the account as a final
-    # argument.
+    # but add the account as a final argument.
 
     def remote_allocate_buckets(self, storage_index, renew_secret, cancel_secret,
                                 sharenums, allocated_size, canary):
@@ -116,7 +110,7 @@ class Account(Referenceable):
         return None
 
     def remote_get_buckets(self, storage_index):
-        return self.server.client_get_buckets(storage_index)
+        return self.server.client_get_buckets(storage_index, self)
 
     def remote_slot_testv_and_readv_and_writev(self, storage_index, secrets,
                                                test_and_write_vectors, read_vector):
@@ -128,9 +122,8 @@ class Account(Referenceable):
         return self.server.client_slot_readv(storage_index, shares, readv, self)
 
     def remote_advise_corrupt_share(self, share_type, storage_index, shnum, reason):
-        # this doesn't use the account.
-        return self.server.client_advise_corrupt_share(
-            share_type, storage_index, shnum, reason)
+        return self.server.client_advise_corrupt_share(share_type, storage_index, shnum,
+                                                       reason, self)
 
     def get_account_creation_time(self):
         return self._leasedb.get_account_creation_time(self.owner_num)
@@ -140,47 +133,6 @@ class Account(Referenceable):
 
     def get_leases(self, storage_index):
         return self._leasedb.get_leases(storage_index, self.owner_num)
-
-    def connection_from(self, rx):
-        self.connected = True
-        self.connected_since = time.time()
-        self.connection = rx
-        #rhost = rx.getPeer()
-        #from twisted.internet import address
-        #if isinstance(rhost, address.IPv4Address):
-        #    rhost_s = "%s:%d" % (rhost.host, rhost.port)
-        #elif "LoopbackAddress" in str(rhost):
-        #    rhost_s = "loopback"
-        #else:
-        #    rhost_s = str(rhost)
-        #self.set_account_attribute("last_connected_from", rhost_s)
-        rx.notifyOnDisconnect(self._disconnected)
-
-    def _disconnected(self):
-        self.connected = False
-        self.connected_since = None
-        self.connection = None
-        #self.set_account_attribute("last_seen", int(time.time()))
-        self.disconnected_since = None
-
-    def get_connection_status(self):
-        # starts as: connected=False, connected_since=None,
-        #            last_connected_from=None, last_seen=None
-        # while connected: connected=True, connected_since=START,
-        #                  last_connected_from=HOST, last_seen=IGNOREME
-        # after disconnect: connected=False, connected_since=None,
-        #                   last_connected_from=HOST, last_seen=STOP
-
-        #last_seen = int_or_none(self.get_account_attribute("last_seen"))
-        #last_connected_from = self.get_account_attribute("last_connected_from")
-        created = int_or_none(self.get_account_creation_time())
-
-        return {"connected": self.connected,
-                "connected_since": self.connected_since,
-                #"last_connected_from": last_connected_from,
-                #"last_seen": last_seen,
-                "created": created,
-                }
 
     def get_stats(self):
         return self.server.get_stats()
@@ -194,5 +146,5 @@ class Account(Referenceable):
     def get_bucket_counter(self):
         return self.server.get_bucket_counter()
 
-    def get_nodeid(self):
-        return self.server.get_nodeid()
+    def get_serverid(self):
+        return self.server.get_serverid()
