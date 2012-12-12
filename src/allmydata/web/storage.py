@@ -40,7 +40,7 @@ class StorageStatus(rend.Page):
     def data_nickname(self, ctx, storage):
         return self.nickname
     def data_nodeid(self, ctx, storage):
-        return idlib.nodeid_b2a(self.storage.get_nodeid())
+        return idlib.nodeid_b2a(self.storage.get_serverid())
 
     def render_storage_running(self, ctx, storage):
         if storage:
