@@ -24,8 +24,8 @@ install_requires = [
     #   the drop-upload frontend.
     # * We also need Twisted 10.1 for the FTP frontend in order for Twisted's
     #   FTP server to support asynchronous close.
-    # * When the cloud backend lands, it will depend on Twisted 10.2.0 which
-    #   includes the fix to https://twistedmatrix.com/trac/ticket/411
+    # * The cloud backend depends on Twisted 10.2.0 which includes the fix to
+    #   https://twistedmatrix.com/trac/ticket/411
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug http://twistedmatrix.com/trac/ticket/4395
     #
@@ -64,6 +64,9 @@ install_requires = [
     # pycryptopp-0.6.0 includes ed25519
     "pycryptopp >= 0.6.0",
 
+    # needed for cloud backend
+    "txAWS == 0.2.1.post5",
+
     # Will be needed to test web apps, but not yet. See #1001.
     #"windmill >= 1.3",
 ]
@@ -85,6 +88,8 @@ package_imports = [
     ('pycrypto',        'Crypto'),
     ('pyasn1',          'pyasn1'),
     ('mock',            'mock'),
+    ('txAWS',           'txaws'),
+    ('python-dateutil', 'dateutil'),
 ]
 
 def require_more():
