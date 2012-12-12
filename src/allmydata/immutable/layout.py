@@ -337,7 +337,7 @@ class ReadBucketProxy:
         return self._read(0, 0x44)
 
     def _parse_offsets(self, data):
-        precondition(len(data) >= 0x4)
+        precondition(len(data) >= 0x4, len(data))
         self._offsets = {}
         (version,) = struct.unpack(">L", data[0:4])
         if version != 1 and version != 2:

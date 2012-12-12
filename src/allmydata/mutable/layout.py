@@ -96,7 +96,7 @@ def unpack_header(data):
     return (version, seqnum, root_hash, IV, k, N, segsize, datalen, o)
 
 def unpack_share(data):
-    assert len(data) >= HEADER_LENGTH
+    assert len(data) >= HEADER_LENGTH, len(data)
     o = {}
     (version,
      seqnum,

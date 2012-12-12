@@ -1502,7 +1502,7 @@ class IDirectoryNode(IFilesystemNode):
         is empty, the metadata will be an empty dictionary.
         """
 
-    def set_uri(name, writecap, readcap=None, metadata=None, overwrite=True):
+    def set_uri(name, writecap, readcap, metadata=None, overwrite=True):
         """I add a child (by writecap+readcap) at the specific name. I return
         a Deferred that fires when the operation finishes. If overwrite= is
         True, I will replace any existing child of the same name, otherwise
