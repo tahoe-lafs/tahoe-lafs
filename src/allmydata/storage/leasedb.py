@@ -69,7 +69,6 @@ CREATE INDEX `prefix` ON `shares` (`prefix`);
 
 CREATE TABLE `leases`
 (
- `id` INTEGER PRIMARY KEY AUTOINCREMENT,
  `storage_index` VARCHAR(26) not null,
  `shnum` INTEGER not null,
  `account_id` INTEGER not null,
@@ -77,6 +76,7 @@ CREATE TABLE `leases`
  `expiration_time` INTEGER,       -- seconds since epoch; NULL means the end of time
  FOREIGN KEY (`storage_index`, `shnum`) REFERENCES `shares` (`storage_index`, `shnum`),
  FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`)
+ PRIMARY KEY (`storage_index`, `shnum`, `account_id`)
 );
 
 CREATE INDEX `account_id` ON `leases` (`account_id`);
@@ -153,13 +153,9 @@ class LeaseDB:
     def add_starter_lease(self, storage_index, shnum):
         si_s = si_b2a(storage_index)
         if self.debug: print "ADD_STARTER_LEASE", si_s, shnum
-        self._dirty = True
         renewal_time = time.time()
-        self._cursor.execute("INSERT INTO `leases`"
-                             " VALUES (?,?,?,?,?,?)",
-                             (None, si_s, shnum, self.STARTER_LEASE_ACCOUNTID,
-                              int(renewal_time), int(renewal_time + self.STARTER_LEASE_DURATION)))
-        self._db.commit()
+        self.add_or_renew_leases(storage_index, shnum, self.STARTER_LEASE_ACCOUNTID,
+                                 int(renewal_time), int(renewal_time + self.STARTER_LEASE_DURATION))
 
     def mark_share_as_stable(self, storage_index, shnum, used_space=None, backend_key=None):
         """
@@ -167,7 +163,6 @@ class LeaseDB:
         """
         si_s = si_b2a(storage_index)
         if self.debug: print "MARK_SHARE_AS_STABLE", si_s, shnum, used_space
-        self._dirty = True
         if used_space is not None:
             self._cursor.execute("UPDATE `shares` SET `state`=?, `used_space`=?, `backend_key`=?"
                                  " WHERE `storage_index`=? AND `shnum`=? AND `state`!=?",
@@ -248,25 +243,15 @@ class LeaseDB:
 
         for (found_si_s, found_shnum) in rows:
             _assert(si_s == found_si_s, si_s=si_s, found_si_s=found_si_s)
-            # XXX can we simplify this by using INSERT OR REPLACE?
-            self._cursor.execute("SELECT `id` FROM `leases`"
-                                 " WHERE `storage_index`=? AND `shnum`=? AND `account_id`=?",
-                                 (si_s, found_shnum, ownerid))
-            row = self._cursor.fetchone()
-            if row:
-                # Note that unlike the pre-LeaseDB code, this allows leases to be backdated.
-                # There is currently no way for a client to specify lease duration, and so
-                # backdating can only happen in normal operation if there is a timequake on
-                # the server and time goes backward by more than 31 days. This needs to be
-                # revisited for ticket #1816, which would allow the client to request a lease
-                # duration.
-                leaseid = row[0]
-                self._cursor.execute("UPDATE `leases` SET `renewal_time`=?, `expiration_time`=?"
-                                     " WHERE `id`=?",
-                                     (renewal_time, expiration_time, leaseid))
-            else:
-                self._cursor.execute("INSERT INTO `leases` VALUES (?,?,?,?,?,?)",
-                                     (None, si_s, found_shnum, ownerid, renewal_time, expiration_time))
+
+            # Note that unlike the pre-LeaseDB code, this allows leases to be backdated.
+            # There is currently no way for a client to specify lease duration, and so
+            # backdating can only happen in normal operation if there is a timequake on
+            # the server and time goes backward by more than 31 days. This needs to be
+            # revisited for ticket #1816, which would allow the client to request a lease
+            # duration.
+            self._cursor.execute("INSERT OR REPLACE INTO `leases` VALUES (?,?,?,?,?)",
+                                 (si_s, found_shnum, ownerid, renewal_time, expiration_time))
             self._db.commit()
 
     def get_leases(self, storage_index, ownerid):
