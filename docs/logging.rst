@@ -268,13 +268,17 @@ If a test is failing and you aren't sure why, start by enabling
 
 With ``FLOGTOTWISTED=1``, sufficiently-important log events will be written
 into ``_trial_temp/test.log``, which may give you more ideas about why the
-test is failing. Note, however, that ``_trial_temp/log.out`` will not receive
-messages below the ``level=OPERATIONAL`` threshold, due to this issue:
-`<http://foolscap.lothar.com/trac/ticket/154>`_
+test is failing.
 
+By default, ``_trial_temp/test.log`` will not receive messages below the
+``level=OPERATIONAL`` threshold. You can change the threshold via the ``FLOGLEVEL``
+variable, e.g.::
 
-If that isn't enough, look at the detailed foolscap logging messages instead,
-by running the tests like this::
+  make test FLOGLEVEL=10 FLOGTOTWISTED=1
+
+(The level numbers are listed in src/allmydata/util/log.py.)
+
+To look at the detailed foolscap logging messages, run the tests like this::
 
   make test FLOGFILE=flog.out.bz2 FLOGLEVEL=1 FLOGTOTWISTED=1
 
