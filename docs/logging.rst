@@ -24,7 +24,7 @@ primarily for use by programmers and grid operators who want to find out what
 went wrong.
 
 The Foolscap logging system is documented at
-`<http://foolscap.lothar.com/docs/logging.html>`_.
+`<http://foolscap.lothar.com/docs/logging.html>`__.
 
 The Foolscap distribution includes a utility named "``flogtool``" that is
 used to get access to many Foolscap logging features. This command only
@@ -184,7 +184,7 @@ Create the Log Gatherer with the "``flogtool create-gatherer WORKDIR``"
 command, and start it with "``tahoe start``". Then copy the contents of the
 ``log_gatherer.furl`` file it creates into the ``BASEDIR/tahoe.cfg`` file
 (under the key ``log_gatherer.furl`` of the section ``[node]``) of all nodes
-that should be sending it log events. (See `<configuration.rst>`_.)
+that should be sending it log events. (See `<configuration.rst>`__.)
 
 The "``flogtool filter``" command, described above, is useful to cut down the
 potentially large flogfiles into a more focussed form.
