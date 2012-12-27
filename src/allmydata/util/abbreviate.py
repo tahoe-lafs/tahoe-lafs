@@ -58,20 +58,25 @@ def abbreviate_space_both(s):
 def parse_abbreviated_size(s):
     if s is None or s == "":
         return None
-    m = re.match(r"^(\d+)([kKmMgG]?[iB]?[bB]?)$", s)
+    m = re.match(r"^(\d+)([KMGTPE]?[I]?[B]?)$", s.upper())
     if not m:
         raise ValueError("unparseable value %s" % s)
     number, suffix = m.groups()
-    suffix = suffix.upper()
     if suffix.endswith("B"):
         suffix = suffix[:-1]
-    multiplier = {"": 1,
-                  "I": 1,
-                  "K": 1000,
-                  "M": 1000 * 1000,
-                  "G": 1000 * 1000 * 1000,
+    multiplier = {"":   1,
+                  "I":  1,
+                  "K":  1000,
+                  "M":  1000 * 1000,
+                  "G":  1000 * 1000 * 1000,
+                  "T":  1000 * 1000 * 1000 * 1000,
+                  "P":  1000 * 1000 * 1000 * 1000 * 1000,
+                  "E":  1000 * 1000 * 1000 * 1000 * 1000 * 1000,
                   "KI": 1024,
-                  "MI": 1024*1024,
-                  "GI": 1024*1024*1024,
+                  "MI": 1024 * 1024,
+                  "GI": 1024 * 1024 * 1024,
+                  "TI": 1024 * 1024 * 1024 * 1024,
+                  "PI": 1024 * 1024 * 1024 * 1024 * 1024,
+                  "EI": 1024 * 1024 * 1024 * 1024 * 1024 * 1024,
                   }[suffix]
     return int(number) * multiplier
