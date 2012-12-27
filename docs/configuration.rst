@@ -453,10 +453,11 @@ Storage Server Configuration
     runs.)
 
     This string contains a number, with an optional case-insensitive scale
-    suffix like "K" or "M" or "G", and an optional "B" or "iB" suffix. So
-    "100MB", "100M", "100000000B", "100000000", and "100000kb" all mean the
-    same thing. Likewise, "1MiB", "1024KiB", and "1048576B" all mean the same
-    thing.
+    suffix, optionally followed by "B" or "iB". The supported scale suffixes
+    are "K", "M", "G", "T", "P" and "E", and a following "i" indicates to use
+    powers of 1024 rather than 1000. So "100MB", "100 M", "100000000B",
+    "100000000", and "100000kb" all mean the same thing. Likewise, "1MiB",
+    "1024KiB", "1024 Ki", and "1048576 B" all mean the same thing.
 
     "``tahoe create-node``" generates a tahoe.cfg with
     "``reserved_space=1G``", but you may wish to raise, lower, or remove the
