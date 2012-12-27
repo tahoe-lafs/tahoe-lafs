@@ -252,7 +252,7 @@ class NativeStorageServer:
         return self._tubid
 
     def get_nickname(self):
-        return self.announcement["nickname"].decode("utf-8")
+        return self.announcement["nickname"]
     def get_announcement(self):
         return self.announcement
     def get_remote_host(self):

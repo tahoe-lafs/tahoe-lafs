@@ -166,6 +166,59 @@ class FakeHistory:
     def list_all_helper_statuses(self):
         return []
 
+class FakeDisplayableServer(StubServer):
+    def __init__(self, serverid, nickname):
+        StubServer.__init__(self, serverid)
+        self.announcement = {"my-version": "allmydata-tahoe-fake",
+                             "service-name": "storage",
+                             "nickname": nickname}
+    def is_connected(self):
+        return True
+    def get_permutation_seed(self):
+        return ""
+    def get_remote_host(self):
+        return ""
+    def get_last_loss_time(self):
+        return None
+    def get_announcement_time(self):
+        return None
+    def get_announcement(self):
+        return self.announcement
+    def get_nickname(self):
+        return self.announcement["nickname"]
+
+class FakeBucketCounter(object):
+    def get_state(self):
+        return {"last-complete-bucket-count": 0}
+    def get_progress(self):
+        return {"estimated-time-per-cycle": 0,
+                "cycle-in-progress": False,
+                "remaining-wait-time": 0}
+
+class FakeLeaseChecker(object):
+    def __init__(self):
+        self.expiration_enabled = False
+        self.mode = "age"
+        self.override_lease_duration = None
+        self.sharetypes_to_expire = {}
+    def get_state(self):
+        return {"history": None}
+    def get_progress(self):
+        return {"estimated-time-per-cycle": 0,
+                "cycle-in-progress": False,
+                "remaining-wait-time": 0}
+
+class FakeStorageServer(service.MultiService):
+    name = 'storage'
+    def __init__(self, nodeid, nickname):
+        service.MultiService.__init__(self)
+        self.my_nodeid = nodeid
+        self.nickname = nickname
+        self.bucket_counter = FakeBucketCounter()
+        self.lease_checker = FakeLeaseChecker()
+    def get_stats(self):
+        return {"storage_server.accepting_immutable_shares": False}
+
 class FakeClient(Client):
     def __init__(self):
         # don't upcall to Client.__init__, since we only want to initialize a
@@ -173,13 +226,16 @@ class FakeClient(Client):
         service.MultiService.__init__(self)
         self.all_contents = {}
         self.nodeid = "fake_nodeid"
-        self.nickname = "fake_nickname"
+        self.nickname = u"fake_nickname \u263A"
         self.introducer_furl = "None"
         self.stats_provider = FakeStatsProvider()
         self._secret_holder = SecretHolder("lease secret", "convergence secret")
         self.helper = None
         self.convergence = "some random string"
         self.storage_broker = StorageFarmBroker(None, permute_peers=True)
+        # fake knowledge of another server
+        self.storage_broker.test_add_server("other_nodeid",
+                                            FakeDisplayableServer("other_nodeid", u"other_nickname \u263B"))
         self.introducer_client = None
         self.history = FakeHistory()
         self.uploader = FakeUploader()
@@ -191,6 +247,7 @@ class FakeClient(Client):
                                        None, None, None)
         self.nodemaker.all_contents = self.all_contents
         self.mutable_file_default = SDMF_VERSION
+        self.addService(FakeStorageServer(self.nodeid, self.nickname))
 
     def startService(self):
         return service.MultiService.startService(self)
@@ -541,11 +598,24 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn('Welcome to Tahoe-LAFS', res)
             self.failUnlessIn(FAVICON_MARKUP, res)
             self.failUnlessIn('href="https://tahoe-lafs.org/"', res)
+            res_u = res.decode('utf-8')
+            self.failUnlessIn(u'<th>My nickname:</th> <td class="nickname mine">fake_nickname \u263A</td></tr>', res_u)
+            self.failUnlessIn(u'<div class="nickname">other_nickname \u263B</div>', res_u)
 
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
             fileutil.make_dirs("web/test_welcome/private")
             return self.GET("/")
+        d.addCallback(_check)
+        return d
+
+    def test_storage(self):
+        d = self.GET("/storage")
+        def _check(res):
+            self.failUnlessIn('Storage Server Status', res)
+            self.failUnlessIn(FAVICON_MARKUP, res)
+            res_u = res.decode('utf-8')
+            self.failUnlessIn(u'<li>Server Nickname: <span class="nickname mine">fake_nickname \u263A</span></li>', res_u)
         d.addCallback(_check)
         return d
 
