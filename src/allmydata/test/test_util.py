@@ -733,7 +733,8 @@ class Abbreviate(unittest.TestCase):
                     (1000*1000*1000, "1.00 GB"),
                     (1000*1000*1000*1000, "1.00 TB"),
                     (1000*1000*1000*1000*1000, "1.00 PB"),
-                    (1234567890123456, "1.23 PB"),
+                    (1000*1000*1000*1000*1000*1000, "1.00 EB"),
+                    (1234567890123456789, "1.23 EB"),
                     ]
         for (x, expected) in tests_si:
             got = abbreviate.abbreviate_space(x, SI=True)
@@ -753,7 +754,8 @@ class Abbreviate(unittest.TestCase):
                           (1024*1024*1024*1024, "1.00 TiB"),
                           (1000*1000*1000*1000*1000, "909.49 TiB"),
                           (1024*1024*1024*1024*1024, "1.00 PiB"),
-                          (1234567890123456, "1.10 PiB"),
+                          (1024*1024*1024*1024*1024*1024, "1.00 EiB"),
+                          (1234567890123456789, "1.07 EiB"),
                     ]
         for (x, expected) in tests_base1024:
             got = abbreviate.abbreviate_space(x, SI=False)

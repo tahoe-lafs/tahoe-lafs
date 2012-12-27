@@ -49,7 +49,9 @@ def abbreviate_space(s, SI=True):
         return r(s/(U*U*U), "G")
     if s < U*U*U*U*U:
         return r(s/(U*U*U*U), "T")
-    return r(s/(U*U*U*U*U), "P")
+    if s < U*U*U*U*U*U:
+        return r(s/(U*U*U*U*U), "P")
+    return r(s/(U*U*U*U*U*U), "E")
 
 def abbreviate_space_both(s):
     return "(%s, %s)" % (abbreviate_space(s, True),
