@@ -98,7 +98,7 @@ class SetDEPMixin:
              "n": n,
              "max_segment_size": max_segsize,
              }
-        self.node.DEFAULT_ENCODING_PARAMETERS = p
+        self.node._encoding_parameters = p
 
 class FakeStorageServer:
     def __init__(self, mode):
@@ -191,6 +191,7 @@ class FakeClient:
                                    "max_segment_size": 1*MiB,
                                    }
     def __init__(self, mode="good", num_servers=50):
+        self._encoding_parameters = self.DEFAULT_ENCODING_PARAMETERS.copy()
         self.num_servers = num_servers
         if type(mode) is str:
             mode = dict([i,mode] for i in range(num_servers))
@@ -206,7 +207,7 @@ class FakeClient:
     def log(self, *args, **kwargs):
         pass
     def get_encoding_parameters(self):
-        return self.DEFAULT_ENCODING_PARAMETERS
+        return self._encoding_parameters
     def get_storage_broker(self):
         return self.storage_broker
     _secret_holder = client.SecretHolder("lease secret", "convergence secret")
@@ -471,7 +472,7 @@ class FullServer(unittest.TestCase):
         d.addBoth(self._should_fail)
         return d
 
-class ServerSelection(unittest.TestCase):
+class ServerSelection(unittest.TestCase, SetDEPMixin):
 
     def make_client(self, num_servers=50):
         self.node = FakeClient(mode="good", num_servers=num_servers)
@@ -490,14 +491,6 @@ class ServerSelection(unittest.TestCase):
         self.failUnless(isinstance(u.key, str))
         self.failUnlessEqual(len(u.key), 16)
         self.failUnlessEqual(u.size, size)
-
-    def set_encoding_parameters(self, k, happy, n, max_segsize=1*MiB):
-        p = {"k": k,
-             "happy": happy,
-             "n": n,
-             "max_segment_size": max_segsize,
-             }
-        self.node.DEFAULT_ENCODING_PARAMETERS = p
 
     def test_one_each(self):
         # if we have 50 shares, and there are 50 servers, and they all accept
@@ -811,8 +804,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
     def _has_happy_share_distribution(self):
         servertoshnums = self.find_all_shares()
-        k = self.g.clients[0].DEFAULT_ENCODING_PARAMETERS['k']
-        h = self.g.clients[0].DEFAULT_ENCODING_PARAMETERS['happy']
+        k = self.g.clients[0]._encoding_parameters['k']
+        h = self.g.clients[0]._encoding_parameters['happy']
         return is_happy_enough(servertoshnums, h, k)
 
     def _add_server(self, server_number, readonly=False):
@@ -864,10 +857,10 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         """
         self._setup_grid()
         client = self.g.clients[0]
-        client.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+        client._encoding_parameters['happy'] = 1
         if "n" in kwargs and "k" in kwargs:
-            client.DEFAULT_ENCODING_PARAMETERS['k'] = kwargs['k']
-            client.DEFAULT_ENCODING_PARAMETERS['n'] = kwargs['n']
+            client._encoding_parameters['k'] = kwargs['k']
+            client._encoding_parameters['n'] = kwargs['n']
         data = upload.Data("data" * 10000, convergence="")
         self.data = data
         d = client.upload(data)
@@ -948,7 +941,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # work with 5, as long as the original 4 are not stuck in the open
         # BucketWriter state (open() but not
         parms = {"k":2, "happy":5, "n":5, "max_segment_size": 1*MiB}
-        c.DEFAULT_ENCODING_PARAMETERS = parms
+        c._encoding_parameters = parms
         d = self.shouldFail(UploadUnhappinessError, "test_aborted_shares",
                             "shares could be placed on only 4 "
                             "server(s) such that any 2 of them have enough "
@@ -1006,7 +999,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # Set happy = 4 in the client.
         def _prepare():
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            client._encoding_parameters['happy'] = 4
             return client
         d.addCallback(lambda ign:
             _prepare())
@@ -1043,7 +1036,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                         readonly=True))
         def _prepare2():
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            client._encoding_parameters['happy'] = 4
             return client
         d.addCallback(lambda ign:
             _prepare2())
@@ -1092,7 +1085,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # Ideally, a reupload of our original data should work.
         def _reset_encoding_parameters(ign, happy=4):
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = happy
+            client._encoding_parameters['happy'] = happy
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
@@ -1191,7 +1184,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             # Copy shares
             self._copy_share_to_server(3, 1)
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            client._encoding_parameters['happy'] = 4
             return client
 
         d.addCallback(_setup)
@@ -1231,7 +1224,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                         readonly=True))
         def _reset_encoding_parameters(ign, happy=4):
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = happy
+            client._encoding_parameters['happy'] = happy
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
@@ -1270,7 +1263,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
         def _reset_encoding_parameters(ign, happy=4):
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = happy
+            client._encoding_parameters['happy'] = happy
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
@@ -1565,7 +1558,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
         def _prepare_client(ign):
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            client._encoding_parameters['happy'] = 4
             return client
         d.addCallback(_prepare_client)
         d.addCallback(lambda client:
@@ -1590,7 +1583,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             # counting in the exception message. The same progress message
             # is also used when the upload is successful, but in that case it
             # only gets written to a log, so we can't see what it says.
-            c.DEFAULT_ENCODING_PARAMETERS['happy'] = 45
+            c._encoding_parameters['happy'] = 45
             return c
         d.addCallback(_setup)
         d.addCallback(lambda c:
@@ -1613,7 +1606,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server(server_number=12, readonly=True)
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             c = self.g.clients[0]
-            c.DEFAULT_ENCODING_PARAMETERS['happy'] = 45
+            c._encoding_parameters['happy'] = 45
             return c
         d.addCallback(_then)
         d.addCallback(lambda c:
@@ -1643,7 +1636,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             # Make happiness unsatisfiable
             c = self.g.clients[0]
-            c.DEFAULT_ENCODING_PARAMETERS['happy'] = 45
+            c._encoding_parameters['happy'] = 45
             return c
         d.addCallback(_next)
         d.addCallback(lambda c:
@@ -1662,9 +1655,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                 self._add_server(server_number=i, readonly=True)
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             c = self.g.clients[0]
-            c.DEFAULT_ENCODING_PARAMETERS['k'] = 2
-            c.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
-            c.DEFAULT_ENCODING_PARAMETERS['n'] = 4
+            c._encoding_parameters['k'] = 2
+            c._encoding_parameters['happy'] = 4
+            c._encoding_parameters['n'] = 4
             return c
         d.addCallback(_then)
         d.addCallback(lambda client:
@@ -1700,7 +1693,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
         def _reset_encoding_parameters(ign, happy=4):
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = happy
+            client._encoding_parameters['happy'] = happy
             return client
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
@@ -1856,7 +1849,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             # Remove server 0
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 3
+            client._encoding_parameters['happy'] = 3
             return client
 
         d.addCallback(_setup)
@@ -1891,7 +1884,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             # create an empty storedir to replace the one we just removed
             os.mkdir(storedir)
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            client._encoding_parameters['happy'] = 4
             return client
 
         d.addCallback(_setup)
@@ -1932,7 +1925,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             # create an empty storedir to replace the one we just removed
             os.mkdir(storedir)
             client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            client._encoding_parameters['happy'] = 4
             return client
 
         d.addCallback(_setup)
@@ -1972,7 +1965,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             # Set the client appropriately
             c = self.g.clients[0]
-            c.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
+            c._encoding_parameters['happy'] = 4
             return c
         d.addCallback(_server_setup)
         d.addCallback(lambda client:
@@ -2022,7 +2015,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # the current grid. This will fail, but should not take up any
         # space on the storage servers after it fails.
         client = self.g.clients[0]
-        client.DEFAULT_ENCODING_PARAMETERS['happy'] = 7
+        client._encoding_parameters['happy'] = 7
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
             self.shouldFail(UploadUnhappinessError,
@@ -2049,7 +2042,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.set_up_grid(num_servers=4)
 
         client = self.g.clients[0]
-        client.DEFAULT_ENCODING_PARAMETERS['happy'] = 7
+        client._encoding_parameters['happy'] = 7
 
         d = defer.succeed(None)
         d.addCallback(lambda ignored:
