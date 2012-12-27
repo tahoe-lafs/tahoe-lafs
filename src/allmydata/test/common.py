@@ -470,9 +470,10 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
         iv_dir = self.getdir("introducer")
         if not os.path.isdir(iv_dir):
             fileutil.make_dirs(iv_dir)
-            fileutil.write(os.path.join(iv_dir, 'tahoe.cfg'), \
-                               "[node]\n" + \
-                               "web.port = tcp:0:interface=127.0.0.1\n")
+            fileutil.write(os.path.join(iv_dir, 'tahoe.cfg'),
+                           "[node]\n" +
+                           u"nickname = introducer \u263A\n".encode('utf-8') +
+                           "web.port = tcp:0:interface=127.0.0.1\n")
             if SYSTEM_TEST_CERTS:
                 os.mkdir(os.path.join(iv_dir, "private"))
                 f = open(os.path.join(iv_dir, "private", "node.pem"), "w")
@@ -553,21 +554,26 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             if self.stats_gatherer_furl:
                 config += "stats_gatherer.furl = %s\n" % self.stats_gatherer_furl
 
+            nodeconfig = "[node]\n"
+            nodeconfig += (u"nickname = client %d \u263A\n" % (i,)).encode('utf-8')
+
             if i == 0:
                 # clients[0] runs a webserver and a helper, no key_generator
-                config += "[node]\n"
+                config += nodeconfig
                 config += "web.port = tcp:0:interface=127.0.0.1\n"
                 config += "timeout.keepalive = 600\n"
                 config += "[helper]\n"
                 config += "enabled = True\n"
-            if i == 3:
+            elif i == 3:
                 # clients[3] runs a webserver and uses a helper, uses
                 # key_generator
                 if self.key_generator_furl:
                     config += "key_generator.furl = %s\n" % self.key_generator_furl
-                config += "[node]\n"
+                config += nodeconfig
                 config += "web.port = tcp:0:interface=127.0.0.1\n"
                 config += "timeout.disconnect = 1800\n"
+            else:
+                config += nodeconfig
 
             fileutil.write(os.path.join(basedir, 'tahoe.cfg'), config)
 
