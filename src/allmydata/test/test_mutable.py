@@ -21,7 +21,7 @@ from allmydata.storage.common import storage_index_to_dir
 from allmydata.scripts import debug
 
 from allmydata.mutable.filenode import MutableFileNode, BackoffAgent
-from allmydata.mutable.common import ResponseCache, \
+from allmydata.mutable.common import \
      MODE_CHECK, MODE_ANYTHING, MODE_WRITE, MODE_READ, \
      NeedMoreDataError, UnrecoverableFileError, UncoordinatedWriteError, \
      NotEnoughServersError, CorruptShareError
@@ -635,25 +635,6 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda data:
                 self.failUnlessEqual(data, initial_contents +
                                            "foobarbaz"))
-            return d
-        d.addCallback(_created)
-        return d
-
-
-    def test_response_cache_memory_leak(self):
-        d = self.nodemaker.create_mutable_file("contents")
-        def _created(n):
-            d = n.download_best_version()
-            d.addCallback(lambda res: self.failUnlessEqual(res, "contents"))
-            d.addCallback(lambda ign: self.failUnless(isinstance(n._cache, ResponseCache)))
-
-            def _check_cache(expected):
-                # The total size of cache entries should not increase on the second download;
-                # in fact the cache contents should be identical.
-                d2 = n.download_best_version()
-                d2.addCallback(lambda rep: self.failUnlessEqual(repr(n._cache.cache), expected))
-                return d2
-            d.addCallback(lambda ign: _check_cache(repr(n._cache.cache)))
             return d
         d.addCallback(_created)
         return d
@@ -1528,15 +1509,6 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
                                       corrupt_early=False,
                                       failure_checker=_check)
 
-    def test_corrupt_all_block_hash_tree_late(self):
-        def _check(res):
-            f = res[0]
-            self.failUnless(f.check(NotEnoughSharesError))
-        return self._test_corrupt_all("block_hash_tree",
-                                      "block hash tree failure",
-                                      corrupt_early=False,
-                                      failure_checker=_check)
-
 
     def test_corrupt_all_block_late(self):
         def _check(res):
@@ -1618,17 +1590,20 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         d.addCallback(lambda ignored:
             self._test_corrupt_all(("block_hash_tree", 12 * 32),
                                    "block hash tree failure",
-                                   corrupt_early=False,
+                                   corrupt_early=True,
                                    should_succeed=False))
         return d
 
 
     def test_corrupt_mdmf_block_hash_tree_late(self):
+        # Note - there is no SDMF counterpart to this test, as the SDMF
+        # files are guaranteed to have exactly one block, and therefore
+        # the block hash tree fits within the initial read (#1240).
         d = self.publish_mdmf()
         d.addCallback(lambda ignored:
             self._test_corrupt_all(("block_hash_tree", 12 * 32),
                                    "block hash tree failure",
-                                   corrupt_early=True,
+                                   corrupt_early=False,
                                    should_succeed=False))
         return d
 
@@ -2233,9 +2208,9 @@ class MultipleEncodings(unittest.TestCase):
         # then mix up the shares, to make sure that download survives seeing
         # a variety of encodings. This is actually kind of tricky to set up.
 
-        contents1 = "Contents for encoding 1 (3-of-10) go here"
-        contents2 = "Contents for encoding 2 (4-of-9) go here"
-        contents3 = "Contents for encoding 3 (4-of-7) go here"
+        contents1 = "Contents for encoding 1 (3-of-10) go here"*1000
+        contents2 = "Contents for encoding 2 (4-of-9) go here"*1000
+        contents3 = "Contents for encoding 3 (4-of-7) go here"*1000
 
         # we make a retrieval object that doesn't know what encoding
         # parameters to use
@@ -2403,45 +2378,13 @@ class MultipleVersions(unittest.TestCase, PublishMixin, CheckerMixin):
         return d
 
 
-class Utils(unittest.TestCase):
-    def test_cache(self):
-        c = ResponseCache()
-        # xdata = base62.b2a(os.urandom(100))[:100]
-        xdata = "1Ex4mdMaDyOl9YnGBM3I4xaBF97j8OQAg1K3RBR01F2PwTP4HohB3XpACuku8Xj4aTQjqJIR1f36mEj3BCNjXaJmPBEZnnHL0U9l"
-        ydata = "4DCUQXvkEPnnr9Lufikq5t21JsnzZKhzxKBhLhrBB6iIcBOWRuT4UweDhjuKJUre8A4wOObJnl3Kiqmlj4vjSLSqUGAkUD87Y3vs"
-        c.add("v1", 1, 0, xdata)
-        c.add("v1", 1, 2000, ydata)
-        self.failUnlessEqual(c.read("v2", 1, 10, 11), None)
-        self.failUnlessEqual(c.read("v1", 2, 10, 11), None)
-        self.failUnlessEqual(c.read("v1", 1, 0, 10), xdata[:10])
-        self.failUnlessEqual(c.read("v1", 1, 90, 10), xdata[90:])
-        self.failUnlessEqual(c.read("v1", 1, 300, 10), None)
-        self.failUnlessEqual(c.read("v1", 1, 2050, 5), ydata[50:55])
-        self.failUnlessEqual(c.read("v1", 1, 0, 101), None)
-        self.failUnlessEqual(c.read("v1", 1, 99, 1), xdata[99:100])
-        self.failUnlessEqual(c.read("v1", 1, 100, 1), None)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 9), None)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 10), None)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 11), None)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 15), None)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 19), None)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 20), None)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 21), None)
-        self.failUnlessEqual(c.read("v1", 1, 1990, 25), None)
-        self.failUnlessEqual(c.read("v1", 1, 1999, 25), None)
-
-        # test joining fragments
-        c = ResponseCache()
-        c.add("v1", 1, 0, xdata[:10])
-        c.add("v1", 1, 10, xdata[10:20])
-        self.failUnlessEqual(c.read("v1", 1, 0, 20), xdata[:20])
-
 class Exceptions(unittest.TestCase):
     def test_repr(self):
         nmde = NeedMoreDataError(100, 50, 100)
         self.failUnless("NeedMoreDataError" in repr(nmde), repr(nmde))
         ucwe = UncoordinatedWriteError()
         self.failUnless("UncoordinatedWriteError" in repr(ucwe), repr(ucwe))
+
 
 class SameKeyGenerator:
     def __init__(self, pubkey, privkey):
@@ -2514,7 +2457,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         self.basedir = "mutable/Problems/test_retrieve_surprise"
         self.set_up_grid()
         nm = self.g.clients[0].nodemaker
-        d = nm.create_mutable_file(MutableData("contents 1"))
+        d = nm.create_mutable_file(MutableData("contents 1"*4000))
         def _created(n):
             d = defer.succeed(None)
             d.addCallback(lambda res: n.get_servermap(MODE_READ))
@@ -2528,7 +2471,6 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             # now attempt to retrieve the old version with the old servermap.
             # This will look like someone has changed the file since we
             # updated the servermap.
-            d.addCallback(lambda res: n._cache._clear())
             d.addCallback(lambda res: log.msg("starting doomed read"))
             d.addCallback(lambda res:
                           self.shouldFail(NotEnoughSharesError,

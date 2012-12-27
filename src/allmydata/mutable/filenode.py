@@ -17,7 +17,7 @@ from pycryptopp.cipher.aes import AES
 from allmydata.mutable.publish import Publish, MutableData,\
                                       TransformingUploadable
 from allmydata.mutable.common import MODE_READ, MODE_WRITE, MODE_CHECK, UnrecoverableFileError, \
-     ResponseCache, UncoordinatedWriteError
+     UncoordinatedWriteError
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.checker import MutableChecker, MutableCheckAndRepairer
@@ -65,7 +65,6 @@ class MutableFileNode:
         self._required_shares = default_encoding_parameters["k"]
         self._total_shares = default_encoding_parameters["n"]
         self._sharemap = {} # known shares, shnum-to-[nodeids]
-        self._cache = ResponseCache()
         self._most_recent_size = None
         # filled in after __init__ if we're being created for the first time;
         # filled in by the servermap updater before publishing, otherwise.
@@ -180,10 +179,6 @@ class MutableFileNode:
         self._privkey = privkey
     def _populate_encprivkey(self, encprivkey):
         self._encprivkey = encprivkey
-    def _add_to_cache(self, verinfo, shnum, offset, data):
-        self._cache.add(verinfo, shnum, offset, data)
-    def _read_from_cache(self, verinfo, shnum, offset, length):
-        return self._cache.read(verinfo, shnum, offset, length)
 
     def get_write_enabler(self, server):
         seed = server.get_foolscap_write_enabler_seed()

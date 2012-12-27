@@ -1097,6 +1097,23 @@ class Dirnode(GridTestMixin, unittest.TestCase,
         d.addCallback(_check_results)
         return d
 
+    def test_deepcheck_cachemisses(self):
+        self.basedir = "dirnode/Dirnode/test_mdmf_cachemisses"
+        self.set_up_grid()
+        d = self._test_deepcheck_create()
+        # Clear the counters and set the rootnode
+        d.addCallback(lambda rootnode:
+                      not [ss._clear_counters() for ss
+                           in self.g.wrappers_by_id.values()] or rootnode)
+        d.addCallback(lambda rootnode: rootnode.start_deep_check().when_done())
+        def _check(ign):
+            count = sum([ss.counter_by_methname['slot_readv']
+                         for ss in self.g.wrappers_by_id.values()])
+            self.failIf(count > 60, 'Expected only 60 cache misses,'
+                                    'unfortunately there were %d' % (count,))
+        d.addCallback(_check)
+        return d
+
     def test_deepcheck_mdmf(self):
         self.basedir = "dirnode/Dirnode/test_deepcheck_mdmf"
         self.set_up_grid()

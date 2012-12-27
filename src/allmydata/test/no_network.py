@@ -43,6 +43,10 @@ class LocalWrapper:
         self.hung_until = None
         self.post_call_notifier = None
         self.disconnectors = {}
+        self.counter_by_methname = {}
+
+    def _clear_counters(self):
+        self.counter_by_methname = {}
 
     def callRemoteOnly(self, methname, *args, **kwargs):
         d = self.callRemote(methname, *args, **kwargs)
@@ -62,6 +66,8 @@ class LocalWrapper:
         kwargs = dict([(k,wrap(kwargs[k])) for k in kwargs])
 
         def _really_call():
+            def incr(d, k): d[k] = d.setdefault(k, 0) + 1
+            incr(self.counter_by_methname, methname)
             meth = getattr(self.original, "remote_" + methname)
             return meth(*args, **kwargs)
 
