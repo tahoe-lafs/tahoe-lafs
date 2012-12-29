@@ -200,6 +200,7 @@ class Root(rend.Page):
 
     def data_introducer_furl(self, ctx, data):
         return self.client.introducer_furl
+
     def data_connected_to_introducer(self, ctx, data):
         if self.client.connected_to_introducer():
             return "yes"
@@ -212,12 +213,19 @@ class Root(rend.Page):
             return None
         furl, connected = uploader.get_helper_info()
         return furl
+
+    def data_connected_to_helper_description(self, ctx, data):
+        return self.data_connected_to_helper(ctx, data).replace('-', ' ')
+
     def data_connected_to_helper(self, ctx, data):
         try:
             uploader = self.client.getServiceNamed("uploader")
         except KeyError:
             return "no" # we don't even have an Uploader
         furl, connected = uploader.get_helper_info()
+
+        if furl is None:
+            return "not-configured"
         if connected:
             return "yes"
         return "no"

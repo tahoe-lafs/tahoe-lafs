@@ -172,6 +172,24 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless("node.uptime" in stats)
         self.failUnless(isinstance(stats["node.uptime"], float))
 
+    def test_helper_furl(self):
+        basedir = "test_client.Basic.test_helper_furl"
+        os.mkdir(basedir)
+
+        def _check(config, expected_furl):
+            fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                           BASECONFIG + config)
+            c = client.Client(basedir)
+            uploader = c.getServiceNamed("uploader")
+            furl, connected = uploader.get_helper_info()
+            self.failUnlessEqual(furl, expected_furl)
+
+        _check("", None)
+        _check("helper.furl =\n", None)
+        _check("helper.furl = \n", None)
+        _check("helper.furl = None", None)
+        _check("helper.furl = pb://blah\n", "pb://blah")
+
     @mock.patch('allmydata.util.log.msg')
     @mock.patch('allmydata.frontends.drop_upload.DropUploader')
     def test_create_drop_uploader(self, mock_drop_uploader, mock_log_msg):
