@@ -618,10 +618,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = defer.succeed(None)
 
         # set helper furl to None
-        def _set_helper_not_configured2(ign):
+        def _set_no_helper(ign):
             self.s.uploader.helper_furl = None
             return self.GET("/")
-        d.addCallback(_set_helper_not_configured2)
+        d.addCallback(_set_no_helper)
         d.addCallback(lambda res:
                       self.failUnlessIn('Connected to helper?: <span>not configured</span>', res))
 
