@@ -6,7 +6,7 @@ pre.overflow {
                padding: .25em;
                overflow: auto;
                }
-               
+
 /* ----------------------------------------------------------------------- */
 
 /* colors borrowed from the Allmydata logo */
@@ -34,7 +34,6 @@ th {
 
 .table-headings-top th {
     text-align: center;
-    
 }
 .table-headings-left th {
     text-align: right;
@@ -51,6 +50,10 @@ legend {
 .connected-no, .connected-False {
   border: 1px solid #F00;
   background-color: #FBB;
+}
+.connected-not-configured {
+  border: 1px solid #AAA;
+  background-color: #FFF;
 }
 
 .encoded, .nodeid {

@@ -306,6 +306,9 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_client(self):
         helper_furl = self.get_config("client", "helper.furl", None)
+        if helper_furl in ("None", ""):
+            helper_furl = None
+
         DEP = self.DEFAULT_ENCODING_PARAMETERS
         DEP["k"] = int(self.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.get_config("client", "shares.total", DEP["n"]))

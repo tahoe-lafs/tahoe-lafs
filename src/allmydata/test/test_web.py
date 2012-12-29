@@ -80,6 +80,9 @@ class FakeNodeMaker(NodeMaker):
 
 class FakeUploader(service.Service):
     name = "uploader"
+    helper_furl = None
+    helper_connected = False
+
     def upload(self, uploadable):
         d = uploadable.get_size()
         d.addCallback(lambda size: uploadable.read(size))
@@ -100,8 +103,10 @@ class FakeUploader(service.Service):
             return ur
         d.addCallback(_got_data)
         return d
+
     def get_helper_info(self):
-        return (None, False)
+        return (self.helper_furl, self.helper_connected)
+
 
 def build_one_ds():
     ds = DownloadStatus("storage_index", 1234)
@@ -607,6 +612,36 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             fileutil.make_dirs("web/test_welcome/private")
             return self.GET("/")
         d.addCallback(_check)
+        return d
+
+    def test_helper_status(self):
+        d = defer.succeed(None)
+
+        # set helper furl to None
+        def _set_helper_not_configured2(ign):
+            self.s.uploader.helper_furl = None
+            return self.GET("/")
+        d.addCallback(_set_helper_not_configured2)
+        d.addCallback(lambda res:
+                      self.failUnlessIn('Connected to helper?: <span>not configured</span>', res))
+
+        # enable helper, not connected
+        def _set_helper_not_connected(ign):
+            self.s.uploader.helper_furl = "pb://someHelper"
+            self.s.uploader.helper_connected = False
+            return self.GET("/")
+        d.addCallback(_set_helper_not_connected)
+        d.addCallback(lambda res:
+                      self.failUnlessIn('Connected to helper?: <span>no</span>', res))
+
+        # enable helper, connected
+        def _set_helper_connected(ign):
+            self.s.uploader.helper_furl = "pb://someHelper"
+            self.s.uploader.helper_connected = True
+            return self.GET("/")
+        d.addCallback(_set_helper_connected)
+        d.addCallback(lambda res:
+                      self.failUnlessIn('Connected to helper?: <span>yes</span>', res))
         return d
 
     def test_storage(self):
