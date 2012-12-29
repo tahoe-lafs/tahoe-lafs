@@ -1273,7 +1273,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # itself) doesn't explode when you ask for its status
         d.addCallback(lambda res: getPage(self.helper_webish_url + "status/"))
         def _got_non_helper_status(res):
-            self.failUnless("Upload and Download Status" in res)
+            self.failUnlessIn("Recent and Active Operations", res)
         d.addCallback(_got_non_helper_status)
 
         # or for helper status with t=json
@@ -1287,8 +1287,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # see if the statistics page exists
         d.addCallback(lambda res: self.GET("statistics"))
         def _got_stats(res):
-            self.failUnless("Node Statistics" in res)
-            self.failUnless("  'downloader.files_downloaded': 5," in res, res)
+            self.failUnlessIn("Operational Statistics", res)
+            self.failUnlessIn("  'downloader.files_downloaded': 5,", res)
         d.addCallback(_got_stats)
         d.addCallback(lambda res: self.GET("statistics?t=json"))
         def _got_stats_json(res):

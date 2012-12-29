@@ -603,6 +603,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn('Welcome to Tahoe-LAFS', res)
             self.failUnlessIn(FAVICON_MARKUP, res)
             self.failUnlessIn('href="https://tahoe-lafs.org/"', res)
+            self.failUnlessIn('<a href="status/">Recent and Active Operations</a>', res)
+            self.failUnlessIn('<a href="statistics">Operational Statistics</a>', res)
             res_u = res.decode('utf-8')
             self.failUnlessIn(u'<th>My nickname:</th> <td class="nickname mine">fake_nickname \u263A</td></tr>', res_u)
             self.failUnlessIn(u'<div class="nickname">other_nickname \u263B</div>', res_u)
@@ -663,7 +665,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         ret_num = h.list_all_retrieve_statuses()[0].get_counter()
         d = self.GET("/status", followRedirect=True)
         def _check(res):
-            self.failUnlessIn('Upload and Download Status', res)
+            self.failUnlessIn('Recent and Active Operations', res)
             self.failUnlessIn('"down-%d"' % dl_num, res)
             self.failUnlessIn('"up-%d"' % ul_num, res)
             self.failUnlessIn('"mapupdate-%d"' % mu_num, res)
