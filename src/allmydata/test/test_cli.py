@@ -2,10 +2,10 @@
 import os.path
 from twisted.trial import unittest
 from cStringIO import StringIO
-import urllib, re
+import urllib, re, sys
 import simplejson
 
-from mock import patch
+from mock import patch, Mock, call
 
 from allmydata.util import fileutil, hashutil, base32, keyutil
 from allmydata import uri
@@ -581,6 +581,27 @@ class CLI(CLITestMixin, unittest.TestCase):
 
         for file in listdir_unicode(unicode(basedir)):
             self.failUnlessIn(normalize(file), filenames)
+
+    def test_exception_catcher(self):
+        self.basedir = "cli/exception_catcher"
+
+        runner_mock = Mock()
+        sys_exit_mock = Mock()
+        stderr = StringIO()
+        self.patch(sys, "argv", ["tahoe"])
+        self.patch(runner, "runner", runner_mock)
+        self.patch(sys, "exit", sys_exit_mock)
+        self.patch(sys, "stderr", stderr)
+        exc = Exception("canary")
+
+        def call_runner(args, install_node_control=True):
+            raise exc
+        runner_mock.side_effect = call_runner
+
+        runner.run()
+        self.failUnlessEqual(runner_mock.call_args_list, [call([], install_node_control=True)])
+        self.failUnlessEqual(sys_exit_mock.call_args_list, [call(1)])
+        self.failUnlessIn(str(exc), stderr.getvalue())
 
 
 class Help(unittest.TestCase):
