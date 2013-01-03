@@ -2953,7 +2953,40 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(rc, 0)
             data = simplejson.loads(out)
             self.failUnlessReallyEqual(to_str(data["summary"]), "Healthy")
+            self.failUnlessReallyEqual(data["results"]["healthy"], True)
         d.addCallback(_check2)
+
+        d.addCallback(lambda ign: c0.upload(upload.Data("literal", convergence="")))
+        def _stash_lit_uri(n):
+            self.lit_uri = n.get_uri()
+        d.addCallback(_stash_lit_uri)
+
+        d.addCallback(lambda ign: self.do_cli("check", self.lit_uri))
+        def _check_lit((rc, out, err)):
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
+            lines = out.splitlines()
+            self.failUnless("Summary: Healthy (LIT)" in lines, out)
+        d.addCallback(_check_lit)
+
+        d.addCallback(lambda ign: self.do_cli("check", "--raw", self.lit_uri))
+        def _check_lit_raw((rc, out, err)):
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
+            data = simplejson.loads(out)
+            self.failUnlessReallyEqual(data["results"]["healthy"], True)
+        d.addCallback(_check_lit_raw)
+
+        d.addCallback(lambda ign: c0.create_immutable_dirnode({}, convergence=""))
+        def _stash_lit_dir_uri(n):
+            self.lit_dir_uri = n.get_uri()
+        d.addCallback(_stash_lit_dir_uri)
+
+        d.addCallback(lambda ign: self.do_cli("check", self.lit_dir_uri))
+        d.addCallback(_check_lit)
+
+        d.addCallback(lambda ign: self.do_cli("check", "--raw", self.lit_uri))
+        d.addCallback(_check_lit_raw)
 
         def _clobber_shares(ignored):
             # delete one, corrupt a second
@@ -2983,6 +3016,18 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(" corrupt shares:" in lines, out)
             self.failUnless(self._corrupt_share_line in lines, out)
         d.addCallback(_check3)
+
+        d.addCallback(lambda ign: self.do_cli("check", "--verify", "--raw", self.uri))
+        def _check3_raw((rc, out, err)):
+            self.failUnlessReallyEqual(err, "")
+            self.failUnlessReallyEqual(rc, 0)
+            data = simplejson.loads(out)
+            self.failUnlessReallyEqual(data["results"]["healthy"], False)
+            self.failUnlessIn("Unhealthy: 8 shares (enc 3-of-10)", data["summary"])
+            self.failUnlessReallyEqual(data["results"]["count-shares-good"], 8)
+            self.failUnlessReallyEqual(data["results"]["count-corrupt-shares"], 1)
+            self.failUnlessIn("list-corrupt-shares", data["results"])
+        d.addCallback(_check3_raw)
 
         d.addCallback(lambda ign:
                       self.do_cli("check", "--verify", "--repair", self.uri))

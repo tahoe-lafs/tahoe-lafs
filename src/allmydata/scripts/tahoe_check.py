@@ -77,19 +77,26 @@ def check(options):
             else:
                 stdout.write(" repair failed\n")
     else:
-        stdout.write("Summary: %s\n" % quote_output(data["summary"], quotemarks=False))
+        # LIT files and directories do not have a "summary" field.
+        summary = data.get("summary", "Healthy (LIT)")
+        stdout.write("Summary: %s\n" % quote_output(summary, quotemarks=False))
         cr = data["results"]
         stdout.write(" storage index: %s\n" % quote_output(data["storage-index"], quotemarks=False))
-        stdout.write(" good-shares: %r (encoding is %r-of-%r)\n"
-                     % (cr["count-shares-good"],
-                        cr["count-shares-needed"],
-                        cr["count-shares-expected"]))
-        stdout.write(" wrong-shares: %r\n" % cr["count-wrong-shares"])
-        corrupt = cr["list-corrupt-shares"]
+
+        if not [a not in data for a in ("count-shares-good", "count-shares-needed",
+                                        "count-shares-expected", "count-wrong-shares")]:
+            stdout.write(" good-shares: %r (encoding is %r-of-%r)\n"
+                         % (cr["count-shares-good"],
+                            cr["count-shares-needed"],
+                            cr["count-shares-expected"]))
+            stdout.write(" wrong-shares: %r\n" % cr["count-wrong-shares"])
+
+        corrupt = cr.get("list-corrupt-shares", [])
         if corrupt:
             stdout.write(" corrupt shares:\n")
             for (serverid, storage_index, sharenum) in corrupt:
                 stdout.write("  %s\n" % _quote_serverid_index_share(serverid, storage_index, sharenum))
+
     return 0
 
 
@@ -138,6 +145,8 @@ class DeepCheckOutput(LineOnlyReceiver):
             path = d["path"]
             if not path:
                 path = ["<root>"]
+
+            # LIT files and directories do not have a "summary" field.
             summary = cr.get("summary", "Healthy (LIT)")
             print >>stdout, "%s: %s" % (quote_path(path), quote_output(summary, quotemarks=False))
 
