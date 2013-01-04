@@ -47,14 +47,16 @@ def list(options):
             print >>stdout, data
             return 0
         else:
-            print >>stderr, "The JSON response contained unprintable characters:\n%s" % quote_output(data)
+            print >>stderr, "The JSON response contained unprintable characters:"
+            print >>stderr, quote_output(data, quotemarks=False)
             return 1
 
     try:
         parsed = simplejson.loads(data)
     except Exception, e:
         print >>stderr, "error: %s" % quote_output(e.args[0], quotemarks=False)
-        print >>stderr, "Could not parse JSON response:\n%s" % quote_output(data)
+        print >>stderr, "Could not parse JSON response:"
+        print >>stderr, quote_output(data, quotemarks=False)
         return 1
 
     nodetype, d = parsed
