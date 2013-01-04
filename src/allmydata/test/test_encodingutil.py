@@ -295,36 +295,37 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
     def tearDown(self):
         _reload()
 
-    def _check(self, inp, out, enc, optional_quotes):
+    def _check(self, inp, out, enc, optional_quotes, quote_newlines):
         out2 = out
         if optional_quotes:
             out2 = out2[1:-1]
-        self.failUnlessReallyEqual(quote_output(inp, encoding=enc), out)
-        self.failUnlessReallyEqual(quote_output(inp, encoding=enc, quotemarks=False), out2)
+        self.failUnlessReallyEqual(quote_output(inp, encoding=enc, quote_newlines=quote_newlines), out)
+        self.failUnlessReallyEqual(quote_output(inp, encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
         if out[0:2] == 'b"':
             pass
         elif isinstance(inp, str):
-            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc), out)
-            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quotemarks=False), out2)
+            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quote_newlines=quote_newlines), out)
+            self.failUnlessReallyEqual(quote_output(unicode(inp), encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
         else:
-            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc), out)
-            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quotemarks=False), out2)
+            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quote_newlines=quote_newlines), out)
+            self.failUnlessReallyEqual(quote_output(inp.encode('utf-8'), encoding=enc, quotemarks=False, quote_newlines=quote_newlines), out2)
 
     def _test_quote_output_all(self, enc):
-        def check(inp, out, optional_quotes=False):
-            self._check(inp, out, enc, optional_quotes)
+        def check(inp, out, optional_quotes=False, quote_newlines=None):
+            self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         # optional single quotes
         check("foo",  "'foo'",  True)
         check("\\",   "'\\'",   True)
         check("$\"`", "'$\"`'", True)
+        check("\n",   "'\n'",   True, quote_newlines=False)
 
         # mandatory single quotes
         check("\"",   "'\"'")
 
         # double quotes
         check("'",    "\"'\"")
-        check("\n",   "\"\\x0a\"")
+        check("\n",   "\"\\x0a\"", quote_newlines=True)
         check("\x00", "\"\\x00\"")
 
         # invalid Unicode and astral planes
@@ -343,8 +344,8 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check("\x00\"$\\`\x80\xFF",  "b\"\\x00\\\"\\$\\\\\\`\\x80\\xff\"")
 
     def test_quote_output_ascii(self, enc='ascii'):
-        def check(inp, out, optional_quotes=False):
-            self._check(inp, out, enc, optional_quotes)
+        def check(inp, out, optional_quotes=False, quote_newlines=None):
+            self._check(inp, out, enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)
         check(u"\u00D7",   "\"\\xd7\"")
@@ -353,10 +354,12 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check(u"\u2621",   "\"\\u2621\"")
         check(u"'\u2621",  "\"'\\u2621\"")
         check(u"\"\u2621", "\"\\\"\\u2621\"")
+        check(u"\n",       "'\n'",      True, quote_newlines=False)
+        check(u"\n",       "\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_latin1(self, enc='latin1'):
-        def check(inp, out, optional_quotes=False):
-            self._check(inp, out.encode('latin1'), enc, optional_quotes)
+        def check(inp, out, optional_quotes=False, quote_newlines=None):
+            self._check(inp, out.encode('latin1'), enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)
         check(u"\u00D7",   u"'\u00D7'", True)
@@ -366,16 +369,20 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
         check(u"\u2621",   u"\"\\u2621\"")
         check(u"'\u2621",  u"\"'\\u2621\"")
         check(u"\"\u2621", u"\"\\\"\\u2621\"")
+        check(u"\n",       u"'\n'", True, quote_newlines=False)
+        check(u"\n",       u"\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_utf8(self, enc='utf-8'):
-        def check(inp, out, optional_quotes=False):
-            self._check(inp, out.encode('utf-8'), enc, optional_quotes)
+        def check(inp, out, optional_quotes=False, quote_newlines=None):
+            self._check(inp, out.encode('utf-8'), enc, optional_quotes, quote_newlines)
 
         self._test_quote_output_all(enc)
         check(u"\u2621",   u"'\u2621'", True)
         check(u"'\u2621",  u"\"'\u2621\"")
         check(u"\"\u2621", u"'\"\u2621'")
         check(u"\u2621\"", u"'\u2621\"'", True)
+        check(u"\n",       u"'\n'", True, quote_newlines=False)
+        check(u"\n",       u"\"\\x0a\"", quote_newlines=True)
 
     def test_quote_output_default(self):
         encodingutil.io_encoding = 'ascii'
