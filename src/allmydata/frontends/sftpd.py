@@ -26,6 +26,7 @@ from twisted.internet.interfaces import IFinishableConsumer
 from foolscap.api import eventually
 from allmydata.util import deferredutil
 
+from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.consumer import download_to_data
 from allmydata.interfaces import IFileNode, IDirectoryNode, ExistingChildError, \
      NoSuchChildError, ChildOfWrongTypeError
@@ -233,7 +234,7 @@ def _populate_attrs(childnode, metadata, size=None):
         if childnode and size is None:
             size = childnode.get_size()
         if size is not None:
-            assert isinstance(size, (int, long)) and not isinstance(size, bool), repr(size)
+            _assert(isinstance(size, (int, long)) and not isinstance(size, bool), size=size)
             attrs['size'] = size
         perms = S_IFREG | 0666
 
@@ -277,7 +278,7 @@ def _attrs_to_metadata(attrs):
 
 
 def _direntry_for(filenode_or_parent, childname, filenode=None):
-    assert isinstance(childname, (unicode, NoneType)), childname
+    precondition(isinstance(childname, (unicode, NoneType)), childname=childname)
 
     if childname is None:
         filenode_or_parent = filenode
@@ -483,7 +484,8 @@ class OverwriteableFileConsumer(PrefixingLogMixin):
             # the file might have been truncated (thus truncating the download) and
             # then extended.
 
-            assert self.current_size >= offset + length, (self.current_size, offset, length)
+            _assert(self.current_size >= offset + length,
+                    current_size=self.current_size, offset=offset, length=length)
             if noisy: self.log("self.f = %r" % (self.f,), level=NOISY)
             self.f.seek(offset)
             return self.f.read(length)
@@ -546,7 +548,8 @@ class ShortReadOnlySFTPFile(PrefixingLogMixin):
         PrefixingLogMixin.__init__(self, facility="tahoe.sftp", prefix=userpath)
         if noisy: self.log(".__init__(%r, %r, %r)" % (userpath, filenode, metadata), level=NOISY)
 
-        assert isinstance(userpath, str) and IFileNode.providedBy(filenode), (userpath, filenode)
+        precondition(isinstance(userpath, str) and IFileNode.providedBy(filenode),
+                     userpath=userpath, filenode=filenode)
         self.filenode = filenode
         self.metadata = metadata
         self.async = download_to_data(filenode)
@@ -629,7 +632,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
         if noisy: self.log(".__init__(%r, %r = %r, %r, <convergence censored>)" %
                            (userpath, flags, _repr_flags(flags), close_notify), level=NOISY)
 
-        assert isinstance(userpath, str), userpath
+        precondition(isinstance(userpath, str), userpath=userpath)
         self.userpath = userpath
         self.flags = flags
         self.close_notify = close_notify
@@ -652,7 +655,10 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.log(".open(parent=%r, childname=%r, filenode=%r, metadata=%r)" %
                  (parent, childname, filenode, metadata), level=OPERATIONAL)
 
-        assert isinstance(childname, (unicode, NoneType)), childname
+        precondition(isinstance(childname, (unicode, NoneType)), childname=childname)
+        precondition(filenode is None or IFileNode.providedBy(filenode), filenode=filenode)
+        precondition(not self.closed, sftpfile=self)
+
         # If the file has been renamed, the new (parent, childname) takes precedence.
         if self.parent is None:
             self.parent = parent
@@ -661,7 +667,6 @@ class GeneralSFTPFile(PrefixingLogMixin):
         self.filenode = filenode
         self.metadata = metadata
 
-        assert not self.closed, self
         tempfile_maker = EncryptedTemporaryFile
 
         if (self.flags & FXF_TRUNC) or not filenode:
@@ -669,14 +674,12 @@ class GeneralSFTPFile(PrefixingLogMixin):
             self.consumer = OverwriteableFileConsumer(0, tempfile_maker)
             self.consumer.finish()
         else:
-            assert IFileNode.providedBy(filenode), filenode
-
             self.async.addCallback(lambda ignored: filenode.get_best_readable_version())
 
             def _read(version):
                 if noisy: self.log("_read", level=NOISY)
                 download_size = version.get_size()
-                assert download_size is not None
+                _assert(download_size is not None)
 
                 self.consumer = OverwriteableFileConsumer(download_size, tempfile_maker)
 
@@ -697,7 +700,8 @@ class GeneralSFTPFile(PrefixingLogMixin):
     def rename(self, new_userpath, new_parent, new_childname):
         self.log(".rename(%r, %r, %r)" % (new_userpath, new_parent, new_childname), level=OPERATIONAL)
 
-        assert isinstance(new_userpath, str) and isinstance(new_childname, unicode), (new_userpath, new_childname)
+        precondition(isinstance(new_userpath, str) and isinstance(new_childname, unicode),
+                     new_userpath=new_userpath, new_childname=new_childname)
         self.userpath = new_userpath
         self.parent = new_parent
         self.childname = new_childname
@@ -822,7 +826,7 @@ class GeneralSFTPFile(PrefixingLogMixin):
             if self.filenode and self.filenode.is_mutable():
                 self.log("update mutable file %r childname=%r metadata=%r" % (self.filenode, childname, self.metadata), level=OPERATIONAL)
                 if self.metadata.get('no-write', False) and not self.filenode.is_readonly():
-                    assert parent and childname, (parent, childname, self.metadata)
+                    _assert(parent and childname, parent=parent, childname=childname, metadata=self.metadata)
                     d2.addCallback(lambda ign: parent.set_metadata_for(childname, self.metadata))
 
                 d2.addCallback(lambda ign: self.filenode.overwrite(MutableFileHandle(self.consumer.get_file())))
@@ -1002,7 +1006,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = "._abandon_any_heisenfiles(%r, %r)" % (userpath, direntry)
         self.log(request, level=OPERATIONAL)
 
-        assert isinstance(userpath, str), userpath
+        precondition(isinstance(userpath, str), userpath=userpath)
 
         # First we synchronously mark all heisenfiles matching the userpath or direntry
         # as abandoned, and remove them from the two heisenfile dicts. Then we .sync()
@@ -1051,9 +1055,9 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                    (from_userpath, from_parent, from_childname, to_userpath, to_parent, to_childname, overwrite))
         self.log(request, level=OPERATIONAL)
 
-        assert (isinstance(from_userpath, str) and isinstance(from_childname, unicode) and
-                isinstance(to_userpath, str) and isinstance(to_childname, unicode)), \
-               (from_userpath, from_childname, to_userpath, to_childname)
+        precondition((isinstance(from_userpath, str) and isinstance(from_childname, unicode) and
+                      isinstance(to_userpath, str) and isinstance(to_childname, unicode)),
+                     from_userpath=from_userpath, from_childname=from_childname, to_userpath=to_userpath, to_childname=to_childname)
 
         if noisy: self.log("all_heisenfiles = %r\nself._heisenfiles = %r" % (all_heisenfiles, self._heisenfiles), level=NOISY)
 
@@ -1124,7 +1128,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = "._update_attrs_for_heisenfiles(%r, %r, %r)" % (userpath, direntry, attrs)
         self.log(request, level=OPERATIONAL)
 
-        assert isinstance(userpath, str) and isinstance(direntry, str), (userpath, direntry)
+        _assert(isinstance(userpath, str) and isinstance(direntry, str),
+                userpath=userpath, direntry=direntry)
 
         files = []
         if direntry in all_heisenfiles:
@@ -1156,7 +1161,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
         request = "._sync_heisenfiles(%r, %r, ignore=%r)" % (userpath, direntry, ignore)
         self.log(request, level=OPERATIONAL)
 
-        assert isinstance(userpath, str) and isinstance(direntry, (str, NoneType)), (userpath, direntry)
+        _assert(isinstance(userpath, str) and isinstance(direntry, (str, NoneType)),
+                userpath=userpath, direntry=direntry)
 
         files = []
         if direntry in all_heisenfiles:
@@ -1180,7 +1186,8 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _remove_heisenfile(self, userpath, parent, childname, file_to_remove):
         if noisy: self.log("._remove_heisenfile(%r, %r, %r, %r)" % (userpath, parent, childname, file_to_remove), level=NOISY)
 
-        assert isinstance(userpath, str) and isinstance(childname, (unicode, NoneType)), (userpath, childname)
+        _assert(isinstance(userpath, str) and isinstance(childname, (unicode, NoneType)),
+                userpath=userpath, childname=childname)
 
         direntry = _direntry_for(parent, childname)
         if direntry in all_heisenfiles:
@@ -1206,8 +1213,9 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                            (existing_file, userpath, flags, _repr_flags(flags), parent, childname, filenode, metadata),
                            level=NOISY)
 
-        assert (isinstance(userpath, str) and isinstance(childname, (unicode, NoneType)) and
-                (metadata is None or 'no-write' in metadata)), (userpath, childname, metadata)
+        _assert((isinstance(userpath, str) and isinstance(childname, (unicode, NoneType)) and
+                (metadata is None or 'no-write' in metadata)),
+                userpath=userpath, childname=childname, metadata=metadata)
 
         writing = (flags & (FXF_WRITE | FXF_CREAT)) != 0
         direntry = _direntry_for(parent, childname, filenode)
@@ -1649,7 +1657,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
                 d2.addCallback(lambda ign: parent.get_child_and_metadata_at_path([childname]))
                 def _got( (child, metadata) ):
                     if noisy: self.log("_got( (%r, %r) )" % (child, metadata), level=NOISY)
-                    assert IDirectoryNode.providedBy(parent), parent
+                    _assert(IDirectoryNode.providedBy(parent), parent=parent)
                     metadata['no-write'] = _no_write(parent.is_readonly(), child, metadata)
                     d3 = child.get_current_size()
                     d3.addCallback(lambda size: _populate_attrs(child, metadata, size=size))
@@ -1789,7 +1797,7 @@ class SFTPUserHandler(ConchUser, PrefixingLogMixin):
     def _path_from_string(self, pathstring):
         if noisy: self.log("CONVERT %r" % (pathstring,), level=NOISY)
 
-        assert isinstance(pathstring, str), pathstring
+        _assert(isinstance(pathstring, str), pathstring=pathstring)
 
         # The home directory is the root directory.
         pathstring = pathstring.strip("/")
@@ -1918,7 +1926,7 @@ class Dispatcher:
         self._client = client
 
     def requestAvatar(self, avatarID, mind, interface):
-        assert interface == IConchUser, interface
+        _assert(interface == IConchUser, interface=interface)
         rootnode = self._client.create_node_from_uri(avatarID.rootcap)
         handler = SFTPUserHandler(self._client, rootnode, avatarID.username)
         return (interface, handler, handler.logout)
