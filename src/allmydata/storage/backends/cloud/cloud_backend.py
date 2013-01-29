@@ -1,4 +1,6 @@
 
+import sys
+
 from twisted.internet import defer
 
 from zope.interface import implements
@@ -18,6 +20,9 @@ from allmydata.storage.backends.cloud.cloud_common import get_share_key, delete_
 from allmydata.mutable.layout import MUTABLE_MAGIC
 
 
+CLOUD_INTERFACES = ("cloud.s3", "cloud.openstack")
+
+
 def get_cloud_share(container, storage_index, shnum, total_size):
     key = get_share_key(storage_index, shnum)
     d = container.get_object(key)
@@ -32,9 +37,6 @@ def get_cloud_share(container, storage_index, shnum, total_size):
 
 
 def configure_cloud_backend(storedir, config):
-    # REMIND: when multiple container implementations are supported, only import the container we're going to use.
-    from allmydata.storage.backends.cloud.s3.s3_container import configure_s3_container
-
     if config.get_config("storage", "readonly", False, boolean=True):
         raise InvalidValueError("[storage]readonly is not supported by the cloud backend; "
                                 "make the container read-only instead.")
@@ -43,15 +45,13 @@ def configure_cloud_backend(storedir, config):
     if backendtype == "s3":
         backendtype = "cloud.s3"
 
-    container_configurators = {
-        'cloud.s3': configure_s3_container,
-    }
-
-    if backendtype not in container_configurators:
+    if backendtype not in CLOUD_INTERFACES:
         raise InvalidValueError("%s is not supported by the cloud backend; it must be one of %s"
-                                % (quote_output("[storage]backend = " + backendtype), container_configurators.keys()) )
+                                % (quote_output("[storage]backend = " + backendtype), CLOUD_INTERFACES) )
 
-    container = container_configurators[backendtype](storedir, config)
+    pkgname = "allmydata.storage.backends." + backendtype
+    __import__(pkgname)
+    container = sys.modules[pkgname].configure_container(storedir, config)
     return CloudBackend(container)
 
 
