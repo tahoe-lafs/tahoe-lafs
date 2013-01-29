@@ -6,7 +6,7 @@ from allmydata.storage.backends.cloud.cloud_common import IContainer, \
      ContainerRetryMixin, ContainerListMixin
 
 
-def configure_s3_container(storedir, config):
+def configure_openstack_container(storedir, config):
     accesskeyid = config.get_config("storage", "s3.access_key_id")
     secretkey = config.get_or_create_private_config("s3secret")
     usertoken = config.get_optional_private_config("s3usertoken")
