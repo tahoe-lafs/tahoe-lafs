@@ -254,6 +254,66 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "s3.bucket = test\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
+    @mock.patch('allmydata.storage.backends.cloud.openstack.openstack_container.AuthenticationClient')
+    @mock.patch('allmydata.storage.backends.cloud.openstack.openstack_container.OpenStackContainer')
+    def test_openstack_config_good_defaults(self, mock_OpenStackContainer, mock_AuthenticationClient):
+        basedir = "client.Basic.test_openstack_config_good_defaults"
+        os.mkdir(basedir)
+        self._write_secret(basedir, "openstack_api_key")
+        config = (BASECONFIG +
+                  "[storage]\n" +
+                  "enabled = true\n" +
+                  "backend = cloud.openstack\n" +
+                  "openstack.provider = rackspace\n" +
+                  "openstack.username = alex\n")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
+
+        c = client.Client(basedir)
+        mock_AuthenticationClient.assert_called_with("dummy", "rackspace",
+                                                     "https://identity.api.rackspacecloud.com/v1.0",
+                                                     "alex", 23*60*60)
+        self.failUnlessEqual(len(mock_OpenStackContainer.mock_calls), 1)
+        server = c.getServiceNamed("storage")
+        self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
+
+    def test_openstack_readonly_bad(self):
+        basedir = "client.Basic.test_openstack_readonly_bad"
+        os.mkdir(basedir)
+        self._write_secret(basedir, "openstack_api_key")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "readonly = true\n" +
+                                    "backend = cloud.openstack\n" +
+                                    "openstack.provider = rackspace\n" +
+                                    "openstack.username = alex\n")
+        self.failUnlessRaises(InvalidValueError, client.Client, basedir)
+
+    def test_openstack_config_no_username(self):
+        basedir = "client.Basic.test_openstack_config_no_username"
+        os.mkdir(basedir)
+        self._write_secret(basedir, "openstack_api_key")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "backend = cloud.openstack\n" +
+                                    "openstack.provider = rackspace\n")
+        self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
+
+    def test_openstack_config_no_api_key(self):
+        basedir = "client.Basic.test_openstack_config_no_api_key"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "backend = cloud.openstack\n" +
+                                    "openstack.provider = rackspace\n" +
+                                    "openstack.username = alex\n")
+        self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
+
     def test_expire_mutable_false_unsupported(self):
         basedir = "client.Basic.test_expire_mutable_false_unsupported"
         os.mkdir(basedir)
