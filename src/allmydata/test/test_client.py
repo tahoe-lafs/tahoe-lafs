@@ -170,15 +170,15 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "reserved_space = bogus\n")
         self.failUnlessRaises(InvalidValueError, client.Client, basedir)
 
-    def _write_s3secret(self, basedir, secret="dummy"):
-        os.mkdir(os.path.join(basedir, "private"))
-        fileutil.write(os.path.join(basedir, "private", "s3secret"), secret)
+    def _write_secret(self, basedir, filename, secret="dummy"):
+        fileutil.make_dirs(os.path.join(basedir, "private"))
+        fileutil.write(os.path.join(basedir, "private", filename), secret)
 
     @mock.patch('allmydata.storage.backends.cloud.s3.s3_container.S3Container')
     def test_s3_config_good_defaults(self, mock_S3Container):
         basedir = "client.Basic.test_s3_config_good_defaults"
         os.mkdir(basedir)
-        self._write_s3secret(basedir)
+        self._write_secret(basedir, "s3secret")
         config = (BASECONFIG +
                   "[storage]\n" +
                   "enabled = true\n" +
@@ -193,11 +193,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
 
         mock_S3Container.reset_mock()
-        fileutil.write(os.path.join(basedir, "private", "s3producttoken"), "{ProductToken}")
+        self._write_secret(basedir, "s3producttoken", secret="{ProductToken}")
         self.failUnlessRaises(InvalidValueError, client.Client, basedir)
 
         mock_S3Container.reset_mock()
-        fileutil.write(os.path.join(basedir, "private", "s3usertoken"), "{UserToken}")
+        self._write_secret(basedir, "s3usertoken", secret="{UserToken}")
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), config + "s3.url = http://s3.example.com\n")
 
         c = client.Client(basedir)
@@ -207,7 +207,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_s3_readonly_bad(self):
         basedir = "client.Basic.test_s3_readonly_bad"
         os.mkdir(basedir)
-        self._write_s3secret(basedir)
+        self._write_secret(basedir, "s3secret")
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                                     BASECONFIG +
                                     "[storage]\n" +
@@ -221,7 +221,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_s3_config_no_access_key_id(self):
         basedir = "client.Basic.test_s3_config_no_access_key_id"
         os.mkdir(basedir)
-        self._write_s3secret(basedir)
+        self._write_secret(basedir, "s3secret")
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                                     BASECONFIG +
                                     "[storage]\n" +
@@ -233,7 +233,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_s3_config_no_bucket(self):
         basedir = "client.Basic.test_s3_config_no_bucket"
         os.mkdir(basedir)
-        self._write_s3secret(basedir)
+        self._write_secret(basedir, "s3secret")
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                                     BASECONFIG +
                                     "[storage]\n" +
