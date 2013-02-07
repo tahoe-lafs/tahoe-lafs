@@ -72,12 +72,12 @@ class NodeMaker:
             cap = uri.from_string(bigcap, deep_immutable=deep_immutable,
                                   name=name)
             node = self._create_from_single_cap(cap)
-            if node:
-                self._node_cache[memokey] = node  # note: WeakValueDictionary
-            else:
+            if node is None:
                 # don't cache UnknownNode
                 node = UnknownNode(writecap, readcap,
                                    deep_immutable=deep_immutable, name=name)
+            elif node.is_mutable():
+                self._node_cache[memokey] = node  # note: WeakValueDictionary
 
         if self.blacklist:
             si = node.get_storage_index()
