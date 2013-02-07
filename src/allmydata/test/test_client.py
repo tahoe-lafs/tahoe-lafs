@@ -331,6 +331,18 @@ class NodeMaker(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(n.is_readonly())
         self.failIf(n.is_mutable())
 
+        # Testing #1679. There was a bug that would occur when downloader was
+        # downloading the same readcap more than once concurrently, so the
+        # filenode object was cached, and there was a failure from one of the
+        # servers in one of the download attempts. No subsequent download
+        # attempt would attempt to use that server again, which would lead to
+        # the file being undownloadable until the gateway was restarted. The
+        # current fix for this (hopefully to be superceded by a better fix
+        # eventually) is to prevent re-use of filenodes, so the NodeMaker is
+        # hereby required *not* to cache and re-use filenodes for CHKs.
+        other_n = c.create_node_from_uri("URI:CHK:6nmrpsubgbe57udnexlkiwzmlu:bjt7j6hshrlmadjyr7otq3dc24end5meo5xcr5xe5r663po6itmq:3:10:7277")
+        self.failIf(n is other_n, (n, other_n))
+
         n = c.create_node_from_uri("URI:LIT:n5xgk")
         self.failUnless(IFilesystemNode.providedBy(n))
         self.failUnless(IFileNode.providedBy(n))

@@ -86,6 +86,8 @@ class CiphertextFileNode:
     def raise_error(self):
         pass
 
+    def is_mutable(self):
+        return False
 
     def check_and_repair(self, monitor, verify=False, add_lease=False):
         c = Checker(verifycap=self._verifycap,
