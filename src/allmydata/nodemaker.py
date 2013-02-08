@@ -72,6 +72,10 @@ class NodeMaker:
             cap = uri.from_string(bigcap, deep_immutable=deep_immutable,
                                   name=name)
             node = self._create_from_single_cap(cap)
+
+            # node is None for an unknown URI, otherwise it is a type for which
+            # is_mutable() is known. We avoid cacheing mutable nodes due to
+            # ticket #1679.
             if node is None:
                 # don't cache UnknownNode
                 node = UnknownNode(writecap, readcap,
