@@ -58,6 +58,7 @@ class AuthenticationClient(object):
         self._reauth_period = reauth_period
         self._reactor = override_reactor or reactor
         self._agent = Agent(self._reactor)
+        self._delayed = None
 
         _assert(provider.startswith("rackspace"), provider=provider)
         self._authenticate = self._authenticate_to_rackspace
@@ -121,7 +122,7 @@ class AuthenticationClient(object):
             #log.msg("Auth response is %s %s %s" % (storage_url, cdn_management_url, auth_token))
             self._auth_info = AuthenticationInfo(storage_url, cdn_management_url, auth_token)
 
-            self._reactor.callLater(self._reauth_period, self.get_auth_info_locked, suppress_errors=True)
+            self._delayed = self._reactor.callLater(self._reauth_period, self.get_auth_info_locked, suppress_errors=True)
         d.addCallback(_got_response)
         def _failed(f):
             self._auth_info = None
@@ -130,6 +131,11 @@ class AuthenticationClient(object):
             return f
         d.addErrback(_failed)
         return d
+
+    def shutdown(self):
+        """Used by unit tests to avoid unclean reactor errors."""
+        if self._delayed:
+            self._delayed.cancel()
 
 
 class OpenStackContainer(ContainerRetryMixin, ContainerListMixin):
