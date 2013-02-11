@@ -52,39 +52,39 @@ class AuthenticationClient(object):
     It is not clear whether this is also implemented by other OpenStack providers.
     """
     def __init__(self, api_key, provider, auth_service_url, username, reauth_period, override_reactor=None):
-        self.api_key = api_key
-        self.auth_service_url = auth_service_url
-        self.username = username
-        self.reauth_period = reauth_period
-        self.reactor = override_reactor or reactor
-        self.agent = Agent(self.reactor)
+        self._api_key = api_key
+        self._auth_service_url = auth_service_url
+        self._username = username
+        self._reauth_period = reauth_period
+        self._reactor = override_reactor or reactor
+        self._agent = Agent(self._reactor)
 
         _assert(provider.startswith("rackspace"), provider=provider)
         self._authenticate = self._authenticate_to_rackspace
 
         # Not authorized yet.
-        self.auth_info = None
-        self.first_auth_lock = defer.DeferredLock()
+        self._auth_info = None
+        self._first_auth_lock = defer.DeferredLock()
         d = self.get_auth_info()
         d.addBoth(lambda ign: None)
 
     def get_auth_info(self):
         # It is intentional that this returns the previous auth_info while a reauthentication is in progress.
-        if self.auth_info is not None:
-            return defer.succeed(self.auth_info)
+        if self._auth_info is not None:
+            return defer.succeed(self._auth_info)
         else:
             return self.get_auth_info_locked()
 
     def get_auth_info_locked(self, suppress_errors=False):
-        d = self.first_auth_lock.acquire()
+        d = self._first_auth_lock.acquire()
         d.addCallback(self._authenticate)
         def _release(res):
-            self.first_auth_lock.release()
+            self._first_auth_lock.release()
             return res
         d.addBoth(_release)
-        d.addCallback(lambda ign: self.auth_info)
+        d.addCallback(lambda ign: self._auth_info)
         if suppress_errors:
-            d.addErrback(lambda ign: self.auth_info)
+            d.addErrback(lambda ign: self._auth_info)
         return d
 
     def _authenticate_to_rackspace(self, ign=None):
@@ -93,12 +93,12 @@ class AuthenticationClient(object):
         # Agent.request adds a Host header automatically based on the URL.
         request_headers = {
             'User-Agent': ['Tahoe-LAFS authentication client'],
-            'X-Auth-User': [self.username],
-            'X-Auth-Key': [self.api_key],
+            'X-Auth-User': [self._username],
+            'X-Auth-Key': [self._api_key],
         }
-        log.msg("GET %s %r" % (self.auth_service_url, request_headers))
+        log.msg("GET %s %r" % (self._auth_service_url, request_headers))
         d = defer.succeed(None)
-        d.addCallback(lambda ign: self.agent.request('GET', self.auth_service_url, Headers(request_headers), None))
+        d.addCallback(lambda ign: self._agent.request('GET', self._auth_service_url, Headers(request_headers), None))
 
         def _got_response(response):
             log.msg("OpenStack auth response: %r %s" % (response.code, response.phrase))
@@ -119,12 +119,12 @@ class AuthenticationClient(object):
             auth_token = _get_header('X-Auth-Token')
             # Don't log this unless debugging, since auth_token is a secret.
             #log.msg("Auth response is %s %s %s" % (storage_url, cdn_management_url, auth_token))
-            self.auth_info = AuthenticationInfo(storage_url, cdn_management_url, auth_token)
+            self._auth_info = AuthenticationInfo(storage_url, cdn_management_url, auth_token)
 
-            self.reactor.callLater(self.reauth_period, self.get_auth_info_locked, suppress_errors=True)
+            self._reactor.callLater(self._reauth_period, self.get_auth_info_locked, suppress_errors=True)
         d.addCallback(_got_response)
         def _failed(f):
-            self.auth_info = None
+            self._auth_info = None
             # do we need to retry?
             log.err(f)
             return f
@@ -139,7 +139,7 @@ class OpenStackContainer(ContainerRetryMixin, ContainerListMixin):
     """
 
     def __init__(self, auth_client):
-        self.auth_client = auth_client
+        self._auth_client = auth_client
 
         #self.client = OpenStackClient(auth_client)
         #self.ServiceError = OpenStackError
