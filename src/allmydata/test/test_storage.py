@@ -405,6 +405,7 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, unittest.TestCase)
     PROVIDER = "rackspace"
     AUTH_SERVICE_URL = "auth_service_url"
     USERNAME = "username"
+    CONTAINER = "container"
     API_KEY = "api_key"
     STORAGE_URL = "storage_url"
     CDN_MANAGEMENT_URL = "cdn_management_url"
@@ -444,6 +445,7 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, unittest.TestCase)
             'openstack.provider': self.PROVIDER,
             'openstack.url': self.AUTH_SERVICE_URL,
             'openstack.username': self.USERNAME,
+            'openstack.container': self.CONTAINER,
         }
         from allmydata.node import _None
         class MockConfig(object):

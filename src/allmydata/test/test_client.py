@@ -265,14 +265,17 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                   "enabled = true\n" +
                   "backend = cloud.openstack\n" +
                   "openstack.provider = rackspace\n" +
-                  "openstack.username = alex\n")
+                  "openstack.username = alex\n" +
+                  "openstack.container = test\n")
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
 
         c = client.Client(basedir)
         mock_AuthenticationClient.assert_called_with("dummy", "rackspace",
                                                      "https://identity.api.rackspacecloud.com/v1.0",
                                                      "alex", 23*60*60)
-        self.failUnlessEqual(len(mock_OpenStackContainer.mock_calls), 1)
+        container_call_args = mock_OpenStackContainer.call_args_list
+        self.failUnlessEqual(len(container_call_args), 1)
+        self.failUnlessEqual(container_call_args[0][0][1:], ("test",))
         server = c.getServiceNamed("storage")
         self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
 
@@ -287,7 +290,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "readonly = true\n" +
                                     "backend = cloud.openstack\n" +
                                     "openstack.provider = rackspace\n" +
-                                    "openstack.username = alex\n")
+                                    "openstack.username = alex\n" +
+                                    "openstack.container = test\n")
         self.failUnlessRaises(InvalidValueError, client.Client, basedir)
 
     def test_openstack_config_no_username(self):
@@ -299,7 +303,21 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "[storage]\n" +
                                     "enabled = true\n" +
                                     "backend = cloud.openstack\n" +
-                                    "openstack.provider = rackspace\n")
+                                    "openstack.provider = rackspace\n" +
+                                    "openstack.container = test\n")
+        self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
+
+    def test_openstack_config_no_container(self):
+        basedir = "client.Basic.test_openstack_config_no_container"
+        os.mkdir(basedir)
+        self._write_secret(basedir, "openstack_api_key")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    BASECONFIG +
+                                    "[storage]\n" +
+                                    "enabled = true\n" +
+                                    "backend = cloud.openstack\n" +
+                                    "openstack.provider = rackspace\n" +
+                                    "openstack.username = alex\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
     def test_openstack_config_no_api_key(self):
@@ -311,7 +329,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "enabled = true\n" +
                                     "backend = cloud.openstack\n" +
                                     "openstack.provider = rackspace\n" +
-                                    "openstack.username = alex\n")
+                                    "openstack.username = alex\n" +
+                                    "openstack.container = test\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
     def test_expire_mutable_false_unsupported(self):

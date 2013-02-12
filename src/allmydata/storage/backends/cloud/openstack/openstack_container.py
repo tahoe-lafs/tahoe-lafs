@@ -26,10 +26,11 @@ def configure_openstack_container(storedir, config):
 
     auth_service_url = config.get_config("storage", "openstack.url", DEFAULT_AUTH_URLS[provider])
     username = config.get_config("storage", "openstack.username")
+    container_name = config.get_config("storage", "openstack.container")
     reauth_period = 23*60*60 #seconds
 
     auth_client = AuthenticationClient(api_key, provider, auth_service_url, username, reauth_period)
-    return OpenStackContainer(auth_client)
+    return OpenStackContainer(auth_client, container_name)
 
 
 class UnexpectedAuthenticationResponse(Exception):
@@ -144,8 +145,9 @@ class OpenStackContainer(ContainerRetryMixin, ContainerListMixin):
     I represent a real OpenStack container.
     """
 
-    def __init__(self, auth_client):
+    def __init__(self, auth_client, container_name):
         self._auth_client = auth_client
+        self._container_name = container_name
 
         #self.client = OpenStackClient(auth_client)
         #self.ServiceError = OpenStackError
