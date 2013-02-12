@@ -6,7 +6,9 @@ import mock
 from twisted.trial import unittest
 
 from twisted.internet import defer
+from twisted.internet.task import Clock
 from allmydata.util.deferredutil import for_items
+from twisted.web.http_headers import Headers
 
 from twisted.python.failure import Failure
 from foolscap.logging.log import OPERATIONAL, INFREQUENT, WEIRD
@@ -24,6 +26,7 @@ from allmydata.storage.backends.cloud.cloud_backend import CloudBackend
 from allmydata.storage.backends.cloud import mock_cloud, cloud_common
 from allmydata.storage.backends.cloud.mock_cloud import MockContainer, MockServiceError, \
      ContainerItem, ContainerListing
+from allmydata.storage.backends.cloud.openstack import openstack_container
 from allmydata.storage.bucket import BucketWriter, BucketReader
 from allmydata.storage.common import DataTooLargeError, storage_index_to_dir
 from allmydata.storage.leasedb import SHARETYPE_IMMUTABLE, SHARETYPE_MUTABLE
@@ -396,6 +399,83 @@ class CloudCommon(unittest.TestCase, ShouldFailMixin, WorkdirMixin):
                              os.path.normpath(os.path.join(basedir, "shares", "on", "onutc", "1")))
 
     # TODO: test cloud_common.delete_chunks
+
+
+class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, unittest.TestCase):
+    PROVIDER = "rackspace"
+    AUTH_SERVICE_URL = "auth_service_url"
+    USERNAME = "username"
+    API_KEY = "api_key"
+    STORAGE_URL = "storage_url"
+    CDN_MANAGEMENT_URL = "cdn_management_url"
+    AUTH_TOKEN = "auth_token"
+
+    def test_authentication_client(self):
+        mock_response_headers = {
+            'X-Storage-Url': [self.STORAGE_URL],
+            'X-CDN-Management-Url': [self.CDN_MANAGEMENT_URL],
+            'X-Auth-Token': [self.AUTH_TOKEN],
+        }
+        class MockResponse(object):
+            def __init__(mock_self):
+                mock_self.headers = Headers(mock_response_headers)
+                mock_self.code = 204
+                mock_self.phrase = "No Content"
+
+        class MockAgent(object):
+            def __init__(mock_self, reactor):
+                pass
+            def request(mock_self, method, url, headers, foo):
+                self.failUnlessEqual(method, 'GET')
+                self.failUnlessEqual(url, self.AUTH_SERVICE_URL)
+                self.failUnlessIsInstance(headers, Headers)
+                self.failUnlessEqual(headers.getRawHeaders('X-Auth-User'), [self.USERNAME])
+                self.failUnlessEqual(headers.getRawHeaders('X-Auth-Key'), [self.API_KEY])
+                return MockResponse()
+
+        self.patch(openstack_container, 'Agent', MockAgent)
+
+        workdir = self.workdir("test_authentication_client")
+        privatedir = os.path.join(workdir, "private")
+        fileutil.make_dirs(privatedir)
+        fileutil.write(os.path.join(privatedir, "openstack_api_key"), self.API_KEY)
+
+        storage_config = {
+            'openstack.provider': self.PROVIDER,
+            'openstack.url': self.AUTH_SERVICE_URL,
+            'openstack.username': self.USERNAME,
+        }
+        from allmydata.node import _None
+        class MockConfig(object):
+            def get_config(mock_self, section, option, default=_None, boolean=False):
+                self.failUnlessEqual(section, "storage")
+                if default is _None:
+                    self.failUnlessIn(option, storage_config)
+                return storage_config.get(option, default)
+            def get_or_create_private_config(mock_self, filename):
+                return fileutil.read(os.path.join(privatedir, filename))
+
+        config = MockConfig()
+        clock = Clock()
+        container = openstack_container.configure_openstack_container(workdir, config)
+        backend = CloudBackend(container)
+        server = StorageServer("\x00" * 20, backend, workdir,
+                               stats_provider=FakeStatsProvider(), clock=clock)
+        server.setServiceParent(self.sparent)
+        self.failUnless(server.backend._container is container, (server.backend._container, container))
+
+        d = container._auth_client.get_auth_info()
+        def _check(auth_info):
+            self.failUnlessEqual(auth_info.storage_url, self.STORAGE_URL)
+            self.failUnlessEqual(auth_info.cdn_management_url, self.CDN_MANAGEMENT_URL)
+            self.failUnlessEqual(auth_info.auth_token, self.AUTH_TOKEN)
+        d.addCallback(_check)
+        def _shutdown(res):
+            # avoid unclean reactor error
+            container._auth_client.shutdown()
+            return res
+        d.addBoth(_shutdown)
+        return d
 
 
 class ServerMixin:
