@@ -12,6 +12,10 @@ from allmydata.storage.backends.cloud.cloud_common import IContainer, \
      ContainerRetryMixin, ContainerListMixin
 
 
+# Enabling this will cause secrets to be logged.
+UNSAFE_DEBUG = True
+
+
 DEFAULT_AUTH_URLS = {
     "rackspace": "https://identity.api.rackspacecloud.com/v1.0",
     "rackspace-uk": "https://lon.identity.api.rackspacecloud.com/v1.0",
@@ -98,12 +102,14 @@ class AuthenticationClient(object):
             'X-Auth-User': [self._username],
             'X-Auth-Key': [self._api_key],
         }
-        log.msg("GET %s %r" % (self._auth_service_url, request_headers))
+        log.msg(format="OpenStack auth GET %(url)s %(headers)s",
+                url=self._auth_service_url, headers=repr(request_headers), level=log.OPERATIONAL)
         d = defer.succeed(None)
         d.addCallback(lambda ign: self._agent.request('GET', self._auth_service_url, Headers(request_headers), None))
 
         def _got_response(response):
-            log.msg("OpenStack auth response: %r %s" % (response.code, response.phrase))
+            log.msg(format="OpenStack auth response: %(code)d %(phrase)s",
+                    code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
             # "any 2xx response is a good response"
             if response.code < 200 or response.code >= 300:
                 raise UnexpectedAuthenticationResponse("unexpected response code %r %s" % (response.code, response.phrase),
@@ -119,8 +125,8 @@ class AuthenticationClient(object):
             storage_url = _get_header('X-Storage-Url')
             cdn_management_url = _get_header('X-CDN-Management-Url')
             auth_token = _get_header('X-Auth-Token')
-            # Don't log this unless debugging, since auth_token is a secret.
-            #log.msg("Auth response is %s %s %s" % (storage_url, cdn_management_url, auth_token))
+            if UNSAFE_DEBUG:
+                print "Auth response is %s %s %s" % (storage_url, cdn_management_url, auth_token)
             self._auth_info = AuthenticationInfo(storage_url, cdn_management_url, auth_token)
 
             self._delayed = self._reactor.callLater(self._reauth_period, self.get_auth_info_locked, suppress_errors=True)
