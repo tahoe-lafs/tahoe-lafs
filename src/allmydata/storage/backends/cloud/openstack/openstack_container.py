@@ -20,7 +20,7 @@ from allmydata.storage.backends.cloud.cloud_common import IContainer, \
 
 
 # Enabling this will cause secrets to be logged.
-UNSAFE_DEBUG = True
+UNSAFE_DEBUG = False
 
 
 DEFAULT_AUTH_URLS = {
@@ -164,12 +164,9 @@ class DataCollector(Protocol):
         self._done = defer.Deferred()
 
     def dataReceived(self, bytes):
-        print 'Got %d bytes' % (len(bytes),)
         self._data.append(bytes)
 
     def connectionLost(self, reason):
-        print 'Finished receiving body: %s' % (reason.getErrorMessage(),)
-        #reason.raiseException()
         if reason.check(ResponseDone):
             eventually_callback(self._done)("".join(self._data))
         else:
