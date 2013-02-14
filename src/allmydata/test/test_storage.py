@@ -1,5 +1,5 @@
 
-import time, os.path, platform, re, simplejson, struct, itertools
+import time, os.path, platform, re, simplejson, struct, itertools, urllib
 from collections import deque
 from cStringIO import StringIO
 
@@ -407,15 +407,23 @@ class CloudCommon(unittest.TestCase, ShouldFailMixin, WorkdirMixin):
     # TODO: test cloud_common.delete_chunks
 
 
-class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, unittest.TestCase):
+class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, unittest.TestCase):
     PROVIDER = "rackspace"
     AUTH_SERVICE_URL = "auth_service_url"
     USERNAME = "username"
     CONTAINER = "container"
     API_KEY = "api_key"
-    STORAGE_URL = "storage_url"
-    CDN_MANAGEMENT_URL = "cdn_management_url"
+    STORAGE_URL = "https://storage.example/a"
+    CDN_MANAGEMENT_URL = "https://cdn.example/a"
     AUTH_TOKEN = "auth_token"
+
+    TEST_SHARE_PREFIX = "shares/te/"
+    TEST_SHARE_NAME = TEST_SHARE_PREFIX + "test"
+    TEST_SHARE_MODIFIED = "2013-02-14T21:30:00Z"
+    TEST_SHARE_DATA = "share"
+    TEST_SHARE_HASH = "sharehash"
+    TEST_LISTING_JSON = ('[{"name": "%s", "bytes": %d, "last_modified": "%s", "hash": "%s"}]'
+                         % (TEST_SHARE_NAME, len(TEST_SHARE_DATA), TEST_SHARE_MODIFIED, TEST_SHARE_HASH))
 
     def _patch_agent(self):
         self._requests = {}
@@ -523,6 +531,87 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, unittest.TestCase)
             self.failUnlessEqual(auth_info.cdn_management_url, self.CDN_MANAGEMENT_URL)
             self.failUnlessEqual(auth_info.auth_token, self.AUTH_TOKEN)
         d.addCallback(_check)
+        d.addBoth(self._shutdown)
+        return d
+
+    def test_openstack_container(self):
+        self._patch_agent()
+
+        # Set up the requests that we expect to receive.
+        self._set_request('GET', "/".join((self.STORAGE_URL, self.CONTAINER, "unexpected")), {
+                            'X-Auth-Token': [self.AUTH_TOKEN],
+                          }, "",
+                          404, "Not Found", {}, "")
+
+        self._set_request('PUT', "/".join((self.STORAGE_URL, self.CONTAINER, self.TEST_SHARE_NAME)), {
+                            'X-Auth-Token': [self.AUTH_TOKEN],
+                            'Content-Type': ['application/octet-stream'],
+                            'Content-Length': [len(self.TEST_SHARE_DATA)],
+                          }, self.TEST_SHARE_DATA,
+                          204, "No Content", {}, "")
+
+        quoted_prefix = urllib.quote(self.TEST_SHARE_PREFIX, safe='')
+        self._set_request('GET', "%s/%s?format=json&prefix=%s"
+                                   % (self.STORAGE_URL, self.CONTAINER, quoted_prefix), {
+                            'X-Auth-Token': [self.AUTH_TOKEN],
+                          }, "",
+                          200, "OK", {}, self.TEST_LISTING_JSON)
+
+        self._set_request('GET', "/".join((self.STORAGE_URL, self.CONTAINER, self.TEST_SHARE_NAME)), {
+                            'X-Auth-Token': [self.AUTH_TOKEN],
+                          }, "",
+                          200, "OK", {}, self.TEST_SHARE_DATA)
+
+        self._make_server("test_openstack_container")
+
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self.shouldFail(CloudError, "404", None,
+                                                  self.container.get_object, "unexpected"))
+
+        d.addCallback(lambda ign: self.container.put_object(self.TEST_SHARE_NAME, self.TEST_SHARE_DATA))
+        d.addCallback(lambda res: self.failUnless(res is None, res))
+
+        d.addCallback(lambda ign: self.container.list_objects(prefix=self.TEST_SHARE_PREFIX))
+        def _check_listing(listing):
+            self.failUnlessEqual(listing.name, self.CONTAINER)
+            self.failUnlessEqual(listing.prefix, self.TEST_SHARE_PREFIX)
+            self.failUnlessEqual(listing.is_truncated, "false")
+            self.failUnlessEqual(len(listing.contents), 1)
+            item = listing.contents[0]
+            self.failUnlessEqual(item.key, self.TEST_SHARE_NAME)
+            self.failUnlessEqual(item.modification_date, self.TEST_SHARE_MODIFIED)
+            self.failUnlessEqual(item.etag, self.TEST_SHARE_HASH)
+            self.failUnlessEqual(item.size, len(self.TEST_SHARE_DATA))
+        d.addCallback(_check_listing)
+
+        d.addCallback(lambda ign: self.container.get_object(self.TEST_SHARE_NAME))
+        d.addCallback(lambda res: self.failUnlessEqual(res, self.TEST_SHARE_DATA))
+
+        def _set_up_delete(ign):
+            self._set_request('DELETE', "/".join((self.STORAGE_URL, self.CONTAINER, self.TEST_SHARE_NAME)), {
+                                'X-Auth-Token': [self.AUTH_TOKEN],
+                              }, "",
+                              204, "No Content", {}, "")
+
+            # this changes the response to the request set up above
+            self._set_request('GET', "%s/%s?format=json&prefix=%s"
+                                       % (self.STORAGE_URL, self.CONTAINER, quoted_prefix), {
+                                'X-Auth-Token': [self.AUTH_TOKEN],
+                              }, "",
+                              200, "OK", {}, "[]")
+        d.addCallback(_set_up_delete)
+
+        d.addCallback(lambda ign: self.container.delete_object(self.TEST_SHARE_NAME))
+        d.addCallback(lambda res: self.failUnless(res is None, res))
+
+        d.addCallback(lambda ign: self.container.list_objects(prefix=self.TEST_SHARE_PREFIX))
+        def _check_listing_after_delete(listing):
+            self.failUnlessEqual(listing.name, self.CONTAINER)
+            self.failUnlessEqual(listing.prefix, self.TEST_SHARE_PREFIX)
+            self.failUnlessEqual(listing.is_truncated, "false")
+            self.failUnlessEqual(len(listing.contents), 0)
+        d.addCallback(_check_listing_after_delete)
+
         d.addBoth(self._shutdown)
         return d
 
