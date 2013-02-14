@@ -2,12 +2,12 @@
 import os.path
 
 from twisted.internet import defer
-from twisted.web.error import Error
 from allmydata.util.deferredutil import async_iterate
 
 from zope.interface import implements
 
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
+     CloudServiceError, ContainerItem, ContainerListing, \
      ContainerRetryMixin, ContainerListMixin
 from allmydata.util.time_format import iso_utc
 from allmydata.util import fileutil
@@ -33,7 +33,7 @@ class MockContainer(ContainerRetryMixin, ContainerListMixin):
     def __init__(self, storagedir):
         self._storagedir = storagedir
         self.container_name = "MockContainer"
-        self.ServiceError = MockServiceError
+        self.ServiceError = CloudServiceError
         self._load_count = 0
         self._store_count = 0
 
@@ -89,7 +89,7 @@ class MockContainer(ContainerRetryMixin, ContainerListMixin):
         # This method is also called by tests.
         sharefile = os.path.join(self._storagedir, object_name)
         if must_exist and not os.path.exists(sharefile):
-            raise MockServiceError("", 404, "not found")
+            raise self.ServiceError("", 404, "not found")
         return sharefile
 
     def _put_object(self, ign, object_name, data, content_type, metadata):
@@ -149,83 +149,3 @@ class MockContainer(ContainerRetryMixin, ContainerListMixin):
 
     def get_store_count(self):
         return self._store_count
-
-
-class MockServiceError(Error):
-    """
-    A error class similar to txaws' S3Error.
-    """
-    def __init__(self, xml_bytes, status, message=None, response=None, request_id="", host_id=""):
-        Error.__init__(self, status, message, response)
-        self.original = xml_bytes
-        self.status = str(status)
-        self.message = str(message)
-        self.request_id = request_id
-        self.host_id = host_id
-
-    def get_error_code(self):
-        return self.status
-
-    def get_error_message(self):
-        return self.message
-
-    def parse(self, xml_bytes=""):
-        raise NotImplementedError
-
-    def has_error(self, errorString):
-        raise NotImplementedError
-
-    def get_error_codes(self):
-        raise NotImplementedError
-
-    def get_error_messages(self):
-        raise NotImplementedError
-
-
-# Originally from txaws.s3.model (under different class names), which was under the MIT / Expat licence.
-
-class ContainerItem(object):
-    """
-    An item in a listing of cloud objects.
-    """
-    def __init__(self, key, modification_date, etag, size, storage_class,
-                 owner=None):
-        self.key = key
-        self.modification_date = modification_date
-        self.etag = etag
-        self.size = size
-        self.storage_class = storage_class
-        self.owner = owner
-
-    def __repr__(self):
-        return "<ContainerItem %r>" % ({
-                   "key": self.key,
-                   "modification_date": self.modification_date,
-                   "etag": self.etag,
-                   "size": self.size,
-                   "storage_class": self.storage_class,
-                   "owner": self.owner,
-               },)
-
-
-class ContainerListing(object):
-    def __init__(self, name, prefix, marker, max_keys, is_truncated,
-                 contents=None, common_prefixes=None):
-        self.name = name
-        self.prefix = prefix
-        self.marker = marker
-        self.max_keys = max_keys
-        self.is_truncated = is_truncated
-        self.contents = contents
-        self.common_prefixes = common_prefixes
-
-    def __repr__(self):
-        return "<ContainerListing %r>" % ({
-                   "name": self.name,
-                   "prefix": self.prefix,
-                   "marker": self.marker,
-                   "max_keys": self.max_keys,
-                   "is_truncated": self.is_truncated,
-                   "contents": self.contents,
-                   "common_prefixes": self.common_prefixes,
-               })
