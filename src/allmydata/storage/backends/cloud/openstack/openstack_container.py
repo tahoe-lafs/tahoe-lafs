@@ -16,10 +16,7 @@ from allmydata.util import log
 from allmydata.util.assertutil import _assert
 from allmydata.node import InvalidValueError
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     ContainerRetryMixin
-
-# move this
-from allmydata.storage.backends.cloud.mock_cloud import ContainerItem, ContainerListing
+     CloudServiceError, ContainerItem, ContainerListing, ContainerRetryMixin
 
 
 # Enabling this will cause secrets to be logged.
@@ -155,10 +152,6 @@ class AuthenticationClient(object):
             self._delayed.cancel()
 
 
-class OpenStackError(Exception):
-    pass
-
-
 class Discard(Protocol):
     # see http://twistedmatrix.com/trac/ticket/5488
     def makeConnection(self, producer):
@@ -180,7 +173,7 @@ class DataCollector(Protocol):
         if reason.check(ResponseDone):
             eventually_callback(self._done)("".join(self._data))
         else:
-            def _failed(): raise OpenStackError(reason.getErrorMessage())
+            def _failed(): raise CloudServiceError(reason.getErrorMessage())
             eventually_errback(self._done)(defer.execute(_failed))
 
     def when_done(self):
@@ -198,7 +191,7 @@ class OpenStackContainer(ContainerRetryMixin):
         self._container_name = container_name
         self._reactor = override_reactor or reactor
         self._agent = Agent(self._reactor)
-        self.ServiceError = OpenStackError
+        self.ServiceError = CloudServiceError
 
     def __repr__(self):
         return ("<%s %r>" % (self.__class__.__name__, self._container_name,))
@@ -244,8 +237,8 @@ class OpenStackContainer(ContainerRetryMixin):
             log.msg(format="OpenStack list GET response: %(code)d %(phrase)s",
                     code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
             if response.code < 200 or response.code >= 300:
-                raise OpenStackError("unexpected response code %r %s" % (response.code, response.phrase),
-                                     response.code, response.headers)
+                raise self.ServiceError("unexpected response code %r %s" % (response.code, response.phrase),
+                                        response.code, response.headers)
 
             collector = DataCollector()
             response.deliverBody(collector)
@@ -264,7 +257,7 @@ class OpenStackContainer(ContainerRetryMixin):
                     etag = item['hash']
                     storage_class = 'STANDARD'
                 except KeyError, e:
-                    raise OpenStackError(str(e))
+                    raise self.ServiceError(str(e))
                 else:
                     return ContainerItem(key, modification_date, etag, size, storage_class)
 
@@ -297,8 +290,8 @@ class OpenStackContainer(ContainerRetryMixin):
             log.msg(format="OpenStack PUT response: %(code)d %(phrase)s",
                     code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
             if response.code < 200 or response.code >= 300:
-                raise OpenStackError("unexpected response code %r %s" % (response.code, response.phrase),
-                                     response.code, response.headers)
+                raise self.ServiceError("unexpected response code %r %s" % (response.code, response.phrase),
+                                        response.code, response.headers)
             response.deliverBody(Discard())
         d.addCallback(_got_put_response)
         return d
@@ -321,8 +314,8 @@ class OpenStackContainer(ContainerRetryMixin):
             log.msg(format="OpenStack GET response: %(code)d %(phrase)s",
                     code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
             if response.code < 200 or response.code >= 300:
-                raise OpenStackError("unexpected response code %r %s" % (response.code, response.phrase),
-                                     response.code, response.headers)
+                raise self.ServiceError("unexpected response code %r %s" % (response.code, response.phrase),
+                                        response.code, response.headers)
 
             collector = DataCollector()
             response.deliverBody(collector)
@@ -355,8 +348,8 @@ class OpenStackContainer(ContainerRetryMixin):
             log.msg(format="OpenStack DELETE response: %(code)d %(phrase)s",
                     code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
             if response.code < 200 or response.code >= 300:
-                raise OpenStackError("unexpected response code %r %s" % (response.code, response.phrase),
-                                     response.code, response.headers)
+                raise self.ServiceError("unexpected response code %r %s" % (response.code, response.phrase),
+                                        response.code, response.headers)
             response.deliverBody(Discard())
         d.addCallback(_got_delete_response)
         return d

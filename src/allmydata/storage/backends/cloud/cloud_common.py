@@ -3,6 +3,7 @@ from collections import deque
 
 from twisted.internet import defer, reactor, task
 from twisted.python.failure import Failure
+from twisted.web.error import Error
 
 from zope.interface import Interface, implements
 from allmydata.interfaces import IShareBase
@@ -239,6 +240,86 @@ class CloudShareReaderMixin:
 
 class CloudError(Exception):
     pass
+
+
+class CloudServiceError(Error):
+    """
+    A error class similar to txaws' S3Error.
+    """
+    def __init__(self, xml_bytes, status, message=None, response=None, request_id="", host_id=""):
+        Error.__init__(self, status, message, response)
+        self.original = xml_bytes
+        self.status = str(status)
+        self.message = str(message)
+        self.request_id = request_id
+        self.host_id = host_id
+
+    def get_error_code(self):
+        return self.status
+
+    def get_error_message(self):
+        return self.message
+
+    def parse(self, xml_bytes=""):
+        raise NotImplementedError
+
+    def has_error(self, errorString):
+        raise NotImplementedError
+
+    def get_error_codes(self):
+        raise NotImplementedError
+
+    def get_error_messages(self):
+        raise NotImplementedError
+
+
+# Originally from txaws.s3.model (under different class names), which was under the MIT / Expat licence.
+
+class ContainerItem(object):
+    """
+    An item in a listing of cloud objects.
+    """
+    def __init__(self, key, modification_date, etag, size, storage_class,
+                 owner=None):
+        self.key = key
+        self.modification_date = modification_date
+        self.etag = etag
+        self.size = size
+        self.storage_class = storage_class
+        self.owner = owner
+
+    def __repr__(self):
+        return "<ContainerItem %r>" % ({
+                   "key": self.key,
+                   "modification_date": self.modification_date,
+                   "etag": self.etag,
+                   "size": self.size,
+                   "storage_class": self.storage_class,
+                   "owner": self.owner,
+               },)
+
+
+class ContainerListing(object):
+    def __init__(self, name, prefix, marker, max_keys, is_truncated,
+                 contents=None, common_prefixes=None):
+        self.name = name
+        self.prefix = prefix
+        self.marker = marker
+        self.max_keys = max_keys
+        self.is_truncated = is_truncated
+        self.contents = contents
+        self.common_prefixes = common_prefixes
+
+    def __repr__(self):
+        return "<ContainerListing %r>" % ({
+                   "name": self.name,
+                   "prefix": self.prefix,
+                   "marker": self.marker,
+                   "max_keys": self.max_keys,
+                   "is_truncated": self.is_truncated,
+                   "contents": self.contents,
+                   "common_prefixes": self.common_prefixes,
+               })
 
 
 BACKOFF_SECONDS_FOR_5XX = (0, 2, 10)

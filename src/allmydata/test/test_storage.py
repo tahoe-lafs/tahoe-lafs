@@ -28,9 +28,10 @@ from allmydata.storage.backends.disk.immutable import load_immutable_disk_share,
      create_immutable_disk_share, ImmutableDiskShare
 from allmydata.storage.backends.disk.mutable import create_mutable_disk_share, MutableDiskShare
 from allmydata.storage.backends.cloud.cloud_backend import CloudBackend
-from allmydata.storage.backends.cloud import mock_cloud, cloud_common
-from allmydata.storage.backends.cloud.mock_cloud import MockContainer, MockServiceError, \
+from allmydata.storage.backends.cloud.cloud_common import CloudError, CloudServiceError, \
      ContainerItem, ContainerListing
+from allmydata.storage.backends.cloud import mock_cloud, cloud_common
+from allmydata.storage.backends.cloud.mock_cloud import MockContainer
 from allmydata.storage.backends.cloud.openstack import openstack_container
 from allmydata.storage.bucket import BucketWriter, BucketReader
 from allmydata.storage.common import DataTooLargeError, storage_index_to_dir
@@ -1735,7 +1736,7 @@ class ServerWithMockCloudBackend(WithMockCloudBackend, ServerTest, unittest.Test
         def call_put_object(self, ign, object_name, data, content_type=None, metadata={}):
             t['count'] += 1
             if t['count'] <= failure_count:
-                return defer.fail(MockServiceError("XML", 500, "Internal error", "response"))
+                return defer.fail(CloudServiceError("XML", 500, "Internal error", "response"))
             else:
                 return old_put_object(self, ign, object_name, data, content_type=content_type, metadata=metadata)
         self.patch(MockContainer, '_put_object', call_put_object)
