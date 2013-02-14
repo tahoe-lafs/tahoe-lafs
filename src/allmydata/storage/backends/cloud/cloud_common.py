@@ -302,6 +302,7 @@ class ContainerItem(object):
 class ContainerListing(object):
     def __init__(self, name, prefix, marker, max_keys, is_truncated,
                  contents=None, common_prefixes=None):
+        precondition(isinstance(is_truncated, str))
         self.name = name
         self.prefix = prefix
         self.marker = marker

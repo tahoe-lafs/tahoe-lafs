@@ -262,7 +262,7 @@ class OpenStackContainer(ContainerRetryMixin):
                     return ContainerItem(key, modification_date, etag, size, storage_class)
 
             contents = map(_make_containeritem, items)
-            return ContainerListing(self._container_name, prefix, None, 10000, False, contents=contents)
+            return ContainerListing(self._container_name, prefix, None, 10000, "false", contents=contents)
         d.addCallback(_parse_list)
         return d
 
