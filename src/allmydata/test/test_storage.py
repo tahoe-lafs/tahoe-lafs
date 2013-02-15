@@ -408,7 +408,7 @@ class CloudCommon(unittest.TestCase, ShouldFailMixin, WorkdirMixin):
 
 
 class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, unittest.TestCase):
-    PROVIDER = "rackspace"
+    PROVIDER = "rackspace.com"
     AUTH_SERVICE_URL = "auth_service_url"
     USERNAME = "username"
     CONTAINER = "container"

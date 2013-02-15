@@ -264,13 +264,13 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                   "[storage]\n" +
                   "enabled = true\n" +
                   "backend = cloud.openstack\n" +
-                  "openstack.provider = rackspace\n" +
+                  "openstack.provider = rackspace.com\n" +
                   "openstack.username = alex\n" +
                   "openstack.container = test\n")
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
 
         c = client.Client(basedir)
-        mock_AuthenticationClient.assert_called_with("dummy", "rackspace",
+        mock_AuthenticationClient.assert_called_with("dummy", "rackspace.com",
                                                      "https://identity.api.rackspacecloud.com/v1.0",
                                                      "alex", 23*60*60)
         container_call_args = mock_OpenStackContainer.call_args_list
@@ -289,7 +289,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "enabled = true\n" +
                                     "readonly = true\n" +
                                     "backend = cloud.openstack\n" +
-                                    "openstack.provider = rackspace\n" +
+                                    "openstack.provider = rackspace.com\n" +
                                     "openstack.username = alex\n" +
                                     "openstack.container = test\n")
         self.failUnlessRaises(InvalidValueError, client.Client, basedir)
@@ -303,7 +303,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "[storage]\n" +
                                     "enabled = true\n" +
                                     "backend = cloud.openstack\n" +
-                                    "openstack.provider = rackspace\n" +
+                                    "openstack.provider = rackspace.com\n" +
                                     "openstack.container = test\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
@@ -316,7 +316,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "[storage]\n" +
                                     "enabled = true\n" +
                                     "backend = cloud.openstack\n" +
-                                    "openstack.provider = rackspace\n" +
+                                    "openstack.provider = rackspace.com\n" +
                                     "openstack.username = alex\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
@@ -328,7 +328,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "[storage]\n" +
                                     "enabled = true\n" +
                                     "backend = cloud.openstack\n" +
-                                    "openstack.provider = rackspace\n" +
+                                    "openstack.provider = rackspace.com\n" +
                                     "openstack.username = alex\n" +
                                     "openstack.container = test\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
