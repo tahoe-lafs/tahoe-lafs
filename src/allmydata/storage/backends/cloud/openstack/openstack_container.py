@@ -77,7 +77,7 @@ class AuthenticationClient(object):
 
         # Not authorized yet.
         self._auth_info = None
-        self._first_auth_lock = defer.DeferredLock()
+        self._auth_lock = defer.DeferredLock()
         d = self.get_auth_info()
         d.addBoth(lambda ign: None)
 
@@ -89,12 +89,7 @@ class AuthenticationClient(object):
             return self.get_auth_info_locked()
 
     def get_auth_info_locked(self, suppress_errors=False):
-        d = self._first_auth_lock.acquire()
-        d.addCallback(self._authenticate)
-        def _release(res):
-            self._first_auth_lock.release()
-            return res
-        d.addBoth(_release)
+        d = self._auth_lock.run(self._authenticate)
         d.addCallback(lambda ign: self._auth_info)
         if suppress_errors:
             d.addErrback(lambda ign: self._auth_info)
