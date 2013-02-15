@@ -24,13 +24,13 @@ UNSAFE_DEBUG = False
 
 
 DEFAULT_AUTH_URLS = {
-    "rackspace": "https://identity.api.rackspacecloud.com/v1.0",
-    "rackspace-uk": "https://lon.identity.api.rackspacecloud.com/v1.0",
+    "rackspace.com": "https://identity.api.rackspacecloud.com/v1.0",
+    "rackspace.co.uk": "https://lon.identity.api.rackspacecloud.com/v1.0",
 }
 
 def configure_openstack_container(storedir, config):
     api_key = config.get_or_create_private_config("openstack_api_key")
-    provider = config.get_config("storage", "openstack.provider", "rackspace").lower()
+    provider = config.get_config("storage", "openstack.provider", "rackspace.com").lower()
     if provider not in DEFAULT_AUTH_URLS:
         raise InvalidValueError("[storage]openstack.provider %r is not recognized\n"
                                 "Valid providers are: %s" % (provider, ", ".join(DEFAULT_AUTH_URLS.keys())))
