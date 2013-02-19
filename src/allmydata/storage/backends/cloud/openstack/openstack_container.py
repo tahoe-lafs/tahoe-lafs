@@ -28,6 +28,8 @@ DEFAULT_AUTH_URLS = {
     "rackspace.co.uk": "https://lon.identity.api.rackspacecloud.com/v1.0",
 }
 
+USER_AGENT = "Tahoe-LAFS OpenStack client"
+
 def configure_openstack_container(storedir, config):
     api_key = config.get_or_create_private_config("openstack_api_key")
     provider = config.get_config("storage", "openstack.provider", "rackspace.com").lower()
@@ -58,11 +60,48 @@ class AuthenticationInfo(object):
         self.auth_token = auth_token
 
 
-def _check_response_code(response):
-    # "any 2xx response is a good response"
-    if response.code < 200 or response.code >= 300:
-        raise CloudServiceError("unexpected response code %r %s" % (response.code, response.phrase),
-                                response.code, response.headers)
+def _http_request(what, agent, method, url, request_headers, body=None, need_response_body=False):
+    # Agent.request adds a Host header automatically based on the URL.
+    request_headers['User-Agent'] = [USER_AGENT]
+
+    if body is None:
+        bodyProducer = None
+    else:
+        bodyProducer = FileBodyProducer(StringIO(body))
+        # We don't need to explicitly set Content-Length because FileBodyProducer knows the length
+        # (and if we do it won't work, because in that case Content-Length would be duplicated).
+
+    log.msg(format="OpenStack %(what)s request %(method)s %(url)s %(headers)s",
+            what=what, method=method, url=url, headers=repr(request_headers), level=log.OPERATIONAL)
+
+    d = defer.maybeDeferred(agent.request, method, url, Headers(request_headers), bodyProducer)
+
+    def _got_response(response):
+        log.msg(format="OpenStack %(what)s response: %(code)d %(phrase)s",
+                what=what, code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
+
+        if response.code < 200 or response.code >= 300:
+            raise CloudServiceError(None, response.code,
+                                    message="unexpected response code %r %s" % (response.code, response.phrase))
+
+        if need_response_body:
+            collector = DataCollector()
+            response.deliverBody(collector)
+            d2 = collector.when_done()
+            d2.addCallback(lambda body: (response, body))
+            return d2
+        else:
+            response.deliverBody(Discard())
+            return (response, None)
+    d.addCallback(_got_response)
+    return d
+
+def _get_header(response, name):
+    hs = response.headers.getRawHeaders(name)
+    if len(hs) == 0:
+        raise CloudServiceError(None, response.code,
+                                message="missing response header %r" % (name,))
+    return hs[0]
 
 
 class AuthenticationClient(object):
@@ -180,8 +219,6 @@ class DataCollector(Protocol):
 class OpenStackContainer(ContainerRetryMixin):
     implements(IContainer)
 
-    USER_AGENT = 'Tahoe-LAFS OpenStack client'
-
     def __init__(self, auth_client, container_name, override_reactor=None):
         self._auth_client = auth_client
         self._container_name = container_name
@@ -220,45 +257,41 @@ class OpenStackContainer(ContainerRetryMixin):
         d = self._auth_client.get_auth_info()
         def _do_list(auth_info):
             request_headers = {
-                'User-Agent': [self.USER_AGENT],
                 'X-Auth-Token': [auth_info.auth_token],
             }
             url = self._make_container_url(auth_info)
             if prefix:
                 url += "?format=json&prefix=%s" % (urllib.quote(prefix, safe=''),)
-            log.msg(format="OpenStack list GET %(url)s", url=url, level=log.OPERATIONAL)
-            return self._agent.request('GET', url, Headers(request_headers), None)
+            return _http_request("list objects", self._agent, 'GET', url, request_headers, None, need_response_body=True)
         d.addCallback(_do_list)
-        def _got_list_response(response):
-            log.msg(format="OpenStack list GET response: %(code)d %(phrase)s",
-                    code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
-            _check_response_code(response)
-
-            collector = DataCollector()
-            response.deliverBody(collector)
-            return collector.when_done()
-        d.addCallback(_got_list_response)
-        def _parse_list(json):
-            items = simplejson.loads(json)
-            log.msg(format="OpenStack list GET read %(length)d bytes, parsed as %(items)d items",
-                    length=len(json), items=len(items), level=log.OPERATIONAL)
-
-            def _make_containeritem(item):
-                try:
-                    key = item['name']
-                    size = item['bytes']
-                    modification_date = item['last_modified']
-                    etag = item['hash']
-                    storage_class = 'STANDARD'
-                except KeyError, e:
-                    raise self.ServiceError(str(e))
-                else:
-                    return ContainerItem(key, modification_date, etag, size, storage_class)
-
-            contents = map(_make_containeritem, items)
-            return ContainerListing(self._container_name, prefix, None, 10000, "false", contents=contents)
-        d.addCallback(_parse_list)
+        d.addCallback(lambda (response, json): self._parse_list(response, json, prefix))
         return d
+
+    def _parse_list(self, response, json, prefix):
+        try:
+            items = simplejson.loads(json)
+        except simplejson.decoder.JSONDecodeError, e:
+            raise self.ServiceError(None, response.code,
+                                    message="could not decode list response: %s" % (e,))
+
+        log.msg(format="OpenStack list read %(length)d bytes, parsed as %(items)d items",
+                length=len(json), items=len(items), level=log.OPERATIONAL)
+
+        def _make_containeritem(item):
+            try:
+                key = item['name']
+                size = item['bytes']
+                modification_date = item['last_modified']
+                etag = item['hash']
+                storage_class = 'STANDARD'
+            except KeyError, e:
+                raise self.ServiceError(None, response.code,
+                                        message="missing field in list response: %s" % (e,))
+            else:
+                return ContainerItem(key, modification_date, etag, size, storage_class)
+
+        contents = map(_make_containeritem, items)
+        return ContainerListing(self._container_name, prefix, None, 10000, "false", contents=contents)
 
     def _put_object(self, object_name, data, content_type='application/octet-stream', metadata={}):
         """
@@ -267,26 +300,14 @@ class OpenStackContainer(ContainerRetryMixin):
         """
         d = self._auth_client.get_auth_info()
         def _do_put(auth_info):
-            content_length = len(data)
             request_headers = {
-                'User-Agent': [self.USER_AGENT],
                 'X-Auth-Token': [auth_info.auth_token],
                 'Content-Type': [content_type],
-                'Content-Length': [content_length],
             }
-            producer = FileBodyProducer(StringIO(data))
             url = self._make_object_url(auth_info, object_name)
-            log.msg(format="OpenStack PUT %(url)s %(content_length)d",
-                    url=url, content_length=content_length, level=log.OPERATIONAL)
-            return self._agent.request('PUT', url, Headers(request_headers), producer)
+            return _http_request("put object", self._agent, 'PUT', url, request_headers, data)
         d.addCallback(_do_put)
-        def _got_put_response(response):
-            log.msg(format="OpenStack PUT response: %(code)d %(phrase)s",
-                    code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
-            _check_response_code(response)
-
-            response.deliverBody(Discard())
-        d.addCallback(_got_put_response)
+        d.addCallback(lambda ign: None)
         return d
 
     def _get_object(self, object_name):
@@ -296,22 +317,12 @@ class OpenStackContainer(ContainerRetryMixin):
         d = self._auth_client.get_auth_info()
         def _do_get(auth_info):
             request_headers = {
-                'User-Agent': [self.USER_AGENT],
                 'X-Auth-Token': [auth_info.auth_token],
             }
             url = self._make_object_url(auth_info, object_name)
-            log.msg(format="OpenStack GET %(url)s", url=url, level=log.OPERATIONAL)
-            return self._agent.request('GET', url, Headers(request_headers), None)
+            return _http_request("get object", self._agent, 'GET', url, request_headers, need_response_body=True)
         d.addCallback(_do_get)
-        def _got_get_response(response):
-            log.msg(format="OpenStack GET response: %(code)d %(phrase)s",
-                    code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
-            _check_response_code(response)
-
-            collector = DataCollector()
-            response.deliverBody(collector)
-            return collector.when_done()
-        d.addCallback(_got_get_response)
+        d.addCallback(lambda (response, body): body)
         return d
 
     def _head_object(self, object_name):
@@ -328,20 +339,12 @@ class OpenStackContainer(ContainerRetryMixin):
         d = self._auth_client.get_auth_info()
         def _do_delete(auth_info):
             request_headers = {
-                'User-Agent': [self.USER_AGENT],
                 'X-Auth-Token': [auth_info.auth_token],
             }
             url = self._make_object_url(auth_info, object_name)
-            log.msg(format="OpenStack DELETE %(url)s", url=url, level=log.OPERATIONAL)
-            return self._agent.request('DELETE', url, Headers(request_headers), None)
+            return _http_request("delete", self._agent, 'DELETE', url, request_headers)
         d.addCallback(_do_delete)
-        def _got_delete_response(response):
-            log.msg(format="OpenStack DELETE response: %(code)d %(phrase)s",
-                    code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
-            _check_response_code(response)
-
-            response.deliverBody(Discard())
-        d.addCallback(_got_delete_response)
+        d.addCallback(lambda ign: None)
         return d
 
     def create(self):
