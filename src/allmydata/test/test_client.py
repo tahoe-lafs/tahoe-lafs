@@ -254,9 +254,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "s3.bucket = test\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
+    @mock.patch('allmydata.storage.backends.cloud.openstack.openstack_container.AuthenticatorV2')
     @mock.patch('allmydata.storage.backends.cloud.openstack.openstack_container.AuthenticationClient')
     @mock.patch('allmydata.storage.backends.cloud.openstack.openstack_container.OpenStackContainer')
-    def test_openstack_config_good_defaults(self, mock_OpenStackContainer, mock_AuthenticationClient):
+    def test_openstack_config_good_defaults(self, mock_OpenStackContainer, mock_AuthenticationClient,
+                                            mock_Authenticator):
         basedir = "client.Basic.test_openstack_config_good_defaults"
         os.mkdir(basedir)
         self._write_secret(basedir, "openstack_api_key")
@@ -270,9 +272,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
 
         c = client.Client(basedir)
-        mock_AuthenticationClient.assert_called_with("dummy", "rackspace.com",
-                                                     "https://identity.api.rackspacecloud.com/v1.0",
-                                                     "alex", 23*60*60)
+        mock_Authenticator.assert_called_with("https://identity.api.rackspacecloud.com/v2.0/tokens",
+                                              "alex", "dummy")
+        authclient_call_args = mock_AuthenticationClient.call_args_list
+        self.failUnlessEqual(len(authclient_call_args), 1)
+        self.failUnlessEqual(authclient_call_args[0][0][1:], (23*60*60,))
         container_call_args = mock_OpenStackContainer.call_args_list
         self.failUnlessEqual(len(container_call_args), 1)
         self.failUnlessEqual(container_call_args[0][0][1:], ("test",))

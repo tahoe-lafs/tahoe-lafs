@@ -413,8 +413,8 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
     USERNAME = "username"
     CONTAINER = "container"
     API_KEY = "api_key"
-    STORAGE_URL = "https://storage.example/a"
-    CDN_MANAGEMENT_URL = "https://cdn.example/a"
+    PUBLIC_STORAGE_URL = "https://public.storage.example/a"
+    INTERNAL_STORAGE_URL = "https://internal.storage.example/a"
     AUTH_TOKEN = "auth_token"
 
     TEST_SHARE_PREFIX = "shares/te/"
@@ -450,17 +450,18 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
 
                 self.failUnlessIsInstance(headers, Headers)
                 for (key, values) in expected_headers.iteritems():
-                    self.failUnlessEqual(headers.getRawHeaders(key), values)
+                    self.failUnlessEqual(headers.getRawHeaders(key), values, str((headers, key)))
 
                 d = defer.succeed(None)
                 if bodyProducer is None:
                     self.failUnlessEqual(expected_body, "")
                 else:
                     self.failUnless(IBodyProducer.providedBy(bodyProducer))
-                    self.failUnlessIn(bodyProducer.length, (len(expected_body), UNKNOWN_LENGTH))
                     body = StringIO()
                     d = bodyProducer.startProducing(FileConsumer(body))
                     d.addCallback(lambda ign: self.failUnlessEqual(body.getvalue(), expected_body))
+                    d.addCallback(lambda ign: self.failUnlessIn(bodyProducer.length,
+                                                                (len(expected_body), UNKNOWN_LENGTH)))
                 d.addCallback(lambda ign: MockResponse(response_code, response_phrase, response_headers, response_body))
                 return d
 
@@ -474,15 +475,27 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
                                          response_code, response_phrase, response_headers, response_body)
 
     def _make_server(self, name):
-        self._set_request('GET', self.AUTH_SERVICE_URL, {
-                            'X-Auth-User': [self.USERNAME],
-                            'X-Auth-Key': [self.API_KEY],
-                          }, "",
-                          204, "No Content", {
-                            'X-Storage-Url': [self.STORAGE_URL],
-                            'X-CDN-Management-Url': [self.CDN_MANAGEMENT_URL],
-                            'X-Auth-Token': [self.AUTH_TOKEN],
-                          }, "")
+        # This is for the v1 auth protocol.
+        #self._set_request('GET', self.AUTH_SERVICE_URL, {
+        #                    'X-Auth-User': [self.USERNAME],
+        #                    'X-Auth-Key': [self.API_KEY],
+        #                  }, "",
+        #                  204, "No Content", {
+        #                    'X-Storage-Url': [self.STORAGE_URL],
+        #                    'X-Auth-Token': [self.AUTH_TOKEN],
+        #                  }, "")
+
+        self._set_request('POST', self.AUTH_SERVICE_URL, {
+                            'Content-Type': ['application/json'],
+                          }, '{"auth": {"RAX-KSKEY:apiKeyCredentials": {"username": "username", "apiKey": "api_key"}}}',
+                          200, "OK", {
+                          }, '''
+                          {"access": {"token": {"id": "%s"},
+                                      "serviceCatalog": [{"endpoints": [{"region": "FOO", "publicURL": "%s", "internalURL": "%s"}],
+                                                          "type": "object-store"}],
+                                      "user": {"RAX-AUTH:defaultRegion": "", "name": "%s"}
+                                     }
+                          }''' % (self.AUTH_TOKEN, self.PUBLIC_STORAGE_URL, self.INTERNAL_STORAGE_URL, self.USERNAME))
 
         storage_config = {
             'openstack.provider': self.PROVIDER,
@@ -527,8 +540,8 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
 
         d = self.container._auth_client.get_auth_info()
         def _check(auth_info):
-            self.failUnlessEqual(auth_info.storage_url, self.STORAGE_URL)
-            self.failUnlessEqual(auth_info.cdn_management_url, self.CDN_MANAGEMENT_URL)
+            self.failUnlessEqual(auth_info.public_storage_url, self.PUBLIC_STORAGE_URL)
+            self.failUnlessEqual(auth_info.internal_storage_url, self.INTERNAL_STORAGE_URL)
             self.failUnlessEqual(auth_info.auth_token, self.AUTH_TOKEN)
         d.addCallback(_check)
         d.addBoth(self._shutdown)
@@ -538,26 +551,26 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
         self._patch_agent()
 
         # Set up the requests that we expect to receive.
-        self._set_request('GET', "/".join((self.STORAGE_URL, self.CONTAINER, "unexpected")), {
+        self._set_request('GET', "/".join((self.PUBLIC_STORAGE_URL, self.CONTAINER, "unexpected")), {
                             'X-Auth-Token': [self.AUTH_TOKEN],
                           }, "",
                           404, "Not Found", {}, "")
 
-        self._set_request('PUT', "/".join((self.STORAGE_URL, self.CONTAINER, self.TEST_SHARE_NAME)), {
+        self._set_request('PUT', "/".join((self.PUBLIC_STORAGE_URL, self.CONTAINER, self.TEST_SHARE_NAME)), {
                             'X-Auth-Token': [self.AUTH_TOKEN],
                             'Content-Type': ['application/octet-stream'],
-                            'Content-Length': [len(self.TEST_SHARE_DATA)],
+                            #'Content-Length': [len(self.TEST_SHARE_DATA)],
                           }, self.TEST_SHARE_DATA,
                           204, "No Content", {}, "")
 
         quoted_prefix = urllib.quote(self.TEST_SHARE_PREFIX, safe='')
         self._set_request('GET', "%s/%s?format=json&prefix=%s"
-                                   % (self.STORAGE_URL, self.CONTAINER, quoted_prefix), {
+                                   % (self.PUBLIC_STORAGE_URL, self.CONTAINER, quoted_prefix), {
                             'X-Auth-Token': [self.AUTH_TOKEN],
                           }, "",
                           200, "OK", {}, self.TEST_LISTING_JSON)
 
-        self._set_request('GET', "/".join((self.STORAGE_URL, self.CONTAINER, self.TEST_SHARE_NAME)), {
+        self._set_request('GET', "/".join((self.PUBLIC_STORAGE_URL, self.CONTAINER, self.TEST_SHARE_NAME)), {
                             'X-Auth-Token': [self.AUTH_TOKEN],
                           }, "",
                           200, "OK", {}, self.TEST_SHARE_DATA)
@@ -588,14 +601,14 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
         d.addCallback(lambda res: self.failUnlessEqual(res, self.TEST_SHARE_DATA))
 
         def _set_up_delete(ign):
-            self._set_request('DELETE', "/".join((self.STORAGE_URL, self.CONTAINER, self.TEST_SHARE_NAME)), {
+            self._set_request('DELETE', "/".join((self.PUBLIC_STORAGE_URL, self.CONTAINER, self.TEST_SHARE_NAME)), {
                                 'X-Auth-Token': [self.AUTH_TOKEN],
                               }, "",
                               204, "No Content", {}, "")
 
             # this changes the response to the request set up above
             self._set_request('GET', "%s/%s?format=json&prefix=%s"
-                                       % (self.STORAGE_URL, self.CONTAINER, quoted_prefix), {
+                                       % (self.PUBLIC_STORAGE_URL, self.CONTAINER, quoted_prefix), {
                                 'X-Auth-Token': [self.AUTH_TOKEN],
                               }, "",
                               200, "OK", {}, "[]")
