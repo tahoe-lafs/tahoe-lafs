@@ -145,6 +145,14 @@ webapi.rst_.
 .. _webapi.rst: frontends/webapi.rst
 
 
+The Cloud Storage backend
+-------------------------
+
+By default, a Tahoe-LAFS storage server will store its shares on the
+local filesystem. To store shares on a cloud storage service (for example
+Amazon S3 or Rackspace Cloud Files) instead, see `<backends/cloud.rst>`__.
+
+
 Socialize
 =========
 

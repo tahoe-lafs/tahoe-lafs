@@ -462,6 +462,12 @@ Storage Server Configuration
     `<backends/cloud.rst>`__. For backward compatibility, ``backend = s3``
     is equivalent to ``backend = cloud.s3``.
 
+``backend = cloud.openstack``
+
+    The storage server stores all shares to a storage service supporting
+    the OpenStack storage API, for example Rackspace Cloud Files. For
+    configuration details, see `<backends/cloud.rst>`__.
+
 ``backend = debug_discard``
 
     The storage server stores all shares in /dev/null. This is actually used,
