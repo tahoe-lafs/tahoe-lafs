@@ -347,27 +347,6 @@ class IStorageBackend(Interface):
         'storage_server.*' keys.
         """
 
-    def advise_corrupt_share(storageindex, sharetype, shnum, reason):
-        """
-        Clients who discover hash failures in shares that they have
-        downloaded from me will use this method to inform me about the
-        failures. I will record their concern so that my operator can
-        manually inspect the shares in question. This method is synchronous.
-
-        'sharetype' is either 'mutable' or 'immutable'. 'shnum' is the integer
-        share number. 'reason' is a human-readable explanation of the problem,
-        probably including some expected hash values and the computed ones
-        that did not match. Corruption advisories for mutable shares should
-        include a hash of the public key (the same value that appears in the
-        mutable-file verify-cap), since the current share format does not
-        store that on disk.
-
-        @param storageindex=str
-        @param sharetype=str
-        @param shnum=int
-        @param reason=str
-        """
-
     def must_use_tubid_as_permutation_seed():
         """
         Is this a disk backend with existing shares? If True, then the server
@@ -452,7 +431,8 @@ class IShareSet(Interface):
         @return DeferredOf(DictOf(int, ReadData)): shnum -> results, with one key per share
         """
 
-    def testv_and_readv_and_writev(write_enabler, test_and_write_vectors, read_vector, account):
+    def testv_and_readv_and_writev(write_enabler, test_and_write_vectors, read_vector,
+                                   expiration_time, account):
         """
         General-purpose atomic test-read-and-set operation for mutable slots.
         Perform a bunch of comparisons against the existing shares in this
@@ -468,6 +448,7 @@ class IShareSet(Interface):
         @param write_enabler=WriteEnablerSecret
         @param test_and_write_vectors=TestAndWriteVectorsForShares
         @param read_vector=ReadVector
+        @param expiration_time=int
         @param account=Account
         @return DeferredOf(TupleOf(bool, DictOf(int, ReadData)))
         """
