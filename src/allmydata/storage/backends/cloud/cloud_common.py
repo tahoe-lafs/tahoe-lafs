@@ -1,9 +1,13 @@
 
 from collections import deque
+from cStringIO import StringIO
 
 from twisted.internet import defer, reactor, task
 from twisted.python.failure import Failure
 from twisted.web.error import Error
+from twisted.web.client import FileBodyProducer, ResponseDone
+from twisted.web.http_headers import Headers
+from twisted.internet.protocol import Protocol
 
 from zope.interface import Interface, implements
 from allmydata.interfaces import IShareBase
@@ -601,3 +605,86 @@ class ChunkCache(object):
     def close(self):
         self._cachemap = None
         return self._pipeline.close()
+
+
+class Discard(Protocol):
+    # see http://twistedmatrix.com/trac/ticket/5488
+    def makeConnection(self, producer):
+        producer.stopProducing()
+
+
+class DataCollector(Protocol):
+    def __init__(self, ServiceError):
+        self._data = deque()
+        self._done = defer.Deferred()
+        self.ServiceError = ServiceError
+
+    def dataReceived(self, bytes):
+        self._data.append(bytes)
+
+    def connectionLost(self, reason):
+        if reason.check(ResponseDone):
+            eventually_callback(self._done)("".join(self._data))
+        else:
+            def _failed(): raise self.ServiceError(None, 0, message=reason.getErrorMessage())
+            eventually_errback(self._done)(defer.execute(_failed))
+
+    def when_done(self):
+        """CAUTION: this always returns the same Deferred."""
+        return self._done
+
+
+class HTTPClientMixin:
+    """
+    I implement helper methods for making HTTP requests and getting response headers.
+
+    Subclasses should define:
+      _agent:
+          The instance of twisted.web.client.Agent to be used.
+      USER_AGENT:
+          User agent string.
+      ServiceError:
+          The error class to trap (CloudServiceError or similar).
+    """
+    def _http_request(self, what, method, url, request_headers, body=None, need_response_body=False):
+        # Agent.request adds a Host header automatically based on the URL.
+        request_headers['User-Agent'] = [self.USER_AGENT]
+
+        if body is None:
+            bodyProducer = None
+        else:
+            bodyProducer = FileBodyProducer(StringIO(body))
+            # We don't need to explicitly set Content-Length because FileBodyProducer knows the length
+            # (and if we do it won't work, because in that case Content-Length would be duplicated).
+
+        log.msg(format="%(what)s request: %(method)s %(url)s %(header_keys)s",
+                what=what, method=method, url=url, header_keys=repr(request_headers.keys()), level=log.OPERATIONAL)
+
+        d = defer.maybeDeferred(self._agent.request, method, url, Headers(request_headers), bodyProducer)
+
+        def _got_response(response):
+            log.msg(format="%(what)s response: %(code)d %(phrase)s",
+                    what=what, code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
+
+            if response.code < 200 or response.code >= 300:
+                raise self.ServiceError(None, response.code,
+                                        message="unexpected response code %r %s" % (response.code, response.phrase))
+
+            if need_response_body:
+                collector = DataCollector(self.ServiceError)
+                response.deliverBody(collector)
+                d2 = collector.when_done()
+                d2.addCallback(lambda body: (response, body))
+                return d2
+            else:
+                response.deliverBody(Discard())
+                return (response, None)
+        d.addCallback(_got_response)
+        return d
+
+    def _get_header(self, response, name):
+        hs = response.headers.getRawHeaders(name)
+        if len(hs) == 0:
+            raise self.ServiceError(None, response.code,
+                                    message="missing response header %r" % (name,))
+        return hs[0]
