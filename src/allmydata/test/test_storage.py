@@ -1831,7 +1831,7 @@ class ServerWithMockCloudBackend(WithMockCloudBackend, ServerTest, unittest.Test
         return getattr(LogEvent, 'LEVELMAP', {}).get(level, str(level))
 
     def _test_cloud_retry(self, name, failure_count, levels):
-        self.patch(cloud_common, 'BACKOFF_SECONDS_FOR_5XX', (0, 0.1, 0.2))
+        self.patch(cloud_common, 'BACKOFF_SECONDS_BEFORE_RETRY', (0, 0.1, 0.2))
 
         t = {'count': 0}
         old_put_object = MockContainer._put_object
