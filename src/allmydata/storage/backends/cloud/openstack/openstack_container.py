@@ -9,6 +9,7 @@ from allmydata.util.deferredutil import eventually_callback, eventually_errback
 from twisted.internet.protocol import Protocol
 from twisted.web.client import Agent, FileBodyProducer, ResponseDone
 from twisted.web.http_headers import Headers
+from twisted.web.http import UNAUTHORIZED
 
 from zope.interface import implements, Interface
 
@@ -230,6 +231,10 @@ class AuthenticationClient(object):
         d.addCallback(lambda ign: self._auth_info)
         return d
 
+    def invalidate(self):
+        self._auth_info = None
+        self._reauthenticate()
+
     def _authenticate(self):
         (method, url, request_headers, body, need_response_body) = self._authenticator.make_auth_request()
 
@@ -310,6 +315,14 @@ class OpenStackContainer(ContainerRetryMixin):
     def _make_object_url(self, auth_info, object_name):
         return "%s/%s/%s" % (auth_info.public_storage_url, urllib.quote(self._container_name, safe=''),
                              urllib.quote(object_name))
+
+    def _react_to_error(self, response_code):
+        if response_code == UNAUTHORIZED:
+            # Invalidate auth_info and retry.
+            self._auth_client.invalidate()
+            return True
+        else:
+            return ContainerRetryMixin._react_to_error(self, response_code)
 
     def _create(self):
         """
