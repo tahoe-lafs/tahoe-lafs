@@ -106,7 +106,9 @@ class AccountingCrawler(ShareCrawler):
             for (si_s, shnum) in disappeared_shares:
                 log.msg(format="share SI=%(si_s)s shnum=%(shnum)s unexpectedly disappeared",
                         si_s=si_s, shnum=shnum, level=log.WEIRD)
-                self._leasedb.remove_deleted_share(si_a2b(si_s), shnum)
+                # This is temporarily disabled, because it results in failures if we're examining
+                # a prefix while a share is created in it (ticket #1921).
+                #self._leasedb.remove_deleted_share(si_a2b(si_s), shnum)
 
             recovered_sharesets = [set() for st in xrange(len(SHARETYPES))]
 
