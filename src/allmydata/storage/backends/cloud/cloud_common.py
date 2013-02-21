@@ -323,15 +323,27 @@ class ContainerListing(object):
                })
 
 
-BACKOFF_SECONDS_FOR_5XX = (0, 2, 10)
+BACKOFF_SECONDS_BEFORE_RETRY = (0, 2, 10)
 
 
 class ContainerRetryMixin:
     """
     I provide a helper method for performing an operation on a cloud container that will retry up to
-    len(BACKOFF_SECONDS_FOR_5XX) times (not including the initial try). If the initial try fails, a
+    len(BACKOFF_SECONDS_FOR_RETRY) times (not including the initial try). If the initial try fails, a
     single incident will be triggered after the operation has succeeded or failed.
+
+    Subclasses should define:
+      ServiceError:
+          The error class to trap (CloudServiceError or similar).
+
+    and can override:
+      _react_to_error(self, response_code):
+          Returns True if the error should be retried. May perform side effects before the retry.
     """
+
+    def _react_to_error(self, response_code):
+        # The default policy is to retry on 5xx errors.
+        return response_code >= 500 and response_code < 600
 
     def _do_request(self, description, operation, *args, **kwargs):
         d = defer.maybeDeferred(operation, *args, **kwargs)
@@ -369,20 +381,22 @@ class ContainerRetryMixin:
         if first_err_and_tb is None:
             first_err_and_tb = (err, tb)
 
-        if trynum > len(BACKOFF_SECONDS_FOR_5XX):
+        if trynum > len(BACKOFF_SECONDS_BEFORE_RETRY):
             # If we run out of tries, raise the error we got on the first try (which *may* have
             # a more useful traceback).
             (first_err, first_tb) = first_err_and_tb
             raise first_err.__class__, first_err, first_tb
 
         fargs = f.value.args
-        if len(fargs) > 0 and int(fargs[0]) >= 500 and int(fargs[0]) < 600:
-            # Retry on 5xx errors.
-            d = task.deferLater(reactor, BACKOFF_SECONDS_FOR_5XX[trynum-1], operation, *args, **kwargs)
-            d.addErrback(self._handle_error, trynum+1, first_err_and_tb, description, operation, *args, **kwargs)
-            return d
+        if len(fargs) > 0:
+            retry = self._react_to_error(int(fargs[0]))
+            if retry:
+                d = task.deferLater(reactor, BACKOFF_SECONDS_BEFORE_RETRY[trynum-1], operation, *args, **kwargs)
+                d.addErrback(self._handle_error, trynum+1, first_err_and_tb, description, operation, *args, **kwargs)
+                return d
 
-        # If we get an error response other than a 5xx, raise that error even if it was on a retry.
+        # If we get an error response for which _react_to_error says we should not retry,
+        # raise that error even if the request was itself a retry.
         raise err.__class__, err, tb
 
 
