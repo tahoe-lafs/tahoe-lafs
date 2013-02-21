@@ -67,8 +67,8 @@ def _http_request(what, agent, method, url, request_headers, body=None, need_res
         # We don't need to explicitly set Content-Length because FileBodyProducer knows the length
         # (and if we do it won't work, because in that case Content-Length would be duplicated).
 
-    log.msg(format="OpenStack %(what)s request %(method)s %(url)s %(headers)s",
-            what=what, method=method, url=url, headers=repr(request_headers), level=log.OPERATIONAL)
+    log.msg(format="OpenStack %(what)s request %(method)s %(url)s %(header_keys)s",
+            what=what, method=method, url=url, header_keys=repr(request_headers.keys()), level=log.OPERATIONAL)
 
     d = defer.maybeDeferred(agent.request, method, url, Headers(request_headers), bodyProducer)
 
