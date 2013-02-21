@@ -225,7 +225,7 @@ class AuthenticationClient(object):
         else:
             return self.get_auth_info_locked()
 
-    def get_auth_info_locked(self, suppress_errors=False):
+    def get_auth_info_locked(self):
         d = self._auth_lock.run(self._authenticate)
         d.addCallback(lambda ign: self._auth_info)
         return d
