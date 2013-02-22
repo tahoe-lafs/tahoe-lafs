@@ -137,14 +137,15 @@ class LeaseDB:
 
     def get_shares_for_prefix(self, prefix):
         """
-        Returns a dict mapping (si_s, shnum) pairs to (used_space, sharetype) pairs.
+        Returns a dict mapping (si_s, shnum) pairs to (used_space, sharetype, state) triples
+        for shares with this prefix.
         """
-        self._cursor.execute("SELECT `storage_index`,`shnum`, `used_space`, `sharetype`"
+        self._cursor.execute("SELECT `storage_index`,`shnum`, `used_space`, `sharetype`, `state`"
                              " FROM `shares`"
                              " WHERE `prefix` == ?",
                              (prefix,))
-        db_sharemap = dict([((str(si_s), int(shnum)), (int(used_space), int(sharetype)))
-                           for (si_s, shnum, used_space, sharetype) in self._cursor.fetchall()])
+        db_sharemap = dict([((str(si_s), int(shnum)), (int(used_space), int(sharetype), int(state)))
+                           for (si_s, shnum, used_space, sharetype, state) in self._cursor.fetchall()])
         return db_sharemap
 
     def add_new_share(self, storage_index, shnum, used_space, sharetype):
@@ -284,18 +285,24 @@ class LeaseDB:
         return map(_to_age, rows)
 
     def get_unleased_shares_for_prefix(self, prefix):
+        """
+        Returns a dict mapping (si_s, shnum) pairs to (used_space, sharetype, state) triples
+        for stable, unleased shares with this prefix.
+        """
         if self.debug: print "GET_UNLEASED_SHARES_FOR_PREFIX", prefix
         # This would be simpler, but it doesn't work because 'NOT IN' doesn't support multiple columns.
-        #query = ("SELECT `storage_index`, `shnum`, `used_space`, `sharetype` FROM `shares`"
-        #         " WHERE (`storage_index`, `shnum`) NOT IN (SELECT DISTINCT `storage_index`, `shnum` FROM `leases`)")
+        #query = ("SELECT `storage_index`, `shnum`, `used_space`, `sharetype`, `state` FROM `shares`"
+        #         " WHERE `state` = STATE_STABLE "
+        #         "   AND (`storage_index`, `shnum`) NOT IN (SELECT DISTINCT `storage_index`, `shnum` FROM `leases`)")
 
         # This "negative join" should be equivalent.
-        self._cursor.execute("SELECT DISTINCT s.storage_index, s.shnum, s.used_space, s.sharetype FROM `shares` s LEFT JOIN `leases` l"
+        self._cursor.execute("SELECT DISTINCT s.storage_index, s.shnum, s.used_space, s.sharetype, s.state"
+                             " FROM `shares` s LEFT JOIN `leases` l"
                              " ON (s.storage_index = l.storage_index AND s.shnum = l.shnum)"
-                             " WHERE s.prefix = ? AND l.storage_index IS NULL",
-                             (prefix,))
-        db_sharemap = dict([((str(si_s), int(shnum)), (int(used_space), int(sharetype)))
-                           for (si_s, shnum, used_space, sharetype) in self._cursor.fetchall()])
+                             " WHERE s.prefix = ? AND s.state = ? AND l.storage_index IS NULL",
+                             (prefix, STATE_STABLE))
+        db_sharemap = dict([((str(si_s), int(shnum)), (int(used_space), int(sharetype), int(state)))
+                           for (si_s, shnum, used_space, sharetype, state) in self._cursor.fetchall()])
         return db_sharemap
 
     def remove_leases_by_renewal_time(self, renewal_cutoff_time):
