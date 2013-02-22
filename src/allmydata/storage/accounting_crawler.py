@@ -4,10 +4,12 @@ import time
 from twisted.internet import defer
 
 from allmydata.util.deferredutil import for_items
+from allmydata.util.assertutil import _assert
 from allmydata.util import log
 from allmydata.storage.crawler import ShareCrawler
 from allmydata.storage.common import si_a2b
-from allmydata.storage.leasedb import SHARETYPES, SHARETYPE_UNKNOWN, SHARETYPE_CORRUPTED
+from allmydata.storage.leasedb import SHARETYPES, SHARETYPE_UNKNOWN, SHARETYPE_CORRUPTED, \
+     STATE_STABLE
 
 
 class AccountingCrawler(ShareCrawler):
@@ -73,7 +75,7 @@ class AccountingCrawler(ShareCrawler):
             # updated, and removed.
             for key, value in db_sharemap.iteritems():
                 (si_s, shnum) = key
-                (used_space, sharetype) = value
+                (used_space, sharetype, state) = value
 
                 examined_sharesets[sharetype].add(si_s)
 
@@ -92,30 +94,35 @@ class AccountingCrawler(ShareCrawler):
             stored_shares = set(stored_sharemap)
             db_shares = set(db_sharemap)
 
-            # add new shares to the DB
+            # Add new shares to the DB.
             new_shares = stored_shares - db_shares
             for shareid in new_shares:
                 (si_s, shnum) = shareid
-                (used_space, sharetype) = stored_sharemap[shareid]
+                (used_space, sharetype, state) = stored_sharemap[shareid]
 
                 self._leasedb.add_new_share(si_a2b(si_s), shnum, used_space, sharetype)
                 self._leasedb.add_starter_lease(si_s, shnum)
 
-            # remove disappeared shares from DB
-            disappeared_shares = db_shares - stored_shares
-            for (si_s, shnum) in disappeared_shares:
-                log.msg(format="share SI=%(si_s)s shnum=%(shnum)s unexpectedly disappeared",
-                        si_s=si_s, shnum=shnum, level=log.WEIRD)
-                # This is temporarily disabled, because it results in failures if we're examining
-                # a prefix while a share is created in it (ticket #1921).
-                #self._leasedb.remove_deleted_share(si_a2b(si_s), shnum)
+            # Remove disappeared shares from the DB. Note that only shares in STATE_STABLE
+            # should be considered "disappeared", since otherwise it would be possible for
+            # this to delete shares that are in the process of being created (see ticket #1921).
+            potentially_disappeared_shares = db_shares - stored_shares
+            for shareid in potentially_disappeared_shares:
+                (used_space, sharetype, state) = db_sharemap[shareid]
+                if state == STATE_STABLE:
+                    (si_s, shnum) = shareid
+                    log.msg(format="share SI=%(si_s)s shnum=%(shnum)s unexpectedly disappeared",
+                            si_s=si_s, shnum=shnum, level=log.WEIRD)
+                    self._leasedb.remove_deleted_share(si_a2b(si_s), shnum)
 
             recovered_sharesets = [set() for st in xrange(len(SHARETYPES))]
 
             def _delete_share(ign, key, value):
                 (si_s, shnum) = key
-                (used_space, sharetype) = value
+                (used_space, sharetype, state) = value
+                _assert(state == STATE_STABLE, state=state)
                 storage_index = si_a2b(si_s)
+
                 d3 = defer.succeed(None)
                 def _mark_and_delete(ign):
                     self._leasedb.mark_share_as_going(storage_index, shnum)
@@ -141,6 +148,7 @@ class AccountingCrawler(ShareCrawler):
                 d3.addCallbacks(_deleted, _not_deleted)
                 return d3
 
+            # This only includes stable unleased shares (see ticket #1921).
             unleased_sharemap = self._leasedb.get_unleased_shares_for_prefix(prefix)
             d2 = for_items(_delete_share, unleased_sharemap)
 
