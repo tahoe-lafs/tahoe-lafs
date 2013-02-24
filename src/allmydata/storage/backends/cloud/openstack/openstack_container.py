@@ -18,30 +18,51 @@ from allmydata.storage.backends.cloud.cloud_common import IContainer, \
 # Enabling this will cause secrets to be logged.
 UNSAFE_DEBUG = False
 
-#AUTH_PATH = "v1.0"
-AUTH_PATH = "v2.0/tokens"
 
 DEFAULT_AUTH_URLS = {
-    "rackspace.com": "https://identity.api.rackspacecloud.com/" + AUTH_PATH,
-    "rackspace.co.uk": "https://lon.identity.api.rackspacecloud.com/" + AUTH_PATH,
+    "rackspace.com v1": "https://identity.api.rackspacecloud.com/v1.0",
+    "rackspace.co.uk v1": "https://lon.identity.api.rackspacecloud.com/v1.0",
+    "rackspace.com": "https://identity.api.rackspacecloud.com/v2.0/tokens",
+    "rackspace.co.uk": "https://lon.identity.api.rackspacecloud.com/v2.0/tokens",
+    "hpcloud.com west": "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens",
+    "hpcloud.com east": "https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens",
 }
 
-USER_AGENT = "Tahoe-LAFS OpenStack client"
 
 def configure_openstack_container(storedir, config):
-    api_key = config.get_or_create_private_config("openstack_api_key")
     provider = config.get_config("storage", "openstack.provider", "rackspace.com").lower()
     if provider not in DEFAULT_AUTH_URLS:
         raise InvalidValueError("[storage]openstack.provider %r is not recognized\n"
-                                "Valid providers are: %s" % (provider, ", ".join(DEFAULT_AUTH_URLS.keys())))
+                                "Valid providers are: %s" % (provider, ", ".join(sorted(DEFAULT_AUTH_URLS.keys()))))
 
     auth_service_url = config.get_config("storage", "openstack.url", DEFAULT_AUTH_URLS[provider])
-    username = config.get_config("storage", "openstack.username")
     container_name = config.get_config("storage", "openstack.container")
-    reauth_period = 23*60*60 #seconds
+    reauth_period = 11*60*60 #seconds
 
-    AuthenticatorClass = {"v1.0": AuthenticatorV1, "v2.0/tokens": AuthenticatorV2}[AUTH_PATH]
-    authenticator = AuthenticatorClass(auth_service_url, username, api_key)
+    access_key_id = config.get_config("storage", "openstack.access_key_id", None)
+    if access_key_id is None:
+        username = config.get_config("storage", "openstack.username")
+        api_key = config.get_private_config("openstack_api_key")
+        if auth_service_url.endswith("/v1.0"):
+            authenticator = AuthenticatorV1(auth_service_url, username, api_key)
+        else:
+            authenticator = AuthenticatorV2(auth_service_url, {
+              'RAX-KSKEY:apiKeyCredentials': {
+                'username': username,
+                'apiKey': api_key,
+              }
+            })
+    else:
+        tenant_id = config.get_config("storage", "openstack.tenant_id")
+        secret_key = config.get_private_config("openstack_secret_key")
+        authenticator = AuthenticatorV2(auth_service_url, {
+          'apiAccessKeyCredentials': {
+            'accessKey': access_key_id,
+            'secretKey': secret_key,
+          },
+          'tenantId': tenant_id,
+        })
+
     auth_client = AuthenticationClient(authenticator, reauth_period)
     return OpenStackContainer(auth_client, container_name)
 
@@ -92,28 +113,17 @@ class AuthenticatorV2(object):
     """
     Authenticates according to V2 protocol as documented by Rackspace:
     <http://docs.rackspace.com/auth/api/v2.0/auth-client-devguide/content/POST_authenticate_v2.0_tokens_.html>.
+
+    This is also compatible with HP's protocol (using different credentials):
+    <https://docs.hpcloud.com/api/identity#authenticate-jumplink-span>.
     """
 
-    def __init__(self, auth_service_url, username, api_key):
+    def __init__(self, auth_service_url, credentials):
         self._auth_service_url = auth_service_url
-        self._username = username
-        self._api_key = api_key
-        #self._password = password
+        self._credentials = credentials
 
     def make_auth_request(self):
-        # I suspect that 'RAX-KSKEY:apiKeyCredentials' is Rackspace-specific.
-        request = {
-          'auth': {
-        #    'passwordCredentials': {
-        #      'username': self._username,
-        #      'password': self._password,
-        #    }
-            'RAX-KSKEY:apiKeyCredentials': {
-              'username': self._username,
-              'apiKey': self._api_key,
-            }
-          }
-        }
+        request = {'auth': self._credentials}
         json = simplejson.dumps(request)
         request_headers = {
             'Content-Type': ['application/json'],
@@ -143,7 +153,7 @@ class AuthenticatorV2(object):
                     for endpoint in endpoints:
                         if not default_region or endpoint['region'] == default_region:
                             public_storage_url = endpoint['publicURL']
-                            internal_storage_url = endpoint['internalURL']
+                            internal_storage_url = endpoint.get('internalURL', None)
                             return AuthenticationInfo(auth_token, public_storage_url, internal_storage_url)
         except KeyError, e:
             raise CloudServiceError(None, response.code,
