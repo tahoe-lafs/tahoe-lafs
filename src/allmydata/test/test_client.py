@@ -273,10 +273,10 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         c = client.Client(basedir)
         mock_Authenticator.assert_called_with("https://identity.api.rackspacecloud.com/v2.0/tokens",
-                                              "alex", "dummy")
+                                              {'RAX-KSKEY:apiKeyCredentials': {'username': 'alex', 'apiKey': 'dummy'}})
         authclient_call_args = mock_AuthenticationClient.call_args_list
         self.failUnlessEqual(len(authclient_call_args), 1)
-        self.failUnlessEqual(authclient_call_args[0][0][1:], (23*60*60,))
+        self.failUnlessEqual(authclient_call_args[0][0][1:], (11*60*60,))
         container_call_args = mock_OpenStackContainer.call_args_list
         self.failUnlessEqual(len(container_call_args), 1)
         self.failUnlessEqual(container_call_args[0][0][1:], ("test",))

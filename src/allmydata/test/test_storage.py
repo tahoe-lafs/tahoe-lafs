@@ -510,7 +510,7 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
                 if default is _None:
                     self.failUnlessIn(option, storage_config)
                 return storage_config.get(option, default)
-            def get_or_create_private_config(mock_self, filename):
+            def get_private_config(mock_self, filename):
                 return fileutil.read(os.path.join(privatedir, filename))
 
         self.workdir = self.workdir(name)
