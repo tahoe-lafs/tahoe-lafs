@@ -98,7 +98,7 @@ class AccountingCrawler(ShareCrawler):
             new_shares = stored_shares - db_shares
             for shareid in new_shares:
                 (si_s, shnum) = shareid
-                (used_space, sharetype, state) = stored_sharemap[shareid]
+                (used_space, sharetype) = stored_sharemap[shareid]
 
                 self._leasedb.add_new_share(si_a2b(si_s), shnum, used_space, sharetype)
                 self._leasedb.add_starter_lease(si_s, shnum)
