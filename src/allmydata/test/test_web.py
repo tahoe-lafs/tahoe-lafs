@@ -1,4 +1,4 @@
-import os.path, re, urllib, time
+import os.path, re, urllib, time, cgi
 import simplejson
 from StringIO import StringIO
 
@@ -6,7 +6,7 @@ from twisted.application import service
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.internet.task import Clock
-from twisted.web import client, error, http, html
+from twisted.web import client, error, http
 from twisted.python import failure, log
 
 from foolscap.api import fireEventually, flushEventualQueue
@@ -324,8 +324,8 @@ class WebMixin(object):
             self._htmlname_raw = self._htmlname_unicode.encode('utf-8')
             self._htmlname_urlencoded = urllib.quote(self._htmlname_raw, '')
             self._htmlname_escaped = escapeToXML(self._htmlname_raw)
-            self._htmlname_escaped_attr = html.escape(self._htmlname_raw)
-            self._htmlname_escaped_double = escapeToXML(html.escape(self._htmlname_raw))
+            self._htmlname_escaped_attr = cgi.escape(self._htmlname_raw, quote=True)
+            self._htmlname_escaped_double = escapeToXML(cgi.escape(self._htmlname_raw, quote=True))
             self.HTMLNAME_CONTENTS, n, self._htmlname_txt_uri = self.makefile(0)
             foo.set_uri(self._htmlname_unicode, self._htmlname_txt_uri, self._htmlname_txt_uri)
 
