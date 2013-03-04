@@ -442,7 +442,7 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
                 protocol.connectionLost(Failure(ResponseDone()))
 
         class MockAgent(object):
-            def __init__(mock_self, reactor):
+            def __init__(mock_self, reactor, pool=None):
                 pass
 
             def request(mock_self, method, url, headers, bodyProducer=None):
@@ -468,6 +468,7 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
                 return d
 
         self.patch(openstack_container, 'Agent', MockAgent)
+        self.patch(cloud_common, 'Agent', MockAgent)
 
     def _set_request(self, method, url, expected_headers, expected_body,
                            response_code, response_phrase, response_headers, response_body):
