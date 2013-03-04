@@ -771,12 +771,13 @@ class GoogleStorageBackend(unittest.TestCase):
             self.headers = headers
 
     def setUp(self):
+        self.reactor = Clock()
         class FakeAuthenticationClient(object):
             def get_authorization_header(self):
                 return "Bearer thetoken"
         self.auth = FakeAuthenticationClient()
         self.container = googlestorage_container.GoogleStorageContainer(
-            self.auth, "123", "thebucket")
+            self.auth, "123", "thebucket", self.reactor)
 
     def mock_http_request(self):
         """
@@ -855,7 +856,7 @@ class GoogleStorageBackend(unittest.TestCase):
   <RandomGarbage />
 </ListBucketResult>
 """
-        http_response = self.mock_successful_http_request()
+        http_response = self.mock_http_request()
         done = []
         self.container.list_objects(prefix='xxx xxx').addCallback(done.append)
         self.assertFalse(done)
@@ -895,7 +896,7 @@ class GoogleStorageBackend(unittest.TestCase):
         to upload an object to the bucket, and parses the response to match
         the expected result documented in the IContainer interface.
         """
-        http_response = self.mock_successful_http_request()
+        http_response = self.mock_http_request()
         done = []
         self.container.put_object("theobj", "the body").addCallback(done.append)
         self.assertFalse(done)
@@ -918,7 +919,7 @@ class GoogleStorageBackend(unittest.TestCase):
         metadata, and parses the response to match the expected result
         documented in the IContainer interface.
         """
-        http_response = self.mock_successful_http_request()
+        http_response = self.mock_http_request()
         done = []
         self.container.put_object("theobj", "the body",
                                   "text/plain",
@@ -943,7 +944,7 @@ class GoogleStorageBackend(unittest.TestCase):
         to get an object from the bucket, and parses the response to match the
         expected result documented in the IContainer interface.
         """
-        http_response = self.mock_successful_http_request()
+        http_response = self.mock_http_request()
         done = []
         self.container.get_object("theobj").addCallback(done.append)
         self.assertFalse(done)
@@ -964,7 +965,7 @@ class GoogleStorageBackend(unittest.TestCase):
         command to delete an object from the bucket, and parses the response
         to match the expected result documented in the IContainer interface.
         """
-        http_response = self.mock_successful_http_request()
+        http_response = self.mock_http_request()
         done = []
         self.container.delete_object("theobj").addCallback(done.append)
         self.assertFalse(done)
@@ -979,11 +980,48 @@ class GoogleStorageBackend(unittest.TestCase):
         http_response.callback((self.Response(200), None))
         self.assertTrue(done)
 
-    def test_auth_failed(self):
+    def test_retry(self):
         """
-        If an HTTP response code is UNAUTHORIZED, the authentication client
-        will be told to invalidate its credentials before retrying.
+        If an HTTP response code is server error or an authentication error,
+        the request will try again after a delay.
         """
+        first, second, third = defer.Deferred(), defer.Deferred()
+        self.container._http_request = mock.create_autospec(
+            self._container._http_request, side_effect=[first, second, third])
+        result = []
+        self.container_do_request(
+            "test", "GET", "http://example", {},
+            body=None, need_response_body=True).addCallback(result.append)
+        # No response from first request yet:
+        self.assertFalse(result)
+        self.assertEqual(self.container._http_request.call_count, 1)
+        self.container._http_request.assert_called_with(
+            "test", "GET", "http://example", {},
+            body=None, need_response_body=True)
+
+        # First response fails:
+        first.callback((self.Response(500), None))
+        self.assertFalse(result)
+        self.assertEqual(self.container._http_request.call_count, 1)
+        self.reactor.advance(2)
+        self.assertEqual(self.container._http_request.call_count, 2)
+        self.container._http_request.assert_called_with(
+            "test", "GET", "http://example", {},
+            body=None, need_response_body=True)
+
+        # Second response fails:
+        second.callback((self.Response(401), None)) # Unauthorized
+        self.assertFalse(result)
+        self.assertEqual(self.container._http_request.call_count, 2)
+        self.reactor.advance(10)
+        self.assertEqual(self.container._http_request.call_count, 3)
+        self.container._http_request.assert_called_with(
+            "test", "GET", "http://example", {},
+            body=None, need_response_body=True)
+
+        # Third response succeeds:
+        third.callback((self.Response(200), "the result"))
+        self.assertEqual(result, ["the result"])
 
     def test_head_object(self):
         """
@@ -992,6 +1030,8 @@ class GoogleStorageBackend(unittest.TestCase):
         response to match the expected result documented in the IContainer
         interface.
         """
+        raise NotImplementedError()
+    test_head_object.todo = "May not be necessary"
 
 
 class ServerMixin:
