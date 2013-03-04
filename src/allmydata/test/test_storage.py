@@ -767,7 +767,7 @@ class GoogleStorageBackend(unittest.TestCase):
     unless noted otherwise.
     """
     class Response(object):
-        def __init__(self, code, headers):
+        def __init__(self, code, headers={}):
             self.code = code
             self.headers = headers
 
@@ -775,7 +775,7 @@ class GoogleStorageBackend(unittest.TestCase):
         self.reactor = Clock()
         class FakeAuthenticationClient(object):
             def get_authorization_header(self):
-                return "Bearer thetoken"
+                return defer.succeed("Bearer thetoken")
         self.auth = FakeAuthenticationClient()
         self.container = googlestorage_container.GoogleStorageContainer(
             self.auth, "123", "thebucket", self.reactor)
@@ -787,7 +787,7 @@ class GoogleStorageBackend(unittest.TestCase):
         """
         d = defer.Deferred()
         self.container._http_request = mock.create_autospec(
-            self._container._http_request, return_value=d)
+            self.container._http_request, return_value=d)
         return d
 
     def test_create(self):

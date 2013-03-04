@@ -4,20 +4,19 @@ This requires the oauth2client library:
 http://code.google.com/p/google-api-python-client/downloads/list
 """
 
+# Maybe we can make a thing that looks like httplib2.Http but actually uses
+# Twisted?
 import httplib2
 
-from twisted.internet.defer import DeferredLock, maybeDeferred
+from twisted.internet.defer import DeferredLock
 from twisted.internet.threads import deferToThread
 
 from oauth2client.client import SignedJwtAssertionCredentials
 
 from zope.interface import implements
 
-from allmydata.util import log
-from allmydata.node import InvalidValueError
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     CloudServiceError, ContainerItem, ContainerListing, ContainerRetryMixin, \
-     HTTPClientMixin
+     CloudServiceError, ContainerItem, ContainerListing, CommonContainerMixin
 
 
 def configure_googlestorage_container(*args):
@@ -81,13 +80,34 @@ class AuthenticationClient(object):
         return d
 
 
-class GoogleStorageContainer(HTTPClientMixin, ContainerRetryMixin):
+class GoogleStorageContainer(CommonContainerMixin):
     implements(IContainer)
 
     USER_AGENT = "Tahoe-LAFS Google Storage client"
+    URI = "https://storage.googleapis.com"
 
     def __init__(self, auth_client, project_id, bucket_name, override_reactor=None):
-        pass
+        CommonContainerMixin.__init__(self, bucket_name, override_reactor)
+        self._auth_client = auth_client
+        self._project_id = project_id # Only need for bucket creation/deletion
+
+    def _get_object(self, object_name):
+        """
+        Get an object from this container.
+        """
+        d = self._auth_client.get_authorization_header()
+        def _do_get(auth_header):
+            request_headers = {
+                'Authorization': [auth_header],
+                "x-goog-api-version": ["2"],
+            }
+            url = self._make_object_url(self.URI, object_name)
+            return self._http_request("GET object", 'GET', url, request_headers,
+                                      body=None,
+                                      need_response_body=True)
+        d.addCallback(_do_get)
+        d.addCallback(lambda (response, body): body)
+        return d
 
 
 if __name__ == '__main__':
