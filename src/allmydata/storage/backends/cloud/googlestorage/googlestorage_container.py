@@ -109,6 +109,24 @@ class GoogleStorageContainer(CommonContainerMixin):
         d.addCallback(lambda (response, body): body)
         return d
 
+    def _delete_object(self, object_name):
+        """
+        Delete an object from this container.
+        """
+        d = self._auth_client.get_authorization_header()
+        def _do_delete(auth_header):
+            request_headers = {
+                'Authorization': [auth_header],
+                "x-goog-api-version": ["2"],
+            }
+            url = self._make_object_url(self.URI, object_name)
+            return self._http_request("DELETE object", 'DELETE', url, request_headers,
+                                      body=None,
+                                      need_response_body=False)
+        d.addCallback(_do_delete)
+        d.addCallback(lambda (response, body): body)
+        return d
+
 
 if __name__ == '__main__':
     from twisted.internet import reactor
