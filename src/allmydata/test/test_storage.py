@@ -632,16 +632,16 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
 
 
 
-class GoogleStorageBackend(ShouldFailMixin, unittest.TestCase):
+class GoogleStorageAuthenticationClient(unittest.TestCase):
     """
-    Tests for the Google Storage API backend.
+    Tests for the Google Storage API authentication.
 
     All code references in docstrings/comments are to classes/functions in
     allmydata.storage.backends.cloud.googlestorage.googlestorage_container
     unless noted otherwise.
     """
 
-    def test_authentication_credentials(self):
+    def test_credentials(self):
         """
         AuthenticationClient.get_authorization_header() initializes a
         SignedJwtAssertionCredentials with the correct parameters.
@@ -651,7 +651,7 @@ class GoogleStorageBackend(ShouldFailMixin, unittest.TestCase):
         self.assertEqual(auth._credentials.service_account_name, "u@example.com")
         self.assertEqual(auth._credentials.private_key, "xxx123".encode("base64").strip())
 
-    def test_authentication_initial(self):
+    def test_initial(self):
         """
         When AuthenticationClient() is created, it refreshes its access token.
         """
@@ -662,7 +662,7 @@ class GoogleStorageBackend(ShouldFailMixin, unittest.TestCase):
             _deferToThread=defer.maybeDeferred)
         self.assertEqual(auth._credentials.refresh.call_count, 1)
 
-    def test_authentication_expired(self):
+    def test_expired(self):
         """
         AuthenticationClient.get_authorization_header() refreshes its
         credentials if the access token has expired.
@@ -677,7 +677,7 @@ class GoogleStorageBackend(ShouldFailMixin, unittest.TestCase):
         auth.get_authorization_header()
         self.assertEqual(auth._credentials.refresh.call_count, 2)
 
-    def test_authentication_no_refresh(self):
+    def test_no_refresh(self):
         """
         AuthenticationClient.get_authorization_header() does not refresh its
         credentials if the access token has not expired.
@@ -692,7 +692,7 @@ class GoogleStorageBackend(ShouldFailMixin, unittest.TestCase):
         auth.get_authorization_header()
         self.assertEqual(auth._credentials.refresh.call_count, 1)
 
-    def test_authentication_header(self):
+    def test_header(self):
         """
         AuthenticationClient.get_authorization_header() returns a value to be
         used for the Authorization header.
@@ -709,7 +709,7 @@ class GoogleStorageBackend(ShouldFailMixin, unittest.TestCase):
         auth.get_authorization_header().addCallback(result.append)
         self.assertEqual(result, ["Bearer xxx"])
 
-    def test_authentication_one_refresh(self):
+    def test_one_refresh(self):
         """
         AuthenticationClient._refresh_if_necessary() only runs one refresh
         request at a time.
@@ -735,7 +735,7 @@ class GoogleStorageBackend(ShouldFailMixin, unittest.TestCase):
         first.callback(None)
         self.assertEqual(len(results), 0)
 
-    def test_authentication_refresh_call(self):
+    def test_refresh_call(self):
         """
         AuthenticationClient._refresh_if_necessary() runs the
         authentication refresh in a thread, since it blocks, with a
@@ -755,6 +755,243 @@ class GoogleStorageBackend(ShouldFailMixin, unittest.TestCase):
         def gotResult(ignore):
             self.assertNotEqual(thread.get_ident(), self.thread)
         return auth.get_authorization_header().addCallback(gotResult)
+
+
+class GoogleStorageBackend(unittest.TestCase):
+    """
+    Tests for the Google Storage API container.
+
+    All code references in docstrings/comments are to classes/functions in
+    allmydata.storage.backends.cloud.googlestorage.googlestorage_container
+    unless noted otherwise.
+    """
+    class Response(object):
+        def __init__(self, code, headers):
+            self.code = code
+            self.headers = headers
+
+    def setUp(self):
+        class FakeAuthenticationClient(object):
+            def get_authorization_header(self):
+                return "Bearer thetoken"
+        self.auth = FakeAuthenticationClient()
+        self.container = googlestorage_container.GoogleStorageContainer(
+            self.auth, "123", "thebucket")
+
+    def mock_http_request(self):
+        """
+        Override the container's _http_request with a mock whose result is a
+        Deferred which can be fired by the caller.
+        """
+        d = defer.Deferred()
+        self.container._http_request = mock.create_autospec(
+            self._container._http_request, return_value=d)
+        return d
+
+    def test_create(self):
+        """
+        GoogleStorageContainer.create() sends the appropriate HTTP command to
+        create the bucket, and parses the response to match the expected
+        result documented in the IContainer interface.
+        """
+        raise NotImplementedError()
+    test_create.todo = "may not be necessary"
+
+    def test_delete(self):
+        """
+        GoogleStorageContainer.delete() sends the appropriate HTTP command to
+        delete the bucket, and parses the response to match the expected
+        result documented in the IContainer interface.
+        """
+        raise NotImplementedError()
+    test_delete.todo = "may not be necessary"
+
+    def test_list_objects(self):
+        """
+        GoogleStorageContainer.list_objects() sends the appropriate HTTP
+        command to list the objects in the bucket, and parses the response to
+        match the expected result documented in the IContainer interface.
+        """
+        LIST_RESPONSE = """\
+<?xml version='1.0' encoding='utf-8'?>
+<ListBucketResult xmlns='http://doc.storage.googleapis.com/2010-04-03'>
+  <Name>thebucket</Name>
+  <Prefix>xxx xxx</Prefix>
+  <Marker>themark</Marker>
+  <IsTruncated>false</IsTruncated>
+  <Contents>
+    <Key>xxx xxx1</Key>
+    <Generation>1234</Generation>
+    <MetaGeneration>1</MetaGeneration>
+    <LastModified>2013-01-27T01:23:45.678Z</LastModified>
+    <ETag>"abc"</ETag>
+    <Size>123</Size>
+    <StorageClass>STANDARD</StorageClass>
+    <Owner>
+      <ID>something</ID>
+      <DisplayName></DisplayName>
+    </Owner>
+  </Contents>
+  <Contents>
+    <Key>xxx xxx2</Key>
+    <Generation>1234<Generation>
+    <MetaGeneration>1</MetaGeneration>
+    <LastModified>2013-01-28T01:23:45.678Z</LastModified>
+    <ETag>"def"</ETag>
+    <Size>456</Size>
+    <StorageClass>NOTSTANDARD</StorageClass>
+    <Owner>
+      <ID>something</ID>
+      <DisplayName></DisplayName>
+    </Owner>
+  </Contents>
+  <CommonPrefixes>
+    <Prefix>xxx</Prefix>
+  </CommonPrefixes>
+  <CommonPrefixes>
+    <Prefix>xxx xxx</Prefix>
+  </CommonPrefixes>
+  <XXX />
+  <RandomGarbage />
+</ListBucketResult>
+"""
+        http_response = self.mock_successful_http_request()
+        done = []
+        self.container.list_objects(prefix='xxx xxx').addCallback(done.append)
+        self.assertFalse(done)
+        self.container._http_request.assert_called_once_with(
+            "list objects", "GET",
+            "https://storage.googleapis.com/thebucket/?prefix=xxx%20xxx",
+            {"Authorization": ["Bearer thetoken"],
+             "x-goog-api-version": ["2"],
+             },
+            body=None,
+            need_response_body=True)
+        http_response.callback((self.Response(200), LIST_RESPONSE))
+        listing = done[0]
+        self.assertEqual(listing.name, "thebucket")
+        self.assertEqual(listing.prefix, "xxx xxx")
+        self.assertEqual(listing.marker, "themark")
+        self.assertEqual(listing.max_keys, None)
+        self.assertEqual(listing.is_truncated, "false")
+        self.assertEqual(listing.common_prefixes, ["xxx", "xxx xxx"])
+        item1, item2 = listing.contents
+        self.assertEqual(item1.key, "xxx xxx1")
+        self.assertEqual(item1.modification_date, "2013-01-27T01:23:45.678Z")
+        self.assertEqual(item1.etag, '"abc"')
+        self.assertEqual(item1.size, '123')
+        self.assertEqual(item1.storage_class, 'STANDARD')
+        self.assertEqual(item1.owner, None) # meh, who cares
+        self.assertEqual(item2.key, "xxx xxx2")
+        self.assertEqual(item2.modification_date, "2013-01-28T01:23:45.678Z")
+        self.assertEqual(item2.etag, '"def"')
+        self.assertEqual(item2.size, '456')
+        self.assertEqual(item2.storage_class, 'NOTSTANDARD')
+        self.assertEqual(item2.owner, None) # meh, who cares
+
+    def test_put_object(self):
+        """
+        GoogleStorageContainer.put_object() sends the appropriate HTTP command
+        to upload an object to the bucket, and parses the response to match
+        the expected result documented in the IContainer interface.
+        """
+        http_response = self.mock_successful_http_request()
+        done = []
+        self.container.put_object("theobj", "the body").addCallback(done.append)
+        self.assertFalse(done)
+        self.container._http_request.assert_called_once_with(
+            "PUT object", "PUT",
+            "https://storage.googleapis.com/thebucket/theobj",
+            {"Authorization": ["Bearer thetoken"],
+             "x-goog-api-version": ["2"],
+             "Content-Type": ["application/octet-stream"],
+             },
+            body="the body",
+            need_response_body=False)
+        http_response.callback((self.Response(200), None))
+        self.assertTrue(done)
+
+    def test_put_object_additional(self):
+        """
+        GoogleStorageContainer.put_object() sends the appropriate HTTP command
+        to upload an object to the bucket with custom content type and
+        metadata, and parses the response to match the expected result
+        documented in the IContainer interface.
+        """
+        http_response = self.mock_successful_http_request()
+        done = []
+        self.container.put_object("theobj", "the body",
+                                  "text/plain",
+                                  {"key": "value"}).addCallback(done.append)
+        self.assertFalse(done)
+        self.container._http_request.assert_called_once_with(
+            "PUT object", "PUT",
+            "https://storage.googleapis.com/thebucket/theobj",
+            {"Authorization": ["Bearer thetoken"],
+             "x-goog-api-version": ["2"],
+             "Content-Type": ["text/plain"],
+             "x-goog-meta-key": ["value"], # the metadata
+             },
+            body="the body",
+            need_response_body=False)
+        http_response.callback((self.Response(200), None))
+        self.assertTrue(done)
+
+    def test_get_object(self):
+        """
+        GoogleStorageContainer.get_object() sends the appropriate HTTP command
+        to get an object from the bucket, and parses the response to match the
+        expected result documented in the IContainer interface.
+        """
+        http_response = self.mock_successful_http_request()
+        done = []
+        self.container.get_object("theobj").addCallback(done.append)
+        self.assertFalse(done)
+        self.container._http_request.assert_called_once_with(
+            "GET object", "GET",
+            "https://storage.googleapis.com/thebucket/theobj",
+            {"Authorization": ["Bearer thetoken"],
+             "x-goog-api-version": ["2"],
+             },
+            body=None,
+            need_response_body=True)
+        http_response.callback((self.Response(200), "the body"))
+        self.assertEqual(done, ["the body"])
+
+    def test_delete_object(self):
+        """
+        GoogleStorageContainer.delete_object() sends the appropriate HTTP
+        command to delete an object from the bucket, and parses the response
+        to match the expected result documented in the IContainer interface.
+        """
+        http_response = self.mock_successful_http_request()
+        done = []
+        self.container.delete_object("theobj").addCallback(done.append)
+        self.assertFalse(done)
+        self.container._http_request.assert_called_once_with(
+            "DELETE object", "DELETE",
+            "https://storage.googleapis.com/thebucket/theobj",
+            {"Authorization": ["Bearer thetoken"],
+             "x-goog-api-version": ["2"],
+             },
+            body=None,
+            need_response_body=False)
+        http_response.callback((self.Response(200), None))
+        self.assertTrue(done)
+
+    def test_auth_failed(self):
+        """
+        If an HTTP response code is UNAUTHORIZED, the authentication client
+        will be told to invalidate its credentials before retrying.
+        """
+
+    def test_head_object(self):
+        """
+        GoogleStorageContainer.head_object() sends the appropriate HTTP
+        command to get an object's metadata from the bucket, and parses the
+        response to match the expected result documented in the IContainer
+        interface.
+        """
 
 
 class ServerMixin:
