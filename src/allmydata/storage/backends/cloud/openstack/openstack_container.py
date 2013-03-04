@@ -11,7 +11,7 @@ from zope.interface import implements, Interface
 from allmydata.util import log
 from allmydata.node import InvalidValueError
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     CloudServiceError, ContainerItem, ContainerListing, ContainerRetryMixin, \
+     CloudServiceError, ContainerItem, ContainerListing, CommonContainerMixin, \
      HTTPClientMixin
 
 
@@ -235,27 +235,15 @@ class AuthenticationClient(HTTPClientMixin):
             self._delayed.cancel()
 
 
-class OpenStackContainer(HTTPClientMixin, ContainerRetryMixin):
+class OpenStackContainer(CommonContainerMixin):
     implements(IContainer)
 
     USER_AGENT = "Tahoe-LAFS OpenStack storage client"
 
     def __init__(self, auth_client, container_name, override_reactor=None):
+        CommonContainerMixin.__init__(self, container_name, override_reactor)
         self._auth_client = auth_client
-        self._container_name = container_name
-        self._reactor = override_reactor or reactor
-        self._agent = Agent(self._reactor)
         self.ServiceError = CloudServiceError
-
-    def __repr__(self):
-        return ("<%s %r>" % (self.__class__.__name__, self._container_name,))
-
-    def _make_container_url(self, auth_info):
-        return "%s/%s" % (auth_info.public_storage_url, urllib.quote(self._container_name, safe=''))
-
-    def _make_object_url(self, auth_info, object_name):
-        return "%s/%s/%s" % (auth_info.public_storage_url, urllib.quote(self._container_name, safe=''),
-                             urllib.quote(object_name))
 
     def _react_to_error(self, response_code):
         if response_code == UNAUTHORIZED:
@@ -263,7 +251,7 @@ class OpenStackContainer(HTTPClientMixin, ContainerRetryMixin):
             self._auth_client.invalidate()
             return True
         else:
-            return ContainerRetryMixin._react_to_error(self, response_code)
+            return CommonContainerMixin._react_to_error(self, response_code)
 
     def _create(self):
         """
@@ -289,7 +277,7 @@ class OpenStackContainer(HTTPClientMixin, ContainerRetryMixin):
             request_headers = {
                 'X-Auth-Token': [auth_info.auth_token],
             }
-            url = self._make_container_url(auth_info)
+            url = self._make_container_url(auth_info.public_storage_url)
             if prefix:
                 url += "?format=json&prefix=%s" % (urllib.quote(prefix, safe=''),)
             return self._http_request("OpenStack list objects", 'GET', url, request_headers,
@@ -335,7 +323,7 @@ class OpenStackContainer(HTTPClientMixin, ContainerRetryMixin):
                 'X-Auth-Token': [auth_info.auth_token],
                 'Content-Type': [content_type],
             }
-            url = self._make_object_url(auth_info, object_name)
+            url = self._make_object_url(auth_info.public_storage_url, object_name)
             return self._http_request("OpenStack put object", 'PUT', url, request_headers, data)
         d.addCallback(_do_put)
         d.addCallback(lambda ign: None)
@@ -350,7 +338,7 @@ class OpenStackContainer(HTTPClientMixin, ContainerRetryMixin):
             request_headers = {
                 'X-Auth-Token': [auth_info.auth_token],
             }
-            url = self._make_object_url(auth_info, object_name)
+            url = self._make_object_url(auth_info.public_storage_url, object_name)
             return self._http_request("OpenStack get object", 'GET', url, request_headers,
                                       need_response_body=True)
         d.addCallback(_do_get)
@@ -366,7 +354,7 @@ class OpenStackContainer(HTTPClientMixin, ContainerRetryMixin):
             request_headers = {
                 'X-Auth-Token': [auth_info.auth_token],
             }
-            url = self._make_object_url(auth_info, object_name)
+            url = self._make_object_url(auth_info.public_storage_url, object_name)
             return self._http_request("OpenStack head object", 'HEAD', url, request_headers)
         d.addCallback(_do_head)
         def _got_head_response( (response, body) ):
@@ -385,29 +373,8 @@ class OpenStackContainer(HTTPClientMixin, ContainerRetryMixin):
             request_headers = {
                 'X-Auth-Token': [auth_info.auth_token],
             }
-            url = self._make_object_url(auth_info, object_name)
+            url = self._make_object_url(auth_info.public_storage_url, object_name)
             return self._http_request("OpenStack delete object", 'DELETE', url, request_headers)
         d.addCallback(_do_delete)
         d.addCallback(lambda ign: None)
         return d
-
-    def create(self):
-        return self._do_request('create container', self._create)
-
-    def delete(self):
-        return self._do_request('delete container', self._delete)
-
-    def list_objects(self, prefix=''):
-        return self._do_request('list objects', self._list_objects, prefix)
-
-    def put_object(self, object_name, data, content_type='application/octet-stream', metadata={}):
-        return self._do_request('PUT object', self._put_object, object_name, data, content_type, metadata)
-
-    def get_object(self, object_name):
-        return self._do_request('GET object', self._get_object, object_name)
-
-    def head_object(self, object_name):
-        return self._do_request('HEAD object', self._head_object, object_name)
-
-    def delete_object(self, object_name):
-        return self._do_request('DELETE object', self._delete_object, object_name)
