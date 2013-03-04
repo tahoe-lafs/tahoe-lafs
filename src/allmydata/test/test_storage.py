@@ -2,6 +2,7 @@
 import time, os.path, platform, re, simplejson, struct, itertools, urllib
 from collections import deque
 from cStringIO import StringIO
+import thread
 
 import mock
 from twisted.trial import unittest
@@ -33,6 +34,7 @@ from allmydata.storage.backends.cloud.cloud_common import CloudError, CloudServi
 from allmydata.storage.backends.cloud import mock_cloud, cloud_common
 from allmydata.storage.backends.cloud.mock_cloud import MockContainer
 from allmydata.storage.backends.cloud.openstack import openstack_container
+from allmydata.storage.backends.cloud.googlestorage import googlestorage_container
 from allmydata.storage.bucket import BucketWriter, BucketReader
 from allmydata.storage.common import DataTooLargeError, storage_index_to_dir
 from allmydata.storage.leasedb import SHARETYPE_IMMUTABLE, SHARETYPE_MUTABLE
@@ -627,6 +629,132 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
 
         d.addBoth(self._shutdown)
         return d
+
+
+
+class GoogleStorageBackend(ShouldFailMixin, unittest.TestCase):
+    """
+    Tests for the Google Storage API backend.
+
+    All code references in docstrings/comments are to classes/functions in
+    allmydata.storage.backends.cloud.googlestorage.googlestorage_container
+    unless noted otherwise.
+    """
+
+    def test_authentication_credentials(self):
+        """
+        AuthenticationClient.get_authorization_header() initializes a
+        SignedJwtAssertionCredentials with the correct parameters.
+        """
+        # Somewhat fragile tests, but better than nothing.
+        auth = googlestorage_container.AuthenticationClient("u@example.com", "xxx123")
+        self.assertEqual(auth._credentials.service_account_name, "u@example.com")
+        self.assertEqual(auth._credentials.private_key, "xxx123".encode("base64").strip())
+
+    def test_authentication_initial(self):
+        """
+        When AuthenticationClient() is created, it refreshes its access token.
+        """
+        from oauth2client.client import SignedJwtAssertionCredentials
+        auth = googlestorage_container.AuthenticationClient(
+            "u@example.com", "xxx123",
+            _credentialsClass=mock.create_autospec(SignedJwtAssertionCredentials),
+            _deferToThread=defer.maybeDeferred)
+        self.assertEqual(auth._credentials.refresh.call_count, 1)
+
+    def test_authentication_expired(self):
+        """
+        AuthenticationClient.get_authorization_header() refreshes its
+        credentials if the access token has expired.
+        """
+        from oauth2client.client import SignedJwtAssertionCredentials
+        auth = googlestorage_container.AuthenticationClient(
+            "u@example.com", "xxx123",
+            _credentialsClass=mock.create_autospec(SignedJwtAssertionCredentials),
+            _deferToThread=defer.maybeDeferred)
+        auth._credentials.apply = lambda d: d.__setitem__('Authorization', 'xxx')
+        auth._credentials.access_token_expired = True
+        auth.get_authorization_header()
+        self.assertEqual(auth._credentials.refresh.call_count, 2)
+
+    def test_authentication_no_refresh(self):
+        """
+        AuthenticationClient.get_authorization_header() does not refresh its
+        credentials if the access token has not expired.
+        """
+        from oauth2client.client import SignedJwtAssertionCredentials
+        auth = googlestorage_container.AuthenticationClient(
+            "u@example.com", "xxx123",
+            _credentialsClass=mock.create_autospec(SignedJwtAssertionCredentials),
+            _deferToThread=defer.maybeDeferred)
+        auth._credentials.apply = lambda d: d.__setitem__('Authorization', 'xxx')
+        auth._credentials.access_token_expired = False
+        auth.get_authorization_header()
+        self.assertEqual(auth._credentials.refresh.call_count, 1)
+
+    def test_authentication_header(self):
+        """
+        AuthenticationClient.get_authorization_header() returns a value to be
+        used for the Authorization header.
+        """
+        from oauth2client.client import SignedJwtAssertionCredentials
+        class NoNetworkCreds(SignedJwtAssertionCredentials):
+            def refresh(self, http):
+                self.access_token = "xxx"
+        auth = googlestorage_container.AuthenticationClient(
+            "u@example.com", "xxx123",
+            _credentialsClass=NoNetworkCreds,
+            _deferToThread=defer.maybeDeferred)
+        result = []
+        auth.get_authorization_header().addCallback(result.append)
+        self.assertEqual(result, ["Bearer xxx"])
+
+    def test_authentication_one_refresh(self):
+        """
+        AuthenticationClient._refresh_if_necessary() only runs one refresh
+        request at a time.
+        """
+        # The second call shouldn't happen until the first Deferred fires!
+        results = [defer.Deferred(), defer.succeed(None)]
+        first = results[0]
+
+        def fakeDeferToThread(f, *args):
+            return results.pop(0)
+
+        from oauth2client.client import SignedJwtAssertionCredentials
+        auth = googlestorage_container.AuthenticationClient(
+            "u@example.com", "xxx123",
+            _credentialsClass=mock.create_autospec(SignedJwtAssertionCredentials),
+            _deferToThread=fakeDeferToThread)
+        # Initial authorization call happens...
+        self.assertEqual(len(results), 1)
+        # ... and still isn't finished, so next one doesn't run yet:
+        auth._refresh_if_necessary(force=True)
+        self.assertEqual(len(results), 1)
+        # When first one finishes, second one can run:
+        first.callback(None)
+        self.assertEqual(len(results), 0)
+
+    def test_authentication_refresh_call(self):
+        """
+        AuthenticationClient._refresh_if_necessary() runs the
+        authentication refresh in a thread, since it blocks, with a
+        httplib2.Http instance.
+        """
+        from httplib2 import Http
+        from oauth2client.client import SignedJwtAssertionCredentials
+        class NoNetworkCreds(SignedJwtAssertionCredentials):
+            def refresh(cred_self, http):
+                cred_self.access_token = "xxx"
+                self.assertIsInstance(http, Http)
+                self.thread = thread.get_ident()
+        auth = googlestorage_container.AuthenticationClient(
+            "u@example.com", "xxx123",
+            _credentialsClass=NoNetworkCreds)
+
+        def gotResult(ignore):
+            self.assertNotEqual(thread.get_ident(), self.thread)
+        return auth.get_authorization_header().addCallback(gotResult)
 
 
 class ServerMixin:
