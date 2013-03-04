@@ -86,7 +86,7 @@ class GoogleStorageContainer(HTTPClientMixin, ContainerRetryMixin):
 
     USER_AGENT = "Tahoe-LAFS Google Storage client"
 
-    def __init__(self, auth_client, bucket_name, override_reactor=None):
+    def __init__(self, auth_client, project_id, bucket_name, override_reactor=None):
         pass
 
 
