@@ -642,6 +642,9 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
     unless noted otherwise.
     """
 
+    if not googlestorage_container.oauth2client_available:
+        skip = "Google Storage requires oauth2client"
+
     def test_credentials(self):
         """
         AuthenticationClient.get_authorization_header() initializes a
@@ -766,6 +769,9 @@ class GoogleStorageBackend(unittest.TestCase):
     allmydata.storage.backends.cloud.googlestorage.googlestorage_container
     unless noted otherwise.
     """
+    if not googlestorage_container.oauth2client_available:
+        skip = "Google Storage requires oauth2client"
+
     class Response(object):
         def __init__(self, code, headers={}):
             self.code = code
