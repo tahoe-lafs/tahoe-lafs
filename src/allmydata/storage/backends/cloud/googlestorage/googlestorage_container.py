@@ -26,12 +26,6 @@ from allmydata.storage.backends.cloud.cloud_common import IContainer, \
      ContainerItem, ContainerListing, CommonContainerMixin
 
 
-def configure_googlestorage_container(*args):
-    """
-    Configure the Google Cloud Storage container.
-    """
-
-
 class AuthenticationClient(object):
     """
     Retrieve access tokens for the Google Storage API, using OAuth 2.0.
@@ -227,19 +221,16 @@ class GoogleStorageContainer(CommonContainerMixin):
         return d
 
 
-if __name__ == '__main__':
-    from twisted.internet import reactor
-    from twisted.web.client import getPage
-    import sys
-    auth = AuthenticationClient(sys.argv[1], file(sys.argv[2]).read())
-    def println(result):
-        print result
-        reactor.stop()
-    def gotAuth(value):
-        return getPage("https://storage.googleapis.com/",
-                       headers={"Authorization": value,
-                                "x-goog-api-version": "2",
-                                "x-goog-project-id": sys.argv[3]}).addCallback(println)
-    auth.get_authorization_header().addCallback(gotAuth)
-    reactor.run()
+def configure_googlestorage_container(storedir, config):
+    """
+    Configure the Google Cloud Storage container.
+    """
+    account_email = config.get_config("storage", "googlestorage.account_email")
+    private_key = config.get_private_config("googlestorage_private_key")
+    bucket_name = config.get_config("storage", "googlestorage.bucket_name")
+    # Only necessary if we do bucket creation/deletion, otherwise can be
+    # removed:
+    project_id = config.get_config("storage", "googlestorage.project_id")
 
+    authclient = AuthenticationClient(account_email, private_key)
+    return GoogleStorageContainer(authclient, project_id, bucket_name)
