@@ -18,7 +18,12 @@ from twisted.internet.defer import DeferredLock
 from twisted.internet.threads import deferToThread
 from twisted.web.http import UNAUTHORIZED
 
-from oauth2client.client import SignedJwtAssertionCredentials
+try:
+    from oauth2client.client import SignedJwtAssertionCredentials
+    oauth2client_available = True
+except ImportError:
+    oauth2client_available = False
+    SignedJwtAssertionCredentials = None
 
 from zope.interface import implements
 
