@@ -1,7 +1,8 @@
 
 import os.path
 
-from twisted.internet import defer
+from twisted.internet import defer, reactor
+
 from allmydata.util.deferredutil import async_iterate
 
 from zope.interface import implements
@@ -36,7 +37,7 @@ class MockContainer(ContainerRetryMixin, ContainerListMixin):
         self.ServiceError = CloudServiceError
         self._load_count = 0
         self._store_count = 0
-
+        self._reactor = reactor
         fileutil.make_dirs(os.path.join(self._storagedir, "shares"))
 
     def __repr__(self):

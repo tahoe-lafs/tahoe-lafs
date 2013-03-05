@@ -4,19 +4,26 @@ This requires the oauth2client library:
 http://code.google.com/p/google-api-python-client/downloads/list
 """
 
+import urllib
+try:
+    from xml.etree import cElementTree as ElementTree
+except ImportError:
+    from xml.etree import ElementTree
+
 # Maybe we can make a thing that looks like httplib2.Http but actually uses
 # Twisted?
 import httplib2
 
 from twisted.internet.defer import DeferredLock
 from twisted.internet.threads import deferToThread
+from twisted.web.http import UNAUTHORIZED
 
 from oauth2client.client import SignedJwtAssertionCredentials
 
 from zope.interface import implements
 
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     CloudServiceError, ContainerItem, ContainerListing, CommonContainerMixin
+     ContainerItem, ContainerListing, CommonContainerMixin
 
 
 def configure_googlestorage_container(*args):
@@ -85,11 +92,18 @@ class GoogleStorageContainer(CommonContainerMixin):
 
     USER_AGENT = "Tahoe-LAFS Google Storage client"
     URI = "https://storage.googleapis.com"
+    NAMESPACE = "{http://doc.storage.googleapis.com/2010-04-03}"
 
     def __init__(self, auth_client, project_id, bucket_name, override_reactor=None):
         CommonContainerMixin.__init__(self, bucket_name, override_reactor)
         self._auth_client = auth_client
         self._project_id = project_id # Only need for bucket creation/deletion
+
+    def _react_to_error(self, response_code):
+        if response_code == UNAUTHORIZED:
+            return True
+        else:
+            return CommonContainerMixin._react_to_error(self, response_code)
 
     def _get_object(self, object_name):
         """
@@ -102,7 +116,7 @@ class GoogleStorageContainer(CommonContainerMixin):
                 "x-goog-api-version": ["2"],
             }
             url = self._make_object_url(self.URI, object_name)
-            return self._http_request("GET object", 'GET', url, request_headers,
+            return self._http_request("Google Storage GET object", 'GET', url, request_headers,
                                       body=None,
                                       need_response_body=True)
         d.addCallback(_do_get)
@@ -120,11 +134,96 @@ class GoogleStorageContainer(CommonContainerMixin):
                 "x-goog-api-version": ["2"],
             }
             url = self._make_object_url(self.URI, object_name)
-            return self._http_request("DELETE object", 'DELETE', url, request_headers,
+            return self._http_request("Google Storage DELETE object", 'DELETE', url, request_headers,
                                       body=None,
                                       need_response_body=False)
         d.addCallback(_do_delete)
         d.addCallback(lambda (response, body): body)
+        return d
+
+    def _put_object(self, object_name, data, content_type, metadata):
+        """
+        Put an object into this container.
+        """
+        d = self._auth_client.get_authorization_header()
+        def _do_put(auth_header):
+            request_headers = {
+                'Authorization': [auth_header],
+                "x-goog-api-version": ["2"],
+                "Content-Type": [content_type],
+            }
+            for key, value in metadata.items():
+                request_headers["x-goog-meta-" + key] = [value]
+            url = self._make_object_url(self.URI, object_name)
+            return self._http_request("Google Storage PUT object", 'PUT', url, request_headers,
+                                      body=data,
+                                      need_response_body=False)
+        d.addCallback(_do_put)
+        d.addCallback(lambda (response, body): body)
+        return d
+
+    def _parse_item(self, element):
+        """
+        Parse a <Contents> XML element into a ContainerItem.
+        """
+        key = element.find(self.NAMESPACE + "Key").text
+        last_modified = element.find(self.NAMESPACE + "LastModified").text
+        etag = element.find(self.NAMESPACE + "ETag").text
+        size = int(element.find(self.NAMESPACE + "Size").text)
+        storage_class = element.find(self.NAMESPACE + "StorageClass").text
+        owner = None # Don't bother parsing this at the moment
+
+        return ContainerItem(key, last_modified, etag, size, storage_class,
+                             owner)
+
+    def _parse_list(self, data, prefix):
+        """
+        Parse the XML response, converting it into a ContainerListing.
+        """
+        name = self._container_name
+        marker = None
+        max_keys = None
+        is_truncated = "false"
+        common_prefixes = []
+        contents = []
+
+        # Sigh.
+        ns_len = len(self.NAMESPACE)
+
+        root = ElementTree.fromstring(data)
+        if root.tag != self.NAMESPACE + "ListBucketResult":
+            raise ValueError("Unknown root XML element %s" % (root.tag,))
+        for element in root:
+            tag = element.tag[ns_len:]
+            if tag == "Marker":
+                marker = element.text
+            elif tag == "IsTruncated":
+                is_truncated = element.text
+            elif tag == "Contents":
+                contents.append(self._parse_item(element))
+            elif tag == "CommonPrefixes":
+                common_prefixes.append(element.find(self.NAMESPACE + "Prefix").text)
+
+        return ContainerListing(name, prefix, marker, max_keys, is_truncated,
+                                contents, common_prefixes)
+
+    def _list_objects(self, prefix):
+        """
+        List objects in this container with the given prefix.
+        """
+        d = self._auth_client.get_authorization_header()
+        def _do_list(auth_header):
+            request_headers = {
+                'Authorization': [auth_header],
+                "x-goog-api-version": ["2"],
+            }
+            url = self._make_container_url(self.URI)
+            url += "?prefix=" + urllib.quote(prefix, safe='')
+            return self._http_request("Google Storage list objects", 'GET', url, request_headers,
+                                      body=None,
+                                      need_response_body=True)
+        d.addCallback(_do_list)
+        d.addCallback(lambda (response, body): self._parse_list(body, prefix))
         return d
 
 
