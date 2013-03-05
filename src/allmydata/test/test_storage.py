@@ -797,7 +797,7 @@ class GoogleStorageBackend(unittest.TestCase):
         result documented in the IContainer interface.
         """
         raise NotImplementedError()
-    test_create.todo = "may not be necessary"
+    test_create.skip = "may not be necessary"
 
     def test_delete(self):
         """
@@ -806,7 +806,7 @@ class GoogleStorageBackend(unittest.TestCase):
         result documented in the IContainer interface.
         """
         raise NotImplementedError()
-    test_delete.todo = "may not be necessary"
+    test_delete.skip = "may not be necessary"
 
     def test_list_objects(self):
         """
@@ -836,7 +836,7 @@ class GoogleStorageBackend(unittest.TestCase):
   </Contents>
   <Contents>
     <Key>xxx xxx2</Key>
-    <Generation>1234<Generation>
+    <Generation>1234</Generation>
     <MetaGeneration>1</MetaGeneration>
     <LastModified>2013-01-28T01:23:45.678Z</LastModified>
     <ETag>"def"</ETag>
@@ -862,8 +862,8 @@ class GoogleStorageBackend(unittest.TestCase):
         self.container.list_objects(prefix='xxx xxx').addCallback(done.append)
         self.assertFalse(done)
         self.container._http_request.assert_called_once_with(
-            "list objects", "GET",
-            "https://storage.googleapis.com/thebucket/?prefix=xxx%20xxx",
+            "Google Storage list objects", "GET",
+            "https://storage.googleapis.com/thebucket?prefix=xxx%20xxx",
             {"Authorization": ["Bearer thetoken"],
              "x-goog-api-version": ["2"],
              },
@@ -881,13 +881,13 @@ class GoogleStorageBackend(unittest.TestCase):
         self.assertEqual(item1.key, "xxx xxx1")
         self.assertEqual(item1.modification_date, "2013-01-27T01:23:45.678Z")
         self.assertEqual(item1.etag, '"abc"')
-        self.assertEqual(item1.size, '123')
+        self.assertEqual(item1.size, 123)
         self.assertEqual(item1.storage_class, 'STANDARD')
         self.assertEqual(item1.owner, None) # meh, who cares
         self.assertEqual(item2.key, "xxx xxx2")
         self.assertEqual(item2.modification_date, "2013-01-28T01:23:45.678Z")
         self.assertEqual(item2.etag, '"def"')
-        self.assertEqual(item2.size, '456')
+        self.assertEqual(item2.size, 456)
         self.assertEqual(item2.storage_class, 'NOTSTANDARD')
         self.assertEqual(item2.owner, None) # meh, who cares
 
@@ -902,7 +902,7 @@ class GoogleStorageBackend(unittest.TestCase):
         self.container.put_object("theobj", "the body").addCallback(done.append)
         self.assertFalse(done)
         self.container._http_request.assert_called_once_with(
-            "PUT object", "PUT",
+            "Google Storage PUT object", "PUT",
             "https://storage.googleapis.com/thebucket/theobj",
             {"Authorization": ["Bearer thetoken"],
              "x-goog-api-version": ["2"],
@@ -927,7 +927,7 @@ class GoogleStorageBackend(unittest.TestCase):
                                   {"key": "value"}).addCallback(done.append)
         self.assertFalse(done)
         self.container._http_request.assert_called_once_with(
-            "PUT object", "PUT",
+            "Google Storage PUT object", "PUT",
             "https://storage.googleapis.com/thebucket/theobj",
             {"Authorization": ["Bearer thetoken"],
              "x-goog-api-version": ["2"],
@@ -950,7 +950,7 @@ class GoogleStorageBackend(unittest.TestCase):
         self.container.get_object("theobj").addCallback(done.append)
         self.assertFalse(done)
         self.container._http_request.assert_called_once_with(
-            "GET object", "GET",
+            "Google Storage GET object", "GET",
             "https://storage.googleapis.com/thebucket/theobj",
             {"Authorization": ["Bearer thetoken"],
              "x-goog-api-version": ["2"],
@@ -971,7 +971,7 @@ class GoogleStorageBackend(unittest.TestCase):
         self.container.delete_object("theobj").addCallback(done.append)
         self.assertFalse(done)
         self.container._http_request.assert_called_once_with(
-            "DELETE object", "DELETE",
+            "Google Storage DELETE object", "DELETE",
             "https://storage.googleapis.com/thebucket/theobj",
             {"Authorization": ["Bearer thetoken"],
              "x-goog-api-version": ["2"],
@@ -986,13 +986,13 @@ class GoogleStorageBackend(unittest.TestCase):
         If an HTTP response code is server error or an authentication error,
         the request will try again after a delay.
         """
-        first, second, third = defer.Deferred(), defer.Deferred()
+        first, second, third = defer.Deferred(), defer.Deferred(), defer.Deferred()
         self.container._http_request = mock.create_autospec(
-            self._container._http_request, side_effect=[first, second, third])
+            self.container._http_request, side_effect=[first, second, third])
         result = []
-        self.container_do_request(
-            "test", "GET", "http://example", {},
-            body=None, need_response_body=True).addCallback(result.append)
+        self.container._do_request("test", self.container._http_request,
+                                   "test", "GET", "http://example", {}, body=None,
+                                   need_response_body=True).addCallback(result.append)
         # No response from first request yet:
         self.assertFalse(result)
         self.assertEqual(self.container._http_request.call_count, 1)
@@ -1001,28 +1001,29 @@ class GoogleStorageBackend(unittest.TestCase):
             body=None, need_response_body=True)
 
         # First response fails:
-        first.callback((self.Response(500), None))
-        self.assertFalse(result)
+        first.errback(CloudServiceError(None, 500))
+        self.assertFalse(result, result)
         self.assertEqual(self.container._http_request.call_count, 1)
-        self.reactor.advance(2)
+        self.reactor.advance(0.1)
         self.assertEqual(self.container._http_request.call_count, 2)
         self.container._http_request.assert_called_with(
             "test", "GET", "http://example", {},
             body=None, need_response_body=True)
 
         # Second response fails:
-        second.callback((self.Response(401), None)) # Unauthorized
+        second.errback(CloudServiceError(None, 401)) # Unauthorized
         self.assertFalse(result)
         self.assertEqual(self.container._http_request.call_count, 2)
-        self.reactor.advance(10)
+        self.reactor.advance(2)
         self.assertEqual(self.container._http_request.call_count, 3)
         self.container._http_request.assert_called_with(
             "test", "GET", "http://example", {},
             body=None, need_response_body=True)
 
         # Third response succeeds:
-        third.callback((self.Response(200), "the result"))
-        self.assertEqual(result, ["the result"])
+        done = object()
+        third.callback(done)
+        self.assertEqual(result, [done])
 
     def test_head_object(self):
         """
@@ -1032,7 +1033,7 @@ class GoogleStorageBackend(unittest.TestCase):
         interface.
         """
         raise NotImplementedError()
-    test_head_object.todo = "May not be necessary"
+    test_head_object.skip = "May not be necessary"
 
 
 class ServerMixin:

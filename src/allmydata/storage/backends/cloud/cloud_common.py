@@ -401,7 +401,7 @@ class ContainerRetryMixin:
         if len(fargs) > 0:
             retry = self._react_to_error(int(fargs[0]))
             if retry:
-                d = task.deferLater(reactor, BACKOFF_SECONDS_BEFORE_RETRY[trynum-1], operation, *args, **kwargs)
+                d = task.deferLater(self._reactor, BACKOFF_SECONDS_BEFORE_RETRY[trynum-1], operation, *args, **kwargs)
                 d.addErrback(self._handle_error, trynum+1, first_err_and_tb, description, operation, *args, **kwargs)
                 return d
 
