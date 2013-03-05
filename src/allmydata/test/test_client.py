@@ -337,6 +337,74 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                                     "openstack.container = test\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
+    def test_googlestorage_config_required(self):
+        """
+        account_email, bucket_name and project_id are all required by
+        googlestorage configuration.
+        """
+        configs = ["googlestorage.account_email = u@example.com",
+                   "googlestorage.bucket_name = bucket",
+                   "googlestorage.project_id = 456"]
+        for i in range(len(configs)):
+            basedir = self.mktemp()
+            os.mkdir(basedir)
+            bad_config = configs[:]
+            del bad_config[i]
+            self._write_secret(basedir, "googlestorage_private_key")
+            fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                           BASECONFIG +
+                           "[storage]\n" +
+                           "enabled = true\n" +
+                           "backend = cloud.googlestorage\n" +
+                           "\n".join(bad_config) + "\n")
+            self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
+
+    def test_googlestorage_config_required_private_key(self):
+        """
+        googlestorage_private_key secret is required by googlestorage
+        configuration.
+        """
+        basedir = self.mktemp()
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG +
+                       "[storage]\n" +
+                       "enabled = true\n" +
+                       "backend = cloud.googlestorage\n" +
+                       "googlestorage.account_email = u@example.com\n" +
+                       "googlestorage.bucket_name = bucket\n" +
+                       "googlestorage.project_id = 456\n")
+        self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
+
+    @mock.patch('allmydata.storage.backends.cloud.googlestorage.googlestorage_container.AuthenticationClient')
+    @mock.patch('allmydata.storage.backends.cloud.googlestorage.googlestorage_container.GoogleStorageContainer')
+    def test_googlestorage_config(self, mock_OpenStackContainer, mock_AuthenticationClient):
+        """
+        Given good configuration, we correctly configure a good GoogleStorageContainer.
+        """
+        basedir = self.mktemp()
+        os.mkdir(basedir)
+        self._write_secret(basedir, "googlestorage_private_key", "sekrit")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG +
+                       "[storage]\n" +
+                       "enabled = true\n" +
+                       "backend = cloud.googlestorage\n" +
+                       "googlestorage.account_email = u@example.com\n" +
+                       "googlestorage.bucket_name = bucket\n" +
+                       "googlestorage.project_id = 456\n")
+        c = client.Client(basedir)
+        server = c.getServiceNamed("storage")
+        self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
+        # Protect against typos with isinstance(), because mock is dangerous.
+        self.assertFalse(isinstance(mock_AuthenticationClient.assert_called_once_with,
+                                    mock.Mock))
+        mock_AuthenticationClient.assert_called_once_with("u@example.com", "sekrit")
+        self.assertFalse(isinstance(mock_OpenStackContainer.assert_called_once_with,
+                                    mock.Mock))
+        mock_OpenStackContainer.assert_called_once_with(mock_AuthenticationClient.return_value,
+                                                        "456", "bucket")
+
     def test_expire_mutable_false_unsupported(self):
         basedir = "client.Basic.test_expire_mutable_false_unsupported"
         os.mkdir(basedir)
