@@ -89,3 +89,7 @@ body {
 .connected-no {
     background: #B94A48;
 }
+
+.connected-not-configured {
+    background: #444444;
+}
