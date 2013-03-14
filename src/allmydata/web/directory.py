@@ -686,14 +686,14 @@ class DirectoryAsHTML(rend.Page):
                 T.input(type='hidden', name='t', value='unlink'),
                 T.input(type='hidden', name='name', value=name),
                 T.input(type='hidden', name='when_done', value="."),
-                T.input(type='submit', value='unlink', name="unlink"),
+                T.input(type='submit', _class='btn', value='unlink', name="unlink"),
                 ]
 
             rename = T.form(action=here, method="get")[
                 T.input(type='hidden', name='t', value='rename-form'),
                 T.input(type='hidden', name='name', value=name),
                 T.input(type='hidden', name='when_done', value="."),
-                T.input(type='submit', value='rename/relink', name="rename"),
+                T.input(type='submit', _class='btn', value='rename/relink', name="rename"),
                 ]
 
         ctx.fillSlots("unlink", unlink)
