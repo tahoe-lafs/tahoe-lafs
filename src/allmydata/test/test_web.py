@@ -600,14 +600,15 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_welcome(self):
         d = self.GET("/")
         def _check(res):
-            self.failUnlessIn('Welcome to Tahoe-LAFS', res)
+            self.failUnlessIn('<title>Tahoe-LAFS - Welcome</title>', res)
             self.failUnlessIn(FAVICON_MARKUP, res)
-            self.failUnlessIn('href="https://tahoe-lafs.org/"', res)
-            self.failUnlessIn('<a href="status/">Recent and Active Operations</a>', res)
+            self.failUnlessIn('<a href="status">Recent and Active Operations</a>', res)
             self.failUnlessIn('<a href="statistics">Operational Statistics</a>', res)
+            self.failUnlessIn('<input type="hidden" name="t" value="report-incident" />', res)
             res_u = res.decode('utf-8')
-            self.failUnlessIn(u'<th>My nickname:</th> <td class="nickname mine">fake_nickname \u263A</td></tr>', res_u)
+            self.failUnlessIn(u'<td>fake_nickname \u263A</td>', res_u)
             self.failUnlessIn(u'<div class="nickname">other_nickname \u263B</div>', res_u)
+            self.failUnlessIn(u'\u00A9 <a href="https://tahoe-lafs.org/">Tahoe-LAFS Software Foundation', res_u)
 
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
@@ -624,8 +625,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.s.uploader.helper_furl = None
             return self.GET("/")
         d.addCallback(_set_no_helper)
-        d.addCallback(lambda res:
-                      self.failUnlessIn('Connected to helper?: <span>not configured</span>', res))
+        def _check_no_helper(res):
+            html = res.replace('\n', ' ')
+            self.failUnless(re.search('<div class="status-indicator connected-not-configured"></div>[ ]*Helper', html), res)
+        d.addCallback(_check_no_helper)
 
         # enable helper, not connected
         def _set_helper_not_connected(ign):
@@ -633,8 +636,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.s.uploader.helper_connected = False
             return self.GET("/")
         d.addCallback(_set_helper_not_connected)
-        d.addCallback(lambda res:
-                      self.failUnlessIn('Connected to helper?: <span>no</span>', res))
+        def _check_helper_not_connected(res):
+            html = res.replace('\n', ' ')
+            self.failUnless(re.search('<div class="status-indicator connected-no"></div>[ ]*Helper', html), res)
+        d.addCallback(_check_helper_not_connected)
 
         # enable helper, connected
         def _set_helper_connected(ign):
@@ -642,8 +647,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.s.uploader.helper_connected = True
             return self.GET("/")
         d.addCallback(_set_helper_connected)
-        d.addCallback(lambda res:
-                      self.failUnlessIn('Connected to helper?: <span>yes</span>', res))
+        def _check_helper_connected(res):
+            html = res.replace('\n', ' ')
+            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*Helper', html), res)
+        d.addCallback(_check_helper_connected)
         return d
 
     def test_storage(self):
@@ -3186,12 +3193,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET("/")
         def _after_get_welcome_page(res):
             MKDIR_BUTTON_RE = re.compile(
-                '<form action="([^"]*)" method="post".*?'
-                '<input type="hidden" name="t" value="([^"]*)" />'
-                '<input type="hidden" name="([^"]*)" value="([^"]*)" />'
-                '<input type="submit" value="Create a directory" />',
-                re.I)
-            mo = MKDIR_BUTTON_RE.search(res)
+                '<form action="([^"]*)" method="post".*'
+                '<input type="hidden" name="t" value="([^"]*)" />[ ]*'
+                '<input type="hidden" name="([^"]*)" value="([^"]*)" />[ ]*'
+                '<input type="submit" class="btn" value="Create a directory[^"]*" />')
+            html = res.replace('\n', ' ')
+            mo = MKDIR_BUTTON_RE.search(html)
+            self.failUnless(mo, html)
             formaction = mo.group(1)
             formt = mo.group(2)
             formaname = mo.group(3)

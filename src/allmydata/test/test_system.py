@@ -1,6 +1,8 @@
+
 from base64 import b32encode
-import os, sys, time, simplejson
+import os, re, sys, time, simplejson
 from cStringIO import StringIO
+
 from twisted.trial import unittest
 from twisted.internet import defer
 from twisted.internet import threads # CLI tests use deferToThread
@@ -1096,16 +1098,13 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         public = "uri/" + self._root_directory_uri
         d = getPage(base)
         def _got_welcome(page):
-            # XXX This test is oversensitive to formatting
-            expected = "Connected to <span>%d</span>\n     of <span>%d</span> known storage servers:" % (self.numclients, self.numclients)
-            self.failUnless(expected in page,
-                            "I didn't see the right 'connected storage servers'"
-                            " message in: %s" % page
-                            )
-            expected = "<th>My nodeid:</th> <td class=\"nodeid mine data-chars\">%s</td>" % (b32encode(self.clients[0].nodeid).lower(),)
-            self.failUnless(expected in page,
-                            "I didn't see the right 'My nodeid' message "
-                            "in: %s" % page)
+            html = page.replace('\n', ' ')
+            connected_re = "Connected to <span>%d</span>[ ]*of <span>%d</span> known storage servers" % (self.numclients, self.numclients)
+            self.failUnless(re.search(connected_re, html),
+                            "I didn't see the right '%s' message in:\n%s" % (connected_re, page))
+            nodeid_re = "<th>Node ID:</th>[ ]*<td>%s</td>" % (re.escape(b32encode(self.clients[0].nodeid).lower()),)
+            self.failUnless(re.search(nodeid_re, html),
+                            "I didn't see the right '%s' message in:\n%s" % (nodeid_re, page))
             self.failUnless("Helper: 0 active uploads" in page)
         d.addCallback(_got_welcome)
         d.addCallback(self.log, "done with _got_welcome")
@@ -1113,9 +1112,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # get the welcome page from the node that uses the helper too
         d.addCallback(lambda res: getPage(self.helper_webish_url))
         def _got_welcome_helper(page):
-            self.failUnless("Connected to helper?: <span>yes</span>" in page,
-                            page)
-            self.failUnless("Not running helper" in page)
+            html = page.replace('\n', ' ')
+            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*Helper', html), page)
+            self.failUnlessIn("Not running helper", page)
         d.addCallback(_got_welcome_helper)
 
         d.addCallback(lambda res: getPage(base + public))

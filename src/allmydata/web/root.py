@@ -255,10 +255,12 @@ class Root(rend.Page):
                 rhost_s = "%s:%d" % (rhost.host, rhost.port)
             else:
                 rhost_s = str(rhost)
-            connected = "Yes: to " + rhost_s
+            addr = rhost_s
+            connected = "yes"
             since = server.get_last_connect_time()
         else:
-            connected = "No"
+            addr = "N/A"
+            connected = "no"
             since = server.get_last_loss_time()
         announced = server.get_announcement_time()
         announcement = server.get_announcement()
@@ -266,6 +268,7 @@ class Root(rend.Page):
         service_name = announcement["service-name"]
 
         TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        ctx.fillSlots("address", addr)
         ctx.fillSlots("connected", connected)
         ctx.fillSlots("connected-bool", bool(rhost))
         ctx.fillSlots("since", time.strftime(TIME_FORMAT,
@@ -357,10 +360,9 @@ class Root(rend.Page):
         form = T.form(action="report_incident", method="post",
                       enctype="multipart/form-data")[
             T.fieldset[
-            T.legend(class_="freeform-form-label")["Report an Incident"],
             T.input(type="hidden", name="t", value="report-incident"),
-            "What went wrong?:"+SPACE,
+            "What went wrong?"+SPACE,
             T.input(type="text", name="details"), SPACE,
-            T.input(type="submit", value="Report!"),
+            T.input(type="submit", value=u"Report \u00BB"),
             ]]
         return T.div[form]
