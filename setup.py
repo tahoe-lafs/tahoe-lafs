@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-u"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.5 and 2.7.x inclusive."
+ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.5 and 2.7.x inclusive."
 
 # Tahoe-LAFS -- secure, distributed storage grid
 #
@@ -49,7 +49,7 @@ except EnvironmentError:
     open(APPNAMEFILE, "w").write(APPNAMEFILESTR)
 else:
     if curappnamefilestr.strip() != APPNAMEFILESTR:
-        print "Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR)
+        print("Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR))
         sys.exit(-1)
 
 # setuptools/zetuptoolz looks in __main__.__requires__ for a list of
@@ -279,15 +279,15 @@ def run_command(args, cwd=None, verbose=False):
     try:
         # remember shell=False, so use git.cmd on windows, not just git
         p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd)
-    except EnvironmentError, e:
+    except EnvironmentError as e:
         if verbose:
-            print "unable to run %s" % args[0]
-            print e
+            print("unable to run %s" % args[0])
+            print(e)
         return None
     stdout = p.communicate()[0].strip()
     if p.returncode != 0:
         if verbose:
-            print "unable to run %s (error)" % args[0]
+            print("unable to run %s (error)" % args[0])
         return None
     return stdout
 
@@ -326,7 +326,7 @@ def versions_from_git(tag_prefix, verbose=False):
         return {}
     if not stdout.startswith(tag_prefix):
         if verbose:
-            print "tag '%s' doesn't start with prefix '%s'" % (stdout, tag_prefix)
+            print("tag '%s' doesn't start with prefix '%s'" % (stdout, tag_prefix))
         return {}
     version = stdout[len(tag_prefix):]
     pieces = version.split("-")
@@ -359,7 +359,7 @@ class UpdateVersion(Command):
         elif os.path.isdir(os.path.join(basedir, ".git")):
             verstr = self.try_from_git(target)
         else:
-            print "no version-control data found, leaving _version.py alone"
+            print("no version-control data found, leaving _version.py alone")
             return
         if verstr:
             self.distribution.metadata.version = verstr
@@ -384,7 +384,7 @@ class UpdateVersion(Command):
                           "normalized": versions["normalized"],
                           "full": versions["full"] })
                 f.close()
-                print "git-version: wrote '%s' into '%s'" % (versions["version"], fn)
+                print("git-version: wrote '%s' into '%s'" % (versions["version"], fn))
         return versions.get("normalized", None)
 
 

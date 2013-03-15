@@ -1,5 +1,5 @@
 #!/bin/false # You must specify a python interpreter.
-u"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.5 and 2.7.x inclusive."
+ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.5 and 2.7.x inclusive."
 
 import sys, os, subprocess
 
@@ -21,13 +21,13 @@ distribution, and only if you have already run "python setup.py build".
 # look for Tahoe.home .
 homemarker = os.path.join(base, "Tahoe.home")
 if not os.path.exists(homemarker):
-    print whoami
-    print '''\
+    print(whoami)
+    print('''\
 I just tried to run and found that I am not living in such a directory, so I
 am stopping now. To run Tahoe after it has been is installed, please execute
 my brother, who gets installed into the appropriate place for executables
 when you run "make install" (perhaps as "%s").
-''' % (perhaps_installed_tahoe,)
+''' % (perhaps_installed_tahoe,))
     sys.exit(1)
 
 # we've found our home. Put the tahoe support/lib etc. in our PYTHONPATH.
@@ -104,25 +104,25 @@ else:
     command = prefix + [script] + args
 
     if not os.path.exists(script):
-        print whoami
-        print '''\
+        print(whoami)
+        print('''\
 I could not find the support script
 "%s".
 
 To run an installed version of Tahoe-LAFS, please execute the "tahoe"
 script that is installed into the appropriate place for executables
 when you run "python setup.py install" (perhaps as "%s").
-''' % (script, perhaps_installed_tahoe)
+''' % (script, perhaps_installed_tahoe))
         sys.exit(1)
 
 try:
     res = subprocess.call(command, env=os.environ)
-except Exception, le:
-    print whoami
-    print '''\
+except Exception as le:
+    print(whoami)
+    print('''\
 I just tried to invoke "%s"
 and got an exception.
-''' % (runner,)
+''' % (runner,))
     raise
 else:
     sys.exit(res)
