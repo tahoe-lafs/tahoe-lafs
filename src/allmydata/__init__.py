@@ -357,14 +357,14 @@ def check_all_requirements():
 
     errors = []
 
-    # We require at least 2.5 on all platforms.
+    # We require at least 2.6 on all platforms.
     # (On Python 3, we'll have failed long before this point.)
-    if sys.version_info < (2, 5):
+    if sys.version_info < (2, 6):
         try:
             version_string = ".".join(map(str, sys.version_info))
         except Exception:
             version_string = repr(sys.version_info)
-        errors.append("Tahoe-LAFS current requires Python v2.5 or greater (but less than v3), not %s"
+        errors.append("Tahoe-LAFS currently requires Python v2.6 or greater (but less than v3), not %s"
                       % (version_string,))
 
     vers_and_locs = dict(_vers_and_locs_list)
