@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.5 and 2.7.x inclusive."
+import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.5 and 2.7.x inclusive."
 
 # Tahoe-LAFS -- secure, distributed storage grid
 #
@@ -10,7 +10,7 @@ ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python betwee
 #
 # See the docs/about.rst file for licensing information.
 
-import glob, os, stat, subprocess, sys, re
+import glob, os, stat, subprocess, re
 
 ##### sys.path management
 
