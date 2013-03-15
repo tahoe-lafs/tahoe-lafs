@@ -10,12 +10,14 @@ The Tahoe Upload Helper
 Overview
 ========
 
-As described in the `"Swarming Download, Trickling Upload" section of
-architecture.rst <architecture.rst#swarming-download-trickling-upload>`_,
-Tahoe uploads require more bandwidth than downloads: you must push the
-redundant shares during upload, but you do not need to retrieve them during
-download. With the default 3-of-10 encoding parameters, this means that an
-upload will require about 3.3x the traffic as a download of the same file.
+As described in the "Swarming Download, Trickling Upload" section of
+`architecture.rst`_, Tahoe uploads require more bandwidth than downloads: you
+must push the redundant shares during upload, but you do not need to retrieve
+them during download. With the default 3-of-10 encoding parameters, this
+means that an upload will require about 3.3x the traffic as a download of the
+same file.
+
+.. _architecture.rst: file:architecture.rst
 
 Unfortunately, this "expansion penalty" occurs in the same upstream direction
 that most consumer DSL lines are slow anyways. Typical ADSL lines get 8 times
@@ -90,7 +92,7 @@ helper.
 
 You can tell if your node is running a helper by looking at its web status
 page. Assuming that you've set up the 'webport' to use port 3456, point your
-browser at http://localhost:3456/ . The welcome page will say "Helper: 0
+browser at ``http://localhost:3456/`` . The welcome page will say "Helper: 0
 active uploads" or "Not running helper" as appropriate. The
 http://localhost:3456/helper_status page will also provide details on what
 the helper is currently doing.
@@ -125,23 +127,21 @@ Who should consider using a Helper?
 * clients who have been given the helper.furl by someone who is running a
   Helper and is willing to let them use it
 
-To take advantage of somebody else's Helper, take the helper.furl file that
-they give you, and copy it into your node's base directory, then restart the
-node:
+To take advantage of somebody else's Helper, take the helper furl that they
+give you, and edit your tahoe.cfg file. Enter the helper's furl into the
+value of the key "helper.furl" in the "[client]" section of tahoe.cfg, as
+described in the "Client Configuration" section of configuration.rst_.
 
-::
+.. _configuration.rst: file:configuration.rst
 
-  cat email >$BASEDIR/helper.furl
-  tahoe restart $BASEDIR
-
-This will signal the client to try and connect to the helper. Subsequent
-uploads will use the helper rather than using direct connections to the
-storage server.
+Then restart the node. This will signal the client to try and connect to the
+helper. Subsequent uploads will use the helper rather than using direct
+connections to the storage server.
 
 If the node has been configured to use a helper, that node's HTTP welcome
-page (http://localhost:3456/) will say "Helper: $HELPERFURL" instead of
-"Helper: None". If the helper is actually running and reachable, the next
-line will say "Connected to helper?: yes" instead of "no".
+page (``http://localhost:3456/``) will say "Helper: $HELPERFURL" instead of
+"Helper: None". If the helper is actually running and reachable, the bullet
+to the left of "Helper" will be green.
 
 The helper is optional. If a helper is connected when an upload begins, the
 upload will use the helper. If there is no helper connection present when an
@@ -150,7 +150,7 @@ client will automatically attempt to reconnect to the helper if the
 connection is lost, using the same exponential-backoff algorithm as all other
 tahoe/foolscap connections.
 
-The upload/download status page (http://localhost:3456/status) will announce
+The upload/download status page (``http://localhost:3456/status``) will announce
 the using-helper-or-not state of each upload, in the "Helper?" column.
 
 Other Helper Modes
