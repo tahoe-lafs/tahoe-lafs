@@ -3,7 +3,7 @@ setuptools trunk r80621 (which is current as of 2010-08-31), with the following
 differences:
 
 
- * Zooko's patches for the following bugs and features have been applied:
+ * Zooko's and David-Sarah's patches for the following bugs and features have been applied:
  
      <http://bugs.python.org/setuptools/issue17>
      "easy_install will install a package that is already there"
@@ -15,6 +15,9 @@ differences:
      "respect the PYTHONPATH"
      (Note: this patch does not work as intended when site.py has been modified.
      This will be fixed in a future version.)
+
+     <https://tahoe-lafs.org/trac/zetuptoolz/ticket/4>
+     "python setup.py --help-commands raises exception due to conflict with distribute"
 
 
  * The following patch to setuptools introduced bugs, and has been reverted

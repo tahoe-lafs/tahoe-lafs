@@ -400,12 +400,12 @@ class Distribution(_Distribution):
     def print_commands(self):
         for ep in pkg_resources.iter_entry_points('distutils.commands'):
             if ep.name not in self.cmdclass:
-                cmdclass = ep.load(False) # don't require extras, we're not running
-                self.cmdclass[ep.name] = cmdclass
+                try:
+                    cmdclass = ep.load(False) # don't require extras, we're not running
+                    self.cmdclass[ep.name] = cmdclass
+                except ImportError:
+                    pass # see https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1405
         return _Distribution.print_commands(self)
-
-
-
 
 
     def _set_feature(self,name,status):

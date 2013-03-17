@@ -8,5 +8,5 @@ graft misc
 graft static
 graft darcsver-1.7.2.egg
 
-graft setuptools-0.6c16dev3.egg
+graft setuptools-0.6c16dev4.egg
 global-exclude *~ *.pyc
