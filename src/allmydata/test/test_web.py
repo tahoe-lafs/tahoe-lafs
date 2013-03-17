@@ -1445,16 +1445,16 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # We should have a form to create a file, with radio buttons that allow
         # the user to toggle whether it is a CHK/LIT (default), SDMF, or MDMF file.
         self.failUnlessIn('name="t" value="upload"', html)
-        self.failUnlessIn('input checked="checked" type="radio" id="upload-chk" value="chk" name="format"', html)
-        self.failUnlessIn('input type="radio" id="upload-sdmf" value="sdmf" name="format"', html)
-        self.failUnlessIn('input type="radio" id="upload-mdmf" value="mdmf" name="format"', html)
+        self.failUnless(re.search('<input [^/]*id="upload-chk"', html), html)
+        self.failUnless(re.search('<input [^/]*id="upload-sdmf"', html), html)
+        self.failUnless(re.search('<input [^/]*id="upload-mdmf"', html), html)
 
         # We should also have the ability to create a mutable directory, with
         # radio buttons that allow the user to toggle whether it is an SDMF (default)
         # or MDMF directory.
         self.failUnlessIn('name="t" value="mkdir"', html)
-        self.failUnlessIn('input checked="checked" type="radio" id="mkdir-sdmf" value="sdmf" name="format"', html)
-        self.failUnlessIn('input type="radio" id="mkdir-mdmf" value="mdmf" name="format"', html)
+        self.failUnless(re.search('<input [^/]*id="mkdir-sdmf"', html), html)
+        self.failUnless(re.search('<input [^/]*id="mkdir-mdmf"', html), html)
 
         self.failUnlessIn(FAVICON_MARKUP, html)
 
