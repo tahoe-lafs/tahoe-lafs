@@ -3,8 +3,64 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
+Release 1.10.0c1 (2012-03-19)
+
+New Features
+''''''''''''
+
+- Redesigned Welcome page. (`#1713`_, `#1457`_, `#1735`_)
+- Extendable Introducer protocol. (`#466`_)
+- Added move feature to web-API. (`#1579`_)
+
+Notable Bugfixes
+''''''''''''''''
+
+- If an immutable file failed to download, e.g. due to a connection problem,
+  subsequent attempts to download the same file could also fail. (`#1679`_)
+- The SFTP frontend works with recent versions of Twisted, rather than
+  giving errors or warnings about use of ``IFinishableConsumer``. (`#1926`_,
+  `#1564`_, `#1525`_)
+- Failure handling in the SFTP frontend has been improved. (`#1525`_)
+- Checking a LIT file using ``tahoe check`` no longer results in an
+  exception. (`#1758`_)
+- Filenames in WUI directory pages are now displayed correctly when they
+  contain characters that require HTML escaping. (`#1143`_)
+- Non-ASCII node nicknames no longer cause WUI errors. (`#1298`_)
+- Error messages containing tracebacks may be slightly more readable.
+  (`#1484`_)
+- ``tahoe cp --verbose`` counts the files being processed correctly.
+  (`#1805`_, `#1783`_)
+- Exceptions no longer trigger an unhelpful crash reporter on Ubuntu 12.04
+  ("Precise") or later. (`#1746`_)
+
+Performance Improvements
+''''''''''''''''''''''''
+
+- Allow web clients to cache immutable directory pages. (`#443`_)
+- ...
+
+Documentation
+'''''''''''''
+
+- ...
+
+Packaging Changes
+'''''''''''''''''
+
+- The flogtool utility, used to read logs, can now be accessed as
+  ``tahoe debug flogtool`` even when foolscap is not installed system-wide.
+  (`#1693`_)
+
+Compatibility and Dependencies
+''''''''''''''''''''''''''''''
+
+- Python >= 2.6, except Python 3 (`#1658`_)
+- Twisted >= 11.0.0 (`#1771`_)
+- mock >= 0.8
+
+
 Release 1.9.2 (2012-07-03)
-----------------------------
+--------------------------
 
 Notable Bugfixes
 ''''''''''''''''
