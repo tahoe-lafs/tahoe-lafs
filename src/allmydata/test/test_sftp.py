@@ -519,6 +519,43 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             return d2
         d.addCallback(_read_short)
 
+        # check that failed downloads cause failed reads
+        d.addCallback(lambda ign: self.handler.openFile("uri/"+self.gross_uri, sftp.FXF_READ, {}))
+        def _read_broken(rf):
+            d2 = defer.succeed(None)
+            d2.addCallback(lambda ign: self.g.nuke_from_orbit())
+            d2.addCallback(lambda ign:
+                self.shouldFailWithSFTPError(sftp.FX_FAILURE, "read broken",
+                                             rf.readChunk, 0, 100))
+            # close shouldn't fail
+            d2.addCallback(lambda ign: rf.close())
+            d2.addCallback(lambda res: self.failUnlessReallyEqual(res, None))
+            return d2
+        d.addCallback(_read_broken)
+
+        d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
+        d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
+        return d
+
+    def test_openFile_read_error(self):
+        # The check at the end of openFile_read tested this for large files, but it trashed
+        # the grid in the process, so this needs to be a separate test.
+        small = upload.Data("0123456789"*101, None)
+        d = self._set_up("openFile_read_error")
+        d.addCallback(lambda ign: self.root.add_file(u"small", small))
+        d.addCallback(lambda n: self.handler.openFile("/uri/"+n.get_uri(), sftp.FXF_READ, {}))
+        def _read_broken(rf):
+            d2 = defer.succeed(None)
+            d2.addCallback(lambda ign: self.g.nuke_from_orbit())
+            d2.addCallback(lambda ign:
+                self.shouldFailWithSFTPError(sftp.FX_FAILURE, "read broken",
+                                             rf.readChunk, 0, 100))
+            # close shouldn't fail
+            d2.addCallback(lambda ign: rf.close())
+            d2.addCallback(lambda res: self.failUnlessReallyEqual(res, None))
+            return d2
+        d.addCallback(_read_broken)
+
         d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
         d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
         return d
@@ -981,6 +1018,24 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         d.addCallback(lambda ign:
                       self.shouldFail(NoSuchChildError, "rename new while open", "new",
                                       self.root.get, u"new"))
+
+        # check that failed downloads cause failed reads and failed close, when open for writing
+        gross = u"gro\u00DF".encode("utf-8")
+        d.addCallback(lambda ign: self.handler.openFile(gross, sftp.FXF_READ | sftp.FXF_WRITE, {}))
+        def _read_write_broken(rwf):
+            d2 = rwf.writeChunk(0, "abcdefghij")
+            d2.addCallback(lambda ign: self.g.nuke_from_orbit())
+
+            # reading should fail (reliably if we read past the written chunk)
+            d2.addCallback(lambda ign:
+                self.shouldFailWithSFTPError(sftp.FX_FAILURE, "read/write broken",
+                                             rwf.readChunk, 0, 100))
+            # close should fail in this case
+            d2.addCallback(lambda ign:
+                self.shouldFailWithSFTPError(sftp.FX_FAILURE, "read/write broken close",
+                                             rwf.close))
+            return d2
+        d.addCallback(_read_write_broken)
 
         d.addCallback(lambda ign: self.failUnlessEqual(sftpd.all_heisenfiles, {}))
         d.addCallback(lambda ign: self.failUnlessEqual(self.handler._heisenfiles, {}))
