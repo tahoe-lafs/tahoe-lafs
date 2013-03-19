@@ -163,13 +163,24 @@ class Client(node.Node, pollmixin.PollMixin):
         if webport:
             self.init_web(webport) # strports string
 
+    def _sequencer(self):
+        seqnum_s = self.get_config_from_file("announcement-seqnum")
+        if not seqnum_s:
+            seqnum_s = "0"
+        seqnum = int(seqnum_s.strip())
+        seqnum += 1 # increment
+        self.write_config("announcement-seqnum", "%d\n" % seqnum)
+        nonce = _make_secret().strip()
+        return seqnum, nonce
+
     def init_introducer_client(self):
         self.introducer_furl = self.get_config("client", "introducer.furl")
         ic = IntroducerClient(self.tub, self.introducer_furl,
                               self.nickname,
                               str(allmydata.__full_version__),
                               str(self.OLDEST_SUPPORTED_VERSION),
-                              self.get_app_versions())
+                              self.get_app_versions(),
+                              self._sequencer)
         self.introducer_client = ic
         # hold off on starting the IntroducerClient until our tub has been
         # started, so we'll have a useful address on our RemoteReference, so

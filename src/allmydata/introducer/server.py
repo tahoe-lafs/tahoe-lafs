@@ -220,8 +220,9 @@ class IntroducerService(service.MultiService, Referenceable):
             else:
                 if "seqnum" in old_ann:
                     # must beat previous sequence number to replace
-                    if "seqnum" not in ann:
-                        self.log("not replacing old ann, no seqnum",
+                    if ("seqnum" not in ann
+                        or not isinstance(ann["seqnum"], (int,long))):
+                        self.log("not replacing old ann, no valid seqnum",
                                  level=log.NOISY, umid="ySbaVw")
                         self._debug_counts["inbound_no_seqnum"] += 1
                         return

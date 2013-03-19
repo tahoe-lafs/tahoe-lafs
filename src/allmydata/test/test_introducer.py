@@ -1,5 +1,5 @@
 
-import os, re
+import os, re, itertools
 from base64 import b32decode
 import simplejson
 
@@ -20,7 +20,8 @@ from allmydata.introducer import old
 # test compatibility with old introducer .tac files
 from allmydata.introducer import IntroducerNode
 from allmydata.web import introweb
-from allmydata.util import pollmixin, keyutil, idlib
+from allmydata.client import Client as TahoeClient
+from allmydata.util import pollmixin, keyutil, idlib, fileutil
 import allmydata.test.common_util as testutil
 
 class LoggingMultiService(service.MultiService):
@@ -54,7 +55,7 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
 
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {})
+                              "my_version", "oldest_version", {}, fakeseq)
         self.failUnless(isinstance(ic, IntroducerClient))
 
     def test_listen(self):
@@ -86,12 +87,12 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
         i = IntroducerService()
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {})
+                              "my_version", "oldest_version", {}, fakeseq)
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
         keyid = keyutil.remove_prefix(vk_s, "pub-v0-")
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
-        ann_t = ic.create_announcement("storage", make_ann(furl1), sk)
+        ann_t = make_ann_t(ic, furl1, sk, 1)
         i.remote_publish_v2(ann_t, Referenceable())
         announcements = i.get_announcements()
         self.failUnlessEqual(len(announcements), 1)
@@ -112,24 +113,30 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
         self.failUnlessEqual(ann2_out["anonymous-storage-FURL"], furl2)
 
 
+def fakeseq():
+    return 1, "nonce"
+
+seqnum_counter = itertools.count(1)
+def realseq():
+    return seqnum_counter.next(), str(os.randint(1,100000))
+
 def make_ann(furl):
     ann = { "anonymous-storage-FURL": furl,
             "permutation-seed-base32": get_tubid_string(furl) }
     return ann
 
 def make_ann_t(ic, furl, privkey, seqnum):
-    def mod(ann):
-        ann["seqnum"] = seqnum
-        if seqnum is None:
-            del ann["seqnum"]
-        return ann
-    return ic.create_announcement("storage", make_ann(furl), privkey, mod)
+    ann_d = ic.create_announcement_dict("storage", make_ann(furl))
+    ann_d["seqnum"] = seqnum
+    ann_d["nonce"] = "nonce"
+    ann_t = sign_to_foolscap(ann_d, privkey)
+    return ann_t
 
 class Client(unittest.TestCase):
     def test_duplicate_receive_v1(self):
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {})
+                              "my_version", "oldest_version", {}, fakeseq)
         announcements = []
         ic.subscribe_to("storage",
                         lambda key_s,ann: announcements.append(ann))
@@ -178,12 +185,12 @@ class Client(unittest.TestCase):
     def test_duplicate_receive_v2(self):
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {})
+                               "ver23", "oldest_version", {}, fakeseq)
         # we use a second client just to create a different-looking
         # announcement
         ic2 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver24","oldest_version",{})
+                               "ver24","oldest_version",{}, fakeseq)
         announcements = []
         def _received(key_s, ann):
             announcements.append( (key_s, ann) )
@@ -286,7 +293,7 @@ class Client(unittest.TestCase):
         # not replace the other)
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {})
+                              "my_version", "oldest_version", {}, fakeseq)
         announcements = []
         ic.subscribe_to("storage",
                         lambda key_s,ann: announcements.append(ann))
@@ -295,7 +302,7 @@ class Client(unittest.TestCase):
         keyid = keyutil.remove_prefix(vk_s, "pub-v0-")
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         furl2 = "pb://%s@127.0.0.1:36106/swissnum" % keyid
-        ann_t = ic.create_announcement("storage", make_ann(furl1), sk)
+        ann_t = make_ann_t(ic, furl1, sk, 1)
         ic.remote_announce_v2([ann_t])
         d = fireEventually()
         def _then(ign):
@@ -324,7 +331,7 @@ class Server(unittest.TestCase):
         i = IntroducerService()
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {})
+                               "ver23", "oldest_version", {}, realseq)
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
 
         privkey_s, _ = keyutil.make_keypair()
@@ -334,6 +341,7 @@ class Server(unittest.TestCase):
         ann1_old = make_ann_t(ic1, furl1, privkey, seqnum=9)
         ann1_new = make_ann_t(ic1, furl1, privkey, seqnum=11)
         ann1_noseqnum = make_ann_t(ic1, furl1, privkey, seqnum=None)
+        ann1_badseqnum = make_ann_t(ic1, furl1, privkey, seqnum="not an int")
 
         i.remote_publish_v2(ann1, None)
         all = i.get_announcements()
@@ -385,6 +393,16 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(i._debug_counts["inbound_old_replay"], 1)
         self.failUnlessEqual(i._debug_counts["inbound_update"], 1)
 
+        i.remote_publish_v2(ann1_badseqnum, None)
+        all = i.get_announcements()
+        self.failUnlessEqual(len(all), 1)
+        self.failUnlessEqual(all[0].announcement["seqnum"], 11)
+        self.failUnlessEqual(i._debug_counts["inbound_message"], 6)
+        self.failUnlessEqual(i._debug_counts["inbound_duplicate"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_no_seqnum"], 2)
+        self.failUnlessEqual(i._debug_counts["inbound_old_replay"], 1)
+        self.failUnlessEqual(i._debug_counts["inbound_update"], 1)
+
 
 NICKNAME = u"n\u00EDickname-%s" # LATIN SMALL LETTER I WITH ACUTE
 
@@ -415,7 +433,7 @@ class Queue(SystemTestMixin, unittest.TestCase):
         tub2 = Tub()
         tub2.setServiceParent(self.parent)
         c = IntroducerClient(tub2, ifurl,
-                             u"nickname", "version", "oldest", {})
+                             u"nickname", "version", "oldest", {}, fakeseq)
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -503,7 +521,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 c = IntroducerClient(tub, self.introducer_furl,
                                      NICKNAME % str(i),
                                      "version", "oldest",
-                                     {"component": "component-v1"})
+                                     {"component": "component-v1"}, fakeseq)
             received_announcements[c] = {}
             def got(key_s_or_tubid, ann, announcements, i):
                 if i == 0:
@@ -822,7 +840,8 @@ class ClientInfo(unittest.TestCase):
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
-                                     "my_version", "oldest", app_versions)
+                                     "my_version", "oldest", app_versions,
+                                     fakeseq)
         #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         #ann_s = make_ann_t(client_v2, furl1, None, 10)
         #introducer.remote_publish_v2(ann_s, Referenceable())
@@ -883,10 +902,11 @@ class Announcements(unittest.TestCase):
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
-                                     "my_version", "oldest", app_versions)
+                                     "my_version", "oldest", app_versions,
+                                     fakeseq)
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         tubid = "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
-        ann_s0 = make_ann_t(client_v2, furl1, None, 10.0)
+        ann_s0 = make_ann_t(client_v2, furl1, None, 10)
         canary0 = Referenceable()
         introducer.remote_publish_v2(ann_s0, canary0)
         a = introducer.get_announcements()
@@ -904,12 +924,13 @@ class Announcements(unittest.TestCase):
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
-                                     "my_version", "oldest", app_versions)
+                                     "my_version", "oldest", app_versions,
+                                     fakeseq)
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
         pks = keyutil.remove_prefix(vk_s, "pub-")
-        ann_t0 = make_ann_t(client_v2, furl1, sk, 10.0)
+        ann_t0 = make_ann_t(client_v2, furl1, sk, 10)
         canary0 = Referenceable()
         introducer.remote_publish_v2(ann_t0, canary0)
         a = introducer.get_announcements()
@@ -941,6 +962,51 @@ class Announcements(unittest.TestCase):
         self.failUnlessEqual(a[0].version, "my_version")
         self.failUnlessEqual(a[0].announcement["anonymous-storage-FURL"], furl1)
 
+class ClientSeqnums(unittest.TestCase):
+    def test_client(self):
+        basedir = "introducer/ClientSeqnums/test_client"
+        fileutil.make_dirs(basedir)
+        f = open(os.path.join(basedir, "tahoe.cfg"), "w")
+        f.write("[client]\n")
+        f.write("introducer.furl = nope\n")
+        f.close()
+        c = TahoeClient(basedir)
+        ic = c.introducer_client
+        outbound = ic._outbound_announcements
+        published = ic._published_announcements
+        def read_seqnum():
+            f = open(os.path.join(basedir, "announcement-seqnum"))
+            seqnum = f.read().strip()
+            f.close()
+            return int(seqnum)
+
+        ic.publish("sA", {"key": "value1"}, c._server_key)
+        self.failUnlessEqual(read_seqnum(), 1)
+        self.failUnless("sA" in outbound)
+        self.failUnlessEqual(outbound["sA"]["seqnum"], 1)
+        nonce1 = outbound["sA"]["nonce"]
+        self.failUnless(isinstance(nonce1, str))
+        self.failUnlessEqual(simplejson.loads(published["sA"][0]),
+                             outbound["sA"])
+        # [1] is the signature, [2] is the pubkey
+
+        # publishing a second service causes both services to be
+        # re-published, with the next higher sequence number
+        ic.publish("sB", {"key": "value2"}, c._server_key)
+        self.failUnlessEqual(read_seqnum(), 2)
+        self.failUnless("sB" in outbound)
+        self.failUnlessEqual(outbound["sB"]["seqnum"], 2)
+        self.failUnless("sA" in outbound)
+        self.failUnlessEqual(outbound["sA"]["seqnum"], 2)
+        nonce2 = outbound["sA"]["nonce"]
+        self.failUnless(isinstance(nonce2, str))
+        self.failIfEqual(nonce1, nonce2)
+        self.failUnlessEqual(simplejson.loads(published["sA"][0]),
+                             outbound["sA"])
+        self.failUnlessEqual(simplejson.loads(published["sB"][0]),
+                             outbound["sB"])
+
+
 
 class TooNewServer(IntroducerService):
     VERSION = { "http://allmydata.org/tahoe/protocols/introducer/v999":
@@ -969,7 +1035,8 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         tub.setLocation("localhost:%d" % portnum)
 
         c = IntroducerClient(tub, self.introducer_furl,
-                             u"nickname-client", "version", "oldest", {})
+                             u"nickname-client", "version", "oldest", {},
+                             fakeseq)
         announcements = {}
         def got(key_s, ann):
             announcements[key_s] = ann
