@@ -154,7 +154,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
 
             self.failIfEqual(required_verstr, "unknown",
                              "We don't know our version, because this distribution didn't come "
-                             "with a _version.py and 'setup.py darcsver' hasn't been run.")
+                             "with a _version.py and 'setup.py update_version' hasn't been run.")
 
             srcdir = os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
             info = repr((res, allmydata.__appname__, required_verstr, srcdir))
