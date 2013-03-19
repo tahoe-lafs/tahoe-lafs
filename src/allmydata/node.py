@@ -279,7 +279,7 @@ class Node(service.MultiService):
         """Write a string to a config file."""
         fn = os.path.join(self.basedir, name)
         try:
-            open(fn, mode).write(value)
+            fileutil.write(fn, value, mode)
         except EnvironmentError, e:
             self.log("Unable to write config file '%s'" % fn)
             self.log(e)

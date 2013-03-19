@@ -255,8 +255,8 @@ def write_atomically(target, contents, mode="b"):
         f.close()
     move_into_place(target+".tmp", target)
 
-def write(path, data):
-    wf = open(path, "wb")
+def write(path, data, mode="wb"):
+    wf = open(path, mode)
     try:
         wf.write(data)
     finally:
