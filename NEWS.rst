@@ -3,7 +3,7 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.10.0c1 (2012-03-19)
+Release 1.10 (2013-??-??)
 
 New Features
 ''''''''''''
