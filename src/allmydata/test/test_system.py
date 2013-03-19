@@ -1113,7 +1113,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(lambda res: getPage(self.helper_webish_url))
         def _got_welcome_helper(page):
             html = page.replace('\n', ' ')
-            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*Helper', html), page)
+            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>Helper</div>', html), page)
             self.failUnlessIn("Not running helper", page)
         d.addCallback(_got_welcome_helper)
 

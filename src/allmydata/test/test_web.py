@@ -627,7 +627,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_no_helper)
         def _check_no_helper(res):
             html = res.replace('\n', ' ')
-            self.failUnless(re.search('<div class="status-indicator connected-not-configured"></div>[ ]*Helper', html), res)
+            self.failUnless(re.search('<div class="status-indicator connected-not-configured"></div>[ ]*<div>Helper</div>', html), res)
         d.addCallback(_check_no_helper)
 
         # enable helper, not connected
@@ -638,7 +638,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_helper_not_connected)
         def _check_helper_not_connected(res):
             html = res.replace('\n', ' ')
-            self.failUnless(re.search('<div class="status-indicator connected-no"></div>[ ]*Helper', html), res)
+            self.failUnless(re.search('<div class="status-indicator connected-no"></div>[ ]*<div>Helper not connected</div>', html), res)
         d.addCallback(_check_helper_not_connected)
 
         # enable helper, connected
@@ -649,7 +649,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_helper_connected)
         def _check_helper_connected(res):
             html = res.replace('\n', ' ')
-            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*Helper', html), res)
+            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>Helper</div>', html), res)
         d.addCallback(_check_helper_connected)
         return d
 

@@ -201,6 +201,11 @@ class Root(rend.Page):
     def data_introducer_furl(self, ctx, data):
         return self.client.introducer_furl
 
+    def data_introducer_description(self, ctx, data):
+        if self.data_connected_to_introducer(ctx, data) == "no":
+            return "Introducer not connected"
+        return "Introducer"
+
     def data_connected_to_introducer(self, ctx, data):
         if self.client.connected_to_introducer():
             return "yes"
@@ -214,8 +219,10 @@ class Root(rend.Page):
         furl, connected = uploader.get_helper_info()
         return furl
 
-    def data_connected_to_helper_description(self, ctx, data):
-        return self.data_connected_to_helper(ctx, data).replace('-', ' ')
+    def data_helper_description(self, ctx, data):
+        if self.data_connected_to_helper(ctx, data) == "no":
+            return "Helper not connected"
+        return "Helper"
 
     def data_connected_to_helper(self, ctx, data):
         try:
