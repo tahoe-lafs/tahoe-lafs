@@ -257,12 +257,12 @@ class Client(node.Node, pollmixin.PollMixin):
         storedir = os.path.join(self.basedir, self.STOREDIR)
 
         data = self.get_config("storage", "reserved_space", None)
-        reserved = None
         try:
             reserved = parse_abbreviated_size(data)
         except ValueError:
             log.msg("[storage]reserved_space= contains unparseable value %s"
                     % data)
+            raise
         if reserved is None:
             reserved = 0
         discard = self.get_config("storage", "debug_discard", False,

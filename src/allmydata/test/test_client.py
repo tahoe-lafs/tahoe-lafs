@@ -132,8 +132,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            "[storage]\n" + \
                            "enabled = true\n" + \
                            "reserved_space = bogus\n")
-        c = client.Client(basedir)
-        self.failUnlessEqual(c.getServiceNamed("storage").reserved_space, 0)
+        self.failUnlessRaises(ValueError, client.Client, basedir)
 
     def _permute(self, sb, key):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
