@@ -652,7 +652,6 @@ class Copier:
 
         for (name,s) in source_files:
             self.attach_to_target(s, name, target)
-            self.files_to_copy += 1
 
         for source in source_dirs:
             self.assign_targets(source, target)

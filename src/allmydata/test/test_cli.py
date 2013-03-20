@@ -2468,6 +2468,34 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_got_testdir_json)
         return d
 
+    def test_cp_verbose(self):
+        self.basedir = "cli/Cp/cp_verbose"
+        self.set_up_grid()
+
+        # Write two test files, which we'll copy to the grid.
+        test1_path = os.path.join(self.basedir, "test1")
+        test2_path = os.path.join(self.basedir, "test2")
+        fileutil.write(test1_path, "test1")
+        fileutil.write(test2_path, "test2")
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda ign:
+            self.do_cli("cp", "--verbose", test1_path, test2_path, "tahoe:"))
+        def _check(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessIn("Success: files copied", out, str(res))
+            self.failUnlessEqual(err, """\
+attaching sources to targets, 2 files / 0 dirs in root
+targets assigned, 1 dirs, 2 files
+starting copy, 2 files, 1 directories
+1/2 files, 0/1 directories
+2/2 files, 0/1 directories
+1/1 directories
+""", str(res))
+        d.addCallback(_check)
+        return d
+
 
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
