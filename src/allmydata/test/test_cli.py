@@ -1176,7 +1176,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check(res):
             (rc, out, err) = res
             self.failUnlessEqual(rc, 0, str(res))
-            self.failUnlessEqual(err, "", str(res))
+            self.failUnlessEqual(err.strip(), "201 Created", str(res))
             self.uri = out
         d.addCallback(_check)
         d.addCallback(lambda res:
@@ -1184,7 +1184,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         def _check2(res):
             (rc, out, err) = res
             self.failUnlessEqual(rc, 0, str(res))
-            self.failUnlessEqual(err, "", str(res))
+            self.failUnlessEqual(err.strip(), "200 OK", str(res))
             self.failUnlessEqual(out, self.uri, str(res))
         d.addCallback(_check2)
         d.addCallback(lambda res:
