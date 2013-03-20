@@ -294,9 +294,9 @@ Client Configuration
 
     This FURL tells the client how to connect to the introducer. Each
     Tahoe-LAFS grid is defined by an introducer. The introducer's FURL is
-    created by the introducer node and written into its base directory when
-    it starts, whereupon it should be published to everyone who wishes to
-    attach a client to that grid
+    created by the introducer node and written into its private base
+    directory when it starts, whereupon it should be published to everyone
+    who wishes to attach a client to that grid
 
 ``helper.furl = (FURL string, optional)``
 
@@ -507,7 +507,7 @@ the others.
 
 The Introducer node maintains some different state than regular client nodes.
 
-``BASEDIR/introducer.furl``
+``BASEDIR/private/introducer.furl``
 
   This is generated the first time the introducer node is started, and used
   again on subsequent runs, to give the introduction service a persistent

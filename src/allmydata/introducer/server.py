@@ -1,16 +1,20 @@
 
-import time, os.path
+import time, os.path, textwrap
 from zope.interface import implements
 from twisted.application import service
 from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
 from allmydata.util import log, rrefutil
+from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService_v2
 from allmydata.introducer.common import convert_announcement_v1_to_v2, \
      convert_announcement_v2_to_v1, unsign_from_foolscap, make_index, \
      get_tubid_string_from_ann, SubscriberDescriptor, AnnouncementDescriptor
+
+class FurlFileConflictError(Exception):
+    pass
 
 class IntroducerNode(node.Node):
     PORTNUMFILE = "introducer.port"
@@ -29,13 +33,27 @@ class IntroducerNode(node.Node):
         introducerservice = IntroducerService(self.basedir)
         self.add_service(introducerservice)
 
+        old_public_fn = os.path.join(self.basedir, "introducer.furl").encode(get_filesystem_encoding())
+        private_fn = os.path.join(self.basedir, "private", "introducer.furl").encode(get_filesystem_encoding())
+
+        if os.path.exists(old_public_fn):
+            if os.path.exists(private_fn):
+                msg = """This directory (%s) contains both an old public
+                'introducer.furl' file, and a new-style
+                'private/introducer.furl', so I cannot safely remove the old
+                one. Please make sure your desired FURL is in
+                private/introducer.furl, and remove the public file. If this
+                causes your Introducer's FURL to change, you need to inform
+                all grid members so they can update their tahoe.cfg.
+                """
+                raise FurlFileConflictError(textwrap.dedent(msg))
+            os.rename(old_public_fn, private_fn)
         d = self.when_tub_ready()
         def _publish(res):
-            self.introducer_url = self.tub.registerReference(introducerservice,
-                                                             "introducer")
-            self.log(" introducer is at %s" % self.introducer_url,
-                     umid="qF2L9A")
-            self.write_config("introducer.furl", self.introducer_url + "\n")
+            furl = self.tub.registerReference(introducerservice,
+                                              furlFile=private_fn)
+            self.log(" introducer is at %s" % furl, umid="qF2L9A")
+            self.introducer_url = furl # for tests
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="UaNs9A")

@@ -355,7 +355,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         c1 = os.path.join(basedir, "c1")
         HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
-        INTRODUCER_FURL_FILE = os.path.join(c1, "introducer.furl")
+        INTRODUCER_FURL_FILE = os.path.join(c1, "private", "introducer.furl")
         PORTNUM_FILE = os.path.join(c1, "introducer.port")
         NODE_URL_FILE = os.path.join(c1, "node.url")
         CONFIG_FILE = os.path.join(c1, "tahoe.cfg")
@@ -406,8 +406,8 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         d.addCallback(lambda res: self.poll(_node_has_started))
 
         def _started(res):
-            # read the introducer.furl and introducer.port files so we can check that their
-            # contents don't change on restart
+            # read the introducer.furl and introducer.port files so we can
+            # check that their contents don't change on restart
             self.furl = fileutil.read(INTRODUCER_FURL_FILE)
             self.failUnless(os.path.exists(PORTNUM_FILE))
             self.portnum = fileutil.read(PORTNUM_FILE)

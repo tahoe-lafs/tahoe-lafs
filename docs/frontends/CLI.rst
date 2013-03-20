@@ -111,8 +111,8 @@ That is, it behaves like "``tahoe create-node --no-storage [NODEDIR]``".
 
 "``tahoe create-introducer [NODEDIR]``" is used to create the Introducer node.
 This node provides introduction services and nothing else. When started, this
-node will produce an ``introducer.furl`` file, which should be published to all
-clients.
+node will produce a ``private/introducer.furl`` file, which should be
+published to all clients.
 
 "``tahoe create-key-generator [NODEDIR]``" is used to create a special
 "key-generation" service, which allows a client to offload their RSA key

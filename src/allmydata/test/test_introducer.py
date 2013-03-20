@@ -12,7 +12,7 @@ from twisted.application import service
 from allmydata.interfaces import InsufficientVersionError
 from allmydata.introducer.client import IntroducerClient, \
      WrapV2ClientInV1Interface
-from allmydata.introducer.server import IntroducerService
+from allmydata.introducer.server import IntroducerService, FurlFileConflictError
 from allmydata.introducer.common import get_tubid_string_from_ann, \
      get_tubid_string, sign_to_foolscap, unsign_from_foolscap, \
      UnknownKeyError
@@ -29,15 +29,49 @@ class LoggingMultiService(service.MultiService):
         log.msg(msg, **kw)
 
 class Node(testutil.SignalMixin, unittest.TestCase):
-    def test_loadable(self):
-        basedir = "introducer.IntroducerNode.test_loadable"
+    def test_furl(self):
+        basedir = "introducer.IntroducerNode.test_furl"
         os.mkdir(basedir)
-        q = IntroducerNode(basedir)
+        public_fn = os.path.join(basedir, "introducer.furl")
+        private_fn = os.path.join(basedir, "private", "introducer.furl")
+        q1 = IntroducerNode(basedir)
         d = fireEventually(None)
-        d.addCallback(lambda res: q.startService())
-        d.addCallback(lambda res: q.when_tub_ready())
-        d.addCallback(lambda res: q.stopService())
+        d.addCallback(lambda res: q1.startService())
+        d.addCallback(lambda res: q1.when_tub_ready())
+        d.addCallback(lambda res: q1.stopService())
         d.addCallback(flushEventualQueue)
+        def _check_furl(res):
+            # new nodes create unguessable furls in private/introducer.furl
+            ifurl = fileutil.read(private_fn)
+            self.failUnless(ifurl)
+            ifurl = ifurl.strip()
+            self.failIf(ifurl.endswith("/introducer"), ifurl)
+
+            # old nodes created guessable furls in BASEDIR/introducer.furl
+            guessable = ifurl[:ifurl.rfind("/")] + "/introducer"
+            fileutil.write(public_fn, guessable+"\n", mode="w") # text
+
+            # if we see both files, throw an error
+            self.failUnlessRaises(FurlFileConflictError,
+                                  IntroducerNode, basedir)
+
+            # when we see only the public one, move it to private/ and use
+            # the existing furl instead of creating a new one
+            os.unlink(private_fn)
+            q2 = IntroducerNode(basedir)
+            d2 = fireEventually(None)
+            d2.addCallback(lambda res: q2.startService())
+            d2.addCallback(lambda res: q2.when_tub_ready())
+            d2.addCallback(lambda res: q2.stopService())
+            d2.addCallback(flushEventualQueue)
+            def _check_furl2(res):
+                self.failIf(os.path.exists(public_fn))
+                ifurl2 = fileutil.read(private_fn)
+                self.failUnless(ifurl2)
+                self.failUnlessEqual(ifurl2.strip(), guessable)
+            d2.addCallback(_check_furl2)
+            return d2
+        d.addCallback(_check_furl)
         return d
 
 class ServiceMixin:

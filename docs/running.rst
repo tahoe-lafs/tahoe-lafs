@@ -47,10 +47,11 @@ To construct an introducer, create a new base directory for it (the
 name of the directory is up to you), ``cd`` into it, and run
 "``tahoe create-introducer .``". Now run the introducer using
 "``tahoe start .``". After it starts, it will write a file named
-``introducer.furl`` in that base directory. This file contains the URL
-the other nodes must use in order to connect to this introducer. (Note
-that "``tahoe run .``" doesn't work for introducers, this is a known
-issue: `#937 <http://allmydata.org/trac/tahoe-lafs/ticket/937>`_.)
+``introducer.furl`` into the ``private/`` subdirectory of that base
+directory. This file contains the URL the other nodes must use in order
+to connect to this introducer. (Note that "``tahoe run .``" doesn't
+work for introducers, this is a known issue: `#937
+<http://allmydata.org/trac/tahoe-lafs/ticket/937>`_.)
 
 The "``tahoe run``" command above will run the node in the foreground.
 On Unix, you can run it in the background instead by using the
