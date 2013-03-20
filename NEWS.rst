@@ -8,9 +8,14 @@ Release 1.10 (2013-??-??)
 New Features
 ''''''''''''
 
-- Redesigned Welcome page. (`#1713`_, `#1457`_, `#1735`_)
-- Extendable Introducer protocol. (`#466`_)
-- Added move feature to web-API. (`#1579`_)
+- The Welcome page has been redesigned. This is a preview of the design style
+  that is likely to be used in other parts of the WUI in future Tahoe-LAFS
+  versions. (`#1713`_, `#1457`_, `#1735`_)
+- A new, more extensible Introducer protocol has been added, to act as the
+  basis for future improvements such as accounting. Compatibility with older
+  nodes is not affected. (`#466`_)
+- The web-API has a new move operation that supports directly moving files
+  between directories. (`#1579`_)
 
 Notable Bugfixes
 ''''''''''''''''
@@ -37,12 +42,13 @@ Performance Improvements
 ''''''''''''''''''''''''
 
 - Allow web clients to cache immutable directory pages. (`#443`_)
-- ...
 
 Documentation
 '''''''''''''
 
-- ...
+- docs/helper.rst has been brought up to date. (`#1915`_)
+- docs/convergence_secret.rst was added to document the adminstration of
+  convergence secrets. (`#1761`_)
 
 Packaging Changes
 '''''''''''''''''
@@ -57,6 +63,29 @@ Compatibility and Dependencies
 - Python >= 2.6, except Python 3 (`#1658`_)
 - Twisted >= 11.0.0 (`#1771`_)
 - mock >= 0.8
+
+.. _`#443`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/443
+.. _`#466`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/466
+.. _`#1143`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1143
+.. _`#1298`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1298
+.. _`#1457`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1457
+.. _`#1484`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1484
+.. _`#1525`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1525
+.. _`#1564`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1564
+.. _`#1579`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1579
+.. _`#1658`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1658
+.. _`#1679`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1679
+.. _`#1693`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1693
+.. _`#1713`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1713
+.. _`#1735`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1735
+.. _`#1746`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1746
+.. _`#1758`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1758
+.. _`#1761`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1761
+.. _`#1771`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1771
+.. _`#1783`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1783
+.. _`#1805`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1805
+.. _`#1915`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1915
+.. _`#1926`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1926
 
 
 Release 1.9.2 (2012-07-03)
