@@ -64,6 +64,14 @@ Compatibility and Dependencies
 - Twisted >= 11.0.0 (`#1771`_)
 - mock >= 0.8
 
+Precautions when Upgrading
+''''''''''''''''''''''''''
+
+- When upgrading a grid from a recent version of trunk, follow the
+  precautions from this `message to the tahoe-dev mailing list`_, to ensure
+  that announcements to the Introducer are recognized after the upgrade.
+  This is not necessary when upgrading from a previous release.
+
 .. _`#443`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/443
 .. _`#466`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/466
 .. _`#1143`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1143
@@ -86,7 +94,8 @@ Compatibility and Dependencies
 .. _`#1805`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1805
 .. _`#1915`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1915
 .. _`#1926`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1926
-
+.. _`message to the tahoe-dev mailing list`:
+             https://tahoe-lafs.org/pipermail/tahoe-dev/2013-March/008096.html
 
 Release 1.9.2 (2012-07-03)
 --------------------------
