@@ -208,7 +208,11 @@ class PutOptions(VDriveOptions):
     If REMOTE_FILE is missing, upload the file but do not link it into a
     directory; also print the new filecap to stdout. If LOCAL_FILE is missing
     or '-', data will be copied from stdin. REMOTE_FILE is assumed to start
-    with tahoe: unless otherwise specified."""
+    with tahoe: unless otherwise specified.
+
+    If the destination file already exists and is mutable, it will be modified
+    in-place, whether or not --mutable is specified. (--mutable only affects
+    creation of new files.)"""
 
     def getUsage(self, width=None):
         t = VDriveOptions.getUsage(self, width)

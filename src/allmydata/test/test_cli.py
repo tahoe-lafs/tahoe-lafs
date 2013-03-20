@@ -1173,8 +1173,20 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res:
                       self.do_cli("put", "--mutable", fn1, "tahoe:uploaded.txt"))
+        def _check(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.uri = out
+        d.addCallback(_check)
         d.addCallback(lambda res:
                       self.do_cli("put", fn2, "tahoe:uploaded.txt"))
+        def _check2(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.failUnlessEqual(out, self.uri, str(res))
+        d.addCallback(_check2)
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded.txt"))
         d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA2))
