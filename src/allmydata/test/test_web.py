@@ -617,6 +617,54 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check)
         return d
 
+    def test_introducer_status(self):
+        class MockIntroducerClient(object):
+            def __init__(self, connected):
+                self.connected = connected
+            def connected_to_introducer(self):
+                return self.connected
+
+        d = defer.succeed(None)
+
+        # introducer not connected, unguessable furl
+        def _set_introducer_not_connected_unguessable(ign):
+            self.s.introducer_furl = "pb://someIntroducer/secret"
+            self.s.introducer_client = MockIntroducerClient(False)
+            return self.GET("/")
+        d.addCallback(_set_introducer_not_connected_unguessable)
+        def _check_introducer_not_connected_unguessable(res):
+            html = res.replace('\n', ' ')
+            self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
+            self.failIfIn('pb://someIntroducer/secret', html)
+            self.failUnless(re.search('<div class="status-indicator connected-no"></div>[ ]*<div>Introducer not connected</div>', html), res)
+        d.addCallback(_check_introducer_not_connected_unguessable)
+
+        # introducer connected, unguessable furl
+        def _set_introducer_connected_unguessable(ign):
+            self.s.introducer_furl = "pb://someIntroducer/secret"
+            self.s.introducer_client = MockIntroducerClient(True)
+            return self.GET("/")
+        d.addCallback(_set_introducer_connected_unguessable)
+        def _check_introducer_connected_unguessable(res):
+            html = res.replace('\n', ' ')
+            self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
+            self.failIfIn('pb://someIntroducer/secret', html)
+            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>Introducer</div>', html), res)
+        d.addCallback(_check_introducer_connected_unguessable)
+
+        # introducer connected, guessable furl
+        def _set_introducer_connected_guessable(ign):
+            self.s.introducer_furl = "pb://someIntroducer/introducer"
+            self.s.introducer_client = MockIntroducerClient(True)
+            return self.GET("/")
+        d.addCallback(_set_introducer_connected_guessable)
+        def _check_introducer_connected_guessable(res):
+            html = res.replace('\n', ' ')
+            self.failUnlessIn('<div class="furl">pb://someIntroducer/introducer</div>', html)
+            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>Introducer</div>', html), res)
+        d.addCallback(_check_introducer_connected_guessable)
+        return d
+
     def test_helper_status(self):
         d = defer.succeed(None)
 
@@ -632,23 +680,27 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         # enable helper, not connected
         def _set_helper_not_connected(ign):
-            self.s.uploader.helper_furl = "pb://someHelper"
+            self.s.uploader.helper_furl = "pb://someHelper/secret"
             self.s.uploader.helper_connected = False
             return self.GET("/")
         d.addCallback(_set_helper_not_connected)
         def _check_helper_not_connected(res):
             html = res.replace('\n', ' ')
+            self.failUnlessIn('<div class="furl">pb://someHelper/[censored]</div>', html)
+            self.failIfIn('pb://someHelper/secret', html)
             self.failUnless(re.search('<div class="status-indicator connected-no"></div>[ ]*<div>Helper not connected</div>', html), res)
         d.addCallback(_check_helper_not_connected)
 
         # enable helper, connected
         def _set_helper_connected(ign):
-            self.s.uploader.helper_furl = "pb://someHelper"
+            self.s.uploader.helper_furl = "pb://someHelper/secret"
             self.s.uploader.helper_connected = True
             return self.GET("/")
         d.addCallback(_set_helper_connected)
         def _check_helper_connected(res):
             html = res.replace('\n', ' ')
+            self.failUnlessIn('<div class="furl">pb://someHelper/[censored]</div>', html)
+            self.failIfIn('pb://someHelper/secret', html)
             self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>Helper</div>', html), res)
         d.addCallback(_check_helper_connected)
         return d

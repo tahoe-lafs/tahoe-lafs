@@ -198,8 +198,16 @@ class Root(rend.Page):
 
         return ctx.tag[ul]
 
-    def data_introducer_furl(self, ctx, data):
-        return self.client.introducer_furl
+    def data_introducer_furl_prefix(self, ctx, data):
+        ifurl = self.client.introducer_furl
+        # trim off the secret swissnum
+        (prefix, _, swissnum) = ifurl.rpartition("/")
+        if not ifurl:
+            return None
+        if swissnum == "introducer":
+            return ifurl
+        else:
+            return "%s/[censored]" % (prefix,)
 
     def data_introducer_description(self, ctx, data):
         if self.data_connected_to_introducer(ctx, data) == "no":
@@ -211,13 +219,17 @@ class Root(rend.Page):
             return "yes"
         return "no"
 
-    def data_helper_furl(self, ctx, data):
+    def data_helper_furl_prefix(self, ctx, data):
         try:
             uploader = self.client.getServiceNamed("uploader")
         except KeyError:
             return None
         furl, connected = uploader.get_helper_info()
-        return furl
+        if not furl:
+            return None
+        # trim off the secret swissnum
+        (prefix, _, swissnum) = furl.rpartition("/")
+        return "%s/[censored]" % (prefix,)
 
     def data_helper_description(self, ctx, data):
         if self.data_connected_to_helper(ctx, data) == "no":
