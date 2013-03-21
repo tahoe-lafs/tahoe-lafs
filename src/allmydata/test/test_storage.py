@@ -762,30 +762,14 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         return auth.get_authorization_header().addCallback(gotResult)
 
 
-class GoogleStorageBackend(unittest.TestCase):
+class CloudStorageBackendMixin(object):
     """
-    Tests for the Google Storage API container.
-
-    All code references in docstrings/comments are to classes/functions in
-    allmydata.storage.backends.cloud.googlestorage.googlestorage_container
-    unless noted otherwise.
+    Utility functionality for testing cloud storage backends.
     """
-    if not googlestorage_container.oauth2client_available:
-        skip = "Google Storage requires oauth2client"
-
     class Response(object):
         def __init__(self, code, headers={}):
             self.code = code
             self.headers = headers
-
-    def setUp(self):
-        self.reactor = Clock()
-        class FakeAuthenticationClient(object):
-            def get_authorization_header(self):
-                return defer.succeed("Bearer thetoken")
-        self.auth = FakeAuthenticationClient()
-        self.container = googlestorage_container.GoogleStorageContainer(
-            self.auth, "123", "thebucket", self.reactor)
 
     def mock_http_request(self):
         """
@@ -796,6 +780,27 @@ class GoogleStorageBackend(unittest.TestCase):
         self.container._http_request = mock.create_autospec(
             self.container._http_request, return_value=d)
         return d
+
+
+class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
+    """
+    Tests for the Google Storage API container.
+
+    All code references in docstrings/comments are to classes/functions in
+    allmydata.storage.backends.cloud.googlestorage.googlestorage_container
+    unless noted otherwise.
+    """
+    if not googlestorage_container.oauth2client_available:
+        skip = "Google Storage requires oauth2client"
+
+    def setUp(self):
+        self.reactor = Clock()
+        class FakeAuthenticationClient(object):
+            def get_authorization_header(self):
+                return defer.succeed("Bearer thetoken")
+        self.auth = FakeAuthenticationClient()
+        self.container = googlestorage_container.GoogleStorageContainer(
+            self.auth, "123", "thebucket", self.reactor)
 
     def test_create(self):
         """
@@ -1052,7 +1057,7 @@ class MSAzureAuthentication(unittest.TestCase):
         def __init__(self, method, url, headers):
             from urlparse import urlparse, parse_qs
             self.headers = [
-                (key.lower(), value[0]) for key, value in headers.getAllRawHeaders()]
+                (key.lower(), value[0]) for key, value in headers.items()]
             url = urlparse(url)
             self.path = url.path
             self.query = url.query
@@ -1071,7 +1076,6 @@ class MSAzureAuthentication(unittest.TestCase):
         If possible, assert the signature calculation matches the Microsoft
         reference implementation.
         """
-        headers = Headers(headers)
         self.assertEqual(
                 self.container._calculate_presignature(method, url, headers),
                 result)
@@ -1192,6 +1196,239 @@ class MSAzureAuthentication(unittest.TestCase):
             "/account/\n"
             "y:abc\n"
             "z:hello there")
+
+
+class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
+    """
+    Tests for the Microsoft Azure Blob API container.
+
+    All code references in docstrings/comments are to classes/functions in
+    allmydata.storage.backends.cloud.msazure.msazure_container
+    unless noted otherwise.
+    """
+    def setUp(self):
+        self.reactor = Clock()
+        self.container = msazure_container.MSAzureStorageContainer(
+            "theaccount", "thekey".encode("base64"), "thebucket", self.reactor)
+        # Simplify the expected Authorization header:
+        self.container._calculate_signature = lambda *args: "signature"
+        self.authorization = "signature"
+        # Hardcode the time of date header:
+        self.container._time = lambda: 123
+        self.date = "Thu, 01 Jan 1970 00:02:03 GMT"
+
+    def test_list_objects(self):
+        """
+        MSAzureStorageContainer.list_objects() sends the appropriate HTTP
+        command to list the objects in the bucket, and parses the response to
+        match the expected result documented in the IContainer interface.
+        """
+        LIST_RESPONSE = """\
+<?xml version="1.0" encoding="utf-8"?>
+<EnumerationResults ContainerName="http://theaccount.blob.core.windows.net/thebucket">
+  <MaxResults>4</MaxResults>
+  <Blobs>
+    <Blob>
+      <Name>xxx xxx/firstblob</Name>
+      <Url>http://theaccount.blob.core.windows.net/thebucket/xxx%20xxx/firstblob</Url>
+      <Properties>
+        <Last-Modified>Mon, 30 Jan 2013 01:23:45 GMT</Last-Modified>
+        <Etag>abc</Etag>
+        <Content-Length>123</Content-Length>
+        <Content-Type>text/plain</Content-Type>
+        <Content-Encoding />
+        <Content-Language>en-US</Content-Language>
+        <Content-MD5 />
+        <Cache-Control>no-cache</Cache-Control>
+        <BlobType>BlockBlob</BlobType>
+        <LeaseStatus>unlocked</LeaseStatus>
+      </Properties>
+    </Blob>
+    <Blob>
+      <Name>xxx xxx/secondblob</Name>
+      <Url>http://myaccount.blob.core.windows.net/mycontainer/xxx%20xxx/secondblob</Url>
+      <Properties>
+        <Last-Modified>Mon, 30 Jan 2013 01:23:46 GMT</Last-Modified>
+        <Etag>def</Etag>
+        <Content-Length>100</Content-Length>
+        <Content-Type>text/html</Content-Type>
+        <Content-Encoding />
+        <Content-Language />
+        <Content-MD5 />
+        <Cache-Control>no-cache</Cache-Control>
+        <BlobType>BlockBlob</BlobType>
+        <LeaseStatus>unlocked</LeaseStatus>
+      </Properties>
+    </Blob>
+    <Garbage />
+  </Blobs>
+  <Garbage />
+  <NextMarker>xxx xxx/foo</NextMarker>
+</EnumerationResults>"""
+        http_response = self.mock_http_request()
+        done = []
+        self.container.list_objects(prefix='xxx xxx/').addCallback(done.append)
+        self.assertFalse(done)
+        self.container._http_request.assert_called_once_with(
+            "MS Azure list objects", "GET",
+            "https://theaccount.blob.core.windows.net/thebucket?comp=list&restype=container&prefix=xxx%20xxx%2F",
+            {"Authorization": [self.authorization],
+             "x-ms-version": ["2012-02-12"],
+             "x-ms-date": [self.date],
+             },
+            body=None,
+            need_response_body=True)
+        http_response.callback((self.Response(200), LIST_RESPONSE))
+        listing = done[0]
+        self.assertEqual(listing.name, "thebucket")
+        self.assertEqual(listing.prefix, "xxx xxx/")
+        self.assertEqual(listing.marker, "xxx xxx/foo")
+        self.assertEqual(listing.max_keys, None)
+        self.assertEqual(listing.is_truncated, "false")
+        item1, item2 = listing.contents
+        self.assertEqual(item1.key, "xxx xxx/firstblob")
+        self.assertEqual(item1.modification_date, "Mon, 30 Jan 2013 01:23:45 GMT")
+        self.assertEqual(item1.etag, 'abc')
+        self.assertEqual(item1.size, 123)
+        self.assertEqual(item1.owner, None) # meh, who cares
+        self.assertEqual(item2.key, "xxx xxx/secondblob")
+        self.assertEqual(item2.modification_date, "Mon, 30 Jan 2013 01:23:46 GMT")
+        self.assertEqual(item2.etag, 'def')
+        self.assertEqual(item2.size, 100)
+        self.assertEqual(item2.owner, None) # meh, who cares
+
+    def test_put_object(self):
+        """
+        MSAzureStorageContainer.put_object() sends the appropriate HTTP command
+        to upload an object to the bucket, and parses the response to match
+        the expected result documented in the IContainer interface.
+        """
+        http_response = self.mock_http_request()
+        done = []
+        self.container.put_object("theobj", "the body").addCallback(done.append)
+        self.assertFalse(done)
+        self.container._http_request.assert_called_once_with(
+            "MS Azure PUT object", "PUT",
+            "https://theaccount.blob.core.windows.net/thebucket/theobj",
+            {"Authorization": [self.authorization],
+             "x-ms-version": ["2012-02-12"],
+             "Content-Type": ["application/octet-stream"],
+             "Content-Length": [str(len("the body"))],
+             "x-ms-date": [self.date],
+             },
+            body="the body",
+            need_response_body=False)
+        http_response.callback((self.Response(200), None))
+        self.assertTrue(done)
+
+    def test_put_object_additional(self):
+        """
+        MSAzureStorageContainer.put_object() sends the appropriate HTTP command
+        to upload an object to the bucket with custom content type and
+        metadata, and parses the response to match the expected result
+        documented in the IContainer interface.
+        """
+        http_response = self.mock_http_request()
+        done = []
+        self.container.put_object("theobj", "the body",
+                                  "text/plain",
+                                  {"key": "value"}).addCallback(done.append)
+        self.assertFalse(done)
+        self.assertFalse(done)
+        self.container._http_request.assert_called_once_with(
+            "MS Azure PUT object", "PUT",
+            "https://theaccount.blob.core.windows.net/thebucket/theobj",
+            {"Authorization": [self.authorization],
+             "x-ms-version": ["2012-02-12"],
+             "Content-Type": ["text/plain"],
+             "Content-Length": [str(len("the body"))],
+             "x-ms-meta-key": ["value"],
+             "x-ms-date": [self.date],
+             },
+            body="the body",
+            need_response_body=False)
+        http_response.callback((self.Response(200), None))
+        self.assertTrue(done)
+
+    def test_get_object(self):
+        """
+        MSAzureStorageContainer.get_object() sends the appropriate HTTP command
+        to get an object from the bucket, and parses the response to match the
+        expected result documented in the IContainer interface.
+        """
+        http_response = self.mock_http_request()
+        done = []
+        self.container.get_object("theobj").addCallback(done.append)
+        self.assertFalse(done)
+        self.container._http_request.assert_called_once_with(
+            "MS Azure GET object", "GET",
+            "https://theaccount.blob.core.windows.net/thebucket/theobj",
+            {"Authorization": [self.authorization],
+             "x-ms-version": ["2012-02-12"],
+             "x-ms-date": [self.date],
+             },
+            body=None,
+            need_response_body=True)
+        http_response.callback((self.Response(200), "the body"))
+        self.assertEqual(done, ["the body"])
+
+    def test_delete_object(self):
+        """
+        MSAzureStorageContainer.delete_object() sends the appropriate HTTP
+        command to delete an object from the bucket, and parses the response
+        to match the expected result documented in the IContainer interface.
+        """
+        http_response = self.mock_http_request()
+        done = []
+        self.container.delete_object("theobj").addCallback(done.append)
+        self.assertFalse(done)
+        self.container._http_request.assert_called_once_with(
+            "MS Azure DELETE object", "DELETE",
+            "https://theaccount.blob.core.windows.net/thebucket/theobj",
+            {"Authorization": [self.authorization],
+             "x-ms-version": ["2012-02-12"],
+             "x-ms-date": [self.date],
+             },
+            body=None,
+            need_response_body=False)
+        http_response.callback((self.Response(200), None))
+        self.assertTrue(done)
+
+    def test_retry(self):
+        """
+        If an HTTP response code is server error or an authentication error,
+        the request will try again after a delay.
+        """
+        # XXX should maybe be refactored into test for the common base class
+        # that implments retries...
+        first, second = defer.Deferred(), defer.Deferred()
+        self.container._http_request = mock.create_autospec(
+            self.container._http_request, side_effect=[first, second])
+        result = []
+        self.container._do_request("test", self.container._http_request,
+                                   "test", "GET", "http://example", {}, body=None,
+                                   need_response_body=True).addCallback(result.append)
+        # No response from first request yet:
+        self.assertFalse(result)
+        self.assertEqual(self.container._http_request.call_count, 1)
+        self.container._http_request.assert_called_with(
+            "test", "GET", "http://example", {},
+            body=None, need_response_body=True)
+
+        # First response fails:
+        first.errback(CloudServiceError(None, 500))
+        self.assertFalse(result, result)
+        self.assertEqual(self.container._http_request.call_count, 1)
+        self.reactor.advance(0.1)
+        self.assertEqual(self.container._http_request.call_count, 2)
+        self.container._http_request.assert_called_with(
+            "test", "GET", "http://example", {},
+            body=None, need_response_body=True)
+
+        # Second response succeeds:
+        done = object()
+        second.callback(done)
+        self.assertEqual(result, [done])
 
 
 class ServerMixin:

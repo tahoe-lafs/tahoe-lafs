@@ -8,8 +8,17 @@ import urlparse
 import base64
 import hmac
 import hashlib
+import urllib
+try:
+    from xml.etree import cElementTree as ElementTree
+except ImportError:
+    from xml.etree import ElementTree
+import time
 
 from zope.interface import implements
+
+from twisted.web.http_headers import Headers
+from twisted.web.http import datetimeToString
 
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
      ContainerItem, ContainerListing, CommonContainerMixin
@@ -23,11 +32,14 @@ class MSAzureStorageContainer(CommonContainerMixin):
 
     USER_AGENT = "Tahoe-LAFS Microsoft Azure client"
 
+    _time = time.time
+
     def __init__(self, account_name, account_key, container_name,
                  override_reactor=None):
         CommonContainerMixin.__init__(self, container_name, override_reactor)
         self._account_name = account_name
         self._account_key = base64.b64decode(account_key)
+        self.URI = "https://%s.blob.core.windows.net" % (account_name, )
 
     def _calculate_presignature(self, method, url, headers):
         """
@@ -38,6 +50,7 @@ class MSAzureStorageContainer(CommonContainerMixin):
 
         The HMAC, and formatting into HTTP header, is not done in this layer.
         """
+        headers = Headers(headers)
         parsed_url = urlparse.urlparse(url)
         result = method + "\n"
         # Add standard headers:
@@ -95,3 +108,107 @@ class MSAzureStorageContainer(CommonContainerMixin):
         """
         Do an HTTP request with the addition of a authorization header.
         """
+        request_headers["x-ms-date"] = [datetimeToString(self._time())]
+        request_headers["x-ms-version"] = ["2012-02-12"]
+        request_headers["Authorization"] = [
+            self._calculate_signature(method, url, request_headers)]
+        return self._http_request(what, method, url, request_headers, body=body,
+                                  need_response_body=need_response_body)
+
+    def _parse_item(self, element):
+        """
+        Parse a <Blob> XML element into a ContainerItem.
+        """
+        key = element.find("Name").text
+        element = element.find("Properties")
+        last_modified = element.find("Last-Modified").text
+        etag = element.find("Etag").text
+        size = int(element.find("Content-Length").text)
+        storage_class = "STANDARD" # not sure what it means in this context
+        owner = None # Don't bother parsing this at the moment
+
+        return ContainerItem(key, last_modified, etag, size, storage_class,
+                             owner)
+
+    def _parse_list(self, data, prefix):
+        """
+        Parse the XML response, converting it into a ContainerListing.
+        """
+        name = self._container_name
+        marker = None
+        max_keys = None
+        is_truncated = "false"
+        common_prefixes = []
+        contents = []
+
+        root = ElementTree.fromstring(data)
+        if root.tag != "EnumerationResults":
+            raise ValueError("Unknown root XML element %s" % (root.tag,))
+        for element in root:
+            tag = element.tag
+            if tag == "NextMarker":
+                marker = element.text
+            elif tag == "Blobs":
+                for subelement in element:
+                    if subelement.tag == "Blob":
+                        contents.append(self._parse_item(subelement))
+
+        return ContainerListing(name, prefix, marker, max_keys, is_truncated,
+                                contents, common_prefixes)
+
+    def _list_objects(self, prefix):
+        """
+        List objects in this container with the given prefix.
+        """
+        url = self._make_container_url(self.URI)
+        url += "?comp=list&restype=container&prefix=" + urllib.quote(prefix, safe='')
+        d = self._authorized_http_request("MS Azure list objects", 'GET',
+                                          url, {},
+                                          body=None,
+                                          need_response_body=True)
+        d.addCallback(lambda (response, body): self._parse_list(body, prefix))
+        return d
+
+    def _put_object(self, object_name, data, content_type, metadata):
+        """
+        Put an object into this container.
+        """
+        url = self._make_object_url(self.URI, object_name)
+        # In theory Agent will add the content length for us, but we need it
+        # at this layer in order for the HMAC authorization to be calculated
+        # correctly:
+        request_headers = {'Content-Length': ["%d" % (len(data),)],
+                           'Content-Type': [content_type],
+                           }
+        for key, value in metadata.items():
+            request_headers["x-ms-meta-%s" % (key,)] = [value]
+
+        d = self._authorized_http_request("MS Azure PUT object", 'PUT', url,
+                                          request_headers,
+                                          body=data, need_response_body=False)
+        d.addCallback(lambda (response, body): body)
+        return d
+
+    def _get_object(self, object_name):
+        """
+        Get an object from this container.
+        """
+        url = self._make_object_url(self.URI, object_name)
+        d = self._authorized_http_request("MS Azure GET object", 'GET',
+                                          url, {},
+                                          body=None,
+                                          need_response_body=True)
+        d.addCallback(lambda (response, body): body)
+        return d
+
+    def _delete_object(self, object_name):
+        """
+        Delete an object from this container.
+        """
+        url = self._make_object_url(self.URI, object_name)
+        d = self._authorized_http_request("MS Azure DELETE object", 'DELETE',
+                                          url, {},
+                                          body=None,
+                                          need_response_body=False)
+        d.addCallback(lambda (response, body): body)
+        return d
