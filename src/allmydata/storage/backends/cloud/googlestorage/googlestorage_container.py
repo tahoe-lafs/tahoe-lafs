@@ -173,7 +173,6 @@ class GoogleStorageContainer(CommonContainerMixin):
         last_modified = element.find(self.NAMESPACE + "LastModified").text
         etag = element.find(self.NAMESPACE + "ETag").text
         size = int(element.find(self.NAMESPACE + "Size").text)
-        storage_class = element.find(self.NAMESPACE + "StorageClass")
         storage_class = "STANDARD"
         owner = None # Don't bother parsing this at the moment
 
