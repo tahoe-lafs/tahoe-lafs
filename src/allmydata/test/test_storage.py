@@ -1217,6 +1217,23 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
         self.container._time = lambda: 123
         self.date = "Thu, 01 Jan 1970 00:02:03 GMT"
 
+    def test_list_objects_no_prefix(self):
+        """
+        MSAzureStorageContainer.list_objects() with no prefix omits it from
+        the query.
+        """
+        self.mock_http_request()
+        self.container.list_objects()
+        self.container._http_request.assert_called_once_with(
+            "MS Azure list objects", "GET",
+            "https://theaccount.blob.core.windows.net/thebucket?comp=list&restype=container",
+            {"Authorization": [self.authorization],
+             "x-ms-version": ["2012-02-12"],
+             "x-ms-date": [self.date],
+             },
+            body=None,
+            need_response_body=True)
+
     def test_list_objects(self):
         """
         MSAzureStorageContainer.list_objects() sends the appropriate HTTP
