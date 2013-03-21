@@ -1339,6 +1339,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
              "Content-Type": ["application/octet-stream"],
              "Content-Length": [str(len("the body"))],
              "x-ms-date": [self.date],
+             "x-ms-blob-type": ["BlockBlob"],
              },
             body="the body",
             need_response_body=False)
@@ -1368,6 +1369,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
              "Content-Length": [str(len("the body"))],
              "x-ms-meta-key": ["value"],
              "x-ms-date": [self.date],
+             "x-ms-blob-type": ["BlockBlob"],
              },
             body="the body",
             need_response_body=False)
