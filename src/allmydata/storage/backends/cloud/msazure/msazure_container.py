@@ -158,7 +158,9 @@ class MSAzureStorageContainer(CommonContainerMixin):
         List objects in this container with the given prefix.
         """
         url = self._make_container_url(self.URI)
-        url += "?comp=list&restype=container&prefix=" + urllib.quote(prefix, safe='')
+        url += "?comp=list&restype=container"
+        if prefix:
+            url += "&prefix=" + urllib.quote(prefix, safe='')
         d = self._authorized_http_request("MS Azure list objects", 'GET',
                                           url, {},
                                           body=None,
@@ -219,3 +221,32 @@ def configure_msazure_container(storedir, config):
     container_name = config.get_config("storage", "msazure.container_name")
     account_key = config.get_private_config("msazure_account_key")
     return MSAzureStorageContainer(account_name, account_key, container_name)
+
+
+if __name__ == '__main__':
+    from twisted.internet import reactor, defer
+    from twisted.python import log
+    import sys
+    msc = MSAzureStorageContainer(sys.argv[1], sys.argv[2], sys.argv[3])
+
+    @defer.inlineCallbacks
+    def testtransactions():
+        yield msc.put_object("key", "the value")
+        print "Uploaded key:'the value'"
+        print
+        print "Get contents:"
+        result = yield msc.list_objects()
+        print [item.key for item in result.contents]
+        print "Get key, value is:"
+        print (yield msc.get_object("key"))
+        print
+        print "Delete item:"
+        yield msc.delete_object("key")
+        print
+        print "Get contents:"
+        result = yield msc.list_objects()
+        print [item.key for item in result.contents]
+        reactor.stop()
+
+    testtransactions().addErrback(log.err)
+    reactor.run()
