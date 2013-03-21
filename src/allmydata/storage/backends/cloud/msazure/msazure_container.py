@@ -178,6 +178,7 @@ class MSAzureStorageContainer(CommonContainerMixin):
         # correctly:
         request_headers = {'Content-Length': ["%d" % (len(data),)],
                            'Content-Type': [content_type],
+                           "x-ms-blob-type": ["BlockBlob"],
                            }
         for key, value in metadata.items():
             request_headers["x-ms-meta-%s" % (key,)] = [value]
@@ -232,18 +233,18 @@ if __name__ == '__main__':
     @defer.inlineCallbacks
     def testtransactions():
         yield msc.put_object("key", "the value")
-        print "Uploaded key:'the value'"
+        print "Uploaded 'key', with value 'the value'"
         print
-        print "Get contents:"
+        print "Get contents:",
         result = yield msc.list_objects()
         print [item.key for item in result.contents]
         print "Get key, value is:"
         print (yield msc.get_object("key"))
         print
-        print "Delete item:"
+        print "Delete item..."
         yield msc.delete_object("key")
         print
-        print "Get contents:"
+        print "Get contents:", 
         result = yield msc.list_objects()
         print [item.key for item in result.contents]
         reactor.stop()
