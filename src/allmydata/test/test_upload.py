@@ -106,7 +106,7 @@ class FakeStorageServer:
         self.allocated = []
         self.queries = 0
         self.version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
-                         { "maximum-immutable-share-size": 2**32 },
+                         { "maximum-immutable-share-size": 2**32 - 1 },
                          "application-version": str(allmydata.__full_version__),
                          }
         if mode == "small":
