@@ -832,10 +832,12 @@ class ContainerRetryTests(unittest.TestCase, CloudStorageBackendMixin):
         second.callback(done)
         self.assertEqual(result, [done])
 
-    def test_retry_timeout(self):
+    def test_retry_random_exception(self):
         """
-        If an HTTP connection fails with a timeout, retry.
+        If a HTTP request fails with any exception at all, retry.
         """
+        class NewException(Exception):
+            pass
         first, second = defer.Deferred(), defer.Deferred()
         self.container._http_request = mock.create_autospec(
             self.container._http_request, side_effect=[first, second])
@@ -852,8 +854,7 @@ class ContainerRetryTests(unittest.TestCase, CloudStorageBackendMixin):
             body=None, need_response_body=True)
 
         # First response fails:
-        from twisted.internet.error import TimeoutError
-        first.errback(TimeoutError())
+        first.errback(NewException())
         self.assertFalse(result, result)
         self.assertEqual(self.container._http_request.call_count, 1)
         self.reactor.advance(0.1)
