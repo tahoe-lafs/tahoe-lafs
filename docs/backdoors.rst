@@ -39,7 +39,7 @@ persuade any such forks to adopt a similar policy.
 
 The following Tahoe-LAFS developers agree with this statement:
 
-David-Sarah Hopwood
+David-Sarah Hopwood [Daira Hopwood]
 
 Zooko Wilcox-O'Hearn
 
