@@ -340,7 +340,9 @@ class ContainerRetryMixin:
 
     Subclasses should define:
       ServiceError:
-          The error class to trap (CloudServiceError or similar).
+          An exceptions class with meaningful status codes that can be
+          filtered using _react_to_error. Other exceptions will cause
+          unconditional retries.
 
     and can override:
       _react_to_error(self, response_code):
@@ -366,8 +368,6 @@ class ContainerRetryMixin:
         return d
 
     def _handle_error(self, f, trynum, first_err_and_tb, description, operation, *args, **kwargs):
-        f.trap(self.ServiceError, TimeoutError)
-
         # Don't use f.getTracebackObject() since a fake traceback will not do for the 3-arg form of 'raise'.
         # tb can be None (which is acceptable for 3-arg raise) if we don't have a traceback.
         tb = getattr(f, 'tb', None)
