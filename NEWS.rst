@@ -5,6 +5,34 @@ User-Visible Changes in Tahoe-LAFS
 
 Release 1.10 (2013-??-??)
 
+Unsorted 1.9.0 -> 1.9.2
+'''''''''''''''''''''''
+
+- removed provisioning/reliability from WUI to misc/
+- pycryptopp >= 0.6.0 (for ed25519)
+- signed introducer announcements, show 8-char serverid instead of 6-char
+  tubid, improve introweb
+- "node key", not "server key"
+- WUI move button #1579
+- 'tahoe debug flogtool'
+- ETags for immutable directories, short-circuit GET when ETag matches
+- Python >=2.5
+- new helper: remove timings["existence_check"] (not very visible). Any
+  visible changes to UploadResults?
+- Twisted >= ?
+
+Unsorted 1.9.2 -> trunk
+'''''''''''''''''''''''
+
+- improve error message when CLI cannot connect to gateway
+- foolscap >=0.6.3
+- handle non-ascii node nicknames better #1298
+- python >=2.6
+- mock >=0.8.0
+- new welcome page
+- unguessable introducer.furl, censor furls from welcome page
+
+
 New Features
 ''''''''''''
 
