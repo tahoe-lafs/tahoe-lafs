@@ -8,29 +8,11 @@ Release 1.10 (2013-??-??)
 Unsorted 1.9.0 -> 1.9.2
 '''''''''''''''''''''''
 
-- removed provisioning/reliability from WUI to misc/
-- pycryptopp >= 0.6.0 (for ed25519)
 - signed introducer announcements, show 8-char serverid instead of 6-char
   tubid, improve introweb
 - "node key", not "server key"
-- WUI move button #1579
-- 'tahoe debug flogtool'
-- ETags for immutable directories, short-circuit GET when ETag matches
-- Python >=2.5
 - new helper: remove timings["existence_check"] (not very visible). Any
   visible changes to UploadResults?
-- Twisted >= ?
-
-Unsorted 1.9.2 -> trunk
-'''''''''''''''''''''''
-
-- improve error message when CLI cannot connect to gateway
-- foolscap >=0.6.3
-- handle non-ascii node nicknames better #1298
-- python >=2.6
-- mock >=0.8.0
-- new welcome page
-- unguessable introducer.furl, censor furls from welcome page
 
 
 New Features
@@ -48,6 +30,18 @@ New Features
 Notable Bugfixes
 ''''''''''''''''
 
+- The ``introducer.furl`` for new Introducers is now unguessable. In previous
+  releases, this FURL used a predictable swissnum, allowing a network
+  eavesdropper (who observes any node connecting to the Introducer) to access
+  the Introducer themselves, and thus use servers or offer storage service to
+  clients (i.e. "join the grid"). In the new code, the only way to join a
+  grid is to be told the introducer.furl by someone who already knew it. Note
+  that pre-existing introducers are not changed: to take advantage of this
+  fix for an existing grid, you must create a new introducer and distribute
+  the new ``introducer.furl`` to all of your users. (`#1802`_)
+- Both ``introducer.furl`` and ``helper.furl`` are now censored from the
+  Welcome page, to prevent users of your gateway from learning enough to
+  create gateway nodes of their own. (`#860`_)
 - If an immutable file failed to download, e.g. due to a connection problem,
   subsequent attempts to download the same file could also fail. (`#1679`_)
 - The SFTP frontend works with recent versions of Twisted, rather than
@@ -65,6 +59,7 @@ Notable Bugfixes
   (`#1805`_, `#1783`_)
 - Exceptions no longer trigger an unhelpful crash reporter on Ubuntu 12.04
   ("Precise") or later. (`#1746`_)
+- Improve error message when CLI tools cannot connect to a gateway. (`#974`_)
 
 Performance Improvements
 ''''''''''''''''''''''''
@@ -84,6 +79,10 @@ Packaging Changes
 - The flogtool utility, used to read logs, can now be accessed as
   ``tahoe debug flogtool`` even when foolscap is not installed system-wide.
   (`#1693`_)
+- The provisioning/reliability pages were removed from the main client's web
+  interface, and moved into a standalone web-based tool in
+  misc/operations_helpers/provisioning. Use the ``run.py`` script to access
+  them.
 
 Compatibility and Dependencies
 ''''''''''''''''''''''''''''''
@@ -91,6 +90,7 @@ Compatibility and Dependencies
 - Python >= 2.6, except Python 3 (`#1658`_)
 - Twisted >= 11.0.0 (`#1771`_)
 - mock >= 0.8
+- pycryptopp >= 0.6.0 (for ed25519)
 
 Precautions when Upgrading
 ''''''''''''''''''''''''''
