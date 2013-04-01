@@ -5,16 +5,6 @@ User-Visible Changes in Tahoe-LAFS
 
 Release 1.10 (2013-??-??)
 
-Unsorted 1.9.0 -> 1.9.2
-'''''''''''''''''''''''
-
-- signed introducer announcements, show 8-char serverid instead of 6-char
-  tubid, improve introweb
-- "node key", not "server key"
-- new helper: remove timings["existence_check"] (not very visible). Any
-  visible changes to UploadResults?
-
-
 New Features
 ''''''''''''
 
@@ -23,7 +13,9 @@ New Features
   versions. (`#1713`_, `#1457`_, `#1735`_)
 - A new, more extensible Introducer protocol has been added, to act as the
   basis for future improvements such as accounting. Compatibility with older
-  nodes is not affected. (`#466`_)
+  nodes is not affected. When server, introducer, and client are all
+  upgraded, the welcome page will show node IDs that start with "v0-" instead
+  of the old tubid. (`#466`_)
 - The web-API has a new move operation that supports directly moving files
   between directories. (`#1579`_)
 
