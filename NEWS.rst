@@ -19,6 +19,22 @@ New Features
 - The web-API has a new move operation that supports directly moving files
   between directories. (`#1579`_)
 
+Security Improvements
+'''''''''''''''''''''
+
+- Newly generated introducer FURLs are unguessable. This helps to control
+  membership of private grids (although it does not stop someone who knows
+  the introducer FURL from providing any number of servers). The FURL is
+  stored in ``BASEDIR/private/introducer.furl`` rather than
+  ``BASEDIR/introducer.furl`` as before. To force an introducer to generate
+  a new FURL, delete the existing ``introducer.furl`` file and restart it.
+  After doing this, the ``[client]introducer.furl`` setting of every client
+  and server that should connect to that introducer must be updated. (`#1802`_)
+- The Welcome page no longer reveals the secret part (swissnum) of the
+  introducer and helper FURLs. For existing guessable introducer FURLs,
+  the ``introducer`` swissnum is still displayed to show that a guessable
+  FURL is in use. (`#860`_)
+
 Notable Bugfixes
 ''''''''''''''''
 
@@ -36,7 +52,7 @@ Notable Bugfixes
   create gateway nodes of their own. (`#860`_)
 - If an immutable file failed to download, e.g. due to a connection problem,
   subsequent attempts to download the same file could also fail. (`#1679`_)
-- The SFTP frontend works with recent versions of Twisted, rather than
+- The SFTP frontend now works with recent versions of Twisted, rather than
   giving errors or warnings about use of ``IFinishableConsumer``. (`#1926`_,
   `#1564`_, `#1525`_)
 - Failure handling in the SFTP frontend has been improved. (`#1525`_)
@@ -52,6 +68,7 @@ Notable Bugfixes
 - Exceptions no longer trigger an unhelpful crash reporter on Ubuntu 12.04
   ("Precise") or later. (`#1746`_)
 - Improve error message when CLI tools cannot connect to a gateway. (`#974`_)
+- Other minor changes: `#1781`_, `#1812`_
 
 Performance Improvements
 ''''''''''''''''''''''''
@@ -94,6 +111,8 @@ Precautions when Upgrading
 
 .. _`#443`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/443
 .. _`#466`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/466
+.. _`#860`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/860
+.. _`#974`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/974
 .. _`#1143`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1143
 .. _`#1298`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1298
 .. _`#1457`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1457
@@ -110,8 +129,11 @@ Precautions when Upgrading
 .. _`#1758`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1758
 .. _`#1761`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1761
 .. _`#1771`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1771
+.. _`#1781`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1781
 .. _`#1783`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1783
+.. _`#1802`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1802
 .. _`#1805`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1805
+.. _`#1812`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1812
 .. _`#1915`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1915
 .. _`#1926`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1926
 .. _`message to the tahoe-dev mailing list`:
