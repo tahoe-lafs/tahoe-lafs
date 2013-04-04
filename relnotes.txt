@@ -51,7 +51,7 @@ please see the known_issues.rst file [2].)
 
 COMPATIBILITY
 
-This release is compatible with the version 1 series of
+This release should be compatible with the version 1 series of
 Tahoe-LAFS. Clients from this release can write files and
 directories in the format used by clients of all versions back
 to v1.0 (which was released March 25, 2008). Clients from this
@@ -59,6 +59,11 @@ release can read files and directories produced by clients of
 all versions since v1.0. Servers from this release can serve
 clients of all versions back to v1.0 and clients from this
 release can use servers of all versions back to v1.0.
+
+Except for the new MDMF format, we have not made any
+deliberate compatibility changes. However we do not yet have
+the test infrastructure to continuously verify this claim. We
+intend to build such an infrastructure in the future.
 
 This is the seventeenth release in the version 1 series. This
 series of Tahoe-LAFS will be actively supported and maintained
