@@ -1,5 +1,5 @@
 
-import sys, time
+import sys, time, copy
 from zope.interface import implements
 from itertools import count
 from twisted.internet import defer
@@ -134,6 +134,7 @@ class ServerMap:
         s._bad_shares = self._bad_shares.copy() # tuple->str
         s._last_update_mode = self._last_update_mode
         s._last_update_time = self._last_update_time
+        s.update_data = copy.deepcopy(self.update_data)
         return s
 
     def get_reachable_servers(self):
