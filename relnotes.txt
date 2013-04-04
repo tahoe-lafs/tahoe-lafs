@@ -60,10 +60,11 @@ all versions since v1.0. Servers from this release can serve
 clients of all versions back to v1.0 and clients from this
 release can use servers of all versions back to v1.0.
 
-Except for the new MDMF format, we have not made any
-deliberate compatibility changes. However we do not yet have
-the test infrastructure to continuously verify this claim. We
-intend to build such an infrastructure in the future.
+Except for the new optional MDMF format, we have not made any
+intentional compatibility changes. However we do not yet have
+the test infrastructure to continuously verify that all new
+versions are interoperable with previous versions. We intend
+to build such an infrastructure in the future.
 
 This is the seventeenth release in the version 1 series. This
 series of Tahoe-LAFS will be actively supported and maintained
