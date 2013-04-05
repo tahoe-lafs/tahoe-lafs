@@ -22,34 +22,26 @@ New Features
 Security Improvements
 '''''''''''''''''''''
 
-- Newly generated introducer FURLs are unguessable. This helps to control
-  membership of private grids (although it does not stop someone who knows
-  the introducer FURL from providing any number of servers). The FURL is
-  stored in ``BASEDIR/private/introducer.furl`` rather than
-  ``BASEDIR/introducer.furl`` as before. To force an introducer to generate
-  a new FURL, delete the existing ``introducer.furl`` file and restart it.
-  After doing this, the ``[client]introducer.furl`` setting of every client
-  and server that should connect to that introducer must be updated. (`#1802`_)
-- The Welcome page no longer reveals the secret part (swissnum) of the
-  introducer and helper FURLs. For existing guessable introducer FURLs,
-  the ``introducer`` swissnum is still displayed to show that a guessable
-  FURL is in use. (`#860`_)
+- The ``introducer.furl`` for new Introducers is now unguessable. In previous
+  releases, this FURL used a predictable swissnum, allowing a network
+  eavesdropper who observes any node connecting to the Introducer to access
+  the Introducer themselves, and thus use servers or offer storage service to
+  clients (i.e. "join the grid"). In the new code, the only way to join a
+  grid is to be told the ``introducer.furl`` by someone who already knew it.
+  Note that pre-existing introducers are not changed. To force an introducer
+  to generate a new FURL, delete the existing ``introducer.furl`` file and
+  restart it. After doing this, the ``[client]introducer.furl`` setting of
+  every client and server that should connect to that introducer must be
+  updated. (`#1802`_)
+- Both ``introducer.furl`` and ``helper.furl`` are now censored from the
+  Welcome page, to prevent users of your gateway from learning enough to
+  create gateway nodes of their own.  For existing guessable introducer
+  FURLs, the ``introducer`` swissnum is still displayed to show that a
+  guessable FURL is in use. (`#860`_)
 
 Notable Bugfixes
 ''''''''''''''''
 
-- The ``introducer.furl`` for new Introducers is now unguessable. In previous
-  releases, this FURL used a predictable swissnum, allowing a network
-  eavesdropper (who observes any node connecting to the Introducer) to access
-  the Introducer themselves, and thus use servers or offer storage service to
-  clients (i.e. "join the grid"). In the new code, the only way to join a
-  grid is to be told the introducer.furl by someone who already knew it. Note
-  that pre-existing introducers are not changed: to take advantage of this
-  fix for an existing grid, you must create a new introducer and distribute
-  the new ``introducer.furl`` to all of your users. (`#1802`_)
-- Both ``introducer.furl`` and ``helper.furl`` are now censored from the
-  Welcome page, to prevent users of your gateway from learning enough to
-  create gateway nodes of their own. (`#860`_)
 - If an immutable file failed to download, e.g. due to a connection problem,
   subsequent attempts to download the same file could also fail. (`#1679`_)
 - The SFTP frontend now works with recent versions of Twisted, rather than
