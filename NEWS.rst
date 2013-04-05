@@ -16,8 +16,8 @@ New Features
   nodes is not affected. When server, introducer, and client are all
   upgraded, the welcome page will show node IDs that start with "v0-" instead
   of the old tubid. (`#466`_)
-- The web-API has a new move operation that supports directly moving files
-  between directories. (`#1579`_)
+- The web-API has a new ``relink`` operation that supports directly moving
+  files between directories. (`#1579`_)
 
 Security Improvements
 '''''''''''''''''''''

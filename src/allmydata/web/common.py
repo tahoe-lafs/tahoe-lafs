@@ -24,14 +24,17 @@ def getxmlfile(name):
 
 def boolean_of_arg(arg):
     # TODO: ""
-    assert arg.lower() in ("true", "t", "1", "false", "f", "0", "on", "off")
+    if arg.lower() not in ("true", "t", "1", "false", "f", "0", "on", "off"):
+        raise WebError("invalid boolean argument: %r" % (arg,), http.BAD_REQUEST)
     return arg.lower() in ("true", "t", "1", "on")
 
 def parse_replace_arg(replace):
     if replace.lower() == "only-files":
         return replace
-    else:
+    try:
         return boolean_of_arg(replace)
+    except WebError:
+        raise WebError("invalid replace= argument: %r" % (replace,), http.BAD_REQUEST)
 
 
 def get_format(req, default="CHK"):

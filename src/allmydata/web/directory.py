@@ -13,6 +13,7 @@ from nevow.inevow import IRequest
 from foolscap.api import fireEventually
 
 from allmydata.util import base32, time_format
+from allmydata.util.encodingutil import to_str
 from allmydata.uri import from_string_dirnode
 from allmydata.interfaces import IDirectoryNode, IFileNode, IFilesystemNode, \
      IImmutableFileNode, IMutableFileNode, ExistingChildError, \
@@ -219,8 +220,8 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d = self._POST_unlink(req)
         elif t == "rename":
             d = self._POST_rename(req)
-        elif t == "move":
-            d = self._POST_move(req)
+        elif t == "relink":
+            d = self._POST_relink(req)
         elif t == "check":
             d = self._POST_check(req)
         elif t == "start-deep-check":
@@ -344,7 +345,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             raise WebError("set-uri requires a name")
         charset = get_arg(req, "_charset", "utf-8")
         name = name.decode(charset)
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
+        replace = parse_replace_arg(get_arg(req, "replace", "true"))
 
         # We mustn't pass childcap for the readcap argument because we don't
         # know whether it is a read cap. Passing a read cap as the writecap
@@ -373,59 +374,36 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         return d
 
     def _POST_rename(self, req):
+        # rename is identical to relink, but to_dir is not allowed
+        # and to_name is required.
+        if get_arg(req, "to_dir") is not None:
+            raise WebError("to_dir= is not valid for rename")
+        if get_arg(req, "to_name") is None:
+            raise WebError("to_name= is required for rename")
+        return self._POST_relink(req)
+
+    def _POST_relink(self, req):
         charset = get_arg(req, "_charset", "utf-8")
+        replace = parse_replace_arg(get_arg(req, "replace", "true"))
+
         from_name = get_arg(req, "from_name")
         if from_name is not None:
             from_name = from_name.strip()
             from_name = from_name.decode(charset)
             assert isinstance(from_name, unicode)
+        else:
+            raise WebError("from_name= is required")
+
         to_name = get_arg(req, "to_name")
         if to_name is not None:
             to_name = to_name.strip()
             to_name = to_name.decode(charset)
             assert isinstance(to_name, unicode)
-        if not from_name or not to_name:
-            raise WebError("rename requires from_name and to_name")
-        if from_name == to_name:
-            return defer.succeed("redundant rename")
-
-        # allow from_name to contain slashes, so they can fix names that were
-        # accidentally created with them. But disallow them in to_name, to
-        # discourage the practice.
-        if "/" in to_name:
-            raise WebError("to_name= may not contain a slash", http.BAD_REQUEST)
-
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
-        d = self.node.move_child_to(from_name, self.node, to_name, replace)
-        d.addCallback(lambda res: "thing renamed")
-        return d
-
-    def _POST_move(self, req):
-        charset = get_arg(req, "_charset", "utf-8")
-        from_name = get_arg(req, "from_name")
-        if from_name is not None:
-            from_name = from_name.strip()
-            from_name = from_name.decode(charset)
-            assert isinstance(from_name, unicode)
-        to_name = get_arg(req, "to_name")
-        if to_name is not None:
-            to_name = to_name.strip()
-            to_name = to_name.decode(charset)
-            assert isinstance(to_name, unicode)
-        if not to_name:
+        else:
             to_name = from_name
-        to_dir = get_arg(req, "to_dir")
-        if to_dir is not None:
-            to_dir = to_dir.strip()
-            to_dir = to_dir.decode(charset)
-            assert isinstance(to_dir, unicode)
-        if not from_name or not to_dir:
-            raise WebError("move requires from_name and to_dir")
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
 
         # Disallow slashes in both from_name and to_name, that would only
-        # cause confusion. t=move is only for moving things from the
-        # *current* directory into a second directory named by to_dir=
+        # cause confusion.
         if "/" in from_name:
             raise WebError("from_name= may not contain a slash",
                            http.BAD_REQUEST)
@@ -433,22 +411,26 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             raise WebError("to_name= may not contain a slash",
                            http.BAD_REQUEST)
 
-        target_type = get_arg(req, "target_type", "name")
-        if target_type == "name":
-            d = self.node.get_child_at_path(to_dir)
-        elif target_type == "uri":
-            d = defer.succeed(self.client.create_node_from_uri(str(to_dir)))
-        else:
-            raise WebError("invalid target_type parameter", http.BAD_REQUEST)
-
-        def is_target_node_usable(target_node):
-            if not IDirectoryNode.providedBy(target_node):
+        to_dir = get_arg(req, "to_dir")
+        if to_dir is not None and to_dir != self.node.get_write_uri():
+            to_dir = to_dir.strip()
+            to_dir = to_dir.decode(charset)
+            assert isinstance(to_dir, unicode)
+            to_path = to_dir.split(u"/")
+            to_root = self.client.nodemaker.create_from_cap(to_str(to_path[0]))
+            if not IDirectoryNode.providedBy(to_root):
                 raise WebError("to_dir is not a directory", http.BAD_REQUEST)
-            return target_node
-        d.addCallback(is_target_node_usable)
-        d.addCallback(lambda new_parent:
-                      self.node.move_child_to(from_name, new_parent,
-                                              to_name, replace))
+            d = to_root.get_child_at_path(to_path[1:])
+        else:
+            d = defer.succeed(self.node)
+
+        def _got_new_parent(new_parent):
+            if not IDirectoryNode.providedBy(new_parent):
+                raise WebError("to_dir is not a directory", http.BAD_REQUEST)
+
+            return self.node.move_child_to(from_name, new_parent,
+                                           to_name, replace)
+        d.addCallback(_got_new_parent)
         d.addCallback(lambda res: "thing moved")
         return d
 
@@ -563,7 +545,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         return d
 
     def _POST_set_children(self, req):
-        replace = boolean_of_arg(get_arg(req, "replace", "true"))
+        replace = parse_replace_arg(get_arg(req, "replace", "true"))
         req.content.seek(0)
         body = req.content.read()
         try:
@@ -711,7 +693,7 @@ class DirectoryAsHTML(rend.Page):
                 T.input(type='hidden', name='t', value='rename-form'),
                 T.input(type='hidden', name='name', value=name),
                 T.input(type='hidden', name='when_done', value="."),
-                T.input(type='submit', value='rename/move', name="rename"),
+                T.input(type='submit', value='rename/relink', name="rename"),
                 ]
 
         ctx.fillSlots("unlink", unlink)

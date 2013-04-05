@@ -29,7 +29,7 @@ The Tahoe REST-ful Web API
     6.  `Attaching An Existing File Or Directory (by URI)`_
     7.  `Unlinking A Child`_
     8.  `Renaming A Child`_
-    9.  `Moving A Child`_
+    9.  `Relinking a Child`_
     10. `Other Utilities`_
     11. `Debugging and Testing Features`_
 
@@ -1274,34 +1274,68 @@ Renaming A Child
  same child-cap under the new name, except that it preserves metadata. This
  operation cannot move the child to a different directory.
 
- By default, this operation will replace any existing child of the new name,
- making it behave like the UNIX "``mv -f``" command. Adding a "replace=false"
- argument causes the command to throw an HTTP 409 Conflict error if there is
- already a child with the new name.
+ The default behavior is to overwrite any existing link at the destination
+ (replace=true). To prevent this (and make the operation return an error
+ instead of overwriting), add a "replace=false" argument. With replace=false,
+ this operation will return an HTTP 409 "Conflict" error if the destination
+ is not the same link as the source and there is already a link at the
+ destination, rather than overwriting the existing link. To allow the
+ operation to overwrite a link to a file, but return an HTTP 409 error when
+ trying to overwrite a link to a directory, use "replace=only-files" (this
+ behavior is closer to the traditional UNIX "mv" command). Note that "true",
+ "t", and "1" are all synonyms for "True"; "false", "f", and "0" are synonyms
+ for "False"; and the parameter is case-insensitive.
 
-Moving A Child
-----------------
 
-``POST /uri/$DIRCAP/[SUBDIRS../]?t=move&from_name=OLD&to_dir=TARGETNAME[&target_type=name][&to_name=NEWNAME]``
-``POST /uri/$DIRCAP/[SUBDIRS../]?t=move&from_name=OLD&to_dir=TARGETURI&target_type=uri[&to_name=NEWNAME]``
+Relinking a Child
+-----------------
 
- This instructs the node to move a child of the given directory to a
- different directory, both of which must be mutable. If target_type=name
- or is omitted, the to_dir= parameter should contain the name of a
- subdirectory of the child's current parent directory (multiple levels of
- descent are supported). If target_uri=, then to_dir= will be treated as
- a dircap, allowing the child to be moved to an unrelated directory.
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=rename&from_name=OLD&to_dir=$NEWDIRCAP/[NEWSUBDIRS../]&to_name=NEW``
+ ``[&replace=true|false|only-files]``    (Tahoe >= v1.10)
 
- The child can also be renamed in the process, by providing a new name in
- the to_name= parameter. If omitted, the child will retain its existing
- name.
+ This instructs the node to relink a child of the given source directory,
+ into a different directory and/or to a different name. The source and
+ destination directories must be writeable. If {{{to_dir}}} is not present,
+ the child link is renamed within the same directory. If {{{to_name}}} is
+ not present then it defaults to {{{from_name}}}. If the destination link
+ (directory and name) is the same as the source link, the operation has no
+ effect.
 
- By default, this operation will replace any existing child of the new name,
- making it behave like the UNIX "``mv -f``" command. Adding a "replace=false"
- argument causes the command to throw an HTTP 409 Conflict error if there is
- already a child with the new name. For safety, the child is not unlinked
- from the old directory until its has been successfully added to the new
- directory.
+ Metadata from the source directory entry is preserved. Multiple levels of
+ descent in the source and destination paths are supported.
+
+ This operation will return an HTTP 404 "Not Found" error if
+ ``$DIRCAP/[SUBDIRS../]``, the child being moved, or the destination
+ directory does not exist. It will return an HTTP 400 "Bad Request" error
+ if any entry in the source or destination paths is not a directory.
+
+ The default behavior is to overwrite any existing link at the destination
+ (replace=true). To prevent this (and make the operation return an error
+ instead of overwriting), add a "replace=false" argument. With replace=false,
+ this operation will return an HTTP 409 "Conflict" error if the destination
+ is not the same link as the source and there is already a link at the
+ destination, rather than overwriting the existing link. To allow the
+ operation to overwrite a link to a file, but return an HTTP 409 error when
+ trying to overwrite a link to a directory, use "replace=only-files" (this
+ behavior is closer to the traditional UNIX "mv" command). Note that "true",
+ "t", and "1" are all synonyms for "True"; "false", "f", and "0" are synonyms
+ for "False"; and the parameter is case-insensitive.
+
+ When relinking into a different directory, for safety, the child link is
+ not removed from the old directory until it has been successfully added to
+ the new directory. This implies that in case of a crash or failure, the
+ link to the child will not be lost, but it could be linked at both the old
+ and new locations.
+
+ The source link should not be the same as any link (directory and child name)
+ in the ``to_dir`` path. This restriction is not enforced, but it may be
+ enforced in a future version. If it were violated then the result would be
+ to create a cycle in the directory structure that is not necessarily reachable
+ from the root of the destination path (``$NEWDIRCAP``), which could result in
+ data loss, as described in ticket `#943`_.
+
+.. _`#943`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/943
+
 
 Other Utilities
 ---------------

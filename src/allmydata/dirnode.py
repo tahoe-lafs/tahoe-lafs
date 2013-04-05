@@ -134,6 +134,7 @@ class Adder:
         if entries is None:
             entries = {}
         precondition(isinstance(entries, dict), entries)
+        precondition(overwrite in (True, False, "only-files"), overwrite)
         # keys of 'entries' may not be normalized.
         self.entries = entries
         self.overwrite = overwrite
@@ -160,7 +161,7 @@ class Adder:
                     raise ExistingChildError("child %s already exists" % quote_output(name, encoding='utf-8'))
 
                 if self.overwrite == "only-files" and IDirectoryNode.providedBy(children[name][0]):
-                    raise ExistingChildError("child %s already exists" % quote_output(name, encoding='utf-8'))
+                    raise ExistingChildError("child %s already exists as a directory" % quote_output(name, encoding='utf-8'))
                 metadata = children[name][1].copy()
 
             metadata = update_metadata(metadata, new_metadata, now)
@@ -642,22 +643,36 @@ class DirectoryNode:
 
     def move_child_to(self, current_child_namex, new_parent,
                       new_child_namex=None, overwrite=True):
-        """I take one of my children and move them to a new parent. The child
-        is referenced by name. On the new parent, the child will live under
-        'new_child_name', which defaults to 'current_child_name'. I return a
-        Deferred that fires when the operation finishes."""
+        """
+        I take one of my child links and move it to a new parent. The child
+        link is referenced by name. In the new parent, the child link will live
+        at 'new_child_namex', which defaults to 'current_child_namex'. I return
+        a Deferred that fires when the operation finishes.
+        'new_child_namex' and 'current_child_namex' need not be normalized.
 
+        The overwrite parameter may be True (overwrite any existing child),
+        False (error if the new child link already exists), or "only-files"
+        (error if the new child link exists and points to a directory).
+        """
         if self.is_readonly() or new_parent.is_readonly():
             return defer.fail(NotWriteableError())
 
         current_child_name = normalize(current_child_namex)
         if new_child_namex is None:
-            new_child_namex = current_child_name
-        d = self.get(current_child_name)
-        def sn(child):
-            return new_parent.set_node(new_child_namex, child,
+            new_child_name = current_child_name
+        else:
+            new_child_name = normalize(new_child_namex)
+
+        from_uri = self.get_write_uri()
+        if new_parent.get_write_uri() == from_uri and new_child_name == current_child_name:
+            # needed for correctness, otherwise we would delete the child
+            return defer.succeed("redundant rename/relink")
+
+        d = self.get_child_and_metadata(current_child_name)
+        def _got_child( (child, metadata) ):
+            return new_parent.set_node(new_child_name, child, metadata,
                                        overwrite=overwrite)
-        d.addCallback(sn)
+        d.addCallback(_got_child)
         d.addCallback(lambda child: self.delete(current_child_name))
         return d
 
