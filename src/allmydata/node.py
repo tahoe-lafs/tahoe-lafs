@@ -287,11 +287,11 @@ class Node(service.MultiService):
             fileutil.write(privpath, value, mode="")
         return value
 
-    def write_config(self, name, value, mode="w"):
+    def write_config(self, name, value, mode=""):
         """Write a string to a config file."""
         fn = os.path.join(self.basedir, name)
         try:
-            fileutil.write(fn, value, mode)
+            fileutil.write(fn, value, mode=mode)
         except EnvironmentError, e:
             self.log("Unable to write config file '%s'" % fn)
             self.log(e)
