@@ -29,7 +29,7 @@ The Tahoe REST-ful Web API
     6.  `Attaching an Existing File Or Directory (by URI)`_
     7.  `Unlinking a Child`_
     8.  `Renaming a Child`_
-    9.  `Relinking a Child`_
+    9.  `Moving a Child`_
     10. `Other Utilities`_
     11. `Debugging and Testing Features`_
 
@@ -1287,19 +1287,20 @@ Renaming a Child
  for "False"; and the parameter is case-insensitive.
 
 
-Relinking a Child
------------------
+Moving a Child
+--------------
 
-``POST /uri/$DIRCAP/[SUBDIRS../]?t=rename&from_name=OLD&to_dir=$NEWDIRCAP/[NEWSUBDIRS../]&to_name=NEW``
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=relink&from_name=OLD&to_dir=$NEWDIRCAP/[NEWSUBDIRS../]&to_name=NEW``
  ``[&replace=true|false|only-files]``    (Tahoe >= v1.10)
 
- This instructs the node to relink a child of the given source directory,
- into a different directory and/or to a different name. The source and
- destination directories must be writeable. If {{{to_dir}}} is not present,
- the child link is renamed within the same directory. If {{{to_name}}} is
- not present then it defaults to {{{from_name}}}. If the destination link
- (directory and name) is the same as the source link, the operation has no
- effect.
+ This instructs the node to move a child of the given source directory,
+ into a different directory and/or to a different name. The command is
+ named ``relink`` because it works by adding a new link from the new
+ location, then removing the old link. The source and destination
+ directories must be writeable. If {{{to_dir}}} is not present, the child
+ link is renamed within the same directory. If {{{to_name}}} is not present
+ then it defaults to {{{from_name}}}. If the destination link (directory
+ and name) is the same as the source link, the operation has no effect.
 
  Metadata from the source directory entry is preserved. Multiple levels of
  descent in the source and destination paths are supported.
