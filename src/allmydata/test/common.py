@@ -410,7 +410,7 @@ def make_verifier_uri():
                               fingerprint=os.urandom(32)).to_string()
 
 def create_mutable_filenode(contents, mdmf=False, all_contents=None):
-    # XXX: All of these arguments are kind of stupid. 
+    # XXX: All of these arguments are kind of stupid.
     if mdmf:
         cap = make_mdmf_mutable_file_cap()
     else:

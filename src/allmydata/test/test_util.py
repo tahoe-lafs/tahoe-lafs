@@ -790,7 +790,7 @@ class Abbreviate(unittest.TestCase):
         self.failUnlessIn("1 BB", str(e))
         e = self.failUnlessRaises(ValueError, p, "fhtagn")
         self.failUnlessIn("fhtagn", str(e))
-        
+
 class Limiter(unittest.TestCase):
     timeout = 480 # This takes longer than 240 seconds on Francois's arm box.
 

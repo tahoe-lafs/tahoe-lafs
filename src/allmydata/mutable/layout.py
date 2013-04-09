@@ -20,7 +20,7 @@ from zope.interface import implements
 #    Q: The sequence number; this is sort of like a revision history for
 #       mutable files; they start at 1 and increase as they are changed after
 #       being uploaded. Stored as an unsigned 64-bit integer.
-#  32s: The root hash of the share hash tree. We use sha-256d, so we use 32 
+#  32s: The root hash of the share hash tree. We use sha-256d, so we use 32
 #       bytes to store the value.
 #  16s: The salt for the readkey. This is a 16-byte random value.
 #
@@ -46,7 +46,7 @@ from zope.interface import implements
 #        to account for the possibility of a lot of share data.
 #     Q: The offset of the EOF. An unsigned 64-bit integer, to account for
 #        the possibility of a lot of share data.
-# 
+#
 #  After all of these, we have the following:
 #    - The verification key: Occupies the space between the end of the header
 #      and the start of the signature (i.e.: data[HEADER_LENGTH:o['signature']].
@@ -57,7 +57,7 @@ from zope.interface import implements
 #    - The share data, which goes from the share data offset to the encrypted
 #      private key offset.
 #    - The encrypted private key offset, which goes until the end of the file.
-# 
+#
 #  The block hash tree in this encoding has only one share, so the offset of
 #  the share data will be 32 bits more than the offset of the block hash tree.
 #  Given this, we may need to check to see how many bytes a reasonably sized
@@ -248,7 +248,7 @@ class SDMFSlotWriteProxy:
         self._segment_size = segment_size
         self._data_length = data_length
 
-        # This is an SDMF file, so it should have only one segment, so, 
+        # This is an SDMF file, so it should have only one segment, so,
         # modulo padding of the data length, the segment size and the
         # data length should be the same.
         expected_segment_size = mathutil.next_multiple(data_length,
@@ -610,12 +610,12 @@ class MDMFSlotWriteProxy:
     # in meaning to what we have with SDMF files, except now instead of
     # using the literal salt, we use a value derived from all of the
     # salts -- the share hash root.
-    # 
+    #
     # The salt is stored before the block for each segment. The block
     # hash tree is computed over the combination of block and salt for
     # each segment. In this way, we get integrity checking for both
     # block and salt with the current block hash tree arrangement.
-    # 
+    #
     # The ordering of the offsets is different to reflect the dependencies
     # that we'll run into with an MDMF file. The expected write flow is
     # something like this:
@@ -625,16 +625,16 @@ class MDMFSlotWriteProxy:
     #      and where they should go.. We can also figure out where the
     #      encrypted private key should go, because we can figure out how
     #      big the share data will be.
-    # 
+    #
     #   1: Encrypt, encode, and upload the file in chunks. Do something
-    #      like 
+    #      like
     #
     #       put_block(data, segnum, salt)
     #
     #      to write a block and a salt to the disk. We can do both of
     #      these operations now because we have enough of the offsets to
     #      know where to put them.
-    # 
+    #
     #   2: Put the encrypted private key. Use:
     #
     #        put_encprivkey(encprivkey)
@@ -644,7 +644,7 @@ class MDMFSlotWriteProxy:
     #
     #   3: We're now in a position to upload the block hash tree for
     #      a share. Put that using something like:
-    #       
+    #
     #        put_blockhashes(block_hash_tree)
     #
     #      Note that block_hash_tree is a list of hashes -- we'll take
@@ -655,20 +655,20 @@ class MDMFSlotWriteProxy:
     #
     #   4: We're now in a position to upload the share hash chain for
     #      a share. Do that with something like:
-    #      
-    #        put_sharehashes(share_hash_chain) 
     #
-    #      share_hash_chain should be a dictionary mapping shnums to 
+    #        put_sharehashes(share_hash_chain)
+    #
+    #      share_hash_chain should be a dictionary mapping shnums to
     #      32-byte hashes -- the wrapper handles serialization.
     #      We'll know where to put the signature at this point, also.
     #      The root of this tree will be put explicitly in the next
     #      step.
-    # 
+    #
     #   5: Before putting the signature, we must first put the
     #      root_hash. Do this with:
-    # 
+    #
     #        put_root_hash(root_hash).
-    #      
+    #
     #      In terms of knowing where to put this value, it was always
     #      possible to place it, but it makes sense semantically to
     #      place it after the share hash tree, so that's why you do it
@@ -679,27 +679,27 @@ class MDMFSlotWriteProxy:
     #        get_signable()
     #
     #      to get the part of the header that you want to sign, and use:
-    #       
+    #
     #        put_signature(signature)
     #
     #      to write your signature to the remote server.
     #
     #   6: Add the verification key, and finish. Do:
     #
-    #        put_verification_key(key) 
+    #        put_verification_key(key)
     #
-    #      and 
+    #      and
     #
     #        finish_publish()
     #
     # Checkstring management:
-    # 
+    #
     # To write to a mutable slot, we have to provide test vectors to ensure
     # that we are writing to the same data that we think we are. These
     # vectors allow us to detect uncoordinated writes; that is, writes
     # where both we and some other shareholder are writing to the
     # mutable slot, and to report those back to the parts of the program
-    # doing the writing. 
+    # doing the writing.
     #
     # With SDMF, this was easy -- all of the share data was written in
     # one go, so it was easy to detect uncoordinated writes, and we only
@@ -724,7 +724,7 @@ class MDMFSlotWriteProxy:
     #   - When we write out the salt hash
     #   - When we write out the root of the share hash tree
     #
-    # since these values will change the header. It is possible that we 
+    # since these values will change the header. It is possible that we
     # can just make those be written in one operation to minimize
     # disruption.
     def __init__(self,
@@ -745,7 +745,7 @@ class MDMFSlotWriteProxy:
         assert self.shnum >= 0 and self.shnum < total_shares
         self._total_shares = total_shares
         # We build up the offset table as we write things. It is the
-        # last thing we write to the remote server. 
+        # last thing we write to the remote server.
         self._offsets = {}
         self._testvs = []
         # This is a list of write vectors that will be sent to our
@@ -1010,7 +1010,7 @@ class MDMFSlotWriteProxy:
         Put the root hash (the root of the share hash tree) in the
         remote slot.
         """
-        # It does not make sense to be able to put the root 
+        # It does not make sense to be able to put the root
         # hash without first putting the share hashes, since you need
         # the share hashes to generate the root hash.
         #
@@ -1247,7 +1247,7 @@ class MDMFSlotReadProxy:
         """
         if self._offsets:
             return defer.succeed(None)
-        # At this point, we may be either SDMF or MDMF. Fetching 107 
+        # At this point, we may be either SDMF or MDMF. Fetching 107
         # bytes will be enough to get header and offsets for both SDMF and
         # MDMF, though we'll be left with 4 more bytes than we
         # need if this ends up being MDMF. This is probably less

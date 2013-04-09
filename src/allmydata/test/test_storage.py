@@ -1593,7 +1593,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
     def write_sdmf_share_to_server(self,
                                    storage_index,
                                    empty=False):
-        # Some tests need SDMF shares to verify that we can still 
+        # Some tests need SDMF shares to verify that we can still
         # read them. This method writes one, which resembles but is not
         assert self.rref
         write = self.ss.remote_slot_testv_and_readv_and_writev
@@ -1877,8 +1877,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def test_write_test_vectors(self):
-        # If we give the write proxy a bogus test vector at 
-        # any point during the process, it should fail to write when we 
+        # If we give the write proxy a bogus test vector at
+        # any point during the process, it should fail to write when we
         # tell it to write.
         def _check_failure(results):
             self.failUnlessEqual(len(results), 2)
@@ -2153,7 +2153,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # 5: Write the root hash and salt hash
         # 6: Write the signature and verification key
         # 7: Write the file.
-        # 
+        #
         # Some of these can be performed out-of-order, and some can't.
         # The dependencies that I want to test here are:
         #  - Private key before block hashes
@@ -2678,7 +2678,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
     def test_sdmf_writer(self):
         # Go through the motions of writing an SDMF share to the storage
         # server. Then read the storage server to see that the share got
-        # written in the way that we think it should have. 
+        # written in the way that we think it should have.
 
         # We do this first so that the necessary instance variables get
         # set the way we want them for the tests below.

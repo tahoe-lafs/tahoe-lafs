@@ -332,7 +332,7 @@ class Publish:
         # These are filled in later, after we've modified the block hash
         # tree suitably.
         self.sharehash_leaves = None # eventually [sharehashes]
-        self.sharehashes = {} # shnum -> [sharehash leaves necessary to 
+        self.sharehashes = {} # shnum -> [sharehash leaves necessary to
                               # validate the share]
 
         self.log("Starting push")
@@ -516,7 +516,7 @@ class Publish:
             for j in xrange(self.num_segments):
                 blocks.append(None)
         self.sharehash_leaves = None # eventually [sharehashes]
-        self.sharehashes = {} # shnum -> [sharehash leaves necessary to 
+        self.sharehashes = {} # shnum -> [sharehash leaves necessary to
                               # validate the share]
 
         self.log("Starting push")
@@ -1324,7 +1324,7 @@ class TransformingUploadable:
 
 
     def read(self, length):
-        # We can get data from 3 sources here. 
+        # We can get data from 3 sources here.
         #   1. The first of the segments provided to us.
         #   2. The data that we're replacing things with.
         #   3. The last of the segments provided to us.

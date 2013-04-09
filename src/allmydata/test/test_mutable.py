@@ -484,7 +484,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
                 dumped = servermap.dump(StringIO())
                 self.failUnlessIn("3-of-10", dumped.getvalue())
             d.addCallback(_then)
-            # Now overwrite the contents with some new contents. We want 
+            # Now overwrite the contents with some new contents. We want
             # to make them big enough to force the file to be uploaded
             # in more than one segment.
             big_contents = "contents1" * 100000 # about 900 KiB
@@ -499,7 +499,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
             # before, they need to be big enough to force multiple
             # segments, so that we make the downloader deal with
             # multiple segments.
-            bigger_contents = "contents2" * 1000000 # about 9MiB 
+            bigger_contents = "contents2" * 1000000 # about 9MiB
             bigger_contents_uploadable = MutableData(bigger_contents)
             d.addCallback(lambda ignored:
                 n.overwrite(bigger_contents_uploadable))
@@ -1482,7 +1482,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
 
 
     def test_corrupt_all_encprivkey_late(self):
-        # this should work for the same reason as above, but we corrupt 
+        # this should work for the same reason as above, but we corrupt
         # after the servermap update to exercise the error handling
         # code.
         # We need to remove the privkey from the node, or the retrieve
