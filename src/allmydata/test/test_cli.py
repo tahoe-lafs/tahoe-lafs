@@ -3773,7 +3773,8 @@ class Options(unittest.TestCase):
         # option after, or a basedir argument after, but none in the wrong
         # place, and not more than one of the three.
         o = self.parse(["start"])
-        self.failUnlessEqual(o["basedir"], os.path.expanduser("~/.tahoe"))
+        self.failUnlessEqual(o["basedir"], os.path.join(os.path.expanduser("~"),
+                                                        ".tahoe"))
         o = self.parse(["start", "here"])
         self.failUnlessEqual(o["basedir"], os.path.abspath("here"))
         o = self.parse(["start", "--basedir", "there"])
