@@ -318,7 +318,7 @@ authorization (confidentiality), nor to change the contents of a file
 
 A person could learn the storage index of a file in several ways:
 
-1. By being granted the authority to read the immutable file—i.e. by being
+1. By being granted the authority to read the immutable file: i.e. by being
    granted a read capability to the file. They can determine the file's
    storage index from its read capability.
 
@@ -347,17 +347,17 @@ if you upgrade a storage server to a fixed release then that server is no
 longer vulnerable to this problem.
 
 Note that the issue is local to each storage server independently of other
-storage servers—when you upgrade a storage server then that particular
+storage servers: when you upgrade a storage server then that particular
 storage server can no longer be tricked into deleting its shares of the
 target file.
 
 If you can't immediately upgrade your storage server to a version of
 Tahoe-LAFS that eliminates this vulnerability, then you could temporarily
 shut down your storage server. This would of course negatively impact
-availability—clients would not be able to upload or download shares to that
-particular storage server while it was shut down—but it would protect the
-shares already stored on that server from being deleted as long as the server
-is shut down.
+availability -- clients would not be able to upload or download shares to
+that particular storage server while it was shut down -- but it would protect
+the shares already stored on that server from being deleted as long as the
+server is shut down.
 
 If the servers that store shares of your file are running a version of
 Tahoe-LAFS with this vulnerability, then you should think about whether

@@ -11,10 +11,10 @@ up, then stored in the client's base directory (<Tahoe's node
 dir>/private/convergence) and re-used after that. So the same file content
 uploaded from the same client will always have the same cap. Uploading the
 file from a different client with a different convergence secret would result
-in a different cap—and in a second copy of the file's contents stored on the
-grid. If you want files you upload to converge (also known as "deduplicate")
-with files uploaded by someone else, just make sure you're using the same
-convergence secret when you upload files as they
+in a different cap -- and in a second copy of the file's contents stored on
+the grid. If you want files you upload to converge (also known as
+"deduplicate") with files uploaded by someone else, just make sure you're
+using the same convergence secret when you upload files as they
 
 The advantages of deduplication should be clear, but keep in mind that the
 convergence secret was created to protect confidentiality. There are two

@@ -22,13 +22,13 @@ Reason`_, `Julian Sanchez / Cato Institute`_.
 
 The core Tahoe developers promise never to change Tahoe-LAFS to facilitate
 government access to data stored or transmitted by it. Even if it were
-desirable to facilitate such access—which it is not—we believe it would not
-be technically feasible to do so without severely compromising Tahoe-LAFS'
-security against other attackers. There have been many examples in which
-backdoors intended for use by government have introduced vulnerabilities
-exploitable by other parties (a notable example being the Greek cellphone
-eavesdropping scandal in 2004/5). RFCs `1984`_ and `2804`_ elaborate on the
-security case against such backdoors.
+desirable to facilitate such access -- which it is not -- we believe it would
+not be technically feasible to do so without severely compromising
+Tahoe-LAFS' security against other attackers. There have been many examples
+in which backdoors intended for use by government have introduced
+vulnerabilities exploitable by other parties (a notable example being the
+Greek cellphone eavesdropping scandal in 2004/5). RFCs `1984`_ and `2804`_
+elaborate on the security case against such backdoors.
 
 .. _1984: https://tools.ietf.org/html/rfc1984
 .. _2804: https://tools.ietf.org/html/rfc2804

@@ -1296,7 +1296,7 @@ Relinking ("Moving") a Child
  This instructs the node to move a child of the given source directory, into
  a different directory and/or to a different name. The command is named
  ``relink`` because what it does is add a new link to the child from the new
- location, then remove the old link. Nothing is actually "moved" — the child
+ location, then remove the old link. Nothing is actually "moved": the child
  is still reachable through any path from which it was formerly reachable,
  and the storage space occupied by its ciphertext is not affected.
 

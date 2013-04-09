@@ -27,7 +27,7 @@ these service providers spend considerable effort and expense trying to
 mitigate these risks.
 
 What we mean by "security" is something different.  *The service provider
-never has the ability to read or modify your data in the first place—never.*
+never has the ability to read or modify your data in the first place: never.*
 If you use Tahoe-LAFS, then all of the threats described above are non-issues
 to you.  Not only is it easy and inexpensive for the service provider to
 maintain the security of your data, but in fact they couldn't violate its
@@ -38,7 +38,7 @@ This guarantee is integrated naturally into the Tahoe-LAFS storage system and
 doesn't require you to perform a manual pre-encryption step or cumbersome key
 management.  (After all, having to do cumbersome manual operations when
 storing or accessing your data would nullify one of the primary benefits of
-using cloud storage in the first place—convenience.)
+using cloud storage in the first place: convenience.)
 
 Here's how it works:
 

@@ -56,13 +56,13 @@ functionality) and including versions for a number of dependent libraries,
 like Twisted, Foolscap, pycryptopp, and zfec. "``tahoe --version-and-path``"
 will also show the path from which each library was imported.
 
-On Unix systems, the shell expands filename wildcards — ``'*'`` and ``'?'`` —
-before the program is able to read them, which may produce unexpected
-results for many ``tahoe`` comands. We recommend, if you use wildcards,
-to start the path with "``./``", for example "``tahoe cp -r ./* somewhere:``".
-This prevents the expanded filename from being interpreted as an option
-or as an alias, allowing filenames that start with a dash or contain
-colons to be handled correctly.
+On Unix systems, the shell expands filename wildcards (``'*'`` and ``'?'``)
+before the program is able to read them, which may produce unexpected results
+for many ``tahoe`` comands. We recommend, if you use wildcards, to start the
+path with "``./``", for example "``tahoe cp -r ./* somewhere:``". This
+prevents the expanded filename from being interpreted as an option or as an
+alias, allowing filenames that start with a dash or contain colons to be
+handled correctly.
 
 On Windows, a single letter followed by a colon is treated as a drive
 specification rather than an alias (and is invalid unless a local path is

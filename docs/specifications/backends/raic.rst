@@ -175,8 +175,8 @@ In this section we analyze the costs of the proposed design in terms of network,
 disk, memory, cloud storage, and API usage.
 
 
-Network usage—bandwidth and number-of-round-trips
--------------------------------------------------
+Network usage: bandwidth and number-of-round-trips
+--------------------------------------------------
 
 When a Tahoe-LAFS storage client allocates a new share on a storage server,
 the backend will request a list of the existing cloud objects with the
@@ -324,14 +324,15 @@ Known Issues
 ============
 
 This design worsens a known “write hole” issue in Tahoe-LAFS when updating
-the contents of mutable files. An update to a mutable file can require changing
-the contents of multiple chunks, and if the client fails or is disconnected
-during the operation the resulting state of the stored cloud objects may be
-inconsistent—no longer containing all of the old version, but not yet containing
-all of the new version. A mutable share can be left in an inconsistent state
-even by the existing Tahoe-LAFS disk backend if it fails during a write, but
-that has a smaller chance of occurrence because the current client behavior
-leads to mutable shares being written to disk in a single system call.
+the contents of mutable files. An update to a mutable file can require
+changing the contents of multiple chunks, and if the client fails or is
+disconnected during the operation the resulting state of the stored cloud
+objects may be inconsistent: no longer containing all of the old version, but
+not yet containing all of the new version. A mutable share can be left in an
+inconsistent state even by the existing Tahoe-LAFS disk backend if it fails
+during a write, but that has a smaller chance of occurrence because the
+current client behavior leads to mutable shares being written to disk in a
+single system call.
 
 The best fix for this issue probably requires changing the Tahoe-LAFS storage
 protocol, perhaps by extending it to use a two-phase or three-phase commit
