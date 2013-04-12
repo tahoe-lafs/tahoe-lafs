@@ -72,7 +72,6 @@ DEFAULT_ALIAS = u"tahoe"
 
 
 def get_aliases(nodedir):
-    from allmydata import uri
     aliases = {}
     aliasfile = os.path.join(nodedir, "private", "aliases")
     rootfile = os.path.join(nodedir, "private", "root_dir.cap")
@@ -80,7 +79,7 @@ def get_aliases(nodedir):
         f = open(rootfile, "r")
         rootcap = f.read().strip()
         if rootcap:
-            aliases[DEFAULT_ALIAS] = uri.from_string_dirnode(rootcap).to_string()
+            aliases[DEFAULT_ALIAS] = rootcap
     except EnvironmentError:
         pass
     try:
@@ -92,7 +91,7 @@ def get_aliases(nodedir):
             name, cap = line.split(u":", 1)
             # normalize it: remove http: prefix, urldecode
             cap = cap.strip().encode('utf-8')
-            aliases[name] = uri.from_string_dirnode(cap).to_string()
+            aliases[name] = cap
     except EnvironmentError:
         pass
     return aliases
@@ -158,7 +157,7 @@ def get_alias(aliases, path_unicode, default):
             raise UnknownAliasError("No alias specified, and the default %s alias doesn't exist. "
                                     "To create it, use 'tahoe create-alias %s'."
                                     % (quote_output(default), quote_output(default, quotemarks=False)))
-        return aliases[default], path
+        return uri.from_string_dirnode(aliases[default]).to_string(), path
     if colon == 1 and default is None and platform_uses_lettercolon_drivename():
         # treat C:\why\must\windows\be\so\weird as a local path, not a tahoe
         # file in the "C:" alias
@@ -175,11 +174,11 @@ def get_alias(aliases, path_unicode, default):
             raise UnknownAliasError("No alias specified, and the default %s alias doesn't exist. "
                                     "To create it, use 'tahoe create-alias %s'."
                                     % (quote_output(default), quote_output(default, quotemarks=False)))
-        return aliases[default], path
+        return uri.from_string_dirnode(aliases[default]).to_string(), path
     if alias not in aliases:
         raise UnknownAliasError("Unknown alias %s, please create it with 'tahoe add-alias' or 'tahoe create-alias'." %
                                 quote_output(alias))
-    return aliases[alias], path[colon+1:]
+    return uri.from_string_dirnode(aliases[alias]).to_string(), path[colon+1:]
 
 def escape_path(path):
     segments = path.split("/")
