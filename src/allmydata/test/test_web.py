@@ -254,6 +254,11 @@ class FakeClient(Client):
         self.mutable_file_default = SDMF_VERSION
         self.addService(FakeStorageServer(self.nodeid, self.nickname))
 
+    def get_long_nodeid(self):
+        return "v0-nodeid"
+    def get_long_tubid(self):
+        return "tubid"
+
     def startService(self):
         return service.MultiService.startService(self)
     def stopService(self):

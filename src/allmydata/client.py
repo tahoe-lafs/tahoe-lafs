@@ -14,7 +14,7 @@ from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
-from allmydata.util import hashutil, base32, pollmixin, log, keyutil
+from allmydata.util import hashutil, base32, pollmixin, log, keyutil, idlib
 from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
@@ -219,6 +219,14 @@ class Client(node.Node, pollmixin.PollMixin):
         sk,vk_vs = keyutil.parse_privkey(sk_vs.strip())
         self.write_config("node.pubkey", vk_vs+"\n")
         self._node_key = sk
+
+    def get_long_nodeid(self):
+        # this matches what IServer.get_longname() says about us elsewhere
+        vk_bytes = self._node_key.get_verifying_key_bytes()
+        return "v0-"+base32.b2a(vk_bytes)
+
+    def get_long_tubid(self):
+        return idlib.nodeid_b2a(self.nodeid)
 
     def _init_permutation_seed(self, ss):
         seed = self.get_config_from_file("permutation-seed")

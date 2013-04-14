@@ -1,5 +1,4 @@
 
-from base64 import b32encode
 import os, re, sys, time, simplejson
 from cStringIO import StringIO
 
@@ -1099,10 +1098,12 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d = getPage(base)
         def _got_welcome(page):
             html = page.replace('\n', ' ')
-            connected_re = "Connected to <span>%d</span>[ ]*of <span>%d</span> known storage servers" % (self.numclients, self.numclients)
+            connected_re = r'Connected to <span>%d</span>\s*of <span>%d</span> known storage servers' % (self.numclients, self.numclients)
             self.failUnless(re.search(connected_re, html),
                             "I didn't see the right '%s' message in:\n%s" % (connected_re, page))
-            nodeid_re = "<th>Node ID:</th>[ ]*<td>%s</td>" % (re.escape(b32encode(self.clients[0].nodeid).lower()),)
+            # nodeids/tubids don't have any regexp-special characters
+            nodeid_re = r'<th>Node ID:</th>\s*<td title="TubID: %s">%s</td>' % (
+                self.clients[0].get_long_tubid(), self.clients[0].get_long_nodeid())
             self.failUnless(re.search(nodeid_re, html),
                             "I didn't see the right '%s' message in:\n%s" % (nodeid_re, page))
             self.failUnless("Helper: 0 active uploads" in page)
@@ -1113,7 +1114,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(lambda res: getPage(self.helper_webish_url))
         def _got_welcome_helper(page):
             html = page.replace('\n', ' ')
-            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>Helper</div>', html), page)
+            self.failUnless(re.search(r'<div class="status-indicator connected-yes"></div>\s*<div>Helper</div>', html), page)
             self.failUnlessIn("Not running helper", page)
         d.addCallback(_got_welcome_helper)
 

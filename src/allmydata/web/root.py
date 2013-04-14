@@ -9,7 +9,7 @@ from nevow.util import resource_filename
 
 import allmydata # to display import path
 from allmydata import get_package_versions_string
-from allmydata.util import idlib, log
+from allmydata.util import log
 from allmydata.interfaces import IFileNode
 from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage
@@ -168,8 +168,9 @@ class Root(rend.Page):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):
         return str(allmydata)
-    def data_my_nodeid(self, ctx, data):
-        return idlib.nodeid_b2a(self.client.nodeid)
+    def render_my_nodeid(self, ctx, data):
+        tubid_s = "TubID: "+self.client.get_long_tubid()
+        return T.td(title=tubid_s)[self.client.get_long_nodeid()]
     def data_my_nickname(self, ctx, data):
         return self.client.nickname
 
