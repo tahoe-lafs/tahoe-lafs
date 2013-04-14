@@ -223,7 +223,7 @@ class Client(node.Node, pollmixin.PollMixin):
             sk_vs = self.get_or_create_private_config("node.privkey", _make_key)
         sk,vk_vs = keyutil.parse_privkey(sk_vs.strip())
         self.write_config("node.pubkey", vk_vs+"\n")
-        self._server_key = sk
+        self._node_key = sk
 
     def _init_permutation_seed(self, ss):
         seed = self.get_config_from_file("permutation-seed")
@@ -241,7 +241,7 @@ class Client(node.Node, pollmixin.PollMixin):
             else:
                 # otherwise, we're free to use the more natural seed of our
                 # pubkey-based serverid
-                vk_bytes = self._server_key.get_verifying_key_bytes()
+                vk_bytes = self._node_key.get_verifying_key_bytes()
                 seed = base32.b2a(vk_bytes)
             self.write_config("permutation-seed", seed+"\n")
         return seed.strip()
@@ -310,7 +310,7 @@ class Client(node.Node, pollmixin.PollMixin):
             ann = {"anonymous-storage-FURL": furl,
                    "permutation-seed-base32": self._init_permutation_seed(ss),
                    }
-            self.introducer_client.publish("storage", ann, self._server_key)
+            self.introducer_client.publish("storage", ann, self._node_key)
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="aLGBKw")

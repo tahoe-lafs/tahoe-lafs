@@ -1014,7 +1014,7 @@ class ClientSeqnums(unittest.TestCase):
             f.close()
             return int(seqnum)
 
-        ic.publish("sA", {"key": "value1"}, c._server_key)
+        ic.publish("sA", {"key": "value1"}, c._node_key)
         self.failUnlessEqual(read_seqnum(), 1)
         self.failUnless("sA" in outbound)
         self.failUnlessEqual(outbound["sA"]["seqnum"], 1)
@@ -1026,7 +1026,7 @@ class ClientSeqnums(unittest.TestCase):
 
         # publishing a second service causes both services to be
         # re-published, with the next higher sequence number
-        ic.publish("sB", {"key": "value2"}, c._server_key)
+        ic.publish("sB", {"key": "value2"}, c._node_key)
         self.failUnlessEqual(read_seqnum(), 2)
         self.failUnless("sB" in outbound)
         self.failUnlessEqual(outbound["sB"]["seqnum"], 2)
