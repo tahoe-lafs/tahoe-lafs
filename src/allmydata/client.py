@@ -215,12 +215,7 @@ class Client(node.Node, pollmixin.PollMixin):
         def _make_key():
             sk_vs,vk_vs = keyutil.make_keypair()
             return sk_vs+"\n"
-        # for a while (between releases, before 1.10) this was known as
-        # server.privkey, but now it lives in node.privkey. This fallback can
-        # be removed after 1.10 is released.
-        sk_vs = self.get_private_config("server.privkey", None)
-        if not sk_vs:
-            sk_vs = self.get_or_create_private_config("node.privkey", _make_key)
+        sk_vs = self.get_or_create_private_config("node.privkey", _make_key)
         sk,vk_vs = keyutil.parse_privkey(sk_vs.strip())
         self.write_config("node.pubkey", vk_vs+"\n")
         self._node_key = sk
