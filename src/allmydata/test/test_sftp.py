@@ -36,10 +36,6 @@ from allmydata.test.common_util import ReallyEqualMixin
 
 timeout = 240
 
-#defer.setDebugging(True)
-#from twisted.internet import base
-#base.DelayedCall.debug = True
-
 class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCase):
     """This is a no-network unit test of the SFTPUserHandler and the abstractions it uses."""
 
@@ -523,7 +519,9 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
             return d2
         d.addCallback(_read_short)
 
-        # check that failed downloads cause failed reads
+        # check that failed downloads cause failed reads. Note that this
+        # trashes the grid (by deleting all shares), so this must be at the
+        # end of the test function.
         d.addCallback(lambda ign: self.handler.openFile("uri/"+self.gross_uri, sftp.FXF_READ, {}))
         def _read_broken(rf):
             d2 = defer.succeed(None)
@@ -542,8 +540,9 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
         return d
 
     def test_openFile_read_error(self):
-        # The check at the end of openFile_read tested this for large files, but it trashed
-        # the grid in the process, so this needs to be a separate test.
+        # The check at the end of openFile_read tested this for large files,
+        # but it trashed the grid in the process, so this needs to be a
+        # separate test.
         small = upload.Data("0123456789"*10, None)
         d = self._set_up("openFile_read_error")
         d.addCallback(lambda ign: self.root.add_file(u"small", small))
@@ -1023,7 +1022,9 @@ class Handler(GridTestMixin, ShouldFailMixin, ReallyEqualMixin, unittest.TestCas
                       self.shouldFail(NoSuchChildError, "rename new while open", "new",
                                       self.root.get, u"new"))
 
-        # check that failed downloads cause failed reads and failed close, when open for writing
+        # check that failed downloads cause failed reads and failed close,
+        # when open for writing. Note that this trashes the grid (by deleting
+        # all shares), so this must be at the end of the test function.
         gross = u"gro\u00DF".encode("utf-8")
         d.addCallback(lambda ign: self.handler.openFile(gross, sftp.FXF_READ | sftp.FXF_WRITE, {}))
         def _read_write_broken(rwf):
