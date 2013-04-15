@@ -829,7 +829,7 @@ class GoogleStorageBackend(unittest.TestCase):
         """
         LIST_RESPONSE = """\
 <?xml version='1.0' encoding='utf-8'?>
-<ListBucketResult xmlns='http://doc.storage.googleapis.com/2010-04-03'>
+<ListBucketResult xmlns='http://doc.s3.amazonaws.com/2006-03-01'>
   <Name>thebucket</Name>
   <Prefix>xxx xxx</Prefix>
   <Marker>themark</Marker>
@@ -841,7 +841,6 @@ class GoogleStorageBackend(unittest.TestCase):
     <LastModified>2013-01-27T01:23:45.678Z</LastModified>
     <ETag>"abc"</ETag>
     <Size>123</Size>
-    <StorageClass>STANDARD</StorageClass>
     <Owner>
       <ID>something</ID>
       <DisplayName></DisplayName>
@@ -854,7 +853,6 @@ class GoogleStorageBackend(unittest.TestCase):
     <LastModified>2013-01-28T01:23:45.678Z</LastModified>
     <ETag>"def"</ETag>
     <Size>456</Size>
-    <StorageClass>NOTSTANDARD</StorageClass>
     <Owner>
       <ID>something</ID>
       <DisplayName></DisplayName>
@@ -879,6 +877,7 @@ class GoogleStorageBackend(unittest.TestCase):
             "https://storage.googleapis.com/thebucket?prefix=xxx%20xxx",
             {"Authorization": ["Bearer thetoken"],
              "x-goog-api-version": ["2"],
+             "x-goog-project-id": ["123"],
              },
             body=None,
             need_response_body=True)
@@ -895,13 +894,11 @@ class GoogleStorageBackend(unittest.TestCase):
         self.assertEqual(item1.modification_date, "2013-01-27T01:23:45.678Z")
         self.assertEqual(item1.etag, '"abc"')
         self.assertEqual(item1.size, 123)
-        self.assertEqual(item1.storage_class, 'STANDARD')
         self.assertEqual(item1.owner, None) # meh, who cares
         self.assertEqual(item2.key, "xxx xxx2")
         self.assertEqual(item2.modification_date, "2013-01-28T01:23:45.678Z")
         self.assertEqual(item2.etag, '"def"')
         self.assertEqual(item2.size, 456)
-        self.assertEqual(item2.storage_class, 'NOTSTANDARD')
         self.assertEqual(item2.owner, None) # meh, who cares
 
     def test_put_object(self):

@@ -91,7 +91,9 @@ class GoogleStorageContainer(CommonContainerMixin):
 
     USER_AGENT = "Tahoe-LAFS Google Storage client"
     URI = "https://storage.googleapis.com"
-    NAMESPACE = "{http://doc.storage.googleapis.com/2010-04-03}"
+    NAMESPACE = "{http://doc.s3.amazonaws.com/2006-03-01}"
+    # I can't get Google to actually use their own namespace?!
+    #NAMESPACE="{http://doc.storage.googleapis.com/2010-04-03}"
 
     def __init__(self, auth_client, project_id, bucket_name, override_reactor=None):
         CommonContainerMixin.__init__(self, bucket_name, override_reactor)
@@ -169,7 +171,8 @@ class GoogleStorageContainer(CommonContainerMixin):
         last_modified = element.find(self.NAMESPACE + "LastModified").text
         etag = element.find(self.NAMESPACE + "ETag").text
         size = int(element.find(self.NAMESPACE + "Size").text)
-        storage_class = element.find(self.NAMESPACE + "StorageClass").text
+        storage_class = element.find(self.NAMESPACE + "StorageClass")
+        storage_class = "STANDARD"
         owner = None # Don't bother parsing this at the moment
 
         return ContainerItem(key, last_modified, etag, size, storage_class,
@@ -215,6 +218,7 @@ class GoogleStorageContainer(CommonContainerMixin):
             request_headers = {
                 'Authorization': [auth_header],
                 "x-goog-api-version": ["2"],
+                "x-goog-project-id": [self._project_id],
             }
             url = self._make_container_url(self.URI)
             url += "?prefix=" + urllib.quote(prefix, safe='')
@@ -239,3 +243,18 @@ def configure_googlestorage_container(storedir, config):
 
     authclient = AuthenticationClient(account_email, private_key)
     return GoogleStorageContainer(authclient, project_id, bucket_name)
+
+
+if __name__ == '__main__':
+    from twisted.internet import reactor
+    import sys
+    auth = AuthenticationClient(sys.argv[1], file(sys.argv[2]).read())
+    gsc = GoogleStorageContainer(auth, sys.argv[3], sys.argv[4])
+    def println(result):
+        for item in result.contents:
+            print "Bucket has key", item.key
+        reactor.stop()
+    def gotAuth(value):
+        gsc.list_objects().addCallback(println)
+    auth.get_authorization_header().addCallback(gotAuth)
+    reactor.run()
