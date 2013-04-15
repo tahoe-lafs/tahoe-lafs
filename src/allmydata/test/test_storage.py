@@ -35,6 +35,7 @@ from allmydata.storage.backends.cloud import mock_cloud, cloud_common
 from allmydata.storage.backends.cloud.mock_cloud import MockContainer
 from allmydata.storage.backends.cloud.openstack import openstack_container
 from allmydata.storage.backends.cloud.googlestorage import googlestorage_container
+from allmydata.storage.backends.cloud.msazure import msazure_container
 from allmydata.storage.bucket import BucketWriter, BucketReader
 from allmydata.storage.common import DataTooLargeError, storage_index_to_dir
 from allmydata.storage.leasedb import SHARETYPE_IMMUTABLE, SHARETYPE_MUTABLE
@@ -1037,6 +1038,160 @@ class GoogleStorageBackend(unittest.TestCase):
         """
         raise NotImplementedError()
     test_head_object.skip = "May not be necessary"
+
+
+
+class MSAzureAuthentication(unittest.TestCase):
+    """
+    Tests for Microsoft Azure Blob Storage authentication.
+    """
+    class FakeRequest:
+        """
+        Emulate request objects used by azure library.
+        """
+        def __init__(self, method, url, headers):
+            from urlparse import urlparse, parse_qs
+            self.headers = [
+                (key.lower(), value[0]) for key, value in headers.getAllRawHeaders()]
+            url = urlparse(url)
+            self.path = url.path
+            self.query = url.query
+            self.method = method
+            self.query = [(k, v[0]) for k, v in parse_qs(url.query, keep_blank_values=True).items()]
+
+    def setUp(self):
+        self.container = msazure_container.MSAzureStorageContainer(
+            "account", "key".encode("base64"), "thebucket")
+
+    def assertSignatureEqual(self, method, url, headers, result, azure_buggy=False):
+        """
+        Assert the given HTTP request parameters produce a value to be signed
+        equal to the given result.
+
+        If possible, assert the signature calculation matches the Microsoft
+        reference implementation.
+        """
+        headers = Headers(headers)
+        self.assertEqual(
+                self.container._calculate_presignature(method, url, headers),
+                result)
+        if azure_buggy:
+            # The reference client is buggy in this case, skip it
+            raise unittest.SkipTest("Azure reference client is buggy in this case")
+
+        # Now, compare our result to that of the Microsoft-provided
+        # implementation, if available:
+        try:
+            from azure.storage import _sign_storage_blob_request
+        except ImportError:
+            raise unittest.SkipTest("No azure installed")
+
+        request = self.FakeRequest(method, url, headers)
+        self.assertEqual(
+            _sign_storage_blob_request(request,
+                                       self.container._account_name,
+                                       self.container._account_key.encode("base64")),
+            self.container._calculate_signature(method, url, headers))
+
+    def test_method(self):
+        """
+        The correct HTTP method is included in the signature.
+        """
+        self.assertSignatureEqual(
+            "HEAD", "http://x/", {"x-ms-date": ["Sun, 11 Oct 2009 21:49:13 GMT"]},
+            "HEAD\n\n\n\n\n\n\n\n\n\n\n\n"
+            "x-ms-date:Sun, 11 Oct 2009 21:49:13 GMT\n"
+            "/account/")
+
+    def test_standard_headers(self):
+        """
+        A specific set of headers are included in the signature, except for
+        Date which is ignored in favor of x-ms-date.
+        """
+        headers = {"Content-Encoding": ["ce"],
+                   "Content-Language": ["cl"],
+                   "Content-Length": ["cl2"],
+                   "Content-MD5": ["cm"],
+                   "Content-Type": ["ct"],
+                   "Date": ["d"],
+                   "If-Modified-Since": ["ims"],
+                   "If-Match": ["im"],
+                   "If-None-Match": ["inm"],
+                   "If-Unmodified-Since": ["ius"],
+                   "Range": ["r"],
+                   "Other": ["o"],
+                   "x-ms-date": ["xmd"]}
+        self.assertSignatureEqual("GET", "http://x/", headers,
+                                  "GET\n"
+                                  "ce\n"
+                                  "cl\n"
+                                  "cl2\n"
+                                  "cm\n"
+                                  "ct\n"
+                                  "\n" # Date value is ignored!
+                                  "ims\n"
+                                  "im\n"
+                                  "inm\n"
+                                  "ius\n"
+                                  "r\n"
+                                  "x-ms-date:xmd\n"
+                                  "/account/", True)
+
+    def test_xms_headers(self):
+        """
+        Headers starting with x-ms are included in the signature.
+        """
+        headers = {"x-ms-foo": ["a"],
+                   "x-ms-z": ["b"],
+                   "x-ms-date": ["c"]}
+        self.assertSignatureEqual("GET", "http://x/", headers,
+                                  "GET\n"
+                                  "\n"
+                                  "\n"
+                                  "\n"
+                                  "\n"
+                                  "\n"
+                                  "\n"
+                                  "\n"
+                                  "\n"
+                                  "\n"
+                                  "\n"
+                                  "\n"
+                                  "x-ms-date:c\n"
+                                  "x-ms-foo:a\n"
+                                  "x-ms-z:b\n"
+                                  "/account/")
+
+    def test_xmsdate_required(self):
+        """
+        The x-ms-date header is mandatory.
+        """
+        self.assertRaises(ValueError,
+                          self.assertSignatureEqual, "GET", "http://x/", {}, "")
+
+    def test_path_and_account(self):
+        """
+        The URL path and account name is included.
+        """
+        self.container._account_name = "theaccount"
+        self.assertSignatureEqual(
+            "HEAD", "http://x/foo/bar", {"x-ms-date": ["d"]},
+            "HEAD\n\n\n\n\n\n\n\n\n\n\n\n"
+            "x-ms-date:d\n"
+            "/theaccount/foo/bar")
+
+    def test_query(self):
+        """
+        The query arguments are included.
+        """
+        value = "hello%20there"
+        self.assertSignatureEqual(
+            "HEAD", "http://x/?z=%s&y=abc" % (value,), {"x-ms-date": ["d"]},
+            "HEAD\n\n\n\n\n\n\n\n\n\n\n\n"
+            "x-ms-date:d\n"
+            "/account/\n"
+            "y:abc\n"
+            "z:hello there")
 
 
 class ServerMixin:
