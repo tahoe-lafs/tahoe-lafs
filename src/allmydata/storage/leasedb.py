@@ -119,8 +119,16 @@ class LeaseDB:
     STARTER_LEASE_DURATION = 2*MONTH
 
     def __init__(self, dbfile):
+        # synchronous = OFF is necessary for leasedb to pass tests for the time being,
+        # since using synchronous = NORMAL causes failures that are apparently due to
+        # a file descriptor leak, and the default synchronous = FULL causes the tests
+        # to time out. For discussion see
+        # https://tahoe-lafs.org/pipermail/tahoe-dev/2012-December/007877.html
+
         (self._sqlite,
-         self._db) = dbutil.get_db(dbfile, create_version=(LEASE_SCHEMA_V1, 1))
+         self._db) = dbutil.get_db(dbfile, create_version=(LEASE_SCHEMA_V1, 1),
+                                   # journal_mode="WAL",
+                                   synchronous="OFF")
         self._cursor = self._db.cursor()
         self.debug = False
         self.retained_history_entries = 10
