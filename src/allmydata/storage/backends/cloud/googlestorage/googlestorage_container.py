@@ -7,6 +7,7 @@ http://code.google.com/p/google-api-python-client/downloads/list
 import urllib
 try:
     from xml.etree import cElementTree as ElementTree
+    ElementTree  # hush pyflakes
 except ImportError:
     from xml.etree import ElementTree
 
@@ -20,6 +21,7 @@ from twisted.web.http import UNAUTHORIZED
 
 try:
     from oauth2client.client import SignedJwtAssertionCredentials
+    SignedJwtAssertionCredentials  # hush pyflakes
     oauth2client_available = True
 except ImportError:
     oauth2client_available = False
