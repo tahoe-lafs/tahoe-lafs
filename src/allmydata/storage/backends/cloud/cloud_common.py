@@ -6,12 +6,7 @@ import urllib
 from twisted.internet import defer, reactor, task
 from twisted.python.failure import Failure
 from twisted.web.error import Error
-from twisted.web.client import FileBodyProducer, ResponseDone, Agent
-try:
-    from twisted.web.client import HTTPConnectionPool
-except ImportError:
-    # Old version of Twisted
-    HTTPConnectionPool = None
+from twisted.web.client import FileBodyProducer, ResponseDone, Agent, HTTPConnectionPool
 from twisted.web.http_headers import Headers
 from twisted.internet.protocol import Protocol
 
@@ -708,10 +703,7 @@ class CommonContainerMixin(HTTPClientMixin, ContainerRetryMixin):
     def __init__(self, container_name, override_reactor=None):
         self._container_name = container_name
         self._reactor = override_reactor or reactor
-        if HTTPConnectionPool:
-            self._agent = Agent(self._reactor, pool=HTTPConnectionPool(self._reactor))
-        else:
-            self._agent = Agent(self._reactor)
+        self._agent = Agent(self._reactor, pool=HTTPConnectionPool(self._reactor))
         self.ServiceError = CloudServiceError
 
     def __repr__(self):
