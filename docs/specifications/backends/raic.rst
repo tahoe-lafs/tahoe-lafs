@@ -34,17 +34,17 @@ Terminology
    multiple services implementing a given cloud storage interface. In this design,
    only REST-based APIs `¹⁰`_ over HTTP will be used as interfaces.
 
-*Cloud object*
+*Store object*
    A file-like abstraction provided by a cloud storage service, storing a
-   sequence of bytes. Cloud objects are mutable in the sense that the contents
-   and metadata of the cloud object with a given name in a given cloud container
-   can be replaced. Cloud objects are called “blobs” in the Azure interface,
+   sequence of bytes. Store objects are mutable in the sense that the contents
+   and metadata of the store object with a given name in a given backend store
+   can be replaced. Store objects are called “blobs” in the Azure interface,
    and “objects” in the other interfaces.
 
-*Cloud container*
-   A container for cloud objects provided by a cloud service. Cloud containers
-   are called “buckets” in the S3 and Google Cloud Storage interfaces, and
-   “containers” in the Azure and OpenStack Storage interfaces.
+*Cloud backend store*
+   A container for store objects provided by a cloud service. Cloud backend
+   stores are called “buckets” in the S3 and Google Cloud Storage interfaces,
+   and “containers” in the Azure and OpenStack Storage interfaces.
 
 
 Functional Requirements
@@ -61,7 +61,7 @@ Functional Requirements
    implemented by using that feature of the specific cloud storage
    interface. Alternately, it could be implemented by mapping from the LAFS
    abstraction of an unlimited-size immutable share to a set of size-limited
-   cloud objects.
+   store objects.
 
  * *Streaming upload*: the size of the LAFS share that is uploaded
    can exceed the amount of RAM and even the amount of direct attached
@@ -87,7 +87,7 @@ Functional Requirements
   could be implemented by using that feature of the specific cloud storage
   interface. Alternately, it could be implemented by mapping from the LAFS
   abstraction of an unlimited-size mutable share to a set of size-limited
-  cloud objects.
+  store objects.
 
  * *Efficient modify*: the size of the LAFS share being
    modified can exceed the amount of RAM and even the amount of direct
@@ -108,10 +108,10 @@ Functional Requirements
 Mapping
 =======
 
-This section describes the mapping between LAFS shares and cloud objects.
+This section describes the mapping between LAFS shares and store objects.
 
 A LAFS share will be split into one or more “chunks” that are each stored in a
-cloud object. A LAFS share of size `C` bytes will be stored as `ceiling(C / chunksize)`
+store object. A LAFS share of size `C` bytes will be stored as `ceiling(C / chunksize)`
 chunks. The last chunk has a size between 1 and `chunksize` bytes inclusive.
 (It is not possible for `C` to be zero, because valid shares always have a header,
 so, there is at least one chunk for each share.)
@@ -127,10 +127,10 @@ default chunk size.
   *Rationale*: this design allows the `chunksize` parameter to be changed for
   new shares written via a particular storage interface, without breaking
   compatibility with existing stored shares. All cloud storage interfaces
-  return the sizes of cloud objects with requests to list objects, and so
+  return the sizes of store objects with requests to list objects, and so
   the size of the first chunk can be determined without an additional request.
 
-The name of the cloud object for chunk `i` > 0 of a LAFS share with storage index
+The name of the store object for chunk `i` > 0 of a LAFS share with storage index
 `STORAGEINDEX` and share number `SHNUM`, will be
 
   shares/`ST`/`STORAGEINDEX`/`SHNUM.i`
@@ -140,13 +140,13 @@ where `ST` is the first two characters of `STORAGEINDEX`. When `i` is 0, the
 
   *Rationale*: this layout maintains compatibility with data stored by the
   prototype S3 backend, for which Least Authority Enterprises has existing
-  customers. This prototype always used a single cloud object to store each
+  customers. This prototype always used a single store object to store each
   share, with name
 
     shares/`ST`/`STORAGEINDEX`/`SHNUM`
 
   By using the same prefix “shares/`ST`/`STORAGEINDEX`/” for old and new layouts,
-  the storage server can obtain a list of cloud objects associated with a given
+  the storage server can obtain a list of store objects associated with a given
   shareset without having to know the layout in advance, and without having to
   make multiple API requests. This also simplifies sharing of test code between the
   disk and cloud backends.
@@ -175,11 +175,11 @@ In this section we analyze the costs of the proposed design in terms of network,
 disk, memory, cloud storage, and API usage.
 
 
-Network usage: bandwidth and number-of-round-trips
---------------------------------------------------
+Network usage—bandwidth and number-of-round-trips
+-------------------------------------------------
 
 When a Tahoe-LAFS storage client allocates a new share on a storage server,
-the backend will request a list of the existing cloud objects with the
+the backend will request a list of the existing store objects with the
 appropriate prefix. This takes one HTTP request in the common case, but may
 take more for the S3 interface, which has a limit of 1000 objects returned in
 a single “GET Bucket” request.
@@ -187,8 +187,8 @@ a single “GET Bucket” request.
 If the share is to be read, the client will make a number of calls each
 specifying the offset and length of the required span of bytes. On the first
 request that overlaps a given chunk of the share, the server will make an
-HTTP GET request for that cloud object. The server may also speculatively
-make GET requests for cloud objects that are likely to be needed soon (which
+HTTP GET request for that store object. The server may also speculatively
+make GET requests for store objects that are likely to be needed soon (which
 can be predicted since reads are normally sequential), in order to reduce
 latency.
 
@@ -219,9 +219,9 @@ when downloading a file, or the maximum number of PUT requests when uploading
 or modifying a file, will be equal to the number of chunks in the file.
 
 If the new mutable share content has fewer chunks than the old content,
-then the remaining cloud objects for old chunks must be deleted (using one
+then the remaining store objects for old chunks must be deleted (using one
 HTTP request each). When reading a share, the backend must tolerate the case
-where these cloud objects have not been deleted successfully.
+where these store objects have not been deleted successfully.
 
 The last write to a share will be reported as successful only when all
 corresponding HTTP PUTs and DELETEs have completed successfully.
@@ -326,13 +326,13 @@ Known Issues
 This design worsens a known “write hole” issue in Tahoe-LAFS when updating
 the contents of mutable files. An update to a mutable file can require
 changing the contents of multiple chunks, and if the client fails or is
-disconnected during the operation the resulting state of the stored cloud
-objects may be inconsistent: no longer containing all of the old version, but
-not yet containing all of the new version. A mutable share can be left in an
-inconsistent state even by the existing Tahoe-LAFS disk backend if it fails
-during a write, but that has a smaller chance of occurrence because the
-current client behavior leads to mutable shares being written to disk in a
-single system call.
+disconnected during the operation the resulting state of the store objects
+for that share may be inconsistent—no longer containing all of the old version,
+but not yet containing all of the new version. A mutable share can be left in
+an inconsistent state even by the existing Tahoe-LAFS disk backend if it fails
+during a write, but that has a smaller chance of occurrence because the current
+client behavior leads to mutable shares being written to disk in a single
+system call.
 
 The best fix for this issue probably requires changing the Tahoe-LAFS storage
 protocol, perhaps by extending it to use a two-phase or three-phase commit
