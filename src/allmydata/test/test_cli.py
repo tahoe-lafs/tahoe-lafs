@@ -2912,20 +2912,19 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("check", "--raw", self.lit_uri))
         d.addCallback(_check_lit_raw)
 
-        def _clobber_shares(ignored):
+        d.addCallback(lambda ign: self.find_uri_shares(self.uri))
+        def _clobber_shares(shares):
             # delete one, corrupt a second
-            shares = self.find_uri_shares(self.uri)
             self.failUnlessReallyEqual(len(shares), 10)
-            os.unlink(shares[0][2])
-            cso = debug.CorruptShareOptions()
-            cso.stdout = StringIO()
-            cso.parseOptions([shares[1][2]])
+            fileutil.remove(shares[0][2])
+            stdout = StringIO()
+            sharefile = shares[1][2]
             storage_index = uri.from_string(self.uri).get_storage_index()
             self._corrupt_share_line = "  server %s, SI %s, shnum %d" % \
                                        (base32.b2a(shares[1][1]),
                                         base32.b2a(storage_index),
                                         shares[1][0])
-            debug.corrupt_share(cso)
+            debug.do_corrupt_share(stdout, sharefile)
         d.addCallback(_clobber_shares)
 
         d.addCallback(lambda ign: self.do_cli("check", "--verify", self.uri))
@@ -3051,22 +3050,23 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn(" 317-1000 : 1    (1000 B, 1000 B)", lines)
         d.addCallback(_check_stats)
 
-        def _clobber_shares(ignored):
-            shares = self.find_uri_shares(self.uris[u"g\u00F6\u00F6d"])
+        d.addCallback(lambda ign: self.find_uri_shares(self.uris[u"g\u00F6\u00F6d"]))
+        def _clobber_shares(shares):
             self.failUnlessReallyEqual(len(shares), 10)
-            os.unlink(shares[0][2])
+            fileutil.remove(shares[0][2])
+        d.addCallback(_clobber_shares)
 
-            shares = self.find_uri_shares(self.uris["mutable"])
-            cso = debug.CorruptShareOptions()
-            cso.stdout = StringIO()
-            cso.parseOptions([shares[1][2]])
+        d.addCallback(lambda ign: self.find_uri_shares(self.uris["mutable"]))
+        def _clobber_mutable_shares(shares):
+            stdout = StringIO()
+            sharefile = shares[1][2]
             storage_index = uri.from_string(self.uris["mutable"]).get_storage_index()
             self._corrupt_share_line = " corrupt: server %s, SI %s, shnum %d" % \
                                        (base32.b2a(shares[1][1]),
                                         base32.b2a(storage_index),
                                         shares[1][0])
-            debug.corrupt_share(cso)
-        d.addCallback(_clobber_shares)
+            debug.do_corrupt_share(stdout, sharefile)
+        d.addCallback(_clobber_mutable_shares)
 
         # root
         # root/g\u00F6\u00F6d  [9 shares]

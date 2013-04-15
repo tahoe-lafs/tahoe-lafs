@@ -4,10 +4,13 @@
 # shares from a previous version.
 
 import os
+
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
+from foolscap.eventual import eventually, fireEventually, flushEventualQueue
+from allmydata.util.deferredutil import async_iterate
+
 from allmydata import uri
-from allmydata.storage.server import storage_index_to_dir
 from allmydata.util import base32, fileutil, spans, log, hashutil
 from allmydata.util.consumer import download_to_data, MemoryConsumer
 from allmydata.immutable import upload, layout
@@ -20,7 +23,7 @@ from allmydata.immutable.downloader.common import BadSegmentNumberError, \
 from allmydata.immutable.downloader.status import DownloadStatus
 from allmydata.immutable.downloader.fetcher import SegmentFetcher
 from allmydata.codec import CRSDecoder
-from foolscap.eventual import eventually, fireEventually, flushEventualQueue
+
 
 plaintext = "This is a moderate-sized file.\n" * 10
 mutable_plaintext = "This is a moderate-sized mutable file.\n" * 10
@@ -84,90 +87,71 @@ class _Base(GridTestMixin, ShouldFailMixin):
         u = upload.Data(plaintext, None)
         d = self.c0.upload(u)
         f = open("stored_shares.py", "w")
+
+        def _write_py(uri):
+            si = uri.from_string(uri).get_storage_index()
+            def _each_server( (i,ss,ssdir) ):
+                sharemap = {}
+                shareset = ss.backend.get_shareset(si)
+                d2 = shareset.get_shares()
+                def _got_shares( (shares, corrupted) ):
+                    assert len(corrupted) == 0, (shares, corrupted)
+                    for share in shares:
+                        sharedata = fileutil.read(share._get_path())
+                        sharemap[share.get_shnum()] = sharedata
+
+                    fileutil.remove(shareset._get_sharedir())
+                    if sharemap:
+                        f.write(' %d: { # client[%d]\n' % (i, i))
+                        for shnum in sorted(sharemap.keys()):
+                            f.write('  %d: base32.a2b("%s"),\n' %
+                                    (shnum, base32.b2a(sharemap[shnum])))
+                        f.write('    },\n')
+                    return True
+                d2.addCallback(_got_shares)
+                return d2
+
+            d = async_iterate(_each_server, self.iterate_servers())
+            d.addCallback(lambda ign: f.write('}\n'))
+            return d
+
         def _created_immutable(ur):
             # write the generated shares and URI to a file, which can then be
             # incorporated into this one next time.
             f.write('immutable_uri = "%s"\n' % ur.get_uri())
             f.write('immutable_shares = {\n')
-            si = uri.from_string(ur.get_uri()).get_storage_index()
-            si_dir = storage_index_to_dir(si)
-            for (i,ss,ssdir) in self.iterate_servers():
-                sharedir = os.path.join(ssdir, "shares", si_dir)
-                shares = {}
-                for fn in os.listdir(sharedir):
-                    shnum = int(fn)
-                    sharedata = open(os.path.join(sharedir, fn), "rb").read()
-                    shares[shnum] = sharedata
-                fileutil.rm_dir(sharedir)
-                if shares:
-                    f.write(' %d: { # client[%d]\n' % (i, i))
-                    for shnum in sorted(shares.keys()):
-                        f.write('  %d: base32.a2b("%s"),\n' %
-                                (shnum, base32.b2a(shares[shnum])))
-                    f.write('    },\n')
-            f.write('}\n')
-            f.write('\n')
-
+            return _write_py(ur.get_uri())
         d.addCallback(_created_immutable)
 
         d.addCallback(lambda ignored:
                       self.c0.create_mutable_file(mutable_plaintext))
         def _created_mutable(n):
+            f.write('\n')
             f.write('mutable_uri = "%s"\n' % n.get_uri())
             f.write('mutable_shares = {\n')
-            si = uri.from_string(n.get_uri()).get_storage_index()
-            si_dir = storage_index_to_dir(si)
-            for (i,ss,ssdir) in self.iterate_servers():
-                sharedir = os.path.join(ssdir, "shares", si_dir)
-                shares = {}
-                for fn in os.listdir(sharedir):
-                    shnum = int(fn)
-                    sharedata = open(os.path.join(sharedir, fn), "rb").read()
-                    shares[shnum] = sharedata
-                fileutil.rm_dir(sharedir)
-                if shares:
-                    f.write(' %d: { # client[%d]\n' % (i, i))
-                    for shnum in sorted(shares.keys()):
-                        f.write('  %d: base32.a2b("%s"),\n' %
-                                (shnum, base32.b2a(shares[shnum])))
-                    f.write('    },\n')
-            f.write('}\n')
-
-            f.close()
+            return _write_py(n.get_uri())
         d.addCallback(_created_mutable)
 
         def _done(ignored):
             f.close()
-        d.addCallback(_done)
+        d.addBoth(_done)
 
         return d
+
+    def _write_shares(self, fileuri, shares):
+        si = uri.from_string(fileuri).get_storage_index()
+        for i in shares:
+            shares_for_server = shares[i]
+            for shnum in shares_for_server:
+                share_dir = self.get_server(i).backend.get_shareset(si)._get_sharedir()
+                fileutil.make_dirs(share_dir)
+                fileutil.write(os.path.join(share_dir, str(shnum)), shares_for_server[shnum])
 
     def load_shares(self, ignored=None):
         # this uses the data generated by create_shares() to populate the
         # storage servers with pre-generated shares
-        si = uri.from_string(immutable_uri).get_storage_index()
-        si_dir = storage_index_to_dir(si)
-        for i in immutable_shares:
-            shares = immutable_shares[i]
-            for shnum in shares:
-                dn = os.path.join(self.get_serverdir(i), "shares", si_dir)
-                fileutil.make_dirs(dn)
-                fn = os.path.join(dn, str(shnum))
-                f = open(fn, "wb")
-                f.write(shares[shnum])
-                f.close()
-
-        si = uri.from_string(mutable_uri).get_storage_index()
-        si_dir = storage_index_to_dir(si)
-        for i in mutable_shares:
-            shares = mutable_shares[i]
-            for shnum in shares:
-                dn = os.path.join(self.get_serverdir(i), "shares", si_dir)
-                fileutil.make_dirs(dn)
-                fn = os.path.join(dn, str(shnum))
-                f = open(fn, "wb")
-                f.write(shares[shnum])
-                f.close()
+        self._write_shares(immutable_uri, immutable_shares)
+        self._write_shares(mutable_uri, mutable_shares)
 
     def download_immutable(self, ignored=None):
         n = self.c0.create_node_from_uri(immutable_uri)
@@ -187,6 +171,7 @@ class _Base(GridTestMixin, ShouldFailMixin):
             self.failUnlessEqual(data, mutable_plaintext)
         d.addCallback(_got_data)
         return d
+
 
 class DownloadTest(_Base, unittest.TestCase):
     timeout = 2400 # It takes longer than 240 seconds on Zandr's ARM box.
@@ -210,7 +195,6 @@ class DownloadTest(_Base, unittest.TestCase):
 
         self.load_shares()
         si = uri.from_string(immutable_uri).get_storage_index()
-        si_dir = storage_index_to_dir(si)
 
         n = self.c0.create_node_from_uri(immutable_uri)
         d = download_to_data(n)
@@ -222,13 +206,15 @@ class DownloadTest(_Base, unittest.TestCase):
             # find the three shares that were used, and delete them. Then
             # download again, forcing the downloader to fail over to other
             # shares
+            d2 = defer.succeed(None)
             for s in n._cnode._node._shares:
                 for clientnum in immutable_shares:
                     for shnum in immutable_shares[clientnum]:
                         if s._shnum == shnum:
-                            fn = os.path.join(self.get_serverdir(clientnum),
-                                              "shares", si_dir, str(shnum))
-                            os.unlink(fn)
+                            d2.addCallback(lambda ign, clientnum=clientnum, shnum=shnum:
+                                           self.get_server(clientnum).backend.get_shareset(si).get_share(shnum))
+                            d2.addCallback(lambda share: share.unlink())
+            return d2
         d.addCallback(_clobber_some_shares)
         d.addCallback(lambda ign: download_to_data(n))
         d.addCallback(_got_data)
@@ -237,27 +223,29 @@ class DownloadTest(_Base, unittest.TestCase):
             # delete all but one of the shares that are still alive
             live_shares = [s for s in n._cnode._node._shares if s.is_alive()]
             save_me = live_shares[0]._shnum
+            d2 = defer.succeed(None)
             for clientnum in immutable_shares:
                 for shnum in immutable_shares[clientnum]:
                     if shnum == save_me:
                         continue
-                    fn = os.path.join(self.get_serverdir(clientnum),
-                                      "shares", si_dir, str(shnum))
-                    if os.path.exists(fn):
-                        os.unlink(fn)
+                    d2.addCallback(lambda ign, clientnum=clientnum, shnum=shnum:
+                                   self.get_server(clientnum).backend.get_shareset(si).get_share(shnum))
+                    def _eb(f):
+                        f.trap(EnvironmentError)
+                    d2.addCallbacks(lambda share: share.unlink(), _eb)
+
             # now the download should fail with NotEnoughSharesError
-            return self.shouldFail(NotEnoughSharesError, "1shares", None,
-                                   download_to_data, n)
+            d2.addCallback(lambda ign: self.shouldFail(NotEnoughSharesError, "1shares", None,
+                                                       download_to_data, n))
+            return d2
         d.addCallback(_clobber_most_shares)
 
         def _clobber_all_shares(ign):
             # delete the last remaining share
             for clientnum in immutable_shares:
                 for shnum in immutable_shares[clientnum]:
-                    fn = os.path.join(self.get_serverdir(clientnum),
-                                      "shares", si_dir, str(shnum))
-                    if os.path.exists(fn):
-                        os.unlink(fn)
+                    share_dir = self.get_server(clientnum).backend.get_shareset(si)._get_sharedir()
+                    fileutil.remove(os.path.join(share_dir, str(shnum)))
             # now a new download should fail with NoSharesError. We want a
             # new ImmutableFileNode so it will forget about the old shares.
             # If we merely called create_node_from_uri() without first
@@ -834,22 +822,22 @@ class DownloadTest(_Base, unittest.TestCase):
         # will report two shares, and the ShareFinder will handle the
         # duplicate by attaching both to the same CommonShare instance.
         si = uri.from_string(immutable_uri).get_storage_index()
-        si_dir = storage_index_to_dir(si)
-        sh0_file = [sharefile
-                    for (shnum, serverid, sharefile)
-                    in self.find_uri_shares(immutable_uri)
-                    if shnum == 0][0]
-        sh0_data = open(sh0_file, "rb").read()
-        for clientnum in immutable_shares:
-            if 0 in immutable_shares[clientnum]:
-                continue
-            cdir = self.get_serverdir(clientnum)
-            target = os.path.join(cdir, "shares", si_dir, "0")
-            outf = open(target, "wb")
-            outf.write(sh0_data)
-            outf.close()
 
-        d = self.download_immutable()
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: self.find_uri_shares(immutable_uri))
+        def _duplicate(sharelist):
+            sh0_file = [sharefile for (shnum, serverid, sharefile) in sharelist
+                        if shnum == 0][0]
+            sh0_data = fileutil.read(sh0_file)
+            for clientnum in immutable_shares:
+                if 0 in immutable_shares[clientnum]:
+                    continue
+                cdir = self.get_server(clientnum).backend.get_shareset(si)._get_sharedir()
+                fileutil.make_dirs(cdir)
+                fileutil.write(os.path.join(cdir, str(shnum)), sh0_data)
+        d.addCallback(_duplicate)
+
+        d.addCallback(lambda ign: self.download_immutable())
         return d
 
     def test_verifycap(self):
@@ -934,13 +922,13 @@ class Corruption(_Base, unittest.TestCase):
         log.msg("corrupt %d" % which)
         def _corruptor(s, debug=False):
             return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
-        self.corrupt_shares_numbered(imm_uri, [0], _corruptor)
+        return self.corrupt_shares_numbered(imm_uri, [0], _corruptor)
 
     def _corrupt_set(self, ign, imm_uri, which, newvalue):
         log.msg("corrupt %d" % which)
         def _corruptor(s, debug=False):
             return s[:which] + chr(newvalue) + s[which+1:]
-        self.corrupt_shares_numbered(imm_uri, [0], _corruptor)
+        return self.corrupt_shares_numbered(imm_uri, [0], _corruptor)
 
     def test_each_byte(self):
         # Setting catalog_detection=True performs an exhaustive test of the
@@ -951,6 +939,7 @@ class Corruption(_Base, unittest.TestCase):
         # (since we don't need every byte of the share). That takes 50s to
         # run on my laptop and doesn't have any actual asserts, so we don't
         # normally do that.
+        # XXX this has bitrotted (before v1.8.2) and gives an AttributeError.
         self.catalog_detection = False
 
         self.basedir = "download/Corruption/each_byte"
@@ -999,12 +988,10 @@ class Corruption(_Base, unittest.TestCase):
             d.addCallback(_got_data)
             return d
 
-
         d = self.c0.upload(u)
         def _uploaded(ur):
             imm_uri = ur.get_uri()
-            self.shares = self.copy_shares(imm_uri)
-            d = defer.succeed(None)
+
             # 'victims' is a list of corruption tests to run. Each one flips
             # the low-order bit of the specified offset in the share file (so
             # offset=0 is the MSB of the container version, offset=15 is the
@@ -1048,23 +1035,32 @@ class Corruption(_Base, unittest.TestCase):
                           [(i, "need-4th") for i in need_4th_victims])
             if self.catalog_detection:
                 corrupt_me = [(i, "") for i in range(len(self.sh0_orig))]
-            for i,expected in corrupt_me:
-                # All these tests result in a successful download. What we're
-                # measuring is how many shares the downloader had to use.
-                d.addCallback(self._corrupt_flip, imm_uri, i)
-                d.addCallback(_download, imm_uri, i, expected)
-                d.addCallback(lambda ign: self.restore_all_shares(self.shares))
-                d.addCallback(fireEventually)
-            corrupt_values = [(3, 2, "no-sh0"),
-                              (15, 2, "need-4th"), # share looks v2
-                              ]
-            for i,newvalue,expected in corrupt_values:
-                d.addCallback(self._corrupt_set, imm_uri, i, newvalue)
-                d.addCallback(_download, imm_uri, i, expected)
-                d.addCallback(lambda ign: self.restore_all_shares(self.shares))
-                d.addCallback(fireEventually)
-            return d
+
+            d2 = defer.succeed(None)
+            d2.addCallback(lambda ign: self.copy_shares(imm_uri))
+            def _copied(copied_shares):
+                d3 = defer.succeed(None)
+
+                for i, expected in corrupt_me:
+                    # All these tests result in a successful download. What we're
+                    # measuring is how many shares the downloader had to use.
+                    d3.addCallback(self._corrupt_flip, imm_uri, i)
+                    d3.addCallback(_download, imm_uri, i, expected)
+                    d3.addCallback(lambda ign: self.restore_all_shares(copied_shares))
+                    d3.addCallback(fireEventually)
+                corrupt_values = [(3, 2, "no-sh0"),
+                                  (15, 2, "need-4th"), # share looks v2
+                                  ]
+                for i, newvalue, expected in corrupt_values:
+                    d3.addCallback(self._corrupt_set, imm_uri, i, newvalue)
+                    d3.addCallback(_download, imm_uri, i, expected)
+                    d3.addCallback(lambda ign: self.restore_all_shares(copied_shares))
+                    d3.addCallback(fireEventually)
+                return d3
+            d2.addCallback(_copied)
+            return d2
         d.addCallback(_uploaded)
+
         def _show_results(ign):
             print
             print ("of [0:%d], corruption ignored in %s" %
@@ -1100,8 +1096,6 @@ class Corruption(_Base, unittest.TestCase):
         d = self.c0.upload(u)
         def _uploaded(ur):
             imm_uri = ur.get_uri()
-            self.shares = self.copy_shares(imm_uri)
-
             corrupt_me = [(48, "block data", "Last failure: None"),
                           (600+2*32, "block_hashes[2]", "BadHashError"),
                           (376+2*32, "crypttext_hash_tree[2]", "BadHashError"),
@@ -1115,25 +1109,31 @@ class Corruption(_Base, unittest.TestCase):
                 assert not n._cnode._node._shares
                 return download_to_data(n)
 
-            d = defer.succeed(None)
-            for i,which,substring in corrupt_me:
-                # All these tests result in a failed download.
-                d.addCallback(self._corrupt_flip_all, imm_uri, i)
-                d.addCallback(lambda ign, which=which, substring=substring:
-                              self.shouldFail(NoSharesError, which,
-                                              substring,
-                                              _download, imm_uri))
-                d.addCallback(lambda ign: self.restore_all_shares(self.shares))
-                d.addCallback(fireEventually)
-            return d
-        d.addCallback(_uploaded)
+            d2 = defer.succeed(None)
+            d2.addCallback(lambda ign: self.copy_shares(imm_uri))
+            def _copied(copied_shares):
+                d3 = defer.succeed(None)
 
+                for i, which, substring in corrupt_me:
+                    # All these tests result in a failed download.
+                    d3.addCallback(self._corrupt_flip_all, imm_uri, i)
+                    d3.addCallback(lambda ign, which=which, substring=substring:
+                                   self.shouldFail(NoSharesError, which,
+                                                   substring,
+                                                   _download, imm_uri))
+                    d3.addCallback(lambda ign: self.restore_all_shares(copied_shares))
+                    d3.addCallback(fireEventually)
+                return d3
+            d2.addCallback(_copied)
+            return d2
+        d.addCallback(_uploaded)
         return d
 
     def _corrupt_flip_all(self, ign, imm_uri, which):
         def _corruptor(s, debug=False):
             return s[:which] + chr(ord(s[which])^0x01) + s[which+1:]
-        self.corrupt_all_shares(imm_uri, _corruptor)
+        return self.corrupt_all_shares(imm_uri, _corruptor)
+
 
 class DownloadV2(_Base, unittest.TestCase):
     # tests which exercise v2-share code. They first upload a file with
@@ -1203,17 +1203,17 @@ class DownloadV2(_Base, unittest.TestCase):
         d = self.c0.upload(u)
         def _uploaded(ur):
             imm_uri = ur.get_uri()
-            def _do_corrupt(which, newvalue):
-                def _corruptor(s, debug=False):
-                    return s[:which] + chr(newvalue) + s[which+1:]
-                self.corrupt_shares_numbered(imm_uri, [0], _corruptor)
-            _do_corrupt(12+3, 0x00)
-            n = self.c0.create_node_from_uri(imm_uri)
-            d = download_to_data(n)
-            def _got_data(data):
-                self.failUnlessEqual(data, plaintext)
-            d.addCallback(_got_data)
-            return d
+            which = 12+3
+            newvalue = 0x00
+            def _corruptor(s, debug=False):
+                return s[:which] + chr(newvalue) + s[which+1:]
+
+            d2 = defer.succeed(None)
+            d2.addCallback(lambda ign: self.corrupt_shares_numbered(imm_uri, [0], _corruptor))
+            d2.addCallback(lambda ign: self.c0.create_node_from_uri(imm_uri))
+            d2.addCallback(lambda n: download_to_data(n))
+            d2.addCallback(lambda data: self.failUnlessEqual(data, plaintext))
+            return d2
         d.addCallback(_uploaded)
         return d
 

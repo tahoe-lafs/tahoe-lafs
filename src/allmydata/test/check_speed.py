@@ -76,7 +76,7 @@ class SpeedTest:
         return d
 
     def measure_rtt(self, res):
-        # use RIClient.get_nodeid() to measure the foolscap-level RTT
+        # measure the foolscap-level RTT
         d = self.client_rref.callRemote("measure_peer_response_time")
         def _got(res):
             assert len(res) # need at least one peer

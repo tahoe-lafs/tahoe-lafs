@@ -1,14 +1,13 @@
-# -*- coding: utf-8 -*-
 
-import os, shutil
+import os
+
 from twisted.trial import unittest
 from twisted.internet import defer
-from allmydata import uri
+
 from allmydata.util.consumer import download_to_data
 from allmydata.immutable import upload
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.mutable.publish import MutableData
-from allmydata.storage.common import storage_index_to_dir
 from allmydata.test.no_network import GridTestMixin
 from allmydata.test.common import ShouldFailMixin
 from allmydata.util.pollmixin import PollMixin
@@ -17,9 +16,10 @@ from allmydata.interfaces import NotEnoughSharesError
 immutable_plaintext = "data" * 10000
 mutable_plaintext = "muta" * 10000
 
+
 class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
                              unittest.TestCase):
-    # Many of these tests take around 60 seconds on François's ARM buildslave:
+    # Many of these tests take around 60 seconds on Franc,ois's ARM buildslave:
     # http://tahoe-lafs.org/buildbot/builders/FranXois%20lenny-armv5tel
     # allmydata.test.test_hung_server.HungServerDownloadTest.test_2_good_8_broken_duplicate_share_fail
     # once ERRORed after 197 seconds on Midnight Magic's NetBSD buildslave:
@@ -29,16 +29,16 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
     timeout = 240
 
     def _break(self, servers):
-        for (id, ss) in servers:
-            self.g.break_server(id)
+        for ss in servers:
+            self.g.break_server(ss.original.get_serverid())
 
     def _hang(self, servers, **kwargs):
-        for (id, ss) in servers:
-            self.g.hang_server(id, **kwargs)
+        for ss in servers:
+            self.g.hang_server(ss.original.get_serverid(), **kwargs)
 
     def _unhang(self, servers, **kwargs):
-        for (id, ss) in servers:
-            self.g.unhang_server(id, **kwargs)
+        for ss in servers:
+            self.g.unhang_server(ss.original.get_serverid(), **kwargs)
 
     def _hang_shares(self, shnums, **kwargs):
         # hang all servers who are holding the given shares
@@ -50,46 +50,29 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
                     hung_serverids.add(i_serverid)
 
     def _delete_all_shares_from(self, servers):
-        serverids = [id for (id, ss) in servers]
+        serverids = [ss.original.get_serverid() for ss in servers]
         for (i_shnum, i_serverid, i_sharefile) in self.shares:
             if i_serverid in serverids:
                 os.unlink(i_sharefile)
 
     def _corrupt_all_shares_in(self, servers, corruptor_func):
-        serverids = [id for (id, ss) in servers]
+        serverids = [ss.original.get_serverid() for ss in servers]
         for (i_shnum, i_serverid, i_sharefile) in self.shares:
             if i_serverid in serverids:
-                self._corrupt_share((i_shnum, i_sharefile), corruptor_func)
+                self.corrupt_share((i_shnum, i_serverid, i_sharefile), corruptor_func)
 
     def _copy_all_shares_from(self, from_servers, to_server):
-        serverids = [id for (id, ss) in from_servers]
+        serverids = [ss.original.get_serverid() for ss in from_servers]
         for (i_shnum, i_serverid, i_sharefile) in self.shares:
             if i_serverid in serverids:
-                self._copy_share((i_shnum, i_sharefile), to_server)
+                self.copy_share((i_shnum, i_serverid, i_sharefile), self.uri,
+                                to_server.original.server)
 
-    def _copy_share(self, share, to_server):
-        (sharenum, sharefile) = share
-        (id, ss) = to_server
-        original_server = ss.original.server
-        shares_dir = os.path.join(original_server.storedir, "shares")
-        si = uri.from_string(self.uri).get_storage_index()
-        si_dir = os.path.join(shares_dir, storage_index_to_dir(si))
-        if not os.path.exists(si_dir):
-            os.makedirs(si_dir)
-        new_sharefile = os.path.join(si_dir, str(sharenum))
-        shutil.copy(sharefile, new_sharefile)
-        self.shares = self.find_uri_shares(self.uri)
-        # Make sure that the storage server has the share.
-        self.failUnlessIn((sharenum, original_server.get_nodeid(), new_sharefile), self.shares)
-
-    def _corrupt_share(self, share, corruptor_func):
-        (sharenum, sharefile) = share
-        data = open(sharefile, "rb").read()
-        newdata = corruptor_func(data)
-        os.unlink(sharefile)
-        wf = open(sharefile, "wb")
-        wf.write(newdata)
-        wf.close()
+        d = self.find_uri_shares(self.uri)
+        def _got_shares(shares):
+            self.shares = shares
+        d.addCallback(_got_shares)
+        return d
 
     def _set_up(self, mutable, testdir, num_clients=1, num_servers=10):
         self.mutable = mutable
@@ -102,8 +85,8 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
 
         self.c0 = self.g.clients[0]
         nm = self.c0.nodemaker
-        self.servers = sorted([(s.get_serverid(), s.get_rref())
-                               for s in nm.storage_broker.get_connected_servers()])
+        unsorted = [(s.get_serverid(), s.get_rref()) for s in nm.storage_broker.get_connected_servers()]
+        self.servers = [ss for (id, ss) in sorted(unsorted)]
         self.servers = self.servers[5:] + self.servers[:5]
 
         if mutable:
@@ -111,15 +94,18 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
             d = nm.create_mutable_file(uploadable)
             def _uploaded_mutable(node):
                 self.uri = node.get_uri()
-                self.shares = self.find_uri_shares(self.uri)
             d.addCallback(_uploaded_mutable)
         else:
             data = upload.Data(immutable_plaintext, convergence="")
             d = self.c0.upload(data)
             def _uploaded_immutable(upload_res):
                 self.uri = upload_res.get_uri()
-                self.shares = self.find_uri_shares(self.uri)
             d.addCallback(_uploaded_immutable)
+
+        d.addCallback(lambda ign: self.find_uri_shares(self.uri))
+        def _got_shares(shares):
+            self.shares = shares
+        d.addCallback(_got_shares)
         return d
 
     def _start_download(self):
@@ -264,7 +250,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
             # stuck-but-not-overdue, and 4 live requests. All 4 live requests
             # will retire before the download is complete and the ShareFinder
             # is shut off. That will leave 4 OVERDUE and 1
-            # stuck-but-not-overdue, for a total of 5 requests in in
+            # stuck-but-not-overdue, for a total of 5 requests in
             # _sf.pending_requests
             for t in self._sf.overdue_timers.values()[:4]:
                 t.reset(-1.0)

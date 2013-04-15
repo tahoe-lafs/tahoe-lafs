@@ -1,17 +1,21 @@
 
 import time
 import os.path
+
 from twisted.trial import unittest
 from twisted.application import service
 from twisted.internet import defer
 from foolscap.api import fireEventually
+from allmydata.util.deferredutil import gatherResults
 
-from allmydata.util import fileutil, hashutil
+from allmydata.util import hashutil
 from allmydata.storage.server import StorageServer, si_b2a
-from allmydata.storage.crawler import ShareCrawler
+from allmydata.storage.crawler import ShareCrawler, TimeSliceExceeded
+from allmydata.storage.backends.disk.disk_backend import DiskBackend
+from allmydata.storage.backends.cloud.cloud_backend import CloudBackend
+from allmydata.storage.backends.cloud.mock_cloud import MockContainer
 
-from allmydata.test.test_storage import FakeCanary
-from allmydata.test.common import CrawlerTestMixin
+from allmydata.test.common import CrawlerTestMixin, FakeCanary
 from allmydata.test.common_util import StallMixin
 
 
@@ -23,8 +27,12 @@ class EnumeratingCrawler(ShareCrawler):
         ShareCrawler.__init__(self, *args, **kwargs)
         self.sharesets = []
 
-    def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
-        self.sharesets.append(storage_index_b32)
+    def process_prefix(self, cycle, prefix, start_slice):
+        d = self.backend.get_sharesets_for_prefix(prefix)
+        def _got_sharesets(sharesets):
+            self.sharesets += [s.get_storage_index_string() for s in sharesets]
+        d.addCallback(_got_sharesets)
+        return d
 
 
 class ConsumingCrawler(ShareCrawler):
@@ -39,12 +47,21 @@ class ConsumingCrawler(ShareCrawler):
         self.cycles = 0
         self.last_yield = 0.0
 
-    def process_bucket(self, cycle, prefix, prefixdir, storage_index_b32):
-        start = time.time()
-        time.sleep(0.05)
-        elapsed = time.time() - start
-        self.accumulated += elapsed
-        self.last_yield += elapsed
+    def process_prefix(self, cycle, prefix, start_slice):
+        # XXX I don't know whether this behaviour makes sense for the test
+        # that uses it any more.
+        d = self.backend.get_sharesets_for_prefix(prefix)
+        def _got_sharesets(sharesets):
+            for shareset in sharesets:
+                start = time.time()
+                time.sleep(0.05)
+                elapsed = time.time() - start
+                self.accumulated += elapsed
+                self.last_yield += elapsed
+                if self.clock.seconds() >= start_slice + self.cpu_slice:
+                    raise TimeSliceExceeded()
+        d.addCallback(_got_sharesets)
+        return d
 
     def finished_cycle(self, cycle):
         self.cycles += 1
@@ -53,7 +70,7 @@ class ConsumingCrawler(ShareCrawler):
         self.last_yield = 0.0
 
 
-class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
+class CrawlerTest(StallMixin, CrawlerTestMixin):
     def setUp(self):
         self.s = service.MultiService()
         self.s.startService()
@@ -68,75 +85,78 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
     def cs(self, i, serverid):
         return hashutil.bucket_cancel_secret_hash(str(i), serverid)
 
-    def create(self, basedir):
-        self.basedir = basedir
-        fileutil.make_dirs(basedir)
+    def create(self, name):
+        self.basedir = os.path.join("crawler", self.__class__.__name__, name)
         self.serverid = "\x00" * 20
-        server = StorageServer(basedir, self.serverid)
+        backend = self.make_backend(self.basedir)
+        server = StorageServer(self.serverid, backend, self.basedir)
         server.setServiceParent(self.s)
         return server
 
     def write(self, i, aa, serverid, tail=0):
         si = self.si(i)
         si = si[:-1] + chr(tail)
-        had,made = aa.remote_allocate_buckets(si,
-                                              self.rs(i, serverid),
-                                              self.cs(i, serverid),
-                                              set([0]), 99, FakeCanary())
-        made[0].remote_write(0, "data")
-        made[0].remote_close()
-        return si_b2a(si)
+        d = defer.succeed(None)
+        d.addCallback(lambda ign: aa.remote_allocate_buckets(si,
+                                                             self.rs(i, serverid),
+                                                             self.cs(i, serverid),
+                                                             set([0]), 99, FakeCanary()))
+        def _allocated( (had, made) ):
+            d2 = defer.succeed(None)
+            d2.addCallback(lambda ign: made[0].remote_write(0, "data"))
+            d2.addCallback(lambda ign: made[0].remote_close())
+            d2.addCallback(lambda ign: si_b2a(si))
+            return d2
+        d.addCallback(_allocated)
+        return d
 
     def test_service(self):
-        server = self.create("crawler/Basic/service")
+        server = self.create("test_service")
         aa = server.get_accountant().get_anonymous_account()
 
-        sis = [self.write(i, aa, self.serverid) for i in range(10)]
+        d = gatherResults([self.write(i, aa, self.serverid) for i in range(10)])
+        def _writes_done(sis):
+            statefile = os.path.join(self.basedir, "statefile")
+            c = EnumeratingCrawler(server.backend, statefile)
+            c.setServiceParent(self.s)
 
-        statefile = os.path.join(self.basedir, "statefile")
-        c = EnumeratingCrawler(server, statefile)
-        c.setServiceParent(self.s)
-
-        # it should be legal to call get_state() and get_progress() right
-        # away, even before the first tick is performed. No work should have
-        # been done yet.
-        s = c.get_state()
-        p = c.get_progress()
-        self.failUnlessEqual(s["last-complete-prefix"], None)
-        self.failUnlessEqual(s["current-cycle"], None)
-        self.failUnlessEqual(p["cycle-in-progress"], False)
-
-        d = self._after_prefix(None, 'sg', c)
-        def _after_sg_prefix(state):
+            # it should be legal to call get_state() and get_progress() right
+            # away, even before the first tick is performed. No work should have
+            # been done yet.
+            s = c.get_state()
             p = c.get_progress()
-            self.failUnlessEqual(p["cycle-in-progress"], True)
-            pct = p["cycle-complete-percentage"]
-            # After the 'sg' prefix, we happen to be 76.17% complete and to
-            # have processed 6 sharesets. As long as we create shares in
-            # deterministic order, this will continue to be true.
-            self.failUnlessEqual(int(pct), 76)
-            self.failUnlessEqual(len(c.sharesets), 6)
+            self.failUnlessEqual(s["last-complete-prefix"], None)
+            self.failUnlessEqual(s["current-cycle"], None)
+            self.failUnlessEqual(p["cycle-in-progress"], False)
 
-            return c.set_hook('after_cycle')
-        d.addCallback(_after_sg_prefix)
+            d2 = self._after_prefix(None, 'sg', c)
+            def _after_sg_prefix(state):
+                p = c.get_progress()
+                self.failUnlessEqual(p["cycle-in-progress"], True)
+                pct = p["cycle-complete-percentage"]
+                # After the 'sg' prefix, we happen to be 76.17% complete and to
+                # have processed 6 sharesets. As long as we create shares in
+                # deterministic order, this will continue to be true.
+                self.failUnlessEqual(int(pct), 76)
+                self.failUnlessEqual(len(c.sharesets), 6)
 
-        def _after_first_cycle(ignored):
-            self.failUnlessEqual(sorted(sis), sorted(c.sharesets))
-        d.addCallback(_after_first_cycle)
-        d.addBoth(self._wait_for_yield, c)
+                return c.set_hook('after_cycle')
+            d2.addCallback(_after_sg_prefix)
 
-        # Check that a new crawler picks up on the state file correctly.
-        def _new_crawler(ign):
-            c2 = EnumeratingCrawler(server, statefile)
-            c2.setServiceParent(self.s)
+            d2.addCallback(lambda ign: self.failUnlessEqual(sorted(sis), sorted(c.sharesets)))
+            d2.addBoth(self._wait_for_yield, c)
 
-            d2 = c2.set_hook('after_cycle')
-            def _after_first_cycle2(ignored):
-                self.failUnlessEqual(sorted(sis), sorted(c2.sharesets))
-            d2.addCallback(_after_first_cycle2)
-            d2.addBoth(self._wait_for_yield, c2)
-            return d2
-        d.addCallback(_new_crawler)
+            # Check that a new crawler picks up on the state file correctly.
+            def _new_crawler(ign):
+                c_new = EnumeratingCrawler(server.backend, statefile)
+                c_new.setServiceParent(self.s)
+
+                d3 = c_new.set_hook('after_cycle')
+                d3.addCallback(lambda ign: self.failUnlessEqual(sorted(sis), sorted(c_new.sharesets)))
+                d3.addBoth(self._wait_for_yield, c_new)
+                return d3
+            d2.addCallback(_new_crawler)
+        d.addCallback(_writes_done)
         return d
 
     def OFF_test_cpu_usage(self):
@@ -146,14 +166,17 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
         # Crawler is accomplishing it's run-slowly goals, re-enable this test
         # and read the stdout when it runs.
 
-        server = self.create("crawler/Basic/cpu_usage")
+        # FIXME: it should be possible to make this test run deterministically
+        # by passing a Clock into the crawler.
+
+        server = self.create("test_cpu_usage")
         aa = server.get_accountant().get_anonymous_account()
 
         for i in range(10):
             self.write(i, aa, self.serverid)
 
         statefile = os.path.join(self.basedir, "statefile")
-        c = ConsumingCrawler(server, statefile)
+        c = ConsumingCrawler(server.backend, statefile)
         c.setServiceParent(self.s)
 
         # This will run as fast as it can, consuming about 50ms per call to
@@ -189,14 +212,14 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
         return d
 
     def test_empty_subclass(self):
-        server = self.create("crawler/Basic/empty_subclass")
+        server = self.create("test_empty_subclass")
         aa = server.get_accountant().get_anonymous_account()
 
         for i in range(10):
             self.write(i, aa, self.serverid)
 
         statefile = os.path.join(self.basedir, "statefile")
-        c = ShareCrawler(server, statefile)
+        c = ShareCrawler(server.backend, statefile)
         c.slow_start = 0
         c.setServiceParent(self.s)
 
@@ -208,14 +231,14 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
         return d
 
     def test_oneshot(self):
-        server = self.create("crawler/Basic/oneshot")
+        server = self.create("test_oneshot")
         aa = server.get_accountant().get_anonymous_account()
 
         for i in range(30):
             self.write(i, aa, self.serverid)
 
         statefile = os.path.join(self.basedir, "statefile")
-        c = EnumeratingCrawler(server, statefile)
+        c = EnumeratingCrawler(server.backend, statefile)
         c.setServiceParent(self.s)
 
         d = c.set_hook('after_cycle')
@@ -235,3 +258,12 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
         d.addCallback(_check)
         return d
 
+
+class CrawlerTestWithDiskBackend(CrawlerTest, unittest.TestCase):
+    def make_backend(self, basedir):
+        return DiskBackend(basedir)
+
+
+class CrawlerTestWithMockCloudBackend(CrawlerTest, unittest.TestCase):
+    def make_backend(self, basedir):
+        return CloudBackend(MockContainer(basedir))

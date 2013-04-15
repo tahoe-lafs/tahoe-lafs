@@ -237,7 +237,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         d = self.startup("download_from_only_3_shares_with_good_crypttext_hash")
         def _corrupt_7(ign):
             c = common._corrupt_offset_of_block_hashes_to_truncate_crypttext_hashes
-            self.corrupt_shares_numbered(self.uri, self._shuffled(7), c)
+            return self.corrupt_shares_numbered(self.uri, self._shuffled(7), c)
         d.addCallback(_corrupt_7)
         d.addCallback(self._download_and_check_plaintext)
         return d
@@ -264,7 +264,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         d = self.startup("download_abort_if_too_many_corrupted_shares")
         def _corrupt_8(ign):
             c = common._corrupt_sharedata_version_number
-            self.corrupt_shares_numbered(self.uri, self._shuffled(8), c)
+            return self.corrupt_shares_numbered(self.uri, self._shuffled(8), c)
         d.addCallback(_corrupt_8)
         def _try_download(ign):
             start_reads = self._count_reads()

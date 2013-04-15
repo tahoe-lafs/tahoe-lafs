@@ -17,7 +17,6 @@ from allmydata.test.no_network import GridTestMixin
 from foolscap.api import eventually, fireEventually
 from foolscap.logging import log
 from allmydata.storage_client import StorageFarmBroker
-from allmydata.storage.common import storage_index_to_dir
 from allmydata.scripts import debug
 
 from allmydata.mutable.filenode import MutableFileNode, BackoffAgent
@@ -1905,7 +1904,7 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
 
 class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
 
-    def get_shares(self, s):
+    def get_all_shares(self, s):
         all_shares = {} # maps (peerid, shnum) to share data
         for peerid in s._peers:
             shares = s._peers[peerid]
@@ -1915,7 +1914,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
         return all_shares
 
     def copy_shares(self, ignored=None):
-        self.old_shares.append(self.get_shares(self._storage))
+        self.old_shares.append(self.get_all_shares(self._storage))
 
     def test_repair_nop(self):
         self.old_shares = []
@@ -2694,7 +2693,6 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                             nm.create_mutable_file, MutableData("contents"))
         return d
 
-
     def test_privkey_query_error(self):
         # when a servermap is updated with MODE_WRITE, it tries to get the
         # privkey. Something might go wrong during this query attempt.
@@ -2812,12 +2810,10 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
         for share, shnum in [(TEST_1654_SH0, 0), (TEST_1654_SH1, 1)]:
             sharedata = base64.b64decode(share)
-            storedir = self.get_serverdir(shnum)
-            storage_path = os.path.join(storedir, "shares",
-                                        storage_index_to_dir(si))
-            fileutil.make_dirs(storage_path)
-            fileutil.write(os.path.join(storage_path, "%d" % shnum),
-                           sharedata)
+            # This must be a disk backend.
+            storage_dir = self.get_server(shnum).backend.get_shareset(si)._get_sharedir()
+            fileutil.make_dirs(storage_dir)
+            fileutil.write(os.path.join(storage_dir, str(shnum)), sharedata)
 
         nm = self.g.clients[0].nodemaker
         n = nm.create_from_cap(TEST_1654_CAP)
@@ -3112,7 +3108,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             fso = debug.FindSharesOptions()
             storage_index = base32.b2a(n.get_storage_index())
             fso.si_s = storage_index
-            fso.nodedirs = [unicode(os.path.dirname(os.path.abspath(storedir)))
+            fso.nodedirs = [os.path.dirname(storedir)
                             for (i,ss,storedir)
                             in self.iterate_servers()]
             fso.stdout = StringIO()
@@ -3120,7 +3116,8 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             debug.find_shares(fso)
             sharefiles = fso.stdout.getvalue().splitlines()
             expected = self.nm.default_encoding_parameters["n"]
-            self.failUnlessEqual(len(sharefiles), expected)
+            self.failUnlessEqual(len(sharefiles), expected,
+                                 str((fso.stdout.getvalue(), fso.stderr.getvalue())))
 
             do = debug.DumpOptions()
             do["filename"] = sharefiles[0]
@@ -3145,6 +3142,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             cso.stderr = StringIO()
             debug.catalog_shares(cso)
             shares = cso.stdout.getvalue().splitlines()
+            self.failIf(len(shares) < 1, shares)
             oneshare = shares[0] # all shares should be MDMF
             self.failIf(oneshare.startswith("UNKNOWN"), oneshare)
             self.failUnless(oneshare.startswith("MDMF"), oneshare)
@@ -3730,6 +3728,7 @@ class Interoperability(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixi
     sdmf_old_shares[9] = "VGFob2UgbXV0YWJsZSBjb250YWluZXIgdjEKdQlEA47ESLbTdKdpLJXCpBxd5OH239tl5hvAiz1dvGdE5rIOpf8cbfxbPcwNF+Y5dM92uBVbmV6KAAAAAAAAB/wAAAAAAAAJ0AAAAAFOWSw7jSx7WXzaMpdleJYXwYsRCV82jNA5oex9m2YhXSnb2POh+vvC1LE1NAfRc9GOb2zQG84Xdsx1Jub2brEeKkyt0sRIttN0p2kslcKkHF3k4fbf22XmAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABamJprL6ecrsOoFKdrXUmWveLq8nzEGDOjFnyK9detI3noX3uyK2MwSnFdAfyN0tuAwoAAAAAAAAAFQAAAAAAAAAVAAABjwAAAo8AAAMXAAADNwAAAAAAAAM+AAAAAAAAB/wwggEgMA0GCSqGSIb3DQEBAQUAA4IBDQAwggEIAoIBAQC1IkainlJF12IBXBQdpRK1zXB7a26vuEYqRmQM09YjC6sQjCs0F2ICk8n9m/2Kw4l16eIEboB2Au9pODCE+u/dEAakEFh4qidTMn61rbGUbsLK8xzuWNW22ezzz9/nPia0HDrulXt51/FYtfnnAuD1RJGXJv/8tDllE9FL/18TzlH4WuB6Fp8FTgv7QdbZAfWJHDGFIpVCJr1XxOCsSZNFJIqGwZnD2lsChiWw5OJDbKd8otqN1hIbfHyMyfMOJ/BzRzvZXaUt4Dv5nf93EmQDWClxShRwpuX/NkZ5B2K9OFonFTbOCexm/MjMAdCBqebKKaiHFkiknUCn9eJQpZ5bAgERgV50VKj+AVTDfgTpqfO2vfo4wrufi6ZBb8QV7hllhUFBjYogQ9C96dnS7skv0s+cqFuUjwMILr5/rsbEmEMGvl0T0ytyAbtlXuowEFVj/YORNknM4yjY72YUtEPTlMpk0Cis7aIgTvu5qWMPER26PMApZuRqiwRsGIkaJIvOVOTHHjFYe3/YzdMkc7OZtqRMfQLtwVl2/zKQQV8b/a9vaT6q3mRLRd4P3esaAFe/+7sR/t+9tmB+a8kxtKM6kmaVQJMbXJZ4aoHGfeLX0m35Rcvu2Bmph7QfSDjk/eaE3q55zYSoGWShmlhlw4Kwg84sMuhmcVhLvo0LovR8bKmbdgABUSzNKiMx0E91q51/WH6ASL0fDEOLef9oxuyBX5F5cpoABojmWkDX3k3FKfgNHIeptE3lxB8HHzxDfSD250psyfNCAAwGsKbMxbmI2NpdTozZ3SICrySwgGkatA1gsDOJmOnTzgAXVnLiODzHiLFAI/MsXcR71fmvb7UghLA1b8pq66KAyl+aopjsD29AKG5hrXt9hLIp6shvfrzaPGIid5C8IxYIrjgBj1YohGgDE0Wua7Lx6Bnad5n91qmHAnwSEJE5YIhQM634omd6cq9Wk4seJCUIn+ucoknrpxp0IR9QMxpKSMRHRUg2K8ZegnY3YqFunRZKCfsq9ufQEKgjZN12AFqi551KPBdn4/3V5HK6xTv0P4robSsE/BvuIfByvRf/W7ZrDx+CFC4EEcsBOACOZCrkhhqd5TkYKbe9RA+vs56+9N5qZGurkxcoKviiyEncxvTuShD65DK/6x6kMDMgQv/EdZDI3x9GtHTnRBYXwDGnPJ19w+q2zC3e2XarbxTGYQIPEC5mYx0gAA0sbjf018NGfwBhl6SB54iGsa8uLvR3jHv6OSRJgwxL6j7P0Ts4Hv2EtO12P0Lv21pwi3JC1O/WviSrKCvrQD5lMHL9Uym3hwFi2zu0mqwZvxOAbGy7kfOPXkLYKOHTZLthzKj3PsdjeceWBfYIvPGKYcd6wDr36d1aXSYS4IWeApTS2AQ2lu0DUcgSefAvsA8NkgOklvJY1cjTMSg6j6cxQo48Bvl8RAWGLbr4h2S/8KwDGxwLsSv0Gop/gnFc3GzCsmL0EkEyHHWkCA8YRXCghfW80KLDV495ff7yF5oiwK56GniqowZ3RG9Jxp5MXoJQgsLV1VMQFMAmsY69yz8eoxRH3wl9L0dMyndLulhWWzNwPMQ2I0yAWdzA/pksVmwTJTFenB3MHCiWc5rEwJ3yofe6NZZnZQrYyL9r1TNnVwfTwRUiykPiLSk4x9Mi6DX7RamDAxc8u3gDVfjPsTOTagBOEGUWlGAL54KE/E6sgCQ5DEAt12chk8AxbjBFLPgV+/idrzS0lZHOL+IVBI9D0i3Bq1yZcSIqcjZB0M3IbxbPm4gLAYOWEiTUN2ecsEHHg9nt6rhgffVoqSbCCFPbpC0xf7WOC3+BQORIZECOCC7cUAciXq3xn+GuxpFE40RWRJeKAK7bBQ21X89ABIXlQFkFddZ9kRvlZ2Pnl0oeF+2pjnZu0Yc2czNfZEQF2P7BKIdLrgMgxG89snxAY8qAYTCKyQw6xTG87wkjDcpy1wzsZLP3WsOuO7cAm7b27xU0jRKq8Cw4d1hDoyRG+RdS53F8RFJzVMaNNYgxU2tfRwUvXpTRXiOheeRVvh25+YGVnjakUXjx/dSDnOw4ETHGHD+7styDkeSfc3BdSZxswzc6OehgMI+xsCxeeRym15QUm9hxvg8X7Bfz/0WulgFwgzrm11TVynZYOmvyHpiZKoqQyQyKahIrfhwuchCr7lMsZ4a+umIkNkKxCLZnI+T7jd+eGFMgKItjz3kTTxRl3IhaJG3LbPmwRUJynMxQKdMi4Uf0qy0U7+i8hIJ9m50QXc+3tw2bwDSbx22XYJ9Wf14gxx5G5SPTb1JVCbhe4fxNt91xIxCow2zk62tzbYfRe6dfmDmgYHkv2PIEtMJZK8iKLDjFfu2ZUxsKT2A5g1q17og6o9MeXeuFS3mzJXJYFQZd+3UzlFR9qwkFkby9mg5y4XSeMvRLOHPt/H/r5SpEqBE6a9MadZYt61FBV152CUEzd43ihXtrAa0XH9HdsiySBcWI1SpM3mv9rRP0DiLjMUzHw/K1D8TE2f07zW4t/9kvE11tFj/NpICixQAAAAA="
     sdmf_old_cap = "URI:SSK:gmjgofw6gan57gwpsow6gtrz3e:5adm6fayxmu3e4lkmfvt6lkkfix34ai2wop2ioqr4bgvvhiol3kq"
     sdmf_old_contents = "This is a test file.\n"
+
     def copy_sdmf_shares(self):
         # We'll basically be short-circuiting the upload process.
         servernums = self.g.servers_by_number.keys()
@@ -3741,27 +3740,32 @@ class Interoperability(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixi
         si = cap.get_storage_index()
 
         # Now execute each assignment by writing the storage.
-        for (share, servernum) in assignments:
-            sharedata = base64.b64decode(self.sdmf_old_shares[share])
-            storedir = self.get_serverdir(servernum)
-            storage_path = os.path.join(storedir, "shares",
-                                        storage_index_to_dir(si))
-            fileutil.make_dirs(storage_path)
-            fileutil.write(os.path.join(storage_path, "%d" % share),
-                           sharedata)
+        for (shnum, servernum) in assignments:
+            sharedata = base64.b64decode(self.sdmf_old_shares[shnum])
+            # This must be a disk backend.
+            storage_dir = self.get_server(servernum).backend.get_shareset(si)._get_sharedir()
+            fileutil.make_dirs(storage_dir)
+            fileutil.write(os.path.join(storage_dir, str(shnum)), sharedata)
+
         # ...and verify that the shares are there.
-        shares = self.find_uri_shares(self.sdmf_old_cap)
-        assert len(shares) == 10
+        d = self.find_uri_shares(self.sdmf_old_cap)
+        def _got_shares(shares):
+            assert len(shares) == 10
+        d.addCallback(_got_shares)
+        return d
 
     def test_new_downloader_can_read_old_shares(self):
         self.basedir = "mutable/Interoperability/new_downloader_can_read_old_shares"
         self.set_up_grid()
-        self.copy_sdmf_shares()
-        nm = self.g.clients[0].nodemaker
-        n = nm.create_from_cap(self.sdmf_old_cap)
-        d = n.download_best_version()
-        d.addCallback(self.failUnlessEqual, self.sdmf_old_contents)
+        d = self.copy_sdmf_shares()
+        def _create_node(ign):
+            nm = self.g.clients[0].nodemaker
+            return nm.create_from_cap(self.sdmf_old_cap)
+        d.addCallback(_create_node)
+        d.addCallback(lambda n: n.download_best_version())
+        d.addCallback(lambda res: self.failUnlessEqual(res, self.sdmf_old_contents))
         return d
+
 
 class DifferentEncoding(unittest.TestCase):
     def setUp(self):

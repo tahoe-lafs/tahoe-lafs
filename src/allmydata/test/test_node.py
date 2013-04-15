@@ -97,7 +97,6 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         n = TestNode(basedir)
         self.failUnlessEqual(n.get_private_config("already"), "secret")
-        self.failUnlessEqual(n.get_private_config("not", "default"), "default")
         self.failUnlessRaises(MissingConfigEntry, n.get_private_config, "not")
         value = n.get_or_create_private_config("new", "start")
         self.failUnlessEqual(value, "start")

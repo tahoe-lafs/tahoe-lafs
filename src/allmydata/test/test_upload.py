@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import os, shutil
+import os
 from cStringIO import StringIO
 from twisted.trial import unittest
 from twisted.python.failure import Failure
@@ -11,7 +11,7 @@ import allmydata # for __full_version__
 from allmydata import uri, monitor, client
 from allmydata.immutable import upload, encode
 from allmydata.interfaces import FileTooLargeError, UploadUnhappinessError
-from allmydata.util import log, base32
+from allmydata.util import base32, fileutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.test.no_network import GridTestMixin
@@ -19,7 +19,6 @@ from allmydata.test.common_util import ShouldFailMixin
 from allmydata.util.happinessutil import servers_of_happiness, \
                                          shares_by_server, merge_servers
 from allmydata.storage_client import StorageFarmBroker
-from allmydata.storage.server import storage_index_to_dir
 from allmydata.client import Client
 
 MiB = 1024*1024
@@ -755,7 +754,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         servertoshnums = {} # k: server, v: set(shnum)
 
         for i, c in self.g.servers_by_number.iteritems():
-            for (dirp, dirns, fns) in os.walk(c.sharedir):
+            for (dirp, dirns, fns) in os.walk(c.backend._sharedir):
                 for fn in fns:
                     try:
                         sharenum = int(fn)
@@ -815,40 +814,17 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         h = self.g.clients[0].DEFAULT_ENCODING_PARAMETERS['happy']
         return is_happy_enough(servertoshnums, h, k)
 
+    # for compatibility, before we refactor this class to use the methods in GridTestMixin
     def _add_server(self, server_number, readonly=False):
-        assert self.g, "I tried to find a grid at self.g, but failed"
-        ss = self.g.make_server(server_number, readonly)
-        log.msg("just created a server, number: %s => %s" % (server_number, ss,))
-        self.g.add_server(server_number, ss)
+        return self.add_server(server_number, readonly=readonly)
 
-    def _add_server_with_share(self, server_number, share_number=None,
-                               readonly=False):
-        self._add_server(server_number, readonly)
-        if share_number is not None:
-            self._copy_share_to_server(share_number, server_number)
-
+    def _add_server_with_share(self, server_number, share_number=None, readonly=False):
+        self.add_server_with_share(self.uri, server_number=server_number,
+                                   share_number=share_number, readonly=readonly)
 
     def _copy_share_to_server(self, share_number, server_number):
-        ss = self.g.servers_by_number[server_number]
-        # Copy share i from the directory associated with the first
-        # storage server to the directory associated with this one.
-        assert self.g, "I tried to find a grid at self.g, but failed"
-        assert self.shares, "I tried to find shares at self.shares, but failed"
-        old_share_location = self.shares[share_number][2]
-        new_share_location = os.path.join(ss.storedir, "shares")
-        si = uri.from_string(self.uri).get_storage_index()
-        new_share_location = os.path.join(new_share_location,
-                                          storage_index_to_dir(si))
-        if not os.path.exists(new_share_location):
-            os.makedirs(new_share_location)
-        new_share_location = os.path.join(new_share_location,
-                                          str(share_number))
-        if old_share_location != new_share_location:
-            shutil.copy(old_share_location, new_share_location)
-        shares = self.find_uri_shares(self.uri)
-        # Make sure that the storage server has the share.
-        self.failUnless((share_number, ss.my_nodeid, new_share_location)
-                        in shares)
+        self.copy_share_to_server(self.uri, server_number=server_number,
+                                  share_number=share_number)
 
     def _setup_grid(self):
         """
@@ -999,8 +975,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                         readonly=True))
         # Remove the first share from server 0.
         def _remove_share_0_from_server_0():
-            share_location = self.shares[0][2]
-            os.remove(share_location)
+            fileutil.remove(self.shares[0][2])
         d.addCallback(lambda ign:
             _remove_share_0_from_server_0())
         # Set happy = 4 in the client.
@@ -1129,8 +1104,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         # Remove the first server, and add a placeholder with share 0
-        d.addCallback(lambda ign:
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        d.addCallback(lambda ign: self.remove_server(0))
         d.addCallback(lambda ign:
             self._add_server_with_share(server_number=4, share_number=0))
         # Now try uploading.
@@ -1161,8 +1135,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._add_server(server_number=4))
         d.addCallback(_copy_shares)
-        d.addCallback(lambda ign:
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        d.addCallback(lambda ign: self.remove_server(0))
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             client.upload(upload.Data("data" * 10000, convergence="")))
@@ -1224,8 +1197,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         # Remove server 0, and add another in its place
-        d.addCallback(lambda ign:
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        d.addCallback(lambda ign: self.remove_server(0))
         d.addCallback(lambda ign:
             self._add_server_with_share(server_number=4, share_number=0,
                                         readonly=True))
@@ -1266,8 +1238,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             for i in xrange(1, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
-        d.addCallback(lambda ign:
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        d.addCallback(lambda ign: self.remove_server(0))
         def _reset_encoding_parameters(ign, happy=4):
             client = self.g.clients[0]
             client.DEFAULT_ENCODING_PARAMETERS['happy'] = happy
@@ -1303,10 +1274,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # remove the original server
         # (necessary to ensure that the Tahoe2ServerSelector will distribute
         #  all the shares)
-        def _remove_server(ign):
-            server = self.g.servers_by_number[0]
-            self.g.remove_server(server.my_nodeid)
-        d.addCallback(_remove_server)
+        d.addCallback(lambda ign: self.remove_server(0))
         # This should succeed; we still have 4 servers, and the
         # happiness of the upload is 4.
         d.addCallback(lambda ign:
@@ -1318,7 +1286,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._setup_and_upload())
         d.addCallback(_do_server_setup)
-        d.addCallback(_remove_server)
+        d.addCallback(lambda ign: self.remove_server(0))
         d.addCallback(lambda ign:
             self.shouldFail(UploadUnhappinessError,
                             "test_dropped_servers_in_encoder",
@@ -1340,14 +1308,14 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(4, 7, readonly=True)
             self._add_server_with_share(5, 8, readonly=True)
         d.addCallback(_do_server_setup_2)
-        d.addCallback(_remove_server)
+        d.addCallback(lambda ign: self.remove_server(0))
         d.addCallback(lambda ign:
             self._do_upload_with_broken_servers(1))
         d.addCallback(_set_basedir)
         d.addCallback(lambda ign:
             self._setup_and_upload())
         d.addCallback(_do_server_setup_2)
-        d.addCallback(_remove_server)
+        d.addCallback(lambda ign: self.remove_server(0))
         d.addCallback(lambda ign:
             self.shouldFail(UploadUnhappinessError,
                             "test_dropped_servers_in_encoder",
@@ -1561,8 +1529,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             for i in xrange(1, 10):
                 self._copy_share_to_server(i, 1)
         d.addCallback(_copy_shares)
-        d.addCallback(lambda ign:
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        d.addCallback(lambda ign: self.remove_server(0))
         def _prepare_client(ign):
             client = self.g.clients[0]
             client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
@@ -1584,7 +1551,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         def _setup(ign):
             for i in xrange(1, 11):
                 self._add_server(server_number=i)
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            self.remove_server(0)
             c = self.g.clients[0]
             # We set happy to an unsatisfiable value so that we can check the
             # counting in the exception message. The same progress message
@@ -1611,7 +1578,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                 self._add_server(server_number=i)
             self._add_server(server_number=11, readonly=True)
             self._add_server(server_number=12, readonly=True)
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            self.remove_server(0)
             c = self.g.clients[0]
             c.DEFAULT_ENCODING_PARAMETERS['happy'] = 45
             return c
@@ -1639,8 +1606,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             # the first one that the selector sees.
             for i in xrange(10):
                 self._copy_share_to_server(i, 9)
-            # Remove server 0, and its contents
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            self.remove_server(0)
             # Make happiness unsatisfiable
             c = self.g.clients[0]
             c.DEFAULT_ENCODING_PARAMETERS['happy'] = 45
@@ -1660,7 +1626,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         def _then(ign):
             for i in xrange(1, 11):
                 self._add_server(server_number=i, readonly=True)
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            self.remove_server(0)
             c = self.g.clients[0]
             c.DEFAULT_ENCODING_PARAMETERS['k'] = 2
             c.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
@@ -1696,8 +1662,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server(server_number=4, readonly=True))
         d.addCallback(lambda ign:
             self._add_server(server_number=5, readonly=True))
-        d.addCallback(lambda ign:
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        d.addCallback(lambda ign: self.remove_server(0))
         def _reset_encoding_parameters(ign, happy=4):
             client = self.g.clients[0]
             client.DEFAULT_ENCODING_PARAMETERS['happy'] = happy
@@ -1732,7 +1697,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._add_server(server_number=2))
         def _break_server_2(ign):
-            serverid = self.g.servers_by_number[2].my_nodeid
+            serverid = self.get_server(2).get_serverid()
             self.g.break_server(serverid)
         d.addCallback(_break_server_2)
         d.addCallback(lambda ign:
@@ -1741,8 +1706,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server(server_number=4, readonly=True))
         d.addCallback(lambda ign:
             self._add_server(server_number=5, readonly=True))
-        d.addCallback(lambda ign:
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+        d.addCallback(lambda ign: self.remove_server(0))
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
@@ -1853,8 +1817,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             # Copy shares
             self._copy_share_to_server(1, 1)
             self._copy_share_to_server(2, 1)
-            # Remove server 0
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            self.remove_server(0)
             client = self.g.clients[0]
             client.DEFAULT_ENCODING_PARAMETERS['happy'] = 3
             return client
@@ -1887,9 +1850,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._copy_share_to_server(3, 1)
             storedir = self.get_serverdir(0)
             # remove the storedir, wiping out any existing shares
-            shutil.rmtree(storedir)
+            fileutil.rm_dir(storedir)
             # create an empty storedir to replace the one we just removed
-            os.mkdir(storedir)
+            fileutil.make_dirs(storedir)
             client = self.g.clients[0]
             client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
             return client
@@ -1928,9 +1891,9 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._copy_share_to_server(3, 1)
             storedir = self.get_serverdir(0)
             # remove the storedir, wiping out any existing shares
-            shutil.rmtree(storedir)
+            fileutil.rm_dir(storedir)
             # create an empty storedir to replace the one we just removed
-            os.mkdir(storedir)
+            fileutil.make_dirs(storedir)
             client = self.g.clients[0]
             client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
             return client
@@ -1968,8 +1931,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                         readonly=True)
             self._add_server_with_share(server_number=4, share_number=3,
                                         readonly=True)
-            # Remove server 0.
-            self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
+            self.remove_server(0)
             # Set the client appropriately
             c = self.g.clients[0]
             c.DEFAULT_ENCODING_PARAMETERS['happy'] = 4

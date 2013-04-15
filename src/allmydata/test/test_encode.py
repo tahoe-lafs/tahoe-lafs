@@ -131,7 +131,7 @@ class FakeBucketReaderWriterProxy:
         d.addCallback(_try)
         return d
 
-    def get_share_hashes(self, at_least_these=()):
+    def get_share_hashes(self):
         d = self._start()
         def _try(unused=None):
             if self.mode == "bad sharehash":
