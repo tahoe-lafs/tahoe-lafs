@@ -218,7 +218,7 @@ class FakeStorageServer(service.MultiService):
     name = 'storage'
     def __init__(self, nodeid, nickname):
         service.MultiService.__init__(self)
-        self.my_nodeid = nodeid
+        self.serverid = nodeid
         self.nickname = nickname
         self.bucket_counter = FakeBucketCounter()
         self.accounting_crawler = FakeAccountingCrawler()
@@ -226,8 +226,8 @@ class FakeStorageServer(service.MultiService):
         self.expiration_policy = ExpirationPolicy(enabled=False)
     def get_stats(self):
         return {"storage_server.accepting_immutable_shares": False}
-    def get_nodeid(self):
-        return self.my_nodeid
+    def get_serverid(self):
+        return self.serverid
     def get_bucket_counter(self):
         return self.bucket_counter
     def get_accounting_crawler(self):

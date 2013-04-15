@@ -328,11 +328,13 @@ class NoNetworkGrid(service.MultiService):
         ss.hung_until = None
 
     def nuke_from_orbit(self):
-        """ Empty all share directories in this grid. It's the only way to be sure ;-) """
+        """Empty all share directories in this grid. It's the only way to be sure ;-)
+        This works only for a disk backend."""
         for server in self.servers_by_number.values():
-            for prefixdir in os.listdir(server.sharedir):
+            sharedir = server.backend._sharedir
+            for prefixdir in os.listdir(sharedir):
                 if prefixdir != 'incoming':
-                    fileutil.rm_dir(os.path.join(server.sharedir, prefixdir))
+                    fileutil.rm_dir(os.path.join(sharedir, prefixdir))
 
 
 class GridTestMixin:

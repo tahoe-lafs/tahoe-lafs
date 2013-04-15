@@ -8,7 +8,12 @@ from twisted.application.internet import TimerService
 from pycryptopp.publickey import rsa
 
 import allmydata
+from allmydata.node import InvalidValueError
 from allmydata.storage.server import StorageServer
+from allmydata.storage.backends.null.null_backend import configure_null_backend
+from allmydata.storage.backends.disk.disk_backend import configure_disk_backend
+from allmydata.storage.backends.cloud.cloud_backend import configure_cloud_backend
+from allmydata.storage.backends.cloud.mock_cloud import configure_mock_cloud_backend
 from allmydata.storage.expiration import ExpirationPolicy
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
@@ -16,8 +21,7 @@ from allmydata.immutable.offloaded import Helper
 from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, pollmixin, log, keyutil, idlib
-from allmydata.util.encodingutil import get_filesystem_encoding
-from allmydata.util.abbreviate import parse_abbreviated_size
+from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.stats import StatsProvider
 from allmydata.history import History
@@ -166,7 +170,8 @@ class Client(node.Node, pollmixin.PollMixin):
             self.init_web(webport) # strports string
 
     def _sequencer(self):
-        seqnum_s = self.get_config_from_file("announcement-seqnum")
+        seqnum_path = os.path.join(self.basedir, "announcement-seqnum")
+        seqnum_s = self.get_optional_config_from_file(seqnum_path)
         if not seqnum_s:
             seqnum_s = "0"
         seqnum = int(seqnum_s.strip())
@@ -217,6 +222,7 @@ class Client(node.Node, pollmixin.PollMixin):
         def _make_key():
             sk_vs,vk_vs = keyutil.make_keypair()
             return sk_vs+"\n"
+
         sk_vs = self.get_or_create_private_config("node.privkey", _make_key)
         sk,vk_vs = keyutil.parse_privkey(sk_vs.strip())
         self.write_config("node.pubkey", vk_vs+"\n")
@@ -231,11 +237,10 @@ class Client(node.Node, pollmixin.PollMixin):
         return idlib.nodeid_b2a(self.nodeid)
 
     def _init_permutation_seed(self, ss):
-        seed = self.get_config_from_file("permutation-seed")
+        seed = self.get_optional_private_config("permutation-seed")
         if not seed:
-            have_shares = ss.have_shares()
-            if have_shares:
-                # if the server has shares but not a recorded
+            if ss.backend.must_use_tubid_as_permutation_seed():
+                # If a server using a disk backend has shares but not a recorded
                 # permutation-seed, then it has been around since pre-#466
                 # days, and the clients who uploaded those shares used our
                 # TubID as a permutation-seed. We should keep using that same
@@ -253,22 +258,31 @@ class Client(node.Node, pollmixin.PollMixin):
 
     def init_storage(self):
         self.accountant = None
-        # should we run a storage server (and publish it for others to use)?
+        # Should we run a storage server (and publish it for others to use)?
         if not self.get_config("storage", "enabled", True, boolean=True):
             return
-        readonly = self.get_config("storage", "readonly", False, boolean=True)
 
         storedir = os.path.join(self.basedir, self.STOREDIR)
 
-        data = self.get_config("storage", "reserved_space", None)
-        try:
-            reserved = parse_abbreviated_size(data)
-        except ValueError:
-            log.msg("[storage]reserved_space= contains unparseable value %s"
-                    % data)
-            raise
-        if reserved is None:
-            reserved = 0
+        # What sort of backend?
+        backendtype = self.get_config("storage", "backend", "disk")
+        if backendtype == "s3":
+            backendtype = "cloud.s3"
+        backendprefix = backendtype.partition('.')[0]
+
+        backend_configurators = {
+            'disk': configure_disk_backend,
+            'cloud': configure_cloud_backend,
+            'mock_cloud': configure_mock_cloud_backend,
+            'debug_discard': configure_null_backend,
+        }
+
+        if backendprefix not in backend_configurators:
+            raise InvalidValueError("%s is not supported; it must start with one of %s"
+                                    % (quote_output("[storage]backend = " + backendtype), backend_configurators.keys()) )
+
+        backend = backend_configurators[backendprefix](storedir, self)
+
         if self.get_config("storage", "debug_discard", False, boolean=True):
             raise OldConfigOptionError("[storage]debug_discard = True is no longer supported.")
 
@@ -295,15 +309,13 @@ class Client(node.Node, pollmixin.PollMixin):
         expiration_policy = ExpirationPolicy(enabled=expire, mode=mode, override_lease_duration=o_l_d,
                                              cutoff_date=cutoff_date)
 
-        ss = StorageServer(storedir, self.nodeid,
-                           reserved_space=reserved,
-                           readonly_storage=readonly,
+        statedir = storedir
+        ss = StorageServer(self.nodeid, backend, statedir,
                            stats_provider=self.stats_provider)
-        self.storage_server = ss
-        self.add_service(ss)
-
         self.accountant = ss.get_accountant()
         self.accountant.set_expiration_policy(expiration_policy)
+        self.storage_server = ss
+        self.add_service(ss)
 
         d = self.when_tub_ready()
         # we can't do registerReference until the Tub is ready

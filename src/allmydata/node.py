@@ -1,3 +1,4 @@
+
 import datetime, os.path, re, types, ConfigParser, tempfile
 from base64 import b32decode, b32encode
 
@@ -12,6 +13,8 @@ from allmydata.util import fileutil, iputil, observer
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
+from allmydata.util.abbreviate import parse_abbreviated_size
+
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
@@ -37,8 +40,11 @@ such as private keys.  On Unix-like systems, the permissions on this directory
 are set to disallow users other than its owner from reading the contents of
 the files.   See the 'configuration.rst' documentation file for details."""
 
-class _None: # used as a marker in get_config()
+class _None: # used as a marker in get_config() and get_or_create_private_config()
     pass
+
+class InvalidValueError(Exception):
+    """ The configured value was not valid. """
 
 class MissingConfigEntry(Exception):
     """ A required config entry was not found. """
@@ -70,7 +76,7 @@ class Node(service.MultiService):
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         self._tub_ready_observerlist = observer.OneShotObserverList()
         fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
-        open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
+        fileutil.write(os.path.join(self.basedir, "private", "README"), PRIV_README, mode="")
 
         # creates self.config
         self.read_config()
@@ -112,6 +118,16 @@ class Node(service.MultiService):
                 raise MissingConfigEntry("%s is missing the [%s]%s entry"
                                          % (quote_output(fn), section, option))
             return default
+
+    def get_config_size(self, section, option, default=_None):
+        data = self.get_config(section, option, default)
+        if data is None:
+            return None
+        try:
+            return parse_abbreviated_size(data)
+        except ValueError:
+            raise InvalidValueError("[%s]%s= contains unparseable size value %s"
+                                    % (section, option, quote_output(data)) )
 
     def set_config(self, section, option, value):
         if not self.config.has_section(section):
@@ -209,43 +225,42 @@ class Node(service.MultiService):
         # TODO: merge this with allmydata.get_package_versions
         return dict(app_versions.versions)
 
-    def get_config_from_file(self, name, required=False):
-        """Get the (string) contents of a config file, or None if the file
-        did not exist. If required=True, raise an exception rather than
-        returning None. Any leading or trailing whitespace will be stripped
-        from the data."""
-        fn = os.path.join(self.basedir, name)
+    def get_optional_config_from_file(self, path):
+        """Read the (string) contents of a file. Any leading or trailing
+        whitespace will be stripped from the data. If the file does not exist,
+        return None."""
         try:
-            return fileutil.read(fn).strip()
+            value = fileutil.read(path)
         except EnvironmentError:
-            if not required:
-                return None
-            raise
+            if os.path.exists(path):
+                raise
+            return None
+        return value.strip()
+
+    def _get_private_config_path(self, name):
+        return os.path.join(self.basedir, "private", name)
 
     def write_private_config(self, name, value):
         """Write the (string) contents of a private config file (which is a
         config file that resides within the subdirectory named 'private'), and
         return it.
         """
-        privname = os.path.join(self.basedir, "private", name)
-        open(privname, "w").write(value)
+        fileutil.write(self._get_private_config_path(name), value, mode="")
 
-    def get_private_config(self, name, default=_None):
+    def get_optional_private_config(self, name):
+        """Try to get the (string) contents of a private config file (which
+        is a config file that resides within the subdirectory named
+        'private'), and return it. Any leading or trailing whitespace will be
+        stripped from the data. If the file does not exist, return None.
+        """
+        return self.get_optional_config_from_file(self._get_private_config_path(name))
+
+    def get_private_config(self, name):
         """Read the (string) contents of a private config file (which is a
         config file that resides within the subdirectory named 'private'),
-        and return it. Return a default, or raise an error if one was not
-        given.
+        and return it. Raise an error if the file was not found.
         """
-        privname = os.path.join(self.basedir, "private", name)
-        try:
-            return fileutil.read(privname)
-        except EnvironmentError:
-            if os.path.exists(privname):
-                raise
-            if default is _None:
-                raise MissingConfigEntry("The required configuration file %s is missing."
-                                         % (quote_output(privname),))
-            return default
+        return self.get_or_create_private_config(name)
 
     def get_or_create_private_config(self, name, default=_None):
         """Try to get the (string) contents of a private config file (which
@@ -259,21 +274,18 @@ class Node(service.MultiService):
         If 'default' is a string, use it as a default value. If not, treat it
         as a zero-argument callable that is expected to return a string.
         """
-        privname = os.path.join(self.basedir, "private", name)
-        try:
-            value = fileutil.read(privname)
-        except EnvironmentError:
-            if os.path.exists(privname):
-                raise
+        value = self.get_optional_private_config(name)
+        if value is None:
+            privpath = self._get_private_config_path(name)
             if default is _None:
                 raise MissingConfigEntry("The required configuration file %s is missing."
-                                         % (quote_output(privname),))
-            if isinstance(default, basestring):
-                value = default
+                                         % (quote_output(privpath),))
+            elif isinstance(default, basestring):
+                value = default.strip()
             else:
-                value = default()
-            fileutil.write(privname, value)
-        return value.strip()
+                value = default().strip()
+            fileutil.write(privpath, value, mode="")
+        return value
 
     def write_config(self, name, value, mode="w"):
         """Write a string to a config file."""

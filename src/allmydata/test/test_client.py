@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from twisted.application import service
 
 import allmydata
-from allmydata.node import OldConfigError, OldConfigOptionError, MissingConfigEntry
+from allmydata.node import InvalidValueError, OldConfigError, OldConfigOptionError, MissingConfigEntry
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.util import base32, fileutil
@@ -148,7 +148,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            "[storage]\n" + \
                            "enabled = true\n" + \
                            "reserved_space = bogus\n")
-        self.failUnlessRaises(ValueError, client.Client, basedir)
+        self.failUnlessRaises(InvalidValueError, client.Client, basedir)
 
     def test_expire_mutable_false_unsupported(self):
         basedir = "client.Basic.test_expire_mutable_false_unsupported"
