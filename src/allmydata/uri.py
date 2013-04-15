@@ -4,6 +4,7 @@ from zope.interface import implements
 from twisted.python.components import registerAdapter
 from allmydata.storage.server import si_a2b, si_b2a
 from allmydata.util import base32, hashutil
+from allmydata.util.assertutil import _assert
 from allmydata.interfaces import IURI, IDirnodeURI, IFileURI, IImmutableFileURI, \
     IVerifierURI, IMutableFileURI, IDirectoryURI, IReadonlyDirectoryURI, \
     MustBeDeepImmutableError, MustBeReadonlyError, CapConstraintError
@@ -730,6 +731,7 @@ class ReadonlyMDMFDirectoryURI(_DirectoryBaseURI):
     def get_verify_cap(self):
         return MDMFDirectoryURIVerifier(self._filenode_uri.get_verify_cap())
 
+
 def wrap_dirnode_cap(filecap):
     if isinstance(filecap, WriteableSSKFileURI):
         return DirectoryURI(filecap)
@@ -743,7 +745,8 @@ def wrap_dirnode_cap(filecap):
         return MDMFDirectoryURI(filecap)
     if isinstance(filecap, ReadonlyMDMFFileURI):
         return ReadonlyMDMFDirectoryURI(filecap)
-    assert False, "cannot interpret as a directory cap: %s" % filecap.__class__
+    raise AssertionError("cannot interpret as a directory cap: %s" % filecap.__class__)
+
 
 class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
     implements(IVerifierURI)
@@ -755,7 +758,7 @@ class MDMFDirectoryURIVerifier(_DirectoryBaseURI):
 
     def __init__(self, filenode_uri=None):
         if filenode_uri:
-            assert IVerifierURI.providedBy(filenode_uri)
+            _assert(IVerifierURI.providedBy(filenode_uri))
         self._filenode_uri = filenode_uri
 
     def get_filenode_cap(self):
@@ -781,7 +784,7 @@ class DirectoryURIVerifier(_DirectoryBaseURI):
 
     def __init__(self, filenode_uri=None):
         if filenode_uri:
-            assert IVerifierURI.providedBy(filenode_uri)
+            _assert(IVerifierURI.providedBy(filenode_uri))
         self._filenode_uri = filenode_uri
 
     def get_filenode_cap(self):
@@ -946,27 +949,27 @@ def has_uri_prefix(s):
 
 def from_string_dirnode(s, **kwargs):
     u = from_string(s, **kwargs)
-    assert IDirnodeURI.providedBy(u)
+    _assert(IDirnodeURI.providedBy(u))
     return u
 
 registerAdapter(from_string_dirnode, str, IDirnodeURI)
 
 def from_string_filenode(s, **kwargs):
     u = from_string(s, **kwargs)
-    assert IFileURI.providedBy(u)
+    _assert(IFileURI.providedBy(u))
     return u
 
 registerAdapter(from_string_filenode, str, IFileURI)
 
 def from_string_mutable_filenode(s, **kwargs):
     u = from_string(s, **kwargs)
-    assert IMutableFileURI.providedBy(u)
+    _assert(IMutableFileURI.providedBy(u))
     return u
 registerAdapter(from_string_mutable_filenode, str, IMutableFileURI)
 
 def from_string_verifier(s, **kwargs):
     u = from_string(s, **kwargs)
-    assert IVerifierURI.providedBy(u)
+    _assert(IVerifierURI.providedBy(u))
     return u
 registerAdapter(from_string_verifier, str, IVerifierURI)
 

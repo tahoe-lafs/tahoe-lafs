@@ -526,7 +526,7 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnlessReallyEqual(ga1(u"present:file"), (TA, "file"))
         # this throws, via assert IDirnodeURI.providedBy(), since get_alias()
         # wants a dirnode, and the future cap gives us UnknownURI instead.
-        #ga1(u"future:stuff")
+        self.failUnlessRaises(AssertionError, ga1, u"future:stuff")
 
     def test_listdir_unicode_good(self):
         filenames = [u'L\u00F4zane', u'Bern', u'Gen\u00E8ve']  # must be NFC
