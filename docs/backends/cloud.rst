@@ -137,3 +137,48 @@ credentials, described below.
 
     The secret key, obtained from the same page by clicking SHOW, should
     be stored in a separate file named ``private/openstack_secret_key``.
+
+
+Google Cloud Storage
+====================
+
+`Google Cloud Storage`_ is a block-based storage system provided by Google. To
+access the storage system, you will need to create a project at the `Google
+APIs Console`_, and then generate a Service Account client ID in the "API
+Access" section. You will store the private key that will be downloaded by
+your browser in your Tahoe configuration file; see below.
+
+.. _Google Cloud Storage: https://cloud.google.com/products/cloud-storage
+.. _Google APIs Console: https://code.google.com/apis/console/
+
+To enable storing shares on one of these services, add the following keys to
+the server's ``tahoe.cfg`` file:
+
+``[storage]``
+
+``backend = cloud.googlestorage``
+
+    This turns off the local filesystem backend and enables use of the cloud
+    backend with Google Storage.
+
+``googlestorage.account_email = (string, required)``
+
+    This is the email on the Service Account you created,
+    e.g. ``123456@developer.gserviceaccount.com``.
+
+``googlestorage.project_id = (string, required)``
+
+    This is the project number of the project you you created,
+    e.g. ``123456``. You can find this number in the Google Cloud Storage
+    section of the APIs console (the number following `x-goog-project-id`).
+
+``googlestorage.bucket_name = (string, required)``
+
+    This controls which bucket (aka container) will be used to hold
+    shares. The Tahoe-LAFS storage server will only modify and access objects
+    in the configured container. Multiple storage servers cannot share the
+    same container. Buckets can be created using a command-line tool (gsutil)
+    or a web UI; see the Google Cloud Storage section of the APIs console.
+
+The private key you downloaded is stored in a separate file named
+``private/googlestorage_private_key``.
