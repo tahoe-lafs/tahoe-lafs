@@ -6,7 +6,7 @@ import allmydata
 from allmydata.node import Node, OldConfigError, OldConfigOptionError, MissingConfigEntry, UnescapedHashError
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
-from allmydata.util import base32, fileutil
+from allmydata.util import base32, fileutil, idlib
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
@@ -177,7 +177,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
-        sb = StorageFarmBroker(None, True)
+        sb = StorageFarmBroker(None, True, [])
         for k in ["%d" % i for i in range(5)]:
             ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
                    "permutation-seed-base32": base32.b2a(k) }
@@ -185,6 +185,16 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
         self.failUnlessReallyEqual(self._permute(sb, "one"), ['3','1','0','4','2'])
         self.failUnlessReallyEqual(self._permute(sb, "two"), ['0','4','2','1','3'])
+        sb.servers.clear()
+        self.failUnlessReallyEqual(self._permute(sb, "one"), [])
+
+    def test_permute_with_preferred(self):
+        sb = StorageFarmBroker(None, True, map(idlib.nodeid_b2a, ['1','4']))
+        for k in ["%d" % i for i in range(5)]:
+            sb.test_add_rref(k, "rref")
+
+        self.failUnlessReallyEqual(self._permute(sb, "one"), ['1','4','3','0','2'])
+        self.failUnlessReallyEqual(self._permute(sb, "two"), ['4','1','0','2','3'])
         sb.servers.clear()
         self.failUnlessReallyEqual(self._permute(sb, "one"), [])
 
