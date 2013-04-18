@@ -11,6 +11,7 @@ import hashlib
 import urllib
 try:
     from xml.etree import cElementTree as ElementTree
+    ElementTree  # hush pyflakes
 except ImportError:
     from xml.etree import ElementTree
 import time
