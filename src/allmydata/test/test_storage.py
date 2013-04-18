@@ -443,7 +443,7 @@ class OpenStackCloudBackend(ServiceParentMixin, WorkdirMixin, ShouldFailMixin, u
                 protocol.connectionLost(Failure(ResponseDone()))
 
         class MockAgent(object):
-            def __init__(mock_self, reactor, pool=None):
+            def __init__(mock_self, reactor, pool=None, connectTimeout=None):
                 pass
 
             def request(mock_self, method, url, headers, bodyProducer=None):
@@ -780,6 +780,87 @@ class CloudStorageBackendMixin(object):
         self.container._http_request = mock.create_autospec(
             self.container._http_request, return_value=d)
         return d
+
+
+class ContainerRetryTests(unittest.TestCase, CloudStorageBackendMixin):
+    """
+    Tests for ContainerRetryMixin.
+    """
+    def setUp(self):
+        from allmydata.storage.backends.cloud.cloud_common import ContainerRetryMixin
+        self.reactor = Clock()
+        self.container = ContainerRetryMixin()
+        self.container._reactor = self.reactor
+        self.container.ServiceError = CloudServiceError
+        # We don't just use mock.Mock, but do this silly thing so we can use
+        # create_autospec, because create_autospec is the only safe way to use
+        # mock.
+        self.container._http_request = (lambda description, method, url, headers,
+                                        body=None, need_response_body=False: None)
+
+    def test_retry_response_code(self):
+        """
+        If an HTTP response code is server error or an authentication error,
+        the request will try again after a delay.
+        """
+        first, second = defer.Deferred(), defer.Deferred()
+        self.container._http_request = mock.create_autospec(
+            self.container._http_request, side_effect=[first, second])
+        result = []
+        self.container._do_request("test", self.container._http_request,
+                                   "test", "GET", "http://example", {}, body=None,
+                                   need_response_body=True).addCallback(result.append)
+        # No response from first request yet:
+        self.assertFalse(result)
+        self.assertEqual(self.container._http_request.call_count, 1)
+        self.container._http_request.assert_called_with(
+            "test", "GET", "http://example", {},
+            body=None, need_response_body=True)
+
+        # First response fails:
+        first.errback(CloudServiceError(None, 500))
+        self.assertFalse(result, result)
+        self.assertEqual(self.container._http_request.call_count, 1)
+        self.reactor.advance(0.1)
+        self.assertEqual(self.container._http_request.call_count, 2)
+        self.container._http_request.assert_called_with(
+            "test", "GET", "http://example", {},
+            body=None, need_response_body=True)
+
+        # Second response succeeds:
+        done = object()
+        second.callback(done)
+        self.assertEqual(result, [done])
+
+    def test_retry_timeout(self):
+        """
+        If an HTTP connection fails with a timeout, retry.
+        """
+        first, second = defer.Deferred(), defer.Deferred()
+        self.container._http_request = mock.create_autospec(
+            self.container._http_request, side_effect=[first, second])
+        result = []
+        self.container._do_request("test", self.container._http_request,
+                                   "test", "GET", "http://example", {}, body=None,
+                                   need_response_body=True).addCallback(result.append)
+
+        # No response from first request yet:
+        self.assertFalse(result)
+        self.assertEqual(self.container._http_request.call_count, 1)
+        self.container._http_request.assert_called_with(
+            "test", "GET", "http://example", {},
+            body=None, need_response_body=True)
+
+        # First response fails:
+        from twisted.internet.error import TimeoutError
+        first.errback(TimeoutError())
+        self.assertFalse(result, result)
+        self.assertEqual(self.container._http_request.call_count, 1)
+        self.reactor.advance(0.1)
+        self.assertEqual(self.container._http_request.call_count, 2)
+        self.container._http_request.assert_called_with(
+            "test", "GET", "http://example", {},
+            body=None, need_response_body=True)
 
 
 class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
@@ -1412,42 +1493,6 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
             need_response_body=False)
         http_response.callback((self.Response(200), None))
         self.assertTrue(done)
-
-    def test_retry(self):
-        """
-        If an HTTP response code is server error or an authentication error,
-        the request will try again after a delay.
-        """
-        # XXX should maybe be refactored into test for the common base class
-        # that implments retries...
-        first, second = defer.Deferred(), defer.Deferred()
-        self.container._http_request = mock.create_autospec(
-            self.container._http_request, side_effect=[first, second])
-        result = []
-        self.container._do_request("test", self.container._http_request,
-                                   "test", "GET", "http://example", {}, body=None,
-                                   need_response_body=True).addCallback(result.append)
-        # No response from first request yet:
-        self.assertFalse(result)
-        self.assertEqual(self.container._http_request.call_count, 1)
-        self.container._http_request.assert_called_with(
-            "test", "GET", "http://example", {},
-            body=None, need_response_body=True)
-
-        # First response fails:
-        first.errback(CloudServiceError(None, 500))
-        self.assertFalse(result, result)
-        self.assertEqual(self.container._http_request.call_count, 1)
-        self.reactor.advance(0.1)
-        self.assertEqual(self.container._http_request.call_count, 2)
-        self.container._http_request.assert_called_with(
-            "test", "GET", "http://example", {},
-            body=None, need_response_body=True)
-
-        # Second response succeeds:
-        done = object()
-        second.callback(done)
-        self.assertEqual(result, [done])
 
 
 class ServerMixin:
