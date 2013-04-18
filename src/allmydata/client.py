@@ -221,9 +221,13 @@ class Client(node.Node, pollmixin.PollMixin):
         self._node_key = sk
 
     def get_long_nodeid(self):
-        # this matches what IServer.get_longname() says about us elsewhere
-        vk_bytes = self._node_key.get_verifying_key_bytes()
-        return "v0-"+base32.b2a(vk_bytes)
+        try:
+            # this matches what IServer.get_longname() says about us elsewhere
+            vk_bytes = self._node_key.get_verifying_key_bytes()
+        except AttributeError:
+            return None
+        else:
+            return "v0-"+base32.b2a(vk_bytes)
 
     def get_long_tubid(self):
         return idlib.nodeid_b2a(self.nodeid)
