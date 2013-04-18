@@ -134,6 +134,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.init_introducer_client()
         self.init_stats_provider()
         self.init_secrets()
+        self.init_node_key()
         self.init_storage()
         self.init_control()
         self.helper = None
@@ -209,7 +210,7 @@ class Client(node.Node, pollmixin.PollMixin):
         self.convergence = base32.a2b(convergence_s)
         self._secret_holder = SecretHolder(lease_secret, self.convergence)
 
-    def _maybe_create_node_key(self):
+    def init_node_key(self):
         # we only create the key once. On all subsequent runs, we re-use the
         # existing key
         def _make_key():
@@ -254,8 +255,6 @@ class Client(node.Node, pollmixin.PollMixin):
         if not self.get_config("storage", "enabled", True, boolean=True):
             return
         readonly = self.get_config("storage", "readonly", False, boolean=True)
-
-        self._maybe_create_node_key()
 
         storedir = os.path.join(self.basedir, self.STOREDIR)
 

@@ -78,6 +78,22 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         cancel_secret = c.get_cancel_secret()
         self.failUnless(base32.b2a(cancel_secret))
 
+    def test_nodekey_yes_storage(self):
+        basedir = "test_client.Basic.test_nodekey_yes_storage"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG)
+        c = client.Client(basedir)
+        self.failUnless(c.get_long_nodeid().startswith("v0-"))
+
+    def test_nodekey_no_storage(self):
+        basedir = "test_client.Basic.test_nodekey_no_storage"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG + "[storage]\n" + "enabled = false\n")
+        c = client.Client(basedir)
+        self.failUnless(c.get_long_nodeid().startswith("v0-"))
+
     def test_reserved_1(self):
         basedir = "client.Basic.test_reserved_1"
         os.mkdir(basedir)
