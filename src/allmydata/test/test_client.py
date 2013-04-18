@@ -339,11 +339,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
     def test_googlestorage_config_required(self):
         """
-        account_email, bucket_name and project_id are all required by
+        account_email, bucket and project_id are all required by
         googlestorage configuration.
         """
         configs = ["googlestorage.account_email = u@example.com",
-                   "googlestorage.bucket_name = bucket",
+                   "googlestorage.bucket = bucket",
                    "googlestorage.project_id = 456"]
         for i in range(len(configs)):
             basedir = self.mktemp()
@@ -372,7 +372,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                        "enabled = true\n" +
                        "backend = cloud.googlestorage\n" +
                        "googlestorage.account_email = u@example.com\n" +
-                       "googlestorage.bucket_name = bucket\n" +
+                       "googlestorage.bucket = bucket\n" +
                        "googlestorage.project_id = 456\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
@@ -391,7 +391,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                        "enabled = true\n" +
                        "backend = cloud.googlestorage\n" +
                        "googlestorage.account_email = u@example.com\n" +
-                       "googlestorage.bucket_name = bucket\n" +
+                       "googlestorage.bucket = bucket\n" +
                        "googlestorage.project_id = 456\n")
         c = client.Client(basedir)
         server = c.getServiceNamed("storage")
