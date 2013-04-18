@@ -23,9 +23,6 @@ from twisted.web.http import datetimeToString
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
      ContainerItem, ContainerListing, CommonContainerMixin
 
-def configure_msazure_container(*args):
-    pass
-
 
 class MSAzureStorageContainer(CommonContainerMixin):
     implements(IContainer)
@@ -212,3 +209,13 @@ class MSAzureStorageContainer(CommonContainerMixin):
                                           need_response_body=False)
         d.addCallback(lambda (response, body): body)
         return d
+
+
+def configure_msazure_container(storedir, config):
+    """
+    Configure the MS Azure storage container.
+    """
+    account_name = config.get_config("storage", "msazure.account_name")
+    container_name = config.get_config("storage", "msazure.container_name")
+    account_key = config.get_private_config("msazure_account_key")
+    return MSAzureStorageContainer(account_name, account_key, container_name)
