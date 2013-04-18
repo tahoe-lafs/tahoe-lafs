@@ -95,6 +95,8 @@ package_imports = [
     ('txAWS',           'txaws'),
     ('oauth2client',    'oauth2client'),
     ('python-dateutil', 'dateutil'),
+    ('httplib2',        'httplib2'),
+    ('python-gflags',   'gflags'),
 ]
 
 def require_more():

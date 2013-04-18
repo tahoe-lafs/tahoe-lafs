@@ -282,7 +282,7 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
 
     errors = []
     not_pkg_resourceable = set(['python', 'platform', __appname__.lower()])
-    not_import_versionable = set(['zope.interface', 'mock', 'pyasn1'])
+    not_import_versionable = set(['zope.interface', 'mock', 'pyasn1', 'python-gflags'])
     ignorable = set(['argparse', 'pyutil', 'zbase32', 'distribute', 'twisted-web', 'twisted-core', 'twisted-conch', 'six'])
 
     for name, (imp_ver, imp_loc, imp_comment) in imported_vers_and_locs_list:
