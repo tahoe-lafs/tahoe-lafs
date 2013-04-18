@@ -1431,10 +1431,12 @@ mainly intended for developers.
     list-corrupt-shares: a list of "share locators", one for each share
                          that was found to be corrupt. Each share locator
                          is a list of (serverid, storage_index, sharenum).
-    needs-rebalancing: (bool) True if there are multiple shares on a single
-                       storage server, indicating a reduction in reliability
-                       that could be resolved by moving shares to new
-                       servers.
+    needs-rebalancing: (bool) This field is intended to be True iff
+                       reliability could be improved for this file by
+                       rebalancing, i.e. by moving some shares to other
+                       servers. It may be incorrect in some cases for
+                       Tahoe-LAFS up to and including v1.10, and its
+                       precise definition is expected to change.
     servers-responding: list of base32-encoded storage server identifiers,
                         one for each server which responded to the share
                         query.

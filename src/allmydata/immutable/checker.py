@@ -778,6 +778,7 @@ class Checker(log.PrefixingLogMixin):
         # The file needs rebalancing if the set of servers that have at least
         # one share is less than the number of uniquely-numbered shares
         # available.
+        # TODO: this may be wrong, see ticket #1115 comment:27 and ticket #1784.
         needs_rebalancing = bool(good_share_hosts < len(verifiedshares))
 
         cr = CheckResults(self._verifycap, SI,
