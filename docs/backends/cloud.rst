@@ -168,11 +168,11 @@ the server's ``tahoe.cfg`` file:
 
 ``googlestorage.project_id = (string, required)``
 
-    This is the project number of the project you you created,
+    This is the project number of the project you created,
     e.g. ``123456``. You can find this number in the Google Cloud Storage
     section of the APIs console (the number following `x-goog-project-id`).
 
-``googlestorage.bucket_name = (string, required)``
+``googlestorage.bucket = (string, required)``
 
     This controls which bucket (aka container) will be used to hold
     shares. The Tahoe-LAFS storage server will only modify and access objects
