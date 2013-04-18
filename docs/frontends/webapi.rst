@@ -157,9 +157,7 @@ listening on this port::
 
  http://127.0.0.1:3456/uri/ + $CAP
 
-So, to access the directory named above (which happens to be the
-publically-writeable sample directory on the Tahoe test grid, described at
-http://allmydata.org/trac/tahoe-lafs/wiki/TestGrid), the URL would be::
+So, to access the directory named above, the URL would be::
 
  http://127.0.0.1:3456/uri/URI%3ADIR2%3Adjrdkfawoqihigoett4g6auz6a%3Ajx5mplfpwexnoqff7y5e4zjus4lidm76dcuarpct7cckorh2dpgq/
 
@@ -1250,7 +1248,7 @@ Unlinking a Child
 
 ``POST /uri/$DIRCAP/[SUBDIRS../]?t=delete&name=CHILDNAME``
 
-``POST /uri/$DIRCAP/[SUBDIRS../]?t=unlink&name=CHILDNAME``
+``POST /uri/$DIRCAP/[SUBDIRS../]?t=unlink&name=CHILDNAME``    (Tahoe >= v1.9)
 
  This instructs the node to remove a child object (file or subdirectory) from
  the given directory, which must be mutable. Note that the entire subtree is
@@ -1413,12 +1411,16 @@ mainly intended for developers.
     count-shares-good: the number of good shares that were found
     count-shares-needed: 'k', the number of shares required for recovery
     count-shares-expected: 'N', the number of total shares generated
-    count-good-share-hosts: the number of distinct storage servers with good
-                            shares
+    count-good-share-hosts: the number of distinct storage servers with
+                            good shares. Note that a high value does not
+                            necessarily imply good share distribution,
+                            because some of these servers may only hold
+                            duplicate shares.
     count-wrong-shares: for mutable files, the number of shares for
                         versions other than the 'best' one (highest
                         sequence number, highest roothash). These are
-                        either old ...
+                        either old, or created by an uncoordinated or
+                        not fully successful write.
     count-recoverable-versions: for mutable files, the number of
                                 recoverable versions of the file. For
                                 a healthy file, this will equal 1.
