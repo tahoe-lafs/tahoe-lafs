@@ -9,7 +9,6 @@ from twisted.web.error import Error
 from twisted.web.client import FileBodyProducer, ResponseDone, Agent, HTTPConnectionPool
 from twisted.web.http_headers import Headers
 from twisted.internet.protocol import Protocol
-from twisted.internet.error import TimeoutError
 
 from zope.interface import Interface, implements
 from allmydata.interfaces import IShareBase
