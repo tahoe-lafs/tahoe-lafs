@@ -405,6 +405,66 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         mock_OpenStackContainer.assert_called_once_with(mock_AuthenticationClient.return_value,
                                                         "456", "bucket")
 
+    def test_msazure_config_required(self):
+        """
+        account_name and container_name are all required by MS Azure
+        configuration.
+        """
+        configs = ["mszure.account_name = theaccount",
+                   "msazure.container_name = bucket"]
+        for i in range(len(configs)):
+            basedir = self.mktemp()
+            os.mkdir(basedir)
+            bad_config = configs[:]
+            del bad_config[i]
+            self._write_secret(basedir, "msazure_account_key")
+            fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                           BASECONFIG +
+                           "[storage]\n" +
+                           "enabled = true\n" +
+                           "backend = cloud.msazure\n" +
+                           "\n".join(bad_config) + "\n")
+            self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
+
+    def test_msazure_config_required_private_key(self):
+        """
+        msazure_account_key secret is required by MS Azure configuration.
+        """
+        basedir = self.mktemp()
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG +
+                       "[storage]\n" +
+                       "enabled = true\n" +
+                       "backend = cloud.msazure\n" +
+                       "googlestorage.account_name = theaccount\n" +
+                       "googlestorage.container_name = bucket\n")
+        self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
+
+    @mock.patch('allmydata.storage.backends.cloud.msazure.msazure_container.MSAzureStorageContainer')
+    def test_msazure_config(self, mock_MSAzureStorageContainer):
+        """
+        Given good configuration, we correctly configure a good MSAzureStorageContainer.
+        """
+        basedir = self.mktemp()
+        os.mkdir(basedir)
+        self._write_secret(basedir, "msazure_account_key", "abc")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG +
+                       "[storage]\n" +
+                       "enabled = true\n" +
+                       "backend = cloud.msazure\n" +
+                       "msazure.account_name = theaccount\n" +
+                       "msazure.container_name = bucket\n")
+        c = client.Client(basedir)
+        server = c.getServiceNamed("storage")
+        self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
+        # Protect against typos with isinstance(), because mock is dangerous.
+        self.assertFalse(isinstance(
+                mock_MSAzureStorageContainer.assert_called_once_with, mock.Mock))
+        mock_MSAzureStorageContainer.assert_called_once_with(
+            "theaccount", "abc", "bucket")
+
     def test_expire_mutable_false_unsupported(self):
         basedir = "client.Basic.test_expire_mutable_false_unsupported"
         os.mkdir(basedir)
