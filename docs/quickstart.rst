@@ -38,7 +38,7 @@ Python installed, download and install `Python v2.7`_. Make sure that the path
 to the installation directory has no spaces in it (e.g. on Windows, do not
 install Python in the "Program Files" directory).
 
-.. _Python v2.7: http://www.python.org/download/releases/2.7.2/
+.. _Python v2.7: http://www.python.org/download/releases/2.7.4/
 
 Get Tahoe-LAFS
 --------------
