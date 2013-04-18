@@ -99,6 +99,13 @@ package_imports = [
     ('python-gflags',   'gflags'),
 ]
 
+# Packages we cannot find a version number for by importing.
+not_import_versionable_packages = ('zope.interface', 'mock', 'pyasn1', 'python-gflags')
+
+# Packages that pkg_resources might report, but we don't care about checking their version.
+ignorable_packages = ('argparse', 'pyutil', 'zbase32', 'distribute', 'twisted-web', 'twisted-core', 'twisted-conch', 'six')
+
+
 def require_more():
     import sys
 

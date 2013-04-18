@@ -280,10 +280,12 @@ def cross_check_pkg_resources_versus_import():
 def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
     """This function returns a list of errors due to any failed cross-checks."""
 
+    from _auto_deps import not_import_versionable_packages, ignorable_packages
+
     errors = []
     not_pkg_resourceable = set(['python', 'platform', __appname__.lower()])
-    not_import_versionable = set(['zope.interface', 'mock', 'pyasn1', 'python-gflags'])
-    ignorable = set(['argparse', 'pyutil', 'zbase32', 'distribute', 'twisted-web', 'twisted-core', 'twisted-conch', 'six'])
+    not_import_versionable = set(not_import_versionable_packages)
+    ignorable = set(ignorable_packages)
 
     for name, (imp_ver, imp_loc, imp_comment) in imported_vers_and_locs_list:
         name = name.lower()
