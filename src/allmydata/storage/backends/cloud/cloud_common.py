@@ -401,12 +401,14 @@ class ContainerRetryMixin:
                 retry = False
 
         if retry:
+            log.msg("Rescheduling failed task for retry in %d seconds." % (BACKOFF_SECONDS_BEFORE_RETRY[trynum-1],))
             d = task.deferLater(self._reactor, BACKOFF_SECONDS_BEFORE_RETRY[trynum-1], operation, *args, **kwargs)
             d.addErrback(self._handle_error, trynum+1, first_err_and_tb, description, operation, *args, **kwargs)
             return d
 
         # If we get an error response for which _react_to_error says we should not retry,
         # raise that error even if the request was itself a retry.
+        log.msg("Giving up, no retry for %s" % (err,))
         raise err.__class__, err, tb
 
 
@@ -673,6 +675,7 @@ class HTTPClientMixin:
                     what=what, code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
 
             if response.code < 200 or response.code >= 300:
+                response.deliverBody(Discard())
                 raise self.ServiceError(None, response.code,
                                         message="unexpected response code %r %s" % (response.code, response.phrase))
 

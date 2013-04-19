@@ -29,6 +29,7 @@ except ImportError:
 
 from zope.interface import implements
 
+from allmydata.util import log
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
      ContainerItem, ContainerListing, CommonContainerMixin
 
@@ -70,7 +71,13 @@ class AuthenticationClient(object):
                 # Generally using a task-specific thread pool is better than using
                 # the reactor one. However, this particular call will only run
                 # once an hour, so it's not likely to tie up all the threads.
-                return self._deferToThread(self._credentials.refresh, httplib2.Http())
+                log.msg("Reauthenticating against Google Cloud Storage.")
+                def finished(result):
+                    log.msg("Done reauthenticating against Google Cloud Storage.")
+                    return result
+                d = self._deferToThread(self._credentials.refresh, httplib2.Http())
+                d.addBoth(finished)
+                return d
         return self._lock.run(run)
 
     def get_authorization_header(self):
@@ -108,7 +115,9 @@ class GoogleStorageContainer(CommonContainerMixin):
         self._project_id = project_id # Only need for bucket creation/deletion
 
     def _react_to_error(self, response_code):
-        if response_code == UNAUTHORIZED:
+        if response_code >= 400 and response_code < 500:
+            # Unauthorized/forbidden/etc. we should retry, eventually we will
+            # reauthenticate:
             return True
         else:
             return CommonContainerMixin._react_to_error(self, response_code)
