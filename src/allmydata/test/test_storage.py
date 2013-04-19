@@ -1118,6 +1118,16 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
         third.callback(done)
         self.assertEqual(result, [done])
 
+    def test_react_to_error(self):
+        """
+        GoogleStorageContainer._react_to_error() will return True (i.e. retry)
+        for any response code between 400 and 599.
+        """
+        self.assertFalse(self.container._react_to_error(399))
+        self.assertFalse(self.container._react_to_error(600))
+        for i in range(400, 600):
+            self.assertTrue(self.container._react_to_error(i))
+
     def test_head_object(self):
         """
         GoogleStorageContainer.head_object() sends the appropriate HTTP
