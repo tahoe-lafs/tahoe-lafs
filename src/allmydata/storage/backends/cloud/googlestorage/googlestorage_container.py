@@ -83,7 +83,12 @@ class AuthenticationClient(object):
         def refreshed(ignore):
             headers = {}
             self._credentials.apply(headers)
-            return headers['Authorization']
+            result = headers['Authorization']
+            # The value was bytes in oauth2client 1.0, unicode in 1.1, maybe
+            # they'll change it again in 1.2...
+            if isinstance(result, unicode):
+                result = result.encode("ascii")
+            return result
         d.addCallback(refreshed)
         return d
 

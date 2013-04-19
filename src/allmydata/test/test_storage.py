@@ -700,12 +700,13 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
     def test_header(self):
         """
         AuthenticationClient.get_authorization_header() returns a value to be
-        used for the Authorization header.
+        used for the Authorization header, which is ASCII-encoded if
+        necessary.
         """
         from oauth2client.client import SignedJwtAssertionCredentials
         class NoNetworkCreds(SignedJwtAssertionCredentials):
             def refresh(self, http):
-                self.access_token = "xxx"
+                self.access_token = u"xxx"
         auth = googlestorage_container.AuthenticationClient(
             "u@example.com", "xxx123",
             _credentialsClass=NoNetworkCreds,
@@ -713,6 +714,7 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         result = []
         auth.get_authorization_header().addCallback(result.append)
         self.assertEqual(result, ["Bearer xxx"])
+        self.assertIsInstance(result[0], bytes)
 
     def test_one_refresh(self):
         """
