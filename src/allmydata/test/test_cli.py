@@ -568,124 +568,124 @@ class CLI(CLITestMixin, unittest.TestCase):
 class Help(unittest.TestCase):
     def test_get(self):
         help = str(cli.GetOptions())
-        self.failUnlessIn(" get [options] REMOTE_FILE LOCAL_FILE", help)
+        self.failUnlessIn(" [global-opts] get [options] REMOTE_FILE LOCAL_FILE", help)
         self.failUnlessIn("% tahoe get FOO |less", help)
 
     def test_put(self):
         help = str(cli.PutOptions())
-        self.failUnlessIn(" put [options] LOCAL_FILE REMOTE_FILE", help)
+        self.failUnlessIn(" [global-opts] put [options] LOCAL_FILE REMOTE_FILE", help)
         self.failUnlessIn("% cat FILE | tahoe put", help)
 
     def test_ls(self):
         help = str(cli.ListOptions())
-        self.failUnlessIn(" ls [options] [PATH]", help)
+        self.failUnlessIn(" [global-opts] ls [options] [PATH]", help)
 
     def test_unlink(self):
         help = str(cli.UnlinkOptions())
-        self.failUnlessIn(" unlink [options] REMOTE_FILE", help)
+        self.failUnlessIn(" [global-opts] unlink [options] REMOTE_FILE", help)
 
     def test_rm(self):
         help = str(cli.RmOptions())
-        self.failUnlessIn(" rm [options] REMOTE_FILE", help)
+        self.failUnlessIn(" [global-opts] rm [options] REMOTE_FILE", help)
 
     def test_mv(self):
         help = str(cli.MvOptions())
-        self.failUnlessIn(" mv [options] FROM TO", help)
+        self.failUnlessIn(" [global-opts] mv [options] FROM TO", help)
         self.failUnlessIn("Use 'tahoe mv' to move files", help)
 
     def test_cp(self):
         help = str(cli.CpOptions())
-        self.failUnlessIn(" cp [options] FROM.. TO", help)
+        self.failUnlessIn(" [global-opts] cp [options] FROM.. TO", help)
         self.failUnlessIn("Use 'tahoe cp' to copy files", help)
 
     def test_ln(self):
         help = str(cli.LnOptions())
-        self.failUnlessIn(" ln [options] FROM_LINK TO_LINK", help)
+        self.failUnlessIn(" [global-opts] ln [options] FROM_LINK TO_LINK", help)
         self.failUnlessIn("Use 'tahoe ln' to duplicate a link", help)
 
     def test_mkdir(self):
         help = str(cli.MakeDirectoryOptions())
-        self.failUnlessIn(" mkdir [options] [REMOTE_DIR]", help)
+        self.failUnlessIn(" [global-opts] mkdir [options] [REMOTE_DIR]", help)
         self.failUnlessIn("Create a new directory", help)
 
     def test_backup(self):
         help = str(cli.BackupOptions())
-        self.failUnlessIn(" backup [options] FROM ALIAS:TO", help)
+        self.failUnlessIn(" [global-opts] backup [options] FROM ALIAS:TO", help)
 
     def test_webopen(self):
         help = str(cli.WebopenOptions())
-        self.failUnlessIn(" webopen [options] [ALIAS:PATH]", help)
+        self.failUnlessIn(" [global-opts] webopen [options] [ALIAS:PATH]", help)
 
     def test_manifest(self):
         help = str(cli.ManifestOptions())
-        self.failUnlessIn(" manifest [options] [ALIAS:PATH]", help)
+        self.failUnlessIn(" [global-opts] manifest [options] [ALIAS:PATH]", help)
 
     def test_stats(self):
         help = str(cli.StatsOptions())
-        self.failUnlessIn(" stats [options] [ALIAS:PATH]", help)
+        self.failUnlessIn(" [global-opts] stats [options] [ALIAS:PATH]", help)
 
     def test_check(self):
         help = str(cli.CheckOptions())
-        self.failUnlessIn(" check [options] [ALIAS:PATH]", help)
+        self.failUnlessIn(" [global-opts] check [options] [ALIAS:PATH]", help)
 
     def test_deep_check(self):
         help = str(cli.DeepCheckOptions())
-        self.failUnlessIn(" deep-check [options] [ALIAS:PATH]", help)
+        self.failUnlessIn(" [global-opts] deep-check [options] [ALIAS:PATH]", help)
 
     def test_create_alias(self):
         help = str(cli.CreateAliasOptions())
-        self.failUnlessIn(" create-alias [options] ALIAS[:]", help)
+        self.failUnlessIn(" [global-opts] create-alias [options] ALIAS[:]", help)
 
     def test_add_alias(self):
         help = str(cli.AddAliasOptions())
-        self.failUnlessIn(" add-alias [options] ALIAS[:] DIRCAP", help)
+        self.failUnlessIn(" [global-opts] add-alias [options] ALIAS[:] DIRCAP", help)
 
     def test_list_aliases(self):
         help = str(cli.ListAliasesOptions())
-        self.failUnlessIn(" list-aliases [options]", help)
+        self.failUnlessIn(" [global-opts] list-aliases [options]", help)
 
     def test_start(self):
         help = str(startstop_node.StartOptions())
-        self.failUnlessIn(" start [options] [NODEDIR]", help)
+        self.failUnlessIn(" [global-opts] start [options] [NODEDIR]", help)
 
     def test_stop(self):
         help = str(startstop_node.StopOptions())
-        self.failUnlessIn(" stop [options] [NODEDIR]", help)
+        self.failUnlessIn(" [global-opts] stop [options] [NODEDIR]", help)
 
     def test_restart(self):
         help = str(startstop_node.RestartOptions())
-        self.failUnlessIn(" restart [options] [NODEDIR]", help)
+        self.failUnlessIn(" [global-opts] restart [options] [NODEDIR]", help)
 
     def test_run(self):
         help = str(startstop_node.RunOptions())
-        self.failUnlessIn(" run [options] [NODEDIR]", help)
+        self.failUnlessIn(" [global-opts] run [options] [NODEDIR]", help)
 
     def test_create_client(self):
         help = str(create_node.CreateClientOptions())
-        self.failUnlessIn(" create-client [options] [NODEDIR]", help)
+        self.failUnlessIn(" [global-opts] create-client [options] [NODEDIR]", help)
 
     def test_create_node(self):
         help = str(create_node.CreateNodeOptions())
-        self.failUnlessIn(" create-node [options] [NODEDIR]", help)
+        self.failUnlessIn(" [global-opts] create-node [options] [NODEDIR]", help)
 
     def test_create_introducer(self):
         help = str(create_node.CreateIntroducerOptions())
-        self.failUnlessIn(" create-introducer [options] NODEDIR", help)
+        self.failUnlessIn(" [global-opts] create-introducer [options] NODEDIR", help)
 
     def test_debug_trial(self):
         help = str(debug.TrialOptions())
-        self.failUnlessIn(" debug trial [options] [[file|package|module|TestCase|testmethod]...]", help)
+        self.failUnlessIn(" [global-opts] debug trial [options] [[file|package|module|TestCase|testmethod]...]", help)
         self.failUnlessIn("The 'tahoe debug trial' command uses the correct imports", help)
 
     def test_debug_flogtool(self):
         options = debug.FlogtoolOptions()
         help = str(options)
-        self.failUnlessIn(" debug flogtool ", help)
+        self.failUnlessIn(" [global-opts] debug flogtool ", help)
         self.failUnlessIn("The 'tahoe debug flogtool' command uses the correct imports", help)
 
         for (option, shortcut, oClass, desc) in options.subCommands:
             subhelp = str(oClass())
-            self.failUnlessIn(" debug flogtool %s " % (option,), subhelp)
+            self.failUnlessIn(" [global-opts] debug flogtool %s " % (option,), subhelp)
 
 
 class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):

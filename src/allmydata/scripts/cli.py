@@ -103,7 +103,7 @@ class ListOptions(FilesystemOptions):
         self.where = argv_to_unicode(where)
 
     def getSynopsis(self):
-        return "Usage:  %s ls [options] [PATH]" % (self.command_name,)
+        return "Usage:  %s [global-opts] ls [options] [PATH]" % (self.command_name,)
 
     longdesc = """
     List the contents of some portion of the grid.
