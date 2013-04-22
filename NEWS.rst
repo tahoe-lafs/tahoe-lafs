@@ -38,6 +38,13 @@ Security Improvements
   FURLs, the ``introducer`` swissnum is still displayed to show that a
   guessable FURL is in use. (`#860`_)
 
+Command-line Syntax Changes
+'''''''''''''''''''''''''''
+
+- Global options to ``tahoe``, such as ``-d``/``--node-directory``, must now
+  come before rather than after the command name (for example,
+  ``tahoe -d BASEDIR cp -r foo: bar:`` ). (`#166`_)
+
 Notable Bugfixes
 ''''''''''''''''
 
@@ -100,6 +107,7 @@ Precautions when Upgrading
   that announcements to the Introducer are recognized after the upgrade.
   This is not necessary when upgrading from a previous release.
 
+.. _`#166`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/166
 .. _`#443`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/443
 .. _`#466`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/466
 .. _`#860`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/860
