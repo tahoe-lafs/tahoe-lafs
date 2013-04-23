@@ -451,11 +451,10 @@ class CheckOptions(FilesystemOptions):
         ("repair", None, "Automatically repair any problems found."),
         ("add-lease", None, "Add/renew lease on all shares."),
         ]
-    def parseArgs(self, *where):
-        if(len(where) == 0): raise 
-        self.where = []
-        for location in where:
-            self.where.append(argv_to_unicode(location))
+    def parseArgs(self, *locations):
+        if len(locations) == 0: 
+            raise usage.UsageError("Wrong number of arguments")
+        self.locations = map(argv_to_unicode, locations)
 
     def getSynopsis(self):
         return "Usage:  %s [global-opts] check [options] [ALIAS:PATH]" % (self.command_name,)
@@ -473,11 +472,10 @@ class DeepCheckOptions(FilesystemOptions):
         ("add-lease", None, "Add/renew lease on all shares."),
         ("verbose", "v", "Be noisy about what is happening."),
         ]
-    def parseArgs(self, *where):
-        if(len(where) == 0): raise
-        self.where = []
-        for location in where:
-            self.where.append(argv_to_unicode(location))
+    def parseArgs(self, *locations):
+        if len(locations) == 0: 
+            raise usage.UsageError("Wrong number of arguments")
+        self.locations = map(argv_to_unicode, locations)
 
     def getSynopsis(self):
         return "Usage:  %s [global-opts] deep-check [options] [ALIAS:PATH]" % (self.command_name,)

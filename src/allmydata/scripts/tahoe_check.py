@@ -15,90 +15,94 @@ def _quote_serverid_index_share(serverid, storage_index, sharenum):
                                            quote_output(storage_index, quotemarks=False),
                                            sharenum)
 
-def check(options):
+def check_output(options, where):
     stdout = options.stdout
     stderr = options.stderr
     nodeurl = options['node-url']
     if not nodeurl.endswith("/"):
         nodeurl += "/"
-    for where in options.where:
-        try:
-            rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
-            e.display(stderr)
-            return 1
-        if path == '/':
-            path = ''
-        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
-        if path:
-            url += "/" + escape_path(path)
-        # todo: should it end with a slash?
-        url += "?t=check&output=JSON"
-        if options["verify"]:
-            url += "&verify=true"
-        if options["repair"]:
-            url += "&repair=true"
-        if options["add-lease"]:
-            url += "&add-lease=true"
+    try:
+        rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
+    except UnknownAliasError, e:
+        e.display(stderr)
+        return 1
+    if path == '/':
+        path = ''
+    url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+    if path:
+        url += "/" + escape_path(path)
+    # todo: should it end with a slash?
+    url += "?t=check&output=JSON"
+    if options["verify"]:
+        url += "&verify=true"
+    if options["repair"]:
+        url += "&repair=true"
+    if options["add-lease"]:
+        url += "&add-lease=true"
 
-        resp = do_http("POST", url)
-        if resp.status != 200:
-            print >>stderr, format_http_error("ERROR", resp)
-            return 1
-        jdata = resp.read()
-        if options.get("raw"):
-            stdout.write(jdata)
-            stdout.write("\n")
-            return 0
-        data = simplejson.loads(jdata)
+    resp = do_http("POST", url)
+    if resp.status != 200:
+        print >>stderr, format_http_error("ERROR", resp)
+        return 1
+    jdata = resp.read()
+    if options.get("raw"):
+        stdout.write(jdata)
+        stdout.write("\n")
+        return 0
+    data = simplejson.loads(jdata)
 
-        if options["repair"]:
-            # show repair status
-            if data["pre-repair-results"]["results"]["healthy"]:
-                summary = "healthy"
+    if options["repair"]:
+        # show repair status
+        if data["pre-repair-results"]["results"]["healthy"]:
+            summary = "healthy"
+        else:
+            summary = "not healthy"
+        stdout.write("Summary: %s\n" % summary)
+        cr = data["pre-repair-results"]["results"]
+        stdout.write(" storage index: %s\n" % quote_output(data["storage-index"], quotemarks=False))
+        stdout.write(" good-shares: %r (encoding is %r-of-%r)\n"
+                     % (cr["count-shares-good"],
+                        cr["count-shares-needed"],
+                        cr["count-shares-expected"]))
+        stdout.write(" wrong-shares: %r\n" % cr["count-wrong-shares"])
+        corrupt = cr["list-corrupt-shares"]
+        if corrupt:
+            stdout.write(" corrupt shares:\n")
+            for (serverid, storage_index, sharenum) in corrupt:
+                stdout.write("  %s\n" % _quote_serverid_index_share(serverid, storage_index, sharenum))
+        if data["repair-attempted"]:
+            if data["repair-successful"]:
+                stdout.write(" repair successful\n")
             else:
-                summary = "not healthy"
-            stdout.write("Summary: %s\n" % summary)
-            cr = data["pre-repair-results"]["results"]
-            stdout.write(" storage index: %s\n" % quote_output(data["storage-index"], quotemarks=False))
+                stdout.write(" repair failed\n")
+    else:
+        # LIT files and directories do not have a "summary" field.
+        summary = data.get("summary", "Healthy (LIT)")
+        stdout.write("Summary: %s\n" % quote_output(summary, quotemarks=False))
+        cr = data["results"]
+        stdout.write(" storage index: %s\n" % quote_output(data["storage-index"], quotemarks=False))
+
+        if all([field in cr for field in ("count-shares-good", "count-shares-needed",
+                                          "count-shares-expected", "count-wrong-shares")]):
             stdout.write(" good-shares: %r (encoding is %r-of-%r)\n"
                          % (cr["count-shares-good"],
                             cr["count-shares-needed"],
                             cr["count-shares-expected"]))
             stdout.write(" wrong-shares: %r\n" % cr["count-wrong-shares"])
-            corrupt = cr["list-corrupt-shares"]
-            if corrupt:
-                stdout.write(" corrupt shares:\n")
-                for (serverid, storage_index, sharenum) in corrupt:
-                    stdout.write("  %s\n" % _quote_serverid_index_share(serverid, storage_index, sharenum))
-            if data["repair-attempted"]:
-                if data["repair-successful"]:
-                    stdout.write(" repair successful\n")
-                else:
-                    stdout.write(" repair failed\n")
-        else:
-            # LIT files and directories do not have a "summary" field.
-            summary = data.get("summary", "Healthy (LIT)")
-            stdout.write("Summary: %s\n" % quote_output(summary, quotemarks=False))
-            cr = data["results"]
-            stdout.write(" storage index: %s\n" % quote_output(data["storage-index"], quotemarks=False))
 
-            if all([field in cr for field in ("count-shares-good", "count-shares-needed",
-                                              "count-shares-expected", "count-wrong-shares")]):
-                stdout.write(" good-shares: %r (encoding is %r-of-%r)\n"
-                             % (cr["count-shares-good"],
-                                cr["count-shares-needed"],
-                                cr["count-shares-expected"]))
-                stdout.write(" wrong-shares: %r\n" % cr["count-wrong-shares"])
+        corrupt = cr.get("list-corrupt-shares", [])
+        if corrupt:
+            stdout.write(" corrupt shares:\n")
+            for (serverid, storage_index, sharenum) in corrupt:
+                stdout.write("  %s\n" % _quote_serverid_index_share(serverid, storage_index, sharenum))
+                
+    return 0;
 
-            corrupt = cr.get("list-corrupt-shares", [])
-            if corrupt:
-                stdout.write(" corrupt shares:\n")
-                for (serverid, storage_index, sharenum) in corrupt:
-                    stdout.write("  %s\n" % _quote_serverid_index_share(serverid, storage_index, sharenum))
-
-    return 0
-
+def check(options):
+    for location in options.locations:
+        errno = check_output(options, where)
+        if errno != 0: 
+            return errno
 
 class FakeTransport:
     disconnecting = False
@@ -262,7 +266,7 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
 
 class DeepCheckStreamer(LineOnlyReceiver):
 
-    def run(self, options):
+    def deepcheck_location(self, options, where):
         stdout = options.stdout
         stderr = options.stderr
         self.rc = 0
@@ -271,45 +275,52 @@ class DeepCheckStreamer(LineOnlyReceiver):
         if not nodeurl.endswith("/"):
             nodeurl += "/"
         self.nodeurl = nodeurl
-        #where = options.where
-        for where in options.where:
-            try:
-                rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-            except UnknownAliasError, e:
-                e.display(stderr)
-                return 1
-            if path == '/':
-                path = ''
-            url = nodeurl + "uri/%s" % urllib.quote(rootcap)
-            if path:
-                url += "/" + escape_path(path)
-            # todo: should it end with a slash?
-            url += "?t=stream-deep-check"
-            if options["verify"]:
-                url += "&verify=true"
-            if options["repair"]:
-                url += "&repair=true"
-                output = DeepCheckAndRepairOutput(self, options)
-            else:
-                output = DeepCheckOutput(self, options)
-            if options["add-lease"]:
-                url += "&add-lease=true"
-            resp = do_http("POST", url)
-            if resp.status not in (200, 302):
-                print >>stderr, format_http_error("ERROR", resp)
-                return 1
 
-            # use Twisted to split this into lines
-            while True:
-                chunk = resp.read(100)
-                if not chunk:
-                    break
-                if self.options["raw"]:
-                    stdout.write(chunk)
-                else:
-                    output.dataReceived(chunk)
-            if not self.options["raw"]:
-                output.done()
+        try:
+            rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
+        except UnknownAliasError, e:
+            e.display(stderr)
+            return 1
+        if path == '/':
+            path = ''
+        url = nodeurl + "uri/%s" % urllib.quote(rootcap)
+        if path:
+            url += "/" + escape_path(path)
+        # todo: should it end with a slash?
+        url += "?t=stream-deep-check"
+        if options["verify"]:
+            url += "&verify=true"
+        if options["repair"]:
+            url += "&repair=true"
+            output = DeepCheckAndRepairOutput(self, options)
+        else:
+            output = DeepCheckOutput(self, options)
+        if options["add-lease"]:
+            url += "&add-lease=true"
+        resp = do_http("POST", url)
+        if resp.status not in (200, 302):
+            print >>stderr, format_http_error("ERROR", resp)
+            return 1
+
+        # use Twisted to split this into lines
+        while True:
+            chunk = resp.read(100)
+            if not chunk:
+                break
+            if self.options["raw"]:
+                stdout.write(chunk)
+            else:
+                output.dataReceived(chunk)
+        if not self.options["raw"]:
+            output.done()
+        return 0
+        
+
+    def run(self, options):
+        for location in options.locations:
+            errno = self.deepcheck_location(options, location)
+            if errno != 0:
+                return errno 
         return self.rc
 
 def deepcheck(options):
