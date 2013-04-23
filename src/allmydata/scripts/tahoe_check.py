@@ -95,7 +95,7 @@ def check_location(options, where):
             stdout.write(" corrupt shares:\n")
             for (serverid, storage_index, sharenum) in corrupt:
                 stdout.write("  %s\n" % _quote_serverid_index_share(serverid, storage_index, sharenum))
-                
+
     return 0;
 
 def check(options):
@@ -106,7 +106,7 @@ def check(options):
         return 0
     for location in options.locations:
         errno = check_location(options, location)
-        if errno != 0: 
+        if errno != 0:
             return errno
     return 0
 
@@ -320,7 +320,6 @@ class DeepCheckStreamer(LineOnlyReceiver):
         if not self.options["raw"]:
             output.done()
         return 0
-        
 
     def run(self, options):
         if len(options.locations) == 0:
@@ -331,7 +330,7 @@ class DeepCheckStreamer(LineOnlyReceiver):
         for location in options.locations:
             errno = self.deepcheck_location(options, location)
             if errno != 0:
-                return errno 
+                return errno
         return self.rc
 
 def deepcheck(options):

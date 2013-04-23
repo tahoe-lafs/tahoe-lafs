@@ -245,7 +245,7 @@ if __name__ == '__main__':
         print "Delete item..."
         yield msc.delete_object("key")
         print
-        print "Get contents:", 
+        print "Get contents:",
         result = yield msc.list_objects()
         print [item.key for item in result.contents]
         reactor.stop()

@@ -3225,11 +3225,11 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         c0 = self.g.clients[0]
         d = c0.create_dirnode()
         def _stash_uri(n):
-            self.uriList.append(n.get_uri()) 
+            self.uriList.append(n.get_uri())
         d.addCallback(_stash_uri)
         d = c0.create_dirnode()
         d.addCallback(_stash_uri)
-        
+
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], self.uriList[1]))
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 0)
@@ -3238,7 +3238,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("Healthy", out[:len(out)/2])
             self.failUnlessIn("Healthy", out[len(out)/2:])
         d.addCallback(_check)
-        
+
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], "nonexistent:"))
         def _check2((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -3246,7 +3246,6 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
         d.addCallback(_check2)
-        
         return d
 
 
