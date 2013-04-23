@@ -378,6 +378,24 @@ Client Configuration
     See `<specifications/mutable.rst>`_ for details about mutable file
     formats.
 
+``peers.preferred = (string, optional)``
+
+    This is an optional comma-separated list of storage server node IDs that
+    will be tried first when selecting storage servers for reading or writing.
+
+    Every selected node, preferred or not, will still receive the same number
+    of shares (one, if there are ``N`` or more servers accepting uploads).
+    Preferred nodes are simply moved to the front of the server selection lists
+    computed for each file.
+
+    This is useful if a subset of your nodes have different availability or
+    connectivity characteristics than the rest of the grid. For instance, if
+    there are more than ``N`` servers on the grid, and ``K`` or more of them
+    are at a single physical location, it would make sense for clients at that
+    location to prefer their local servers so that they can maintain access to
+    all of their uploads without using the internet.
+
+
 Frontend Configuration
 ======================
 
