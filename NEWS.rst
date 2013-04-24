@@ -3,9 +3,10 @@ User-Visible Changes in Tahoe-LAFS
 ==================================
 
 Release 1.10 (2013-??-??)
+'''''''''''''''''''''''''
 
 New Features
-''''''''''''
+------------
 
 - The Welcome page has been redesigned. This is a preview of the design style
   that is likely to be used in other parts of the WUI in future Tahoe-LAFS
@@ -19,7 +20,7 @@ New Features
   files between directories. (`#1579`_)
 
 Security Improvements
-'''''''''''''''''''''
+---------------------
 
 - The ``introducer.furl`` for new Introducers is now unguessable. In previous
   releases, this FURL used a predictable swissnum, allowing a network
@@ -39,14 +40,14 @@ Security Improvements
   guessable FURL is in use. (`#860`_)
 
 Command-line Syntax Changes
-'''''''''''''''''''''''''''
+---------------------------
 
 - Global options to ``tahoe``, such as ``-d``/``--node-directory``, must now
   come before rather than after the command name (for example,
   ``tahoe -d BASEDIR cp -r foo: bar:`` ). (`#166`_)
 
 Notable Bugfixes
-''''''''''''''''
+----------------
 
 - If an immutable file failed to download, e.g. due to a connection problem,
   subsequent attempts to download the same file could also fail. (`#1679`_)
@@ -69,19 +70,19 @@ Notable Bugfixes
 - Other minor changes: `#1781`_, `#1812`_
 
 Performance Improvements
-''''''''''''''''''''''''
+------------------------
 
 - Allow web clients to cache immutable directory pages. (`#443`_)
 
 Documentation
-'''''''''''''
+-------------
 
 - docs/helper.rst has been brought up to date. (`#1915`_)
 - docs/convergence_secret.rst was added to document the adminstration of
   convergence secrets. (`#1761`_)
 
 Packaging Changes
-'''''''''''''''''
+-----------------
 
 - The flogtool utility, used to read logs, can now be accessed as
   ``tahoe debug flogtool`` even when foolscap is not installed system-wide.
@@ -92,7 +93,7 @@ Packaging Changes
   them.
 
 Compatibility and Dependencies
-''''''''''''''''''''''''''''''
+------------------------------
 
 - Python >= 2.6, except Python 3 (`#1658`_)
 - Twisted >= 11.0.0 (`#1771`_)
@@ -100,7 +101,7 @@ Compatibility and Dependencies
 - pycryptopp >= 0.6.0 (for ed25519)
 
 Precautions when Upgrading
-''''''''''''''''''''''''''
+--------------------------
 
 - When upgrading a grid from a recent version of trunk, follow the
   precautions from this `message to the tahoe-dev mailing list`_, to ensure
@@ -139,10 +140,10 @@ Precautions when Upgrading
              https://tahoe-lafs.org/pipermail/tahoe-dev/2013-March/008096.html
 
 Release 1.9.2 (2012-07-03)
---------------------------
+''''''''''''''''''''''''''
 
 Notable Bugfixes
-''''''''''''''''
+----------------
 
 - Several regressions in support for reading (`#1636`_), writing/modifying
   (`#1670`_, `#1749`_), verifying (`#1628`_) and repairing (`#1655`_, `#1669`_,
@@ -160,7 +161,7 @@ Notable Bugfixes
   computed correctly. (`#1115`_)
 
 Configuration/Behavior Changes
-''''''''''''''''''''''''''''''
+------------------------------
 
 - The capability of the upload directory for the drop-upload frontend
   is now specified in the file ``private/drop_upload_dircap`` under
@@ -168,13 +169,13 @@ Configuration/Behavior Changes
   (`#1593`_)
 
 Packaging Changes
-'''''''''''''''''
+-----------------
 
 - Tahoe-LAFS can be built correctly from a git repository as well as
   from darcs.
 
 Compatibility and Dependencies
-''''''''''''''''''''''''''''''
+------------------------------
 
 - foolscap >= 0.6.3 is required, in order to make Tahoe-LAFS compatible
   with Twisted >= 11.1.0. (`#1788`_)
@@ -200,10 +201,10 @@ Compatibility and Dependencies
 
 
 Release 1.9.1 (2012-01-12)
---------------------------
+''''''''''''''''''''''''''
 
 Security-related Bugfix
-'''''''''''''''''''''''
+-----------------------
 
 - Fix flaw that would allow servers to cause undetected corruption when
   retrieving the contents of mutable files (both SDMF and MDMF). (`#1654`_)
@@ -212,10 +213,10 @@ Security-related Bugfix
 
 
 Release 1.9.0 (2011-10-30)
---------------------------
+''''''''''''''''''''''''''
 
 New Features
-''''''''''''
+------------
 
 - The most significant new feature in this release is MDMF: "Medium-size
   Distributed Mutable Files". Unlike standard SDMF files, these provide
@@ -241,7 +242,7 @@ New Features
   can be reached from the Recent Uploads and Downloads page.
 
 Configuration/Behavior Changes
-''''''''''''''''''''''''''''''
+------------------------------
 
 - Prior to Tahoe-LAFS v1.3, the configuration of some node options could
   be specified using individual config files rather than via ``tahoe.cfg``.
@@ -257,7 +258,7 @@ Configuration/Behavior Changes
   listing is now labelled "unlink" rather than "del". (`#1104`_)
 
 Notable Bugfixes
-''''''''''''''''
+----------------
 
 - The security bugfix for the vulnerability allowing deletion of shares,
   detailed in the news for v1.8.3 below, is also included in this
@@ -271,7 +272,7 @@ Notable Bugfixes
   5% on a fast network). (`#1268`_)
 
 Packaging Changes
-'''''''''''''''''
+-----------------
 
 - The files related to Debian packaging have been removed from the Tahoe
   source tree, since they are now maintained as part of the official
@@ -295,7 +296,7 @@ Packaging Changes
   * Open Software License
 
 Compatibility and Dependencies
-''''''''''''''''''''''''''''''
+------------------------------
 
 - To resolve an incompatibility between Nevow and zope.interface (versions
   3.6.3 and 3.6.4), Tahoe-LAFS now requires an earlier or later
@@ -309,7 +310,7 @@ Compatibility and Dependencies
   dependency via the "secure_connections" option of foolscap. (`#1383`_)
 
 Minor Changes
-'''''''''''''
+-------------
 
 - A ``man`` page has been added (`#1420`_). All other docs are in ReST
   format.
@@ -341,10 +342,10 @@ Minor Changes
 
 
 Release 1.8.3 (2011-09-13)
---------------------------
+''''''''''''''''''''''''''
 
 Security-related Bugfix
-'''''''''''''''''''''''
+-----------------------
 
 - Fix flaw that would allow a person who knows a storage index of a file to
   delete shares of that file. (`#1528`_)
@@ -358,10 +359,10 @@ Security-related Bugfix
 
 
 Release 1.8.2 (2011-01-30)
---------------------------
+''''''''''''''''''''''''''
 
 Compatibility and Dependencies
-''''''''''''''''''''''''''''''
+------------------------------
 
 - Tahoe is now compatible with Twisted-10.2 (released last month), as
   well as with earlier versions. The previous Tahoe-1.8.1 release
@@ -374,7 +375,7 @@ Compatibility and Dependencies
   Tahoe code.
 
 Other Changes
-'''''''''''''
+-------------
 
 - the default reserved_space value for new storage nodes is 1 GB
   (`#1208`_)
@@ -399,10 +400,10 @@ Other Changes
 
 
 Release 1.8.1 (2010-10-28)
---------------------------
+''''''''''''''''''''''''''
 
 Bugfixes and Improvements
-'''''''''''''''''''''''''
+-------------------------
 
 - Allow the repairer to improve the health of a file by uploading some
   shares, even if it cannot achieve the configured happiness
@@ -433,14 +434,14 @@ Bugfixes and Improvements
   script, rather than an obscure tool named 'twistd'). (`#174`_)
 
 Removed Features
-''''''''''''''''
+----------------
 
 - The tahoe start/stop/restart and node creation commands no longer
   accept the -m or --multiple option, for consistency between
   platforms.  (`#1262`_)
 
 Packaging
-'''''''''
+---------
 
 - We now host binary packages so that users on certain operating
   systems can install without having a compiler.
@@ -454,7 +455,7 @@ Packaging
   version number. (`#1233`_)
 
 Documentation
-'''''''''''''
+-------------
 
 - All current documentation in .txt format has been converted to .rst
   format. (`#1225`_)
@@ -480,10 +481,10 @@ Documentation
 
 
 Release 1.8.0 (2010-09-23)
---------------------------
+''''''''''''''''''''''''''
 
 New Features
-''''''''''''
+------------
 
 - A completely new downloader which improves performance and
   robustness of immutable-file downloads. It uses the fastest K
@@ -502,7 +503,7 @@ New Features
   Windows. (`#1074`_)
 
 Bugfixes and Improvements
-'''''''''''''''''''''''''
+-------------------------
 
 - Document and clean up the command-line options for specifying the
   node's base directory. (`#188`_, `#706`_, `#715`_, `#772`_,
@@ -519,7 +520,7 @@ Bugfixes and Improvements
   `#1127`_, `#1129`_, `#1131`_, `#1166`_, `#1175`_)
 
 Dependency Updates
-''''''''''''''''''
+------------------
 
 - on x86 and x86-64 platforms, pycryptopp >= 0.5.20
 - pycrypto 2.2 is excluded due to a bug
@@ -549,10 +550,10 @@ Dependency Updates
 .. _`#1175`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1175
 
 Release 1.7.1 (2010-07-18)
---------------------------
+''''''''''''''''''''''''''
 
 Bugfixes and Improvements
-'''''''''''''''''''''''''
+-------------------------
 
 - Fix bug in which uploader could fail with AssertionFailure or report
   that it had achieved servers-of-happiness when it hadn't. (`#1118`_)
@@ -574,7 +575,7 @@ Bugfixes and Improvements
 - Forward-compatibility improvements for non-ASCII caps (`#1051`_)
 
 Code improvements
-'''''''''''''''''
+-----------------
 
 - Simplify and tidy-up directories, unicode support, test code
   (`#923`_, `#967`_, `#1072`_)
@@ -595,10 +596,10 @@ Code improvements
 
 
 Release 1.7.0 (2010-06-18)
---------------------------
+''''''''''''''''''''''''''
 
 New Features
-''''''''''''
+------------
 
 - SFTP support (`#1037`_)
   Your Tahoe-LAFS gateway now acts like a full-fledged SFTP server. It
@@ -637,7 +638,7 @@ New Features
   uploaded). See the `architecture.rst`_ document [3] for details.
 
 Bugfixes and Improvements
-'''''''''''''''''''''''''
+-------------------------
 
 - Premature abort of upload if some shares were already present and
   some servers fail. (`#608`_)
@@ -668,14 +669,14 @@ Bugfixes and Improvements
   `#1024`_, `#1082`_)
 
 Removals
-''''''''
+--------
 
 - The 'tahoe debug consolidate' subcommand (for converting old
   allmydata Windows client backups to a newer format) has been
   removed.
 
 Dependency Updates
-''''''''''''''''''
+------------------
 
 - the Python version dependency is raised to 2.4.4 in some cases
   (2.4.3 for Redhat-based Linux distributions, 2.4.2 for UCS-2 builds)
@@ -711,10 +712,10 @@ Dependency Updates
 .. _FTP-and-SFTP.rst: docs/frontends/FTP-and-SFTP.rst
 
 Release 1.6.1 (2010-02-27)
---------------------------
+''''''''''''''''''''''''''
 
 Bugfixes
-''''''''
+--------
 
 - Correct handling of Small Immutable Directories
 
@@ -725,7 +726,7 @@ Bugfixes
   (`#948`_)
 
 Usability Improvements
-''''''''''''''''''''''
+----------------------
 
 - Improved user interface messages and error reporting. (`#681`_,
   `#837`_, `#939`_)
@@ -735,10 +736,10 @@ Usability Improvements
   are retained for a further day. (`#577`_)
 
 Release 1.6.0 (2010-02-01)
---------------------------
+''''''''''''''''''''''''''
 
 New Features
-''''''''''''
+------------
 
 - Immutable Directories
 
@@ -875,7 +876,7 @@ New Features
   heterogeneous servers or geographical dispersion.
 
 Minor Changes
-'''''''''''''
+-------------
 
 - The webapi acquired a new "t=mkdir-with-children" command, to create
   and populate a directory in a single call. This is significantly
@@ -964,10 +965,10 @@ To include the tickets mentioned above, go to
 .. _webapi.rst: docs/frontends/webapi.rst
 
 Release 1.5.0 (2009-08-01)
---------------------------
+''''''''''''''''''''''''''
 
 Improvements
-''''''''''''
+------------
 
 - Uploads of immutable files now use pipelined writes, improving
   upload speed slightly (10%) over high-latency connections. (`#392`_)
@@ -1005,7 +1006,7 @@ Improvements
   read or written. Also they cannot generally be copied. (`#683`_)
 
 Bugfixes
-''''''''
+--------
 
 - deep-check-and-repair now tolerates read-only directories, such as
   the ones produced by the "tahoe backup" CLI command. Read-only
@@ -1024,7 +1025,7 @@ Bugfixes
   partial-information-guessing attack. (`#722`_)
 
 Platform/packaging changes
-''''''''''''''''''''''''''
+--------------------------
 
 - Tahoe-LAFS now runs on NetBSD, OpenBSD, ArchLinux, and NixOS, and on
   an embedded system based on an ARM CPU running at 266 MHz.
@@ -1053,7 +1054,7 @@ Platform/packaging changes
   architectures.
 
 dependency updates
-''''''''''''''''''
+------------------
 
 - foolscap-0.4.1
 - no python-2.4.0 or 2.4.1 (2.4.2 is good) (they contained a bug in base64.b32decode)
@@ -1073,10 +1074,10 @@ dependency updates
 .. _#752: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/752
 
 Release 1.4.1 (2009-04-13)
---------------------------
+''''''''''''''''''''''''''
 
 Garbage Collection
-''''''''''''''''''
+------------------
 
 - The big feature for this release is the implementation of garbage
   collection, allowing Tahoe storage servers to delete shares for old
@@ -1100,7 +1101,7 @@ Garbage Collection
   crawl. 1.1.0 servers did not have the add-lease operation at all.
 
 Security/Usability Problems Fixed
-'''''''''''''''''''''''''''''''''
+---------------------------------
 
 - A super-linear algorithm in the Merkle Tree code was fixed, which
   previously caused e.g. download of a 10GB file to take several hours
@@ -1117,7 +1118,7 @@ Security/Usability Problems Fixed
   hashing the two strings to be compared with a random secret.
 
 webapi changes
-''''''''''''''
+--------------
 
 - In most cases, HTML tracebacks will only be sent if an "Accept:
   text/html" header was provided with the HTTP request. This will
@@ -1153,7 +1154,7 @@ webapi changes
   docs/proposed/lossmodel.lyx .
 
 CLI changes
-'''''''''''
+-----------
 
 - "tahoe check" and "tahoe deep-check" now accept an "--add-lease"
   argument, to update a lease on all shares. This is the "mark" side
@@ -1195,7 +1196,7 @@ CLI changes
   the results of a "consolidation" operation.
 
 other fixes
-'''''''''''
+-----------
 
 - The codebase no longer rauses RuntimeError as a kind of
   assert(). Specific exception classes were created for each previous
@@ -1218,10 +1219,10 @@ other fixes
 .. _garbage-collection.rst: docs/garbage-collection.rst
 
 Release 1.3.0 (2009-02-13)
---------------------------
+''''''''''''''''''''''''''
 
 Checker/Verifier/Repairer
-'''''''''''''''''''''''''
+-------------------------
 
 - The primary focus of this release has been writing a checker /
   verifier / repairer for files and directories.  "Checking" is the
@@ -1300,7 +1301,7 @@ Checker/Verifier/Repairer
   details.
 
 Efficient Backup
-''''''''''''''''
+----------------
 
 - The "tahoe backup" command is new in this release, which creates
   efficient versioned backups of a local directory. Given a local
@@ -1323,7 +1324,7 @@ Efficient Backup
   $target/Latest) from working.
 
 Large Files
-'''''''''''
+-----------
 
 - The 12GiB (approximate) immutable-file-size limitation is
   lifted. This release knows how to handle so-called "v2 immutable
@@ -1339,7 +1340,7 @@ Large Files
   upload shares of a large file to a server which doesn't support it.
 
 FTP/SFTP Server
-'''''''''''''''
+---------------
 
 - Tahoe now includes experimental FTP and SFTP servers. When
   configured with a suitable method to translate username+password
@@ -1353,7 +1354,7 @@ FTP/SFTP Server
   configuration details. (`#512`_, `#531`_)
 
 CLI Changes
-'''''''''''
+-----------
 
 - This release adds the 'tahoe create-alias' command, which is a
   combination of 'tahoe mkdir' and 'tahoe add-alias'. This also allows
@@ -1401,7 +1402,7 @@ characters on the command-line in utf-8 encoding).  See
 https://tahoe-lafs.org/trac/tahoe-lafs/ticket/565 for details.
 
 Web changes
-'''''''''''
+-----------
 
 - The "default webapi port", used when creating a new client node (and
   in the getting-started documentation), was changed from 8123 to
@@ -1489,7 +1490,7 @@ Web changes
   target) of a t=rename command.
 
 Packaging
-'''''''''
+---------
 
 - Tahoe's dependencies have been extended to require the
   "[secure_connections]" feature from Foolscap, which will cause
@@ -1553,7 +1554,7 @@ Packaging
   is no longer the case in 2.0.x .
 
 Grid Management Tools
-'''''''''''''''''''''
+---------------------
 
 - Several tools have been added or updated in the misc/ directory,
   mostly munin plugins that can be used to monitor a storage grid.
@@ -1591,7 +1592,7 @@ Grid Management Tools
    Tahoe implements some form of garbage collection.
 
 Configuration Changes: single INI-format tahoe.cfg file
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''
+-------------------------------------------------------
 
 - The Tahoe node is now configured with a single INI-format file,
   named "tahoe.cfg", in the node's base directory. Most of the
@@ -1622,7 +1623,7 @@ Configuration Changes: single INI-format tahoe.cfg file
   prevent the growth of existing mutable shares).
 
 Other Changes
-'''''''''''''
+-------------
 
 - Clients now declare which versions of the protocols they
   support. This is part of a new backwards-compatibility system:
@@ -1667,10 +1668,10 @@ Other Changes
 .. _#531: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/531
 
 Release 1.2.0 (2008-07-21)
---------------------------
+''''''''''''''''''''''''''
 
 Security
-''''''''
+--------
 
 - This release makes the immutable-file "ciphertext hash tree"
   mandatory.  Previous releases allowed the uploader to decide whether
@@ -1690,7 +1691,7 @@ Security
   their shares.
 
 Dependencies
-''''''''''''
+------------
 
 - Tahoe now requires Foolscap-0.2.9 . It also requires pycryptopp 0.5
   or newer, since earlier versions had a bug that interacted with
@@ -1700,7 +1701,7 @@ Dependencies
   when necessary.
 
 Web API
-'''''''
+-------
 
 - Web API directory pages should now contain properly-slash-terminated
   links to other directories. They have also stopped using absolute
@@ -1730,7 +1731,7 @@ Web API
   work correctly.
 
 Checker/Verifier/Repairer
-'''''''''''''''''''''''''
+-------------------------
 
 - Tahoe is slowly acquiring convenient tools to check up on file
   health, examine existing shares for errors, and repair files that
@@ -1745,7 +1746,7 @@ Checker/Verifier/Repairer
   Future releases will improve access to this functionality.
 
 Operations/Packaging
-''''''''''''''''''''
+--------------------
 
 - A "check-grid" script has been added, along with a Makefile
   target. This is intended (with the help of a pre-configured node
@@ -1771,7 +1772,7 @@ Operations/Packaging
   added to match.
 
 Other
-'''''
+-----
 
 - Tahoe nodes now use Foolscap "incident logging" to record unusual
   events to their NODEDIR/logs/incidents/ directory. These incident
@@ -1798,10 +1799,10 @@ Other
 .. _debian.rst: docs/debian.rst
 
 Release 1.1.0 (2008-06-11)
---------------------------
+''''''''''''''''''''''''''
 
 CLI: new "alias" model
-''''''''''''''''''''''
+----------------------
 
 - The new CLI code uses an scp/rsync -like interface, in which
   directories in the Tahoe storage grid are referenced by a
@@ -1816,7 +1817,7 @@ CLI: new "alias" model
   'ls' command. Please read `CLI.rst`_ for complete details.
 
 wapi: new pages, new commands
-'''''''''''''''''''''''''''''
+-----------------------------
 
 - Several new pages were added to the web API:
 
@@ -1856,14 +1857,14 @@ wapi: new pages, new commands
  - tahoe_spacetime
 
 New Dependencies
-''''''''''''''''
+----------------
 -  zfec 1.1.0
 -  foolscap 0.2.8
 -  pycryptopp 0.5
 -  setuptools (now required at runtime)
 
 New Mutable-File Code
-'''''''''''''''''''''
+---------------------
 
 - The mutable-file handling code (mostly used for directories) has
   been completely rewritten. The new scheme has a better API (with a
@@ -1880,7 +1881,7 @@ New Mutable-File Code
   published when in fact it failed.
 
 other features
-''''''''''''''
+--------------
 
 - The node now monitors its own CPU usage, as a percentage, measured
   every 60 seconds. 1/5/15 minute moving averages are available on the
