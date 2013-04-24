@@ -272,7 +272,7 @@ find-trailing-spaces:
 fetch-and-unpack-deps:
 	test -f tahoe-deps.tar.gz || wget https://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-lafs-deps.tar.gz
 	rm -rf tahoe-deps
-	tar xzf tahoe-deps.tar.gz
+	tar xzf tahoe-lafs-deps.tar.gz
 
 test-desert-island:
 	$(MAKE) fetch-and-unpack-deps
