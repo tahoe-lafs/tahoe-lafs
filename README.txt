@@ -12,7 +12,7 @@ To get started please see `quickstart.rst`_ in the docs directory.
 LICENCE
 =======
 
-Copyright 2006-2012 The Tahoe-LAFS Software Foundation
+Copyright 2006-2013 The Tahoe-LAFS Software Foundation
 
 You may use this package under the GNU General Public License, version 2 or, at
 your option, any later version.  You may use this package under the Transitive
