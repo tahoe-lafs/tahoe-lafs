@@ -75,6 +75,7 @@ Compatibility and Dependencies
 - Twisted >= 11.0.0 (`#1771`_)
 - mock >= 0.8 (for unit tests)
 - pycryptopp >= 0.6.0 (for Ed25519 signatures)
+- zope.interface >= 3.6.0 (except 3.6.3 or 3.6.4)
 
 Other Changes
 -------------

@@ -14,8 +14,9 @@ install_requires = [
     # Feisty has simplejson 1.4
     "simplejson >= 1.4",
 
+    # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
     # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
-    "zope.interface <= 3.6.2, >= 3.6.5",
+    "zope.interface == 3.6.0, == 3.6.1, == 3.6.2, >= 3.6.5",
 
     # * On Windows we need at least Twisted 9.0 to avoid an indirect
     #   dependency on pywin32.
