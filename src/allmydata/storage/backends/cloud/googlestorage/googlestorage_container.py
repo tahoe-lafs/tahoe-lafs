@@ -17,7 +17,6 @@ import httplib2
 
 from twisted.internet.defer import DeferredLock
 from twisted.internet.threads import deferToThread
-from twisted.web.http import UNAUTHORIZED
 
 try:
     from oauth2client.client import SignedJwtAssertionCredentials
