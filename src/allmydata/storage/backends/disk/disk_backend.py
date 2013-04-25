@@ -80,7 +80,7 @@ class DiskBackend(Backend):
     def get_shareset(self, storage_index):
         sharehomedir = si_si2dir(self._sharedir, storage_index)
         incominghomedir = si_si2dir(self._incomingdir, storage_index)
-        return DiskShareSet(storage_index, sharehomedir, incominghomedir)
+        return DiskShareSet(storage_index, self._get_lock(storage_index), sharehomedir, incominghomedir)
 
     def fill_in_space_stats(self, stats):
         stats['storage_server.reserved_space'] = self._reserved_space
@@ -123,8 +123,8 @@ class DiskBackend(Backend):
 class DiskShareSet(ShareSet):
     implements(IShareSet)
 
-    def __init__(self, storage_index, sharehomedir, incominghomedir=None):
-        ShareSet.__init__(self, storage_index)
+    def __init__(self, storage_index, lock, sharehomedir, incominghomedir=None):
+        ShareSet.__init__(self, storage_index, lock)
         self._sharehomedir = sharehomedir
         self._incominghomedir = incominghomedir
 
@@ -132,7 +132,7 @@ class DiskShareSet(ShareSet):
         return (fileutil.get_used_space(self._sharehomedir) +
                 fileutil.get_used_space(self._incominghomedir))
 
-    def get_shares(self):
+    def _locked_get_shares(self):
         si = self.get_storage_index()
         shares = {}
         corrupted = set()
@@ -149,11 +149,11 @@ class DiskShareSet(ShareSet):
         valid = [shares[shnum] for shnum in sorted(shares.keys())]
         return defer.succeed( (valid, corrupted) )
 
-    def get_share(self, shnum):
+    def _locked_get_share(self, shnum):
         return get_disk_share(os.path.join(self._sharehomedir, str(shnum)),
                               self.get_storage_index(), shnum)
 
-    def delete_share(self, shnum):
+    def _locked_delete_share(self, shnum):
         fileutil.remove(os.path.join(self._sharehomedir, str(shnum)))
         return defer.succeed(None)
 
