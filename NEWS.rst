@@ -2,8 +2,8 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.10 (2013-??-??)
-'''''''''''''''''''''''''
+Release 1.10.0 (2013-05-01)
+'''''''''''''''''''''''''''
 
 New Features
 ------------
@@ -11,11 +11,11 @@ New Features
 - The Welcome page has been redesigned. This is a preview of the design style
   that is likely to be used in other parts of the WUI in future Tahoe-LAFS
   versions. (`#1713`_, `#1457`_, `#1735`_)
-- A new, more extensible Introducer protocol has been added, to act as the
-  basis for future improvements such as accounting. Compatibility with older
-  nodes is not affected. When server, introducer, and client are all
-  upgraded, the welcome page will show node IDs that start with "v0-" instead
-  of the old tubid. (`#466`_)
+- A new extensible Introducer protocol has been added, as the basis for
+  future improvements such as accounting. Compatibility with older nodes is
+  not affected. When server, introducer, and client are all upgraded, the
+  welcome page will show node IDs that start with "v0-" instead of the old
+  tubid. See `<docs/nodekeys.rst>`__ for details. (`#466`_)
 - The web-API has a new ``relink`` operation that supports directly moving
   files between directories. (`#1579`_)
 
@@ -49,56 +49,45 @@ Command-line Syntax Changes
 Notable Bugfixes
 ----------------
 
-- If an immutable file failed to download, e.g. due to a connection problem,
-  subsequent attempts to download the same file could also fail. (`#1679`_)
-- The SFTP frontend now works with recent versions of Twisted, rather than
-  giving errors or warnings about use of ``IFinishableConsumer``. (`#1926`_,
-  `#1564`_, `#1525`_)
-- Failure handling in the SFTP frontend has been improved. (`#1525`_)
-- Checking a LIT file using ``tahoe check`` no longer results in an
-  exception. (`#1758`_)
+- In earlier versions, if a connection problem caused a download failure for
+  an immutable file, subsequent attempts to download the same file could also
+  fail. This is now fixed. (`#1679`_)
 - Filenames in WUI directory pages are now displayed correctly when they
   contain characters that require HTML escaping. (`#1143`_)
 - Non-ASCII node nicknames no longer cause WUI errors. (`#1298`_)
-- Error messages containing tracebacks may be slightly more readable.
-  (`#1484`_)
-- ``tahoe cp --verbose`` counts the files being processed correctly.
+- Checking a LIT file using ``tahoe check`` no longer results in an
+  exception. (`#1758`_)
+- The SFTP frontend now works with recent versions of Twisted, rather than
+  giving errors or warnings about use of ``IFinishableConsumer``. (`#1926`_,
+  `#1564`_, `#1525`_)
+- ``tahoe cp --verbose`` now counts the files being processed correctly.
   (`#1805`_, `#1783`_)
 - Exceptions no longer trigger an unhelpful crash reporter on Ubuntu 12.04
   ("Precise") or later. (`#1746`_)
-- Improve error message when CLI tools cannot connect to a gateway. (`#974`_)
-- Other minor changes: `#1781`_, `#1812`_
-
-Performance Improvements
-------------------------
-
-- Allow web clients to cache immutable directory pages. (`#443`_)
-
-Documentation
--------------
-
-- docs/helper.rst has been brought up to date. (`#1915`_)
-- docs/convergence_secret.rst was added to document the adminstration of
-  convergence secrets. (`#1761`_)
-
-Packaging Changes
------------------
-
-- The flogtool utility, used to read logs, can now be accessed as
-  ``tahoe debug flogtool`` even when foolscap is not installed system-wide.
-  (`#1693`_)
-- The provisioning/reliability pages were removed from the main client's web
-  interface, and moved into a standalone web-based tool in
-  misc/operations_helpers/provisioning. Use the ``run.py`` script to access
-  them.
+- The error message displayed when a CLI tool cannot connect to a gateway has
+  been improved. (`#974`_)
+- Other minor fixes: `#1781`_, `#1812`_, `#1915`_, `#1484`_, `#1525`_
 
 Compatibility and Dependencies
 ------------------------------
 
 - Python >= 2.6, except Python 3 (`#1658`_)
 - Twisted >= 11.0.0 (`#1771`_)
-- mock >= 0.8
-- pycryptopp >= 0.6.0 (for ed25519)
+- mock >= 0.8 (for unit tests)
+- pycryptopp >= 0.6.0 (for Ed25519 signatures)
+
+Other Changes
+-------------
+
+- The flogtool utility, used to read detailed event logs, can now be accessed
+  as ``tahoe debug flogtool`` even when Foolscap is not installed
+  system-wide. (`#1693`_)
+- The provisioning/reliability pages were removed from the main client's web
+  interface, and moved into a standalone web-based tool. Use the ``run.py``
+  script in misc/operations_helpers/provisioning to access them.
+- Web clients can now cache (ETag) immutable directory pages. (`#443`_)
+- `<docs/convergence_secret.rst>`__ was added to document the adminstration
+  of convergence secrets. (`#1761`_)
 
 Precautions when Upgrading
 --------------------------
@@ -138,6 +127,7 @@ Precautions when Upgrading
 .. _`#1926`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1926
 .. _`message to the tahoe-dev mailing list`:
              https://tahoe-lafs.org/pipermail/tahoe-dev/2013-March/008096.html
+
 
 Release 1.9.2 (2012-07-03)
 ''''''''''''''''''''''''''
