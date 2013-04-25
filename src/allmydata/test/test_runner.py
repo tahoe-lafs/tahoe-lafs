@@ -160,7 +160,9 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
             info = repr((res, allmydata.__appname__, required_verstr, srcdir))
 
             appverpath = out.split(')')[0]
-            (appver, path) = appverpath.split(' (')
+            (appverfull, path) = appverpath.split('] (')
+            (appver, comment) = appverfull.split(' [')
+            (branch, full_version) = comment.split(': ')
             (app, ver) = appver.split(': ')
 
             self.failUnlessEqual(app, allmydata.__appname__, info)
@@ -168,6 +170,8 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
             norm_required = normalized_version(required_verstr)
             self.failUnlessEqual(norm_ver, norm_required, info)
             self.failUnlessEqual(path, srcdir, info)
+            self.failUnlessEqual(branch, allmydata.branch)
+            self.failUnlessEqual(full_version, allmydata.full_version)
         d.addCallback(_cb)
         return d
 
