@@ -1202,7 +1202,7 @@ other fixes
   assert(). Specific exception classes were created for each previous
   instance of RuntimeError.
 
- -Many unit tests were changed to use a non-network test harness,
+- Many unit tests were changed to use a non-network test harness,
   speeding them up considerably.
 
 - Deep-traversal operations (manifest and deep-check) now walk
