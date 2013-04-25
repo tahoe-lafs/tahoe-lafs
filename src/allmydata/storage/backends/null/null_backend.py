@@ -44,7 +44,7 @@ class NullBackend(Backend):
     def get_shareset(self, storage_index):
         shareset = self._sharesets.get(storage_index, None)
         if shareset is None:
-            shareset = NullShareSet(storage_index)
+            shareset = NullShareSet(storage_index, self._get_lock(storage_index))
             self._sharesets[storage_index] = shareset
         return shareset
 
@@ -55,8 +55,8 @@ class NullBackend(Backend):
 class NullShareSet(ShareSet):
     implements(IShareSet)
 
-    def __init__(self, storage_index):
-        self.storage_index = storage_index
+    def __init__(self, storage_index, lock):
+        ShareSet.__init__(self, storage_index, lock)
         self._incoming_shnums = set()
         self._immutable_shnums = set()
         self._mutable_shnums = set()
@@ -69,7 +69,7 @@ class NullShareSet(ShareSet):
     def get_overhead(self):
         return 0
 
-    def get_shares(self):
+    def _locked_get_shares(self):
         shares = {}
         for shnum in self._immutable_shnums:
             shares[shnum] = ImmutableNullShare(self, shnum)
@@ -78,7 +78,7 @@ class NullShareSet(ShareSet):
         # This backend never has any corrupt shares.
         return defer.succeed( ([shares[shnum] for shnum in sorted(shares.keys())], set()) )
 
-    def get_share(self, shnum):
+    def _locked_get_share(self, shnum):
         if shnum in self._immutable_shnums:
             return defer.succeed(ImmutableNullShare(self, shnum))
         elif shnum in self._mutable_shnums:
@@ -87,7 +87,7 @@ class NullShareSet(ShareSet):
             def _not_found(): raise IndexError("no such share %d" % (shnum,))
             return defer.execute(_not_found)
 
-    def delete_share(self, shnum, include_incoming=False):
+    def _locked_delete_share(self, shnum, include_incoming=False):
         if include_incoming and (shnum in self._incoming_shnums):
             self._incoming_shnums.remove(shnum)
         if shnum in self._immutable_shnums:

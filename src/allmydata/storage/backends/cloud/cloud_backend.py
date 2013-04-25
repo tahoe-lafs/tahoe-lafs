@@ -80,12 +80,13 @@ class CloudBackend(Backend):
             # XXX we want this to be deterministic, so we return the sharesets sorted
             # by their si_strings, but we shouldn't need to explicitly re-sort them
             # because list_objects returns a sorted list.
-            return [CloudShareSet(si_a2b(s), self._container, self._incomingset) for s in sorted(si_strings)]
+            return [self.get_shareset(si_a2b(s)) for s in sorted(si_strings)]
         d.addCallback(_get_sharesets)
         return d
 
     def get_shareset(self, storage_index):
-        return CloudShareSet(storage_index, self._container, self._incomingset)
+        return CloudShareSet(storage_index, self._get_lock(storage_index),
+                             self._container, self._incomingset)
 
     def fill_in_space_stats(self, stats):
         # TODO: query space usage of container if supported.
@@ -101,8 +102,8 @@ class CloudBackend(Backend):
 class CloudShareSet(ShareSet):
     implements(IShareSet)
 
-    def __init__(self, storage_index, container, incomingset):
-        ShareSet.__init__(self, storage_index)
+    def __init__(self, storage_index, lock, container, incomingset):
+        ShareSet.__init__(self, storage_index, lock)
         self._container = container
         self._incomingset = incomingset
         self._key = get_share_key(storage_index)
@@ -110,7 +111,7 @@ class CloudShareSet(ShareSet):
     def get_overhead(self):
         return 0
 
-    def get_shares(self):
+    def _locked_get_shares(self):
         d = self._container.list_objects(prefix=self._key)
         def _get_shares(res):
             si = self.get_storage_index()
@@ -135,7 +136,7 @@ class CloudShareSet(ShareSet):
         d.addCallback(lambda shares: (shares, set()) )
         return d
 
-    def get_share(self, shnum):
+    def _locked_get_share(self, shnum):
         key = "%s%d" % (self._key, shnum)
         d = self._container.list_objects(prefix=key)
         def _get_share(res):
@@ -146,7 +147,7 @@ class CloudShareSet(ShareSet):
         d.addCallback(_get_share)
         return d
 
-    def delete_share(self, shnum):
+    def _locked_delete_share(self, shnum):
         key = "%s%d" % (self._key, shnum)
         return delete_chunks(self._container, key)
 

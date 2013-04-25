@@ -328,11 +328,15 @@ class IStorageBackend(Interface):
 
     def get_sharesets_for_prefix(prefix):
         """
-        Return an iterable containing IShareSet objects for all storage
-        indices matching the given base-32 prefix, for which this backend
-        holds shares.
-        XXX This will probably need to return a Deferred, but for now it
-        is synchronous.
+        Return a Deferred that fires with an iterable of IShareSet objects
+        for all storage indices matching the given base-32 prefix, for
+        which this backend holds shares.
+
+        A caller will typically perform operations that take locks on some
+        of the sharesets returned by this method. Nothing prevents sharesets
+        matching the prefix from being deleted or added between listing the
+        sharesets and taking any such locks; callers must be able to tolerate
+        this.
         """
 
     def get_shareset(storageindex):

@@ -1,4 +1,6 @@
 
+from weakref import WeakValueDictionary
+
 from twisted.application import service
 from twisted.internet import defer
 
@@ -11,6 +13,18 @@ from allmydata.storage.leasedb import SHARETYPE_MUTABLE
 class Backend(service.MultiService):
     def __init__(self):
         service.MultiService.__init__(self)
+        self._lock_table = WeakValueDictionary()
+
+    def _get_lock(self, storage_index):
+        # Getting a shareset ensures that a lock exists for that storage_index.
+        # The _lock_table won't let go of an entry while the ShareSet (or any
+        # other objects that reference the lock) are live, or while it is locked.
+
+        lock = self._lock_table.get(storage_index, None)
+        if lock is None:
+            lock = defer.DeferredLock()
+            self._lock_table[storage_index] = lock
+        return lock
 
     def must_use_tubid_as_permutation_seed(self):
         # New backends cannot have been around before #466, and so have no backward
@@ -23,11 +37,10 @@ class ShareSet(object):
     This class implements shareset logic that could work for all backends, but
     might be useful to override for efficiency.
     """
-    # TODO: queue operations on a shareset to ensure atomicity for each fully
-    # successful operation (#1869).
 
-    def __init__(self, storage_index):
+    def __init__(self, storage_index, lock):
         self.storage_index = storage_index
+        self.lock = lock
 
     def get_storage_index(self):
         return self.storage_index
@@ -38,9 +51,25 @@ class ShareSet(object):
     def make_bucket_reader(self, account, share):
         return BucketReader(account, share)
 
+    def get_shares(self):
+        return self.lock.run(self._locked_get_shares)
+
+    def get_share(self, shnum):
+        return self.lock.run(self._locked_get_share, shnum)
+
+    def delete_share(self, shnum):
+        return self.lock.run(self._locked_delete_share, shnum)
+
     def testv_and_readv_and_writev(self, write_enabler,
                                    test_and_write_vectors, read_vector,
                                    expiration_time, account):
+        return self.lock.run(self._locked_testv_and_readv_and_writev, write_enabler,
+                             test_and_write_vectors, read_vector,
+                             expiration_time, account)
+
+    def _locked_testv_and_readv_and_writev(self, write_enabler,
+                                           test_and_write_vectors, read_vector,
+                                           expiration_time, account):
         # The implementation here depends on the following helper methods,
         # which must be provided by subclasses:
         #
@@ -52,7 +81,7 @@ class ShareSet(object):
         #     """create a mutable share with the given shnum and write_enabler"""
 
         sharemap = {}
-        d = self.get_shares()
+        d = self._locked_get_shares()
         def _got_shares( (shares, corrupted) ):
             d2 = defer.succeed(None)
             for share in shares:
@@ -150,6 +179,9 @@ class ShareSet(object):
         return d
 
     def readv(self, wanted_shnums, read_vector):
+        return self.lock.run(self._locked_readv, wanted_shnums, read_vector)
+
+    def _locked_readv(self, wanted_shnums, read_vector):
         """
         Read a vector from the numbered shares in this shareset. An empty
         shares list means to return data from all known shares.
@@ -160,7 +192,7 @@ class ShareSet(object):
         """
         shnums = []
         dreads = []
-        d = self.get_shares()
+        d = self._locked_get_shares()
         def _got_shares( (shares, corrupted) ):
             # We ignore corrupted shares.
             for share in shares:
