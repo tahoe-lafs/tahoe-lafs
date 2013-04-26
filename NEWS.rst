@@ -32,7 +32,9 @@ Security Improvements
   to generate a new FURL, delete the existing ``introducer.furl`` file and
   restart it. After doing this, the ``[client]introducer.furl`` setting of
   every client and server that should connect to that introducer must be
-  updated. (`#1802`_)
+  updated. Note that other users of a shared machine may be able to read
+  ``introducer.furl`` from your ``tahoe.cfg`` file unless you configure the
+  file permissions to prevent them. (`#1802`_)
 - Both ``introducer.furl`` and ``helper.furl`` are now censored from the
   Welcome page, to prevent users of your gateway from learning enough to
   create gateway nodes of their own.  For existing guessable introducer
