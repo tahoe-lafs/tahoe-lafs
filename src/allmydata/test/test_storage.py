@@ -654,8 +654,8 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         """
         # Somewhat fragile tests, but better than nothing.
         auth = googlestorage_container.AuthenticationClient("u@example.com", "xxx123")
-        self.assertEqual(auth._credentials.service_account_name, "u@example.com")
-        self.assertEqual(auth._credentials.private_key, "xxx123".encode("base64").strip())
+        self.failUnlessEqual(auth._credentials.service_account_name, "u@example.com")
+        self.failUnlessEqual(auth._credentials.private_key, "xxx123".encode("base64").strip())
 
     def test_initial(self):
         """
@@ -666,7 +666,7 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
             "u@example.com", "xxx123",
             _credentialsClass=mock.create_autospec(SignedJwtAssertionCredentials),
             _deferToThread=defer.maybeDeferred)
-        self.assertEqual(auth._credentials.refresh.call_count, 1)
+        self.failUnlessEqual(auth._credentials.refresh.call_count, 1)
 
     def test_expired(self):
         """
@@ -681,7 +681,7 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         auth._credentials.apply = lambda d: d.__setitem__('Authorization', 'xxx')
         auth._credentials.access_token_expired = True
         auth.get_authorization_header()
-        self.assertEqual(auth._credentials.refresh.call_count, 2)
+        self.failUnlessEqual(auth._credentials.refresh.call_count, 2)
 
     def test_no_refresh(self):
         """
@@ -696,7 +696,7 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         auth._credentials.apply = lambda d: d.__setitem__('Authorization', 'xxx')
         auth._credentials.access_token_expired = False
         auth.get_authorization_header()
-        self.assertEqual(auth._credentials.refresh.call_count, 1)
+        self.failUnlessEqual(auth._credentials.refresh.call_count, 1)
 
     def test_header(self):
         """
@@ -714,8 +714,8 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
             _deferToThread=defer.maybeDeferred)
         result = []
         auth.get_authorization_header().addCallback(result.append)
-        self.assertEqual(result, ["Bearer xxx"])
-        self.assertIsInstance(result[0], bytes)
+        self.failUnlessEqual(result, ["Bearer xxx"])
+        self.failUnlessIsInstance(result[0], bytes)
 
     def test_one_refresh(self):
         """
@@ -735,13 +735,13 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
             _credentialsClass=mock.create_autospec(SignedJwtAssertionCredentials),
             _deferToThread=fakeDeferToThread)
         # Initial authorization call happens...
-        self.assertEqual(len(results), 1)
+        self.failUnlessEqual(len(results), 1)
         # ... and still isn't finished, so next one doesn't run yet:
         auth._refresh_if_necessary(force=True)
-        self.assertEqual(len(results), 1)
+        self.failUnlessEqual(len(results), 1)
         # When first one finishes, second one can run:
         first.callback(None)
-        self.assertEqual(len(results), 0)
+        self.failUnlessEqual(len(results), 0)
 
     def test_refresh_call(self):
         """
@@ -754,14 +754,14 @@ class GoogleStorageAuthenticationClient(unittest.TestCase):
         class NoNetworkCreds(SignedJwtAssertionCredentials):
             def refresh(cred_self, http):
                 cred_self.access_token = "xxx"
-                self.assertIsInstance(http, Http)
-                self.thread = thread.get_ident()
+                self.failUnlessIsInstance(http, Http)
+                self.thread_id = thread.get_ident()
         auth = googlestorage_container.AuthenticationClient(
             "u@example.com", "xxx123",
             _credentialsClass=NoNetworkCreds)
 
         def gotResult(ignore):
-            self.assertNotEqual(thread.get_ident(), self.thread)
+            self.failIfEqual(thread.get_ident(), self.thread_id)
         return auth.get_authorization_header().addCallback(gotResult)
 
 
@@ -814,18 +814,18 @@ class ContainerRetryTests(unittest.TestCase, CloudStorageBackendMixin):
                                    "test", "GET", "http://example", {}, body=None,
                                    need_response_body=True).addCallback(result.append)
         # No response from first request yet:
-        self.assertFalse(result)
-        self.assertEqual(self.container._http_request.call_count, 1)
+        self.failIf(result)
+        self.failUnlessEqual(self.container._http_request.call_count, 1)
         self.container._http_request.assert_called_with(
             "test", "GET", "http://example", {},
             body=None, need_response_body=True)
 
         # First response fails:
         first.errback(CloudServiceError(None, 500))
-        self.assertFalse(result, result)
-        self.assertEqual(self.container._http_request.call_count, 1)
+        self.failIf(result, result)
+        self.failUnlessEqual(self.container._http_request.call_count, 1)
         self.reactor.advance(0.1)
-        self.assertEqual(self.container._http_request.call_count, 2)
+        self.failUnlessEqual(self.container._http_request.call_count, 2)
         self.container._http_request.assert_called_with(
             "test", "GET", "http://example", {},
             body=None, need_response_body=True)
@@ -833,7 +833,7 @@ class ContainerRetryTests(unittest.TestCase, CloudStorageBackendMixin):
         # Second response succeeds:
         done = object()
         second.callback(done)
-        self.assertEqual(result, [done])
+        self.failUnlessEqual(result, [done])
 
     def test_retry_random_exception(self):
         """
@@ -850,18 +850,18 @@ class ContainerRetryTests(unittest.TestCase, CloudStorageBackendMixin):
                                    need_response_body=True).addCallback(result.append)
 
         # No response from first request yet:
-        self.assertFalse(result)
-        self.assertEqual(self.container._http_request.call_count, 1)
+        self.failIf(result)
+        self.failUnlessEqual(self.container._http_request.call_count, 1)
         self.container._http_request.assert_called_with(
             "test", "GET", "http://example", {},
             body=None, need_response_body=True)
 
         # First response fails:
         first.errback(NewException())
-        self.assertFalse(result, result)
-        self.assertEqual(self.container._http_request.call_count, 1)
+        self.failIf(result, result)
+        self.failUnlessEqual(self.container._http_request.call_count, 1)
         self.reactor.advance(0.1)
-        self.assertEqual(self.container._http_request.call_count, 2)
+        self.failUnlessEqual(self.container._http_request.call_count, 2)
         self.container._http_request.assert_called_with(
             "test", "GET", "http://example", {},
             body=None, need_response_body=True)
@@ -955,7 +955,7 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
         http_response = self.mock_http_request()
         done = []
         self.container.list_objects(prefix='xxx xxx').addCallback(done.append)
-        self.assertFalse(done)
+        self.failIf(done)
         self.container._http_request.assert_called_once_with(
             "Google Storage list objects", "GET",
             "https://storage.googleapis.com/thebucket?prefix=xxx%20xxx",
@@ -967,23 +967,23 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
             need_response_body=True)
         http_response.callback((self.Response(200), LIST_RESPONSE))
         listing = done[0]
-        self.assertEqual(listing.name, "thebucket")
-        self.assertEqual(listing.prefix, "xxx xxx")
-        self.assertEqual(listing.marker, "themark")
-        self.assertEqual(listing.max_keys, None)
-        self.assertEqual(listing.is_truncated, "false")
-        self.assertEqual(listing.common_prefixes, ["xxx", "xxx xxx"])
+        self.failUnlessEqual(listing.name, "thebucket")
+        self.failUnlessEqual(listing.prefix, "xxx xxx")
+        self.failUnlessEqual(listing.marker, "themark")
+        self.failUnlessEqual(listing.max_keys, None)
+        self.failUnlessEqual(listing.is_truncated, "false")
+        self.failUnlessEqual(listing.common_prefixes, ["xxx", "xxx xxx"])
         item1, item2 = listing.contents
-        self.assertEqual(item1.key, "xxx xxx1")
-        self.assertEqual(item1.modification_date, "2013-01-27T01:23:45.678Z")
-        self.assertEqual(item1.etag, '"abc"')
-        self.assertEqual(item1.size, 123)
-        self.assertEqual(item1.owner, None) # meh, who cares
-        self.assertEqual(item2.key, "xxx xxx2")
-        self.assertEqual(item2.modification_date, "2013-01-28T01:23:45.678Z")
-        self.assertEqual(item2.etag, '"def"')
-        self.assertEqual(item2.size, 456)
-        self.assertEqual(item2.owner, None) # meh, who cares
+        self.failUnlessEqual(item1.key, "xxx xxx1")
+        self.failUnlessEqual(item1.modification_date, "2013-01-27T01:23:45.678Z")
+        self.failUnlessEqual(item1.etag, '"abc"')
+        self.failUnlessEqual(item1.size, 123)
+        self.failUnlessEqual(item1.owner, None) # meh, who cares
+        self.failUnlessEqual(item2.key, "xxx xxx2")
+        self.failUnlessEqual(item2.modification_date, "2013-01-28T01:23:45.678Z")
+        self.failUnlessEqual(item2.etag, '"def"')
+        self.failUnlessEqual(item2.size, 456)
+        self.failUnlessEqual(item2.owner, None) # meh, who cares
 
     def test_put_object(self):
         """
@@ -994,7 +994,7 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
         http_response = self.mock_http_request()
         done = []
         self.container.put_object("theobj", "the body").addCallback(done.append)
-        self.assertFalse(done)
+        self.failIf(done)
         self.container._http_request.assert_called_once_with(
             "Google Storage PUT object", "PUT",
             "https://storage.googleapis.com/thebucket/theobj",
@@ -1005,7 +1005,7 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
             body="the body",
             need_response_body=False)
         http_response.callback((self.Response(200), None))
-        self.assertTrue(done)
+        self.failUnless(done)
 
     def test_put_object_additional(self):
         """
@@ -1019,7 +1019,7 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
         self.container.put_object("theobj", "the body",
                                   "text/plain",
                                   {"key": "value"}).addCallback(done.append)
-        self.assertFalse(done)
+        self.failIf(done)
         self.container._http_request.assert_called_once_with(
             "Google Storage PUT object", "PUT",
             "https://storage.googleapis.com/thebucket/theobj",
@@ -1031,7 +1031,7 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
             body="the body",
             need_response_body=False)
         http_response.callback((self.Response(200), None))
-        self.assertTrue(done)
+        self.failUnless(done)
 
     def test_get_object(self):
         """
@@ -1042,7 +1042,7 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
         http_response = self.mock_http_request()
         done = []
         self.container.get_object("theobj").addCallback(done.append)
-        self.assertFalse(done)
+        self.failIf(done)
         self.container._http_request.assert_called_once_with(
             "Google Storage GET object", "GET",
             "https://storage.googleapis.com/thebucket/theobj",
@@ -1052,7 +1052,7 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
             body=None,
             need_response_body=True)
         http_response.callback((self.Response(200), "the body"))
-        self.assertEqual(done, ["the body"])
+        self.failUnlessEqual(done, ["the body"])
 
     def test_delete_object(self):
         """
@@ -1063,7 +1063,7 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
         http_response = self.mock_http_request()
         done = []
         self.container.delete_object("theobj").addCallback(done.append)
-        self.assertFalse(done)
+        self.failIf(done)
         self.container._http_request.assert_called_once_with(
             "Google Storage DELETE object", "DELETE",
             "https://storage.googleapis.com/thebucket/theobj",
@@ -1073,7 +1073,7 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
             body=None,
             need_response_body=False)
         http_response.callback((self.Response(200), None))
-        self.assertTrue(done)
+        self.failUnless(done)
 
     def test_retry(self):
         """
@@ -1088,28 +1088,28 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
                                    "test", "GET", "http://example", {}, body=None,
                                    need_response_body=True).addCallback(result.append)
         # No response from first request yet:
-        self.assertFalse(result)
-        self.assertEqual(self.container._http_request.call_count, 1)
+        self.failIf(result)
+        self.failUnlessEqual(self.container._http_request.call_count, 1)
         self.container._http_request.assert_called_with(
             "test", "GET", "http://example", {},
             body=None, need_response_body=True)
 
         # First response fails:
         first.errback(CloudServiceError(None, 500))
-        self.assertFalse(result, result)
-        self.assertEqual(self.container._http_request.call_count, 1)
+        self.failIf(result, result)
+        self.failUnlessEqual(self.container._http_request.call_count, 1)
         self.reactor.advance(0.1)
-        self.assertEqual(self.container._http_request.call_count, 2)
+        self.failUnlessEqual(self.container._http_request.call_count, 2)
         self.container._http_request.assert_called_with(
             "test", "GET", "http://example", {},
             body=None, need_response_body=True)
 
         # Second response fails:
         second.errback(CloudServiceError(None, 401)) # Unauthorized
-        self.assertFalse(result)
-        self.assertEqual(self.container._http_request.call_count, 2)
+        self.failIf(result)
+        self.failUnlessEqual(self.container._http_request.call_count, 2)
         self.reactor.advance(2)
-        self.assertEqual(self.container._http_request.call_count, 3)
+        self.failUnlessEqual(self.container._http_request.call_count, 3)
         self.container._http_request.assert_called_with(
             "test", "GET", "http://example", {},
             body=None, need_response_body=True)
@@ -1117,17 +1117,17 @@ class GoogleStorageBackend(unittest.TestCase, CloudStorageBackendMixin):
         # Third response succeeds:
         done = object()
         third.callback(done)
-        self.assertEqual(result, [done])
+        self.failUnlessEqual(result, [done])
 
     def test_react_to_error(self):
         """
         GoogleStorageContainer._react_to_error() will return True (i.e. retry)
         for any response code between 400 and 599.
         """
-        self.assertFalse(self.container._react_to_error(399))
-        self.assertFalse(self.container._react_to_error(600))
+        self.failIf(self.container._react_to_error(399))
+        self.failIf(self.container._react_to_error(600))
         for i in range(400, 600):
-            self.assertTrue(self.container._react_to_error(i))
+            self.failUnless(self.container._react_to_error(i))
 
     def test_head_object(self):
         """
@@ -1163,7 +1163,7 @@ class MSAzureAuthentication(unittest.TestCase):
         self.container = msazure_container.MSAzureStorageContainer(
             "account", "key".encode("base64"), "thebucket")
 
-    def assertSignatureEqual(self, method, url, headers, result, azure_buggy=False):
+    def failUnlessSignatureEqual(self, method, url, headers, result, azure_buggy=False):
         """
         Assert the given HTTP request parameters produce a value to be signed
         equal to the given result.
@@ -1171,7 +1171,7 @@ class MSAzureAuthentication(unittest.TestCase):
         If possible, assert the signature calculation matches the Microsoft
         reference implementation.
         """
-        self.assertEqual(
+        self.failUnlessEqual(
                 self.container._calculate_presignature(method, url, headers),
                 result)
         if azure_buggy:
@@ -1186,7 +1186,7 @@ class MSAzureAuthentication(unittest.TestCase):
             raise unittest.SkipTest("No azure installed")
 
         request = self.FakeRequest(method, url, headers)
-        self.assertEqual(
+        self.failUnlessEqual(
             _sign_storage_blob_request(request,
                                        self.container._account_name,
                                        self.container._account_key.encode("base64")),
@@ -1196,7 +1196,7 @@ class MSAzureAuthentication(unittest.TestCase):
         """
         The correct HTTP method is included in the signature.
         """
-        self.assertSignatureEqual(
+        self.failUnlessSignatureEqual(
             "HEAD", "http://x/", {"x-ms-date": ["Sun, 11 Oct 2009 21:49:13 GMT"]},
             "HEAD\n\n\n\n\n\n\n\n\n\n\n\n"
             "x-ms-date:Sun, 11 Oct 2009 21:49:13 GMT\n"
@@ -1220,21 +1220,21 @@ class MSAzureAuthentication(unittest.TestCase):
                    "Range": ["r"],
                    "Other": ["o"],
                    "x-ms-date": ["xmd"]}
-        self.assertSignatureEqual("GET", "http://x/", headers,
-                                  "GET\n"
-                                  "ce\n"
-                                  "cl\n"
-                                  "cl2\n"
-                                  "cm\n"
-                                  "ct\n"
-                                  "\n" # Date value is ignored!
-                                  "ims\n"
-                                  "im\n"
-                                  "inm\n"
-                                  "ius\n"
-                                  "r\n"
-                                  "x-ms-date:xmd\n"
-                                  "/account/", True)
+        self.failUnlessSignatureEqual("GET", "http://x/", headers,
+                                      "GET\n"
+                                      "ce\n"
+                                      "cl\n"
+                                      "cl2\n"
+                                      "cm\n"
+                                      "ct\n"
+                                      "\n" # Date value is ignored!
+                                      "ims\n"
+                                      "im\n"
+                                      "inm\n"
+                                      "ius\n"
+                                      "r\n"
+                                      "x-ms-date:xmd\n"
+                                      "/account/", True)
 
     def test_xms_headers(self):
         """
@@ -1243,37 +1243,37 @@ class MSAzureAuthentication(unittest.TestCase):
         headers = {"x-ms-foo": ["a"],
                    "x-ms-z": ["b"],
                    "x-ms-date": ["c"]}
-        self.assertSignatureEqual("GET", "http://x/", headers,
-                                  "GET\n"
-                                  "\n"
-                                  "\n"
-                                  "\n"
-                                  "\n"
-                                  "\n"
-                                  "\n"
-                                  "\n"
-                                  "\n"
-                                  "\n"
-                                  "\n"
-                                  "\n"
-                                  "x-ms-date:c\n"
-                                  "x-ms-foo:a\n"
-                                  "x-ms-z:b\n"
-                                  "/account/")
+        self.failUnlessSignatureEqual("GET", "http://x/", headers,
+                                      "GET\n"
+                                      "\n"
+                                      "\n"
+                                      "\n"
+                                      "\n"
+                                      "\n"
+                                      "\n"
+                                      "\n"
+                                      "\n"
+                                      "\n"
+                                      "\n"
+                                      "\n"
+                                      "x-ms-date:c\n"
+                                      "x-ms-foo:a\n"
+                                      "x-ms-z:b\n"
+                                      "/account/")
 
     def test_xmsdate_required(self):
         """
         The x-ms-date header is mandatory.
         """
-        self.assertRaises(ValueError,
-                          self.assertSignatureEqual, "GET", "http://x/", {}, "")
+        self.failUnlessRaises(ValueError,
+                              self.failUnlessSignatureEqual, "GET", "http://x/", {}, "")
 
     def test_path_and_account(self):
         """
         The URL path and account name is included.
         """
         self.container._account_name = "theaccount"
-        self.assertSignatureEqual(
+        self.failUnlessSignatureEqual(
             "HEAD", "http://x/foo/bar", {"x-ms-date": ["d"]},
             "HEAD\n\n\n\n\n\n\n\n\n\n\n\n"
             "x-ms-date:d\n"
@@ -1284,7 +1284,7 @@ class MSAzureAuthentication(unittest.TestCase):
         The query arguments are included.
         """
         value = "hello%20there"
-        self.assertSignatureEqual(
+        self.failUnlessSignatureEqual(
             "HEAD", "http://x/?z=%s&y=abc" % (value,), {"x-ms-date": ["d"]},
             "HEAD\n\n\n\n\n\n\n\n\n\n\n\n"
             "x-ms-date:d\n"
@@ -1380,7 +1380,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
         http_response = self.mock_http_request()
         done = []
         self.container.list_objects(prefix='xxx xxx/').addCallback(done.append)
-        self.assertFalse(done)
+        self.failIf(done)
         self.container._http_request.assert_called_once_with(
             "MS Azure list objects", "GET",
             "https://theaccount.blob.core.windows.net/thebucket?comp=list&restype=container&prefix=xxx%20xxx%2F",
@@ -1392,22 +1392,22 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
             need_response_body=True)
         http_response.callback((self.Response(200), LIST_RESPONSE))
         listing = done[0]
-        self.assertEqual(listing.name, "thebucket")
-        self.assertEqual(listing.prefix, "xxx xxx/")
-        self.assertEqual(listing.marker, "xxx xxx/foo")
-        self.assertEqual(listing.max_keys, None)
-        self.assertEqual(listing.is_truncated, "false")
+        self.failUnlessEqual(listing.name, "thebucket")
+        self.failUnlessEqual(listing.prefix, "xxx xxx/")
+        self.failUnlessEqual(listing.marker, "xxx xxx/foo")
+        self.failUnlessEqual(listing.max_keys, None)
+        self.failUnlessEqual(listing.is_truncated, "false")
         item1, item2 = listing.contents
-        self.assertEqual(item1.key, "xxx xxx/firstblob")
-        self.assertEqual(item1.modification_date, "Mon, 30 Jan 2013 01:23:45 GMT")
-        self.assertEqual(item1.etag, 'abc')
-        self.assertEqual(item1.size, 123)
-        self.assertEqual(item1.owner, None) # meh, who cares
-        self.assertEqual(item2.key, "xxx xxx/secondblob")
-        self.assertEqual(item2.modification_date, "Mon, 30 Jan 2013 01:23:46 GMT")
-        self.assertEqual(item2.etag, 'def')
-        self.assertEqual(item2.size, 100)
-        self.assertEqual(item2.owner, None) # meh, who cares
+        self.failUnlessEqual(item1.key, "xxx xxx/firstblob")
+        self.failUnlessEqual(item1.modification_date, "Mon, 30 Jan 2013 01:23:45 GMT")
+        self.failUnlessEqual(item1.etag, 'abc')
+        self.failUnlessEqual(item1.size, 123)
+        self.failUnlessEqual(item1.owner, None) # meh, who cares
+        self.failUnlessEqual(item2.key, "xxx xxx/secondblob")
+        self.failUnlessEqual(item2.modification_date, "Mon, 30 Jan 2013 01:23:46 GMT")
+        self.failUnlessEqual(item2.etag, 'def')
+        self.failUnlessEqual(item2.size, 100)
+        self.failUnlessEqual(item2.owner, None) # meh, who cares
 
     def test_put_object(self):
         """
@@ -1418,7 +1418,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
         http_response = self.mock_http_request()
         done = []
         self.container.put_object("theobj", "the body").addCallback(done.append)
-        self.assertFalse(done)
+        self.failIf(done)
         self.container._http_request.assert_called_once_with(
             "MS Azure PUT object", "PUT",
             "https://theaccount.blob.core.windows.net/thebucket/theobj",
@@ -1432,7 +1432,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
             body="the body",
             need_response_body=False)
         http_response.callback((self.Response(200), None))
-        self.assertTrue(done)
+        self.failUnless(done)
 
     def test_put_object_additional(self):
         """
@@ -1446,8 +1446,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
         self.container.put_object("theobj", "the body",
                                   "text/plain",
                                   {"key": "value"}).addCallback(done.append)
-        self.assertFalse(done)
-        self.assertFalse(done)
+        self.failIf(done)
         self.container._http_request.assert_called_once_with(
             "MS Azure PUT object", "PUT",
             "https://theaccount.blob.core.windows.net/thebucket/theobj",
@@ -1462,7 +1461,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
             body="the body",
             need_response_body=False)
         http_response.callback((self.Response(200), None))
-        self.assertTrue(done)
+        self.failUnless(done)
 
     def test_get_object(self):
         """
@@ -1473,7 +1472,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
         http_response = self.mock_http_request()
         done = []
         self.container.get_object("theobj").addCallback(done.append)
-        self.assertFalse(done)
+        self.failIf(done)
         self.container._http_request.assert_called_once_with(
             "MS Azure GET object", "GET",
             "https://theaccount.blob.core.windows.net/thebucket/theobj",
@@ -1484,7 +1483,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
             body=None,
             need_response_body=True)
         http_response.callback((self.Response(200), "the body"))
-        self.assertEqual(done, ["the body"])
+        self.failUnlessEqual(done, ["the body"])
 
     def test_delete_object(self):
         """
@@ -1495,7 +1494,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
         http_response = self.mock_http_request()
         done = []
         self.container.delete_object("theobj").addCallback(done.append)
-        self.assertFalse(done)
+        self.failIf(done)
         self.container._http_request.assert_called_once_with(
             "MS Azure DELETE object", "DELETE",
             "https://theaccount.blob.core.windows.net/thebucket/theobj",
@@ -1506,7 +1505,7 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
             body=None,
             need_response_body=False)
         http_response.callback((self.Response(200), None))
-        self.assertTrue(done)
+        self.failUnless(done)
 
 
 class ServerMixin:
