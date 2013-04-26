@@ -31,6 +31,7 @@ from allmydata.storage.backends.disk.mutable import create_mutable_disk_share, M
 from allmydata.storage.backends.cloud.cloud_backend import CloudBackend
 from allmydata.storage.backends.cloud.cloud_common import CloudError, CloudServiceError, \
      ContainerItem, ContainerListing
+from allmydata.storage.backends.cloud.mutable import MutableCloudShare
 from allmydata.storage.backends.cloud import mock_cloud, cloud_common
 from allmydata.storage.backends.cloud.mock_cloud import MockContainer
 from allmydata.storage.backends.cloud.openstack import openstack_container
@@ -2624,6 +2625,48 @@ class MutableServerTest(MutableServerMixin, ShouldFailMixin):
         d.addCallback(_check)
         return d
 
+    def test_shareset_locking(self):
+        server = self.create("test_shareset_locking")
+        aa = server.get_accountant().get_anonymous_account()
+        rstaraw = aa.remote_slot_testv_and_readv_and_writev
+        read = aa.remote_slot_readv
+        secrets = ( self.write_enabler("we1"),
+                    self.renew_secret("we1"),
+                    self.cancel_secret("we1") )
+        data = "".join([ ("%d" % i) * 10 for i in range(10) ])
+
+        # Assert that the lock is held while share methods are called.
+        was_called = {}
+        def make_patched_share_method(old_method):
+            def _call(*args, **kwargs):
+                was_called[old_method.__name__] = True
+                self.failUnless(server.backend._get_lock("si1").locked)
+                return old_method(*args, **kwargs)
+            return _call
+
+        ShareClass = self.get_mutable_share_class()
+        _old_init_share = ShareClass.__init__
+        def _init_share(share, *args, **kwargs):
+            _old_init_share(share, *args, **kwargs)
+            self.patch(share, 'readv', make_patched_share_method(share.readv))
+            self.patch(share, 'writev', make_patched_share_method(share.writev))
+            self.patch(share, 'check_testv', make_patched_share_method(share.check_testv))
+        self.patch(ShareClass, '__init__', _init_share)
+
+        d = self.allocate(aa, "si1", "we1", set([0,1,2]), 100)
+
+        d.addCallback(lambda ign: rstaraw("si1", secrets,
+                                          {0: ([], [(0,data)], None)},
+                                          []))
+        d.addCallback(lambda res: self.failUnlessEqual(res, (True, {0:[],1:[],2:[]}) ))
+
+        d.addCallback(lambda ign: read("si1", [0], [(0,10)]))
+        d.addCallback(lambda res: self.failUnlessEqual(res, {0: [data[:10]]}))
+
+        d.addCallback(lambda ign:
+                      self.failUnlessEqual(was_called, {'readv': True, 'writev': True, 'check_testv': True}))
+        return d
+
 
 class ServerWithNullBackend(ServiceParentMixin, WorkdirMixin, ServerMixin, unittest.TestCase):
     def test_null_backend(self):
@@ -2673,6 +2716,9 @@ class WithMockCloudBackend(ServiceParentMixin, WorkdirMixin):
         self.failUnlessEqual((self._container.get_load_count(), self._container.get_store_count()),
                              (expected_load_count, expected_store_count))
 
+    def get_mutable_share_class(self):
+        return MutableCloudShare
+
 
 class WithDiskBackend(ServiceParentMixin, WorkdirMixin):
     def create(self, name, detached=False, readonly=False, reserved_space=0, klass=StorageServer):
@@ -2689,6 +2735,9 @@ class WithDiskBackend(ServiceParentMixin, WorkdirMixin):
 
     def check_load_store_counts(self, expected_loads, expected_stores):
         pass
+
+    def get_mutable_share_class(self):
+        return MutableDiskShare
 
 
 class ServerWithMockCloudBackend(WithMockCloudBackend, ServerTest, unittest.TestCase):
