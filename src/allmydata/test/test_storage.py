@@ -1176,14 +1176,16 @@ class MSAzureAuthentication(unittest.TestCase):
                 result)
         if azure_buggy:
             # The reference client is buggy in this case, skip it
-            raise unittest.SkipTest("Azure reference client is buggy in this case")
+            raise unittest.SkipTest("Azure reference client is buggy in this case.")
 
         # Now, compare our result to that of the Microsoft-provided
         # implementation, if available:
         try:
             from azure.storage import _sign_storage_blob_request
         except ImportError:
-            raise unittest.SkipTest("No azure installed")
+            raise unittest.SkipTest("""No azure installed.
+The 'azure' package is not used by the Azure support in the cloud backend; it is only
+used (optionally) by tests to confirm compatibility with Microsoft's reference client.""")
 
         request = self.FakeRequest(method, url, headers)
         self.failUnlessEqual(
