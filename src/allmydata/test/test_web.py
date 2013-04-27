@@ -50,7 +50,7 @@ unknown_rocap = u"ro.lafs://readonly_from_the_future_ro_\u263A".encode('utf-8')
 unknown_immcap = u"imm.lafs://immutable_from_the_future_imm_\u263A".encode('utf-8')
 
 FAVICON_MARKUP = '<link href="/icon.png" rel="shortcut icon" />'
-
+DIR_HTML_TAG = '<html lang="en">'
 
 class FakeStatsProvider:
     def get_stats(self):
@@ -1522,7 +1522,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_DIRECTORY_html(self):
         d = self.GET(self.public_url + "/foo", followRedirect=True)
         def _check(html):
-            self.failUnlessIn('<div class="toolbar-item"><a href="../../..">Return to Welcome page</a></div>', html)
+            self.failUnlessIn('<li class="toolbar-item"><a href="../../..">Return to Welcome page</a></li>', html)
             self._check_upload_and_mkdir_forms(html)
             self.failUnlessIn("quux", html)
         d.addCallback(_check)
@@ -5581,7 +5581,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(lambda ignored: self.GET(self.fileurls["dir-0share"]))
         def _check_0shares_dir_html(body):
-            self.failUnlessIn("<html>", body)
+            self.failUnlessIn(DIR_HTML_TAG, body)
             # we should see the regular page, but without the child table or
             # the dirops forms
             body = " ".join(body.strip().split())
@@ -5604,7 +5604,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             # and some-shares like we did for immutable files (since there
             # are different sorts of advice to offer in each case). For now,
             # they present the same way.
-            self.failUnlessIn("<html>", body)
+            self.failUnlessIn(DIR_HTML_TAG, body)
             body = " ".join(body.strip().split())
             self.failUnlessIn('href="?t=info">More info on this directory',
                               body)
@@ -5731,7 +5731,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(_stash_dir)
         d.addCallback(lambda ign: self.GET(self.dir_url, followRedirect=True))
         def _check_dir_html(body):
-            self.failUnlessIn("<html>", body)
+            self.failUnlessIn(DIR_HTML_TAG, body)
             self.failUnlessIn("blacklisted.txt</a>", body)
         d.addCallback(_check_dir_html)
         d.addCallback(lambda ign: self.GET(self.url))
@@ -5755,7 +5755,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         # We should still be able to list the parent directory, in HTML...
         d.addCallback(lambda ign: self.GET(self.dir_url, followRedirect=True))
         def _check_dir_html2(body):
-            self.failUnlessIn("<html>", body)
+            self.failUnlessIn(DIR_HTML_TAG, body)
             self.failUnlessIn("blacklisted.txt</strike>", body)
         d.addCallback(_check_dir_html2)
 
@@ -5806,7 +5806,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.child_url = "uri/"+dn.get_readonly_uri()+"/child"
         d.addCallback(_get_dircap)
         d.addCallback(lambda ign: self.GET(self.dir_url_base, followRedirect=True))
-        d.addCallback(lambda body: self.failUnlessIn("<html>", body))
+        d.addCallback(lambda body: self.failUnlessIn(DIR_HTML_TAG, body))
         d.addCallback(lambda ign: self.GET(self.dir_url_json1))
         d.addCallback(lambda res: simplejson.loads(res))  # just check it decodes
         d.addCallback(lambda ign: self.GET(self.dir_url_json2))
