@@ -75,7 +75,7 @@ class ImmutableCloudShareForWriting(CloudShareBase, ImmutableCloudShareMixin):
         seekpos = self.DATA_OFFSET + offset
         precondition(seekpos >= self._total_size, offset=offset, seekpos=seekpos, total_size=self._total_size)
         if offset + len(data) > self._allocated_data_length:
-            raise DataTooLargeError(self._allocated_data_length, offset, len(data))
+            raise DataTooLargeError(self._shnum, self._allocated_data_length, offset, len(data))
 
         self._set_size(self._total_size + len(data))
         return self._store_or_buffer( (seekpos, data, 0) )

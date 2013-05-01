@@ -174,17 +174,13 @@ class MutableDiskShare(object):
     def _write_share_data(self, f, offset, data):
         length = len(data)
         precondition(offset >= 0, offset=offset)
-        precondition(offset + length < self.MAX_SIZE, offset=offset, length=length)
+        if offset + length > self.MAX_SIZE:
+            raise DataTooLargeError(self._shnum, self.MAX_SIZE, offset, length)
 
         data_length = self._read_data_length(f)
 
         if offset+length >= data_length:
-            # They are expanding their data size.
-
-            if offset+length > self.MAX_SIZE:
-                raise DataTooLargeError()
-
-            # Their data now fits in the current container. We must write
+            # They are expanding their data size. We must write
             # their new data and modify the recorded data size.
 
             # Fill any newly exposed empty space with 0's.
@@ -263,7 +259,7 @@ class MutableDiskShare(object):
         for (offset, data) in datav:
             precondition(offset >= 0, offset=offset)
             if offset + len(data) > self.MAX_SIZE:
-                raise DataTooLargeError()
+                raise DataTooLargeError(self._shnum, self.MAX_SIZE, offset, len(data))
 
         f = open(self._home, 'rb+')
         try:

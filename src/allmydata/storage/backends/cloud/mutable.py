@@ -219,7 +219,7 @@ class MutableCloudShare(CloudShareBase, CloudShareReaderMixin):
             length = len(data)
             precondition(offset >= 0, offset=offset)
             if offset + length > self.MAX_SIZE:
-                raise DataTooLargeError()
+                raise DataTooLargeError(self._shnum, self.MAX_SIZE, offset, length)
 
             if new_length is not None and new_length < offset + length:
                 length = max(0, new_length - offset)

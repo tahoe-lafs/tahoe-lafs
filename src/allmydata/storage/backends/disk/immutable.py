@@ -190,7 +190,8 @@ class ImmutableDiskShare(object):
         length = len(data)
         precondition(offset >= 0, offset)
         if self._allocated_data_length is not None and offset+length > self._allocated_data_length:
-            raise DataTooLargeError(self._allocated_data_length, offset, length)
+            raise DataTooLargeError(self._shnum, self._allocated_data_length, offset, length)
+
         f = open(self._home, 'rb+')
         try:
             real_offset = self.DATA_OFFSET + offset

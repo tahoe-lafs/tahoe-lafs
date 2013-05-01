@@ -11,7 +11,15 @@ PREFIX = re.compile("^[%s]{2}$" % (base32.z_base_32_alphabet,))
 
 
 class DataTooLargeError(Exception):
-    pass
+    def __init__(self, shnum, allocated_data_length, offset, length):
+        self.shnum = shnum
+        self.allocated_data_length = allocated_data_length
+        self.offset = offset
+        self.length = length
+
+    def __str__(self):
+        return ("attempted write to shnum %d of %d bytes at offset %d exceeds allocated data length of %d bytes"
+                % (self.__class__.__name__, self.shnum, self.length, self.offset, self.allocated_data_length))
 
 
 class CorruptStoredShareError(Exception):
