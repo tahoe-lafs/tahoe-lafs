@@ -82,12 +82,12 @@ Compatibility and Dependencies
 Other Changes
 -------------
 
-- The flogtool utility, used to read detailed event logs, can now be accessed
-  as ``tahoe debug flogtool`` even when Foolscap is not installed
+- The ``flogtool`` utility, used to read detailed event logs, can now be
+  accessed as ``tahoe debug flogtool`` even when Foolscap is not installed
   system-wide. (`#1693`_)
 - The provisioning/reliability pages were removed from the main client's web
   interface, and moved into a standalone web-based tool. Use the ``run.py``
-  script in misc/operations_helpers/provisioning to access them.
+  script in ``misc/operations_helpers/provisioning/`` to access them.
 - Web clients can now cache (ETag) immutable directory pages. (`#443`_)
 - `<docs/convergence_secret.rst>`__ was added to document the adminstration
   of convergence secrets. (`#1761`_)
@@ -95,10 +95,10 @@ Other Changes
 Precautions when Upgrading
 --------------------------
 
-- When upgrading a grid from a recent version of trunk, follow the
+- When upgrading a grid from a recent revision of trunk, follow the
   precautions from this `message to the tahoe-dev mailing list`_, to ensure
   that announcements to the Introducer are recognized after the upgrade.
-  This is not necessary when upgrading from a previous release.
+  This is not necessary when upgrading from a previous release like 1.9.2.
 
 .. _`#166`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/166
 .. _`#443`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/443

@@ -1,7 +1,7 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.9.2
+﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.10
 
 The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.9.2 of Tahoe-LAFS, an extremely
+availability of version 1.10.0 of Tahoe-LAFS, an extremely
 reliable distributed storage system. Get it here:
 
 https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.rst
@@ -14,11 +14,14 @@ unique security and fault-tolerance properties:
 
 https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/about.rst
 
-The previous stable release of Tahoe-LAFS was v1.9.1, released
-on January 12, 2012.
+The previous stable release of Tahoe-LAFS was v1.9.2, released
+on July 3, 2012.
 
-v1.9.2 is a bugfix release that primarily fixes regressions
-in mutable file support. See the NEWS file [1] for details.
+v1.10.0 is a feature release which adds a new Introducer
+protocol, improves the appearance of the web-based user
+interface, improves grid security by making introducer FURLs
+unguessable, and fixes many bugs. See the NEWS file [1] for
+details.
 
 
 WHAT IS IT GOOD FOR?
@@ -66,7 +69,12 @@ the test infrastructure to continuously verify that all new
 versions are interoperable with previous versions. We intend
 to build such an infrastructure in the future.
 
-This is the seventeenth release in the version 1 series. This
+The new Introducer protocol added in v1.10 is backwards
+compatible with older clients and introducer servers, however
+some features will be unavailable when an older node is
+involved. Please see docs/nodekeys.rst [14] for details.
+
+This is the eighteenth release in the version 1 series. This
 series of Tahoe-LAFS will be actively supported and maintained
 for the foreseeable future, and future versions of Tahoe-LAFS
 will retain the ability to read and write files compatible
@@ -130,16 +138,16 @@ Of Fame" [13].
 
 ACKNOWLEDGEMENTS
 
-This is the eleventh release of Tahoe-LAFS to be created solely
+This is the twelfth release of Tahoe-LAFS to be created solely
 as a labor of love by volunteers. Thank you very much to the
 team of "hackers in the public interest" who make Tahoe-LAFS
 possible.
 
-David-Sarah Hopwood
+Brian Warner
 on behalf of the Tahoe-LAFS team
 
-July 3, 2012
-Rainhill, Merseyside, UK
+May 1, 2013
+San Francisco, California, USA
 
 
 [1] https://tahoe-lafs.org/trac/tahoe-lafs/browser/NEWS.rst
@@ -155,3 +163,4 @@ Rainhill, Merseyside, UK
 [11] http://atlasnetworks.us/
 [12] https://leastauthority.com/
 [13] https://tahoe-lafs.org/hacktahoelafs/
+[14] https://tahoe-lafs.org/trac/tahoe-lafs/browser/docs/nodekeys.rst
