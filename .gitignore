@@ -17,6 +17,7 @@
 /.built
 /src/allmydata_tahoe.egg-info/
 Twisted-*.egg
+zope.interface-*.egg
 
 /_trial_temp*
 /tmp*
