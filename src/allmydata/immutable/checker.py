@@ -776,7 +776,7 @@ class Checker(log.PrefixingLogMixin):
             unrecoverable = 1
 
         # The file needs rebalancing if the set of servers that have at least
-        # one share is less than the number of uniquely-numbered shares
+        # one share is less than the number of uniquely-numbered good shares
         # available.
         # TODO: this may be wrong, see ticket #1115 comment:27 and ticket #1784.
         needs_rebalancing = bool(good_share_hosts < len(verifiedshares))
