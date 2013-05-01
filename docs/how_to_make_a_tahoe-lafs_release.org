@@ -1,9 +1,10 @@
 ﻿* Tahoe Release Checklist [0/19]
+  - [ ] NEWS.rst: summarize user-visible changes, aim for one page of text
   - [ ] update doc files
+    - NEWS.rst: Add final release name and date to top-most item in NEWS.
     - relnotes.txt
     - CREDITS
     - docs/known_issues.rst
-    - NEWS.rst: Add release name and date to top-most item in NEWS.
   - [ ] change docs/quickstart.rst to point to just the current
     allmydata-tahoe-X.Y.Z.zip source code file, or else to point to a
     directory which contains only allmydata-tahoe-X.Y.Z.* source code files
@@ -13,9 +14,9 @@
     intended version
   - [ ] make sure buildbot is green
   - [ ] make sure other people aren't committing at that moment
-  - [ ] push tag along with some other documentation-only patch (typically to
-    relnotes.txt) to trigger buildslaves
-    - git push --tags official; git push official
+  - [ ] push tag to trigger buildslaves. Making a code change is no longer
+    necessary
+    - git push official master TAGNAME
     - that will build tarballs
   - [ ] make sure buildbot is green
   - [ ] make sure a sumo sdist tarball got built and uploaded properly
@@ -23,19 +24,19 @@
   - [ ] symlink the release tarball on tahoe-lafs.org:
     /var/www/source/tahoe-lafs/releases/
   - [ ] update Wiki: front page news, news, old news, parade of release notes
-  - [ ] send out relnotes.txt to:
-    - tahoe-announce@tahoe-lafs.org
-    - tahoe-dev@tahoe-lafs.org
+  - [ ] send out relnotes.txt:
+    - modify to include hashes of tarballs, git revision
+    - GPG-sign the email
+    - send to tahoe-announce@tahoe-lafs.org and tahoe-dev@tahoe-lafs.org
   - [ ] update https://tahoe-lafs.org/hacktahoelafs/
-  - [ ] make an "announcement of new release" on freshmeat
-  - [ ] upload to pypi with "python ./setup.py sdist upload register"
-    - currently broken (with git). And we want signed tarballs, and we want
-      the tarballs to match the ones on tahoe-lafs.org. So instead do this:
-      - [ ] login to pypi
-      - [ ] from Edit, add new release
-      - [ ] upload .tar.gz, .asc
-  - [ ] make an "announcement of new release" on launchpad
+  - [ ] update pypi:
+    - python setup.py register
+    - login to pypi
+    - manually upload .tar.gz tarball and .asc signature (so they match the
+      ones on tahoe-lafs.org)
   - [ ] close the Milestone on the trac Roadmap
+  - [ ] make an "announcement of new release" on freshmeat
+  - [ ] make an "announcement of new release" on launchpad
   - [ ] send out relnotes.txt to:
     - p2p-hackers@lists.zooko.com
     - lwn@lwn.net
