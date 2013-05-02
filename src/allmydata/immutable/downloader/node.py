@@ -514,9 +514,9 @@ class DownloadNode:
                                   if t[0] != segnum]
         return retire
 
-    def _cancel_request(self, c):
+    def _cancel_request(self, cancel):
         self._segment_requests = [t for t in self._segment_requests
-                                  if t[2] != c]
+                                  if t[2] != cancel]
         segnums = [segnum for (segnum,d,c,seg_ev,lp) in self._segment_requests]
         # self._active_segment might be None in rare circumstances, so make
         # sure we tolerate it
