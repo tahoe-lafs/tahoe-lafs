@@ -323,6 +323,7 @@ class Retrieve:
         segment with. I return the plaintext associated with that
         segment.
         """
+        # We don't need the block hash trees in this case.
         self._block_hash_trees = None
         self._setup_encoding_parameters()
 
@@ -961,10 +962,9 @@ class Retrieve:
 
     def _raise_notenoughshareserror(self):
         """
-        I am called by _activate_enough_servers when there are not enough
-        active servers left to complete the download. After making some
-        useful logging statements, I throw an exception to that effect
-        to the caller of this Retrieve object through
+        I am called when there are not enough active servers left to complete
+        the download. After making some useful logging statements, I throw an
+        exception to that effect to the caller of this Retrieve object through
         self._done_deferred.
         """
 
