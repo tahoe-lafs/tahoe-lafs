@@ -2751,10 +2751,6 @@ class ServerWithMockCloudBackend(WithMockCloudBackend, ServerTest, unittest.Test
         # This causes ContainerListMixin to be exercised.
         self.patch(mock_cloud, 'MAX_KEYS', 2)
 
-    def test_bad_container_version(self):
-        return ServerTest.test_bad_container_version(self)
-    test_bad_container_version.todo = "The cloud backend hasn't been modified to fix ticket #1566."
-
 
     def _describe_level(self, level):
         return getattr(LogEvent, 'LEVELMAP', {}).get(level, str(level))
@@ -3132,10 +3128,6 @@ class MutableServerWithMockCloudBackend(WithMockCloudBackend, MutableServerTest,
 
         # This causes ContainerListMixin to be exercised.
         self.patch(mock_cloud, 'MAX_KEYS', 2)
-
-    def test_bad_magic(self):
-        return MutableServerTest.test_bad_magic(self)
-    test_bad_magic.todo = "The cloud backend hasn't been modified to fix ticket #1566."
 
 
 class MutableServerWithDiskBackend(WithDiskBackend, MutableServerTest, unittest.TestCase):

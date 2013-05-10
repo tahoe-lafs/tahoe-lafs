@@ -7,11 +7,10 @@ from zope.interface import implements
 from allmydata.interfaces import IStorageBackend, IShareSet
 
 from allmydata.node import InvalidValueError
-from allmydata.util.deferredutil import gatherResults
 from allmydata.util.assertutil import _assert
 from allmydata.util.dictutil import NumDict
 from allmydata.util.encodingutil import quote_output
-from allmydata.storage.common import si_a2b, NUM_RE
+from allmydata.storage.common import si_a2b, NUM_RE, CorruptStoredShareError
 from allmydata.storage.bucket import BucketWriter
 from allmydata.storage.backends.base import Backend, ShareSet
 from allmydata.storage.backends.cloud.immutable import ImmutableCloudShareForReading, ImmutableCloudShareForWriting
@@ -129,11 +128,18 @@ class CloudShareSet(ShareSet):
                         # If they don't, that will cause an error on reading.
                         shnum_to_total_size.add_num(int(shnumstr), int(item.size))
 
-            return gatherResults([get_cloud_share(self._container, si, shnum, total_size)
-                                  for (shnum, total_size) in shnum_to_total_size.items_sorted_by_key()])
+            return defer.DeferredList([get_cloud_share(self._container, si, shnum, total_size)
+                                       for (shnum, total_size) in shnum_to_total_size.items_sorted_by_key()],
+                                      consumeErrors=True)
         d.addCallback(_get_shares)
-        # TODO: return information about corrupt shares.
-        d.addCallback(lambda shares: (shares, set()) )
+        def _got_list(outcomes):
+            # DeferredList gives us a list of (success, result) pairs, which we
+            # convert to a pair (list of shares, set of corrupt shnums).
+            shares = [share for (success, share) in outcomes if success]
+            corrupted = set([f.value.shnum for (success, f) in outcomes
+                             if not success and isinstance(f.value, CorruptStoredShareError)])
+            return (shares, corrupted)
+        d.addCallback(_got_list)
         return d
 
     def _locked_get_share(self, shnum):
