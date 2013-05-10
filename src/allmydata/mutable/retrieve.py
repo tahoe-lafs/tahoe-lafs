@@ -241,8 +241,8 @@ class Retrieve:
         self._done_deferred = defer.Deferred()
         self._offset = offset
         self._read_length = size
-        self._setup_download()
         self._setup_encoding_parameters()
+        self._setup_download()
         self.log("starting download")
         self._started_fetching = time.time()
         # The download process beyond this is a state machine.
@@ -296,11 +296,17 @@ class Retrieve:
                                            self._storage_index, shnum, None)
             reader.server = server
             self.readers[shnum] = reader
-        assert len(self.remaining_sharemap) >= k
+
+        if len(self.remaining_sharemap) < k:
+            self._raise_notenoughshareserror()
 
         self.shares = {} # maps shnum to validated blocks
         self._active_readers = [] # list of active readers for this dl.
         self._block_hash_trees = {} # shnum => hashtree
+
+        for i in xrange(self._total_shares):
+            # So we don't have to do this later.
+            self._block_hash_trees[i] = hashtree.IncompleteHashTree(self._num_segments)
 
         # We need one share hash tree for the entire file; its leaves
         # are the roots of the block hash trees for the shares that
@@ -317,8 +323,6 @@ class Retrieve:
         segment with. I return the plaintext associated with that
         segment.
         """
-        # shnum => block hash tree. Unused, but setup_encoding_parameters will
-        # want to set this.
         self._block_hash_trees = None
         self._setup_encoding_parameters()
 
@@ -383,11 +387,6 @@ class Retrieve:
                  "%d segments of %d bytes each (%d byte tail segment)" % \
                  (k, n, self._num_segments, self._segment_size,
                   self._tail_segment_size))
-
-        if self._block_hash_trees is not None:
-            for i in xrange(self._total_shares):
-                # So we don't have to do this later.
-                self._block_hash_trees[i] = hashtree.IncompleteHashTree(self._num_segments)
 
         # Our last task is to tell the downloader where to start and
         # where to stop. We use three parameters for that:
