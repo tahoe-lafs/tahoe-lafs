@@ -100,9 +100,10 @@ def check_output(options, where):
 
 def check(options):
     for location in options.locations:
-        errno = check_output(options, where)
+        errno = check_output(options, location)
         if errno != 0: 
             return errno
+    return 0
 
 class FakeTransport:
     disconnecting = False

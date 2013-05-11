@@ -452,8 +452,6 @@ class CheckOptions(FilesystemOptions):
         ("add-lease", None, "Add/renew lease on all shares."),
         ]
     def parseArgs(self, *locations):
-        if len(locations) == 0: 
-            raise usage.UsageError("Wrong number of arguments")
         self.locations = map(argv_to_unicode, locations)
 
     def getSynopsis(self):
@@ -473,8 +471,6 @@ class DeepCheckOptions(FilesystemOptions):
         ("verbose", "v", "Be noisy about what is happening."),
         ]
     def parseArgs(self, *locations):
-        if len(locations) == 0: 
-            raise usage.UsageError("Wrong number of arguments")
         self.locations = map(argv_to_unicode, locations)
 
     def getSynopsis(self):
