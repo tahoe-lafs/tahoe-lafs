@@ -99,6 +99,11 @@ def check_output(options, where):
     return 0;
 
 def check(options):
+    if len(options.locations) == 0:
+        errno = check_output(options, unicode())
+        if errno != 0:
+            return errno
+        return 0
     for location in options.locations:
         errno = check_output(options, location)
         if errno != 0: 
@@ -318,6 +323,11 @@ class DeepCheckStreamer(LineOnlyReceiver):
         
 
     def run(self, options):
+        if len(options.locations) == 0:
+            errno = self.deepcheck_location(options, unicode())
+            if errno != 0:
+                return errno
+            return 0
         for location in options.locations:
             errno = self.deepcheck_location(options, location)
             if errno != 0:
