@@ -15,7 +15,7 @@ def _quote_serverid_index_share(serverid, storage_index, sharenum):
                                            quote_output(storage_index, quotemarks=False),
                                            sharenum)
 
-def check_output(options, where):
+def check_location(options, where):
     stdout = options.stdout
     stderr = options.stderr
     nodeurl = options['node-url']
@@ -100,12 +100,12 @@ def check_output(options, where):
 
 def check(options):
     if len(options.locations) == 0:
-        errno = check_output(options, unicode())
+        errno = check_location(options, unicode())
         if errno != 0:
             return errno
         return 0
     for location in options.locations:
-        errno = check_output(options, location)
+        errno = check_location(options, location)
         if errno != 0: 
             return errno
     return 0
