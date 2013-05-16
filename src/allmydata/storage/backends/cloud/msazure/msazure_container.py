@@ -221,7 +221,8 @@ class MSAzureStorageContainer(CommonContainerMixin):
         url = self._make_container_url(self.URI)
         url += "?restype=container"
         d = self._authorized_http_request("MS Azure PUT container", 'PUT',
-                                          url, {}, body=None,
+                                          url, {'Content-length': ['0']},
+                                          body=None,
                                           need_response_body=False)
         d.addCallback(lambda (response, body): body)
         return d
@@ -245,6 +246,13 @@ if __name__ == '__main__':
 
     @defer.inlineCallbacks
     def testtransactions():
+        print "Creating container...",
+        try:
+            yield msc.create()
+        except Exception, e:
+            print "failed:", e
+        else:
+            print "succeeded."
         yield msc.put_object("key", "the value")
         print "Uploaded 'key', with value 'the value'"
         print
