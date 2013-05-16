@@ -1522,6 +1522,9 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
             "MS Azure PUT container", "PUT",
             "https://theaccount.blob.core.windows.net/thebucket?restype=container",
             {"Authorization": [self.authorization],
+             # This is not documented as required, but is apparently necessary
+             # nonetheless:
+             'Content-length': ['0'],
              "x-ms-version": ["2012-02-12"],
              "x-ms-date": [self.date],
              },
