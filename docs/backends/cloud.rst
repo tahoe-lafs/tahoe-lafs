@@ -182,3 +182,42 @@ the server's ``tahoe.cfg`` file:
 
 The private key you downloaded is stored in a separate file named
 ``private/googlestorage_private_key``.
+
+
+Microsoft Azure Blob Storage
+============================
+
+`Microsoft Azure Blob Storage`_ is a block-based storage system provided by
+Microsoft. To access the storage system, you will need to `create a storage
+account`_. The DNS prefix you choose will be the account name, and either the
+resulting primary or secondary keys can be used as the account key; you can
+get them by using the "Manage Keys" button at the bottom of the storage
+management page.
+
+.. _Microsoft Azure Blob Storage: http://www.windowsazure.com/en-us/manage/services/storage/
+.. _create a storage account: http://www.windowsazure.com/en-us/develop/python/how-to-guides/blob-service/#create-account
+
+To enable storing shares in this services, add the following keys to the
+server's ``tahoe.cfg`` file:
+
+``[storage]``
+
+``backend = cloud.msazure``
+
+    This turns off the local filesystem backend and enables use of the cloud
+    backend with Microsoft Azure.
+
+``msazure.account_name = (string, required)``
+
+    This is the account name (subdomain) you chose when creating the account,
+    e.g. ``mydomain``.
+
+``msazure.container_name = (string, required)``
+
+    This controls which container will be used to hold
+    shares. The Tahoe-LAFS storage server will only modify and access objects
+    in the configured container. Multiple storage servers cannot share the
+    same container.
+
+The private key you downloaded is stored in a separate file named
+``private/msazure_account_key``.
