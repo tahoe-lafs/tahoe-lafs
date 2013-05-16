@@ -1509,6 +1509,27 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
         http_response.callback((self.Response(200), None))
         self.failUnless(done)
 
+    def test_create_container(self):
+        """
+        MSAzureStorageContainer.create() send the appropriate HTTP command to
+        create the container (aka bucket).
+        """
+        http_response = self.mock_http_request()
+        done = []
+        self.container.create().addCallback(done.append)
+        self.failIf(done)
+        self.container._http_request.assert_called_once_with(
+            "MS Azure PUT container", "PUT",
+            "https://theaccount.blob.core.windows.net/thebucket?restype=container",
+            {"Authorization": [self.authorization],
+             "x-ms-version": ["2012-02-12"],
+             "x-ms-date": [self.date],
+             },
+            body=None,
+            need_response_body=False)
+        http_response.callback((self.Response(200), None))
+        self.failUnless(done)
+
 
 class ServerMixin:
     def allocate(self, account, storage_index, sharenums, size, canary=None):

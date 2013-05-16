@@ -214,6 +214,18 @@ class MSAzureStorageContainer(CommonContainerMixin):
         d.addCallback(lambda (response, body): body)
         return d
 
+    def _create(self):
+        """
+        Create the container.
+        """
+        url = self._make_container_url(self.URI)
+        url += "?restype=container"
+        d = self._authorized_http_request("MS Azure PUT container", 'PUT',
+                                          url, {}, body=None,
+                                          need_response_body=False)
+        d.addCallback(lambda (response, body): body)
+        return d
+
 
 def configure_msazure_container(storedir, config):
     """
