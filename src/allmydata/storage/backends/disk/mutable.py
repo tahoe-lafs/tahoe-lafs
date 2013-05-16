@@ -140,19 +140,22 @@ class MutableDiskShare(object):
     def _get_path(self):
         return self._home
 
-    def _read_data_length(self, f):
-        f.seek(self.DATA_LENGTH_OFFSET)
+    @classmethod
+    def _read_data_length(cls, f):
+        f.seek(cls.DATA_LENGTH_OFFSET)
         (data_length,) = struct.unpack(">Q", f.read(8))
         return data_length
 
-    def _read_container_size(self, f):
-        f.seek(self.EXTRA_LEASE_COUNT_OFFSET)
+    @classmethod
+    def _read_container_size(cls, f):
+        f.seek(cls.EXTRA_LEASE_COUNT_OFFSET)
         (extra_lease_count_offset,) = struct.unpack(">Q", f.read(8))
-        return extra_lease_count_offset - self.DATA_OFFSET
+        return extra_lease_count_offset - cls.DATA_OFFSET
 
-    def _write_data_length(self, f, data_length):
-        extra_lease_count_offset = self.DATA_OFFSET + data_length
-        f.seek(self.DATA_LENGTH_OFFSET)
+    @classmethod
+    def _write_data_length(cls, f, data_length):
+        extra_lease_count_offset = cls.DATA_OFFSET + data_length
+        f.seek(cls.DATA_LENGTH_OFFSET)
         f.write(struct.pack(">QQ", data_length, extra_lease_count_offset))
         f.seek(extra_lease_count_offset)
         f.write(struct.pack(">L", 0))
@@ -198,13 +201,14 @@ class MutableDiskShare(object):
         f.write(data)
         return
 
-    def _read_write_enabler_and_nodeid(self, f):
+    @classmethod
+    def _read_write_enabler_and_nodeid(cls, f):
         f.seek(0)
-        data = f.read(self.HEADER_SIZE)
+        data = f.read(cls.HEADER_SIZE)
         (magic,
          write_enabler_nodeid, write_enabler,
-         _data_length, _extra_lease_count_offset) = struct.unpack(self.HEADER, data)
-        assert magic == self.MAGIC
+         _data_length, _extra_lease_count_offset) = struct.unpack(cls.HEADER, data)
+        assert magic == cls.MAGIC
         return (write_enabler, write_enabler_nodeid)
 
     def readv(self, readv):

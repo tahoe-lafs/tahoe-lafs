@@ -8,7 +8,6 @@ from twisted.internet import threads # CLI tests use deferToThread
 
 import allmydata
 from allmydata import uri
-from allmydata.storage.backends.disk.mutable import load_mutable_disk_share
 from allmydata.storage.backends.cloud import cloud_common, mock_cloud
 from allmydata.storage.server import si_a2b
 from allmydata.immutable import offloaded, upload
@@ -21,12 +20,16 @@ from allmydata.util.encodingutil import quote_output, unicode_to_argv, get_files
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
 from allmydata.scripts import runner
+from allmydata.scripts.debug import ChunkedShare
 from allmydata.interfaces import IDirectoryNode, IFileNode, \
      NoSuchChildError, NoSharesError
 from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
 from allmydata.mutable.publish import MutableData
+from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
+from allmydata.storage.common import NUM_RE
+from allmydata.storage.backends.disk.mutable import MutableDiskShare
 
 import foolscap
 from foolscap.api import DeadReferenceError, fireEventually
@@ -432,55 +435,51 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
 
     def _corrupt_mutable_share(self, ign, what, which):
         (storageindex, filename, shnum) = what
-        d = defer.succeed(None)
-        d.addCallback(lambda ign: load_mutable_disk_share(filename, storageindex, shnum))
-        def _got_share(msf):
-            d2 = msf.readv([ (0, 1000000) ])
-            def _got_data(datav):
-                final_share = datav[0]
-                assert len(final_share) < 1000000 # ought to be truncated
-                pieces = mutable_layout.unpack_share(final_share)
-                (seqnum, root_hash, IV, k, N, segsize, datalen,
-                 verification_key, signature, share_hash_chain, block_hash_tree,
-                 share_data, enc_privkey) = pieces
 
-                if which == "seqnum":
-                    seqnum = seqnum + 15
-                elif which == "R":
-                    root_hash = self.flip_bit(root_hash)
-                elif which == "IV":
-                    IV = self.flip_bit(IV)
-                elif which == "segsize":
-                    segsize = segsize + 15
-                elif which == "pubkey":
-                    verification_key = self.flip_bit(verification_key)
-                elif which == "signature":
-                    signature = self.flip_bit(signature)
-                elif which == "share_hash_chain":
-                    nodenum = share_hash_chain.keys()[0]
-                    share_hash_chain[nodenum] = self.flip_bit(share_hash_chain[nodenum])
-                elif which == "block_hash_tree":
-                    block_hash_tree[-1] = self.flip_bit(block_hash_tree[-1])
-                elif which == "share_data":
-                    share_data = self.flip_bit(share_data)
-                elif which == "encprivkey":
-                    enc_privkey = self.flip_bit(enc_privkey)
+        # Avoid chunking a share that isn't already chunked when using ChunkedShare.pwrite.
+        share = ChunkedShare(filename, MAX_MUTABLE_SHARE_SIZE)
+        final_share = share.pread(MutableDiskShare.DATA_OFFSET, 1000000)
+        assert len(final_share) < 1000000 # ought to be truncated
 
-                prefix = mutable_layout.pack_prefix(seqnum, root_hash, IV, k, N,
-                                                    segsize, datalen)
-                final_share = mutable_layout.pack_share(prefix,
-                                                        verification_key,
-                                                        signature,
-                                                        share_hash_chain,
-                                                        block_hash_tree,
-                                                        share_data,
-                                                        enc_privkey)
+        pieces = mutable_layout.unpack_share(final_share)
+        (seqnum, root_hash, IV, k, N, segsize, datalen,
+         verification_key, signature, share_hash_chain, block_hash_tree,
+         share_data, enc_privkey) = pieces
 
-                return msf.writev( [(0, final_share)], None)
-            d2.addCallback(_got_data)
-            return d2
-        d.addCallback(_got_share)
-        return d
+        if which == "seqnum":
+            seqnum = seqnum + 15
+        elif which == "R":
+            root_hash = self.flip_bit(root_hash)
+        elif which == "IV":
+            IV = self.flip_bit(IV)
+        elif which == "segsize":
+            segsize = segsize + 15
+        elif which == "pubkey":
+            verification_key = self.flip_bit(verification_key)
+        elif which == "signature":
+            signature = self.flip_bit(signature)
+        elif which == "share_hash_chain":
+            nodenum = share_hash_chain.keys()[0]
+            share_hash_chain[nodenum] = self.flip_bit(share_hash_chain[nodenum])
+        elif which == "block_hash_tree":
+            block_hash_tree[-1] = self.flip_bit(block_hash_tree[-1])
+        elif which == "share_data":
+            share_data = self.flip_bit(share_data)
+        elif which == "encprivkey":
+            enc_privkey = self.flip_bit(enc_privkey)
+
+        prefix = mutable_layout.pack_prefix(seqnum, root_hash, IV, k, N,
+                                            segsize, datalen)
+        final_share = mutable_layout.pack_share(prefix,
+                                                verification_key,
+                                                signature,
+                                                share_hash_chain,
+                                                block_hash_tree,
+                                                share_data,
+                                                enc_privkey)
+
+        share.pwrite(MutableDiskShare.DATA_OFFSET, final_share)
+        MutableDiskShare._write_data_length(share, len(final_share))
 
     def test_mutable(self):
         self.basedir = self.workdir("test_mutable")
@@ -768,6 +767,11 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
         #  P/s2-ro -> /subdir1/subdir2/ (read-only)
         d.addCallback(self._check_publish_private)
         d.addCallback(self.log, "did _check_publish_private")
+
+        # Put back the default PREFERRED_CHUNK_SIZE, because these tests have
+        # pathologically bad performance with small chunks.
+        d.addCallback(lambda ign: self._restore_chunk_size())
+
         d.addCallback(self._test_web)
         d.addCallback(self._test_control)
         d.addCallback(self._test_cli)
@@ -1389,8 +1393,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
             if (len(pieces) >= 4
                 and pieces[-4] == "storage"
                 and pieces[-3] == "shares"):
-                # we're sitting in .../storage/shares/$START/$SINDEX , and there
-                # are sharefiles here
+                # We're sitting in .../storage/shares/$START/$SINDEX , and there
+                # are sharefiles here. Choose one that is an initial chunk.
+                filenames = filter(NUM_RE.match, filenames)
                 filename = os.path.join(dirpath, filenames[0])
                 # peek at the magic to see if it is a chk share
                 magic = open(filename, "rb").read(4)
@@ -1939,7 +1944,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin):
 
 class SystemWithDiskBackend(SystemTest, unittest.TestCase):
     # The disk backend can use default options.
-    pass
+
+    def _restore_chunk_size(self):
+        pass
 
 
 class SystemWithMockCloudBackend(SystemTest, unittest.TestCase):
@@ -1952,18 +1959,13 @@ class SystemWithMockCloudBackend(SystemTest, unittest.TestCase):
         # This causes ContainerListMixin to be exercised.
         self.patch(mock_cloud, 'MAX_KEYS', 2)
 
+    def _restore_chunk_size(self):
+        self.patch(cloud_common, 'PREFERRED_CHUNK_SIZE', cloud_common.DEFAULT_PREFERRED_CHUNK_SIZE)
+
     def _get_extra_config(self, i):
         # all nodes are storage servers
         return ("[storage]\n"
                 "backend = mock_cloud\n")
-
-    def test_filesystem(self):
-        return SystemTest.test_filesystem(self)
-    test_filesystem.todo = "Share dumping has not been updated to take into account chunked shares."
-
-    def test_mutable(self):
-        return SystemTest.test_mutable(self)
-    test_mutable.todo = "Share dumping has not been updated to take into account chunked shares."
 
 
 class Connections(SystemTestMixin, unittest.TestCase):
