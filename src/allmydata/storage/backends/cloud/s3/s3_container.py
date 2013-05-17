@@ -56,10 +56,10 @@ class S3Container(ContainerRetryMixin, ContainerListMixin):
         return ("<%s %r>" % (self.__class__.__name__, self.container_name,))
 
     def create(self):
-        return self._do_request('create bucket', self.client.create, self.container_name)
+        return self._do_request('create bucket', self.client.create_bucket, self.container_name)
 
     def delete(self):
-        return self._do_request('delete bucket', self.client.delete, self.container_name)
+        return self._do_request('delete bucket', self.client.delete_bucket, self.container_name)
 
     def list_some_objects(self, **kwargs):
         return self._do_request('list objects', self.client.get_bucket, self.container_name, **kwargs)
