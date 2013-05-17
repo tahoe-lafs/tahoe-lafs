@@ -256,16 +256,14 @@ class Client(node.Node, pollmixin.PollMixin):
             self.write_config("permutation-seed", seed+"\n")
         return seed.strip()
 
-    def init_storage(self):
-        self.accountant = None
-        # Should we run a storage server (and publish it for others to use)?
-        if not self.get_config("storage", "enabled", True, boolean=True):
-            return
+    @classmethod
+    def configure_backend(cls, config):
+        """This is also called directly by the implementation of 'tahoe admin create-container'."""
 
-        storedir = os.path.join(self.basedir, self.STOREDIR)
+        storedir = os.path.join(config.basedir, cls.STOREDIR)
 
         # What sort of backend?
-        backendtype = self.get_config("storage", "backend", "disk")
+        backendtype = config.get_config("storage", "backend", "disk")
         if backendtype == "s3":
             backendtype = "cloud.s3"
         backendprefix = backendtype.partition('.')[0]
@@ -279,9 +277,18 @@ class Client(node.Node, pollmixin.PollMixin):
 
         if backendprefix not in backend_configurators:
             raise InvalidValueError("%s is not supported; it must start with one of %s"
-                                    % (quote_output("[storage]backend = " + backendtype), backend_configurators.keys()) )
+                                    % (quote_output("[storage]backend = " + backendtype),
+                                    backend_configurators.keys()) )
 
-        backend = backend_configurators[backendprefix](storedir, self)
+        return (backend_configurators[backendprefix](storedir, config), storedir)
+
+    def init_storage(self):
+        self.accountant = None
+        # Should we run a storage server (and publish it for others to use)?
+        if not self.get_config("storage", "enabled", True, boolean=True):
+            return
+
+        (backend, storedir) = self.configure_backend(self)
 
         if self.get_config("storage", "debug_discard", False, boolean=True):
             raise OldConfigOptionError("[storage]debug_discard = True is no longer supported.")
