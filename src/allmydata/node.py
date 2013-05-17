@@ -109,6 +109,8 @@ class ConfigMixin:
         except EnvironmentError:
             if os.path.exists(tahoe_cfg):
                 raise
+            if not os.path.isdir(self.basedir):
+                raise MissingConfigEntry("%s is missing or not a directory." % quote_output(self.basedir))
 
     def error_about_old_config_files(self):
         """ If any old configuration files are detected, raise OldConfigError. """
