@@ -5,6 +5,12 @@ Storing Shares on Cloud Services
 The Tahoe-LAFS storage server can be configured to store its shares on a
 cloud storage service, rather than on the local filesystem.
 
+All cloud storage services store the data in a particular container (also
+called a "bucket" in some storage services). You can create this container
+using the "tahoe admin create-container" command, once you have a correctly
+configured Tahoe-LAFS node. That is, configure the node with the container
+name you decided to use (e.g. "tahoedata"), then run the command.
+
 
 Amazon Simple Storage Service (S3)
 ==================================

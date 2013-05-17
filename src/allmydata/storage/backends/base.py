@@ -31,6 +31,12 @@ class Backend(service.MultiService):
         # compatibility requirements for permutation seeds. The disk backend overrides this.
         return False
 
+    def create_container(self):
+        # Backends for which it is necessary to create a container, should override this
+        # and return a Deferred that fires with something other than False when the
+        # container has been created.
+        return defer.succeed(False)
+
 
 class ShareSet(object):
     """

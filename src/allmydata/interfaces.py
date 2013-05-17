@@ -358,6 +358,14 @@ class IStorageBackend(Interface):
         permutation-seed.
         """
 
+    def create_container():
+        """
+        Create a container for the configured backend, if necessary. Return a
+        Deferred that fires with False if no container is needed for this backend
+        type, or something other than False if a container has been successfully
+        created. It is an error to attempt to create a container that already exists.
+        """
+
 
 class IShareSet(Interface):
     def get_storage_index():

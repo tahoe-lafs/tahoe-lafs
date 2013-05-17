@@ -44,9 +44,14 @@ class BasedirOptions(BaseOptions):
     ]
 
     def parseArgs(self, basedir=None):
-        if self.parent['node-directory'] and self['basedir']:
+        # This finds the node-directory option correctly even if we are in a subcommand.
+        root = self.parent
+        while root.parent is not None:
+            root = root.parent
+
+        if root['node-directory'] and self['basedir']:
             raise usage.UsageError("The --node-directory (or -d) and --basedir (or -C) options cannot both be used.")
-        if self.parent['node-directory'] and basedir:
+        if root['node-directory'] and basedir:
             raise usage.UsageError("The --node-directory (or -d) option and a basedir argument cannot both be used.")
         if self['basedir'] and basedir:
             raise usage.UsageError("The --basedir (or -C) option and a basedir argument cannot both be used.")
@@ -55,8 +60,8 @@ class BasedirOptions(BaseOptions):
             b = argv_to_abspath(basedir)
         elif self['basedir']:
             b = argv_to_abspath(self['basedir'])
-        elif self.parent['node-directory']:
-            b = argv_to_abspath(self.parent['node-directory'])
+        elif root['node-directory']:
+            b = argv_to_abspath(root['node-directory'])
         elif self.default_nodedir:
             b = self.default_nodedir
         else:

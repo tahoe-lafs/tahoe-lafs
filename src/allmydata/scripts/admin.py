@@ -1,6 +1,8 @@
 
+import os
+
 from twisted.python import usage
-from allmydata.scripts.common import BaseOptions
+from allmydata.scripts.common import BaseOptions, BasedirOptions
 
 class GenerateKeypairOptions(BaseOptions):
     def getSynopsis(self):
@@ -44,18 +46,70 @@ def derive_pubkey(options):
     print >>out, "public:", pubkey_vs
     return 0
 
+
+class CreateContainerOptions(BasedirOptions):
+    def getSynopsis(self):
+        return "Usage: %s [global-opts] admin create-container [NODEDIR]" % (self.command_name,)
+
+    def getUsage(self, width=None):
+        t = BasedirOptions.getUsage(self, width)
+        t += """
+Create a storage container, using the name and credentials configured in
+tahoe.cfg. This is needed only for the cloud backend, and only if the
+container has not already been created. See <docs/backends/cloud.rst>
+for more details.
+"""
+        return t
+
+def create_container(options):
+    from twisted.internet import reactor, defer
+
+    err = options.stderr
+
+    d = defer.maybeDeferred(do_create_container, options)
+    def _failed(f):
+        print >>err, "Container creation failed."
+        print >>err, "%s: %s" % (f.value.__class__.__name__, f.value)
+        print >>err
+        return f
+    d.addErrback(_failed)
+    d.addCallbacks(lambda ign: os._exit(0), lambda ign: os._exit(1))
+    reactor.run()
+
+def do_create_container(options):
+    from allmydata.node import ConfigOnly
+    from allmydata.client import Client
+
+    out = options.stderr
+    config = ConfigOnly(options['basedir'])
+    (backend, _) = Client.configure_backend(config)
+
+    d = backend.create_container()
+    def _done(res):
+        if res is False:
+            print >>out, ("It is not necessary to create a container for this backend type (%s)."
+                          % (backend.__class__.__name__,))
+        else:
+            print >>out, "The container was successfully created."
+        print >>out
+    d.addCallback(_done)
+    return d
+
+
 class AdminCommand(BaseOptions):
     subCommands = [
         ("generate-keypair", None, GenerateKeypairOptions,
          "Generate a public/private keypair, write to stdout."),
         ("derive-pubkey", None, DerivePubkeyOptions,
          "Derive a public key from a private key."),
+        ("create-container", None, CreateContainerOptions,
+         "Create a container for the configured cloud backend."),
         ]
     def postOptions(self):
         if not hasattr(self, 'subOptions'):
             raise usage.UsageError("must specify a subcommand")
     def getSynopsis(self):
-        return "Usage: tahoe [global-opts] admin SUBCOMMAND"
+        return "Usage: %s [global-opts] admin SUBCOMMAND" % (self.command_name,)
     def getUsage(self, width=None):
         t = BaseOptions.getUsage(self, width)
         t += """
@@ -67,6 +121,7 @@ each subcommand.
 subDispatch = {
     "generate-keypair": print_keypair,
     "derive-pubkey": derive_pubkey,
+    "create-container": create_container,
     }
 
 def do_admin(options):
