@@ -64,35 +64,40 @@ for more details.
 def create_container(options):
     from twisted.internet import reactor, defer
 
+    d = defer.maybeDeferred(do_create_container, options)
+    d.addCallbacks(lambda ign: os._exit(0), lambda ign: os._exit(1))
+    reactor.run()
+
+def do_create_container(options):
+    from twisted.internet import defer
+    from allmydata.node import ConfigOnly
+    from allmydata.client import Client
+
+    out = options.stdout
     err = options.stderr
 
-    d = defer.maybeDeferred(do_create_container, options)
+    d = defer.succeed(None)
+    def _do_create(ign):
+        config = ConfigOnly(options['basedir'])
+        (backend, _) = Client.configure_backend(config)
+
+        d2 = backend.create_container()
+        def _done(res):
+            if res is False:
+                print >>out, ("It is not necessary to create a container for this backend type (%s)."
+                              % (backend.__class__.__name__,))
+            else:
+                print >>out, "The container was successfully created."
+            print >>out
+        d2.addCallback(_done)
+        return d2
+    d.addCallback(_do_create)
     def _failed(f):
         print >>err, "Container creation failed."
         print >>err, "%s: %s" % (f.value.__class__.__name__, f.value)
         print >>err
         return f
     d.addErrback(_failed)
-    d.addCallbacks(lambda ign: os._exit(0), lambda ign: os._exit(1))
-    reactor.run()
-
-def do_create_container(options):
-    from allmydata.node import ConfigOnly
-    from allmydata.client import Client
-
-    out = options.stderr
-    config = ConfigOnly(options['basedir'])
-    (backend, _) = Client.configure_backend(config)
-
-    d = backend.create_container()
-    def _done(res):
-        if res is False:
-            print >>out, ("It is not necessary to create a container for this backend type (%s)."
-                          % (backend.__class__.__name__,))
-        else:
-            print >>out, "The container was successfully created."
-        print >>out
-    d.addCallback(_done)
     return d
 
 
