@@ -57,6 +57,8 @@ from allmydata.test.common import LoggingServiceParent, ShouldFailMixin, Crawler
 from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.test.no_network import NoNetworkServer
+from allmydata.test.test_cli import parse_options
+from allmydata.scripts.admin import do_create_container
 from allmydata.web.storage import StorageStatus, remove_prefix
 
 
@@ -1532,6 +1534,80 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
             need_response_body=False)
         http_response.callback((self.Response(200), None))
         self.failUnless(done)
+
+
+class Namespace(object):
+    pass
+
+
+class CreateContainer(unittest.TestCase, WorkdirMixin):
+    def test_create_container(self):
+        # We'll use the mock cloud backend to test this.
+        basedir = self.workdir("test_create_container")
+        os.makedirs(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                                    "[client]\n"
+                                    "introducer.furl = \n"
+                                    "[storage]\n"
+                                    "enabled = true\n"
+                                    "backend = mock_cloud\n")
+
+        ns = Namespace()
+        ns.called = 0
+        def call_hook_create_container():
+            ns.called += 1
+            return defer.execute(ns.result_callback)
+        self.patch(mock_cloud, "hook_create_container", call_hook_create_container)
+        self.patch(cloud_common, 'BACKOFF_SECONDS_BEFORE_RETRY', (0, 0.1, 0.2))
+
+        def _run_create_container(result_callback):
+            # We're really only testing do_create_container (to avoid problems with
+            # restarting the reactor or exiting), but that should be sufficient.
+
+            ns.result_callback = result_callback
+            options = parse_options(basedir, "admin", ["create-container"])
+            options.stdout = StringIO()
+            options.stderr = StringIO()
+            d = defer.maybeDeferred(do_create_container, options)
+            d.addCallbacks(lambda ign: 0, lambda ign: 1)
+            d.addCallback(lambda rc: (options.stdout.getvalue(), options.stderr.getvalue(), rc))
+            return d
+
+        d = _run_create_container(lambda: None)
+        def _check_create(res):
+            (out, err, rc) = res
+            self.failUnlessEqual(ns.called, 1, str(res))
+            self.failUnlessIn("The container was successfully created.", out, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.failUnlessEqual(rc, 0, str(res))
+        d.addCallback(_check_create)
+
+        def _already(ign):
+            def _already_exists(): raise CloudServiceError("", 409, "The specified container already exists.")
+            return _run_create_container(_already_exists)
+        d.addCallback(_already)
+        def _check_already(res):
+            (out, err, rc) = res
+            self.failUnlessEqual(ns.called, 2, str(res))
+            self.failUnlessEqual(out, "", str(res))
+            self.failUnlessIn("The specified container already exists.", err, str(res))
+            self.failUnlessEqual(rc, 1, str(res))
+        d.addCallback(_check_already)
+
+        def _failure(ign):
+            def _failed(): raise CloudServiceError("", 500, "<shrug>")
+            return _run_create_container(_failed)
+        d.addCallback(_failure)
+        def _check_failure(res):
+            (out, err, rc) = res
+            # 4 more calls, because there are three retries.
+            self.failUnlessEqual(ns.called, 6, str(res))
+            self.failUnlessEqual(out, "", str(res))
+            self.failUnlessIn("CloudError:", err, str(res))
+            self.failUnlessIn("<shrug>", err, str(res))
+            self.failUnlessEqual(rc, 1, str(res))
+        d.addCallback(_check_failure)
+        return d
 
 
 class ServerMixin:

@@ -25,6 +25,13 @@ def configure_mock_cloud_backend(storedir, config):
     return CloudBackend(container)
 
 
+def _not_implemented():
+    raise NotImplementedError()
+
+def hook_create_container():
+    return defer.execute(_not_implemented)
+
+
 class MockContainer(ContainerRetryMixin, ContainerListMixin):
     implements(IContainer)
     """
@@ -45,10 +52,10 @@ class MockContainer(ContainerRetryMixin, ContainerListMixin):
         return ("<%s at %r>" % (self.__class__.__name__, self._storagedir,))
 
     def _create(self):
-        return defer.execute(self._not_implemented)
+        return hook_create_container()
 
     def _delete(self):
-        return defer.execute(self._not_implemented)
+        return defer.execute(_not_implemented)
 
     def _iterate_dirs(self):
         shares_dir = os.path.join(self._storagedir, "shares")
