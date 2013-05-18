@@ -55,6 +55,10 @@ class S3Container(ContainerRetryMixin, ContainerListMixin):
     def __repr__(self):
         return ("<%s %r>" % (self.__class__.__name__, self.container_name,))
 
+    def _strip_data(self, args):
+        # Retain up to two arguments (container_name and object_name) for logging.
+        return args[:2]
+
     def create(self):
         return self._do_request('create bucket', self.client.create_bucket, self.container_name)
 

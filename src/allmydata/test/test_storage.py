@@ -374,9 +374,9 @@ class CloudCommon(unittest.TestCase, ShouldFailMixin, WorkdirMixin):
         fileutil.make_dirs(basedir)
 
         class BadlyTruncatingMockContainer(MockContainer):
-            def _list_some_objects(self, container_name, prefix='', marker=None):
+            def _list_some_objects(self, prefix='', marker=None):
                 contents = [ContainerItem("", None, "", 0, None, None)]
-                return defer.succeed(ContainerListing(container_name, "", "", 0, "true", contents))
+                return defer.succeed(ContainerListing(self.container_name, "", "", 0, "true", contents))
 
         s = {"level": 0}
         def call_log_msg(*args, **kwargs):
@@ -2784,12 +2784,12 @@ class ServerWithMockCloudBackend(WithMockCloudBackend, ServerTest, unittest.Test
 
         t = {'count': 0}
         old_put_object = MockContainer._put_object
-        def call_put_object(self, ign, object_name, data, content_type=None, metadata={}):
+        def call_put_object(self, object_name, data, content_type=None, metadata={}):
             t['count'] += 1
             if t['count'] <= failure_count:
                 return defer.fail(CloudServiceError("XML", 500, "Internal error", "response"))
             else:
-                return old_put_object(self, ign, object_name, data, content_type=content_type, metadata=metadata)
+                return old_put_object(self, object_name, data, content_type=content_type, metadata=metadata)
         self.patch(MockContainer, '_put_object', call_put_object)
 
         def call_log_msg(*args, **kwargs):
