@@ -233,7 +233,7 @@ def configure_msazure_container(storedir, config):
     Configure the MS Azure storage container.
     """
     account_name = config.get_config("storage", "msazure.account_name")
-    container_name = config.get_config("storage", "msazure.container_name")
+    container_name = config.get_config("storage", "msazure.container")
     account_key = config.get_private_config("msazure_account_key")
     return MSAzureStorageContainer(account_name, account_key, container_name)
 

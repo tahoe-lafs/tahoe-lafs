@@ -490,11 +490,10 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
 
     def test_msazure_config_required(self):
         """
-        account_name and container_name are all required by MS Azure
-        configuration.
+        account_name and container are all required by MS Azure configuration.
         """
         configs = ["mszure.account_name = theaccount",
-                   "msazure.container_name = bucket"]
+                   "msazure.container = bucket"]
         for i in range(len(configs)):
             basedir = self.mktemp()
             os.mkdir(basedir)
@@ -520,8 +519,8 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                        "[storage]\n" +
                        "enabled = true\n" +
                        "backend = cloud.msazure\n" +
-                       "googlestorage.account_name = theaccount\n" +
-                       "googlestorage.container_name = bucket\n")
+                       "msazure.account_name = theaccount\n" +
+                       "msazure.container = bucket\n")
         self.failUnlessRaises(MissingConfigEntry, client.Client, basedir)
 
     @mock.patch('allmydata.storage.backends.cloud.msazure.msazure_container.MSAzureStorageContainer')
@@ -538,7 +537,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                        "enabled = true\n" +
                        "backend = cloud.msazure\n" +
                        "msazure.account_name = theaccount\n" +
-                       "msazure.container_name = bucket\n")
+                       "msazure.container = bucket\n")
         c = client.Client(basedir)
         server = c.getServiceNamed("storage")
         self.failUnless(isinstance(server.backend, CloudBackend), server.backend)
