@@ -224,7 +224,7 @@ server's ``tahoe.cfg`` file:
     This is the account name (subdomain) you chose when creating the account,
     e.g. ``mydomain``.
 
-``msazure.container_name = (string, required)``
+``msazure.container = (string, required)``
 
     This controls which container will be used to hold shares. The Tahoe-LAFS
     storage server will only modify and access objects in the configured
