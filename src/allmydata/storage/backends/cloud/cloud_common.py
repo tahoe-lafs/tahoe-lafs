@@ -350,8 +350,18 @@ class ContainerRetryMixin:
     """
 
     def _react_to_error(self, response_code):
-        # The default policy is to retry on 5xx errors.
+        """
+        The default policy is to retry on 5xx errors.
+        """
         return response_code >= 500 and response_code < 600
+
+    def _strip_data(self, args):
+        """
+        By default retain only one argument (object_name) for logging.
+        Subclasses should override this if more than one argument is safe to log
+        (we want to avoid logging data).
+        """
+        return args[:1]
 
     def _do_request(self, description, operation, *args, **kwargs):
         d = defer.maybeDeferred(operation, *args, **kwargs)
@@ -359,7 +369,7 @@ class ContainerRetryMixin:
             d2 = self._handle_error(f, 1, None, description, operation, *args, **kwargs)
             def _trigger_incident(res):
                 log.msg(format="error(s) on cloud container operation: %(description)s %(arguments)s %(kwargs)s %(res)s",
-                        arguments=args[:2], kwargs=kwargs, description=description, res=res,
+                        arguments=self._strip_data(args), kwargs=kwargs, description=description, res=res,
                         level=log.WEIRD)
                 return res
             d2.addBoth(_trigger_incident)
@@ -375,7 +385,7 @@ class ContainerRetryMixin:
         if len(fargs) > 2 and fargs[2] and '<code>signaturedoesnotmatch</code>' in fargs[2].lower():
             fargs = fargs[:2] + ("SignatureDoesNotMatch response redacted",) + fargs[3:]
 
-        args_without_data = args[:2]
+        args_without_data = self._strip_data(args)
         msg = "try %d failed: %s %s %s" % (trynum, description, args_without_data, kwargs)
         err = CloudError(msg, *fargs)
 
@@ -711,6 +721,8 @@ class CommonContainerMixin(HTTPClientMixin, ContainerRetryMixin):
 
     def __init__(self, container_name, override_reactor=None):
         self._container_name = container_name
+
+        # Maybe this should be in HTTPClientMixin?
         self._reactor = override_reactor or reactor
         pool = HTTPConnectionPool(self._reactor)
         pool.maxPersistentPerHost = 20
@@ -726,6 +738,8 @@ class CommonContainerMixin(HTTPClientMixin, ContainerRetryMixin):
     def _make_object_url(self, public_storage_url, object_name):
         return "%s/%s/%s" % (public_storage_url, urllib.quote(self._container_name, safe=''),
                              urllib.quote(object_name))
+
+    # Consider moving these to ContainerRetryMixin.
 
     def create(self):
         return self._do_request('create container', self._create)

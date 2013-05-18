@@ -7,6 +7,7 @@ from allmydata.util.deferredutil import async_iterate
 
 from zope.interface import implements
 
+from allmydata.util.assertutil import _assert
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
      CloudServiceError, ContainerItem, ContainerListing, \
      ContainerRetryMixin, ContainerListMixin
@@ -61,7 +62,7 @@ class MockContainer(ContainerRetryMixin, ContainerListMixin):
                     sharefile = os.path.join(sidir, shnumstr)
                     yield (sharefile, "%s/%s" % (sikey, shnumstr))
 
-    def _list_some_objects(self, ign, prefix='', marker=None, max_keys=None):
+    def _list_some_objects(self, prefix='', marker=None, max_keys=None):
         if max_keys is None:
             max_keys = MAX_KEYS
         contents = []
@@ -93,53 +94,49 @@ class MockContainer(ContainerRetryMixin, ContainerListMixin):
             raise self.ServiceError("", 404, "not found")
         return sharefile
 
-    def _put_object(self, ign, object_name, data, content_type, metadata):
-        assert content_type is None, content_type
-        assert metadata == {}, metadata
+    def _put_object(self, object_name, data, content_type, metadata):
+        _assert(content_type == 'application/octet-stream', content_type=content_type)
+        _assert(metadata == {}, metadata=metadata)
         sharefile = self._get_path(object_name)
         fileutil.make_dirs(os.path.dirname(sharefile))
         fileutil.write(sharefile, data)
         self._store_count += 1
         return defer.succeed(None)
 
-    def _get_object(self, ign, object_name):
+    def _get_object(self, object_name):
         self._load_count += 1
         data = fileutil.read(self._get_path(object_name, must_exist=True))
         return defer.succeed(data)
 
-    def _head_object(self, ign, object_name):
-        return defer.execute(self._not_implemented)
+    def _head_object(self, object_name):
+        return defer.execute(_not_implemented)
 
-    def _delete_object(self, ign, object_name):
+    def _delete_object(self, object_name):
         fileutil.remove(self._get_path(object_name, must_exist=True))
         return defer.succeed(None)
-
-    def _not_implemented(self):
-        raise NotImplementedError
 
     # methods that use error handling from ContainerRetryMixin
 
     def create(self):
-        return self._do_request('create bucket', self._create, self.container_name)
+        return self._do_request('create bucket', self._create)
 
     def delete(self):
-        return self._do_request('delete bucket', self._delete, self.container_name)
+        return self._do_request('delete bucket', self._delete)
 
     def list_some_objects(self, **kwargs):
-        return self._do_request('list objects', self._list_some_objects, self.container_name, **kwargs)
+        return self._do_request('list objects', self._list_some_objects, **kwargs)
 
-    def put_object(self, object_name, data, content_type=None, metadata={}):
-        return self._do_request('PUT object', self._put_object, self.container_name, object_name,
-                                data, content_type, metadata)
+    def put_object(self, object_name, data, content_type='application/octet-stream', metadata={}):
+        return self._do_request('PUT object', self._put_object, object_name, data, content_type, metadata)
 
     def get_object(self, object_name):
-        return self._do_request('GET object', self._get_object, self.container_name, object_name)
+        return self._do_request('GET object', self._get_object, object_name)
 
     def head_object(self, object_name):
-        return self._do_request('HEAD object', self._head_object, self.container_name, object_name)
+        return self._do_request('HEAD object', self._head_object, object_name)
 
     def delete_object(self, object_name):
-        return self._do_request('DELETE object', self._delete_object, self.container_name, object_name)
+        return self._do_request('DELETE object', self._delete_object, object_name)
 
     def reset_load_store_counts(self):
         self._load_count = 0
