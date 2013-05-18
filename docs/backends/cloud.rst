@@ -8,8 +8,14 @@ cloud storage service, rather than on the local filesystem.
 All cloud storage services store the data in a particular container (also
 called a "bucket" in some storage services). You can create this container
 using the "tahoe admin create-container" command, once you have a correctly
-configured Tahoe-LAFS node. That is, configure the node with the container
-name you decided to use (e.g. "tahoedata"), then run the command.
+configured Tahoe-LAFS node as described below. That is, configure the node
+with the container name you decided to use (e.g. "tahoedata"), then run the
+command.
+
+(Currently, "tahoe admin create-container" works only for the S3 and
+Azure services. For Rackspace Cloud Files, HP Cloud Object Storage and
+Google Cloud Storage, it is necessary to use the respective web interfaces
+to create a container for the time being.)
 
 
 Amazon Simple Storage Service (S3)
@@ -180,7 +186,7 @@ the server's ``tahoe.cfg`` file:
 
 ``googlestorage.bucket = (string, required)``
 
-    This controls which bucket (aka container) will be used to hold
+    This controls which bucket (a.k.a. container) will be used to hold
     shares. The Tahoe-LAFS storage server will only modify and access objects
     in the configured container. Multiple storage servers cannot share the
     same container. Buckets can be created using a command-line tool (gsutil)
@@ -220,10 +226,9 @@ server's ``tahoe.cfg`` file:
 
 ``msazure.container_name = (string, required)``
 
-    This controls which container will be used to hold
-    shares. The Tahoe-LAFS storage server will only modify and access objects
-    in the configured container. Multiple storage servers cannot share the
-    same container.
+    This controls which container will be used to hold shares. The Tahoe-LAFS
+    storage server will only modify and access objects in the configured
+    container. Multiple storage servers cannot share the same container.
 
 The private key you downloaded is stored in a separate file named
 ``private/msazure_account_key``.
