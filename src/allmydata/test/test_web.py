@@ -4377,7 +4377,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.POST("/report_incident", details="eek")
         def _done(res):
             self.failIfIn("<html>", res)
-            self.failUnlessIn("Thank you for your report!", res)
+            self.failUnlessIn("An incident report has been saved", res)
         d.addCallback(_done)
         return d
 
