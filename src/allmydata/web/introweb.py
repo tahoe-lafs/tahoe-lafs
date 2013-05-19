@@ -67,6 +67,8 @@ class IntroducerRoot(rend.Page):
         return simplejson.dumps(res, indent=1) + "\n"
 
     # FIXME: This code is duplicated in root.py and introweb.py.
+    def data_rendered_at(self, ctx, data):
+        return time.asctime()
     def data_version(self, ctx, data):
         return get_package_versions_string()
     def data_import_path(self, ctx, data):
