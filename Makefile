@@ -31,20 +31,6 @@ build:
 	$(PYTHON) setup.py build
 	touch .built
 
-# 'make install' will do the following:
-#   build+install tahoe (probably to /usr/lib/pythonN.N/site-packages)
-# 'make install PREFIX=/usr/local/stow/tahoe-N.N' will do the same, but to
-# a different location
-
-install:
-ifdef PREFIX
-	mkdir -p $(PREFIX)
-	$(PYTHON) ./setup.py install --single-version-externally-managed \
-           --prefix=$(PREFIX) --record=./tahoe.files
-else
-	$(PYTHON) ./setup.py install --single-version-externally-managed
-endif
-
 
 # TESTING
 
