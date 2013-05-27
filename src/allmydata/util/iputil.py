@@ -1,5 +1,5 @@
 # from the Python Standard Library
-import os, re, socket, sys, subprocess
+import os, re, socket, sys, subprocess, types, itertools
 
 # from Twisted
 from twisted.internet import defer, threads, reactor
@@ -176,8 +176,11 @@ _win32_path = 'route.exe'
 _win32_args = ('print',)
 _win32_re = re.compile('^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
 
-# These work in Redhat 6.x and Debian 2.2 potato
-_linux_path = '/sbin/ifconfig'
+# Lots of paths to work for most linux distros:
+#  /sbin/ifconfig is the oldest and the most common.
+#  /usr appear in newer fedora and ubuntu derivatives.
+# Note that net-tools are deprecated on linux in favor of iproute2.
+_linux_path = map('/'.join, itertools.product(['/sbin', '/bin', '/usr/sbin', '/usr/bin'], ['ifconfig']))
 _linux_re = re.compile('^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)\s.+$', flags=re.M|re.I|re.S)
 
 # NetBSD 1.4 (submitted by Rhialto), Darwin, Mac OS X
@@ -219,19 +222,26 @@ def _synchronously_find_addresses_via_config():
     # If it is merely an executable name then we use Twisted's
     # "which()" utility and try each executable in turn until one
     # gives us something that resembles a dotted-quad IPv4 address.
+    # If it's a list, use first path that works from it.
 
-    if os.path.isabs(pathtotool):
-        return _query(pathtotool, args, regex)
+    if isinstance(pathtotool, types.StringTypes):
+        if os.path.isabs(pathtotool):
+            exes_to_try = [pathtotool]
+        else:
+            exes_to_try = which(pathtotool)
     else:
-        exes_to_try = which(pathtotool)
-        for exe in exes_to_try:
-            try:
-                addresses = _query(exe, args, regex)
-            except Exception:
-                addresses = []
-            if addresses:
-                return addresses
-        return []
+        exes_to_try = pathtotool
+
+    for exe in exes_to_try:
+        try:
+            return _query(exe, args, regex)
+        except Exception:
+            pass
+
+    log.msg('Failed to query local network addresses by cli tool (tried paths: %s)'
+            % ', '.join(exes_to_try))
+
+    return []
 
 def _query(path, args, regex):
     env = {'LANG': 'en_US.UTF-8'}
