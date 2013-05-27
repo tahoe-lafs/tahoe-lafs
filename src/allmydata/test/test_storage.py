@@ -5061,8 +5061,13 @@ class AccountingCrawlerTest(CrawlerTestMixin, WebRenderingMixin, ReallyEqualMixi
         self.failUnlessEqual((len(aa.get_leases(si)), len(sa.get_leases(si))),
                              expected)
 
+    def _skip_if_share_deletion_is_disabled(self, server):
+        if not server.get_accounting_crawler()._enable_share_deletion:
+            raise unittest.SkipTest("share deletion by the accounting crawler is disabled")
+
     def test_expire_age(self):
         server = self.create("test_expire_age", detached=True)
+        self._skip_if_share_deletion_is_disabled(server)
 
         # setting expiration_time to 2000 means that any lease which is more
         # than 2000s old will be expired.
@@ -5182,6 +5187,7 @@ class AccountingCrawlerTest(CrawlerTestMixin, WebRenderingMixin, ReallyEqualMixi
 
     def test_expire_cutoff_date(self):
         server = self.create("test_expire_cutoff_date", detached=True)
+        self._skip_if_share_deletion_is_disabled(server)
 
         # setting cutoff-date to 2000 seconds ago means that any lease which
         # is more than 2000s old will be expired.
