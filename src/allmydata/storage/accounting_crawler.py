@@ -34,6 +34,7 @@ class AccountingCrawler(ShareCrawler):
     def __init__(self, backend, statefile, leasedb, clock=None):
         ShareCrawler.__init__(self, backend, statefile, clock=clock)
         self._leasedb = leasedb
+        self._enable_share_deletion = False
 
     def process_prefix(self, cycle, prefix, start_slice):
         # Assume that we can list every prefixdir in this prefix quickly.
@@ -113,7 +114,8 @@ class AccountingCrawler(ShareCrawler):
                     (si_s, shnum) = shareid
                     log.msg(format="share SI=%(si_s)s shnum=%(shnum)s unexpectedly disappeared",
                             si_s=si_s, shnum=shnum, level=log.WEIRD)
-                    self._leasedb.remove_deleted_share(si_a2b(si_s), shnum)
+                    if self._enable_share_deletion:
+                        self._leasedb.remove_deleted_share(si_a2b(si_s), shnum)
 
             recovered_sharesets = [set() for st in xrange(len(SHARETYPES))]
 
@@ -148,9 +150,11 @@ class AccountingCrawler(ShareCrawler):
                 d3.addCallbacks(_deleted, _not_deleted)
                 return d3
 
-            # This only includes stable unleased shares (see ticket #1921).
-            unleased_sharemap = self._leasedb.get_unleased_shares_for_prefix(prefix)
-            d2 = for_items(_delete_share, unleased_sharemap)
+            d2 = defer.succeed(None)
+            if self._enable_share_deletion:
+                # This only includes stable unleased shares (see ticket #1921).
+                unleased_sharemap = self._leasedb.get_unleased_shares_for_prefix(prefix)
+                d2.addCallback(lambda ign: for_items(_delete_share, unleased_sharemap))
 
             def _inc_recovered_sharesets(ign):
                 self.increment(rec, "actual-buckets", sum([len(s) for s in recovered_sharesets]))
