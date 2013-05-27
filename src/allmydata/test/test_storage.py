@@ -65,11 +65,11 @@ from allmydata.web.storage import StorageStatus, remove_prefix
 class FakeAccount:
     def __init__(self, server):
         self.server = server
-    def add_share(self, storage_index, shnum, used_space, sharetype, commit=True):
+    def add_share(self, storage_index, shnum, used_space, sharetype):
         pass
-    def add_or_renew_default_lease(self, storage_index, shnum, commit=True):
+    def add_or_renew_default_lease(self, storage_index, shnum):
         pass
-    def mark_share_as_stable(self, storage_index, shnum, used_space, commit=True):
+    def mark_share_as_stable(self, storage_index, shnum, used_space):
         pass
 
 class FakeStatsProvider:
