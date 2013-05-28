@@ -131,7 +131,8 @@ def get_local_ip_for(target):
     except socket.error:
         # no route to that host
         localip = None
-    port.stopListening() # note, this returns a Deferred
+    d = port.stopListening()
+    d.addErrback(log.err)
     return localip
 
 
