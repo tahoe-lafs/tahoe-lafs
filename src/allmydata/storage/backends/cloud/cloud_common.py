@@ -652,6 +652,18 @@ class DataCollector(Protocol):
         return self._done
 
 
+class QuieterFileBodyProducer(FileBodyProducer):
+    """
+    Workaround for a minor bug in Twisted: losing a connection may result in stopProducing
+    being called twice, causing a spurious unhandled TaskStopped exception to be logged.
+    """
+    def stopProducing(self):
+        try:
+            FileBodyProducer.stopProducing(self)
+        except task.TaskStopped:
+            log.msg("ignoring a harmless TaskStopped exception", level=log.OPERATIONAL)
+
+
 class HTTPClientMixin:
     """
     I implement helper methods for making HTTP requests and getting response headers.
@@ -671,7 +683,7 @@ class HTTPClientMixin:
         if body is None:
             bodyProducer = None
         else:
-            bodyProducer = FileBodyProducer(StringIO(body))
+            bodyProducer = QuieterFileBodyProducer(StringIO(body))
             # We don't need to explicitly set Content-Length because FileBodyProducer knows the length
             # (and if we do it won't work, because in that case Content-Length would be duplicated).
 
