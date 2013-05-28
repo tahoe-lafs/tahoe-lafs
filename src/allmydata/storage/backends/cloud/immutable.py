@@ -9,7 +9,6 @@ from zope.interface import implements
 from allmydata.interfaces import IShareForReading, IShareForWriting
 
 from allmydata.util.assertutil import precondition, _assert
-from allmydata.util.mathutil import div_ceil
 from allmydata.storage.common import CorruptStoredShareError, UnknownImmutableContainerVersionError, \
      DataTooLargeError
 from allmydata.storage.backends.cloud import cloud_common
@@ -162,9 +161,8 @@ class ImmutableCloudShareForReading(CloudShareBase, ImmutableCloudShareMixin, Cl
 
         self._total_size = total_size
         self._chunksize = chunksize
-        nchunks = div_ceil(total_size, chunksize)
         initial_cachemap = {0: defer.succeed(first_chunkdata)}
-        self._cache = ChunkCache(container, self._key, chunksize, nchunks, initial_cachemap)
+        self._cache = ChunkCache(container, self._key, chunksize, initial_cachemap=initial_cachemap)
         #print "ImmutableCloudShareForReading", total_size, chunksize, self._key
 
         header = first_chunkdata[:self.HEADER_SIZE]
