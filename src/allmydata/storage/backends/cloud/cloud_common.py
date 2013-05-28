@@ -693,8 +693,8 @@ class HTTPClientMixin:
         d = defer.maybeDeferred(self._agent.request, method, url, Headers(request_headers), bodyProducer)
 
         def _got_response(response):
-            log.msg(format="%(what)s response: %(code)d %(phrase)s",
-                    what=what, code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
+            log.msg(format="%(what)s response for %(url)s: %(code)d %(phrase)s",
+                    what=what, url=url, code=response.code, phrase=response.phrase, level=log.OPERATIONAL)
 
             if response.code < 200 or response.code >= 300:
                 response.deliverBody(Discard())
