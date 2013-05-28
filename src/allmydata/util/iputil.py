@@ -1,5 +1,5 @@
 # from the Python Standard Library
-import os, re, socket, sys, subprocess
+import os, re, socket, sys, subprocess, errno
 
 # from Twisted
 from twisted.internet import defer, threads, reactor
@@ -235,8 +235,14 @@ def _synchronously_find_addresses_via_config():
 
 def _query(path, args, regex):
     env = {'LANG': 'en_US.UTF-8'}
-    p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
-    (output, err) = p.communicate()
+    for trial in xrange(5):
+        try:
+            p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+            (output, err) = p.communicate()
+            break
+        except OSError, e:
+            if e.errno == errno.EINTR:
+                continue
 
     addresses = []
     outputsplit = output.split('\n')
