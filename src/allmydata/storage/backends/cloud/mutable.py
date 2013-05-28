@@ -123,7 +123,6 @@ class MutableCloudShare(CloudShareBase, CloudShareReaderMixin):
     def _set_total_size(self, total_size):
         self._total_size = total_size
         self._nchunks = div_ceil(self._total_size, self._chunksize)
-        self._cache.set_nchunks(self._nchunks)
 
     def log(self, *args, **kwargs):
         if self.parent:
