@@ -15,7 +15,7 @@ SOURCES=src/allmydata src/buildtest static misc bin/tahoe-script.template twiste
 .PHONY: make-version build
 
 # This is necessary only if you want to automatically produce a new
-# _version.py file from the current git/darcs history.
+# _version.py file from the current git/darcs history (without doing a build).
 make-version:
 	$(PYTHON) ./setup.py update_version
 
@@ -26,7 +26,7 @@ src/allmydata/_version.py:
 	$(MAKE) make-version
 
 # It is unnecessary to have this depend on build or src/allmydata/_version.py,
-# since 'setup.py build' always updates the version using 'darcsver --count-all-patches'.
+# since 'setup.py build' always updates the version.
 build:
 	$(PYTHON) setup.py build
 	touch .built
@@ -58,7 +58,7 @@ test-coverage: build
 	rm -f .coverage
 	$(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
 
-quicktest:
+quicktest: make-version
 	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
 
 # "make tmpfstest" may be a faster way of running tests on Linux. It works best when you have
@@ -67,7 +67,7 @@ quicktest:
 tmpfstest:
 	time make _tmpfstest 'TMPDIR=$(shell mktemp -d --tmpdir=.)'
 
-_tmpfstest:
+_tmpfstest: make-version
 	sudo mount -t tmpfs -o size=400m tmpfs '$(TMPDIR)'
 	-$(TAHOE) debug trial --rterrors '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
 	sudo umount '$(TMPDIR)'
@@ -79,7 +79,7 @@ _tmpfstest:
 # coverage-output" for a pretty HTML report. Also see "make .coverage.el" and
 # misc/coding_tools/coverage.el for emacs integration.
 
-quicktest-coverage:
+quicktest-coverage: make-version
 	rm -f .coverage
 	PYTHONPATH=. $(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
 # on my laptop, "quicktest" takes 239s, "quicktest-coverage" takes 304s
