@@ -15,13 +15,12 @@ def _quote_serverid_index_share(serverid, storage_index, sharenum):
                                            quote_output(storage_index, quotemarks=False),
                                            sharenum)
 
-def check(options):
+def check_location(options, where):
     stdout = options.stdout
     stderr = options.stderr
     nodeurl = options['node-url']
     if not nodeurl.endswith("/"):
         nodeurl += "/"
-    where = options.where
     try:
         rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
     except UnknownAliasError, e:
@@ -96,9 +95,20 @@ def check(options):
             stdout.write(" corrupt shares:\n")
             for (serverid, storage_index, sharenum) in corrupt:
                 stdout.write("  %s\n" % _quote_serverid_index_share(serverid, storage_index, sharenum))
+                
+    return 0;
 
+def check(options):
+    if len(options.locations) == 0:
+        errno = check_location(options, unicode())
+        if errno != 0:
+            return errno
+        return 0
+    for location in options.locations:
+        errno = check_location(options, location)
+        if errno != 0: 
+            return errno
     return 0
-
 
 class FakeTransport:
     disconnecting = False
@@ -262,7 +272,7 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
 
 class DeepCheckStreamer(LineOnlyReceiver):
 
-    def run(self, options):
+    def deepcheck_location(self, options, where):
         stdout = options.stdout
         stderr = options.stderr
         self.rc = 0
@@ -271,7 +281,7 @@ class DeepCheckStreamer(LineOnlyReceiver):
         if not nodeurl.endswith("/"):
             nodeurl += "/"
         self.nodeurl = nodeurl
-        where = options.where
+
         try:
             rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
         except UnknownAliasError, e:
@@ -309,6 +319,19 @@ class DeepCheckStreamer(LineOnlyReceiver):
                 output.dataReceived(chunk)
         if not self.options["raw"]:
             output.done()
+        return 0
+        
+
+    def run(self, options):
+        if len(options.locations) == 0:
+            errno = self.deepcheck_location(options, unicode())
+            if errno != 0:
+                return errno
+            return 0
+        for location in options.locations:
+            errno = self.deepcheck_location(options, location)
+            if errno != 0:
+                return errno 
         return self.rc
 
 def deepcheck(options):
