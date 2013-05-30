@@ -34,7 +34,7 @@ class AccountingCrawler(ShareCrawler):
     def __init__(self, backend, statefile, leasedb, clock=None):
         ShareCrawler.__init__(self, backend, statefile, clock=clock)
         self._leasedb = leasedb
-        self._enable_share_deletion = False
+        self._enable_share_deletion = True
 
     def process_prefix(self, cycle, prefix, start_slice):
         # Assume that we can list every prefixdir in this prefix quickly.
