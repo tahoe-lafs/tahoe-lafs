@@ -693,6 +693,80 @@ class IReadable(Interface):
         download-to-memory consumer.
         """
 
+class IPeerSelector(Interface):
+    """
+    I select peers for an upload, maximizing some measure of health.
+
+    I keep track of the state of a grid relative to a file. This means
+    that I know about all of the peers that parts of that file could be
+    placed on, and about shares that have been placed on those peers.
+    Given this, I assign shares to peers in a way that maximizes the
+    file's health according to whichever definition of health I am
+    programmed with. I tell the uploader whether or not my assignment is
+    healthy. I keep track of failures during the process and update my
+    conclusions appropriately.
+    """
+    def add_peer_with_share(peerid, shnum):
+        """
+        Update my internal state to reflect the fact that peer peerid
+        holds share shnum. Called for shares that are detected before
+        peer selection begins.
+        """
+
+    def confirm_share_allocation(peerid, shnum):
+        """
+        Confirm that an allocated peer=>share pairing has been
+        successfully established.
+        """
+
+    def add_peers(peerids=set):
+        """
+        Update my internal state to include the peers in peerids as
+        potential candidates for storing a file.
+        """
+
+    def mark_full_peer(peerid):
+        """
+        Mark the peer peerid as full. This means that any
+        peer-with-share relationships I know about for peerid remain
+        valid, but that peerid will not be assigned any new shares.
+        """
+
+    def mark_bad_peer(peerid):
+        """
+        Mark the peer peerid as bad. This is typically called when an
+        error is encountered when communicating with a peer. I will
+        disregard any existing peer => share relationships associated
+        with peerid, and will not attempt to assign it any more shares.
+        """
+
+    def get_tasks():
+        """
+        Return a tuple of tasks to our caller.
+
+        Specifically, return (queries, placements), where queries and
+        allocations are both lists of things to do. Each query is a
+        request for our caller to ask a server about the shares it holds
+        for this upload; the results will be fed back into the
+        allocator. Each allocation is a request for some share or shares
+        to be placed on a server. Result may be None, in which case the
+        selector thinks that the share placement is as reliably or
+        correctly placed as it can be.
+        """
+
+    def is_healthy():
+        """
+        I return whether the share assignments I'm currently using
+        reflect a healthy file, based on my internal definitions.
+        """
+        
+    def needs_recomputation():
+        """
+        I return True if the share assignments I last returned may have
+        become stale. This is a hint to the caller that they should call
+        get_share_assignments again.
+        """
+
 
 class IWriteable(Interface):
     """
