@@ -212,21 +212,25 @@ class PeerSelector():
         self.min_happiness = servers_of_happiness
 
         self.existing_shares = {}
+        self.confirmed_allocations = {}
         self.peers = set()
         self.full_peers = set()
         self.bad_peers = set()
 
-    def add_peer_with_shares(self, peerid, shnum):
+    def add_peer_with_share(self, peerid, shnum):
         if peerid in self.existing_shares.keys():
             self.existing_shares[peerid].add(shnum)
         else:
             self.existing_shares[peerid] = set([shnum])
 
-    def confirm_share_allocation(peerid, shnum):
-        pass
+    def confirm_share_allocation(self, shnum, peer):
+        self.confirmed_allocations.setdefault(shnum, set()).add(peer)
 
-    def add_peers(self, peerids=set):
-        self.peers = peerids.copy()
+    def get_allocations(self):
+        return self.confirmed_allocations
+
+    def add_peer(self, peerid):
+        self.peers.add(peerid)
 
     def mark_full_peer(self, peerid):
         self.full_peers.add(peerid)
@@ -239,6 +243,13 @@ class PeerSelector():
         elif peerid in self.full_peers:
             self.full_peers.remove(peerid)
             self.bad_peers.add(peerid)
+
+    def get_preexisting(self):
+        preexisting = {}
+        for server in self.existing_shares:
+            for share in self.existing_shares[server]:
+                preexisting.setdefault(share, set()).add(server)
+        return preexisting
 
     def get_tasks(self):
         shares = set(range(self.total_shares))
@@ -285,7 +296,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         if self._status:
             self._status.set_status("Contacting Servers..")
 
-        self.peer_selector = self.peer_selector_class(num_segments, total_shares, 
+        self.peer_selector = self.peer_selector_class(num_segments, total_shares,
                                 needed_shares, servers_of_happiness)
 
         self.total_shares = total_shares
@@ -326,12 +337,12 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             v1 = v0["http://allmydata.org/tahoe/protocols/storage/v1"]
             return v1["maximum-immutable-share-size"]
 
-        self.peer_selector.add_peers(set(server.get_serverid() for server in all_servers))
-
-        writeable_servers = [server for server in all_servers
+        candidate_servers = all_servers[:2*total_shares]
+        for server in candidate_servers:
+            self.peer_selector.add_peer(server.get_serverid())
+        writeable_servers = [server for server in candidate_servers
                             if _get_maxsize(server) >= allocated_size]
-        readonly_servers = set(all_servers[:2*total_shares]) - set(writeable_servers)
-
+        readonly_servers = set(candidate_servers) - set(writeable_servers)
         for server in readonly_servers:
             self.peer_selector.mark_full_peer(server.get_serverid())
 
@@ -368,10 +379,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # second-pass list and repeat the "second" pass (really the third,
         # fourth, etc pass), until all shares are assigned, or we've run out
         # of potential servers.
-        self.first_pass_trackers = _make_trackers(writeable_servers)
-        self.second_pass_trackers = [] # servers worth asking again
-        self.next_pass_trackers = [] # servers that we have asked again
-        self._started_second_pass = False
+        write_trackers = _make_trackers(writeable_servers)
 
         # We don't try to allocate shares to these servers, since they've
         # said that they're incapable of storing shares of the size that we'd
@@ -397,10 +405,27 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             self.query_count += 1
             self.log("asking server %s for any existing shares" %
                      (tracker.get_name(),), level=log.NOISY)
+
+        for tracker in write_trackers:
+            assert isinstance(tracker, ServerTracker)
+            d = tracker.query(set())
+            d.addBoth(self._handle_existing_write_response, tracker, set())
+            ds.append(d)
+            self.num_servers_contacted += 1
+            self.query_count += 1
+            self.log("asking server %s for any existing shares" %
+                     (tracker.get_name(),), level=log.NOISY)
+
+        self.trackers = write_trackers + readonly_trackers
+
         dl = defer.DeferredList(ds)
+        dl.addCallback(lambda ign: self._calculate_tasks())
         dl.addCallback(lambda ign: self._loop())
         return dl
 
+
+    def _calculate_tasks(self):
+        self.tasks = self.peer_selector.get_tasks()
 
     def _handle_existing_response(self, res, tracker):
         """
@@ -422,11 +447,27 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                     % (tracker.get_name(), tuple(sorted(buckets))),
                     level=log.NOISY)
             for bucket in buckets:
-                self.peer_selector.add_peer_with_shares(serverid, bucket)
+                self.peer_selector.add_peer_with_share(serverid, bucket)
                 self.preexisting_shares.setdefault(bucket, set()).add(serverid)
                 self.homeless_shares.discard(bucket)
-            self.full_count += 1
-            self.bad_query_count += 1
+
+    def _handle_existing_write_response(self, res, tracker, shares_to_ask):
+        """
+        Function handles the response from the write servers
+        when inquiring about what shares each server already has.
+        """
+        if isinstance(res, failure.Failure):
+            self.peer_selector.mark_bad_peer(tracker.get_serverid())
+            self.log("%s got error during server selection: %s" % (tracker, res),
+                    level=log.UNUSUAL)
+            self.homeless_shares |= shares_to_ask
+
+            msg = ("last failure (from %s) was: %s" % (tracker, res))
+            self.last_failure_msg = msg
+        else:
+            (alreadygot, allocated) = res
+            for share in alreadygot:
+                self.peer_selector.add_peer_with_share(tracker.get_serverid(), share)
 
 
     def _get_progress_message(self):
@@ -458,108 +499,43 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         allocations to make, I return None.
         """
 
-        if not self.homeless_shares:
-            merged = merge_servers(self.preexisting_shares, self.use_trackers)
-            effective_happiness = servers_of_happiness(merged)
-            if self.servers_of_happiness <= effective_happiness:
-                return None
-            else:
-                # We're not okay right now, but maybe we can fix it by
-                # redistributing some shares. In cases where one or two
-                # servers has, before the upload, all or most of the
-                # shares for a given SI, this can work by allowing _loop
-                # a chance to spread those out over the other servers,
-                delta = self.servers_of_happiness - effective_happiness
-                shares = shares_by_server(self.preexisting_shares)
-                # Each server in shares maps to a set of shares stored on it.
-                # Since we want to keep at least one share on each server
-                # that has one (otherwise we'd only be making
-                # the situation worse by removing distinct servers),
-                # each server has len(its shares) - 1 to spread around.
-                shares_to_spread = sum([len(list(sharelist)) - 1
-                                        for (server, sharelist)
-                                        in shares.items()])
-                if delta <= len(self.first_pass_trackers) and \
-                   shares_to_spread >= delta:
-                    items = shares.items()
-                    while len(self.homeless_shares) < delta:
-                        # Loop through the allocated shares, removing
-                        # one from each server that has more than one
-                        # and putting it back into self.homeless_shares
-                        # until we've done this delta times.
-                        server, sharelist = items.pop()
-                        if len(sharelist) > 1:
-                            share = sharelist.pop()
-                            self.homeless_shares.add(share)
-                            self.preexisting_shares[share].remove(server)
-                            if not self.preexisting_shares[share]:
-                                del self.preexisting_shares[share]
-                            items.append((server, sharelist))
-                        for writer in self.use_trackers:
-                            writer.abort_some_buckets(self.homeless_shares)
-                    return self._get_next_allocation()
-                else:
-                    # Redistribution won't help us; fail
-                    return None
-                    
-        if self.first_pass_trackers:
-            tracker = self.first_pass_trackers.pop(0)
-            # TODO: don't pre-convert all serverids to ServerTrackers
-            assert isinstance(tracker, ServerTracker)
-
-            shares_to_ask = set(sorted(self.homeless_shares)[:1])
-            next_tracker_list = self.second_pass_trackers
-            self.num_servers_contacted += 1
-            if self._status:
-                self._status.set_status("Contacting Servers [%s] (first query),"
-                                        " %d shares left.."
-                                        % (tracker.get_name(),
-                                           len(self.homeless_shares)))
-
-        elif self.second_pass_trackers:
-            # ask a server that we've already asked.
-            if not self._started_second_pass:
-                self.log("starting second pass",
-                        level=log.NOISY)
-                self._started_second_pass = True
-            num_shares = mathutil.div_ceil(len(self.homeless_shares),
-                                           len(self.second_pass_trackers))
-            tracker = self.second_pass_trackers.pop(0)
-            shares_to_ask = set(sorted(self.homeless_shares)[:num_shares])
-            next_tracker_list = self.next_pass_trackers
-            if self._status:
-                self._status.set_status("Contacting Servers [%s] (second query),"
-                                        " %d shares left.."
-                                        % (tracker.get_name(),
-                                           len(self.homeless_shares)))
-
-        elif self.next_pass_trackers:
-            # we've finished the second-or-later pass. Move all the remaining
-            # servers back into self.second_pass_trackers for the next pass.
-            self.second_pass_trackers.extend(self.next_pass_trackers)
-            self.next_pass_trackers[:] = []
-            return self._get_next_allocation()
-
-        else:
-            # nothing to do
+        if len(self.trackers) == 0:
             return None
 
-        self.homeless_shares -= shares_to_ask
-        self.query_count += 1
-        return (tracker, shares_to_ask, next_tracker_list)
+        tracker = self.trackers.pop(0)
+        # TODO: don't pre-convert all serverids to ServerTrackers
+        assert isinstance(tracker, ServerTracker)
+
+        shares_to_ask = set()
+        servermap = self.tasks
+        for shnum, tracker_id in servermap.items():
+            if tracker_id == None:
+                continue
+            if tracker.get_serverid() in tracker_id:
+                shares_to_ask.add(shnum)
+                if shnum in self.homeless_shares:
+                    self.homeless_shares.remove(shnum)
+
+        if self._status:
+            self._status.set_status("Contacting Servers [%s] (first query),"
+                                    " %d shares left.."
+                                    % (tracker.get_name(),
+                                       len(self.homeless_shares)))
+        return (tracker, shares_to_ask)
+
 
     def _loop(self):
         allocation = self._get_next_allocation()
         if allocation is not None:
-            tracker, shares_to_ask, next_tracker_list  = allocation
+            tracker, shares_to_ask = allocation
             d = tracker.query(shares_to_ask)
-            d.addBoth(self._got_response, tracker, shares_to_ask,
-                      next_tracker_list)
+            d.addBoth(self._got_response, tracker, shares_to_ask)
             return d
+
         else:
             # no more servers. If we haven't placed enough shares, we fail.
-            merged = merge_servers(self.preexisting_shares, self.use_trackers)
-            effective_happiness = servers_of_happiness(merged)
+            merged = merge_servers(self.peer_selector.get_preexisting(), self.use_trackers)
+            effective_happiness = servers_of_happiness(self.peer_selector.get_allocations())
             if effective_happiness < self.servers_of_happiness:
                 msg = failure_message(len(self.serverids_with_shares),
                                       self.needed_shares,
@@ -585,9 +561,10 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                            for st in self.use_trackers],
                           pretty_print_shnum_to_servers(self.preexisting_shares))
                 self.log(msg, level=log.OPERATIONAL)
-                return (self.use_trackers, self.preexisting_shares)
+                return (self.use_trackers, self.peer_selector.get_preexisting())
 
-    def _got_response(self, res, tracker, shares_to_ask, put_tracker_here):
+
+    def _got_response(self, res, tracker, shares_to_ask):
         if isinstance(res, failure.Failure):
             # This is unusual, and probably indicates a bug or a network
             # problem.
@@ -596,9 +573,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             self.error_count += 1
             self.bad_query_count += 1
             self.homeless_shares |= shares_to_ask
-            if (self.first_pass_trackers
-                or self.second_pass_trackers
-                or self.next_pass_trackers):
+            if (self.trackers):
                 # there is still hope, so just loop
                 pass
             else:
@@ -617,6 +592,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                     level=log.NOISY)
             progress = False
             for s in alreadygot:
+                self.peer_selector.confirm_share_allocation(s, tracker.get_serverid())
                 self.preexisting_shares.setdefault(s, set()).add(tracker.get_serverid())
                 if s in self.homeless_shares:
                     self.homeless_shares.remove(s)
@@ -629,6 +605,8 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             if allocated:
                 self.use_trackers.add(tracker)
                 progress = True
+                for s in allocated:
+                    self.peer_selector.confirm_share_allocation(s, tracker.get_serverid())
 
             if allocated or alreadygot:
                 self.serverids_with_shares.add(tracker.get_serverid())
@@ -659,10 +637,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                 self.homeless_shares |= still_homeless
                 # Since they were unable to accept all of our requests, so it
                 # is safe to assume that asking them again won't help.
-            else:
-                # if they *were* able to accept everything, they might be
-                # willing to accept even more.
-                put_tracker_here.append(tracker)
+
 
         # now loop
         return self._loop()
