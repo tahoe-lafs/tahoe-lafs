@@ -388,13 +388,20 @@ Client Configuration
 
 ``peers.preferred = (string, optional)``
 
-    This is an optional comma-separated list of storage server node IDs that
-    will be tried first when selecting storage servers for reading or writing.
+    This is an optional comma-separated list of Node IDs of servers that will
+    be tried first when selecting storage servers for reading or writing.
 
-    Every selected node, preferred or not, will still receive the same number
-    of shares (one, if there are ``N`` or more servers accepting uploads).
-    Preferred nodes are simply moved to the front of the server selection lists
-    computed for each file.
+    Servers should be identified here by their Node ID as it appears in the web
+    ui, underneath the server's nickname. For storage servers running tahoe
+    versions >=1.10 (if the introducer is also running tahoe >=1.10) this will
+    be a "Node Key" (which is prefixed with 'v0-'). For older nodes, it will be
+    a TubID instead. When a preferred server (and/or the introducer) is
+    upgraded to 1.10 or later, clients must adjust their configs accordingly.
+
+    Every node selected for upload, whether preferred or not, will still
+    receive the same number of shares (one, if there are ``N`` or more servers
+    accepting uploads). Preferred nodes are simply moved to the front of the
+    server selection lists computed for each file.
 
     This is useful if a subset of your nodes have different availability or
     connectivity characteristics than the rest of the grid. For instance, if
