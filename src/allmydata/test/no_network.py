@@ -13,7 +13,7 @@
 # Tubs, so it is not useful for tests that involve a Helper, a KeyGenerator,
 # or the control.furl .
 
-import os.path
+import os
 from zope.interface import implements
 from twisted.application import service
 from twisted.internet import defer, reactor
@@ -400,6 +400,12 @@ class GridTestMixin:
         for (i_shnum, i_serverid, i_sharefile) in self.find_uri_shares(uri):
             if i_shnum in shnums:
                 os.unlink(i_sharefile)
+
+    def delete_all_shares(self, serverdir):
+        sharedir = os.path.join(serverdir, "shares")
+        for prefixdir in os.listdir(sharedir):
+            if prefixdir != 'incoming':
+                fileutil.rm_dir(os.path.join(sharedir, prefixdir))
 
     def corrupt_share(self, (shnum, serverid, sharefile), corruptor_function):
         sharedata = open(sharefile, "rb").read()
