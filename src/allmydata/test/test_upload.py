@@ -423,26 +423,6 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
         d.addCallback(_check)
         return d
 
-    def test_second_error(self):
-        # we want to make sure we make it to a third pass. This means that
-        # the first pass was insufficient to place all shares, and at least
-        # one of second pass servers (other than the last one) accepted a
-        # share (so we'll believe that a third pass will be useful). (if
-        # everyone but the last server throws an error, then we'll send all
-        # the remaining shares to the last server at the end of the second
-        # pass, and if that succeeds, we won't make it to a third pass).
-        #
-        # we can achieve this 97.5% of the time by using 40 servers, having
-        # 39 of them fail on the second request, leaving only one to succeed
-        # on the second request. (we need to keep the number of servers low
-        # enough to ensure a second pass with 100 shares).
-        mode = dict([(0,"good")] + [(i,"second-fail") for i in range(1,40)])
-        self.make_node(mode, 40)
-        d = upload_data(self.u, DATA)
-        d.addCallback(extract_uri)
-        d.addCallback(self._check_large, SIZE_LARGE)
-        return d
-
     def test_second_error_all(self):
         self.make_node("second-fail")
         d = self.shouldFail(UploadUnhappinessError, "second_error_all",
@@ -1215,7 +1195,6 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
-    test_problem_layout_ticket_1124.todo = "Fix this after 1.7.1 release."
 
     def test_happiness_with_some_readonly_servers(self):
         # Try the following layout
@@ -1880,48 +1859,6 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
-    test_problem_layout_comment_187.todo = "this isn't fixed yet"
-
-    def test_problem_layout_ticket_1118(self):
-        # #1118 includes a report from a user who hit an assertion in
-        # the upload code with this layout.
-        self.basedir = self.mktemp()
-        d = self._setup_and_upload(k=2, n=4)
-
-        # server 0: no shares
-        # server 1: shares 0, 3
-        # server 3: share 1
-        # server 2: share 2
-        # The order that they get queries is 0, 1, 3, 2
-        def _setup(ign):
-            self._add_server(server_number=0)
-            self._add_server_with_share(server_number=1, share_number=0)
-            self._add_server_with_share(server_number=2, share_number=2)
-            self._add_server_with_share(server_number=3, share_number=1)
-            # Copy shares
-            self._copy_share_to_server(3, 1)
-            storedir = self.get_serverdir(0)
-            # remove the storedir, wiping out any existing shares
-            shutil.rmtree(storedir)
-            # create an empty storedir to replace the one we just removed
-            os.mkdir(storedir)
-            client = self.g.clients[0]
-            client.DEFAULT_ENCODING_PARAMETERS['happy'] = 4
-            return client
-
-        d.addCallback(_setup)
-        # Note: actually it should succeed! See
-        # test_problem_layout_ticket_1128. But ticket 1118 is just to
-        # make it realize that it has failed, so if it raises
-        # UploadUnhappinessError then we'll give it the green light
-        # for now.
-        d.addCallback(lambda ignored:
-            self.shouldFail(UploadUnhappinessError,
-                            "test_problem_layout_ticket_1118",
-                            "",
-                            self.g.clients[0].upload, upload.Data("data" * 10000,
-                                                       convergence="")))
-        return d
 
     def test_problem_layout_ticket_1128(self):
         # #1118 includes a report from a user who hit an assertion in
@@ -1956,7 +1893,6 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self.failUnless(self._has_happy_share_distribution()))
         return d
-    test_problem_layout_ticket_1128.todo = "Invent a smarter uploader that uploads successfully in this case."
 
     def test_upload_succeeds_with_some_homeless_shares(self):
         # If the upload is forced to stop trying to place shares before
