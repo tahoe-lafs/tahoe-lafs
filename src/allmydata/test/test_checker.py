@@ -404,14 +404,14 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
             0:[A] 1:[A] 2:[A] 3:[A,B,C,D,E]
           4 good shares, but 5 good hosts
         After deleting all instances of share #3 and repairing:
-            0:[A,B], 1:[A,C], 2:[A,D], 3:[E]
-          Still 4 good shares and 5 good hosts
+            0:[A], 1:[A,B], 2:[C,A], 3:[E]
+          Still 4 good shares but now 4 good hosts
             """
         d.addCallback(_check_and_repair)
         d.addCallback(_check_counts, 4, 5)
         d.addCallback(lambda _: self.delete_shares_numbered(self.uri, [3]))
         d.addCallback(_check_and_repair)
-        d.addCallback(_check_counts, 4, 5)
+        d.addCallback(_check_counts, 4, 4)
         d.addCallback(lambda _: [self.g.break_server(sid)
                                  for sid in self.g.get_all_serverids()])
         d.addCallback(_check_and_repair)

@@ -295,7 +295,7 @@ class DownloadTest(_Base, unittest.TestCase):
             # find the shares that were used and delete them
             shares = self.n._cnode._node._shares
             shnums = sorted([s._shnum for s in shares])
-            self.failUnlessEqual(shnums, [0,1,2,3])
+            self.failUnlessEqual(shnums, [2,4,6,7])
 
             # break the RIBucketReader references
             # (we don't break the RIStorageServer references, because that
@@ -312,7 +312,7 @@ class DownloadTest(_Base, unittest.TestCase):
             self.failUnlessEqual("".join(c.chunks), plaintext)
             shares = self.n._cnode._node._shares
             shnums = sorted([s._shnum for s in shares])
-            self.failIfEqual(shnums, [0,1,2,3])
+            self.failIfEqual(shnums, [2,4,6,7])
         d.addCallback(_check_failover)
         return d
 
