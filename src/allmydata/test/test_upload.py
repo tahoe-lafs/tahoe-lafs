@@ -11,7 +11,7 @@ import allmydata # for __full_version__
 from allmydata import uri, monitor, client
 from allmydata.immutable import upload, encode
 from allmydata.interfaces import FileTooLargeError, UploadUnhappinessError
-from allmydata.util import log, base32
+from allmydata.util import log, base32, fileutil
 from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import DeferredListShouldSucceed
 from allmydata.test.no_network import GridTestMixin
@@ -1928,11 +1928,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=3, share_number=1)
             # Copy shares
             self._copy_share_to_server(3, 1)
-            storedir = self.get_serverdir(0)
-            # remove the storedir, wiping out any existing shares
-            shutil.rmtree(storedir)
-            # create an empty storedir to replace the one we just removed
-            os.mkdir(storedir)
+            #Remove shares from server 0
+            sharedir = os.path.join(self.get_serverdir(0), "shares")
+            for prefixdir in os.listdir(sharedir):
+                if prefixdir != 'incoming':
+                    fileutil.rm_dir(os.path.join(sharedir, prefixdir))
             client = self.g.clients[0]
             client.encoding_params['happy'] = 4
             return client
