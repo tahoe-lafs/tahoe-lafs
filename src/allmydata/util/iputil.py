@@ -81,11 +81,11 @@ def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     """
     addresses = []
     local_ip = get_local_ip_for(target)
-    if local_ip:
+    if local_ip is not None:
         addresses.append(local_ip)
 
     if sys.platform == "cygwin":
-        d = _cygwin_hack_find_addresses(target)
+        d = _cygwin_hack_find_addresses()
     else:
         d = _find_addresses_via_config()
 
@@ -211,14 +211,11 @@ def _query(path, args, regex):
 
     return addresses
 
-def _cygwin_hack_find_addresses(target):
+def _cygwin_hack_find_addresses():
     addresses = []
-    for h in [target, "localhost", "127.0.0.1",]:
-        try:
-            addr = get_local_ip_for(h)
-            if addr not in addresses:
-                addresses.append(addr)
-        except socket.gaierror:
-            pass
+    for h in ["localhost", "127.0.0.1",]:
+        addr = get_local_ip_for(h)
+        if addr is not None and addr not in addresses:
+            addresses.append(addr)
 
     return defer.succeed(addresses)
