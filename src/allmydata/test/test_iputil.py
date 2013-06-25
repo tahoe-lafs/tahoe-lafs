@@ -1,5 +1,5 @@
 
-import re, errno, subprocess, os
+import re, errno, subprocess, os, sys
 
 from twisted.trial import unittest
 
@@ -105,12 +105,19 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
         self.patch(subprocess, 'Popen', call_Popen)
 
         def call_get_local_ip_for(target):
-            return "192.168.0.10"
+            if target in ("localhost", "127.0.0.1"):
+                return "127.0.0.1"
+            else:
+                return "192.168.0.10"
         self.patch(iputil, 'get_local_ip_for', call_get_local_ip_for)
 
         d = iputil.get_local_addresses_async()
         def _check(addresses):
-            self.failUnlessEquals(set(addresses), set(["127.0.0.1", "192.168.0.6", "192.168.0.2", "192.168.0.10"]))
+            if sys.platform == "cygwin":
+                expected = set(["127.0.0.1", "192.168.0.10"])
+            else:
+                expected = set(["127.0.0.1", "192.168.0.6", "192.168.0.2", "192.168.0.10"])
+            self.failUnlessEquals(set(addresses), expected)
         d.addCallbacks(_check)
         return d
 
