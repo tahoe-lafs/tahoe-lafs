@@ -104,9 +104,13 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
                 raise e
         self.patch(subprocess, 'Popen', call_Popen)
 
+        def call_get_local_ip_for(target):
+            return "192.168.0.10"
+        self.patch(iputil, 'get_local_ip_for', call_get_local_ip_for)
+
         d = iputil.get_local_addresses_async()
         def _check(addresses):
-            self.failUnlessEquals(set(addresses), set(["127.0.0.1", "192.168.0.6", "192.168.0.2"]))
+            self.failUnlessEquals(set(addresses), set(["127.0.0.1", "192.168.0.6", "192.168.0.2", "192.168.0.10"]))
         d.addCallbacks(_check)
         return d
 
