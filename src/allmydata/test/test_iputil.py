@@ -99,8 +99,8 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
             elif os.path.basename(args[0]) == command:
                 return FakeProcess(output, "")
             else:
-                e = OSError("not found")
-                e.errno = errno.EEXIST
+                e = OSError("[Errno 2] No such file or directory")
+                e.errno = errno.ENOENT
                 raise e
         self.patch(subprocess, 'Popen', call_Popen)
 
