@@ -145,7 +145,7 @@ _win32_commands = (('route.exe', ('print',), _win32_re),)
 
 # These work in most Unices.
 _addr_re = re.compile(r'^\s*inet [a-zA-Z]*:?(?P<address>\d+\.\d+\.\d+\.\d+)[\s/].+$', flags=re.M|re.I|re.S)
-_unix_commands = (('/bin/ip addr', (), _addr_re),
+_unix_commands = (('/bin/ip', ('addr',), _addr_re),
                   ('/sbin/ifconfig', ('-a',), _addr_re),
                   ('/usr/sbin/ifconfig', ('-a',), _addr_re),
                   ('/usr/etc/ifconfig', ('-a',), _addr_re),
@@ -189,14 +189,16 @@ def _synchronously_find_addresses_via_config():
 
 def _query(path, args, regex):
     env = {'LANG': 'en_US.UTF-8'}
-    for trial in xrange(5):
+    TRIES = 5
+    for trial in xrange(TRIES):
         try:
             p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
             (output, err) = p.communicate()
             break
         except OSError, e:
-            if e.errno == errno.EINTR:
+            if e.errno == errno.EINTR and trial < TRIES-1:
                 continue
+            raise
 
     addresses = []
     outputsplit = output.split('\n')
