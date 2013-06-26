@@ -1,5 +1,7 @@
 # from the Python Standard Library
-import os, re, socket, sys, subprocess, errno
+import os, re, socket, subprocess, errno
+
+from sys import platform
 
 # from Twisted
 from twisted.internet import defer, threads, reactor
@@ -84,7 +86,7 @@ def get_local_addresses_async(target="198.41.0.4"): # A.ROOT-SERVERS.NET
     if local_ip is not None:
         addresses.append(local_ip)
 
-    if sys.platform == "cygwin":
+    if platform == "cygwin":
         d = _cygwin_hack_find_addresses()
     else:
         d = _find_addresses_via_config()
@@ -161,7 +163,7 @@ def _synchronously_find_addresses_via_config():
     # originally by Greg Smith, hacked by Zooko and then Daira
 
     # We don't reach here for cygwin.
-    if sys.platform == 'win32':
+    if platform == 'win32':
         commands = _win32_commands
     else:
         commands = _unix_commands
@@ -205,7 +207,7 @@ def _query(path, args, regex):
     for outline in outputsplit:
         m = regex.match(outline)
         if m:
-            addr = m.groupdict()['address']
+            addr = m.group('address')
             if addr not in addresses:
                 addresses.append(addr)
 

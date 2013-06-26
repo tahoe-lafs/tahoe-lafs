@@ -1,5 +1,5 @@
 
-import re, errno, subprocess, os, sys
+import re, errno, subprocess, os
 
 from twisted.trial import unittest
 
@@ -60,6 +60,33 @@ wlan0     Link encap:Ethernet  HWaddr 90:f6:52:27:15:0a  \n\
           RX bytes:3916475942 (3.6 GiB)  TX bytes:458353654 (437.1 MiB)
 """
 
+# This is actually from a VirtualBox VM running XP.
+MOCK_ROUTE_OUTPUT = """\
+===========================================================================
+Interface List
+0x1 ........................... MS TCP Loopback interface
+0x2 ...08 00 27 c3 80 ad ...... AMD PCNET Family PCI Ethernet Adapter - Packet Scheduler Miniport
+===========================================================================
+===========================================================================
+Active Routes:
+Network Destination        Netmask          Gateway       Interface  Metric
+          0.0.0.0          0.0.0.0         10.0.2.2       10.0.2.15       20
+         10.0.2.0    255.255.255.0        10.0.2.15       10.0.2.15       20
+        10.0.2.15  255.255.255.255        127.0.0.1       127.0.0.1       20
+   10.255.255.255  255.255.255.255        10.0.2.15       10.0.2.15       20
+        127.0.0.0        255.0.0.0        127.0.0.1       127.0.0.1       1
+        224.0.0.0        240.0.0.0        10.0.2.15       10.0.2.15       20
+  255.255.255.255  255.255.255.255        10.0.2.15       10.0.2.15       1
+Default Gateway:          10.0.2.2
+===========================================================================
+Persistent Routes:
+  None
+"""
+
+UNIX_TEST_ADDRESSES = set(["127.0.0.1", "192.168.0.6", "192.168.0.2", "192.168.0.10"])
+WINDOWS_TEST_ADDRESSES = set(["127.0.0.1", "10.0.2.15", "192.168.0.10"])
+CYGWIN_TEST_ADDRESSES = set(["127.0.0.1", "192.168.0.10"])
+
 
 class FakeProcess:
     def __init__(self, output, err):
@@ -84,7 +111,7 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
     # David A.'s OpenSolaris box timed out on this test one time when it was at 2s.
     test_list_async.timeout=4
 
-    def _test_list_async_mock(self, command, output):
+    def _test_list_async_mock(self, command, output, expected):
         ns = Namespace()
         ns.first = True
 
@@ -111,18 +138,28 @@ class ListAddresses(testutil.SignalMixin, unittest.TestCase):
                 return "192.168.0.10"
         self.patch(iputil, 'get_local_ip_for', call_get_local_ip_for)
 
+        def call_which(name):
+            return [name]
+        self.patch(iputil, 'which', call_which)
+
         d = iputil.get_local_addresses_async()
         def _check(addresses):
-            if sys.platform == "cygwin":
-                expected = set(["127.0.0.1", "192.168.0.10"])
-            else:
-                expected = set(["127.0.0.1", "192.168.0.6", "192.168.0.2", "192.168.0.10"])
-            self.failUnlessEquals(set(addresses), expected)
+            self.failUnlessEquals(set(addresses), set(expected))
         d.addCallbacks(_check)
         return d
 
     def test_list_async_mock_ip_addr(self):
-        return self._test_list_async_mock("ip", MOCK_IPADDR_OUTPUT)
+        self.patch(iputil, 'platform', "linux2")
+        return self._test_list_async_mock("ip", MOCK_IPADDR_OUTPUT, UNIX_TEST_ADDRESSES)
 
     def test_list_async_mock_ifconfig(self):
-        return self._test_list_async_mock("ifconfig", MOCK_IFCONFIG_OUTPUT)
+        self.patch(iputil, 'platform', "linux2")
+        return self._test_list_async_mock("ifconfig", MOCK_IFCONFIG_OUTPUT, UNIX_TEST_ADDRESSES)
+
+    def test_list_async_mock_route(self):
+        self.patch(iputil, 'platform', "win32")
+        return self._test_list_async_mock("route.exe", MOCK_ROUTE_OUTPUT, WINDOWS_TEST_ADDRESSES)
+
+    def test_list_async_mock_cygwin(self):
+        self.patch(iputil, 'platform', "cygwin")
+        return self._test_list_async_mock(None, None, CYGWIN_TEST_ADDRESSES)
