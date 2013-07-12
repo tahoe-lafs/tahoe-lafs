@@ -632,6 +632,21 @@ class ServerSelection(unittest.TestCase):
         d.addCallback(_check)
         return d
 
+    def test_number_of_servers_contacted(self):
+        # This tests ensures that Tahoe only contacts 2n servers
+        # during peer selection
+        self.make_client(40)
+        self.set_encoding_parameters(3, 7, 10)
+        data = self.get_data(SIZE_LARGE)
+        d = upload_data(self.u, data)
+        def _check(res):
+            servers_contacted = []
+            for s in self.node.last_servers:
+                if(s.queries != 0):
+                    servers_contacted.append(s)
+            self.failUnless(len(servers_contacted), 20)
+        d.addCallback(_check)
+        return d
 
 class StorageIndex(unittest.TestCase):
     def test_params_must_matter(self):
