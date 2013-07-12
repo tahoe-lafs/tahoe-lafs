@@ -5,6 +5,8 @@ from allmydata.util.assertutil import _assert
 from allmydata.util import dbutil
 from allmydata.storage.common import si_b2a
 
+from twisted.application import service
+
 
 class NonExistentShareError(Exception):
     def __init__(self, si_s, shnum):
@@ -113,27 +115,41 @@ CREATE UNIQUE INDEX `cycle` ON `crawler_history` (`cycle`);
 DAY = 24*60*60
 MONTH = 30*DAY
 
-class LeaseDB:
+class LeaseDB(service.Service):
     ANONYMOUS_ACCOUNTID = 0
     STARTER_LEASE_ACCOUNTID = 1
     STARTER_LEASE_DURATION = 2*MONTH
 
     def __init__(self, dbfile):
-        # synchronous = OFF is necessary for leasedb to pass tests for the time being,
-        # since using synchronous = NORMAL causes failures that are apparently due to
-        # a file descriptor leak, and the default synchronous = FULL causes the tests
-        # to time out. For discussion see
-        # https://tahoe-lafs.org/pipermail/tahoe-dev/2012-December/007877.html
-
-        (self._sqlite,
-         self._db) = dbutil.get_db(dbfile, create_version=(LEASE_SCHEMA_V1, 1),
-                                   # journal_mode="WAL",
-                                   synchronous="OFF")
-        self._cursor = self._db.cursor()
         self.debug = False
         self.retained_history_entries = 10
+        self._dbfile = dbfile
+        self._db = None
+        self._open_db()
 
-    # share management
+    def _open_db(self):
+        if self._db is None:
+            # For the reasoning behind WAL and NORMAL, refer to
+            # <https://tahoe-lafs.org/pipermail/tahoe-dev/2012-December/007877.html>.
+            (self._sqlite,
+             self._db) = dbutil.get_db(self._dbfile, create_version=(LEASE_SCHEMA_V1, 1),
+                                       journal_mode="WAL",
+                                       synchronous="NORMAL")
+            self._cursor = self._db.cursor()
+
+    def _close_db(self):
+        try:
+            self._cursor.close()
+        finally:
+            self._cursor = None
+        self._db.close()
+        self._db = None
+
+    def startService(self):
+        self._open_db()
+
+    def stopService(self):
+        self._close_db()
 
     def get_shares_for_prefix(self, prefix):
         """
