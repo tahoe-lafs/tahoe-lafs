@@ -23,6 +23,7 @@ class Accountant(service.MultiService):
         service.MultiService.__init__(self)
         self._storage_server = storage_server
         self._leasedb = LeaseDB(dbfile)
+        self._leasedb.setServiceParent(self)
         self._active_accounts = weakref.WeakValueDictionary()
         self._anonymous_account = Account(LeaseDB.ANONYMOUS_ACCOUNTID, None,
                                           self._storage_server, self._leasedb)
