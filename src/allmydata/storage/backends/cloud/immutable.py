@@ -181,7 +181,7 @@ class ImmutableCloudShareForReading(CloudShareBase, ImmutableCloudShareMixin, Cl
         self._data_length = total_size - self.DATA_OFFSET - (num_leases * self.LEASE_SIZE)
 
         if self._data_length < 0:
-            raise CorruptStoredShareError("calculated data length for shnum %d is %d" % (shnum, self._data_length))
+            raise CorruptStoredShareError(shnum, "calculated data length for shnum %d is %d" % (shnum, self._data_length))
 
     # Boilerplate is in CloudShareBase, read implementation is in CloudShareReaderMixin.
     # So nothing to implement here. Yay!
