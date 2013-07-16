@@ -2,6 +2,7 @@
 *.pyo
 *~
 *.DS_Store
+.*.kate-swp
 
 /build/
 /support/
@@ -22,6 +23,7 @@ zope.interface-*.egg
 
 /_trial_temp*
 /tmp*
+/*.patch
 /dist/
 /twisted/plugins/dropin.cache
 /tahoe-deps/
