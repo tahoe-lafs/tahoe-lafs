@@ -39,10 +39,6 @@ class Literal(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessIdentical(u, u3)
         self.failUnlessReallyEqual(u.get_verify_cap(), None)
 
-        he = u.to_human_encoding()
-        u_h = uri.LiteralFileURI.init_from_human_encoding(he)
-        self.failUnlessReallyEqual(u, u_h)
-
     def test_empty(self):
         data = "" # This data is some *very* small data!
         return self._help_test(data)
@@ -119,9 +115,6 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
 
         u_ro = u.get_readonly()
         self.failUnlessIdentical(u, u_ro)
-        he = u.to_human_encoding()
-        self.failUnlessReallyEqual(he, "http://127.0.0.1:3456/uri/" + u.to_string())
-        self.failUnlessReallyEqual(uri.CHKFileURI.init_from_human_encoding(he), u)
 
         u2 = uri.from_string(u.to_string())
         self.failUnlessReallyEqual(u2.get_storage_index(), storage_index)
@@ -151,9 +144,6 @@ class CHKFile(testutil.ReallyEqualMixin, unittest.TestCase):
 
         v2 = uri.from_string(v.to_string())
         self.failUnlessReallyEqual(v, v2)
-        he = v.to_human_encoding()
-        v2_h = uri.CHKFileVerifierURI.init_from_human_encoding(he)
-        self.failUnlessReallyEqual(v2, v2_h)
 
         v3 = uri.CHKFileVerifierURI(storage_index="\x00"*16,
                                     uri_extension_hash="\x00"*32,
@@ -246,11 +236,7 @@ class Unknown(testutil.ReallyEqualMixin, unittest.TestCase):
 
 class Constraint(testutil.ReallyEqualMixin, unittest.TestCase):
     def test_constraint(self):
-        good="http://127.0.0.1:3456/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
-        uri.DirectoryURI.init_from_human_encoding(good)
-        self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, good)
-        bad = good + '==='
-        self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_human_encoding, bad)
+        bad = "http://127.0.0.1:3456/uri/URI%3ADIR2%3Agh3l5rbvnv2333mrfvalmjfr4i%3Alz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma/"
         self.failUnlessRaises(uri.BadURIError, uri.DirectoryURI.init_from_string, bad)
         fileURI = 'URI:CHK:gh3l5rbvnv2333mrfvalmjfr4i:lz6l7u3z3b7g37s4zkdmfpx5ly4ib4m6thrpbusi6ys62qtc6mma:3:10:345834'
         uri.CHKFileURI.init_from_string(fileURI)
@@ -272,10 +258,6 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnless(IMutableFileURI.providedBy(u))
         self.failIf(IDirnodeURI.providedBy(u))
         self.failUnless("WriteableSSKFileURI" in str(u))
-
-        he = u.to_human_encoding()
-        u_h = uri.WriteableSSKFileURI.init_from_human_encoding(he)
-        self.failUnlessReallyEqual(u, u_h)
 
         u2 = uri.from_string(u.to_string())
         self.failUnlessReallyEqual(u2.writekey, self.writekey)
@@ -310,10 +292,6 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         u3imm = uri.from_string(uri.ALLEGED_IMMUTABLE_PREFIX + u3.to_string())
         self.failUnless(isinstance(u3imm, uri.UnknownURI), u3imm)
 
-        he = u3.to_human_encoding()
-        u3_h = uri.ReadonlySSKFileURI.init_from_human_encoding(he)
-        self.failUnlessReallyEqual(u3, u3_h)
-
         u4 = uri.ReadonlySSKFileURI(readkey, self.fingerprint)
         self.failUnlessReallyEqual(u4.fingerprint, self.fingerprint)
         self.failUnlessReallyEqual(u4.readkey, readkey)
@@ -341,11 +319,6 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         u7 = u.get_verify_cap()
         self.failUnless(IVerifierURI.providedBy(u7))
         self.failUnlessReallyEqual(u7.get_storage_index(), u.get_storage_index())
-
-        he = u5.to_human_encoding()
-        u5_h = uri.SSKVerifierURI.init_from_human_encoding(he)
-        self.failUnlessReallyEqual(u5, u5_h)
-
 
     def test_writeable_mdmf_cap(self):
         u1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
@@ -464,71 +437,6 @@ class Mutable(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(self.fingerprint, u5.fingerprint)
         self.failUnless(u5.is_readonly())
         self.failIf(u5.is_mutable())
-
-
-    def test_mdmf_valid_human_encoding(self):
-        # What's a human encoding? Well, it's of the form:
-        base = "https://127.0.0.1:3456/uri/"
-        # With a cap on the end. For each of the cap types, we need to
-        # test that a valid cap (with and without the traditional
-        # separators) is recognized and accepted by the classes.
-        w1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
-        r1 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint)
-        v1 = uri.MDMFVerifierURI(self.storage_index, self.fingerprint)
-
-        # These will yield three different caps.
-        for o in (w1, r1, v1):
-            url = base + o.to_string()
-            o1 = o.__class__.init_from_human_encoding(url)
-            self.failUnlessReallyEqual(o1, o)
-
-            # Note that our cap will, by default, have : as separators.
-            # But it's expected that users from, e.g., the WUI, will
-            # have %3A as a separator. We need to make sure that the
-            # initialization routine handles that, too.
-            cap = o.to_string()
-            cap = re.sub(":", "%3A", cap)
-            url = base + cap
-            o2 = o.__class__.init_from_human_encoding(url)
-            self.failUnlessReallyEqual(o2, o)
-
-
-    def test_mdmf_human_encoding_invalid_base(self):
-        # What's a human encoding? Well, it's of the form:
-        base = "https://127.0.0.1:3456/foo/bar/bazuri/"
-        # With a cap on the end. For each of the cap types, we need to
-        # test that a valid cap (with and without the traditional
-        # separators) is recognized and accepted by the classes.
-        w1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
-        r1 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint)
-        v1 = uri.MDMFVerifierURI(self.storage_index, self.fingerprint)
-
-        # These will yield three different caps.
-        for o in (w1, r1, v1):
-            url = base + o.to_string()
-            self.failUnlessRaises(uri.BadURIError,
-                                  o.__class__.init_from_human_encoding,
-                                  url)
-
-    def test_mdmf_human_encoding_invalid_cap(self):
-        base = "https://127.0.0.1:3456/uri/"
-        # With a cap on the end. For each of the cap types, we need to
-        # test that a valid cap (with and without the traditional
-        # separators) is recognized and accepted by the classes.
-        w1 = uri.WriteableMDMFFileURI(self.writekey, self.fingerprint)
-        r1 = uri.ReadonlyMDMFFileURI(self.readkey, self.fingerprint)
-        v1 = uri.MDMFVerifierURI(self.storage_index, self.fingerprint)
-
-        # These will yield three different caps.
-        for o in (w1, r1, v1):
-            # not exhaustive, obviously...
-            url = base + o.to_string() + "foobarbaz"
-            url2 = base + "foobarbaz" + o.to_string()
-            url3 = base + o.to_string()[:25] + "foo" + o.to_string()[:25]
-            for u in (url, url2, url3):
-                self.failUnlessRaises(uri.BadURIError,
-                                      o.__class__.init_from_human_encoding,
-                                      u)
 
     def test_mdmf_from_string(self):
         # Make sure that the from_string utility function works with
