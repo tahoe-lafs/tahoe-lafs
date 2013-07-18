@@ -1,5 +1,5 @@
 
-import os, re
+import os
 from twisted.trial import unittest
 from allmydata import uri
 from allmydata.util import hashutil, base32
