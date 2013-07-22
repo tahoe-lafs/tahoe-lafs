@@ -1393,7 +1393,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         known_tree = b32decode(self.known_tree)
         nodemaker = NodeMaker(None, None, None,
                               None, None,
-                              {"k": 3, "n": 10}, None, None)
+                              {"k": 3, "happy":7, "n": 10}, None, None)
         write_uri = "URI:SSK-RO:e3mdrzfwhoq42hy5ubcz6rp3o4:ybyibhnp3vvwuq2vaw2ckjmesgkklfs6ghxleztqidihjyofgw7q"
         filenode = nodemaker.create_from_cap(write_uri)
         node = dirnode.DirectoryNode(filenode, nodemaker, None)
@@ -1454,7 +1454,7 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
         return kids
 
     def test_deep_immutable(self):
-        nm = NodeMaker(None, None, None, None, None, {"k": 3, "n": 10}, None, None)
+        nm = NodeMaker(None, None, None, None, None, {"k": 3, "happy":7, "n": 10}, None, None)
         fn = MinimalFakeMutableFile()
 
         kids = self._make_kids(nm, ["imm", "lit", "write", "read",

@@ -247,7 +247,7 @@ def make_nodemaker(s=None, num_peers=10, keysize=TEST_RSA_KEY_SIZE):
         keygen.set_default_keysize(keysize)
     nodemaker = NodeMaker(storage_broker, sh, None,
                           None, None,
-                          {"k": 3, "n": 10}, SDMF_VERSION, keygen)
+                          {"k": 3, "happy":7, "n": 10}, SDMF_VERSION, keygen)
     return nodemaker
 
 class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
@@ -414,7 +414,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
 
 
     def test_serialize(self):
-        n = MutableFileNode(None, None, {"k": 3, "n": 10}, None)
+        n = MutableFileNode(None, None, {"k": 3, "happy":7, "n": 10}, None)
         calls = []
         def _callback(*args, **kwargs):
             self.failUnlessEqual(args, (4,) )
