@@ -395,6 +395,8 @@ class Publish:
         self.readkey = self._node.get_readkey()
         self.required_shares = self._node.get_required_shares()
         assert self.required_shares is not None
+        self.happy = self._node.get_happy()
+        assert self.happy is not None
         self.total_shares = self._node.get_total_shares()
         assert self.total_shares is not None
         self._status.set_encoding(self.required_shares, self.total_shares)
