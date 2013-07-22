@@ -17,7 +17,7 @@ class FakeClient:
     def getServiceNamed(self, name):
         return None
     def get_encoding_parameters(self):
-        return {"k": 3, "n": 10}
+        return {"k": 3, "happy":7, "n": 10}
     def get_storage_broker(self):
         return None
     def get_history(self):
