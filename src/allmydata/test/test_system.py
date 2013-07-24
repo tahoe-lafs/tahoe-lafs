@@ -1411,6 +1411,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     def _do_publish_private(self, res):
         self.smalldata = "sssh, very secret stuff"
         ut = upload.Data(self.smalldata, convergence=None)
+        self.clients[0].nodemaker.default_encoding_parameters['happy'] = 1
         d = self.clients[0].create_dirnode()
         d.addCallback(self.log, "GOT private directory")
         def _got_new_dir(privnode):
