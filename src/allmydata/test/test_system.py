@@ -724,7 +724,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d = self.set_up_nodes(use_stats_gatherer=True)
         def _new_happy_semantics(ign):
             for c in self.clients:
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+                c.nodemaker.default_encoding_parameters['happy'] = 1
         d.addCallback(_new_happy_semantics)
         d.addCallback(self._test_introweb)
         d.addCallback(self.log, "starting publish")
@@ -857,6 +857,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
     def _do_publish_private(self, res):
         self.smalldata = "sssh, very secret stuff"
         ut = upload.Data(self.smalldata, convergence=None)
+        self.clients[0].nodemaker.default_encoding_parameters['happy'] = 1
         d = self.clients[0].create_dirnode()
         d.addCallback(self.log, "GOT private directory")
         def _got_new_dir(privnode):
