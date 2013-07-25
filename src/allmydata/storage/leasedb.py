@@ -374,3 +374,18 @@ class LeaseDB(service.Service):
         self._cursor.execute("SELECT `id`,`pubkey_vs`"
                              " FROM `accounts` ORDER BY `id` ASC")
         return self._cursor.fetchall()
+
+    def get_total_leased_sharecount_and_used_space(self):
+        self._cursor.execute("SELECT COUNT(*), SUM(`used_space`)"
+                             " FROM (SELECT `used_space`"
+                                " FROM `shares` s JOIN `leases` l"
+                                " ON (s.`storage_index` = l.`storage_index` AND s.`shnum` = l.`shnum`)"
+                                " GROUP BY s.`storage_index`, s.`shnum`)")
+        share_count, used_space = self._cursor.fetchall()[0]
+        if share_count == 0 and used_space is None:
+            used_space = 0
+        return share_count, used_space
+
+    def get_number_of_sharesets(self):
+        self._cursor.execute("SELECT COUNT(DISTINCT `storage_index`) AS si_num FROM `shares`")
+        return self._cursor.fetchall()[0][0]
