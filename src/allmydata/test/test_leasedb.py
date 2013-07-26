@@ -86,6 +86,29 @@ class DB(unittest.TestCase):
                               "INSERT INTO `leases` VALUES(?,?,?,?,?)",
                               ('si1', 0,  LeaseDB.ANONYMOUS_ACCOUNTID, 0, 0))
 
+        num_shares, total_leased_used_space = l.get_total_leased_sharecount_and_used_space()
+        num_sharesets = l.get_number_of_sharesets()
+        self.failUnlessEqual(total_leased_used_space, 12345)
+        self.failUnlessEqual(num_shares, 1)
+        self.failUnlessEqual(num_sharesets, 1)
+
+        l.add_new_share('si1', 1, 12345, SHARETYPE_IMMUTABLE)
+        l.add_starter_lease('si1', 1)
+        num_shares, total_leased_used_space = l.get_total_leased_sharecount_and_used_space()
+        num_sharesets = l.get_number_of_sharesets()
+        self.failUnlessEqual(total_leased_used_space, 24690)
+        self.failUnlessEqual(num_shares, 2)
+        self.failUnlessEqual(num_sharesets, 1)
+
+        l.add_new_share('si2', 0, 12345, SHARETYPE_IMMUTABLE)
+        l.add_starter_lease('si2', 0)
+        num_sharesets = l.get_number_of_sharesets()
+        num_shares, total_leased_used_space = l.get_total_leased_sharecount_and_used_space()
+        num_sharesets = l.get_number_of_sharesets()
+        self.failUnlessEqual(total_leased_used_space, 37035)
+        self.failUnlessEqual(num_shares, 3)
+        self.failUnlessEqual(num_sharesets, 2)
+
 class MockCursor:
     def __init__(self):
         self.closed = False
