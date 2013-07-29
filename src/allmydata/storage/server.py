@@ -13,7 +13,6 @@ import allmydata # for __full_version__
 from allmydata.storage.common import si_b2a, si_a2b, storage_index_to_dir
 _pyflakes_hush = [si_b2a, si_a2b, storage_index_to_dir] # re-exported
 from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
-from allmydata.storage.crawler import BucketCountingCrawler
 from allmydata.storage.accountant import Accountant
 from allmydata.storage.expiration import ExpirationPolicy
 
@@ -21,7 +20,6 @@ from allmydata.storage.expiration import ExpirationPolicy
 class StorageServer(service.MultiService):
     implements(IStatsProducer)
     name = 'storage'
-    BucketCounterClass = BucketCountingCrawler
     DEFAULT_EXPIRATION_POLICY = ExpirationPolicy(enabled=False)
 
     def __init__(self, serverid, backend, statedir,
@@ -64,7 +62,6 @@ class StorageServer(service.MultiService):
                           "cancel": [],
                           }
 
-        self.init_bucket_counter()
         self.init_accountant(expiration_policy or self.DEFAULT_EXPIRATION_POLICY)
 
     def init_accountant(self, expiration_policy):
@@ -83,20 +80,11 @@ class StorageServer(service.MultiService):
     def get_expiration_policy(self):
         return self.accountant.get_accounting_crawler().get_expiration_policy()
 
-    def get_bucket_counter(self):
-        return self.bucket_counter
-
     def get_serverid(self):
         return self._serverid
 
     def __repr__(self):
         return "<StorageServer %s>" % (idlib.shortnodeid_b2a(self.get_serverid()),)
-
-    def init_bucket_counter(self):
-        statefile = os.path.join(self._statedir, "bucket_counter.state")
-        self.bucket_counter = self.BucketCounterClass(self.backend, statefile,
-                                                      clock=self.clock)
-        self.bucket_counter.setServiceParent(self)
 
     def count(self, name, delta=1):
         if self.stats_provider:

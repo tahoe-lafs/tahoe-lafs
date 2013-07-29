@@ -29,9 +29,8 @@ class StorageStatus(rend.Page):
     def render_JSON(self, req):
         req.setHeader("content-type", "text/plain")
         accounting_crawler = self.storage.get_accounting_crawler()
-        bucket_counter = self.storage.get_bucket_counter()
         d = {"stats": self.storage.get_stats(),
-             "bucket-counter": bucket_counter.get_state(),
+             "bucket-counter": None,
              "lease-checker": accounting_crawler.get_state(),
              "lease-checker-progress": accounting_crawler.get_progress(),
              }
@@ -95,15 +94,13 @@ class StorageStatus(rend.Page):
         return d
 
     def data_last_complete_bucket_count(self, ctx, data):
-        s = self.storage.get_bucket_counter().get_state()
-        count = s.get("last-complete-bucket-count")
-        if count is None:
+        s = self.storage.get_stats()
+        if "storage_server.total_bucket_count" not in s:
             return "Not computed yet"
-        return count
+        return s['storage_server.total_bucket_count']
 
     def render_count_crawler_status(self, ctx, storage):
-        p = self.storage.get_bucket_counter().get_progress()
-        return ctx.tag[self.format_crawler_progress(p)]
+        return ctx.tag
 
     def format_crawler_progress(self, p):
         cycletime = p["estimated-time-per-cycle"]
