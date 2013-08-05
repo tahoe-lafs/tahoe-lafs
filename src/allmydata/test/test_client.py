@@ -150,6 +150,18 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            "reserved_space = bogus\n")
         self.failUnlessRaises(ValueError, client.Client, basedir)
 
+    def test_storage_dir(self):
+        basedir = "client.Basic.test_storage_dir"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
+                           BASECONFIG + \
+                           "[storage]\n" + \
+                           "enabled = true\n" + \
+                           "storage_dir = myowndir\n")
+        c = client.Client(basedir)
+        self.failUnlessEqual(c.getServiceNamed("storage").storedir,
+                             "myowndir")
+
     def _permute(self, sb, key):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 
