@@ -653,8 +653,9 @@ class Copier:
         for (name,s) in source_files:
             self.attach_to_target(s, name, target)
 
-        for source in source_dirs:
-            self.assign_targets(source, target)
+        for (name, source) in source_dirs:
+            new_target = target.get_child_target(name)
+            self.assign_targets(source, new_target)
 
         self.progress("targets assigned, %s dirs, %s files" %
                       (len(self.targetmap), self.files_to_copy))
@@ -762,7 +763,9 @@ class Copier:
         for name,source in source_infos:
             if isinstance(source, (LocalDirectorySource, TahoeDirectorySource)):
                 source.populate(True)
-                graphs.append(source)
+                # Remove trailing slash (if applicable) and get dir name
+                name = os.path.basename(os.path.normpath(name))
+                graphs.append((name, source))
         return graphs
 
 
