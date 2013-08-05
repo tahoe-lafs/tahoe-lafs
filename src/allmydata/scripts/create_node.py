@@ -92,6 +92,11 @@ def write_node_config(c, config):
     c.write("web.static = public_html\n")
     c.write("#tub.port =\n")
     c.write("#tub.location = \n")
+    log_dir = config.get("log-dir", "")
+    if log_dir:
+        c.write("log_dir = %s\n" % log_dir)
+    else:
+        c.write("#log_dir =\n")
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
     c.write("#timeout.disconnect =\n")
