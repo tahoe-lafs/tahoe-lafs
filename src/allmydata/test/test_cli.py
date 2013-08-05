@@ -2074,7 +2074,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("mkdir", "tahoe:test/" + artonwall_arg))
         d.addCallback(lambda res: self.do_cli("cp", "-r", "tahoe:test", "tahoe:test2"))
-        d.addCallback(lambda res: self.do_cli("ls", "tahoe:test2"))
+        d.addCallback(lambda res: self.do_cli("ls", "tahoe:test2/test"))
         def _check((rc, out, err)):
             try:
                 unicode_to_output(u"\u00C4rtonwall")
@@ -2238,20 +2238,20 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.childuris[k] = to_str(childdata[uri_key])
         d.addCallback(_process_directory_json)
         # Now build a local directory to copy into place, like the following:
-        # source1/
-        # source1/mutable1
-        # source1/mutable2
-        # source1/imm1
-        # source1/imm3
+        # test2/
+        # test2/mutable1
+        # test2/mutable2
+        # test2/imm1
+        # test2/imm3
         def _build_local_directory(ignored):
-            source1_path = os.path.join(self.basedir, "source1")
-            fileutil.make_dirs(source1_path)
+            test2_path = os.path.join(self.basedir, "test2")
+            fileutil.make_dirs(test2_path)
             for fn in ("mutable1", "mutable2", "imm1", "imm3"):
-                fileutil.write(os.path.join(source1_path, fn), fn * 1000)
-            self.source1_path = source1_path
+                fileutil.write(os.path.join(test2_path, fn), fn * 1000)
+            self.test2_path = test2_path
         d.addCallback(_build_local_directory)
         d.addCallback(lambda ignored:
-            self.do_cli("cp", "-r", self.source1_path, "tahoe:test2"))
+            self.do_cli("cp", "-r", self.test2_path, "tahoe:"))
 
         # We expect that mutable1 and mutable2 are overwritten in-place,
         # so they'll retain their URIs but have different content.
@@ -2418,7 +2418,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             fileutil.write(os.path.join(test_dir_path, f), f * 10000)
 
         d.addCallback(lambda ignored:
-            self.do_cli("cp", "-r", test_dir_path, "tahoe:test"))
+            self.do_cli("cp", "-r", test_dir_path, "tahoe:"))
         d.addCallback(_check_error_message)
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test"))

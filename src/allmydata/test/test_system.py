@@ -1685,7 +1685,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         open(os.path.join(sdn2, "rfile5"), "wb").write("rfile5")
 
         # from disk into tahoe
-        d.addCallback(run, "cp", "-r", dn, "tahoe:dir1")
+        d.addCallback(run, "cp", "-r", dn, "tahoe:")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["dir1"])
         d.addCallback(run, "ls", "dir1")
@@ -1703,7 +1703,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _check_cp_r_out((out,err)):
             def _cmp(name):
                 old = open(os.path.join(dn, name), "rb").read()
-                newfn = os.path.join(dn_copy, name)
+                newfn = os.path.join(dn_copy, "dir1", name)
                 self.failUnless(os.path.exists(newfn))
                 new = open(newfn, "rb").read()
                 self.failUnlessEqual(old, new)
@@ -1722,7 +1722,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(run, "cp", "-r", "--caps-only", "tahoe:dir1", dn_copy2)
         def _check_capsonly((out,err)):
             # these should all be LITs
-            x = open(os.path.join(dn_copy2, "subdir2", "rfile4")).read()
+            x = open(os.path.join(dn_copy2, "dir1", "subdir2", "rfile4")).read()
             y = uri.from_string_filenode(x)
             self.failUnlessEqual(y.data, "rfile4")
         d.addCallback(_check_capsonly)
@@ -1731,13 +1731,13 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(run, "cp", "-r", "tahoe:dir1", "tahoe:dir1-copy")
         d.addCallback(run, "ls")
         d.addCallback(_check_ls, ["dir1", "dir1-copy"])
-        d.addCallback(run, "ls", "dir1-copy")
+        d.addCallback(run, "ls", "dir1-copy/dir1")
         d.addCallback(_check_ls, ["rfile1", "rfile2", "rfile3", "subdir2"],
                       ["rfile4", "rfile5"])
-        d.addCallback(run, "ls", "tahoe:dir1-copy/subdir2")
+        d.addCallback(run, "ls", "tahoe:dir1-copy/dir1/subdir2")
         d.addCallback(_check_ls, ["rfile4", "rfile5"],
                       ["rfile1", "rfile2", "rfile3"])
-        d.addCallback(run, "get", "dir1-copy/subdir2/rfile4")
+        d.addCallback(run, "get", "dir1-copy/dir1/subdir2/rfile4")
         d.addCallback(_check_stdout_against, data="rfile4")
 
         # and copy it a second time, which ought to overwrite the same files
