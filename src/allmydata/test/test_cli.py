@@ -2473,6 +2473,40 @@ starting copy, 2 files, 1 directories
         d.addCallback(_check)
         return d
 
+    def test_cp_copies_dir(self):
+        # This test ensures that a directory is copied using
+        # tahoe cp -r. Refer to ticket #712:
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/712
+
+        self.basedir = "cli/Cp/cp_copies_dir"
+        self.set_up_grid()
+        subdir = os.path.join(self.basedir, "foo")
+        os.mkdir(subdir)
+        test1_path = os.path.join(subdir, "test1")
+        fileutil.write(test1_path, "test1")
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda ign:
+            self.do_cli("cp", "-r", subdir, "tahoe:"))
+        d.addCallback(lambda ign:
+            self.do_cli("ls", "tahoe:"))
+        def _check(res, item):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0)
+            self.failUnlessEqual(err, "")
+            self.failUnlessIn(item, out, str(res))
+        d.addCallback(_check, "foo")
+        d.addCallback(lambda ign:
+            self.do_cli("ls", "tahoe:foo/"))
+        d.addCallback(_check, "test1")
+
+        d.addCallback(lambda ign: fileutil.rm_dir(subdir))
+        d.addCallback(lambda ign: self.do_cli("cp", "-r", "tahoe:foo", self.basedir))
+        def _check_local_fs(ign):
+            self.failUnless(os.path.isdir(self.basedir))
+            self.failUnless(os.path.isfile(test1_path))
+        d.addCallback(_check_local_fs)
+        return d
 
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
