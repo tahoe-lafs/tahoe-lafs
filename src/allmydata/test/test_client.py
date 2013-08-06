@@ -157,7 +157,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            BASECONFIG + \
                            "[storage]\n" + \
                            "enabled = true\n" + \
-                           "storage_dir = myowndir\n")
+                           "storedir = myowndir\n")
         c = client.Client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").storedir,
                              os.path.join(os.getcwd(), basedir, "myowndir"))
@@ -169,7 +169,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
                            BASECONFIG + \
                            "[node]\n" + \
-                           "log_dir = /myowndir\n")
+                           "logdir = /myowndir\n")
 
         def call_setLogDir(logdir):
             self.failUnlessEqual(logdir, "/myowndir/incidents")
