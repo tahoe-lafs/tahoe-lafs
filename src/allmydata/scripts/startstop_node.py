@@ -72,8 +72,12 @@ def start(opts, out=sys.stdout, err=sys.stderr):
     if opts["syslog"]:
         args.append("--syslog")
     elif nodetype in ("client", "introducer"):
-        fileutil.make_dirs(os.path.join(basedir, "logs"))
-        args.extend(["--logfile", os.path.join("logs", "twistd.log")])
+        if opts["logdir"]:
+            logdir = opts["logdir"]
+        else:
+            logdir = "logs"
+        fileutil.make_dirs(os.path.join(basedir, logdir))
+        args.extend(["--logfile", os.path.join(logdir, "twistd.log")])
     if opts["profile"]:
         args.extend(["--profile=profiling_results.prof", "--savestats",])
     if opts["pidfile"]:
