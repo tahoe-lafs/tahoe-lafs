@@ -25,7 +25,7 @@ class CreateNodeOptions(CreateClientOptions):
         ("no-storage", None, "Do not offer storage service to other nodes."),
         ]
     optParameters = [
-        ("storage-dir", "s",  None, "Path where the storage will be place."),
+        ("storedir", "s",  None, "Path where the storage will be place."),
         ]
 
     def getSynopsis(self):
@@ -92,11 +92,11 @@ def write_node_config(c, config):
     c.write("web.static = public_html\n")
     c.write("#tub.port =\n")
     c.write("#tub.location = \n")
-    log_dir = config.get("log-dir", "")
-    if log_dir:
-        c.write("log_dir = %s\n" % log_dir)
+    logdir = config.get("logdir", "")
+    if logdir:
+        c.write("logdir = %s\n" % logdir)
     else:
-        c.write("#log_dir =\n")
+        c.write("#logdir =\n")
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
     c.write("#timeout.disconnect =\n")
@@ -147,11 +147,11 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.write("enabled = %s\n" % boolstr[storage_enabled])
     c.write("#readonly =\n")
     c.write("reserved_space = 1G\n")
-    storage_dir = config.get("storage-dir", "")
-    if storage_dir:
-        c.write("storage_dir = %s\n" % storage_dir)
+    storedir = config.get("storedir", "")
+    if storedir:
+        c.write("storedir = %s\n" % storedir)
     else:
-        c.write("#storage_dir =\n")
+        c.write("#storedir =\n")
     c.write("#expire.enabled =\n")
     c.write("#expire.mode =\n")
     c.write("\n")

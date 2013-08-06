@@ -41,7 +41,7 @@ class BasedirOptions(BaseOptions):
     optParameters = [
         ["basedir", "C", None, "Same as --node-directory (default %s)."
          % get_default_nodedir()],
-        ["log-dir", "L", None, "Set logging folder."],
+        ["logdir", "L", None, "Set logging folder."],
     ]
 
     def parseArgs(self, basedir=None):
