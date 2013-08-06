@@ -284,6 +284,15 @@ set the ``tub.location`` option described below.
     used for files that usually (on a Unix system) go into ``/tmp``. The
     string will be interpreted relative to the node's base directory.
 
+``logdir = (string, optional)``
+
+    This specifies a logging directory, where Tahoe-LAFS will store the logging
+    messages.
+
+    The default value is the ``logs`` directory in the node's base directory
+    (i.e. ``BASEDIR/logs``), but it can be placed elsewhere. If the string don't
+    starts with ``/`` will be interpreted relative to the node's base directory.
+
 
 Client Configuration
 ====================
@@ -478,6 +487,14 @@ Storage Server Configuration
     These settings control garbage collection, in which the server will
     delete shares that no longer have an up-to-date lease on them. Please see
     `<garbage-collection.rst>`_ for full details.
+
+``storedir = (string, optional)``
+
+    This specifies a storing directory.
+
+    The default value is the ``storage`` directory in the node's base directory
+    (i.e. ``BASEDIR/storage``), but it can be placed elsewhere. If the string don't
+    starts with ``/`` will be interpreted relative to the node's base directory.
 
 
 Running A Helper
