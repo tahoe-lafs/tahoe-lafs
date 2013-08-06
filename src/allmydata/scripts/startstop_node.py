@@ -11,12 +11,19 @@ class StartOptions(BasedirOptions):
         ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
         ["syslog", None, "Tell the node to log to syslog, not a file."],
         ]
+    optParameters = [
+        ["pidfile", None, None, "Tell the node wich pid file should use."],
+        ]
 
     def getSynopsis(self):
         return "Usage:  %s [global-opts] start [options] [NODEDIR]" % (self.command_name,)
 
 
 class StopOptions(BasedirOptions):
+    optParameters = [
+        ["pidfile", None, None, "Tell the node wich pid file should use."],
+        ]
+
     def getSynopsis(self):
         return "Usage:  %s [global-opts] stop [options] [NODEDIR]" % (self.command_name,)
 
@@ -25,6 +32,9 @@ class RestartOptions(BasedirOptions):
     optFlags = [
         ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
         ["syslog", None, "Tell the node to log to syslog, not a file."],
+        ]
+    optParameters = [
+        ["pidfile", None, None, "Tell the node wich pid file should use."],
         ]
 
     def getSynopsis(self):
@@ -66,6 +76,8 @@ def start(opts, out=sys.stdout, err=sys.stderr):
         args.extend(["--logfile", os.path.join("logs", "twistd.log")])
     if opts["profile"]:
         args.extend(["--profile=profiling_results.prof", "--savestats",])
+    if opts["pidfile"]:
+        args.extend(["--pidfile", os.path.join(basedir, opts["pidfile"])])
     # now we're committed
     os.chdir(basedir)
     from twisted.scripts import twistd
@@ -78,7 +90,10 @@ def start(opts, out=sys.stdout, err=sys.stderr):
 def stop(config, out=sys.stdout, err=sys.stderr):
     basedir = config['basedir']
     print >>out, "STOPPING", quote_output(basedir)
-    pidfile = os.path.join(basedir, "twistd.pid")
+    pidfile = "twistd.pid"
+    if config["pidfile"]:
+        pidfile = config["pidfile"]
+    pidfile = os.path.join(basedir, pidfile)
     if not os.path.exists(pidfile):
         print >>err, "%s does not look like a running node directory (no twistd.pid)" % quote_output(basedir)
         # we define rc=2 to mean "nothing is running, but it wasn't me who
