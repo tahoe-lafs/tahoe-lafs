@@ -1981,8 +1981,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.filecap = out.strip()
         d.addCallback(_put_file)
 
-        # Let's try copying this to the disk using the filecap
-        #  cp FILECAP filename
+        # Let's try copying this to the disk using the filecap.
         d.addCallback(lambda ign: self.do_cli("cp", self.filecap, fn2))
         def _copy_file((rc, out, err)):
             self.failUnlessReallyEqual(rc, 0)
@@ -1990,8 +1989,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(results, DATA1)
         d.addCallback(_copy_file)
 
-        # Test with ./ (see #761)
-        #  cp FILECAP localdir
+        # Test copying a filecap to local dir, which should fail without a
+        # destination filename (#761).
         d.addCallback(lambda ign: self.do_cli("cp", self.filecap, outdir))
         def _resp((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
@@ -2000,19 +1999,20 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_resp)
 
-        # Create a directory, linked at tahoe:test
+        # Create a directory, linked at tahoe:test .
         d.addCallback(lambda ign: self.do_cli("mkdir", "tahoe:test"))
         def _get_dir((rc, out, err)):
             self.failUnlessReallyEqual(rc, 0)
             self.dircap = out.strip()
         d.addCallback(_get_dir)
 
-        # Upload a file to the directory
+        # Upload a file to the directory.
         d.addCallback(lambda ign:
                       self.do_cli("put", fn1, "tahoe:test/test_file"))
         d.addCallback(lambda (rc, out, err): self.failUnlessReallyEqual(rc, 0))
 
-        #  cp DIRCAP/filename localdir
+        # Copying DIRCAP/filename to a local dir should work, because the
+        # destination filename can be inferred.
         d.addCallback(lambda ign:
                       self.do_cli("cp",  self.dircap + "/test_file", outdir))
         def _get_resp((rc, out, err)):
@@ -2021,7 +2021,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(results, DATA1)
         d.addCallback(_get_resp)
 
-        #  cp -r DIRCAP/filename filename2
+        # ... and to an explicit filename different from the source filename.
         d.addCallback(lambda ign:
                       self.do_cli("cp",  self.dircap + "/test_file", fn3))
         def _get_resp2((rc, out, err)):
@@ -2029,7 +2029,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             results = fileutil.read(fn3)
             self.failUnlessReallyEqual(results, DATA1)
         d.addCallback(_get_resp2)
-        #  cp --verbose filename3 dircap:test_file
+
+        # Test that the --verbose option prints correct indices (#1805).
         d.addCallback(lambda ign:
                       self.do_cli("cp", "--verbose", '--recursive', self.basedir, self.dircap))
         def _test_for_wrong_indices((rc, out, err)):
