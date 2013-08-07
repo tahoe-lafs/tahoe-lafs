@@ -2032,9 +2032,12 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # Test that the --verbose option prints correct indices (#1805).
         d.addCallback(lambda ign:
-                      self.do_cli("cp", "--verbose", '--recursive', self.basedir, self.dircap))
+                      self.do_cli("cp", "--verbose", fn3, self.dircap))
         def _test_for_wrong_indices((rc, out, err)):
-            self.failUnless('examining 1 of 1\n' in err)
+            lines = err.split('\n')
+            self.failUnlessIn('examining 1 of 1', lines)
+            self.failUnlessIn('starting copy, 1 files, 1 directories', lines)
+            self.failIfIn('examining 0 of', err)
         d.addCallback(_test_for_wrong_indices)
         return d
 
