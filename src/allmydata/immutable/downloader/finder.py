@@ -63,6 +63,7 @@ class ShareFinder:
         if not self._started:
             si = self.verifycap.storage_index
             servers = self._storage_broker.get_servers_for_psi(si)
+            servers.sort(key=lambda s: s.get_serverid())
             self._servers = iter(servers)
             self._started = True
 
