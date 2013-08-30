@@ -16,7 +16,7 @@ MINUTE = 60
 HOUR = 60*MINUTE
 DAY = 24*HOUR
 
-(MONITOR, RENDERER, WHEN_ADDED) = range(3)
+(MONITOR, RENDERER, WHEN_ADDED) = list(range(3))
 
 class OphandleTable(rend.Page, service.Service):
     implements(IOpHandleTable)

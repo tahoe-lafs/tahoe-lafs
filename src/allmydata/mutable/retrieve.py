@@ -19,6 +19,7 @@ from pycryptopp.publickey import rsa
 from allmydata.mutable.common import CorruptShareError, BadShareError, \
      UncoordinatedWriteError
 from allmydata.mutable.layout import MDMFSlotReadProxy
+import six
 
 class RetrieveStatus:
     implements(IRetrieveStatus)
@@ -37,7 +38,7 @@ class RetrieveStatus:
         self.size = None
         self.status = "Not started"
         self.progress = 0.0
-        self.counter = self.statusid_counter.next()
+        self.counter = six.advance_iterator(self.statusid_counter)
         self.started = time.time()
 
     def get_started(self):
@@ -304,7 +305,7 @@ class Retrieve:
         self._active_readers = [] # list of active readers for this dl.
         self._block_hash_trees = {} # shnum => hashtree
 
-        for i in xrange(self._total_shares):
+        for i in range(self._total_shares):
             # So we don't have to do this later.
             self._block_hash_trees[i] = hashtree.IncompleteHashTree(self._num_segments)
 
@@ -747,7 +748,7 @@ class Retrieve:
             try:
                 bht.set_hashes(blockhashes)
             except (hashtree.BadHashError, hashtree.NotEnoughHashesError, \
-                    IndexError), e:
+                    IndexError) as e:
                 raise CorruptShareError(server,
                                         reader.shnum,
                                         "block hash tree failure: %s" % e)
@@ -761,7 +762,7 @@ class Retrieve:
         try:
            bht.set_hashes(leaves={segnum: blockhash})
         except (hashtree.BadHashError, hashtree.NotEnoughHashesError, \
-                IndexError), e:
+                IndexError) as e:
             raise CorruptShareError(server,
                                     reader.shnum,
                                     "block hash tree failure: %s" % e)
@@ -779,7 +780,7 @@ class Retrieve:
             self.share_hash_tree.set_hashes(hashes=sharehashes,
                                         leaves={reader.shnum: bht[0]})
         except (hashtree.BadHashError, hashtree.NotEnoughHashesError, \
-                IndexError), e:
+                IndexError) as e:
             raise CorruptShareError(server,
                                     reader.shnum,
                                     "corrupt hashes: %s" % e)

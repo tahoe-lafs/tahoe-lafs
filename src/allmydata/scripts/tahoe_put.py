@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os
 from cStringIO import StringIO
@@ -49,13 +50,13 @@ def put(options):
         else:
             try:
                 rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
-            except UnknownAliasError, e:
+            except UnknownAliasError as e:
                 e.display(stderr)
                 return 1
             if path.startswith("/"):
                 suggestion = to_file.replace(u"/", u"", 1)
-                print >>stderr, "Error: The remote filename must not start with a slash"
-                print >>stderr, "Please try again, perhaps with %s" % quote_output(suggestion)
+                print("Error: The remote filename must not start with a slash", file=stderr)
+                print("Please try again, perhaps with %s" % quote_output(suggestion), file=stderr)
                 return 1
             url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
             if path:
@@ -78,16 +79,16 @@ def put(options):
         # do_http() can't use stdin directly: for one thing, we need a
         # Content-Length field. So we currently must copy it.
         if verbosity > 0:
-            print >>stderr, "waiting for file data on stdin.."
+            print("waiting for file data on stdin..", file=stderr)
         data = stdin.read()
         infileobj = StringIO(data)
 
     resp = do_http("PUT", url, infileobj)
 
     if resp.status in (200, 201,):
-        print >>stderr, format_http_success(resp)
-        print >>stdout, quote_output(resp.read(), quotemarks=False)
+        print(format_http_success(resp), file=stderr)
+        print(quote_output(resp.read(), quotemarks=False), file=stdout)
         return 0
 
-    print >>stderr, format_http_error("Error", resp)
+    print(format_http_error("Error", resp), file=stderr)
     return 1

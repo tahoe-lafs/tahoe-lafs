@@ -10,6 +10,7 @@ from allmydata.util.assertutil import _assert
 from allmydata.util.consumer import download_to_data
 from allmydata.interfaces import IStorageBucketWriter, IStorageBucketReader
 from allmydata.test.no_network import GridTestMixin
+import six
 
 class LostPeerError(Exception):
     pass
@@ -174,7 +175,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
     if _TMP % K != 0:
         _TMP += (K - (_TMP % K))
     TAIL_SEGSIZE = _TMP
-    _TMP = SIZE / SEGSIZE
+    _TMP = SIZE // SEGSIZE
     if SIZE % SEGSIZE != 0:
         _TMP += 1
     NUM_SEGMENTS = _TMP
@@ -233,7 +234,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
 
     def test_reject_insufficient(self):
         dl = []
-        for k in self.mindict.iterkeys():
+        for k in six.iterkeys(self.mindict):
             insuffdict = self.mindict.copy()
             del insuffdict[k]
             d = self._test_reject(insuffdict)
@@ -242,7 +243,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
 
     def test_accept_optional(self):
         dl = []
-        for k in self.optional_consistent.iterkeys():
+        for k in six.iterkeys(self.optional_consistent):
             mydict = self.mindict.copy()
             mydict[k] = self.optional_consistent[k]
             d = self._test_accept(mydict)
@@ -251,7 +252,7 @@ class ValidatedExtendedURIProxy(unittest.TestCase):
 
     def test_reject_optional(self):
         dl = []
-        for k in self.optional_inconsistent.iterkeys():
+        for k in six.iterkeys(self.optional_inconsistent):
             for v in self.optional_inconsistent[k]:
                 mydict = self.mindict.copy()
                 mydict[k] = v

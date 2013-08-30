@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.6 and 2.7.x inclusive."
 
 # Tahoe-LAFS -- secure, distributed storage grid
 #
@@ -10,7 +9,7 @@ import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Pyt
 #
 # See the docs/about.rst file for licensing information.
 
-import glob, os, stat, subprocess, re
+import glob, os, stat, subprocess, re, sys
 
 ##### sys.path management
 
@@ -61,7 +60,7 @@ else:
 # the _auto_deps.install_requires list, which is used in the call to setup()
 # below.
 adglobals = {}
-execfile('src/allmydata/_auto_deps.py', adglobals)
+exec(compile(open('src/allmydata/_auto_deps.py').read(), 'src/allmydata/_auto_deps.py', 'exec'), adglobals)
 install_requires = adglobals['install_requires']
 
 if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':

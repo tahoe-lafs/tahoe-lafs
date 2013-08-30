@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 class Spans:
     """I represent a compressed list of booleans, one per index (an integer).
@@ -40,7 +41,7 @@ class Spans:
                     assert start > prev_end
                 prev_end = start+length
         except AssertionError:
-            print "BAD:", self.dump()
+            print("BAD:", self.dump())
             raise
 
     def add(self, start, length):
@@ -191,7 +192,8 @@ class Spans:
         not_other = bounds - other
         return self - not_other
 
-    def __contains__(self, (start,length)):
+    def __contains__(self, xxx_todo_changeme):
+        (start,length) = xxx_todo_changeme
         for span_start,span_length in self._spans:
             o = overlap(start, length, span_start, span_length)
             if o:
@@ -265,7 +267,7 @@ class DataSpans:
         for start, data in self.spans[1:]:
             if not start > prev_end:
                 # adjacent or overlapping: bad
-                print "ASSERTION FAILED", self.spans
+                print("ASSERTION FAILED", self.spans)
                 raise AssertionError
 
     def get(self, start, length):

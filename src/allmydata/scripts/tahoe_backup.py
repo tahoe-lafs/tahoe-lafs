@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os.path
 import time
@@ -89,12 +90,12 @@ class BackerUpper:
         bdbfile = abspath_expanduser_unicode(bdbfile)
         self.backupdb = backupdb.get_backupdb(bdbfile, stderr)
         if not self.backupdb:
-            print >>stderr, "ERROR: Unable to load backup db."
+            print("ERROR: Unable to load backup db.", file=stderr)
             return 1
 
         try:
             rootcap, path = get_alias(options.aliases, options.to_dir, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
+        except UnknownAliasError as e:
             e.display(stderr)
             return 1
         to_url = nodeurl + "uri/%s/" % urllib.quote(rootcap)
@@ -111,7 +112,7 @@ class BackerUpper:
         if resp.status == 404:
             resp = do_http("POST", archives_url + "?t=mkdir")
             if resp.status != 200:
-                print >>stderr, format_http_error("Unable to create target directory", resp)
+                print(format_http_error("Unable to create target directory", resp), file=stderr)
                 return 1
 
         # second step: process the tree
@@ -127,7 +128,7 @@ class BackerUpper:
         elapsed_time = str(end_timestamp - start_timestamp).split('.')[0]
 
         if self.verbosity >= 1:
-            print >>stdout, (" %d files uploaded (%d reused), "
+            print((" %d files uploaded (%d reused), "
                              "%d files skipped, "
                              "%d directories created (%d reused), "
                              "%d directories skipped"
@@ -136,12 +137,12 @@ class BackerUpper:
                                 self.files_skipped,
                                 self.directories_created,
                                 self.directories_reused,
-                                self.directories_skipped))
+                                self.directories_skipped)), file=stdout)
             if self.verbosity >= 2:
-                print >>stdout, (" %d files checked, %d directories checked"
+                print((" %d files checked, %d directories checked"
                                  % (self.files_checked,
-                                    self.directories_checked))
-            print >>stdout, " backup done, elapsed time: %s" % elapsed_time
+                                    self.directories_checked)), file=stdout)
+            print(" backup done, elapsed time: %s" % elapsed_time, file=stdout)
 
         # The command exits with code 2 if files or directories were skipped
         if self.files_skipped or self.directories_skipped:
@@ -153,11 +154,11 @@ class BackerUpper:
     def verboseprint(self, msg):
         precondition(isinstance(msg, str), msg)
         if self.verbosity >= 2:
-            print >>self.options.stdout, msg
+            print(msg, file=self.options.stdout)
 
     def warn(self, msg):
         precondition(isinstance(msg, str), msg)
-        print >>self.options.stderr, msg
+        print(msg, file=self.options.stderr)
 
     def process(self, localpath):
         precondition(isinstance(localpath, unicode), localpath)

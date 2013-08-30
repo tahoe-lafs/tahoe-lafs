@@ -34,6 +34,7 @@ MODES:
 
 """
 
+from __future__ import print_function
 import sys, os.path
 
 #URI:7jzbza6iwdsk5xbxsvdgjaugyrhetw64zpflp4gihmyh5krjblra====:a5qdejwbimu5b2wfke7xwexxlq======:gzeub5v42rjbgd7ccawnahu2evqd42lpdpzd447c6zkmdvjkpowq====:25:100:219889
@@ -96,10 +97,10 @@ def scan(root):
         for mode in MODES:
             total[mode] += slotsize(mode, len(files), len(dirs)) + stringsize
 
-    print "%d directories" % num_dirs
-    print "%d files" % num_files
+    print("%d directories" % num_dirs)
+    print("%d files" % num_files)
     for mode in sorted(total.keys()):
-        print "%s: %d bytes" % (mode, total[mode])
+        print("%s: %d bytes" % (mode, total[mode]))
 
 
 if __name__ == '__main__':

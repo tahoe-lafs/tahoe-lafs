@@ -1,5 +1,6 @@
 # -*- python -*-
 
+from __future__ import print_function
 from twisted.internet import reactor
 import sys
 
@@ -31,7 +32,7 @@ class CPUWatcherSubscriber(service.MultiService, Referenceable):
         tub.connectTo(furl, self.connected)
 
     def connected(self, rref):
-        print "subscribing"
+        print("subscribing")
         d = rref.callRemote("get_averages")
         d.addCallback(self.remote_averages)
         d.addErrback(log.err)

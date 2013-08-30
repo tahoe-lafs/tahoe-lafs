@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os, sys, signal, time
 from allmydata.scripts.common import BasedirOptions
@@ -40,16 +41,16 @@ class RunOptions(BasedirOptions):
 
 def start(opts, out=sys.stdout, err=sys.stderr):
     basedir = opts['basedir']
-    print >>out, "STARTING", quote_output(basedir)
+    print("STARTING", quote_output(basedir), file=out)
     if not os.path.isdir(basedir):
-        print >>err, "%s does not look like a directory at all" % quote_output(basedir)
+        print("%s does not look like a directory at all" % quote_output(basedir), file=err)
         return 1
     for fn in listdir_unicode(basedir):
         if fn.endswith(u".tac"):
             tac = str(fn)
             break
     else:
-        print >>err, "%s does not look like a node directory (no .tac file)" % quote_output(basedir)
+        print("%s does not look like a node directory (no .tac file)" % quote_output(basedir), file=err)
         return 1
     if "client" in tac:
         nodetype = "client"
@@ -77,10 +78,10 @@ def start(opts, out=sys.stdout, err=sys.stderr):
 
 def stop(config, out=sys.stdout, err=sys.stderr):
     basedir = config['basedir']
-    print >>out, "STOPPING", quote_output(basedir)
+    print("STOPPING", quote_output(basedir), file=out)
     pidfile = os.path.join(basedir, "twistd.pid")
     if not os.path.exists(pidfile):
-        print >>err, "%s does not look like a running node directory (no twistd.pid)" % quote_output(basedir)
+        print("%s does not look like a running node directory (no twistd.pid)" % quote_output(basedir), file=err)
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
         return 2
@@ -92,9 +93,9 @@ def stop(config, out=sys.stdout, err=sys.stderr):
     # the user but keep waiting until they give up.
     try:
         os.kill(pid, signal.SIGKILL)
-    except OSError, oserr:
+    except OSError as oserr:
         if oserr.errno == 3:
-            print oserr.strerror
+            print(oserr.strerror)
             # the process didn't exist, so wipe the pid file
             os.remove(pidfile)
             return 2
@@ -113,20 +114,20 @@ def stop(config, out=sys.stdout, err=sys.stderr):
         try:
             os.kill(pid, 0)
         except OSError:
-            print >>out, "process %d is dead" % pid
+            print("process %d is dead" % pid, file=out)
             return
         wait -= 1
         if wait < 0:
             if first_time:
-                print >>err, ("It looks like pid %d is still running "
+                print(("It looks like pid %d is still running "
                               "after %d seconds" % (pid,
-                                                    (time.time() - start)))
-                print >>err, "I will keep watching it until you interrupt me."
+                                                    (time.time() - start))), file=err)
+                print("I will keep watching it until you interrupt me.", file=err)
                 wait = 10
                 first_time = False
             else:
-                print >>err, "pid %d still running after %d seconds" % \
-                      (pid, (time.time() - start))
+                print("pid %d still running after %d seconds" % \
+                      (pid, (time.time() - start)), file=err)
                 wait = 10
         time.sleep(1)
     # we define rc=1 to mean "I think something is still running, sorry"
@@ -135,10 +136,10 @@ def stop(config, out=sys.stdout, err=sys.stderr):
 def restart(config, stdout, stderr):
     rc = stop(config, stdout, stderr)
     if rc == 2:
-        print >>stderr, "ignoring couldn't-stop"
+        print("ignoring couldn't-stop", file=stderr)
         rc = 0
     if rc:
-        print >>stderr, "not restarting"
+        print("not restarting", file=stderr)
         return rc
     return start(config, stdout, stderr)
 
@@ -151,19 +152,19 @@ def run(config, stdout, stderr):
     precondition(isinstance(basedir, unicode), basedir)
 
     if not os.path.isdir(basedir):
-        print >>stderr, "%s does not look like a directory at all" % quote_output(basedir)
+        print("%s does not look like a directory at all" % quote_output(basedir), file=stderr)
         return 1
     for fn in listdir_unicode(basedir):
         if fn.endswith(u".tac"):
             tac = str(fn)
             break
     else:
-        print >>stderr, "%s does not look like a node directory (no .tac file)" % quote_output(basedir)
+        print("%s does not look like a node directory (no .tac file)" % quote_output(basedir), file=stderr)
         return 1
     if "client" not in tac:
-        print >>stderr, ("%s looks like it contains a non-client node (%s).\n"
+        print(("%s looks like it contains a non-client node (%s).\n"
                          "Use 'tahoe start' instead of 'tahoe run'."
-                         % (quote_output(basedir), tac))
+                         % (quote_output(basedir), tac)), file=stderr)
         return 1
 
     os.chdir(basedir)

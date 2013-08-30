@@ -23,6 +23,7 @@ from allmydata.web import introweb
 from allmydata.client import Client as TahoeClient
 from allmydata.util import pollmixin, keyutil, idlib, fileutil
 import allmydata.test.common_util as testutil
+import six
 
 class LoggingMultiService(service.MultiService):
     def log(self, msg, **kw):
@@ -152,7 +153,7 @@ def fakeseq():
 
 seqnum_counter = itertools.count(1)
 def realseq():
-    return seqnum_counter.next(), str(os.randint(1,100000))
+    return six.advance_iterator(seqnum_counter), str(os.randint(1,100000))
 
 def make_ann(furl):
     ann = { "anonymous-storage-FURL": furl,

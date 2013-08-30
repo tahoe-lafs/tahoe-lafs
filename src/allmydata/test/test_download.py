@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 # system-level upload+download roundtrip test, but using shares created from
 # a previous run. This asserts that the current code is capable of decoding
@@ -328,7 +329,7 @@ class DownloadTest(_Base, unittest.TestCase):
         n = self.c0.create_node_from_uri(immutable_uri)
 
         c = MemoryConsumer()
-        d = n.read(c, 0L, 10L)
+        d = n.read(c, 0, 10)
         d.addCallback(lambda c: len("".join(c.chunks)))
         d.addCallback(lambda size: self.failUnlessEqual(size, 10))
         return d
@@ -521,8 +522,8 @@ class DownloadTest(_Base, unittest.TestCase):
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             con1 = MemoryConsumer()
             con2 = MemoryConsumer()
-            d = n.read(con1, 0L, 20)
-            d2 = n.read(con2, 140L, 20)
+            d = n.read(con1, 0, 20)
+            d2 = n.read(con2, 140, 20)
             # con2 will be cancelled, so d2 should fail with DownloadStopped
             def _con2_should_not_succeed(res):
                 self.fail("the second read should not have succeeded")
@@ -562,8 +563,8 @@ class DownloadTest(_Base, unittest.TestCase):
             n._cnode._node._build_guessed_tables(u.max_segment_size)
             con1 = MemoryConsumer()
             con2 = MemoryConsumer()
-            d = n.read(con1, 0L, 20)
-            d2 = n.read(con2, 140L, 20)
+            d = n.read(con1, 0, 20)
+            d2 = n.read(con2, 140, 20)
             # con2 should wait for con1 to fail and then con2 should succeed.
             # In particular, we should not lose progress. If this test fails,
             # it will fail with a timeout error.
@@ -617,7 +618,8 @@ class DownloadTest(_Base, unittest.TestCase):
         n = self.c0.create_node_from_uri(immutable_uri)
         cn = n._cnode
         (d,c) = cn.get_segment(0)
-        def _got_segment((offset,data,decodetime)):
+        def _got_segment(xxx_todo_changeme):
+            (offset,data,decodetime) = xxx_todo_changeme
             self.failUnlessEqual(offset, 0)
             self.failUnlessEqual(len(data), len(plaintext))
         d.addCallback(_got_segment)
@@ -1066,9 +1068,9 @@ class Corruption(_Base, unittest.TestCase):
             return d
         d.addCallback(_uploaded)
         def _show_results(ign):
-            print
-            print ("of [0:%d], corruption ignored in %s" %
-                   (len(self.sh0_orig), undetected.dump()))
+            print()
+            print(("of [0:%d], corruption ignored in %s" %
+                   (len(self.sh0_orig), undetected.dump())))
         if self.catalog_detection:
             d.addCallback(_show_results)
             # of [0:2070], corruption ignored in len=1133:

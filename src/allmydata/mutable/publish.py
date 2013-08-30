@@ -23,6 +23,7 @@ from allmydata.mutable.layout import get_version_from_checkstring,\
                                      unpack_sdmf_checkstring, \
                                      MDMFSlotWriteProxy, \
                                      SDMFSlotWriteProxy
+import six
 
 KiB = 1024
 DEFAULT_MAX_SEGMENT_SIZE = 128 * KiB
@@ -47,7 +48,7 @@ class PublishStatus:
         self.size = None
         self.status = "Not started"
         self.progress = 0.0
-        self.counter = self.statusid_counter.next()
+        self.counter = six.advance_iterator(self.statusid_counter)
         self.started = time.time()
 
     def add_per_server_time(self, server, elapsed):
@@ -306,7 +307,7 @@ class Publish:
         # Our update process fetched these for us. We need to update
         # them in place as publishing happens.
         self.blockhashes = {} # (shnum, [blochashes])
-        for (i, bht) in blockhashes.iteritems():
+        for (i, bht) in six.iteritems(blockhashes):
             # We need to extract the leaves from our old hash tree.
             old_segcount = mathutil.div_ceil(version[4],
                                              version[3])
@@ -314,7 +315,7 @@ class Publish:
             bht = dict(enumerate(bht))
             h.set_hashes(bht)
             leaves = h[h.get_leaf_index(0):]
-            for j in xrange(self.num_segments - len(leaves)):
+            for j in range(self.num_segments - len(leaves)):
                 leaves.append(None)
 
             assert len(leaves) >= self.num_segments
@@ -510,10 +511,10 @@ class Publish:
         # This will eventually hold the block hash chain for each share
         # that we publish. We define it this way so that empty publishes
         # will still have something to write to the remote slot.
-        self.blockhashes = dict([(i, []) for i in xrange(self.total_shares)])
-        for i in xrange(self.total_shares):
+        self.blockhashes = dict([(i, []) for i in range(self.total_shares)])
+        for i in range(self.total_shares):
             blocks = self.blockhashes[i]
-            for j in xrange(self.num_segments):
+            for j in range(self.num_segments):
                 blocks.append(None)
         self.sharehash_leaves = None # eventually [sharehashes]
         self.sharehashes = {} # shnum -> [sharehash leaves necessary to
@@ -685,7 +686,7 @@ class Publish:
         salt = os.urandom(16)
         assert self._version == SDMF_VERSION
 
-        for shnum, writers in self.writers.iteritems():
+        for shnum, writers in six.iteritems(self.writers):
             for writer in writers:
                 writer.put_salt(salt)
 
@@ -752,7 +753,7 @@ class Publish:
         results, salt = encoded_and_salt
         shares, shareids = results
         self._status.set_status("Pushing segment")
-        for i in xrange(len(shares)):
+        for i in range(len(shares)):
             sharedata = shares[i]
             shareid = shareids[i]
             if self._version == MDMF_VERSION:
@@ -787,7 +788,7 @@ class Publish:
     def push_encprivkey(self):
         encprivkey = self._encprivkey
         self._status.set_status("Pushing encrypted private key")
-        for shnum, writers in self.writers.iteritems():
+        for shnum, writers in six.iteritems(self.writers):
             for writer in writers:
                 writer.put_encprivkey(encprivkey)
 
@@ -795,7 +796,7 @@ class Publish:
     def push_blockhashes(self):
         self.sharehash_leaves = [None] * len(self.blockhashes)
         self._status.set_status("Building and pushing block hash tree")
-        for shnum, blockhashes in self.blockhashes.iteritems():
+        for shnum, blockhashes in six.iteritems(self.blockhashes):
             t = hashtree.HashTree(blockhashes)
             self.blockhashes[shnum] = list(t)
             # set the leaf for future use.
@@ -809,7 +810,7 @@ class Publish:
     def push_sharehashes(self):
         self._status.set_status("Building and pushing share hash chain")
         share_hash_tree = hashtree.HashTree(self.sharehash_leaves)
-        for shnum in xrange(len(self.sharehash_leaves)):
+        for shnum in range(len(self.sharehash_leaves)):
             needed_indices = share_hash_tree.needed_hashes(shnum)
             self.sharehashes[shnum] = dict( [ (i, share_hash_tree[i])
                                              for i in needed_indices] )
@@ -825,7 +826,7 @@ class Publish:
         #   - Get the checkstring of the resulting layout; sign that.
         #   - Push the signature
         self._status.set_status("Pushing root hashes and signature")
-        for shnum in xrange(self.total_shares):
+        for shnum in range(self.total_shares):
             writers = self.writers[shnum]
             for writer in writers:
                 writer.put_root_hash(self.root_hash)
@@ -853,7 +854,7 @@ class Publish:
         signable = self._get_some_writer().get_signable()
         self.signature = self._privkey.sign(signable)
 
-        for (shnum, writers) in self.writers.iteritems():
+        for (shnum, writers) in six.iteritems(self.writers):
             for writer in writers:
                 writer.put_signature(self.signature)
         self._status.timings['sign'] = time.time() - started
@@ -868,7 +869,7 @@ class Publish:
         ds = []
         verification_key = self._pubkey.serialize()
 
-        for (shnum, writers) in self.writers.copy().iteritems():
+        for (shnum, writers) in six.iteritems(self.writers.copy()):
             for writer in writers:
                 writer.put_verification_key(verification_key)
                 self.num_outstanding += 1
@@ -1007,7 +1008,7 @@ class Publish:
 
         # TODO: Precompute this.
         shares = []
-        for shnum, writers in self.writers.iteritems():
+        for shnum, writers in six.iteritems(self.writers):
             shares.extend([x.shnum for x in writers if x.server == server])
         known_shnums = set(shares)
         surprise_shares -= known_shnums

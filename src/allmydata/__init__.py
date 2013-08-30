@@ -146,15 +146,18 @@ from allmydata.util import verlib
 def normalized_version(verstr, what=None):
     try:
         return verlib.NormalizedVersion(verlib.suggest_normalized_version(verstr))
-    except (StandardError, verlib.IrrationalVersionError):
+    except (Exception, verlib.IrrationalVersionError):
         cls, value, trace = sys.exc_info()
-        raise PackagingError, ("could not parse %s due to %s: %s"
-                               % (what or repr(verstr), cls.__name__, value)), trace
+        msg = "could not parse %s due to %s: %s" % (what or repr(verstr), cls.__name__, value)
+        if sys.version_info[0] >= 3:
+            raise PackagingError(msg).with_traceback(trace)
+        else:
+            exec("raise c, v, t", {"c": PackagingError, "v": msg, "t": trace})
 
 
 def get_package_versions_and_locations():
     import warnings
-    from _auto_deps import package_imports, global_deprecation_messages, deprecation_messages, \
+    from ._auto_deps import package_imports, global_deprecation_messages, deprecation_messages, \
         user_warning_messages, runtime_warning_messages, warning_imports
 
     def package_dir(srcfile):
@@ -269,7 +272,7 @@ def cross_check_pkg_resources_versus_import():
     """This function returns a list of errors due to any failed cross-checks."""
 
     import pkg_resources
-    from _auto_deps import install_requires
+    from ._auto_deps import install_requires
 
     pkg_resources_vers_and_locs = dict([(p.project_name.lower(), (str(p.version), p.location))
                                         for p in pkg_resources.require(install_requires)])
@@ -311,7 +314,7 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
 
             try:
                 pr_normver = normalized_version(pr_ver)
-            except Exception, e:
+            except Exception as e:
                 errors.append("Warning: version number %r found for dependency %r by pkg_resources could not be parsed. "
                               "The version found by import was %r from %r. "
                               "pkg_resources thought it should be found at %r. "
@@ -326,7 +329,7 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                 else:
                     try:
                         imp_normver = normalized_version(imp_ver)
-                    except Exception, e:
+                    except Exception as e:
                         errors.append("Warning: version number %r found for dependency %r (imported from %r) could not be parsed. "
                                       "pkg_resources thought it should be version %r at %r. "
                                       "The exception was %s: %s"
@@ -339,7 +342,7 @@ def cross_check(pkg_resources_vers_and_locs, imported_vers_and_locs_list):
                                               % (name, pr_ver, str(pr_normver), pr_loc, imp_ver, str(imp_normver), imp_loc))
 
     imported_packages = set([p.lower() for (p, _) in imported_vers_and_locs_list])
-    for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.iteritems():
+    for pr_name, (pr_ver, pr_loc) in pkg_resources_vers_and_locs.items():
         if pr_name not in imported_packages and pr_name not in ignorable:
             errors.append("Warning: dependency %r (version %r) found by pkg_resources not found by import."
                           % (pr_name, pr_ver))
@@ -373,7 +376,7 @@ def check_all_requirements():
     # (On Python 3, we'll have failed long before this point.)
     if sys.version_info < (2, 6):
         try:
-            version_string = ".".join(map(str, sys.version_info))
+            version_string = ".".join([str(v) for v in sys.version_info])
         except Exception:
             version_string = repr(sys.version_info)
         errors.append("Tahoe-LAFS currently requires Python v2.6 or greater (but less than v3), not %s"
@@ -383,7 +386,7 @@ def check_all_requirements():
     for requirement in install_requires:
         try:
             check_requirement(requirement, vers_and_locs)
-        except (ImportError, PackagingError), e:
+        except (ImportError, PackagingError) as e:
             errors.append("%s: %s" % (e.__class__.__name__, e))
 
     if errors:

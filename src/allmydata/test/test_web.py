@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os.path, re, urllib, time, cgi
 import simplejson
 from StringIO import StringIO
@@ -39,6 +40,7 @@ from allmydata.test.common_web import HTTPClientGETFactory, \
      HTTPClientHEADFactory
 from allmydata.client import Client, SecretHolder
 from allmydata.introducer import IntroducerNode
+import six
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -448,7 +450,7 @@ class WebMixin(object):
                               u"blockingfile", u"empty", u"n\u00fc.txt", u"quux.txt", u"sub"])
         kids = dict( [(unicode(name),value)
                       for (name,value)
-                      in data[1]["children"].iteritems()] )
+                      in six.iteritems(data[1]["children"])] )
         self.failUnlessEqual(kids[u"sub"][0], "dirnode")
         self.failUnlessIn("metadata", kids[u"sub"][1])
         self.failUnlessIn("tahoe", kids[u"sub"][1]["metadata"])
@@ -517,7 +519,7 @@ class WebMixin(object):
         form.append('')
         form.append('UTF-8')
         form.append(sep)
-        for name, value in fields.iteritems():
+        for name, value in six.iteritems(fields):
             if isinstance(value, tuple):
                 filename, value = value
                 form.append('Content-Disposition: form-data; name="%s"; '
@@ -767,7 +769,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             # serverids[] keys are strings, since that's what JSON does, but
             # we'd really like them to be ints
             self.failUnlessEqual(data["serverids"]["0"], "phwrsjte")
-            self.failUnless(data["serverids"].has_key("1"),
+            self.failUnless("1" in data["serverids"],
                             str(data["serverids"]))
             self.failUnlessEqual(data["serverids"]["1"], "cmpuvkjm",
                                  str(data["serverids"]))
@@ -829,9 +831,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         headers = {"range": "bytes=1-10"}
         d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(xxx_todo_changeme):
+            (res, status, headers) = xxx_todo_changeme
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
+            self.failUnless("content-range" in headers)
             self.failUnlessReallyEqual(headers["content-range"][0],
                                        "bytes 1-10/%d" % len(self.BAR_CONTENTS))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS[1:11])
@@ -843,9 +846,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         length  = len(self.BAR_CONTENTS)
         d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(xxx_todo_changeme4):
+            (res, status, headers) = xxx_todo_changeme4
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
+            self.failUnless("content-range" in headers)
             self.failUnlessReallyEqual(headers["content-range"][0],
                                        "bytes 5-%d/%d" % (length-1, length))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS[5:])
@@ -857,9 +861,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         length  = len(self.BAR_CONTENTS)
         d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(xxx_todo_changeme5):
+            (res, status, headers) = xxx_todo_changeme5
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
+            self.failUnless("content-range" in headers)
             self.failUnlessReallyEqual(headers["content-range"][0],
                                        "bytes %d-%d/%d" % (length-5, length-1, length))
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS[-5:])
@@ -879,10 +884,11 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         headers = {"range": "bytes=1-10"}
         d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(xxx_todo_changeme6):
+            (res, status, headers) = xxx_todo_changeme6
             self.failUnlessReallyEqual(res, "")
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
+            self.failUnless("content-range" in headers)
             self.failUnlessReallyEqual(headers["content-range"][0],
                                        "bytes 1-10/%d" % len(self.BAR_CONTENTS))
         d.addCallback(_got)
@@ -893,9 +899,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         length  = len(self.BAR_CONTENTS)
         d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(xxx_todo_changeme7):
+            (res, status, headers) = xxx_todo_changeme7
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
+            self.failUnless("content-range" in headers)
             self.failUnlessReallyEqual(headers["content-range"][0],
                                        "bytes 5-%d/%d" % (length-1, length))
         d.addCallback(_got)
@@ -906,9 +913,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         length  = len(self.BAR_CONTENTS)
         d = self.HEAD(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(xxx_todo_changeme8):
+            (res, status, headers) = xxx_todo_changeme8
             self.failUnlessReallyEqual(int(status), 206)
-            self.failUnless(headers.has_key("content-range"))
+            self.failUnless("content-range" in headers)
             self.failUnlessReallyEqual(headers["content-range"][0],
                                        "bytes %d-%d/%d" % (length-5, length-1, length))
         d.addCallback(_got)
@@ -927,16 +935,18 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         headers = {"range": "BOGUS=fizbop-quarnak"}
         d = self.GET(self.public_url + "/foo/bar.txt", headers=headers,
                      return_response=True)
-        def _got((res, status, headers)):
+        def _got(xxx_todo_changeme9):
+            (res, status, headers) = xxx_todo_changeme9
             self.failUnlessReallyEqual(int(status), 200)
-            self.failUnless(not headers.has_key("content-range"))
+            self.failUnless("content-range" not in headers)
             self.failUnlessReallyEqual(res, self.BAR_CONTENTS)
         d.addCallback(_got)
         return d
 
     def test_HEAD_FILEURL(self):
         d = self.HEAD(self.public_url + "/foo/bar.txt", return_response=True)
-        def _got((res, status, headers)):
+        def _got(xxx_todo_changeme10):
+            (res, status, headers) = xxx_todo_changeme10
             self.failUnlessReallyEqual(res, "")
             self.failUnlessReallyEqual(headers["content-length"][0],
                                        str(len(self.BAR_CONTENTS)))
@@ -1144,29 +1154,29 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             uri = "/uri/%s" % self._bar_txt_uri
             d = self.GET(uri, return_response=True)
             # extract the ETag
-            d.addCallback(lambda (data, code, headers):
-                          headers['etag'][0])
+            d.addCallback(lambda data_code_headers:
+                          data_code_headers[2]['etag'][0])
             # do a GET that's supposed to match the ETag
             d.addCallback(lambda etag:
                           self.GET(uri, return_response=True,
                                    headers={"If-None-Match": etag}))
             # make sure it short-circuited (304 instead of 200)
-            d.addCallback(lambda (data, code, headers):
-                          self.failUnlessEqual(int(code), http.NOT_MODIFIED))
+            d.addCallback(lambda data_code_headers1:
+                          self.failUnlessEqual(int(data_code_headers1[1]), http.NOT_MODIFIED))
             return d
         d.addCallback(_check_match)
 
         def _no_etag(uri, t):
             target = "/uri/%s?t=%s" % (uri, t)
             d = self.GET(target, return_response=True, followRedirect=True)
-            d.addCallback(lambda (data, code, headers):
-                          self.failIf("etag" in headers, target))
+            d.addCallback(lambda data_code_headers2:
+                          self.failIf("etag" in data_code_headers2[2], target))
             return d
         def _yes_etag(uri, t):
             target = "/uri/%s?t=%s" % (uri, t)
             d = self.GET(target, return_response=True, followRedirect=True)
-            d.addCallback(lambda (data, code, headers):
-                          self.failUnless("etag" in headers, target))
+            d.addCallback(lambda data_code_headers3:
+                          self.failUnless("etag" in data_code_headers3[2], target))
             return d
 
         d.addCallback(lambda ign: _yes_etag(self._bar_txt_uri, ""))
@@ -1188,7 +1198,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_GET_FILEURL_save(self):
         d = self.GET(self.public_url + "/foo/bar.txt?filename=bar.txt&save=true",
                      return_response=True)
-        def _got((res, statuscode, headers)):
+        def _got(xxx_todo_changeme11):
+            (res, statuscode, headers) = xxx_todo_changeme11
             content_disposition = headers["content-disposition"][0]
             self.failUnless(content_disposition == 'attachment; filename="bar.txt"', content_disposition)
             self.failUnlessIsBarDotTxt(res)
@@ -1780,7 +1791,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                         "largest-directory-children": 8,
                         "largest-immutable-file": 19,
                         }
-            for k,v in expected.iteritems():
+            for k,v in six.iteritems(expected):
                 self.failUnlessReallyEqual(stats[k], v,
                                            "stats[%s] was %s, not %s" %
                                            (k, stats[k], v))
@@ -2109,10 +2120,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         return d
 
     def dump_root(self):
-        print "NODEWALK"
+        print("NODEWALK")
         w = webish.DirnodeWalkerMixin()
         def visitor(childpath, childnode, metadata):
-            print childpath
+            print(childpath)
         d = w.walk(self.public_root, visitor)
         return d
 
@@ -2485,7 +2496,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(parsed[0], "dirnode")
             children = dict( [(unicode(name),value)
                               for (name,value)
-                              in parsed[1]["children"].iteritems()] )
+                              in six.iteritems(parsed[1]["children"])] )
             self.failUnlessIn(u"new.txt", children)
             new_json = children[u"new.txt"]
             self.failUnlessEqual(new_json[0], "filenode")
@@ -2528,7 +2539,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.HEAD(self.public_url + "/foo/new.txt",
                                 return_response=True))
-        def _got_headers((res, status, headers)):
+        def _got_headers(xxx_todo_changeme12):
+            (res, status, headers) = xxx_todo_changeme12
             self.failUnlessReallyEqual(res, "")
             self.failUnlessReallyEqual(headers["content-length"][0],
                                        str(len(NEW2_CONTENTS)))
@@ -2563,9 +2575,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # will be rather terse and unhelpful. addErrback this method to the
         # end of your chain to get more information out of these errors.
         if f.check(error.Error):
-            print "web.error.Error:"
-            print f
-            print f.value.response
+            print("web.error.Error:")
+            print(f)
+            print(f.value.response)
         return f
 
     def test_POST_upload_replace(self):
@@ -5090,8 +5102,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                          for line in res.splitlines()
                          if line]
             except ValueError:
-                print "response is:", res
-                print "undecodeable line was '%s'" % line
+                print("response is:", res)
+                print("undecodeable line was '%s'" % line)
                 raise
             self.failUnlessReallyEqual(len(units), 5+1)
             # should be parent-first
@@ -5149,7 +5161,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(lambda ign:
                       self.delete_shares_numbered(self.uris["subdir"],
-                                                  range(1, 10)))
+                                                  list(range(1, 10))))
 
         # root
         # root/good
@@ -5504,7 +5516,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addCallback(lambda ign: c0.upload(upload.Data(DATA, convergence="")))
         def _stash_bad(ur):
             self.fileurls["1share"] = "uri/" + urllib.quote(ur.get_uri())
-            self.delete_shares_numbered(ur.get_uri(), range(1,10))
+            self.delete_shares_numbered(ur.get_uri(), list(range(1,10)))
 
             u = uri.from_string(ur.get_uri())
             u.key = testutil.flip_bit(u.key, 0)
@@ -5516,14 +5528,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             u = n.get_uri()
             url = self.fileurls["dir-1share"] = "uri/" + urllib.quote(u) + "/"
             self.fileurls["dir-1share-json"] = url + "?t=json"
-            self.delete_shares_numbered(u, range(1,10))
+            self.delete_shares_numbered(u, list(range(1,10)))
         d.addCallback(_mangle_dirnode_1share)
         d.addCallback(lambda ign: c0.create_dirnode())
         def _mangle_dirnode_0share(n):
             u = n.get_uri()
             url = self.fileurls["dir-0share"] = "uri/" + urllib.quote(u) + "/"
             self.fileurls["dir-0share-json"] = url + "?t=json"
-            self.delete_shares_numbered(u, range(0,10))
+            self.delete_shares_numbered(u, list(range(0,10)))
         d.addCallback(_mangle_dirnode_0share)
 
         # NotEnoughSharesError should be reported sensibly, with a

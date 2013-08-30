@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+from __future__ import print_function
 import sha as shamodule
 import os, random
 
@@ -205,7 +206,7 @@ class Simulator:
         size = random.randrange(1000)
         n = random.choice(self.all_nodes)
         if self.verbose:
-            print "add_file(size=%d, from node %s)" % (size, n)
+            print("add_file(size=%d, from node %s)" % (size, n))
         fileid = randomid()
         able = n.publish_file(fileid, size)
         if able:
@@ -226,7 +227,7 @@ class Simulator:
             if n.delete_file():
                 self.deleted_files += 1
                 return
-        print "no files to delete"
+        print("no files to delete")
 
     def _add_event(self, etype):
         rate = getattr(self, "RATE_" + etype)
@@ -259,14 +260,14 @@ class Simulator:
         # self.print_stats(current_time, etype)
 
     def print_stats_header(self):
-        print "time:  added   failed   lost  avg_tried"
+        print("time:  added   failed   lost  avg_tried")
 
     def print_stats(self, time, etype):
         if not self.published_files:
             avg_tried = "NONE"
         else:
             avg_tried = sum(self.published_files) / len(self.published_files)
-        print time, etype, self.added_data, self.failed_files, self.lost_data_bytes, avg_tried, len(self.introducer.living_files), self.introducer.utilization
+        print(time, etype, self.added_data, self.failed_files, self.lost_data_bytes, avg_tried, len(self.introducer.living_files), self.introducer.utilization)
 
 global s
 s = None
@@ -282,7 +283,7 @@ def main():
     # s.print_stats_header()
     for i in range(1000):
         s.do_event()
-    print "%d files added, %d files deleted" % (s.added_files, s.deleted_files)
+    print("%d files added, %d files deleted" % (s.added_files, s.deleted_files))
     return s
 
 if __name__ == '__main__':

@@ -1,3 +1,4 @@
+from __future__ import print_function
 import datetime, os.path, re, types, ConfigParser, tempfile
 from base64 import b32decode, b32encode
 
@@ -12,10 +13,11 @@ from allmydata.util import fileutil, iputil, observer
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
+import six
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
-for thing, things_version in get_package_versions().iteritems():
+for thing, things_version in six.iteritems(get_package_versions()):
     app_versions.add_version(thing, str(things_version))
 
 # group 1 will be addr (dotted quad string), group 3 if any will be portnum (string)
@@ -69,7 +71,7 @@ class Node(service.MultiService):
         self.basedir = abspath_expanduser_unicode(unicode(basedir))
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         self._tub_ready_observerlist = observer.OneShotObserverList()
-        fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
+        fileutil.make_dirs(os.path.join(self.basedir, "private"), 0o700)
         open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
 
         # creates self.config
@@ -280,7 +282,7 @@ class Node(service.MultiService):
         fn = os.path.join(self.basedir, name)
         try:
             fileutil.write(fn, value, mode)
-        except EnvironmentError, e:
+        except EnvironmentError as e:
             self.log("Unable to write config file '%s'" % fn)
             self.log(e)
 
@@ -293,7 +295,7 @@ class Node(service.MultiService):
         # need to send a pid to the foolscap log here.
         twlog.msg("My pid: %s" % os.getpid())
         try:
-            os.chmod("twistd.pid", 0644)
+            os.chmod("twistd.pid", 0o644)
         except EnvironmentError:
             pass
         # Delay until the reactor is running.
@@ -317,12 +319,12 @@ class Node(service.MultiService):
     def _service_startup_failed(self, failure):
         self.log('_startService() failed')
         log.err(failure)
-        print "Node._startService failed, aborting"
-        print failure
+        print("Node._startService failed, aborting")
+        print(failure)
         #reactor.stop() # for unknown reasons, reactor.stop() isn't working.  [ ] TODO
         self.log('calling os.abort()')
         twlog.msg('calling os.abort()') # make sure it gets into twistd.log
-        print "calling os.abort()"
+        print("calling os.abort()")
         os.abort()
 
     def stopService(self):
@@ -347,7 +349,7 @@ class Node(service.MultiService):
         for o in twlog.theLogPublisher.observers:
             # o might be a FileLogObserver's .emit method
             if type(o) is type(self.setup_logging): # bound method
-                ob = o.im_self
+                ob = o.__self__
                 if isinstance(ob, twlog.FileLogObserver):
                     newmeth = types.UnboundMethodType(formatTimeTahoeStyle, ob, ob.__class__)
                     ob.formatTime = newmeth

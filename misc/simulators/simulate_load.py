@@ -2,6 +2,7 @@
 
 # WARNING. There is a bug in this script so that it does not simulate the actual Tahoe Two server selection algorithm that it was intended to simulate. See http://allmydata.org/trac/tahoe-lafs/ticket/302 (stop permuting peerlist, use SI as offset into ring instead?)
 
+from __future__ import print_function
 import random
 
 SERVER_CAPACITY = 10**12
@@ -83,7 +84,7 @@ def test(permutedpeerlist, iters):
     filledat = []
     for test in range(iters):
         (servers, doubled_up_shares) = go(permutedpeerlist)
-        print "doubled_up_shares: ", doubled_up_shares
+        print("doubled_up_shares: ", doubled_up_shares)
         for server in servers:
             fidx = server.full_at_tick
             filledat.extend([0]*(fidx-len(filledat)+1))
@@ -147,8 +148,8 @@ if __name__ == "__main__":
         if arg.startswith("--iters="):
             iters = int(arg[8:])
     if "--permute" in sys.argv:
-        print "doing permuted peerlist, iterations: %d" % iters
+        print("doing permuted peerlist, iterations: %d" % iters)
         test(True, iters)
     else:
-        print "doing simple ring, iterations: %d" % iters
+        print("doing simple ring, iterations: %d" % iters)
         test(False, iters)

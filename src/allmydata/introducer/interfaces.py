@@ -2,7 +2,7 @@
 from zope.interface import Interface
 from foolscap.api import StringConstraint, TupleOf, SetOf, DictOf, Any, \
     RemoteInterface, Referenceable
-from old import RIIntroducerSubscriberClient_v1
+from .old import RIIntroducerSubscriberClient_v1
 FURL = StringConstraint(1000)
 
 # old introducer protocol (v1):

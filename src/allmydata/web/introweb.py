@@ -8,6 +8,7 @@ import simplejson
 from allmydata import get_package_versions_string
 from allmydata.util import idlib
 from allmydata.web.common import getxmlfile, get_arg, TIME_FORMAT
+import six
 
 
 class IntroducerRoot(rend.Page):
@@ -62,7 +63,7 @@ class IntroducerRoot(rend.Page):
         res["announcement_summary"] = announcement_summary
         distinct_hosts = dict([(name, len(hosts))
                                for (name, hosts)
-                               in service_hosts.iteritems()])
+                               in six.iteritems(service_hosts)])
         res["announcement_distinct_hosts"] = distinct_hosts
 
         return simplejson.dumps(res, indent=1) + "\n"

@@ -18,14 +18,14 @@ def abbreviate_time(s):
     if s < 120:
         return _plural(s, "second")
     if s < 3*HOUR:
-        return _plural(s/60, "minute")
+        return _plural(s//60, "minute")
     if s < 2*DAY:
-        return _plural(s/HOUR, "hour")
+        return _plural(s//HOUR, "hour")
     if s < 2*MONTH:
-        return _plural(s/DAY, "day")
+        return _plural(s//DAY, "day")
     if s < 4*YEAR:
-        return _plural(s/MONTH, "month")
-    return _plural(s/YEAR, "year")
+        return _plural(s//MONTH, "month")
+    return _plural(s//YEAR, "year")
 
 def abbreviate_space(s, SI=True):
     if s is None:

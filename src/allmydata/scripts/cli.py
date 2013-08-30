@@ -1,8 +1,10 @@
+from __future__ import print_function
 import os.path, re, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
      DEFAULT_ALIAS, BaseOptions
 from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_output
+from allmydata.util.sixutil import map
 
 NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 
@@ -537,8 +539,8 @@ def get(options):
             # enough to have picked an empty file
             pass
         else:
-            print >>options.stderr, "%s retrieved and written to %s" % \
-                  (options.from_file, options.to_file)
+            print("%s retrieved and written to %s" % \
+                  (options.from_file, options.to_file), file=options.stderr)
     return rc
 
 def put(options):

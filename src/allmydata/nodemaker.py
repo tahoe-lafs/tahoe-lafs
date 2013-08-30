@@ -11,6 +11,7 @@ from allmydata.dirnode import DirectoryNode, pack_children
 from allmydata.unknown import UnknownNode
 from allmydata.blacklist import ProhibitedNode
 from allmydata import uri
+import six
 
 
 class NodeMaker:
@@ -126,7 +127,7 @@ class NodeMaker:
 
     def create_new_mutable_directory(self, initial_children={}, version=None):
         # initial_children must have metadata (i.e. {} instead of None)
-        for (name, (node, metadata)) in initial_children.iteritems():
+        for (name, (node, metadata)) in six.iteritems(initial_children):
             precondition(isinstance(metadata, dict),
                          "create_new_mutable_directory requires metadata to be a dict, not None", metadata)
             node.raise_error()

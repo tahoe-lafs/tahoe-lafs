@@ -64,6 +64,8 @@ install_requires = [
     # pycryptopp-0.6.0 includes ed25519
     "pycryptopp >= 0.6.0",
 
+    "six >= 1.3.0",
+
     # Will be needed to test web apps, but not yet. See #1001.
     #"windmill >= 1.3",
 ]
@@ -85,6 +87,7 @@ package_imports = [
     ('pycrypto',        'Crypto'),
     ('pyasn1',          'pyasn1'),
     ('mock',            'mock'),
+    ('six',             'six'),
 ]
 
 def require_more():

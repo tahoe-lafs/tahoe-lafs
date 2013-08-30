@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os, sys
 from allmydata.scripts.common import BasedirOptions
@@ -104,9 +105,9 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
-            print >>err, "To avoid clobbering anything, I am going to quit now."
-            print >>err, "Please use a different directory, or empty this one."
+            print("The base directory %s is not empty." % quote_output(basedir), file=err)
+            print("To avoid clobbering anything, I am going to quit now.", file=err)
+            print("Please use a different directory, or empty this one.", file=err)
             return -1
         # we're willing to use an empty directory
     else:
@@ -159,13 +160,13 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.close()
 
     from allmydata.util import fileutil
-    fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
-    print >>out, "Node created in %s" % quote_output(basedir)
+    fileutil.make_dirs(os.path.join(basedir, "private"), 0o700)
+    print("Node created in %s" % quote_output(basedir), file=out)
     if not config.get("introducer", ""):
-        print >>out, " Please set [client]introducer.furl= in tahoe.cfg!"
-        print >>out, " The node cannot connect to a grid without it."
+        print(" Please set [client]introducer.furl= in tahoe.cfg!", file=out)
+        print(" The node cannot connect to a grid without it.", file=out)
     if not config.get("nickname", ""):
-        print >>out, " Please set [node]nickname= in tahoe.cfg"
+        print(" Please set [node]nickname= in tahoe.cfg", file=out)
     return 0
 
 def create_client(config, out=sys.stdout, err=sys.stderr):
@@ -180,9 +181,9 @@ def create_introducer(config, out=sys.stdout, err=sys.stderr):
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
-            print >>err, "To avoid clobbering anything, I am going to quit now."
-            print >>err, "Please use a different directory, or empty this one."
+            print("The base directory %s is not empty." % quote_output(basedir), file=err)
+            print("To avoid clobbering anything, I am going to quit now.", file=err)
+            print("Please use a different directory, or empty this one.", file=err)
             return -1
         # we're willing to use an empty directory
     else:
@@ -195,7 +196,7 @@ def create_introducer(config, out=sys.stdout, err=sys.stderr):
     write_node_config(c, config)
     c.close()
 
-    print >>out, "Introducer created in %s" % quote_output(basedir)
+    print("Introducer created in %s" % quote_output(basedir), file=out)
     return 0
 
 

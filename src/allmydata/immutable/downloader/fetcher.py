@@ -4,7 +4,7 @@ from foolscap.api import eventually
 from allmydata.interfaces import NotEnoughSharesError, NoSharesError
 from allmydata.util import log
 from allmydata.util.dictutil import DictOfSets
-from common import OVERDUE, COMPLETE, CORRUPT, DEAD, BADSEGNUM, \
+from .common import OVERDUE, COMPLETE, CORRUPT, DEAD, BADSEGNUM, \
      BadSegmentNumberError
 
 class SegmentFetcher:

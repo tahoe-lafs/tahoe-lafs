@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import simplejson
 import urllib
@@ -36,6 +37,7 @@ from allmydata.web.info import MoreInfo
 from allmydata.web.operations import ReloadMixin
 from allmydata.web.check_results import json_check_results, \
      json_check_and_repair_results
+import six
 
 class BlockingFileError(Exception):
     # TODO: catch and transform
@@ -74,7 +76,7 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
 
     def got_child(self, node_or_failure, ctx, name):
         DEBUG = False
-        if DEBUG: print "GOT_CHILD", name, node_or_failure
+        if DEBUG: print("GOT_CHILD", name, node_or_failure)
         req = IRequest(ctx)
         method = req.method
         nonterminal = len(req.postpath) > 1
@@ -83,24 +85,24 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             f = node_or_failure
             f.trap(NoSuchChildError)
             # No child by this name. What should we do about it?
-            if DEBUG: print "no child", name
-            if DEBUG: print "postpath", req.postpath
+            if DEBUG: print("no child", name)
+            if DEBUG: print("postpath", req.postpath)
             if nonterminal:
-                if DEBUG: print " intermediate"
+                if DEBUG: print(" intermediate")
                 if should_create_intermediate_directories(req):
                     # create intermediate directories
-                    if DEBUG: print " making intermediate directory"
+                    if DEBUG: print(" making intermediate directory")
                     d = self.node.create_subdirectory(name)
                     d.addCallback(make_handler_for,
                                   self.client, self.node, name)
                     return d
             else:
-                if DEBUG: print " terminal"
+                if DEBUG: print(" terminal")
                 # terminal node
                 if (method,t) in [ ("POST","mkdir"), ("PUT","mkdir"),
                                    ("POST", "mkdir-with-children"),
                                    ("POST", "mkdir-immutable") ]:
-                    if DEBUG: print " making final directory"
+                    if DEBUG: print(" making final directory")
                     # final directory
                     kids = {}
                     if t in ("mkdir-with-children", "mkdir-immutable"):
@@ -121,14 +123,14 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
                                   self.client, self.node, name)
                     return d
                 if (method,t) in ( ("PUT",""), ("PUT","uri"), ):
-                    if DEBUG: print " PUT, making leaf placeholder"
+                    if DEBUG: print(" PUT, making leaf placeholder")
                     # we were trying to find the leaf filenode (to put a new
                     # file in its place), and it didn't exist. That's ok,
                     # since that's the leaf node that we're about to create.
                     # We make a dummy one, which will respond to the PUT
                     # request by replacing itself.
                     return PlaceHolderNodeHandler(self.client, self.node, name)
-            if DEBUG: print " 404"
+            if DEBUG: print(" 404")
             # otherwise, we just return a no-such-child error
             return f
 
@@ -137,11 +139,11 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             if not IDirectoryNode.providedBy(node):
                 # we would have put a new directory here, but there was a
                 # file in the way.
-                if DEBUG: print "blocking"
+                if DEBUG: print("blocking")
                 raise WebError("Unable to create directory '%s': "
                                "a file was in the way" % name,
                                http.CONFLICT)
-        if DEBUG: print "good child"
+        if DEBUG: print("good child")
         return make_handler_for(node, self.client, self.node, name)
 
     def render_DELETE(self, ctx):
@@ -550,12 +552,12 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         body = req.content.read()
         try:
             children = simplejson.loads(body)
-        except ValueError, le:
+        except ValueError as le:
             le.args = tuple(le.args + (body,))
             # TODO test handling of bad JSON
             raise
         cs = {}
-        for name, (file_or_dir, mddict) in children.iteritems():
+        for name, (file_or_dir, mddict) in six.iteritems(children):
             name = unicode(name) # simplejson-2.0.1 returns str *or* unicode
             writecap = mddict.get('rw_uri')
             if writecap is not None:
@@ -870,7 +872,7 @@ def DirectoryJSONMetadata(ctx, dirnode):
     d = dirnode.list()
     def _got(children):
         kids = {}
-        for name, (childnode, metadata) in children.iteritems():
+        for name, (childnode, metadata) in six.iteritems(children):
             assert IFilesystemNode.providedBy(childnode), childnode
             rw_uri = childnode.get_write_uri()
             ro_uri = childnode.get_readonly_uri()
@@ -1032,7 +1034,8 @@ class ManifestResults(rend.Page, ReloadMixin):
     def data_items(self, ctx, data):
         return self.monitor.get_status()["manifest"]
 
-    def render_row(self, ctx, (path, cap)):
+    def render_row(self, ctx, xxx_todo_changeme):
+        (path, cap) = xxx_todo_changeme
         ctx.fillSlots("path", self.slashify_path(path))
         root = get_root(ctx)
         # TODO: we need a clean consistent way to get the type of a cap string

@@ -2,12 +2,13 @@
 import string
 
 from allmydata.util.assertutil import precondition
+from allmydata.util.sixutil import map
 
 z_base_32_alphabet = "ybndrfg8ejkmcpqxot1uwisza345h769" # Zooko's choice, rationale in "DESIGN" doc
 rfc3548_alphabet = "abcdefghijklmnopqrstuvwxyz234567" # RFC3548 standard used by Gnutella, Content-Addressable Web, THEX, Bitzi, Web-Calculus...
 chars = rfc3548_alphabet
 
-vals = ''.join(map(chr, range(32)))
+vals = ''.join(map(chr, list(range(32))))
 c2vtranstable = string.maketrans(chars, vals)
 v2ctranstable = string.maketrans(vals, chars)
 identitytranstable = string.maketrans('', '')
@@ -21,7 +22,7 @@ def _get_trailing_chars_without_lsbs(N, d):
         s.extend(_get_trailing_chars_without_lsbs(N+1, d=d))
     i = 0
     while i < len(chars):
-        if not d.has_key(i):
+        if i not in d:
             d[i] = None
             s.append(chars[i])
         i = i + 2**N
@@ -83,12 +84,12 @@ def b2a_l(os, lengthinbits):
     @return the contents of os in base-32 encoded form
     """
     precondition(isinstance(lengthinbits, (int, long,)), "lengthinbits is required to be an integer.", lengthinbits=lengthinbits)
-    precondition((lengthinbits+7)/8 == len(os), "lengthinbits is required to specify a number of bits storable in exactly len(os) octets.", lengthinbits=lengthinbits, lenos=len(os))
+    precondition((lengthinbits+7)//8 == len(os), "lengthinbits is required to specify a number of bits storable in exactly len(os) octets.", lengthinbits=lengthinbits, lenos=len(os))
 
     os = map(ord, os)
 
-    numquintets = (lengthinbits+4)/5
-    numoctetsofdata = (lengthinbits+7)/8
+    numquintets = (lengthinbits+4)//5
+    numoctetsofdata = (lengthinbits+7)//8
     # print "numoctetsofdata: %s, len(os): %s, lengthinbits: %s, numquintets: %s" % (numoctetsofdata, len(os), lengthinbits, numquintets,)
     # strip trailing octets that won't be used
     del os[numoctetsofdata:]
@@ -97,7 +98,7 @@ def b2a_l(os, lengthinbits):
         os[-1] = os[-1] >> (8-(lengthinbits % 8))
         os[-1] = os[-1] << (8-(lengthinbits % 8))
     # append zero octets for padding if needed
-    numoctetsneeded = (numquintets*5+7)/8 + 1
+    numoctetsneeded = (numquintets*5+7)//8 + 1
     os.extend([0]*(numoctetsneeded-len(os)))
 
     quintets = []
@@ -113,12 +114,12 @@ def b2a_l(os, lengthinbits):
             cutoff = 256
             continue
         cutoff = cutoff * 8
-        quintet = num / cutoff
+        quintet = num // cutoff
         quintets.append(quintet)
         num = num - (quintet * cutoff)
 
-        cutoff = cutoff / 32
-        quintet = num / cutoff
+        cutoff = cutoff // 32
+        quintet = num // cutoff
         quintets.append(quintet)
         num = num - (quintet * cutoff)
 
@@ -188,13 +189,13 @@ def could_be_base32_encoded_l(s, lengthinbits, s5=s5, tr=string.translate, ident
     precondition(isinstance(s, str), s)
     if s == '':
         return True
-    assert lengthinbits%5 < len(s5), lengthinbits
-    assert ord(s[-1]) < s5[lengthinbits%5]
-    return (((lengthinbits+4)/5) == len(s)) and s5[lengthinbits%5][ord(s[-1])] and not string.translate(s, identitytranstable, chars)
+    assert int(lengthinbits%5) < len(s5), lengthinbits
+    #FIXME assert ord(s[-1]) < s5[lengthinbits%5]
+    return (((lengthinbits+4)//5) == len(s)) and s5[lengthinbits%5][ord(s[-1])] and not string.translate(s, identitytranstable, chars)
 
 def num_octets_that_encode_to_this_many_quintets(numqs):
     # Here is a computation that conveniently expresses this:
-    return (numqs*5+3)/8
+    return (numqs*5+3)//8
 
 def a2b(cs):
     """
@@ -232,8 +233,8 @@ def a2b_l(cs, lengthinbits):
 
     qs = map(ord, string.translate(cs, c2vtranstable))
 
-    numoctets = (lengthinbits+7)/8
-    numquintetsofdata = (lengthinbits+4)/5
+    numoctets = (lengthinbits+7)//8
+    numquintetsofdata = (lengthinbits+4)//5
     # strip trailing quintets that won't be used
     del qs[numquintetsofdata:]
     # zero out any unused bits in the final quintet
@@ -241,7 +242,7 @@ def a2b_l(cs, lengthinbits):
         qs[-1] = qs[-1] >> (5-(lengthinbits % 5))
         qs[-1] = qs[-1] << (5-(lengthinbits % 5))
     # append zero quintets for padding if needed
-    numquintetsneeded = (numoctets*8+4)/5
+    numquintetsneeded = (numoctets*8+4)//5
     qs.extend([0]*(numquintetsneeded-len(qs)))
 
     octets = []
@@ -250,10 +251,10 @@ def a2b_l(cs, lengthinbits):
     i = 1
     while len(octets) < numoctets:
         while pos > 256:
-            pos = pos / 32
+            pos = pos // 32
             num = num + (qs[i] * pos)
             i = i + 1
-        octet = num / 256
+        octet = num // 256
         octets.append(octet)
         num = num - (octet * 256)
         num = num * 256

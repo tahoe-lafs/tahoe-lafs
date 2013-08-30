@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import urllib
 from allmydata.scripts.common_http import do_http, check_http_error
@@ -15,7 +16,7 @@ def mkdir(options):
     if where:
         try:
             rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
+        except UnknownAliasError as e:
             e.display(stderr)
             return 1
 
@@ -30,7 +31,7 @@ def mkdir(options):
             return rc
         new_uri = resp.read().strip()
         # emit its write-cap
-        print >>stdout, quote_output(new_uri, quotemarks=False)
+        print(quote_output(new_uri, quotemarks=False), file=stdout)
         return 0
 
     # create a new directory at the given location
@@ -45,5 +46,5 @@ def mkdir(options):
     resp = do_http("POST", url)
     check_http_error(resp, stderr)
     new_uri = resp.read().strip()
-    print >>stdout, quote_output(new_uri, quotemarks=False)
+    print(quote_output(new_uri, quotemarks=False), file=stdout)
     return 0

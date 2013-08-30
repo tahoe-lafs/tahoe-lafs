@@ -10,6 +10,7 @@ from allmydata.util import fileutil, mathutil
 from allmydata.immutable import upload
 from allmydata.mutable.publish import MutableData
 from twisted.python import log
+import six
 
 def get_memory_usage():
     # this is obviously linux-specific
@@ -116,7 +117,7 @@ class ControlServer(Referenceable, service.Service):
         d.addCallback(self._do_one_ping, everyone_left, results)
         def _average(res):
             averaged = {}
-            for server_name,times in results.iteritems():
+            for server_name,times in six.iteritems(results):
                 averaged[server_name] = sum(times) / len(times)
             return averaged
         d.addCallback(_average)

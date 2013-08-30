@@ -165,7 +165,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         return d
 
     def _shuffled(self, num_shnums):
-        shnums = range(10)
+        shnums = list(range(10))
         random.shuffle(shnums)
         return shnums[:num_shnums]
 
@@ -196,7 +196,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         # test the Tahoe code...
         def _then_delete_8(ign):
             self.restore_all_shares(self.shares)
-            self.delete_shares_numbered(self.uri, range(8))
+            self.delete_shares_numbered(self.uri, list(range(8)))
         d.addCallback(_then_delete_8)
         d.addCallback(lambda ign:
                       self.shouldFail(NotEnoughSharesError, "download-2",
@@ -223,7 +223,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         removed."""
         d = self.startup("immutable/Test/download_from_only_3_remaining_shares")
         d.addCallback(lambda ign:
-                      self.delete_shares_numbered(self.uri, range(7)))
+                      self.delete_shares_numbered(self.uri, list(range(7))))
         d.addCallback(self._download_and_check_plaintext)
         def _after_download(num_reads):
             #print num_reads
@@ -247,7 +247,7 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         enough shares out there."""
         d = self.startup("download_abort_if_too_many_missing_shares")
         d.addCallback(lambda ign:
-                      self.delete_shares_numbered(self.uri, range(8)))
+                      self.delete_shares_numbered(self.uri, list(range(8))))
         d.addCallback(lambda ign:
                       self.shouldFail(NotEnoughSharesError, "delete 8",
                                       "Last failure: None",

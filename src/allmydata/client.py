@@ -79,7 +79,8 @@ class KeyGenerator:
         keysize = keysize or self.default_keysize
         if self._remote:
             d = self._remote.callRemote('get_rsa_key_pair', keysize)
-            def make_key_objs((verifying_key, signing_key)):
+            def make_key_objs(xxx_todo_changeme):
+                (verifying_key, signing_key) = xxx_todo_changeme
                 v = rsa.create_verifying_key_from_string(verifying_key)
                 s = rsa.create_signing_key_from_string(signing_key)
                 return v, s
@@ -489,7 +490,7 @@ class Client(node.Node, pollmixin.PollMixin):
                 s = drop_upload.DropUploader(self, upload_dircap, local_dir_utf8)
                 s.setServiceParent(self)
                 s.startService()
-            except Exception, e:
+            except Exception as e:
                 self.log("couldn't start drop-uploader: %r", args=(e,))
 
     def _check_hotline(self, hotline_file):

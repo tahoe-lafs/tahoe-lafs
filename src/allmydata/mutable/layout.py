@@ -8,6 +8,8 @@ from allmydata.util import mathutil
 from twisted.python import failure
 from twisted.internet import defer
 from zope.interface import implements
+import six
+from six.moves import filter
 
 
 # These strings describe the format of the packed structs they help process.
@@ -255,7 +257,7 @@ class SDMFSlotWriteProxy:
                                                        self._required_shares)
         assert expected_segment_size == segment_size
 
-        self._block_size = self._segment_size / self._required_shares
+        self._block_size = self._segment_size // self._required_shares
 
         # This is meant to mimic how SDMF files were built before MDMF
         # entered the picture: we generate each share in its entirety,
@@ -354,7 +356,7 @@ class SDMFSlotWriteProxy:
         Add the share hash chain to the share.
         """
         assert isinstance(sharehashes, dict)
-        for h in sharehashes.itervalues():
+        for h in six.itervalues(sharehashes):
             assert len(h) == HASH_SIZE
 
         # serialize the sharehashes, then set them.
@@ -787,7 +789,7 @@ class MDMFSlotWriteProxy:
         # and also because it provides a useful amount of bounds checking.
         self._num_segments = mathutil.div_ceil(self._data_length,
                                                self._segment_size)
-        self._block_size = self._segment_size / self._required_shares
+        self._block_size = self._segment_size // self._required_shares
         # We also calculate the share size, to help us with block
         # constraints later.
         tail_size = self._data_length % self._segment_size
@@ -796,7 +798,7 @@ class MDMFSlotWriteProxy:
         else:
             self._tail_block_size = mathutil.next_multiple(tail_size,
                                                            self._required_shares)
-            self._tail_block_size /= self._required_shares
+            self._tail_block_size //= self._required_shares
 
         # We already know where the sharedata starts; right after the end
         # of the header (which is defined as the signable part + the offsets)
@@ -1315,7 +1317,7 @@ class MDMFSlotReadProxy:
         self._segment_size = segsize
         self._data_length = datalen
 
-        self._block_size = self._segment_size / self._required_shares
+        self._block_size = self._segment_size // self._required_shares
         # We can upload empty files, and need to account for this fact
         # so as to avoid zero-division and zero-modulo errors.
         if datalen > 0:
@@ -1327,7 +1329,7 @@ class MDMFSlotReadProxy:
         else:
             self._tail_block_size = mathutil.next_multiple(tail_size,
                                                     self._required_shares)
-            self._tail_block_size /= self._required_shares
+            self._tail_block_size //= self._required_shares
 
         return encoding_parameters
 

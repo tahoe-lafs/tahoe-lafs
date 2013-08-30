@@ -1,11 +1,12 @@
 
 import time
+import six
 now = time.time
 from foolscap.api import eventually
 from allmydata.util import base32, log
 from twisted.internet import reactor
 
-from share import Share, CommonShare
+from .share import Share, CommonShare
 
 def incidentally(res, f, *args, **kwargs):
     """Add me to a Deferred chain like this:
@@ -106,7 +107,7 @@ class ShareFinder:
         server = None
         try:
             if self._servers:
-                server = self._servers.next()
+                server = six.advance_iterator(self._servers)
         except StopIteration:
             self._servers = None
 
@@ -175,7 +176,7 @@ class ShareFinder:
                  shnums=shnums_s, name=server.get_name(),
                  level=log.NOISY, parent=lp, umid="0fcEZw")
         shares = []
-        for shnum, bucket in buckets.iteritems():
+        for shnum, bucket in six.iteritems(buckets):
             s = self._create_share(shnum, bucket, server, dyhb_rtt)
             shares.append(s)
         self._deliver_shares(shares)

@@ -21,6 +21,8 @@ from allmydata.util.happinessutil import servers_of_happiness, \
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.server import storage_index_to_dir
 from allmydata.client import Client
+from functools import reduce
+import six
 
 MiB = 1024*1024
 
@@ -416,7 +418,8 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
         d = self.shouldFail(UploadUnhappinessError, "first_error_all",
                             "server selection failed",
                             upload_data, self.u, DATA)
-        def _check((f,)):
+        def _check(xxx_todo_changeme):
+            (f,) = xxx_todo_changeme
             self.failUnlessIn("placed 0 shares out of 100 total", str(f.value))
             # there should also be a 'last failure was' message
             self.failUnlessIn("ServerError", str(f.value))
@@ -448,7 +451,8 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
         d = self.shouldFail(UploadUnhappinessError, "second_error_all",
                             "server selection failed",
                             upload_data, self.u, DATA)
-        def _check((f,)):
+        def _check(xxx_todo_changeme1):
+            (f,) = xxx_todo_changeme1
             self.failUnlessIn("placed 10 shares out of 100 total", str(f.value))
             # there should also be a 'last failure was' message
             self.failUnlessIn("ServerError", str(f.value))
@@ -709,10 +713,10 @@ def combinations(iterable, r):
     n = len(pool)
     if r > n:
         return
-    indices = range(r)
+    indices = list(range(r))
     yield tuple(pool[i] for i in indices)
     while True:
-        for i in reversed(range(r)):
+        for i in reversed(list(range(r))):
             if indices[i] != i + n - r:
                 break
         else:
@@ -727,7 +731,7 @@ def is_happy_enough(servertoshnums, h, k):
     if len(servertoshnums) < h:
         return False
     # print "servertoshnums: ", servertoshnums, h, k
-    for happysetcombo in combinations(servertoshnums.iterkeys(), h):
+    for happysetcombo in combinations(six.iterkeys(servertoshnums), h):
         # print "happysetcombo: ", happysetcombo
         for subsetcombo in combinations(happysetcombo, k):
             shnums = reduce(set.union, [ servertoshnums[s] for s in subsetcombo ])
@@ -754,7 +758,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         assert self.g, "I tried to find a grid at self.g, but failed"
         servertoshnums = {} # k: server, v: set(shnum)
 
-        for i, c in self.g.servers_by_number.iteritems():
+        for i, c in six.iteritems(self.g.servers_by_number):
             for (dirp, dirns, fns) in os.walk(c.sharedir):
                 for fn in fns:
                     try:
@@ -791,9 +795,10 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d = selector.get_shareholders(broker, sh, storage_index,
                                       share_size, block_size, num_segments,
                                       10, 3, 4)
-        def _have_shareholders((upload_trackers, already_servers)):
+        def _have_shareholders(xxx_todo_changeme2):
+            (upload_trackers, already_servers) = xxx_todo_changeme2
             assert servers_to_break <= len(upload_trackers)
-            for index in xrange(servers_to_break):
+            for index in range(servers_to_break):
                 tracker = list(upload_trackers)[index]
                 for share in tracker.buckets.keys():
                     tracker.buckets[share].abort()
@@ -1125,7 +1130,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=1, share_number=2))
         # Copy all of the other shares to server number 2
         def _copy_shares(ign):
-            for i in xrange(0, 10):
+            for i in range(0, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         # Remove the first server, and add a placeholder with share 0
@@ -1220,7 +1225,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                                         readonly=True))
         # Copy all of the other shares to server number 2
         def _copy_shares(ign):
-            for i in xrange(1, 10):
+            for i in range(1, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         # Remove server 0, and add another in its place
@@ -1263,7 +1268,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=2, share_number=0,
                                         readonly=True))
         def _copy_shares(ign):
-            for i in xrange(1, 10):
+            for i in range(1, 10):
                 self._copy_share_to_server(i, 2)
         d.addCallback(_copy_shares)
         d.addCallback(lambda ign:
@@ -1373,7 +1378,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # return the first argument unchanged.
         self.failUnlessEqual(shares, merge_servers(shares, set([])))
         trackers = []
-        for (i, server) in [(i, "server%d" % i) for i in xrange(5, 9)]:
+        for (i, server) in [(i, "server%d" % i) for i in range(5, 9)]:
             t = FakeServerTracker(server, [i])
             trackers.append(t)
         expected = {
@@ -1398,7 +1403,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         shares3 = {}
         trackers = []
         expected = {}
-        for (i, server) in [(i, "server%d" % i) for i in xrange(10)]:
+        for (i, server) in [(i, "server%d" % i) for i in range(10)]:
             shares3[i] = set([server])
             t = FakeServerTracker(server, [i])
             trackers.append(t)
@@ -1435,7 +1440,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # FakeServerTracker whose job is to hold those instance variables to
         # test that part.
         trackers = []
-        for (i, server) in [(i, "server%d" % i) for i in xrange(5, 9)]:
+        for (i, server) in [(i, "server%d" % i) for i in range(5, 9)]:
             t = FakeServerTracker(server, [i])
             trackers.append(t)
         # Recall that test1 is a server layout with servers_of_happiness
@@ -1513,7 +1518,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
 
 
     def test_shares_by_server(self):
-        test = dict([(i, set(["server%d" % i])) for i in xrange(1, 5)])
+        test = dict([(i, set(["server%d" % i])) for i in range(1, 5)])
         sbs = shares_by_server(test)
         self.failUnlessEqual(set([1]), sbs["server1"])
         self.failUnlessEqual(set([2]), sbs["server2"])
@@ -1558,7 +1563,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._add_server(4))
         def _copy_shares(ign):
-            for i in xrange(1, 10):
+            for i in range(1, 10):
                 self._copy_share_to_server(i, 1)
         d.addCallback(_copy_shares)
         d.addCallback(lambda ign:
@@ -1582,7 +1587,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.basedir = self.mktemp()
         d = self._setup_and_upload()
         def _setup(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i)
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             c = self.g.clients[0]
@@ -1607,7 +1612,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda ign:
             self._setup_and_upload())
         def _then(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i)
             self._add_server(server_number=11, readonly=True)
             self._add_server(server_number=12, readonly=True)
@@ -1633,11 +1638,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._setup_and_upload())
 
         def _next(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i)
             # Copy all of the shares to server 9, since that will be
             # the first one that the selector sees.
-            for i in xrange(10):
+            for i in range(10):
                 self._copy_share_to_server(i, 9)
             # Remove server 0, and its contents
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
@@ -1658,7 +1663,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         self.basedir = self.mktemp()
         d = self._setup_and_upload()
         def _then(ign):
-            for i in xrange(1, 11):
+            for i in range(1, 11):
                 self._add_server(server_number=i, readonly=True)
             self.g.remove_server(self.g.servers_by_number[0].my_nodeid)
             c = self.g.clients[0]
@@ -2000,7 +2005,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=8, share_number=4)
             self._add_server_with_share(server_number=5, share_number=5)
             self._add_server_with_share(server_number=10, share_number=7)
-            for i in xrange(4):
+            for i in range(4):
                 self._copy_share_to_server(i, 2)
             return self.g.clients[0]
         d.addCallback(_server_setup)

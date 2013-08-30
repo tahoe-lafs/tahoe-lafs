@@ -15,18 +15,18 @@ class BetterRepr(Repr):
 
     def repr_function(self, obj, level):
         if hasattr(obj, 'func_code'):
-            return '<' + obj.func_name + '() at ' + os.path.basename(obj.func_code.co_filename) + ':' + str(obj.func_code.co_firstlineno) + '>'
+            return '<' + obj.__name__ + '() at ' + os.path.basename(obj.__code__.co_filename) + ':' + str(obj.__code__.co_firstlineno) + '>'
         else:
-            return '<' + obj.func_name + '() at (builtin)'
+            return '<' + obj.__name__ + '() at (builtin)'
 
     def repr_instance_method(self, obj, level):
         if hasattr(obj, 'func_code'):
-            return '<' + obj.im_class.__name__ + '.' + obj.im_func.__name__ + '() at ' + os.path.basename(obj.im_func.func_code.co_filename) + ':' + str(obj.im_func.func_code.co_firstlineno) + '>'
+            return '<' + obj.__self__.__class__.__name__ + '.' + obj.__func__.__name__ + '() at ' + os.path.basename(obj.__func__.__code__.co_filename) + ':' + str(obj.__func__.__code__.co_firstlineno) + '>'
         else:
-            return '<' + obj.im_class.__name__ + '.' + obj.im_func.__name__ + '() at (builtin)'
+            return '<' + obj.__self__.__class__.__name__ + '.' + obj.__func__.__name__ + '() at (builtin)'
 
     def repr_long(self, obj, level):
-        s = `obj` # XXX Hope this isn't too slow...
+        s = repr(obj) # XXX Hope this isn't too slow...
         if len(s) > self.maxlong:
             i = max(0, (self.maxlong-3)/2)
             j = max(0, self.maxlong-3-i)

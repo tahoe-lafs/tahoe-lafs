@@ -25,7 +25,7 @@ class CheckRequirement(unittest.TestCase):
         try:
             check_requirement("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.6.1+", "", None)})
             # succeeding is ok
-        except PackagingError, e:
+        except PackagingError as e:
             self.failUnlessIn("could not parse", str(e))
 
         self.failUnlessRaises(PackagingError, check_requirement,

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import sys, math
 from allmydata import uri, storage
 from allmydata.immutable import upload
@@ -64,18 +65,18 @@ def calc(filesize, params=(3,7,10), segsize=DEFAULT_MAX_SEGMENT_SIZE):
 def main():
     filesize = int(sys.argv[1])
     urisize, sharesize, sharespace = calc(filesize)
-    print "urisize:", urisize
-    print "sharesize:  %10d" % sharesize
-    print "sharespace: %10d" % sharespace
-    print "desired expansion: %1.1f" % (1.0 * 10 / 3)
-    print "effective expansion: %1.1f" % (1.0 * sharespace / filesize)
+    print("urisize:", urisize)
+    print("sharesize:  %10d" % sharesize)
+    print("sharespace: %10d" % sharespace)
+    print("desired expansion: %1.1f" % (1.0 * 10 / 3))
+    print("effective expansion: %1.1f" % (1.0 * sharespace / filesize))
 
 def chart():
     filesize = 2
     while filesize < 2**20:
         urisize, sharesize, sharespace = calc(int(filesize))
         expansion = 1.0 * sharespace / int(filesize)
-        print "%d,%d,%d,%1.2f" % (int(filesize), urisize, sharespace, expansion)
+        print("%d,%d,%d,%1.2f" % (int(filesize), urisize, sharespace, expansion))
         filesize  = filesize * 2**0.5
 
 if __name__ == '__main__':

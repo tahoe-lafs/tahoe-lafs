@@ -27,7 +27,7 @@ def iso_utc_time_to_seconds(isotime, _conversion_re=re.compile(r"(?P<year>\d{4})
     """
     m = _conversion_re.match(isotime)
     if not m:
-        raise ValueError, (isotime, "not a complete ISO8601 timestamp")
+        raise ValueError(isotime, "not a complete ISO8601 timestamp")
     year, month, day = int(m.group('year')), int(m.group('month')), int(m.group('day'))
     hour, minute, second = int(m.group('hour')), int(m.group('minute')), int(m.group('second'))
     subsecstr = m.group('subsecond')

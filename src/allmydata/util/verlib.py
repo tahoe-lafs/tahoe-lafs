@@ -196,6 +196,9 @@ class NormalizedVersion(object):
             self._cannot_compare(other)
         return self.parts == other.parts
 
+    def __hash__(self):
+        return hash(self.parts)
+
     def __lt__(self, other):
         if not isinstance(other, NormalizedVersion):
             self._cannot_compare(other)

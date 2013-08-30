@@ -26,6 +26,7 @@ data. Our 'misc/coverage2text.py' tool produces a slightly more useful
 summary, and 'misc/coverage2html.py' will produce a more useful HTML report.
 
 """
+from __future__ import print_function
 
 from twisted.trial.reporter import TreeReporter, VerboseTextReporter
 
@@ -58,7 +59,7 @@ class CoverageTextReporter(VerboseTextReporter):
     def stop_coverage(self):
         cov.stop()
         cov.save()
-        print "Coverage results written to .coverage"
+        print("Coverage results written to .coverage")
     def printSummary(self):
         # for twisted-2.5.x
         self.stop_coverage()
@@ -73,7 +74,7 @@ class sample_Reporter(object):
     # trigger exceptions. So it is a guide to what methods are invoked on a
     # Reporter.
     def __init__(self, *args, **kwargs):
-        print "START HERE"
+        print("START HERE")
         self.r = TreeReporter(*args, **kwargs)
         self.shouldStop = self.r.shouldStop
         self.separator = self.r.separator
@@ -83,7 +84,7 @@ class sample_Reporter(object):
     def write(self, *args):
         if not self._starting2:
             self._starting2 = True
-            print "FIRST WRITE"
+            print("FIRST WRITE")
         return self.r.write(*args)
 
     def startTest(self, *args, **kwargs):
@@ -102,7 +103,7 @@ class sample_Reporter(object):
         return self.r.writeln(*args, **kwargs)
 
     def printSummary(self, *args, **kwargs):
-        print "PRINT SUMMARY"
+        print("PRINT SUMMARY")
         return self.r.printSummary(*args, **kwargs)
 
     def wasSuccessful(self, *args, **kwargs):

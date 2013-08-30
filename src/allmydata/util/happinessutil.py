@@ -4,6 +4,8 @@ reporting it in messages
 """
 
 from copy import deepcopy
+import six
+from allmydata.util.sixutil import map
 
 def failure_message(peer_count, k, happy, effective_happy):
     # If peer_count < needed_shares, this error message makes more
@@ -48,7 +50,7 @@ def shares_by_server(servermap):
     dictionary of sets of shares, indexed by peerids.
     """
     ret = {}
-    for shareid, peers in servermap.iteritems():
+    for shareid, peers in six.iteritems(servermap):
         assert isinstance(peers, set)
         for peerid in peers:
             ret.setdefault(peerid, set()).add(shareid)
@@ -137,7 +139,7 @@ def servers_of_happiness(sharemap):
     # The implementation here is an adapation of an algorithm described in
     # "Introduction to Algorithms", Cormen et al, 2nd ed., pp 658-662.
     dim = len(graph)
-    flow_function = [[0 for sh in xrange(dim)] for s in xrange(dim)]
+    flow_function = [[0 for sh in range(dim)] for s in range(dim)]
     residual_graph, residual_function = residual_network(graph, flow_function)
     while augmenting_path_for(residual_graph):
         path = augmenting_path_for(residual_graph)
@@ -147,7 +149,7 @@ def servers_of_happiness(sharemap):
         # is the amount of unused capacity on that edge. Taking the
         # minimum of a list of those values for each edge in the
         # augmenting path gives us our delta.
-        delta = min(map(lambda (u, v), rf=residual_function: rf[u][v],
+        delta = min(map(lambda u_and_v, rf=residual_function: rf[u_and_v[0]][u_and_v[1]],
                         path))
         for (u, v) in path:
             flow_function[u][v] += delta
@@ -161,7 +163,7 @@ def servers_of_happiness(sharemap):
     # our graph, so we can stop after summing flow across those. The
     # value of a flow computed in this way is the size of a maximum
     # matching on the bipartite graph described above.
-    return sum([flow_function[0][v] for v in xrange(1, num_servers+1)])
+    return sum([flow_function[0][v] for v in range(1, num_servers+1)])
 
 def flow_network_for(sharemap):
     """
@@ -197,7 +199,7 @@ def flow_network_for(sharemap):
         graph.append(sharemap[k])
     # For each share, add an entry that has an edge to the sink.
     sink_num = num_servers + num_shares + 1
-    for i in xrange(num_shares):
+    for i in range(num_shares):
         graph.append([sink_num])
     # Add an empty entry for the sink, which has no outbound edges.
     graph.append([])
@@ -221,7 +223,7 @@ def reindex(sharemap, base_index):
     # Number the shares
     for k in ret:
         for shnum in ret[k]:
-            if not shares.has_key(shnum):
+            if shnum not in shares:
                 shares[shnum] = num
                 num += 1
         ret[k] = map(lambda x: shares[x], ret[k])
@@ -233,9 +235,9 @@ def residual_network(graph, f):
     flow network represented by my graph and f arguments. graph is a
     flow network in adjacency-list form, and f is a flow in graph.
     """
-    new_graph = [[] for i in xrange(len(graph))]
-    cf = [[0 for s in xrange(len(graph))] for sh in xrange(len(graph))]
-    for i in xrange(len(graph)):
+    new_graph = [[] for i in range(len(graph))]
+    cf = [[0 for s in range(len(graph))] for sh in range(len(graph))]
+    for i in range(len(graph)):
         for v in graph[i]:
             if f[i][v] == 1:
                 # We add an edge (v, i) with cf[v,i] = 1. This means
@@ -284,9 +286,9 @@ def bfs(graph, s):
     GRAY  = 1
     # BLACK vertices are those we have seen and explored
     BLACK = 2
-    color        = [WHITE for i in xrange(len(graph))]
-    predecessor  = [None for i in xrange(len(graph))]
-    distance     = [-1 for i in xrange(len(graph))]
+    color        = [WHITE for i in range(len(graph))]
+    predecessor  = [None for i in range(len(graph))]
+    distance     = [-1 for i in range(len(graph))]
     queue = [s] # vertices that we haven't explored yet.
     color[s] = GRAY
     distance[s] = 0

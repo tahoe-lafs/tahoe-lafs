@@ -13,7 +13,7 @@ from allmydata.hashtree import IncompleteHashTree, BadHashError, \
 
 from allmydata.immutable.layout import make_write_bucket_proxy
 from allmydata.util.observer import EventStreamObserver
-from common import COMPLETE, CORRUPT, DEAD, BADSEGNUM
+from .common import COMPLETE, CORRUPT, DEAD, BADSEGNUM
 
 
 class LayoutInvalid(Exception):
@@ -205,7 +205,7 @@ class Share:
                     level=log.NOISY, parent=self._lp, umid="BaL1zw")
             self._do_loop()
             # all exception cases call self._fail(), which clears self._alive
-        except (BadHashError, NotEnoughHashesError, LayoutInvalid), e:
+        except (BadHashError, NotEnoughHashesError, LayoutInvalid) as e:
             # Abandon this share. We do this if we see corruption in the
             # offset table, the UEB, or a hash tree. We don't abandon the
             # whole share if we see corruption in a data block (we abandon
@@ -222,7 +222,7 @@ class Share:
                     share=repr(self),
                     level=log.UNUSUAL, parent=self._lp, umid="gWspVw")
             self._fail(Failure(e), log.UNUSUAL)
-        except DataUnavailable, e:
+        except DataUnavailable as e:
             # Abandon this share.
             log.msg(format="need data that will never be available"
                     " from %s: pending=%s, received=%s, unavailable=%s" %
@@ -413,7 +413,7 @@ class Share:
         try:
             self._node.validate_and_store_UEB(UEB_s)
             return True
-        except (LayoutInvalid, BadHashError), e:
+        except (LayoutInvalid, BadHashError) as e:
             # TODO: if this UEB was bad, we'll keep trying to validate it
             # over and over again. Only log.err on the first one, or better
             # yet skip all but the first
@@ -449,7 +449,7 @@ class Share:
         try:
             self._node.process_share_hashes(share_hashes)
             # adds to self._node.share_hash_tree
-        except (BadHashError, NotEnoughHashesError), e:
+        except (BadHashError, NotEnoughHashesError) as e:
             f = Failure(e)
             self._signal_corruption(f, o["share_hashes"], hashlen)
             self.had_corruption = True
@@ -478,7 +478,7 @@ class Share:
         # cannot validate)
         try:
             self._commonshare.process_block_hashes(block_hashes)
-        except (BadHashError, NotEnoughHashesError), e:
+        except (BadHashError, NotEnoughHashesError) as e:
             f = Failure(e)
             hashnums = ",".join([str(n) for n in sorted(block_hashes.keys())])
             log.msg(format="hash failure in block_hashes=(%(hashnums)s),"
@@ -506,7 +506,7 @@ class Share:
         # gotten them all
         try:
             self._node.process_ciphertext_hashes(hashes)
-        except (BadHashError, NotEnoughHashesError), e:
+        except (BadHashError, NotEnoughHashesError) as e:
             f = Failure(e)
             hashnums = ",".join([str(n) for n in sorted(hashes.keys())])
             log.msg(format="hash failure in ciphertext_hashes=(%(hashnums)s),"
@@ -550,7 +550,7 @@ class Share:
             # now clear our received data, to dodge the #1170 spans.py
             # complexity bug
             self._received = DataSpans()
-        except (BadHashError, NotEnoughHashesError), e:
+        except (BadHashError, NotEnoughHashesError) as e:
             # rats, we have a corrupt block. Notify our clients that they
             # need to look elsewhere, and advise the server. Unlike
             # corruption in other parts of the share, this doesn't cause us

@@ -33,6 +33,7 @@ from allmydata.test.common import LoggingServiceParent, ShouldFailMixin
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.test.no_network import NoNetworkServer
 from allmydata.web.storage import StorageStatus, remove_prefix
+import six
 
 class Marker:
     pass
@@ -333,8 +334,8 @@ class Server(unittest.TestCase):
         self.failUnlessIn('maximum-mutable-share-size', sv1)
 
     def allocate(self, ss, storage_index, sharenums, size, canary=None):
-        renew_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
-        cancel_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
+        renew_secret = hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret))
+        cancel_secret = hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret))
         if not canary:
             canary = FakeCanary()
         return ss.remote_allocate_buckets(storage_index,
@@ -393,7 +394,7 @@ class Server(unittest.TestCase):
 
     def test_remove_incoming(self):
         ss = self.create("test_remove_incoming")
-        already, writers = self.allocate(ss, "vid", range(3), 10)
+        already, writers = self.allocate(ss, "vid", list(range(3)), 10)
         for i,wb in writers.items():
             wb.remote_write(0, "%10d" % i)
             wb.remote_close()
@@ -414,7 +415,7 @@ class Server(unittest.TestCase):
         self.failIfEqual(ss.allocated_size(), 0)
 
         # Now abort the writers.
-        for writer in writers.itervalues():
+        for writer in six.itervalues(writers):
             writer.remote_abort()
         self.failUnlessEqual(ss.allocated_size(), 0)
 
@@ -563,7 +564,7 @@ class Server(unittest.TestCase):
 
         # now there should be ALLOCATED=1001+12+72=1085 bytes allocated, and
         # 5000-1085=3915 free, therefore we can fit 39 100byte shares
-        already3,writers3 = self.allocate(ss,"vid3", range(100), 100, canary)
+        already3,writers3 = self.allocate(ss,"vid3", list(range(100)), 100, canary)
         self.failUnlessEqual(len(writers3), 39)
         self.failUnlessEqual(len(ss._active_writers), 39)
 
@@ -596,11 +597,11 @@ class Server(unittest.TestCase):
     def test_leases(self):
         ss = self.create("test_leases")
         canary = FakeCanary()
-        sharenums = range(5)
+        sharenums = list(range(5))
         size = 100
 
-        rs0,cs0 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
+        rs0,cs0 = (hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)),
+                   hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)))
         already,writers = ss.remote_allocate_buckets("si0", rs0, cs0,
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 0)
@@ -612,16 +613,16 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(len(leases), 1)
         self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs0]))
 
-        rs1,cs1 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
+        rs1,cs1 = (hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)),
+                   hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)))
         already,writers = ss.remote_allocate_buckets("si1", rs1, cs1,
                                                      sharenums, size, canary)
         for wb in writers.values():
             wb.remote_close()
 
         # take out a second lease on si1
-        rs2,cs2 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
+        rs2,cs2 = (hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)),
+                   hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)))
         already,writers = ss.remote_allocate_buckets("si1", rs2, cs2,
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 5)
@@ -632,8 +633,8 @@ class Server(unittest.TestCase):
         self.failUnlessEqual(set([l.renew_secret for l in leases]), set([rs1, rs2]))
 
         # and a third lease, using add-lease
-        rs2a,cs2a = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                     hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
+        rs2a,cs2a = (hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)),
+                     hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)))
         ss.remote_add_lease("si1", rs2a, cs2a)
         leases = list(ss.get_leases("si1"))
         self.failUnlessEqual(len(leases), 3)
@@ -661,10 +662,10 @@ class Server(unittest.TestCase):
                         "ss should not have a 'remote_cancel_lease' method/attribute")
 
         # test overlapping uploads
-        rs3,cs3 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
-        rs4,cs4 = (hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()),
-                   hashutil.tagged_hash("blah", "%d" % self._lease_secret.next()))
+        rs3,cs3 = (hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)),
+                   hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)))
+        rs4,cs4 = (hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)),
+                   hashutil.tagged_hash("blah", "%d" % six.advance_iterator(self._lease_secret)))
         already,writers = ss.remote_allocate_buckets("si3", rs3, cs3,
                                                      sharenums, size, canary)
         self.failUnlessEqual(len(already), 0)
@@ -817,7 +818,7 @@ class MutableServer(unittest.TestCase):
 
     def test_bad_magic(self):
         ss = self.create("test_bad_magic")
-        self.allocate(ss, "si1", "we1", self._lease_secret.next(), set([0]), 10)
+        self.allocate(ss, "si1", "we1", six.advance_iterator(self._lease_secret), set([0]), 10)
         fn = os.path.join(ss.sharedir, storage_index_to_dir("si1"), "0")
         f = open(fn, "rb+")
         f.seek(0)
@@ -831,7 +832,7 @@ class MutableServer(unittest.TestCase):
 
     def test_container_size(self):
         ss = self.create("test_container_size")
-        self.allocate(ss, "si1", "we1", self._lease_secret.next(),
+        self.allocate(ss, "si1", "we1", six.advance_iterator(self._lease_secret),
                       set([0,1,2]), 100)
         read = ss.remote_slot_readv
         rstaraw = ss.remote_slot_testv_and_readv_and_writev
@@ -929,7 +930,7 @@ class MutableServer(unittest.TestCase):
 
     def test_allocate(self):
         ss = self.create("test_allocate")
-        self.allocate(ss, "si1", "we1", self._lease_secret.next(),
+        self.allocate(ss, "si1", "we1", six.advance_iterator(self._lease_secret),
                       set([0,1,2]), 100)
 
         read = ss.remote_slot_readv
@@ -1315,7 +1316,7 @@ class MutableServer(unittest.TestCase):
 
     def test_remove(self):
         ss = self.create("test_remove")
-        self.allocate(ss, "si1", "we1", self._lease_secret.next(),
+        self.allocate(ss, "si1", "we1", six.advance_iterator(self._lease_secret),
                       set([0,1,2]), 100)
         readv = ss.remote_slot_readv
         writev = ss.remote_slot_testv_and_readv_and_writev
@@ -1373,15 +1374,15 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         self.block = "aa"
         self.salt = "a" * 16
         self.block_hash = "a" * 32
-        self.block_hash_tree = [self.block_hash for i in xrange(6)]
+        self.block_hash_tree = [self.block_hash for i in range(6)]
         self.share_hash = self.block_hash
-        self.share_hash_chain = dict([(i, self.share_hash) for i in xrange(6)])
+        self.share_hash_chain = dict([(i, self.share_hash) for i in range(6)])
         self.signature = "foobarbaz"
         self.verification_key = "vvvvvv"
         self.encprivkey = "private"
         self.root_hash = self.block_hash
         self.salt_hash = self.root_hash
-        self.salt_hash_tree = [self.salt_hash for i in xrange(6)]
+        self.salt_hash_tree = [self.salt_hash for i in range(6)]
         self.block_hash_tree_s = self.serialize_blockhashes(self.block_hash_tree)
         self.share_hash_chain_s = self.serialize_sharehashes(self.share_hash_chain)
         # blockhashes and salt hashes are serialized in the same way,
@@ -1448,10 +1449,10 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # Now we'll build the offsets.
         sharedata = ""
         if not tail_segment and not empty:
-            for i in xrange(6):
+            for i in range(6):
                 sharedata += self.salt + self.block
         elif tail_segment:
-            for i in xrange(5):
+            for i in range(5):
                 sharedata += self.salt + self.block
             sharedata += self.salt + "a"
 
@@ -1507,7 +1508,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # and the verification key
         data += self.verification_key
         # Then we'll add in gibberish until we get to the right point.
-        nulls = "".join([" " for i in xrange(len(data), share_data_offset)])
+        nulls = "".join([" " for i in range(len(data), share_data_offset)])
         data += nulls
 
         # Then the share data
@@ -1611,11 +1612,12 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         # Check that every method equals what we expect it to.
         d = defer.succeed(None)
-        def _check_block_and_salt((block, salt)):
+        def _check_block_and_salt(xxx_todo_changeme):
+            (block, salt) = xxx_todo_changeme
             self.failUnlessEqual(block, self.block)
             self.failUnlessEqual(salt, self.salt)
 
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mr.get_block_and_salt(i))
             d.addCallback(_check_block_and_salt)
@@ -1662,7 +1664,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
         d.addCallback(lambda ignored:
             mr.get_encoding_parameters())
-        def _check_encoding_parameters((k, n, segsize, datalen)):
+        def _check_encoding_parameters(xxx_todo_changeme1):
+            (k, n, segsize, datalen) = xxx_todo_changeme1
             self.failUnlessEqual(k, 3)
             self.failUnlessEqual(n, 10)
             self.failUnlessEqual(segsize, 6)
@@ -1703,7 +1706,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         self.write_test_share_to_server("si1")
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
         d = mr.get_encoding_parameters()
-        def _check_encoding_parameters((k, n, segment_size, datalen)):
+        def _check_encoding_parameters(xxx_todo_changeme2):
+            (k, n, segment_size, datalen) = xxx_todo_changeme2
             self.failUnlessEqual(k, 3)
             self.failUnlessEqual(n, 10)
             self.failUnlessEqual(segment_size, 6)
@@ -1747,7 +1751,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # is working appropriately.
         mw = self._make_new_mw("si1", 0)
 
-        for i in xrange(6):
+        for i in range(6):
             mw.put_block(self.block, i, self.salt)
         mw.put_encprivkey(self.encprivkey)
         mw.put_blockhashes(self.block_hash_tree)
@@ -1781,7 +1785,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
     def test_private_key_after_share_hash_chain(self):
         mw = self._make_new_mw("si1", 0)
         d = defer.succeed(None)
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         d.addCallback(lambda ignored:
@@ -1801,7 +1805,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mw = self._make_new_mw("si1", 0)
         d = defer.succeed(None)
         # Put everything up to and including the verification key.
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         d.addCallback(lambda ignored:
@@ -1840,7 +1844,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failIf(result)
 
         def _write_share(mw):
-            for i in xrange(6):
+            for i in range(6):
                 mw.put_block(self.block, i, self.salt)
             mw.put_encprivkey(self.encprivkey)
             mw.put_blockhashes(self.block_hash_tree)
@@ -1892,7 +1896,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
         mw = self._make_new_mw("si1", 0)
         mw.set_checkstring("this is a lie")
-        for i in xrange(6):
+        for i in range(6):
             mw.put_block(self.block, i, self.salt)
         mw.put_encprivkey(self.encprivkey)
         mw.put_blockhashes(self.block_hash_tree)
@@ -1934,7 +1938,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
                                     SHARE_HASH_CHAIN_SIZE
         written_block_size = 2 + len(self.salt)
         written_block = self.block + self.salt
-        for i in xrange(6):
+        for i in range(6):
             mw.put_block(self.block, i, self.salt)
 
         mw.put_encprivkey(self.encprivkey)
@@ -1948,7 +1952,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.failUnlessEqual(len(results), 2)
             result, ign = results
             self.failUnless(result, "publish failed")
-            for i in xrange(6):
+            for i in range(6):
                 self.failUnlessEqual(read("si1", [0], [(expected_sharedata_offset + (i * written_block_size), written_block_size)]),
                                 {0: [written_block]})
 
@@ -2059,7 +2063,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # more than 6
         # blocks into each share.
         d = defer.succeed(None)
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         d.addCallback(lambda ignored:
@@ -2092,7 +2096,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # a block hash tree, and a share hash tree. Otherwise, we'll see
         # failures that match what we are looking for, but are caused by
         # the constraints imposed on operation ordering.
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         d.addCallback(lambda ignored:
@@ -2127,7 +2131,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             self.shouldFail(LayoutInvalid, "test blocksize too large",
                             None,
                             mw.put_block, invalid_block, 0, self.salt))
-        for i in xrange(5):
+        for i in range(5):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         # Try to put an invalid tail segment
@@ -2163,7 +2167,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         mw0 = self._make_new_mw("si0", 0)
         # Write some shares
         d = defer.succeed(None)
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw0.put_block(self.block, i, self.salt))
 
@@ -2232,7 +2236,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         # Write a share using the mutable writer, and make sure that the
         # reader knows how to read everything back to us.
         d = defer.succeed(None)
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mw.put_block(self.block, i, self.salt))
         d.addCallback(lambda ignored:
@@ -2251,11 +2255,12 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
             mw.finish_publishing())
 
         mr = MDMFSlotReadProxy(self.rref, "si1", 0)
-        def _check_block_and_salt((block, salt)):
+        def _check_block_and_salt(xxx_todo_changeme3):
+            (block, salt) = xxx_todo_changeme3
             self.failUnlessEqual(block, self.block)
             self.failUnlessEqual(salt, self.salt)
 
-        for i in xrange(6):
+        for i in range(6):
             d.addCallback(lambda ignored, i=i:
                 mr.get_block_and_salt(i))
             d.addCallback(_check_block_and_salt)
@@ -2297,7 +2302,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
         d.addCallback(lambda ignored:
             mr.get_encoding_parameters())
-        def _check_encoding_parameters((k, n, segsize, datalen)):
+        def _check_encoding_parameters(xxx_todo_changeme4):
+            (k, n, segsize, datalen) = xxx_todo_changeme4
             self.failUnlessEqual(k, 3)
             self.failUnlessEqual(n, 10)
             self.failUnlessEqual(segsize, 6)
@@ -2464,7 +2470,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_make_mr, 123)
         d.addCallback(lambda mr:
             mr.get_block_and_salt(0))
-        def _check_block_and_salt((block, salt)):
+        def _check_block_and_salt(xxx_todo_changeme5):
+            (block, salt) = xxx_todo_changeme5
             self.failUnlessEqual(block, self.block)
             self.failUnlessEqual(salt, self.salt)
             self.failUnlessEqual(self.rref.read_count, 1)
@@ -2525,7 +2532,8 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
         d.addCallback(_make_mr, 123)
         d.addCallback(lambda mr:
             mr.get_block_and_salt(0))
-        def _check_block_and_salt((block, salt)):
+        def _check_block_and_salt(xxx_todo_changeme6):
+            (block, salt) = xxx_todo_changeme6
             self.failUnlessEqual(block, self.block * 6)
             self.failUnlessEqual(salt, self.salt)
             # TODO: Fix the read routine so that it reads only the data

@@ -2,6 +2,7 @@
 import itertools
 from zope.interface import implements
 from allmydata.interfaces import IDownloadStatus
+import six
 
 class ReadEvent:
     def __init__(self, ev, ds):
@@ -73,7 +74,7 @@ class DownloadStatus:
     def __init__(self, storage_index, size):
         self.storage_index = storage_index
         self.size = size
-        self.counter = self.statusid_counter.next()
+        self.counter = six.advance_iterator(self.statusid_counter)
         self.helper = False
 
         self.first_timestamp = None

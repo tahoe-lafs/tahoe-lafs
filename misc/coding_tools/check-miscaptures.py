@@ -1,5 +1,6 @@
 #! /usr/bin/python
 
+from __future__ import print_function
 import os, sys, compiler
 from compiler.ast import Node, For, While, ListComp, AssName, Name, Lambda, Function
 
@@ -13,7 +14,7 @@ def check_file(path):
 def check_thing(parser, thing):
     try:
         ast = parser(thing)
-    except SyntaxError, e:
+    except SyntaxError as e:
         return e
     else:
         results = []
@@ -133,7 +134,7 @@ def make_result(funcnode, var_name, var_lineno):
 
 def report(out, path, results):
     for r in results:
-        print >>out, path + (":%r %s captures %r assigned at line %d" % r)
+        print(path + (":%r %s captures %r assigned at line %d" % r), file=out)
 
 def check(sources, out):
     class Counts:
@@ -146,7 +147,7 @@ def check(sources, out):
     def _process(path):
         results = check_file(path)
         if isinstance(results, SyntaxError):
-            print >>out, path + (" NOT ANALYSED due to syntax error: %s" % results)
+            print(path + (" NOT ANALYSED due to syntax error: %s" % results), file=out)
             counts.error_files += 1
         else:
             report(out, path, results)
@@ -156,7 +157,7 @@ def check(sources, out):
                 counts.suspect_files += 1
 
     for source in sources:
-        print >>out, "Checking %s..." % (source,)
+        print("Checking %s..." % (source,), file=out)
         if os.path.isfile(source):
             _process(source)
         else:
@@ -166,11 +167,11 @@ def check(sources, out):
                     if ext == '.py':
                         _process(os.path.join(dirpath, fn))
 
-    print >>out, ("%d suspiciously captured variables in %d out of %d file(s)."
-                  % (counts.n, counts.suspect_files, counts.processed_files))
+    print("%d suspiciously captured variables in %d out of %d file(s)."
+          % (counts.n, counts.suspect_files, counts.processed_files), file=out)
     if counts.error_files > 0:
-        print >>out, ("%d file(s) not processed due to syntax errors."
-                      % (counts.error_files,))
+        print("%d file(s) not processed due to syntax errors."
+              % (counts.error_files,), file=out)
     return counts.n
 
 

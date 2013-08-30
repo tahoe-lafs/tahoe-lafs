@@ -8,7 +8,7 @@ def div_ceil(n, d):
     """
     The smallest integer k such that k*d >= n.
     """
-    return (n/d) + (n%d != 0)
+    return (n//d) + (n%d != 0)
 
 def next_multiple(n, k):
     """
@@ -39,7 +39,7 @@ def next_power_of_k(n, k):
         return k**x
 
 def ave(l):
-    return sum(l) / len(l)
+    return sum(l) // len(l)
 
 def log_ceil(n, b):
     """

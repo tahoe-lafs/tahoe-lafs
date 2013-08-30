@@ -3,6 +3,7 @@ Tests useful in assertion checking, prints out nicely formated messages too.
 """
 
 from allmydata.util.humanreadable import hr
+from allmydata.util.sixutil import map
 
 def _assert(___cond=False, *___args, **___kwargs):
     if ___cond:
@@ -18,7 +19,7 @@ def _assert(___cond=False, *___args, **___kwargs):
             msgbuf.append("%s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
     msgbuf.extend([", %s: %s %s" % tuple(map(hr, (k, v, type(v),))) for k, v in ___kwargs.items()[1:]])
 
-    raise AssertionError, "".join(msgbuf)
+    raise AssertionError("".join(msgbuf))
 
 def precondition(___cond=False, *___args, **___kwargs):
     if ___cond:
@@ -36,7 +37,7 @@ def precondition(___cond=False, *___args, **___kwargs):
             msgbuf.append("%s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
     msgbuf.extend([", %s: %s %s" % tuple(map(hr, (k, v, type(v),))) for k, v in ___kwargs.items()[1:]])
 
-    raise AssertionError, "".join(msgbuf)
+    raise AssertionError("".join(msgbuf))
 
 def postcondition(___cond=False, *___args, **___kwargs):
     if ___cond:
@@ -54,4 +55,4 @@ def postcondition(___cond=False, *___args, **___kwargs):
             msgbuf.append("%s: %s %s" % ((___kwargs.items()[0][0],) + tuple(map(hr, (___kwargs.items()[0][1], type(___kwargs.items()[0][1]),)))))
     msgbuf.extend([", %s: %s %s" % tuple(map(hr, (k, v, type(v),))) for k, v in ___kwargs.items()[1:]])
 
-    raise AssertionError, "".join(msgbuf)
+    raise AssertionError("".join(msgbuf))

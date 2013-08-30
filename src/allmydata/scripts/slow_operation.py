@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os, time
 from allmydata.scripts.common import get_alias, DEFAULT_ALIAS, escape_path, \
@@ -21,7 +22,7 @@ class SlowOperationRunner:
         where = options.where
         try:
             rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
+        except UnknownAliasError as e:
             e.display(stderr)
             return 1
         if path == '/':
@@ -33,7 +34,7 @@ class SlowOperationRunner:
         url = self.make_url(url, ophandle)
         resp = do_http("POST", url)
         if resp.status not in (200, 302):
-            print >>stderr, format_http_error("ERROR", resp)
+            print(format_http_error("ERROR", resp), file=stderr)
             return 1
         # now we poll for results. We nominally poll at t=1, 5, 10, 30, 60,
         # 90, k*120 seconds, but if the poll takes non-zero time, that will
@@ -66,7 +67,7 @@ class SlowOperationRunner:
         stderr = self.options.stderr
         resp = do_http("GET", url)
         if resp.status != 200:
-            print >>stderr, format_http_error("ERROR", resp)
+            print(format_http_error("ERROR", resp), file=stderr)
             return True
         jdata = resp.read()
         data = simplejson.loads(jdata)
@@ -74,9 +75,9 @@ class SlowOperationRunner:
             return False
         if self.options.get("raw"):
             if is_printable_ascii(jdata):
-                print >>stdout, jdata
+                print(jdata, file=stdout)
             else:
-                print >>stderr, "The JSON response contained unprintable characters:\n%s" % quote_output(jdata)
+                print("The JSON response contained unprintable characters:\n%s" % quote_output(jdata), file=stderr)
             return True
         self.write_results(data)
         return True

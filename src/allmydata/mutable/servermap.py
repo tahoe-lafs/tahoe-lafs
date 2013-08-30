@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import sys, time, copy
 from zope.interface import implements
@@ -15,6 +16,7 @@ from pycryptopp.publickey import rsa
 from allmydata.mutable.common import MODE_CHECK, MODE_ANYTHING, MODE_WRITE, \
      MODE_READ, MODE_REPAIR, CorruptShareError
 from allmydata.mutable.layout import SIGNED_PREFIX_LENGTH, MDMFSlotReadProxy
+import six
 
 class UpdateStatus:
     implements(IServermapUpdaterStatus)
@@ -30,7 +32,7 @@ class UpdateStatus:
         self.mode = "?"
         self.status = "Not started"
         self.progress = 0.0
-        self.counter = self.statusid_counter.next()
+        self.counter = six.advance_iterator(self.statusid_counter)
         self.started = time.time()
         self.finished = None
 
@@ -182,19 +184,19 @@ class ServerMap:
         return (self._last_update_mode, self._last_update_time)
 
     def dump(self, out=sys.stdout):
-        print >>out, "servermap:"
+        print("servermap:", file=out)
 
         for ( (server, shnum), (verinfo, timestamp) ) in self._known_shares.items():
             (seqnum, root_hash, IV, segsize, datalength, k, N, prefix,
              offsets_tuple) = verinfo
-            print >>out, ("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
+            print(("[%s]: sh#%d seq%d-%s %d-of-%d len%d" %
                           (server.get_name(), shnum,
                            seqnum, base32.b2a(root_hash)[:4], k, N,
-                           datalength))
+                           datalength)), file=out)
         if self._problems:
-            print >>out, "%d PROBLEMS" % len(self._problems)
+            print("%d PROBLEMS" % len(self._problems), file=out)
             for f in self._problems:
-                print >>out, str(f)
+                print(str(f), file=out)
         return out
 
     def all_servers(self):

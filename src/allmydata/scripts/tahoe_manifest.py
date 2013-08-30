@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import urllib, simplejson
 from twisted.protocols.basic import LineOnlyReceiver
@@ -29,7 +30,7 @@ class ManifestStreamer(LineOnlyReceiver):
         where = options.where
         try:
             rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
+        except UnknownAliasError as e:
             e.display(stderr)
             return 1
         if path == '/':
@@ -41,7 +42,7 @@ class ManifestStreamer(LineOnlyReceiver):
         url += "?t=stream-manifest"
         resp = do_http("POST", url)
         if resp.status not in (200, 302):
-            print >>stderr, format_http_error("ERROR", resp)
+            print(format_http_error("ERROR", resp), file=stderr)
             return 1
         #print "RESP", dir(resp)
         # use Twisted to split this into lines
@@ -60,35 +61,35 @@ class ManifestStreamer(LineOnlyReceiver):
         stdout = self.options.stdout
         stderr = self.options.stderr
         if self.in_error:
-            print >>stderr, quote_output(line, quotemarks=False)
+            print(quote_output(line, quotemarks=False), file=stderr)
             return
         if line.startswith("ERROR:"):
             self.in_error = True
             self.rc = 1
-            print >>stderr, quote_output(line, quotemarks=False)
+            print(quote_output(line, quotemarks=False), file=stderr)
             return
 
         try:
             d = simplejson.loads(line.decode('utf-8'))
-        except Exception, e:
-            print >>stderr, "ERROR could not decode/parse %s\nERROR  %r" % (quote_output(line), e)
+        except Exception as e:
+            print("ERROR could not decode/parse %s\nERROR  %r" % (quote_output(line), e), file=stderr)
         else:
             if d["type"] in ("file", "directory"):
                 if self.options["storage-index"]:
                     si = d.get("storage-index", None)
                     if si:
-                        print >>stdout, quote_output(si, quotemarks=False)
+                        print(quote_output(si, quotemarks=False), file=stdout)
                 elif self.options["verify-cap"]:
                     vc = d.get("verifycap", None)
                     if vc:
-                        print >>stdout, quote_output(vc, quotemarks=False)
+                        print(quote_output(vc, quotemarks=False), file=stdout)
                 elif self.options["repair-cap"]:
                     vc = d.get("repaircap", None)
                     if vc:
-                        print >>stdout, quote_output(vc, quotemarks=False)
+                        print(quote_output(vc, quotemarks=False), file=stdout)
                 else:
-                    print >>stdout, "%s %s" % (quote_output(d["cap"], quotemarks=False),
-                                               quote_path(d["path"], quotemarks=False))
+                    print("%s %s" % (quote_output(d["cap"], quotemarks=False),
+                                               quote_path(d["path"], quotemarks=False)), file=stdout)
 
 def manifest(options):
     return ManifestStreamer().run(options)
@@ -113,18 +114,18 @@ class StatsGrabber(SlowOperationRunner):
                 "largest-immutable-file",
                 )
         width = max([len(k) for k in keys])
-        print >>stdout, "Counts and Total Sizes:"
+        print("Counts and Total Sizes:", file=stdout)
         for k in keys:
             fmt = "%" + str(width) + "s: %d"
             if k in data:
                 value = data[k]
                 if not k.startswith("count-") and value > 1000:
                     absize = abbreviate_space_both(value)
-                    print >>stdout, fmt % (k, data[k]), "  ", absize
+                    print(fmt % (k, data[k]), "  ", absize, file=stdout)
                 else:
-                    print >>stdout, fmt % (k, data[k])
+                    print(fmt % (k, data[k]), file=stdout)
         if data["size-files-histogram"]:
-            print >>stdout, "Size Histogram:"
+            print("Size Histogram:", file=stdout)
             prevmax = None
             maxlen = max([len(str(maxsize))
                           for (minsize, maxsize, count)
@@ -138,10 +139,10 @@ class StatsGrabber(SlowOperationRunner):
             linefmt = minfmt + "-" + maxfmt + " : " + countfmt + "    %s"
             for (minsize, maxsize, count) in data["size-files-histogram"]:
                 if prevmax is not None and minsize != prevmax+1:
-                    print >>stdout, " "*(maxlen-1) + "..."
+                    print(" "*(maxlen-1) + "...", file=stdout)
                 prevmax = maxsize
-                print >>stdout, linefmt % (minsize, maxsize, count,
-                                           abbreviate_space_both(maxsize))
+                print(linefmt % (minsize, maxsize, count,
+                                           abbreviate_space_both(maxsize)), file=stdout)
 
 def stats(options):
     return StatsGrabber().run(options)

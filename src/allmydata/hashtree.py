@@ -1,6 +1,7 @@
 # -*- test-case-name: allmydata.test.test_hashtree -*-
 
 from allmydata.util import mathutil # from the pyutil library
+import six
 
 """
 Read and write chunks from files.
@@ -215,7 +216,7 @@ class HashTree(CompleteBinaryTreeMixin, list):
         while len(rows[-1]) != 1:
             last = rows[-1]
             rows += [[pair_hash(last[2*i], last[2*i+1])
-                                for i in xrange(len(last)//2)]]
+                                for i in range(len(last)//2)]]
         # Flatten the list of rows into a single list.
         rows.reverse()
         self[:] = sum(rows, [])
@@ -289,7 +290,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
         rows = [L]
         while len(rows[-1]) != 1:
             last = rows[-1]
-            rows += [[None for i in xrange(len(last)//2)]]
+            rows += [[None for i in range(len(last)//2)]]
         # Flatten the list of rows into a single list.
         rows.reverse()
         self[:] = sum(rows, [])
@@ -377,7 +378,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
         for h in leaves.values():
             assert isinstance(h, str)
         new_hashes = hashes.copy()
-        for leafnum,leafhash in leaves.iteritems():
+        for leafnum,leafhash in six.iteritems(leaves):
             hashnum = self.first_leaf_num + leafnum
             if hashnum in new_hashes:
                 if new_hashes[hashnum] != leafhash:
@@ -416,7 +417,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
 
             # first we provisionally add all hashes to the tree, comparing
             # any duplicates
-            for i,h in new_hashes.iteritems():
+            for i,h in six.iteritems(new_hashes):
                 if self[i]:
                     if self[i] != h:
                         raise BadHashError("new hash %s does not match "
@@ -430,7 +431,7 @@ class IncompleteHashTree(CompleteBinaryTreeMixin, list):
                     self[i] = h
                     remove_upon_failure.add(i)
 
-            for level in reversed(range(len(hashes_to_check))):
+            for level in reversed(list(range(len(hashes_to_check)))):
                 this_level = hashes_to_check[level]
                 while this_level:
                     i = this_level.pop()

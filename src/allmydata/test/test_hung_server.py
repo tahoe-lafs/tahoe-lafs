@@ -233,7 +233,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         done = []
         d = self._set_up(False, "test_5_overdue_immutable")
         def _reduce_max_outstanding_requests_and_download(ign):
-            self._hang_shares(range(5))
+            self._hang_shares(list(range(5)))
             n = self.c0.create_node_from_uri(self.uri)
             n._cnode._maybe_create_download_node()
             self._sf = n._cnode._node._sharefinder

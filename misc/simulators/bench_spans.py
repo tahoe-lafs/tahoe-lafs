@@ -8,6 +8,7 @@ And run this command passing that trace file's name:
 python bench_spans.py run-112-above28-flog-dump-sh8-on-nsziz.txt
 """
 
+from __future__ import print_function
 from pyutil import benchutil
 
 from allmydata.util.spans import DataSpans
@@ -68,17 +69,17 @@ class B(object):
             elif INIT_S in inline:
                 pass
             else:
-                print "Warning, didn't recognize this line: %r" % (inline,)
+                print("Warning, didn't recognize this line: %r" % (inline,))
             count += 1
             inline = self.inf.readline()
 
         # print self.stats
 
 benchutil.print_bench_footer(UNITS_PER_SECOND=1000000)
-print "(microseconds)"
+print("(microseconds)")
 
 for N in [600, 6000, 60000]:
     b = B(open(sys.argv[1], 'rU'))
-    print "%7d" % N,
+    print("%7d" % N, end=' ')
     benchutil.rep_bench(b.run, N, b.init, UNITS_PER_SECOND=1000000)
 

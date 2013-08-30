@@ -26,6 +26,7 @@ from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
+import six
 
 
 # this wants to live in storage, not here
@@ -115,7 +116,7 @@ EXTENSION_SIZE = 1000
 # this.
 
 def pretty_print_shnum_to_servers(s):
-    return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in s.iteritems() ])
+    return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in six.iteritems(s) ])
 
 class ServerTracker:
     def __init__(self, server,
@@ -167,10 +168,11 @@ class ServerTracker:
         rref = self._server.get_rref()
         return rref.callRemote("get_buckets", self.storage_index)
 
-    def _got_reply(self, (alreadygot, buckets)):
+    def _got_reply(self, xxx_todo_changeme):
         #log.msg("%s._got_reply(%s)" % (self, (alreadygot, buckets)))
+        (alreadygot, buckets) = xxx_todo_changeme
         b = {}
-        for sharenum, rref in buckets.iteritems():
+        for sharenum, rref in six.iteritems(buckets):
             bp = self.wbp_class(rref, self._server, self.sharesize,
                                 self.blocksize,
                                 self.num_segments,
@@ -397,7 +399,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                        % (self, self._get_progress_message(),
                           pretty_print_shnum_to_servers(merged),
                           [', '.join([str_shareloc(k,v)
-                                      for k,v in st.buckets.iteritems()])
+                                      for k,v in six.iteritems(st.buckets)])
                            for st in self.use_trackers],
                           pretty_print_shnum_to_servers(self.preexisting_shares))
                 self.log(msg, level=log.OPERATIONAL)
@@ -853,7 +855,7 @@ class UploadStatus:
         self.progress = [0.0, 0.0, 0.0]
         self.active = True
         self.results = None
-        self.counter = self.statusid_counter.next()
+        self.counter = six.advance_iterator(self.statusid_counter)
         self.started = time.time()
 
     def get_started(self):
@@ -985,7 +987,7 @@ class CHKUploader:
         d.addCallback(_done)
         return d
 
-    def set_shareholders(self, (upload_trackers, already_serverids), encoder):
+    def set_shareholders(self, xxx_todo_changeme1, encoder):
         """
         @param upload_trackers: a sequence of ServerTracker objects that
                                 have agreed to hold some shares for us (the
@@ -995,9 +997,10 @@ class CHKUploader:
                                   serverids for servers that claim to already
                                   have this share
         """
+        (upload_trackers, already_serverids) = xxx_todo_changeme1
         msgtempl = "set_shareholders; upload_trackers is %s, already_serverids is %s"
         values = ([', '.join([str_shareloc(k,v)
-                              for k,v in st.buckets.iteritems()])
+                              for k,v in six.iteritems(st.buckets)])
                    for st in upload_trackers], already_serverids)
         self.log(msgtempl % values, level=log.OPERATIONAL)
         # record already-present shares in self._results
@@ -1248,7 +1251,8 @@ class AssistedUploader:
         d.addCallback(self._contacted_helper)
         return d
 
-    def _contacted_helper(self, (helper_upload_results, upload_helper)):
+    def _contacted_helper(self, xxx_todo_changeme2):
+        (helper_upload_results, upload_helper) = xxx_todo_changeme2
         now = time.time()
         elapsed = now - self._time_contacting_helper_start
         self._elapsed_time_contacting_helper = elapsed

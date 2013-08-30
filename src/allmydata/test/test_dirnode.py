@@ -24,6 +24,7 @@ from allmydata.unknown import UnknownNode, strip_prefix_for_ro
 from allmydata.nodemaker import NodeMaker
 from base64 import b32decode
 import allmydata.test.common_util as testutil
+import six
 
 class MemAccum:
     implements(IConsumer)
@@ -173,7 +174,7 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                             "largest-directory-children": 2,
                             "largest-immutable-file": 0,
                             }
-                for k,v in expected.iteritems():
+                for k,v in six.iteritems(expected):
                     self.failUnlessReallyEqual(stats[k], v,
                                                "stats[%s] was %s, not %s" %
                                                (k, stats[k], v))
@@ -263,8 +264,8 @@ class Dirnode(GridTestMixin, unittest.TestCase,
                                                 { 'tahoe': {'linkcrtime': "bogus"}}))
             d.addCallback(lambda res: n.get_metadata_for(u"c2"))
             def _has_good_linkcrtime(metadata):
-                self.failUnless(metadata.has_key('tahoe'))
-                self.failUnless(metadata['tahoe'].has_key('linkcrtime'))
+                self.failUnless('tahoe' in metadata)
+                self.failUnless('linkcrtime' in metadata['tahoe'])
                 self.failIfEqual(metadata['tahoe']['linkcrtime'], 'bogus')
             d.addCallback(_has_good_linkcrtime)
 
@@ -1406,9 +1407,9 @@ class Packing(testutil.ReallyEqualMixin, unittest.TestCase):
 
     def _check_children(self, children):
         # Are all the expected child nodes there?
-        self.failUnless(children.has_key(u'file1'))
-        self.failUnless(children.has_key(u'file2'))
-        self.failUnless(children.has_key(u'file3'))
+        self.failUnless(u'file1' in children)
+        self.failUnless(u'file2' in children)
+        self.failUnless(u'file3' in children)
 
         # Are the metadata for child 3 right?
         file3_rocap = "URI:CHK:cmtcxq7hwxvfxan34yiev6ivhy:qvcekmjtoetdcw4kmi7b3rtblvgx7544crnwaqtiewemdliqsokq:3:10:5"
@@ -1790,7 +1791,7 @@ class DeepStats(testutil.ReallyEqualMixin, unittest.TestCase):
                                      (101, 316, 216),
                                      (317, 1000, 684),
                                      (1001, 3162, 99),
-                                     (3162277660169L, 10000000000000L, 1),
+                                     (3162277660169, 10000000000000, 1),
                                      ])
 
 class UCWEingMutableFileNode(MutableFileNode):

@@ -37,7 +37,7 @@ class CRSEncoder(object):
         precondition(desired_share_ids is None or len(desired_share_ids) <= self.max_shares, desired_share_ids, self.max_shares)
 
         if desired_share_ids is None:
-            desired_share_ids = range(self.max_shares)
+            desired_share_ids = list(range(self.max_shares))
 
         for inshare in inshares:
             assert len(inshare) == self.share_size, (len(inshare), self.share_size, self.data_size, self.required_shares)

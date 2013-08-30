@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os, re, sys, time, simplejson
 from cStringIO import StringIO
@@ -37,6 +38,7 @@ from allmydata.test.common import SystemTestMixin
 
 # TODO: move this to common or common_util
 from allmydata.test.test_runner import RunBinTahoeMixin
+import six
 
 LARGE_DATA = """
 This is some data to publish to the remote grid.., which needs to be large
@@ -528,9 +530,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                             base32.b2a(storage_index))
                 self.failUnless(expected in output)
             except unittest.FailTest:
-                print
-                print "dump-share output was:"
-                print output
+                print()
+                print("dump-share output was:")
+                print(output)
                 raise
         d.addCallback(_test_debug)
 
@@ -565,7 +567,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             return d1
         d.addCallback(_check_download_2)
 
-        def _check_download_3((res, newnode)):
+        def _check_download_3(xxx_todo_changeme):
+            (res, newnode) = xxx_todo_changeme
             self.failUnlessEqual(res, DATA)
             # replace the data
             log.msg("starting replace1")
@@ -794,9 +797,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnless("Subscription Summary: storage: 5" in res)
                 self.failUnless("tahoe.css" in res)
             except unittest.FailTest:
-                print
-                print "GET %s output was:" % self.introweb_url
-                print res
+                print()
+                print("GET %s output was:" % self.introweb_url)
+                print(res)
                 raise
         d.addCallback(_check)
         # make sure it serves the CSS too
@@ -815,9 +818,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                 self.failUnlessEqual(data["announcement_distinct_hosts"],
                                      {"storage": 1})
             except unittest.FailTest:
-                print
-                print "GET %s?t=json output was:" % self.introweb_url
-                print res
+                print()
+                print("GET %s?t=json output was:" % self.introweb_url)
+                print(res)
                 raise
         d.addCallback(_check_json)
         return d
@@ -1006,7 +1009,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                             "largest-directory-children": 3,
                             "largest-immutable-file": 112,
                             }
-                for k,v in expected.iteritems():
+                for k,v in six.iteritems(expected):
                     self.failUnlessEqual(stats[k], v,
                                          "stats[%s] was %s, not %s" %
                                          (k, stats[k], v))
@@ -1065,7 +1068,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         form.append('')
         form.append('UTF-8')
         form.append(sep)
-        for name, value in fields.iteritems():
+        for name, value in six.iteritems(fields):
             if isinstance(value, tuple):
                 filename, value = value
                 form.append('Content-Disposition: form-data; name="%s"; '
@@ -1444,14 +1447,16 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             newargs = nodeargs + [verb] + list(args)
             return self._run_cli(newargs, stdin=stdin)
 
-        def _check_ls((out,err), expected_children, unexpected_children=[]):
+        def _check_ls(xxx_todo_changeme1, expected_children, unexpected_children=[]):
+            (out,err) = xxx_todo_changeme1
             self.failUnlessEqual(err, "")
             for s in expected_children:
                 self.failUnless(s in out, (s,out))
             for s in unexpected_children:
                 self.failIf(s in out, (s,out))
 
-        def _check_ls_root((out,err)):
+        def _check_ls_root(xxx_todo_changeme2):
+            (out,err) = xxx_todo_changeme2
             self.failUnless("personal" in out)
             self.failUnless("s2-ro" in out)
             self.failUnless("s2-rw" in out)
@@ -1462,7 +1467,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_check_ls, ["personal", "s2-ro", "s2-rw"])
 
         d.addCallback(run, "list-aliases")
-        def _check_aliases_1((out,err)):
+        def _check_aliases_1(xxx_todo_changeme3):
+            (out,err) = xxx_todo_changeme3
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(out.strip(" \n"), "tahoe: %s" % private_uri)
         d.addCallback(_check_aliases_1)
@@ -1471,32 +1477,37 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # new files
         d.addCallback(lambda res: os.unlink(root_file))
         d.addCallback(run, "list-aliases")
-        def _check_aliases_2((out,err)):
+        def _check_aliases_2(xxx_todo_changeme4):
+            (out,err) = xxx_todo_changeme4
             self.failUnlessEqual(err, "")
             self.failUnlessEqual(out, "")
         d.addCallback(_check_aliases_2)
 
         d.addCallback(run, "mkdir")
-        def _got_dir( (out,err) ):
+        def _got_dir(xxx_todo_changeme5 ):
+            (out,err) = xxx_todo_changeme5
             self.failUnless(uri.from_string_dirnode(out.strip()))
             return out.strip()
         d.addCallback(_got_dir)
         d.addCallback(lambda newcap: run(None, "add-alias", "tahoe", newcap))
 
         d.addCallback(run, "list-aliases")
-        def _check_aliases_3((out,err)):
+        def _check_aliases_3(xxx_todo_changeme6):
+            (out,err) = xxx_todo_changeme6
             self.failUnlessEqual(err, "")
             self.failUnless("tahoe: " in out)
         d.addCallback(_check_aliases_3)
 
-        def _check_empty_dir((out,err)):
+        def _check_empty_dir(xxx_todo_changeme7):
+            (out,err) = xxx_todo_changeme7
             self.failUnlessEqual(out, "")
             self.failUnlessEqual(err, "")
         d.addCallback(run, "ls")
         d.addCallback(_check_empty_dir)
 
-        def _check_missing_dir((out,err)):
+        def _check_missing_dir(xxx_todo_changeme8):
             # TODO: check that rc==2
+            (out,err) = xxx_todo_changeme8
             self.failUnlessEqual(out, "")
             self.failUnlessEqual(err, "No such file or directory\n")
         d.addCallback(run, "ls", "bogus")
@@ -1511,7 +1522,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             datas.append(data)
             open(fn,"wb").write(data)
 
-        def _check_stdout_against((out,err), filenum=None, data=None):
+        def _check_stdout_against(xxx_todo_changeme9, filenum=None, data=None):
+            (out,err) = xxx_todo_changeme9
             self.failUnlessEqual(err, "")
             if filenum is not None:
                 self.failUnlessEqual(out, datas[filenum])
@@ -1521,19 +1533,21 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # test all both forms of put: from a file, and from stdin
         #  tahoe put bar FOO
         d.addCallback(run, "put", files[0], "tahoe-file0")
-        def _put_out((out,err)):
+        def _put_out(xxx_todo_changeme10):
+            (out,err) = xxx_todo_changeme10
             self.failUnless("URI:LIT:" in out, out)
             self.failUnless("201 Created" in err, err)
             uri0 = out.strip()
             return run(None, "get", uri0)
         d.addCallback(_put_out)
-        d.addCallback(lambda (out,err): self.failUnlessEqual(out, datas[0]))
+        d.addCallback(lambda out_err: self.failUnlessEqual(out_err[0], datas[0]))
 
         d.addCallback(run, "put", files[1], "subdir/tahoe-file1")
         #  tahoe put bar tahoe:FOO
         d.addCallback(run, "put", files[2], "tahoe:file2")
         d.addCallback(run, "put", "--format=SDMF", files[3], "tahoe:file3")
-        def _check_put_mutable((out,err)):
+        def _check_put_mutable(xxx_todo_changeme11):
+            (out,err) = xxx_todo_changeme11
             self._mutable_file3_uri = out.strip()
         d.addCallback(_check_put_mutable)
         d.addCallback(run, "get", "tahoe:file3")
@@ -1565,13 +1579,15 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_check_stdout_against, 1)
         outfile0 = os.path.join(self.basedir, "outfile0")
         d.addCallback(run, "get", "file2", outfile0)
-        def _check_outfile0((out,err)):
+        def _check_outfile0(xxx_todo_changeme12):
+            (out,err) = xxx_todo_changeme12
             data = open(outfile0,"rb").read()
             self.failUnlessEqual(data, "data to be uploaded: file2\n")
         d.addCallback(_check_outfile0)
         outfile1 = os.path.join(self.basedir, "outfile0")
         d.addCallback(run, "get", "tahoe:subdir/tahoe-file1", outfile1)
-        def _check_outfile1((out,err)):
+        def _check_outfile1(xxx_todo_changeme13):
+            (out,err) = xxx_todo_changeme13
             data = open(outfile1,"rb").read()
             self.failUnlessEqual(data, "data to be uploaded: file1\n")
         d.addCallback(_check_outfile1)
@@ -1582,7 +1598,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_check_ls, [], ["tahoe-file0", "file2"])
 
         d.addCallback(run, "ls", "-l")
-        def _check_ls_l((out,err)):
+        def _check_ls_l(xxx_todo_changeme14):
+            (out,err) = xxx_todo_changeme14
             lines = out.split("\n")
             for l in lines:
                 if "tahoe-file-stdin" in l:
@@ -1593,7 +1610,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_check_ls_l)
 
         d.addCallback(run, "ls", "--uri")
-        def _check_ls_uri((out,err)):
+        def _check_ls_uri(xxx_todo_changeme15):
+            (out,err) = xxx_todo_changeme15
             lines = out.split("\n")
             for l in lines:
                 if "file3" in l:
@@ -1601,7 +1619,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(_check_ls_uri)
 
         d.addCallback(run, "ls", "--readonly-uri")
-        def _check_ls_rouri((out,err)):
+        def _check_ls_rouri(xxx_todo_changeme16):
+            (out,err) = xxx_todo_changeme16
             lines = out.split("\n")
             for l in lines:
                 if "file3" in l:
@@ -1636,7 +1655,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # copy from tahoe into disk
         target_filename = os.path.join(self.basedir, "file-out")
         d.addCallback(run, "cp", "tahoe:file4", target_filename)
-        def _check_cp_out((out,err)):
+        def _check_cp_out(xxx_todo_changeme17):
+            (out,err) = xxx_todo_changeme17
             self.failUnless(os.path.exists(target_filename))
             got = open(target_filename,"rb").read()
             self.failUnlessEqual(got, datas[4])
@@ -1645,7 +1665,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # copy from disk to disk (silly case)
         target2_filename = os.path.join(self.basedir, "file-out-copy")
         d.addCallback(run, "cp", target_filename, target2_filename)
-        def _check_cp_out2((out,err)):
+        def _check_cp_out2(xxx_todo_changeme18):
+            (out,err) = xxx_todo_changeme18
             self.failUnless(os.path.exists(target2_filename))
             got = open(target2_filename,"rb").read()
             self.failUnlessEqual(got, datas[4])
@@ -1653,7 +1674,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         # copy from tahoe into disk, overwriting an existing file
         d.addCallback(run, "cp", "tahoe:file3", target_filename)
-        def _check_cp_out3((out,err)):
+        def _check_cp_out3(xxx_todo_changeme19):
+            (out,err) = xxx_todo_changeme19
             self.failUnless(os.path.exists(target_filename))
             got = open(target_filename,"rb").read()
             self.failUnlessEqual(got, datas[3])
@@ -1700,7 +1722,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # and back out again
         dn_copy = os.path.join(self.basedir, "dir1-copy")
         d.addCallback(run, "cp", "--verbose", "-r", "tahoe:dir1", dn_copy)
-        def _check_cp_r_out((out,err)):
+        def _check_cp_r_out(xxx_todo_changeme20):
+            (out,err) = xxx_todo_changeme20
             def _cmp(name):
                 old = open(os.path.join(dn, name), "rb").read()
                 newfn = os.path.join(dn_copy, name)
@@ -1720,8 +1743,9 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # and again, only writing filecaps
         dn_copy2 = os.path.join(self.basedir, "dir1-copy-capsonly")
         d.addCallback(run, "cp", "-r", "--caps-only", "tahoe:dir1", dn_copy2)
-        def _check_capsonly((out,err)):
+        def _check_capsonly(xxx_todo_changeme21):
             # these should all be LITs
+            (out,err) = xxx_todo_changeme21
             x = open(os.path.join(dn_copy2, "subdir2", "rfile4")).read()
             y = uri.from_string_filenode(x)
             self.failUnlessEqual(y.data, "rfile4")
@@ -1817,7 +1841,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         d = self.run_bintahoe(['debug', 'trial', '--reporter=verbose',
                                'allmydata.test.trialtest'])
-        def _check_failure( (out, err, rc) ):
+        def _check_failure(xxx_todo_changeme22 ):
+            (out, err, rc) = xxx_todo_changeme22
             self.failUnlessEqual(rc, 1)
             lines = out.split('\n')
             _check_for_line(lines, "[SKIPPED]", "test_skip")
@@ -1831,7 +1856,8 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         # the --quiet argument regression-tests a problem in finding which arguments to pass to trial
         d.addCallback(lambda ign: self.run_bintahoe(['--quiet', 'debug', 'trial', '--reporter=verbose',
                                                      'allmydata.test.trialtest.Success']))
-        def _check_success( (out, err, rc) ):
+        def _check_success(xxx_todo_changeme23 ):
+            (out, err, rc) = xxx_todo_changeme23
             self.failUnlessEqual(rc, 0)
             lines = out.split('\n')
             _check_for_line(lines, "[SKIPPED]", "test_skip")

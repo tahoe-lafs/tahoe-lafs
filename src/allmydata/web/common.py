@@ -14,6 +14,7 @@ from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate
 from allmydata.util.encodingutil import to_str, quote_output
+import six
 
 
 TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
@@ -116,7 +117,7 @@ def convert_children_json(nodemaker, children_json):
     children = {}
     if children_json:
         data = simplejson.loads(children_json)
-        for (namex, (ctype, propdict)) in data.iteritems():
+        for (namex, (ctype, propdict)) in six.iteritems(data):
             namex = unicode(namex)
             writecap = to_str(propdict.get("rw_uri"))
             readcap = to_str(propdict.get("ro_uri"))

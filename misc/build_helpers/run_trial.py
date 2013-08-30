@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import os, sys, re, glob
 
 
@@ -22,7 +23,7 @@ if version is None:
 APPNAME='allmydata-tahoe'
 
 adglobals = {}
-execfile(os.path.join('..', 'src', 'allmydata', '_auto_deps.py'), adglobals)
+exec(compile(open(os.path.join('..', 'src', 'allmydata', '_auto_deps.py')).read(), os.path.join('..', 'src', 'allmydata', '_auto_deps.py'), 'exec'), adglobals)
 install_requires = adglobals['install_requires']
 test_requires = adglobals.get('test_requires', ['mock'])
 
@@ -31,19 +32,19 @@ test_requires = adglobals.get('test_requires', ['mock'])
 
 __requires__ = [APPNAME + '==' + version] + install_requires + test_requires
 
-print "Requirements: %r" % (__requires__,)
+print("Requirements: %r" % (__requires__,))
 
 eggz = glob.glob(os.path.join('..', 'setuptools-*.egg'))
 if len(eggz) > 0:
    egg = os.path.realpath(eggz[0])
-   print "Inserting egg on sys.path: %r" % (egg,)
+   print("Inserting egg on sys.path: %r" % (egg,))
    sys.path.insert(0, egg)
 
 import pkg_resources
 pkg_resources  # hush pyflakes
 
 modulename = None
-for i in xrange(1, len(sys.argv)):
+for i in range(1, len(sys.argv)):
     if not sys.argv[i].startswith('-'):
         modulename = sys.argv[i]
         break
@@ -85,7 +86,7 @@ same = (root_from_cwd == rootdir)
 if not same:
     try:
         same = os.path.samefile(root_from_cwd, rootdir)
-    except AttributeError, e:
+    except AttributeError as e:
         e  # hush pyflakes
 
 if not same:

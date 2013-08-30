@@ -2,6 +2,7 @@
 
 # used to discuss ticket #302: "stop permuting peerlist?"
 
+from __future__ import print_function
 # import time
 import math
 from hashlib import md5  # sha1, sha256
@@ -47,7 +48,7 @@ def make_up_a_file_size(seed):
 
 sizes = [make_up_a_file_size(str(i)) for i in range(10000)]
 avg_filesize = sum(sizes)/len(sizes)
-print "average file size:", abbreviate_space(avg_filesize)
+print("average file size:", abbreviate_space(avg_filesize))
 
 SERVER_CAPACITY = 10**12
 
@@ -94,11 +95,11 @@ class Ring:
             prev_s = self.servers[(i-1)%len(self.servers)]
             diff = "%032x" % (int(s.nodeid,16) - int(prev_s.nodeid,16))
             s.prev_diff = diff
-            print s, s.prev_diff
+            print(s, s.prev_diff)
 
-        print "sorted by delta"
+        print("sorted by delta")
         for s in sorted(self.servers, key=lambda s:s.prev_diff):
-            print s, s.prev_diff
+            print(s, s.prev_diff)
 
     def servers_for_si(self, si):
         if self.permute:
@@ -121,7 +122,7 @@ class Ring:
         return "".join(bits)
 
     def dump_usage(self, numfiles, avg_space_per_file):
-        print "uploaded", numfiles
+        print("uploaded", numfiles)
         # avg_space_per_file measures expected grid-wide ciphertext per file
         used = list(reversed(sorted([s.used for s in self.servers])))
         # used is actual per-server ciphertext
@@ -137,19 +138,19 @@ class Ring:
         std_deviation = math.sqrt(variance)
         sd_of_total = std_deviation / avg_usage_per_file
 
-        print "min/max/(exp) usage-pf-ps %s/%s/(%s):" % (
+        print("min/max/(exp) usage-pf-ps %s/%s/(%s):" % (
             abbreviate_space(usedpf[-1]),
             abbreviate_space(usedpf[0]),
-            abbreviate_space(avg_usage_per_file) ),
-        print "spread-pf: %s (%.2f%%)" % (
-            abbreviate_space(spreadpf), 100.0*spreadpf/avg_usage_per_file),
+            abbreviate_space(avg_usage_per_file) ), end=' ')
+        print("spread-pf: %s (%.2f%%)" % (
+            abbreviate_space(spreadpf), 100.0*spreadpf/avg_usage_per_file), end=' ')
         #print "average_usage:", abbreviate_space(average_usagepf)
-        print "stddev: %s (%.2f%%)" % (abbreviate_space(std_deviation),
-                                       100.0*sd_of_total)
+        print("stddev: %s (%.2f%%)" % (abbreviate_space(std_deviation),
+                                       100.0*sd_of_total))
         if self.SHOW_MINMAX:
             s2 = sorted(self.servers, key=lambda s: s.used)
-            print "least:", s2[0].nodeid
-            print "most:", s2[-1].nodeid
+            print("least:", s2[0].nodeid)
+            print("most:", s2[-1].nodeid)
 
 
 class Options(usage.Options):
@@ -196,7 +197,7 @@ def do_run(ring, opts):
                 server_was_full = True
                 remaining_servers.discard(s)
                 if not remaining_servers:
-                    print "-- GRID IS FULL"
+                    print("-- GRID IS FULL")
                     ring.dump_usage(filenum, avg_space_per_file)
                     return filenum
                 index += 1
@@ -207,11 +208,11 @@ def do_run(ring, opts):
 
         if server_was_full and all_servers_have_room:
             all_servers_have_room = False
-            print "-- FIRST SERVER FULL"
+            print("-- FIRST SERVER FULL")
             ring.dump_usage(filenum, avg_space_per_file)
         if file_was_wrapped and no_files_have_wrapped:
             no_files_have_wrapped = False
-            print "-- FIRST FILE WRAPPED"
+            print("-- FIRST FILE WRAPPED")
             ring.dump_usage(filenum, avg_space_per_file)
 
 
@@ -219,11 +220,11 @@ def do_ring(opts):
     total_capacity = opts["servers"]*SERVER_CAPACITY
     avg_space_per_file = avg_filesize * opts["N"] / opts["k"]
     avg_files = total_capacity / avg_space_per_file
-    print "expected number of uploads:", avg_files
+    print("expected number of uploads:", avg_files)
     if opts["permute"]:
-        print " PERMUTED"
+        print(" PERMUTED")
     else:
-        print " LINEAR"
+        print(" LINEAR")
     seed = opts["seed"]
 
     ring = Ring(opts["servers"], seed, opts["permute"])

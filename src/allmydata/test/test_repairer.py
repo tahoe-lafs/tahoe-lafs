@@ -1,3 +1,4 @@
+from __future__ import print_function
 # -*- coding: utf-8 -*-
 from allmydata.test import common
 from allmydata.monitor import Monitor
@@ -115,7 +116,7 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
             self.failIfBigger(delta_reads, MAX_DELTA_READS)
             try:
                 judgement(vr)
-            except unittest.FailTest, e:
+            except unittest.FailTest as e:
                 # FailTest just uses e.args[0] == str
                 new_arg = str(e.args[0]) + "\nvr.data is: " + str(vr.as_dict())
                 e.args = (new_arg,)
@@ -348,9 +349,9 @@ class Verifier(GridTestMixin, unittest.TestCase, RepairTestMixin):
         def _show_results(ign):
             f = open("test_each_byte_output", "w")
             for i in sorted(results.keys()):
-                print >>f, "%d: %s" % (i, results[i])
+                print("%d: %s" % (i, results[i]), file=f)
             f.close()
-            print "Please look in _trial_temp/test_each_byte_output for results"
+            print("Please look in _trial_temp/test_each_byte_output for results")
         d.addCallback(_show_results)
         return d
 
@@ -462,7 +463,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # previously-deleted share #2.
 
         d.addCallback(lambda ignored:
-                      self.delete_shares_numbered(self.uri, range(3, 10+1)))
+                      self.delete_shares_numbered(self.uri, list(range(3, 10+1))))
         d.addCallback(lambda ignored: download_to_data(self.c1_filenode))
         d.addCallback(lambda newdata:
                       self.failUnlessEqual(newdata, common.TEST_DATA))
@@ -474,7 +475,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         self.set_up_grid(num_clients=2)
         d = self.upload_and_stash()
         d.addCallback(lambda ignored:
-                      self.delete_shares_numbered(self.uri, range(7)))
+                      self.delete_shares_numbered(self.uri, list(range(7))))
         d.addCallback(lambda ignored: self._stash_counts())
         d.addCallback(lambda ignored:
                       self.c0_filenode.check_and_repair(Monitor(),
@@ -507,7 +508,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # previously-deleted share #2.
 
         d.addCallback(lambda ignored:
-                      self.delete_shares_numbered(self.uri, range(3, 10+1)))
+                      self.delete_shares_numbered(self.uri, list(range(3, 10+1))))
         d.addCallback(lambda ignored: download_to_data(self.c1_filenode))
         d.addCallback(lambda newdata:
                       self.failUnlessEqual(newdata, common.TEST_DATA))
@@ -525,7 +526,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
         # distributing the shares widely enough to satisfy the default
         # happiness setting.
         def _delete_some_servers(ignored):
-            for i in xrange(7):
+            for i in range(7):
                 self.g.remove_server(self.g.servers_by_number[i].my_nodeid)
 
             assert len(self.g.servers_by_number) == 3
@@ -638,7 +639,7 @@ class Repairer(GridTestMixin, unittest.TestCase, RepairTestMixin,
                 # downloading and has the right contents. This can't work
                 # unless it has already repaired the previously-corrupted share.
                 def _then_delete_7_and_try_a_download(unused=None):
-                    shnums = range(10)
+                    shnums = list(range(10))
                     shnums.remove(shnum)
                     random.shuffle(shnums)
                     for sharenum in shnums[:7]:

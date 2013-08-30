@@ -817,7 +817,7 @@ def from_string(u, deep_immutable=False, name=u"<unknown name>"):
         else:
             error = MustBeReadonlyError(kind + " used in a read-only context", name)
 
-    except BadURIError, e:
+    except BadURIError as e:
         error = e
 
     return UnknownURI(u, error=error)

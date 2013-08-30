@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+from __future__ import print_function
 import random, math, re
 from twisted.python import usage
 
@@ -126,7 +127,7 @@ class Sizes:
                   "share_storage_overhead", "share_transmission_overhead",
                   "storage_overhead", "storage_overhead_percentage",
                   "bytes_until_some_data"):
-            print k, getattr(self, k)
+            print(k, getattr(self, k))
 
 def fmt(num, trim=False):
     if num < KiB:
@@ -160,11 +161,11 @@ def text():
     mode = opts["mode"]
     arity = opts["arity"]
     #      0123456789012345678901234567890123456789012345678901234567890123456
-    print "mode=%s" % mode, " arity=%d" % arity
-    print "                    storage    storage"
-    print "Size     sharesize  overhead   overhead     k  d  alacrity"
-    print "                    (bytes)      (%)"
-    print "-------  -------    --------   --------  ---- --  --------"
+    print("mode=%s" % mode, " arity=%d" % arity)
+    print("                    storage    storage")
+    print("Size     sharesize  overhead   overhead     k  d  alacrity")
+    print("                    (bytes)      (%)")
+    print("-------  -------    --------   --------  ---- --  --------")
     #sizes = [2 ** i for i in range(7, 41)]
     radix = math.sqrt(10); expstep = 2
     radix = 2; expstep = 2
@@ -181,7 +182,7 @@ def text():
         out += " %4d" % int(s.block_arity)
         out += " %2d" % int(s.block_tree_depth)
         out += " %8s" % fmt(s.bytes_until_some_data)
-        print out
+        print(out)
 
 
 def graph():

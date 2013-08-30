@@ -6,9 +6,11 @@
 # Transitive Grace Period Public License, version 1 or later.
 
 from __future__ import division
+from __future__ import print_function
 from allmydata.util.mathutil import round_sigfigs
 import math
 import sys
+from functools import reduce
 
 def pr_file_loss(p_list, k):
     """
@@ -97,7 +99,7 @@ def print_pmf(pmf, n=4, out=sys.stdout):
     significant digits.
     """
     for k, p in enumerate(pmf):
-        print >>out, "i=" + str(k) + ":", round_sigfigs(p, n)
+        print("i=" + str(k) + ":", round_sigfigs(p, n), file=out)
 
 def pr_backup_file_loss(p_list, backup_p, k):
     """

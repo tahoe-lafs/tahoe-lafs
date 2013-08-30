@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, re, base64
 from cStringIO import StringIO
 from twisted.trial import unittest
@@ -38,6 +39,7 @@ from allmydata.test.common import TEST_RSA_KEY_SIZE
 from allmydata.test.test_download import PausingConsumer, \
      PausingAndStoppingConsumer, StoppingConsumer, \
      ImmediatelyStoppingConsumer
+import six
 
 def eventuaaaaaly(res=None):
     d = fireEventually(res)
@@ -597,7 +599,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
                                                version=MDMF_VERSION)
         def _check_server_write_counts(ignored):
             sb = self.nodemaker.storage_broker
-            for server in sb.servers.itervalues():
+            for server in six.itervalues(sb.servers):
                 self.failUnlessEqual(server.get_rref().queries, 1)
         d.addCallback(_check_server_write_counts)
         return d
@@ -1228,7 +1230,7 @@ class Servermap(unittest.TestCase, PublishMixin):
             # 10 shares
             self.failUnlessEqual(len(sm.update_data), 10)
             # one version
-            for data in sm.update_data.itervalues():
+            for data in six.itervalues(sm.update_data):
                 self.failUnlessEqual(len(data), 1)
         d.addCallback(_check_servermap)
         return d
@@ -1274,11 +1276,11 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         return output
 
     def dump_servermap(self, servermap):
-        print "SERVERMAP", servermap
-        print "RECOVERABLE", [self.abbrev_verinfo(v)
-                              for v in servermap.recoverable_versions()]
-        print "BEST", self.abbrev_verinfo(servermap.best_recoverable_version())
-        print "available", self.abbrev_verinfo_dict(servermap.shares_available())
+        print("SERVERMAP", servermap)
+        print("RECOVERABLE", [self.abbrev_verinfo(v)
+                              for v in servermap.recoverable_versions()])
+        print("BEST", self.abbrev_verinfo(servermap.best_recoverable_version()))
+        print("available", self.abbrev_verinfo_dict(servermap.shares_available()))
 
     def do_download(self, servermap, version=None):
         if version is None:
@@ -1549,7 +1551,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         N = self._fn.get_total_shares()
         d = defer.succeed(None)
         d.addCallback(corrupt, self._storage, "pubkey",
-                      shnums_to_corrupt=range(0, N-k))
+                      shnums_to_corrupt=list(range(0, N-k)))
         d.addCallback(lambda res: self.make_servermap())
         def _do_retrieve(servermap):
             self.failUnless(servermap.get_problems())
@@ -1572,7 +1574,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
         else:
             d = defer.succeed(None)
         d.addCallback(lambda ignored:
-            corrupt(None, self._storage, offset, range(5)))
+            corrupt(None, self._storage, offset, list(range(5))))
         d.addCallback(lambda ignored:
             self.make_servermap())
         def _do_retrieve(servermap):
@@ -1742,7 +1744,7 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
         # On 8 of the shares, corrupt the beginning of the share data.
         # The signature check during the servermap update won't catch this.
         d.addCallback(lambda ignored:
-            corrupt(None, self._storage, "share_data", range(8)))
+            corrupt(None, self._storage, "share_data", list(range(8))))
         # On 2 of the shares, corrupt the end of the share data.
         # The signature check during the servermap update won't catch
         # this either, and the retrieval process will have to process
@@ -2593,7 +2595,8 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         # the choice of server for share[0].
 
         d = nm.key_generator.generate(TEST_RSA_KEY_SIZE)
-        def _got_key( (pubkey, privkey) ):
+        def _got_key(xxx_todo_changeme ):
+            (pubkey, privkey) = xxx_todo_changeme
             nm.key_generator = SameKeyGenerator(pubkey, privkey)
             pubkey_s = pubkey.serialize()
             privkey_s = privkey.serialize()
@@ -2623,9 +2626,9 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res: n.download_best_version())
             d.addCallback(lambda res: self.failUnlessEqual(res, "contents 2"))
             def _explain_error(f):
-                print f
+                print(f)
                 if f.check(NotEnoughServersError):
-                    print "first_error:", f.value.first_error
+                    print("first_error:", f.value.first_error)
                 return f
             d.addErrback(_explain_error)
             return d
@@ -2955,7 +2958,7 @@ class FileHandle(unittest.TestCase):
     def test_filehandle_read(self):
         self.basedir = "mutable/FileHandle/test_filehandle_read"
         chunk_size = 10
-        for i in xrange(0, len(self.test_data), chunk_size):
+        for i in range(0, len(self.test_data), chunk_size):
             data = self.uploadable.read(chunk_size)
             data = "".join(data)
             start = i
@@ -3024,7 +3027,7 @@ class DataHandle(unittest.TestCase):
 
     def test_datahandle_read(self):
         chunk_size = 10
-        for i in xrange(0, len(self.test_data), chunk_size):
+        for i in range(0, len(self.test_data), chunk_size):
             data = self.uploadable.read(chunk_size)
             data = "".join(data)
             start = i
@@ -3375,7 +3378,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         def _read_data(version):
             c = consumer.MemoryConsumer()
             d2 = defer.succeed(None)
-            for i in xrange(0, len(self.data), 10000):
+            for i in range(0, len(self.data), 10000):
                 d2.addCallback(lambda ignored, i=i: version.read(c, i, 10000))
             d2.addCallback(lambda ignored:
                 self.failUnlessEqual(self.data, "".join(c.chunks)))
@@ -3389,9 +3392,9 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(lambda ignored: "".join(c.chunks))
         def _check(results):
             if results != expected:
-                print
-                print "got: %s ... %s" % (results[:20], results[-20:])
-                print "exp: %s ... %s" % (expected[:20], expected[-20:])
+                print()
+                print("got: %s ... %s" % (results[:20], results[-20:]))
+                print("exp: %s ... %s" % (expected[:20], expected[-20:]))
                 self.fail("results[%s] != expected" % name)
             return version # daisy-chained to next call
         d.addCallback(_check)
@@ -3490,9 +3493,9 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                               node.download_best_version())
                 def _check(results):
                     if results != expected:
-                        print
-                        print "got: %s ... %s" % (results[:20], results[-20:])
-                        print "exp: %s ... %s" % (expected[:20], expected[-20:])
+                        print()
+                        print("got: %s ... %s" % (results[:20], results[-20:]))
+                        print("exp: %s ... %s" % (expected[:20], expected[-20:]))
                         self.fail("results != expected")
                 d.addCallback(_check)
             return d
@@ -3546,35 +3549,35 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
 
         SEGSIZE = 128*1024
         if got != expected:
-            print "differences:"
+            print("differences:")
             for segnum in range(len(expected)//SEGSIZE):
                 start = segnum * SEGSIZE
                 end = (segnum+1) * SEGSIZE
                 got_ends = "%s .. %s" % (got[start:start+20], got[end-20:end])
                 exp_ends = "%s .. %s" % (expected[start:start+20], expected[end-20:end])
                 if got_ends != exp_ends:
-                    print "expected[%d]: %s" % (start, exp_ends)
-                    print "got     [%d]: %s" % (start, got_ends)
+                    print("expected[%d]: %s" % (start, exp_ends))
+                    print("got     [%d]: %s" % (start, got_ends))
             if expspans != gotspans:
-                print "expected: %s" % expspans
-                print "got     : %s" % gotspans
+                print("expected: %s" % expspans)
+                print("got     : %s" % gotspans)
             open("EXPECTED","wb").write(expected)
             open("GOT","wb").write(got)
-            print "wrote data to EXPECTED and GOT"
+            print("wrote data to EXPECTED and GOT")
             self.fail("didn't get expected data")
 
 
     def test_replace_locations(self):
         # exercise fencepost conditions
         SEGSIZE = 128*1024
-        suspects = range(SEGSIZE-3, SEGSIZE+1)+range(2*SEGSIZE-3, 2*SEGSIZE+1)
+        suspects = list(range(SEGSIZE-3, SEGSIZE+1))+list(range(2*SEGSIZE-3, 2*SEGSIZE+1))
         letters = iter("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
         d0 = self.do_upload_mdmf()
         def _run(ign):
             expected = self.data
             d = defer.succeed(None)
             for offset in suspects:
-                new_data = letters.next()*2 # "AA", then "BB", etc
+                new_data = six.advance_iterator(letters)*2 # "AA", then "BB", etc
                 expected = expected[:offset]+new_data+expected[offset+2:]
                 d.addCallback(lambda ign:
                               self.mdmf_node.get_best_mutable_version())
@@ -3593,14 +3596,14 @@ class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     def test_replace_locations_max_shares(self):
         # exercise fencepost conditions
         SEGSIZE = 128*1024
-        suspects = range(SEGSIZE-3, SEGSIZE+1)+range(2*SEGSIZE-3, 2*SEGSIZE+1)
+        suspects = list(range(SEGSIZE-3, SEGSIZE+1))+list(range(2*SEGSIZE-3, 2*SEGSIZE+1))
         letters = iter("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
         d0 = self.do_upload_mdmf()
         def _run(ign):
             expected = self.data
             d = defer.succeed(None)
             for offset in suspects:
-                new_data = letters.next()*2 # "AA", then "BB", etc
+                new_data = six.advance_iterator(letters)*2 # "AA", then "BB", etc
                 expected = expected[:offset]+new_data+expected[offset+2:]
                 d.addCallback(lambda ign:
                               self.mdmf_max_shares_node.get_best_mutable_version())

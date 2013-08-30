@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, random, struct
 from zope.interface import implements
 from twisted.internet import defer
@@ -114,7 +115,7 @@ class FakeCHKFileNode:
             return self.my_uri.get_size()
         try:
             data = self.all_contents[self.my_uri.to_string()]
-        except KeyError, le:
+        except KeyError as le:
             raise NotEnoughSharesError(le, 0, 3)
         return len(data)
     def get_current_size(self):
@@ -1073,7 +1074,7 @@ class WebErrorMixin:
         # this method as an errback handler, and it will reveal the hidden
         # message.
         f.trap(WebError)
-        print "Web Error:", f.value, ":", f.value.response
+        print("Web Error:", f.value, ":", f.value.response)
         return f
 
     def _shouldHTTPError(self, res, which, validator):
@@ -1110,7 +1111,7 @@ class WebErrorMixin:
 class ErrorMixin(WebErrorMixin):
     def explain_error(self, f):
         if f.check(defer.FirstError):
-            print "First Error:", f.value.subFailure
+            print("First Error:", f.value.subFailure)
         return f
 
 def corrupt_field(data, offset, size, debug=False):

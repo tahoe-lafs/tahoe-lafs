@@ -23,6 +23,7 @@ from allmydata.util.consumer import download_to_data
 from allmydata.uri import LiteralFileURI, from_string, wrap_dirnode_cap
 from pycryptopp.cipher.aes import AES
 from allmydata.util.dictutil import AuxValueDict
+import six
 
 
 def update_metadata(metadata, new_metadata, now):
@@ -147,7 +148,7 @@ class Adder:
     def modify(self, old_contents, servermap, first_time):
         children = self.node._unpack_contents(old_contents)
         now = time.time()
-        for (namex, (child, new_metadata)) in self.entries.iteritems():
+        for (namex, (child, new_metadata)) in six.iteritems(self.entries):
             name = normalize(namex)
             precondition(IFilesystemNode.providedBy(child), child)
 
@@ -189,7 +190,7 @@ def _encrypt_rw_uri(writekey, rw_uri):
 def pack_children(childrenx, writekey, deep_immutable=False):
     # initial_children must have metadata (i.e. {} instead of None)
     children = {}
-    for (namex, (node, metadata)) in childrenx.iteritems():
+    for (namex, (node, metadata)) in six.iteritems(childrenx):
         precondition(isinstance(metadata, dict),
                      "directory creation requires metadata to be a dict, not None", metadata)
         children[normalize(namex)] = (node, metadata)
@@ -366,7 +367,7 @@ class DirectoryNode:
                     log.msg(format="mutable cap for child %(name)s unpacked from an immutable directory",
                                    name=quote_output(name, encoding='utf-8'),
                                    facility="tahoe.webish", level=log.UNUSUAL)
-            except CapConstraintError, e:
+            except CapConstraintError as e:
                 log.msg(format="unmet constraint on cap for child %(name)s unpacked from a directory:\n"
                                "%(message)s", message=e.args[0], name=quote_output(name, encoding='utf-8'),
                                facility="tahoe.webish", level=log.UNUSUAL)
@@ -436,7 +437,7 @@ class DirectoryNode:
         exists a child of the given name, False if not."""
         name = normalize(namex)
         d = self._read()
-        d.addCallback(lambda children: children.has_key(name))
+        d.addCallback(lambda children: name in children)
         return d
 
     def _get(self, children, name):
@@ -496,7 +497,7 @@ class DirectoryNode:
         path-name elements.
         """
         d = self.get_child_and_metadata_at_path(pathx)
-        d.addCallback(lambda (node, metadata): node)
+        d.addCallback(lambda node_metadata: node_metadata[0])
         return d
 
     def get_child_and_metadata_at_path(self, pathx):
@@ -537,7 +538,7 @@ class DirectoryNode:
         # this takes URIs
         a = Adder(self, overwrite=overwrite,
                   create_readonly_node=self._create_readonly_node)
-        for (namex, e) in entries.iteritems():
+        for (namex, e) in six.iteritems(entries):
             assert isinstance(namex, unicode), namex
             if len(e) == 2:
                 writecap, readcap = e
@@ -669,7 +670,8 @@ class DirectoryNode:
             return defer.succeed("redundant rename/relink")
 
         d = self.get_child_and_metadata(current_child_name)
-        def _got_child( (child, metadata) ):
+        def _got_child(xxx_todo_changeme ):
+            (child, metadata) = xxx_todo_changeme
             return new_parent.set_node(new_child_name, child, metadata,
                                        overwrite=overwrite)
         d.addCallback(_got_child)
@@ -742,7 +744,7 @@ class DirectoryNode:
         # in the nodecache) seem to consume about 2000 bytes.
         dirkids = []
         filekids = []
-        for name, (child, metadata) in sorted(children.iteritems()):
+        for name, (child, metadata) in sorted(six.iteritems(children)):
             childpath = path + [name]
             if isinstance(child, UnknownNode):
                 walker.add_node(child, childpath)

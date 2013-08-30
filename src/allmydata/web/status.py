@@ -364,7 +364,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
         rows = []
         for ev in events:
             ev = ev.copy()
-            if ev.has_key('server'):
+            if 'server' in ev:
                 ev["serverid"] = ev["server"].get_longname()
                 del ev["server"]
             # find an empty slot in the rows

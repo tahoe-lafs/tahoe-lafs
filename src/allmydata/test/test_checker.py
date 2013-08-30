@@ -14,6 +14,7 @@ from allmydata.test.no_network import GridTestMixin
 from allmydata.immutable.upload import Data
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.mutable.publish import MutableData
+import six
 
 class FakeClient:
     def get_storage_broker(self):
@@ -357,7 +358,7 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
             "This little printing function is only meant for < 26 servers"
         shares_chart = {}
         names = dict(zip([ss.my_nodeid
-                          for _,ss in self.g.servers_by_number.iteritems()],
+                          for _,ss in six.iteritems(self.g.servers_by_number)],
                          letters))
         for shnum, serverid, _ in self.find_uri_shares(uri):
             shares_chart.setdefault(shnum, []).append(names[serverid])

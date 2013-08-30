@@ -7,6 +7,7 @@ code, including dependent libraries. Run this like:
  python misc/build_helpers/run-with-pythonpath.py python foo.py
 """
 
+from __future__ import print_function
 import os, sys
 
 # figure out where support/lib/pythonX.X/site-packages is
@@ -36,7 +37,7 @@ cmd = sys.argv[1]
 if cmd and cmd[0] not in "/~.":
     cmds = which(cmd)
     if not cmds:
-        print >>sys.stderr, "'%s' not found on PATH" % (cmd,)
+        print("'%s' not found on PATH" % (cmd,), file=sys.stderr)
         sys.exit(-1)
     cmd = cmds[0]
 

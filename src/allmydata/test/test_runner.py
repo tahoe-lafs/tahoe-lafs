@@ -96,7 +96,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
         if not same:
             try:
                 same = os.path.samefile(root_from_cwd, root_to_check)
-            except AttributeError, e:
+            except AttributeError as e:
                 e  # hush pyflakes
 
         if not same:

@@ -16,6 +16,7 @@ the version available in the code image when you do:
 
 """
 
+from __future__ import print_function
 import os.path, re
 
 def get_version():
@@ -34,5 +35,5 @@ def get_version():
 
 if __name__ == '__main__':
     verstr = get_version()
-    print verstr
+    print(verstr)
 

@@ -11,6 +11,7 @@ from twisted.python import usage
 import locale
 from allmydata.util import log
 from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.sixutil import map
 
 
 def canonical_encoding(encoding):

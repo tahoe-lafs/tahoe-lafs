@@ -393,7 +393,8 @@ class GridTestMixin:
         for sharefile, data in shares.items():
             open(sharefile, "wb").write(data)
 
-    def delete_share(self, (shnum, serverid, sharefile)):
+    def delete_share(self, xxx_todo_changeme):
+        (shnum, serverid, sharefile) = xxx_todo_changeme
         os.unlink(sharefile)
 
     def delete_shares_numbered(self, uri, shnums):
@@ -401,7 +402,8 @@ class GridTestMixin:
             if i_shnum in shnums:
                 os.unlink(i_sharefile)
 
-    def corrupt_share(self, (shnum, serverid, sharefile), corruptor_function):
+    def corrupt_share(self, xxx_todo_changeme1, corruptor_function):
+        (shnum, serverid, sharefile) = xxx_todo_changeme1
         sharedata = open(sharefile, "rb").read()
         corruptdata = corruptor_function(sharedata)
         open(sharefile, "wb").write(corruptdata)

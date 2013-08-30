@@ -1,6 +1,7 @@
 
 import binascii
 import time
+from functools import reduce
 now = time.time
 from zope.interface import implements
 from twisted.internet import defer

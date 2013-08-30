@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import os, sys
 
 from twisted.python import usage
@@ -22,7 +23,7 @@ def check(fn):
             line = line[:-1]
         if line.rstrip() != line:
             # the %s:%d:%d: lets emacs' compile-mode jump to those locations
-            print "%s:%d:%d: trailing whitespace" % (fn, i+1, len(line)+1)
+            print("%s:%d:%d: trailing whitespace" % (fn, i+1, len(line)+1))
             found[0] = True
     f.close()
 

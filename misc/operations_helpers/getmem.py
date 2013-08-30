@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+from __future__ import print_function
 from foolscap import Tub
 from foolscap.eventual import eventually
 import sys
@@ -10,7 +11,7 @@ def go():
     d = t.getReference(sys.argv[1])
     d.addCallback(lambda rref: rref.callRemote("get_memory_usage"))
     def _got(res):
-        print res
+        print(res)
         reactor.stop()
     d.addCallback(_got)
 

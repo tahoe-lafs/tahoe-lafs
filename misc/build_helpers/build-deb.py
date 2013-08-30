@@ -1,5 +1,6 @@
 #!/bin/false # invoke this with a specific python
 
+from __future__ import print_function
 import sys, shutil, os.path
 from subprocess import Popen, PIPE
 
@@ -11,21 +12,21 @@ class SubprocessError(Exception):
 
 def get_output(*cmd, **kwargs):
     tolerate_stderr = kwargs.get("tolerate_stderr", False)
-    print " " + " ".join(cmd)
+    print(" " + " ".join(cmd))
     p = Popen(cmd, stdout=PIPE)
     (out,err) = p.communicate()
     rc = p.returncode
     if rc != 0:
-        print >>sys.stderr, err
+        print(err, file=sys.stderr)
         raise SubprocessError("command %s exited with rc=%s", (cmd, rc))
     if err and not tolerate_stderr:
-        print >>sys.stderr, "stderr:", err
+        print("stderr:", err, file=sys.stderr)
         raise SubprocessError("command emitted unexpected stderr")
-    print " =>", out,
+    print(" =>", out, end=' ')
     return out
 
 def run(*cmd, **kwargs):
-    print " " + " ".join(cmd)
+    print(" " + " ".join(cmd))
 #    if "stdin" in kwargs:
 #        stdin = kwargs.pop("stdin")
 #        p = Popen(cmd, stdin=PIPE, **kwargs)
@@ -88,7 +89,7 @@ for n in ["compat", "control", "copyright", "pycompat", "rules"]:
 
     shutil.copyfile(fn, os.path.join(DEBDIR, n))
     if n == "rules":
-        os.chmod(os.path.join(DEBDIR, n), 0755) # +x
+        os.chmod(os.path.join(DEBDIR, n), 0o755) # +x
 
 # We put "local package" on the first line of the changelog entry to suppress
 # the lintian NMU warnings (since debchange's new entry's "author" will

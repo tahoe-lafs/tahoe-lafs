@@ -19,6 +19,7 @@ cycles_per_byte = 15.8      # cost of hash
 Mcycles_per_block = cycles_per_byte * L_block / (8 * 1000000.0)
 
 
+from __future__ import print_function
 from math import floor, ceil, log, log1p, pow, e
 from sys import stderr
 from gc import collect
@@ -77,7 +78,7 @@ def make_candidate(B, K, K1, K2, q, T, T_min, L_hash, lg_N, sig_bytes, c_sign, c
 
 # Winternitz with B < 4 is never optimal. For example, going from B=4 to B=2 halves the
 # chain depth, but that is cancelled out by doubling (roughly) the number of digits.
-range_B = xrange(4, 33)
+range_B = range(4, 33)
 
 M = pow(2, lg_M)
 
@@ -98,7 +99,7 @@ def calculate(K, K1, K2, q_max, L_hash, trees):
     T_min = ceil_div(lg_M - lg_K1, lg_K)
 
     last_q = None
-    for T in xrange(T_min, T_min+21):
+    for T in range(T_min, T_min+21):
         # lg(total number of leaf private keys)
         lg_S = lg_K1 + lg_K*T
         lg_N = lg_S + lg_K2
@@ -135,17 +136,17 @@ def calculate(K, K1, K2, q_max, L_hash, trees):
 
         # We approximate lg(M-x) as lg(M)
         lg_px_step = lg_M + lg_p - lg_1_p
-        for x in xrange(1, j):
+        for x in range(1, j):
             lg_px[x] = lg_px[x-1] - lg(x) + lg_px_step
 
         q = None
         # Find the minimum acceptable value of q.
-        for q_cand in xrange(1, q_max+1):
+        for q_cand in range(1, q_max+1):
             lg_q = lg(q_cand)
-            lg_pforge = [lg_px[x] + (lg_q*x - lg_K2)*q_cand for x in xrange(1, j)]
+            lg_pforge = [lg_px[x] + (lg_q*x - lg_K2)*q_cand for x in range(1, j)]
             if max(lg_pforge) < -L_hash + lg(j) and lg_px[j-1] + 1.0 < -L_hash:
-                #print "K = %d, K1 = %d, K2 = %d, L_hash = %d, lg_K2 = %.3f, q = %d, lg_pforge_1 = %.3f, lg_pforge_2 = %.3f, lg_pforge_3 = %.3f" \
-                #      % (K, K1, K2, L_hash, lg_K2, q, lg_pforge_1, lg_pforge_2, lg_pforge_3)
+                #print("K = %d, K1 = %d, K2 = %d, L_hash = %d, lg_K2 = %.3f, q = %d, lg_pforge_1 = %.3f, lg_pforge_2 = %.3f, lg_pforge_3 = %.3f"
+                #      % (K, K1, K2, L_hash, lg_K2, q, lg_pforge_1, lg_pforge_2, lg_pforge_3))
                 q = q_cand
                 break
 
@@ -212,10 +213,10 @@ def calculate(K, K1, K2, q_max, L_hash, trees):
 
 def search():
     for L_hash in range_L_hash:
-        print >>stderr, "collecting...   \r",
+        print("collecting...   \r", end=' ', file=stderr)
         collect()
 
-        print >>stderr, "precomputing... \r",
+        print("precomputing... \r", end=' ', file=stderr)
 
         """
         # d/dq (lg(q+1) + L_hash/q) = 1/(ln(2)*(q+1)) - L_hash/q^2
@@ -244,13 +245,13 @@ def search():
         K_max = 50
         c2 = compressions(2*L_hash + L_label)
         c3 = compressions(3*L_hash + L_label)
-        for dau in xrange(0, 10):
+        for dau in range(0, 10):
             a = pow(2, dau)
-            for tri in xrange(0, ceil_log(30-dau, 3)):
+            for tri in range(0, ceil_log(30-dau, 3)):
                 x = int(a*pow(3, tri))
                 h = dau + 2*tri
                 c_x = int(sum_powers(2, dau)*c2 + a*sum_powers(3, tri)*c3)
-                for y in xrange(1, x+1):
+                for y in range(1, x+1):
                     if tri > 0:
                         # If the bottom level has arity 3, then for every 2 nodes by which the tree is
                         # imperfect, we can save c3 compressions by pruning 3 leaves back to their parent.
@@ -266,24 +267,24 @@ def search():
                         trees[y] = (h, c_y, (dau, tri))
 
         #for x in xrange(1, K_max+1):
-        #    print x, trees[x]
+        #    print("%r: %r" % (x, trees[x]))
 
         candidates = []
         progress = 0
         fuzz = 0
         complete = (K_max-1)*(2200-200)/100
-        for K in xrange(2, K_max+1):
-            for K2 in xrange(200, 2200, 100):
-                for K1 in xrange(max(2, K-fuzz), min(K_max, K+fuzz)+1):
+        for K in range(2, K_max+1):
+            for K2 in range(200, 2200, 100):
+                for K1 in range(max(2, K-fuzz), min(K_max, K+fuzz)+1):
                     candidates += calculate(K, K1, K2, q_max, L_hash, trees)
                 progress += 1
-                print >>stderr, "searching: %3d %% \r" % (100.0 * progress / complete,),
+                print("searching: %3d %% \r" % (100.0 * progress / complete,), end=' ', file=stderr)
 
-        print >>stderr, "filtering...    \r",
+        print("filtering...    \r", end=' ', file=stderr)
         step = 2.0
         bins = {}
         limit = floor_div(limit_cost, step)
-        for bin in xrange(0, limit+2):
+        for bin in range(0, limit+2):
             bins[bin] = []
 
         for c in candidates:
@@ -294,7 +295,7 @@ def search():
 
         # For each in a range of signing times, find the best candidate.
         best = []
-        for bin in xrange(0, limit):
+        for bin in range(0, limit):
             candidates = bins[bin] + bins[bin+1] + bins[bin+2]
             if len(candidates) > 0:
                 best += [min(candidates, key=lambda c: c['sig_bytes'])]
@@ -306,33 +307,33 @@ def search():
                     "%(c_ver)7d +/-%(c_ver_pm)5d (%(Mcycles_ver)5.2f +/-%(Mcycles_ver_pm)5.2f)   "
                    ) % candidate
 
-        print >>stderr, "                \r",
+        print("                \r", end=' ', file=stderr)
         if len(best) > 0:
-            print "  B    K   K1     K2    q    T  L_hash  lg_N  sig_bytes  c_sign (Mcycles)        c_ver     (    Mcycles   )"
-            print "---- ---- ---- ------ ---- ---- ------ ------ --------- ------------------ --------------------------------"
+            print("  B    K   K1     K2    q    T  L_hash  lg_N  sig_bytes  c_sign (Mcycles)        c_ver     (    Mcycles   )")
+            print("---- ---- ---- ------ ---- ---- ------ ------ --------- ------------------ --------------------------------")
 
             best.sort(key=lambda c: (c['sig_bytes'], c['cost']))
             last_sign = None
             last_ver = None
             for c in best:
                 if last_sign is None or c['c_sign'] < last_sign or c['c_ver'] < last_ver:
-                    print format_candidate(c)
+                    print(format_candidate(c))
                     last_sign = c['c_sign']
                     last_ver = c['c_ver']
 
-            print
+            print()
         else:
-            print "No candidates found for L_hash = %d or higher." % (L_hash)
+            print("No candidates found for L_hash = %d or higher." % (L_hash))
             return
 
         del bins
         del best
 
-print "Maximum signature size: %d bytes" % (limit_bytes,)
-print "Maximum (signing + %d*verification) cost: %.1f Mcycles" % (weight_ver, limit_cost)
-print "Hash parameters: %d-bit blocks with %d-bit padding and %d-bit labels, %.2f cycles per byte" \
-      % (L_block, L_pad, L_label, cycles_per_byte)
-print "PRF output size: %d bits" % (L_prf,)
-print "Security level given by L_hash is maintained for up to 2^%d signatures.\n" % (lg_M,)
+print("Maximum signature size: %d bytes" % (limit_bytes,))
+print("Maximum (signing + %d*verification) cost: %.1f Mcycles" % (weight_ver, limit_cost))
+print("Hash parameters: %d-bit blocks with %d-bit padding and %d-bit labels, %.2f cycles per byte" \
+      % (L_block, L_pad, L_label, cycles_per_byte))
+print("PRF output size: %d bits" % (L_prf,))
+print("Security level given by L_hash is maintained for up to 2^%d signatures.\n" % (lg_M,))
 
 search()

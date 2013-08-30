@@ -31,9 +31,11 @@ a mean of 10kB and a max of 100MB, so filesize=min(int(1.0/random(.0002)),1e8)
 
 
 """
+from __future__ import print_function
 
 import os, sys, httplib, binascii
 import urllib, simplejson, random, time, urlparse
+import six
 
 if sys.argv[1] == "--stats":
     statsfiles = sys.argv[2:]
@@ -55,24 +57,24 @@ if sys.argv[1] == "--stats":
         if last_stats:
             delta = dict( [ (name,stats[name]-last_stats[name])
                             for name in stats ] )
-            print "THIS SAMPLE:"
+            print("THIS SAMPLE:")
             for name in sorted(delta.keys()):
                 avg = float(delta[name]) / float(DELAY)
-                print "%20s: %0.2f per second" % (name, avg)
+                print("%20s: %0.2f per second" % (name, avg))
             totals.append(delta)
             while len(totals) > MAXSAMPLES:
                 totals.pop(0)
 
             # now compute average
-            print
-            print "MOVING WINDOW AVERAGE:"
+            print()
+            print("MOVING WINDOW AVERAGE:")
             for name in sorted(delta.keys()):
                 avg = sum([ s[name] for s in totals]) / (DELAY*len(totals))
-                print "%20s %0.2f per second" % (name, avg)
+                print("%20s %0.2f per second" % (name, avg))
 
         last_stats = stats
-        print
-        print
+        print()
+        print()
         time.sleep(DELAY)
 
 stats_out = sys.argv[1]
@@ -106,8 +108,8 @@ def listdir(nodeurl, root, remote_pathname):
     try:
         parsed = simplejson.loads(data)
     except ValueError:
-        print "URL was", url
-        print "DATA was", data
+        print("URL was", url)
+        print("DATA was", data)
         raise
     nodetype, d = parsed
     assert nodetype == "dirnode"
@@ -115,7 +117,7 @@ def listdir(nodeurl, root, remote_pathname):
     directories_read += 1
     children = dict( [(unicode(name),value)
                       for (name,value)
-                      in d["children"].iteritems()] )
+                      in six.iteritems(d["children"])] )
     return children
 
 
@@ -237,11 +239,11 @@ while True:
         op = "read"
     else:
         op = "write"
-    print "OP:", op
+    print("OP:", op)
     server = random.choice(server_urls)
     if op == "read":
         pathname = choose_random_descendant(server, root)
-        print "  reading", pathname
+        print("  reading", pathname)
         read_and_discard(server, root, pathname)
         files_downloaded += 1
     elif op == "write":
@@ -252,9 +254,9 @@ while True:
             pathname = current_writedir + "/" + filename
         else:
             pathname = filename
-        print "  writing", pathname
+        print("  writing", pathname)
         size = choose_size()
-        print "   size", size
+        print("   size", size)
         generate_and_put(server, root, pathname, size)
         files_uploaded += 1
 

@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os.path, sys, time, random, stat
 
@@ -68,8 +69,8 @@ def get_backupdb(dbfile, stderr=sys.stderr,
     must_create = not os.path.exists(dbfile)
     try:
         db = sqlite3.connect(dbfile)
-    except (EnvironmentError, sqlite3.OperationalError), e:
-        print >>stderr, "Unable to create/open backupdb file %s: %s" % (dbfile, e)
+    except (EnvironmentError, sqlite3.OperationalError) as e:
+        print("Unable to create/open backupdb file %s: %s" % (dbfile, e), file=stderr)
         return None
 
     c = db.cursor()
@@ -82,10 +83,10 @@ def get_backupdb(dbfile, stderr=sys.stderr,
     try:
         c.execute("SELECT version FROM version")
         version = c.fetchone()[0]
-    except sqlite3.DatabaseError, e:
+    except sqlite3.DatabaseError as e:
         # this indicates that the file is not a compatible database format.
         # Perhaps it was created with an old version, or it might be junk.
-        print >>stderr, "backupdb file is unusable: %s" % e
+        print("backupdb file is unusable: %s" % e, file=stderr)
         return None
 
     if just_create: # for tests
@@ -97,7 +98,7 @@ def get_backupdb(dbfile, stderr=sys.stderr,
         version = 2
     if version == 2:
         return BackupDB_v2(sqlite3, db)
-    print >>stderr, "Unable to handle backupdb version %s" % version
+    print("Unable to handle backupdb version %s" % version, file=stderr)
     return None
 
 class FileResult:

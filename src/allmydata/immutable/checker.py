@@ -116,7 +116,7 @@ class ValidatedExtendedURIProxy:
 
 
         # Next: things that are optional and not redundant: crypttext_hash
-        if d.has_key('crypttext_hash'):
+        if 'crypttext_hash' in d:
             self.crypttext_hash = d['crypttext_hash']
             if len(self.crypttext_hash) != CRYPTO_VAL_SIZE:
                 raise BadURIExtension('crypttext_hash is required to be hashutil.CRYPTO_VAL_SIZE bytes, not %s bytes' % (len(self.crypttext_hash),))
@@ -125,11 +125,11 @@ class ValidatedExtendedURIProxy:
         # Next: things that are optional, redundant, and required to be
         # consistent: codec_name, codec_params, tail_codec_params,
         # num_segments, size, needed_shares, total_shares
-        if d.has_key('codec_name'):
+        if 'codec_name' in d:
             if d['codec_name'] != "crs":
                 raise UnsupportedErasureCodec(d['codec_name'])
 
-        if d.has_key('codec_params'):
+        if 'codec_params' in d:
             ucpss, ucpns, ucpts = codec.parse_params(d['codec_params'])
             if ucpss != self.segment_size:
                 raise BadURIExtension("inconsistent erasure code params: "
@@ -144,7 +144,7 @@ class ValidatedExtendedURIProxy:
                                       "self._verifycap.total_shares: %s" %
                                       (ucpts, self._verifycap.total_shares))
 
-        if d.has_key('tail_codec_params'):
+        if 'tail_codec_params' in d:
             utcpss, utcpns, utcpts = codec.parse_params(d['tail_codec_params'])
             if utcpss != self.tail_segment_size:
                 raise BadURIExtension("inconsistent erasure code params: utcpss: %s != "
@@ -161,7 +161,7 @@ class ValidatedExtendedURIProxy:
                                       "self._verifycap.total_shares: %s" % (utcpts,
                                                                             self._verifycap.total_shares))
 
-        if d.has_key('num_segments'):
+        if 'num_segments' in d:
             if d['num_segments'] != self.num_segments:
                 raise BadURIExtension("inconsistent num_segments: size: %s, "
                                       "segment_size: %s, computed_num_segments: %s, "
@@ -169,18 +169,18 @@ class ValidatedExtendedURIProxy:
                                                                 self.segment_size,
                                                                 self.num_segments, d['num_segments']))
 
-        if d.has_key('size'):
+        if 'size' in d:
             if d['size'] != self._verifycap.size:
                 raise BadURIExtension("inconsistent size: URI size: %s, UEB size: %s" %
                                       (self._verifycap.size, d['size']))
 
-        if d.has_key('needed_shares'):
+        if 'needed_shares' in d:
             if d['needed_shares'] != self._verifycap.needed_shares:
                 raise BadURIExtension("inconsistent needed shares: URI needed shares: %s, UEB "
                                       "needed shares: %s" % (self._verifycap.total_shares,
                                                              d['needed_shares']))
 
-        if d.has_key('total_shares'):
+        if 'total_shares' in d:
             if d['total_shares'] != self._verifycap.total_shares:
                 raise BadURIExtension("inconsistent total shares: URI total shares: %s, UEB "
                                       "total shares: %s" % (self._verifycap.total_shares,
@@ -255,9 +255,9 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             sharehashes = dict(sh)
             try:
                 self.share_hash_tree.set_hashes(sharehashes)
-            except IndexError, le:
+            except IndexError as le:
                 raise BadOrMissingHash(le)
-            except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
+            except (hashtree.BadHashError, hashtree.NotEnoughHashesError) as le:
                 raise BadOrMissingHash(le)
         d.addCallback(_got_share_hashes)
         return d
@@ -288,9 +288,9 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
 
             try:
                 self.block_hash_tree.set_hashes(bh)
-            except IndexError, le:
+            except IndexError as le:
                 raise BadOrMissingHash(le)
-            except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
+            except (hashtree.BadHashError, hashtree.NotEnoughHashesError) as le:
                 raise BadOrMissingHash(le)
         d.addCallback(_got_block_hashes)
         return d
@@ -315,9 +315,9 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             ct_hashes = dict(enumerate(hashes))
             try:
                 crypttext_hash_tree.set_hashes(ct_hashes)
-            except IndexError, le:
+            except IndexError as le:
                 raise BadOrMissingHash(le)
-            except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
+            except (hashtree.BadHashError, hashtree.NotEnoughHashesError) as le:
                 raise BadOrMissingHash(le)
         d.addCallback(_got_crypttext_hashes)
         return d
@@ -358,7 +358,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
         sharehashes, blockhashes, blockdata = results
         try:
             sharehashes = dict(sharehashes)
-        except ValueError, le:
+        except ValueError as le:
             le.args = tuple(le.args + (sharehashes,))
             raise
         blockhashes = dict(enumerate(blockhashes))
@@ -372,7 +372,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
                 # match the root node of self.share_hash_tree.
                 try:
                     self.share_hash_tree.set_hashes(sharehashes)
-                except IndexError, le:
+                except IndexError as le:
                     # Weird -- sharehashes contained index numbers outside of
                     # the range that fit into this hash tree.
                     raise BadOrMissingHash(le)
@@ -399,7 +399,7 @@ class ValidatedReadBucketProxy(log.PrefixingLogMixin):
             #        (self.sharenum, blocknum, len(blockdata),
             #         blockdata[:50], blockdata[-50:], base32.b2a(blockhash)))
 
-        except (hashtree.BadHashError, hashtree.NotEnoughHashesError), le:
+        except (hashtree.BadHashError, hashtree.NotEnoughHashesError) as le:
             # log.WEIRD: indicates undetected disk/network error, or more
             # likely a programming error
             self.log("hash failure in block=%d, shnum=%d on %s" %

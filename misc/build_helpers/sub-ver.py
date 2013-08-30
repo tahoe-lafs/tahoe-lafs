@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 from allmydata import __version__ as v
 
 import sys
@@ -22,5 +23,5 @@ vern = {
     }
 
 for line in input.readlines():
-    print line % vern,
+    print(line % vern, end=' ')
 

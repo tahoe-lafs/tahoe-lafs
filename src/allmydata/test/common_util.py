@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os, signal, sys, time
 from random import randrange
 
@@ -6,6 +7,7 @@ from twisted.python import failure
 
 from allmydata.util import fileutil, log
 from allmydata.util.encodingutil import unicode_platform, get_filesystem_encoding
+from allmydata.util.sixutil import map
 
 
 def insecurerandstr(n):
@@ -48,7 +50,7 @@ class NonASCIIPathMixin:
                     if os.path.exists(dirpath):
                         msg = ("We were unable to delete a non-ASCII directory %r created by the test. "
                                "This is liable to cause failures on future builds." % (dirpath,))
-                        print msg
+                        print(msg)
                         log.err(msg)
             self.addCleanup(_cleanup)
         os.mkdir(dirpath)
@@ -169,7 +171,7 @@ class TestMixin(SignalMixin):
             if p.active():
                 p.cancel()
             else:
-                print "WEIRDNESS! pending timed call not active!"
+                print("WEIRDNESS! pending timed call not active!")
         if required_to_quiesce and active:
             self.fail("Reactor was still active when it was required to be quiescent.")
 

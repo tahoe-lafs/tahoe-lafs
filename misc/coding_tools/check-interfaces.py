@@ -4,6 +4,7 @@
 #
 #   bin/tahoe @misc/coding_tools/check-interfaces.py
 
+from __future__ import print_function
 import os, sys, re, platform
 
 import zope.interface as zi
@@ -44,10 +45,10 @@ def strictly_implements(*interfaces):
                 for interface in interfaces:
                     try:
                         verifyClass(interface, cls)
-                    except Exception, e:
-                        print >>_err, ("%s.%s does not correctly implement %s.%s:\n%s"
-                                       % (cls.__module__, cls.__name__,
-                                          interface.__module__, interface.__name__, e))
+                    except Exception as e:
+                        print("%s.%s does not correctly implement %s.%s:\n%s"
+                              % (cls.__module__, cls.__name__,
+                                 interface.__module__, interface.__name__, e), file=_err)
         else:
             _other_modules_with_violations.add(cls.__module__)
         return cls
@@ -62,7 +63,7 @@ def check():
 
     if len(sys.argv) >= 2:
         if sys.argv[1] == '--help' or len(sys.argv) > 2:
-            print >>_err, "Usage: check-miscaptures.py [SOURCEDIR]"
+            print("Usage: check-miscaptures.py [SOURCEDIR]", file=_err)
             return
         srcdir = sys.argv[1]
     else:
@@ -79,26 +80,26 @@ def check():
         for fn in filenames:
             (basename, ext) = os.path.splitext(fn)
             if ext in ('.pyc', '.pyo') and not os.path.exists(os.path.join(dirpath, basename+'.py')):
-                print >>_err, ("Warning: no .py source file for %r.\n"
-                               % (os.path.join(dirpath, fn),))
+                print(("Warning: no .py source file for %r.\n"
+                               % (os.path.join(dirpath, fn),)), file=_err)
 
             if ext == '.py' and not excluded_file_basenames.match(basename):
                 relpath = os.path.join(dirpath[len(srcdir)+1:], basename)
                 module = relpath.replace(os.sep, '/').replace('/', '.')
                 try:
                     __import__(module)
-                except ImportError, e:
+                except ImportError as e:
                     if not is_windows and (' _win' in str(e) or 'win32' in str(e)):
-                        print >>_err, ("Warning: %r imports a Windows-specific module, so we cannot check it (%s).\n"
-                                       % (module, str(e)))
+                        print(("Warning: %r imports a Windows-specific module, so we cannot check it (%s).\n"
+                                       % (module, str(e))), file=_err)
                     else:
                         import traceback
                         traceback.print_exc(file=_err)
-                        print >>_err
+                        print(file=_err)
 
     others = list(_other_modules_with_violations)
     others.sort()
-    print >>_err, "There were also interface violations in:\n", ", ".join(others), "\n"
+    print("There were also interface violations in:\n", ", ".join(others), "\n", file=_err)
 
 
 # Forked from
@@ -184,7 +185,7 @@ def _verify(iface, candidate, tentative=0, vtype=None):
             # should never get here, since classes should not provide functions
             meth = fromFunction(attr, iface, name=name)
         elif (isinstance(attr, MethodTypes)
-              and type(attr.im_func) is FunctionType):
+              and type(attr.__func__) is FunctionType):
             meth = fromMethod(attr, iface, name)
         else:
             if not callable(attr):

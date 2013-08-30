@@ -12,6 +12,7 @@ from allmydata.util.assertutil import _assert, precondition
 from allmydata.codec import CRSEncoder
 from allmydata.interfaces import IEncoder, IStorageBucketWriter, \
      IEncryptedUploadable, IUploadStatus, UploadUnhappinessError
+import six
 
 
 """
@@ -198,7 +199,7 @@ class Encoder(object):
             assert IStorageBucketWriter.providedBy(landlords[k])
         self.landlords = landlords.copy()
         assert isinstance(servermap, dict)
-        for v in servermap.itervalues():
+        for v in six.itervalues(servermap):
             assert isinstance(v, set)
         self.servermap = servermap.copy()
 
@@ -417,12 +418,13 @@ class Encoder(object):
         d.addCallback(_got)
         return d
 
-    def _send_segment(self, (shares, shareids), segnum):
+    def _send_segment(self, xxx_todo_changeme, segnum):
         # To generate the URI, we must generate the roothash, so we must
         # generate all shares, even if we aren't actually giving them to
         # anybody. This means that the set of shares we create will be equal
         # to or larger than the set of landlords. If we have any landlord who
         # *doesn't* have a share, that's an error.
+        (shares, shareids) = xxx_todo_changeme
         _assert(set(self.landlords.keys()).issubset(set(shareids)),
                 shareids=shareids, landlords=self.landlords)
         start = time.time()
@@ -450,7 +452,7 @@ class Encoder(object):
                      (self,
                       self.segment_size*(segnum+1),
                       self.segment_size*self.num_segments,
-                      100 * (segnum+1) / self.num_segments,
+                      100 * (segnum+1) // self.num_segments,
                       ),
                      level=log.OPERATIONAL)
             elapsed = time.time() - start

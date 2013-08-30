@@ -397,8 +397,8 @@ class CLI(CLITestMixin, unittest.TestCase):
                         "didn't see 'mqfblse6m5a6dh45isu2cg7oji' in '%s'" % err)
 
     def test_alias(self):
-        def s128(c): return base32.b2a(c*(128/8))
-        def s256(c): return base32.b2a(c*(256/8))
+        def s128(c): return base32.b2a(c*(128//8))
+        def s256(c): return base32.b2a(c*(256//8))
         TA = "URI:DIR2:%s:%s" % (s128("T"), s256("T"))
         WA = "URI:DIR2:%s:%s" % (s128("W"), s256("W"))
         CA = "URI:DIR2:%s:%s" % (s128("C"), s256("C"))
@@ -516,8 +516,8 @@ class CLI(CLITestMixin, unittest.TestCase):
         self.failUnlessRaises(common.UnknownAliasError, ga5, u"C:\\Windows")
 
     def test_alias_tolerance(self):
-        def s128(c): return base32.b2a(c*(128/8))
-        def s256(c): return base32.b2a(c*(256/8))
+        def s128(c): return base32.b2a(c*(128//8))
+        def s256(c): return base32.b2a(c*(256//8))
         TA = "URI:DIR2:%s:%s" % (s128("T"), s256("T"))
         aliases = {"present": TA,
                    "future": "URI-FROM-FUTURE:ooh:aah"}
@@ -706,7 +706,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         aliasfile = os.path.join(self.get_clientdir(), "private", "aliases")
 
         d = self.do_cli("create-alias", "tahoe")
-        def _done((rc,stdout,stderr)):
+        def _done(xxx_todo_changeme41):
+            (rc,stdout,stderr) = xxx_todo_changeme41
             self.failUnless("Alias 'tahoe' created" in stdout)
             self.failIf(stderr)
             aliases = get_aliases(self.get_clientdir())
@@ -728,7 +729,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_urls)
 
         d.addCallback(lambda res: self.do_cli("create-alias", "two")) # dup
-        def _check_create_duplicate((rc,stdout,stderr)):
+        def _check_create_duplicate(xxx_todo_changeme42):
+            (rc,stdout,stderr) = xxx_todo_changeme42
             self.failIfEqual(rc, 0)
             self.failUnless("Alias 'two' already exists!" in stderr)
             aliases = get_aliases(self.get_clientdir())
@@ -736,14 +738,16 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_create_duplicate)
 
         d.addCallback(lambda res: self.do_cli("add-alias", "added", self.two_uri))
-        def _check_add((rc,stdout,stderr)):
+        def _check_add(xxx_todo_changeme43):
+            (rc,stdout,stderr) = xxx_todo_changeme43
             self.failUnlessReallyEqual(rc, 0)
             self.failUnless("Alias 'added' added" in stdout)
         d.addCallback(_check_add)
 
         # check add-alias with a duplicate
         d.addCallback(lambda res: self.do_cli("add-alias", "two", self.two_uri))
-        def _check_add_duplicate((rc,stdout,stderr)):
+        def _check_add_duplicate(xxx_todo_changeme44):
+            (rc,stdout,stderr) = xxx_todo_changeme44
             self.failIfEqual(rc, 0)
             self.failUnless("Alias 'two' already exists!" in stderr)
             aliases = get_aliases(self.get_clientdir())
@@ -751,7 +755,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_add_duplicate)
 
         # check create-alias and add-alias with invalid aliases
-        def _check_invalid((rc,stdout,stderr)):
+        def _check_invalid(xxx_todo_changeme45):
+            (rc,stdout,stderr) = xxx_todo_changeme45
             self.failIfEqual(rc, 0)
             self.failUnlessIn("cannot contain", stderr)
 
@@ -790,7 +795,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             fileutil.write(aliasfile, old.rstrip())
             return self.do_cli("create-alias", "un-corrupted1")
         d.addCallback(_remove_trailing_newline_and_create_alias)
-        def _check_not_corrupted1((rc,stdout,stderr)):
+        def _check_not_corrupted1(xxx_todo_changeme46):
+            (rc,stdout,stderr) = xxx_todo_changeme46
             self.failUnless("Alias 'un-corrupted1' created" in stdout, stdout)
             self.failIf(stderr)
             # the old behavior was to simply append the new record, causing a
@@ -813,7 +819,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             fileutil.write(aliasfile, old.rstrip())
             return self.do_cli("add-alias", "un-corrupted2", self.two_uri)
         d.addCallback(_remove_trailing_newline_and_add_alias)
-        def _check_not_corrupted((rc,stdout,stderr)):
+        def _check_not_corrupted(xxx_todo_changeme47):
+            (rc,stdout,stderr) = xxx_todo_changeme47
             self.failUnless("Alias 'un-corrupted2' added" in stdout, stdout)
             self.failIf(stderr)
             aliases = get_aliases(self.get_clientdir())
@@ -835,7 +842,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
             raise unittest.SkipTest("A non-ASCII command argument could not be encoded on this platform.")
 
         d = self.do_cli("create-alias", etudes_arg)
-        def _check_create_unicode((rc, out, err)):
+        def _check_create_unicode(xxx_todo_changeme48):
+            (rc, out, err) = xxx_todo_changeme48
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn("Alias %s created" % quote_output(u"\u00E9tudes"), out)
@@ -845,7 +853,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_create_unicode)
 
         d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
-        def _check_ls1((rc, out, err)):
+        def _check_ls1(xxx_todo_changeme49):
+            (rc, out, err) = xxx_todo_changeme49
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(out, "")
@@ -855,14 +864,16 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
                                               stdin="Blah blah blah"))
 
         d.addCallback(lambda res: self.do_cli("ls", etudes_arg + ":"))
-        def _check_ls2((rc, out, err)):
+        def _check_ls2(xxx_todo_changeme50):
+            (rc, out, err) = xxx_todo_changeme50
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(out, "uploaded.txt\n")
         d.addCallback(_check_ls2)
 
         d.addCallback(lambda res: self.do_cli("get", etudes_arg + ":uploaded.txt"))
-        def _check_get((rc, out, err)):
+        def _check_get(xxx_todo_changeme51):
+            (rc, out, err) = xxx_todo_changeme51
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(out, "Blah blah blah")
@@ -874,7 +885,8 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda res: self.do_cli("get",
                                               get_aliases(self.get_clientdir())[u"\u00E9tudes"] + "/" + lumiere_arg))
-        def _check_get2((rc, out, err)):
+        def _check_get2(xxx_todo_changeme52):
+            (rc, out, err) = xxx_todo_changeme52
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(out, "Let the sunshine In!")
@@ -899,7 +911,8 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Ln/ln_without_alias"
         self.set_up_grid()
         d = self.do_cli("ln", "from", "to")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme53):
+            (rc, out, err) = xxx_todo_changeme53
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -919,7 +932,8 @@ class Ln(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Ln/ln_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("ln", "havasu:from", "havasu:to")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme54):
+            (rc, out, err) = xxx_todo_changeme54
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
         d.addCallback(_check)
@@ -957,8 +971,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(out, DATA)
         d.addCallback(_downloaded)
         d.addCallback(lambda res: self.do_cli("put", "-", stdin=DATA))
-        d.addCallback(lambda (rc, out, err):
-                      self.failUnlessReallyEqual(out, self.readcap))
+        d.addCallback(lambda rc_out_err:
+                      self.failUnlessReallyEqual(rc_out_err[1], self.readcap))
         return d
 
     def test_unlinked_immutable_from_file(self):
@@ -974,17 +988,18 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         # we make the file small enough to fit in a LIT file, for speed
         fileutil.write(rel_fn, "short file")
         d = self.do_cli("put", rel_fn)
-        def _uploaded((rc, out, err)):
+        def _uploaded(xxx_todo_changeme55):
+            (rc, out, err) = xxx_todo_changeme55
             readcap = out
             self.failUnless(readcap.startswith("URI:LIT:"), readcap)
             self.readcap = readcap
         d.addCallback(_uploaded)
         d.addCallback(lambda res: self.do_cli("put", "./" + rel_fn))
-        d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessReallyEqual(stdout, self.readcap))
+        d.addCallback(lambda rc_stdout_stderr:
+                      self.failUnlessReallyEqual(rc_stdout_stderr[1], self.readcap))
         d.addCallback(lambda res: self.do_cli("put", abs_fn))
-        d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessReallyEqual(stdout, self.readcap))
+        d.addCallback(lambda rc_stdout_stderr1:
+                      self.failUnlessReallyEqual(rc_stdout_stderr1[1], self.readcap))
         # we just have to assume that ~ is handled properly
         return d
 
@@ -1009,7 +1024,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "uploaded.txt"))
-        def _uploaded((rc, out, err)):
+        def _uploaded(xxx_todo_changeme56):
+            (rc, out, err) = xxx_todo_changeme56
             readcap = out.strip()
             self.failUnless(readcap.startswith("URI:LIT:"), readcap)
             self.failUnlessIn("201 Created", err)
@@ -1017,12 +1033,13 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_uploaded)
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded.txt"))
-        d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessReallyEqual(stdout, DATA))
+        d.addCallback(lambda rc_stdout_stderr2:
+                      self.failUnlessReallyEqual(rc_stdout_stderr2[1], DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", "-", "uploaded.txt", stdin=DATA2))
-        def _replaced((rc, out, err)):
+        def _replaced(xxx_todo_changeme57):
+            (rc, out, err) = xxx_todo_changeme57
             readcap = out.strip()
             self.failUnless(readcap.startswith("URI:LIT:"), readcap)
             self.failUnlessIn("200 OK", err)
@@ -1031,21 +1048,21 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "subdir/uploaded2.txt"))
         d.addCallback(lambda res: self.do_cli("get", "subdir/uploaded2.txt"))
-        d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessReallyEqual(stdout, DATA))
+        d.addCallback(lambda rc_stdout_stderr3:
+                      self.failUnlessReallyEqual(rc_stdout_stderr3[1], DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "tahoe:uploaded3.txt"))
         d.addCallback(lambda res: self.do_cli("get", "tahoe:uploaded3.txt"))
-        d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessReallyEqual(stdout, DATA))
+        d.addCallback(lambda rc_stdout_stderr4:
+                      self.failUnlessReallyEqual(rc_stdout_stderr4[1], DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn, "tahoe:subdir/uploaded4.txt"))
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:subdir/uploaded4.txt"))
-        d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessReallyEqual(stdout, DATA))
+        d.addCallback(lambda rc_stdout_stderr5:
+                      self.failUnlessReallyEqual(rc_stdout_stderr5[1], DATA))
 
         def _get_dircap(res):
             self.dircap = get_aliases(self.get_clientdir())["tahoe"]
@@ -1056,16 +1073,16 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
                                   self.dircap+":./uploaded5.txt"))
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded5.txt"))
-        d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessReallyEqual(stdout, DATA))
+        d.addCallback(lambda rc_stdout_stderr6:
+                      self.failUnlessReallyEqual(rc_stdout_stderr6[1], DATA))
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn,
                                   self.dircap+":./subdir/uploaded6.txt"))
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:subdir/uploaded6.txt"))
-        d.addCallback(lambda (rc,stdout,stderr):
-                      self.failUnlessReallyEqual(stdout, DATA))
+        d.addCallback(lambda rc_stdout_stderr7:
+                      self.failUnlessReallyEqual(rc_stdout_stderr7[1], DATA))
 
         return d
 
@@ -1093,7 +1110,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnless(self.filecap.startswith("URI:SSK:"), self.filecap)
         d.addCallback(_created)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
-        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA))
+        d.addCallback(lambda rc_out_err8: self.failUnlessReallyEqual(rc_out_err8[1], DATA))
 
         d.addCallback(lambda res: self.do_cli("put", "-", self.filecap, stdin=DATA2))
         def _replaced(res):
@@ -1103,7 +1120,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(self.filecap, out)
         d.addCallback(_replaced)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
-        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA2))
+        d.addCallback(lambda rc_out_err9: self.failUnlessReallyEqual(rc_out_err9[1], DATA2))
 
         d.addCallback(lambda res: self.do_cli("put", rel_fn, self.filecap))
         def _replaced2(res):
@@ -1112,7 +1129,7 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.failUnlessReallyEqual(self.filecap, out)
         d.addCallback(_replaced2)
         d.addCallback(lambda res: self.do_cli("get", self.filecap))
-        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA3))
+        d.addCallback(lambda rc_out_err10: self.failUnlessReallyEqual(rc_out_err10[1], DATA3))
 
         return d
 
@@ -1150,10 +1167,11 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check2)
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:uploaded.txt"))
-        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA2))
+        d.addCallback(lambda rc_out_err11: self.failUnlessReallyEqual(rc_out_err11[1], DATA2))
         return d
 
-    def _check_mdmf_json(self, (rc, json, err)):
+    def _check_mdmf_json(self, xxx_todo_changeme165):
+         (rc, json, err) = xxx_todo_changeme165
          self.failUnlessEqual(rc, 0)
          self.failUnlessEqual(err, "")
          self.failUnlessIn('"format": "MDMF"', json)
@@ -1162,7 +1180,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
          self.failUnlessIn("URI:MDMF-RO", json)
          self.failUnlessIn("URI:MDMF-Verifier", json)
 
-    def _check_sdmf_json(self, (rc, json, err)):
+    def _check_sdmf_json(self, xxx_todo_changeme166):
+        (rc, json, err) = xxx_todo_changeme166
         self.failUnlessEqual(rc, 0)
         self.failUnlessEqual(err, "")
         self.failUnlessIn('"format": "SDMF"', json)
@@ -1171,7 +1190,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.failUnlessIn("URI:SSK-RO", json)
         self.failUnlessIn("URI:SSK-Verifier", json)
 
-    def _check_chk_json(self, (rc, json, err)):
+    def _check_chk_json(self, xxx_todo_changeme167):
+        (rc, json, err) = xxx_todo_changeme167
         self.failUnlessEqual(rc, 0)
         self.failUnlessEqual(err, "")
         self.failUnlessIn('"format": "CHK"', json)
@@ -1194,7 +1214,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
                 # unlinked
                 args = ["put"] + cmdargs + [fn1]
             d2 = self.do_cli(*args)
-            def _list((rc, out, err)):
+            def _list(xxx_todo_changeme):
+                (rc, out, err) = xxx_todo_changeme
                 self.failUnlessEqual(rc, 0) # don't allow failure
                 if filename:
                     return self.do_cli("ls", "--json", filename)
@@ -1253,7 +1274,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         fn1 = os.path.join(self.basedir, "data")
         fileutil.write(fn1, data)
         d = self.do_cli("put", "--format=MDMF", fn1)
-        def _got_cap((rc, out, err)):
+        def _got_cap(xxx_todo_changeme58):
+            (rc, out, err) = xxx_todo_changeme58
             self.failUnlessEqual(rc, 0)
             self.cap = out.strip()
         d.addCallback(_got_cap)
@@ -1263,14 +1285,16 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         fileutil.write(fn2, data2)
         d.addCallback(lambda ignored:
             self.do_cli("put", fn2, self.cap))
-        def _got_put((rc, out, err)):
+        def _got_put(xxx_todo_changeme59):
+            (rc, out, err) = xxx_todo_changeme59
             self.failUnlessEqual(rc, 0)
             self.failUnlessIn(self.cap, out)
         d.addCallback(_got_put)
         # Now get the cap. We should see the data we just put there.
         d.addCallback(lambda ignored:
             self.do_cli("get", self.cap))
-        def _got_data((rc, out, err)):
+        def _got_data(xxx_todo_changeme60):
+            (rc, out, err) = xxx_todo_changeme60
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(out, data2)
         d.addCallback(_got_data)
@@ -1286,7 +1310,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("put", fn3, self.cap))
         d.addCallback(lambda ignored:
             self.do_cli("get", self.cap))
-        def _got_data3((rc, out, err)):
+        def _got_data3(xxx_todo_changeme61):
+            (rc, out, err) = xxx_todo_changeme61
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(out, data3)
         d.addCallback(_got_data3)
@@ -1299,7 +1324,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         fn1 = os.path.join(self.basedir, "data")
         fileutil.write(fn1, data)
         d = self.do_cli("put", "--format=SDMF", fn1)
-        def _got_cap((rc, out, err)):
+        def _got_cap(xxx_todo_changeme62):
+            (rc, out, err) = xxx_todo_changeme62
             self.failUnlessEqual(rc, 0)
             self.cap = out.strip()
         d.addCallback(_got_cap)
@@ -1309,14 +1335,16 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         fileutil.write(fn2, data2)
         d.addCallback(lambda ignored:
             self.do_cli("put", fn2, self.cap))
-        def _got_put((rc, out, err)):
+        def _got_put(xxx_todo_changeme63):
+            (rc, out, err) = xxx_todo_changeme63
             self.failUnlessEqual(rc, 0)
             self.failUnlessIn(self.cap, out)
         d.addCallback(_got_put)
         # Now get the cap. We should see the data we just put there.
         d.addCallback(lambda ignored:
             self.do_cli("get", self.cap))
-        def _got_data((rc, out, err)):
+        def _got_data(xxx_todo_changeme64):
+            (rc, out, err) = xxx_todo_changeme64
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(out, data2)
         d.addCallback(_got_data)
@@ -1334,7 +1362,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Put/put_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("put", "somefile", "fake:afile")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme65):
+            (rc, out, err) = xxx_todo_changeme65
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -1363,7 +1392,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda res:
                       self.do_cli("put", rel_fn.encode(get_io_encoding()), a_trier_arg))
-        def _uploaded((rc, out, err)):
+        def _uploaded(xxx_todo_changeme66):
+            (rc, out, err) = xxx_todo_changeme66
             readcap = out.strip()
             self.failUnless(readcap.startswith("URI:LIT:"), readcap)
             self.failUnlessIn("201 Created", err)
@@ -1372,8 +1402,8 @@ class Put(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda res:
                       self.do_cli("get", "tahoe:" + a_trier_arg))
-        d.addCallback(lambda (rc, out, err):
-                      self.failUnlessReallyEqual(out, DATA))
+        d.addCallback(lambda rc_out_err12:
+                      self.failUnlessReallyEqual(rc_out_err12[1], DATA))
 
         return d
 
@@ -1392,7 +1422,8 @@ class Admin(unittest.TestCase):
 
     def test_generate_keypair(self):
         d = self.do_cli("admin", "generate-keypair")
-        def _done( (stdout, stderr) ):
+        def _done(xxx_todo_changeme67 ):
+            (stdout, stderr) = xxx_todo_changeme67
             lines = [line.strip() for line in stdout.splitlines()]
             privkey_bits = lines[0].split()
             pubkey_bits = lines[1].split()
@@ -1412,7 +1443,8 @@ class Admin(unittest.TestCase):
     def test_derive_pubkey(self):
         priv1,pub1 = keyutil.make_keypair()
         d = self.do_cli("admin", "derive-pubkey", priv1)
-        def _done( (stdout, stderr) ):
+        def _done(xxx_todo_changeme68 ):
+            (stdout, stderr) = xxx_todo_changeme68
             lines = stdout.split("\n")
             privkey_line = lines[0].strip()
             pubkey_line = lines[1].strip()
@@ -1456,14 +1488,15 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_goodcap)
         d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"1share"))
         d.addCallback(lambda n:
-                      self.delete_shares_numbered(n.get_uri(), range(1,10)))
+                      self.delete_shares_numbered(n.get_uri(), list(range(1,10))))
         d.addCallback(lambda ign: self.rootnode.create_subdirectory(u"0share"))
         d.addCallback(lambda n:
-                      self.delete_shares_numbered(n.get_uri(), range(0,10)))
+                      self.delete_shares_numbered(n.get_uri(), list(range(0,10))))
         d.addCallback(lambda ign:
                       self.do_cli("add-alias", "tahoe", self.rooturi))
         d.addCallback(lambda ign: self.do_cli("ls"))
-        def _check1((rc,out,err)):
+        def _check1(xxx_todo_changeme69):
+            (rc,out,err) = xxx_todo_changeme69
             if good_out is None:
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessIn("files whose names could not be converted", err)
@@ -1475,13 +1508,15 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
                 self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share", good_out]))
         d.addCallback(_check1)
         d.addCallback(lambda ign: self.do_cli("ls", "missing"))
-        def _check2((rc,out,err)):
+        def _check2(xxx_todo_changeme70):
+            (rc,out,err) = xxx_todo_changeme70
             self.failIfEqual(rc, 0)
             self.failUnlessReallyEqual(err.strip(), "No such file or directory")
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_check2)
         d.addCallback(lambda ign: self.do_cli("ls", "1share"))
-        def _check3((rc,out,err)):
+        def _check3(xxx_todo_changeme71):
+            (rc,out,err) = xxx_todo_changeme71
             self.failIfEqual(rc, 0)
             self.failUnlessIn("Error during GET: 410 Gone", err)
             self.failUnlessIn("UnrecoverableFileError:", err)
@@ -1491,7 +1526,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check3)
         d.addCallback(lambda ign: self.do_cli("ls", "0share"))
         d.addCallback(_check3)
-        def _check4((rc, out, err)):
+        def _check4(xxx_todo_changeme72):
+            (rc, out, err) = xxx_todo_changeme72
             if good_out is None:
                 self.failUnlessReallyEqual(rc, 1)
                 self.failUnlessIn("files whose names could not be converted", err)
@@ -1515,9 +1551,10 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             d.addCallback(lambda ign: self.do_cli("ls", "-l", self.rooturi + ":./" + good_arg))
             d.addCallback(_check4)
 
-        def _check5((rc, out, err)):
+        def _check5(xxx_todo_changeme73):
             # listing a raw filecap should not explode, but it will have no
             # metadata, just the size
+            (rc, out, err) = xxx_todo_changeme73
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual("-r-- %d -" % len(small), out.strip())
         d.addCallback(lambda ign: self.do_cli("ls", "-l", self.goodcap))
@@ -1528,14 +1565,16 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.rootnode.move_child_to(u"g\u00F6\u00F6d", self.rootnode, u"good"))
 
         d.addCallback(lambda ign: self.do_cli("ls"))
-        def _check1_ascii((rc,out,err)):
+        def _check1_ascii(xxx_todo_changeme74):
+            (rc,out,err) = xxx_todo_changeme74
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(sorted(out.splitlines()), sorted(["0share", "1share", "good"]))
         d.addCallback(_check1_ascii)
-        def _check4_ascii((rc, out, err)):
+        def _check4_ascii(xxx_todo_changeme75):
             # listing a file (as dir/filename) should have the edge metadata,
             # including the filename
+            (rc, out, err) = xxx_todo_changeme75
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessIn("good", out)
             self.failIfIn("-r-- %d -" % len(small), out,
@@ -1557,19 +1596,21 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             return self.rootnode.create_subdirectory(u"unknown", initial_children=kids,
                                                      mutable=False)
         d.addCallback(_create_unknown)
-        def _check6((rc, out, err)):
+        def _check6(xxx_todo_changeme76):
             # listing a directory referencing an unknown object should print
             # an extra message to stderr
+            (rc, out, err) = xxx_todo_changeme76
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessIn("?r-- ? - unknownchild-imm\n", out)
             self.failUnlessIn("included unknown objects", err)
         d.addCallback(lambda ign: self.do_cli("ls", "-l", "unknown"))
         d.addCallback(_check6)
-        def _check7((rc, out, err)):
+        def _check7(xxx_todo_changeme77):
             # listing an unknown cap directly should print an extra message
             # to stderr (currently this only works if the URI starts with 'URI:'
             # after any 'ro.' or 'imm.' prefix, otherwise it will be confused
             # with an alias).
+            (rc, out, err) = xxx_todo_changeme77
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessIn("?r-- ? -\n", out)
             self.failUnlessIn("included unknown objects", err)
@@ -1583,7 +1624,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/List/list_without_alias"
         self.set_up_grid()
         d = self.do_cli("ls")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme78):
+            (rc, out, err) = xxx_todo_changeme78
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -1596,7 +1638,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/List/list_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("ls", "nonexistent:")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme79):
+            (rc, out, err) = xxx_todo_changeme79
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -1633,7 +1676,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
             d3 = n.add_file(u"immutable", immutable_data)
             ds = [d1, d2, d3]
             dl = defer.DeferredList(ds)
-            def _made_files((r1, r2, r3)):
+            def _made_files(xxx_todo_changeme38):
+                (r1, r2, r3) = xxx_todo_changeme38
                 self.failUnless(r1[0])
                 self.failUnless(r2[0])
                 self.failUnless(r3[0])
@@ -1665,7 +1709,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self._create_directory_structure()
         d.addCallback(lambda ignored:
             self.do_cli("ls", self._dircap))
-        def _got_ls((rc, out, err)):
+        def _got_ls(xxx_todo_changeme80):
+            (rc, out, err) = xxx_todo_changeme80
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(err, "")
             self.failUnlessIn("immutable", out)
@@ -1682,7 +1727,8 @@ class List(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self._create_directory_structure()
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", self._dircap))
-        def _got_json((rc, out, err)):
+        def _got_json(xxx_todo_changeme81):
+            (rc, out, err) = xxx_todo_changeme81
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(err, "")
             self.failUnlessIn(self._mdmf_uri, out)
@@ -1717,16 +1763,16 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         # (we should be able to rename files)
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file1", "tahoe:file3"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessIn("OK", out, "mv didn't rename a file"))
+        d.addCallback(lambda rc_out_err13:
+            self.failUnlessIn("OK", rc_out_err13[1], "mv didn't rename a file"))
 
         # do mv file3 file2
         # (This should succeed without issue)
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file3", "tahoe:file2"))
         # Out should contain "OK" to show that the transfer worked.
-        d.addCallback(lambda (rc,out,err):
-            self.failUnlessIn("OK", out, "mv didn't output OK after mving"))
+        d.addCallback(lambda rc_out_err14:
+            self.failUnlessIn("OK", rc_out_err14[1], "mv didn't output OK after mving"))
 
         # Next, make a remote directory.
         d.addCallback(lambda res:
@@ -1737,9 +1783,9 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         #  client should support this)
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file2", "tahoe:directory"))
-        d.addCallback(lambda (rc, out, err):
+        d.addCallback(lambda rc_out_err15:
             self.failUnlessIn(
-                "Error: You can't overwrite a directory with a file", err,
+                "Error: You can't overwrite a directory with a file", rc_out_err15[2],
                 "mv shouldn't overwrite directories" ))
 
         # mv file2 directory/
@@ -1747,20 +1793,20 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file2", "tahoe:directory/"))
         # We should see an "OK"...
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessIn("OK", out,
+        d.addCallback(lambda rc_out_err16:
+            self.failUnlessIn("OK", rc_out_err16[1],
                             "mv didn't mv a file into a directory"))
         # ... and be able to GET the file
         d.addCallback(lambda res:
             self.do_cli("get", "tahoe:directory/file2", self.basedir + "new"))
-        d.addCallback(lambda (rc, out, err):
+        d.addCallback(lambda rc_out_err17:
             self.failUnless(os.path.exists(self.basedir + "new"),
                             "mv didn't write the destination file"))
         # ... and not find the file where it was before.
         d.addCallback(lambda res:
             self.do_cli("get", "tahoe:file2", "file2"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessIn("404", err,
+        d.addCallback(lambda rc_out_err18:
+            self.failUnlessIn("404", rc_out_err18[2],
                             "mv left the source file intact"))
 
         # Let's build:
@@ -1781,13 +1827,13 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         # We should have just some_file in tahoe:directory3
         d.addCallback(lambda res:
             self.do_cli("get", "tahoe:directory3/some_file", "some_file"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnless("404" not in err,
+        d.addCallback(lambda rc_out_err19:
+            self.failUnless("404" not in rc_out_err19[2],
                               "mv didn't handle nested directories correctly"))
         d.addCallback(lambda res:
             self.do_cli("get", "tahoe:directory3/directory", "directory"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessIn("404", err,
+        d.addCallback(lambda rc_out_err20:
+            self.failUnlessIn("404", rc_out_err20[2],
                               "mv moved the wrong thing"))
         return d
 
@@ -1820,7 +1866,8 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         # do mv file1 file2
         d.addCallback(lambda res:
             self.do_cli("mv", "tahoe:file1", "tahoe:file2"))
-        def _check( (rc, out, err) ):
+        def _check(xxx_todo_changeme82 ):
+            (rc, out, err) = xxx_todo_changeme82
             self.failIfIn("OK", out, "mv printed 'OK' even though the DELETE failed")
             self.failUnlessEqual(rc, 2)
         d.addCallback(_check)
@@ -1838,7 +1885,8 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Mv/mv_without_alias"
         self.set_up_grid()
         d = self.do_cli("mv", "afile", "anotherfile")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme83):
+            (rc, out, err) = xxx_todo_changeme83
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -1864,7 +1912,8 @@ class Mv(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Mv/mv_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("mv", "fake:afile", "fake:anotherfile")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme84):
+            (rc, out, err) = xxx_todo_changeme84
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("fake", err)
@@ -1919,15 +1968,16 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("cp", fn1_arg, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:" + artonwall_arg))
-        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA1))
+        d.addCallback(lambda rc_out_err21: self.failUnlessReallyEqual(rc_out_err21[1], DATA1))
 
         d.addCallback(lambda res: self.do_cli("cp", fn2, "tahoe:"))
 
         d.addCallback(lambda res: self.do_cli("get", "tahoe:Metallica"))
-        d.addCallback(lambda (rc,out,err): self.failUnlessReallyEqual(out, DATA2))
+        d.addCallback(lambda rc_out_err22: self.failUnlessReallyEqual(rc_out_err22[1], DATA2))
 
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:"))
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme85):
+            (rc, out, err) = xxx_todo_changeme85
             try:
                 unicode_to_output(u"\u00C4rtonwall")
             except UnicodeEncodeError:
@@ -1974,7 +2024,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda ign: self.do_cli("put", fn1))
-        def _put_file((rc, out, err)):
+        def _put_file(xxx_todo_changeme86):
+            (rc, out, err) = xxx_todo_changeme86
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessIn("200 OK", err)
             # keep track of the filecap
@@ -1984,7 +2035,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Let's try copying this to the disk using the filecap
         #  cp FILECAP filename
         d.addCallback(lambda ign: self.do_cli("cp", self.filecap, fn2))
-        def _copy_file((rc, out, err)):
+        def _copy_file(xxx_todo_changeme87):
+            (rc, out, err) = xxx_todo_changeme87
             self.failUnlessReallyEqual(rc, 0)
             results = fileutil.read(fn2)
             self.failUnlessReallyEqual(results, DATA1)
@@ -1993,7 +2045,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Test with ./ (see #761)
         #  cp FILECAP localdir
         d.addCallback(lambda ign: self.do_cli("cp", self.filecap, outdir))
-        def _resp((rc, out, err)):
+        def _resp(xxx_todo_changeme88):
+            (rc, out, err) = xxx_todo_changeme88
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error: you must specify a destination filename",
                               err)
@@ -2002,7 +2055,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # Create a directory, linked at tahoe:test
         d.addCallback(lambda ign: self.do_cli("mkdir", "tahoe:test"))
-        def _get_dir((rc, out, err)):
+        def _get_dir(xxx_todo_changeme89):
+            (rc, out, err) = xxx_todo_changeme89
             self.failUnlessReallyEqual(rc, 0)
             self.dircap = out.strip()
         d.addCallback(_get_dir)
@@ -2010,12 +2064,13 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Upload a file to the directory
         d.addCallback(lambda ign:
                       self.do_cli("put", fn1, "tahoe:test/test_file"))
-        d.addCallback(lambda (rc, out, err): self.failUnlessReallyEqual(rc, 0))
+        d.addCallback(lambda rc_out_err23: self.failUnlessReallyEqual(rc_out_err23[0], 0))
 
         #  cp DIRCAP/filename localdir
         d.addCallback(lambda ign:
                       self.do_cli("cp",  self.dircap + "/test_file", outdir))
-        def _get_resp((rc, out, err)):
+        def _get_resp(xxx_todo_changeme90):
+            (rc, out, err) = xxx_todo_changeme90
             self.failUnlessReallyEqual(rc, 0)
             results = fileutil.read(os.path.join(outdir, "test_file"))
             self.failUnlessReallyEqual(results, DATA1)
@@ -2024,7 +2079,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         #  cp -r DIRCAP/filename filename2
         d.addCallback(lambda ign:
                       self.do_cli("cp",  self.dircap + "/test_file", fn3))
-        def _get_resp2((rc, out, err)):
+        def _get_resp2(xxx_todo_changeme91):
+            (rc, out, err) = xxx_todo_changeme91
             self.failUnlessReallyEqual(rc, 0)
             results = fileutil.read(fn3)
             self.failUnlessReallyEqual(results, DATA1)
@@ -2032,7 +2088,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         #  cp --verbose filename3 dircap:test_file
         d.addCallback(lambda ign:
                       self.do_cli("cp", "--verbose", '--recursive', self.basedir, self.dircap))
-        def _test_for_wrong_indices((rc, out, err)):
+        def _test_for_wrong_indices(xxx_todo_changeme92):
+            (rc, out, err) = xxx_todo_changeme92
             self.failUnless('examining 1 of 1\n' in err)
         d.addCallback(_test_for_wrong_indices)
         return d
@@ -2043,7 +2100,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Cp/cp_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("cp", "fake:file1", "fake:file2")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme93):
+            (rc, out, err) = xxx_todo_changeme93
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
         d.addCallback(_check)
@@ -2075,7 +2133,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda res: self.do_cli("mkdir", "tahoe:test/" + artonwall_arg))
         d.addCallback(lambda res: self.do_cli("cp", "-r", "tahoe:test", "tahoe:test2"))
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:test2"))
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme94):
+            (rc, out, err) = xxx_todo_changeme94
             try:
                 unicode_to_output(u"\u00C4rtonwall")
             except UnicodeEncodeError:
@@ -2111,7 +2170,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("put", "--mutable", test_txt_path, "tahoe:test/test.txt"))
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test/test.txt"))
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme95):
+            (rc, out, err) = xxx_todo_changeme95
             self.failUnlessEqual(rc, 0)
             self.failUnlessEqual(out, test_txt_contents)
         d.addCallback(_check)
@@ -2120,7 +2180,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # file we've just uploaded.
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test/test.txt"))
-        def _get_test_txt_uris((rc, out, err)):
+        def _get_test_txt_uris(xxx_todo_changeme96):
+            (rc, out, err) = xxx_todo_changeme96
             self.failUnlessEqual(rc, 0)
             filetype, data = simplejson.loads(out)
 
@@ -2147,13 +2208,14 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # If we get test.txt now, we should see the new data.
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test/test.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, new_txt_contents))
+        d.addCallback(lambda rc_out_err24:
+            self.failUnlessEqual(rc_out_err24[1], new_txt_contents))
         # If we get the json of the new file, we should see that the old
         # uri is there
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test/test.txt"))
-        def _check_json((rc, out, err)):
+        def _check_json(xxx_todo_changeme97):
+            (rc, out, err) = xxx_todo_changeme97
             self.failUnlessEqual(rc, 0)
             filetype, data = simplejson.loads(out)
 
@@ -2170,8 +2232,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # should give us the new contents.
         d.addCallback(lambda ignored:
             self.do_cli("get", self.rw_uri))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, new_txt_contents))
+        d.addCallback(lambda rc_out_err25:
+            self.failUnlessEqual(rc_out_err25[1], new_txt_contents))
         # Now copy the old test.txt without an explicit destination
         # file. tahoe cp will match it to the existing file and
         # overwrite it appropriately.
@@ -2179,15 +2241,15 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("cp", test_txt_path, "tahoe:test"))
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test/test.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_txt_contents))
+        d.addCallback(lambda rc_out_err26:
+            self.failUnlessEqual(rc_out_err26[1], test_txt_contents))
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test/test.txt"))
         d.addCallback(_check_json)
         d.addCallback(lambda ignored:
             self.do_cli("get", self.rw_uri))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_txt_contents))
+        d.addCallback(lambda rc_out_err27:
+            self.failUnlessEqual(rc_out_err27[1], test_txt_contents))
 
         # Now we'll make a more complicated directory structure.
         # test2/
@@ -2212,7 +2274,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.do_cli("put", imm_test_txt_path, "tahoe:test2/imm2"))
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test2"))
-        def _process_directory_json((rc, out, err)):
+        def _process_directory_json(xxx_todo_changeme98):
+            (rc, out, err) = xxx_todo_changeme98
             self.failUnlessEqual(rc, 0)
 
             filetype, data = simplejson.loads(out)
@@ -2255,7 +2318,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # We expect that mutable1 and mutable2 are overwritten in-place,
         # so they'll retain their URIs but have different content.
-        def _process_file_json((rc, out, err), fn):
+        def _process_file_json(xxx_todo_changeme99, fn):
+            (rc, out, err) = xxx_todo_changeme99
             self.failUnlessEqual(rc, 0)
             filetype, data = simplejson.loads(out)
             self.failUnlessEqual(filetype, "filenode")
@@ -2272,8 +2336,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         for fn in ("mutable1", "mutable2"):
             d.addCallback(lambda ignored, fn=fn:
                 self.do_cli("get", "tahoe:test2/%s" % fn))
-            d.addCallback(lambda (rc, out, err), fn=fn:
-                self.failUnlessEqual(out, fn * 1000))
+            d.addCallback(lambda rc_and_out_and_err, fn=fn:
+                self.failUnlessEqual(rc_and_out_and_err[1], fn * 1000))
             d.addCallback(lambda ignored, fn=fn:
                 self.do_cli("ls", "--json", "tahoe:test2/%s" % fn))
             d.addCallback(_process_file_json, fn=fn)
@@ -2282,8 +2346,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # should be different.
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test2/imm1"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, "imm1" * 1000))
+        d.addCallback(lambda rc_out_err28:
+            self.failUnlessEqual(rc_out_err28[1], "imm1" * 1000))
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test2/imm1"))
         d.addCallback(_process_file_json, fn="imm1")
@@ -2291,18 +2355,19 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # imm3 should have been created.
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test2/imm3"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, "imm3" * 1000))
+        d.addCallback(lambda rc_out_err29:
+            self.failUnlessEqual(rc_out_err29[1], "imm3" * 1000))
 
         # imm2 should be exactly as we left it, since our newly-copied
         # directory didn't contain an imm2 entry.
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test2/imm2"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, imm_test_txt_contents))
+        d.addCallback(lambda rc_out_err30:
+            self.failUnlessEqual(rc_out_err30[1], imm_test_txt_contents))
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test2/imm2"))
-        def _process_imm2_json((rc, out, err)):
+        def _process_imm2_json(xxx_todo_changeme100):
+            (rc, out, err) = xxx_todo_changeme100
             self.failUnlessEqual(rc, 0)
             filetype, data = simplejson.loads(out)
             self.failUnlessEqual(filetype, "filenode")
@@ -2333,14 +2398,16 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe:")
         d.addCallback(lambda ignored:
             self.do_cli("put", "--mutable", test_file_path))
-        def _get_test_uri((rc, out, err)):
+        def _get_test_uri(xxx_todo_changeme101):
+            (rc, out, err) = xxx_todo_changeme101
             self.failUnlessEqual(rc, 0)
             # this should be a write uri
             self._test_write_uri = out
         d.addCallback(_get_test_uri)
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", self._test_write_uri))
-        def _process_test_json((rc, out, err)):
+        def _process_test_json(xxx_todo_changeme102):
+            (rc, out, err) = xxx_todo_changeme102
             self.failUnlessEqual(rc, 0)
             filetype, data = simplejson.loads(out)
 
@@ -2352,12 +2419,13 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # Now we'll link the readonly URI into the tahoe: alias.
         d.addCallback(lambda ignored:
             self.do_cli("ln", self._test_read_uri, "tahoe:test_file.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(rc, 0))
+        d.addCallback(lambda rc_out_err31:
+            self.failUnlessEqual(rc_out_err31[0], 0))
         # Let's grab the json of that to make sure that we did it right.
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:"))
-        def _process_tahoe_json((rc, out, err)):
+        def _process_tahoe_json(xxx_todo_changeme103):
+            (rc, out, err) = xxx_todo_changeme103
             self.failUnlessEqual(rc, 0)
 
             filetype, data = simplejson.loads(out)
@@ -2377,40 +2445,41 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         # place of that one. We should get an error.
         d.addCallback(lambda ignored:
             self.do_cli("cp", replacement_file_path, "tahoe:test_file.txt"))
-        def _check_error_message((rc, out, err)):
+        def _check_error_message(xxx_todo_changeme104):
+            (rc, out, err) = xxx_todo_changeme104
             self.failUnlessEqual(rc, 1)
             self.failUnlessIn("replace or update requested with read-only cap", err)
         d.addCallback(_check_error_message)
         # Make extra sure that that didn't work.
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test_file.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_file_contents))
+        d.addCallback(lambda rc_out_err32:
+            self.failUnlessEqual(rc_out_err32[1], test_file_contents))
         d.addCallback(lambda ignored:
             self.do_cli("get", self._test_read_uri))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_file_contents))
+        d.addCallback(lambda rc_out_err33:
+            self.failUnlessEqual(rc_out_err33[1], test_file_contents))
         # Now we'll do it without an explicit destination.
         d.addCallback(lambda ignored:
             self.do_cli("cp", test_file_path, "tahoe:"))
         d.addCallback(_check_error_message)
         d.addCallback(lambda ignored:
             self.do_cli("get", "tahoe:test_file.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_file_contents))
+        d.addCallback(lambda rc_out_err34:
+            self.failUnlessEqual(rc_out_err34[1], test_file_contents))
         d.addCallback(lambda ignored:
             self.do_cli("get", self._test_read_uri))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(out, test_file_contents))
+        d.addCallback(lambda rc_out_err35:
+            self.failUnlessEqual(rc_out_err35[1], test_file_contents))
         # Now we'll link a readonly file into a subdirectory.
         d.addCallback(lambda ignored:
             self.do_cli("mkdir", "tahoe:testdir"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(rc, 0))
+        d.addCallback(lambda rc_out_err36:
+            self.failUnlessEqual(rc_out_err36[0], 0))
         d.addCallback(lambda ignored:
             self.do_cli("ln", self._test_read_uri, "tahoe:test/file2.txt"))
-        d.addCallback(lambda (rc, out, err):
-            self.failUnlessEqual(rc, 0))
+        d.addCallback(lambda rc_out_err37:
+            self.failUnlessEqual(rc_out_err37[0], 0))
 
         test_dir_path = os.path.join(self.basedir, "test")
         fileutil.make_dirs(test_dir_path)
@@ -2422,7 +2491,8 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_error_message)
         d.addCallback(lambda ignored:
             self.do_cli("ls", "--json", "tahoe:test"))
-        def _got_testdir_json((rc, out, err)):
+        def _got_testdir_json(xxx_todo_changeme105):
+            (rc, out, err) = xxx_todo_changeme105
             self.failUnlessEqual(rc, 0)
 
             filetype, data = simplejson.loads(out)
@@ -2517,7 +2587,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
 
         d.addCallback(lambda res: do_backup())
-        def _check0((rc, out, err)):
+        def _check0(xxx_todo_changeme106):
+            (rc, out, err) = xxx_todo_changeme106
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
@@ -2532,7 +2603,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(_check0)
 
         d.addCallback(lambda res: self.do_cli("ls", "--uri", "tahoe:backups"))
-        def _check1((rc, out, err)):
+        def _check1(xxx_todo_changeme107):
+            (rc, out, err) = xxx_todo_changeme107
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.split("\n")
@@ -2543,25 +2615,29 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessReallyEqual(sorted(childnames), ["Archives", "Latest"])
         d.addCallback(_check1)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest"))
-        def _check2((rc, out, err)):
+        def _check2(xxx_todo_changeme108):
+            (rc, out, err) = xxx_todo_changeme108
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(sorted(out.split()), ["empty", "parent"])
         d.addCallback(_check2)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Latest/empty"))
-        def _check2a((rc, out, err)):
+        def _check2a(xxx_todo_changeme109):
+            (rc, out, err) = xxx_todo_changeme109
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(out.strip(), "")
         d.addCallback(_check2a)
         d.addCallback(lambda res: self.do_cli("get", "tahoe:backups/Latest/parent/subdir/foo.txt"))
-        def _check3((rc, out, err)):
+        def _check3(xxx_todo_changeme110):
+            (rc, out, err) = xxx_todo_changeme110
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(out, "foo")
         d.addCallback(_check3)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
-        def _check4((rc, out, err)):
+        def _check4(xxx_todo_changeme111):
+            (rc, out, err) = xxx_todo_changeme111
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.old_archives = out.split()
@@ -2571,9 +2647,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         d.addCallback(self.stall, 1.1)
         d.addCallback(lambda res: do_backup())
-        def _check4a((rc, out, err)):
+        def _check4a(xxx_todo_changeme112):
             # second backup should reuse everything, if the backupdb is
             # available
+            (rc, out, err) = xxx_todo_changeme112
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
@@ -2602,10 +2679,11 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         d.addCallback(self.stall, 1.1)
         d.addCallback(lambda res: do_backup(verbose=True))
-        def _check4b((rc, out, err)):
+        def _check4b(xxx_todo_changeme113):
             # we should check all files, and re-use all of them. None of
             # the directories should have been changed, so we should
             # re-use all of them too.
+            (rc, out, err) = xxx_todo_changeme113
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
@@ -2621,7 +2699,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d.addCallback(_check4b)
 
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
-        def _check5((rc, out, err)):
+        def _check5(xxx_todo_changeme114):
+            (rc, out, err) = xxx_todo_changeme114
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.new_archives = out.split()
@@ -2645,9 +2724,10 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.writeto("empty", "imagine nothing being here")
             return do_backup()
         d.addCallback(_modify)
-        def _check5a((rc, out, err)):
+        def _check5a(xxx_todo_changeme115):
             # second backup should reuse bar.txt (if backupdb is available),
             # and upload the rest. None of the directories can be reused.
+            (rc, out, err) = xxx_todo_changeme115
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             fu, fr, fs, dc, dr, ds = self.count_output(out)
@@ -2662,7 +2742,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
             self.failUnlessReallyEqual(ds, 0)
         d.addCallback(_check5a)
         d.addCallback(lambda res: self.do_cli("ls", "tahoe:backups/Archives"))
-        def _check6((rc, out, err)):
+        def _check6(xxx_todo_changeme116):
+            (rc, out, err) = xxx_todo_changeme116
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.new_archives = out.split()
@@ -2671,14 +2752,16 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
                                  self.old_archives[0])
         d.addCallback(_check6)
         d.addCallback(lambda res: self.do_cli("get", "tahoe:backups/Latest/parent/subdir/foo.txt"))
-        def _check7((rc, out, err)):
+        def _check7(xxx_todo_changeme117):
+            (rc, out, err) = xxx_todo_changeme117
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(out, "FOOF!")
             # the old snapshot should not be modified
             return self.do_cli("get", "tahoe:backups/Archives/%s/parent/subdir/foo.txt" % self.old_archives[0])
         d.addCallback(_check7)
-        def _check8((rc, out, err)):
+        def _check8(xxx_todo_changeme118):
+            (rc, out, err) = xxx_todo_changeme118
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(out, "foo")
@@ -2812,7 +2895,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("backup", "--verbose", source, "tahoe:test"))
 
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme119):
+            (rc, out, err) = xxx_todo_changeme119
             self.failUnlessReallyEqual(rc, 2)
             foo2 = os.path.join(source, "foo2.txt")
             self.failUnlessReallyEqual(err, "WARNING: cannot backup symlink '%s'\n" % foo2)
@@ -2842,7 +2926,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:test"))
 
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme120):
+            (rc, out, err) = xxx_todo_changeme120
             self.failUnlessReallyEqual(rc, 2)
             self.failUnlessReallyEqual(err, "WARNING: permission denied on file %s\n" % os.path.join(source, "foo.txt"))
 
@@ -2859,7 +2944,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         # This is necessary for the temp files to be correctly removed
         def _cleanup(self):
-            os.chmod(os.path.join(source, "foo.txt"), 0644)
+            os.chmod(os.path.join(source, "foo.txt"), 0o644)
         d.addCallback(_cleanup)
         d.addErrback(_cleanup)
 
@@ -2877,7 +2962,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("backup", source, "tahoe:test"))
 
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme121):
+            (rc, out, err) = xxx_todo_changeme121
             self.failUnlessReallyEqual(rc, 2)
             self.failUnlessReallyEqual(err, "WARNING: permission denied on directory %s\n" % os.path.join(source, "test"))
 
@@ -2894,7 +2980,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
         # This is necessary for the temp files to be correctly removed
         def _cleanup(self):
-            os.chmod(os.path.join(source, "test"), 0655)
+            os.chmod(os.path.join(source, "test"), 0o655)
         d.addCallback(_cleanup)
         d.addErrback(_cleanup)
         return d
@@ -2906,7 +2992,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self.set_up_grid()
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli('backup', source, source)
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme122):
+            (rc, out, err) = xxx_todo_changeme122
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -2920,7 +3007,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         self.set_up_grid()
         source = os.path.join(self.basedir, "file1")
         d = self.do_cli("backup", source, "nonexistent:" + source)
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme123):
+            (rc, out, err) = xxx_todo_changeme123
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -2943,7 +3031,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_uri)
 
         d.addCallback(lambda ign: self.do_cli("check", self.uri))
-        def _check1((rc, out, err)):
+        def _check1(xxx_todo_changeme124):
+            (rc, out, err) = xxx_todo_changeme124
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -2952,7 +3041,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check1)
 
         d.addCallback(lambda ign: self.do_cli("check", "--raw", self.uri))
-        def _check2((rc, out, err)):
+        def _check2(xxx_todo_changeme125):
+            (rc, out, err) = xxx_todo_changeme125
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             data = simplejson.loads(out)
@@ -2966,7 +3056,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_lit_uri)
 
         d.addCallback(lambda ign: self.do_cli("check", self.lit_uri))
-        def _check_lit((rc, out, err)):
+        def _check_lit(xxx_todo_changeme126):
+            (rc, out, err) = xxx_todo_changeme126
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -2974,7 +3065,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check_lit)
 
         d.addCallback(lambda ign: self.do_cli("check", "--raw", self.lit_uri))
-        def _check_lit_raw((rc, out, err)):
+        def _check_lit_raw(xxx_todo_changeme127):
+            (rc, out, err) = xxx_todo_changeme127
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             data = simplejson.loads(out)
@@ -3009,7 +3101,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_clobber_shares)
 
         d.addCallback(lambda ign: self.do_cli("check", "--verify", self.uri))
-        def _check3((rc, out, err)):
+        def _check3(xxx_todo_changeme128):
+            (rc, out, err) = xxx_todo_changeme128
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3022,7 +3115,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check3)
 
         d.addCallback(lambda ign: self.do_cli("check", "--verify", "--raw", self.uri))
-        def _check3_raw((rc, out, err)):
+        def _check3_raw(xxx_todo_changeme129):
+            (rc, out, err) = xxx_todo_changeme129
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             data = simplejson.loads(out)
@@ -3035,7 +3129,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign:
                       self.do_cli("check", "--verify", "--repair", self.uri))
-        def _check4((rc, out, err)):
+        def _check4(xxx_todo_changeme130):
+            (rc, out, err) = xxx_todo_changeme130
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3048,7 +3143,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign:
                       self.do_cli("check", "--verify", "--repair", self.uri))
-        def _check5((rc, out, err)):
+        def _check5(xxx_todo_changeme131):
+            (rc, out, err) = xxx_todo_changeme131
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3089,7 +3185,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_uri, "mutable")
 
         d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
-        def _check1((rc, out, err)):
+        def _check1(xxx_todo_changeme132):
+            (rc, out, err) = xxx_todo_changeme132
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3104,7 +3201,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign: self.do_cli("deep-check", "--verbose",
                                               self.rooturi))
-        def _check2((rc, out, err)):
+        def _check2(xxx_todo_changeme133):
+            (rc, out, err) = xxx_todo_changeme133
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3117,7 +3215,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check2)
 
         d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
-        def _check_stats((rc, out, err)):
+        def _check_stats(xxx_todo_changeme134):
+            (rc, out, err) = xxx_todo_changeme134
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3155,7 +3254,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d.addCallback(lambda ign:
                       self.do_cli("deep-check", "--verbose", self.rooturi))
-        def _check3((rc, out, err)):
+        def _check3(xxx_todo_changeme135):
+            (rc, out, err) = xxx_todo_changeme135
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3171,7 +3271,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.do_cli("deep-check", "--verbose", "--verify",
                                   self.rooturi))
-        def _check4((rc, out, err)):
+        def _check4(xxx_todo_changeme136):
+            (rc, out, err) = xxx_todo_changeme136
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3189,7 +3290,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign:
                       self.do_cli("deep-check", "--raw",
                                   self.rooturi))
-        def _check5((rc, out, err)):
+        def _check5(xxx_todo_changeme137):
+            (rc, out, err) = xxx_todo_changeme137
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3202,7 +3304,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                       self.do_cli("deep-check",
                                   "--verbose", "--verify", "--repair",
                                   self.rooturi))
-        def _check6((rc, out, err)):
+        def _check6(xxx_todo_changeme138):
+            (rc, out, err) = xxx_todo_changeme138
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3227,7 +3330,7 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
                       fn.add_file(u"subfile", upload.Data(DATA+"2", "")))
         d.addCallback(lambda ign:
                       self.delete_shares_numbered(self.uris["subdir"],
-                                                  range(10)))
+                                                  list(range(10))))
 
         # root
         # rootg\u00F6\u00F6d/
@@ -3237,7 +3340,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         # root/subfile
 
         d.addCallback(lambda ign: self.do_cli("manifest", self.rooturi))
-        def _manifest_failed((rc, out, err)):
+        def _manifest_failed(xxx_todo_changeme139):
+            (rc, out, err) = xxx_todo_changeme139
             self.failIfEqual(rc, 0)
             self.failUnlessIn("ERROR: UnrecoverableFileError", err)
             # the fatal directory should still show up, as the last line
@@ -3245,7 +3349,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_manifest_failed)
 
         d.addCallback(lambda ign: self.do_cli("deep-check", self.rooturi))
-        def _deep_check_failed((rc, out, err)):
+        def _deep_check_failed(xxx_todo_changeme140):
+            (rc, out, err) = xxx_todo_changeme140
             self.failIfEqual(rc, 0)
             self.failUnlessIn("ERROR: UnrecoverableFileError", err)
             # we want to make sure that the error indication is the last
@@ -3275,7 +3380,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Check/check_without_alias"
         self.set_up_grid()
         d = self.do_cli("check")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme141):
+            (rc, out, err) = xxx_todo_changeme141
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -3290,7 +3396,8 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Check/check_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("check", "nonexistent:")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme142):
+            (rc, out, err) = xxx_todo_changeme142
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -3309,24 +3416,26 @@ class Check(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_stash_uri)
         d = c0.create_dirnode()
         d.addCallback(_stash_uri)
-        
+
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], self.uriList[1]))
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme143):
+            (rc, out, err) = xxx_todo_changeme143
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             #Ensure healthy appears for each uri
-            self.failUnlessIn("Healthy", out[:len(out)/2])
-            self.failUnlessIn("Healthy", out[len(out)/2:])
+            self.failUnlessIn("Healthy", out[:len(out)//2])
+            self.failUnlessIn("Healthy", out[len(out)//2:])
         d.addCallback(_check)
-        
+
         d.addCallback(lambda ign: self.do_cli("check", self.uriList[0], "nonexistent:"))
-        def _check2((rc, out, err)):
+        def _check2(xxx_todo_changeme144):
+            (rc, out, err) = xxx_todo_changeme144
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("Healthy", out)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
         d.addCallback(_check2)
-        
+
         return d
 
 
@@ -3340,7 +3449,7 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         d = c0.upload(upload.Data(DATA, convergence=""))
         def _stash_bad(ur):
             self.uri_1share = ur.get_uri()
-            self.delete_shares_numbered(ur.get_uri(), range(1,10))
+            self.delete_shares_numbered(ur.get_uri(), list(range(1,10)))
         d.addCallback(_stash_bad)
 
         # the download is abandoned as soon as it's clear that we won't get
@@ -3350,7 +3459,8 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
         in_pending_msg = "ran out of shares: complete= pending=Share(sh0-on-fob7vqgd) overdue= unused= need 3"
 
         d.addCallback(lambda ign: self.do_cli("get", self.uri_1share))
-        def _check1((rc, out, err)):
+        def _check1(xxx_todo_changeme145):
+            (rc, out, err) = xxx_todo_changeme145
             self.failIfEqual(rc, 0)
             self.failUnless("410 Gone" in err, err)
             self.failUnlessIn("NotEnoughSharesError: ", err)
@@ -3360,7 +3470,8 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         targetf = os.path.join(self.basedir, "output")
         d.addCallback(lambda ign: self.do_cli("get", self.uri_1share, targetf))
-        def _check2((rc, out, err)):
+        def _check2(xxx_todo_changeme146):
+            (rc, out, err) = xxx_todo_changeme146
             self.failIfEqual(rc, 0)
             self.failUnless("410 Gone" in err, err)
             self.failUnlessIn("NotEnoughSharesError: ", err)
@@ -3384,7 +3495,8 @@ class Errors(GridTestMixin, CLITestMixin, unittest.TestCase):
                    "endheaders", _socket_error)
 
         d = self.do_cli("mkdir")
-        def _check_invalid((rc,stdout,stderr)):
+        def _check_invalid(xxx_todo_changeme147):
+            (rc,stdout,stderr) = xxx_todo_changeme147
             self.failIfEqual(rc, 0)
             self.failUnlessIn("Error trying to connect to http://127.0.0.1", stderr)
         d.addCallback(_check_invalid)
@@ -3399,7 +3511,8 @@ class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Get/get_without_alias"
         self.set_up_grid()
         d = self.do_cli('get', 'file')
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme148):
+            (rc, out, err) = xxx_todo_changeme148
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -3412,7 +3525,8 @@ class Get(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Get/get_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("get", "nonexistent:file")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme149):
+            (rc, out, err) = xxx_todo_changeme149
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -3429,7 +3543,8 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Manifest/manifest_without_alias"
         self.set_up_grid()
         d = self.do_cli("manifest")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme150):
+            (rc, out, err) = xxx_todo_changeme150
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -3442,7 +3557,8 @@ class Manifest(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Manifest/manifest_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("manifest", "nonexistent:")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme151):
+            (rc, out, err) = xxx_todo_changeme151
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -3458,7 +3574,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("mkdir", "test"))
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme152):
+            (rc, out, err) = xxx_todo_changeme152
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn("URI:", out)
@@ -3470,7 +3587,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = os.path.dirname(self.mktemp())
         self.set_up_grid()
         d = self.do_cli("create-alias", "tahoe")
-        def _check((rc, out, err), st):
+        def _check(xxx_todo_changeme153, st):
+            (rc, out, err) = xxx_todo_changeme153
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn(st, out)
@@ -3499,7 +3617,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = os.path.dirname(self.mktemp())
         self.set_up_grid()
         d = self.do_cli("mkdir", "--format=SDMF")
-        def _check((rc, out, err), st):
+        def _check(xxx_todo_changeme154, st):
+            (rc, out, err) = xxx_todo_changeme154
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn(st, out)
@@ -3542,7 +3661,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda res: self.do_cli("mkdir", motorhead_arg))
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme155):
+            (rc, out, err) = xxx_todo_changeme155
             self.failUnlessReallyEqual(rc, 0)
             self.failUnlessReallyEqual(err, "")
             self.failUnlessIn("URI:", out)
@@ -3556,7 +3676,8 @@ class Mkdir(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Mkdir/mkdir_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("mkdir", "havasu:")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme156):
+            (rc, out, err) = xxx_todo_changeme156
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -3579,7 +3700,8 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Unlink/%s_without_alias" % (self.command,)
         self.set_up_grid()
         d = self.do_cli(self.command, "afile")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme157):
+            (rc, out, err) = xxx_todo_changeme157
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -3595,7 +3717,8 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Unlink/%s_with_nonexistent_alias" % (self.command,)
         self.set_up_grid()
         d = self.do_cli(self.command, "nonexistent:afile")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme158):
+            (rc, out, err) = xxx_todo_changeme158
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessIn("nonexistent", err)
@@ -3613,13 +3736,15 @@ class Unlink(GridTestMixin, CLITestMixin, unittest.TestCase):
         self._create_test_file()
         d = self.do_cli("create-alias", "tahoe")
         d.addCallback(lambda ign: self.do_cli("put", self.datafile, "tahoe:test"))
-        def _do_unlink((rc, out, err)):
+        def _do_unlink(xxx_todo_changeme159):
+            (rc, out, err) = xxx_todo_changeme159
             self.failUnlessReallyEqual(rc, 0)
             self.failUnless(out.startswith("URI:"), out)
             return self.do_cli(self.command, out.strip('\n'))
         d.addCallback(_do_unlink)
 
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme160):
+            (rc, out, err) = xxx_todo_changeme160
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("'tahoe %s'" % (self.command,), err)
             self.failUnlessIn("path must be given", err)
@@ -3647,7 +3772,8 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         # make sure we can get stats on an empty directory too
         d.addCallback(lambda ign: self.do_cli("stats", self.rooturi))
-        def _check_stats((rc, out, err)):
+        def _check_stats(xxx_todo_changeme161):
+            (rc, out, err) = xxx_todo_changeme161
             self.failUnlessReallyEqual(err, "")
             self.failUnlessReallyEqual(rc, 0)
             lines = out.splitlines()
@@ -3668,7 +3794,8 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Stats/stats_without_alias"
         self.set_up_grid()
         d = self.do_cli("stats")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme162):
+            (rc, out, err) = xxx_todo_changeme162
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -3681,7 +3808,8 @@ class Stats(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Stats/stats_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("stats", "havasu:")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme163):
+            (rc, out, err) = xxx_todo_changeme163
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -3697,7 +3825,8 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
         self.basedir = "cli/Webopen/webopen_with_nonexistent_alias"
         self.set_up_grid()
         d = self.do_cli("webopen", "fake:")
-        def _check((rc, out, err)):
+        def _check(xxx_todo_changeme164):
+            (rc, out, err) = xxx_todo_changeme164
             self.failUnlessReallyEqual(rc, 1)
             self.failUnlessIn("error:", err)
             self.failUnlessReallyEqual(out, "")
@@ -3721,14 +3850,16 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
             self.basedir = "cli/Webopen/webopen"
             self.set_up_grid()
             d = self.do_cli("create-alias", "alias:")
-            def _check_alias((rc, out, err)):
+            def _check_alias(xxx_todo_changeme39):
+                (rc, out, err) = xxx_todo_changeme39
                 self.failUnlessReallyEqual(rc, 0, repr((rc, out, err)))
                 self.failUnlessIn("Alias 'alias' created", out)
                 self.failUnlessReallyEqual(err, "")
                 self.alias_uri = get_aliases(self.get_clientdir())["alias"]
             d.addCallback(_check_alias)
             d.addCallback(lambda res: self.do_cli("webopen", "alias:"))
-            def _check_webopen((rc, out, err)):
+            def _check_webopen(xxx_todo_changeme40):
+                (rc, out, err) = xxx_todo_changeme40
                 self.failUnlessReallyEqual(rc, 0, repr((rc, out, err)))
                 self.failUnlessReallyEqual(out, "")
                 self.failUnlessReallyEqual(err, "")

@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os, sys
 from cStringIO import StringIO
@@ -58,12 +59,12 @@ class Options(usage.Options):
 
     def opt_version(self):
         import allmydata
-        print >>self.stdout, allmydata.get_package_versions_string(debug=True)
+        print(allmydata.get_package_versions_string(debug=True), file=self.stdout)
         self.no_command_needed = True
 
     def opt_version_and_path(self):
         import allmydata
-        print >>self.stdout, allmydata.get_package_versions_string(show_paths=True, debug=True)
+        print(allmydata.get_package_versions_string(show_paths=True, debug=True), file=self.stdout)
         self.no_command_needed = True
 
     def getSynopsis(self):
@@ -105,18 +106,18 @@ def runner(argv,
 
     try:
         config.parseOptions(argv)
-    except usage.error, e:
+    except usage.error as e:
         if not run_by_human:
             raise
         c = config
         while hasattr(c, 'subOptions'):
             c = c.subOptions
-        print >>stdout, str(c)
+        print(str(c), file=stdout)
         try:
             msg = e.args[0].decode(get_io_encoding())
         except Exception:
             msg = repr(e)
-        print >>stdout, "%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False))
+        print("%s:  %s\n" % (sys.argv[0], quote_output(msg, quotemarks=False)), file=stdout)
         return 1
 
     command = config.subCommand

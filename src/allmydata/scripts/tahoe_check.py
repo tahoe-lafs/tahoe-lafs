@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import urllib
 import simplejson
@@ -23,7 +24,7 @@ def check_location(options, where):
         nodeurl += "/"
     try:
         rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     if path == '/':
@@ -42,7 +43,7 @@ def check_location(options, where):
 
     resp = do_http("POST", url)
     if resp.status != 200:
-        print >>stderr, format_http_error("ERROR", resp)
+        print(format_http_error("ERROR", resp), file=stderr)
         return 1
     jdata = resp.read()
     if options.get("raw"):
@@ -129,12 +130,12 @@ class DeepCheckOutput(LineOnlyReceiver):
 
     def lineReceived(self, line):
         if self.in_error:
-            print >>self.stderr, quote_output(line, quotemarks=False)
+            print(quote_output(line, quotemarks=False), file=self.stderr)
             return
         if line.startswith("ERROR:"):
             self.in_error = True
             self.streamer.rc = 1
-            print >>self.stderr, quote_output(line, quotemarks=False)
+            print(quote_output(line, quotemarks=False), file=self.stderr)
             return
 
         d = simplejson.loads(line)
@@ -144,7 +145,7 @@ class DeepCheckOutput(LineOnlyReceiver):
         self.num_objects += 1
         # non-verbose means print a progress marker every 100 files
         if self.num_objects % 100 == 0:
-            print >>stdout, "%d objects checked.." % self.num_objects
+            print("%d objects checked.." % self.num_objects, file=stdout)
         cr = d["check-results"]
         if cr["results"]["healthy"]:
             self.files_healthy += 1
@@ -158,19 +159,19 @@ class DeepCheckOutput(LineOnlyReceiver):
 
             # LIT files and directories do not have a "summary" field.
             summary = cr.get("summary", "Healthy (LIT)")
-            print >>stdout, "%s: %s" % (quote_path(path), quote_output(summary, quotemarks=False))
+            print("%s: %s" % (quote_path(path), quote_output(summary, quotemarks=False)), file=stdout)
 
         # always print out corrupt shares
         for shareloc in cr["results"].get("list-corrupt-shares", []):
             (serverid, storage_index, sharenum) = shareloc
-            print >>stdout, " corrupt: %s" % _quote_serverid_index_share(serverid, storage_index, sharenum)
+            print(" corrupt: %s" % _quote_serverid_index_share(serverid, storage_index, sharenum), file=stdout)
 
     def done(self):
         if self.in_error:
             return
         stdout = self.stdout
-        print >>stdout, "done: %d objects checked, %d healthy, %d unhealthy" \
-              % (self.num_objects, self.files_healthy, self.files_unhealthy)
+        print("done: %d objects checked, %d healthy, %d unhealthy" \
+              % (self.num_objects, self.files_healthy, self.files_unhealthy), file=stdout)
 
 class DeepCheckAndRepairOutput(LineOnlyReceiver):
     delimiter = "\n"
@@ -192,12 +193,12 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
 
     def lineReceived(self, line):
         if self.in_error:
-            print >>self.stderr, quote_output(line, quotemarks=False)
+            print(quote_output(line, quotemarks=False), file=self.stderr)
             return
         if line.startswith("ERROR:"):
             self.in_error = True
             self.streamer.rc = 1
-            print >>self.stderr, quote_output(line, quotemarks=False)
+            print(quote_output(line, quotemarks=False), file=self.stderr)
             return
 
         d = simplejson.loads(line)
@@ -207,7 +208,7 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
         self.num_objects += 1
         # non-verbose means print a progress marker every 100 files
         if self.num_objects % 100 == 0:
-            print >>stdout, "%d objects checked.." % self.num_objects
+            print("%d objects checked.." % self.num_objects, file=stdout)
         crr = d["check-and-repair-results"]
         if d["storage-index"]:
             if crr["pre-repair-results"]["results"]["healthy"]:
@@ -239,36 +240,36 @@ class DeepCheckAndRepairOutput(LineOnlyReceiver):
                 summary = "healthy"
             else:
                 summary = "not healthy"
-            print >>stdout, "%s: %s" % (quote_path(path), summary)
+            print("%s: %s" % (quote_path(path), summary), file=stdout)
 
         # always print out corrupt shares
         prr = crr.get("pre-repair-results", {})
         for shareloc in prr.get("results", {}).get("list-corrupt-shares", []):
             (serverid, storage_index, sharenum) = shareloc
-            print >>stdout, " corrupt: %s" % _quote_serverid_index_share(serverid, storage_index, sharenum)
+            print(" corrupt: %s" % _quote_serverid_index_share(serverid, storage_index, sharenum), file=stdout)
 
         # always print out repairs
         if crr["repair-attempted"]:
             if crr["repair-successful"]:
-                print >>stdout, " repair successful"
+                print(" repair successful", file=stdout)
             else:
-                print >>stdout, " repair failed"
+                print(" repair failed", file=stdout)
 
     def done(self):
         if self.in_error:
             return
         stdout = self.stdout
-        print >>stdout, "done: %d objects checked" % self.num_objects
-        print >>stdout, " pre-repair: %d healthy, %d unhealthy" \
+        print("done: %d objects checked" % self.num_objects, file=stdout)
+        print(" pre-repair: %d healthy, %d unhealthy" \
               % (self.pre_repair_files_healthy,
-                 self.pre_repair_files_unhealthy)
-        print >>stdout, " %d repairs attempted, %d successful, %d failed" \
+                 self.pre_repair_files_unhealthy), file=stdout)
+        print(" %d repairs attempted, %d successful, %d failed" \
               % (self.repairs_attempted,
                  self.repairs_successful,
-                 (self.repairs_attempted - self.repairs_successful))
-        print >>stdout, " post-repair: %d healthy, %d unhealthy" \
+                 (self.repairs_attempted - self.repairs_successful)), file=stdout)
+        print(" post-repair: %d healthy, %d unhealthy" \
               % (self.post_repair_files_healthy,
-                 self.post_repair_files_unhealthy)
+                 self.post_repair_files_unhealthy), file=stdout)
 
 class DeepCheckStreamer(LineOnlyReceiver):
 
@@ -284,7 +285,7 @@ class DeepCheckStreamer(LineOnlyReceiver):
 
         try:
             rootcap, path = get_alias(options.aliases, where, DEFAULT_ALIAS)
-        except UnknownAliasError, e:
+        except UnknownAliasError as e:
             e.display(stderr)
             return 1
         if path == '/':
@@ -305,7 +306,7 @@ class DeepCheckStreamer(LineOnlyReceiver):
             url += "&add-lease=true"
         resp = do_http("POST", url)
         if resp.status not in (200, 302):
-            print >>stderr, format_http_error("ERROR", resp)
+            print(format_http_error("ERROR", resp), file=stderr)
             return 1
 
         # use Twisted to split this into lines

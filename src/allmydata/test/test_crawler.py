@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import time
 import os.path
@@ -293,7 +294,7 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
                 left = p["remaining-sleep-time"]
                 self.failUnless(isinstance(left, float), left)
                 self.failUnless(left > 0.0, left)
-            except Exception, e:
+            except Exception as e:
                 did_check_progress[0] = e
             else:
                 did_check_progress[0] = True
@@ -373,9 +374,9 @@ class Basic(unittest.TestCase, StallMixin, pollmixin.PollMixin):
             # our buildslaves vary too much in their speeds and load levels,
             # and many of them only manage to hit 7% usage when our target is
             # 50%. So don't assert anything about the results, just log them.
-            print
-            print "crawler: got %d%% percent when trying for 50%%" % percent
-            print "crawler: got %d full cycles" % c.cycles
+            print()
+            print("crawler: got %d%% percent when trying for 50%%" % percent)
+            print("crawler: got %d full cycles" % c.cycles)
         d.addCallback(_done)
         return d
 

@@ -1,5 +1,6 @@
 
 import time
+import six
 now = time.time
 from zope.interface import Interface
 from twisted.python.failure import Failure
@@ -13,10 +14,10 @@ from allmydata.hashtree import IncompleteHashTree, BadHashError, \
      NotEnoughHashesError
 
 # local imports
-from finder import ShareFinder
-from fetcher import SegmentFetcher
-from segmentation import Segmentation
-from common import BadCiphertextHashError
+from .finder import ShareFinder
+from .fetcher import SegmentFetcher
+from .segmentation import Segmentation
+from .common import BadCiphertextHashError
 
 class IDownloadStatusHandlingConsumer(Interface):
     def set_download_status_read_event(read_ev):
@@ -352,8 +353,8 @@ class DownloadNode:
 
         # each segment is turned into N blocks. All but the last are of size
         # block_size, and the last is of size tail_block_size
-        block_size = segment_size / k
-        tail_block_size = tail_segment_padded / k
+        block_size = segment_size // k
+        tail_block_size = tail_segment_padded // k
 
         return { "tail_segment_size": tail_segment_size,
                  "tail_segment_padded": tail_segment_padded,
@@ -454,7 +455,7 @@ class DownloadNode:
 
         shares = []
         shareids = []
-        for (shareid, share) in blocks.iteritems():
+        for (shareid, share) in six.iteritems(blocks):
             assert len(share) == block_size
             shareids.append(shareid)
             shares.append(share)
@@ -474,7 +475,8 @@ class DownloadNode:
         d.addCallback(_process)
         return d
 
-    def _check_ciphertext_hash(self, (segment, decodetime), segnum):
+    def _check_ciphertext_hash(self, xxx_todo_changeme, segnum):
+        (segment, decodetime) = xxx_todo_changeme
         start = now()
         assert self._active_segment.segnum == segnum
         assert self.segment_size is not None

@@ -186,7 +186,7 @@ class Incomplete(unittest.TestCase):
         # this should succeed
         try:
             iht.set_hashes(chain, leaves={0: tagged_hash("tag", "0")})
-        except hashtree.BadHashError, e:
+        except hashtree.BadHashError as e:
             self.fail("bad hash: %s" % e)
 
         self.failUnlessEqual(ht.get_leaf(0), tagged_hash("tag", "0"))
@@ -215,5 +215,5 @@ class Incomplete(unittest.TestCase):
         # this should succeed
         try:
             iht.set_hashes(chain, leaves={4: tagged_hash("tag", "4")})
-        except hashtree.BadHashError, e:
+        except hashtree.BadHashError as e:
             self.fail("bad hash: %s" % e)

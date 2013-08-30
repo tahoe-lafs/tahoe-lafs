@@ -192,12 +192,12 @@ def _synchronously_find_addresses_via_config():
 def _query(path, args, regex):
     env = {'LANG': 'en_US.UTF-8'}
     TRIES = 5
-    for trial in xrange(TRIES):
+    for trial in range(TRIES):
         try:
             p = subprocess.Popen([path] + list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
             (output, err) = p.communicate()
             break
-        except OSError, e:
+        except OSError as e:
             if e.errno == errno.EINTR and trial < TRIES-1:
                 continue
             raise

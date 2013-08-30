@@ -1,3 +1,6 @@
+from __future__ import print_function
+import six
+from six.moves import filter
 
 def foo(): pass # keep the line number constant
 
@@ -48,7 +51,7 @@ class HumanReadable(unittest.TestCase):
         self.failUnlessEqual(hr(foo), "<foo() at test_util.py:2>")
         self.failUnlessEqual(hr(self.test_repr),
                              "<bound method HumanReadable.test_repr of <allmydata.test.test_util.HumanReadable testMethod=test_repr>>")
-        self.failUnlessEqual(hr(1L), "1")
+        self.failUnlessEqual(hr(1), "1")
         self.failUnlessEqual(hr(10**40),
                              "100000000000000000...000000000000000000")
         self.failUnlessEqual(hr(self), "<allmydata.test.test_util.HumanReadable testMethod=test_repr>")
@@ -56,19 +59,19 @@ class HumanReadable(unittest.TestCase):
         self.failUnlessEqual(hr({1:2}), "{1:2}")
         try:
             raise ValueError
-        except Exception, e:
+        except Exception as e:
             self.failUnless(
                 hr(e) == "<ValueError: ()>" # python-2.4
                 or hr(e) == "ValueError()") # python-2.5
         try:
             raise ValueError("oops")
-        except Exception, e:
+        except Exception as e:
             self.failUnless(
                 hr(e) == "<ValueError: 'oops'>" # python-2.4
                 or hr(e) == "ValueError('oops',)") # python-2.5
         try:
             raise NoArgumentException
-        except Exception, e:
+        except Exception as e:
             self.failUnless(
                 hr(e) == "<NoArgumentException>" # python-2.4
                 or hr(e) == "NoArgumentException()") # python-2.5
@@ -315,18 +318,18 @@ class Asserts(unittest.TestCase):
     def should_assert(self, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
-        except AssertionError, e:
+        except AssertionError as e:
             return str(e)
-        except Exception, e:
+        except Exception as e:
             self.fail("assert failed with non-AssertionError: %s" % e)
         self.fail("assert was not caught")
 
     def should_not_assert(self, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
-        except AssertionError, e:
+        except AssertionError as e:
             self.fail("assertion fired when it should not have: %s" % e)
-        except Exception, e:
+        except Exception as e:
             self.fail("assertion (which shouldn't have failed) failed with non-AssertionError: %s" % e)
         return # we're happy
 
@@ -371,7 +374,7 @@ class Asserts(unittest.TestCase):
         self.failUnlessEqual("postcondition: othermsg: 'message2' <type 'str'>", m)
 
 class FileUtil(unittest.TestCase):
-    def mkdir(self, basedir, path, mode=0777):
+    def mkdir(self, basedir, path, mode=0o777):
         fn = os.path.join(basedir, path)
         fileutil.make_dirs(fn, mode)
 
@@ -391,16 +394,16 @@ class FileUtil(unittest.TestCase):
         d = os.path.join(basedir, "doomed")
         self.mkdir(d, "a/b")
         self.touch(d, "a/b/1.txt")
-        self.touch(d, "a/b/2.txt", 0444)
+        self.touch(d, "a/b/2.txt", 0o444)
         self.touch(d, "a/b/3.txt", 0)
         self.mkdir(d, "a/c")
         self.touch(d, "a/c/1.txt")
-        self.touch(d, "a/c/2.txt", 0444)
+        self.touch(d, "a/c/2.txt", 0o444)
         self.touch(d, "a/c/3.txt", 0)
-        os.chmod(os.path.join(d, "a/c"), 0444)
+        os.chmod(os.path.join(d, "a/c"), 0o444)
         self.mkdir(d, "a/d")
         self.touch(d, "a/d/1.txt")
-        self.touch(d, "a/d/2.txt", 0444)
+        self.touch(d, "a/d/2.txt", 0o444)
         self.touch(d, "a/d/3.txt", 0)
         os.chmod(os.path.join(d, "a/d"), 0)
 
@@ -1085,12 +1088,12 @@ class DictUtil(unittest.TestCase):
         d[fake3] = fake7
         d[3] = 7
         d[3] = 8
-        self.failUnless(filter(lambda x: x is 8,  d.itervalues()))
-        self.failUnless(filter(lambda x: x is fake7,  d.itervalues()))
+        self.failUnless(filter(lambda x: x is 8,  six.itervalues(d)))
+        self.failUnless(filter(lambda x: x is fake7,  six.itervalues(d)))
         # The real 7 should have been ejected by the d[3] = 8.
-        self.failUnless(not filter(lambda x: x is 7,  d.itervalues()))
-        self.failUnless(filter(lambda x: x is fake3,  d.iterkeys()))
-        self.failUnless(filter(lambda x: x is 3,  d.iterkeys()))
+        self.failUnless(not filter(lambda x: x is 7,  six.itervalues(d)))
+        self.failUnless(filter(lambda x: x is fake3,  six.iterkeys(d)))
+        self.failUnless(filter(lambda x: x is 3,  six.iterkeys(d)))
         d[fake3] = 8
 
         d.clear()
@@ -1099,12 +1102,12 @@ class DictUtil(unittest.TestCase):
         fake7 = EqButNotIs(7)
         d[fake3] = fake7
         d[3] = 8
-        self.failUnless(filter(lambda x: x is 8,  d.itervalues()))
-        self.failUnless(filter(lambda x: x is fake7,  d.itervalues()))
+        self.failUnless(filter(lambda x: x is 8,  six.itervalues(d)))
+        self.failUnless(filter(lambda x: x is fake7,  six.itervalues(d)))
         # The real 7 should have been ejected by the d[3] = 8.
-        self.failUnless(not filter(lambda x: x is 7,  d.itervalues()))
-        self.failUnless(filter(lambda x: x is fake3,  d.iterkeys()))
-        self.failUnless(filter(lambda x: x is 3,  d.iterkeys()))
+        self.failUnless(not filter(lambda x: x is 7,  six.itervalues(d)))
+        self.failUnless(filter(lambda x: x is fake3,  six.iterkeys(d)))
+        self.failUnless(filter(lambda x: x is 3,  six.iterkeys(d)))
         d[fake3] = 8
 
     def test_all(self):
@@ -1208,7 +1211,7 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(d.get(3, "default"), "default")
         self.failUnlessEqual(sorted(list(d.items())),
                              [(1, "b"), (2, "a")])
-        self.failUnlessEqual(sorted(list(d.iteritems())),
+        self.failUnlessEqual(sorted(list(six.iteritems(d))),
                              [(1, "b"), (2, "a")])
         self.failUnlessEqual(sorted(d.keys()), [1, 2])
         self.failUnlessEqual(sorted(d.values()), ["a", "b"])
@@ -1285,12 +1288,12 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(d.get("c", 5), 5)
         self.failUnlessEqual(sorted(list(d.items())),
                              [("a", 1), ("b", 2)])
-        self.failUnlessEqual(sorted(list(d.iteritems())),
+        self.failUnlessEqual(sorted(list(six.iteritems(d))),
                              [("a", 1), ("b", 2)])
         self.failUnlessEqual(sorted(d.keys()), ["a", "b"])
         self.failUnlessEqual(sorted(d.values()), [1, 2])
-        self.failUnless(d.has_key("a"))
-        self.failIf(d.has_key("c"))
+        self.failUnless("a" in d)
+        self.failIf("c" in d)
 
         x = d.setdefault("c", 3)
         self.failUnlessEqual(x, 3)
@@ -1686,7 +1689,8 @@ class SimpleSpans:
                 s.add(i, 1)
         return s
 
-    def __contains__(self, (start,length)):
+    def __contains__(self, xxx_todo_changeme):
+        (start,length) = xxx_todo_changeme
         for i in range(start, start+length):
             if i not in self._have:
                 return False
@@ -1703,7 +1707,7 @@ class ByteSpans(unittest.TestCase):
         s1 = Spans(3, 4) # 3,4,5,6
         self._check1(s1)
 
-        s1 = Spans(3L, 4L) # 3,4,5,6
+        s1 = Spans(3, 4) # 3,4,5,6
         self._check1(s1)
 
         s2 = Spans(s1)
@@ -2030,9 +2034,9 @@ class StringSpans(unittest.TestCase):
         self.failUnlessEqual(ds.get(2, 4), "fear")
 
         ds = klass()
-        ds.add(2L, "four")
-        ds.add(3L, "ea")
-        self.failUnlessEqual(ds.get(2L, 4L), "fear")
+        ds.add(2, "four")
+        ds.add(3, "ea")
+        self.failUnlessEqual(ds.get(2, 4), "fear")
 
 
     def do_scan(self, klass):
@@ -2083,13 +2087,13 @@ class StringSpans(unittest.TestCase):
                 p_added = set(range(start, end))
                 b = base()
                 if DEBUG:
-                    print
-                    print dump(b), which
+                    print()
+                    print(dump(b), which)
                     add = klass(); add.add(start, S[start:end])
-                    print dump(add)
+                    print(dump(add))
                 b.add(start, S[start:end])
                 if DEBUG:
-                    print dump(b)
+                    print(dump(b))
                 # check that the new span is there
                 d = b.get(start, end-start)
                 self.failUnlessEqual(d, S[start:end], which)

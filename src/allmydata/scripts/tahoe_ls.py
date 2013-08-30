@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import urllib, time
 import simplejson
@@ -19,7 +20,7 @@ def list(options):
         where = where[:-1]
     try:
         rootcap, path = get_alias(aliases, where, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     url = nodeurl + "uri/%s" % urllib.quote(rootcap)
@@ -30,10 +31,10 @@ def list(options):
     url += "?t=json"
     resp = do_http("GET", url)
     if resp.status == 404:
-        print >>stderr, "No such file or directory"
+        print("No such file or directory", file=stderr)
         return 2
     if resp.status != 200:
-        print >>stderr, format_http_error("Error during GET", resp)
+        print(format_http_error("Error during GET", resp), file=stderr)
         if resp.status == 0:
             return 3
         else:
@@ -44,19 +45,19 @@ def list(options):
     if options['json']:
         # The webapi server should always output printable ASCII.
         if is_printable_ascii(data):
-            print >>stdout, data
+            print(data, file=stdout)
             return 0
         else:
-            print >>stderr, "The JSON response contained unprintable characters:"
-            print >>stderr, quote_output(data, quotemarks=False)
+            print("The JSON response contained unprintable characters:", file=stderr)
+            print(quote_output(data, quotemarks=False), file=stderr)
             return 1
 
     try:
         parsed = simplejson.loads(data)
-    except Exception, e:
-        print >>stderr, "error: %s" % quote_output(e.args[0], quotemarks=False)
-        print >>stderr, "Could not parse JSON response:"
-        print >>stderr, quote_output(data, quotemarks=False)
+    except Exception as e:
+        print("error: %s" % quote_output(e.args[0], quotemarks=False), file=stderr)
+        print("Could not parse JSON response:", file=stderr)
+        print(quote_output(data, quotemarks=False), file=stderr)
         return 1
 
     nodetype, d = parsed
@@ -180,16 +181,16 @@ def list(options):
     rc = 0
     for (encoding_error, row) in rows:
         if encoding_error:
-            print >>stderr, (fmt % tuple(row)).rstrip()
+            print((fmt % tuple(row)).rstrip(), file=stderr)
             rc = 1
         else:
-            print >>stdout, (fmt % tuple(row)).rstrip()
+            print((fmt % tuple(row)).rstrip(), file=stdout)
 
     if rc == 1:
-        print >>stderr, "\nThis listing included files whose names could not be converted to the terminal" \
-                        "\noutput encoding. Their names are shown using backslash escapes and in quotes."
+        print("\nThis listing included files whose names could not be converted to the terminal" \
+                        "\noutput encoding. Their names are shown using backslash escapes and in quotes.", file=stderr)
     if has_unknowns:
-        print >>stderr, "\nThis listing included unknown objects. Using a webapi server that supports" \
-                        "\na later version of Tahoe may help."
+        print("\nThis listing included unknown objects. Using a webapi server that supports" \
+                        "\na later version of Tahoe may help.", file=stderr)
 
     return rc

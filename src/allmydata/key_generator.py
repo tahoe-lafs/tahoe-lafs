@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os
 import time
@@ -107,4 +108,4 @@ class KeyGeneratorService(service.MultiService):
         kgf = os.path.join(self.basedir, self.furl_file)
         self.keygen_furl = self.tub.registerReference(self.key_generator, furlFile=kgf)
         if display_furl:
-            print 'key generator at:', self.keygen_furl
+            print('key generator at:', self.keygen_furl)

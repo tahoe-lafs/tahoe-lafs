@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os.path
 import urllib
@@ -12,6 +13,7 @@ from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, to_str
 from allmydata.util.assertutil import precondition
+import six
 
 
 class MissingSourceError(TahoeError):
@@ -221,7 +223,7 @@ class TahoeDirectorySource:
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in six.iteritems(d["children"])] )
         self.children = None
 
     def init_from_parsed(self, parsed):
@@ -231,7 +233,7 @@ class TahoeDirectorySource:
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in six.iteritems(d["children"])] )
         self.children = None
 
     def populate(self, recurse):
@@ -301,7 +303,7 @@ class TahoeDirectoryTarget:
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in six.iteritems(d["children"])] )
         self.children = None
 
     def init_from_grid(self, writecap, readcap):
@@ -318,7 +320,7 @@ class TahoeDirectoryTarget:
         self.mutable = d.get("mutable", False) # older nodes don't provide it
         self.children_d = dict( [(unicode(name),value)
                                  for (name,value)
-                                 in d["children"].iteritems()] )
+                                 in six.iteritems(d["children"])] )
         self.children = None
 
     def just_created(self, writecap):
@@ -443,17 +445,17 @@ class Copier:
         self.stderr = options.stderr
         if verbosity >= 2 and not self.progressfunc:
             def progress(message):
-                print >>self.stderr, message
+                print(message, file=self.stderr)
             self.progressfunc = progress
         self.caps_only = options["caps-only"]
         self.cache = {}
         try:
             status = self.try_copy()
             return status
-        except TahoeError, te:
+        except TahoeError as te:
             if verbosity >= 2:
                 Failure().printTraceback(self.stderr)
-                print >>self.stderr
+                print(file=self.stderr)
             te.display(self.stderr)
             return 1
 
@@ -515,7 +517,7 @@ class Copier:
         return 1
 
     def to_stderr(self, text):
-        print >>self.stderr, text
+        print(text, file=self.stderr)
 
     def get_target_info(self, destination_spec):
         rootcap, path = get_alias(self.aliases, destination_spec, None)
@@ -605,7 +607,7 @@ class Copier:
 
     def dump_graph(self, s, indent=" "):
         for name, child in s.children.items():
-            print "%s%s: %r" % (indent, quote_output(name), child)
+            print("%s%s: %r" % (indent, quote_output(name), child))
             if isinstance(child, (LocalDirectorySource, TahoeDirectorySource)):
                 self.dump_graph(child, indent+"  ")
 
@@ -717,7 +719,7 @@ class Copier:
 
     def announce_success(self, msg):
         if self.verbosity >= 1:
-            print >>self.stdout, "Success: %s" % msg
+            print("Success: %s" % msg, file=self.stdout)
         return 0
 
     def copy_file(self, source, target):

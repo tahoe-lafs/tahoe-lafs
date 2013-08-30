@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 done = False
 
@@ -28,7 +29,7 @@ def initialize():
     # So be paranoid about catching errors and reporting them to original_stderr,
     # so that we can at least see them.
     def _complain(message):
-        print >>original_stderr, isinstance(message, str) and message or repr(message)
+        print(isinstance(message, str) and message or repr(message), file=original_stderr)
         log.msg(message, level=log.WEIRD)
 
     # Work around <http://bugs.python.org/issue6058>.
@@ -120,7 +121,7 @@ def initialize():
                     if self._hConsole is None:
                         try:
                             self._stream.flush()
-                        except Exception, e:
+                        except Exception as e:
                             _complain("%s.flush: %r from %r" % (self.name, e, self._stream))
                             raise
 
@@ -144,7 +145,7 @@ def initialize():
                                 remaining -= n.value
                                 if remaining == 0: break
                                 text = text[n.value:]
-                    except Exception, e:
+                    except Exception as e:
                         _complain("%s.write: %r" % (self.name, e))
                         raise
 
@@ -152,7 +153,7 @@ def initialize():
                     try:
                         for line in lines:
                             self.write(line)
-                    except Exception, e:
+                    except Exception as e:
                         _complain("%s.writelines: %r" % (self.name, e))
                         raise
 
@@ -165,7 +166,7 @@ def initialize():
                 sys.stderr = UnicodeOutput(hStderr, None, STDERR_FILENO, '<Unicode console stderr>')
             else:
                 sys.stderr = UnicodeOutput(None, sys.stderr, old_stderr_fileno, '<Unicode redirected stderr>')
-    except Exception, e:
+    except Exception as e:
         _complain("exception %r while fixing up sys.stdout and sys.stderr" % (e,))
 
     # This works around <http://bugs.python.org/issue2128>.
@@ -184,10 +185,10 @@ def initialize():
         return re.sub(ur'\x7F[0-9a-fA-F]*\;', lambda m: unichr(int(m.group(0)[1:-1], 16)), s)
 
     try:
-        argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in xrange(0, argc.value)]
-    except Exception, e:
+        argv = [unmangle(argv_unicode[i]).encode('utf-8') for i in range(0, argc.value)]
+    except Exception as e:
         _complain("%s:  could not unmangle Unicode arguments.\n%r"
-                  % (sys.argv[0], [argv_unicode[i] for i in xrange(0, argc.value)]))
+                  % (sys.argv[0], [argv_unicode[i] for i in range(0, argc.value)]))
         raise
 
     # Take only the suffix with the same number of arguments as sys.argv.

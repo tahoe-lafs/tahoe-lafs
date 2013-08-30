@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import re
 import urllib
@@ -21,7 +22,7 @@ def mv(options, mode="move"):
         nodeurl += "/"
     try:
         rootcap, from_path = get_alias(aliases, from_file, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     from_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
@@ -30,7 +31,7 @@ def mv(options, mode="move"):
     # figure out the source cap
     resp = do_http("GET", from_url + "?t=json")
     if not re.search(r'^2\d\d$', str(resp.status)):
-        print >>stderr, format_http_error("Error", resp)
+        print(format_http_error("Error", resp), file=stderr)
         return 1
     data = resp.read()
     nodetype, attrs = simplejson.loads(data)
@@ -39,7 +40,7 @@ def mv(options, mode="move"):
     # now get the target
     try:
         rootcap, path = get_alias(aliases, to_file, DEFAULT_ALIAS)
-    except UnknownAliasError, e:
+    except UnknownAliasError as e:
         e.display(stderr)
         return 1
     to_url = nodeurl + "uri/%s" % urllib.quote(rootcap)
@@ -56,19 +57,19 @@ def mv(options, mode="move"):
     status = resp.status
     if not re.search(r'^2\d\d$', str(status)):
         if status == 409:
-            print >>stderr, "Error: You can't overwrite a directory with a file"
+            print("Error: You can't overwrite a directory with a file", file=stderr)
         else:
-            print >>stderr, format_http_error("Error", resp)
+            print(format_http_error("Error", resp), file=stderr)
             if mode == "move":
-                print >>stderr, "NOT removing the original"
+                print("NOT removing the original", file=stderr)
         return 1
 
     if mode == "move":
         # now remove the original
         resp = do_http("DELETE", from_url)
         if not re.search(r'^2\d\d$', str(resp.status)):
-            print >>stderr, format_http_error("Error deleting original after move", resp)
+            print(format_http_error("Error deleting original after move", resp), file=stderr)
             return 2
 
-    print >>stdout, "OK"
+    print("OK", file=stdout)
     return 0

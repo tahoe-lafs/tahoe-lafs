@@ -9,6 +9,7 @@ from allmydata.util import fileutil, idlib, log, time_format
 import allmydata # for __full_version__
 
 from allmydata.storage.common import si_b2a, si_a2b, storage_index_to_dir
+import six
 _pyflakes_hush = [si_b2a, si_a2b, storage_index_to_dir] # re-exported
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.mutable import MutableShareFile, EmptyShare, \
@@ -395,7 +396,7 @@ class StorageServer(service.MultiService, Referenceable):
         # since all shares get the same lease data, we just grab the leases
         # from the first share
         try:
-            shnum, filename = self._get_bucket_shares(storage_index).next()
+            shnum, filename = six.advance_iterator(self._get_bucket_shares(storage_index))
             sf = ShareFile(filename)
             return sf.get_leases()
         except StopIteration:

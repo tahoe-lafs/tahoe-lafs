@@ -1,3 +1,4 @@
+from __future__ import print_function
 
 import os, sys
 from allmydata.scripts.common import BasedirOptions
@@ -36,9 +37,9 @@ def create_key_generator(config, out=sys.stdout, err=sys.stderr):
 
     if os.path.exists(basedir):
         if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
-            print >>err, "To avoid clobbering anything, I am going to quit now."
-            print >>err, "Please use a different directory, or empty this one."
+            print("The base directory %s is not empty." % quote_output(basedir), file=err)
+            print("To avoid clobbering anything, I am going to quit now.", file=err)
+            print("Please use a different directory, or empty this one.", file=err)
             return -1
         # we're willing to use an empty directory
     else:

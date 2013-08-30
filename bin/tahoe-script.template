@@ -1,7 +1,6 @@
 #!/bin/false # You must specify a python interpreter.
-import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.6 and 2.7.x inclusive."
 
-import os, subprocess
+import os, subprocess, sys
 
 where = os.path.realpath(sys.argv[0])
 base = os.path.dirname(os.path.dirname(where))
@@ -65,7 +64,7 @@ if sys.platform == "win32":
     def mangle(s):
         return str(re.sub(u'[^\\x20-\\x7F]', lambda m: u'\x7F%x;' % (ord(m.group(0)),), s))
 
-    argv = [mangle(argv_unicode[i]) for i in xrange(0, argc.value)]
+    argv = [mangle(argv_unicode[i]) for i in range(0, argc.value)]
 
     # Take only the suffix with the same number of arguments as sys.argv.
     # This accounts for anything that can cause initial arguments to be stripped,
@@ -98,7 +97,7 @@ if len(args) >= 1 and args[0].startswith('@'):
     def _subst(a):
         if a == '@tahoe': return script
         return a
-    command = prefix + [runner] + map(_subst, args[1:])
+    command = prefix + [runner] + [_subst(arg) for arg in args[1:]]
 else:
     runner = script
     command = prefix + [script] + args

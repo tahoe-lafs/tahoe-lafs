@@ -22,6 +22,7 @@ from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from allmydata.mutable.retrieve import Retrieve
 from allmydata.mutable.checker import MutableChecker, MutableCheckAndRepairer
 from allmydata.mutable.repairer import Repairer
+import six
 
 
 class BackoffAgent:
@@ -119,7 +120,7 @@ class MutableFileNode:
 
         return self
 
-    def create_with_keys(self, (pubkey, privkey), contents,
+    def create_with_keys(self, xxx_todo_changeme2, contents,
                          version=SDMF_VERSION):
         """Call this to create a brand-new mutable file. It will create the
         shares, find homes for them, and upload the initial contents (created
@@ -127,6 +128,7 @@ class MutableFileNode:
         Deferred that fires (with the MutableFileNode instance you should
         use) when it completes.
         """
+        (pubkey, privkey) = xxx_todo_changeme2
         self._pubkey, self._privkey = pubkey, privkey
         pubkey_s = self._pubkey.serialize()
         privkey_s = self._privkey.serialize()
@@ -338,7 +340,8 @@ class MutableFileNode:
         representing the best recoverable version of the file.
         """
         d = self._get_version_from_servermap(MODE_READ, servermap, version)
-        def _build_version((servermap, their_version)):
+        def _build_version(xxx_todo_changeme):
+            (servermap, their_version) = xxx_todo_changeme
             assert their_version in servermap.recoverable_versions()
             assert their_version in servermap.make_versionmap()
 
@@ -490,8 +493,9 @@ class MutableFileNode:
         # get_mutable_version => write intent, so we require that the
         # servermap is updated in MODE_WRITE
         d = self._get_version_from_servermap(MODE_WRITE, servermap, version)
-        def _build_version((servermap, smap_version)):
+        def _build_version(xxx_todo_changeme1):
             # these should have been set by the servermap update.
+            (servermap, smap_version) = xxx_todo_changeme1
             assert self._secret_holder
             assert self._writekey
 
@@ -1137,7 +1141,7 @@ class MutableFileVersion:
         start_segments = {} # shnum -> start segment
         end_segments = {} # shnum -> end segment
         blockhashes = {} # shnum -> blockhash tree
-        for (shnum, original_data) in update_data.iteritems():
+        for (shnum, original_data) in six.iteritems(update_data):
             data = [d[1] for d in original_data if d[0] == self._version]
             # data is [(blockhashes,start,end)..]
 

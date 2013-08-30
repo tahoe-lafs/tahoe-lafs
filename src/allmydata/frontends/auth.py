@@ -4,6 +4,7 @@ from twisted.web.client import getPage
 from twisted.internet import defer
 from twisted.cred import error, checkers, credentials
 from allmydata.util import base32
+import six
 
 class NeedRootcapLookupScheme(Exception):
     """Accountname+Password-based access schemes require some kind of
@@ -72,7 +73,7 @@ class AccountURLChecker:
                   "email": username,
                   "passwd": password,
                   }
-        for name, value in fields.iteritems():
+        for name, value in six.iteritems(fields):
             form.append('Content-Disposition: form-data; name="%s"' % name)
             form.append('')
             assert isinstance(value, str)
