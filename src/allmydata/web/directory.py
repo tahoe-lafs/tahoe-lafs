@@ -857,7 +857,7 @@ class DirectoryAsHTML(rend.Page):
                 T.input(type="hidden", name="when_done", value="."),
                 T.legend(class_="freeform-form-label")["Add a link to a file or directory which is already in Tahoe-LAFS."],
                 "New child name:"+SPACE,
-                T.input(type="text", name="name"), SPACE*2,
+                T.input(type="text", name="name"), SPACE*2, T.br,
                 "URI of new child:"+SPACE,
                 T.input(type="text", name="uri"), SPACE,
                 T.input(type="submit", class_="btn", value="Attach"),
