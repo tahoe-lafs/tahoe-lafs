@@ -1616,7 +1616,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty/"))
         def _check4(res):
             self.failUnlessIn("directory is empty", res)
-            MKDIR_BUTTON_RE=re.compile('<input type="hidden" name="t" value="mkdir" />.*<legend class="freeform-form-label">Create a new directory in this directory</legend>.*<input type="submit" value="Create" />', re.I)
+            MKDIR_BUTTON_RE=re.compile('<input type="hidden" name="t" value="mkdir" />.*<legend class="freeform-form-label">Create a new directory in this directory</legend>.*<input type="submit" class="btn" value="Create" />', re.I)
             self.failUnless(MKDIR_BUTTON_RE.search(res), res)
         d.addCallback(_check4)
 
