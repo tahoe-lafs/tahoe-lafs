@@ -88,10 +88,8 @@ def collect_captured(ast, assigned, captured, in_function_yet):
         if isinstance(ast, (Lambda, Function)):
             # Formal parameters of the function are excluded from
             # captures we care about in subnodes of the function body.
-            assigned = assigned.copy()
-            for argname in ast.argnames:
-                if argname in assigned:
-                    del assigned[argname]
+            new_assigned = assigned.copy()
+            remove_argnames(ast.argnames, new_assigned)
 
             if len(new_assigned) > 0:
                 for child in childnodes[len(ast.defaults):]:
@@ -107,6 +105,14 @@ def collect_captured(ast, assigned, captured, in_function_yet):
         for child in childnodes:
             if isinstance(ast, Node):
                 collect_captured(child, assigned, captured, True)
+
+
+def remove_argnames(names, fromset):
+    for element in names:
+        if element in fromset:
+            del fromset[element]
+        elif isinstance(element, (tuple, list)):
+            remove_argnames(element, fromset)
 
 
 def make_result(funcnode, var_name, var_lineno):
