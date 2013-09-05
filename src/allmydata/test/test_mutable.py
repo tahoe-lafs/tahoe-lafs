@@ -1,4 +1,3 @@
-
 import os, re, base64
 from cStringIO import StringIO
 from twisted.trial import unittest
@@ -2751,6 +2750,155 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(lambda data:
             self.failUnlessEqual(data, CONTENTS))
         return d
+
+    def test_1654(self):
+        # test that the Retrieve object unconditionally verifies the block
+        # hash tree root for mutable shares. The failure mode is that
+        # carefully crafted shares can cause undetected corruption (the
+        # retrieve appears to finish successfully, but the result is
+        # corrupted). When fixed, these shares always cause a
+        # CorruptShareError, which results in NotEnoughSharesError in this
+        # 2-of-2 file.
+        self.basedir = "mutable/Problems/test_1654"
+        self.set_up_grid(num_servers=2)
+        cap = uri.from_string(TEST_1654_CAP)
+        si = cap.get_storage_index()
+
+        for share, shnum in [(TEST_1654_SH0, 0), (TEST_1654_SH1, 1)]:
+            sharedata = base64.b64decode(share)
+            storedir = self.get_serverdir(shnum)
+            storage_path = os.path.join(storedir, "shares",
+                                        storage_index_to_dir(si))
+            fileutil.make_dirs(storage_path)
+            fileutil.write(os.path.join(storage_path, "%d" % shnum),
+                           sharedata)
+
+        nm = self.g.clients[0].nodemaker
+        n = nm.create_from_cap(TEST_1654_CAP)
+        # to exercise the problem correctly, we must ensure that sh0 is
+        # processed first, and sh1 second. NoNetworkGrid has facilities to
+        # stall the first request from a single server, but it's not
+        # currently easy to extend that to stall the second request (mutable
+        # retrievals will see two: first the mapupdate, then the fetch).
+        # However, repeated executions of this run without the #1654 fix
+        # suggests that we're failing reliably even without explicit stalls,
+        # probably because the servers are queried in a fixed order. So I'm
+        # ok with relying upon that.
+        d = self.shouldFail(NotEnoughSharesError, "test #1654 share corruption",
+                            "ran out of servers",
+                            n.download_best_version)
+        return d
+
+
+TEST_1654_CAP = "URI:SSK:6jthysgozssjnagqlcxjq7recm:yxawei54fmf2ijkrvs2shs6iey4kpdp6joi7brj2vrva6sp5nf3a"
+
+TEST_1654_SH0 = """\
+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
+72mXGlqyLyWYuAAAAAA="""
+
+TEST_1654_SH1 = """\
+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
+72mXGlqyLyWYuAAAAAA="""
 
 
 class FileHandle(unittest.TestCase):
