@@ -256,6 +256,133 @@ class MakeExecutable(Command):
                 raise
 
 
+GIT_VERSION_BODY = '''
+# This _version.py is generated from git metadata by the tahoe setup.py.
+
+__pkgname__ = "%(pkgname)s"
+real_version = "%(version)s"
+full_version = "%(full)s"
+verstr = "%(normalized)s"
+try:
+    from pyutil.version_class import Version as pyutil_Version
+    __version__ = pyutil_Version(verstr)
+except (ImportError, ValueError):
+    # Maybe there is no pyutil installed.
+    from distutils.version import LooseVersion as distutils_Version
+    __version__ = distutils_Version(verstr)
+'''
+
+def run_command(args, cwd=None, verbose=False):
+    try:
+        # remember shell=False, so use git.cmd on windows, not just git
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd)
+    except EnvironmentError, e:
+        if verbose:
+            print "unable to run %s" % args[0]
+            print e
+        return None
+    stdout = p.communicate()[0].strip()
+    if p.returncode != 0:
+        if verbose:
+            print "unable to run %s (error)" % args[0]
+        return None
+    return stdout
+
+
+def versions_from_git(tag_prefix, verbose=False):
+    # this runs 'git' from the directory that contains this file. That either
+    # means someone ran a setup.py command (and this code is in
+    # versioneer.py, thus the containing directory is the root of the source
+    # tree), or someone ran a project-specific entry point (and this code is
+    # in _version.py, thus the containing directory is somewhere deeper in
+    # the source tree). This only gets called if the git-archive 'subst'
+    # variables were *not* expanded, and _version.py hasn't already been
+    # rewritten with a short version string, meaning we're inside a checked
+    # out source tree.
+
+    # versions_from_git (as copied from python-versioneer) returns strings
+    # like "1.9.0-25-gb73aba9-dirty", which means we're in a tree with
+    # uncommited changes (-dirty), the latest checkin is revision b73aba9,
+    # the most recent tag was 1.9.0, and b73aba9 has 25 commits that weren't
+    # in 1.9.0 . The narrow-minded NormalizedVersion parser that takes our
+    # output (meant to enable sorting of version strings) refuses most of
+    # that. Tahoe uses a function named suggest_normalized_version() that can
+    # handle "1.9.0.post25", so dumb down our output to match.
+
+    try:
+        source_dir = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        # some py2exe/bbfreeze/non-CPython implementations don't do __file__
+        return {} # not always correct
+    GIT = "git"
+    if sys.platform == "win32":
+        GIT = "git.cmd"
+    stdout = run_command([GIT, "describe", "--tags", "--dirty", "--always"],
+                         cwd=source_dir)
+    if stdout is None:
+        return {}
+    if not stdout.startswith(tag_prefix):
+        if verbose:
+            print "tag '%s' doesn't start with prefix '%s'" % (stdout, tag_prefix)
+        return {}
+    version = stdout[len(tag_prefix):]
+    pieces = version.split("-")
+    if len(pieces) == 1:
+        normalized_version = pieces[0]
+    else:
+        normalized_version = "%s.post%s" % (pieces[0], pieces[1])
+    stdout = run_command([GIT, "rev-parse", "HEAD"], cwd=source_dir)
+    if stdout is None:
+        return {}
+    full = stdout.strip()
+    if version.endswith("-dirty"):
+        full += "-dirty"
+    return {"version": version, "normalized": normalized_version, "full": full}
+
+
+class UpdateVersion(Command):
+    description = "update _version.py from revision-control metadata"
+    user_options = []
+
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        target = self.distribution.versionfiles[0]
+        if os.path.isdir(os.path.join(basedir, "_darcs")):
+            verstr = self.try_from_darcs(target)
+        elif os.path.isdir(os.path.join(basedir, ".git")):
+            verstr = self.try_from_git(target)
+        else:
+            print "no version-control data found, leaving _version.py alone"
+            return
+        if verstr:
+            self.distribution.metadata.version = verstr
+
+    def try_from_darcs(self, target):
+        from darcsver.darcsvermodule import update
+        (rc, verstr) = update(pkgname=self.distribution.get_name(),
+                              verfilename=self.distribution.versionfiles,
+                              revision_number=True)
+        if rc == 0:
+            return verstr
+
+    def try_from_git(self, target):
+        versions = versions_from_git("allmydata-tahoe-", verbose=True)
+        if versions:
+            for fn in self.distribution.versionfiles:
+                f = open(fn, "wb")
+                f.write(GIT_VERSION_BODY %
+                        { "pkgname": self.distribution.get_name(),
+                          "version": versions["version"],
+                          "normalized": versions["normalized"],
+                          "full": versions["full"] })
+                f.close()
+                print "git-version: wrote '%s' into '%s'" % (versions["version"], fn)
+        return versions.get("normalized", None)
+
+
 class MySdist(sdist.sdist):
     """ A hook in the sdist command so that we can determine whether this the
     tarball should be 'SUMO' or not, i.e. whether or not to include the
@@ -315,6 +442,7 @@ setup(name=APPNAME,
       license='GNU GPL', # see README.txt -- there is an alternative licence
       cmdclass={"trial": Trial,
                 "make_executable": MakeExecutable,
+                "update_version": UpdateVersion,
                 "sdist": MySdist,
                 },
       package_dir = {'':'src'},

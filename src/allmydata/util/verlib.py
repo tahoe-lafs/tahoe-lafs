@@ -139,7 +139,7 @@ class NormalizedVersion(object):
                        pad_zeros_length=0):
         """Parse 'N.N.N' sequences, return a list of ints.
 
-        @param s {str} 'N.N.N..." sequence to be parsed
+        @param s {str} 'N.N.N...' sequence to be parsed
         @param full_ver_str {str} The full version string from which this
             comes. Used for error strings.
         @param drop_trailing_zeros {bool} Whether to drop trailing zeros
