@@ -268,10 +268,8 @@ class Encode(unittest.TestCase):
         # force use of multiple segments
         e = encode.Encoder()
         u = upload.Data(data, convergence="some convergence string")
-        u.max_segment_size = max_segment_size
-        u.encoding_param_k = 25
-        u.encoding_param_happy = 75
-        u.encoding_param_n = 100
+        u.set_default_encoding_parameters({'max_segment_size': max_segment_size,
+                                           'k': 25, 'happy': 75, 'n': 100})
         eu = upload.EncryptAnUploadable(u)
         d = e.set_encrypted_uploadable(eu)
 
