@@ -651,6 +651,7 @@ recommended configuration (most of these are not the default values), merely
 a legal one.
 
 ::
+
   [node]
   nickname = Bob's Tahoe-LAFS Node
   tub.port = 34912
