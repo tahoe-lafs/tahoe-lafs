@@ -108,6 +108,16 @@ def require_more():
 
 require_more()
 
+
+# These are suppressed globally:
+
+global_deprecation_messages = [
+    "BaseException.message has been deprecated as of Python 2.6",
+    "twisted.internet.interfaces.IFinishableConsumer was deprecated in Twisted 11.1.0: Please use IConsumer (and IConsumer.unregisterProducer) instead.",
+]
+
+# These are suppressed while importing dependencies:
+
 deprecation_messages = [
     "the sha module is deprecated; use the hashlib module instead",
     "object.__new__\(\) takes no parameters",
