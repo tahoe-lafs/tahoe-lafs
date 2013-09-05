@@ -306,7 +306,7 @@ class WebMixin(object):
         self.failUnlessEqual(data[0], "filenode")
         self.failUnless(isinstance(data[1], dict))
         self.failIf(data[1]["mutable"])
-        self.failIf("rw_uri" in data[1]) # immutable
+        self.failIfIn("rw_uri", data[1]) # immutable
         self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), self._bar_txt_uri)
         self.failUnlessReallyEqual(to_str(data[1]["verify_uri"]), self._bar_txt_verifycap)
         self.failUnlessReallyEqual(data[1]["size"], len(self.BAR_CONTENTS))
@@ -322,11 +322,11 @@ class WebMixin(object):
     def failUnlessIsQuuxDotTxtMetadata(self, metadata, readonly):
         self.failUnless(metadata['mutable'])
         if readonly:
-            self.failIf("rw_uri" in metadata)
+            self.failIfIn("rw_uri", metadata)
         else:
-            self.failUnless("rw_uri" in metadata)
+            self.failUnlessIn("rw_uri", metadata)
             self.failUnlessEqual(metadata['rw_uri'], self._quux_txt_uri)
-        self.failUnless("ro_uri" in metadata)
+        self.failUnlessIn("ro_uri", metadata)
         self.failUnlessEqual(metadata['ro_uri'], self._quux_txt_readonly_uri)
         self.failUnlessReallyEqual(metadata['size'], len(self.QUUX_CONTENTS))
 
@@ -336,7 +336,7 @@ class WebMixin(object):
         self.failUnlessEqual(data[0], "dirnode", res)
         self.failUnless(isinstance(data[1], dict))
         self.failUnless(data[1]["mutable"])
-        self.failUnless("rw_uri" in data[1]) # mutable
+        self.failUnlessIn("rw_uri", data[1]) # mutable
         self.failUnlessReallyEqual(to_str(data[1]["rw_uri"]), self._foo_uri)
         self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), self._foo_readonly_uri)
         self.failUnlessReallyEqual(to_str(data[1]["verify_uri"]), self._foo_verifycap)
@@ -449,13 +449,9 @@ class WebMixin(object):
         if isinstance(res, failure.Failure):
             res.trap(expected_failure)
             if substring:
-                self.failUnless(substring in str(res),
-                                "substring '%s' not in '%s'"
-                                % (substring, str(res)))
+                self.failUnlessIn(substring, str(res), which)
             if response_substring:
-                self.failUnless(response_substring in res.value.response,
-                                "response substring '%s' not in '%s'"
-                                % (response_substring, res.value.response))
+                self.failUnlessIn(response_substring, res.value.response, which)
         else:
             self.fail("%s was supposed to raise %s, not get '%s'" %
                       (which, expected_failure, res))
@@ -470,14 +466,9 @@ class WebMixin(object):
             if isinstance(res, failure.Failure):
                 res.trap(expected_failure)
                 if substring:
-                    self.failUnless(substring in str(res),
-                                    "%s: substring '%s' not in '%s'"
-                                    % (which, substring, str(res)))
+                    self.failUnlessIn(substring, str(res), which)
                 if response_substring:
-                    self.failUnless(response_substring in res.value.response,
-                                    "%s: response substring '%s' not in '%s'"
-                                    % (which,
-                                       response_substring, res.value.response))
+                    self.failUnlessIn(response_substring, res.value.response, which)
             else:
                 self.fail("%s was supposed to raise %s, not get '%s'" %
                           (which, expected_failure, res))
@@ -498,7 +489,7 @@ class WebMixin(object):
             self.failUnlessReallyEqual(res.value.status, "302")
         else:
             self.fail("%s was supposed to Error(302), not get '%s'" %
-                        (which, res))
+                      (which, res))
 
 
 class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixin, unittest.TestCase):
@@ -508,7 +499,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_welcome(self):
         d = self.GET("/")
         def _check(res):
-            self.failUnless('Welcome To Tahoe-LAFS' in res, res)
+            self.failUnlessIn('Welcome To Tahoe-LAFS', res)
 
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
@@ -520,7 +511,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_provisioning(self):
         d = self.GET("/provisioning/")
         def _check(res):
-            self.failUnless('Provisioning Tool' in res)
+            self.failUnlessIn('Provisioning Tool', res)
+
             fields = {'filled': True,
                       "num_users": int(50e3),
                       "files_per_user": 1000,
@@ -538,8 +530,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         d.addCallback(_check)
         def _check2(res):
-            self.failUnless('Provisioning Tool' in res)
-            self.failUnless("Share space consumed: 167.01TB" in res)
+            self.failUnlessIn('Provisioning Tool', res)
+            self.failUnlessIn("Share space consumed: 167.01TB", res)
 
             fields = {'filled': True,
                       "num_users": int(50e6),
@@ -559,12 +551,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return self.POST("/provisioning/", **fields)
         d.addCallback(_check2)
         def _check3(res):
-            self.failUnless("Share space consumed: huge!" in res)
+            self.failUnlessIn("Share space consumed: huge!", res)
             fields = {'filled': True}
             return self.POST("/provisioning/", **fields)
         d.addCallback(_check3)
         def _check4(res):
-            self.failUnless("Share space consumed:" in res)
+            self.failUnlessIn("Share space consumed:", res)
         d.addCallback(_check4)
         return d
 
@@ -578,7 +570,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         d = self.GET("/reliability/")
         def _check(res):
-            self.failUnless('Reliability Tool' in res)
+            self.failUnlessIn('Reliability Tool', res)
             fields = {'drive_lifetime': "8Y",
                       "k": "3",
                       "R": "7",
@@ -592,7 +584,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         d.addCallback(_check)
         def _check2(res):
-            self.failUnless('Reliability Tool' in res)
+            self.failUnlessIn('Reliability Tool', res)
             r = r'Probability of loss \(no maintenance\):\s+<span>0.033591'
             self.failUnless(re.search(r, res), res)
         d.addCallback(_check2)
@@ -607,12 +599,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         ret_num = h.list_all_retrieve_statuses()[0].get_counter()
         d = self.GET("/status", followRedirect=True)
         def _check(res):
-            self.failUnless('Upload and Download Status' in res, res)
-            self.failUnless('"down-%d"' % dl_num in res, res)
-            self.failUnless('"up-%d"' % ul_num in res, res)
-            self.failUnless('"mapupdate-%d"' % mu_num in res, res)
-            self.failUnless('"publish-%d"' % pub_num in res, res)
-            self.failUnless('"retrieve-%d"' % ret_num in res, res)
+            self.failUnlessIn('Upload and Download Status', res)
+            self.failUnlessIn('"down-%d"' % dl_num, res)
+            self.failUnlessIn('"up-%d"' % ul_num, res)
+            self.failUnlessIn('"mapupdate-%d"' % mu_num, res)
+            self.failUnlessIn('"publish-%d"' % pub_num, res)
+            self.failUnlessIn('"retrieve-%d"' % ret_num, res)
         d.addCallback(_check)
         d.addCallback(lambda res: self.GET("/status/?t=json"))
         def _check_json(res):
@@ -625,13 +617,13 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
 
         d.addCallback(lambda res: self.GET("/status/down-%d" % dl_num))
         def _check_dl(res):
-            self.failUnless("File Download Status" in res, res)
+            self.failUnlessIn("File Download Status", res)
         d.addCallback(_check_dl)
         d.addCallback(lambda res: self.GET("/status/down-%d/event_json" % dl_num))
         def _check_dl_json(res):
             data = simplejson.loads(res)
             self.failUnless(isinstance(data, dict))
-            self.failUnless("read" in data)
+            self.failUnlessIn("read", data)
             self.failUnlessEqual(data["read"][0]["length"], 120)
             self.failUnlessEqual(data["segment"][0]["segment_length"], 100)
             self.failUnlessEqual(data["segment"][2]["segment_number"], 2)
@@ -645,24 +637,24 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(data["serverids"]["1"], "cmpu", data["serverids"])
             self.failUnlessEqual(data["server_info"][phwr_id]["short"], "phwr")
             self.failUnlessEqual(data["server_info"][cmpu_id]["short"], "cmpu")
-            self.failUnless("dyhb" in data)
-            self.failUnless("misc" in data)
+            self.failUnlessIn("dyhb", data)
+            self.failUnlessIn("misc", data)
         d.addCallback(_check_dl_json)
         d.addCallback(lambda res: self.GET("/status/up-%d" % ul_num))
         def _check_ul(res):
-            self.failUnless("File Upload Status" in res, res)
+            self.failUnlessIn("File Upload Status", res)
         d.addCallback(_check_ul)
         d.addCallback(lambda res: self.GET("/status/mapupdate-%d" % mu_num))
         def _check_mapupdate(res):
-            self.failUnless("Mutable File Servermap Update Status" in res, res)
+            self.failUnlessIn("Mutable File Servermap Update Status", res)
         d.addCallback(_check_mapupdate)
         d.addCallback(lambda res: self.GET("/status/publish-%d" % pub_num))
         def _check_publish(res):
-            self.failUnless("Mutable File Publish Status" in res, res)
+            self.failUnlessIn("Mutable File Publish Status", res)
         d.addCallback(_check_publish)
         d.addCallback(lambda res: self.GET("/status/retrieve-%d" % ret_num))
         def _check_retrieve(res):
-            self.failUnless("Mutable File Retrieve Status" in res, res)
+            self.failUnlessIn("Mutable File Retrieve Status", res)
         d.addCallback(_check_retrieve)
 
         return d
@@ -1323,8 +1315,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         ROOT = "../../.."
         d = self.GET(self.public_url + "/foo", followRedirect=True)
         def _check(res):
-            self.failUnless(('<a href="%s">Return to Welcome page' % ROOT)
-                            in res, res)
+            self.failUnlessIn('<a href="%s">Return to Welcome page' % ROOT, res)
+
             # the FILE reference points to a URI, but it should end in bar.txt
             bar_url = ("%s/file/%s/@@named=/bar.txt" %
                        (ROOT, urllib.quote(self._bar_txt_uri)))
@@ -1366,8 +1358,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.GET(self.public_url + "/reedownlee", followRedirect=True))
         def _check2(res):
-            self.failUnless("(read-only)" in res, res)
-            self.failIf("Upload a file" in res, res)
+            self.failUnlessIn("(read-only)", res)
+            self.failIfIn("Upload a file", res)
         d.addCallback(_check2)
 
         # and at a directory that contains a readonly directory
@@ -1381,7 +1373,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         # and an empty directory
         d.addCallback(lambda res: self.GET(self.public_url + "/foo/empty/"))
         def _check4(res):
-            self.failUnless("directory is empty" in res, res)
+            self.failUnlessIn("directory is empty", res)
             MKDIR_BUTTON_RE=re.compile('<input type="hidden" name="t" value="mkdir" />.*<legend class="freeform-form-label">Create a new directory in this directory</legend>.*<input type="submit" value="Create" />', re.I)
             self.failUnless(MKDIR_BUTTON_RE.search(res), res)
         d.addCallback(_check4)
@@ -1391,7 +1383,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.GET("/uri/" + tiny_litdir_uri + "/", followRedirect=True))
         def _check5(res):
-            self.failUnless('(immutable)' in res, res)
+            self.failUnlessIn('(immutable)', res)
             self.failUnless(re.search('<td>FILE</td>'
                                       r'\s+<td><a href="[\.\/]+/file/URI%3ALIT%3Akrugkidfnzsc4/@@named=/short">short</a></td>', res), res)
         d.addCallback(_check5)
@@ -1458,10 +1450,10 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             return d
         d.addCallback(getman, None)
         def _got_html(manifest):
-            self.failUnless("Manifest of SI=" in manifest)
-            self.failUnless("<td>sub</td>" in manifest)
-            self.failUnless(self._sub_uri in manifest)
-            self.failUnless("<td>sub/baz.txt</td>" in manifest)
+            self.failUnlessIn("Manifest of SI=", manifest)
+            self.failUnlessIn("<td>sub</td>", manifest)
+            self.failUnlessIn(self._sub_uri, manifest)
+            self.failUnlessIn("<td>sub/baz.txt</td>", manifest)
         d.addCallback(_got_html)
 
         # both t=status and unadorned GET should be identical
@@ -1472,8 +1464,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_got_html)
         d.addCallback(getman, "text")
         def _got_text(manifest):
-            self.failUnless("\nsub " + self._sub_uri + "\n" in manifest)
-            self.failUnless("\nsub/baz.txt URI:CHK:" in manifest)
+            self.failUnlessIn("\nsub " + self._sub_uri + "\n", manifest)
+            self.failUnlessIn("\nsub/baz.txt URI:CHK:", manifest)
         d.addCallback(_got_text)
         d.addCallback(getman, "JSON")
         def _got_json(res):
@@ -1482,12 +1474,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             for (path_list, cap) in data:
                 got[tuple(path_list)] = cap
             self.failUnlessReallyEqual(to_str(got[(u"sub",)]), self._sub_uri)
-            self.failUnless((u"sub",u"baz.txt") in got)
-            self.failUnless("finished" in res)
-            self.failUnless("origin" in res)
-            self.failUnless("storage-index" in res)
-            self.failUnless("verifycaps" in res)
-            self.failUnless("stats" in res)
+            self.failUnlessIn((u"sub", u"baz.txt"), got)
+            self.failUnlessIn("finished", res)
+            self.failUnlessIn("origin", res)
+            self.failUnlessIn("storage-index", res)
+            self.failUnlessIn("verifycaps", res)
+            self.failUnlessIn("stats", res)
         d.addCallback(_got_json)
         return d
 
@@ -1912,14 +1904,14 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         assert isinstance(name, unicode)
         d = node.list()
         def _check(children):
-            self.failUnless(name in children)
+            self.failUnlessIn(name, children)
         d.addCallback(_check)
         return d
     def failIfNodeHasChild(self, node, name):
         assert isinstance(name, unicode)
         d = node.list()
         def _check(children):
-            self.failIf(name in children)
+            self.failIfIn(name, children)
         d.addCallback(_check)
         return d
 
@@ -2041,8 +2033,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check_upload_results(page):
             # this should be a page which describes the results of the upload
             # that just finished.
-            self.failUnless("Upload Results:" in page)
-            self.failUnless("URI:" in page)
+            self.failUnlessIn("Upload Results:", page)
+            self.failUnlessIn("URI:", page)
             uri_re = re.compile("URI: <tt><span>(.*)</span>")
             mo = uri_re.search(page)
             self.failUnless(mo, page)
@@ -2093,7 +2085,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnless(filecap.startswith("URI:SSK:"), filecap)
             self.filecap = filecap
             u = uri.WriteableSSKFileURI.init_from_string(filecap)
-            self.failUnless(u.get_storage_index() in FakeMutableFileNode.all_contents)
+            self.failUnlessIn(u.get_storage_index(), FakeMutableFileNode.all_contents)
             n = self.s.create_node_from_uri(filecap)
             return n.download_best_version()
         d.addCallback(_check)
@@ -2247,7 +2239,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                                followRedirect=True))
         def _check_page(res):
             # TODO: assert more about the contents
-            self.failUnless("SSK" in res)
+            self.failUnlessIn("SSK", res)
             return res
         d.addCallback(_check_page)
 
@@ -2269,7 +2261,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             children = dict( [(unicode(name),value)
                               for (name,value)
                               in parsed[1]["children"].iteritems()] )
-            self.failUnless(u"new.txt" in children)
+            self.failUnlessIn(u"new.txt", children)
             new_json = children[u"new.txt"]
             self.failUnlessEqual(new_json[0], "filenode")
             self.failUnless(new_json[1]["mutable"])
@@ -2432,7 +2424,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         bar_url = self.public_url + "/foo/bar.txt"
         d = self.POST(bar_url, t="check")
         def _check(res):
-            self.failUnless("Healthy :" in res)
+            self.failUnlessIn("Healthy :", res)
         d.addCallback(_check)
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
@@ -2447,16 +2439,16 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.POST(bar_url, t="check", return_to=redir_url))
         def _check3(res):
-            self.failUnless("Healthy :" in res)
-            self.failUnless("Return to file" in res)
-            self.failUnless(redir_url in res)
+            self.failUnlessIn("Healthy :", res)
+            self.failUnlessIn("Return to file", res)
+            self.failUnlessIn(redir_url, res)
         d.addCallback(_check3)
 
         d.addCallback(lambda res:
                       self.POST(bar_url, t="check", output="JSON"))
         def _check_json(res):
             data = simplejson.loads(res)
-            self.failUnless("storage-index" in data)
+            self.failUnlessIn("storage-index", data)
             self.failUnless(data["results"]["healthy"])
         d.addCallback(_check_json)
 
@@ -2466,7 +2458,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         bar_url = self.public_url + "/foo/bar.txt"
         d = self.POST(bar_url, t="check", repair="true")
         def _check(res):
-            self.failUnless("Healthy :" in res)
+            self.failUnlessIn("Healthy :", res)
         d.addCallback(_check)
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
@@ -2481,9 +2473,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.POST(bar_url, t="check", return_to=redir_url))
         def _check3(res):
-            self.failUnless("Healthy :" in res)
-            self.failUnless("Return to file" in res)
-            self.failUnless(redir_url in res)
+            self.failUnlessIn("Healthy :", res)
+            self.failUnlessIn("Return to file", res)
+            self.failUnlessIn(redir_url, res)
         d.addCallback(_check3)
         return d
 
@@ -2491,7 +2483,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         foo_url = self.public_url + "/foo/"
         d = self.POST(foo_url, t="check")
         def _check(res):
-            self.failUnless("Healthy :" in res, res)
+            self.failUnlessIn("Healthy :", res)
         d.addCallback(_check)
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
@@ -2506,16 +2498,16 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.POST(foo_url, t="check", return_to=redir_url))
         def _check3(res):
-            self.failUnless("Healthy :" in res, res)
-            self.failUnless("Return to file/directory" in res)
-            self.failUnless(redir_url in res)
+            self.failUnlessIn("Healthy :", res)
+            self.failUnlessIn("Return to file/directory", res)
+            self.failUnlessIn(redir_url, res)
         d.addCallback(_check3)
 
         d.addCallback(lambda res:
                       self.POST(foo_url, t="check", output="JSON"))
         def _check_json(res):
             data = simplejson.loads(res)
-            self.failUnless("storage-index" in data)
+            self.failUnlessIn("storage-index", data)
             self.failUnless(data["results"]["healthy"])
         d.addCallback(_check_json)
 
@@ -2525,7 +2517,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         foo_url = self.public_url + "/foo/"
         d = self.POST(foo_url, t="check", repair="true")
         def _check(res):
-            self.failUnless("Healthy :" in res, res)
+            self.failUnlessIn("Healthy :", res)
         d.addCallback(_check)
         redir_url = "http://allmydata.org/TARGET"
         def _check2(statuscode, target):
@@ -2540,9 +2532,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(lambda res:
                       self.POST(foo_url, t="check", return_to=redir_url))
         def _check3(res):
-            self.failUnless("Healthy :" in res)
-            self.failUnless("Return to file/directory" in res)
-            self.failUnless(redir_url in res)
+            self.failUnlessIn("Healthy :", res)
+            self.failUnlessIn("Return to file/directory", res)
+            self.failUnlessIn(redir_url, res)
         d.addCallback(_check3)
         return d
 
@@ -2554,7 +2546,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check)
         quux_extension_url = "/uri/%s" % urllib.quote("%s:3:131073" % self._quux_txt_uri)
         d.addCallback(lambda ignored:
-            self.POST(quux_extension_url, t="check"))
+                      self.POST(quux_extension_url, t="check"))
         d.addCallback(_check)
         return d
 
@@ -2564,10 +2556,9 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check(res):
             self.failUnlessIn("Healthy", res)
         d.addCallback(_check)
-        quux_extension_url = "/uri/%s" %\
-            urllib.quote("%s:3:131073" % self._quux_txt_uri)
+        quux_extension_url = "/uri/%s" % urllib.quote("%s:3:131073" % self._quux_txt_uri)
         d.addCallback(lambda ignored:
-            self.POST(quux_extension_url, t="check", repair="true"))
+                      self.POST(quux_extension_url, t="check", repair="true"))
         d.addCallback(_check)
         return d
 
@@ -2621,8 +2612,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check_json)
         d.addCallback(self.get_operation_results, "123", "html")
         def _check_html(res):
-            self.failUnless("Objects Checked: <span>10</span>" in res)
-            self.failUnless("Objects Healthy: <span>10</span>" in res)
+            self.failUnlessIn("Objects Checked: <span>10</span>", res)
+            self.failUnlessIn("Objects Healthy: <span>10</span>", res)
         d.addCallback(_check_html)
 
         d.addCallback(lambda res:
@@ -2664,19 +2655,19 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check_json)
         d.addCallback(self.get_operation_results, "124", "html")
         def _check_html(res):
-            self.failUnless("Objects Checked: <span>10</span>" in res)
+            self.failUnlessIn("Objects Checked: <span>10</span>", res)
 
-            self.failUnless("Objects Healthy (before repair): <span>10</span>" in res)
-            self.failUnless("Objects Unhealthy (before repair): <span>0</span>" in res)
-            self.failUnless("Corrupt Shares (before repair): <span>0</span>" in res)
+            self.failUnlessIn("Objects Healthy (before repair): <span>10</span>", res)
+            self.failUnlessIn("Objects Unhealthy (before repair): <span>0</span>", res)
+            self.failUnlessIn("Corrupt Shares (before repair): <span>0</span>", res)
 
-            self.failUnless("Repairs Attempted: <span>0</span>" in res)
-            self.failUnless("Repairs Successful: <span>0</span>" in res)
-            self.failUnless("Repairs Unsuccessful: <span>0</span>" in res)
+            self.failUnlessIn("Repairs Attempted: <span>0</span>", res)
+            self.failUnlessIn("Repairs Successful: <span>0</span>", res)
+            self.failUnlessIn("Repairs Unsuccessful: <span>0</span>", res)
 
-            self.failUnless("Objects Healthy (after repair): <span>10</span>" in res)
-            self.failUnless("Objects Unhealthy (after repair): <span>0</span>" in res)
-            self.failUnless("Corrupt Shares (after repair): <span>0</span>" in res)
+            self.failUnlessIn("Objects Healthy (after repair): <span>10</span>", res)
+            self.failUnlessIn("Objects Unhealthy (after repair): <span>0</span>", res)
+            self.failUnlessIn("Corrupt Shares (after repair): <span>0</span>", res)
         d.addCallback(_check_html)
         return d
 
@@ -3212,12 +3203,12 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_POST_delete(self, command_name='delete'):
         d = self._foo_node.list()
         def _check_before(children):
-            self.failUnless(u"bar.txt" in children)
+            self.failUnlessIn(u"bar.txt", children)
         d.addCallback(_check_before)
         d.addCallback(lambda res: self.POST(self.public_url + "/foo", t=command_name, name="bar.txt"))
         d.addCallback(lambda res: self._foo_node.list())
         def _check_after(children):
-            self.failIf(u"bar.txt" in children)
+            self.failIfIn(u"bar.txt", children)
         d.addCallback(_check_after)
         return d
 
@@ -3367,7 +3358,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET(self.public_url + "/foo?t=rename-form&name=bar.txt",
                      followRedirect=True)
         def _check(res):
-            self.failUnless('name="when_done" value="."' in res, res)
+            self.failUnlessIn('name="when_done" value="."', res)
             self.failUnless(re.search(r'name="from_name" value="bar\.txt"', res))
         d.addCallback(_check)
         return d
@@ -3542,7 +3533,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.PUT("/uri", file_contents)
         def _check(uri):
             assert isinstance(uri, str), uri
-            self.failUnless(uri in FakeCHKFileNode.all_contents)
+            self.failUnlessIn(uri, FakeCHKFileNode.all_contents)
             self.failUnlessReallyEqual(FakeCHKFileNode.all_contents[uri],
                                        file_contents)
             return self.GET("/uri/%s" % uri)
@@ -3557,7 +3548,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.PUT("/uri?mutable=false", file_contents)
         def _check(uri):
             assert isinstance(uri, str), uri
-            self.failUnless(uri in FakeCHKFileNode.all_contents)
+            self.failUnlessIn(uri, FakeCHKFileNode.all_contents)
             self.failUnlessReallyEqual(FakeCHKFileNode.all_contents[uri],
                                        file_contents)
             return self.GET("/uri/%s" % uri)
@@ -3583,7 +3574,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnless(filecap.startswith("URI:SSK:"), filecap)
             self.filecap = filecap
             u = uri.WriteableSSKFileURI.init_from_string(filecap)
-            self.failUnless(u.get_storage_index() in FakeMutableFileNode.all_contents)
+            self.failUnlessIn(u.get_storage_index(), FakeMutableFileNode.all_contents)
             n = self.s.create_node_from_uri(filecap)
             return n.download_best_version()
         d.addCallback(_check1)
@@ -4013,15 +4004,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "good", "t=check")
         def _got_html_good(res):
-            self.failUnless("Healthy" in res, res)
-            self.failIf("Not Healthy" in res, res)
+            self.failUnlessIn("Healthy", res)
+            self.failIfIn("Not Healthy", res)
         d.addCallback(_got_html_good)
         d.addCallback(self.CHECK, "good", "t=check&return_to=somewhere")
         def _got_html_good_return_to(res):
-            self.failUnless("Healthy" in res, res)
-            self.failIf("Not Healthy" in res, res)
-            self.failUnless('<a href="somewhere">Return to file'
-                            in res, res)
+            self.failUnlessIn("Healthy", res)
+            self.failIfIn("Not Healthy", res)
+            self.failUnlessIn('<a href="somewhere">Return to file', res)
         d.addCallback(_got_html_good_return_to)
         d.addCallback(self.CHECK, "good", "t=check&output=json")
         def _got_json_good(res):
@@ -4034,15 +4024,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "small", "t=check")
         def _got_html_small(res):
-            self.failUnless("Literal files are always healthy" in res, res)
-            self.failIf("Not Healthy" in res, res)
+            self.failUnlessIn("Literal files are always healthy", res)
+            self.failIfIn("Not Healthy", res)
         d.addCallback(_got_html_small)
         d.addCallback(self.CHECK, "small", "t=check&return_to=somewhere")
         def _got_html_small_return_to(res):
-            self.failUnless("Literal files are always healthy" in res, res)
-            self.failIf("Not Healthy" in res, res)
-            self.failUnless('<a href="somewhere">Return to file'
-                            in res, res)
+            self.failUnlessIn("Literal files are always healthy", res)
+            self.failIfIn("Not Healthy", res)
+            self.failUnlessIn('<a href="somewhere">Return to file', res)
         d.addCallback(_got_html_small_return_to)
         d.addCallback(self.CHECK, "small", "t=check&output=json")
         def _got_json_small(res):
@@ -4053,8 +4042,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "smalldir", "t=check")
         def _got_html_smalldir(res):
-            self.failUnless("Literal files are always healthy" in res, res)
-            self.failIf("Not Healthy" in res, res)
+            self.failUnlessIn("Literal files are always healthy", res)
+            self.failIfIn("Not Healthy", res)
         d.addCallback(_got_html_smalldir)
         d.addCallback(self.CHECK, "smalldir", "t=check&output=json")
         def _got_json_smalldir(res):
@@ -4065,7 +4054,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "sick", "t=check")
         def _got_html_sick(res):
-            self.failUnless("Not Healthy" in res, res)
+            self.failUnlessIn("Not Healthy", res)
         d.addCallback(_got_html_sick)
         d.addCallback(self.CHECK, "sick", "t=check&output=json")
         def _got_json_sick(res):
@@ -4079,7 +4068,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "dead", "t=check")
         def _got_html_dead(res):
-            self.failUnless("Not Healthy" in res, res)
+            self.failUnlessIn("Not Healthy", res)
         d.addCallback(_got_html_dead)
         d.addCallback(self.CHECK, "dead", "t=check&output=json")
         def _got_json_dead(res):
@@ -4093,13 +4082,12 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "corrupt", "t=check&verify=true")
         def _got_html_corrupt(res):
-            self.failUnless("Not Healthy! : Unhealthy" in res, res)
+            self.failUnlessIn("Not Healthy! : Unhealthy", res)
         d.addCallback(_got_html_corrupt)
         d.addCallback(self.CHECK, "corrupt", "t=check&verify=true&output=json")
         def _got_json_corrupt(res):
             r = simplejson.loads(res)
-            self.failUnless("Unhealthy: 9 shares (enc 3-of-10)" in r["summary"],
-                            r["summary"])
+            self.failUnlessIn("Unhealthy: 9 shares (enc 3-of-10)", r["summary"])
             self.failIf(r["results"]["healthy"])
             self.failUnless(r["results"]["recoverable"])
             self.failUnlessReallyEqual(r["results"]["count-shares-good"], 9)
@@ -4155,16 +4143,16 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "good", "t=check&repair=true")
         def _got_html_good(res):
-            self.failUnless("Healthy" in res, res)
-            self.failIf("Not Healthy" in res, res)
-            self.failUnless("No repair necessary" in res, res)
+            self.failUnlessIn("Healthy", res)
+            self.failIfIn("Not Healthy", res)
+            self.failUnlessIn("No repair necessary", res)
         d.addCallback(_got_html_good)
 
         d.addCallback(self.CHECK, "sick", "t=check&repair=true")
         def _got_html_sick(res):
-            self.failUnless("Healthy : healthy" in res, res)
-            self.failIf("Not Healthy" in res, res)
-            self.failUnless("Repair successful" in res, res)
+            self.failUnlessIn("Healthy : healthy", res)
+            self.failIfIn("Not Healthy", res)
+            self.failUnlessIn("Repair successful", res)
         d.addCallback(_got_html_sick)
 
         # repair of a dead file will fail, of course, but it isn't yet
@@ -4174,16 +4162,16 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         #d.addCallback(self.CHECK, "dead", "t=check&repair=true")
         #def _got_html_dead(res):
         #    print res
-        #    self.failUnless("Healthy : healthy" in res, res)
-        #    self.failIf("Not Healthy" in res, res)
-        #    self.failUnless("No repair necessary" in res, res)
+        #    self.failUnlessIn("Healthy : healthy", res)
+        #    self.failIfIn("Not Healthy", res)
+        #    self.failUnlessIn("No repair necessary", res)
         #d.addCallback(_got_html_dead)
 
         d.addCallback(self.CHECK, "corrupt", "t=check&verify=true&repair=true")
         def _got_html_corrupt(res):
-            self.failUnless("Healthy : Healthy" in res, res)
-            self.failIf("Not Healthy" in res, res)
-            self.failUnless("Repair successful" in res, res)
+            self.failUnlessIn("Healthy : Healthy", res)
+            self.failIfIn("Not Healthy", res)
+            self.failUnlessIn("Repair successful", res)
         d.addCallback(_got_html_corrupt)
 
         d.addErrback(self.explain_web_error)
@@ -4287,7 +4275,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 self.failUnlessReallyEqual(to_str(f[1]["ro_uri"]), unknown_immcap, data)
             else:
                 self.failUnlessReallyEqual(to_str(f[1]["ro_uri"]), unknown_rocap, data)
-            self.failUnless("metadata" in f[1])
+            self.failUnlessIn("metadata", f[1])
         d.addCallback(_check_directory_json, expect_rw_uri=not immutable)
 
         def _check_info(res, expect_rw_uri, expect_ro_uri):
@@ -4331,10 +4319,10 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 self.failUnlessReallyEqual(data[1]["mutable"], True)
             else:
                 self.failUnlessReallyEqual(to_str(data[1]["ro_uri"]), unknown_rocap, data)
-                self.failIf("mutable" in data[1], data[1])
+                self.failIfIn("mutable", data[1])
 
             # TODO: check metadata contents
-            self.failUnless("metadata" in data[1])
+            self.failUnlessIn("metadata", data[1])
 
         d.addCallback(lambda ign: self.GET("%s%s?t=json" % (self.rooturl, str(name))))
         d.addCallback(_check_json, expect_rw_uri=not immutable)
@@ -4413,7 +4401,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             # This checks that if we somehow ended up calling dn._decrypt_rwcapdata, it would fail.
             self.failIf(hasattr(dn._node, 'get_writekey'))
             rep = str(dn)
-            self.failUnless("RO-IMM" in rep)
+            self.failUnlessIn("RO-IMM", rep)
             cap = dn.get_cap()
             self.failUnlessIn("CHK", cap.to_string())
             self.cap = cap
@@ -4434,8 +4422,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 entry = entries[0]
                 (name_utf8, ro_uri, rwcapdata, metadata_s), subpos = split_netstring(entry, 4)
                 name = name_utf8.decode("utf-8")
-                self.failUnless(rwcapdata == "")
-                self.failUnless(name in kids)
+                self.failUnlessEqual(rwcapdata, "")
+                self.failUnlessIn(name, kids)
                 (expected_child, ign) = kids[name]
                 self.failUnlessReallyEqual(ro_uri, expected_child.get_readonly_uri())
                 numkids += 1
@@ -4484,7 +4472,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessReallyEqual(sorted(listed_children.keys()), [u"lonely"])
             ll_type, ll_data = listed_children[u"lonely"]
             self.failUnlessEqual(ll_type, "filenode")
-            self.failIf("rw_uri" in ll_data)
+            self.failIfIn("rw_uri", ll_data)
             self.failUnlessReallyEqual(to_str(ll_data["ro_uri"]), lonely_uri)
         d.addCallback(_check_json)
         return d
@@ -4810,8 +4798,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
 
         d.addCallback(self.CHECK, "one", "t=check") # no add-lease
         def _got_html_good(res):
-            self.failUnless("Healthy" in res, res)
-            self.failIf("Not Healthy" in res, res)
+            self.failUnlessIn("Healthy", res)
+            self.failIfIn("Not Healthy", res)
         d.addCallback(_got_html_good)
 
         d.addCallback(self._count_leases, "one")
@@ -4984,7 +4972,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            410, "Gone", "NoSharesError",
                                            self.GET, self.fileurls["0shares"]))
         def _check_zero_shares(body):
-            self.failIf("<html>" in body, body)
+            self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             exp = ("NoSharesError: no shares could be found. "
                    "Zero shares usually indicates a corrupt URI, or that "
@@ -5001,7 +4989,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            410, "Gone", "NotEnoughSharesError",
                                            self.GET, self.fileurls["1share"]))
         def _check_one_share(body):
-            self.failIf("<html>" in body, body)
+            self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             msgbase = ("NotEnoughSharesError: This indicates that some "
                        "servers were unavailable, or that shares have been "
@@ -5025,12 +5013,12 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            404, "Not Found", None,
                                            self.GET, self.fileurls["imaginary"]))
         def _missing_child(body):
-            self.failUnless("No such child: imaginary" in body, body)
+            self.failUnlessIn("No such child: imaginary", body)
         d.addCallback(_missing_child)
 
         d.addCallback(lambda ignored: self.GET(self.fileurls["dir-0share"]))
         def _check_0shares_dir_html(body):
-            self.failUnless("<html>" in body, body)
+            self.failUnlessIn("<html>", body)
             # we should see the regular page, but without the child table or
             # the dirops forms
             body = " ".join(body.strip().split())
@@ -5053,7 +5041,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             # and some-shares like we did for immutable files (since there
             # are different sorts of advice to offer in each case). For now,
             # they present the same way.
-            self.failUnless("<html>" in body, body)
+            self.failUnlessIn("<html>", body)
             body = " ".join(body.strip().split())
             self.failUnlessIn('href="?t=info">More info on this directory',
                               body)
@@ -5074,7 +5062,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET,
                                            self.fileurls["dir-0share-json"]))
         def _check_unrecoverable_file(body):
-            self.failIf("<html>" in body, body)
+            self.failIfIn("<html>", body)
             body = " ".join(body.strip().split())
             exp = ("UnrecoverableFileError: the directory (or mutable file) "
                    "could not be retrieved, because there were insufficient "
@@ -5114,7 +5102,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": ["*/*"]}))
         def _internal_error_html1(body):
-            self.failUnless("<html>" in body, "expected HTML, not '%s'" % body)
+            self.failUnlessIn("<html>", "expected HTML, not '%s'" % body)
         d.addCallback(_internal_error_html1)
 
         d.addCallback(lambda ignored:
@@ -5123,7 +5111,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": ["text/plain"]}))
         def _internal_error_text2(body):
-            self.failIf("<html>" in body, body)
+            self.failIfIn("<html>", body)
             self.failUnless(body.startswith("Traceback "), body)
         d.addCallback(_internal_error_text2)
 
@@ -5134,7 +5122,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            self.GET, "ERRORBOOM",
                                            headers={"accept": [CLI_accepts]}))
         def _internal_error_text3(body):
-            self.failIf("<html>" in body, body)
+            self.failIfIn("<html>", body)
             self.failUnless(body.startswith("Traceback "), body)
         d.addCallback(_internal_error_text3)
 
@@ -5143,7 +5131,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                                            500, "Internal Server Error", None,
                                            self.GET, "ERRORBOOM"))
         def _internal_error_html4(body):
-            self.failUnless("<html>" in body, "expected HTML, not '%s'" % body)
+            self.failUnlessIn("<html>", body)
         d.addCallback(_internal_error_html4)
 
         def _flush_errors(res):
