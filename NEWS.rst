@@ -3,7 +3,7 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.9.2a1 (2012-06-23)
+Release 1.9.2 (2012-07-02)
 ----------------------------
 
 Notable Bugfixes
@@ -21,6 +21,8 @@ Notable Bugfixes
   gatherer is offline when some incidents occur, it would previously not
   "catch up" with those incidents as intended. (`#1725`_)
 - OpenBSD 5 is now supported. (`#1584`_)
+- The ``count-good-share-hosts`` field of file check results is now
+  computed correctly. (`#1115`_)
 
 Configuration/Behavior Changes
 ''''''''''''''''''''''''''''''
@@ -38,6 +40,7 @@ Packaging Changes
 - Versions 2.0.1 and 2.4 of PyCrypto are excluded. (`#1631`_, `#1574`_)
 
 .. _`#680`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/680
+.. _`#1115`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1115
 .. _`#1574`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1574
 .. _`#1584`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1584
 .. _`#1593`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1593

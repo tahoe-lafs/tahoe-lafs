@@ -1,7 +1,7 @@
-﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.9.2a1
+﻿ANNOUNCING Tahoe, the Least-Authority File System, v1.9.2
 
 The Tahoe-LAFS team is pleased to announce the immediate
-availability of version 1.9.2a1 of Tahoe-LAFS, an extremely
+availability of version 1.9.2 of Tahoe-LAFS, an extremely
 reliable distributed storage system. Get it here:
 
 https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/quickstart.rst
@@ -17,7 +17,7 @@ https://tahoe-lafs.org/source/tahoe-lafs/trunk/docs/about.rst
 The previous stable release of Tahoe-LAFS was v1.9.1, released
 on January 12, 2012.
 
-v1.9.2 will be a bugfix release that primarily fixes regressions
+v1.9.2 is a bugfix release that primarily fixes regressions
 in mutable file support. See the NEWS file [1] for details.
 
 
@@ -132,7 +132,7 @@ possible.
 David-Sarah Hopwood
 on behalf of the Tahoe-LAFS team
 
-June 23, 2012
+July 2, 2012
 Rainhill, Merseyside, UK
 
 
