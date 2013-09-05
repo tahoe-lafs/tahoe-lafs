@@ -17,7 +17,7 @@ several platforms, but it currently works only on Linux.
 
 The implementation was written as a prototype at the First International
 Tahoe-LAFS Summit in June 2011, and is not currently in as mature a state as
-the other frontends (web, CLI, FTP and SFTP). This means that you probably
+the other frontends (web, CLI, SFTP and FTP). This means that you probably
 should not keep important data in the upload directory, and should not rely
 on all changes to files in the local directory to result in successful uploads.
 There might be incompatible changes to how the feature is configured in

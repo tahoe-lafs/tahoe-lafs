@@ -2045,7 +2045,7 @@ When modifying the file, be careful to update it atomically, otherwise a
 request may arrive while the file is only halfway written, and the partial
 file may be incorrectly parsed.
 
-The blacklist is applied to all access paths (including FTP, SFTP, and CLI
+The blacklist is applied to all access paths (including SFTP, FTP, and CLI
 operations), not just the web-API. The blacklist also applies to directories.
 If a directory is blacklisted, the gateway will refuse access to both that
 directory and any child files/directories underneath it, when accessed via
