@@ -73,6 +73,19 @@ these strings.
 Now add an 'accounts.file' directive to your tahoe.cfg file, as described in
 the next sections.
 
+accounts.url Directive
+======================
+
+The accounts.url directive should point to a secure, preferably
+localhost-only service.  This makes it harder for attackers to brute force
+the password or use DNS poisoning to cause the Tahoe-LAFS gateway to talk
+with the wrong server, thereby revealing the username and passwords.
+
+Tahoe-LAFS will send the credentials, email address and password to the
+URI specified in the accounts.url directive.  If the credentials are correct,
+the server will return a rootcap string.  Otherwise, it returns the string
+"0" which means bad username and/or password.
+
 Configuring FTP Access
 ======================
 
