@@ -431,7 +431,11 @@ class MySdist(sdist.sdist):
                 return fullname + "-SUMO"
             self.distribution.get_fullname = get_fullname
 
-        return sdist.sdist.make_distribution(self)
+        try:
+            old_mask = os.umask(int("022", 8))
+            return sdist.sdist.make_distribution(self)
+        finally:
+            os.umask(old_mask)
 
 
 setup_args = {}
