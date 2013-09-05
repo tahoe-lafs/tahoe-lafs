@@ -2,8 +2,6 @@
 Mutable Files
 =============
 
-This describes the "RSA-based mutable files" which were shipped in Tahoe v0.8.0.
-
 1.  `Mutable Formats`_
 2.  `Consistency vs. Availability`_
 3.  `The Prime Coordination Directive: "Don't Do That"`_
@@ -19,32 +17,37 @@ This describes the "RSA-based mutable files" which were shipped in Tahoe v0.8.0.
 6.  `Large Distributed Mutable Files`_
 7.  `TODO`_
 
-Mutable File Slots are places with a stable identifier that can hold data
-that changes over time. In contrast to CHK slots, for which the
-URI/identifier is derived from the contents themselves, the Mutable File Slot
-URI remains fixed for the life of the slot, regardless of what data is placed
-inside it.
+Mutable files are places with a stable identifier that can hold data that
+changes over time. In contrast to immutable slots, for which the
+identifier/capability is derived from the contents themselves, the mutable
+file identifier remains fixed for the life of the slot, regardless of what
+data is placed inside it.
 
-Each mutable slot is referenced by two different URIs. The "read-write" URI
+Each mutable file is referenced by two different caps. The "read-write" cap
 grants read-write access to its holder, allowing them to put whatever
-contents they like into the slot. The "read-only" URI is less powerful, only
+contents they like into the slot. The "read-only" cap is less powerful, only
 granting read access, and not enabling modification of the data. The
-read-write URI can be turned into the read-only URI, but not the other way
+read-write cap can be turned into the read-only cap, but not the other way
 around.
 
-The data in these slots is distributed over a number of servers, using the
-same erasure coding that CHK files use, with 3-of-10 being a typical choice
-of encoding parameters. The data is encrypted and signed in such a way that
-only the holders of the read-write URI will be able to set the contents of
-the slot, and only the holders of the read-only URI will be able to read
-those contents. Holders of either URI will be able to validate the contents
-as being written by someone with the read-write URI. The servers who hold the
-shares cannot read or modify them: the worst they can do is deny service (by
-deleting or corrupting the shares), or attempt a rollback attack (which can
-only succeed with the cooperation of at least k servers).
+The data in these files is distributed over a number of servers, using the
+same erasure coding that immutable files use, with 3-of-10 being a typical
+choice of encoding parameters. The data is encrypted and signed in such a way
+that only the holders of the read-write cap will be able to set the contents
+of the slot, and only the holders of the read-only cap will be able to read
+those contents. Holders of either cap will be able to validate the contents
+as being written by someone with the read-write cap. The servers who hold the
+shares are not automatically given the ability read or modify them: the worst
+they can do is deny service (by deleting or corrupting the shares), or
+attempt a rollback attack (which can only succeed with the cooperation of at
+least k servers).
+
 
 Mutable Formats
 ===============
+
+History
+-------
 
 When mutable files first shipped in Tahoe-0.8.0 (15-Feb-2008), the only
 version available was "SDMF", described below. This was a
@@ -75,8 +78,11 @@ SDMF a clean subset of MDMF, where any single-segment MDMF file could be
 handled by the old SDMF code). In the fall of 2011, Kevan's code was finally
 integrated, and first made available in the Tahoe-1.9.0 release.
 
-The main improvement of MDMF is the use of multiple segments: individual
-128KiB sections of the file can be retrieved or modified independently. The
+SDMF vs. MDMF
+-------------
+
+The improvement of MDMF is the use of multiple segments: individual 128-KiB
+sections of the file can be retrieved or modified independently. The
 improvement can be seen when fetching just a portion of the file (using a
 Range: header on the webapi), or when modifying a portion (again with a
 Range: header). It can also be seen indirectly when fetching the whole file:
@@ -84,12 +90,14 @@ the first segment of data should be delivered faster from a large MDMF file
 than from an SDMF file, although the overall download will then proceed at
 the same rate.
 
-We've decided to make it opt-in for the first release while we shake out the
-bugs, just in case a problem is found which requires an incompatible format
-change. All new mutable files will be in SDMF format unless the user
-specifically chooses to use MDMF instead. The code can read and modify
-existing files of either format without user intervention. We expect to make
-MDMF the default in a subsequent release, perhaps 2.0.
+We've decided to make it opt-in for now: mutable files default to
+SDMF format unless explicitly configured to use MDMF, either in ``tahoe.cfg``
+(see `<configuration.rst>`__) or in the WUI or CLI command that created a
+new mutable file.
+
+The code can read and modify existing files of either format without user
+intervention. We expect to make MDMF the default in a subsequent release,
+perhaps 2.0.
 
 Which format should you use? SDMF works well for files up to a few MB, and
 can be handled by older versions (Tahoe-1.8.3 and earlier). If you do not
@@ -114,8 +122,9 @@ As we develop more sophisticated mutable slots, the API may expose multiple
 read versions to the application layer. The tahoe philosophy is to defer most
 consistency recovery logic to the higher layers. Some applications have
 effective ways to merge multiple versions, so inconsistency is not
-necessarily a problem (i.e. directory nodes can usually merge multiple "add
-child" operations).
+necessarily a problem (i.e. directory nodes can usually merge multiple
+"add child" operations).
+
 
 The Prime Coordination Directive: "Don't Do That"
 =================================================
@@ -697,44 +706,37 @@ Medium Distributed Mutable Files
 
 These are just like the SDMF case, but:
 
-* we actually take advantage of the Merkle hash tree over the blocks, by
+* We actually take advantage of the Merkle hash tree over the blocks, by
   reading a single segment of data at a time (and its necessary hashes), to
-  reduce the read-time alacrity
-* we allow arbitrary writes to the file (i.e. seek() is provided, and
-  O_TRUNC is no longer required)
-* we write more code on the client side (in the MutableFileNode class), to
-  first read each segment that a write must modify. This looks exactly like
-  the way a normal filesystem uses a block device, or how a CPU must perform
-  a cache-line fill before modifying a single word.
-* we might implement some sort of copy-based atomic update server call,
+  reduce the read-time alacrity.
+* We allow arbitrary writes to any range of the file.
+* We add more code to first read each segment that a write must modify.
+  This looks exactly like the way a normal filesystem uses a block device,
+  or how a CPU must perform a cache-line fill before modifying a single word.
+* We might implement some sort of copy-based atomic update server call,
   to allow multiple writev() calls to appear atomic to any readers.
 
 MDMF slots provide fairly efficient in-place edits of very large files (a few
-GB). Appending data is also fairly efficient, although each time a power of 2
-boundary is crossed, the entire file must effectively be re-uploaded (because
-the size of the block hash tree changes), so if the filesize is known in
-advance, that space ought to be pre-allocated (by leaving extra space between
-the block hash tree and the actual data).
+GB). Appending data is also fairly efficient.
 
-MDMF1 uses the Merkle tree to enable low-alacrity random-access reads. MDMF2
-adds cache-line reads to allow random-access writes.
 
 Large Distributed Mutable Files
 ===============================
 
-LDMF slots use a fundamentally different way to store the file, inspired by
-Mercurial's "revlog" format. They enable very efficient insert/remove/replace
-editing of arbitrary spans. Multiple versions of the file can be retained, in
-a revision graph that can have multiple heads. Each revision can be
-referenced by a cryptographic identifier. There are two forms of the URI, one
-that means "most recent version", and a longer one that points to a specific
-revision.
+LDMF slots (not implemented) would use a fundamentally different way to store
+the file, inspired by Mercurial's "revlog" format. This would enable very
+efficient insert/remove/replace editing of arbitrary spans. Multiple versions
+of the file can be retained, in a revision graph that can have multiple heads.
+Each revision can be referenced by a cryptographic identifier. There are two
+forms of the URI, one that means "most recent version", and a longer one that
+points to a specific revision.
 
 Metadata can be attached to the revisions, like timestamps, to enable rolling
 back an entire tree to a specific point in history.
 
 LDMF1 provides deltas but tries to avoid dealing with multiple heads. LDMF2
 provides explicit support for revision identifiers and branching.
+
 
 TODO
 ====

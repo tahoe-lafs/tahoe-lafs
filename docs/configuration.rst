@@ -365,10 +365,13 @@ Client Configuration
     mutable-type parameter in the webapi. If you do not specify a value here,
     Tahoe-LAFS will use SDMF for all newly-created mutable files.
 
-    Note that this parameter only applies to mutable files. Mutable
-    directories, which are stored as mutable files, are not controlled by
-    this parameter and will always use SDMF. We may revisit this decision in
-    future versions of Tahoe-LAFS.
+    Note that this parameter applies only to files, not to directories.
+    Mutable directories, which are stored in mutable files, are not
+    controlled by this parameter and will always use SDMF. We may revisit
+    this decision in future versions of Tahoe-LAFS.
+
+    See `<frontends/specifications/mutable.rst>`_ for details about mutable
+    file formats.
 
 Frontend Configuration
 ======================
