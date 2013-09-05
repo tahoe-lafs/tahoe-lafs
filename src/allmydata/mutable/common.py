@@ -1,5 +1,4 @@
 
-from allmydata.util import idlib
 from allmydata.util.spans import DataSpans
 
 MODE_CHECK = "MODE_CHECK" # query all peers
@@ -42,16 +41,14 @@ class NotEnoughServersError(Exception):
         self.first_error = first_error
 
 class CorruptShareError(Exception):
-    def __init__(self, peerid, shnum, reason):
-        self.args = (peerid, shnum, reason)
-        self.peerid = peerid
+    def __init__(self, server, shnum, reason):
+        self.args = (server, shnum, reason)
+        self.server = server
         self.shnum = shnum
         self.reason = reason
     def __str__(self):
-        short_peerid = idlib.nodeid_b2a(self.peerid)[:8]
-        return "<CorruptShareError peerid=%s shnum[%d]: %s" % (short_peerid,
-                                                               self.shnum,
-                                                               self.reason)
+        return "<CorruptShareError server=%s shnum[%d]: %s" % \
+               (self.server.get_name(), self.shnum, self.reason)
 
 class UnknownVersionError(Exception):
     """The share we received was of a version we don't recognize."""

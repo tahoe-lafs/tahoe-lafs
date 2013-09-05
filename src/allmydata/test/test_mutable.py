@@ -1043,10 +1043,10 @@ class Servermap(unittest.TestCase, PublishMixin):
         self.failUnlessEqual(sm.recoverable_versions(), set([best]))
         self.failUnlessEqual(len(sm.shares_available()), 1)
         self.failUnlessEqual(sm.shares_available()[best], (num_shares, 3, 10))
-        shnum, peerids = sm.make_sharemap().items()[0]
-        peerid = list(peerids)[0]
-        self.failUnlessEqual(sm.version_on_peer(peerid, shnum), best)
-        self.failUnlessEqual(sm.version_on_peer(peerid, 666), None)
+        shnum, servers = sm.make_sharemap().items()[0]
+        server = list(servers)[0]
+        self.failUnlessEqual(sm.version_on_server(server, shnum), best)
+        self.failUnlessEqual(sm.version_on_server(server, 666), None)
         return sm
 
     def test_basic(self):
@@ -1116,10 +1116,10 @@ class Servermap(unittest.TestCase, PublishMixin):
             # mark the first 5 shares as corrupt, then update the servermap.
             # The map should not have the marked shares it in any more, and
             # new shares should be found to replace the missing ones.
-            for (shnum, peerid, timestamp) in shares:
+            for (shnum, server, timestamp) in shares:
                 if shnum < 5:
-                    self._corrupted.add( (peerid, shnum) )
-                    sm.mark_bad_share(peerid, shnum, "")
+                    self._corrupted.add( (server, shnum) )
+                    sm.mark_bad_share(server, shnum, "")
             return self.update_servermap(sm, MODE_WRITE)
         d.addCallback(_made_map)
         def _check_map(sm):
@@ -1127,10 +1127,10 @@ class Servermap(unittest.TestCase, PublishMixin):
             v = sm.best_recoverable_version()
             vm = sm.make_versionmap()
             shares = list(vm[v])
-            for (peerid, shnum) in self._corrupted:
-                peer_shares = sm.shares_on_peer(peerid)
-                self.failIf(shnum in peer_shares,
-                            "%d was in %s" % (shnum, peer_shares))
+            for (server, shnum) in self._corrupted:
+                server_shares = sm.debug_shares_on_server(server)
+                self.failIf(shnum in server_shares,
+                            "%d was in %s" % (shnum, server_shares))
             self.failUnlessEqual(len(shares), 5)
         d.addCallback(_check_map)
         return d
@@ -1280,7 +1280,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
     def do_download(self, servermap, version=None):
         if version is None:
             version = servermap.best_recoverable_version()
-        r = Retrieve(self._fn, servermap, version)
+        r = Retrieve(self._fn, self._storage_broker, servermap, version)
         c = consumer.MemoryConsumer()
         d = r.download(consumer=c)
         d.addCallback(lambda mc: "".join(mc.chunks))
@@ -1321,7 +1321,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
                 shares.clear()
             d1 = self.shouldFail(NotEnoughSharesError,
                                  "test_all_shares_vanished",
-                                 "ran out of peers",
+                                 "ran out of servers",
                                  self.do_download, servermap)
             return d1
         d.addCallback(_remove_shares)
@@ -1336,7 +1336,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
             self.failUnlessEqual(servermap.best_recoverable_version(), None)
             self.failIf(servermap.recoverable_versions())
             self.failIf(servermap.unrecoverable_versions())
-            self.failIf(servermap.all_peers())
+            self.failIf(servermap.all_servers())
         d.addCallback(_check_servermap)
         return d
 
@@ -1378,7 +1378,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
                 # no recoverable versions == not succeeding. The problem
                 # should be noted in the servermap's list of problems.
                 if substring:
-                    allproblems = [str(f) for f in servermap.problems]
+                    allproblems = [str(f) for f in servermap.get_problems()]
                     self.failUnlessIn(substring, "".join(allproblems))
                 return servermap
             if should_succeed:
@@ -1502,7 +1502,7 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
             f = res[0]
             self.failUnless(f.check(NotEnoughSharesError))
             self.failUnless("uncoordinated write" in str(f))
-        return self._test_corrupt_all(1, "ran out of peers",
+        return self._test_corrupt_all(1, "ran out of servers",
                                       corrupt_early=False,
                                       failure_checker=_check)
 
@@ -1540,11 +1540,11 @@ class Roundtrip(unittest.TestCase, testutil.ShouldFailMixin, PublishMixin):
                       shnums_to_corrupt=range(0, N-k))
         d.addCallback(lambda res: self.make_servermap())
         def _do_retrieve(servermap):
-            self.failUnless(servermap.problems)
+            self.failUnless(servermap.get_problems())
             self.failUnless("pubkey doesn't match fingerprint"
-                            in str(servermap.problems[0]))
+                            in str(servermap.get_problems()[0]))
             ver = servermap.best_recoverable_version()
-            r = Retrieve(self._fn, servermap, ver)
+            r = Retrieve(self._fn, self._storage_broker, servermap, ver)
             c = consumer.MemoryConsumer()
             return r.download(c)
         d.addCallback(_do_retrieve)
@@ -2488,7 +2488,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
             d.addCallback(lambda res:
                           self.shouldFail(NotEnoughSharesError,
                                           "test_retrieve_surprise",
-                                          "ran out of peers: have 0 of 1",
+                                          "ran out of servers: have 0 of 1",
                                           n.download_version,
                                           self.old_map,
                                           self.old_map.best_recoverable_version(),
@@ -2515,7 +2515,7 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
                 # stash the old state of the file
                 self.old_map = smap
                 # now shut down one of the servers
-                peer0 = list(smap.make_sharemap()[0])[0]
+                peer0 = list(smap.make_sharemap()[0])[0].get_serverid()
                 self.g.remove_server(peer0)
                 # then modify the file, leaving the old map untouched
                 log.msg("starting winning write")

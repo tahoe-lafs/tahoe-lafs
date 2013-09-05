@@ -718,7 +718,7 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
         return ctx.tag["Encoding: %s of %s" % (k, n)]
 
     def render_problems(self, ctx, data):
-        problems = data.problems
+        problems = data.get_problems()
         if not problems:
             return ""
         l = T.ul()
@@ -814,15 +814,17 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
         sharemap = servermap.make_sharemap()
         for shnum in sorted(sharemap.keys()):
             l[T.li["%d -> Placed on " % shnum,
-                   ", ".join(["[%s]" % idlib.shortnodeid_b2a(peerid)
-                              for peerid in sharemap[shnum]])]]
+                   ", ".join(["[%s]" % server.get_name()
+                              for server in sharemap[shnum]])]]
         return ctx.tag["Sharemap:", l]
 
     def render_problems(self, ctx, data):
-        problems = data.problems
+        problems = data.get_problems()
         if not problems:
             return ""
         l = T.ul()
+        # XXX: is this exercised? I don't think PublishStatus.problems is
+        # ever populated
         for peerid in sorted(problems.keys()):
             peerid_s = idlib.shortnodeid_b2a(peerid)
             l[T.li["[%s]: %s" % (peerid_s, problems[peerid])]]

@@ -131,6 +131,9 @@ class NoNetworkServer:
         return self.serverid
     def get_lease_seed(self):
         return self.serverid
+    def get_foolscap_write_enabler_seed(self):
+        return self.serverid
+
     def get_name(self):
         return idlib.shortnodeid_b2a(self.serverid)
     def get_longname(self):
