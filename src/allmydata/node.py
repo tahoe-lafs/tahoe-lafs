@@ -119,7 +119,21 @@ class Node(service.MultiService):
     def read_config(self):
         self.error_about_old_config_files()
         self.config = ConfigParser.SafeConfigParser()
-        self.config.read([os.path.join(self.basedir, "tahoe.cfg")])
+
+        tahoe_cfg = os.path.join(self.basedir, "tahoe.cfg")
+        try:
+            f = open(tahoe_cfg, "rb")
+            try:
+                # Skip any initial Byte Order Mark. Since this is an ordinary file, we
+                # don't need to handle incomplete reads, and can assume seekability.
+                if f.read(3) != '\xEF\xBB\xBF':
+                    f.seek(0)
+                self.config.readfp(f)
+            finally:
+                f.close()
+        except EnvironmentError:
+            if os.path.exists(tahoe_cfg):
+                raise
 
         cfg_tubport = self.get_config("node", "tub.port", "")
         if not cfg_tubport:
