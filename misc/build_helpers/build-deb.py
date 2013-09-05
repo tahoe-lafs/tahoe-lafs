@@ -85,7 +85,7 @@ for n in ["compat", "control", "copyright", "pycompat", "rules"]:
     if not os.path.exists(fn):
         fn = "misc/debian/%s" % n
     assert os.path.exists(fn)
-    
+
     shutil.copyfile(fn, os.path.join(DEBDIR, n))
     if n == "rules":
         os.chmod(os.path.join(DEBDIR, n), 0755) # +x

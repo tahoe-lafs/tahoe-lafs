@@ -110,8 +110,6 @@ class Sizes:
             # any data
             sibling_length = d * (k-1)
             self.bytes_until_some_data = 32 * sibling_length + block_size
-            
-            
 
         else:
             raise ValueError("unknown mode '%s" % mode)

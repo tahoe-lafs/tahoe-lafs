@@ -12,7 +12,7 @@ elif len(sys.argv) == 2:
 else:
     raise ValueError('must provide 0 or 1 argument (stdin, or filename)')
 
-vern = { 
+vern = {
     'major': v.major or 0,
     'minor': v.minor or 0,
     'point': v.micro or 0,
