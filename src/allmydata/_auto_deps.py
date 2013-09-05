@@ -114,6 +114,7 @@ deprecation_messages = [
     "The popen2 module is deprecated.  Use the subprocess module.",
     "the md5 module is deprecated; use hashlib instead",
     "twisted.web.error.NoResource is deprecated since Twisted 9.0.  See twisted.web.resource.NoResource.",
+    "twisted.internet.interfaces.IFinishableConsumer was deprecated in Twisted 11.1.0: Please use IConsumer (and IConsumer.unregisterProducer) instead."
     "the sets module is deprecated",
 ]
 
