@@ -194,7 +194,7 @@ class ShareCrawler(service.MultiService):
             f = open(self.statefile, "rb")
             state = pickle.load(f)
             f.close()
-        except EnvironmentError:
+        except Exception:
             state = {"version": 1,
                      "last-cycle-finished": None,
                      "current-cycle": None,
