@@ -3,6 +3,57 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
+Release 1.9.2a1 (2012-06-23)
+----------------------------
+
+Notable Bugfixes
+''''''''''''''''
+
+- Several regressions in support for reading (`#1636`, `#1670`), writing
+  (`#1749`), verifying (`#1628`) and repairing (`#1655`, `#1669`, `#1676`,
+  `#1689`) mutable files have been fixed.
+- FTP can now list directories containing mutable files, although it
+  still does not support reading or writing mutable files. (`#680`)
+- The FTP frontend would previously show Jan 1 1970 for all timestamps;
+  now it shows the correct modification time of the directory entry.
+  (`#1688`)
+- If a node is configured to report incidents to a log gatherer, but the
+  gatherer is offline when some incidents occur, it would previously not
+  "catch up" with those incidents as intended. (`#1725`)
+- OpenBSD 5 is now supported. (`#1584`)
+
+Configuration/Behaviour Changes
+'''''''''''''''''''''''''''''''
+
+- The capability of the upload directory for the drop-upload frontend
+  is now specified in the file ``private/drop_upload_dircap`` under
+  the gateway's node directory, rather than in its ``tahoe.cfg``.
+  (`#1593`)
+
+Packaging Changes
+'''''''''''''''''
+
+- Tahoe-LAFS can be built correctly from a git repository as well as
+  from darcs.
+- Versions 2.0.1 and 2.4 of PyCrypto are excluded. (`#1631`, `#1574`)
+
+.. _`#680`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/680
+.. _`#1574`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1574
+.. _`#1584`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1584
+.. _`#1593`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1593
+.. _`#1628`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1628
+.. _`#1631`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1631
+.. _`#1636`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1636
+.. _`#1655`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1655
+.. _`#1669`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1669
+.. _`#1670`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1670
+.. _`#1676`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1676
+.. _`#1688`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1688
+.. _`#1689`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1689
+.. _`#1725`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1725
+.. _`#1749`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1749
+
+
 Release 1.9.1 (2012-01-12)
 --------------------------
 
