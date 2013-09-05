@@ -26,7 +26,7 @@ from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
 from allmydata.util.hashutil import sha1
 from allmydata.test.common_web import HTTPClientGETFactory
-from allmydata.interfaces import IStorageBroker
+from allmydata.interfaces import IStorageBroker, IServer
 from allmydata.test.common import TEST_RSA_KEY_SIZE
 
 
@@ -122,11 +122,19 @@ def wrap_storage_server(original):
     return wrapper
 
 class NoNetworkServer:
+    implements(IServer)
     def __init__(self, serverid, rref):
         self.serverid = serverid
         self.rref = rref
     def __repr__(self):
         return "<NoNetworkServer for %s>" % self.get_name()
+    # Special method used by copy.copy() and copy.deepcopy(). When those are
+    # used in allmydata.immutable.filenode to copy CheckResults during
+    # repair, we want it to treat the IServer instances as singletons.
+    def __copy__(self):
+        return self
+    def __deepcopy__(self, memodict):
+        return self
     def get_serverid(self):
         return self.serverid
     def get_permutation_seed(self):
