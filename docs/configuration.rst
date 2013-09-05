@@ -440,8 +440,9 @@ Storage Server Configuration
     If provided, this value defines how much disk space is reserved: the
     storage server will not accept any share that causes the amount of free
     disk space to drop below this value. (The free space is measured by a
-    call to statvfs(2) on Unix, or GetDiskFreeSpaceEx on Windows, and is the
-    space available to the user account under which the storage server runs.)
+    call to ``statvfs(2)`` on Unix, or ``GetDiskFreeSpaceEx`` on Windows, and
+    is the space available to the user account under which the storage server
+    runs.)
 
     This string contains a number, with an optional case-insensitive scale
     suffix like "K" or "M" or "G", and an optional "B" or "iB" suffix. So

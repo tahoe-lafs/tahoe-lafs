@@ -74,7 +74,7 @@ The words "ssh-rsa" and "ssh-dsa" after the username are reserved to specify
 the public key format, so users cannot have a password equal to either of
 these strings.
 
-Now add an 'accounts.file' directive to your tahoe.cfg file, as described in
+Now add an ``accounts.file`` directive to your ``tahoe.cfg`` file, as described in
 the next sections.
 
 Running An Account Server (accounts.url)
@@ -157,7 +157,7 @@ the server to only accept connections from localhost.
 
 You will use directives in the tahoe.cfg file to tell the SFTP code where to
 find these keys. To create one, use the ``ssh-keygen`` tool (which comes with
-the standard openssh client distribution)::
+the standard OpenSSH client distribution)::
 
  % cd BASEDIR
  % ssh-keygen -f private/ssh_host_rsa_key
@@ -228,10 +228,10 @@ writeable directory. This does not prevent the directory entry from being
 unlinked or replaced.
 
 When using sshfs, the 'no-write' field can be set by clearing the 'w' bits in
-the Unix permissions, for example using the command 'chmod 444
-path/to/file'. Note that this does not mean that arbitrary combinations of
-Unix permissions are supported. If the 'w' bits are cleared on a link to a
-mutable file or directory, that link will become read-only.
+the Unix permissions, for example using the command ``chmod 444 path/to/file``.
+Note that this does not mean that arbitrary combinations of Unix permissions
+are supported. If the 'w' bits are cleared on a link to a mutable file or
+directory, that link will become read-only.
 
 If SFTP is used to write to an existing mutable file, it will publish a new
 version when the file handle is closed.
