@@ -1905,7 +1905,7 @@ The web-API server will take any request for a URL that starts with /static
 and serve it from a configurable directory which defaults to
 $BASEDIR/public_html . This is configured by setting the "[node]web.static"
 value in $BASEDIR/tahoe.cfg . If this is left at the default value of
-"public_html", then http://localhost:3456/static/subdir/foo.html will be
+"public_html", then http://127.0.0.1:3456/static/subdir/foo.html will be
 served with the contents of the file $BASEDIR/public_html/subdir/foo.html .
 
 This can be useful to serve a javascript application which provides a
