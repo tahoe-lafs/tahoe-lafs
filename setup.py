@@ -188,6 +188,7 @@ class Trial(Command):
     description = "run trial (use 'bin%stahoe debug trial' for the full set of trial options)" % (os.sep,)
     # This is just a subset of the most useful options, for compatibility.
     user_options = [ ("no-rterrors", None, "Don't print out tracebacks as they occur."),
+                     ("rterrors", "e", "Print out tracebacks as they occur (default, so ignored)."),
                      ("until-failure", "u", "Repeat a test (specified by -s) until it fails."),
                      ("reporter=", None, "The reporter to use for this test run."),
                      ("suite=", "s", "Specify the test suite."),
@@ -195,6 +196,7 @@ class Trial(Command):
                    ]
 
     def initialize_options(self):
+        self.rterrors = False
         self.no_rterrors = False
         self.until_failure = False
         self.reporter = None
@@ -209,6 +211,8 @@ class Trial(Command):
         if not self.quiet:
             args.append('--version-and-path')
         args += ['debug', 'trial']
+        if self.rterrors and self.no_rterrors:
+            raise AssertionError("--rterrors and --no-rterrors conflict.")
         if not self.no_rterrors:
             args.append('--rterrors')
         if self.until_failure:
