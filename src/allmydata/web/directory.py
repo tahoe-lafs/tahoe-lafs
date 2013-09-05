@@ -202,9 +202,6 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
             d = self._POST_mkdir_with_children(req)
         elif t == "mkdir-immutable":
             d = self._POST_mkdir_immutable(req)
-        elif t == "mkdir-p":
-            # TODO: docs, tests
-            d = self._POST_mkdir_p(req)
         elif t == "upload":
             d = self._POST_upload(ctx) # this one needs the context
         elif t == "uri":
@@ -284,32 +281,6 @@ class DirectoryNodeHandler(RenderMixin, rend.Page, ReplaceMeMixin):
         kids = convert_children_json(self.client.nodemaker, kids_json)
         d = self.node.create_subdirectory(name, kids, overwrite=False, mutable=False)
         d.addCallback(lambda child: child.get_uri()) # TODO: urlencode
-        return d
-
-    def _POST_mkdir_p(self, req):
-        path = get_arg(req, "path")
-        if not path:
-            raise WebError("mkdir-p requires a path")
-        path_ = tuple([seg.decode("utf-8") for seg in path.split('/') if seg ])
-        # TODO: replace
-        d = self._get_or_create_directories(self.node, path_)
-        d.addCallback(lambda node: node.get_uri())
-        return d
-
-    def _get_or_create_directories(self, node, path):
-        if not IDirectoryNode.providedBy(node):
-            # unfortunately it is too late to provide the name of the
-            # blocking directory in the error message.
-            raise BlockingFileError("cannot create directory because there "
-                                    "is a file in the way")
-        if not path:
-            return defer.succeed(node)
-        d = node.get(path[0])
-        def _maybe_create(f):
-            f.trap(NoSuchChildError)
-            return node.create_subdirectory(path[0])
-        d.addErrback(_maybe_create)
-        d.addCallback(self._get_or_create_directories, path[1:])
         return d
 
     def _POST_upload(self, ctx):
