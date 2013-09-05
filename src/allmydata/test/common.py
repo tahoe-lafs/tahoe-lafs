@@ -6,7 +6,7 @@ from twisted.python import failure
 from twisted.application import service
 from twisted.web.error import Error as WebError
 from foolscap.api import flushEventualQueue, fireEventually
-from allmydata import uri, dirnode, client
+from allmydata import uri, client
 from allmydata.introducer.server import IntroducerNode
 from allmydata.interfaces import IMutableFileNode, IImmutableFileNode,\
                                  NotEnoughSharesError, ICheckable, \
@@ -43,10 +43,10 @@ class FakeCHKFileNode:
     """I provide IImmutableFileNode, but all of my data is stored in a
     class-level dictionary."""
     implements(IImmutableFileNode)
-    all_contents = {}
 
-    def __init__(self, filecap):
+    def __init__(self, filecap, all_contents):
         precondition(isinstance(filecap, (uri.CHKFileURI, uri.LiteralFileURI)), filecap)
+        self.all_contents = all_contents
         self.my_uri = filecap
         self.storage_index = self.my_uri.get_storage_index()
 
@@ -165,10 +165,10 @@ def make_chk_file_cap(size):
 def make_chk_file_uri(size):
     return make_chk_file_cap(size).to_string()
 
-def create_chk_filenode(contents):
+def create_chk_filenode(contents, all_contents):
     filecap = make_chk_file_cap(len(contents))
-    n = FakeCHKFileNode(filecap)
-    FakeCHKFileNode.all_contents[filecap.to_string()] = contents
+    n = FakeCHKFileNode(filecap, all_contents)
+    all_contents[filecap.to_string()] = contents
     return n
 
 
@@ -178,11 +178,11 @@ class FakeMutableFileNode:
 
     implements(IMutableFileNode, ICheckable)
     MUTABLE_SIZELIMIT = 10000
-    all_contents = {}
-    file_types = {} # storage index => MDMF_VERSION or SDMF_VERSION
 
     def __init__(self, storage_broker, secret_holder,
-                 default_encoding_parameters, history):
+                 default_encoding_parameters, history, all_contents):
+        self.all_contents = all_contents
+        self.file_types = {} # storage index => MDMF_VERSION or SDMF_VERSION
         self.init_from_cap(make_mutable_file_cap())
         self._k = default_encoding_parameters['k']
         self._segsize = default_encoding_parameters['max_segment_size']
@@ -400,7 +400,7 @@ def make_verifier_uri():
     return uri.SSKVerifierURI(storage_index=os.urandom(16),
                               fingerprint=os.urandom(32)).to_string()
 
-def create_mutable_filenode(contents, mdmf=False):
+def create_mutable_filenode(contents, mdmf=False, all_contents=None):
     # XXX: All of these arguments are kind of stupid. 
     if mdmf:
         cap = make_mdmf_mutable_file_cap()
@@ -411,7 +411,8 @@ def create_mutable_filenode(contents, mdmf=False):
     encoding_params['k'] = 3
     encoding_params['max_segment_size'] = 128*1024
 
-    filenode = FakeMutableFileNode(None, None, encoding_params, None)
+    filenode = FakeMutableFileNode(None, None, encoding_params, None,
+                                   all_contents)
     filenode.init_from_cap(cap)
     if mdmf:
         filenode.create(MutableData(contents), version=MDMF_VERSION)
@@ -419,14 +420,6 @@ def create_mutable_filenode(contents, mdmf=False):
         filenode.create(MutableData(contents), version=SDMF_VERSION)
     return filenode
 
-
-class FakeDirectoryNode(dirnode.DirectoryNode):
-    """This offers IDirectoryNode, but uses a FakeMutableFileNode for the
-    backing store, so it doesn't go to the grid. The child data is still
-    encrypted and serialized, so this isn't useful for tests that want to
-    look inside the dirnodes and check their contents.
-    """
-    filenode_class = FakeMutableFileNode
 
 class LoggingServiceParent(service.MultiService):
     def log(self, *args, **kwargs):
