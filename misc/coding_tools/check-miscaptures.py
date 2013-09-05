@@ -40,7 +40,7 @@ def check_for(ast, results):
     for funcnode in nested:
         # Check for captured variables in this function.
         captured = set()
-        collect_captured(funcnode, declared, captured)
+        collect_captured(funcnode, declared, captured, False)
         for name in captured:
             # We want to report the outermost capturing function
             # (since that is where the workaround will need to be
@@ -76,7 +76,7 @@ def collect_declared_and_nested(ast, declared, nested):
             if isinstance(ast, Node):
                 collect_declared_and_nested(child, declared, nested)
 
-def collect_captured(ast, declared, captured):
+def collect_captured(ast, declared, captured, in_function_yet):
     """Collect any captured variables that are also in declared."""
     if isinstance(ast, Name):
         if ast.name in declared:
@@ -92,17 +92,20 @@ def collect_captured(ast, declared, captured):
                 if argname in declared:
                     del declared[argname]
 
-            for child in childnodes[len(ast.defaults):]:
-                collect_captured(child, declared, captured)
+            if len(new_declared) > 0:
+                for child in childnodes[len(ast.defaults):]:
+                    collect_captured(child, new_declared, captured, True)
 
-            # The default argument expressions are "outside" the
-            # function, even though they are children of the
-            # Lambda or Function node.
+            # The default argument expressions are "outside" *this*
+            # function, even though they are children of the Lambda or
+            # Function node.
+            if not in_function_yet:
+                return
             childnodes = childnodes[:len(ast.defaults)]
 
         for child in childnodes:
             if isinstance(ast, Node):
-                collect_captured(child, declared, captured)
+                collect_captured(child, declared, captured, True)
 
 
 def make_result(funcnode, var_name, var_lineno):
