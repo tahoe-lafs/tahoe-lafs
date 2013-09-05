@@ -350,17 +350,17 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         def add_three(_, i):
             # Add a new server with just share 3
             self.add_server_with_share(i, self.uri, 3)
-            #print self._shares_chart(self.uri)
+            #print self._pretty_shares_chart(self.uri)
         for i in range(1,5):
             d.addCallback(add_three, i)
     
         def _check_and_repair(_):
             return self.imm.check_and_repair(Monitor())
-        def _check_counts(crr): 
+        def _check_counts(crr, shares_good, good_share_hosts):
             p_crr = crr.get_post_repair_results().data
-            #print self._shares_chart(self.uri)
-            self.failUnless(p_crr['count-shares-good'] == 4)
-            self.failUnless(p_crr['count-good-share-hosts'] == 5)
+            #print self._pretty_shares_chart(self.uri)
+            self.failUnless(p_crr['count-shares-good'] == shares_good)
+            self.failUnless(p_crr['count-good-share-hosts'] == good_share_hosts)
 
         """
         Initial sharemap: 
@@ -371,11 +371,14 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
           Still 4 good shares and 5 good hosts
             """
         d.addCallback(_check_and_repair)
-        d.addCallback(_check_counts)
+        d.addCallback(_check_counts, 4, 5)
         d.addCallback(lambda _: self.delete_shares_numbered(self.uri, [3]))
         d.addCallback(_check_and_repair)
-        d.addCallback(_check_counts)
-
+        d.addCallback(_check_counts, 4, 5)
+        d.addCallback(lambda _: [self.g.break_server(sid) for sid 
+                                 in self.g.get_all_serverids()])
+        d.addCallback(_check_and_repair)
+        d.addCallback(_check_counts, 0, 0)
         return d
 
 class AddLease(GridTestMixin, unittest.TestCase):
