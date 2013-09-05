@@ -6,7 +6,6 @@ from nevow import rend, url, loaders, tags as T
 from nevow.inevow import IRequest
 from nevow.static import File as nevow_File # TODO: merge with static.File?
 from nevow.util import resource_filename
-from formless import webform
 
 import allmydata # to display import path
 from allmydata import get_package_versions_string
@@ -132,7 +131,6 @@ class NoReliability(rend.Page):
 <html xmlns:n="http://nevow.com/ns/nevow/0.1">
   <head>
     <title>AllMyData - Tahoe</title>
-    <link href="/webform_css" rel="stylesheet" type="text/css"/>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
   </head>
   <body>
