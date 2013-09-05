@@ -237,8 +237,7 @@ Known Issues
 ============
 
 Mutable files are not supported by the FTP frontend (`ticket #680
-<https://tahoe-lafs.org/trac/tahoe-lafs/ticket/680>`_). Currently, a directory
-containing mutable files cannot even be listed over FTP.
+<https://tahoe-lafs.org/trac/tahoe-lafs/ticket/680>`_).
 
 The FTP frontend sometimes fails to report errors, for example if an upload
 fails because it does meet the "servers of happiness" threshold (`ticket
