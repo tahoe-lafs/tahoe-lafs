@@ -42,7 +42,9 @@ class IntroducerNode(node.Node):
 
         from allmydata.webish import IntroducerWebishServer
         nodeurl_path = os.path.join(self.basedir, "node.url")
-        ws = IntroducerWebishServer(self, webport, nodeurl_path)
+        staticdir = self.get_config("node", "web.static", "public_html")
+        staticdir = os.path.expanduser(staticdir)
+        ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         self.add_service(ws)
 
 class IntroducerService(service.MultiService, Referenceable):
