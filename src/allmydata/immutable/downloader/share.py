@@ -250,14 +250,18 @@ class Share:
 
         # First, consume all of the information that we currently have, for
         # all the segments people currently want.
+        start = now()
         while self._get_satisfaction():
             pass
+        self._download_status.add_misc_event("satisfy", start, now())
 
         # When we get no satisfaction (from the data we've received so far),
         # we determine what data we desire (to satisfy more requests). The
         # number of segments is finite, so I can't get no satisfaction
         # forever.
+        start = now()
         wanted, needed = self._desire()
+        self._download_status.add_misc_event("desire", start, now())
 
         # Finally, send out requests for whatever we need (desire minus
         # have). You can't always get what you want, but if you try
@@ -265,11 +269,13 @@ class Share:
         self._send_requests(wanted + needed)
 
         # and sometimes you can't even get what you need
+        start = now()
         disappointment = needed & self._unavailable
         if disappointment.len():
             self.had_corruption = True
             raise DataUnavailable("need %s but will never get it" %
                                   disappointment.dump())
+        self._download_status.add_misc_event("checkdis", start, now())
 
     def _get_satisfaction(self):
         # return True if we retired a data block, and should therefore be

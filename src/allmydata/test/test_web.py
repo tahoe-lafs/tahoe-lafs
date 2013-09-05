@@ -646,6 +646,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessEqual(data["server_info"][phwr_id]["short"], "phwr")
             self.failUnlessEqual(data["server_info"][cmpu_id]["short"], "cmpu")
             self.failUnless("dyhb" in data)
+            self.failUnless("misc" in data)
         d.addCallback(_check_dl_json)
         d.addCallback(lambda res: self.GET("/status/up-%d" % ul_num))
         def _check_ul(res):
