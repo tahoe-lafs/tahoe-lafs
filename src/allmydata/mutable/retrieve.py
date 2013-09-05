@@ -592,7 +592,8 @@ class Retrieve:
         self._bad_shares.add((server, shnum, f))
         self._status.add_problem(server, f)
         self._last_failure = f
-        self.notify_server_corruption(server, shnum, str(f.value))
+        if f.check(CorruptShareError):
+            self.notify_server_corruption(server, shnum, str(f.value))
 
 
     def _download_current_segment(self):
