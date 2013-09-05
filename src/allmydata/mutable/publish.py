@@ -622,10 +622,9 @@ class Publish:
         # Can we still successfully publish this file?
         # TODO: Keep track of outstanding queries before aborting the
         #       process.
-        all_writers = []
-        for shnum, writers in self.writers.iteritems():
-            all_writers.extend(writers)
-        if len(all_writers) < self.required_shares or self.surprised:
+        all_shnums = filter(lambda sh: len(self.writers[sh]) > 0,
+                            self.writers.iterkeys())
+        if len(all_shnums) < self.required_shares or self.surprised:
             return self._failure()
 
         # Figure out what we need to do next. Each of these needs to
