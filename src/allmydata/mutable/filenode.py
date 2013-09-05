@@ -1144,6 +1144,7 @@ class MutableFileVersion:
         blockhashes = {} # shnum -> blockhash tree
         for (shnum, original_data) in update_data.iteritems():
             data = [d[1] for d in original_data if d[0] == self._version]
+            # data is [(blockhashes,start,end)..]
 
             # Every data entry in our list should now be share shnum for
             # a particular version of the mutable file, so all of the
@@ -1151,8 +1152,9 @@ class MutableFileVersion:
             datum = data[0]
             assert [x for x in data if x != datum] == []
 
+            # datum is (blockhashes,start,end)
             blockhashes[shnum] = datum[0]
-            start_segments[shnum] = datum[1]
+            start_segments[shnum] = datum[1] # (block,salt) bytestrings
             end_segments[shnum] = datum[2]
 
         d1 = r.decode(start_segments, self._start_segment)

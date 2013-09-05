@@ -119,7 +119,10 @@ class ServerMap:
         self._bad_shares = {} # maps (server,shnum) to old checkstring
         self._last_update_mode = None
         self._last_update_time = 0
-        self.update_data = {} # (verinfo,shnum) => data
+        self.update_data = {} # shnum -> [(verinfo,(blockhashes,start,end)),..]
+        # where blockhashes is a list of bytestrings (the result of
+        # layout.MDMFSlotReadProxy.get_blockhashes), and start/end are both
+        # (block,salt) tuple-of-bytestrings from get_block_and_salt()
 
     def copy(self):
         s = ServerMap()
