@@ -131,6 +131,8 @@ class CiphertextFileNode:
                     prr.set_healthy(is_healthy)
                     prr.set_recoverable(is_recoverable)
                     crr.repair_successful = is_healthy
+
+                    # TODO: this may be wrong, see ticket #1115 comment:27 and ticket #1784.
                     prr.set_needs_rebalancing(len(sm) >= verifycap.total_shares)
 
                     crr.post_repair_results = prr

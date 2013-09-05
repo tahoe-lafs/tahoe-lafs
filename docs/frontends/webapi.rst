@@ -1347,7 +1347,9 @@ mainly intended for developers.
     count-shares-needed: 'k', the number of shares required for recovery
     count-shares-expected: 'N', the number of total shares generated
     count-good-share-hosts: the number of distinct storage servers with good
-                            shares
+                            shares. Note that a high value does not necessarily
+                            imply good share distribution, because some of
+                            these servers may only hold duplicate shares.
     count-wrong-shares: for mutable files, the number of shares for
                         versions other than the 'best' one (highest
                         sequence number, highest roothash). These are
@@ -1362,10 +1364,12 @@ mainly intended for developers.
     list-corrupt-shares: a list of "share locators", one for each share
                          that was found to be corrupt. Each share locator
                          is a list of (serverid, storage_index, sharenum).
-    needs-rebalancing: (bool) True if there are multiple shares on a single
-                       storage server, indicating a reduction in reliability
-                       that could be resolved by moving shares to new
-                       servers.
+    needs-rebalancing: (bool) This field is intended to be True iff
+                       reliability could be improved for this file by
+                       rebalancing, i.e. by moving some shares to other
+                       servers. It is not guaranteed to be computed correctly
+                       in Tahoe-LAFS up to and including v1.9.2, and its
+                       precise definition may change in future versions.
     servers-responding: list of base32-encoded storage server identifiers,
                         one for each server which responded to the share
                         query.
