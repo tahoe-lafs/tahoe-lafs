@@ -21,8 +21,8 @@ want to read `the "historical known issues" document`_.
 Known Issues in Tahoe-LAFS v1.9.2, released 23-Jun-2012
 =======================================================
 
-  *  `Potential unauthorized access by JavaScript in unrelated files`_
-  *  `Potential disclosure of file through embedded hyperlinks or JavaScript in that file`_
+  *  `Unauthorized access by JavaScript in unrelated files`_
+  *  `Disclosure of file through embedded hyperlinks or JavaScript in that file`_
   *  `Command-line arguments are leaked to other local users`_
   *  `Capabilities may be leaked to web browser phishing filter / "safe browsing" servers`_
   *  `Known issues in the FTP and SFTP frontends`_
@@ -31,7 +31,7 @@ Known Issues in Tahoe-LAFS v1.9.2, released 23-Jun-2012
 ----
 
 Potential unauthorized access by JavaScript in unrelated files
---------------------------------------------------------------
+----------------------------------------------------
 
 If you view a file stored in Tahoe-LAFS through a web user interface,
 JavaScript embedded in that file might be able to access other files or
@@ -40,6 +40,12 @@ user interface.  Such a script would be able to send the contents of
 those other files or directories to the author of the script, and if you
 have the ability to modify the contents of those files or directories,
 then that script could modify or delete those files or directories.
+
+This attack is known to be possible when an attacking tab or window could
+reach a tab or window containing a Tahoe URI by navigating back or forward
+in the history, either from itself or from any frame with a known name (as
+specified by the "target" attribute of an HTML link). It might be possible
+in other cases depending on the browser.
 
 *how to manage it*
 
@@ -57,8 +63,8 @@ malicious JavaScript.
 
 ----
 
-Potential disclosure of file through embedded hyperlinks or JavaScript in that file
------------------------------------------------------------------------------------
+Disclosure of file through embedded hyperlinks or JavaScript in that file
+-------------------------------------------------------------------------
 
 If there is a file stored on a Tahoe-LAFS storage grid, and that file
 gets downloaded and displayed in a web browser, then JavaScript or
