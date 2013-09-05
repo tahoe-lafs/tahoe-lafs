@@ -1742,6 +1742,33 @@ class Checker(unittest.TestCase, CheckerMixin, PublishMixin):
         d.addCallback(self.check_bad, "test_check_mdmf_all_bad_sig")
         return d
 
+    def test_verify_mdmf_all_bad_sharedata(self):
+        d = self.publish_mdmf()
+        # On 8 of the shares, corrupt the beginning of the share data.
+        # The signature check during the servermap update won't catch this.
+        d.addCallback(lambda ignored:
+            corrupt(None, self._storage, "share_data", range(8)))
+        # On 2 of the shares, corrupt the end of the share data.
+        # The signature check during the servermap update won't catch
+        # this either, and the retrieval process will have to process
+        # all of the segments before it notices.
+        d.addCallback(lambda ignored:
+            # the block hash tree comes right after the share data, so if we
+            # corrupt a little before the block hash tree, we'll corrupt in the
+            # last block of each share.
+            corrupt(None, self._storage, "block_hash_tree", [8, 9], -5))
+        d.addCallback(lambda ignored:
+            self._fn.check(Monitor(), verify=True))
+        # The verifier should flag the file as unhealthy, and should
+        # list all 10 shares as bad.
+        d.addCallback(self.check_bad, "test_verify_mdmf_all_bad_sharedata")
+        def _check_num_bad(r):
+            self.failIf(r.is_recoverable())
+            smap = r.get_servermap()
+            self.failUnlessEqual(len(smap.get_bad_shares()), 10)
+        d.addCallback(_check_num_bad)
+        return d
+
     def test_check_all_bad_blocks(self):
         d = corrupt(None, self._storage, "share_data", [9]) # bad blocks
         # the Checker won't notice this.. it doesn't look at actual data
