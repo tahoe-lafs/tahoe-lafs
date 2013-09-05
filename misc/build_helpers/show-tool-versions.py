@@ -133,7 +133,7 @@ print
 print_stdout(['buildbot', '--version'])
 print_stdout(['buildslave', '--version'])
 if 'windows' in platform.system().lower():
-    print_stderr(['cl'])
+    print_stdout(['cl'])
 print_stdout(['gcc', '--version'], numlines=1)
 print_stdout(['g++', '--version'], numlines=1)
 print_stdout(['cryptest', 'V'])
