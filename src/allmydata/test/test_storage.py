@@ -3973,13 +3973,16 @@ class WebStatus(unittest.TestCase, pollmixin.PollMixin, WebRenderingMixin):
     def test_status(self):
         basedir = "storage/WebStatus/status"
         fileutil.make_dirs(basedir)
-        ss = StorageServer(basedir, "\x00" * 20)
+        nodeid = "\x00" * 20
+        ss = StorageServer(basedir, nodeid)
         ss.setServiceParent(self.s)
-        w = StorageStatus(ss)
+        w = StorageStatus(ss, "nickname")
         d = self.render1(w)
         def _check_html(html):
             self.failUnlessIn("<h1>Storage Server Status</h1>", html)
             s = remove_tags(html)
+            self.failUnlessIn("Server Nickname: nickname", s)
+            self.failUnlessIn("Server Nodeid: %s"  % base32.b2a(nodeid), s)
             self.failUnlessIn("Accepting new shares: Yes", s)
             self.failUnlessIn("Reserved space: - 0 B (0)", s)
         d.addCallback(_check_html)
