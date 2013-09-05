@@ -44,7 +44,7 @@ copies files from the local disk onto the decentralized filesystem. We later
 provide read-only access to those files, allowing users to recover them.
 There are several other applications built on top of the Tahoe-LAFS
 filesystem (see the `RelatedProjects
-<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects>`_ page of the
+<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects>`_ page of the
 wiki for a list).
 
 
@@ -158,7 +158,7 @@ that doesn't match the capability you used to refer to that file. The
 filesystem layer (described below) adds human-meaningful names atop the
 key-value layer.
 
-.. _`Zooko's Triangle`: http://en.wikipedia.org/wiki/Zooko%27s_triangle
+.. _`Zooko's Triangle`: https://en.wikipedia.org/wiki/Zooko%27s_triangle
 
 
 Server Selection

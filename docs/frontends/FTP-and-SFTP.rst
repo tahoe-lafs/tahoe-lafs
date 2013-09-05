@@ -190,7 +190,7 @@ isn't very useful except for testing.
 
 For further information on SFTP compatibility and known issues with various
 clients and with the sshfs filesystem, see
-`<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
+`<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
 
 Dependencies
 ============
@@ -237,25 +237,25 @@ Known Issues
 ============
 
 Mutable files are not supported by the FTP frontend (`ticket #680
-<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/680>`_). Currently, a directory
+<https://tahoe-lafs.org/trac/tahoe-lafs/ticket/680>`_). Currently, a directory
 containing mutable files cannot even be listed over FTP.
 
 The FTP frontend sometimes fails to report errors, for example if an upload
 fails because it does meet the "servers of happiness" threshold (`ticket
-#1081 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1081>`_). Upload errors
+#1081 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1081>`_). Upload errors
 also may not be reported when writing files using SFTP via sshfs (`ticket
-#1059 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1059>`_).
+#1059 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1059>`_).
 
 Non-ASCII filenames are not supported by FTP (`ticket #682
-<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/682>`_). They can be used with
+<https://tahoe-lafs.org/trac/tahoe-lafs/ticket/682>`_). They can be used with
 SFTP only if the client encodes filenames as UTF-8 (`ticket #1089
-<http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1089>`_).
+<https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1089>`_).
 
 The gateway node may hang or consume 100% CPU if the client tries to rekey.
-(`ticket #1297 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1297>`_).  This
-is due to `a bug in Twisted <http://twistedmatrix.com/trac/ticket/4395>`_
+(`ticket #1297 <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1297>`_).  This
+is due to `a bug in Twisted <https://twistedmatrix.com/trac/ticket/4395>`_
 which was fixed in Twisted 11.0 (released 3-April-2011).
 
 For options to disable rekeying in various clients in order to work around
 this issue, and for other known issues in SFTP, see
-`<http://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.
+`<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend>`_.

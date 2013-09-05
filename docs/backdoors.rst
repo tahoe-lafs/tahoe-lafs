@@ -11,7 +11,7 @@ to encrypted data.
 
 (login required; username/password pairs available at `bugmenot`_).
 
-.. _recently reported: http://www.nytimes.com/2010/09/27/us/27wiretap.html
+.. _recently reported: https://www.nytimes.com/2010/09/27/us/27wiretap.html
 .. _bugmenot: http://www.bugmenot.com/view/nytimes.com
 
 Commentary by the `Electronic Frontier Foundation`_, `Peter Suderman /
@@ -31,8 +31,8 @@ exploitable by other parties (a notable example being the Greek cellphone
 eavesdropping scandal in 2004/5). RFCs `1984`_ and `2804`_ elaborate on the
 security case against such backdoors.
 
-.. _1984: http://tools.ietf.org/html/rfc1984
-.. _2804: http://tools.ietf.org/html/rfc2804
+.. _1984: https://tools.ietf.org/html/rfc1984
+.. _2804: https://tools.ietf.org/html/rfc2804
 
 Note that since Tahoe-LAFS is open-source software, forks by people other
 than the current core developers are possible. In that event, we would try to

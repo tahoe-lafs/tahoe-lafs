@@ -44,7 +44,7 @@ The item descriptions below use the following types:
     a Twisted listening-port specification string, like "``tcp:80``" or
     "``tcp:3456:interface=127.0.0.1``". For a full description of the format,
     see `the Twisted strports documentation
-    <http://twistedmatrix.com/documents/current/api/twisted.application.strports.html>`_.
+    <https://twistedmatrix.com/documents/current/api/twisted.application.strports.html>`_.
     Please note, if interface= is not specified, Tahoe-LAFS will attempt to
     bind the port specified on all interfaces.
 

@@ -52,7 +52,7 @@ This string is actually a Twisted "strports" specification, meaning you can
 get more control over the interface to which the server binds by supplying
 additional arguments. For more details, see the documentation on
 `twisted.application.strports
-<http://twistedmatrix.com/documents/current/api/twisted.application.strports.html>`_.
+<https://twistedmatrix.com/documents/current/api/twisted.application.strports.html>`_.
 
 Writing "tcp:3456:interface=127.0.0.1" into the web.port line does the same
 but binds to the loopback interface, ensuring that only the programs on the
@@ -74,7 +74,7 @@ with it (such as read or modify the contents). This identifier is called a
 "read-cap" or "write-cap", depending upon whether it enables read-only or
 read-write access. These "caps" are also referred to as URIs (which may be
 confusing because they are not currently `RFC3986
-<http://tools.ietf.org/html/rfc3986>`_-compliant URIs).
+<https://tools.ietf.org/html/rfc3986>`_-compliant URIs).
 
 The Tahoe web-based API is "REST-ful", meaning it implements the concepts of
 "REpresentational State Transfer": the original scheme by which the World
@@ -2058,7 +2058,7 @@ the ``logs/twistd.log`` file.
 
  HTTP does not provide a mechanism to specify the character set used to
  encode non-ASCII names in URLs
- (`RFC3986#2.1 <http://tools.ietf.org/html/rfc3986#section-2.1>`_).
+ (`RFC3986#2.1 <https://tools.ietf.org/html/rfc3986#section-2.1>`_).
  We prefer the convention that the ``filename=`` argument shall be a
  URL-escaped UTF-8 encoded Unicode string.
  For example, suppose we want to provoke the server into using a filename of
@@ -2086,14 +2086,14 @@ the ``logs/twistd.log`` file.
     (note, the last four bytes of that line, not including the newline, are
     0xC3 0xA9 0x65 0x22)
 
- `RFC2231#4 <http://tools.ietf.org/html/rfc2231#section-4>`_
+ `RFC2231#4 <https://tools.ietf.org/html/rfc2231#section-4>`_
  (dated 1997): suggests that the following might work, and
  `some developers have reported <http://markmail.org/message/dsjyokgl7hv64ig3>`_
  that it is supported by Firefox (but not IE7)::
 
   #2: Content-Disposition: attachment; filename*=utf-8''fianc%C3%A9e
 
- My reading of `RFC2616#19.5.1 <http://tools.ietf.org/html/rfc2616#section-19.5.1>`_
+ My reading of `RFC2616#19.5.1 <https://tools.ietf.org/html/rfc2616#section-19.5.1>`_
  (which defines Content-Disposition) says that the filename= parameter is
  defined to be wrapped in quotes (presumably to allow spaces without breaking
  the parsing of subsequent parameters), which would give us::

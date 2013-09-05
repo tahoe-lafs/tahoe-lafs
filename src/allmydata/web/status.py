@@ -975,6 +975,7 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         started = self.update_status.get_started()
         total = self.update_status.timings.get("total")
         per_server = self.update_status.timings.get("per_server")
+        # We'd like to use an https: URL here, but the site has a domain/cert mismatch.
         base = "http://chart.apis.google.com/chart?"
         pieces = ["cht=bhs"]
         pieces.append("chco=ffffff,4d89f9,c6d9fd") # colors

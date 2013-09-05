@@ -132,11 +132,11 @@ Unicode names are supported, but the local name of a file must be encoded
 correctly in order for it to be uploaded. The expected encoding is that
 printed by ``python -c "import sys; print sys.getfilesystemencoding()"``.
 
-.. _`#1105`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1105
-.. _`#1430`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1430
-.. _`#1431`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1431
-.. _`#1432`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1432
-.. _`#1433`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1433
-.. _`#1449`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1449
-.. _`#1458`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1458
-.. _`#1459`: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/1459
+.. _`#1105`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1105
+.. _`#1430`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1430
+.. _`#1431`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1431
+.. _`#1432`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1432
+.. _`#1433`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1433
+.. _`#1449`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1449
+.. _`#1458`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1458
+.. _`#1459`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1459
