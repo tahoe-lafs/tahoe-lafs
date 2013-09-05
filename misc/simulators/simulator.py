@@ -54,7 +54,6 @@ class Node:
         return (True, tried)
 
     def accept_share(self, fileid, sharesize):
-        accept = False
         if self.utilization < self.capacity:
             # we have room! yay!
             self.shares[fileid] = sharesize
@@ -244,7 +243,7 @@ class Simulator:
     def do_event(self):
         time, etype = self.next.pop(0)
         assert time > self.time
-        current_time = self.time
+        # current_time = self.time
         self.time = time
         self._add_event(etype)
         if etype == "ADDFILE":

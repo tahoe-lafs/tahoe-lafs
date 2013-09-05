@@ -122,7 +122,7 @@ def check():
 
 $Id$
 """
-from zope.interface.exceptions import BrokenImplementation, DoesNotImplement
+from zope.interface.exceptions import DoesNotImplement
 from zope.interface.exceptions import BrokenMethodImplementation
 from types import FunctionType, MethodType
 from zope.interface.interface import fromMethod, fromFunction, Method

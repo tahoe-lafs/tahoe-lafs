@@ -20,7 +20,6 @@ class Sample(Item):
     avail = integer()
 
 def upgradeSample1to2(old):
-    total = 0
     return old.upgradeVersion("diskwatcher_sample", 1, 2,
                               url=old.url,
                               when=old.when,
