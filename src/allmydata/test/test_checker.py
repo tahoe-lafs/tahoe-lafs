@@ -45,7 +45,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
 
     def test_literal(self):
         c = self.create_fake_client()
-        lcr = web_check_results.LiteralCheckResults(c)
+        lcr = web_check_results.LiteralCheckResultsRenderer(c)
 
         d = self.render1(lcr)
         def _check(html):
@@ -90,7 +90,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                  }
         cr.set_data(data)
 
-        w = web_check_results.CheckResults(c, cr)
+        w = web_check_results.CheckResultsRenderer(c, cr)
         html = self.render2(w)
         s = self.remove_tags(html)
         self.failUnlessIn("File Check Results for SI=2k6avp", s) # abbreviated
@@ -213,7 +213,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
         crr.post_repair_results = post_cr
         crr.repair_attempted = False
 
-        w = web_check_results.CheckAndRepairResults(c, crr)
+        w = web_check_results.CheckAndRepairResultsRenderer(c, crr)
         html = self.render2(w)
         s = self.remove_tags(html)
 
@@ -268,7 +268,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
             self.failUnlessEqual(j["post-repair-results"]["summary"], "worse")
         d.addCallback(_got_json)
 
-        w2 = web_check_results.CheckAndRepairResults(c, None)
+        w2 = web_check_results.CheckAndRepairResultsRenderer(c, None)
         d.addCallback(lambda ignored: self.render_json(w2))
         def _got_lit_results(data):
             j = simplejson.loads(data)
