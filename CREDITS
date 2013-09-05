@@ -138,3 +138,8 @@ E: mr@mareichelt.com
 W: http://mareichelt.com/
 P: DCB3 281F 38B0 711A 41C0  DC20 EE8D 363D 1687 9738
 D: packaging for Slackware on SlackBuilds.org, bug reports
+
+N: Peter Le Bek
+E: peter@hyperplex.org
+P: 0x9BAC3E97, 79CA 34B3 7272 A3CF 82AC 5655 F55A 5B63 9BAC 3E97
+D: mtime in ftpd
