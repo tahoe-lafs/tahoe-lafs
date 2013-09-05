@@ -323,11 +323,10 @@ class Retrieve:
         self._block_hash_trees = None
         self._setup_encoding_parameters()
 
-        # This is the form expected by decode.
-        blocks_and_salts = blocks_and_salts.items()
-        blocks_and_salts = [(True, [d]) for d in blocks_and_salts]
-
-        d = self._decode_blocks(blocks_and_salts, segnum)
+        # _decode_blocks() expects the output of a DeferredList that contains
+        # the outputs of _validate_block() (each of which is a dict mapping
+        # shnum to (block,salt) bytestrings).
+        d = self._decode_blocks([(True, blocks_and_salts)], segnum)
         d.addCallback(self._decrypt_segment)
         return d
 
