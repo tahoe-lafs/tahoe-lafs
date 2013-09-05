@@ -51,10 +51,9 @@ class PublishStatus:
         self.started = time.time()
 
     def add_per_server_time(self, server, elapsed):
-        serverid = server.get_serverid()
-        if serverid not in self.timings["send_per_server"]:
-            self.timings["send_per_server"][serverid] = []
-        self.timings["send_per_server"][serverid].append(elapsed)
+        if server not in self.timings["send_per_server"]:
+            self.timings["send_per_server"][server] = []
+        self.timings["send_per_server"][server].append(elapsed)
     def accumulate_encode_time(self, elapsed):
         self.timings["encode"] += elapsed
     def accumulate_encrypt_time(self, elapsed):

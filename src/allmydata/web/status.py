@@ -761,11 +761,10 @@ class RetrieveStatusPage(rend.Page, RateAndTimeMixin):
         if not per_server:
             return ""
         l = T.ul()
-        for peerid in sorted(per_server.keys()):
-            peerid_s = idlib.shortnodeid_b2a(peerid)
+        for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
             times_s = ", ".join([self.render_time(None, t)
-                                 for t in per_server[peerid]])
-            l[T.li["[%s]: %s" % (peerid_s, times_s)]]
+                                 for t in per_server[server]])
+            l[T.li["[%s]: %s" % (server.get_name(), times_s)]]
         return T.li["Per-Server Fetch Response Times: ", l]
 
 
@@ -874,11 +873,10 @@ class PublishStatusPage(rend.Page, RateAndTimeMixin):
         if not per_server:
             return ""
         l = T.ul()
-        for peerid in sorted(per_server.keys()):
-            peerid_s = idlib.shortnodeid_b2a(peerid)
+        for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
             times_s = ", ".join([self.render_time(None, t)
-                                 for t in per_server[peerid]])
-            l[T.li["[%s]: %s" % (peerid_s, times_s)]]
+                                 for t in per_server[server]])
+            l[T.li["[%s]: %s" % (server.get_name(), times_s)]]
         return T.li["Per-Server Response Times: ", l]
 
 class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
@@ -932,10 +930,9 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         return ctx.tag["Server Problems:", l]
 
     def render_privkey_from(self, ctx, data):
-        peerid = data.get_privkey_from()
-        if peerid:
-            return ctx.tag["Got privkey from: [%s]"
-                           % idlib.shortnodeid_b2a(peerid)]
+        server = data.get_privkey_from()
+        if server:
+            return ctx.tag["Got privkey from: [%s]" % server.get_name()]
         else:
             return ""
 
@@ -953,10 +950,9 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         if not per_server:
             return ""
         l = T.ul()
-        for peerid in sorted(per_server.keys()):
-            peerid_s = idlib.shortnodeid_b2a(peerid)
+        for server in sorted(per_server.keys(), key=lambda s: s.get_name()):
             times = []
-            for op,started,t in per_server[peerid]:
+            for op,started,t in per_server[server]:
                 #times.append("%s/%.4fs/%s/%s" % (op,
                 #                              started,
                 #                              self.render_time(None, started - self.update_status.get_started()),
@@ -968,7 +964,7 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
                 else:
                     times.append( "privkey(" + self.render_time(None, t) + ")" )
             times_s = ", ".join(times)
-            l[T.li["[%s]: %s" % (peerid_s, times_s)]]
+            l[T.li["[%s]: %s" % (server.get_name(), times_s)]]
         return T.li["Per-Server Response Times: ", l]
 
     def render_timing_chart(self, ctx, data):
@@ -989,19 +985,19 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         nb_nodes = 0
         graph_botom_margin= 21
         graph_top_margin = 5
-        peerids_s = []
+        server_names = []
         top_abs = started
         # we sort the queries by the time at which we sent the first request
-        sorttable = [ (times[0][1], peerid)
-                      for peerid, times in per_server.items() ]
+        sorttable = [ (times[0][1], server)
+                      for server, times in per_server.items() ]
         sorttable.sort()
-        peerids = [t[1] for t in sorttable]
+        servers = [t[1] for t in sorttable]
 
-        for peerid in peerids:
+        for server in servers:
             nb_nodes += 1
-            times = per_server[peerid]
-            peerid_s = idlib.shortnodeid_b2a(peerid)
-            peerids_s.append(peerid_s)
+            times = per_server[server]
+            name = server.get_name()
+            server_names.append(name)
             # for servermap updates, there are either one or two queries per
             # peer. The second (if present) is to get the privkey.
             op,q_started,q_elapsed = times[0]
@@ -1028,7 +1024,7 @@ class MapupdateStatusPage(rend.Page, RateAndTimeMixin):
         pieces.append(chds)
         pieces.append("chxt=x,y")
         pieces.append("chxr=0,0.0,%0.3f" % top_rel)
-        pieces.append("chxl=1:|" + "|".join(reversed(peerids_s)))
+        pieces.append("chxl=1:|" + "|".join(reversed(server_names)))
         # use up to 10 grid lines, at decimal multiples.
         # mathutil.next_power_of_k doesn't handle numbers smaller than one,
         # unfortunately.
