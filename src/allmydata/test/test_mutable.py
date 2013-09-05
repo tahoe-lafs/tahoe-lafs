@@ -2512,7 +2512,6 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     def test_multiply_placed_shares(self):
         self.basedir = "mutable/Problems/test_multiply_placed_shares"
         self.set_up_grid()
-        self.g.clients[0].DEFAULT_ENCODING_PARAMETERS['n'] = 75
         nm = self.g.clients[0].nodemaker
         d = nm.create_mutable_file(MutableData("contents 1"))
         # remove one of the servers and reupload the file.
