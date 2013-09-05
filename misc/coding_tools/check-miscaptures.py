@@ -1,7 +1,7 @@
 #! /usr/bin/python
 
-import os, sys, compiler, traceback
-from compiler.ast import Node, For, AssName, Name, Lambda, Function
+import os, sys, compiler
+from compiler.ast import Node, For, While, ListComp, AssName, Name, Lambda, Function
 
 
 def check_source(source):
@@ -21,16 +21,25 @@ def check_thing(parser, thing):
         return results
 
 def check_ast(ast, results):
-    """Check a node outside a 'for' loop."""
-    if isinstance(ast, For):
-        check_for(ast, results)
+    """Check a node outside a loop."""
+    if isinstance(ast, (For, While, ListComp)):
+        check_loop(ast, results)
     else:
         for child in ast.getChildNodes():
             if isinstance(ast, Node):
                 check_ast(child, results)
 
-def check_for(ast, results):
-    """Check a particular outer 'for' loop."""
+def check_loop(ast, results):
+    """Check a particular outer loop."""
+
+    # List comprehensions have a poorly designed AST of the form
+    # ListComp(exprNode, [ListCompFor(...), ...]), in which the
+    # result expression is outside the ListCompFor node even though
+    # it is logically inside the loop(s).
+    # There may be multiple ListCompFor nodes (in cases such as
+    #   [lambda: (a,b) for a in ... for b in ...]
+    # ), and that case they are not nested in the AST. But these
+    # warts (nonobviously) happen not to matter for our analysis.
 
     assigned = {}  # maps name to lineno of topmost assignment
     nested = set()
