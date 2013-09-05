@@ -32,21 +32,22 @@ def check_ast(ast, results):
 def check_for(ast, results):
     """Check a particular outer 'for' loop."""
 
-    declared = {}  # maps name to lineno of declaration
+    assigned = {}  # maps name to lineno of topmost assignment
     nested = set()
-    collect_declared_and_nested(ast, declared, nested)
+    collect_assigned_and_nested(ast, assigned, nested)
 
     # For each nested function...
     for funcnode in nested:
         # Check for captured variables in this function.
         captured = set()
-        collect_captured(funcnode, declared, captured, False)
+        collect_captured(funcnode, assigned, captured, False)
         for name in captured:
             # We want to report the outermost capturing function
             # (since that is where the workaround will need to be
-            # added), and the variable declaration. Just one report
-            # per capturing function per variable will do.
-            results.append(make_result(funcnode, name, declared[name]))
+            # added), and the topmost assignment to the variable.
+            # Just one report per capturing function per variable
+            # will do.
+            results.append(make_result(funcnode, name, assigned[name]))
 
         # Check each node in the function body in case it
         # contains another 'for' loop.
@@ -54,14 +55,15 @@ def check_for(ast, results):
         for child in childnodes:
             check_ast(funcnode, results)
 
-def collect_declared_and_nested(ast, declared, nested):
+def collect_assigned_and_nested(ast, assigned, nested):
     """
-    Collect the names declared in this 'for' loop, not including
-    names declared in nested functions. Also collect the nodes of
-    functions that are nested one level deep.
+    Collect the names assigned in this loop, not including names
+    assigned in nested functions. Also collect the nodes of functions
+    that are nested one level deep.
     """
     if isinstance(ast, AssName):
-        declared[ast.name] = ast.lineno
+        if ast.name not in assigned or assigned[ast.name] > ast.lineno:
+            assigned[ast.name] = ast.lineno
     else:
         childnodes = ast.getChildNodes()
         if isinstance(ast, (Lambda, Function)):
@@ -74,27 +76,26 @@ def collect_declared_and_nested(ast, declared, nested):
 
         for child in childnodes:
             if isinstance(ast, Node):
-                collect_declared_and_nested(child, declared, nested)
+                collect_assigned_and_nested(child, assigned, nested)
 
-def collect_captured(ast, declared, captured, in_function_yet):
-    """Collect any captured variables that are also in declared."""
+def collect_captured(ast, assigned, captured, in_function_yet):
+    """Collect any captured variables that are also in assigned."""
     if isinstance(ast, Name):
-        if ast.name in declared:
+        if ast.name in assigned:
             captured.add(ast.name)
     else:
         childnodes = ast.getChildNodes()
-
         if isinstance(ast, (Lambda, Function)):
             # Formal parameters of the function are excluded from
             # captures we care about in subnodes of the function body.
-            declared = declared.copy()
+            assigned = assigned.copy()
             for argname in ast.argnames:
-                if argname in declared:
-                    del declared[argname]
+                if argname in assigned:
+                    del assigned[argname]
 
-            if len(new_declared) > 0:
+            if len(new_assigned) > 0:
                 for child in childnodes[len(ast.defaults):]:
-                    collect_captured(child, new_declared, captured, True)
+                    collect_captured(child, new_assigned, captured, True)
 
             # The default argument expressions are "outside" *this*
             # function, even though they are children of the Lambda or
@@ -105,7 +106,7 @@ def collect_captured(ast, declared, captured, in_function_yet):
 
         for child in childnodes:
             if isinstance(ast, Node):
-                collect_captured(child, declared, captured, True)
+                collect_captured(child, assigned, captured, True)
 
 
 def make_result(funcnode, var_name, var_lineno):
@@ -117,7 +118,7 @@ def make_result(funcnode, var_name, var_lineno):
 
 def report(out, path, results):
     for r in results:
-        print >>out, path + (":%r %s captures %r declared at line %d" % r)
+        print >>out, path + (":%r %s captures %r assigned at line %d" % r)
 
 def check(sources, out):
     class Counts:
