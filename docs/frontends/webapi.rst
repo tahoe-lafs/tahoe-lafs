@@ -6,7 +6,7 @@ The Tahoe REST-ful Web API
 2.  `Basic Concepts: GET, PUT, DELETE, POST`_
 3.  `URLs`_
 
-	1. `Child Lookup`_
+    1. `Child Lookup`_
 
 4.  `Slow Operations, Progress, and Cancelling`_
 5.  `Programmatic Operations`_
@@ -1333,58 +1333,58 @@ mainly intended for developers.
  dictionary with the following keys::
 
   storage-index: a base32-encoded string with the objects's storage index,
-				 or an empty string for LIT files
+                 or an empty string for LIT files
   summary: a string, with a one-line summary of the stats of the file
   results: a dictionary that describes the state of the file. For LIT files,
-		   this dictionary has only the 'healthy' key, which will always be
-		   True. For distributed files, this dictionary has the following
-		   keys:
-	count-shares-good: the number of good shares that were found
-	count-shares-needed: 'k', the number of shares required for recovery
-	count-shares-expected: 'N', the number of total shares generated
-	count-good-share-hosts: this was intended to be the number of distinct
-							storage servers with good shares. It is currently
-							(as of Tahoe-LAFS v1.8.0) computed incorrectly;
-							see ticket #1115.
-	count-wrong-shares: for mutable files, the number of shares for
-						versions other than the 'best' one (highest
-						sequence number, highest roothash). These are
-						either old ...
-	count-recoverable-versions: for mutable files, the number of
-								recoverable versions of the file. For
-								a healthy file, this will equal 1.
-	count-unrecoverable-versions: for mutable files, the number of
-								  unrecoverable versions of the file.
-								  For a healthy file, this will be 0.
-	count-corrupt-shares: the number of shares with integrity failures
-	list-corrupt-shares: a list of "share locators", one for each share
-						 that was found to be corrupt. Each share locator
-						 is a list of (serverid, storage_index, sharenum).
-	needs-rebalancing: (bool) True if there are multiple shares on a single
-					   storage server, indicating a reduction in reliability
-					   that could be resolved by moving shares to new
-					   servers.
-	servers-responding: list of base32-encoded storage server identifiers,
-						one for each server which responded to the share
-						query.
-	healthy: (bool) True if the file is completely healthy, False otherwise.
-			 Healthy files have at least N good shares. Overlapping shares
-			 do not currently cause a file to be marked unhealthy. If there
-			 are at least N good shares, then corrupt shares do not cause the
-			 file to be marked unhealthy, although the corrupt shares will be
-			 listed in the results (list-corrupt-shares) and should be manually
-			 removed to wasting time in subsequent downloads (as the
-			 downloader rediscovers the corruption and uses alternate shares).
-			 Future compatibility: the meaning of this field may change to
-			 reflect whether the servers-of-happiness criterion is met
-			 (see ticket #614).
-	sharemap: dict mapping share identifier to list of serverids
-			  (base32-encoded strings). This indicates which servers are
-			  holding which shares. For immutable files, the shareid is
-			  an integer (the share number, from 0 to N-1). For
-			  immutable files, it is a string of the form
-			  'seq%d-%s-sh%d', containing the sequence number, the
-			  roothash, and the share number.
+           this dictionary has only the 'healthy' key, which will always be
+           True. For distributed files, this dictionary has the following
+           keys:
+    count-shares-good: the number of good shares that were found
+    count-shares-needed: 'k', the number of shares required for recovery
+    count-shares-expected: 'N', the number of total shares generated
+    count-good-share-hosts: this was intended to be the number of distinct
+                            storage servers with good shares. It is currently
+                            (as of Tahoe-LAFS v1.8.0) computed incorrectly;
+                            see ticket #1115.
+    count-wrong-shares: for mutable files, the number of shares for
+                        versions other than the 'best' one (highest
+                        sequence number, highest roothash). These are
+                        either old ...
+    count-recoverable-versions: for mutable files, the number of
+                                recoverable versions of the file. For
+                                a healthy file, this will equal 1.
+    count-unrecoverable-versions: for mutable files, the number of
+                                  unrecoverable versions of the file.
+                                  For a healthy file, this will be 0.
+    count-corrupt-shares: the number of shares with integrity failures
+    list-corrupt-shares: a list of "share locators", one for each share
+                         that was found to be corrupt. Each share locator
+                         is a list of (serverid, storage_index, sharenum).
+    needs-rebalancing: (bool) True if there are multiple shares on a single
+                       storage server, indicating a reduction in reliability
+                       that could be resolved by moving shares to new
+                       servers.
+    servers-responding: list of base32-encoded storage server identifiers,
+                        one for each server which responded to the share
+                        query.
+    healthy: (bool) True if the file is completely healthy, False otherwise.
+             Healthy files have at least N good shares. Overlapping shares
+             do not currently cause a file to be marked unhealthy. If there
+             are at least N good shares, then corrupt shares do not cause the
+             file to be marked unhealthy, although the corrupt shares will be
+             listed in the results (list-corrupt-shares) and should be manually
+             removed to wasting time in subsequent downloads (as the
+             downloader rediscovers the corruption and uses alternate shares).
+             Future compatibility: the meaning of this field may change to
+             reflect whether the servers-of-happiness criterion is met
+             (see ticket #614).
+    sharemap: dict mapping share identifier to list of serverids
+              (base32-encoded strings). This indicates which servers are
+              holding which shares. For immutable files, the shareid is
+              an integer (the share number, from 0 to N-1). For
+              immutable files, it is a string of the form
+              'seq%d-%s-sh%d', containing the sequence number, the
+              roothash, and the share number.
 
 ``POST $URL?t=start-deep-check``    (must add &ophandle=XYZ)
 
@@ -1419,31 +1419,31 @@ mainly intended for developers.
  machine-readable JSON dictionary with the following keys::
 
   finished: a boolean, True if the operation is complete, else False. Some
-			of the remaining keys may not be present until the operation
-			is complete.
+            of the remaining keys may not be present until the operation
+            is complete.
   root-storage-index: a base32-encoded string with the storage index of the
-					  starting point of the deep-check operation
+                      starting point of the deep-check operation
   count-objects-checked: count of how many objects were checked. Note that
-						 non-distributed objects (i.e. small immutable LIT
-						 files) are not checked, since for these objects,
-						 the data is contained entirely in the URI.
+                         non-distributed objects (i.e. small immutable LIT
+                         files) are not checked, since for these objects,
+                         the data is contained entirely in the URI.
   count-objects-healthy: how many of those objects were completely healthy
   count-objects-unhealthy: how many were damaged in some way
   count-corrupt-shares: how many shares were found to have corruption,
-						summed over all objects examined
+                        summed over all objects examined
   list-corrupt-shares: a list of "share identifiers", one for each share
-					   that was found to be corrupt. Each share identifier
-					   is a list of (serverid, storage_index, sharenum).
+                       that was found to be corrupt. Each share identifier
+                       is a list of (serverid, storage_index, sharenum).
   list-unhealthy-files: a list of (pathname, check-results) tuples, for
-						each file that was not fully healthy. 'pathname' is
-						a list of strings (which can be joined by "/"
-						characters to turn it into a single string),
-						relative to the directory on which deep-check was
-						invoked. The 'check-results' field is the same as
-						that returned by t=check&output=JSON, described
-						above.
+                        each file that was not fully healthy. 'pathname' is
+                        a list of strings (which can be joined by "/"
+                        characters to turn it into a single string),
+                        relative to the directory on which deep-check was
+                        invoked. The 'check-results' field is the same as
+                        that returned by t=check&output=JSON, described
+                        above.
   stats: a dictionary with the same keys as the t=start-deep-stats command
-		 (described below)
+         (described below)
 
 ``POST $URL?t=stream-deep-check``
 
@@ -1511,21 +1511,21 @@ mainly intended for developers.
  will contain the following keys::
 
   storage-index: a base32-encoded string with the objects's storage index,
-				 or an empty string for LIT files
+                 or an empty string for LIT files
   repair-attempted: (bool) True if repair was attempted
   repair-successful: (bool) True if repair was attempted and the file was
-					 fully healthy afterwards. False if no repair was
-					 attempted, or if a repair attempt failed.
+                     fully healthy afterwards. False if no repair was
+                     attempted, or if a repair attempt failed.
   pre-repair-results: a dictionary that describes the state of the file
-					  before any repair was performed. This contains exactly
-					  the same keys as the 'results' value of the t=check
-					  response, described above.
+                      before any repair was performed. This contains exactly
+                      the same keys as the 'results' value of the t=check
+                      response, described above.
   post-repair-results: a dictionary that describes the state of the file
-					   after any repair was performed. If no repair was
-					   performed, post-repair-results and pre-repair-results
-					   will be the same. This contains exactly the same keys
-					   as the 'results' value of the t=check response,
-					   described above.
+                       after any repair was performed. If no repair was
+                       performed, post-repair-results and pre-repair-results
+                       will be the same. This contains exactly the same keys
+                       as the 'results' value of the t=check response,
+                       described above.
 
 ``POST $URL?t=start-deep-check&repair=true``    (must add &ophandle=XYZ)
 
@@ -1543,44 +1543,44 @@ mainly intended for developers.
 
   finished: (bool) True if the operation has completed, else False
   root-storage-index: a base32-encoded string with the storage index of the
-					  starting point of the deep-check operation
+                      starting point of the deep-check operation
   count-objects-checked: count of how many objects were checked
 
   count-objects-healthy-pre-repair: how many of those objects were completely
-									healthy, before any repair
+                                    healthy, before any repair
   count-objects-unhealthy-pre-repair: how many were damaged in some way
   count-objects-healthy-post-repair: how many of those objects were completely
-									  healthy, after any repair
+                                      healthy, after any repair
   count-objects-unhealthy-post-repair: how many were damaged in some way
 
   count-repairs-attempted: repairs were attempted on this many objects.
   count-repairs-successful: how many repairs resulted in healthy objects
   count-repairs-unsuccessful: how many repairs resulted did not results in
-							  completely healthy objects
+                              completely healthy objects
   count-corrupt-shares-pre-repair: how many shares were found to have
-								   corruption, summed over all objects
-								   examined, before any repair
+                                   corruption, summed over all objects
+                                   examined, before any repair
   count-corrupt-shares-post-repair: how many shares were found to have
-									corruption, summed over all objects
-									examined, after any repair
+                                    corruption, summed over all objects
+                                    examined, after any repair
   list-corrupt-shares: a list of "share identifiers", one for each share
-					   that was found to be corrupt (before any repair).
-					   Each share identifier is a list of (serverid,
-					   storage_index, sharenum).
+                       that was found to be corrupt (before any repair).
+                       Each share identifier is a list of (serverid,
+                       storage_index, sharenum).
   list-remaining-corrupt-shares: like list-corrupt-shares, but mutable shares
-								 that were successfully repaired are not
-								 included. These are shares that need
-								 manual processing. Since immutable shares
-								 cannot be modified by clients, all corruption
-								 in immutable shares will be listed here.
+                                 that were successfully repaired are not
+                                 included. These are shares that need
+                                 manual processing. Since immutable shares
+                                 cannot be modified by clients, all corruption
+                                 in immutable shares will be listed here.
   list-unhealthy-files: a list of (pathname, check-results) tuples, for
-						each file that was not fully healthy. 'pathname' is
-						relative to the directory on which deep-check was
-						invoked. The 'check-results' field is the same as
-						that returned by t=check&repair=true&output=JSON,
-						described above.
+                        each file that was not fully healthy. 'pathname' is
+                        relative to the directory on which deep-check was
+                        invoked. The 'check-results' field is the same as
+                        that returned by t=check&repair=true&output=JSON,
+                        described above.
   stats: a dictionary with the same keys as the t=start-deep-stats command
-		 (described below)
+         (described below)
 
 ``POST $URL?t=stream-deep-check&repair=true``
 
@@ -1636,7 +1636,7 @@ mainly intended for developers.
   verifycaps: list of (printable) verify cap strings
   storage-index: list of (base32) storage index strings
   stats: a dictionary with the same keys as the t=start-deep-stats command
-		 (described below)
+         (described below)
 
 ``POST $DIRURL?t=start-deep-size``   (must add &ophandle=XYZ)
 
@@ -1674,8 +1674,8 @@ mainly intended for developers.
   size-literal-files: same, for LIT files
   size-directories: size of directories (includes size-literal-files)
   size-files-histogram: list of (minsize, maxsize, count) buckets,
-						with a histogram of filesizes, 5dB/bucket,
-						for both literal and immutable files
+                        with a histogram of filesizes, 5dB/bucket,
+                        for both literal and immutable files
   largest-directory: number of children in the largest directory
   largest-immutable-file: number of bytes in the largest CHK file
 
@@ -1785,11 +1785,11 @@ This is the "Welcome Page", and contains a few distinct sections::
   progress-hash (float): 1.0 when the file has been hashed
   progress-ciphertext (float): 1.0 when the file has been encrypted.
   progress-encode-push (float): 1.0 when the file has been encoded and
-								pushed to the storage servers. For helper
-								uploads, the ciphertext value climbs to 1.0
-								first, then encoding starts. For unassisted
-								uploads, ciphertext and encode-push progress
-								will climb at the same pace.
+                                pushed to the storage servers. For helper
+                                uploads, the ciphertext value climbs to 1.0
+                                first, then encoding starts. For unassisted
+                                uploads, ciphertext and encode-push progress
+                                will climb at the same pace.
 
  The "download" op-dict will contain the following keys::
 
