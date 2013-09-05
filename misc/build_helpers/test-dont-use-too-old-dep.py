@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import StringIO, os, platform, shutil, subprocess, sys, tarfile, zipfile
+import StringIO, os, platform, shutil, subprocess, sys, tarfile, zipfile, time
 import pkg_resources
 
 def test():
@@ -52,10 +52,12 @@ def test():
         sdist.errorlevel = 2
         tarinfo = tarfile.TarInfo('setup.py')
         tarinfo.errorlevel = 2
+        tarinfo.mtime = time.time()
         tarinfo.size = len(sdist_setup)
         sdist.addfile(tarinfo, StringIO.StringIO(sdist_setup))
         tarinfo = tarfile.TarInfo('fakedependency/__init__.py')
         tarinfo.errorlevel = 2
+        tarinfo.mtime = time.time()
         tarinfo.size = len(sdist_init)
         sdist.addfile(tarinfo, StringIO.StringIO(sdist_init))
         sdist.close()
