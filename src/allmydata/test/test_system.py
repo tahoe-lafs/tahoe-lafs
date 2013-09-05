@@ -216,6 +216,12 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             self.extra_node.DEFAULT_ENCODING_PARAMETERS['happy'] = 5
         d.addCallback(_added)
 
+        def _has_helper():
+            uploader = self.extra_node.getServiceNamed("uploader")
+            furl, connected = uploader.get_helper_info()
+            return connected
+        d.addCallback(lambda ign: self.poll(_has_helper))
+
         HELPER_DATA = "Data that needs help to upload" * 1000
         def _upload_with_helper(res):
             u = upload.Data(HELPER_DATA, convergence=convergence)
@@ -307,11 +313,12 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                     self.failIf(os.path.exists(incdir) and os.listdir(incdir))
             d.addCallback(_disconnected)
 
-            # then we need to give the reconnector a chance to
-            # reestablish the connection to the helper.
             d.addCallback(lambda res:
-                          log.msg("wait_for_connections", level=log.NOISY,
+                          log.msg("wait_for_helper", level=log.NOISY,
                                   facility="tahoe.test.test_system"))
+            # then we need to wait for the extra node to reestablish its
+            # connection to the helper.
+            d.addCallback(lambda ign: self.poll(_has_helper))
 
             d.addCallback(lambda res:
                           log.msg("uploading again", level=log.NOISY,
