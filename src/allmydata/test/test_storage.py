@@ -325,6 +325,13 @@ class Server(unittest.TestCase):
         sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
         self.failUnless(sv1.get('prevents-read-past-end-of-share-data'), sv1)
 
+    def test_declares_maximum_share_sizes(self):
+        ss = self.create("test_declares_maximum_share_sizes")
+        ver = ss.remote_get_version()
+        sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
+        self.failUnlessIn('maximum-immutable-share-size', sv1)
+        self.failUnlessIn('maximum-mutable-share-size', sv1)
+
     def allocate(self, ss, storage_index, sharenums, size, canary=None):
         renew_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
         cancel_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())

@@ -167,6 +167,7 @@ class NativeStorageServer:
     VERSION_DEFAULTS = {
         "http://allmydata.org/tahoe/protocols/storage/v1" :
         { "maximum-immutable-share-size": 2**32,
+          "maximum-mutable-share-size": 2*1000*1000*1000, # maximum prior to v1.9.2
           "tolerates-immutable-read-overrun": False,
           "delete-mutable-shares-with-zero-length-writev": False,
           },

@@ -7,6 +7,8 @@ from allmydata.util.hashutil import constant_time_compare
 from allmydata.storage.lease import LeaseInfo
 from allmydata.storage.common import UnknownMutableContainerVersionError, \
      DataTooLargeError
+from allmydata.mutable.layout import MAX_MUTABLE_SHARE_SIZE
+
 
 # the MutableShareFile is like the ShareFile, but used for mutable data. It
 # has a different layout. See docs/mutable.txt for more details.
@@ -48,7 +50,7 @@ class MutableShareFile:
     # like a sharefile.
     MAGIC = "Tahoe mutable container v1\n" + "\x75\x09\x44\x03\x8e"
     assert len(MAGIC) == 32
-    MAX_SIZE = 2*1000*1000*1000 # 2GB, kind of arbitrary
+    MAX_SIZE = MAX_MUTABLE_SHARE_SIZE
     # TODO: decide upon a policy for max share size
 
     def __init__(self, filename, parent=None):
