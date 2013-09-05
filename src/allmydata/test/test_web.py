@@ -42,6 +42,9 @@ unknown_rwcap = u"lafs://from_the_future_rw_\u263A".encode('utf-8')
 unknown_rocap = u"ro.lafs://readonly_from_the_future_ro_\u263A".encode('utf-8')
 unknown_immcap = u"imm.lafs://immutable_from_the_future_imm_\u263A".encode('utf-8')
 
+FAVICON_MARKUP = '<link href="/icon.png" rel="shortcut icon" />'
+
+
 class FakeStatsProvider:
     def get_stats(self):
         stats = {'stats': {}, 'counters': {}}
@@ -512,6 +515,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET("/")
         def _check(res):
             self.failUnlessIn('Welcome To Tahoe-LAFS', res)
+            self.failUnlessIn(FAVICON_MARKUP, res)
 
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
@@ -524,6 +528,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d = self.GET("/provisioning/")
         def _check(res):
             self.failUnlessIn('Provisioning Tool', res)
+            self.failUnlessIn(FAVICON_MARKUP, res)
 
             fields = {'filled': True,
                       "num_users": int(50e3),
@@ -543,6 +548,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_check)
         def _check2(res):
             self.failUnlessIn('Provisioning Tool', res)
+            self.failUnlessIn(FAVICON_MARKUP, res)
             self.failUnlessIn("Share space consumed: 167.01TB", res)
 
             fields = {'filled': True,
@@ -1307,6 +1313,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.failUnlessIn('input checked="checked" type="radio" id="mkdir-sdmf" value="sdmf" name="format"', html)
         self.failUnlessIn('input type="radio" id="mkdir-mdmf" value="mdmf" name="format"', html)
 
+        self.failUnlessIn(FAVICON_MARKUP, html)
+
     def test_GET_DIRECTORY_html(self):
         d = self.GET(self.public_url + "/foo", followRedirect=True)
         def _check(html):
@@ -1466,6 +1474,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn("<td>sub</td>", manifest)
             self.failUnlessIn(self._sub_uri, manifest)
             self.failUnlessIn("<td>sub/baz.txt</td>", manifest)
+            self.failUnlessIn(FAVICON_MARKUP, manifest)
         d.addCallback(_got_html)
 
         # both t=status and unadorned GET should be identical
@@ -2626,6 +2635,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check_html(res):
             self.failUnlessIn("Objects Checked: <span>10</span>", res)
             self.failUnlessIn("Objects Healthy: <span>10</span>", res)
+            self.failUnlessIn(FAVICON_MARKUP, res)
         d.addCallback(_check_html)
 
         d.addCallback(lambda res:
@@ -2680,6 +2690,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn("Objects Healthy (after repair): <span>10</span>", res)
             self.failUnlessIn("Objects Unhealthy (after repair): <span>0</span>", res)
             self.failUnlessIn("Corrupt Shares (after repair): <span>0</span>", res)
+
+            self.failUnlessIn(FAVICON_MARKUP, res)
         d.addCallback(_check_html)
         return d
 
@@ -3373,6 +3385,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check(res):
             self.failUnlessIn('name="when_done" value="."', res)
             self.failUnless(re.search(r'name="from_name" value="bar\.txt"', res))
+            self.failUnlessIn(FAVICON_MARKUP, res)
         d.addCallback(_check)
         return d
 
@@ -3878,7 +3891,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
     def test_incident(self):
         d = self.POST("/report_incident", details="eek")
         def _done(res):
-            self.failUnless("Thank you for your report!" in res, res)
+            self.failIfIn("<html>", res)
+            self.failUnlessIn("Thank you for your report!", res)
         d.addCallback(_done)
         return d
 
@@ -4019,6 +4033,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         def _got_html_good(res):
             self.failUnlessIn("Healthy", res)
             self.failIfIn("Not Healthy", res)
+            self.failUnlessIn(FAVICON_MARKUP, res)
         d.addCallback(_got_html_good)
         d.addCallback(self.CHECK, "good", "t=check&return_to=somewhere")
         def _got_html_good_return_to(res):
@@ -4159,6 +4174,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessIn("Healthy", res)
             self.failIfIn("Not Healthy", res)
             self.failUnlessIn("No repair necessary", res)
+            self.failUnlessIn(FAVICON_MARKUP, res)
         d.addCallback(_got_html_good)
 
         d.addCallback(self.CHECK, "sick", "t=check&repair=true")
