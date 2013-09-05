@@ -2509,6 +2509,45 @@ class Problems(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
         d.addCallback(_created)
         return d
 
+    def test_multiply_placed_shares(self):
+        self.basedir = "mutable/Problems/test_multiply_placed_shares"
+        self.set_up_grid()
+        self.g.clients[0].DEFAULT_ENCODING_PARAMETERS['n'] = 75
+        nm = self.g.clients[0].nodemaker
+        d = nm.create_mutable_file(MutableData("contents 1"))
+        # remove one of the servers and reupload the file.
+        def _created(n):
+            self._node = n
+
+            servers = self.g.get_all_serverids()
+            self.ss = self.g.remove_server(servers[len(servers)-1])
+
+            new_server = self.g.make_server(len(servers)-1)
+            self.g.add_server(len(servers)-1, new_server)
+
+            return self._node.download_best_version()
+        d.addCallback(_created)
+        d.addCallback(lambda data: MutableData(data))
+        d.addCallback(lambda data: self._node.overwrite(data))
+
+        # restore the server we removed earlier, then download+upload
+        # the file again
+        def _overwritten(ign):
+            self.g.add_server(len(self.g.servers_by_number), self.ss)
+            return self._node.download_best_version()
+        d.addCallback(_overwritten)
+        d.addCallback(lambda data: MutableData(data))
+        d.addCallback(lambda data: self._node.overwrite(data))
+        d.addCallback(lambda ignored:
+            self._node.get_servermap(MODE_CHECK))
+        def _overwritten_again(smap):
+            # Make sure that all shares were updated by making sure that
+            # there aren't any other versions in the sharemap.
+            self.failUnlessEqual(len(smap.recoverable_versions()), 1)
+            self.failUnlessEqual(len(smap.unrecoverable_versions()), 0)
+        d.addCallback(_overwritten_again)
+        return d
+
     def test_bad_server(self):
         # Break one server, then create the file: the initial publish should
         # complete with an alternate server. Breaking a second server should
