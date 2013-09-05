@@ -3,15 +3,15 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
-Release 1.9.2 (2012-07-02)
+Release 1.9.2 (2012-07-03)
 ----------------------------
 
 Notable Bugfixes
 ''''''''''''''''
 
-- Several regressions in support for reading (`#1636`_, `#1670`_), writing
-  (`#1749`_), verifying (`#1628`_) and repairing (`#1655`_, `#1669`_, `#1676`_,
-  `#1689`_) mutable files have been fixed.
+- Several regressions in support for reading (`#1636`_), writing/modifying
+  (`#1670`_, `#1749`_), verifying (`#1628`_) and repairing (`#1655`_, `#1669`_,
+  `#1676`_, `#1689`_) mutable files have been fixed.
 - FTP can now list directories containing mutable files, although it
   still does not support reading or writing mutable files. (`#680`_)
 - The FTP frontend would previously show Jan 1 1970 for all timestamps;
