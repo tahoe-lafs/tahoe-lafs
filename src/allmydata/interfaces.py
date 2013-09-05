@@ -428,6 +428,15 @@ class IStorageBroker(Interface):
         repeatable way, to distribute load over many peers.
         """
 
+class IServer(Interface):
+    """I live in the client, and represent a single server."""
+    def start_connecting(tub, trigger_cb):
+        pass
+    def get_nickname():
+        pass
+    def get_rref():
+        pass
+
 
 class IMutableSlotWriter(Interface):
     """
