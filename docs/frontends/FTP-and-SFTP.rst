@@ -57,9 +57,7 @@ implemented in Tahoe-LAFS.)
 
 Tahoe-LAFS provides two mechanisms to perform this user-to-cap mapping. The
 first is a simple flat file with one account per line. The second is an
-HTTP-based login mechanism, backed by simple PHP script and a database. The
-latter form is used by allmydata.com to provide secure access to customer
-caps.
+HTTP-based login mechanism, backed by simple PHP script and a database.
 
 Creating an Account File
 ========================
