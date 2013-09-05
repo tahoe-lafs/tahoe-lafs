@@ -143,11 +143,13 @@ check-umids:
 
 count-lines:
 	@echo -n "files: "
-	@find src -name '*.py' |grep -v /build/ |wc --lines
+	@find src -name '*.py' |grep -v /build/ |wc -l
 	@echo -n "lines: "
-	@cat `find src -name '*.py' |grep -v /build/` |wc --lines
+	@cat `find src -name '*.py' |grep -v /build/` |wc -l
 	@echo -n "TODO: "
-	@grep TODO `find src -name '*.py' |grep -v /build/` | wc --lines
+	@grep TODO `find src -name '*.py' |grep -v /build/` | wc -l
+	@echo -n "XXX: "
+	@grep XXX `find src -name '*.py' |grep -v /build/` | wc -l
 
 check-memory: .built
 	rm -rf _test_memory
