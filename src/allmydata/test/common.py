@@ -696,12 +696,12 @@ class SystemTestMixin(pollmixin.PollMixin, testutil.StallMixin):
             sb = c.get_storage_broker()
             if len(sb.get_connected_servers()) != self.numclients:
                 return False
+            up = c.getServiceNamed("uploader")
+            if up._helper_furl and not up._helper:
+                return False
         return True
 
     def wait_for_connections(self, ignored=None):
-        # TODO: replace this with something that takes a list of peerids and
-        # fires when they've all been heard from, instead of using a count
-        # and a threshold
         return self.poll(self._check_connections, timeout=200)
 
 
