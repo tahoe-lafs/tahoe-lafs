@@ -473,9 +473,14 @@ class WebMixin(object):
             if isinstance(res, failure.Failure):
                 res.trap(expected_failure)
                 if substring:
-                    self.failUnlessIn(substring, str(res), which)
+                    self.failUnlessIn(substring, str(res),
+                                      "'%s' not in '%s' for test '%s'" % \
+                                      (substring, str(res), which))
                 if response_substring:
-                    self.failUnlessIn(response_substring, res.value.response, which)
+                    self.failUnlessIn(response_substring, res.value.response,
+                                      "'%s' not in '%s' for test '%s'" % \
+                                      (response_substring, res.value.response,
+                                       which))
             else:
                 self.fail("%s was supposed to raise %s, not get '%s'" %
                           (which, expected_failure, res))
