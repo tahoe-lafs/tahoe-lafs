@@ -268,9 +268,7 @@ See also wiki:SftpFrontend_.
 Known Issues in the FTP Frontend
 --------------------------------
 
-Mutable files are not supported by the FTP frontend (`ticket
-#680`_). Currently, a directory containing mutable files cannot even be
-listed over FTP.
+Mutable files are not supported by the FTP frontend (`ticket #680`_).
 
 Non-ASCII filenames are not supported by FTP (`ticket #682`_).
 
@@ -284,4 +282,3 @@ fails because it does meet the "servers of happiness" threshold (`ticket
 .. _ticket #680: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/680
 .. _ticket #682: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/682
 .. _ticket #1081: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1081
-.. _ticket #1688: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1688
