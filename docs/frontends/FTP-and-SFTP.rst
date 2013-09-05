@@ -5,11 +5,12 @@ Tahoe-LAFS FTP and SFTP Frontends
 1.  `FTP/SFTP Background`_
 2.  `Tahoe-LAFS Support`_
 3.  `Creating an Account File`_
-4.  `Configuring FTP Access`_
-5.  `Configuring SFTP Access`_
-6.  `Dependencies`_
-7.  `Immutable and mutable files`_
-8.  `Known Issues`_
+4.  `Running An Account Server (accounts.url)`_
+5.  `Configuring FTP Access`_
+6.  `Configuring SFTP Access`_
+7.  `Dependencies`_
+8.  `Immutable and Mutable Files`_
+9.  `Known Issues`_
 
 
 FTP/SFTP Background
@@ -73,8 +74,8 @@ these strings.
 Now add an 'accounts.file' directive to your tahoe.cfg file, as described in
 the next sections.
 
-accounts.url Directive
-======================
+Running An Account Server (accounts.url)
+========================================
 
 The accounts.url directive allows access requests to be controlled by an
 HTTP-based login service, useful for centralized deployments. This was
@@ -91,7 +92,7 @@ fields, with three parameters:
   presents this argument as "email" rather than "username").
 * passwd: PASSWORD
 
-And should return a single string that either contains a Tahoe rootcap
+It should return a single string that either contains a Tahoe rootcap
 (URI:DIR2:...), or "0" to indicate a login failure.
 
 Tahoe-LAFS recommends the service be secure, preferably localhost-only.  This
