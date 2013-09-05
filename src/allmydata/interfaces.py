@@ -167,10 +167,18 @@ class RIStorageServer(RemoteInterface):
                                         tw_vectors=TestAndWriteVectorsForShares,
                                         r_vector=ReadVector,
                                         ):
-        """General-purpose test-and-set operation for mutable slots. Perform
-        a bunch of comparisons against the existing shares. If they all pass,
-        then apply a bunch of write vectors to those shares. Then use the
-        read vectors to extract data from all the shares and return the data.
+        """
+        General-purpose test-read-and-set operation for mutable slots:
+        (1) For submitted shnums, compare the test vectors against extant
+            shares, or against an empty share for shnums that do not exist.
+        (2) Use the read vectors to extract "old data" from extant shares.
+        (3) If all tests in (1) passed, then apply the write vectors
+            (possibly creating new shares).
+        (4) Return whether the tests passed, and the "old data", which does
+            not include any modifications made by the writes.
+
+        The operation does not interleave with other operations on the same
+        shareset.
 
         This method is, um, large. The goal is to allow clients to update all
         the shares associated with a mutable file in a single round trip.
@@ -195,9 +203,9 @@ class RIStorageServer(RemoteInterface):
         Each share can have a separate test vector (i.e. a list of
         comparisons to perform). If all vectors for all shares pass, then all
         writes for all shares are recorded. Each comparison is a 4-tuple of
-        (offset, length, operator, specimen), which effectively does a bool(
-        (read(offset, length)) OPERATOR specimen ) and only performs the
-        write if all these evaluate to True. Basic test-and-set uses 'eq'.
+        (offset, length, operator, specimen), which effectively does a
+        bool( (read(offset, length)) OPERATOR specimen ) and only performs
+        the write if all these evaluate to True. Basic test-and-set uses 'eq'.
         Write-if-newer uses a seqnum and (offset, length, 'lt', specimen).
         Write-if-same-or-newer uses 'le'.
 
@@ -207,7 +215,11 @@ class RIStorageServer(RemoteInterface):
 
         The write vector will be applied to the given share, expanding it if
         necessary. A write vector applied to a share number that did not
-        exist previously will cause that share to be created.
+        exist previously will cause that share to be created. Write vectors
+        must not overlap (if they do, this will either cause an error or
+        apply them in an unspecified order). Duplicate write vectors, with
+        the same offset and data, are currently tolerated but are not
+        desirable.
 
         In Tahoe-LAFS v1.8.3 or later (except 1.9.0a1), if you send a write
         vector whose offset is beyond the end of the current data, the space
@@ -240,9 +252,9 @@ class RIStorageServer(RemoteInterface):
         than the size of the data after applying all write vectors.
 
         The read vector is used to extract data from all known shares,
-        *before* any writes have been applied. The same vector is used for
-        all shares. This captures the state that was tested by the test
-        vector.
+        *before* any writes have been applied. The same read vector is used
+        for all shares. This captures the state that was tested by the test
+        vector, for extant shares.
 
         This method returns two values: a boolean and a dict. The boolean is
         True if the write vectors were applied, False if not. The dict is
@@ -258,7 +270,6 @@ class RIStorageServer(RemoteInterface):
 
         Note that the nodeid here is encoded using the same base32 encoding
         used by Foolscap and allmydata.util.idlib.nodeid_b2a().
-
         """
         return TupleOf(bool, DictOf(int, ReadData))
 
