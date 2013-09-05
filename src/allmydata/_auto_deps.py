@@ -24,20 +24,23 @@ install_requires = [
     # support asynchronous close.
     "Twisted >= 10.1.0",
 
-    # foolscap < 0.5.1 had a performance bug which spent
-    # O(N**2) CPU for transferring large mutable files
-    # of size N.
-    # foolscap < 0.6 is incompatible with Twisted 10.2.0.
-    # foolscap 0.6.1 quiets a DeprecationWarning.
-    # pyOpenSSL is required by foolscap for it (foolscap) to provide secure
-    # connections. Foolscap doesn't reliably declare this dependency in a
-    # machine-readable way, so we need to declare a dependency on pyOpenSSL
-    # ourselves. Tahoe-LAFS doesn't *really* depend directly on pyOpenSSL,
-    # so if something changes in the relationship between foolscap and
-    # pyOpenSSL, such as foolscap requiring a specific version of pyOpenSSL,
-    # or foolscap switching from pyOpenSSL to a different crypto library, we
-    # need to update this declaration here.
-    "foolscap >= 0.6.1",
+    # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
+    #   transferring large mutable files of size N.
+    # * foolscap < 0.6 is incompatible with Twisted 10.2.0.
+    # * foolscap 0.6.1 quiets a DeprecationWarning.
+    # * foolscap < 0.6.3 is incompatible with Twisted-11.1.0 and newer. Since
+    #   current Twisted is 12.0, any build which needs twisted will grab a
+    #   version that requires foolscap>=0.6.3
+    # * pyOpenSSL is required by foolscap for it (foolscap) to provide secure
+    #   connections. Foolscap doesn't reliably declare this dependency in a
+    #   machine-readable way, so we need to declare a dependency on pyOpenSSL
+    #   ourselves. Tahoe-LAFS doesn't *really* depend directly on pyOpenSSL,
+    #   so if something changes in the relationship between foolscap and
+    #   pyOpenSSL, such as foolscap requiring a specific version of
+    #   pyOpenSSL, or foolscap switching from pyOpenSSL to a different crypto
+    #   library, we need to update this declaration here.
+    #
+    "foolscap >= 0.6.3",
     "pyOpenSSL",
 
     "Nevow >= 0.6.0",
