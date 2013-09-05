@@ -2127,7 +2127,7 @@ class Repair(unittest.TestCase, PublishMixin, ShouldFailMixin):
 
     def test_repair_empty(self):
         # bug 1689: delete one share of an empty mutable file, then repair.
-        # In the buggy version, the check that preceeds the retrieve+publish
+        # In the buggy version, the check that precedes the retrieve+publish
         # cycle uses MODE_READ, instead of MODE_REPAIR, and fails to get the
         # privkey that repair needs.
         d = self.publish_empty_sdmf()
