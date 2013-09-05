@@ -12,6 +12,7 @@ from zope.interface import implements
 from foolscap.api import eventually, DeadReferenceError, Referenceable, Tub
 
 from allmydata.util import log
+from allmydata.util.encodingutil import quote_output
 from allmydata.interfaces import RIStatsProvider, RIStatsGatherer, IStatsProducer
 
 class LoadMonitor(service.MultiService):
@@ -252,7 +253,12 @@ class PickleStatsGatherer(StdOutStatsGatherer):
 
         if os.path.exists(self.picklefile):
             f = open(self.picklefile, 'rb')
-            self.gathered_stats = pickle.load(f)
+            try:
+                self.gathered_stats = pickle.load(f)
+            except Exception:
+                print ("Error while attempting to load pickle file %s.\nYou may need to delete this file.\n" %
+                       quote_output(os.path.abspath(self.picklefile)))
+                raise
             f.close()
         else:
             self.gathered_stats = {}
