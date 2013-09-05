@@ -3,11 +3,12 @@ from allmydata.uri import from_string
 from allmydata.util import base32, log
 from allmydata.check_results import CheckAndRepairResults, CheckResults
 
-from allmydata.mutable.common import MODE_CHECK, CorruptShareError
+from allmydata.mutable.common import MODE_CHECK, MODE_WRITE, CorruptShareError
 from allmydata.mutable.servermap import ServerMap, ServermapUpdater
 from allmydata.mutable.retrieve import Retrieve # for verifying
 
 class MutableChecker:
+    SERVERMAP_MODE = MODE_CHECK
 
     def __init__(self, node, storage_broker, history, monitor):
         self._node = node
@@ -26,7 +27,8 @@ class MutableChecker:
         # of finding all of the shares, and getting a good idea of
         # recoverability, etc, without verifying.
         u = ServermapUpdater(self._node, self._storage_broker, self._monitor,
-                             servermap, MODE_CHECK, add_lease=add_lease)
+                             servermap, self.SERVERMAP_MODE,
+                             add_lease=add_lease)
         if self._history:
             self._history.notify_mapupdate(u.get_status())
         d = u.update()
@@ -241,6 +243,8 @@ class MutableChecker:
 
 
 class MutableCheckAndRepairer(MutableChecker):
+    SERVERMAP_MODE = MODE_WRITE # needed to get the privkey
+
     def __init__(self, node, storage_broker, history, monitor):
         MutableChecker.__init__(self, node, storage_broker, history, monitor)
         self.cr_results = CheckAndRepairResults(self._storage_index)
@@ -264,7 +268,7 @@ class MutableCheckAndRepairer(MutableChecker):
             self.cr_results.repair_attempted = False
             return
         self.cr_results.repair_attempted = True
-        d = self._node.repair(self.results)
+        d = self._node.repair(self.results, monitor=self._monitor)
         def _repair_finished(repair_results):
             self.cr_results.repair_successful = repair_results.get_successful()
             r = CheckResults(from_string(self._node.get_uri()), self._storage_index)
