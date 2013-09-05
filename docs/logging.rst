@@ -23,12 +23,16 @@ record information about what is happening inside the Tahoe node. This is
 primarily for use by programmers and grid operators who want to find out what
 went wrong.
 
-The foolscap logging system is documented at
+The Foolscap logging system is documented at
 `<http://foolscap.lothar.com/docs/logging.html>`_.
 
-The foolscap distribution includes a utility named "``flogtool``" (usually at
-``/usr/bin/flogtool`` on Unix) which is used to get access to many foolscap
-logging features.
+The Foolscap distribution includes a utility named "``flogtool``" that is
+used to get access to many Foolscap logging features. However, using this
+command directly on Tahoe log files may fail, due to use of an incorrect
+PYTHONPATH. Installing Foolscap v0.6.1 or later and then running
+``bin/tahoe @flogtool`` from the root of a Tahoe-LAFS source distribution
+may avoid this problem (but only on Unix, not Windows).
+
 
 Realtime Logging
 ================
