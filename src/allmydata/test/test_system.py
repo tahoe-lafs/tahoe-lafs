@@ -14,6 +14,7 @@ from allmydata.immutable.literal import LiteralFileNode
 from allmydata.immutable.filenode import ImmutableFileNode
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
+from allmydata.util.verlib import NormalizedVersion
 from allmydata.util.encodingutil import quote_output, unicode_to_argv, get_filesystem_encoding
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
@@ -24,6 +25,8 @@ from allmydata.monitor import Monitor
 from allmydata.mutable.common import NotWriteableError
 from allmydata.mutable import layout as mutable_layout
 from allmydata.mutable.publish import MutableData
+
+import foolscap
 from foolscap.api import DeadReferenceError, fireEventually
 from twisted.python.failure import Failure
 from twisted.web.client import getPage
@@ -1867,4 +1870,40 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
             d.addCallback(_check_lit_filenode_results)
             return d
         d.addCallback(_got_lit_filenode)
+        return d
+
+
+class Connections(SystemTestMixin, unittest.TestCase):
+    def test_rref(self):
+        if NormalizedVersion(foolscap.__version__) < NormalizedVersion('0.6.4'):
+            raise unittest.SkipTest("skipped due to http://foolscap.lothar.com/trac/ticket/196 "
+                                    "(which does not affect normal usage of Tahoe-LAFS)")
+
+        self.basedir = "system/Connections/rref"
+        d = self.set_up_nodes(2)
+        def _start(ign):
+            self.c0 = self.clients[0]
+            nonclients = [s for s in self.c0.storage_broker.get_connected_servers()
+                          if s.get_serverid() != self.c0.nodeid]
+            self.failUnlessEqual(len(nonclients), 1)
+
+            self.s1 = nonclients[0]  # s1 is the server, not c0
+            self.s1_rref = self.s1.get_rref()
+            self.failIfEqual(self.s1_rref, None)
+            self.failUnless(self.s1.is_connected())
+        d.addCallback(_start)
+
+        # now shut down the server
+        d.addCallback(lambda ign: self.clients[1].disownServiceParent())
+        # and wait for the client to notice
+        def _poll():
+            return len(self.c0.storage_broker.get_connected_servers()) < 2
+        d.addCallback(lambda ign: self.poll(_poll))
+
+        def _down(ign):
+            self.failIf(self.s1.is_connected())
+            rref = self.s1.get_rref()
+            self.failUnless(rref)
+            self.failUnlessIdentical(rref, self.s1_rref)
+        d.addCallback(_down)
         return d

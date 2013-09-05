@@ -77,6 +77,7 @@ class StorageFarmBroker:
     def test_add_rref(self, serverid, rref):
         s = NativeStorageServer(serverid, {})
         s.rref = rref
+        s._is_connected = True
         self.servers[serverid] = s
 
     def test_add_server(self, serverid, s):
@@ -127,7 +128,7 @@ class StorageFarmBroker:
         return frozenset(self.servers.keys())
 
     def get_connected_servers(self):
-        return frozenset([s for s in self.servers.values() if s.get_rref()])
+        return frozenset([s for s in self.servers.values() if s.is_connected()])
 
     def get_known_servers(self):
         return frozenset(self.servers.values())
@@ -177,6 +178,7 @@ class NativeStorageServer:
         self.last_loss_time = None
         self.remote_host = None
         self.rref = None
+        self._is_connected = False
         self._reconnector = None
         self._trigger_cb = None
 
@@ -205,6 +207,8 @@ class NativeStorageServer:
         return self.announcement
     def get_remote_host(self):
         return self.remote_host
+    def is_connected(self):
+        return self._is_connected
     def get_last_connect_time(self):
         return self.last_connect_time
     def get_last_loss_time(self):
@@ -238,6 +242,7 @@ class NativeStorageServer:
         self.last_connect_time = time.time()
         self.remote_host = rref.getPeer()
         self.rref = rref
+        self._is_connected = True
         rref.notifyOnDisconnect(self._lost)
 
     def get_rref(self):
@@ -247,7 +252,12 @@ class NativeStorageServer:
         log.msg(format="lost connection to %(name)s", name=self.get_name(),
                 facility="tahoe.storage_broker", umid="zbRllw")
         self.last_loss_time = time.time()
-        self.rref = None
+        # self.rref is now stale: all callRemote()s will get a
+        # DeadReferenceError. We leave the stale reference in place so that
+        # uploader/downloader code (which received this IServer through
+        # get_connected_servers() or get_servers_for_psi()) can continue to
+        # use s.get_rref().callRemote() and not worry about it being None.
+        self._is_connected = False
         self.remote_host = None
 
     def stop_connecting(self):
