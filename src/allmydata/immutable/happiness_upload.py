@@ -5,33 +5,31 @@ class Happiness_Upload:
     """
     I handle the calculations involved with generating the maximum
     spanning graph for a file when given a set of peerids, shareids, and
-    a servermap of 'peerid' -> [shareids]. Mappings are returned in a
-    dictionary of 'shareid' -> 'peerid'
+    a servermap of 'peerid' -> [shareids].
+
+    For more information on the algorithm this class implements, refer to
+    docs/specifications/servers-of-happiness.rst
     """
 
     def __init__(self, peerids, readonly_peers, shareids, servermap={}):
-        self.happy = 0
+        self._happiness = 0
         self.homeless_shares = set()
         self.peerids = peerids
         self.readonly_peers = readonly_peers
         self.shareids = shareids
         self.servermap = servermap
-        self.servermap_peerids = set([key for key in servermap])
-        self.servermap_shareids = set()
-        for key in servermap:
-            for share in servermap[key]:
-                self.servermap_shareids.add(share)
-
 
     def happiness(self):
-        return self.happy
+        return self._happiness
 
 
     def generate_mappings(self):
         """
         Generate a flow network of peerids to existing shareids and find
-        its maximum spanning graph. The leases of these shares should be renewed
-        by the client.
+        its maximum spanning graph. The graph is converted to a dictionary of
+        'share_num' -> set(server_ids) and returned to the caller. Each share should
+        be placed on each server in the corresponding set. Existing allocations appear as placements
+        because attempting to place an existing allocation will renew the share.
         """
 
         # First find the maximum spanning of the readonly servers.
@@ -57,8 +55,10 @@ class Happiness_Upload:
 
         # Now find the maximum matching for the rest of the existing allocations.
         # Remove any peers and shares used in readonly_mappings.
-        peers = self.servermap_peerids - used_peers
-        shares = self.servermap_shareids - used_shares
+        peers = set(self.servermap.keys()) - used_peers
+        # Squash a list of sets into one set
+        shares = set(item for subset in self.servermap.values() for item in subset)
+        shares -= used_shares
         servermap = self.servermap.copy()
         for peer in self.servermap:
             if peer in used_peers:
@@ -98,7 +98,8 @@ class Happiness_Upload:
                                                         + new_mappings.items())
         self._calculate_happiness(mappings)
         if len(self.homeless_shares) != 0:
-            self._distribute_homeless_shares(mappings)
+            all_shares = set(item for subset in self.servermap.values() for item in subset)
+            self._distribute_homeless_shares(mappings, all_shares)
 
         return mappings
 
@@ -166,16 +167,16 @@ class Happiness_Upload:
         I calculate the happiness of the generated mappings and
         create the set self.homeless_shares.
         """
-        self.happy = 0
+        self._happiness = 0
         self.homeless_shares = set()
         for share in mappings:
             if mappings[share] is not None:
-                self.happy += 1
+                self._happiness += 1
             else:
                 self.homeless_shares.add(share)
 
 
-    def _distribute_homeless_shares(self, mappings):
+    def _distribute_homeless_shares(self, mappings, shares):
         """
         Shares which are not mapped to a peer in the maximum spanning graph
         still need to be placed on a server. This function attempts to
@@ -188,7 +189,7 @@ class Happiness_Upload:
         to_distribute = set()
 
         for share in self.homeless_shares:
-            if share in self.servermap_shareids:
+            if share in shares:
                 for peerid in self.servermap:
                     if share in self.servermap[peerid]:
                         mappings[share] = set([peerid])
@@ -235,8 +236,7 @@ class Happiness_Upload:
             if peer == None:
                 converted_mappings.setdefault(share_to_index[share], None)
             else:
-                converted_mappings.setdefault(share_to_index[share],
-                                                    set([peer_to_index[peer]]))
+                converted_mappings.setdefault(share_to_index[share], set([peer_to_index[peer]]))
         return converted_mappings
 
 
@@ -300,15 +300,27 @@ class Happiness_Upload:
 
     def _flow_network(self, peerids, shareids):
         """
-        Given set of peerids and shareids, I create a flow network
-        to be used by _compute_maximum_graph.
+        Given set of peerids and a set of shareids, I create a flow network
+        to be used by _compute_maximum_graph. The return value is a two
+        dimensional list in the form of a flow network, where each index represents
+        a node, and the corresponding list represents all of the nodes it is connected
+        to.
+
+        This function is similar to allmydata.util.happinessutil.flow_network_for, but
+        we use a different function because Happiness_Upload indexes shares and peers
+        differently.
         """
         graph = []
+        # The first entry in our flow network is the source.
+        # Connect the source to every server.
         graph.append(peerids)
         sink_num = len(peerids + shareids) + 1
+        # Connect every server with every share it can possibly store.
         for peerid in peerids:
             graph.insert(peerid, shareids)
+        # Connect every shareid with the sink.
         for shareid in shareids:
             graph.insert(shareid, [sink_num])
+        # Add an empty entry for the sink.
         graph.append([])
         return graph
