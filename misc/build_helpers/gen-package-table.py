@@ -8,6 +8,8 @@ import pkg_resources
 extensions = ('.egg', '.tar.bz2', '.tar.gz', '.exe')
 platform_aliases = [('i686','x86'), ('i386','x86'), ('i86pc','x86'), ('win32','windows-x86'),
                     ('win-amd64','windows-x86_64'), ('amd64','x86_64')]
+min_supported_python = {'windows-x86': '2.7', 'windows-x86_64': '2.7'}
+
 FILENAME_RE  = re.compile(r'([a-zA-Z_0-9\.]*)-([0-9\.a-vx-z_]*)(-py[0-9\.]*)?(-.*)?')
 FILENAME_RE2 = re.compile(r'([a-zA-Z_0-9\.]*)-([0-9\.a-vx-z_]*)(win32|win-amd64)?(-py[0-9\.]*)?')
 
@@ -68,6 +70,7 @@ width = 100 / (len(platform_independent_pkgs) + 1)
 
 greybgstyle = '; background-color: #E0E0E0'
 nobgstyle = ''
+unsupportedstyle = '; color: #C00000'
 
 print '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">'
 print '<html>'
@@ -93,6 +96,9 @@ for pyver in reversed(sorted(python_versions)):
 
         first = True
         for platform in sorted(matrix[pyver]):
+            unsupported_python = (platform in min_supported_python and
+                                  pyver.split('.') < min_supported_python[platform].split('.'))
+
             if greybackground:
                 bgstyle = greybgstyle
             else:
@@ -101,10 +107,12 @@ for pyver in reversed(sorted(python_versions)):
             row_files = sorted(matrix[pyver][platform])
             style1 = first and 'border-top: 2px solid #000000' or ''
             style1 += bgstyle
+            style1 += unsupported_python and unsupportedstyle or ''
             style2 = first and 'border-top: 2px solid #000000' or ''
             style2 += bgstyle
+            annotated_platform = platform.replace('-', '&#x2011;') + (unsupported_python and '&nbsp;(unsupported)' or '')
             print '  <tr>'
-            print '    <td style="%s">&nbsp;%s&nbsp;</td>' % (style1, platform,)
+            print '    <td style="%s">&nbsp;%s&nbsp;</td>' % (style1, annotated_platform)
             for pkg in sorted(platform_dependent_pkgs):
                 files = [n for (p, n) in row_files if pkg == p]
                 bestfile = files and max([(pkg_resources.parse_version(x), x) for x in files])[1] or None
