@@ -70,9 +70,7 @@ if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
 
 __requires__ = install_requires[:]
 
-egg = os.path.realpath(glob.glob('setuptools-*.egg')[0])
-sys.path.insert(0, egg)
-import setuptools; setuptools.bootstrap_install_from = egg
+import setuptools
 
 from setuptools import setup
 from setuptools.command import sdist
