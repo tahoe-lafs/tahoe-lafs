@@ -42,12 +42,12 @@ class Happiness_Upload:
                 for share in self.servermap[peer]:
                     readonly_shares.add(share)
 
-        peer_to_index = self._index_peers(readonly_peers, 1)
-        share_to_index, index_to_share = self._reindex_shares(readonly_shares, len(readonly_peers) + 1)
+        peer_to_index, index_to_peer = self._reindex(readonly_peers, 1)
+        share_to_index, index_to_share = self._reindex(readonly_shares, len(readonly_peers) + 1)
         graph = self._servermap_flow_graph(readonly_peers, readonly_shares, readonly_map)
         shareids = [share_to_index[s] for s in readonly_shares]
         max_graph = self._compute_maximum_graph(graph, shareids)
-        readonly_mappings = self._convert_mappings(peer_to_index, index_to_share, max_graph)
+        readonly_mappings = self._convert_mappings(index_to_peer, index_to_share, max_graph)
 
         used_peers, used_shares = self._extract_ids(readonly_mappings)
 
@@ -68,12 +68,12 @@ class Happiness_Upload:
                     peers.remove(peer)
 
         # Reindex and find the maximum matching of the graph.
-        peer_to_index = self._index_peers(peers, 1)
-        share_to_index, index_to_share = self._reindex_shares(shares, len(peers) + 1)
+        peer_to_index, index_to_peer = self._reindex(peers, 1)
+        share_to_index, index_to_share = self._reindex(shares, len(peers) + 1)
         graph = self._servermap_flow_graph(peers, shares, servermap)
         shareids = [share_to_index[s] for s in shares]
         max_server_graph = self._compute_maximum_graph(graph, shareids)
-        existing_mappings = self._convert_mappings(peer_to_index, index_to_share, max_server_graph)
+        existing_mappings = self._convert_mappings(index_to_peer, index_to_share, max_server_graph)
 
         existing_peers, existing_shares = self._extract_ids(existing_mappings)
         peers = self.peerids - existing_peers - used_peers
@@ -82,13 +82,13 @@ class Happiness_Upload:
         # Generate a flow network of peerids to shareids for all peers
         # and shares which cannot be reused from previous file allocations.
         # These mappings represent new allocations the uploader must make.
-        peer_to_index = self._index_peers(peers, 1)
-        share_to_index, index_to_share = self._reindex_shares(shares, len(peers) + 1)
+        peer_to_index, index_to_peer = self._reindex(peers, 1)
+        share_to_index, index_to_share = self._reindex(shares, len(peers) + 1)
         peerids = [peer_to_index[peer] for peer in peers]
         shareids = [share_to_index[share] for share in shares]
         graph = self._flow_network(peerids, shareids)
         max_graph = self._compute_maximum_graph(graph, shareids)
-        new_mappings = self._convert_mappings(peer_to_index, index_to_share, max_graph)
+        new_mappings = self._convert_mappings(index_to_peer, index_to_share, max_graph)
 
         mappings = dict(readonly_mappings.items() + existing_mappings.items() + new_mappings.items())
         self._calculate_happiness(mappings)
@@ -218,7 +218,7 @@ class Happiness_Upload:
             pQueue.put((peer[0]+1, peer[1]))
 
 
-    def _convert_mappings(self, peer_to_index, share_to_index, maximum_graph):
+    def _convert_mappings(self, index_to_peer, index_to_share, maximum_graph):
         """
         Now that a maximum spanning graph has been found, convert the indexes
         back to their original ids so that the client can pass them to the
@@ -229,9 +229,9 @@ class Happiness_Upload:
         for share in maximum_graph:
             peer = maximum_graph[share]
             if peer == None:
-                converted_mappings.setdefault(share_to_index[share], None)
+                converted_mappings.setdefault(index_to_share[share], None)
             else:
-                converted_mappings.setdefault(share_to_index[share], set([peer_to_index[peer]]))
+                converted_mappings.setdefault(index_to_share[share], set([index_to_peer[peer]]))
         return converted_mappings
 
 
@@ -249,8 +249,8 @@ class Happiness_Upload:
 
         peerids = peers
         shareids = shares
-        peer_to_index = self._index_peers(peerids, 1)
-        share_to_index, index_to_share = self._reindex_shares(shareids, len(peerids) + 1)
+        peer_to_index, index_to_peer = self._reindex(peerids, 1)
+        share_to_index, index_to_share = self._reindex(shareids, len(peerids) + 1)
         graph = []
         sink_num = len(peerids) + len(shareids) + 1
         graph.append([peer_to_index[peer] for peer in peerids])
@@ -263,34 +263,21 @@ class Happiness_Upload:
         return graph
 
 
-    def _index_peers(self, ids, base):
+    def _reindex(self, items, base):
         """
-        I create a bidirectional dictionary of indexes to ids with
-        indexes from base to base + |ids| - 1 inclusively. I am used
-        in order to create a flow network with vertices 0 through n.
-        """
-        reindex_to_name = {}
-        for item in ids:
-            reindex_to_name.setdefault(item, base)
-            reindex_to_name.setdefault(base, item)
-            base += 1
-        return reindex_to_name
+        I take an iteratble of items and give each item an index to be used in
+        the construction of a flow network. Indices for these items start at base
+        and continue to base + len(items) - 1.
 
-
-    def _reindex_shares(self, shares, base):
+        I return two dictionaries: ({item: index}, {index: item})
         """
-        I create a dictionary of sharenum -> index (where 'index' is as defined
-        in _index_peers) and a dictionary of index -> sharenum. Since share
-        numbers  use the same name space as the indexes, two dictionaries need
-        to be created instead of one like in _reindex_peers.
-        """
-        share_to_index = {}
-        index_to_share = {}
-        for share in shares:
-            share_to_index.setdefault(share, base)
-            index_to_share.setdefault(base, share)
+        item_to_index = {}
+        index_to_item = {}
+        for item in items:
+            item_to_index.setdefault(item, base)
+            index_to_item.setdefault(base, item)
             base += 1
-        return (share_to_index, index_to_share)
+        return (item_to_index, index_to_item)
 
 
     def _flow_network(self, peerids, shareids):
