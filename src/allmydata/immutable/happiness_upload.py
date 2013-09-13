@@ -43,13 +43,11 @@ class Happiness_Upload:
                     readonly_shares.add(share)
 
         peer_to_index = self._index_peers(readonly_peers, 1)
-        share_to_index, index_to_share = self._reindex_shares(readonly_shares,
-                                                        len(readonly_peers) + 1)
+        share_to_index, index_to_share = self._reindex_shares(readonly_shares, len(readonly_peers) + 1)
         graph = self._servermap_flow_graph(readonly_peers, readonly_shares, readonly_map)
         shareids = [share_to_index[s] for s in readonly_shares]
         max_graph = self._compute_maximum_graph(graph, shareids)
-        readonly_mappings = self._convert_mappings(peer_to_index,
-                                                    index_to_share, max_graph)
+        readonly_mappings = self._convert_mappings(peer_to_index, index_to_share, max_graph)
 
         used_peers, used_shares = self._extract_ids(readonly_mappings)
 
@@ -75,8 +73,7 @@ class Happiness_Upload:
         graph = self._servermap_flow_graph(peers, shares, servermap)
         shareids = [share_to_index[s] for s in shares]
         max_server_graph = self._compute_maximum_graph(graph, shareids)
-        existing_mappings = self._convert_mappings(peer_to_index,
-                                            index_to_share, max_server_graph)
+        existing_mappings = self._convert_mappings(peer_to_index, index_to_share, max_server_graph)
 
         existing_peers, existing_shares = self._extract_ids(existing_mappings)
         peers = self.peerids - existing_peers - used_peers
@@ -91,11 +88,9 @@ class Happiness_Upload:
         shareids = [share_to_index[share] for share in shares]
         graph = self._flow_network(peerids, shareids)
         max_graph = self._compute_maximum_graph(graph, shareids)
-        new_mappings = self._convert_mappings(peer_to_index, index_to_share,
-                                                                    max_graph)
+        new_mappings = self._convert_mappings(peer_to_index, index_to_share, max_graph)
 
-        mappings = dict(readonly_mappings.items() + existing_mappings.items()
-                                                        + new_mappings.items())
+        mappings = dict(readonly_mappings.items() + existing_mappings.items() + new_mappings.items())
         self._calculate_happiness(mappings)
         if len(self.homeless_shares) != 0:
             all_shares = set(item for subset in self.servermap.values() for item in subset)
