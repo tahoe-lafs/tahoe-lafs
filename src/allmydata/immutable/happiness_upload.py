@@ -25,14 +25,14 @@ class Happiness_Upload:
 
     def generate_mappings(self):
         """
-        Generate a flow network of peerids to existing shareids and find
-        its maximum spanning graph. The graph is converted to a dictionary of
-        'share_num' -> set(server_ids) and returned to the caller. Each share should
-        be placed on each server in the corresponding set. Existing allocations appear as placements
+        Generates the allocations the upload should based on the given
+        information. We construct a dictionary of 'share_num' -> set(server_ids)
+        and return it to the caller. Each share should be placed on each server
+        in the corresponding set. Existing allocations appear as placements
         because attempting to place an existing allocation will renew the share.
         """
 
-        # First find the maximum spanning of the readonly servers.
+        # First calculate share placement for the readonly servers.
         readonly_peers = self.readonly_peers
         readonly_shares = set()
         readonly_map = {}
@@ -42,17 +42,10 @@ class Happiness_Upload:
                 for share in self.servermap[peer]:
                     readonly_shares.add(share)
 
-        peer_to_index, index_to_peer = self._reindex(readonly_peers, 1)
-        share_to_index, index_to_share = self._reindex(readonly_shares, len(readonly_peers) + 1)
-        graph = self._servermap_flow_graph(readonly_peers, readonly_shares, readonly_map)
-        shareids = [share_to_index[s] for s in readonly_shares]
-        max_graph = self._compute_maximum_graph(graph, shareids)
-        readonly_mappings = self._convert_mappings(index_to_peer, index_to_share, max_graph)
-
+        readonly_mappings = self._calculate_mappings(readonly_peers, readonly_shares, readonly_map)
         used_peers, used_shares = self._extract_ids(readonly_mappings)
 
-        # Now find the maximum matching for the rest of the existing allocations.
-        # Remove any peers and shares used in readonly_mappings.
+        # Calculate share placement for the remaining existing allocations
         peers = set(self.servermap.keys()) - used_peers
         # Squash a list of sets into one set
         shares = set(item for subset in self.servermap.values() for item in subset)
@@ -67,28 +60,14 @@ class Happiness_Upload:
                     servermap.pop(peer, None)
                     peers.remove(peer)
 
-        # Reindex and find the maximum matching of the graph.
-        peer_to_index, index_to_peer = self._reindex(peers, 1)
-        share_to_index, index_to_share = self._reindex(shares, len(peers) + 1)
-        graph = self._servermap_flow_graph(peers, shares, servermap)
-        shareids = [share_to_index[s] for s in shares]
-        max_server_graph = self._compute_maximum_graph(graph, shareids)
-        existing_mappings = self._convert_mappings(index_to_peer, index_to_share, max_server_graph)
-
+        existing_mappings = self._calculate_mappings(peers, shares, servermap)
         existing_peers, existing_shares = self._extract_ids(existing_mappings)
+
+        # Calculate share placement for the remaining peers and shares which
+        # won't be preserved by existing allocations.
         peers = self.peerids - existing_peers - used_peers
         shares = self.shareids - existing_shares - used_shares
-
-        # Generate a flow network of peerids to shareids for all peers
-        # and shares which cannot be reused from previous file allocations.
-        # These mappings represent new allocations the uploader must make.
-        peer_to_index, index_to_peer = self._reindex(peers, 1)
-        share_to_index, index_to_share = self._reindex(shares, len(peers) + 1)
-        peerids = [peer_to_index[peer] for peer in peers]
-        shareids = [share_to_index[share] for share in shares]
-        graph = self._flow_network(peerids, shareids)
-        max_graph = self._compute_maximum_graph(graph, shareids)
-        new_mappings = self._convert_mappings(index_to_peer, index_to_share, max_graph)
+        new_mappings = self._calculate_mappings(peers, shares)
 
         mappings = dict(readonly_mappings.items() + existing_mappings.items() + new_mappings.items())
         self._calculate_happiness(mappings)
@@ -97,6 +76,36 @@ class Happiness_Upload:
             self._distribute_homeless_shares(mappings, all_shares)
 
         return mappings
+
+
+    def _calculate_mappings(self, peers, shares, servermap=None):
+        """
+        Given a set of peers, a set of shares, and a dictionary of server ->
+        set(shares), determine how the uploader should allocate shares. If a
+        servermap is supplied, determine which existing allocations should be
+        preserved. If servermap is None, calculate the maximum matching of the
+        bipartite graph (U, V, E) such that:
+
+            U = peers
+            V = shares
+            E = peers x shares
+
+        Returns a dictionary {share -> set(peer)}, indicating that the share
+        should be placed on each peer in the set. If a share's corresponding
+        value is None, the share can be placed on any server. Note that the set
+        of peers should only be one peer when returned, but it is possible to
+        duplicate shares by adding additional servers to the set.
+        """
+        peer_to_index, index_to_peer = self._reindex(peers, 1)
+        share_to_index, index_to_share = self._reindex(shares, len(peers) + 1)
+        shareids = [share_to_index[s] for s in shares]
+        if servermap:
+            graph = self._servermap_flow_graph(peers, shares, servermap)
+        else:
+            peerids = [peer_to_index[peer] for peer in peers]
+            graph = self._flow_network(peerids, shareids)
+        max_graph = self._compute_maximum_graph(graph, shareids)
+        return self._convert_mappings(index_to_peer, index_to_share, max_graph)
 
 
     def _compute_maximum_graph(self, graph, shareids):
