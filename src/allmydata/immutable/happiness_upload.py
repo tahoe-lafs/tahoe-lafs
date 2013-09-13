@@ -4,19 +4,19 @@ from allmydata.util.happinessutil import augmenting_path_for, residual_network
 class Happiness_Upload:
     """
     I handle the calculations involved with generating the maximum
-    spanning graph for a file when given a set of peerids, shareids, and
-    a servermap of 'peerid' -> [shareids].
+    spanning graph for a file when given a set of peers, a set of shares,
+    and a servermap of 'peer' -> [shares].
 
     For more information on the algorithm this class implements, refer to
     docs/specifications/servers-of-happiness.rst
     """
 
-    def __init__(self, peerids, readonly_peers, shareids, servermap={}):
+    def __init__(self, peers, readonly_peers, shares, servermap={}):
         self._happiness = 0
         self.homeless_shares = set()
-        self.peerids = peerids
+        self.peers = peers
         self.readonly_peers = readonly_peers
-        self.shareids = shareids
+        self.shares = shares
         self.servermap = servermap
 
     def happiness(self):
@@ -65,8 +65,8 @@ class Happiness_Upload:
 
         # Calculate share placement for the remaining peers and shares which
         # won't be preserved by existing allocations.
-        peers = self.peerids - existing_peers - used_peers
-        shares = self.shareids - existing_shares - used_shares
+        peers = self.peers - existing_peers - used_peers
+        shares = self.shares - existing_shares - used_shares
         new_mappings = self._calculate_mappings(peers, shares)
 
         mappings = dict(readonly_mappings.items() + existing_mappings.items() + new_mappings.items())
@@ -98,17 +98,17 @@ class Happiness_Upload:
         """
         peer_to_index, index_to_peer = self._reindex(peers, 1)
         share_to_index, index_to_share = self._reindex(shares, len(peers) + 1)
-        shareids = [share_to_index[s] for s in shares]
+        shareIndices = [share_to_index[s] for s in shares]
         if servermap:
             graph = self._servermap_flow_graph(peers, shares, servermap)
         else:
-            peerids = [peer_to_index[peer] for peer in peers]
-            graph = self._flow_network(peerids, shareids)
-        max_graph = self._compute_maximum_graph(graph, shareids)
+            peerIndices = [peer_to_index[peer] for peer in peers]
+            graph = self._flow_network(peerIndices, shareIndices)
+        max_graph = self._compute_maximum_graph(graph, shareIndices)
         return self._convert_mappings(index_to_peer, index_to_share, max_graph)
 
 
-    def _compute_maximum_graph(self, graph, shareids):
+    def _compute_maximum_graph(self, graph, shareIndices):
         """
         This is an implementation of the Ford-Fulkerson method for finding
         a maximum flow in a flow network applied to a bipartite graph.
@@ -143,12 +143,12 @@ class Happiness_Upload:
             residual_graph, residual_function = residual_network(graph,flow_function)
 
         new_mappings = {}
-        for share in shareids:
-            peer = residual_graph[share]
+        for shareIndex in shareIndices:
+            peer = residual_graph[shareIndex]
             if peer == [dim - 1]:
-                new_mappings.setdefault(share, None)
+                new_mappings.setdefault(shareIndex, None)
             else:
-                new_mappings.setdefault(share, peer[0])
+                new_mappings.setdefault(shareIndex, peer[0])
 
         return new_mappings
 
@@ -194,9 +194,9 @@ class Happiness_Upload:
 
         for share in self.homeless_shares:
             if share in shares:
-                for peerid in self.servermap:
-                    if share in self.servermap[peerid]:
-                        mappings[share] = set([peerid])
+                for peer in self.servermap:
+                    if share in self.servermap[peer]:
+                        mappings[share] = set([peer])
                         break
             else:
                 to_distribute.add(share)
@@ -206,19 +206,19 @@ class Happiness_Upload:
 
         priority = {}
         pQueue = PriorityQueue()
-        for peerid in self.peerids:
-            priority.setdefault(peerid, 0)
+        for peer in self.peers:
+            priority.setdefault(peer, 0)
         for share in mappings:
             if mappings[share] is not None:
                 for peer in mappings[share]:
-                    if peer in self.peerids:
+                    if peer in self.peers:
                         priority[peer] += 1
 
         if priority == {}:
             return
 
-        for peerid in priority:
-            pQueue.put((priority[peerid], peerid))
+        for peer in priority:
+            pQueue.put((priority[peer], peer))
 
         # Distribute the shares to peers with the lowest priority.
         for share in to_distribute:
@@ -246,8 +246,8 @@ class Happiness_Upload:
 
     def _servermap_flow_graph(self, peers, shares, servermap):
         """
-        Generates a flow network of peerids to shareids from a server map
-        of 'peerids' -> ['shareids']. According to Wikipedia, "a flow network is a
+        Generates a flow network of peerIndices to shareIndices from a server map
+        of 'peer' -> ['shares']. According to Wikipedia, "a flow network is a
         directed graph where each edge has a capacity and each edge receives a flow.
         The amount of flow on an edge cannot exceed the capacity of the edge." This
         is necessary because in order to find the maximum spanning, the Edmonds-Karp algorithm
@@ -256,18 +256,16 @@ class Happiness_Upload:
         if servermap == {}:
             return []
 
-        peerids = peers
-        shareids = shares
-        peer_to_index, index_to_peer = self._reindex(peerids, 1)
-        share_to_index, index_to_share = self._reindex(shareids, len(peerids) + 1)
+        peer_to_index, index_to_peer = self._reindex(peers, 1)
+        share_to_index, index_to_share = self._reindex(shares, len(peers) + 1)
         graph = []
-        sink_num = len(peerids) + len(shareids) + 1
-        graph.append([peer_to_index[peer] for peer in peerids])
-        for peerid in peerids:
-            shares = [share_to_index[s] for s in servermap[peerid]]
-            graph.insert(peer_to_index[peerid], shares)
-        for shareid in shareids:
-            graph.insert(share_to_index[shareid], [sink_num])
+        sink_num = len(peers) + len(shares) + 1
+        graph.append([peer_to_index[peer] for peer in peers])
+        for peer in peers:
+            indexedShares = [share_to_index[s] for s in servermap[peer]]
+            graph.insert(peer_to_index[peer], indexedShares)
+        for share in shares:
+            graph.insert(share_to_index[share], [sink_num])
         graph.append([])
         return graph
 
@@ -289,29 +287,28 @@ class Happiness_Upload:
         return (item_to_index, index_to_item)
 
 
-    def _flow_network(self, peerids, shareids):
+    def _flow_network(self, peerIndices, shareIndices):
         """
-        Given set of peerids and a set of shareids, I create a flow network
+        Given set of peerIndices and a set of shareIndices, I create a flow network
         to be used by _compute_maximum_graph. The return value is a two
         dimensional list in the form of a flow network, where each index represents
         a node, and the corresponding list represents all of the nodes it is connected
         to.
 
         This function is similar to allmydata.util.happinessutil.flow_network_for, but
-        we use a different function because Happiness_Upload indexes shares and peers
-        differently.
+        we connect every peer with all shares instead of reflecting a supplied servermap.
         """
         graph = []
         # The first entry in our flow network is the source.
         # Connect the source to every server.
-        graph.append(peerids)
-        sink_num = len(peerids + shareids) + 1
+        graph.append(peerIndices)
+        sink_num = len(peerIndices + shareIndices) + 1
         # Connect every server with every share it can possibly store.
-        for peerid in peerids:
-            graph.insert(peerid, shareids)
-        # Connect every shareid with the sink.
-        for shareid in shareids:
-            graph.insert(shareid, [sink_num])
+        for peerIndex in peerIndices:
+            graph.insert(peerIndex, shareIndices)
+        # Connect every share with the sink.
+        for shareIndex in shareIndices:
+            graph.insert(shareIndex, [sink_num])
         # Add an empty entry for the sink.
         graph.append([])
         return graph
