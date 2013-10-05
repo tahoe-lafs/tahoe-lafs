@@ -52,7 +52,7 @@ Set Up Tahoe-LAFS
 
 Unpack the zip file and cd into the top-level directory.
 
-Run ``python setup.py build`` to generate the ``tahoe`` executable in a
+Run "``python setup.py build``" to generate the ``tahoe`` executable in a
 subdirectory of the current directory named ``bin``. This will download and
 build anything you need from various websites.
 
@@ -60,11 +60,11 @@ On Windows, the ``build`` step might tell you to open a new Command Prompt
 (or, on XP and earlier, to log out and back in again). This is needed the
 first time you set up Tahoe-LAFS on a particular installation of Windows.
 
-Run ``bin/tahoe --version`` (on Windows, ``bin\tahoe --version``) to verify
+Run "``bin/tahoe --version``" (on Windows, "``bin\tahoe --version``") to verify
 that the executable tool prints out the right version number after
 "``allmydata-tahoe:``".
 
-Optionally run ``python setup.py trial`` to verify that it passes all of its
+Optionally run "``python setup.py trial``" to verify that it passes all of its
 self-tests.
 
 Run Tahoe-LAFS
