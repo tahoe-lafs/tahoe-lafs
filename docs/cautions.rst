@@ -5,7 +5,7 @@
 
 See also known_issues.rst_.
 
-.. _known_issues.rst: file:known_issues.rst
+.. _known_issues.rst: known_issues.rst
 
 Timing Attacks
 ==============
