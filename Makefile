@@ -234,7 +234,6 @@ test-clean:
 clean:
 	rm -rf build _trial_temp _test_memory .built
 	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
-	rm -rf src/allmydata_tahoe.egg-info
 	rm -rf support dist
 	rm -rf `ls -d *.egg | grep -vEe"setuptools-|setuptools_darcs-|darcsver-"`
 	rm -rf *.pyc
