@@ -230,7 +230,8 @@ test-clean:
 # It would be nice if 'make clean' deleted any automatically-generated
 # _version.py too, so that 'make clean; make all' could be useable as a
 # "what the heck is going on, get me back to a clean state', but we need
-# 'make clean' to work on non-darcs trees without destroying useful information.
+# 'make clean' to work on non-checkout trees without destroying useful information.
+# Use 'make distclean' instead to delete all generated files.
 clean:
 	rm -rf build _trial_temp _test_memory .built
 	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
