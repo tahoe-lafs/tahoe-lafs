@@ -241,6 +241,11 @@ clean:
 	rm -rf misc/dependencies/tahoe_deps.egg-info
 	rm -f bin/tahoe bin/tahoe.pyscript
 
+distclean: clean
+	rm -rf src/allmydata_tahoe.egg-info
+	rm -f src/allmydata/_version.py
+	rm -f src/allmydata/_appname.py
+
 find-trailing-spaces:
 	$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r $(SOURCES)
 	@echo
