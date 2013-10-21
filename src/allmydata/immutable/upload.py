@@ -244,11 +244,11 @@ class PeerSelector():
             self.full_peers.remove(peerid)
             self.bad_peers.add(peerid)
 
-    def get_preexisting(self):
-        preexisting = {}
-        for server in self.existing_shares:
-            for share in self.existing_shares[server]:
-                preexisting.setdefault(share, set()).add(server)
+    def get_sharemap_of_preexisting_shares(self):
+        preexisting = dictutil.DictOfSets()
+        for server, shares in self.existing_shares.iteritems():
+            for share in shares:
+                preexisting.add(share, server)
         return preexisting
 
     def get_tasks(self):
@@ -420,7 +420,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
         dl = defer.DeferredList(ds)
         dl.addCallback(lambda ign: self._calculate_tasks())
-        dl.addCallback(lambda ign: self._loop())
+        dl.addCallback(lambda ign: self._request_another_allocation())
         return dl
 
 
@@ -524,7 +524,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         return (tracker, shares_to_ask)
 
 
-    def _loop(self):
+    def _request_another_allocation(self):
         allocation = self._get_next_allocation()
         if allocation is not None:
             tracker, shares_to_ask = allocation
@@ -534,7 +534,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
         else:
             # no more servers. If we haven't placed enough shares, we fail.
-            merged = merge_servers(self.peer_selector.get_preexisting(), self.use_trackers)
+            merged = merge_servers(self.peer_selector.get_sharemap_of_preexisting_shares(), self.use_trackers)
             effective_happiness = servers_of_happiness(self.peer_selector.get_allocations())
             if effective_happiness < self.servers_of_happiness:
                 msg = failure_message(len(self.serverids_with_shares),
@@ -561,7 +561,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                            for st in self.use_trackers],
                           pretty_print_shnum_to_servers(self.preexisting_shares))
                 self.log(msg, level=log.OPERATIONAL)
-                return (self.use_trackers, self.peer_selector.get_preexisting())
+                return (self.use_trackers, self.peer_selector.get_sharemap_of_preexisting_shares())
 
 
     def _got_response(self, res, tracker, shares_to_ask):
@@ -640,7 +640,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
 
         # now loop
-        return self._loop()
+        return self._request_another_allocation()
 
 
     def _failed(self, msg):
