@@ -140,10 +140,10 @@ class Test(GridTestMixin, unittest.TestCase, common.ShouldFailMixin):
         c1 = self.g.clients[1]
         # We need multiple segments to test crypttext hash trees that are
         # non-trivial (i.e. they have more than just one hash in them).
-        c1.DEFAULT_ENCODING_PARAMETERS['max_segment_size'] = 12
+        c1.encoding_params['max_segment_size'] = 12
         # Tests that need to test servers of happiness using this should
         # set their own value for happy -- the default (7) breaks stuff.
-        c1.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+        c1.encoding_params['happy'] = 1
         d = c1.upload(Data(TEST_DATA, convergence=""))
         def _after_upload(ur):
             self.uri = ur.get_uri()

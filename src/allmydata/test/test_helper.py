@@ -71,7 +71,7 @@ class Helper_already_uploaded(Helper_fake_upload):
         # present in the grid. We return some information about the file, so
         # the client can decide if they like the way it looks. The parameters
         # used here are chosen to match the defaults.
-        PARAMS = FakeClient.DEFAULT_ENCODING_PARAMETERS
+        PARAMS = FakeClient.encoding_params
         ueb_data = {"needed_shares": PARAMS["k"],
                     "total_shares": PARAMS["n"],
                     "segment_size": min(PARAMS["max_segment_size"], len(DATA)),
@@ -81,14 +81,14 @@ class Helper_already_uploaded(Helper_fake_upload):
         return defer.succeed(res)
 
 class FakeClient(service.MultiService):
-    DEFAULT_ENCODING_PARAMETERS = {"k":25,
-                                   "happy": 75,
-                                   "n": 100,
-                                   "max_segment_size": 1*MiB,
-                                   }
+    encoding_params = {"k":25,
+                       "happy": 75,
+                       "n": 100,
+                       "max_segment_size": 1*MiB,
+                      }
 
     def get_encoding_parameters(self):
-        return self.DEFAULT_ENCODING_PARAMETERS
+        return self.encoding_params
     def get_storage_broker(self):
         return self.storage_broker
 
@@ -180,9 +180,9 @@ class AssistedUpload(unittest.TestCase):
         # populating the directory manually. The hardest part is guessing the
         # storage index.
 
-        k = FakeClient.DEFAULT_ENCODING_PARAMETERS["k"]
-        n = FakeClient.DEFAULT_ENCODING_PARAMETERS["n"]
-        max_segsize = FakeClient.DEFAULT_ENCODING_PARAMETERS["max_segment_size"]
+        k = FakeClient.encoding_params["k"]
+        n = FakeClient.encoding_params["n"]
+        max_segsize = FakeClient.encoding_params["max_segment_size"]
         segsize = min(max_segsize, len(DATA))
         # this must be a multiple of 'required_shares'==k
         segsize = mathutil.next_multiple(segsize, k)

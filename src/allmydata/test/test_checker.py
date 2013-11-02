@@ -367,9 +367,9 @@ class BalancingAct(GridTestMixin, unittest.TestCase):
         self.basedir = "checker/BalancingAct/1115"
         self.set_up_grid(num_servers=1)
         c0 = self.g.clients[0]
-        c0.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
-        c0.DEFAULT_ENCODING_PARAMETERS['n'] = 4
-        c0.DEFAULT_ENCODING_PARAMETERS['k'] = 3
+        c0.encoding_params['happy'] = 1
+        c0.encoding_params['n'] = 4
+        c0.encoding_params['k'] = 3
 
         DATA = "data" * 100
         d = c0.upload(Data(DATA, convergence=""))
@@ -426,7 +426,7 @@ class AddLease(GridTestMixin, unittest.TestCase):
         self.basedir = "checker/AddLease/875"
         self.set_up_grid(num_servers=1)
         c0 = self.g.clients[0]
-        c0.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+        c0.encoding_params['happy'] = 1
         self.uris = {}
         DATA = "data" * 100
         d = c0.upload(Data(DATA, convergence=""))
@@ -514,11 +514,11 @@ class TooParallel(GridTestMixin, unittest.TestCase):
         def _start(ign):
             self.set_up_grid(num_servers=4)
             self.c0 = self.g.clients[0]
-            self.c0.DEFAULT_ENCODING_PARAMETERS = { "k": 1,
-                                               "happy": 4,
-                                               "n": 4,
-                                               "max_segment_size": 5,
-                                               }
+            self.c0.encoding_params = { "k": 1,
+                                        "happy": 4,
+                                        "n": 4,
+                                        "max_segment_size": 5,
+                                      }
             self.uris = {}
             DATA = "data" * 100 # 400/5 = 80 blocks
             return self.c0.upload(Data(DATA, convergence=""))
