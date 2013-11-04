@@ -393,8 +393,8 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # start placing the shares that we haven't already accounted
         # for.
         ds = []
-        if self._status and readonly_trackers:
-            self._status.set_status("Contacting readonly servers to find "
+        if self._status:
+            self._status.set_status("Contacting servers to find "
                                     "any existing shares")
 
         self.trackers = write_trackers + readonly_trackers
@@ -442,26 +442,6 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                 self.preexisting_shares.setdefault(bucket, set()).add(serverid)
                 self.homeless_shares.discard(bucket)
 
-    def _handle_existing_write_response(self, res, tracker, shares_to_ask):
-        """
-        Function handles the response from the write servers
-        when inquiring about what shares each server already has.
-        """
-        if isinstance(res, failure.Failure):
-            self.peer_selector.mark_bad_peer(tracker.get_serverid())
-            self.log("%s got error during server selection: %s" % (tracker, res),
-                    level=log.UNUSUAL)
-            self.homeless_shares |= shares_to_ask
-
-            msg = ("last failure (from %s) was: %s" % (tracker, res))
-            self.last_failure_msg = msg
-        else:
-            (alreadygot, allocated) = res
-            for share in alreadygot:
-                self.peer_selector.add_peer_with_share(tracker.get_serverid(), share)
-                self.preexisting_shares.setdefault(share, set()).add(tracker.get_serverid())
-                self.homeless_shares.discard(share)
-
 
     def _get_progress_message(self):
         if not self.homeless_shares:
@@ -492,29 +472,31 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         allocations to make, I return None.
         """
 
-        if len(self.trackers) == 0:
-            return None
+        while self.trackers:
+            tracker = self.trackers.pop(0)
+            # TODO: don't pre-convert all serverids to ServerTrackers
+            assert isinstance(tracker, ServerTracker)
 
-        tracker = self.trackers.pop(0)
-        # TODO: don't pre-convert all serverids to ServerTrackers
-        assert isinstance(tracker, ServerTracker)
+            shares_to_ask = set()
+            servermap = self.tasks
+            for shnum, tracker_id in servermap.items():
+                if tracker_id == None:
+                    continue
+                if tracker.get_serverid() in tracker_id:
+                    shares_to_ask.add(shnum)
+                    if shnum in self.homeless_shares:
+                        self.homeless_shares.remove(shnum)
 
-        shares_to_ask = set()
-        servermap = self.tasks
-        for shnum, tracker_id in servermap.items():
-            if tracker_id == None:
-                continue
-            if tracker.get_serverid() in tracker_id:
-                shares_to_ask.add(shnum)
-                if shnum in self.homeless_shares:
-                    self.homeless_shares.remove(shnum)
+            if len(shares_to_ask) != 0:
+                if self._status:
+                    self._status.set_status("Contacting Servers [%s] (first query),"
+                                            " %d shares left.."
+                                            % (tracker.get_name(),
+                                            len(self.homeless_shares)))
+                return (tracker, shares_to_ask)
 
-        if self._status:
-            self._status.set_status("Contacting Servers [%s] (first query),"
-                                    " %d shares left.."
-                                    % (tracker.get_name(),
-                                       len(self.homeless_shares)))
-        return (tracker, shares_to_ask)
+        return None
+
 
 
     def _request_another_allocation(self):
@@ -523,6 +505,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             tracker, shares_to_ask = allocation
             d = tracker.query(shares_to_ask)
             d.addBoth(self._got_response, tracker, shares_to_ask)
+            self.query_count += 1
             return d
 
         else:

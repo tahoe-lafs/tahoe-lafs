@@ -910,7 +910,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         # These parameters are unsatisfiable with only 2 servers.
         self.set_encoding_parameters(k=3, happy=5, n=10)
         d = self.shouldFail(UploadUnhappinessError, "test_happy_semantics",
-                            "shares could be placed or found on only 2 "
+                            "shares could be placed or found on only 0 "
                             "server(s). We were asked to place shares on "
                             "at least 5 server(s) such that any 3 of them "
                             "have enough shares to recover the file",
