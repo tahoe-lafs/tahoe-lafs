@@ -396,7 +396,10 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         if self._status and readonly_trackers:
             self._status.set_status("Contacting readonly servers to find "
                                     "any existing shares")
-        for tracker in readonly_trackers:
+
+        self.trackers = write_trackers + readonly_trackers
+
+        for tracker in self.trackers:
             assert isinstance(tracker, ServerTracker)
             d = tracker.ask_about_existing_shares()
             d.addBoth(self._handle_existing_response, tracker)
@@ -405,18 +408,6 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             self.query_count += 1
             self.log("asking server %s for any existing shares" %
                      (tracker.get_name(),), level=log.NOISY)
-
-        for tracker in write_trackers:
-            assert isinstance(tracker, ServerTracker)
-            d = tracker.query(set())
-            d.addBoth(self._handle_existing_write_response, tracker, set())
-            ds.append(d)
-            self.num_servers_contacted += 1
-            self.query_count += 1
-            self.log("asking server %s for any existing shares" %
-                     (tracker.get_name(),), level=log.NOISY)
-
-        self.trackers = write_trackers + readonly_trackers
 
         dl = defer.DeferredList(ds)
         dl.addCallback(lambda ign: self._calculate_tasks())
@@ -468,6 +459,8 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             (alreadygot, allocated) = res
             for share in alreadygot:
                 self.peer_selector.add_peer_with_share(tracker.get_serverid(), share)
+                self.preexisting_shares.setdefault(share, set()).add(tracker.get_serverid())
+                self.homeless_shares.discard(share)
 
 
     def _get_progress_message(self):
