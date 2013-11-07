@@ -436,8 +436,6 @@ class ServerErrors(unittest.TestCase, ShouldFailMixin, SetDEPMixin):
                             upload_data, self.u, DATA)
         def _check((f,)):
             self.failUnlessIn("placed 0 shares out of 100 total", str(f.value))
-            # there should also be a 'last failure was' message
-            self.failUnlessIn("ServerError", str(f.value))
         d.addCallback(_check)
         return d
 
