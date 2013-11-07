@@ -1721,9 +1721,11 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "total (10 homeless), want to place shares on at "
                             "least 4 servers such that any 3 of them have "
                             "enough shares to recover the file, "
-                            "sent 5 queries to 5 servers, 0 queries placed "
-                            "some shares, 5 placed none "
-                            "(of which 5 placed none due to the server being "
+                            "sent 5 queries to 5 servers, "
+                            "5 queries asked about existing shares "
+                            "(of which 0 failed due to an error), 0 queries placed "
+                            "some shares, 0 placed none "
+                            "(of which 0 placed none due to the server being "
                             "full and 0 placed none due to an error)",
                             client.upload,
                             upload.Data("data" * 10000, convergence="")))
@@ -1762,10 +1764,12 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
                             "total (10 homeless), want to place shares on at "
                             "least 4 servers such that any 3 of them have "
                             "enough shares to recover the file, "
-                            "sent 5 queries to 5 servers, 0 queries placed "
-                            "some shares, 5 placed none "
-                            "(of which 4 placed none due to the server being "
-                            "full and 1 placed none due to an error)",
+                            "sent 5 queries to 5 servers, "
+                            "5 queries asked about existing shares "
+                            "(of which 1 failed due to an error), 0 queries placed "
+                            "some shares, 0 placed none "
+                            "(of which 0 placed none due to the server being "
+                            "full and 0 placed none due to an error)",
                             client.upload,
                             upload.Data("data" * 10000, convergence="")))
         # server 0, server 1 = empty, accepting shares

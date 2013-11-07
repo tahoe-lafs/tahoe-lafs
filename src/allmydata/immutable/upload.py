@@ -270,6 +270,8 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         self.full_count = 0
         self.error_count = 0
         self.num_servers_contacted = 0
+        # Number of errors we get from contacting servers about existing shares.
+        self.num_existing_errors = 0
         self.last_failure_msg = None
         self._status = IUploadStatus(upload_status)
         log.PrefixingLogMixin.__init__(self, 'tahoe.immutable.upload', logparent, prefix=upload_id)
@@ -426,8 +428,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             self.log("%s got error during existing shares check: %s"
                     % (tracker.get_name(), res), level=log.UNUSUAL)
             self.peer_selector.mark_bad_peer(serverid)
-            self.error_count += 1
-            self.bad_query_count += 1
+            self.num_existing_errors += 1
         else:
             buckets = res
             if buckets:
@@ -451,13 +452,14 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         return (msg + "want to place shares on at least %d servers such that "
                       "any %d of them have enough shares to recover the file, "
                       "sent %d queries to %d servers, "
-                      "%d queries asked about existing shares, "
+                      "%d queries asked about existing shares "
+                      "(of which %d failed due to an error), "
                       "%d queries placed some shares, %d placed none "
                       "(of which %d placed none due to the server being"
                       " full and %d placed none due to an error)" %
                         (self.servers_of_happiness, self.needed_shares,
                          self.query_count, self.num_servers_contacted,
-                         self.num_servers_contacted,
+                         self.num_servers_contacted, self.num_existing_errors,
                          self.good_query_count, self.bad_query_count,
                          self.full_count, self.error_count))
 
