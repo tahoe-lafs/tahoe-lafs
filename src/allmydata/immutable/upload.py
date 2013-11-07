@@ -55,7 +55,6 @@ class HelperUploadResults(Copyable, RemoteCopy):
         self.file_size = None
         self.ciphertext_fetched = None # how much the helper fetched
         self.uri = None
-        self.preexisting_shares = None # count of shares already present
         self.pushed_shares = None # count of shares we pushed
 
 class UploadResults:
@@ -306,7 +305,6 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         self.homeless_shares = set(range(total_shares))
         self.use_trackers = set() # ServerTrackers that have shares assigned
                                   # to them
-        self.preexisting_shares = {} # shareid => set(serverids) holding shareid
 
         # These servers have shares -- any shares -- for our SI. We keep
         # track of these to write an error message with them later.
@@ -439,7 +437,6 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                     level=log.NOISY)
             for bucket in buckets:
                 self.peer_selector.add_peer_with_share(serverid, bucket)
-                self.preexisting_shares.setdefault(bucket, set()).add(serverid)
                 self.homeless_shares.discard(bucket)
 
 
@@ -530,14 +527,15 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                 # we placed enough to be happy, so we're done
                 if self._status:
                     self._status.set_status("Placed all shares")
+                preexisting_shares = self.peer_selector.get_sharemap_of_preexisting_shares()
                 msg = ("server selection successful for %s: %s: pretty_print_merged: %s, "
-                       "self.use_trackers: %s, self.preexisting_shares: %s") \
+                       "self.use_trackers: %s, preexisting_shares: %s") \
                        % (self, self._get_progress_message(),
                           pretty_print_shnum_to_servers(merged),
                           [', '.join([str_shareloc(k,v)
                                       for k,v in st.buckets.iteritems()])
                            for st in self.use_trackers],
-                          pretty_print_shnum_to_servers(self.preexisting_shares))
+                          pretty_print_shnum_to_servers(preexisting_shares))
                 self.log(msg, level=log.OPERATIONAL)
                 return (self.use_trackers, self.peer_selector.get_sharemap_of_preexisting_shares())
 
@@ -571,7 +569,6 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             progress = False
             for s in alreadygot:
                 self.peer_selector.confirm_share_allocation(s, tracker.get_serverid())
-                self.preexisting_shares.setdefault(s, set()).add(tracker.get_serverid())
                 if s in self.homeless_shares:
                     self.homeless_shares.remove(s)
                     progress = True
