@@ -485,8 +485,6 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                     continue
                 if tracker.get_serverid() in tracker_id:
                     shares_to_ask.add(shnum)
-                    if shnum in self.homeless_shares:
-                        self.homeless_shares.remove(shnum)
 
             if len(shares_to_ask) != 0:
                 if self._status:
@@ -498,11 +496,12 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
         return None
 
-
+    def _isHappinessPossible(self):
+        return servers_of_happiness(self.tasks) >= self.servers_of_happiness
 
     def _request_another_allocation(self):
         allocation = self._get_next_allocation()
-        if allocation is not None:
+        if self._isHappinessPossible() and allocation is not None:
             tracker, shares_to_ask = allocation
             d = tracker.query(shares_to_ask)
             d.addBoth(self._got_response, tracker, shares_to_ask)

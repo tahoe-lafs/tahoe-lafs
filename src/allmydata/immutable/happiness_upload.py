@@ -75,6 +75,10 @@ class Happiness_Upload:
             all_shares = set(item for subset in self.servermap.values() for item in subset)
             self._distribute_homeless_shares(mappings, all_shares)
 
+        for share in mappings:
+            if mappings[share] is None:
+                mappings[share] = set()
+
         return mappings
 
 
