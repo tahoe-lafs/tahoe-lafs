@@ -21,6 +21,7 @@ from allmydata.util.happinessutil import servers_of_happiness, \
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.storage.server import storage_index_to_dir
 from allmydata.client import Client
+from allmydata.storage.immutable import BucketReader
 
 MiB = 1024*1024
 
@@ -145,6 +146,23 @@ class FakeStorageServer:
                     dict([( shnum, FakeBucketWriter(share_size) )
                           for shnum in sharenums]),
                     )
+
+    def get_buckets(self, storage_index):
+        if self.mode == "first-fail":
+            if self.queries == 0:
+                raise ServerError
+        if self.mode == "second-fail":
+            if self.queries == 1:
+                raise ServerError
+        self.queries += 1
+        if self.mode == "full":
+            return {}
+        else:
+            bucketreaders = {}
+            for share_index, shnum in self.allocated:
+                if share_index == storage_index:
+                    bucketreaders[shnum] = BucketReader(self, None, storage_index, shnum)
+            return bucketreaders
 
 class FakeBucketWriter:
     # a diagnostic version of storageserver.BucketWriter
