@@ -454,11 +454,13 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         return (msg + "want to place shares on at least %d servers such that "
                       "any %d of them have enough shares to recover the file, "
                       "sent %d queries to %d servers, "
+                      "%d queries asked about existing shares, "
                       "%d queries placed some shares, %d placed none "
                       "(of which %d placed none due to the server being"
                       " full and %d placed none due to an error)" %
                         (self.servers_of_happiness, self.needed_shares,
                          self.query_count, self.num_servers_contacted,
+                         self.num_servers_contacted,
                          self.good_query_count, self.bad_query_count,
                          self.full_count, self.error_count))
 
