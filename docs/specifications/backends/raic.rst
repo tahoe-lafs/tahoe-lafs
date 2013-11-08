@@ -1,4 +1,5 @@
-﻿
+﻿.. -*- coding: utf-8-with-signature -*-
+
 =============================================================
 Redundant Array of Independent Clouds: Share To Cloud Mapping
 =============================================================

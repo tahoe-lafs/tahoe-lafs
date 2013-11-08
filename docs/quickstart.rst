@@ -1,4 +1,5 @@
-﻿
+﻿.. -*- coding: utf-8-with-signature -*-
+
 ==================
 Getting Tahoe-LAFS
 ==================

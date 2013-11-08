@@ -1,6 +1,4 @@
-﻿
-
-.. -*- coding: utf-8 -*-
+﻿.. -*- coding: utf-8-with-signature -*-
 
 Welcome to Tahoe-LAFS!
 ======================

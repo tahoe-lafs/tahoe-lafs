@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 ==========================
 The Tahoe REST-ful Web API
 ==========================
