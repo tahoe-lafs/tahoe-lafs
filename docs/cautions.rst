@@ -1,4 +1,5 @@
-﻿
+﻿.. -*- coding: utf-8-with-signature -*-
+
 =======================================================
  Things To Be Careful About As We Venture Boldly Forth
 =======================================================

@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 =================================
 Tahoe-LAFS SFTP and FTP Frontends
 =================================
