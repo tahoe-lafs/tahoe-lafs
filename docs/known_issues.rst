@@ -1,4 +1,5 @@
-﻿
+﻿.. -*- coding: utf-8-with-signature -*-
+
 See also `cautions.rst`_.
 
 .. _cautions.rst: cautions.rst

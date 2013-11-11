@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 =============================
 Configuring a Tahoe-LAFS node
 =============================
@@ -43,15 +45,16 @@ The item descriptions below use the following types:
 
     a Twisted listening-port specification string, like "``tcp:80``" or
     "``tcp:3456:interface=127.0.0.1``". For a full description of the format,
-    see `the Twisted strports documentation
-    <https://twistedmatrix.com/documents/current/api/twisted.application.strports.html>`_.
-    Please note, if interface= is not specified, Tahoe-LAFS will attempt to
-    bind the port specified on all interfaces.
+    see `the Twisted strports documentation`_.  Please note, if interface= is
+    not specified, Tahoe-LAFS will attempt to bind the port specified on all
+    interfaces.
 
 ``FURL string``
 
     a Foolscap endpoint identifier, like
     ``pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm``
+
+.. _the Twisted strports documentation: https://twistedmatrix.com/documents/current/api/twisted.application.strports.html
 
 
 Node Types
@@ -101,7 +104,7 @@ set the ``tub.location`` option described below.
 
     This controls where the node's web server should listen, providing node
     status and, if the node is a client/server, providing web-API service as
-    defined in `webapi.rst <frontends/webapi.rst>_`.
+    defined in webapi.rst_.
 
     This file contains a Twisted "strports" specification such as "``3456``"
     or "``tcp:3456:interface=127.0.0.1``". The "``tahoe create-node``" or
@@ -284,6 +287,8 @@ set the ``tub.location`` option described below.
     used for files that usually (on a Unix system) go into ``/tmp``. The
     string will be interpreted relative to the node's base directory.
 
+.. _webapi.rst: frontends/webapi.rst
+
 
 Client Configuration
 ====================
@@ -301,7 +306,7 @@ Client Configuration
 ``helper.furl = (FURL string, optional)``
 
     If provided, the node will attempt to connect to and use the given helper
-    for uploads. See `<helper.rst>`_ for details.
+    for uploads. See helper.rst_ for details.
 
 ``key_generator.furl = (FURL string, optional)``
 
@@ -337,7 +342,7 @@ Client Configuration
     ratios are more reliable, and small ``N``/``k`` ratios use less disk
     space. ``N`` cannot be larger than 256, because of the 8-bit
     erasure-coding algorithm that Tahoe-LAFS uses. ``k`` can not be greater
-    than ``N``. See `<performance.rst>`_ for more details.
+    than ``N``. See performance.rst_ for more details.
 
     ``shares.happy`` allows you control over how well to "spread out" the
     shares of an immutable file. For a successful upload, shares are
@@ -375,8 +380,11 @@ Client Configuration
     controlled by this parameter and will always use SDMF. We may revisit
     this decision in future versions of Tahoe-LAFS.
 
-    See `<specifications/mutable.rst>`_ for details about mutable file
-    formats.
+    See mutable.rst_ for details about mutable file formats.
+
+.. _helper.rst: helper.rst
+.. _performance.rst: performance.rst
+.. _mutable.rst: specifications/mutable.rst
 
 Frontend Configuration
 ======================
@@ -393,30 +401,33 @@ HTTP
     directories and files, as well as a number of pages to check on the
     status of your Tahoe node. It also provides a machine-oriented "WAPI",
     with a REST-ful HTTP interface that can be used by other programs
-    (including the CLI tools). Please see `<frontends/webapi.rst>`_ for full
-    details, and the ``web.port`` and ``web.static`` config variables above.
-    The `<frontends/download-status.rst>`_ document also describes a few WUI
-    status pages.
+    (including the CLI tools). Please see webapi.rst_ for full details, and
+    the ``web.port`` and ``web.static`` config variables above.  The
+    `download-status.rst`_ document also describes a few WUI status pages.
 
 CLI
 
     The main "bin/tahoe" executable includes subcommands for manipulating the
     filesystem, uploading/downloading files, and creating/running Tahoe
-    nodes. See `<frontends/CLI.rst>`_ for details.
+    nodes. See CLI.rst_ for details.
 
 SFTP, FTP
 
     Tahoe can also run both SFTP and FTP servers, and map a username/password
-    pair to a top-level Tahoe directory. See `<frontends/FTP-and-SFTP.rst>`_
-    for instructions on configuring these services, and the ``[sftpd]`` and
+    pair to a top-level Tahoe directory. See FTP-and-SFTP.rst_ for
+    instructions on configuring these services, and the ``[sftpd]`` and
     ``[ftpd]`` sections of ``tahoe.cfg``.
 
 Drop-Upload
 
     As of Tahoe-LAFS v1.9.0, a node running on Linux can be configured to
     automatically upload files that are created or changed in a specified
-    local directory. See `<frontends/drop-upload.rst>`_ for details.
+    local directory. See drop-upload.rst_ for details.
 
+.. _download-status.rst: frontends/download-status.rst
+.. _CLI.rst: frontends/CLI.rst
+.. _FTP-and-SFTP.rst: frontends/FTP-and-SFTP.rst
+.. _drop-upload.rst: frontends/drop-upload.rst
 
 
 Storage Server Configuration
@@ -439,9 +450,8 @@ Storage Server Configuration
     that are being decommissioned: the ``storage/`` directory could be
     mounted read-only, while shares are moved to other servers. Note that
     this currently only affects immutable shares. Mutable shares (used for
-    directories) will be written and modified anyway. See ticket `#390
-    <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/390>`_ for the current
-    status of this bug. The default value is ``False``.
+    directories) will be written and modified anyway. See ticket `#390`_ for
+    the current status of this bug. The default value is ``False``.
 
 ``reserved_space = (str, optional)``
 
@@ -477,7 +487,10 @@ Storage Server Configuration
 
     These settings control garbage collection, in which the server will
     delete shares that no longer have an up-to-date lease on them. Please see
-    `<garbage-collection.rst>`_ for full details.
+    garbage-collection.rst_ for full details.
+
+.. _#390: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/390
+.. _garbage-collection.rst: garbage-collection.rst
 
 
 Running A Helper
@@ -490,12 +503,12 @@ service.
 
 ``enabled = (boolean, optional)``
 
-    If ``True``, the node will run a helper (see `<helper.rst>`_ for
-    details).  The helper's contact FURL will be placed in
-    ``private/helper.furl``, from which it can be copied to any clients that
-    wish to use it. Clearly nodes should not both run a helper and attempt to
-    use one: do not create ``helper.furl`` and also define
-    ``[helper]enabled`` in the same node.  The default is ``False``.
+    If ``True``, the node will run a helper (see helper.rst_ for details).
+    The helper's contact FURL will be placed in ``private/helper.furl``, from
+    which it can be copied to any clients that wish to use it. Clearly nodes
+    should not both run a helper and attempt to use one: do not create
+    ``helper.furl`` and also define ``[helper]enabled`` in the same node.
+    The default is ``False``.
 
 
 Running An Introducer
@@ -586,7 +599,7 @@ This section describes these other files.
 ``private/helper.furl``
 
   If the node is running a helper (for use by other clients), its contact
-  FURL will be placed here. See `<helper.rst>`_ for more details.
+  FURL will be placed here. See helper.rst_ for more details.
 
 ``private/root_dir.cap`` (optional)
 
@@ -648,7 +661,7 @@ Other files
   files. The web-API has a facility to block access to filecaps by their
   storage index, returning a 403 "Forbidden" error instead of the original
   file. For more details, see the "Access Blacklist" section of
-  `<frontends/webapi.rst>`_.
+  webapi.rst_.
 
 
 Example
@@ -691,4 +704,6 @@ Old Configuration Files
 Tahoe-LAFS releases before v1.3.0 had no ``tahoe.cfg`` file, and used
 distinct files for each item. This is no longer supported and if you have
 configuration in the old format you must manually convert it to the new
-format for Tahoe-LAFS to detect it. See `<historical/configuration.rst>`_.
+format for Tahoe-LAFS to detect it. See `historical/configuration.rst`_.
+
+.. _historical/configuration.rst: historical/configuration.rst
