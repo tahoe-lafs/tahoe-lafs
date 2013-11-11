@@ -102,7 +102,7 @@ just a special way of interpreting the contents of a specific mutable file.
 Earlier releases used a "vdrive server": this server was abolished in the
 v0.7.0 release.
 
-For details of how mutable files work, please see `<mutable.rst>`_ in this
+For details of how mutable files work, please see mutable.rst_ in this
 directory.
 
 For releases since v0.7.0, we achieve most of our desired properties. The
@@ -124,13 +124,15 @@ multiple versions of each mutable file, and you might have some shares of
 version 1 and other shares of version 2). In extreme cases of simultaneous
 update, mutable files might suffer from non-monotonicity.
 
+.. _mutable.rst: mutable.rst
+
 
 Dirnode secret values
 =====================
 
 As mentioned before, dirnodes are simply a special way to interpret the
 contents of a mutable file, so the secret keys and capability strings
-described in `<mutable.rst>`_ are all the same. Each dirnode contains an RSA
+described in mutable.rst_ are all the same. Each dirnode contains an RSA
 public/private keypair, and the holder of the "write capability" will be able
 to retrieve the private key (as well as the AES encryption key used for the
 data itself). The holder of the "read capability" will be able to obtain the

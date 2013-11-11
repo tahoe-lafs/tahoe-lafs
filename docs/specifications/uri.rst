@@ -85,7 +85,7 @@ representation of the size of the data represented by this URI. All base32
 encodings are expressed in lower-case, with the trailing '=' signs removed.
 
 For example, the following is a CHK URI, generated from a previous version of
-the contents of `<../architecture.rst>`_::
+the contents of architecture.rst_::
 
  URI:CHK:ihrbeov7lbvoduupd4qblysj7a:bg5agsdt62jb34hxvxmdsbza6do64f4fg5anxxod2buttbo6udzq:3:10:28733
 
@@ -99,6 +99,9 @@ the useful property that the URI or storage index does not reveal anything
 about the file's contents (except filesize), which improves privacy. The
 URI:CHK: prefix really indicates that an immutable file is in use, without
 saying anything about how the key was derived.
+
+.. _architecture.rst: ../architecture.rst
+
 
 LIT URIs
 --------
@@ -143,7 +146,7 @@ The format of the write-cap for mutable files is::
 Where (writekey) is the base32 encoding of the 16-byte AES encryption key
 that is used to encrypt the RSA private key, and (fingerprint) is the base32
 encoded 32-byte SHA-256 hash of the RSA public key. For more details about
-the way these keys are used, please see `<mutable.rst>`_.
+the way these keys are used, please see mutable.rst_.
 
 The format for mutable read-caps is::
 
@@ -159,13 +162,16 @@ Historical note: the "SSK" prefix is a perhaps-inaccurate reference to
 "Sub-Space Keys" from the Freenet project, which uses a vaguely similar
 structure to provide mutable file access.
 
+.. _mutable.rst: mutable.rst
+
+
 Directory URIs
 ==============
 
 The grid layer provides a mapping from URI to data. To turn this into a graph
 of directories and files, the "vdrive" layer (which sits on top of the grid
 layer) needs to keep track of "directory nodes", or "dirnodes" for short.
-`<dirnodes.rst>`_ describes how these work.
+dirnodes.rst_ describes how these work.
 
 Dirnodes are contained inside mutable files, and are thus simply a particular
 way to interpret the contents of these files. As a result, a directory
@@ -180,6 +186,9 @@ directory) look much like mutable-file read-caps::
 
 Historical note: the "DIR2" prefix is used because the non-distributed
 dirnodes in earlier Tahoe releases had already claimed the "DIR" prefix.
+
+.. _dirnodes.rst: dirnodes.rst
+
 
 Internal Usage of URIs
 ======================

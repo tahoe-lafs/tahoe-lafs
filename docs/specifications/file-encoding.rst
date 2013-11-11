@@ -129,6 +129,7 @@ delivered to the user.
 
 .. image:: file-encoding6.svg
 
+
 Hashes
 ======
 
@@ -145,8 +146,9 @@ Using SHA-256d (instead of plain SHA-256) guards against length-extension
 attacks. Using the tag protects our Merkle trees against attacks in which the
 hash of a leaf is confused with a hash of two children (allowing an attacker
 to generate corrupted data that nevertheless appears to be valid), and is
-simply good "cryptograhic hygiene". The `"Chosen Protocol Attack" by Kelsey,
-Schneier, and Wagner <http://www.schneier.com/paper-chosen-protocol.html>`_ is
-relevant. Putting the tag in a netstring guards against attacks that seek to
-confuse the end of the tag with the beginning of the subsequent value.
+simply good "cryptograhic hygiene". The `“Chosen Protocol Attack” by Kelsey,
+Schneier, and Wagner`_ is relevant. Putting the tag in a netstring guards
+against attacks that seek to confuse the end of the tag with the beginning of
+the subsequent value.
 
+.. _“Chosen Protocol Attack” by Kelsey, Schneier, and Wagner: http://www.schneier.com/paper-chosen-protocol.html

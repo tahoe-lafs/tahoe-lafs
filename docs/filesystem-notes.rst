@@ -23,4 +23,6 @@ automatically, but older filesystems may not have it enabled::
 
 If "dir_index" is present in the "features:" line, then you're all set. If
 not, you'll need to use tune2fs and e2fsck to enable and build the index. See
-`<http://wiki.dovecot.org/MailboxFormat/Maildir>`_ for some hints.
+`http://wiki.dovecot.org/MailboxFormat/Maildir`_ for some hints.
+
+.. _`http://wiki.dovecot.org/MailboxFormat/Maildir`: http://wiki.dovecot.org/MailboxFormat/Maildir

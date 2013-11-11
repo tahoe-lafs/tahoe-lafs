@@ -30,7 +30,7 @@ next renewal pass.
 
 There are several tradeoffs to be considered when choosing the renewal timer
 and the lease duration, and there is no single optimal pair of values. See
-the `<lease-tradeoffs.svg>`_ diagram to get an idea for the tradeoffs involved.
+the lease-tradeoffs.svg_ diagram to get an idea for the tradeoffs involved.
 If lease renewal occurs quickly and with 100% reliability, than any renewal
 time that is shorter than the lease duration will suffice, but a larger ratio
 of duration-over-renewal-time will be more robust in the face of occasional
@@ -45,6 +45,9 @@ processed) to something other than 31 days.
 
 Renewing leases can be expected to take about one second per file/directory,
 depending upon the number of servers and the network speeds involved.
+
+.. _lease-tradeoffs.svg: lease-tradeoffs.svg
+
 
 Client-side Renewal
 ===================
@@ -69,12 +72,14 @@ lease too: the ``--add-lease`` process is only needed to ensure that all
 older objects have up-to-date leases on them.
 
 A separate "rebalancing manager/service" is also planned -- see ticket
-`#543 <http://tahoe-lafs.org/trac/tahoe-lafs/ticket/543>`_. The exact
-details of what this service will do are not settled, but it is likely to
-work by acquiring manifests from rootcaps on a periodic basis, keeping track
-of checker results, managing lease-addition, and prioritizing repair and
-rebalancing of shares. Eventually it may use multiple worker nodes to perform
-these jobs in parallel.
+`#543`_. The exact details of what this service will do are not settled, but
+it is likely to work by acquiring manifests from rootcaps on a periodic
+basis, keeping track of checker results, managing lease-addition, and
+prioritizing repair and rebalancing of shares. Eventually it may use multiple
+worker nodes to perform these jobs in parallel.
+
+.. _#543: http://tahoe-lafs.org/trac/tahoe-lafs/ticket/543
+
 
 Server Side Expiration
 ======================
