@@ -20,7 +20,9 @@ Tahoe-LAFS Architecture
 Overview
 ========
 
-(See the `docs/specifications directory <specifications>`_ for more details.)
+(See the `docs/specifications directory`_ for more details.)
+
+.. _docs/specifications directory: specifications
 
 There are three layers: the key-value store, the filesystem, and the
 application.
@@ -45,10 +47,9 @@ Allmydata.com used it for a backup service: the application periodically
 copies files from the local disk onto the decentralized filesystem. We later
 provide read-only access to those files, allowing users to recover them.
 There are several other applications built on top of the Tahoe-LAFS
-filesystem (see the `RelatedProjects
-<https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects>`_ page of the
-wiki for a list).
+filesystem (see the RelatedProjects_ page of the wiki for a list).
 
+.. _RelatedProjects: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/RelatedProjects
 
 The Key-Value Store
 ===================
@@ -316,7 +317,9 @@ commercially-run grid for which all of the storage servers are in a colo
 facility with high interconnect bandwidth. In this case, the helper is placed
 in the same facility, so the helper-to-storage-server bandwidth is huge.
 
-See `<helper.rst>`_ for details about the upload helper.
+See helper.rst_ for details about the upload helper.
+
+.. _helper.rst: helper.rst
 
 
 The Filesystem Layer
@@ -368,8 +371,10 @@ clients are responsible for renewing their leases on a periodic basis at
 least frequently enough to prevent any of the leases from expiring before the
 next renewal pass.
 
-See `<garbage-collection.rst>`_ for further information, and for how to
-configure garbage collection.
+See garbage-collection.rst_ for further information, and for how to configure
+garbage collection.
+
+.. _garbage-collection.rst: garbage-collection.rst
 
 
 File Repairer
