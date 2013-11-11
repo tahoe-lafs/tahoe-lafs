@@ -133,10 +133,9 @@ of the same name in the upload directory, it will be unlinked and replaced
 with an immutable file. (`#1712`_)
 
 If a file in the upload directory is changed (actually relinked to a new
-file), then the old file is still present on the grid, and any other caps
-to it will remain valid. See `docs/garbage-collection.rst
-<../garbage-collection.rst>`_ for how to reclaim the space used by files
-that are no longer needed.
+file), then the old file is still present on the grid, and any other caps to
+it will remain valid. See `docs/garbage-collection.rst`_ for how to reclaim
+the space used by files that are no longer needed.
 
 Unicode names are supported, but the local name of a file must be encoded
 correctly in order for it to be uploaded. The expected encoding is that
@@ -154,3 +153,6 @@ printed by ``python -c "import sys; print sys.getfilesystemencoding()"``.
 .. _`#1710`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1710
 .. _`#1711`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1711
 .. _`#1712`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1712
+
+.. _docs/garbage-collection.rst: ../garbage-collection.rst
+

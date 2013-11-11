@@ -54,8 +54,7 @@ section of $NODEDIR/tahoe.cfg will cause the node to run a webserver on port
 This string is actually a Twisted "strports" specification, meaning you can
 get more control over the interface to which the server binds by supplying
 additional arguments. For more details, see the documentation on
-`twisted.application.strports
-<https://twistedmatrix.com/documents/current/api/twisted.application.strports.html>`_.
+`twisted.application.strports`_.
 
 Writing "tcp:3456:interface=127.0.0.1" into the web.port line does the same
 but binds to the loopback interface, ensuring that only the programs on the
@@ -66,18 +65,19 @@ This webport can be set when the node is created by passing a --webport
 option to the 'tahoe create-node' command. By default, the node listens on
 port 3456, on the loopback (127.0.0.1) interface.
 
+.. _twisted.application.strports: https://twistedmatrix.com/documents/current/api/twisted.application.strports.html
+
 
 Basic Concepts: GET, PUT, DELETE, POST
 ======================================
 
-As described in `docs/architecture.rst <../architecture.rst>`_, each file
-and directory in a Tahoe virtual filesystem is referenced by an identifier
-that combines the designation of the object with the authority to do something
-with it (such as read or modify the contents). This identifier is called a
-"read-cap" or "write-cap", depending upon whether it enables read-only or
-read-write access. These "caps" are also referred to as URIs (which may be
-confusing because they are not currently `RFC3986
-<https://tools.ietf.org/html/rfc3986>`_-compliant URIs).
+As described in `docs/architecture.rst`_, each file and directory in a Tahoe
+virtual filesystem is referenced by an identifier that combines the
+designation of the object with the authority to do something with it (such as
+read or modify the contents). This identifier is called a "read-cap" or
+"write-cap", depending upon whether it enables read-only or read-write
+access. These "caps" are also referred to as URIs (which may be confusing
+because they are not currently RFC3986_-compliant URIs).
 
 The Tahoe web-based API is "REST-ful", meaning it implements the concepts of
 "REpresentational State Transfer": the original scheme by which the World
@@ -126,6 +126,9 @@ stderr should provide an "Accept: text/plain" header to their requests to get
 a plain text stack trace instead. If the Accept header contains ``*/*``, or
 ``text/*``, or text/html (or if there is no Accept header), HTML tracebacks will
 be generated.
+
+.. _RFC3986: https://tools.ietf.org/html/rfc3986
+.. _docs/architecture.rst: ../architecture.rst
 
 
 URLs
@@ -501,9 +504,9 @@ Creating a New Directory
 
  The metadata may have a "no-write" field. If this is set to true in the
  metadata of a link, it will not be possible to open that link for writing
- via the SFTP frontend; see `<FTP-and-SFTP.rst>`_ for details.
- Also, if the "no-write" field is set to true in the metadata of a link to
- a mutable child, it will cause the link to be diminished to read-only.
+ via the SFTP frontend; see FTP-and-SFTP.rst_ for details.  Also, if the
+ "no-write" field is set to true in the metadata of a link to a mutable
+ child, it will cause the link to be diminished to read-only.
 
  Note that the web-API-using client application must not provide the
  "Content-Type: multipart/form-data" header that usually accompanies HTML
@@ -659,6 +662,8 @@ Creating a New Directory
 
  This operation will return an error if the parent directory is immutable,
  or already has a child named NAME.
+
+.. _FTP-and-SFTP.rst: FTP-and-SFTP.rst
 
 
 Getting Information About a File Or Directory (as JSON)
@@ -2070,7 +2075,9 @@ Tahoe-1.1; back with Tahoe-1.0 the web client was responsible for serializing
 web requests themselves).
 
 For more details, please see the "Consistency vs Availability" and "The Prime
-Coordination Directive" sections of `mutable.rst <../specifications/mutable.rst>`_.
+Coordination Directive" sections of mutable.rst_.
+
+.. _mutable.rst: ../specifications/mutable.rst
 
 
 Access Blacklist
@@ -2121,19 +2128,18 @@ the ``logs/twistd.log`` file.
 .. [1] URLs and HTTP and UTF-8, Oh My
 
  HTTP does not provide a mechanism to specify the character set used to
- encode non-ASCII names in URLs
- (`RFC3986#2.1 <https://tools.ietf.org/html/rfc3986#section-2.1>`_).
- We prefer the convention that the ``filename=`` argument shall be a
- URL-escaped UTF-8 encoded Unicode string.
- For example, suppose we want to provoke the server into using a filename of
- "f i a n c e-acute e" (i.e. f i a n c U+00E9 e). The UTF-8 encoding of this
- is 0x66 0x69 0x61 0x6e 0x63 0xc3 0xa9 0x65 (or "fianc\\xC3\\xA9e", as python's
- ``repr()`` function would show). To encode this into a URL, the non-printable
- characters must be escaped with the urlencode ``%XX`` mechanism, giving
- us "fianc%C3%A9e". Thus, the first line of the HTTP request will be
- "``GET /uri/CAP...?save=true&filename=fianc%C3%A9e HTTP/1.1``". Not all
- browsers provide this: IE7 by default uses the Latin-1 encoding, which is
- "fianc%E9e" (although it has a configuration option to send URLs as UTF-8).
+ encode non-ASCII names in URLs (`RFC3986#2.1`_).  We prefer the convention
+ that the ``filename=`` argument shall be a URL-escaped UTF-8 encoded Unicode
+ string.  For example, suppose we want to provoke the server into using a
+ filename of "f i a n c e-acute e" (i.e. f i a n c U+00E9 e). The UTF-8
+ encoding of this is 0x66 0x69 0x61 0x6e 0x63 0xc3 0xa9 0x65 (or
+ "fianc\\xC3\\xA9e", as python's ``repr()`` function would show). To encode
+ this into a URL, the non-printable characters must be escaped with the
+ urlencode ``%XX`` mechanism, giving us "fianc%C3%A9e". Thus, the first line
+ of the HTTP request will be "``GET
+ /uri/CAP...?save=true&filename=fianc%C3%A9e HTTP/1.1``". Not all browsers
+ provide this: IE7 by default uses the Latin-1 encoding, which is "fianc%E9e"
+ (although it has a configuration option to send URLs as UTF-8).
 
  The response header will need to indicate a non-ASCII filename. The actual
  mechanism to do this is not clear. For ASCII filenames, the response header
@@ -2150,17 +2156,15 @@ the ``logs/twistd.log`` file.
     (note, the last four bytes of that line, not including the newline, are
     0xC3 0xA9 0x65 0x22)
 
- `RFC2231#4 <https://tools.ietf.org/html/rfc2231#section-4>`_
- (dated 1997): suggests that the following might work, and
- `some developers have reported <http://markmail.org/message/dsjyokgl7hv64ig3>`_
- that it is supported by Firefox (but not IE7)::
+ `RFC2231#4`_ (dated 1997): suggests that the following might work, and `some
+ developers have reported`_ that it is supported by Firefox (but not IE7)::
 
   #2: Content-Disposition: attachment; filename*=utf-8''fianc%C3%A9e
 
- My reading of `RFC2616#19.5.1 <https://tools.ietf.org/html/rfc2616#section-19.5.1>`_
- (which defines Content-Disposition) says that the filename= parameter is
- defined to be wrapped in quotes (presumably to allow spaces without breaking
- the parsing of subsequent parameters), which would give us::
+ My reading of `RFC2616#19.5.1`_ (which defines Content-Disposition) says
+ that the filename= parameter is defined to be wrapped in quotes (presumably
+ to allow spaces without breaking the parsing of subsequent parameters),
+ which would give us::
 
   #3: Content-Disposition: attachment; filename*=utf-8''"fianc%C3%A9e"
 
@@ -2175,3 +2179,9 @@ the ``logs/twistd.log`` file.
  into the response header, rather than enforcing the UTF-8 convention. This
  means it does not try to decode the filename from the URL argument, nor does
  it encode the filename into the response header.
+
+.. _RFC3986#2.1: https://tools.ietf.org/html/rfc3986#section-2.1
+.. _RFC2231#4: https://tools.ietf.org/html/rfc2231#section-4
+.. _some developers have reported: http://markmail.org/message/dsjyokgl7hv64ig3
+.. _RFC2616#19.5.1: https://tools.ietf.org/html/rfc2616#section-19.5.1
+
