@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 ===============================
 Tahoe-LAFS Drop-Upload Frontend
 ===============================
@@ -131,10 +133,11 @@ of the same name in the upload directory, it will be unlinked and replaced
 with an immutable file. (`#1712`_)
 
 If a file in the upload directory is changed (actually relinked to a new
-file), then the old file is still present on the grid, and any other caps
-to it will remain valid. See `docs/garbage-collection.rst
-<../garbage-collection.rst>`_ for how to reclaim the space used by files
-that are no longer needed.
+file), then the old file is still present on the grid, and any other caps to
+it will remain valid. See `docs/garbage-collection.rst`_ for how to reclaim
+the space used by files that are no longer needed.
+
+.. _docs/garbage-collection.rst: ../garbage-collection.rst
 
 Unicode names are supported, but the local name of a file must be encoded
 correctly in order for it to be uploaded. The expected encoding is that

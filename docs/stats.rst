@@ -1,4 +1,6 @@
-﻿================
+﻿.. -*- coding: utf-8-with-signature -*-
+
+================
 Tahoe Statistics
 ================
 
@@ -305,7 +307,9 @@ keep its FURL consistent). To explicitly control which port it uses, write
 the desired portnumber into a file named "portnum" (i.e. $BASEDIR/portnum),
 and the next time the gatherer is started, it will start listening on the
 given port. The portnum file is actually a "strports specification string",
-as described in `docs/configuration.rst <configuration.rst>`_.
+as described in configuration.rst_.
+
+.. _configuration.rst: configuration.rst
 
 Once running, the stats gatherer will create a standard python "pickle" file
 in $BASEDIR/stats.pickle . Once a minute, the gatherer will pull stats
