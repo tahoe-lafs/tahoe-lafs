@@ -1781,7 +1781,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_reset_encoding_parameters)
         d.addCallback(lambda client:
             self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
-                            "shares could be placed or found on only 2 "
+                            "shares could be placed or found on only 0 "
                             "server(s). We were asked to place shares on at "
                             "least 4 server(s) such that any 3 of them have "
                             "enough shares to recover the file.",
@@ -1806,12 +1806,15 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_reset_encoding_parameters, happy=7)
         d.addCallback(lambda client:
             self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
-                            "shares could be placed on only 5 server(s) such "
-                            "that any 3 of them have enough shares to recover "
-                            "the file, but we were asked to place shares on "
-                            "at least 7 such servers.",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            "We were asked", client.upload,
+                            upload.Data("data" * 10000, convergence="")))
+        def _test_failure(res):
+            text = str(res[0].value)
+            self.failUnlessIn(" could be placed or found on only 0 server(s)", text)
+            self.failUnlessIn(" that any 3 of them have enough shares to recover", text)
+            self.failUnlessIn(" at least 7 server(s)", text)
+        d.addCallback(_test_failure)
+
         # server 0: shares 0 - 9
         # server 1: share 0, read-only
         # server 2: share 0, read-only
@@ -1835,15 +1838,20 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(_reset_encoding_parameters, happy=7)
         d.addCallback(lambda client:
             self.shouldFail(UploadUnhappinessError, "test_selection_exceptions",
-                            "shares could be placed or found on 4 server(s), "
-                            "but they are not spread out evenly enough to "
-                            "ensure that any 3 of these servers would have "
-                            "enough shares to recover the file. We were asked "
-                            "to place shares on at least 7 servers such that "
-                            "any 3 of them have enough shares to recover the "
-                            "file",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            "We were asked", client.upload,
+                            upload.Data("data" * 10000, convergence="")))
+        def _test_failure_2(res):
+            text = str(res[0].value)
+            self.failUnlessIn(" shares could be placed or found on 4 server(s)", text)
+            self.failUnlessIn(" shares on at least 7 servers such that any 3 of them", text)
+            self.failUnlessIn(" sent 4 queries to 4 servers", text)
+            self.failUnlessIn(" 4 queries asked about existing shares", text)
+            self.failUnlessIn("of which 0 failed due to an error", text)
+            self.failUnlessIn(" 0 queries placed some shares", text)
+            self.failUnlessIn(" 0 placed none", text)
+            self.failUnlessIn(" 0 placed none due to the server being full", text)
+            self.failUnlessIn(" 0 placed none due to an error", text)
+        d.addCallback(_test_failure_2)
         return d
 
 
