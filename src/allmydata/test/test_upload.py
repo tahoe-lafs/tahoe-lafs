@@ -957,15 +957,23 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         DATA = upload.Data(100* "kittens", convergence="")
         # These parameters are unsatisfiable with only 4 servers, but should
         # work with 5, as long as the original 4 are not stuck in the open
-        # BucketWriter state (open() but not
+        # BucketWriter state.
         parms = {"k":2, "happy":5, "n":5, "max_segment_size": 1*MiB}
         c.DEFAULT_ENCODING_PARAMETERS = parms
         d = self.shouldFail(UploadUnhappinessError, "test_aborted_shares",
-                            "shares could be placed on only 4 "
-                            "server(s) such that any 2 of them have enough "
-                            "shares to recover the file, but we were asked "
-                            "to place shares on at least 5 such servers",
+                            "We were asked",
                             c.upload, DATA)
+        def _check_failure(res):
+            text = str(res[0].value)
+            self.failUnlessIn("shares on at least 5 server(s)", text)
+            self.failUnlessIn("such that any 2 of them", text)
+            self.failUnlessIn("placed 0 shares out of 5 total", text)
+            self.failUnlessIn("(5 homeless)", text)
+            self.failUnlessIn("sent 4 queries to 4 servers", text)
+            self.failUnlessIn(" 4 queries asked about existing shares (of which 0 failed due to an error", text)
+            self.failUnlessIn(" 0 queries placed some shares", text)
+            self.failUnlessIn(" 0 placed none (of which 0 placed none due to the server being full and 0 placed none due to an error)", text)
+        d.addCallback(_check_failure)
         # now add the 5th server
         d.addCallback(lambda ign: self._add_server(4, False))
         # and this time the upload ought to succeed
