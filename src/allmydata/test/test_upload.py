@@ -1067,12 +1067,14 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
         d.addCallback(lambda client:
             self.shouldFail(UploadUnhappinessError,
                             "test_problem_layout_comment_52_test_2",
-                            "shares could be placed on only 3 server(s) such "
-                            "that any 3 of them have enough shares to recover "
-                            "the file, but we were asked to place shares on "
-                            "at least 4 such servers.",
-                            client.upload, upload.Data("data" * 10000,
-                                                       convergence="")))
+                            "We were asked", client.upload,
+                            upload.Data("data" * 10000, convergence="")))
+        def _test_failure(res):
+            text = str(res[0].value)
+            self.failUnlessIn("shares could be placed or found on 3 server(s)", text)
+            self.failUnlessIn("that any 3 of them have enough shares to recover ", text)
+            self.failUnlessIn("asked to place shares on at least 4 servers", text)
+        d.addCallback(_test_failure)
         return d
 
 
