@@ -645,7 +645,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<div class="status-indicator connected-no"></div>[ ]*<div>Introducer not connected</div>', html), res)
+            self.failUnless(re.search('<img src="static/img/connected-no.png" alt="Disconnected"></img>', html), res)
         d.addCallback(_check_introducer_not_connected_unguessable)
 
         # introducer connected, unguessable furl
@@ -658,7 +658,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/[censored]</div>', html)
             self.failIfIn('pb://someIntroducer/secret', html)
-            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>Introducer</div>', html), res)
+            self.failUnless(re.search('<img src="static/img/connected-yes.png" alt="Connected"></img>', html), res)
         d.addCallback(_check_introducer_connected_unguessable)
 
         # introducer connected, guessable furl
@@ -670,7 +670,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         def _check_introducer_connected_guessable(res):
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someIntroducer/introducer</div>', html)
-            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>Introducer</div>', html), res)
+            self.failUnless(re.search('<img src="static/img/connected-yes.png" alt="Connected"></img>', html), res)
         d.addCallback(_check_introducer_connected_guessable)
         return d
 
@@ -684,7 +684,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         d.addCallback(_set_no_helper)
         def _check_no_helper(res):
             html = res.replace('\n', ' ')
-            self.failUnless(re.search('<div class="status-indicator connected-not-configured"></div>[ ]*<div>Helper</div>', html), res)
+            self.failUnless(re.search('<img src="static/img/connected-not-configured.png" alt="Not Configured"></img>', html), res)
         d.addCallback(_check_no_helper)
 
         # enable helper, not connected
@@ -697,7 +697,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someHelper/[censored]</div>', html)
             self.failIfIn('pb://someHelper/secret', html)
-            self.failUnless(re.search('<div class="status-indicator connected-no"></div>[ ]*<div>Helper not connected</div>', html), res)
+            self.failUnless(re.search('<img src="static/img/connected-no.png" alt="Disconnected"></img>', html), res)
         d.addCallback(_check_helper_not_connected)
 
         # enable helper, connected
@@ -710,7 +710,7 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             html = res.replace('\n', ' ')
             self.failUnlessIn('<div class="furl">pb://someHelper/[censored]</div>', html)
             self.failIfIn('pb://someHelper/secret', html)
-            self.failUnless(re.search('<div class="status-indicator connected-yes"></div>[ ]*<div>Helper</div>', html), res)
+            self.failUnless(re.search('<img src="static/img/connected-yes.png" alt="Connected"></img>', html), res)
         d.addCallback(_check_helper_connected)
         return d
 
