@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 ====================
 Servers of Happiness
 ====================
@@ -109,32 +111,32 @@ We calculate share placement like so:
 1. Query 2n servers for existing shares.
 
 2. Construct a bipartite graph of readonly servers to shares, where an edge
-exists between an arbitrary readonly server s and an arbitrary share n if and only if s
-holds n.
+   exists between an arbitrary readonly server s and an arbitrary share n if
+   and only if s holds n.
 
-3. Calculate the maximum matching graph of the bipartite graph. The maxmum matching
-is the matching which contains the largest possible number of edges.
+3. Calculate the maximum matching graph of the bipartite graph. The maxmum
+   matching is the matching which contains the largest possible number of
+   edges.
 
 4. Construct a bipartite graph of servers to shares, removing any servers and
-shares used in the maximum matching graph from step 3. Let an edge exist between
-server s and share n if and only if s holds n.
+   shares used in the maximum matching graph from step 3. Let an edge exist
+   between server s and share n if and only if s holds n.
 
 5. Calculate the maximum matching graph of the new graph.
 
 6. Construct a bipartite graph of servers to share, removing any servers and
-shares used in the maximum matching graphs from steps 3 and 5. Let an edge exist
-between server s and share n if and only if s can hold n.
+   shares used in the maximum matching graphs from steps 3 and 5. Let an edge
+   exist between server s and share n if and only if s can hold n.
 
 7. Calculate the maximum matching graph of the new graph.
 
-8. Renew the shares on their respective servers from steps 3
-and 5.
+8. Renew the shares on their respective servers from steps 3 and 5.
 
-9. Place share n on server s if an edge exists between s and n in the
-maximum matching graph from step 7.
+9. Place share n on server s if an edge exists between s and n in the maximum
+   matching graph from step 7.
 
-10. If any placements from step 7 fail, remove the server from the set of possible
-servers and regenerate the matchings.
+10. If any placements from step 7 fail, remove the server from the set of
+    possible servers and regenerate the matchings.
 
 
 Properties of Upload Strategy of Happiness
