@@ -309,8 +309,6 @@ and the next time the gatherer is started, it will start listening on the
 given port. The portnum file is actually a "strports specification string",
 as described in configuration.rst_.
 
-.. _configuration.rst: configuration.rst
-
 Once running, the stats gatherer will create a standard python "pickle" file
 in $BASEDIR/stats.pickle . Once a minute, the gatherer will pull stats
 information from every connected node and write them into the pickle. The
@@ -326,6 +324,8 @@ something useful. For example, a tool could sum the
 total-disk-available number for the entire grid (however, the "disk watcher"
 daemon, in misc/operations_helpers/spacetime/, is better suited for this specific task).
 
+.. _configuration.rst: configuration.rst
+
 Using Munin To Graph Stats Values
 =================================
 
@@ -334,8 +334,6 @@ nodes. They are intended for use with the Munin_ system-management tool, which
 typically polls target systems every 5 minutes and produces a web page with
 graphs of various things over multiple time scales (last hour, last month,
 last year).
-
-.. _Munin: http://munin-monitoring.org/
 
 Most of the plugins are designed to pull stats from a single Tahoe node, and
 are configured with the e.g. http://localhost:3456/statistics?t=json URL. The
@@ -347,3 +345,5 @@ stats-gatherer. Some plugins are to be used with the disk watcher, and a few
 Please see the docstrings at the beginning of each plugin for details, and
 the "tahoe-conf" file for notes about configuration and installing these
 plugins into a Munin environment.
+
+.. _Munin: http://munin-monitoring.org/
