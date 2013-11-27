@@ -26,7 +26,7 @@ from allmydata.immutable import layout
 from pycryptopp.cipher.aes import AES
 
 from cStringIO import StringIO
-from happiness_upload import Happiness_Upload
+from happiness_upload import HappinessUpload
 
 
 # this wants to live in storage, not here
@@ -111,8 +111,6 @@ class UploadResults:
 # the extension changes size, we can change EXTENSION_SIZE to
 # allocate a more accurate amount of space.
 EXTENSION_SIZE = 1000
-# TODO: actual extensions are closer to 419 bytes, so we can probably lower
-# this.
 
 def pretty_print_shnum_to_servers(s):
     return ', '.join([ "sh%s: %s" % (k, '+'.join([idlib.shortnodeid_b2a(x) for x in v])) for k, v in s.iteritems() ])
@@ -252,8 +250,8 @@ class PeerSelector():
 
     def get_tasks(self):
         shares = set(range(self.total_shares))
-        self.h = Happiness_Upload(self.peers, self.full_peers, shares, self.existing_shares)
-        return self.h.generate_mappings()
+        self.h = HappinessUpload(self.peers, self.full_peers, shares, self.existing_shares)
+        return self.h.generate_upload_plan()
 
     def is_healthy(self):
         return self.min_happiness <= self.h.happiness()
@@ -369,16 +367,6 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                 trackers.append(st)
             return trackers
 
-        # We assign each servers/trackers into one three lists. They all
-        # start in the "first pass" list. During the first pass, as we ask
-        # each one to hold a share, we move their tracker to the "second
-        # pass" list, until the first-pass list is empty. Then during the
-        # second pass, as we ask each to hold more shares, we move their
-        # tracker to the "next pass" list, until the second-pass list is
-        # empty. Then we move everybody from the next-pass list back to the
-        # second-pass list and repeat the "second" pass (really the third,
-        # fourth, etc pass), until all shares are assigned, or we've run out
-        # of potential servers.
         write_trackers = _make_trackers(writeable_servers)
 
         # We don't try to allocate shares to these servers, since they've
@@ -388,10 +376,9 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
         # servers_of_happiness accounting, then we forget about them.
         readonly_trackers = _make_trackers(readonly_servers)
 
-        # We now ask servers that can't hold any new shares about existing
-        # shares that they might have for our SI. Once this is done, we
-        # start placing the shares that we haven't already accounted
-        # for.
+        # We now ask servers about existing shares that they might have
+        # for our SI. Once this is done, we start placing the shares that
+        # we haven't already accounted for.
         ds = []
         if self._status:
             self._status.set_status("Contacting servers to find "
@@ -416,7 +403,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
 
     def _calculate_tasks(self):
-        self.tasks = self.peer_selector.get_tasks()
+        self.upload_plan = self.peer_selector.get_tasks()
 
     def _handle_existing_response(self, res, tracker):
         """
@@ -475,11 +462,10 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
         while self.trackers:
             tracker = self.trackers.pop(0)
-            # TODO: don't pre-convert all serverids to ServerTrackers
             assert isinstance(tracker, ServerTracker)
 
             shares_to_ask = set()
-            servermap = self.tasks
+            servermap = self.upload_plan
             for shnum, tracker_id in servermap.items():
                 if tracker_id == None:
                     continue
@@ -496,12 +482,12 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
         return None
 
-    def _isHappinessPossible(self):
-        return servers_of_happiness(self.tasks) >= self.servers_of_happiness
+    def is_happiness_possible(self):
+        return servers_of_happiness(self.upload_plan) >= self.servers_of_happiness
 
     def _request_another_allocation(self):
         allocation = self._get_next_allocation()
-        if self._isHappinessPossible() and allocation is not None:
+        if self.is_happiness_possible() and allocation is not None:
             tracker, shares_to_ask = allocation
             d = tracker.query(shares_to_ask)
             d.addBoth(self._got_response, tracker, shares_to_ask)
@@ -812,11 +798,9 @@ class EncryptAnUploadable:
             bytes_processed += len(chunk)
             self._plaintext_hasher.update(chunk)
             self._update_segment_hash(chunk)
-            # TODO: we have to encrypt the data (even if hash_only==True)
+            # We have to encrypt the data (even if hash_only==True)
             # because pycryptopp's AES-CTR implementation doesn't offer a
-            # way to change the counter value. Once pycryptopp acquires
-            # this ability, change this to simply update the counter
-            # before each call to (hash_only==False) _encryptor.process()
+            # way to change the counter value.
             ciphertext = self._encryptor.process(chunk)
             if hash_only:
                 self.log("  skipping encryption", level=log.NOISY)

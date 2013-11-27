@@ -1,11 +1,15 @@
 from Queue import PriorityQueue
 from allmydata.util.happinessutil import augmenting_path_for, residual_network
 
-class Happiness_Upload:
+class HappinessUpload:
     """
     I handle the calculations involved with generating the maximum
     spanning graph for a file when given a set of peers, a set of shares,
     and a servermap of 'peer' -> [shares].
+
+    peers is a set of serverids for servers that we think will accept shares.
+    readonly_peers is a set of serverids for servers we know won't accept shares.
+    shares is a set of share numbers, each representing a share that we want to place.
 
     For more information on the algorithm this class implements, refer to
     docs/specifications/servers-of-happiness.rst
@@ -23,13 +27,14 @@ class Happiness_Upload:
         return self._happiness
 
 
-    def generate_mappings(self):
+    def generate_upload_plan(self):
         """
-        Generates the allocations the upload should based on the given
-        information. We construct a dictionary of 'share_num' -> set(server_ids)
-        and return it to the caller. Each share should be placed on each server
-        in the corresponding set. Existing allocations appear as placements
-        because attempting to place an existing allocation will renew the share.
+        I calculate which shares the client should upload to which servers based on
+        the information I was given in my constructor. I construct a dictionary of
+        share_num -> set(server_ids) and return it. Each share should be placed on each
+        server in the corresponding set. I include, in my return value, a mapping from
+        share_num to server_id when that share is already on that server (according to
+        the given information), because you should renew the lease on that share.
         """
 
         # First calculate share placement for the readonly servers.

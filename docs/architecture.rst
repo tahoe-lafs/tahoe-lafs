@@ -177,36 +177,9 @@ some of the servers thus removed if they are already holding any encoded shares
 for our file; we use this information later. (We ask any servers which are in
 the first 2* ``N`` elements of the permuted list.)
 
-We then use the permuted list of servers to ask each server, in turn, if it
-will hold a share for us (a share that was not reported as being already
-present when we talked to the full servers earlier, and that we have not
-already planned to upload to a different server). We plan to send a share to a
-server by sending an 'allocate_buckets() query' to the server with the number
-of that share. Some will say yes they can hold that share, others (those who
-have become full since they announced their available space) will say no; when
-a server refuses our request, we take that share to the next server on the
-list. In the response to allocate_buckets() the server will also inform us of
-any shares of that file that it already has. We keep going until we run out of
-shares that need to be stored. At the end of the process, we'll have a table
-that maps each share number to a server, and then we can begin the encode and
-push phase, using the table to decide where each share should be sent.
-
-Most of the time, this will result in one share per server, which gives us
-maximum reliability.  If there are fewer writable servers than there are
-unstored shares, we'll be forced to loop around, eventually giving multiple
-shares to a single server.
-
-If we have to loop through the node list a second time, we accelerate the query
-process, by asking each node to hold multiple shares on the second pass. In
-most cases, this means we'll never send more than two queries to any given
-node.
-
-If a server is unreachable, or has an error, or refuses to accept any of our
-shares, we remove it from the permuted list, so we won't query it again for
-this file. If a server already has shares for the file we're uploading, we add
-that information to the share-to-server table. This lets us do less work for
-files which have been uploaded once before, while making sure we still wind up
-with as many shares as we desire.
+Then, server selection is determined and shares are appropriately placed. For
+a detailed description of server selection, refer to
+`<servers-of-happiness.rst#upload-strategy-of-happiness>`_.
 
 Before a file upload is called successful, it has to pass an upload health
 check. For immutable files, we check to see that a condition called
