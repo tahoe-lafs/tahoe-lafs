@@ -82,6 +82,8 @@ class URIHandler(RenderMixin, rend.Page):
 
     def childFactory(self, ctx, name):
         # 'name' is expected to be a URI
+        req = IRequest(ctx)
+        req.setHeader("X-Frame-Options", "SAMEORIGIN")
         try:
             node = self.client.create_node_from_uri(name)
             return directory.make_handler_for(node, self.client)
@@ -99,6 +101,7 @@ class FileHandler(rend.Page):
 
     def childFactory(self, ctx, name):
         req = IRequest(ctx)
+        req.setHeader("X-Frame-Options", "SAMEORIGIN")
         if req.method not in ("GET", "HEAD"):
             raise WebError("/file can only be used with GET or HEAD")
         # 'name' must be a file URI
