@@ -45,7 +45,15 @@ Here's how it works:
 A "storage grid" is made up of a number of storage servers.  A storage server
 has direct attached storage (typically one or more hard disks).  A "gateway"
 uses the storage servers and provides access to the filesystem over HTTP(S)
-or (S)FTP.
+or (S)FTP to tahoe clients.
+Note that you can find gateway nodes referred sometimes as client nodes. The
+Tahoe-LAFS architecture defines gateways as "nodes that provide access to
+files residing in storage nodes". You can see "clients" also referring to
+processes or programs connecting to a gateway node and performing operations
+on the grid (for exemple, the CLI binary).
+Gateways give access to files in the grid via protocols such as HTTP, FTP or
+SFTP. So, the gateways act as "clients" to other storage nodes at the same
+time that they are serving files to client programs (WebUI, (S)FTP clients).
 
 Users do not rely on storage servers to provide *confidentiality* nor
 *integrity* for their data -- instead all of the data is encrypted and
