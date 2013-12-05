@@ -4580,7 +4580,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             r = simplejson.loads(res)
             self.failUnlessEqual(r["summary"], "Healthy")
             self.failUnless(r["results"]["healthy"])
-            self.failIf(r["results"]["needs-rebalancing"])
+            self.failIfIn("needs-rebalancing", r["results"])
             self.failUnless(r["results"]["recoverable"])
         d.addCallback(_got_json_good)
 
@@ -4624,8 +4624,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessEqual(r["summary"],
                                  "Not Healthy: 9 shares (enc 3-of-10)")
             self.failIf(r["results"]["healthy"])
-            self.failIf(r["results"]["needs-rebalancing"])
             self.failUnless(r["results"]["recoverable"])
+            self.failIfIn("needs-rebalancing", r["results"])
         d.addCallback(_got_json_sick)
 
         d.addCallback(self.CHECK, "dead", "t=check")
@@ -4638,8 +4638,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessEqual(r["summary"],
                                  "Not Healthy: 1 shares (enc 3-of-10)")
             self.failIf(r["results"]["healthy"])
-            self.failIf(r["results"]["needs-rebalancing"])
             self.failIf(r["results"]["recoverable"])
+            self.failIfIn("needs-rebalancing", r["results"])
         d.addCallback(_got_json_dead)
 
         d.addCallback(self.CHECK, "corrupt", "t=check&verify=true")
@@ -4652,6 +4652,8 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessIn("Unhealthy: 9 shares (enc 3-of-10)", r["summary"])
             self.failIf(r["results"]["healthy"])
             self.failUnless(r["results"]["recoverable"])
+            self.failIfIn("needs-rebalancing", r["results"])
+            self.failUnlessReallyEqual(r["results"]["count-happiness"], 9)
             self.failUnlessReallyEqual(r["results"]["count-shares-good"], 9)
             self.failUnlessReallyEqual(r["results"]["count-corrupt-shares"], 1)
         d.addCallback(_got_json_corrupt)
@@ -5100,12 +5102,14 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessEqual(u0["type"], "directory")
             self.failUnlessReallyEqual(to_str(u0["cap"]), self.rootnode.get_uri())
             u0cr = u0["check-results"]
+            self.failUnlessReallyEqual(u0cr["results"]["count-happiness"], 10)
             self.failUnlessReallyEqual(u0cr["results"]["count-shares-good"], 10)
 
             ugood = [u for u in units
                      if u["type"] == "file" and u["path"] == [u"good"]][0]
             self.failUnlessReallyEqual(to_str(ugood["cap"]), self.uris["good"])
             ugoodcr = ugood["check-results"]
+            self.failUnlessReallyEqual(ugoodcr["results"]["count-happiness"], 10)
             self.failUnlessReallyEqual(ugoodcr["results"]["count-shares-good"], 10)
 
             stats = units[-1]
@@ -5204,6 +5208,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessEqual(last_unit["path"], ["subdir"])
             r = last_unit["check-results"]["results"]
             self.failUnlessReallyEqual(r["count-recoverable-versions"], 0)
+            self.failUnlessReallyEqual(r["count-happiness"], 1)
             self.failUnlessReallyEqual(r["count-shares-good"], 1)
             self.failUnlessReallyEqual(r["recoverable"], False)
         d.addCallback(_check_broken_deepcheck)
@@ -5281,6 +5286,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessReallyEqual(to_str(u0["cap"]), self.rootnode.get_uri())
             u0crr = u0["check-and-repair-results"]
             self.failUnlessReallyEqual(u0crr["repair-attempted"], False)
+            self.failUnlessReallyEqual(u0crr["pre-repair-results"]["results"]["count-happiness"], 10)
             self.failUnlessReallyEqual(u0crr["pre-repair-results"]["results"]["count-shares-good"], 10)
 
             ugood = [u for u in units
@@ -5288,6 +5294,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessEqual(to_str(ugood["cap"]), self.uris["good"])
             ugoodcrr = ugood["check-and-repair-results"]
             self.failUnlessReallyEqual(ugoodcrr["repair-attempted"], False)
+            self.failUnlessReallyEqual(ugoodcrr["pre-repair-results"]["results"]["count-happiness"], 10)
             self.failUnlessReallyEqual(ugoodcrr["pre-repair-results"]["results"]["count-shares-good"], 10)
 
             usick = [u for u in units
@@ -5296,7 +5303,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             usickcrr = usick["check-and-repair-results"]
             self.failUnlessReallyEqual(usickcrr["repair-attempted"], True)
             self.failUnlessReallyEqual(usickcrr["repair-successful"], True)
+            self.failUnlessReallyEqual(usickcrr["pre-repair-results"]["results"]["count-happiness"], 9)
             self.failUnlessReallyEqual(usickcrr["pre-repair-results"]["results"]["count-shares-good"], 9)
+            self.failUnlessReallyEqual(usickcrr["post-repair-results"]["results"]["count-happiness"], 10)
             self.failUnlessReallyEqual(usickcrr["post-repair-results"]["results"]["count-shares-good"], 10)
 
             stats = units[-1]

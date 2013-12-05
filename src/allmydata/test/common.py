@@ -70,7 +70,7 @@ class FakeCHKFileNode:
         s = StubServer("\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
-                         needs_rebalancing=False,
+                         count_happiness=10,
                          count_shares_needed=3,
                          count_shares_expected=10,
                          count_shares_good=10,
@@ -282,7 +282,7 @@ class FakeMutableFileNode:
         s = StubServer("\x00"*20)
         r = CheckResults(self.my_uri, self.storage_index,
                          healthy=True, recoverable=True,
-                         needs_rebalancing=False,
+                         count_happiness=10,
                          count_shares_needed=3,
                          count_shares_expected=10,
                          count_shares_good=10,

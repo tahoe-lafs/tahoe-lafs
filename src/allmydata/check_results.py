@@ -8,7 +8,7 @@ class CheckResults:
     implements(ICheckResults)
 
     def __init__(self, uri, storage_index,
-                 healthy, recoverable, needs_rebalancing,
+                 healthy, recoverable, count_happiness,
                  count_shares_needed, count_shares_expected,
                  count_shares_good, count_good_share_hosts,
                  count_recoverable_versions, count_unrecoverable_versions,
@@ -31,8 +31,8 @@ class CheckResults:
         self._recoverable = recoverable
         if not self._recoverable:
             assert not self._healthy
-        self._needs_rebalancing_p = bool(needs_rebalancing)
 
+        self._count_happiness = count_happiness
         self._count_shares_needed = count_shares_needed
         self._count_shares_expected = count_shares_expected
         self._count_shares_good = count_shares_good
@@ -78,8 +78,8 @@ class CheckResults:
     def is_recoverable(self):
         return self._recoverable
 
-    def needs_rebalancing(self):
-        return self._needs_rebalancing_p
+    def get_happiness(self):
+        return self._count_happiness
 
     def get_encoding_needed(self):
         return self._count_shares_needed
@@ -120,7 +120,8 @@ class CheckResults:
                    for (s, SI, shnum) in self._list_corrupt_shares]
         incompatible = [(s.get_serverid(), SI, shnum)
                         for (s, SI, shnum) in self._list_incompatible_shares]
-        d = {"count-shares-needed": self._count_shares_needed,
+        d = {"count-happiness": self._count_happiness,
+             "count-shares-needed": self._count_shares_needed,
              "count-shares-expected": self._count_shares_expected,
              "count-shares-good": self._count_shares_good,
              "count-good-share-hosts": self._count_good_share_hosts,
