@@ -404,6 +404,20 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
 
     def _calculate_tasks(self):
         self.upload_plan = self.peer_selector.get_tasks()
+        self.upload_allocations = []
+        while self.trackers:
+            tracker = self.trackers.pop(0)
+            assert isinstance(tracker, ServerTracker)
+
+            shares_to_ask = set()
+            for shnum, tracker_id in self.upload_plan.items():
+                if tracker_id == None:
+                    continue
+                if tracker.get_serverid() in tracker_id:
+                    shares_to_ask.add(shnum)
+
+            if len(shares_to_ask) != 0:
+                self.upload_allocations.append((tracker, shares_to_ask))
 
     def _handle_existing_response(self, res, tracker):
         """
@@ -450,42 +464,15 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
                          self.good_query_count, self.bad_query_count,
                          self.full_count, self.error_count))
 
-    def _get_next_allocation(self):
-        """
-        Return the next share allocation that we need to make.
-
-        Specifically, I return a tuple (tracker, shares_to_ask), where
-        tracker is a ServerTracker instance and shares_to_ask is a set of
-        shares that we should store on that server. If there are no more
-        allocations to make, I return None.
-        """
-
-        while self.trackers:
-            tracker = self.trackers.pop(0)
-            assert isinstance(tracker, ServerTracker)
-
-            shares_to_ask = set()
-            for shnum, tracker_id in self.upload_plan.items():
-                if tracker_id == None:
-                    continue
-                if tracker.get_serverid() in tracker_id:
-                    shares_to_ask.add(shnum)
-
-            if len(shares_to_ask) != 0:
-                if self._status:
-                    self._status.set_status("Contacting Servers [%s] (first query),"
-                                            " %d shares left.."
-                                            % (tracker.get_name(),
-                                            len(self.homeless_shares)))
-                return (tracker, shares_to_ask)
-
-        return None
-
     def is_happiness_possible(self):
         return servers_of_happiness(self.upload_plan) >= self.servers_of_happiness
 
     def _request_another_allocation(self):
-        allocation = self._get_next_allocation()
+        if self.upload_allocations:
+            allocation = self.upload_allocations.pop(0)
+        else:
+            allocation = None
+
         if self.is_happiness_possible() and allocation is not None:
             tracker, shares_to_ask = allocation
             d = tracker.query(shares_to_ask)
