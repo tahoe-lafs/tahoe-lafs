@@ -465,8 +465,7 @@ class Tahoe2ServerSelector(log.PrefixingLogMixin):
             assert isinstance(tracker, ServerTracker)
 
             shares_to_ask = set()
-            servermap = self.upload_plan
-            for shnum, tracker_id in servermap.items():
+            for shnum, tracker_id in self.upload_plan.items():
                 if tracker_id == None:
                     continue
                 if tracker.get_serverid() in tracker_id:
@@ -1006,12 +1005,13 @@ class CHKUploader:
         for tracker in upload_trackers:
             assert isinstance(tracker, ServerTracker)
         buckets = {}
-        servermap = already_serverids.copy()
+        # Dictionary of sharenum to set(serverids).
+        sharemap_of_sets = already_serverids.copy()
         for tracker in upload_trackers:
             buckets.update(tracker.buckets)
             for shnum in tracker.buckets:
                 self._server_trackers[shnum] = tracker
-                servermap.setdefault(shnum, set()).add(tracker.get_serverid())
+                sharemap_of_sets.setdefault(shnum, set()).add(tracker.get_serverid())
         assert len(buckets) == sum([len(tracker.buckets)
                                     for tracker in upload_trackers]), \
             "%s (%s) != %s (%s)" % (
@@ -1020,7 +1020,7 @@ class CHKUploader:
                 sum([len(tracker.buckets) for tracker in upload_trackers]),
                 [(t.buckets, t.get_serverid()) for t in upload_trackers]
                 )
-        encoder.set_shareholders(buckets, servermap)
+        encoder.set_shareholders(buckets, sharemap_of_sets)
 
     def _encrypted_done(self, verifycap):
         """Returns a Deferred that will fire with the UploadResults instance."""
