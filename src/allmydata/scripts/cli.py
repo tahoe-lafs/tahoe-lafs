@@ -335,6 +335,7 @@ class BackupOptions(FilesystemOptions):
     optFlags = [
         ("verbose", "v", "Be noisy about what is happening."),
         ("ignore-timestamps", None, "Do not use backupdb timestamps to decide whether a local file is unchanged."),
+        ("printcap", None, "Print resulting backup URI after completion."),
         ]
 
     vcs_patterns = ('CVS', 'RCS', 'SCCS', '.git', '.gitignore', '.cvsignore',

@@ -142,6 +142,8 @@ class BackerUpper:
                                  % (self.files_checked,
                                     self.directories_checked))
             print >>stdout, " backup done, elapsed time: %s" % elapsed_time
+            if options['printcap']:
+                print >>stdout, " Resulting backup stored at: %s" % quote_output(new_backup_dircap, quotemarks=False)
 
         # The command exits with code 2 if files or directories were skipped
         if self.files_skipped or self.directories_skipped:
