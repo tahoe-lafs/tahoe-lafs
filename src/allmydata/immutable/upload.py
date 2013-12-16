@@ -55,6 +55,7 @@ class HelperUploadResults(Copyable, RemoteCopy):
         self.file_size = None
         self.ciphertext_fetched = None # how much the helper fetched
         self.uri = None
+        self.preexisting_shares = None # count of shares already present
         self.pushed_shares = None # count of shares we pushed
 
 class UploadResults:
