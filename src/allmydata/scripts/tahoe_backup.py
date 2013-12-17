@@ -127,7 +127,7 @@ class BackerUpper:
         elapsed_time = str(end_timestamp - start_timestamp).split('.')[0]
 
         if self.verbosity >= 1:
-            print >>stdout, (" %d files uploaded (%d reused), "
+            print >>stderr, (" %d files uploaded (%d reused), "
                              "%d files skipped, "
                              "%d directories created (%d reused), "
                              "%d directories skipped"
@@ -138,12 +138,12 @@ class BackerUpper:
                                 self.directories_reused,
                                 self.directories_skipped))
             if self.verbosity >= 2:
-                print >>stdout, (" %d files checked, %d directories checked"
+                print >>stderr, (" %d files checked, %d directories checked"
                                  % (self.files_checked,
                                     self.directories_checked))
-            print >>stdout, " backup done, elapsed time: %s" % elapsed_time
+            print >>stderr, " backup done, elapsed time: %s" % elapsed_time
             if options['printcap']:
-                print >>stdout, " Resulting backup stored at: %s" % quote_output(new_backup_dircap, quotemarks=False)
+                print >>stdout, new_backup_dircap
 
         # The command exits with code 2 if files or directories were skipped
         if self.files_skipped or self.directories_skipped:
