@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 import os.path
 from coverage import coverage, summary, misc

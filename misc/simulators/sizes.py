@@ -1,4 +1,5 @@
-#! /usr/bin/env python
+﻿#! /usr/bin/env python
+# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 import random, math, re
 from twisted.python import usage

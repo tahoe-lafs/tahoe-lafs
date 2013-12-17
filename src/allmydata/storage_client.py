@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 """
 I contain the client-side code which speaks to storage servers, in particular

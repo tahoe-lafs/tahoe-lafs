@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 # -*- python -*-
 
 from twisted.internet import reactor

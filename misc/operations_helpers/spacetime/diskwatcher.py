@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 from axiom.item import Item
 from axiom.attributes import text, integer, timestamp

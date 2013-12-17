@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 # -*- test-case-name: allmydata.test.test_encode_share -*-
 
 from zope.interface import implements

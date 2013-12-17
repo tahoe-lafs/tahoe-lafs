@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 from nevow import inevow, rend, loaders, tags as T
 import math

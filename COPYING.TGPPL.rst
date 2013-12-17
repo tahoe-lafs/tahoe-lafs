@@ -1,4 +1,4 @@
-﻿.. -*- coding: utf-8-with-signature -*-
+﻿.. -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 This work also comes with the added permission that you may combine it with a
 work licensed under the OpenSSL license (any version) and distribute the

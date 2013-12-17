@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 import datetime, os.path, re, types, ConfigParser, tempfile
 from base64 import b32decode, b32encode
 
