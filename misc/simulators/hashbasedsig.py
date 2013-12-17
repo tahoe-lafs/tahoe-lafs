@@ -1,4 +1,5 @@
-#!python
+﻿#!python
+# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 # range of hash output lengths
 range_L_hash = [128]

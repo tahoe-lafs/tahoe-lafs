@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 # this is adapted from my code in Buildbot  -warner
 

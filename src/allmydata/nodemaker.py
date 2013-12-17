@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 import weakref
 from zope.interface import implements
 from allmydata.util.assertutil import precondition

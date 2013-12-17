@@ -1,4 +1,5 @@
-#!/bin/false # invoke this with a specific python
+﻿#!/bin/false # invoke this with a specific python
+# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 import sys, shutil, os.path
 from subprocess import Popen, PIPE

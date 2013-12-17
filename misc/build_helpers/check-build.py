@@ -1,4 +1,5 @@
-#! /usr/bin/env python
+﻿#! /usr/bin/env python
+# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 # This helper script is used with the 'test-desert-island' Makefile target.
 

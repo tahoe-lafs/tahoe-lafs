@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 from zope.interface import Interface, implements
 from allmydata.util import observer

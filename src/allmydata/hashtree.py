@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 # -*- test-case-name: allmydata.test.test_hashtree -*-
 
 from allmydata.util import mathutil # from the pyutil library
