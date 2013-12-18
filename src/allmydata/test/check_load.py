@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 """
 this is a load-generating client program. It does all of its work through a
 given tahoe node (specified by URL), and performs random reads and writes

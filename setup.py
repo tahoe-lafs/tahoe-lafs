@@ -1,5 +1,6 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
+﻿#! /usr/bin/env python
+# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.6 and 2.7.x inclusive."
 
 # Tahoe-LAFS -- secure, distributed storage grid

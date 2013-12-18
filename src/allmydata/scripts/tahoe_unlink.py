@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 import urllib
 from allmydata.scripts.common_http import do_http, format_http_success, format_http_error

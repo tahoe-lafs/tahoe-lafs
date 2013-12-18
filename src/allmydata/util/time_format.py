@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 # ISO-8601:
 # http://www.cl.cam.ac.uk/~mgk25/iso-time.html
 

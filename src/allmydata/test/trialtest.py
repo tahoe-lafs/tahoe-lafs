@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 # This is a dummy test suite that we can use to check that 'tahoe debug trial'
 # is working properly. Since the module name does not start with 'test_', it

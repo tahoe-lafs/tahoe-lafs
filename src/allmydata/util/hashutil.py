@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 from pycryptopp.hash.sha256 import SHA256
 import os
 from allmydata.util.netstring import netstring

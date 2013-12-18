@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 def foo(): pass # keep the line number constant
 
@@ -45,7 +47,7 @@ class NoArgumentException(Exception):
 class HumanReadable(unittest.TestCase):
     def test_repr(self):
         hr = humanreadable.hr
-        self.failUnlessEqual(hr(foo), "<foo() at test_util.py:2>")
+        self.failUnlessEqual(hr(foo), "<foo() at test_util.py:4>")
         self.failUnlessEqual(hr(self.test_repr),
                              "<bound method HumanReadable.test_repr of <allmydata.test.test_util.HumanReadable testMethod=test_repr>>")
         self.failUnlessEqual(hr(1L), "1")

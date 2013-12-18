@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 import os
 from pycryptopp.publickey import ed25519
 from allmydata.util.base32 import a2b, b2a

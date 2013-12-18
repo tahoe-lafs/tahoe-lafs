@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 # Copyright (c) 2009 Shawn Willden
 # mailto:shawn@willden.org
 # I hereby license all patches I have contributed or will contribute to the

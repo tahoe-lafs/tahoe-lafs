@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 from zope.interface import implements
 from twisted.internet import defer
 from foolscap.api import DeadReferenceError, RemoteException

@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 # This contains a test harness that creates a full Tahoe grid in a single
 # process (actually in a single MultiService) which does not use the network.

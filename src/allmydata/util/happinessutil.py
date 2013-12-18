@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 """
 I contain utilities useful for calculating servers_of_happiness, and for
 reporting it in messages

@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 from twisted.trial import unittest
 from allmydata.util.netstring import netstring, split_netstring

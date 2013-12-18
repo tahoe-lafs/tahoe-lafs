@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 import hotshot.stats, os, random, sys
 
 from pyutil import benchutil, randutil # http://tahoe-lafs.org/trac/pyutil

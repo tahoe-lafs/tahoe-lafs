@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 import time, os, pickle, struct
 from allmydata.storage.crawler import ShareCrawler
 from allmydata.storage.shares import get_share_file

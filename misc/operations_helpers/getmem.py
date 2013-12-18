@@ -1,4 +1,6 @@
-#! /usr/bin/env python
+﻿#! /usr/bin/env python
+# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 from foolscap import Tub
 from foolscap.eventual import eventually
