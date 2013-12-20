@@ -25,7 +25,7 @@ class CreateNodeOptions(CreateClientOptions):
         ("no-storage", None, "Do not offer storage service to other nodes."),
         ]
     optParameters = [
-        ("storedir", "s",  None, "Path where the storage will be place."),
+        ("storedir", "s",  None, "Path where the storage will be placed."),
         ("tempdir", "t",  None, "Path to the temporary directory."),
         ]
 
