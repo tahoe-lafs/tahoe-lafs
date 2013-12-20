@@ -249,7 +249,11 @@ class PickleStatsGatherer(StdOutStatsGatherer):
     def __init__(self, basedir=".", verbose=True):
         self.verbose = verbose
         StatsGatherer.__init__(self, basedir)
-        self.picklefile = os.path.join(basedir, "stats.pickle")
+        if os.path.exists(self.basedir + "pickledir"):
+            pickledir = open(self.basedir + "pickledir", "rb").read()
+            self.picklefile = os.path.join(pickledir, "stats.pickle")
+        else:
+            self.picklefile = os.path.join(basedir, "stats.pickle")
 
         if os.path.exists(self.picklefile):
             f = open(self.picklefile, 'rb')
