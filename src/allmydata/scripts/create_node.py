@@ -26,6 +26,7 @@ class CreateNodeOptions(CreateClientOptions):
         ]
     optParameters = [
         ("storedir", "s",  None, "Path where the storage will be place."),
+        ("tempdir", "t",  None, "Path to the temporary directory."),
         ]
 
     def getSynopsis(self):
@@ -97,6 +98,11 @@ def write_node_config(c, config):
         c.write("logdir = %s\n" % logdir)
     else:
         c.write("#logdir =\n")
+    tempdir = config.get("tempdir", "")
+    if tempdir:
+        c.write("tempdir = %s\n" % tempdir)
+    else:
+        c.write("#tempdir =\n")
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
     c.write("#timeout.disconnect =\n")
