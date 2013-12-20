@@ -286,6 +286,9 @@ in (but do not create the directory). Then run:
 and start it with "tahoe start $BASEDIR". Once running, the gatherer will
 write a FURL into $BASEDIR/stats_gatherer.furl .
 
+You can add use the --pickledir option to the above command to specify a
+directory where to put the statistics if you don't want them to be in $BASEDIR.
+
 To configure a Tahoe client/server node to contact the stats gatherer, copy
 this FURL into the node's tahoe.cfg file, in a section named "[client]",
 under a key named "stats_gatherer.furl", like so:
