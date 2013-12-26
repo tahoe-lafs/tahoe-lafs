@@ -15,7 +15,7 @@ SOURCES=src/allmydata src/buildtest static misc bin/tahoe-script.template twiste
 .PHONY: make-version build
 
 # This is necessary only if you want to automatically produce a new
-# _version.py file from the current git/darcs history.
+# _version.py file from the current git/darcs history (without doing a build).
 make-version:
 	$(PYTHON) ./setup.py update_version
 
@@ -26,7 +26,7 @@ src/allmydata/_version.py:
 	$(MAKE) make-version
 
 # It is unnecessary to have this depend on build or src/allmydata/_version.py,
-# since 'setup.py build' always updates the version using 'darcsver --count-all-patches'.
+# since 'setup.py build' always updates the version.
 build:
 	$(PYTHON) setup.py build
 	touch .built
@@ -58,7 +58,7 @@ test-coverage: build
 	rm -f .coverage
 	$(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
 
-quicktest:
+quicktest: make-version
 	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
 
 # "make tmpfstest" may be a faster way of running tests on Linux. It works best when you have
@@ -67,7 +67,7 @@ quicktest:
 tmpfstest:
 	time make _tmpfstest 'TMPDIR=$(shell mktemp -d --tmpdir=.)'
 
-_tmpfstest:
+_tmpfstest: make-version
 	sudo mount -t tmpfs -o size=400m tmpfs '$(TMPDIR)'
 	-$(TAHOE) debug trial --rterrors '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
 	sudo umount '$(TMPDIR)'
@@ -79,7 +79,7 @@ _tmpfstest:
 # coverage-output" for a pretty HTML report. Also see "make .coverage.el" and
 # misc/coding_tools/coverage.el for emacs integration.
 
-quicktest-coverage:
+quicktest-coverage: make-version
 	rm -f .coverage
 	PYTHONPATH=. $(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
 # on my laptop, "quicktest" takes 239s, "quicktest-coverage" takes 304s
@@ -230,17 +230,22 @@ test-clean:
 # It would be nice if 'make clean' deleted any automatically-generated
 # _version.py too, so that 'make clean; make all' could be useable as a
 # "what the heck is going on, get me back to a clean state', but we need
-# 'make clean' to work on non-darcs trees without destroying useful information.
+# 'make clean' to work on non-checkout trees without destroying useful information.
+# Use 'make distclean' instead to delete all generated files.
 clean:
 	rm -rf build _trial_temp _test_memory .built
 	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
-	rm -rf src/allmydata_tahoe.egg-info
 	rm -rf support dist
 	rm -rf `ls -d *.egg | grep -vEe"setuptools-|setuptools_darcs-|darcsver-"`
 	rm -rf *.pyc
 	rm -rf misc/dependencies/build misc/dependencies/temp
 	rm -rf misc/dependencies/tahoe_deps.egg-info
 	rm -f bin/tahoe bin/tahoe.pyscript
+
+distclean: clean
+	rm -rf src/allmydata_tahoe.egg-info
+	rm -f src/allmydata/_version.py
+	rm -f src/allmydata/_appname.py
 
 find-trailing-spaces:
 	$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r $(SOURCES)

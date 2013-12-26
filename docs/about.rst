@@ -1,6 +1,4 @@
-﻿
-
-.. -*- coding: utf-8 -*-
+﻿.. -*- coding: utf-8-with-signature -*-
 
 Welcome to Tahoe-LAFS!
 ======================
@@ -22,7 +20,7 @@ misconfigurations, or operator error can accidentally expose your data to
 another customer or to the public, or can corrupt your data.  Criminals
 routinely gain illicit access to corporate servers.  Even more insidious is
 the fact that the employees themselves sometimes violate customer privacy out
-of carelessness, avarice, or mere curiousity.  The most conscientious of
+of carelessness, avarice, or mere curiosity.  The most conscientious of
 these service providers spend considerable effort and expense trying to
 mitigate these risks.
 
@@ -46,8 +44,13 @@ Here's how it works:
 
 A "storage grid" is made up of a number of storage servers.  A storage server
 has direct attached storage (typically one or more hard disks).  A "gateway"
-uses the storage servers and provides access to the filesystem over HTTP(S)
-or (S)FTP.
+communicates with storage nodes, and uses them to provide access to the
+filesystem over protocols such as HTTP(S), SFTP or FTP.
+
+Note that you can find "client" used to refer to gateway nodes (which act as
+a client to storage servers), and also to processes or programs connecting to
+a gateway node and performing operations on the grid -- for example, a CLI
+command, Web browser, SFTP client, or FTP client.
 
 Users do not rely on storage servers to provide *confidentiality* nor
 *integrity* for their data -- instead all of the data is encrypted and

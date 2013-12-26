@@ -1,4 +1,6 @@
-﻿This work also comes with the added permission that you may combine it with a
+﻿.. -*- coding: utf-8-with-signature -*-
+
+This work also comes with the added permission that you may combine it with a
 work licensed under the OpenSSL license (any version) and distribute the
 resulting combined work, as long as you follow the requirements of the
 licences of this work in regard to all of the resulting combined work

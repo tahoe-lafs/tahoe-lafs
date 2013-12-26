@@ -1,3 +1,5 @@
+﻿.. -*- coding: utf-8-with-signature -*-
+
 =======================
 The Tahoe Upload Helper
 =======================
@@ -17,7 +19,7 @@ them during download. With the default 3-of-10 encoding parameters, this
 means that an upload will require about 3.3x the traffic as a download of the
 same file.
 
-.. _architecture.rst: file:architecture.rst
+.. _architecture.rst: architecture.rst
 
 Unfortunately, this "expansion penalty" occurs in the same upstream direction
 that most consumer DSL lines are slow anyways. Typical ADSL lines get 8 times
@@ -132,7 +134,7 @@ give you, and edit your tahoe.cfg file. Enter the helper's furl into the
 value of the key "helper.furl" in the "[client]" section of tahoe.cfg, as
 described in the "Client Configuration" section of configuration.rst_.
 
-.. _configuration.rst: file:configuration.rst
+.. _configuration.rst: configuration.rst
 
 Then restart the node. This will signal the client to try and connect to the
 helper. Subsequent uploads will use the helper rather than using direct
