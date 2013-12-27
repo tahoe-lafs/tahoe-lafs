@@ -15,7 +15,7 @@ from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
      get_arg, RenderMixin, get_format, get_mutable_type, TIME_FORMAT
-
+from allmydata.scripts.common import get_aliases, get_default_nodedir
 
 class URIHandler(RenderMixin, rend.Page):
     # I live at /uri . There are several operations defined on /uri itself,
@@ -263,6 +263,16 @@ class Root(rend.Page):
     def data_services(self, ctx, data):
         sb = self.client.get_storage_broker()
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
+
+    def data_list_aliases(self, ctx, data):
+        aliases = get_aliases(get_default_nodedir())
+        return sorted(aliases.items())
+
+    def render_list_aliases_row(self, ctx, alias):
+        ctx.fillSlots("alias_name", alias[0])
+        ctx.fillSlots("alias_uri", "uri/" + alias[1])
+        ctx.fillSlots("alias_short_uri", alias[1].split("DIR2:")[1][:15])
+        return ctx.tag
 
     def render_service_row(self, ctx, server):
         nodeid = server.get_serverid()
