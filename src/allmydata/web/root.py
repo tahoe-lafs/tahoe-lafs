@@ -123,7 +123,7 @@ class IncidentReporter(RenderMixin, rend.Page):
                 details=get_arg(req, "details", ""),
                 level=log.WEIRD, umid="LkD9Pw")
         req.setHeader("content-type", "text/plain")
-        return "An incident report has been saved to logs/incidents/ in the node directory."
+        return "An incident report has been saved to logs/incidents/ in the node directory (or the configured 'incident_dir')."
 
 SPACE = u"\u00A0"*2
 
