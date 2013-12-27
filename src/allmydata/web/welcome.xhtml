@@ -46,6 +46,22 @@
                  <p><input type="submit" class="btn" value="View File or Directory &#187;" /></p>
                </form>
             </div>
+            <div class="nav-header">Aliases</div>
+            <div class="aliases"/>
+            <table n:render="sequence" n:data="list_aliases">
+              <thead n:pattern="header">
+                <tr>
+                  <td><h5>Alias</h5></td>
+                  <td><h5>URI</h5></td>
+                </tr>
+              </thead>
+              <tr n:pattern="item" n:render="list_aliases_row">
+                <td>
+                  <a><n:attr name="href"><n:slot name="alias_uri" /></n:attr><n:slot name="alias_name" /></a>
+                </td>
+                <td><n:slot name="alias_short_uri" /></td>
+              </tr>
+            </table>
             <hr/>
 
             <div class="nav-header">Download Tahoe-URI:</div>
