@@ -287,14 +287,15 @@ set the ``tub.location`` option described below.
     used for files that usually (on a Unix system) go into ``/tmp``. The
     string will be interpreted relative to the node's base directory.
 
-``logdir = (string, optional)``
+``incident_dir = (string, optional)``
 
-    This specifies a logging directory, where Tahoe-LAFS will store the logging
-    messages.
+    This specifies a incident directory, where Tahoe-LAFS will store the
+    incident messages.
 
-    The default value is the ``logs`` directory in the node's base directory
-    (i.e. ``BASEDIR/logs``), but it can be placed elsewhere. If the string don't
-    starts with ``/`` will be interpreted relative to the node's base directory.
+    The default value is the ``logs/incidents`` directory in the node's base
+    directory (i.e. ``BASEDIR/logs/incidents``), but it can be placed
+    elsewhere. If the string don't starts with ``/`` will be interpreted
+    relative to the node's base directory.
 
 .. _webapi.rst: frontends/webapi.rst
 
