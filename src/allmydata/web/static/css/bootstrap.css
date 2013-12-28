@@ -192,6 +192,8 @@ a:hover {
   width: 380px;
 }
 .span4 {
+  position: absolute;
+  right: 0px;
   width: 300px;
 }
 .span3 {
