@@ -287,9 +287,9 @@ set the ``tub.location`` option described below.
     used for files that usually (on a Unix system) go into ``/tmp``. The
     string will be interpreted relative to the node's base directory.
 
-``incident_dir = (string, optional)``
+``incidents_dir = (string, optional)``
 
-    This specifies a incident directory, where Tahoe-LAFS will store the
+    This specifies a incidents directory, where Tahoe-LAFS will store the
     incident messages.
 
     The default value is the ``logs/incidents`` directory in the node's base

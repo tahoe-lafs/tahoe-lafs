@@ -93,11 +93,11 @@ def write_node_config(c, config):
     c.write("web.static = public_html\n")
     c.write("#tub.port =\n")
     c.write("#tub.location = \n")
-    incident_dir = os.path.join(config.get("logdir", ""), "incidents")
-    if incident_dir:
-        c.write("incident_dir = %s\n" % incident_dir)
+    incidents_dir = os.path.join(config.get("logdir", ""), "incidents")
+    if incidents_dir:
+        c.write("incidents_dir = %s\n" % incidents_dir)
     else:
-        c.write("#incident_dir =\n")
+        c.write("#incidents_dir =\n")
     tempdir = config.get("tempdir", "")
     if tempdir:
         c.write("tempdir = %s\n" % tempdir)
