@@ -155,9 +155,9 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.write("reserved_space = 1G\n")
     storedir = config.get("storedir", "")
     if storedir:
-        c.write("storedir = %s\n" % storedir)
+        c.write("storage_dir = %s\n" % storedir)
     else:
-        c.write("#storedir =\n")
+        c.write("#storage_dir =\n")
     c.write("#expire.enabled =\n")
     c.write("#expire.mode =\n")
     c.write("\n")

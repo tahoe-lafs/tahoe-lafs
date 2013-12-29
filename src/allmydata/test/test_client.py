@@ -157,7 +157,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            BASECONFIG + \
                            "[storage]\n" + \
                            "enabled = true\n" + \
-                           "storedir = myowndir\n")
+                           "storage_dir = myowndir\n")
         c = client.Client(basedir)
         self.failUnlessEqual(c.getServiceNamed("storage").storedir,
                              os.path.join(os.getcwd(), basedir, "myowndir"))

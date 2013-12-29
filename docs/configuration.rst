@@ -502,7 +502,7 @@ Storage Server Configuration
 .. _#390: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/390
 .. _garbage-collection.rst: garbage-collection.rst
 
-``storedir = (string, optional)``
+``storage_dir = (string, optional)``
 
     This specifies a storing directory.
 
