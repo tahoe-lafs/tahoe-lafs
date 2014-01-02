@@ -89,7 +89,7 @@ class Node(service.MultiService):
 
     def init_tempdir(self):
         local_tempdir_utf8 = "tmp" # default is NODEDIR/tmp/
-        tempdir = self.get_config("node", "tempdir", local_tempdir_utf8).decode('utf-8')
+        tempdir = self.get_config("node", "temp_dir", local_tempdir_utf8).decode('utf-8')
         tempdir = os.path.join(self.basedir, tempdir)
         if not os.path.exists(tempdir):
             fileutil.make_dirs(tempdir)
