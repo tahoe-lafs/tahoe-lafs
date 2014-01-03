@@ -100,9 +100,9 @@ def write_node_config(c, config):
         c.write("#incidents_dir =\n")
     tempdir = config.get("tempdir", "")
     if tempdir:
-        c.write("temp_dir = %s\n" % tempdir)
+        c.write("tempdir = %s\n" % tempdir)
     else:
-        c.write("#temp_dir =\n")
+        c.write("#tempdir =\n")
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
     c.write("#timeout.disconnect =\n")
