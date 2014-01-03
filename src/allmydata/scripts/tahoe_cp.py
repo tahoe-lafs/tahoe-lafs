@@ -18,6 +18,9 @@ class MissingSourceError(TahoeError):
     def __init__(self, name):
         TahoeError.__init__(self, "No such file or directory %s" % quote_output(name))
 
+class ReadOnlyDirError(TahoeError):
+    def __init__(self,url):
+        TahoeError.__init__(self, "Can't cp to %s because it is read-only" % quote_output(url))
 
 def GET_to_file(url):
     resp = do_http("GET", url)
@@ -542,6 +545,9 @@ class Copier:
             elif resp.status == 200:
                 parsed = simplejson.loads(resp.read())
                 nodetype, d = parsed
+                readcap = to_str(d.get("ro_uri"))
+                if readcap == rootcap:
+                    raise ReadOnlyDirError(readcap)
                 if nodetype == "dirnode":
                     t = TahoeDirectoryTarget(self.nodeurl, self.cache,
                                              self.progress)
