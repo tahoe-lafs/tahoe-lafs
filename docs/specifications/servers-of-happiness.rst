@@ -1,6 +1,5 @@
 ﻿.. -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
-====================
 Servers of Happiness
 ====================
 
@@ -20,25 +19,25 @@ than once in the set. The size of the set is called the Happiness value.
 For example, if server A is holding share 0, and server B is holding share 1,
 then the Happiness value is 2.::
 
-  example 1
-  ---------
+    example 1
+    ---------
 
-  server A → share 0
-  server B → share 1
+    server A → share 0
+    server B → share 1
 
-  Happiness value = 2
+    Happiness value = 2
 
 In this case, adding server C holding share 0 would not increase the
 Happiness value.::
 
-  example 2
-  ---------
+    example 2
+    ---------
 
-  server A → share 0
-  server B → share 1
-  server C → share 1
+    server A → share 0
+    server B → share 1
+    server C → share 1
 
-  Happiness value = 2
+    Happiness value = 2
 
 You can understand this intuitively as being that server C doesn't increase
 the robustness of the file as well as it could. Server C will help if server
@@ -48,14 +47,14 @@ provided, if server A disappears.
 But if the added server C held a new share, then it would increase the
 Happiness value.::
 
-  example 3
-  ---------
+    example 3
+    ---------
 
-  server A → share 0
-  server B → share 1
-  server C → share 2
+    server A → share 0
+    server B → share 1
+    server C → share 2
 
-  Happiness value = 3
+    Happiness value = 3
 
 Now if each server holds at most one share, then this measure of robustness
 is very intuitive — it is basically just "the number of servers that each
@@ -66,66 +65,66 @@ may not be as intuitive to some people.
 
 For another example, if you have this distribution::
 
-  example 4
-  ---------
+    example 4
+    ---------
 
-  server A → share 0, share 1
-  server B → share 1, share 2
+    server A → share 0, share 1
+    server B → share 1, share 2
 
-  Happiness value = 2
+    Happiness value = 2
 
 And you add a server C which holds share 1 and share 2, then you increase the
 Happiness level to 3.::
 
-  example 5
-  ---------
+    example 5
+    ---------
 
-  server A → share 0, share 1
-  server B → share 1, share 2
-  server C → share 1, share 2
+    server A → share 0, share 1
+    server B → share 1, share 2
+    server C → share 1, share 2
 
-  Happiness value = 3
+    Happiness value = 3
 
-  example 6
-  ---------
+    example 6
+    ---------
 
-  server A → share 0, share 1
-  server B → share 1, share 2
-  server C → share 0, share 2
+    server A → share 0, share 1
+    server B → share 1, share 2
+    server C → share 0, share 2
 
-  Happiness value = 3
+    Happiness value = 3
 
-  example 7
-  ---------
+    example 7
+    ---------
 
-  server A → share 0, share 1, share 2, share 3
+    server A → share 0, share 1, share 2, share 3
 
-  Happiness value = 1
+    Happiness value = 1
 
-  example 8
-  ---------
+    example 8
+    ---------
 
-  server A → share 0, share 1, share 2, share 3
-  server B → share 0
+    server A → share 0, share 1, share 2, share 3
+    server B → share 0
 
-  Happiness value = 2
+    Happiness value = 2
 
-  example 9
-  ---------
+    example 9
+    ---------
 
-  server A → share 0, share 1, share 2, share 3
-  server B → share 0, share 1, share 2, share 3
+    server A → share 0, share 1, share 2, share 3
+    server B → share 0, share 1, share 2, share 3
 
-  Happiness value = 2
+    Happiness value = 2
 
-  example 10
-  ----------
+    example 10
+    ----------
 
-  server A → share 0, share 1, share 2, share 3
-  server B → share 0, share 1, share 2, share 3
-  server C → share 0
+    server A → share 0, share 1, share 2, share 3
+    server B → share 0, share 1, share 2, share 3
+    server C → share 0
 
-  Happiness value = 3
+    Happiness value = 3
 
 Although the "servers-of-happiness" measure may not be intuitive when applied
 to servers holding multiple shares, it is important that it gives a
@@ -136,7 +135,7 @@ that case.
 Fortunately, using the "servers-of-happiness" measure has a very nice
 consequence:
 
-  *If you make sure that the Happiness level is greater than or equal to a certain number, H, then you are guaranteed that there are at least H servers **any K of which** can reconstruct the file.*
+  *If you make sure that the Happiness level is greater than or equal to a certain number, H, then you are guaranteed that there are at least H servers any K of which can reconstruct the file.*
 
 (In Tahoe-LAFS terminology, we use *“N”* to mean the total number of shares
 created, and *“K”* to mean the number of shares required to reconstruct the
@@ -160,7 +159,7 @@ which it should abort the upload attempt and report it as a failure.
 
 
 Measuring Servers of Happiness
-==============================
+------------------------------
 
 We calculate servers-of-happiness by constructing a graph with two kinds of
 nodes: servers (represented here lined up on the left-hand side) and shares
@@ -175,13 +174,12 @@ more than once in the set and no share appears more than once in the set. A
 tied for largest.)
 
 Issues
-======
+------
 
 We don't use servers-of-happiness for mutable files yet; this improvement
 will likely come in Tahoe-LAFS version 1.12.
 
 
-============================
 Upload Strategy of Happiness
 ============================
 
@@ -192,7 +190,7 @@ algorithm that will find an optimal placement for the shares in order to
 maximize the servers-of-happiness metric.
 
 Calculating Share Placements
-============================
+----------------------------
 
 We calculate share placement like so:
 
@@ -231,7 +229,7 @@ We calculate share placement like so:
 
 
 Properties of Upload Strategy of Happiness
-==========================================
+------------------------------------------
 
 The size of the maximum bipartite matching is bounded by the size of the smaller
 set of vertices. Therefore in a situation where the set of servers is smaller
