@@ -211,8 +211,7 @@ class Client(node.Node, pollmixin.PollMixin):
                               self.nickname,
                               str(allmydata.__full_version__),
                               str(self.OLDEST_SUPPORTED_VERSION),
-                              self.get_app_versions(),
-                                  self.)
+                              self.get_app_versions())
             self.introducer_clients.append(ic)
         # init introducer_clients as usual
         for ic in self.introducer_clients:
