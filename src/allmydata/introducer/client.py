@@ -217,10 +217,8 @@ class IntroducerClient(service.Service, Referenceable):
         ann_d.update(ann)
         return ann_d
 
-    def publish(self, service_name, ann, signing_key=None):
+    def publish(self, service_name, ann, current_seqnum, current_nonce, signing_key=None):
         # we increment the seqnum every time we publish something new
-        current_seqnum, current_nonce = self._sequencer()
-
         ann_d = self.create_announcement_dict(service_name, ann)
         self._outbound_announcements[service_name] = ann_d
 

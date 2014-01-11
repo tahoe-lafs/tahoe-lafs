@@ -477,7 +477,9 @@ class Queue(SystemTestMixin, unittest.TestCase):
             # now that the introducer server is offline, create a client and
             # publish some messages
             c.setServiceParent(self.parent) # this starts the reconnector
-            c.publish("storage", make_ann(furl1), sk)
+            current_seqnum = 0
+            current_nonce = ""
+            c.publish("storage", make_ann(furl1), current_seqnum, current_nonce, sk)
 
             introducer.setServiceParent(self.parent) # restart the server
             # now wait for the messages to be delivered
