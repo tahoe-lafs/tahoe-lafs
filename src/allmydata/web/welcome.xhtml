@@ -129,25 +129,6 @@
         </div><!--/span-->
         <div class="span9">
           <div style="margin-bottom: 16px">
-            <h2>Connected Introducer(s)</h2>
-          </div>
-          <div>
-          <table n:render="sequence" n:data="introducers">
-            <tr n:pattern="header">
-              <td>Introducer FURL</td>
-              <td>Connected?</td>
-            </tr>
-            <tr n:pattern="item" n:render="introducers_row">
-              <td><tt><n:slot name="introducer_furl"/></tt></td>
-              <td>
-                <n:slot name="connected"/>
-                <n:attr name="class">service-connected connected-<n:slot name="connected-bool"/></n:attr>
-              </td>
-            </tr>
-            <tr n:pattern="empty"><td>no introducers!</td></tr>
-          </table>
-          </div>
-          <div style="margin-bottom: 16px">
             <h1 style="font-size: 48px">Grid Status</h1>
           </div>
           <div class="grid-status">
@@ -174,6 +155,25 @@
                 </div><!--/span-->
               </div><!--/span-->
             </div><!--/row-->
+          </div>
+          <div class="row-fluid">
+            <h2>Connected Introducer(s)</h2>
+          </div>
+          <div>
+          <table n:render="sequence" n:data="introducers">
+            <tr n:pattern="header">
+              <td>Introducer FURL</td>
+              <td>Connected?</td>
+            </tr>
+            <tr n:pattern="item" n:render="introducers_row">
+              <td><tt><n:slot name="introducer_furl"/></tt></td>
+              <td>
+                <n:slot name="connected"/>
+                <n:attr name="class">service-connected connected-<n:slot name="connected-bool"/></n:attr>
+              </td>
+            </tr>
+            <tr n:pattern="empty"><td>no introducers!</td></tr>
+          </table>
           </div>
           <div class="row-fluid">
             <h2>

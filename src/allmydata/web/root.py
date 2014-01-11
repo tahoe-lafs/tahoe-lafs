@@ -219,7 +219,7 @@ class Root(rend.Page):
         return "Introducer(s) connected"
 
     def data_connected_to_introducer(self, ctx, data):
-        if True in self.client.connected_to_introducer():
+        if self.client.connected_to_introducer():
             return "yes"
         return "no"
 
