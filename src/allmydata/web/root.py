@@ -203,7 +203,7 @@ class Root(rend.Page):
 
     def data_introducer_furl_prefix(self, ctx, data):
         #BOOG FIXME this wont work w/68
-        ifurl = self.client.introducer_furl
+        ifurl = self.client.introducer_furls
         # trim off the secret swissnum
         (prefix, _, swissnum) = ifurl.rpartition("/")
         if not ifurl:
