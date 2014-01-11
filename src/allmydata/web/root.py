@@ -238,7 +238,7 @@ class Root(rend.Page):
 
     def render_introducers_row(self, ctx, s):
         (furl, connected) = s
-        status = ("No", "Yes")
+        status = ("no", "yes")
         ctx.fillSlots("introducer_furl", "%s" % (furl))
         ctx.fillSlots("connected-bool", "%s" % (connected))
         ctx.fillSlots("connected", "%s" % (status[int(connected)]))

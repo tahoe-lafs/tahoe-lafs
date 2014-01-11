@@ -160,16 +160,11 @@
             <h2>Connected Introducer(s)</h2>
           </div>
           <div>
-          <table n:render="sequence" n:data="introducers">
-            <tr n:pattern="header">
-              <td>Introducer FURL</td>
-              <td>Connected?</td>
-            </tr>
+          <table class="table table-striped table-bordered peer-status" n:render="sequence" n:data="introducers">
             <tr n:pattern="item" n:render="introducers_row">
-              <td><tt><n:slot name="introducer_furl"/></tt></td>
-              <td>
-                <n:slot name="connected"/>
-                <n:attr name="class">service-connected connected-<n:slot name="connected-bool"/></n:attr>
+              <td class="nickname-and-peerid">
+                <div><n:attr name="class">status-indicator connected-<n:slot name="connected"/></n:attr></div>
+                <div class="introducer_furl"><n:slot name="introducer_furl"/></div>
               </td>
             </tr>
             <tr n:pattern="empty"><td>no introducers!</td></tr>
