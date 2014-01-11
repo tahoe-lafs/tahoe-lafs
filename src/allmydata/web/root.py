@@ -201,17 +201,17 @@ class Root(rend.Page):
 
         return ctx.tag[ul]
 
-    def data_introducer_furl_prefix(self, ctx, data):
-        #BOOG FIXME this wont work w/68
-        ifurl = self.client.introducer_furls
-        # trim off the secret swissnum
-        (prefix, _, swissnum) = ifurl.rpartition("/")
-        if not ifurl:
-            return None
-        if swissnum == "introducer":
-            return ifurl
-        else:
-            return "%s/[censored]" % (prefix,)
+#    def data_introducer_furl_prefix(self, ctx, data):
+#        #BOOG FIXME this wont work w/68
+#        ifurl = self.client.introducer_furls
+#        # trim off the secret swissnum
+#        (prefix, _, swissnum) = ifurl.rpartition("/")
+#        if not ifurl:
+#            return None
+#        if swissnum == "introducer":
+#            return ifurl
+#        else:
+#            return "%s/[censored]" % (prefix,)
 
     def data_introducer_description(self, ctx, data):
         if self.data_connected_to_introducer(ctx, data) == "no":
