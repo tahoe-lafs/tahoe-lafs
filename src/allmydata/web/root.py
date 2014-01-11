@@ -202,6 +202,7 @@ class Root(rend.Page):
         return ctx.tag[ul]
 
     def data_introducer_furl_prefix(self, ctx, data):
+        #BOOG FIXME this wont work w/68
         ifurl = self.client.introducer_furl
         # trim off the secret swissnum
         (prefix, _, swissnum) = ifurl.rpartition("/")
@@ -214,13 +215,34 @@ class Root(rend.Page):
 
     def data_introducer_description(self, ctx, data):
         if self.data_connected_to_introducer(ctx, data) == "no":
-            return "Introducer not connected"
-        return "Introducer"
+            return "No introducers connected"
+        return "Introducer(s) connected"
 
     def data_connected_to_introducer(self, ctx, data):
-        if self.client.connected_to_introducer():
+        if True in self.client.connected_to_introducer():
             return "yes"
         return "no"
+
+    # In case we configure multiple introducers
+    def data_introducers(self, ctx, data):
+        connection_status = []
+        connection_status = self.client.connected_to_introducer()
+        s = []
+        furls = self.client.introducer_furls
+        for furl in furls:
+            if connection_status:
+                i = furls.index(furl)
+                s.append((furl, bool(connection_status[i])))
+        s.sort()
+        return s
+
+    def render_introducers_row(self, ctx, s):
+        (furl, connected) = s
+        status = ("No", "Yes")
+        ctx.fillSlots("introducer_furl", "%s" % (furl))
+        ctx.fillSlots("connected-bool", "%s" % (connected))
+        ctx.fillSlots("connected", "%s" % (status[int(connected)]))
+        return ctx.tag
 
     def data_helper_furl_prefix(self, ctx, data):
         try:

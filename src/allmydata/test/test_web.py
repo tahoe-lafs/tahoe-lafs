@@ -43,7 +43,7 @@ from allmydata.introducer import IntroducerNode
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
 
-timeout = 480 # Most of these take longer than 240 seconds on Francois's arm box.
+timeout = 960 # allmydata.test.test_web.Grid.test_deep_check took longer than 480 seconds on zomp
 
 unknown_rwcap = u"lafs://from_the_future_rw_\u263A".encode('utf-8')
 unknown_rocap = u"ro.lafs://readonly_from_the_future_ro_\u263A".encode('utf-8')
@@ -232,7 +232,7 @@ class FakeClient(Client):
         self.all_contents = {}
         self.nodeid = "fake_nodeid"
         self.nickname = u"fake_nickname \u263A"
-        self.introducer_furl = "None"
+        self.introducer_furls = "None"
         self.stats_provider = FakeStatsProvider()
         self._secret_holder = SecretHolder("lease secret", "convergence secret")
         self.helper = None
@@ -241,7 +241,7 @@ class FakeClient(Client):
         # fake knowledge of another server
         self.storage_broker.test_add_server("other_nodeid",
                                             FakeDisplayableServer("other_nodeid", u"other_nickname \u263B"))
-        self.introducer_client = None
+        self.introducer_clients = None
         self.history = FakeHistory()
         self.uploader = FakeUploader()
         self.uploader.all_contents = self.all_contents
