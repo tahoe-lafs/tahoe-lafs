@@ -81,6 +81,9 @@ class StorageFarmBroker:
         self.servers[serverid] = s
 
     def test_add_server(self, serverid, s):
+        self.add_server(serverid, s)
+
+    def add_server(self, serverid, s):
         self.servers[serverid] = s
 
     def use_introducer(self, introducer_client):

@@ -175,6 +175,12 @@ class Client(node.Node, pollmixin.PollMixin):
         return seqnum, nonce
 
     def init_introducer_client(self):
+
+        # exit function if we are not supposed to use the introducer
+        if not self.get_config("client-server-selection", "use_introducer",
+                           default=True, boolean=True):
+            return
+
         self.introducer_furl = self.get_config("client", "introducer.furl")
         ic = IntroducerClient(self.tub, self.introducer_furl,
                               self.nickname,
@@ -344,25 +350,30 @@ class Client(node.Node, pollmixin.PollMixin):
 
         # load static server specifications from tahoe.cfg, if any.
         # Not quite ready yet.
-        #if self.config.has_section("client-server-selection"):
-        #    server_params = {} # maps serverid to dict of parameters
-        #    for (name, value) in self.config.items("client-server-selection"):
-        #        pieces = name.split(".")
-        #        if pieces[0] == "server":
-        #            serverid = pieces[1]
-        #            if serverid not in server_params:
-        #                server_params[serverid] = {}
-        #            server_params[serverid][pieces[2]] = value
-        #    for serverid, params in server_params.items():
-        #        server_type = params.pop("type")
-        #        if server_type == "tahoe-foolscap":
-        #            s = storage_client.NativeStorageClient(*params)
-        #        else:
-        #            msg = ("unrecognized server type '%s' in "
-        #                   "tahoe.cfg [client-server-selection]server.%s.type"
-        #                   % (server_type, serverid))
-        #            raise storage_client.UnknownServerTypeError(msg)
-        #        sb.add_server(s.serverid, s)
+        if self.config.has_section("client-server-selection"):
+            server_params = {} # maps serverid to dict of parameters
+            for (name, value) in self.config.items("client-server-selection"):
+                serverid = None
+                pieces   = name.split(".")
+
+                if pieces[0] == "server":
+                    serverid = pieces[1]
+                else:
+                    # if not a server line then skip
+                    continue
+                if serverid not in server_params:
+                    server_params[serverid] = {}
+                    server_params[serverid][pieces[2]] = value
+            for serverid, params in server_params.items():
+                server_type = params.pop("type")
+                if server_type == "tahoe-foolscap":
+                    s = storage_client.NativeStorageClient(*params)
+                else:
+                    msg = ("unrecognized server type '%s' in "
+                           "tahoe.cfg [client-server-selection]server.%s.type"
+                           % (server_type, serverid))
+                    raise storage_client.UnknownServerTypeError(msg)
+                sb.add_server(s.serverid, s)
 
         # check to see if we're supposed to use the introducer too
         if self.get_config("client-server-selection", "use_introducer",
