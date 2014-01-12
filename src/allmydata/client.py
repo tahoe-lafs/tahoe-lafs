@@ -351,7 +351,7 @@ class Client(node.Node, pollmixin.PollMixin):
             current_seqnum, current_nonce = self._sequencer()
 
             for ic in self.introducer_clients:
-                ic.publish("storage", ann, current_seqnum, current_nonce, self._server_key)
+                ic.publish("storage", ann, current_seqnum, current_nonce, self._node_key)
 
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",
