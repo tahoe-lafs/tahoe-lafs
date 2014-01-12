@@ -207,18 +207,6 @@ class Root(rend.Page):
     def data_connected_introducers(self, ctx, data):
         return self.client.connected_to_introducer().count(True)
 
-#    def data_introducer_furl_prefix(self, ctx, data):
-#        #BOOG FIXME this wont work w/68
-#        ifurl = self.client.introducer_furls
-#        # trim off the secret swissnum
-#        (prefix, _, swissnum) = ifurl.rpartition("/")
-#        if not ifurl:
-#            return None
-#        if swissnum == "introducer":
-#            return ifurl
-#        else:
-#            return "%s/[censored]" % (prefix,)
-
     def data_introducer_description(self, ctx, data):
         if self.data_connected_to_introducer(ctx, data) == "no":
             return "No introducers connected"
@@ -236,8 +224,13 @@ class Root(rend.Page):
         furls = self.client.introducer_furls
         for furl in furls:
             if connection_status:
+                display_furl = furl
+                # trim off the secret swissnum
+                (prefix, _, swissnum) = furl.rpartition("/")
+                if swissnum != "introducer":
+                    display_furl = "%s/[censored]" % (prefix,)
                 i = furls.index(furl)
-                s.append((furl, bool(connection_status[i])))
+                s.append((display_furl, bool(connection_status[i])))
         s.sort()
         return s
 
