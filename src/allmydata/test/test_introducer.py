@@ -89,7 +89,7 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
 
     def test_create(self):
         ic = IntroducerClient(None, "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {})
         self.failUnless(isinstance(ic, IntroducerClient))
 
     def test_listen(self):
@@ -121,7 +121,7 @@ class Introducer(ServiceMixin, unittest.TestCase, pollmixin.PollMixin):
         i = IntroducerService()
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {})
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
         keyid = keyutil.remove_prefix(vk_s, "pub-v0-")
@@ -170,7 +170,7 @@ class Client(unittest.TestCase):
     def test_duplicate_receive_v1(self):
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {})
         announcements = []
         ic.subscribe_to("storage",
                         lambda key_s,ann: announcements.append(ann))
@@ -219,12 +219,12 @@ class Client(unittest.TestCase):
     def test_duplicate_receive_v2(self):
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, fakeseq)
+                               "ver23", "oldest_version", {})
         # we use a second client just to create a different-looking
         # announcement
         ic2 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver24","oldest_version",{}, fakeseq)
+                               "ver24","oldest_version",{})
         announcements = []
         def _received(key_s, ann):
             announcements.append( (key_s, ann) )
@@ -327,7 +327,7 @@ class Client(unittest.TestCase):
         # not replace the other)
         ic = IntroducerClient(None,
                               "introducer.furl", u"my_nickname",
-                              "my_version", "oldest_version", {}, fakeseq)
+                              "my_version", "oldest_version", {})
         announcements = []
         ic.subscribe_to("storage",
                         lambda key_s,ann: announcements.append(ann))
@@ -365,7 +365,7 @@ class Server(unittest.TestCase):
         i = IntroducerService()
         ic1 = IntroducerClient(None,
                                "introducer.furl", u"my_nickname",
-                               "ver23", "oldest_version", {}, realseq)
+                               "ver23", "oldest_version", {})
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:36106/gydnp"
 
         privkey_s, _ = keyutil.make_keypair()
@@ -467,7 +467,7 @@ class Queue(SystemTestMixin, unittest.TestCase):
         tub2 = Tub()
         tub2.setServiceParent(self.parent)
         c = IntroducerClient(tub2, ifurl,
-                             u"nickname", "version", "oldest", {}, fakeseq)
+                             u"nickname", "version", "oldest", {})
         furl1 = "pb://onug64tu@127.0.0.1:123/short" # base32("short")
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -557,7 +557,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                 c = IntroducerClient(tub, self.introducer_furl,
                                      NICKNAME % str(i),
                                      "version", "oldest",
-                                     {"component": "component-v1"}, fakeseq)
+                                     {"component": "component-v1"})
             received_announcements[c] = {}
             def got(key_s_or_tubid, ann, announcements, i):
                 if i == 0:
@@ -876,8 +876,7 @@ class ClientInfo(unittest.TestCase):
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, NICKNAME % u"v2",
-                                     "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     "my_version", "oldest", app_versions)
         #furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         #ann_s = make_ann_t(client_v2, furl1, None, 10)
         #introducer.remote_publish_v2(ann_s, Referenceable())
@@ -938,8 +937,7 @@ class Announcements(unittest.TestCase):
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
-                                     "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     "my_version", "oldest", app_versions)
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         tubid = "62ubehyunnyhzs7r6vdonnm2hpi52w6y"
         ann_s0 = make_ann_t(client_v2, furl1, None, 10)
@@ -960,8 +958,7 @@ class Announcements(unittest.TestCase):
         tub = introducer_furl = None
         app_versions = {"whizzy": "fizzy"}
         client_v2 = IntroducerClient(tub, introducer_furl, u"nick-v2",
-                                     "my_version", "oldest", app_versions,
-                                     fakeseq)
+                                     "my_version", "oldest", app_versions)
         furl1 = "pb://62ubehyunnyhzs7r6vdonnm2hpi52w6y@127.0.0.1:0/swissnum"
         sk_s, vk_s = keyutil.make_keypair()
         sk, _ignored = keyutil.parse_privkey(sk_s)
@@ -1071,8 +1068,7 @@ class NonV1Server(SystemTestMixin, unittest.TestCase):
         tub.setLocation("localhost:%d" % portnum)
 
         c = IntroducerClient(tub, self.introducer_furl,
-                             u"nickname-client", "version", "oldest", {},
-                             fakeseq)
+                             u"nickname-client", "version", "oldest", {})
         announcements = {}
         def got(key_s, ann):
             announcements[key_s] = ann
