@@ -201,6 +201,12 @@ class Root(rend.Page):
 
         return ctx.tag[ul]
 
+    def data_total_introducers(self, ctx, data):
+        return len(self.client.introducer_furls)
+
+    def data_connected_introducers(self, ctx, data):
+        return self.client.connected_to_introducer().count(True)
+
 #    def data_introducer_furl_prefix(self, ctx, data):
 #        #BOOG FIXME this wont work w/68
 #        ifurl = self.client.introducer_furls
@@ -225,7 +231,6 @@ class Root(rend.Page):
 
     # In case we configure multiple introducers
     def data_introducers(self, ctx, data):
-        connection_status = []
         connection_status = self.client.connected_to_introducer()
         s = []
         furls = self.client.introducer_furls
