@@ -1002,7 +1002,7 @@ class ClientSeqnums(unittest.TestCase):
         f.write("introducer.furl = nope\n")
         f.close()
         c = TahoeClient(basedir)
-        ic = c.introducer_client
+        ic = c.introducer_clients[0]
         outbound = ic._outbound_announcements
         published = ic._published_announcements
         def read_seqnum():
@@ -1010,8 +1010,8 @@ class ClientSeqnums(unittest.TestCase):
             seqnum = f.read().strip()
             f.close()
             return int(seqnum)
-
-        ic.publish("sA", {"key": "value1"}, 0, "", c._node_key)
+        current_seqnum, current_nonce = c._sequencer()
+        ic.publish("sA", {"key": "value1"}, current_seqnum, current_nonce, c._node_key)
         self.failUnlessEqual(read_seqnum(), 1)
         self.failUnless("sA" in outbound)
         self.failUnlessEqual(outbound["sA"]["seqnum"], 1)
@@ -1023,7 +1023,8 @@ class ClientSeqnums(unittest.TestCase):
 
         # publishing a second service causes both services to be
         # re-published, with the next higher sequence number
-        ic.publish("sB", {"key": "value2"}, 0, "", c._node_key)
+        current_seqnum, current_nonce = c._sequencer()
+        ic.publish("sB", {"key": "value2"}, current_seqnum, current_nonce, c._node_key)
         self.failUnlessEqual(read_seqnum(), 2)
         self.failUnless("sB" in outbound)
         self.failUnlessEqual(outbound["sB"]["seqnum"], 2)
