@@ -35,11 +35,12 @@ create-client``" command will create an initial ``tahoe.cfg`` file for
 you. After creation, the node will never modify the ``tahoe.cfg`` file: all
 persistent state is put in other files.
 
-A second file "BASEDIR/introducers" configures introducers. It is necessary to
-write all FURL entries into this file. Each line in this file contains exactly
-one FURL entry. For backward compatibility reasons, any "introducer.furl" entry
-found in tahoe.cfg file will automatically be copied into this file. Keeping
-any FURL entry in tahoe.cfg file is not recommended for new users.
+A second file "``BASEDIR/introducers``" configures introducers. It is necessary
+to write all FURL entries into this file. Each line in this file contains
+exactly one FURL entry. For backward compatibility reasons, any
+"``introducer.furl``" entry found in ``tahoe.cfg`` file will automatically be
+copied into this file.  Keeping any FURL entry in tahoe.cfg file is not
+recommended for new users.
 
 The item descriptions below use the following types:
 
@@ -301,13 +302,11 @@ Client Configuration
 
 ``[client]``
 
-``introducer.furl = (FURL string, mandatory)``
+``introducer.furl = (FURL string, optional)``
 
-    This FURL tells the client how to connect to the introducer. Each
-    Tahoe-LAFS grid is defined by an introducer. The introducer's FURL is
-    created by the introducer node and written into its private base
-    directory when it starts, whereupon it should be published to everyone
-    who wishes to attach a client to that grid
+    This option is kept for backward compatibility. If set, its value will be
+    appended to the ``BASEDIR/introducers`` file if it is not already present
+    there.
 
 ``helper.furl = (FURL string, optional)``
 
@@ -692,7 +691,6 @@ a legal one.
   ssh.authorized_keys_file = ~/.ssh/authorized_keys
   
   [client]
-  introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tahoe.example:44801/ii3uumo
   helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@helper.tahoe.example:7054/kk8lhr
   
   [storage]
