@@ -477,9 +477,7 @@ class Queue(SystemTestMixin, unittest.TestCase):
             # now that the introducer server is offline, create a client and
             # publish some messages
             c.setServiceParent(self.parent) # this starts the reconnector
-            current_seqnum = 0
-            current_nonce = ""
-            c.publish("storage", make_ann(furl1), current_seqnum, current_nonce, sk)
+            c.publish("storage", make_ann(furl1), 0, "", sk)
 
             introducer.setServiceParent(self.parent) # restart the server
             # now wait for the messages to be delivered
@@ -579,14 +577,14 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
                     privkey_s, pubkey_s = keyutil.make_keypair()
                     privkey, _ignored = keyutil.parse_privkey(privkey_s)
                     privkeys[c] = privkey
-                    c.publish("storage", make_ann(node_furl), privkey)
+                    c.publish("storage", make_ann(node_furl), 0, "", privkey)
                     if server_version == V1:
                         printable_serverids[i] = get_tubid_string(node_furl)
                     else:
                         assert pubkey_s.startswith("pub-")
                         printable_serverids[i] = pubkey_s[len("pub-"):]
                 else:
-                    c.publish("storage", make_ann(node_furl))
+                    c.publish("storage", make_ann(node_furl), 0, "")
                     printable_serverids[i] = get_tubid_string(node_furl)
                 publishing_clients.append(c)
             else:
@@ -603,7 +601,7 @@ class SystemTest(SystemTestMixin, unittest.TestCase):
             if i == 2:
                 # also publish something that nobody cares about
                 boring_furl = tub.registerReference(Referenceable())
-                c.publish("boring", make_ann(boring_furl))
+                c.publish("boring", make_ann(boring_furl), 0, "")
 
             c.setServiceParent(self.parent)
             clients.append(c)
@@ -1013,7 +1011,7 @@ class ClientSeqnums(unittest.TestCase):
             f.close()
             return int(seqnum)
 
-        ic.publish("sA", {"key": "value1"}, c._node_key)
+        ic.publish("sA", {"key": "value1"}, 0, "", c._node_key)
         self.failUnlessEqual(read_seqnum(), 1)
         self.failUnless("sA" in outbound)
         self.failUnlessEqual(outbound["sA"]["seqnum"], 1)
@@ -1025,7 +1023,7 @@ class ClientSeqnums(unittest.TestCase):
 
         # publishing a second service causes both services to be
         # re-published, with the next higher sequence number
-        ic.publish("sB", {"key": "value2"}, c._node_key)
+        ic.publish("sB", {"key": "value2"}, 0, "", c._node_key)
         self.failUnlessEqual(read_seqnum(), 2)
         self.failUnless("sB" in outbound)
         self.failUnlessEqual(outbound["sB"]["seqnum"], 2)
