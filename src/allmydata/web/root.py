@@ -208,12 +208,16 @@ class Root(rend.Page):
         return self.client.connected_to_introducer().count(True)
 
     def data_introducer_description(self, ctx, data):
-        if self.data_connected_to_introducer(ctx, data) == "no":
+        connected_count = self.data_connected_introducers( ctx, data )
+        if connected_count == 0:
             return "No introducers connected"
-        return "Introducer(s) connected"
+        elif connected_count == 1:
+            return "1 introducer connected"
+        else:
+            return "%s introducers connected" % (connected_count,)
 
-    def data_connected_to_introducer(self, ctx, data):
-        if self.client.connected_to_introducer():
+    def data_connected_to_at_least_one_introducer(self, ctx, data):
+        if True in self.client.connected_to_introducer():
             return "yes"
         return "no"
 
