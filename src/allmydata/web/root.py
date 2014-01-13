@@ -234,16 +234,19 @@ class Root(rend.Page):
                 if swissnum != "introducer":
                     display_furl = "%s/[censored]" % (prefix,)
                 i = furls.index(furl)
-                s.append((display_furl, bool(connection_status[i])))
+                since = self.client.introducer_clients[i].get_since()
+                s.append((display_furl, bool(connection_status[i]), since))
         s.sort()
         return s
 
     def render_introducers_row(self, ctx, s):
-        (furl, connected) = s
+        (furl, connected, since) = s
         status = ("no", "yes")
         ctx.fillSlots("introducer_furl", "%s" % (furl))
         ctx.fillSlots("connected-bool", "%s" % (connected))
         ctx.fillSlots("connected", "%s" % (status[int(connected)]))
+        ctx.fillSlots("since", "%s" % (time.strftime(TIME_FORMAT,
+                                             time.localtime(since))))
         return ctx.tag
 
     def data_helper_furl_prefix(self, ctx, data):
