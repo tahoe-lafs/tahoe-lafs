@@ -198,7 +198,7 @@ class IntroducerClient(service.Service, Referenceable):
             self.publish("stub_client",
                          { "anonymous-storage-FURL": furl,
                            "permutation-seed-base32": get_tubid_string(furl),
-                           }, 0, "") # BOOG: empty nonce
+                           }, 0, "")
         d.addCallback(_publish_stub_client)
         return d
 
