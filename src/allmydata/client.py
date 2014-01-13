@@ -550,10 +550,9 @@ class Client(node.Node, pollmixin.PollMixin):
         return self.DEFAULT_ENCODING_PARAMETERS
 
     # In case we configure multiple introducers
-    def connected_to_introducer(self):
+    def introducer_connection_statuses(self):
         status = []
         if self.introducer_clients:
-            s = False
             for ic in self.introducer_clients:
                 s = ic.connected_to_introducer()
                 status.append(s)
