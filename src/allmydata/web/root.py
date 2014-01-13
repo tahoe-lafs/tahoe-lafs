@@ -256,10 +256,9 @@ class Root(rend.Page):
         for furl in furls:
             if connection_status:
                 i = furls.index(furl)
-                if connection_status[i]:
-                    s.append( (furl, "Yes") )
-                else:
-                    s.append( (furl, "No") )
+                ic = self.client.introducer_clients[i]
+                since = self.client.introducer_clients[i].get_since()
+                s.append((display_furl, bool(connection_statuses[i]), ic))
         s.sort()
         return s
 
@@ -267,7 +266,19 @@ class Root(rend.Page):
         (furl, connected) = s
         #connected =
         ctx.fillSlots("introducer_furl", "%s" % (furl))
-        ctx.fillSlots("connected", "%s" % (connected))
+        ctx.fillSlots("service_connection_status", "%s" % (service_connection_status,))
+        ctx.fillSlots("service_connection_status_alt",
+            self._connectedalts[service_connection_status])
+        ctx.fillSlots("service_connection_status_abs_time", service_connection_status_abs_time)
+        ctx.fillSlots("service_connection_status_rel_time", service_connection_status_rel_time)
+        ctx.fillSlots("last_received_data_abs_time", last_received_data_abs_time)
+        ctx.fillSlots("last_received_data_rel_time", last_received_data_rel_time)
+
+        status = ("No", "Yes")
+        ctx.fillSlots("connected-bool", "%s" % (connected))
+        ctx.fillSlots("connected", "%s" % (status[int(connected)]))
+        ctx.fillSlots("since", "%s" % (time.strftime(TIME_FORMAT,
+                                             time.localtime(since))))
         return ctx.tag
 
     def data_connected_to_introducer_alt(self, ctx, data):

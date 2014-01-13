@@ -198,7 +198,28 @@
               <td class="service-version"><n:slot name="version"/></td>
               <td class="service-available-space"><n:slot name="available_space"/></td>
             </tr>
-            <tr n:pattern="empty"><td colspan="6">You are not presently connected to any peers</td></tr>
+            <tr n:pattern="empty"><td>You are not presently connected to any peers</td></tr>
+          </table>
+          <div class="row-fluid">
+            <h2>Connected to <span n:render="string" n:data="connected_introducers" /> of <span n:render="string" n:data="total_introducers" /> introducers</h2>
+          </div>
+          <table class="table table-striped table-bordered peer-status" n:render="sequence" n:data="introducers">
+            <thead>
+              <tr n:pattern="header">
+                <td><h3>Address</h3></td>
+                <td><h3>Since</h3></td>
+              </tr>
+            </thead>
+            <tr n:pattern="item" n:render="introducers_row">
+              <td class="nickname-and-peerid">
+                <div><n:attr name="class">status-indicator connected-<n:slot name="connected"/></n:attr></div>
+                <div class="furl"><n:slot name="introducer_furl"/></div>
+              </td>
+              <td class="service-since timestamp">
+                <n:slot name="since"/>
+              </td>
+            </tr>
+            <tr n:pattern="empty"><td>no introducers!</td></tr>
           </table>
         </div><!--/span-->
       </div><!--/row-->
