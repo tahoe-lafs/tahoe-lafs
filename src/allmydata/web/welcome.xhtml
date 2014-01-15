@@ -171,6 +171,8 @@
               <tr n:pattern="header">
                 <td><h3>Status</h3></td>
                 <td><h3>Nickname</h3></td>
+		<td><h3>Seed</h3></td>
+		<td><h3>FURL</h3></td>
                 <td><h3>Address</h3></td>
                 <td><h3>Last&nbsp;RX</h3></td>
                 <td><h3>Version</h3></td>
@@ -187,6 +189,10 @@
                 <div class="nickname"><n:slot name="nickname"/></div>
                 <div class="nodeid"><n:slot name="peerid"/></div>
               </td>
+
+	      <td class="seed"><n:slot name="seed"/></td>
+	      <td class="furl"><n:slot name="furl"/></td>
+
               <td class="address"><n:slot name="address"/></td>
               <td class="service-last-received-data"><a class="timestamp"><n:attr name="title"><n:slot name="last_received_data_abs_time"/></n:attr><n:slot name="last_received_data_rel_time"/></a></td>
               <td class="service-version"><n:slot name="version"/></td>
