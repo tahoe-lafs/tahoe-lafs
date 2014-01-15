@@ -222,6 +222,21 @@ class Root(rend.Page):
         else:
             return "%s/[censored]" % (prefix,)
 
+    def data_introducer_furl_prefix(self, ctx, data):
+
+        if not self.client.introducer_furl:
+            return
+
+        ifurl = self.client.introducer_furl
+        # trim off the secret swissnum
+        (prefix, _, swissnum) = ifurl.rpartition("/")
+        if not ifurl:
+            return None
+        if swissnum == "introducer":
+            return ifurl
+        else:
+            return "%s/[censored]" % (prefix,)
+
     def data_introducer_description(self, ctx, data):
         if self.data_connected_to_introducer(ctx, data) == "no":
             return "Introducer not connected"
@@ -339,6 +354,14 @@ class Root(rend.Page):
             available_space = "N/A"
         else:
             available_space = abbreviate_size(available_space)
+
+        service_name = announcement["service-name"]
+
+        seed = announcement['permutation-seed-base32']
+        furl = announcement['anonymous-storage-FURL']
+
+        ctx.fillSlots("seed", seed)
+        ctx.fillSlots("furl", furl)
         ctx.fillSlots("address", addr)
         ctx.fillSlots("service_connection_status", service_connection_status)
         ctx.fillSlots("service_connection_status_alt", self._connectedalts[service_connection_status])
