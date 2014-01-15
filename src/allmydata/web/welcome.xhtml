@@ -167,6 +167,8 @@
             <thead>
               <tr n:pattern="header">
                 <td><h3>Nickname</h3></td>
+		<td><h3>Seed</h3></td>
+		<td><h3>FURL</h3></td>
                 <td><h3>Address</h3></td>
                 <td><h3>Service</h3></td>
                 <td><h3>Since</h3></td>
@@ -180,6 +182,10 @@
                 <div class="nickname"><n:slot name="nickname"/></div>
                 <div class="nodeid"><n:slot name="peerid"/></div>
               </td>
+
+	      <td class="seed"><n:slot name="seed"/></td>
+	      <td class="furl"><n:slot name="furl"/></td>
+
               <td class="address"><n:slot name="address"/></td>
             <td class="service-service-name"><n:slot name="service_name"/></td>
               <td class="service-since timestamp"><n:slot name="since"/></td>

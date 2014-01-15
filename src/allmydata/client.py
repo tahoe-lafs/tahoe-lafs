@@ -179,6 +179,8 @@ class Client(node.Node, pollmixin.PollMixin):
         # exit function if we are not supposed to use the introducer
         if not self.get_config("client-server-selection", "use_introducer",
                            default=True, boolean=True):
+            self.introducer_client = None
+            self.introducer_furl   = None
             return
 
         self.introducer_furl = self.get_config("client", "introducer.furl")
@@ -358,27 +360,25 @@ class Client(node.Node, pollmixin.PollMixin):
 
                 if pieces[0] == "server":
                     serverid = pieces[1]
+                    if serverid not in server_params:
+                        server_params[serverid] = {}
+                    server_params[serverid][pieces[2]] = value
                 else:
                     # if not a server line then skip
                     continue
-                if serverid not in server_params:
-                    server_params[serverid] = {}
-                    server_params[serverid][pieces[2]] = value
+
             for serverid, params in server_params.items():
                 server_type = params.pop("type")
                 if server_type == "tahoe-foolscap":
-                    # BUG: create a legit looking announcement dict
-                    ann = {  }
-                    s = NativeStorageServer(self._node_key, ann)
+                    ann = { 'nickname': server_params[serverid]['nickname'], 'anonymous-storage-FURL':server_params[serverid]['furl'], 'permutation-seed-base32':server_params[serverid]['seed'], 'service-name':'storage','my-version':'unknown'}
+                    s = storage_client.NativeStorageServer(serverid, ann.copy())
+                    sb._got_announcement(serverid, ann)
+                    #add_server(s.get_serverid(), s)
                 else:
                     msg = ("unrecognized server type '%s' in "
                            "tahoe.cfg [client-server-selection]server.%s.type"
                            % (server_type, serverid))
                     raise storage_client.UnknownServerTypeError(msg)
-                # BUG: create a legit looking announcement dict
-                ann = {  }
-                sb._got_announcement(self._node_key, ann)
-add_server(s.get_serverid(), s)
 
         # check to see if we're supposed to use the introducer too
         if self.get_config("client-server-selection", "use_introducer",

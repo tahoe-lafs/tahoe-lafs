@@ -202,6 +202,10 @@ class Root(rend.Page):
         return ctx.tag[ul]
 
     def data_introducer_furl_prefix(self, ctx, data):
+
+        if not self.client.introducer_furl:
+            return
+
         ifurl = self.client.introducer_furl
         # trim off the secret swissnum
         (prefix, _, swissnum) = ifurl.rpartition("/")
@@ -289,6 +293,11 @@ class Root(rend.Page):
         version = announcement["my-version"]
         service_name = announcement["service-name"]
 
+        seed = announcement['permutation-seed-base32']
+        furl = announcement['anonymous-storage-FURL']
+
+        ctx.fillSlots("seed", seed)
+        ctx.fillSlots("furl", furl)
         ctx.fillSlots("address", addr)
         ctx.fillSlots("connected", connected)
         ctx.fillSlots("connected-bool", bool(rhost))
