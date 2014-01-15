@@ -367,13 +367,18 @@ class Client(node.Node, pollmixin.PollMixin):
             for serverid, params in server_params.items():
                 server_type = params.pop("type")
                 if server_type == "tahoe-foolscap":
-                    s = storage_client.NativeStorageClient(*params)
+                    # BUG: create a legit looking announcement dict
+                    ann = {  }
+                    s = NativeStorageServer(self._node_key, ann)
                 else:
                     msg = ("unrecognized server type '%s' in "
                            "tahoe.cfg [client-server-selection]server.%s.type"
                            % (server_type, serverid))
                     raise storage_client.UnknownServerTypeError(msg)
-                sb.add_server(s.serverid, s)
+                # BUG: create a legit looking announcement dict
+                ann = {  }
+                sb._got_announcement(self._node_key, ann)
+add_server(s.get_serverid(), s)
 
         # check to see if we're supposed to use the introducer too
         if self.get_config("client-server-selection", "use_introducer",
