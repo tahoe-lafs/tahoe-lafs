@@ -25,7 +25,7 @@ class CreateNodeOptions(CreateClientOptions):
         ("no-storage", None, "Do not offer storage service to other nodes."),
         ]
     optParameters = [
-        ("storedir", "s",  None, "Path where the storage will be placed."),
+        ("storage_dir", "s",  None, "Path where the storage will be placed."),
         ("tempdir", "t",  None, "Path to the temporary directory."),
         ]
 
@@ -93,7 +93,7 @@ def write_node_config(c, config):
     c.write("web.static = public_html\n")
     c.write("#tub.port =\n")
     c.write("#tub.location = \n")
-    incidents_dir = os.path.join(config.get("logdir", ""), "incidents")
+    incidents_dir = config.get("incidents_dir")
     if incidents_dir:
         c.write("incidents_dir = %s\n" % incidents_dir)
     else:
@@ -153,9 +153,9 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.write("enabled = %s\n" % boolstr[storage_enabled])
     c.write("#readonly =\n")
     c.write("reserved_space = 1G\n")
-    storedir = config.get("storedir", "")
-    if storedir:
-        c.write("storage_dir = %s\n" % storedir)
+    storage_dir = config.get("storage_dir")
+    if storage_dir:
+        c.write("storage_dir = %s\n" % storage_dir)
     else:
         c.write("#storage_dir =\n")
     c.write("#expire.enabled =\n")
