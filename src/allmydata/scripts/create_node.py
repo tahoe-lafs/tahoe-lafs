@@ -12,7 +12,7 @@ class CreateNodeCommonOptions(BasedirOptions):
         # tahoe.cfg before node startup.
         ("webport", "p", "tcp:3456:interface=127.0.0.1",
          "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
-        ["incidents_dir", "I", None, "Set directory to save incident reports."],
+        ("incidents_dir", "I", None, "Set directory to save incident reports."),
         ("tempdir", "t",  None, "Path to the temporary directory."),
         ]
 
