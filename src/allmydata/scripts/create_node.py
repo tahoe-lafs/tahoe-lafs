@@ -44,6 +44,10 @@ class CreateNodeOptions(CreateClientOptions):
 class CreateIntroducerOptions(CreateNodeCommonOptions):
     default_nodedir = None
 
+    optParameters = [
+        ("webport", "p", "none",
+         "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
+        ]
     def getSynopsis(self):
         return "Usage:  %s [global-opts] create-introducer [options] NODEDIR" % (self.command_name,)
 
