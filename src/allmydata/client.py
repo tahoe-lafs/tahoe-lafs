@@ -184,7 +184,8 @@ class Client(node.Node, pollmixin.PollMixin):
         if os.path.exists(cfg):
            f = open(cfg, 'r')
            for introducer_furl in  f.read().split('\n'):
-                if not introducer_furl.strip():
+                introducers_furl = introducer_furl.strip()
+                if introducers_furl.startswith('#') or not introducers_furl:
                     continue
                 self.introducer_furls.append(introducer_furl)
            f.close()

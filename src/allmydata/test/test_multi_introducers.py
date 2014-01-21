@@ -8,6 +8,7 @@ from allmydata.scripts.create_node import write_node_config
 from allmydata.web.root import Root
 
 INTRODUCERS_CFG_FURLS=['furl1', 'furl2']
+INTRODUCERS_CFG_FURLS_COMMENTED=['furl1', '#furl2', 'furl3']
 
 def cfg_setup():
     # setup tahoe.cfg and basedir/introducers
@@ -73,6 +74,18 @@ class TestClient(unittest.TestCase):
         as found in "basedir/introducers" config file. """
         write(MULTI_INTRODUCERS_CFG, '\n'.join(INTRODUCERS_CFG_FURLS))
 
+        # get a client and count of introducer_clients
+        myclient = Client()
+        ic_count = len(myclient.introducer_clients)
+
+        # assertions
+        self.failUnlessEqual(ic_count, 2)
+
+    def test_introducer_count_commented(self):
+        """ Ensure that the Client creates same number of introducer clients
+        as found in "basedir/introducers" config file when there'is one
+        commented."""
+        write(MULTI_INTRODUCERS_CFG, '\n'.join(INTRODUCERS_CFG_FURLS_COMMENTED))
         # get a client and count of introducer_clients
         myclient = Client()
         ic_count = len(myclient.introducer_clients)
