@@ -632,6 +632,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
                 self.connected = connected
             def connected_to_introducer(self):
                 return self.connected
+            def get_since(self):
+                return 0
 
         d = defer.succeed(None)
 
