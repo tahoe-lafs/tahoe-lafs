@@ -73,7 +73,7 @@ def start(opts, out=sys.stdout, err=sys.stderr):
         args.append("--syslog")
     elif nodetype in ("client", "introducer"):
         if opts["logdir"]:
-            logdir = os.path.expanduser(opts["logdir"])
+            logdir = os.path.realpath( os.path.expanduser(opts["logdir"]) )
         else:
             logdir = "logs"
         fileutil.make_dirs(os.path.join(basedir, logdir))
