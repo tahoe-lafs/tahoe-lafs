@@ -63,6 +63,7 @@ class MutableFileNode:
         # are updated upon retrieve, and used by publish. If we publish
         # without ever reading (i.e. overwrite()), then we use these values.
         self._required_shares = default_encoding_parameters["k"]
+        self._happy = default_encoding_parameters["happy"]
         self._total_shares = default_encoding_parameters["n"]
         self._sharemap = {} # known shares, shnum-to-[nodeids]
         self._most_recent_size = None
@@ -214,6 +215,8 @@ class MutableFileNode:
 
     def get_required_shares(self):
         return self._required_shares
+    def get_happy(self):
+        return self._happy
     def get_total_shares(self):
         return self._total_shares
 

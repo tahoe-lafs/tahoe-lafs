@@ -10,7 +10,8 @@ from allmydata.util.hashutil import tagged_hash, ssk_writekey_hash, \
 from allmydata.util.consumer import MemoryConsumer
 from allmydata.util.deferredutil import gatherResults
 from allmydata.interfaces import IRepairResults, ICheckAndRepairResults, \
-     NotEnoughSharesError, SDMF_VERSION, MDMF_VERSION, DownloadStopped
+     NotEnoughSharesError, SDMF_VERSION, MDMF_VERSION, DownloadStopped, \
+     UploadUnhappinessError
 from allmydata.monitor import Monitor
 from allmydata.test.common import ShouldFailMixin
 from allmydata.test.no_network import GridTestMixin
@@ -247,7 +248,7 @@ def make_nodemaker(s=None, num_peers=10, keysize=TEST_RSA_KEY_SIZE):
         keygen.set_default_keysize(keysize)
     nodemaker = NodeMaker(storage_broker, sh, None,
                           None, None,
-                          {"k": 3, "n": 10}, SDMF_VERSION, keygen)
+                          {"k": 3, "happy":7, "n": 10}, SDMF_VERSION, keygen)
     return nodemaker
 
 class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
@@ -414,7 +415,7 @@ class Filenode(unittest.TestCase, testutil.ShouldFailMixin):
 
 
     def test_serialize(self):
-        n = MutableFileNode(None, None, {"k": 3, "n": 10}, None)
+        n = MutableFileNode(None, None, {"k": 3, "happy":7, "n": 10}, None)
         calls = []
         def _callback(*args, **kwargs):
             self.failUnlessEqual(args, (4,) )
@@ -3427,6 +3428,142 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
         d.addCallback(self._test_read_and_download, "")
         return d
 
+class ServersOfHappiness(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
+
+    def setUp(self):
+        self.data = "testdata " * 100000 # about 900 KiB; MDMF
+        self.small_data = "test data" * 10 # about 90 B; SDMF
+
+    def do_upload_mdmf(self):
+        d = self.nm.create_mutable_file(MutableData(self.data),
+                                        version=MDMF_VERSION)
+        def _then(n):
+            assert isinstance(n, MutableFileNode)
+            self.mdmf_node = n
+            return n
+        d.addCallback(_then)
+        return d
+
+    def do_upload_sdmf(self):
+        d = self.nm.create_mutable_file(MutableData(self.small_data))
+        def _then(n):
+            assert isinstance(n, MutableFileNode)
+            self.sdmf_node = n
+            return n
+        d.addCallback(_then)
+        return d
+
+    def test_basic_success_sdmf(self):
+        GridTestMixin.setUp(self)
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c = self.g.clients[0]
+        self.nm = self.c.nodemaker
+        d = self.do_upload_sdmf()
+        return d
+
+    def test_basic_success_mdmf(self):
+        GridTestMixin.setUp(self)
+        self.basedir = self.mktemp()
+        self.set_up_grid()
+        self.c = self.g.clients[0]
+        self.nm = self.c.nodemaker
+        d = self.do_upload_mdmf()
+        return d
+
+    def test_basic_failure_sdmf(self):
+        GridTestMixin.setUp(self)
+        self.basedir = self.mktemp()
+        self.set_up_grid(num_servers=6)
+        self.c = self.g.clients[0]
+        self.nm = self.c.nodemaker
+        d = self.shouldFail(UploadUnhappinessError, "test_failure_sdmf",
+                            "shares could be placed on only 6 server(s) such that any 3 "
+                            "of them have enough shares to recover the file, but we were asked to "
+                            "place shares on at least 7 servers.",
+                            self.nm.create_mutable_file,
+                            MutableData(self.small_data))
+        return d
+
+    def test_basic_failure_mdmf(self):
+        GridTestMixin.setUp(self)
+        self.basedir = self.mktemp()
+        self.set_up_grid(num_servers=6)
+        self.c = self.g.clients[0]
+        self.nm = self.c.nodemaker
+        d = self.shouldFail(UploadUnhappinessError, "test_failure_mdmf",
+                            "shares could be placed on only 6 server(s) such that any 3 "
+                            "of them have enough shares to recover the file, but we were asked to "
+                            "place shares on at least 7 servers.",
+                            self.nm.create_mutable_file,
+                            MutableData(self.data), version=MDMF_VERSION)
+        return d
+
+    def test_update_failure_sdmf(self):
+        # Upload a file to the grid and remove a server such that
+        # the number of servers is less than the servers of happiness requirement.
+        # Any attempts to update the file should fail.
+
+        GridTestMixin.setUp(self)
+        self.basedir = self.mktemp()
+        self.set_up_grid(num_servers=7)
+        self.c = self.g.clients[0]
+        self.nm = self.c.nodemaker
+
+        d = self.do_upload_sdmf()
+
+        def _setup(ign):
+            d = defer.succeed(None)
+            d.addCallback(lambda ign:
+                            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+            d.addCallback(lambda ign, node=self.sdmf_node:
+                            node.get_best_mutable_version())
+            return d
+
+        def _check(mv):
+            d = self.shouldFail(UploadUnhappinessError, "test_update_failure_sdmf",
+                            "shares could be placed on only 6 server(s) such that any 3 "
+                            "of them have enough shares to recover the file, but we were asked to "
+                            "place shares on at least 7 servers.",
+                            mv.update, MutableData("appended"), len(self.small_data))
+            return d
+
+        d.addCallback(_setup)
+        d.addCallback(_check)
+        return d
+
+    def test_update_failure_mdmf(self):
+        # Upload a file to the grid and remove a server such that
+        # the number of servers is less than the servers of happiness requirement.
+        # Any attempts to update the file should fail.
+
+        GridTestMixin.setUp(self)
+        self.basedir = self.mktemp()
+        self.set_up_grid(num_servers=7)
+        self.c = self.g.clients[0]
+        self.nm = self.c.nodemaker
+
+        d = self.do_upload_mdmf()
+
+        def _setup(ign):
+            d = defer.succeed(None)
+            d.addCallback(lambda ign:
+                            self.g.remove_server(self.g.servers_by_number[0].my_nodeid))
+            d.addCallback(lambda ign, node=self.mdmf_node:
+                            node.get_best_mutable_version())
+            return d
+
+        def _check(mv):
+            d = self.shouldFail(UploadUnhappinessError, "test_update_failure_mdmf",
+                            "shares could be placed on only 6 server(s) such that any 3 "
+                            "of them have enough shares to recover the file, but we were asked to "
+                            "place shares on at least 7 servers.",
+                            mv.update, MutableData("appended"), len(self.data))
+            return d
+
+        d.addCallback(_setup)
+        d.addCallback(_check)
+        return d
 
 class Update(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin):
     timeout = 400 # these tests are too big, 120s is not enough on slow

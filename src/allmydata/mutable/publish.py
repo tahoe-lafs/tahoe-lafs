@@ -7,9 +7,10 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.python import failure
 from allmydata.interfaces import IPublishStatus, SDMF_VERSION, MDMF_VERSION, \
-                                 IMutableUploadable
+                                 IMutableUploadable, UploadUnhappinessError
 from allmydata.util import base32, hashutil, mathutil, log
 from allmydata.util.dictutil import DictOfSets
+from allmydata.util.happinessutil import servers_of_happiness
 from allmydata import hashtree, codec
 from allmydata.storage.server import si_b2a
 from pycryptopp.cipher.aes import AES
@@ -130,6 +131,12 @@ class Publish:
         self._version = self._node.get_version()
         assert self._version in (SDMF_VERSION, MDMF_VERSION)
 
+        self.required_shares = self._node.get_required_shares()
+        assert self.required_shares is not None
+        self.happy = self._node.get_happy()
+        assert self.happy is not None
+        self.total_shares = self._node.get_total_shares()
+        assert self.total_shares is not None
 
     def get_status(self):
         return self._status
@@ -199,10 +206,6 @@ class Publish:
         # We're updating an existing file, so all of the following
         # should be available.
         self.readkey = self._node.get_readkey()
-        self.required_shares = self._node.get_required_shares()
-        assert self.required_shares is not None
-        self.total_shares = self._node.get_total_shares()
-        assert self.total_shares is not None
         self._status.set_encoding(self.required_shares, self.total_shares)
 
         self._pubkey = self._node.get_pubkey()
@@ -253,6 +256,7 @@ class Publish:
         # updating, we ignore damaged and missing shares -- callers must
         # do a repair to repair and recreate these.
         self.goal = set(self._servermap.get_known_shares())
+        self.update_goal()
 
         # shnum -> set of IMutableSlotWriter
         self.writers = DictOfSets()
@@ -393,10 +397,6 @@ class Publish:
         # created for the first time) also guarantees that the following
         # fields are available
         self.readkey = self._node.get_readkey()
-        self.required_shares = self._node.get_required_shares()
-        assert self.required_shares is not None
-        self.total_shares = self._node.get_total_shares()
-        assert self.total_shares is not None
         self._status.set_encoding(self.required_shares, self.total_shares)
 
         self._pubkey = self._node.get_pubkey()
@@ -913,10 +913,17 @@ class Publish:
         if True:
             self.log_goal(self.goal, "before update: ")
 
+        sharemap = DictOfSets()
+
         # first, remove any bad servers from our goal
         self.goal = set([ (server, shnum)
                           for (server, shnum) in self.goal
                           if server not in self.bad_servers ])
+
+        for item in self.goal:
+            shnum = item[1]
+            server = item[0]
+            sharemap.add(shnum, server)
 
         # find the homeless shares:
         homefull_shares = set([shnum for (server, shnum) in self.goal])
@@ -972,10 +979,19 @@ class Publish:
             # this, otherwise it would cause the publish to fail with an
             # UncoordinatedWriteError. See #546 for details of the trouble
             # this used to cause.
+            sharemap.add(shnum, server)
             self.goal.add( (server, shnum) )
             i += 1
             if i >= len(serverlist):
                 i = 0
+
+        h = servers_of_happiness(sharemap)
+        if self.happy > h:
+            msg = ("shares could be placed on only %d server(s) such that any %d "
+                    "of them have enough shares to recover the file, but we were asked to "
+                    "place shares on at least %d servers." % (h, self.required_shares, self.happy))
+            raise UploadUnhappinessError(msg)
+
         if True:
             self.log_goal(self.goal, "after update: ")
 
