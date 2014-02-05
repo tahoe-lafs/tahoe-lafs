@@ -5566,7 +5566,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                               " overdue= unused= need 3. Last failure: None")
             msg2 = msgbase + (" ran out of shares:"
                               " complete="
-                              " pending=Share(sh0-on-xgru5)"
+                              " pending=Share(sh0-on-ysbz4st7)"
                               " overdue= unused= need 3. Last failure: None")
             self.failUnless(body == msg1 or body == msg2, body)
         d.addCallback(_check_one_share)
