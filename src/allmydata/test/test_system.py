@@ -102,7 +102,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d = self.set_up_nodes()
         def _check_connections(res):
             for c in self.clients:
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 5
+                c.encoding_params['happy'] = 5
                 all_peerids = c.get_storage_broker().get_all_serverids()
                 self.failUnlessEqual(len(all_peerids), self.numclients)
                 sb = c.storage_broker
@@ -214,7 +214,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
                                                       add_to_sparent=True))
         def _added(extra_node):
             self.extra_node = extra_node
-            self.extra_node.DEFAULT_ENCODING_PARAMETERS['happy'] = 5
+            self.extra_node.encoding_params['happy'] = 5
         d.addCallback(_added)
 
         def _has_helper():
@@ -724,7 +724,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d = self.set_up_nodes(use_stats_gatherer=True)
         def _new_happy_semantics(ign):
             for c in self.clients:
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+                c.encoding_params['happy'] = 1
         d.addCallback(_new_happy_semantics)
         d.addCallback(self._test_introweb)
         d.addCallback(self.log, "starting publish")
@@ -1171,7 +1171,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         def _new_happy_semantics(ign):
             for c in self.clients:
                 # these get reset somewhere? Whatever.
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+                c.encoding_params['happy'] = 1
         d.addCallback(_new_happy_semantics)
         d.addCallback(lambda res: self.PUT(public + "/subdir3/big.txt",
                                            "big" * 500000)) # 1.5MB
@@ -1764,7 +1764,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d = self.set_up_nodes()
         def _new_happy_semantics(ign):
             for c in self.clients:
-                c.DEFAULT_ENCODING_PARAMETERS['happy'] = 1
+                c.encoding_params['happy'] = 1
         d.addCallback(_new_happy_semantics)
 
         def _run_in_subprocess(ignored, verb, *args, **kwargs):

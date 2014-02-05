@@ -115,7 +115,7 @@ class Client(node.Node, pollmixin.PollMixin):
     # 1.0.0 storage client, it will work as they expect.
     OLDEST_SUPPORTED_VERSION = "1.0.0"
 
-    # this is a tuple of (needed, desired, total, max_segment_size). 'needed'
+    # this is a dictionary of (needed, desired, total, max_segment_size). 'needed'
     # is the number of shares required to reconstruct a file. 'desired' means
     # that we will abort an upload unless we can allocate space for at least
     # this many. 'total' is the total number of shares created by encoding.
@@ -130,7 +130,7 @@ class Client(node.Node, pollmixin.PollMixin):
         node.Node.__init__(self, basedir)
         self.started_timestamp = time.time()
         self.logSource="Client"
-        self.DEFAULT_ENCODING_PARAMETERS = self.DEFAULT_ENCODING_PARAMETERS.copy()
+        self.encoding_params = self.DEFAULT_ENCODING_PARAMETERS.copy()
         self.init_introducer_client()
         self.init_stats_provider()
         self.init_secrets()
@@ -322,7 +322,7 @@ class Client(node.Node, pollmixin.PollMixin):
         if helper_furl in ("None", ""):
             helper_furl = None
 
-        DEP = self.DEFAULT_ENCODING_PARAMETERS
+        DEP = self.encoding_params
         DEP["k"] = int(self.get_config("client", "shares.needed", DEP["k"]))
         DEP["n"] = int(self.get_config("client", "shares.total", DEP["n"]))
         DEP["happy"] = int(self.get_config("client", "shares.happy", DEP["happy"]))
@@ -504,7 +504,7 @@ class Client(node.Node, pollmixin.PollMixin):
         reactor.stop()
 
     def get_encoding_parameters(self):
-        return self.DEFAULT_ENCODING_PARAMETERS
+        return self.encoding_params
 
     def connected_to_introducer(self):
         if self.introducer_client:

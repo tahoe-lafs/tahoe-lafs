@@ -509,6 +509,7 @@ class ServermapUpdater:
             # chance of finding them all. We will keep searching until we've
             # seen epsilon that don't have a share.
             # We don't query all of the servers because that could take a while.
+            self.EPSILON = N
             self.num_servers_to_query = N + self.EPSILON
             initial_servers_to_query, must_query = self._build_initial_querylist()
             self.required_num_empty_servers = self.EPSILON
