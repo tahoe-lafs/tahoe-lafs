@@ -294,11 +294,6 @@ class Root(rend.Page):
         version = announcement["my-version"]
         service_name = announcement["service-name"]
 
-        seed = announcement['permutation-seed-base32']
-        furl = announcement['anonymous-storage-FURL']
-
-        ctx.fillSlots("seed", seed)
-        ctx.fillSlots("furl", furl)
         ctx.fillSlots("address", addr)
         ctx.fillSlots("connected", connected)
         ctx.fillSlots("connected-bool", bool(rhost))
