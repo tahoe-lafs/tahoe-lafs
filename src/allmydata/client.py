@@ -310,9 +310,9 @@ class Client(node.Node, pollmixin.PollMixin):
         d = self.when_tub_ready()
         # we can't do registerReference until the Tub is ready
         def _publish(res):
+            furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
+            furl = self.tub.registerReference(ss, furlFile=furl_file)
             if self.introducer_client:
-                furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
-                furl = self.tub.registerReference(ss, furlFile=furl_file)
                 ann = {"anonymous-storage-FURL": furl,
                        "permutation-seed-base32": self._init_permutation_seed(ss),
                        }
