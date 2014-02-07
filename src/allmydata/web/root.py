@@ -394,9 +394,9 @@ class Root(rend.Page):
         return T.div[form]
 
     def render_show_introducerless_config(self, ctx, data):
-        if False: # FIXME: add config item for showing this
-            return ""
-        else:
+        if self.client.get_config("node", "web.reveal_storage_furls", default=False, boolean=True):
             return ctx.tag[T.a(href="introducerless_config")[
                                                       "Introducerless Config"]]
+        else:
+            return ""
 

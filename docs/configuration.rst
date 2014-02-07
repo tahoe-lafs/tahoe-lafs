@@ -128,6 +128,12 @@ set the ``tub.location`` option described below.
     ``http://127.0.0.1:3456/static/foo.html`` will serve the contents of
     ``BASEDIR/public_html/foo.html`` .
 
+``web.reveal_storage_furls = (boolean, optional)``
+    This enables the ``/introducerless_config`` page of the WUI, which will
+    reveal the FURLs of storage servers to users of the gateway. See the
+    ``[client-server-selection]`` section below for more details. The default
+    value is false.
+
 ``tub.port = (integer, optional)``
 
     This controls which port the node uses to accept Foolscap connections
@@ -392,9 +398,9 @@ Client Server Selection
 ``[client-server-selection]``
 
 This optional section allows you to specify storage servers to connect to
-without relying on an introducer. When you are using an introducer, you can
-copy and paste values for this section from the "Introducerless Config" page in
-the WUI.
+without relying on an introducer. When you are using an introducer, if
+web.reveal_storage_furls is set to true, you can copy and paste values for this
+section from the "Introducerless Config" page in the WUI.
 
 Note that in the following configuration options "serverid" is not
 literal but instead should be set to the appropriate serverid of a

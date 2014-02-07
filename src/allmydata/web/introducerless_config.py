@@ -2,6 +2,7 @@
 from twisted.internet import defer
 from nevow import rend, inevow, tags as T
 from allmydata.web.common import getxmlfile
+from allmydata.interfaces import IntroducerlessConfigDisabledError
 
 class IntroducerlessConfig(rend.Page):
 
@@ -11,6 +12,10 @@ class IntroducerlessConfig(rend.Page):
         self.client = client
 
     def data_servers(self, ctx, data):
+        if not self.client.get_config("node", "web.reveal_storage_furls",
+                                                   default=False, boolean=True):
+            raise IntroducerlessConfigDisabledError()
+
         sb = self.client.get_storage_broker()
         return sorted(sb.get_known_servers(), key=lambda s: s.get_serverid())
 
