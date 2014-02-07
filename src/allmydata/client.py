@@ -175,31 +175,26 @@ class Client(node.Node, pollmixin.PollMixin):
         return seqnum, nonce
 
     def init_introducer_client(self):
-
-        # exit function if we are not supposed to use the introducer
-        if not self.get_config("client-server-selection", "use_introducer",
-                           default=True, boolean=True):
+        self.introducer_furl = self.get_config("client", "introducer.furl", default=None)
+        if self.introducer_furl:
+            ic = IntroducerClient(self.tub, self.introducer_furl,
+                                  self.nickname,
+                                  str(allmydata.__full_version__),
+                                  str(self.OLDEST_SUPPORTED_VERSION),
+                                  self.get_app_versions(),
+                                  self._sequencer)
+            self.introducer_client = ic
+            # hold off on starting the IntroducerClient until our tub has been
+            # started, so we'll have a useful address on our RemoteReference, so
+            # that the introducer's status page will show us.
+            d = self.when_tub_ready()
+            def _start_introducer_client(res):
+                ic.setServiceParent(self)
+            d.addCallback(_start_introducer_client)
+            d.addErrback(log.err, facility="tahoe.init",
+                         level=log.BAD, umid="URyI5w")
+        else:
             self.introducer_client = None
-            self.introducer_furl   = None
-            return
-
-        self.introducer_furl = self.get_config("client", "introducer.furl")
-        ic = IntroducerClient(self.tub, self.introducer_furl,
-                              self.nickname,
-                              str(allmydata.__full_version__),
-                              str(self.OLDEST_SUPPORTED_VERSION),
-                              self.get_app_versions(),
-                              self._sequencer)
-        self.introducer_client = ic
-        # hold off on starting the IntroducerClient until our tub has been
-        # started, so we'll have a useful address on our RemoteReference, so
-        # that the introducer's status page will show us.
-        d = self.when_tub_ready()
-        def _start_introducer_client(res):
-            ic.setServiceParent(self)
-        d.addCallback(_start_introducer_client)
-        d.addErrback(log.err, facility="tahoe.init",
-                     level=log.BAD, umid="URyI5w")
 
     def init_stats_provider(self):
         gatherer_furl = self.get_config("client", "stats_gatherer.furl", None)
@@ -315,12 +310,13 @@ class Client(node.Node, pollmixin.PollMixin):
         d = self.when_tub_ready()
         # we can't do registerReference until the Tub is ready
         def _publish(res):
-            furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
-            furl = self.tub.registerReference(ss, furlFile=furl_file)
-            ann = {"anonymous-storage-FURL": furl,
-                   "permutation-seed-base32": self._init_permutation_seed(ss),
-                   }
-            self.introducer_client.publish("storage", ann, self._node_key)
+            if self.introducer_client:
+                furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
+                furl = self.tub.registerReference(ss, furlFile=furl_file)
+                ann = {"anonymous-storage-FURL": furl,
+                       "permutation-seed-base32": self._init_permutation_seed(ss),
+                       }
+                self.introducer_client.publish("storage", ann, self._node_key)
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="aLGBKw")
@@ -380,9 +376,7 @@ class Client(node.Node, pollmixin.PollMixin):
                            % (server_type, serverid))
                     raise storage_client.UnknownServerTypeError(msg)
 
-        # check to see if we're supposed to use the introducer too
-        if self.get_config("client-server-selection", "use_introducer",
-                           default=True, boolean=True):
+        if self.introducer_client:
             sb.use_introducer(self.introducer_client)
 
     def get_storage_broker(self):

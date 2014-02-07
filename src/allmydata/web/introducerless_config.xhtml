@@ -9,11 +9,12 @@
 
 <h1>Introducerless Config</h1>
 
-This version of Tahoe-LAFS supports introducerless operation. To connect to the currently-connected storage servers without an introducer, add the lines below to your gateway's <tt>tahoe.cfg</tt> and restart it.
+This version of Tahoe-LAFS supports introducerless operation. To connect to the
+currently-known storage servers without relying on an introducer, add the lines
+below to your gateway's <tt>tahoe.cfg</tt> and restart it.
 
 <pre>
 [client-server-selection]
-use_introducer = false
 <span n:render="sequence" n:data="servers"><span n:pattern="item" n:render="server_config"/></span>
 </pre>
 

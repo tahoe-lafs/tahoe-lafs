@@ -391,10 +391,10 @@ Client Server Selection
 
 ``[client-server-selection]``
 
-``use_introducer = (Boolean, optional)``
-
-    This defaults to True. If set to False then the client will not
-    use any introducer.
+This optional section allows you to specify storage servers to connect to
+without relying on an introducer. When you are using an introducer, you can
+copy and paste values for this section from the "Introducerless Config" page in
+the WUI.
 
 Note that in the following configuration options "serverid" is not
 literal but instead should be set to the appropriate serverid of a
@@ -411,7 +411,7 @@ given node.
 
 ``server.serverid.seed = (permutation-seed-base32, mandatory)``
 
-    Storage server seed.
+    Storage server permutation seed.
 
 ``server.serverid.furl = (furl, mandatory)``
 
