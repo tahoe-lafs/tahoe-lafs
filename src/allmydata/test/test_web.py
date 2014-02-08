@@ -258,6 +258,8 @@ class FakeClient(Client):
         return "v0-nodeid"
     def get_long_tubid(self):
         return "tubid"
+    def get_config(self, section, option, default=None, boolean=False):
+        return None
 
     def startService(self):
         return service.MultiService.startService(self)
