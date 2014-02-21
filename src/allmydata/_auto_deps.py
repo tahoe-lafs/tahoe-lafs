@@ -18,19 +18,6 @@ install_requires = [
     # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
     "zope.interface == 3.6.0, == 3.6.1, == 3.6.2, >= 3.6.5",
 
-    # * On Windows we need at least Twisted 9.0 to avoid an indirect
-    #   dependency on pywin32.
-    # * On Linux we need at least Twisted 10.1.0 for inotify support used by
-    #   the drop-upload frontend.
-    # * We also need Twisted 10.1 for the FTP frontend in order for Twisted's
-    #   FTP server to support asynchronous close.
-    # * When the cloud backend lands, it will depend on Twisted 10.2.0 which
-    #   includes the fix to https://twistedmatrix.com/trac/ticket/411
-    # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
-    #   rekeying bug http://twistedmatrix.com/trac/ticket/4395
-    #
-    "Twisted >= 11.0.0",
-
     # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
     #   transferring large mutable files of size N.
     # * foolscap < 0.6 is incompatible with Twisted 10.2.0.
@@ -89,6 +76,24 @@ package_imports = [
 
 def require_more():
     import sys
+
+    # * On Windows we need at least Twisted 9.0 to avoid an indirect
+    #   dependency on pywin32.
+    # * On Linux we need at least Twisted 10.1.0 for inotify support used by
+    #   the drop-upload frontend.
+    # * We also need Twisted 10.1 for the FTP frontend in order for Twisted's
+    #   FTP server to support asynchronous close.
+    # * When the cloud backend lands, it will depend on Twisted 10.2.0 which
+    #   includes the fix to https://twistedmatrix.com/trac/ticket/411
+    # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
+    #   rekeying bug http://twistedmatrix.com/trac/ticket/4395
+    #
+    if sys.platform in ("win32", "cygwin"):
+        # * On Windows we can't use Twisted 12.2.0 or later (yet) because the
+        #   endpoints code depends on pywin32. http://twistedmatrix.com/trac/ticket/6032
+        install_requires += ["Twisted == 11.0.0, == 11.1.0, == 12.0.0, == 12.1.0"]
+    else:
+        install_requires += ["Twisted >= 11.0.0"]
 
     # Don't try to get the version number of setuptools in frozen builds, because
     # that triggers 'site' processing that causes failures. Note that frozen
