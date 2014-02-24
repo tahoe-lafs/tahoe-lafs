@@ -202,7 +202,7 @@ def ssk_readkey_data_hash(IV, readkey):
 def ssk_storage_index_hash(readkey):
     return tagged_hash(MUTABLE_STORAGEINDEX_TAG, readkey, KEYLEN)
 
-def constant_time_compare(a, b):
+def timing_safe_compare(a, b):
     n = os.urandom(8)
     return bool(tagged_hash(n, a) == tagged_hash(n, b))
 
