@@ -164,7 +164,7 @@ def calculate(K, K1, K2, q_max, L_hash, trees):
             # n is the number of digits needed to sign the message representative and checksum.
             # The representation is base-B, except that we allow the most significant digit
             # to be up to 2B-1.
-            n_L = ceil_div(L_hash, lg(B))
+            n_L = ceil_div(L_hash-1, lg(B))
             firstL_max = floor_div(pow(2, L_hash)-1, pow(B, n_L-1))
             C_max = firstL_max + (n_L-1)*(B-1)
             n_C = ceil_log(ceil_div(C_max, 2), B)
