@@ -34,7 +34,7 @@ def ceil_div(x, y):
 def floor_div(x, y):
     return int(floor(float(x) / float(y)))
 
-# number of compression function evaluations to hash k hash-outputs
+# number of compression function evaluations to hash k bits
 # we assume that there is a label in each block
 def compressions(k):
     return ceil_div(k + L_pad, L_block - L_label)
