@@ -177,7 +177,7 @@ def calculate(K, K1, K2, q_max, L_hash, trees):
             c_D = (n-2)*(B-1) + firstL_max + firstC_max
 
             # number of compressions to hash a Winternitz public key
-            c_W = compressions(n*L_hash + L_label)
+            c_W = compressions(n*L_hash)
 
             # bitlength of a single Winternitz signature and authentication path
             L_MW  = (n + h_M ) * L_hash
@@ -242,8 +242,8 @@ def search():
         # find optimal Merkle tree shapes for this L_hash and each K
         trees = {}
         K_max = 50
-        c2 = compressions(2*L_hash + L_label)
-        c3 = compressions(3*L_hash + L_label)
+        c2 = compressions(2*L_hash)
+        c3 = compressions(3*L_hash)
         for dau in xrange(0, 10):
             a = pow(2, dau)
             for tri in xrange(0, ceil_log(30-dau, 3)):
