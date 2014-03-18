@@ -1,6 +1,11 @@
 
 from zope.interface import implements
 
+try:
+    from xml.etree.ElementTree import ParseError
+except ImportError:
+    from elementtree.ElementTree import ParseError
+
 from allmydata.node import InvalidValueError
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
      ContainerRetryMixin, ContainerListMixin
@@ -65,8 +70,16 @@ class S3Container(ContainerRetryMixin, ContainerListMixin):
     def delete(self):
         return self._do_request('delete bucket', self.client.delete_bucket, self.container_name)
 
+    def _get_bucket(self, container_name, **kwargs):
+        d = self.client.get_bucket(container_name, **kwargs)
+        def _err(f):
+            f.trap(ParseError)
+            raise self.ServiceError("", 500, "list objects: response body is not valid XML (possibly empty)\n" + f)
+        d.addErrback(_err)
+        return d
+
     def list_some_objects(self, **kwargs):
-        return self._do_request('list objects', self.client.get_bucket, self.container_name, **kwargs)
+        return self._do_request('list objects', self._get_bucket, self.container_name, **kwargs)
 
     def put_object(self, object_name, data, content_type='application/octet-stream', metadata={}):
         return self._do_request('PUT object', self.client.put_object, self.container_name,
