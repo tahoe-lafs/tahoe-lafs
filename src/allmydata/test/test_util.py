@@ -659,11 +659,11 @@ class HashUtilTests(unittest.TestCase):
         h2.update("foo")
         self.failUnlessEqual(h1, h2.digest())
 
-    def test_constant_time_compare(self):
-        self.failUnless(hashutil.constant_time_compare("a", "a"))
-        self.failUnless(hashutil.constant_time_compare("ab", "ab"))
-        self.failIf(hashutil.constant_time_compare("a", "b"))
-        self.failIf(hashutil.constant_time_compare("a", "aa"))
+    def test_timing_safe_compare(self):
+        self.failUnless(hashutil.timing_safe_compare("a", "a"))
+        self.failUnless(hashutil.timing_safe_compare("ab", "ab"))
+        self.failIf(hashutil.timing_safe_compare("a", "b"))
+        self.failIf(hashutil.timing_safe_compare("a", "aa"))
 
     def _testknown(self, hashf, expected_a, *args):
         got = hashf(*args)

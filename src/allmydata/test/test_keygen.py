@@ -43,7 +43,7 @@ class KeyGenService(unittest.TestCase, pollmixin.PollMixin):
 
         #print 'starting key generator service'
         keysize = TEST_RSA_KEY_SIZE
-        kgs = key_generator.KeyGeneratorService(display_furl=False, default_key_size=keysize)
+        kgs = key_generator.KeyGeneratorService(display_furl=False, default_key_size=keysize, basedir="key_generator_service")
         kgs.key_generator.verbose = True
         kgs.setServiceParent(self.parent)
         kgs.key_generator.pool_size = 8

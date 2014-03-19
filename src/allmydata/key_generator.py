@@ -6,7 +6,7 @@ from foolscap.api import Referenceable, Tub
 from zope.interface import implements
 from twisted.internet import reactor
 from twisted.application import service
-from allmydata.util import log
+from allmydata.util import log, fileutil
 
 from pycryptopp.publickey import rsa
 from allmydata.interfaces import RIKeyGenerator
@@ -79,6 +79,7 @@ class KeyGeneratorService(service.MultiService):
     def __init__(self, basedir='.', display_furl=True, default_key_size=2048):
         service.MultiService.__init__(self)
         self.basedir = basedir
+        fileutil.make_dirs(self.basedir)
         self.tub = Tub(certFile=os.path.join(self.basedir, 'key_generator.pem'))
         self.tub.setOption("expose-remote-exception-types", False)
         self.tub.setServiceParent(self)
