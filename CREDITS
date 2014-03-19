@@ -15,12 +15,10 @@ N: Zooko
 E: zooko@zooko.com
 D: main developer
 
-N: Daira Hopwood (formerly David-Sarah Hopwood)
+N: Daira Hopwood
 E: daira@jacaranda.org
-E: david-sarah@jacaranda.org
-P: 3D6A 08E9 1262 3E9A 00B2 1BDC 067F 4920 98CF 2762 (preferred)
-P: 12F8 A95C C90B B68E 369C 003D 5947 3C63 3CB3 A807
-D: Tahoe-LAFS Hacker
+P: 3D6A 08E9 1262 3E9A 00B2 1BDC 067F 4920 98CF 2762
+D: main developer
 
 N: Faried Nawaz
 E: self@node.pk
@@ -84,7 +82,7 @@ E: ndurner@googlemail.com
 D: security bug report, darcsver fix, Windows build docs, ftpd docs, bzr patch
 
 N: Kevin Reid
-E: kpreid@mac.com
+E: kpreid@switchb.org
 D: security bug report, W3 standards, new improved WUI style
 
 N: Alberto Berti

@@ -389,7 +389,7 @@ To work against this slow, continual loss of shares, a File Checker is used
 to periodically count the number of shares still available for any given
 file. A more extensive form of checking known as the File Verifier can
 download the ciphertext of the target file and perform integrity checks
-(using strong hashes) to make sure the data is stil intact. When the file is
+(using strong hashes) to make sure the data is still intact. When the file is
 found to have decayed below some threshold, the File Repairer can be used to
 regenerate and re-upload the missing shares. These processes are conceptually
 distinct (the repairer is only run if the checker/verifier decides it is
