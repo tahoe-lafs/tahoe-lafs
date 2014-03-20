@@ -8,8 +8,10 @@ from allmydata.web.operations import ReloadMixin
 from allmydata.interfaces import ICheckAndRepairResults, ICheckResults
 from allmydata.util import base32, dictutil
 
+
 def json_check_counts(r):
-    d = {"count-shares-good": r.get_share_counter_good(),
+    d = {"count-happiness": r.get_happiness(),
+         "count-shares-good": r.get_share_counter_good(),
          "count-shares-needed": r.get_encoding_needed(),
          "count-shares-expected": r.get_encoding_expected(),
          "count-good-share-hosts": r.get_host_counter_good_shares(),
@@ -40,7 +42,6 @@ def json_check_results(r):
     data["storage-index"] = r.get_storage_index_string()
     data["summary"] = r.get_summary()
     data["results"] = json_check_counts(r)
-    data["results"]["needs-rebalancing"] = r.needs_rebalancing()
     data["results"]["healthy"] = r.is_healthy()
     data["results"]["recoverable"] = r.is_recoverable()
     return data
@@ -86,6 +87,7 @@ class ResultsBase:
             "need %d-of-%d, have %d" % (cr.get_encoding_needed(),
                                         cr.get_encoding_expected(),
                                         cr.get_share_counter_good()))
+        add("Happiness Count", cr.get_happiness())
         add("Hosts with good shares", cr.get_host_counter_good_shares())
 
         if cr.get_corrupt_shares():
