@@ -12,6 +12,7 @@ from allmydata.util.hashutil import file_renewal_secret_hash, \
      file_cancel_secret_hash, bucket_renewal_secret_hash, \
      bucket_cancel_secret_hash, uri_extension_hash, CRYPTO_VAL_SIZE, \
      block_hash
+from allmydata.util.happinessutil import servers_of_happiness
 
 from allmydata.immutable import layout
 
@@ -775,15 +776,11 @@ class Checker(log.PrefixingLogMixin):
             recoverable = 0
             unrecoverable = 1
 
-        # The file needs rebalancing if the set of servers that have at least
-        # one share is less than the number of uniquely-numbered shares
-        # available.
-        # TODO: this may be wrong, see ticket #1115 comment:27 and ticket #1784.
-        needs_rebalancing = bool(good_share_hosts < len(verifiedshares))
+        count_happiness = servers_of_happiness(verifiedshares)
 
         cr = CheckResults(self._verifycap, SI,
                           healthy=healthy, recoverable=bool(recoverable),
-                          needs_rebalancing=needs_rebalancing,
+                          count_happiness=count_happiness,
                           count_shares_needed=self._verifycap.needed_shares,
                           count_shares_expected=self._verifycap.total_shares,
                           count_shares_good=len(verifiedshares),

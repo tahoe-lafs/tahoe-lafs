@@ -2156,18 +2156,16 @@ class ICheckResults(Interface):
         not. Unrecoverable files are obviously unhealthy. Non-distributed LIT
         files always return True."""
 
-    def needs_rebalancing():
-        """Return a boolean, True if the file/dir's reliability could be
-        improved by moving shares to new servers. Non-distributed LIT files
-        always return False."""
-
     # the following methods all return None for non-distributed LIT files
 
+    def get_happiness():
+        """Return the happiness count of the file."""
+
     def get_encoding_needed():
-        """Return 'k', the number of shares required for recovery"""
+        """Return 'k', the number of shares required for recovery."""
 
     def get_encoding_expected():
-        """Return 'N', the number of total shares generated"""
+        """Return 'N', the number of total shares generated."""
 
     def get_share_counter_good():
         """Return the number of distinct good shares that were found. For

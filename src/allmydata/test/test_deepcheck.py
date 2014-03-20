@@ -277,13 +277,12 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         self.failUnlessEqual(cr.get_storage_index_string(),
                              base32.b2a(n.get_storage_index()), where)
         num_servers = len(self.g.all_servers)
-        needs_rebalancing = bool( num_servers < 10 )
-        if not incomplete:
-            self.failUnlessEqual(cr.needs_rebalancing(), needs_rebalancing,
-                                 str((where, cr, cr.as_dict())))
-        self.failUnlessEqual(cr.get_share_counter_good(), 10, where)
+        self.failUnlessEqual(num_servers, 10, where)
+
+        self.failUnlessEqual(cr.get_happiness(), num_servers, where)
+        self.failUnlessEqual(cr.get_share_counter_good(), num_servers, where)
         self.failUnlessEqual(cr.get_encoding_needed(), 3, where)
-        self.failUnlessEqual(cr.get_encoding_expected(), 10, where)
+        self.failUnlessEqual(cr.get_encoding_expected(), num_servers, where)
         if not incomplete:
             self.failUnlessEqual(cr.get_host_counter_good_shares(),
                                  num_servers, where)
@@ -533,13 +532,13 @@ class DeepCheckWebGood(DeepCheckBase, unittest.TestCase):
         r = data["results"]
         self.failUnlessEqual(r["healthy"], True, where)
         num_servers = len(self.g.all_servers)
-        needs_rebalancing = bool( num_servers < 10 )
-        if not incomplete:
-            self.failUnlessEqual(r["needs-rebalancing"], needs_rebalancing,
-                                 where)
-        self.failUnlessEqual(r["count-shares-good"], 10, where)
+        self.failUnlessEqual(num_servers, 10)
+
+        self.failIfIn("needs-rebalancing", r)
+        self.failUnlessEqual(r["count-happiness"], num_servers, where)
+        self.failUnlessEqual(r["count-shares-good"], num_servers, where)
         self.failUnlessEqual(r["count-shares-needed"], 3, where)
-        self.failUnlessEqual(r["count-shares-expected"], 10, where)
+        self.failUnlessEqual(r["count-shares-expected"], num_servers, where)
         if not incomplete:
             self.failUnlessEqual(r["count-good-share-hosts"], num_servers,
                                  where)

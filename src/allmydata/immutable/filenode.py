@@ -11,6 +11,7 @@ from allmydata.interfaces import IImmutableFileNode, IUploadResults
 from allmydata.util import consumer
 from allmydata.check_results import CheckResults, CheckAndRepairResults
 from allmydata.util.dictutil import DictOfSets
+from allmydata.util.happinessutil import servers_of_happiness
 from pycryptopp.cipher.aes import AES
 
 # local imports
@@ -144,12 +145,11 @@ class CiphertextFileNode:
         is_healthy = bool(len(sm) >= verifycap.total_shares)
         is_recoverable = bool(len(sm) >= verifycap.needed_shares)
 
-        # TODO: this may be wrong, see ticket #1115 comment:27 and ticket #1784.
-        needs_rebalancing = bool(len(sm) >= verifycap.total_shares)
+        count_happiness = servers_of_happiness(sm)
 
         prr = CheckResults(cr.get_uri(), cr.get_storage_index(),
                            healthy=is_healthy, recoverable=is_recoverable,
-                           needs_rebalancing=needs_rebalancing,
+                           count_happiness=count_happiness,
                            count_shares_needed=verifycap.needed_shares,
                            count_shares_expected=verifycap.total_shares,
                            count_shares_good=len(sm),
