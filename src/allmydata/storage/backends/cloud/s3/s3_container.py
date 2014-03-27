@@ -8,7 +8,7 @@ except ImportError:
 
 from allmydata.node import InvalidValueError
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     ContainerRetryMixin, ContainerListMixin
+     CommonContainerMixin, ContainerListMixin
 
 
 def configure_s3_container(storedir, config):
@@ -24,13 +24,15 @@ def configure_s3_container(storedir, config):
     return S3Container(accesskeyid, secretkey, url, container_name, usertoken, producttoken)
 
 
-class S3Container(ContainerRetryMixin, ContainerListMixin):
+class S3Container(ContainerListMixin, CommonContainerMixin):
     implements(IContainer)
     """
     I represent a real S3 container (bucket), accessed using the txaws library.
     """
 
-    def __init__(self, access_key, secret_key, url, container_name, usertoken=None, producttoken=None):
+    def __init__(self, access_key, secret_key, url, container_name, usertoken=None, producttoken=None, override_reactor=None):
+        CommonContainerMixin.__init__(container_name, override_reactor)
+
         # We only depend on txaws when this class is actually instantiated.
         from txaws.credentials import AWSCredentials
         from txaws.service import AWSServiceEndpoint
@@ -54,45 +56,36 @@ class S3Container(ContainerRetryMixin, ContainerListMixin):
             query_factory = make_query
 
         self.client = S3Client(creds=creds, endpoint=endpoint, query_factory=query_factory)
-        self.container_name = container_name
         self.ServiceError = S3Error
 
-    def __repr__(self):
-        return ("<%s %r>" % (self.__class__.__name__, self.container_name,))
+    def _create(self):
+        return self.client.create(self._container_name)
 
-    def _strip_data(self, args):
-        # Retain up to two arguments (container_name and object_name) for logging.
-        return args[:2]
+    def _delete(self):
+        return self.client.delete(self._container_name)
 
-    def create(self):
-        return self._do_request('create bucket', self.client.create_bucket, self.container_name)
+    def list_some_objects(self, **kwargs):
+        return self._do_request('list objects', self._list_some_objects, **kwargs)
 
-    def delete(self):
-        return self._do_request('delete bucket', self.client.delete_bucket, self.container_name)
-
-    def _get_bucket(self, container_name, **kwargs):
-        d = self.client.get_bucket(container_name, **kwargs)
+    def _list_some_objects(self, **kwargs):
+        d = self.client.get_bucket(self._container_name, **kwargs)
         def _err(f):
             f.trap(ParseError)
             raise self.ServiceError("", 500, "list objects: response body is not valid XML (possibly empty)\n" + f)
         d.addErrback(_err)
         return d
 
-    def list_some_objects(self, **kwargs):
-        return self._do_request('list objects', self._get_bucket, self.container_name, **kwargs)
+    def _put_object(self, object_name, data, content_type='application/octet-stream', metadata={}):
+        return self.client.put_object(self._container_name, object_name, data, content_type, metadata)
 
-    def put_object(self, object_name, data, content_type='application/octet-stream', metadata={}):
-        return self._do_request('PUT object', self.client.put_object, self.container_name,
-                                object_name, data, content_type, metadata)
+    def _get_object(self, object_name):
+        return self.client.get_object(self._container_name, object_name)
 
-    def get_object(self, object_name):
-        return self._do_request('GET object', self.client.get_object, self.container_name, object_name)
+    def _head_object(self, object_name):
+        return self.client.head_object(self._container_name, object_name)
 
-    def head_object(self, object_name):
-        return self._do_request('HEAD object', self.client.head_object, self.container_name, object_name)
-
-    def delete_object(self, object_name):
-        return self._do_request('DELETE object', self.client.delete_object, self.container_name, object_name)
+    def _delete_object(self, object_name):
+        return self.client.delete_object(self._container_name, object_name)
 
     def put_policy(self, policy):
         """
@@ -100,17 +93,17 @@ class S3Container(ContainerRetryMixin, ContainerListMixin):
         """
         query = self.client.query_factory(
             action='PUT', creds=self.client.creds, endpoint=self.client.endpoint,
-            bucket=self.container_name, object_name='?policy', data=policy)
+            bucket=self._container_name, object_name='?policy', data=policy)
         return self._do_request('PUT policy', query.submit)
 
     def get_policy(self):
         query = self.client.query_factory(
             action='GET', creds=self.client.creds, endpoint=self.client.endpoint,
-            bucket=self.container_name, object_name='?policy')
+            bucket=self._container_name, object_name='?policy')
         return self._do_request('GET policy', query.submit)
 
     def delete_policy(self):
         query = self.client.query_factory(
             action='DELETE', creds=self.client.creds, endpoint=self.client.endpoint,
-            bucket=self.container_name, object_name='?policy')
+            bucket=self._container_name, object_name='?policy')
         return self._do_request('DELETE policy', query.submit)
