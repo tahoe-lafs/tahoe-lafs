@@ -235,15 +235,15 @@ class AuthenticationClient(HTTPClientMixin):
             self._delayed.cancel()
 
 
-class OpenStackContainer(CommonContainerMixin):
+class OpenStackContainer(CommonContainerMixin, HTTPClientMixin):
     implements(IContainer)
 
     USER_AGENT = "Tahoe-LAFS OpenStack storage client"
 
     def __init__(self, auth_client, container_name, override_reactor=None):
         CommonContainerMixin.__init__(self, container_name, override_reactor)
+        self._init_agent()
         self._auth_client = auth_client
-        self.ServiceError = CloudServiceError
 
     def _react_to_error(self, response_code):
         if response_code == UNAUTHORIZED:

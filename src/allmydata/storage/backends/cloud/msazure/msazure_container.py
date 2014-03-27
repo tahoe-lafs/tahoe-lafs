@@ -22,10 +22,10 @@ from twisted.web.http_headers import Headers
 from twisted.web.http import datetimeToString
 
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     ContainerItem, ContainerListing, CommonContainerMixin
+     ContainerItem, ContainerListing, CommonContainerMixin, HTTPClientMixin
 
 
-class MSAzureStorageContainer(CommonContainerMixin):
+class MSAzureStorageContainer(CommonContainerMixin, HTTPClientMixin):
     implements(IContainer)
 
     USER_AGENT = "Tahoe-LAFS Microsoft Azure client"
@@ -35,6 +35,7 @@ class MSAzureStorageContainer(CommonContainerMixin):
     def __init__(self, account_name, account_key, container_name,
                  override_reactor=None):
         CommonContainerMixin.__init__(self, container_name, override_reactor)
+        self._init_agent()
         self._account_name = account_name
         self._account_key = base64.b64decode(account_key)
         self.URI = "https://%s.blob.core.windows.net" % (account_name, )

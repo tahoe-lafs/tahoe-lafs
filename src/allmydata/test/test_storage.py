@@ -787,16 +787,15 @@ class CloudStorageBackendMixin(object):
         return d
 
 
-class ContainerRetryTests(unittest.TestCase, CloudStorageBackendMixin):
+class CommonContainerTests(unittest.TestCase, CloudStorageBackendMixin):
     """
-    Tests for ContainerRetryMixin.
+    Tests for CommonContainerMixin.
     """
     def setUp(self):
-        from allmydata.storage.backends.cloud.cloud_common import ContainerRetryMixin
+        from allmydata.storage.backends.cloud.cloud_common import CommonContainerMixin
         self.reactor = Clock()
-        self.container = ContainerRetryMixin()
-        self.container._reactor = self.reactor
-        self.container.ServiceError = CloudServiceError
+        self.container = CommonContainerMixin("container", self.reactor)
+
         # We don't just use mock.Mock, but do this silly thing so we can use
         # create_autospec, because create_autospec is the only safe way to use
         # mock.

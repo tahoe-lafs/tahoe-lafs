@@ -333,8 +333,10 @@ class ContainerListing(object):
 BACKOFF_SECONDS_BEFORE_RETRY = (0, 2, 10)
 
 
-class ContainerRetryMixin:
+class CommonContainerMixin:
     """
+    Base class for cloud storage providers with similar APIs.
+
     I provide a helper method for performing an operation on a cloud container that will retry up to
     len(BACKOFF_SECONDS_FOR_RETRY) times (not including the initial try). If the initial try fails, a
     single incident will be triggered after the operation has succeeded or failed.
@@ -350,6 +352,21 @@ class ContainerRetryMixin:
           Returns True if the error should be retried. May perform side effects before the retry.
     """
 
+    def __init__(self, container_name, override_reactor=None):
+        self._container_name = container_name
+        self._reactor = override_reactor or reactor
+        self.ServiceError = CloudServiceError
+
+    def __repr__(self):
+        return ("<%s %r>" % (self.__class__.__name__, self._container_name,))
+
+    def _make_container_url(self, public_storage_url):
+        return "%s/%s" % (public_storage_url, urllib.quote(self._container_name, safe=''))
+
+    def _make_object_url(self, public_storage_url, object_name):
+        return "%s/%s/%s" % (public_storage_url, urllib.quote(self._container_name, safe=''),
+                             urllib.quote(object_name))
+
     def _react_to_error(self, response_code):
         """
         The default policy is to retry on 5xx errors.
@@ -357,11 +374,7 @@ class ContainerRetryMixin:
         return response_code >= 500 and response_code < 600
 
     def _strip_data(self, args):
-        """
-        By default retain only one argument (object_name) for logging.
-        Subclasses should override this if more than one argument is safe to log
-        (we want to avoid logging data).
-        """
+        # Retain only one argument, object_name, for logging (we want to avoid logging data).
         return args[:1]
 
     def _do_request(self, description, operation, *args, **kwargs):
@@ -422,6 +435,27 @@ class ContainerRetryMixin:
         # raise that error even if the request was itself a retry.
         log.msg("Giving up, no retry for %s" % (err,))
         raise err.__class__, err, tb
+
+    def create(self):
+        return self._do_request('create container', self._create)
+
+    def delete(self):
+        return self._do_request('delete container', self._delete)
+
+    def list_objects(self, prefix=''):
+        return self._do_request('list objects', self._list_objects, prefix)
+
+    def put_object(self, object_name, data, content_type='application/octet-stream', metadata={}):
+        return self._do_request('PUT object', self._put_object, object_name, data, content_type, metadata)
+
+    def get_object(self, object_name):
+        return self._do_request('GET object', self._get_object, object_name)
+
+    def head_object(self, object_name):
+        return self._do_request('HEAD object', self._head_object, object_name)
+
+    def delete_object(self, object_name):
+        return self._do_request('DELETE object', self._delete_object, object_name)
 
 
 def concat(seqs):
@@ -676,6 +710,12 @@ class HTTPClientMixin:
       ServiceError:
           The error class to trap (CloudServiceError or similar).
     """
+
+    def _init_agent(self):
+        pool = HTTPConnectionPool(self._reactor)
+        pool.maxPersistentPerHost = 20
+        self._agent = Agent(self._reactor, connectTimeout=10, pool=pool)
+
     def _http_request(self, what, method, url, request_headers, body=None, need_response_body=False):
         # Agent.request adds a Host header automatically based on the URL.
         request_headers['User-Agent'] = [self.USER_AGENT]
@@ -719,56 +759,3 @@ class HTTPClientMixin:
             raise self.ServiceError(None, response.code,
                                     message="missing response header %r" % (name,))
         return hs[0]
-
-
-
-class CommonContainerMixin(HTTPClientMixin, ContainerRetryMixin):
-    """
-    Base class for cloud storage providers with similar APIs.
-
-    In particular, OpenStack and Google Storage are very similar (presumably
-    since they both copy S3).
-    """
-
-    def __init__(self, container_name, override_reactor=None):
-        self._container_name = container_name
-
-        # Maybe this should be in HTTPClientMixin?
-        self._reactor = override_reactor or reactor
-        pool = HTTPConnectionPool(self._reactor)
-        pool.maxPersistentPerHost = 20
-        self._agent = Agent(self._reactor, connectTimeout=10, pool=pool)
-        self.ServiceError = CloudServiceError
-
-    def __repr__(self):
-        return ("<%s %r>" % (self.__class__.__name__, self._container_name,))
-
-    def _make_container_url(self, public_storage_url):
-        return "%s/%s" % (public_storage_url, urllib.quote(self._container_name, safe=''))
-
-    def _make_object_url(self, public_storage_url, object_name):
-        return "%s/%s/%s" % (public_storage_url, urllib.quote(self._container_name, safe=''),
-                             urllib.quote(object_name))
-
-    # Consider moving these to ContainerRetryMixin.
-
-    def create(self):
-        return self._do_request('create container', self._create)
-
-    def delete(self):
-        return self._do_request('delete container', self._delete)
-
-    def list_objects(self, prefix=''):
-        return self._do_request('list objects', self._list_objects, prefix)
-
-    def put_object(self, object_name, data, content_type='application/octet-stream', metadata={}):
-        return self._do_request('PUT object', self._put_object, object_name, data, content_type, metadata)
-
-    def get_object(self, object_name):
-        return self._do_request('GET object', self._get_object, object_name)
-
-    def head_object(self, object_name):
-        return self._do_request('HEAD object', self._head_object, object_name)
-
-    def delete_object(self, object_name):
-        return self._do_request('DELETE object', self._delete_object, object_name)

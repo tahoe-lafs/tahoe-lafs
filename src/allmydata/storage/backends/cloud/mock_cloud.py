@@ -10,7 +10,7 @@ from zope.interface import implements
 from allmydata.util.assertutil import _assert
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
      CloudServiceError, ContainerItem, ContainerListing, \
-     ContainerRetryMixin, ContainerListMixin
+     CommonContainerMixin, ContainerListMixin
 from allmydata.util.time_format import iso_utc
 from allmydata.util import fileutil
 
@@ -32,7 +32,7 @@ def hook_create_container():
     return defer.execute(_not_implemented)
 
 
-class MockContainer(ContainerRetryMixin, ContainerListMixin):
+class MockContainer(ContainerListMixin, CommonContainerMixin):
     implements(IContainer)
     """
     I represent a mock cloud container that stores its data in the local filesystem.
@@ -68,6 +68,9 @@ class MockContainer(ContainerRetryMixin, ContainerListMixin):
                 for shnumstr in sorted(fileutil.listdir(sidir)):
                     sharefile = os.path.join(sidir, shnumstr)
                     yield (sharefile, "%s/%s" % (sikey, shnumstr))
+
+    def list_some_objects(self, **kwargs):
+        return self._do_request('list objects', self._list_some_objects, **kwargs)
 
     def _list_some_objects(self, prefix='', marker=None, max_keys=None):
         if max_keys is None:
@@ -121,29 +124,6 @@ class MockContainer(ContainerRetryMixin, ContainerListMixin):
     def _delete_object(self, object_name):
         fileutil.remove(self._get_path(object_name, must_exist=True))
         return defer.succeed(None)
-
-    # methods that use error handling from ContainerRetryMixin
-
-    def create(self):
-        return self._do_request('create bucket', self._create)
-
-    def delete(self):
-        return self._do_request('delete bucket', self._delete)
-
-    def list_some_objects(self, **kwargs):
-        return self._do_request('list objects', self._list_some_objects, **kwargs)
-
-    def put_object(self, object_name, data, content_type='application/octet-stream', metadata={}):
-        return self._do_request('PUT object', self._put_object, object_name, data, content_type, metadata)
-
-    def get_object(self, object_name):
-        return self._do_request('GET object', self._get_object, object_name)
-
-    def head_object(self, object_name):
-        return self._do_request('HEAD object', self._head_object, object_name)
-
-    def delete_object(self, object_name):
-        return self._do_request('DELETE object', self._delete_object, object_name)
 
     def reset_load_store_counts(self):
         self._load_count = 0

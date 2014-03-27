@@ -30,7 +30,7 @@ from zope.interface import implements
 
 from allmydata.util import log
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     ContainerItem, ContainerListing, CommonContainerMixin
+     ContainerItem, ContainerListing, CommonContainerMixin, HTTPClientMixin
 
 
 class AuthenticationClient(object):
@@ -99,7 +99,7 @@ class AuthenticationClient(object):
         return d
 
 
-class GoogleStorageContainer(CommonContainerMixin):
+class GoogleStorageContainer(CommonContainerMixin, HTTPClientMixin):
     implements(IContainer)
 
     USER_AGENT = "Tahoe-LAFS Google Storage client"
@@ -110,6 +110,7 @@ class GoogleStorageContainer(CommonContainerMixin):
 
     def __init__(self, auth_client, project_id, bucket_name, override_reactor=None):
         CommonContainerMixin.__init__(self, bucket_name, override_reactor)
+        self._init_agent()
         self._auth_client = auth_client
         self._project_id = project_id # Only need for bucket creation/deletion
 
