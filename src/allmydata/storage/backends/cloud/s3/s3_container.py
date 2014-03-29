@@ -31,7 +31,7 @@ class S3Container(ContainerListMixin, CommonContainerMixin):
     """
 
     def __init__(self, access_key, secret_key, url, container_name, usertoken=None, producttoken=None, override_reactor=None):
-        CommonContainerMixin.__init__(container_name, override_reactor)
+        CommonContainerMixin.__init__(self, container_name, override_reactor)
 
         # We only depend on txaws when this class is actually instantiated.
         from txaws.credentials import AWSCredentials
