@@ -22,14 +22,14 @@ from allmydata import interfaces
 from allmydata.util.assertutil import precondition
 from allmydata.util import fileutil, hashutil, base32, time_format
 from allmydata.storage.server import StorageServer
+from allmydata.storage.backends.base import ContainerItem, ContainerListing
 from allmydata.storage.backends.null.null_backend import NullBackend
 from allmydata.storage.backends.disk.disk_backend import DiskBackend
 from allmydata.storage.backends.disk.immutable import load_immutable_disk_share, \
      create_immutable_disk_share, ImmutableDiskShare
 from allmydata.storage.backends.disk.mutable import create_mutable_disk_share, MutableDiskShare
 from allmydata.storage.backends.cloud.cloud_backend import CloudBackend
-from allmydata.storage.backends.cloud.cloud_common import CloudError, CloudServiceError, \
-     ContainerItem, ContainerListing
+from allmydata.storage.backends.cloud.cloud_common import CloudError, CloudServiceError
 from allmydata.storage.backends.cloud.mutable import MutableCloudShare
 from allmydata.storage.backends.cloud import mock_cloud, cloud_common
 from allmydata.storage.backends.cloud.mock_cloud import MockContainer
