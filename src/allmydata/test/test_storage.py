@@ -1,6 +1,5 @@
 
 import time, os.path, platform, re, simplejson, struct, itertools, urllib
-from collections import deque
 from cStringIO import StringIO
 import thread
 
@@ -365,10 +364,6 @@ class Seek(unittest.TestCase, WorkdirMixin):
 
 
 class CloudCommon(unittest.TestCase, ShouldFailMixin, WorkdirMixin):
-    def test_concat(self):
-        x = deque([[1, 2], (), xrange(3, 6)])
-        self.failUnlessEqual(cloud_common.concat(x), [1, 2, 3, 4, 5])
-
     def test_list_objects_truncated_badly(self):
         # If a container misbehaves by not producing listings with increasing keys,
         # that should cause an incident.

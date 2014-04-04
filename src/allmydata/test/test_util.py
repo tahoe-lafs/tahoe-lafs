@@ -2,7 +2,9 @@
 def foo(): pass # keep the line number constant
 
 import os, time, sys
+from collections import deque
 from StringIO import StringIO
+
 from twisted.trial import unittest
 from twisted.internet import defer, reactor
 from twisted.python.failure import Failure
@@ -12,7 +14,7 @@ from pycryptopp.hash.sha256 import SHA256 as _hash
 from allmydata.util import base32, idlib, humanreadable, mathutil, hashutil
 from allmydata.util import assertutil, fileutil, deferredutil, abbreviate
 from allmydata.util import limiter, time_format, pollmixin, cachedir
-from allmydata.util import statistics, dictutil, pipeline
+from allmydata.util import statistics, dictutil, listutil, pipeline
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
 
@@ -1430,6 +1432,13 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(sorted(d.keys()), ["one","two"])
         self.failUnlessEqual(d["one"], 1)
         self.failUnlessEqual(d.get_aux("one"), None)
+
+
+class ListUtil(unittest.TestCase):
+    def test_concat(self):
+        x = deque([[1, 2], (), xrange(3, 6)])
+        self.failUnlessEqual(listutil.concat(x), [1, 2, 3, 4, 5])
+
 
 class Pipeline(unittest.TestCase):
     def pause(self, *args, **kwargs):

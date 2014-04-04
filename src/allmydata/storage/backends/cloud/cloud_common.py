@@ -16,6 +16,7 @@ from allmydata.interfaces import IShareBase
 from allmydata.util import log
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.deferredutil import eventually_callback, eventually_errback, eventual_chain, gatherResults
+from allmydata.util.listutil import concat
 from allmydata.storage.common import si_b2a, NUM_RE
 
 
@@ -456,24 +457,6 @@ class CommonContainerMixin:
 
     def delete_object(self, object_name):
         return self._do_request('DELETE object', self._delete_object, object_name)
-
-
-def concat(seqs):
-    """
-    O(n), rather than O(n^2), concatenation of list-like things, returning a list.
-    I can't believe this isn't built in.
-    """
-    total_len = 0
-    for seq in seqs:
-        total_len += len(seq)
-    result = [None]*total_len
-    i = 0
-    for seq in seqs:
-        for x in seq:
-            result[i] = x
-            i += 1
-    _assert(i == total_len, i=i, total_len=total_len)
-    return result
 
 
 class ContainerListMixin:
