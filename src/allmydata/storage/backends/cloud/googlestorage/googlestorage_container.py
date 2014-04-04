@@ -29,8 +29,9 @@ except ImportError:
 from zope.interface import implements
 
 from allmydata.util import log
+from allmydata.storage.backends.base import ContainerItem, ContainerListing
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     ContainerItem, ContainerListing, CommonContainerMixin, HTTPClientMixin
+     CommonContainerMixin, HTTPClientMixin
 
 
 class AuthenticationClient(object):

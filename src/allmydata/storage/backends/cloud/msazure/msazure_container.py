@@ -21,8 +21,9 @@ from zope.interface import implements
 from twisted.web.http_headers import Headers
 from twisted.web.http import datetimeToString
 
+from allmydata.storage.backends.base import ContainerItem, ContainerListing
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     ContainerItem, ContainerListing, CommonContainerMixin, HTTPClientMixin
+     CommonContainerMixin, HTTPClientMixin
 
 
 class MSAzureStorageContainer(CommonContainerMixin, HTTPClientMixin):

@@ -10,9 +10,9 @@ from zope.interface import implements, Interface
 
 from allmydata.util import log
 from allmydata.node import InvalidValueError
+from allmydata.storage.backends.base import ContainerItem, ContainerListing
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     CloudServiceError, ContainerItem, ContainerListing, CommonContainerMixin, \
-     HTTPClientMixin
+     CloudServiceError, CommonContainerMixin, HTTPClientMixin
 
 
 # Enabling this will cause secrets to be logged.

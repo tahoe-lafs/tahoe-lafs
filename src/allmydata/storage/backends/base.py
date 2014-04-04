@@ -4,6 +4,7 @@ from weakref import WeakValueDictionary
 from twisted.application import service
 from twisted.internet import defer
 
+from allmydata.util.assertutil import precondition
 from allmydata.util.deferredutil import async_iterate, gatherResults
 from allmydata.storage.common import si_b2a
 from allmydata.storage.bucket import BucketReader
@@ -244,3 +245,53 @@ def empty_check_testv(testv):
             test_good = False
             break
     return test_good
+
+
+# Originally from txaws.s3.model (under different class names), which was under the MIT / Expat licence.
+
+class ContainerItem(object):
+    """
+    An item in a listing of cloud objects.
+    """
+    def __init__(self, key, modification_date, etag, size, storage_class,
+                 owner=None):
+        self.key = key
+        self.modification_date = modification_date
+        self.etag = etag
+        self.size = size
+        self.storage_class = storage_class
+        self.owner = owner
+
+    def __repr__(self):
+        return "<ContainerItem %r>" % ({
+                   "key": self.key,
+                   "modification_date": self.modification_date,
+                   "etag": self.etag,
+                   "size": self.size,
+                   "storage_class": self.storage_class,
+                   "owner": self.owner,
+               },)
+
+
+class ContainerListing(object):
+    def __init__(self, name, prefix, marker, max_keys, is_truncated,
+                 contents=None, common_prefixes=None):
+        precondition(isinstance(is_truncated, str))
+        self.name = name
+        self.prefix = prefix
+        self.marker = marker
+        self.max_keys = max_keys
+        self.is_truncated = is_truncated
+        self.contents = contents
+        self.common_prefixes = common_prefixes
+
+    def __repr__(self):
+        return "<ContainerListing %r>" % ({
+                   "name": self.name,
+                   "prefix": self.prefix,
+                   "marker": self.marker,
+                   "max_keys": self.max_keys,
+                   "is_truncated": self.is_truncated,
+                   "contents": self.contents,
+                   "common_prefixes": self.common_prefixes,
+               })

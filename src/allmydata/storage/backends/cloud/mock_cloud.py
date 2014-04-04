@@ -8,9 +8,9 @@ from allmydata.util.deferredutil import async_iterate
 from zope.interface import implements
 
 from allmydata.util.assertutil import _assert
+from allmydata.storage.backends.base import ContainerItem, ContainerListing
 from allmydata.storage.backends.cloud.cloud_common import IContainer, \
-     CloudServiceError, ContainerItem, ContainerListing, \
-     CommonContainerMixin, ContainerListMixin
+     CloudServiceError, CommonContainerMixin, ContainerListMixin
 from allmydata.util.time_format import iso_utc
 from allmydata.util import fileutil
 
