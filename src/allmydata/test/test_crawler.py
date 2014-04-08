@@ -264,6 +264,6 @@ class CrawlerTestWithDiskBackend(CrawlerTest, unittest.TestCase):
         return DiskBackend(basedir)
 
 
-class CrawlerTestWithMockCloudBackend(CrawlerTest, unittest.TestCase):
+class CrawlerTestWithCloudBackendAndMockContainer(CrawlerTest, unittest.TestCase):
     def make_backend(self, basedir):
         return CloudBackend(MockContainer(basedir))

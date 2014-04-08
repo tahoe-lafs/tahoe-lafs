@@ -1934,7 +1934,7 @@ class SystemWithDiskBackend(SystemTest, unittest.TestCase):
         pass
 
 
-class SystemWithMockCloudBackend(SystemTest, unittest.TestCase):
+class SystemWithCloudBackendAndMockContainer(SystemTest, unittest.TestCase):
     def setUp(self):
         SystemTest.setUp(self)
 
