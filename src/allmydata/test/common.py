@@ -17,7 +17,7 @@ from allmydata.check_results import CheckResults, CheckAndRepairResults, \
 from allmydata.storage_client import StubServer
 from allmydata.mutable.layout import unpack_header
 from allmydata.mutable.publish import MutableData
-from allmydata.storage.backends.disk.mutable import MutableShareFile
+from allmydata.storage.backends.disk.mutable import MutableDiskShare
 from allmydata.util import hashutil, log, fileutil, pollmixin
 from allmydata.util.assertutil import precondition
 from allmydata.util.consumer import download_to_data
@@ -1307,8 +1307,8 @@ def _corrupt_offset_of_uri_extension_to_force_short_read(data, debug=False):
 
 def _corrupt_mutable_share_data(data, debug=False):
     prefix = data[:32]
-    assert prefix == MutableShareFile.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableShareFile.MAGIC)
-    data_offset = MutableShareFile.DATA_OFFSET
+    assert prefix == MutableDiskShare.MAGIC, "This function is designed to corrupt mutable shares of v1, and the magic number doesn't look right: %r vs %r" % (prefix, MutableDiskShare.MAGIC)
+    data_offset = MutableDiskShare.DATA_OFFSET
     sharetype = data[data_offset:data_offset+1]
     assert sharetype == "\x00", "non-SDMF mutable shares not supported"
     (version, ig_seqnum, ig_roothash, ig_IV, ig_k, ig_N, ig_segsize,
