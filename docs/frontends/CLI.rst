@@ -139,9 +139,10 @@ is most often used by developers who have just modified the code and want to
 start using their changes.
 
 Some less frequently used administration commands, for key generation/derivation
-and for creating a cloud backend container, are grouped as subcommands of
-"``tahoe admin``". For a list of these use "``tahoe admin --help``", or for
-more detailed help on a particular command, use "``tahoe admin COMMAND --help``".
+and for creating and listing the contents of cloud backend containers, are
+grouped as subcommands of "``tahoe admin``". For a list of these use
+"``tahoe admin --help``", or for more detailed help on a particular command,
+use "``tahoe admin COMMAND --help``".
 
 
 Filesystem Manipulation

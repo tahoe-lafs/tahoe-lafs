@@ -57,7 +57,7 @@ from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.test.common_web import WebRenderingMixin
 from allmydata.test.no_network import NoNetworkServer
 from allmydata.test.test_cli import parse_options
-from allmydata.scripts.admin import do_create_container
+from allmydata.scripts.admin import do_create_container, do_ls_container
 from allmydata.web.storage import StorageStatus, remove_prefix
 
 
@@ -1534,11 +1534,11 @@ class Namespace(object):
     pass
 
 
-class CreateContainer(unittest.TestCase, WorkdirMixin):
-    def test_create_container(self):
+class AdminContainerTests(unittest.TestCase, WorkdirMixin):
+    def test_admin_create_container(self):
         # We'll use the mock cloud backend to test this.
-        basedir = self.workdir("test_create_container")
-        os.makedirs(basedir)
+        basedir = self.workdir("test_admin_create_container")
+        fileutil.make_dirs(basedir)
         fileutil.write(os.path.join(basedir, "tahoe.cfg"),
                                     "[client]\n"
                                     "introducer.furl = \n"
@@ -1601,6 +1601,93 @@ class CreateContainer(unittest.TestCase, WorkdirMixin):
             self.failUnlessIn("<shrug>", err, str(res))
             self.failUnlessEqual(rc, 1, str(res))
         d.addCallback(_check_failure)
+        return d
+
+    def test_admin_ls_container(self):
+        self.patch(cloud_common, 'BACKOFF_SECONDS_BEFORE_RETRY', (0, 0.1, 0.2))
+
+        def _set_up(ign, basedir, storage_cfg):
+            self.basedir = basedir
+            fileutil.make_dirs(basedir)
+            fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                           "[client]\n"
+                           "introducer.furl = \n"
+                           "[storage]\n" +
+                           storage_cfg)
+
+        def _run_ls_container(ign):
+            # We're really only testing do_ls_container (to avoid problems with
+            # restarting the reactor or exiting), but that should be sufficient.
+
+            options = parse_options(self.basedir, "admin", ["ls-container"])
+            options.stdout = StringIO()
+            options.stderr = StringIO()
+            d = defer.maybeDeferred(do_ls_container, options)
+            d.addCallbacks(lambda ign: 0, lambda ign: 1)
+            d.addCallback(lambda rc: (options.stdout.getvalue(), options.stderr.getvalue(), rc))
+            return d
+
+        workdir = self.workdir("test_admin_ls_container")
+        d = defer.succeed(None)
+
+        d.addCallback(_set_up, os.path.join(workdir, "no_storage"),
+                               "enabled = false\n")
+        d.addCallback(_run_ls_container)
+        def _check_no_storage(res):
+            (out, err, rc) = res
+            self.failUnlessEqual(out, "", str(res))
+            self.failUnlessIn("Container listing failed.", err, str(res))
+            self.failUnlessIn("'tahoe admin ls-container' is intended for administration of nodes running a storage service",
+                              err, str(res))
+            self.failUnlessEqual(rc, 1, str(res))
+        d.addCallback(_check_no_storage)
+
+        d.addCallback(_set_up, os.path.join(workdir, "disk"),
+                               "enabled = true\n")
+        d.addCallback(_run_ls_container)
+        def _check_disk(res):
+            (out, err, rc) = res
+            self.failUnlessEqual(out, "", str(res))
+            self.failUnlessIn("Container listing failed.", err, str(res))
+            self.failUnlessIn("the disk backend does not support listing container contents", err, str(res))
+            self.failUnlessIn("tahoe debug catalog-shares", err, str(res))
+            self.failUnlessEqual(rc, 1, str(res))
+        d.addCallback(_check_disk)
+
+        d.addCallback(_set_up, os.path.join(workdir, "no_objects"),
+                               "enabled = true\n"
+                               "backend = mock_cloud\n")
+        d.addCallback(_run_ls_container)
+        def _check_no_objects(res):
+            (out, err, rc) = res
+            out_lines = out.split('\n')
+            self.failUnlessEqual(out_lines[0], "Listing 0 object(s):", str(res))
+            self.failUnless(re.match(r'^\s*Size\s+Last modified\s+Key$', out_lines[1]), str(res))
+            self.failUnlessEqual(out_lines[2], "", str(res))
+            self.failUnlessEqual(len(out_lines), 3)
+            self.failUnlessEqual(err, "", str(res))
+            self.failUnlessEqual(rc, 0, str(res))
+        d.addCallback(_check_no_objects)
+
+        d.addCallback(_set_up, os.path.join(workdir, "one_object"),
+                               "enabled = true\n"
+                               "backend = mock_cloud\n")
+        def _create_object(ign):
+            prefixdir = os.path.join(self.basedir, "storage", "shares", "fo", "foo")
+            fileutil.make_dirs(prefixdir)
+            fileutil.write(os.path.join(prefixdir, "0"), "0123456789")
+        d.addCallback(_create_object)
+        d.addCallback(_run_ls_container)
+        def _check_one_object(res):
+            (out, err, rc) = res
+            out_lines = out.split('\n')
+            self.failUnlessEqual(out_lines[0], "Listing 1 object(s):", str(res))
+            self.failUnless(re.match(r'^\s*Size\s+Last modified\s+Key$', out_lines[1]), str(res))
+            self.failUnless(re.match(r'^\s*10\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d*)?Z\s+shares/fo/foo/0$', out_lines[2]), str(res))
+            self.failUnlessEqual(len(out_lines), 4)
+            self.failUnlessEqual(err, "", str(res))
+            self.failUnlessEqual(rc, 0, str(res))
+        d.addCallback(_check_one_object)
         return d
 
 
