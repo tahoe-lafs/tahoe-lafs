@@ -3,6 +3,8 @@
 *~
 *.DS_Store
 .*.kate-swp
+*.orig
+*.rej
 
 /build/
 /support/
@@ -26,6 +28,7 @@ zope.interface-*.egg
 /_test_memory/
 /tmp*
 /*.patch
+/*.diff
 /dist/
 /twisted/plugins/dropin.cache
 /tahoe-deps/
