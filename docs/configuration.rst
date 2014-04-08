@@ -4,7 +4,7 @@
 Configuring a Tahoe-LAFS node
 =============================
 
-1.   `Node Types`_
+1.  `Node Types`_
 2.  `Overall Node Configuration`_
 3.  `Client Configuration`_
 4.  `Storage Server Configuration`_
@@ -443,35 +443,30 @@ Storage Server Configuration
     for clients who do not wish to provide storage service. The default value
     is ``True``.
 
-``readonly = (boolean, optional)``
+``backend = (string, optional)``
 
-    If ``True``, the node will run a storage server but will not accept any
-    shares, making it effectively read-only. Use this for storage servers
-    that are being decommissioned: the ``storage/`` directory could be
-    mounted read-only, while shares are moved to other servers. Note that
-    this currently only affects immutable shares. Mutable shares (used for
-    directories) will be written and modified anyway. See ticket `#390`_ for
-    the current status of this bug. The default value is ``False``.
+    Storage servers can store the data into different "backends". Clients
+    need not be aware of which backend is used by a server. The default
+    value is ``disk``.
 
-``reserved_space = (str, optional)``
+``backend = disk``
 
-    If provided, this value defines how much disk space is reserved: the
-    storage server will not accept any share that causes the amount of free
-    disk space to drop below this value. (The free space is measured by a
-    call to ``statvfs(2)`` on Unix, or ``GetDiskFreeSpaceEx`` on Windows, and
-    is the space available to the user account under which the storage server
-    runs.)
+    The storage server stores shares on the local filesystem (in
+    BASEDIR/storage/shares/). For configuration details (including how to
+    reserve a minimum amount of free space), see `<backends/disk.rst>`__.
 
-    This string contains a number, with an optional case-insensitive scale
-    suffix, optionally followed by "B" or "iB". The supported scale suffixes
-    are "K", "M", "G", "T", "P" and "E", and a following "i" indicates to use
-    powers of 1024 rather than 1000. So "100MB", "100 M", "100000000B",
-    "100000000", and "100000kb" all mean the same thing. Likewise, "1MiB",
-    "1024KiB", "1024 Ki", and "1048576 B" all mean the same thing.
+``backend = cloud.<service>``
 
-    "``tahoe create-node``" generates a tahoe.cfg with
-    "``reserved_space=1G``", but you may wish to raise, lower, or remove the
-    reservation to suit your needs.
+    The storage server stores all shares to the cloud service specified
+    by <service>. For supported services and configuration details, see
+    `<backends/cloud.rst>`__. For backward compatibility, ``backend = s3``
+    is equivalent to ``backend = cloud.s3``.
+
+``backend = debug_discard``
+
+    The storage server stores all shares in /dev/null. This is actually used,
+    for testing. It is not recommended for storage of data that you might
+    want to retrieve in the future.
 
 ``expire.enabled =``
 
@@ -483,10 +478,7 @@ Storage Server Configuration
 
     These settings control garbage collection, in which the server will
     delete shares that no longer have an up-to-date lease on them. Please see
-    garbage-collection.rst_ for full details.
-
-.. _#390: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/390
-.. _garbage-collection.rst: garbage-collection.rst
+    `<garbage-collection.rst>`__ for full details.
 
 
 Running A Helper
