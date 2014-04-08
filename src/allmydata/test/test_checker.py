@@ -41,7 +41,7 @@ class WebResultsRendering(unittest.TestCase, WebRenderingMixin):
                     "my-version": "ver",
                     "oldest-supported": "oldest",
                     }
-            s = NativeStorageServer(key_s, ann)
+            s = NativeStorageServer(key_s, ann, None)
             sb.test_add_server(peerid, s) # XXX: maybe use key_s?
         c = FakeClient()
         c.storage_broker = sb
@@ -454,8 +454,9 @@ class AddLease(GridTestMixin, unittest.TestCase):
             def broken_add_lease(*args, **kwargs):
                 really_did_break.append(1)
                 raise KeyError("intentional failure, should be ignored")
-            assert self.g.servers_by_number[0].remote_add_lease
-            self.g.servers_by_number[0].remote_add_lease = broken_add_lease
+            ss = self.g.servers_by_number[0].get_accountant().get_anonymous_account()
+            assert ss.remote_add_lease
+            ss.remote_add_lease = broken_add_lease
         d.addCallback(_break_add_lease)
 
         # and confirm that the files still look healthy

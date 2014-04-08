@@ -15,7 +15,6 @@ from nevow.util import escapeToXML
 from nevow import rend
 
 from allmydata import interfaces, uri, webish, dirnode
-from allmydata.storage.shares import get_share_file
 from allmydata.storage_client import StorageFarmBroker, StubServer
 from allmydata.immutable import upload
 from allmydata.immutable.downloader.status import DownloadStatus
@@ -39,6 +38,8 @@ from allmydata.test.common_web import HTTPClientGETFactory, \
      HTTPClientHEADFactory
 from allmydata.client import Client, SecretHolder
 from allmydata.introducer import IntroducerNode
+from allmydata.storage.expiration import ExpirationPolicy
+
 
 # create a fake uploader/downloader, and a couple of fake dirnodes, then
 # create a webserver that works against them
@@ -200,7 +201,7 @@ class FakeBucketCounter(object):
                 "cycle-in-progress": False,
                 "remaining-wait-time": 0}
 
-class FakeLeaseChecker(object):
+class FakeAccountingCrawler(object):
     def __init__(self):
         self.expiration_enabled = False
         self.mode = "age"
@@ -220,9 +221,23 @@ class FakeStorageServer(service.MultiService):
         self.my_nodeid = nodeid
         self.nickname = nickname
         self.bucket_counter = FakeBucketCounter()
-        self.lease_checker = FakeLeaseChecker()
+        self.accounting_crawler = FakeAccountingCrawler()
+        self.accountant = FakeAccountant()
+        self.expiration_policy = ExpirationPolicy(enabled=False)
     def get_stats(self):
         return {"storage_server.accepting_immutable_shares": False}
+    def get_nodeid(self):
+        return self.my_nodeid
+    def get_bucket_counter(self):
+        return self.bucket_counter
+    def get_accounting_crawler(self):
+        return self.accounting_crawler
+    def get_expiration_policy(self):
+        return self.expiration_policy
+
+class FakeAccountant:
+    def get_all_accounts(self):
+        return []
 
 class FakeClient(Client):
     def __init__(self):
@@ -252,7 +267,9 @@ class FakeClient(Client):
                                        None, None, None)
         self.nodemaker.all_contents = self.all_contents
         self.mutable_file_default = SDMF_VERSION
-        self.addService(FakeStorageServer(self.nodeid, self.nickname))
+        server = FakeStorageServer(self.nodeid, self.nickname)
+        self.accountant = server.accountant
+        self.addService(server)
 
     def get_long_nodeid(self):
         return "v0-nodeid"
@@ -5310,25 +5327,24 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         d.addErrback(self.explain_web_error)
         return d
 
-    def _count_leases(self, ignored, which):
+    def _assert_leasecount(self, ignored, which, expected):
         u = self.uris[which]
-        shares = self.find_uri_shares(u)
-        lease_counts = []
-        for shnum, serverid, fn in shares:
-            sf = get_share_file(fn)
-            num_leases = len(list(sf.get_leases()))
-            lease_counts.append( (fn, num_leases) )
-        return lease_counts
+        si = uri.from_string(u).get_storage_index()
+        num_leases = 0
+        for server in self.g.servers_by_number.values():
+            ss = server.get_accountant().get_anonymous_account()
+            ss2 = server.get_accountant().get_starter_account()
+            num_leases += len(ss.get_leases(si)) + len(ss2.get_leases(si))
 
-    def _assert_leasecount(self, lease_counts, expected):
-        for (fn, num_leases) in lease_counts:
-            if num_leases != expected:
-                self.fail("expected %d leases, have %d, on %s" %
-                          (expected, num_leases, fn))
+        if num_leases != expected:
+            self.fail("expected %d leases, have %d, on '%s'" %
+                      (expected, num_leases, which))
 
     def test_add_lease(self):
         self.basedir = "web/Grid/add_lease"
-        self.set_up_grid(num_clients=2)
+        N = 10
+        self.set_up_grid(num_clients=2, num_servers=N)
+
         c0 = self.g.clients[0]
         self.uris = {}
         DATA = "data" * 100
@@ -5352,12 +5368,9 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
                 self.fileurls[which] = "uri/" + urllib.quote(self.uris[which])
         d.addCallback(_compute_fileurls)
 
-        d.addCallback(self._count_leases, "one")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "two")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "mutable")
-        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._assert_leasecount, "one", N)
+        d.addCallback(self._assert_leasecount, "two", N)
+        d.addCallback(self._assert_leasecount, "mutable", N)
 
         d.addCallback(self.CHECK, "one", "t=check") # no add-lease
         def _got_html_good(res):
@@ -5365,63 +5378,43 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failIfIn("Not Healthy", res)
         d.addCallback(_got_html_good)
 
-        d.addCallback(self._count_leases, "one")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "two")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "mutable")
-        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._assert_leasecount, "one", N)
+        d.addCallback(self._assert_leasecount, "two", N)
+        d.addCallback(self._assert_leasecount, "mutable", N)
 
         # this CHECK uses the original client, which uses the same
         # lease-secrets, so it will just renew the original lease
         d.addCallback(self.CHECK, "one", "t=check&add-lease=true")
         d.addCallback(_got_html_good)
 
-        d.addCallback(self._count_leases, "one")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "two")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "mutable")
-        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._assert_leasecount, "one", N)
+        d.addCallback(self._assert_leasecount, "two", N)
+        d.addCallback(self._assert_leasecount, "mutable", N)
 
         # this CHECK uses an alternate client, which adds a second lease
         d.addCallback(self.CHECK, "one", "t=check&add-lease=true", clientnum=1)
         d.addCallback(_got_html_good)
 
-        d.addCallback(self._count_leases, "one")
-        d.addCallback(self._assert_leasecount, 2)
-        d.addCallback(self._count_leases, "two")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "mutable")
-        d.addCallback(self._assert_leasecount, 1)
+        #d.addCallback(self._assert_leasecount, "one", 2*N)
 
-        d.addCallback(self.CHECK, "mutable", "t=check&add-lease=true")
-        d.addCallback(_got_html_good)
+        #d.addCallback(self.CHECK, "mutable", "t=check&add-lease=true")
+        #d.addCallback(_got_html_good)
 
-        d.addCallback(self._count_leases, "one")
-        d.addCallback(self._assert_leasecount, 2)
-        d.addCallback(self._count_leases, "two")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "mutable")
-        d.addCallback(self._assert_leasecount, 1)
+        #d.addCallback(self._assert_leasecount, "mutable", N)
 
         d.addCallback(self.CHECK, "mutable", "t=check&add-lease=true",
                       clientnum=1)
         d.addCallback(_got_html_good)
 
-        d.addCallback(self._count_leases, "one")
-        d.addCallback(self._assert_leasecount, 2)
-        d.addCallback(self._count_leases, "two")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "mutable")
-        d.addCallback(self._assert_leasecount, 2)
+        #d.addCallback(self._assert_leasecount, "mutable", 2*N)
 
         d.addErrback(self.explain_web_error)
         return d
 
     def test_deep_add_lease(self):
         self.basedir = "web/Grid/deep_add_lease"
-        self.set_up_grid(num_clients=2)
+        N = 10
+        self.set_up_grid(num_clients=2, num_servers=N)
         c0 = self.g.clients[0]
         self.uris = {}
         self.fileurls = {}
@@ -5456,33 +5449,24 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
             self.failUnlessReallyEqual(len(units), 4+1)
         d.addCallback(_done)
 
-        d.addCallback(self._count_leases, "root")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "one")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "mutable")
-        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._assert_leasecount, "root", N)
+        d.addCallback(self._assert_leasecount, "one", N)
+        d.addCallback(self._assert_leasecount, "mutable", N)
 
         d.addCallback(self.CHECK, "root", "t=stream-deep-check&add-lease=true")
         d.addCallback(_done)
 
-        d.addCallback(self._count_leases, "root")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "one")
-        d.addCallback(self._assert_leasecount, 1)
-        d.addCallback(self._count_leases, "mutable")
-        d.addCallback(self._assert_leasecount, 1)
+        d.addCallback(self._assert_leasecount, "root", N)
+        d.addCallback(self._assert_leasecount, "one", N)
+        d.addCallback(self._assert_leasecount, "mutable", N)
 
         d.addCallback(self.CHECK, "root", "t=stream-deep-check&add-lease=true",
                       clientnum=1)
         d.addCallback(_done)
 
-        d.addCallback(self._count_leases, "root")
-        d.addCallback(self._assert_leasecount, 2)
-        d.addCallback(self._count_leases, "one")
-        d.addCallback(self._assert_leasecount, 2)
-        d.addCallback(self._count_leases, "mutable")
-        d.addCallback(self._assert_leasecount, 2)
+        #d.addCallback(self._assert_leasecount, "root", 2*N)
+        #d.addCallback(self._assert_leasecount, "one", 2*N)
+        #d.addCallback(self._assert_leasecount, "mutable", 2*N)
 
         d.addErrback(self.explain_web_error)
         return d

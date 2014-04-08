@@ -9,6 +9,7 @@ from pycryptopp.publickey import rsa
 
 import allmydata
 from allmydata.storage.server import StorageServer
+from allmydata.storage.expiration import ExpirationPolicy
 from allmydata import storage_client
 from allmydata.immutable.upload import Uploader
 from allmydata.immutable.offloaded import Helper
@@ -251,6 +252,7 @@ class Client(node.Node, pollmixin.PollMixin):
         return seed.strip()
 
     def init_storage(self):
+        self.accountant = None
         # should we run a storage server (and publish it for others to use)?
         if not self.get_config("storage", "enabled", True, boolean=True):
             return
@@ -289,31 +291,36 @@ class Client(node.Node, pollmixin.PollMixin):
             raise OldConfigOptionError("[storage]expire.immutable = False is no longer supported.")
         if not self.get_config("storage", "expire.mutable", True, boolean=True):
             raise OldConfigOptionError("[storage]expire.mutable = False is no longer supported.")
-        expiration_sharetypes = ('mutable', 'immutable')
+
+        expiration_policy = ExpirationPolicy(enabled=expire, mode=mode, override_lease_duration=o_l_d,
+                                             cutoff_date=cutoff_date)
 
         ss = StorageServer(storedir, self.nodeid,
                            reserved_space=reserved,
                            readonly_storage=readonly,
-                           stats_provider=self.stats_provider,
-                           expiration_enabled=expire,
-                           expiration_mode=mode,
-                           expiration_override_lease_duration=o_l_d,
-                           expiration_cutoff_date=cutoff_date,
-                           expiration_sharetypes=expiration_sharetypes)
+                           stats_provider=self.stats_provider)
+        self.storage_server = ss
         self.add_service(ss)
+
+        self.accountant = ss.get_accountant()
+        self.accountant.set_expiration_policy(expiration_policy)
 
         d = self.when_tub_ready()
         # we can't do registerReference until the Tub is ready
         def _publish(res):
-            furl_file = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
-            furl = self.tub.registerReference(ss, furlFile=furl_file)
-            ann = {"anonymous-storage-FURL": furl,
+            anonymous_account = self.accountant.get_anonymous_account()
+            anonymous_account_furlfile = os.path.join(self.basedir, "private", "storage.furl").encode(get_filesystem_encoding())
+            anonymous_account_furl = self.tub.registerReference(anonymous_account, furlFile=anonymous_account_furlfile)
+            ann = {"anonymous-storage-FURL": anonymous_account_furl,
                    "permutation-seed-base32": self._init_permutation_seed(ss),
                    }
             self.introducer_client.publish("storage", ann, self._node_key)
         d.addCallback(_publish)
         d.addErrback(log.err, facility="tahoe.init",
                      level=log.BAD, umid="aLGBKw")
+
+    def get_accountant(self):
+        return self.accountant
 
     def init_client(self):
         helper_furl = self.get_config("client", "helper.furl", None)

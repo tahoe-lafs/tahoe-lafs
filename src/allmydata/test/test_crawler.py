@@ -76,10 +76,10 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
         server.setServiceParent(self.s)
         return server
 
-    def write(self, i, ss, serverid, tail=0):
+    def write(self, i, aa, serverid, tail=0):
         si = self.si(i)
         si = si[:-1] + chr(tail)
-        had,made = ss.remote_allocate_buckets(si,
+        had,made = aa.remote_allocate_buckets(si,
                                               self.rs(i, serverid),
                                               self.cs(i, serverid),
                                               set([0]), 99, FakeCanary())
@@ -88,12 +88,13 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
         return si_b2a(si)
 
     def test_service(self):
-        ss = self.create("crawler/Basic/service")
+        server = self.create("crawler/Basic/service")
+        aa = server.get_accountant().get_anonymous_account()
 
-        sis = [self.write(i, ss, self.serverid) for i in range(10)]
+        sis = [self.write(i, aa, self.serverid) for i in range(10)]
 
         statefile = os.path.join(self.basedir, "statefile")
-        c = EnumeratingCrawler(ss, statefile)
+        c = EnumeratingCrawler(server, statefile)
         c.setServiceParent(self.s)
 
         # it should be legal to call get_state() and get_progress() right
@@ -126,7 +127,7 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
 
         # Check that a new crawler picks up on the state file correctly.
         def _new_crawler(ign):
-            c2 = EnumeratingCrawler(ss, statefile)
+            c2 = EnumeratingCrawler(server, statefile)
             c2.setServiceParent(self.s)
 
             d2 = c2.set_hook('after_cycle')
@@ -145,13 +146,14 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
         # Crawler is accomplishing it's run-slowly goals, re-enable this test
         # and read the stdout when it runs.
 
-        ss = self.create("crawler/Basic/cpu_usage")
+        server = self.create("crawler/Basic/cpu_usage")
+        aa = server.get_accountant().get_anonymous_account()
 
         for i in range(10):
-            self.write(i, ss, self.serverid)
+            self.write(i, aa, self.serverid)
 
         statefile = os.path.join(self.basedir, "statefile")
-        c = ConsumingCrawler(ss, statefile)
+        c = ConsumingCrawler(server, statefile)
         c.setServiceParent(self.s)
 
         # This will run as fast as it can, consuming about 50ms per call to
@@ -187,13 +189,14 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
         return d
 
     def test_empty_subclass(self):
-        ss = self.create("crawler/Basic/empty_subclass")
+        server = self.create("crawler/Basic/empty_subclass")
+        aa = server.get_accountant().get_anonymous_account()
 
         for i in range(10):
-            self.write(i, ss, self.serverid)
+            self.write(i, aa, self.serverid)
 
         statefile = os.path.join(self.basedir, "statefile")
-        c = ShareCrawler(ss, statefile)
+        c = ShareCrawler(server, statefile)
         c.slow_start = 0
         c.setServiceParent(self.s)
 
@@ -205,13 +208,14 @@ class Basic(unittest.TestCase, StallMixin, CrawlerTestMixin):
         return d
 
     def test_oneshot(self):
-        ss = self.create("crawler/Basic/oneshot")
+        server = self.create("crawler/Basic/oneshot")
+        aa = server.get_accountant().get_anonymous_account()
 
         for i in range(30):
-            self.write(i, ss, self.serverid)
+            self.write(i, aa, self.serverid)
 
         statefile = os.path.join(self.basedir, "statefile")
-        c = EnumeratingCrawler(ss, statefile)
+        c = EnumeratingCrawler(server, statefile)
         c.setServiceParent(self.s)
 
         d = c.set_hook('after_cycle')
