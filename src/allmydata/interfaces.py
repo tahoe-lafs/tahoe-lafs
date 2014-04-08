@@ -366,6 +366,13 @@ class IStorageBackend(Interface):
         created. It is an error to attempt to create a container that already exists.
         """
 
+    def list_container(prefix=str):
+        """
+        Return a Deferred that fires with a list of ContainerItems for all
+        objects in the backend container. If prefix is given, restrict the
+        list to objects having keys with the given prefix.
+        """
+
 
 class IShareSet(Interface):
     def get_storage_index():
