@@ -118,6 +118,12 @@ class DiskBackend(Backend):
         # so must use its TubID as a permutation-seed.
         return bool(set(fileutil.listdir(self._sharedir)) - set(["incoming"]))
 
+    def list_container(self, prefix=''):
+        def _not_implemented():
+            raise NotImplementedError("the disk backend does not support listing container contents.\n" +
+                                      "Use 'tahoe debug catalog-shares' instead.")
+        return defer.execute(_not_implemented)
+
 
 class DiskShareSet(ShareSet):
     implements(IShareSet)

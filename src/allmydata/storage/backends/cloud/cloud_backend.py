@@ -100,6 +100,11 @@ class CloudBackend(Backend):
     def create_container(self):
         return self._container.create()
 
+    def list_container(self, prefix=''):
+        d = self._container.list_objects(prefix)
+        d.addCallback(lambda listing: listing.contents)
+        return d
+
 
 class CloudShareSet(ShareSet):
     implements(IShareSet)

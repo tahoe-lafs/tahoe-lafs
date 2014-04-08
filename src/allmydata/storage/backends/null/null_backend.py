@@ -6,9 +6,11 @@ from allmydata.interfaces import IStorageBackend, IShareSet, IShareBase, \
     IShareForReading, IShareForWriting, IMutableShare
 
 from allmydata.util.assertutil import precondition
+from allmydata.util.listutil import concat
 from allmydata.storage.backends.base import Backend, ShareSet, empty_check_testv
 from allmydata.storage.bucket import BucketWriter
 from allmydata.storage.common import si_b2a
+from allmydata.storage.backends.base import ContainerItem
 
 
 def configure_null_backend(storedir, config):
@@ -51,6 +53,9 @@ class NullBackend(Backend):
     def fill_in_space_stats(self, stats):
         pass
 
+    def list_container(self, prefix=''):
+        return defer.succeed(concat([s._list_items() for s in self.get_sharesets_for_prefix(prefix)]))
+
 
 class NullShareSet(ShareSet):
     implements(IShareSet)
@@ -68,6 +73,11 @@ class NullShareSet(ShareSet):
 
     def get_overhead(self):
         return 0
+
+    def _list_items(self):
+        sistr = si_b2a(self.storage_index)
+        return [ContainerItem("shares/%s/%s/%d" % (sistr[:2], sistr, shnum), None, "", 0, "STANDARD", None)
+                for shnum in set.union(self._immutable_shnums, self._mutable_shnums)]
 
     def _locked_get_shares(self):
         shares = {}
