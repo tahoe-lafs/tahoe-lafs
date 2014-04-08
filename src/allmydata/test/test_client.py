@@ -282,12 +282,12 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
         self.failUnlessRaises(OldConfigOptionError, client.Client, basedir)
 
     def _permute(self, sb, key):
-        return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
+        return [ base32.a2b(s.get_longname()) for s in sb.get_servers_for_psi(key) ]
 
     def test_permute(self):
         sb = StorageFarmBroker(True, None)
         for k in ["%d" % i for i in range(5)]:
-            ann = {"anonymous-storage-FURL": "pb://abcde@nowhere/fake",
+            ann = {"anonymous-storage-FURL": "pb://%s@nowhere/fake" % base32.b2a(k),
                    "permutation-seed-base32": base32.b2a(k) }
             sb.test_add_rref(k, "rref", ann)
 
@@ -316,8 +316,9 @@ class Basic(testutil.ReallyEqualMixin, testutil.NonASCIIPathMixin, unittest.Test
                            "[storage]\n" + \
                            "enabled = true\n")
         c = client.Client(basedir)
-        ss = c.getServiceNamed("storage")
-        verdict = ss.remote_get_version()
+        server = c.getServiceNamed("storage")
+        aa = server.get_accountant().get_anonymous_account()
+        verdict = aa.remote_get_version()
         self.failUnlessReallyEqual(verdict["application-version"],
                                    str(allmydata.__full_version__))
         self.failIfEqual(str(allmydata.__version__), "unknown")

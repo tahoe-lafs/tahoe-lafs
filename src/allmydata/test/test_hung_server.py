@@ -70,7 +70,8 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
     def _copy_share(self, share, to_server):
         (sharenum, sharefile) = share
         (id, ss) = to_server
-        shares_dir = os.path.join(ss.original.storedir, "shares")
+        original_server = ss.original.server
+        shares_dir = os.path.join(original_server.storedir, "shares")
         si = uri.from_string(self.uri).get_storage_index()
         si_dir = os.path.join(shares_dir, storage_index_to_dir(si))
         if not os.path.exists(si_dir):
@@ -79,8 +80,7 @@ class HungServerDownloadTest(GridTestMixin, ShouldFailMixin, PollMixin,
         shutil.copy(sharefile, new_sharefile)
         self.shares = self.find_uri_shares(self.uri)
         # Make sure that the storage server has the share.
-        self.failUnless((sharenum, ss.original.my_nodeid, new_sharefile)
-                        in self.shares)
+        self.failUnlessIn((sharenum, original_server.get_nodeid(), new_sharefile), self.shares)
 
     def _corrupt_share(self, share, corruptor_func):
         (sharenum, sharefile) = share
