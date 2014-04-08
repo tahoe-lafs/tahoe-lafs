@@ -3,9 +3,12 @@
 *~
 *.DS_Store
 .*.kate-swp
+*.orig
+*.rej
 
 /build/
 /support/
+/_darcs/
 
 # these are generated at build time, and never checked in
 /src/allmydata/_version.py
@@ -33,3 +36,4 @@ zope.interface-*.egg
 /coverage-html/
 /miscaptures.txt
 /violations.txt
+/*.diff
