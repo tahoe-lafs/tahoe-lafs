@@ -62,13 +62,16 @@ quicktest: make-version
 	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
 
 # "make tmpfstest" may be a faster way of running tests on Linux. It works best when you have
-# at least 330 MiB of free physical memory (to run the whole test suite). Since it uses sudo
-# to mount/unmount the tmpfs filesystem, it might prompt for your password.
+# at least $(TMPFS_SIZE) of free physical memory (to run the whole test suite). Since it uses
+# sudo to mount/unmount the tmpfs filesystem, it might prompt for your password.
+
+TMPFS_SIZE = 500m
+
 tmpfstest:
 	time make _tmpfstest 'TMPDIR=$(shell mktemp -d --tmpdir=.)'
 
 _tmpfstest: make-version
-	sudo mount -t tmpfs -o size=400m tmpfs '$(TMPDIR)'
+	sudo mount -t tmpfs -o size=$(TMPFS_SIZE) tmpfs '$(TMPDIR)'
 	-$(TAHOE) debug trial --rterrors '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
 	sudo umount '$(TMPDIR)'
 	rmdir '$(TMPDIR)'
