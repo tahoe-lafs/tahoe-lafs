@@ -12,7 +12,8 @@ from allmydata.util import idlib, log
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.mathutil import div_ceil
 from allmydata.util.hashutil import timing_safe_compare
-from allmydata.storage.common import UnknownMutableContainerVersionError, DataTooLargeError
+from allmydata.storage.common import CorruptStoredShareError, UnknownMutableContainerVersionError, \
+     DataTooLargeError
 from allmydata.storage.backends.base import testv_compare
 from allmydata.mutable.layout import MUTABLE_MAGIC, MAX_MUTABLE_SHARE_SIZE
 from allmydata.storage.backends.cloud import cloud_common
@@ -73,15 +74,18 @@ class MutableCloudShare(CloudShareBase, CloudShareReaderMixin):
 
         if len(first_chunkdata) < self.HEADER_SIZE:
             msg = "%r had incomplete header (%d bytes)" % (self, len(first_chunkdata))
-            raise UnknownMutableContainerVersionError(msg)
+            raise UnknownMutableContainerVersionError(shnum, msg)
 
         header = first_chunkdata[:self.HEADER_SIZE]
-        (magic, write_enabler_nodeid, real_write_enabler,
-         data_length, extra_lease_offset) = struct.unpack(self.HEADER, header)
+        try:
+            (magic, write_enabler_nodeid, real_write_enabler,
+             data_length, extra_lease_offset) = struct.unpack(self.HEADER, header)
+        except struct.error, e:
+            raise CorruptStoredShareError(shnum, "invalid mutable share header for shnum %d: %s" % (shnum, e))
 
         if magic != self.MAGIC:
             msg = "%r had magic %r but we wanted %r" % (self, magic, self.MAGIC)
-            raise UnknownMutableContainerVersionError(msg)
+            raise UnknownMutableContainerVersionError(shnum, msg)
 
         self._write_enabler_nodeid = write_enabler_nodeid
         self._real_write_enabler = real_write_enabler

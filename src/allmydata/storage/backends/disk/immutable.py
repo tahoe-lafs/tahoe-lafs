@@ -8,7 +8,7 @@ from allmydata.interfaces import IShareForReading, IShareForWriting
 
 from allmydata.util import fileutil
 from allmydata.util.assertutil import precondition, _assert
-from allmydata.storage.common import si_b2a, UnknownImmutableContainerVersionError, \
+from allmydata.storage.common import si_b2a, CorruptStoredShareError, UnknownImmutableContainerVersionError, \
      DataTooLargeError
 
 
@@ -79,17 +79,19 @@ class ImmutableDiskShare(object):
             f = open(self._home, 'rb')
             try:
                 (version, unused, num_leases) = struct.unpack(self.HEADER, f.read(self.HEADER_SIZE))
+            except struct.error, e:
+                raise CorruptStoredShareError(shnum, "invalid immutable share header for shnum %d: %s" % (shnum, e))
             finally:
                 f.close()
             if version != 1:
                 msg = "sharefile %r had version %d but we wanted 1" % (self._home, version)
-                raise UnknownImmutableContainerVersionError(msg)
+                raise UnknownImmutableContainerVersionError(shnum, msg)
 
             filesize = os.stat(self._home).st_size
             self._data_length = filesize - self.DATA_OFFSET - (num_leases * self.LEASE_SIZE)
 
-        # TODO: raise a better exception.
-        _assert(self._data_length >= 0, data_length=self._data_length)
+        if self._data_length < 0:
+            raise CorruptStoredShareError("calculated data length for shnum %d is %d" % (shnum, self._data_length))
 
     def __repr__(self):
         return ("<ImmutableDiskShare %s:%r at %r>"
