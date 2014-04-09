@@ -9,7 +9,7 @@ from allmydata.interfaces import IMutableShare, BadWriteEnablerError
 from allmydata.util import fileutil, idlib, log
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.hashutil import timing_safe_compare
-from allmydata.storage.common import si_b2a, UnknownMutableContainerVersionError, \
+from allmydata.storage.common import si_b2a, CorruptStoredShareError, UnknownMutableContainerVersionError, \
      DataTooLargeError
 from allmydata.storage.backends.base import testv_compare
 from allmydata.mutable.layout import MUTABLE_MAGIC, MAX_MUTABLE_SHARE_SIZE
@@ -72,7 +72,9 @@ class MutableDiskShare(object):
                 if magic != self.MAGIC:
                     msg = "sharefile %r had magic '%r' but we wanted '%r'" % \
                           (self._home, magic, self.MAGIC)
-                    raise UnknownMutableContainerVersionError(msg)
+                    raise UnknownMutableContainerVersionError(shnum, msg)
+            except struct.error, e:
+                raise CorruptStoredShareError(shnum, "invalid mutable share header for shnum %d: %s" % (shnum, e))
             finally:
                 f.close()
         self.parent = parent # for logging

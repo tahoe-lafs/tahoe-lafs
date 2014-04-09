@@ -13,7 +13,13 @@ PREFIX = re.compile("^[%s]{2}$" % (base32.z_base_32_alphabet,))
 class DataTooLargeError(Exception):
     pass
 
-class UnknownContainerVersionError(Exception):
+
+class CorruptStoredShareError(Exception):
+    def __init__(self, shnum, *rest):
+        Exception.__init__(self, shnum, *rest)
+        self.shnum = shnum
+
+class UnknownContainerVersionError(CorruptStoredShareError):
     pass
 
 class UnknownMutableContainerVersionError(UnknownContainerVersionError):

@@ -1,13 +1,12 @@
 
-import struct, os.path
+import os.path
 
 from twisted.internet import defer
 
 from zope.interface import implements
 from allmydata.interfaces import IStorageBackend, IShareSet
 from allmydata.util import fileutil, log
-from allmydata.storage.common import si_b2a, si_a2b, NUM_RE, \
-     UnknownMutableContainerVersionError, UnknownImmutableContainerVersionError
+from allmydata.storage.common import si_b2a, si_a2b, NUM_RE, CorruptStoredShareError
 from allmydata.storage.bucket import BucketWriter
 from allmydata.storage.backends.base import Backend, ShareSet
 from allmydata.storage.backends.disk.immutable import load_immutable_disk_share, create_immutable_disk_share
@@ -141,9 +140,7 @@ class DiskShareSet(ShareSet):
             sharefile = os.path.join(self._sharehomedir, shnumstr)
             try:
                 shares[shnum] = get_disk_share(sharefile, si, shnum)
-            except (UnknownMutableContainerVersionError,
-                    UnknownImmutableContainerVersionError,
-                    struct.error):
+            except CorruptStoredShareError:
                 corrupted.add(shnum)
 
         valid = [shares[shnum] for shnum in sorted(shares.keys())]
