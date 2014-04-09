@@ -3,7 +3,7 @@ Storing Shares on a Local Filesystem
 ====================================
 
 The "disk" backend stores shares on the local filesystem. Versions of
-Tahoe-LAFS before v1.11.0 always stored shares in this way.
+Tahoe-LAFS before v1.12.0 always stored shares in this way.
 
 ``[storage]``
 

@@ -101,7 +101,7 @@ class RIStorageServer(RemoteInterface):
         """
         Allocate BucketWriters for a set of shares on this server.
 
-        renew_secret and cancel_secret are ignored as of Tahoe-LAFS v1.11.0,
+        renew_secret and cancel_secret are ignored as of Tahoe-LAFS v1.12.0,
         but for backward compatibility with older servers, should be
         calculated in the same way as previous clients (see
         allmydata.util.hashutil.file_{renewal,cancel}_secret_hash).
@@ -139,7 +139,7 @@ class RIStorageServer(RemoteInterface):
         longer lease), but expiration behaviour also depends on the server's
         configured policy (see docs/garbage-collection.rst).
 
-        renew_secret and cancel_secret are ignored as of Tahoe-LAFS v1.11.0,
+        renew_secret and cancel_secret are ignored as of Tahoe-LAFS v1.12.0,
         but for backward compatibility with older servers, should be
         calculated in the same way as previous clients (see
         allmydata.util.hashutil.file_{renewal,cancel}_secret_hash).
@@ -156,14 +156,14 @@ class RIStorageServer(RemoteInterface):
         longer lease), but expiration behaviour also depends on the server's
         configured policy (see docs/garbage-collection.rst).
 
-        renew_secret is ignored as of Tahoe-LAFS v1.11.0, but for backward
+        renew_secret is ignored as of Tahoe-LAFS v1.12.0, but for backward
         compatibility with older servers, should be calculated in the same
         way as previous clients (see
         allmydata.util.hashutil.file_renewal_secret_hash). In versions
-        prior to v1.X.0, this method would only renew leases with the given
+        prior to v1.12.0, this method would only renew leases with the given
         renew_secret.
 
-        Note that as of Tahoe-LAFS v1.11.0, the lease database does not retain
+        Note that as of Tahoe-LAFS v1.12.0, the lease database does not retain
         information about the node ids of lease holders, so if an IndexError
         is raised for a mutable share, it no longer includes that information.
         """
@@ -212,7 +212,7 @@ class RIStorageServer(RemoteInterface):
 
         The 'secrets' argument is a tuple of (write_enabler, renew_secret,
         cancel_secret). The first is required to perform any write.
-        renew_secret and cancel_secret are ignored as of Tahoe-LAFS v1.11.0,
+        renew_secret and cancel_secret are ignored as of Tahoe-LAFS v1.12.0,
         but for backward compatibility with older servers, should be
         calculated in the same way as previous clients (see
         allmydata.util.hashutil.file_{renewal,cancel}_secret_hash).
