@@ -24,7 +24,7 @@ from allmydata.storage.common import si_b2a, CorruptStoredShareError, UnknownImm
 
 # Footnote 1: as of Tahoe v1.3.0 this field is not used by storage servers.
 
-# Footnote 2: as of Tahoe v1.11.0 this field is not used by storage servers.
+# Footnote 2: as of Tahoe v1.12.0 this field is not used by storage servers.
 # New shares will have a 0 here. Old shares will have whatever value was left
 # over when the server was upgraded. All lease information is now kept in the
 # leasedb.

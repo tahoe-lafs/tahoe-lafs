@@ -205,13 +205,13 @@ The ``tahoe.cfg`` file uses the following keys to control lease expiration:
 
 In previous versions, the ``expire.immutable`` and ``expire.mutable`` keys
 could be used to selectively expire only mutable or only immutable shares.
-As of Tahoe-LAFS v1.11.0, these are no longer supported and will cause an
+As of Tahoe-LAFS v1.12.0, these are no longer supported and will cause an
 error if set to ``False``.
 
 Expiration Progress
 ===================
 
-As of Tahoe-LAFS v1.11.0, leases are stored in a database that can be queried
+As of Tahoe-LAFS v1.12.0, leases are stored in a database that can be queried
 and updated quickly, rather than in share files. However, an "accounting
 crawler" is still needed to discover shares when upgrading from a previous
 version, and to actually delete expired shares. The crawler limits the amount
