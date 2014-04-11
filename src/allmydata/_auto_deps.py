@@ -38,17 +38,18 @@ install_requires = [
     # * foolscap < 0.6.3 is incompatible with Twisted-11.1.0 and newer. Since
     #   current Twisted is 12.0, any build which needs twisted will grab a
     #   version that requires foolscap>=0.6.3
-    # * pyOpenSSL is required by foolscap for it (foolscap) to provide secure
-    #   connections. Foolscap doesn't reliably declare this dependency in a
-    #   machine-readable way, so we need to declare a dependency on pyOpenSSL
-    #   ourselves. Tahoe-LAFS doesn't *really* depend directly on pyOpenSSL,
-    #   so if something changes in the relationship between foolscap and
-    #   pyOpenSSL, such as foolscap requiring a specific version of
-    #   pyOpenSSL, or foolscap switching from pyOpenSSL to a different crypto
-    #   library, we need to update this declaration here.
     #
     "foolscap >= 0.6.3",
-    "pyOpenSSL",
+
+    # * pyOpenSSL is required by foolscap for foolscap to provide secure
+    #   connections. Foolscap doesn't reliably declare this dependency in a
+    #   machine-readable way, so we need to declare a dependency on pyOpenSSL
+    #   ourselves.
+    # * To check for OpenSSL security vulnerabilities such as Heartbleed,
+    #   we need to know the version of OpenSSL that pyOpenSSL is using. The
+    #   necessary API to do this requires pyOpenSSL >= 0.13.
+    #
+    "pyOpenSSL >= 0.13",
 
     "Nevow >= 0.6.0",
 
