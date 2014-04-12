@@ -436,7 +436,8 @@ def check_openssl_version(SSL):
         if ((numeric_components == [0, 9, 8] and components[2] >= '8y') or
             (numeric_components == [1, 0, 0] and components[2] >= '0l') or
             (numeric_components == [1, 0, 1] and components[2] >= '1g') or
-            (numeric_components >= [1, 0, 2])):
+            (numeric_components == [1, 0, 2] and not components[2].startswith('2-beta')) or
+            (numeric_components >= [1, 0, 3])):
             return
 
         if numeric_components == [1, 0, 1] and components[2] >= '1d':
