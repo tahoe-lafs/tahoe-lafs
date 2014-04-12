@@ -14,17 +14,14 @@ Introduction
 
 The drop-upload frontend allows an upload to a Tahoe-LAFS grid to be triggered
 automatically whenever a file is created or changed in a specific local
-directory. This is a preview of a feature that we expect to support across
-several platforms, but it currently works only on Linux.
+directory. It currently works on Linux and Windows.
 
 The implementation was written as a prototype at the First International
 Tahoe-LAFS Summit in June 2011, and is not currently in as mature a state as
 the other frontends (web, CLI, SFTP and FTP). This means that you probably
-should not keep important data in the upload directory, and should not rely
-on all changes to files in the local directory to result in successful uploads.
-There might be (and have been) incompatible changes to how the feature is
-configured. There is even the possibility that it may be abandoned, for
-example if unsolveable reliability issues are found.
+should not rely on all changes to files in the local directory to result in
+successful uploads. There might be (and have been) incompatible changes to
+how the feature is configured.
 
 We are very interested in feedback on how well this feature works for you, and
 suggestions to improve its usability, functionality, and reliability.
@@ -77,9 +74,8 @@ page and the node log_ may be helpful to determine the cause of any failures.
 Known Issues and Limitations
 ============================
 
-This frontend only works on Linux. There is an even-more-experimental
-implementation for Windows (`#1431`_), and a ticket to add support for
-Mac OS X and BSD-based systems (`#1432`_).
+This frontend only works on Linux and Windows. There is a ticket to add
+support for Mac OS X and BSD-based systems (`#1432`_).
 
 Subdirectories of the local directory are not monitored. If a subdirectory
 is created, it will be ignored. (`#1433`_)
@@ -101,13 +97,18 @@ would be enough memory and bandwidth to efficiently perform them in parallel.
 A drop-upload can occur in parallel with an upload by a different frontend,
 though. (`#1459`_)
 
-If there are a large number of near-simultaneous file creation or
+On Linux, if there are a large number of near-simultaneous file creation or
 change events (greater than the number specified in the file
 ``/proc/sys/fs/inotify/max_queued_events``), it is possible that some events
 could be missed. This is fairly unlikely under normal circumstances, because
 the default value of ``max_queued_events`` in most Linux distributions is
 16384, and events are removed from this queue immediately without waiting for
 the corresponding upload to complete. (`#1430`_)
+
+The Windows implementation might also occasionally miss file creation or
+change events, due to limitations of the underlying Windows API
+(ReadDirectoryChangesW). We do not know how likely or unlikely this is.
+(`#1431`_)
 
 Some filesystems may not support the necessary change notifications.
 So, it is recommended for the local directory to be on a directly attached
@@ -137,9 +138,16 @@ file), then the old file is still present on the grid, and any other caps to
 it will remain valid. See `docs/garbage-collection.rst`_ for how to reclaim
 the space used by files that are no longer needed.
 
-Unicode names are supported, but the local name of a file must be encoded
-correctly in order for it to be uploaded. The expected encoding is that
-printed by ``python -c "import sys; print sys.getfilesystemencoding()"``.
+Unicode filenames are supported on both Linux and Windows, but on Linux, the
+local name of a file must be encoded correctly in order for it to be uploaded.
+The expected encoding is that printed by
+``python -c "import sys; print sys.getfilesystemencoding()"``.
+
+On Windows, local directories with non-ASCII names are not currently working.
+(`#2219`_)
+
+On Windows, when a node has drop-upload enabled, it is unresponsive to Ctrl-C
+(it can only be killed using Task Manager or similar). (`#2218`_)
 
 .. _`#1105`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1105
 .. _`#1430`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1430
@@ -153,6 +161,8 @@ printed by ``python -c "import sys; print sys.getfilesystemencoding()"``.
 .. _`#1710`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1710
 .. _`#1711`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1711
 .. _`#1712`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1712
+.. _`#2218`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2218
+.. _`#2219`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2219
 
 .. _docs/garbage-collection.rst: ../garbage-collection.rst
 
