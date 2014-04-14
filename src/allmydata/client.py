@@ -115,7 +115,7 @@ class Client(node.Node, pollmixin.PollMixin):
     # 1.0.0 storage client, it will work as they expect.
     OLDEST_SUPPORTED_VERSION = "1.0.0"
 
-    # this is a tuple of (needed, desired, total, max_segment_size). 'needed'
+    # This is a dictionary of (needed, desired, total, max_segment_size). 'needed'
     # is the number of shares required to reconstruct a file. 'desired' means
     # that we will abort an upload unless we can allocate space for at least
     # this many. 'total' is the total number of shares created by encoding.
