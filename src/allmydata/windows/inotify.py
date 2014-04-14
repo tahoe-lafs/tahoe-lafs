@@ -18,6 +18,7 @@ from allmydata.util.fake_inotify import humanReadableMask, \
     IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, \
     IN_MASK_ADD, IN_ISDIR, IN_ONESHOT, IN_CLOSE, IN_MOVED, IN_CHANGED]
 
+from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.encodingutil import quote_output
 from allmydata.util import log, fileutil
 from allmydata.util.pollmixin import PollMixin
@@ -105,7 +106,7 @@ class FileNotifyInformation(object):
         self.size = size
         self.buffer = create_string_buffer(size)
         address = addressof(self.buffer)
-        assert address & 3 == 0, "address 0x%X returned by create_string_buffer is not DWORD-aligned" % (address,)
+        _assert(address & 3 == 0, "address 0x%X returned by create_string_buffer is not DWORD-aligned" % (address,))
         self.data = None
 
     def read_changes(self, hDirectory, recursive, filter):
@@ -202,18 +203,17 @@ class INotify(PollMixin):
         return self.poll(lambda: self._stop is None)
 
     def watch(self, path, mask=IN_WATCH_MASK, autoAdd=False, callbacks=None, recursive=False):
-        assert self._stop is None, "watch() can only be called before startReading()"
-        assert self._filter is None, "only one watch is supported"
-        assert isinstance(autoAdd, bool), autoAdd
-        assert isinstance(recursive, bool), recursive
-        assert autoAdd == recursive, ("autoAdd = %r, recursive = %r, but we need them to be the same"
-                                      % (autoAdd, recursive))
+        precondition(self._stop is None, "watch() can only be called before startReading()")
+        precondition(self._filter is None, "only one watch is supported")
+        precondition(isinstance(autoAdd, bool), autoAdd=autoAdd)
+        precondition(isinstance(recursive, bool), recursive=recursive)
+        precondition(autoAdd == recursive, "need autoAdd and recursive to be the same", autoAdd=autoAdd, recursive=recursive)
 
         self._path = path
         path_u = path.path
         if not isinstance(path_u, unicode):
             path_u = path_u.decode(sys.getfilesystemencoding())
-            assert isinstance(path_u, unicode), path_u
+            _assert(isinstance(path_u, unicode), path_u=path_u)
 
         self._filter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_LAST_WRITE
 
@@ -228,7 +228,7 @@ class INotify(PollMixin):
 
     def _thread(self):
         try:
-            assert self._filter is not None, "no watch set"
+            _assert(self._filter is not None, "no watch set")
 
             # To call Twisted or Tahoe APIs, use reactor.callFromThread as described in
             # <http://twistedmatrix.com/documents/current/core/howto/threading.html>.
