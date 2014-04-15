@@ -144,7 +144,6 @@ print_stdout(['git', '--version'])
 print_stdout(['openssl', 'version'])
 print_stdout(['flappclient', '--version'])
 print_stdout(['valgrind', '--version'])
-print_stdout(['lzip', '--version'])
 
 print_as_ver()
 
@@ -159,3 +158,5 @@ print_py_pkg_ver('TwistedCore', 'twisted.python')
 print_py_pkg_ver('TwistedWeb', 'twisted.web')
 print_py_pkg_ver('TwistedConch', 'twisted.conch')
 print_py_pkg_ver('pycryptopp')
+print_py_pkg_ver('cryptography')
+print_py_pkg_ver('cffi')
