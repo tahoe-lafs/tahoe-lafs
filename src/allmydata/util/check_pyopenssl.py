@@ -63,11 +63,11 @@ def check_openssl_version(SSL):
 # As simple as possible, but no simpler.
 _CLIENT_HELLO = (
   '\x16'                 # Handshake
-  '\x03\x02'             # TLS version 1.1
+  '\x03\x01'             # TLS version 1.0
   '\x00\x34'             # length of ClientHello
   '\x01'                 #   Handshake type (ClientHello)
   '\x00\x00\x30'         #   length
-  '\x03\x02'             #     TLS version 1.1
+  '\x03\x01'             #     TLS version 1.0
   '\x53\x43\x5b\x90'     #     timestamp
   '\x9d\x9b\x72\x0b\xbc\x0c\xbc\x2b\x92\xa8\x48\x97\xcf\xbd'
   '\x39\x04\xcc\x16\x0a\x85\x03\x90\x9f\x77\x04\x33\xd4\xde' # client random
@@ -82,14 +82,14 @@ _CLIENT_HELLO = (
 
 _HEARTBEAT = (
   '\x18'                 # Heartbeat
-  '\x03\x02'             # TLS version 1.1
+  '\x03\x01'             # TLS version 1.0
   '\x00\x03'             # length
   '\x01'                 #   heartbeat request
   '\x10\x00'             #   payload length (4096 bytes)
 )
 _HEARTBEAT2 = (
   '\x18'                 # Heartbeat
-  '\x03\x02'             # TLS version 1.1
+  '\x03\x01'             # TLS version 1.0
   '\x00\x23'             # length
   '\x01'                 #   heartbeat request
   '\x00\x01'             #   payload length (0 bytes)
@@ -99,7 +99,11 @@ def is_vulnerable(SSL):
     def verify_callback(connection, x509, errnum, errdepth, ok):
         return ok
 
-    ctx = SSL.Context(SSL.TLSv1_1_METHOD)
+    if not hasattr(SSL, 'TLSv1_METHOD'):
+        # pyOpenSSL is too old. FIXME report this better
+        return True
+
+    ctx = SSL.Context(SSL.TLSv1_METHOD)
     ctx.set_options(SSL.OP_NO_SSLv2 | SSL.OP_NO_SSLv3)
     ctx.use_certificate_file('test.crt')
     ctx.use_privatekey_file('test.key')
