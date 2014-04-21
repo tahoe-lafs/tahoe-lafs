@@ -400,70 +400,17 @@ def check_all_requirements():
         except (ImportError, PackagingError), e:
             errors.append("%s: %s" % (e.__class__.__name__, e))
 
+    from allmydata.util.check_pyopenssl import check_openssl_version, OpenSSLVersionError
     try:
         from OpenSSL import SSL
         check_openssl_version(SSL)
-    except PackagingError, e:
+    except OpenSSLVersionError, e:
         errors.append("%s: %s" % (e.__class__.__name__, e))
     except Exception, e:
         errors.append("Unable to check OpenSSL version due to %s: %s" % (e.__class__.__name__, e))
 
     if errors:
         raise PackagingError(get_error_string(errors, debug=True))
-
-MONTHS = {'Jan': 1, 'Feb':2, 'Mar':3, 'Apr':4, 'May':5, 'Jun':6, 'Jul':7, 'Aug':8, 'Sep':9, 'Oct':10, 'Nov':11, 'Dec':12}
-
-def parse_build_date(build_date):
-    day = int(build_date[0])
-    month = MONTHS[build_date[1]]
-    year = int(build_date[2])
-    return (year, month, day)
-
-def check_openssl_version(SSL):
-    openssl_version = SSL.SSLeay_version(SSL.SSLEAY_VERSION)
-    split_version = openssl_version.split(' ')
-
-    if len(split_version) < 2 or split_version[0] != 'OpenSSL':
-        raise PackagingError("could not understand OpenSSL version string %s" % (openssl_version,))
-
-    try:
-        components = split_version[1].split('.')
-        numeric_components = map(int, components[:2])
-        if len(components) > 2:
-            m = re.match(r'[0-9]*', components[2])
-            numeric_components += [int(m.group(0))]
-
-        if ((numeric_components == [0, 9, 8] and components[2] >= '8y') or
-            (numeric_components == [1, 0, 0] and components[2] >= '0l') or
-            (numeric_components == [1, 0, 1] and components[2] >= '1g') or
-            (numeric_components == [1, 0, 2] and not components[2].startswith('2-beta')) or
-            (numeric_components >= [1, 0, 3])):
-            return
-
-        if numeric_components == [1, 0, 1] and components[2] >= '1d':
-            # Unfortunately, Debian and Ubuntu patched the Heartbleed bug without bumping
-            # the version number or providing any other way to detect the patch status.
-            # (BAD! STOP DOING THIS!) So we allow versions 1.0.1d through 1.0.1f provided
-            # they were compiled on or after 6 April 2014.
-            if len(split_version) >= 5 and parse_build_date(split_version[2:5]) >= (2014, 4, 6):
-                return
-
-            # We also allow those versions if compiled with -DOPENSSL_NO_HEARTBEATS.
-            try:
-                openssl_cflags = SSL.SSLeay_version(SSL.SSLEAY_CFLAGS)
-            except Exception, e:
-                raise PackagingError("refusing to use %s which may be vulnerable to security bugs.\n"
-                                     "Unable to check compilation flags due to %s: %s\n"
-                                     "Please upgrade to OpenSSL 1.0.1g or later."
-                                     % (openssl_version, e.__class__.__name__, e))
-            else:
-                if '-DOPENSSL_NO_HEARTBEATS' in openssl_cflags.split(' '):
-                    return
-    except Exception, e:
-        pass
-
-    raise PackagingError("refusing to use %s which may be vulnerable to security bugs.\n"
-                         "Please upgrade to OpenSSL 1.0.1g or later." % (openssl_version,))
 
 
 check_all_requirements()
