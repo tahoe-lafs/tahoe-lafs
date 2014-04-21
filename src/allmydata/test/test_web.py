@@ -5501,7 +5501,7 @@ class Grid(GridTestMixin, WebErrorMixin, ShouldFailMixin, testutil.ReallyEqualMi
         self.basedir = "web/Grid/exceptions"
         self.set_up_grid(num_clients=1, num_servers=2)
         c0 = self.g.clients[0]
-        c0.DEFAULT_ENCODING_PARAMETERS['happy'] = 2
+        c0.encoding_params['happy'] = 2
         self.fileurls = {}
         DATA = "data" * 100
         d = c0.create_dirnode()
