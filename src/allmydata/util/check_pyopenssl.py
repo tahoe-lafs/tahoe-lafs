@@ -50,11 +50,15 @@ def check_openssl_version(SSL):
                 if '-DOPENSSL_NO_HEARTBEATS' in openssl_cflags.split(' '):
                     return
 
-                # Also allow these versions if a vulnerability test passes (we do this only if
-                # the version and compiler flag checks are inconclusive, to minimize the chance
-                # for the test to break or give the wrong result somehow).
-                if not is_vulnerable(SSL):
-                    return
+        if numeric_components == [1, 0, 1]:
+            # Also allow versions 1.0.1 through 1.0.1f if a Heartbleed vulnerability test passes.
+            # We assume that a library patched for Heartbleed is also patched for previous
+            # security bugs that affected 1.0.1 through 1.0.1c.
+            #
+            # We do this check only if the version and compiler flag checks are inconclusive, to
+            # minimize the chance for the test to break or give the wrong result somehow.
+            if not is_vulnerable(SSL):
+                return
 
     raise OpenSSLVersionError("refusing to use %s which may be vulnerable to security bugs.\n"
                               "Please upgrade to OpenSSL 1.0.1g or later." % (openssl_version,))
