@@ -33,7 +33,8 @@
     - python setup.py register
     - login to pypi
     - manually upload .tar.gz tarball and .asc signature (so they match the
-      ones on tahoe-lafs.org)
+      ones on tahoe-lafs.org), or use https://pypi.python.org/pypi/twine and
+      run "twine upload *.tar.gz *.asc"
   - [ ] close the Milestone on the trac Roadmap
   - [ ] make an "announcement of new release" on freshmeat
   - [ ] make an "announcement of new release" on launchpad
