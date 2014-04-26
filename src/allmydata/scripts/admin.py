@@ -131,6 +131,7 @@ def do_ls_container(options):
     from twisted.internet import defer
     from allmydata.node import ConfigOnly
     from allmydata.client import Client
+    from allmydata.util.namespace import Namespace
 
     out = options.stdout
     err = options.stderr
@@ -145,12 +146,18 @@ def do_ls_container(options):
 
         (backend, _) = Client.configure_backend(config)
 
+        ns = Namespace()
+        ns.total_size = 0
         d2 = backend.list_container()
         def _done(items):
             print >>out, "Listing %d object(s):" % len(items)
             print >>out, "    Size  Last modified         Key"
             for item in items:
                 print >>out, "% 8s  %20s  %s" % (item.size, format_date(item.modification_date), item.key)
+                ns.total_size += int(item.size)
+
+            print >>out
+            print >>out, "Total size: %d bytes" % (ns.total_size,)
         d2.addCallback(_done)
         return d2
     d.addCallback(_do_create)
