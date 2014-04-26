@@ -20,6 +20,7 @@ from foolscap.logging.web import LogEvent
 
 from allmydata import interfaces
 from allmydata.util.assertutil import precondition
+from allmydata.util.namespace import Namespace
 from allmydata.util import fileutil, hashutil, base32, time_format
 from allmydata.storage.server import StorageServer
 from allmydata.storage.backends.base import ContainerItem, ContainerListing
@@ -1528,10 +1529,6 @@ class MSAzureStorageBackendTests(unittest.TestCase, CloudStorageBackendMixin):
             need_response_body=False)
         http_response.callback((self.Response(200), None))
         self.failUnless(done)
-
-
-class Namespace(object):
-    pass
 
 
 class AdminContainerTests(unittest.TestCase, WorkdirMixin):

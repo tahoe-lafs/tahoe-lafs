@@ -4,11 +4,9 @@ import re, errno, subprocess, os
 from twisted.trial import unittest
 
 from allmydata.util import iputil
+from allmydata.util.namespace import Namespace
 import allmydata.test.common_util as testutil
 
-
-class Namespace:
-    pass
 
 DOTTED_QUAD_RE=re.compile("^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$")
 
