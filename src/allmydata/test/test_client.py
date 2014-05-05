@@ -39,7 +39,7 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         basedir = "test_client.Basic.test_comment"
         os.mkdir(basedir)
 
-        def write_config(shouldfail, s):
+        def write_config(s):
             config = ("[client]\n"
                       "introducer.furl = %s\n" % s)
             fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
