@@ -58,7 +58,7 @@ class OldConfigOptionError(Exception):
 class UnescapedHashError(Exception):
     def __str__(self):
         return ("The configuration entry %s contained an unescaped '#' character."
-                % quote_output(self.args[0]))
+                % quote_output("[%s]%s = %s" % self.args))
 
 
 class Node(service.MultiService):
@@ -124,7 +124,7 @@ class Node(service.MultiService):
 
             item = self.config.get(section, option)
             if option.endswith(".furl") and self._contains_unescaped_hash(item):
-                raise UnescapedHashError(item)
+                raise UnescapedHashError(section, option, item)
 
             return item
         except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
