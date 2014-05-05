@@ -87,6 +87,17 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
                                                        u"\u2621"))
         return d
 
+    def test_tahoe_cfg_hash_in_name(self):
+        basedir = "test_node/test_cfg_hash_in_name"
+        nickname = "Hash#Bang!" # a clever nickname containing a hash
+        fileutil.make_dirs(basedir)
+        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
+        f.write("[node]\n")
+        f.write("nickname = %s\n" % (nickname,))
+        f.close()
+        n = TestNode(basedir)
+        self.failUnless(n.nickname == nickname)
+
     def test_private_config(self):
         basedir = "test_node/test_private_config"
         privdir = os.path.join(basedir, "private")

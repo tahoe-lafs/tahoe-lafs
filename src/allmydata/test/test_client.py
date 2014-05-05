@@ -3,7 +3,7 @@ from twisted.trial import unittest
 from twisted.application import service
 
 import allmydata
-from allmydata.node import OldConfigError, OldConfigOptionError, MissingConfigEntry
+from allmydata.node import Node, OldConfigError, OldConfigOptionError, MissingConfigEntry, UnescapedHashError
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.util import base32, fileutil
@@ -29,6 +29,31 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), \
                            BASECONFIG)
         client.Client(basedir)
+
+    def test_comment(self):
+        dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
+
+        should_fail = [r"test#test", r"#testtest", r"test\\#test"]
+        should_not_fail = [r"test\#test", r"test\\\#test", r"testtest"]
+
+        basedir = "test_client.Basic.test_comment"
+        os.mkdir(basedir)
+
+        def write_config(shouldfail, s):
+            config = ("[client]\n"
+                      "introducer.furl = %s\n" % s)
+            fileutil.write(os.path.join(basedir, "tahoe.cfg"), config)
+
+        for s in should_fail:
+            self.failUnless(Node._contains_unescaped_hash(s))
+            write_config(s)
+            self.failUnlessRaises(UnescapedHashError, client.Client, basedir)
+
+        for s in should_not_fail:
+            self.failIf(Node._contains_unescaped_hash(s))
+            write_config(s)
+            client.Client(basedir)
+
 
     @mock.patch('twisted.python.log.msg')
     def test_error_on_old_config_files(self, mock_log_msg):

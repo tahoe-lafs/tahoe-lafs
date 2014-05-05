@@ -55,6 +55,11 @@ class OldConfigError(Exception):
 class OldConfigOptionError(Exception):
     pass
 
+class UnescapedHashError(Exception):
+    def __str__(self):
+        return ("The configuration entry %s contained an unescaped '#' character."
+                % quote_output(self.args[0]))
+
 
 class Node(service.MultiService):
     # this implements common functionality of both Client nodes and Introducer
@@ -101,11 +106,27 @@ class Node(service.MultiService):
         test_name = tempfile.mktemp()
         _assert(os.path.dirname(test_name) == tempdir, test_name, tempdir)
 
+    @staticmethod
+    def _contains_unescaped_hash(item):
+        characters = iter(item)
+        for c in characters:
+            if c == '\\':
+                characters.next()
+            elif c == '#':
+                return True
+
+        return False
+
     def get_config(self, section, option, default=_None, boolean=False):
         try:
             if boolean:
                 return self.config.getboolean(section, option)
-            return self.config.get(section, option)
+
+            item = self.config.get(section, option)
+            if option.endswith(".furl") and self._contains_unescaped_hash(item):
+                raise UnescapedHashError(item)
+
+            return item
         except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
             if default is _None:
                 fn = os.path.join(self.basedir, u"tahoe.cfg")
