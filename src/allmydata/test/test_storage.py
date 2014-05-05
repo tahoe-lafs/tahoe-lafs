@@ -1700,9 +1700,17 @@ class ServerMixin:
         cancel_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
         if not canary:
             canary = FakeCanary()
-        return defer.maybeDeferred(account.remote_allocate_buckets,
+        d = defer.maybeDeferred(account.remote_allocate_buckets,
                                    storage_index, renew_secret, cancel_secret,
                                    sharenums, size, canary)
+        def _catch_resp(r):
+            self.remote_allocate_buckets_resp = r
+        d.addCallback(_catch_resp)
+        d.addCallback(lambda ign:
+                        defer.maybeDeferred(account.remote_add_lease, storage_index,
+                                renew_secret, cancel_secret))
+        d.addCallback(lambda ign: self.remote_allocate_buckets_resp)
+        return d
 
     def _write_and_close(self, ign, i, bw):
         d = defer.succeed(None)
@@ -1774,6 +1782,27 @@ class ServerTest(ServerMixin, ShouldFailMixin):
             d2.addCallback(_check)
             return d2
         d.addCallback(_allocated)
+        return d
+
+    def test_stats(self):
+        server = self.create("test_stats")
+        aa = server.get_accountant().get_anonymous_account()
+
+        d = self.allocate(aa, "si1", [0, 1], 50)
+
+        def _check_stats(ign, bucket_count, sharecount, used_space):
+            stats = server.get_stats()
+            self.failUnlessEqual(stats["storage_server.total_bucket_count"], bucket_count)
+            self.failUnlessEqual(stats["storage_server.total_leased_sharecount"], sharecount)
+            self.failUnlessEqual(stats["storage_server.total_leased_used_space"], used_space)
+
+        d.addCallback(_check_stats, 1, 2, 100)
+        d.addCallback(lambda ign:
+                        self.allocate(aa, "si1", [2], 50))
+        d.addCallback(_check_stats, 1, 3, 150)
+        d.addCallback(lambda ign:
+                        self.allocate(aa, "si2", [0], 50))
+        d.addCallback(_check_stats, 2, 4, 200)
         return d
 
     def test_dont_overfill_dirs(self):
