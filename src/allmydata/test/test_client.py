@@ -1,4 +1,4 @@
-import os
+import os, sys
 from twisted.trial import unittest
 from twisted.application import service
 
@@ -68,10 +68,11 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         fileutil.write(os.path.join(basedir, "debug_discard_storage"), "")
 
         e = self.failUnlessRaises(OldConfigError, client.Client, basedir)
-        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "introducer.furl")), e.args[0])
-        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "no_storage")), e.args[0])
-        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "readonly_storage")), e.args[0])
-        self.failUnlessIn(os.path.abspath(os.path.join(basedir, "debug_discard_storage")), e.args[0])
+        abs_basedir = fileutil.abspath_expanduser_unicode(unicode(basedir)).encode(sys.getfilesystemencoding())
+        self.failUnlessIn(os.path.join(abs_basedir, "introducer.furl"), e.args[0])
+        self.failUnlessIn(os.path.join(abs_basedir, "no_storage"), e.args[0])
+        self.failUnlessIn(os.path.join(abs_basedir, "readonly_storage"), e.args[0])
+        self.failUnlessIn(os.path.join(abs_basedir, "debug_discard_storage"), e.args[0])
 
         for oldfile in ['introducer.furl', 'no_storage', 'readonly_storage',
                         'debug_discard_storage']:
