@@ -488,10 +488,7 @@ class FileUtil(unittest.TestCase):
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
         self.failUnless(isinstance(saved_cwd, unicode), saved_cwd)
         self.failUnless(isinstance(abspath_cwd, unicode), abspath_cwd)
-        if sys.platform == "win32":
-            self.failUnlessEqual(abspath_cwd, u"\\\\?\\" + saved_cwd)
-        else:
-            self.failUnlessEqual(abspath_cwd, saved_cwd)
+        self.failUnlessEqual(abspath_cwd, saved_cwd)
 
         # adapted from <http://svn.python.org/view/python/branches/release26-maint/Lib/test/test_posixpath.py?view=markup&pathrev=78279#test_abspath>
 

@@ -311,12 +311,7 @@ def abspath_expanduser_unicode(path):
 
     # We won't hit <http://bugs.python.org/issue5827> because
     # there is always at least one Unicode path component.
-    path = os.path.normpath(path)
-
-    if sys.platform == "win32" and not path.startswith(u"\\\\"):
-        path = u"\\\\?\\" + path
-
-    return path
+    return os.path.normpath(path)
 
 
 have_GetDiskFreeSpaceExW = False
