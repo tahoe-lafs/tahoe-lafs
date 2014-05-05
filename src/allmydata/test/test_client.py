@@ -31,8 +31,6 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         client.Client(basedir)
 
     def test_comment(self):
-        dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
-
         should_fail = [r"test#test", r"#testtest", r"test\\#test"]
         should_not_fail = [r"test\#test", r"test\\\#test", r"testtest"]
 
