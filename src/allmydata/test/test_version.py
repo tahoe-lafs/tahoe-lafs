@@ -3,7 +3,8 @@ from pkg_resources import Requirement
 
 from twisted.trial import unittest
 
-from allmydata import check_requirement, cross_check, check_openssl_version, parse_build_date, PackagingError
+from allmydata import check_requirement, cross_check, PackagingError
+from allmydata.util.check_pyopenssl import check_openssl_version, check_resistant_to_heartbleed, OpenSSLVersionError
 from allmydata.util.verlib import NormalizedVersion as V, \
                                   IrrationalVersionError, \
                                   suggest_normalized_version as suggest
@@ -11,14 +12,10 @@ from allmydata.util.verlib import NormalizedVersion as V, \
 
 class MockSSL(object):
     SSLEAY_VERSION = 0
-    SSLEAY_CFLAGS = 2
 
-    def __init__(self, version, compiled_without_heartbeats=False):
-        self.opts = {
-            self.SSLEAY_VERSION: version,
-            self.SSLEAY_CFLAGS: compiled_without_heartbeats and 'compiler: gcc -DOPENSSL_NO_HEARTBEATS'
-                                                             or 'compiler: gcc',
-        }
+    def __init__(self, version, is_vulnerable=False):
+        self.is_vulnerable = is_vulnerable
+        self.opts = { self.SSLEAY_VERSION: version }
 
     def SSLeay_version(self, which):
         return self.opts[which]
@@ -134,31 +131,28 @@ class CheckRequirement(unittest.TestCase):
         self.failUnlessIn("but version '2.0'", res[0])
 
     def test_check_openssl_version(self):
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL(""))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("NotOpenSSL"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL a.b.c"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.1.x"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 0.9"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 0.9.0"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 0.9.8"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 0.9.8", True))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 0.9.8x"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.0"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.0", True))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.0k"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.1"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.1", True))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.1c", True))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.1e 11 Feb 2013"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.1e 5 Apr 2014"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.1e 7 Abc 2014"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.1e invalid_date"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.1e 7 Apr"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.2-beta1"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 0.10"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 0.10.0"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.0"))
-        self.failUnlessRaises(PackagingError, check_openssl_version, MockSSL("OpenSSL 1.0.0 1 Jan 2000"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL(""))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("NotOpenSSL"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL a.b.c"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.1.x"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 0.9"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 0.9.0"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 0.9.8"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 0.9.8x"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.0"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.0k"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.1", True))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.1c", True))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.1e 11 Feb 2013"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.1e 5 Apr 2014"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.1e 7 Abc 2014"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.1e invalid_date"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.1e 7 Apr"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.2-beta1"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 0.10"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 0.10.0"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.0"))
+        self.failUnlessRaises(OpenSSLVersionError, check_openssl_version, MockSSL("OpenSSL 1.0.0 1 Jan 2000"))
 
         check_openssl_version(MockSSL("OpenSSL 0.9.8y"))
         check_openssl_version(MockSSL("OpenSSL 0.9.8z"))
@@ -183,12 +177,6 @@ class CheckRequirement(unittest.TestCase):
         check_openssl_version(MockSSL("OpenSSL 2"))
         check_openssl_version(MockSSL("OpenSSL 2.0.0 31 Dec 2020"))
         check_openssl_version(MockSSL("OpenSSL 10.0.0 31 Dec 2099"))
-
-        self.failUnlessEqual(parse_build_date(['1', 'Jan', '2000']), (2000, 1, 1))
-        self.failUnlessEqual(parse_build_date(['5', 'Apr', '2014']), (2014, 4, 5))
-        self.failUnlessEqual(parse_build_date(['7', 'Apr', '2014']), (2014, 4, 7))
-        self.failUnlessRaises(Exception, parse_build_date, [])
-        self.failUnlessRaises(Exception, parse_build_date, ['1', 'Abc' '2000'])
 
 
 # based on https://bitbucket.org/tarek/distutilsversion/src/17df9a7d96ef/test_verlib.py
