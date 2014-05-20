@@ -3,7 +3,7 @@
 import re
 
 
-class OpenSSLVersionError(EnvironmentError):
+class UnsafeOpenSSLError(EnvironmentError):
     pass
 
 
@@ -12,7 +12,7 @@ def check_openssl_version(SSL):
     split_version = openssl_version.split(' ')
 
     if len(split_version) < 2 or split_version[0] != 'OpenSSL':
-        raise OpenSSLVersionError("could not understand OpenSSL version string %s" % (openssl_version,))
+        raise UnsafeOpenSSLError("could not understand OpenSSL version string %s" % (openssl_version,))
 
     try:
         components = split_version[1].split('.')
@@ -28,40 +28,23 @@ def check_openssl_version(SSL):
             (numeric_components == [1, 0, 2] and not components[2].startswith('2-beta')) or
             (numeric_components >= [1, 0, 3])):
             return
-    except Exception, e:
-        #import traceback
-        #traceback.print_exc()
-        pass
-    else:
-        if numeric_components == [1, 0, 1] and components[2] >= '1d':
-            # Unfortunately, Debian and Ubuntu patched the Heartbleed bug without bumping
-            # the version number or providing any other way to detect the patch status.
-            # (BAD! STOP DOING THIS!)
-
-            # Allow versions 1.0.1d through 1.0.1f if compiled with -DOPENSSL_NO_HEARTBEATS:
-            try:
-                openssl_cflags = SSL.SSLeay_version(SSL.SSLEAY_CFLAGS)
-            except Exception, e:
-                raise OpenSSLVersionError("refusing to use %s which may be vulnerable to security bugs.\n"
-                                          "Unable to check compilation flags due to %s: %s\n"
-                                          "Please upgrade to OpenSSL 1.0.1g or later."
-                                          % (openssl_version, e.__class__.__name__, e))
-            else:
-                if '-DOPENSSL_NO_HEARTBEATS' in openssl_cflags.split(' '):
-                    return
 
         if numeric_components == [1, 0, 1]:
             # Also allow versions 1.0.1 through 1.0.1f if a Heartbleed vulnerability test passes.
             # We assume that a library patched for Heartbleed is also patched for previous
             # security bugs that affected 1.0.1 through 1.0.1c.
             #
-            # We do this check only if the version and compiler flag checks are inconclusive, to
-            # minimize the chance for the test to break or give the wrong result somehow.
-            if not is_vulnerable(SSL):
-                return
+            # We do this check only if the version check above is inconclusive, to minimize the
+            # chance for the test to break or give the wrong result somehow.
+            check_resistant_to_heartbleed(SSL)
 
-    raise OpenSSLVersionError("refusing to use %s which may be vulnerable to security bugs.\n"
-                              "Please upgrade to OpenSSL 1.0.1g or later." % (openssl_version,))
+    except Exception, e:
+        #import traceback
+        #traceback.print_exc()
+        pass
+
+    raise UnsafeOpenSSLError("refusing to use %s which may be vulnerable to security bugs.\n"
+                             "Please upgrade to OpenSSL 1.0.1g or later." % (openssl_version,))
 
 
 # As simple as possible, but no simpler.
@@ -99,7 +82,7 @@ _HEARTBEAT2 = (
   '\x00\x01'             #   payload length (0 bytes)
 ) + '\x00'*33
 
-def is_vulnerable(SSL):
+def check_resistant_to_heartbleed(SSL):
     def verify_callback(connection, x509, errnum, errdepth, ok):
         return ok
 
@@ -156,6 +139,6 @@ def is_vulnerable(SSL):
 if __name__ == '__main__':
     from OpenSSL import SSL
     #check_openssl_version(SSL)
-    #print "Not vulnerable."
-    print is_vulnerable(SSL)
+    check_resistant_to_heartbleed(SSL)
+    print "Not vulnerable."
 
