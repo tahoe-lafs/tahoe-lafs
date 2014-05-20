@@ -313,10 +313,18 @@ def abspath_expanduser_unicode(path):
     # there is always at least one Unicode path component.
     path = os.path.normpath(path)
 
-    if sys.platform == "win32" and not path.startswith(u"\\\\"):
-        path = u"\\\\?\\" + path
+    if sys.platform == "win32":
+        path = to_windows_long_path(path)
 
     return path
+
+def to_windows_long_path(path):
+    if path.startswith(u"\\\\?\\") or path.startswith(u"\\\\.\\"):
+        return path
+    elif path.startswith(u"\\\\"):
+        return u"\\\\?\\UNC\\" + path[2 :]
+    else:
+        return u"\\\\?\\" + path
 
 
 have_GetDiskFreeSpaceExW = False
