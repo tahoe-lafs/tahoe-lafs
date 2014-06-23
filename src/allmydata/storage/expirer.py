@@ -144,6 +144,7 @@ class LeaseCheckingCrawler(ShareCrawler):
         self.increment(rec, "examined-buckets", 1)
         if sharetype:
             self.increment(rec, "examined-buckets-"+sharetype, 1)
+        del wks
 
         try:
             bucket_diskbytes = s.st_blocks * 512

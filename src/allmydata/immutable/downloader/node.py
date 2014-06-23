@@ -56,8 +56,7 @@ class DownloadNode:
         self._history = history
         self._download_status = download_status
 
-        k, N = self._verifycap.needed_shares, self._verifycap.total_shares
-        self.share_hash_tree = IncompleteHashTree(N)
+        self.share_hash_tree = IncompleteHashTree(self._verifycap.total_shares)
 
         # we guess the segment size, so Segmentation can pull non-initial
         # segments in a single roundtrip. This populates

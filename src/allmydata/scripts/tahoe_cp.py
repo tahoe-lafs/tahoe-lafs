@@ -469,6 +469,7 @@ class Copier:
             name, source = self.get_source_info(ss)
             sources.append( (name, source) )
 
+        del name
         have_source_dirs = bool([s for (name,s) in sources
                                  if isinstance(s, (LocalDirectorySource,
                                                    TahoeDirectorySource))])

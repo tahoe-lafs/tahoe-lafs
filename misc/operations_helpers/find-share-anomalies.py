@@ -29,6 +29,7 @@ for catalog in sys.argv[1:]:
             sdmf_versions[si][0].add( ver )
             sdmf_versions[si][1].add( line )
 
+del si
 chk_multiple_encodings = [(si,lines)
                           for si,(encodings,lines) in chk_encodings.items()
                           if len(encodings) > 1]

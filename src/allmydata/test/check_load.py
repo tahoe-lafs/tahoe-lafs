@@ -52,6 +52,7 @@ if sys.argv[1] == "--stats":
                 if name not in stats:
                     stats[name] = 0
                 stats[name] += float(value)
+        del name
         if last_stats:
             delta = dict( [ (name,stats[name]-last_stats[name])
                             for name in stats ] )

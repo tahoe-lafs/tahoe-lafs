@@ -428,6 +428,7 @@ class DownloadStatusPage(DownloadResultsRendererMixin, rend.Page):
                 rows[free_slot] = ev["finish_time"]
             ev["row"] = (groupnum, free_slot)
             new_events.append(ev)
+        del groupnum
         # maybe also return serverid_to_group, groupnum_to_rows, and some
         # indication of the highest finish_time
         #
