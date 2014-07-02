@@ -483,14 +483,26 @@ Command Examples
  snapshot in work:backups/Latest/ . This command uses a small SQLite database
  known as the "backupdb", stored in ``~/.tahoe/private/backupdb.sqlite``, to
  remember which local files have been backed up already, and will avoid
- uploading files that have already been backed up. It compares timestamps and
- filesizes when making this comparison. It also re-uses existing directories
- which have identical contents. This lets it run faster and reduces the
- number of directories created.
+ uploading files that have already been backed up (except occasionally that
+ will randomly upload them again if it has been awhile since had last been
+ uploaded, just to make sure that the copy of it on the server is still good).
+ It compares timestamps and filesizes when making this comparison. It also
+ re-uses existing directories which have identical contents. This lets it
+ run faster and reduces the number of directories created.
 
  If you reconfigure your client node to switch to a different grid, you
  should delete the stale backupdb.sqlite file, to force "``tahoe backup``"
  to upload all files to the new grid.
+
+ The fact that "tahoe backup" checks timestamps on your local files and
+ skips ones that don't appear to have been changed is one of the major
+ differences between "tahoe backup" and "tahoe cp -r". The other major
+ difference is that "tahoe backup" keeps links to all of the versions that
+ have been uploaded to the grid, so you can navigate among old versions
+ stored in the grid. In contrast, "tahoe cp -r" unlinks the previous
+ version from the grid directory and links the new version into place,
+ so unless you have a link to the older version stored somewhere else,
+ you'll never be able to get back to it.
 
 ``tahoe backup --exclude=*~ ~ work:backups``
 
