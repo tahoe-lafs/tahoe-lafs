@@ -119,12 +119,16 @@ Exercise caution when connecting to the SFTP server remotely. The AES
 implementation used by the SFTP code does not have defenses against timing
 attacks. The code for encrypting the SFTP connection was not written by the
 Tahoe-LAFS team, and we have not reviewed it as carefully as we have reviewed
-the code for encrypting files and directories in Tahoe-LAFS itself. If you
-can connect to the SFTP server (which is provided by the Tahoe-LAFS gateway)
-only from a client on the same host, then you would be safe from any problem
-with the SFTP connection security. The examples given below enforce this
-policy by including ":interface=127.0.0.1" in the "port" option, which causes
-the server to only accept connections from localhost.
+the code for encrypting files and directories in Tahoe-LAFS itself. (See
+`Twisted ticket #4633`_ for a possible fix to this issue.)
+
+.. _Twisted ticket #4633: https://twistedmatrix.com/trac/ticket/4633
+
+If you can connect to the SFTP server (which is provided by the Tahoe-LAFS
+gateway) only from a client on the same host, then you would be safe from any
+problem with the SFTP connection security. The examples given below enforce
+this policy by including ":interface=127.0.0.1" in the "port" option, which
+causes the server to only accept connections from localhost.
 
 You will use directives in the tahoe.cfg file to tell the SFTP code where to
 find these keys. To create one, use the ``ssh-keygen`` tool (which comes with
