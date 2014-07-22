@@ -419,6 +419,13 @@ class FileDownloader(rend.Page):
             req.setHeader("content-disposition",
                           'attachment; filename="%s"' % self.filename)
 
+        # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2136>
+        for header in ('Content-Security-Policy', 'X-Content-Security-Policy', 'X-Webkit-CSP'):
+            req.setHeader(header, 'sandbox')
+
+        # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1455>
+        req.setHeader('X-Frame-Options', 'DENY')
+
         filesize = self.filenode.get_size()
         assert isinstance(filesize, (int,long)), filesize
         first, size = 0, None
