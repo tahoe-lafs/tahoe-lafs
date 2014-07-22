@@ -472,6 +472,24 @@ class WebMixin(object):
         self.failUnlessReallyEqual(to_str(kids[u"quux.txt"][1]["ro_uri"]),
                                    self._quux_txt_readonly_uri)
 
+    EXPECTED_HEADERS = set(('accept-ranges', 'content-length', 'content-type', 'date', 'etag', 'server',
+                            'content-security-policy', 'x-content-security-policy', 'x-webkit-csp',
+                            'x-frame-options'))
+
+    def failIfBadHeaders(self, res, return_response=False):
+        (data, statuscode, headers) = res
+        unexpected_headers = set(headers) - self.EXPECTED_HEADERS
+        self.failIf(unexpected_headers, str(unexpected_headers))
+
+        for csp_header in ('content-security-policy', 'x-content-security-policy', 'x-webkit-csp'):
+            self.failUnlessEqual(headers.get(csp_header, None), ['sandbox'])
+        self.failUnlessEqual(headers.get('x-frame-options', None), ['DENY'])
+
+        if return_response:
+            return res
+        else:
+            return data
+
     def GET(self, urlpath, followRedirect=False, return_response=False,
             **kwargs):
         # if return_response=True, this fires with (data, statuscode,
@@ -821,7 +839,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
         self.failUnlessReallyEqual(urrm.render_rate(None, 123), "123Bps")
 
     def test_GET_FILEURL(self):
-        d = self.GET(self.public_url + "/foo/bar.txt")
+        d = self.GET(self.public_url + "/foo/bar.txt", return_response=True)
+        d.addCallback(self.failIfBadHeaders)
         d.addCallback(self.failUnlessIsBarDotTxt)
         return d
 
