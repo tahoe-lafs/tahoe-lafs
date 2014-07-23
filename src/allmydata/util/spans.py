@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 class Spans:
     """I represent a compressed list of booleans, one per index (an integer).

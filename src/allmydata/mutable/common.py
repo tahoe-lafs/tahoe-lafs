@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 MODE_CHECK = "MODE_CHECK" # query all peers
 MODE_ANYTHING = "MODE_ANYTHING" # one recoverable version

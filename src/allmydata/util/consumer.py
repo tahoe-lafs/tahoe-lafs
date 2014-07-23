@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 """This file defines a basic download-to-memory consumer, suitable for use in
 a filenode's read() method. See download_to_data() for an example of its use.

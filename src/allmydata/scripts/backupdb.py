@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 import os.path, sys, time, random, stat
 

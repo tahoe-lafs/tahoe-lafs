@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 # Note: please minimize imports in this file. In particular, do not import
 # any module from Tahoe-LAFS or its dependencies, and do not import any
 # modules at all at global level. That includes setuptools and pkg_resources.

@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 # To check a particular Tahoe source distribution, this should be invoked from
 # the root directory of that distribution as

@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 from zope.interface import Interface
 from foolscap.api import StringConstraint, TupleOf, SetOf, DictOf, Any, \

@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 """
 Functions used to convert inputs from whatever encoding used in the system to
 unicode and back.

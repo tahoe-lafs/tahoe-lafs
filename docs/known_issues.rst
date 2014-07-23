@@ -1,4 +1,4 @@
-﻿.. -*- coding: utf-8-with-signature -*-
+﻿.. -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
 
 See also `cautions.rst`_.
 

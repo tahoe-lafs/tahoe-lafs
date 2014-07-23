@@ -1,4 +1,6 @@
-#! /usr/bin/python
+﻿#! /usr/bin/python
+# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 # ./rumid.py foo.py
 

@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 # This script uses hdiutil to attach a dmg (whose name is derived from the
 # appname and the version number passed in), asserts that it attached as
 # expected, cd's into the mounted filesystem, executes "$appname

@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 lumiere_nfc = u"lumi\u00E8re"
 Artonwall_nfc = u"\u00C4rtonwall.mp3"

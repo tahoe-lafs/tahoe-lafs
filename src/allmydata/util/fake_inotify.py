@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 # Most of this is copied from Twisted 11.0. The reason for this hack is that
 # twisted.internet.inotify can't be imported when the platform does not support inotify.

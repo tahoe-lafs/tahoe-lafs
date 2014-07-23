@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 """
 Test an existing Tahoe grid, both to see if the grid is still running and to
 see if the client is still compatible with it. This script is suitable for

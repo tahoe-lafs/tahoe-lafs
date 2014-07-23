@@ -1,4 +1,6 @@
-#!/usr/bin/env python
+﻿#!/usr/bin/env python
+# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 # WARNING. There is a bug in this script so that it does not simulate the actual Tahoe Two server selection algorithm that it was intended to simulate. See http://allmydata.org/trac/tahoe-lafs/ticket/302 (stop permuting peerlist, use SI as offset into ring instead?)
 

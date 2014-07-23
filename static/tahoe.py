@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 
 # This checks that we can import the right versions of all dependencies.
 # Import this first to suppress deprecation warnings.

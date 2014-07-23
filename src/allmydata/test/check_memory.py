@@ -1,3 +1,5 @@
+﻿# -*- coding: utf-8-with-signature-unix; fill-column: 77 -*-
+# -*- indent-tabs-mode: nil -*-
 import os, shutil, sys, urllib, time, stat
 from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
