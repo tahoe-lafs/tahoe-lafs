@@ -5,15 +5,24 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_output
 import allmydata
 
-class CreateClientOptions(BasedirOptions):
+class CreateNodeCommonOptions(BasedirOptions):
+    optParameters = [
+        # we provide 'create-node'-time options for the most common
+        # configuration knobs. The rest can be controlled by editing
+        # tahoe.cfg before node startup.
+        ("webport", "p", "tcp:3456:interface=127.0.0.1",
+         "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
+        ("incidents_dir", "I", None, "Set directory to save incident reports."),
+        ("tempdir", "t",  None, "Path to the temporary directory."),
+        ]
+
+class CreateClientOptions(CreateNodeCommonOptions):
     optParameters = [
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
         ("nickname", "n", None, "Specify the nickname for this node."),
         ("introducer", "i", None, "Specify the introducer FURL to use."),
-        ("webport", "p", "tcp:3456:interface=127.0.0.1",
-         "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
         ]
 
     def getSynopsis(self):
@@ -24,14 +33,21 @@ class CreateNodeOptions(CreateClientOptions):
     optFlags = [
         ("no-storage", None, "Do not offer storage service to other nodes."),
         ]
+    optParameters = [
+        ("storage_dir", "s",  None, "Path where the storage will be placed."),
+        ]
 
     def getSynopsis(self):
         return "Usage:  %s [global-opts] create-node [options] [NODEDIR]" % (self.command_name,)
 
 
-class CreateIntroducerOptions(BasedirOptions):
+class CreateIntroducerOptions(CreateNodeCommonOptions):
     default_nodedir = None
 
+    optParameters = [
+        ("webport", "p", "none",
+         "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
+        ]
     def getSynopsis(self):
         return "Usage:  %s [global-opts] create-introducer [options] NODEDIR" % (self.command_name,)
 
@@ -89,6 +105,16 @@ def write_node_config(c, config):
     c.write("web.static = public_html\n")
     c.write("#tub.port =\n")
     c.write("#tub.location = \n")
+    incidents_dir = config.get("incidents_dir")
+    if incidents_dir:
+        c.write("incidents_dir = %s\n" % incidents_dir)
+    else:
+        c.write("#incidents_dir =\n")
+    tempdir = config.get("tempdir")
+    if tempdir:
+        c.write("tempdir = %s\n" % tempdir)
+    else:
+        c.write("#tempdir =\n")
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
     c.write("#timeout.disconnect =\n")
@@ -121,7 +147,7 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
 
     c.write("[client]\n")
     c.write("# Which services should this client connect to?\n")
-    c.write("introducer.furl = %s\n" % config.get("introducer", ""))
+    c.write("introducer.furl = %s\n" % config.get("introducer"))
     c.write("helper.furl =\n")
     c.write("#key_generator.furl =\n")
     c.write("#stats_gatherer.furl =\n")
@@ -139,6 +165,11 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     c.write("enabled = %s\n" % boolstr[storage_enabled])
     c.write("#readonly =\n")
     c.write("reserved_space = 1G\n")
+    storage_dir = config.get("storage_dir")
+    if storage_dir:
+        c.write("storage_dir = %s\n" % storage_dir)
+    else:
+        c.write("#storage_dir =\n")
     c.write("#expire.enabled =\n")
     c.write("#expire.mode =\n")
     c.write("\n")
@@ -161,10 +192,10 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
     from allmydata.util import fileutil
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
     print >>out, "Node created in %s" % quote_output(basedir)
-    if not config.get("introducer", ""):
+    if not config.get("introducer"):
         print >>out, " Please set [client]introducer.furl= in tahoe.cfg!"
         print >>out, " The node cannot connect to a grid without it."
-    if not config.get("nickname", ""):
+    if not config.get("nickname"):
         print >>out, " Please set [node]nickname= in tahoe.cfg"
     return 0
 
