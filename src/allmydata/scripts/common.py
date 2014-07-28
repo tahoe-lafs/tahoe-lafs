@@ -41,7 +41,6 @@ class BasedirOptions(BaseOptions):
     optParameters = [
         ["basedir", "C", None, "Same as --node-directory (default %s)."
          % get_default_nodedir()],
-        ["logdir", "L", None, "Set directory to save twistd.log"],
     ]
 
     def parseArgs(self, basedir=None):

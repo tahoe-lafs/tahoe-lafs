@@ -6,37 +6,31 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, quote_output
 
 
-class StartOptions(BasedirOptions):
+class StartStopCommonOptions(BasedirOptions):
+    optParameters = [
+        ["pidfile", None, None, "Tell the node wich pid file should use."],
+        ]
+
+
+class StartOptions(StartStopCommonOptions):
     optFlags = [
         ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
         ["syslog", None, "Tell the node to log to syslog, not a file."],
         ]
     optParameters = [
-        ["pidfile", None, None, "Tell the node wich pid file should use."],
+        ["logfile", "L", None, "Tell the node the file where the logs will be written."],
         ]
 
     def getSynopsis(self):
         return "Usage:  %s [global-opts] start [options] [NODEDIR]" % (self.command_name,)
 
 
-class StopOptions(BasedirOptions):
-    optParameters = [
-        ["pidfile", None, None, "Tell the node wich pid file should use."],
-        ]
-
+class StopOptions(StartStopCommonOptions):
     def getSynopsis(self):
         return "Usage:  %s [global-opts] stop [options] [NODEDIR]" % (self.command_name,)
 
 
-class RestartOptions(BasedirOptions):
-    optFlags = [
-        ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
-        ["syslog", None, "Tell the node to log to syslog, not a file."],
-        ]
-    optParameters = [
-        ["pidfile", None, None, "Tell the node wich pid file should use."],
-        ]
-
+class RestartOptions(StartOptions):
     def getSynopsis(self):
         return "Usage:  %s [global-opts] restart [options] [NODEDIR]" % (self.command_name,)
 
@@ -72,12 +66,12 @@ def start(opts, out=sys.stdout, err=sys.stderr):
     if opts["syslog"]:
         args.append("--syslog")
     elif nodetype in ("client", "introducer"):
-        if opts["logdir"]:
-            logdir = os.path.realpath( os.path.expanduser(opts["logdir"]) )
+        if opts["logfile"]:
+            logfile = os.path.realpath( os.path.expanduser(opts["logfile"]) )
         else:
-            logdir = "logs"
-        fileutil.make_dirs(os.path.join(basedir, logdir))
-        args.extend(["--logfile", os.path.join(logdir, "twistd.log")])
+            logfile = os.path.join("logs", "twistd.log")
+        fileutil.make_dirs(os.path.join(basedir, logfile))
+        args.extend(["--logfile", lo])
     if opts["profile"]:
         args.extend(["--profile=profiling_results.prof", "--savestats",])
     if opts["pidfile"]:
