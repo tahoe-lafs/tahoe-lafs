@@ -319,6 +319,11 @@ def abspath_expanduser_unicode(path):
     return path
 
 def to_windows_long_path(path):
+    # '/' is normally a perfectly valid path component separator in Windows.
+    # However, when using the "\\?\" syntax it is not recognized, so we
+    # replace it with '\' here.
+    path = path.replace(u"/", u"\\")
+
     if path.startswith(u"\\\\?\\") or path.startswith(u"\\\\.\\"):
         return path
     elif path.startswith(u"\\\\"):
