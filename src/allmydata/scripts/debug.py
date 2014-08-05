@@ -645,15 +645,15 @@ def find_shares(options):
     /home/warner/testnet/node-2/storage/shares/44k/44kai1tui348689nrw8fjegc8c/2
     """
     from allmydata.storage.server import si_a2b, storage_index_to_dir
-    from allmydata.util.encodingutil import listdir_unicode
+    from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 
     out = options.stdout
     sharedir = storage_index_to_dir(si_a2b(options.si_s))
     for d in options.nodedirs:
-        d = os.path.join(d, "storage/shares", sharedir)
+        d = os.path.join(d, "storage", "shares", sharedir)
         if os.path.exists(d):
             for shnum in listdir_unicode(d):
-                print >>out, os.path.join(d, shnum)
+                print >>out, quote_local_unicode_path(os.path.join(d, shnum), quotemarks=False)
 
     return 0
 
@@ -832,7 +832,7 @@ def catalog_shares(options):
     err = options.stderr
     now = time.time()
     for d in options.nodedirs:
-        d = os.path.join(d, "storage/shares")
+        d = os.path.join(d, "storage", "shares")
         try:
             abbrevs = listdir_unicode(d)
         except EnvironmentError:
