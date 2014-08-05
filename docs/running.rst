@@ -125,14 +125,16 @@ The SFTP and FTP frontends
 You can access your Tahoe-LAFS grid via any SFTP_ or FTP_ client.
 See `FTP-and-SFTP.rst`_ for how to set
 this up. On most Unix platforms, you can also use SFTP to plug
-Tahoe-LAFS into your computer's local filesystem via ``sshfs``.
+Tahoe-LAFS into your computer's local filesystem via ``sshfs``, but see 
+the `FAQ about performance problems`_.
 
 The SftpFrontend_ page on the wiki has more information about using SFTP with
 Tahoe-LAFS.
 
 .. _SFTP:  https://en.wikipedia.org/wiki/SSH_file_transfer_protocol
-.. _FTP: http://en.wikipedia.org/wiki/File_Transfer_Protocol
+.. _FTP: https://en.wikipedia.org/wiki/File_Transfer_Protocol
 .. _FTP-and-SFTP.rst: frontends/FTP-and-SFTP.rst
+.. _FAQ about performance problems: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/FAQ#Q23_FUSE
 .. _SftpFrontend: https://tahoe-lafs.org/trac/tahoe-lafs/wiki/SftpFrontend
 
 
