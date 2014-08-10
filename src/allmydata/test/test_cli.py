@@ -2473,6 +2473,26 @@ starting copy, 2 files, 1 directories
         d.addCallback(_check)
         return d
 
+    def test_ticket_2027(self):
+        # This test ensures that tahoe will copy a file from the grid to
+        # a local directory without a specified file name.
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2027
+        self.basedir = "cli/Cp/cp_verbose"
+        self.set_up_grid()
+
+        # Write a test file, which we'll copy to the grid.
+        test1_path = os.path.join(self.basedir, "test1")
+        fileutil.write(test1_path, "test1")
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda ign:
+            self.do_cli("cp", test1_path, "tahoe:"))
+        d.addCallback(lambda ign:
+            self.do_cli("cp", "tahoe:test1", self.basedir))
+        def _check(res):
+            (rc, out, err) = res
+            self.failUnlessIn("Success: file copied", out, str(res))
+        return d
 
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
