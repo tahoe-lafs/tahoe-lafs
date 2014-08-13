@@ -1,6 +1,8 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.6 and 2.7.x inclusive."
+import sys
+
+assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Python 3. Please use a version of Python between 2.6 and 2.7.x inclusive."
 
 # Tahoe-LAFS -- secure, distributed storage grid
 #
@@ -10,9 +12,14 @@ import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Pyt
 #
 # See the docs/about.rst file for licensing information.
 
-import glob, os, stat, subprocess, re
+import glob
+import os
+import re
+import stat
+import subprocess
 
 ##### sys.path management
+
 
 def pylibdir(prefixdir):
     pyver = "python%d.%d" % (sys.version_info[:2])
@@ -24,9 +31,9 @@ def pylibdir(prefixdir):
 basedir = os.path.dirname(os.path.abspath(__file__))
 supportlib = pylibdir(os.path.join(basedir, "support"))
 
-# locate our version number
 
 def read_version_py(infname):
+    """Locate our version number."""
     try:
         verstrline = open(infname, "rt").read()
     except EnvironmentError:
@@ -39,7 +46,7 @@ def read_version_py(infname):
 
 version = read_version_py("src/allmydata/_version.py")
 
-APPNAME='allmydata-tahoe'
+APPNAME = 'allmydata-tahoe'
 APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')
 APPNAMEFILESTR = "__appname__ = '%s'" % (APPNAME,)
 try:
@@ -72,48 +79,49 @@ __requires__ = install_requires[:]
 
 egg = os.path.realpath(glob.glob('setuptools-*.egg')[0])
 sys.path.insert(0, egg)
-import setuptools; setuptools.bootstrap_install_from = egg
+import setuptools
+setuptools.bootstrap_install_from = egg
 
 from setuptools import setup
 from setuptools.command import sdist
 from setuptools import Command
 
-trove_classifiers=[
+trove_classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Environment :: Web Environment",
-    "License :: OSI Approved :: GNU General Public License (GPL)",
-    "License :: DFSG approved",
-    "License :: Other/Proprietary License",
     "Intended Audience :: Developers",
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: System Administrators",
-    "Operating System :: Microsoft",
-    "Operating System :: Microsoft :: Windows",
+    "License :: DFSG approved",
+    "License :: OSI Approved :: GNU General Public License (GPL)",
+    "License :: Other/Proprietary License",
+    "Natural Language :: English",
+    "Operating System :: MacOS :: MacOS X",
     "Operating System :: Microsoft :: Windows :: Windows NT/2000",
-    "Operating System :: Unix",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: Microsoft",
+    "Operating System :: OS Independent",
     "Operating System :: POSIX :: Linux",
     "Operating System :: POSIX",
-    "Operating System :: MacOS :: MacOS X",
-    "Operating System :: OS Independent",
-    "Natural Language :: English",
+    "Operating System :: Unix",
     "Programming Language :: C",
-    "Programming Language :: Python",
     "Programming Language :: Python :: 2",
     "Programming Language :: Python :: 2.4",
     "Programming Language :: Python :: 2.5",
     "Programming Language :: Python :: 2.6",
     "Programming Language :: Python :: 2.7",
-    "Topic :: Utilities",
-    "Topic :: System :: Systems Administration",
-    "Topic :: System :: Filesystems",
-    "Topic :: System :: Distributed Computing",
-    "Topic :: Software Development :: Libraries",
+    "Programming Language :: Python",
     "Topic :: Communications :: Usenet News",
+    "Topic :: Software Development :: Libraries",
     "Topic :: System :: Archiving :: Backup",
     "Topic :: System :: Archiving :: Mirroring",
     "Topic :: System :: Archiving",
-    ]
+    "Topic :: System :: Distributed Computing",
+    "Topic :: System :: Filesystems",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
+]
 
 
 setup_requires = []
@@ -145,19 +153,20 @@ if "sdist_dsc" in sys.argv:
     setup_requires.append('stdeb >= 0.3')
 
 # We no longer have any requirements specific to tests.
-tests_require=[]
+tests_require = []
 
 
 class Trial(Command):
     description = "run trial (use 'bin%stahoe debug trial' for the full set of trial options)" % (os.sep,)
     # This is just a subset of the most useful options, for compatibility.
-    user_options = [ ("no-rterrors", None, "Don't print out tracebacks as they occur."),
-                     ("rterrors", "e", "Print out tracebacks as they occur (default, so ignored)."),
-                     ("until-failure", "u", "Repeat a test (specified by -s) until it fails."),
-                     ("reporter=", None, "The reporter to use for this test run."),
-                     ("suite=", "s", "Specify the test suite."),
-                     ("quiet", None, "Don't display version numbers and paths of Tahoe dependencies."),
-                   ]
+    user_options = [
+        ("no-rterrors", None, "Don't print out tracebacks as they occur."),
+        ("rterrors", "e", "Print out tracebacks as they occur (default, so ignored)."),
+        ("until-failure", "u", "Repeat a test (specified by -s) until it fails."),
+        ("reporter=", None, "The reporter to use for this test run."),
+        ("suite=", "s", "Specify the test suite."),
+        ("quiet", None, "Don't display version numbers and paths of Tahoe dependencies."),
+    ]
 
     def initialize_options(self):
         self.rterrors = False
@@ -195,8 +204,10 @@ class MakeExecutable(Command):
 
     def initialize_options(self):
         pass
+
     def finalize_options(self):
         pass
+
     def run(self):
         bin_tahoe_template = os.path.join("bin", "tahoe-script.template")
 
@@ -218,7 +229,7 @@ class MakeExecutable(Command):
                 os.remove(tahoe_script)
             except Exception:
                 if os.path.exists(tahoe_script):
-                   raise
+                    raise
             f = open(tahoe_script, "wb")
             for line in script_lines:
                 f.write(line)
@@ -250,6 +261,7 @@ branch = %(branch)r
 verstr = %(normalized)r
 __version__ = verstr
 '''
+
 
 def run_command(args, cwd=None, verbose=False):
     try:
@@ -292,7 +304,8 @@ def versions_from_git(tag_prefix, verbose=False):
         source_dir = os.path.dirname(os.path.abspath(__file__))
     except NameError:
         # some py2exe/bbfreeze/non-CPython implementations don't do __file__
-        return {} # not always correct
+        return {}  # not always correct
+
     GIT = "git"
     if sys.platform == "win32":
         GIT = "git.cmd"
@@ -325,6 +338,7 @@ def versions_from_git(tag_prefix, verbose=False):
 
     return {"version": version, "normalized": normalized_version, "full": full, "branch": branch}
 
+
 # setup.cfg has an [aliases] section which runs "update_version" before many
 # commands (like "build" and "sdist") that need to know our package version
 # ahead of time. If you add different commands (or if we forgot some), you
@@ -337,8 +351,10 @@ class UpdateVersion(Command):
 
     def initialize_options(self):
         pass
+
     def finalize_options(self):
         pass
+
     def run(self):
         if os.path.isdir(os.path.join(basedir, ".git")):
             verstr = self.try_from_git()
@@ -404,8 +420,10 @@ class MySdist(sdist.sdist):
             # self.distribution.metadata.version, but that also affects the
             # contents of PKG-INFO).
             fullname = self.distribution.get_fullname()
+
             def get_fullname():
                 return fullname + "-SUMO"
+
             self.distribution.get_fullname = get_fullname
 
         try:
@@ -425,13 +443,13 @@ setup(name=APPNAME,
       author='the Tahoe-LAFS project',
       author_email='tahoe-dev@tahoe-lafs.org',
       url='https://tahoe-lafs.org/',
-      license='GNU GPL', # see README.txt -- there is an alternative licence
+      license='GNU GPL',  # see README.txt -- there is an alternative licence
       cmdclass={"trial": Trial,
                 "make_executable": MakeExecutable,
                 "update_version": UpdateVersion,
                 "sdist": MySdist,
                 },
-      package_dir = {'':'src'},
+      package_dir={'': 'src'},
       packages=['allmydata',
                 'allmydata.frontends',
                 'allmydata.immutable',
@@ -456,7 +474,7 @@ setup(name=APPNAME,
                                       ]
                     },
       setup_requires=setup_requires,
-      entry_points = { 'console_scripts': [ 'tahoe = allmydata.scripts.runner:run' ] },
-      zip_safe=False, # We prefer unzipped for easier access.
+      entry_points={'console_scripts': ['tahoe = allmydata.scripts.runner:run']},
+      zip_safe=False,  # We prefer unzipped for easier access.
       **setup_args
       )
