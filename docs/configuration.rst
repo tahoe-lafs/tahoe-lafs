@@ -784,6 +784,14 @@ Storage Server Configuration
 
 .. _#390: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/390
 
+``storage_dir = (string, optional)``
+
+    This specifies a storing directory.
+
+    The default value is the ``storage`` directory in the node's base directory
+    (i.e. ``BASEDIR/storage``), but it can be placed elsewhere. Relative paths
+    will be interpreted relative to the node's base directory.
+
 
 Running A Helper
 ================
@@ -1105,16 +1113,16 @@ a legal one.
   log_gatherer.furl = pb://soklj4y7eok5c3xkmjeqpw@192.168.69.247:44801/eqpwqtzm
   timeout.keepalive = 240
   timeout.disconnect = 1800
-  
+
   [client]
   introducer.furl = pb://ok45ssoklj4y7eok5c3xkmj@tcp:tahoe.example:44801/ii3uumo
   helper.furl = pb://ggti5ssoklj4y7eok5c3xkmj@tcp:helper.tahoe.example:7054/kk8lhr
-  
+
   [storage]
   enabled = True
   readonly = True
   reserved_space = 10000000000
-  
+
   [helper]
   enabled = True
 
