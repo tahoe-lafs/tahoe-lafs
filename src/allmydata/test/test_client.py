@@ -7,6 +7,7 @@ from allmydata.node import Node, OldConfigError, OldConfigOptionError, MissingCo
 from allmydata import client
 from allmydata.storage_client import StorageFarmBroker
 from allmydata.util import base32, fileutil
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.interfaces import IFilesystemNode, IFileNode, \
      IImmutableFileNode, IMutableFileNode, IDirectoryNode
 from foolscap.api import flushEventualQueue
@@ -172,6 +173,18 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
                            "enabled = true\n" + \
                            "reserved_space = bogus\n")
         self.failUnlessRaises(ValueError, client.Client, basedir)
+
+    def test_storage_dir(self):
+        basedir = u"client.Basic.test_storage_dir"
+        os.mkdir(basedir)
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG +
+                       "[storage]\n" +
+                       "enabled = true\n" +
+                       "storage_dir = myowndir\n")
+        c = client.Client(basedir)
+        self.failUnlessEqual(c.getServiceNamed("storage").storedir,
+                             os.path.join(abspath_expanduser_unicode(basedir), u"myowndir"))
 
     def _permute(self, sb, key):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]

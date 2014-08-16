@@ -256,7 +256,8 @@ class Client(node.Node, pollmixin.PollMixin):
             return
         readonly = self.get_config("storage", "readonly", False, boolean=True)
 
-        storedir = os.path.join(self.basedir, self.STOREDIR)
+        config_storedir = self.get_config("storage", "storage_dir", self.STOREDIR)
+        storedir = os.path.join(self.basedir, config_storedir)
 
         data = self.get_config("storage", "reserved_space", None)
         try:
