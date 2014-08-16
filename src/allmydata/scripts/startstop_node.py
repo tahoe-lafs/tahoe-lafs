@@ -70,8 +70,9 @@ def start(opts, out=sys.stdout, err=sys.stderr):
             logfile = os.path.realpath( os.path.expanduser(opts["logfile"]) )
         else:
             logfile = os.path.join("logs", "twistd.log")
-        fileutil.make_dirs(os.path.join(basedir, logfile))
-        args.extend(["--logfile", lo])
+        logfolder = os.path.join(basedir, os.path.split(logfile)[0])
+        fileutil.make_dirs(logfolder)
+        args.extend(["--logfile", logfile])
     if opts["profile"]:
         args.extend(["--profile=profiling_results.prof", "--savestats",])
     if opts["pidfile"]:
