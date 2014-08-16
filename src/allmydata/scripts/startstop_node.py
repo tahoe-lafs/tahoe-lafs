@@ -11,6 +11,9 @@ class StartOptions(BasedirOptions):
         ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
         ["syslog", None, "Tell the node to log to syslog, not a file."],
         ]
+    optParameters = [
+        ["logfile", "L", None, "Tell the node the file where the logs will be written."],
+        ]
 
     def getSynopsis(self):
         return "Usage:  %s [global-opts] start [options] [NODEDIR]" % (self.command_name,)
@@ -21,12 +24,7 @@ class StopOptions(BasedirOptions):
         return "Usage:  %s [global-opts] stop [options] [NODEDIR]" % (self.command_name,)
 
 
-class RestartOptions(BasedirOptions):
-    optFlags = [
-        ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
-        ["syslog", None, "Tell the node to log to syslog, not a file."],
-        ]
-
+class RestartOptions(StartOptions):
     def getSynopsis(self):
         return "Usage:  %s [global-opts] restart [options] [NODEDIR]" % (self.command_name,)
 
@@ -62,8 +60,13 @@ def start(opts, out=sys.stdout, err=sys.stderr):
     if opts["syslog"]:
         args.append("--syslog")
     elif nodetype in ("client", "introducer"):
-        fileutil.make_dirs(os.path.join(basedir, "logs"))
-        args.extend(["--logfile", os.path.join("logs", "twistd.log")])
+        if opts["logfile"]:
+            logfile = os.path.realpath( os.path.expanduser(opts["logfile"]) )
+        else:
+            logfile = os.path.join("logs", "twistd.log")
+        logdir = os.path.join(basedir, os.path.split(logfile)[0])
+        fileutil.make_dirs(logdir)
+        args.extend(["--logfile", logfile])
     if opts["profile"]:
         args.extend(["--profile=profiling_results.prof", "--savestats",])
     # now we're committed
