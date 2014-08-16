@@ -6,7 +6,13 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, quote_output
 
 
-class StartOptions(BasedirOptions):
+class StartStopCommonOptions(BasedirOptions):
+    optParameters = [
+        ["pidfile", None, None, "Tell the node which pid file should use."],
+        ]
+
+
+class StartOptions(StartStopCommonOptions):
     optFlags = [
         ["profile", "p", "Run under the Python profiler, putting results in 'profiling_results.prof'."],
         ["syslog", None, "Tell the node to log to syslog, not a file."],
@@ -19,7 +25,7 @@ class StartOptions(BasedirOptions):
         return "Usage:  %s [global-opts] start [options] [NODEDIR]" % (self.command_name,)
 
 
-class StopOptions(BasedirOptions):
+class StopOptions(StartStopCommonOptions):
     def getSynopsis(self):
         return "Usage:  %s [global-opts] stop [options] [NODEDIR]" % (self.command_name,)
 
@@ -69,6 +75,8 @@ def start(opts, out=sys.stdout, err=sys.stderr):
         args.extend(["--logfile", logfile])
     if opts["profile"]:
         args.extend(["--profile=profiling_results.prof", "--savestats",])
+    if opts["pidfile"]:
+        args.extend(["--pidfile", os.path.join(basedir, opts["pidfile"])])
     # now we're committed
     os.chdir(basedir)
     from twisted.scripts import twistd
@@ -81,7 +89,8 @@ def start(opts, out=sys.stdout, err=sys.stderr):
 def stop(config, out=sys.stdout, err=sys.stderr):
     basedir = config['basedir']
     print >>out, "STOPPING", quote_output(basedir)
-    pidfile = os.path.join(basedir, "twistd.pid")
+    relative_pidfile_path = config["pidfile"] or "twistd.pid"
+    pidfile = os.path.join(basedir, relative_pidfile_path)
     if not os.path.exists(pidfile):
         print >>err, "%s does not look like a running node directory (no twistd.pid)" % quote_output(basedir)
         # we define rc=2 to mean "nothing is running, but it wasn't me who
