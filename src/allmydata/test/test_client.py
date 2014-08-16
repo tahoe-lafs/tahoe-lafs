@@ -186,6 +186,23 @@ class Basic(testutil.ReallyEqualMixin, unittest.TestCase):
         self.failUnlessEqual(c.getServiceNamed("storage").storedir,
                              os.path.join(abspath_expanduser_unicode(basedir), u"myowndir"))
 
+    @mock.patch("foolscap.logging.log.setLogDir")
+    def test_incidents_dir(self, mock_setLogDir):
+        basedir = "client.Basic.test_incidents_dir"
+        os.mkdir(basedir)
+        incidents_dir = os.path.abspath("/myowndir/incidents")
+        fileutil.write(os.path.join(basedir, "tahoe.cfg"),
+                       BASECONFIG +
+                       "[node]\n" +
+                       "incidents_dir = %s\n" % (incidents_dir,))
+
+        def call_setLogDir(logdir):
+            self.failUnlessEqual(logdir, incidents_dir)
+        mock_setLogDir.side_effect = call_setLogDir
+
+        client.Client(basedir)
+        self.failUnless(mock_setLogDir.called)
+
     def _permute(self, sb, key):
         return [ s.get_longname() for s in sb.get_servers_for_psi(key) ]
 

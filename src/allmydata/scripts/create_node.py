@@ -5,15 +5,20 @@ from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_output
 import allmydata
 
-class CreateClientOptions(BasedirOptions):
+class CreateNodeCommonOptions(BasedirOptions):
     optParameters = [
         # we provide 'create-node'-time options for the most common
         # configuration knobs. The rest can be controlled by editing
         # tahoe.cfg before node startup.
-        ("nickname", "n", None, "Specify the nickname for this node."),
-        ("introducer", "i", None, "Specify the introducer FURL to use."),
         ("webport", "p", "tcp:3456:interface=127.0.0.1",
          "Specify which TCP port to run the HTTP interface on. Use 'none' to disable."),
+        ("incidents-dir", "I", None, "Set directory to save incident reports."),
+        ]
+
+class CreateClientOptions(CreateNodeCommonOptions):
+    optParameters = [
+        ("nickname", "n", None, "Specify the nickname for this node."),
+        ("introducer", "i", None, "Specify the introducer FURL to use."),
         ]
 
     def getSynopsis(self):
@@ -32,7 +37,7 @@ class CreateNodeOptions(CreateClientOptions):
         return "Usage:  %s [global-opts] create-node [options] [NODEDIR]" % (self.command_name,)
 
 
-class CreateIntroducerOptions(BasedirOptions):
+class CreateIntroducerOptions(CreateNodeCommonOptions):
     default_nodedir = None
 
     def getSynopsis(self):
@@ -92,6 +97,11 @@ def write_node_config(c, config):
     c.write("web.static = public_html\n")
     c.write("#tub.port =\n")
     c.write("#tub.location = \n")
+    incidents_dir = config.get("incidents-dir")
+    if incidents_dir:
+        c.write("incidents_dir = %s\n" % (incidents_dir,))
+    else:
+        c.write("#incidents_dir =\n")
     c.write("#log_gatherer.furl =\n")
     c.write("#timeout.keepalive =\n")
     c.write("#timeout.disconnect =\n")
