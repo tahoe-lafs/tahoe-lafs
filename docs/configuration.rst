@@ -492,6 +492,14 @@ Storage Server Configuration
 .. _#390: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/390
 .. _garbage-collection.rst: garbage-collection.rst
 
+``storage_dir = (string, optional)``
+
+    This specifies a storing directory.
+
+    The default value is the ``storage`` directory in the node's base directory
+    (i.e. ``BASEDIR/storage``), but it can be placed elsewhere. Relative paths 
+    will be interpreted relative to the node's base directory.
+
 
 Running A Helper
 ================
