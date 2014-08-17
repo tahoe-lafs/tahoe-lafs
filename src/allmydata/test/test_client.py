@@ -317,7 +317,7 @@ class Run(unittest.TestCase, testutil.StallMixin):
         os.mkdir(basedir)
         dummy = "pb://wl74cyahejagspqgy4x5ukrvfnevlknt@127.0.0.1:58889/bogus"
         fileutil.write(os.path.join(basedir, "tahoe.cfg"), BASECONFIG_I % dummy)
-        fileutil.write(os.path.join(basedir, "suicide_prevention_hotline"), "")
+        fileutil.write(os.path.join(basedir, client.Client.EXIT_TRIGGER_FILE), "")
         client.Client(basedir)
 
     def test_reloadable(self):
@@ -340,13 +340,13 @@ class Run(unittest.TestCase, testutil.StallMixin):
         d.addCallback(self.stall, delay=2.0)
         def _restart(res):
             # TODO: pause for slightly over one second, to let
-            # Client._check_hotline poll the file once. That will exercise
+            # Client._check_exit_trigger poll the file once. That will exercise
             # another few lines. Then add another test in which we don't
-            # update the file at all, and watch to see the node shutdown. (to
-            # do this, use a modified node which overrides Node.shutdown(),
-            # also change _check_hotline to use it instead of a raw
+            # update the file at all, and watch to see the node shutdown.
+            # (To do this, use a modified node which overrides Node.shutdown(),
+            # also change _check_exit_trigger to use it instead of a raw
             # reactor.stop, also instrument the shutdown event in an
-            # attribute that we can check)
+            # attribute that we can check.)
             c2 = client.Client(basedir)
             c2.setServiceParent(self.sparent)
             return c2.disownServiceParent()

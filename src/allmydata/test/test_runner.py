@@ -1,16 +1,18 @@
+import os.path, re, sys, subprocess
+from cStringIO import StringIO
+
 from twisted.trial import unittest
 
 from twisted.python import usage, runtime
 from twisted.internet import threads
 
-import os.path, re, sys, subprocess
-from cStringIO import StringIO
 from allmydata.util import fileutil, pollmixin
 from allmydata.util.encodingutil import unicode_to_argv, unicode_to_output, get_filesystem_encoding
 from allmydata.scripts import runner
-
+from allmydata.client import Client
 from allmydata.test import common_util
 import allmydata
+
 
 timeout = 240
 
@@ -357,7 +359,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         self.skip_if_cannot_daemonize()
         basedir = self.workdir("test_introducer")
         c1 = os.path.join(basedir, "c1")
-        HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
+        exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         INTRODUCER_FURL_FILE = os.path.join(c1, "private", "introducer.furl")
         PORTNUM_FILE = os.path.join(c1, "introducer.port")
@@ -378,7 +380,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # by writing this file, we get ten seconds before the node will
             # exit. This insures that even if the test fails (and the 'stop'
             # command doesn't work), the client should still terminate.
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -389,7 +391,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb2(res):
             out, err, rc_or_sig = res
 
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -416,7 +418,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             self.failUnless(os.path.exists(PORTNUM_FILE))
             self.portnum = fileutil.read(PORTNUM_FILE)
 
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
             self.failUnless(os.path.exists(NODE_URL_FILE))
 
@@ -427,7 +429,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _then(res):
             out, err, rc_or_sig = res
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -451,7 +453,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # itself before we get a chance to, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
 
             return self.run_bintahoe(["--quiet", "stop", c1])
@@ -459,7 +461,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _after_stopping(res):
             out, err, rc_or_sig = res
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             # the parent has exited by now
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
@@ -470,7 +472,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # gone by now.
             self.failIf(os.path.exists(TWISTD_PID_FILE))
         d.addCallback(_after_stopping)
-        d.addBoth(self._remove, HOTLINE_FILE)
+        d.addBoth(self._remove, exit_trigger_file)
         return d
     # This test has hit a 240-second timeout on our feisty2.5 buildslave, and a 480-second timeout
     # on Francois's Lenny-armv5tel buildslave.
@@ -481,7 +483,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         basedir = self.workdir("test_client_no_noise")
         c1 = os.path.join(basedir, "c1")
-        HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
+        exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         PORTNUM_FILE = os.path.join(c1, "client.port")
 
@@ -495,7 +497,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # By writing this file, we get two minutes before the client will exit. This ensures
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -506,7 +508,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb2(res):
             out, err, rc_or_sig = res
             errstr = "cc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr) # If you emit noise, you fail this test.
             errlines = err.split("\n")
@@ -536,14 +538,14 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             self.failUnless(os.path.exists(TWISTD_PID_FILE), (TWISTD_PID_FILE, os.listdir(os.path.dirname(TWISTD_PID_FILE))))
             return self.run_bintahoe(["--quiet", "stop", c1])
         d.addCallback(_stop)
-        d.addBoth(self._remove, HOTLINE_FILE)
+        d.addBoth(self._remove, exit_trigger_file)
         return d
 
     def test_client(self):
         self.skip_if_cannot_daemonize()
         basedir = self.workdir("test_client")
         c1 = os.path.join(basedir, "c1")
-        HOTLINE_FILE = os.path.join(c1, "suicide_prevention_hotline")
+        exit_trigger_file = os.path.join(c1, Client.EXIT_TRIGGER_FILE)
         TWISTD_PID_FILE = os.path.join(c1, "twistd.pid")
         PORTNUM_FILE = os.path.join(c1, "client.port")
         NODE_URL_FILE = os.path.join(c1, "node.url")
@@ -561,7 +563,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # By writing this file, we get two minutes before the client will exit. This ensures
             # that even if the 'stop' command doesn't work (and the test fails), the client should
             # still terminate.
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             # now it's safe to start the node
         d.addCallback(_cb)
 
@@ -571,7 +573,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
 
         def _cb2(res):
             out, err, rc_or_sig = res
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -597,7 +599,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # don't change on restart
             self.portnum = fileutil.read(PORTNUM_FILE)
 
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             self.failUnless(os.path.exists(TWISTD_PID_FILE))
 
             # rm this so we can detect when the second incarnation is ready
@@ -608,7 +610,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb3(res):
             out, err, rc_or_sig = res
 
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
             self.failUnlessEqual(out, "", errstr)
@@ -627,7 +629,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         # itself before we get a chance to, especially if spawning the
         # 'tahoe stop' command takes a while.
         def _stop(res):
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             self.failUnless(os.path.exists(TWISTD_PID_FILE),
                             (TWISTD_PID_FILE,
                              os.listdir(os.path.dirname(TWISTD_PID_FILE))))
@@ -637,7 +639,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
         def _cb4(res):
             out, err, rc_or_sig = res
 
-            fileutil.write(HOTLINE_FILE, "")
+            fileutil.write(exit_trigger_file, "")
             # the parent has exited by now
             errstr = "rc=%d, OUT: '%s', ERR: '%s'" % (rc_or_sig, out, err)
             self.failUnlessEqual(rc_or_sig, 0, errstr)
@@ -648,7 +650,7 @@ class RunNode(common_util.SignalMixin, unittest.TestCase, pollmixin.PollMixin,
             # gone by now.
             self.failIf(os.path.exists(TWISTD_PID_FILE))
         d.addCallback(_cb4)
-        d.addBoth(self._remove, HOTLINE_FILE)
+        d.addBoth(self._remove, exit_trigger_file)
         return d
 
     def _remove(self, res, file):

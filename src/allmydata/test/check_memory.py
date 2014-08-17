@@ -145,7 +145,7 @@ class SystemFramework(pollmixin.PollMixin):
 
     def tearDown(self, passthrough):
         # the client node will shut down in a few seconds
-        #os.remove(os.path.join(self.clientdir, "suicide_prevention_hotline"))
+        #os.remove(os.path.join(self.clientdir, client.Client.EXIT_TRIGGER_FILE))
         log.msg("shutting down SystemTest services")
         if self.keepalive_file and os.path.exists(self.keepalive_file):
             age = time.time() - os.stat(self.keepalive_file)[stat.ST_MTIME]
@@ -255,7 +255,7 @@ this file are ignored.
             pass
         f.close()
         self.keepalive_file = os.path.join(clientdir,
-                                           "suicide_prevention_hotline")
+                                           client.Client.EXIT_TRIGGER_FILE)
         # now start updating the mtime.
         self.touch_keepalive()
         ts = internet.TimerService(1.0, self.touch_keepalive)
