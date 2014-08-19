@@ -1,4 +1,5 @@
-﻿.. -*- coding: utf-8-with-signature -*-
+﻿.. -*- coding: utf-8-with-signature-unix; fill-column: 73; -*-
+.. -*- indent-tabs-mode: nil -*-
 
 =====================
 How To Run Tahoe-LAFS
@@ -71,7 +72,7 @@ A note about small grids
 
 By default, Tahoe-LAFS ships with the configuration parameter
 ``shares.happy`` set to 7. If you are using Tahoe-LAFS on a grid with fewer
-than 7 storage nodes, this won't work well for you -- none of your uploads
+than 7 storage nodes, this won't work well for you — none of your uploads
 will succeed. To fix this, see configuration.rst_ to learn how to set
 ``shares.happy`` to a more suitable value for your grid.
 
@@ -84,8 +85,8 @@ This is how to use your Tahoe-LAFS node.
 The WUI
 -------
 
-Point your web browser to `http://127.0.0.1:3456`_ -- which is the URL of the
-gateway running on your own local computer -- to use your newly created node.
+Point your web browser to `http://127.0.0.1:3456`_ — which is the URL of the
+gateway running on your own local computer — to use your newly created node.
 
 Create a new directory (with the button labelled "create a directory").
 Your web browser will load the new directory.  Now if you want to be
@@ -93,23 +94,29 @@ able to come back to this directory later, you have to bookmark it, or
 otherwise save a copy of the URL.  If you lose the URL to this directory,
 then you can never again come back to this directory.
 
-You can do more or less everything you want to do with a decentralized
-filesystem through the WUI.
-
 .. _http://127.0.0.1:3456: http://127.0.0.1:3456
 
 
 The CLI
 -------
 
-Prefer the command-line? Run "``tahoe --help``" (the same command-line tool
+Prefer the command-line? Run “``tahoe --help``” (the same command-line tool
 that is used to start and stop nodes serves to navigate and use the
 decentralized filesystem). To get started, create a new directory and mark it
-as the 'tahoe:' alias by running "``tahoe create-alias tahoe``". Once you've
-done that, you can do "``tahoe ls tahoe:``" and "``tahoe cp LOCALFILE
-tahoe:foo.txt``" to work with your filesystem. The Tahoe-LAFS CLI uses
+as the 'tahoe:' alias by running “``tahoe create-alias tahoe``”. Once you've
+done that, you can do “``tahoe ls tahoe:``” and “``tahoe cp LOCALFILE
+tahoe:foo.txt``” to work with your filesystem. The Tahoe-LAFS CLI uses
 similar syntax to the well-known scp and rsync tools. See CLI.rst_ for more
 details.
+
+To backup a directory full of files and subdirectories, run “``tahoe
+backup LOCALDIRECTORY tahoe:``”. This will create a new LAFS subdirectory
+inside the “tahoe” LAFS directory named "Archive", and inside "Archive",
+it will create a new subdirectory whose name is the current date and
+time. That newly created subdirectory will be populated with a snapshot
+copy of all files and directories currently reachable from
+LOCALDIRECTORY. Then ``tahoe backup`` will make a link to that snapshot
+directory from the "tahoe" LAFS directory, and name the link "Latest".
 
 As with the WUI (and with all current interfaces to Tahoe-LAFS), you
 are responsible for remembering directory capabilities yourself. If you
