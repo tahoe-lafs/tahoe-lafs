@@ -523,6 +523,20 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
             finally:
                 os.chdir(saved_cwd)
 
+    def test_create_long_filename(self):
+        workdir = u"test_create_long_filename"
+        fileutil.make_dirs(workdir)
+        long_filename = fileutil.abspath_expanduser_unicode(os.path.join(workdir, u'x'*255))
+        def _cleanup():
+            fileutil.remove(long_filename)
+        self.addCleanup(_cleanup)
+
+        fileutil.write(long_filename, "test")
+        self.failUnless(os.path.exists(long_filename))
+        self.failUnlessEqual(fileutil.read(long_filename), "test")
+        _cleanup()
+        self.failIf(os.path.exists(long_filename))
+
     def test_disk_stats(self):
         avail = fileutil.get_available_space('.', 2**14)
         if avail == 0:
