@@ -111,6 +111,24 @@ tahoe:foo.txt``" to work with your filesystem. The Tahoe-LAFS CLI uses
 similar syntax to the well-known scp and rsync tools. See CLI.rst_ for more
 details.
 
+To backup a directory full of files and subdirectories, run “``tahoe backup
+LOCALDIRECTORY tahoe:``”. This will create a new LAFS subdirectory inside the
+“tahoe” LAFS directory named "Archive", and inside "Archive", it will create
+a new subdirectory whose name is the current date and time. That newly
+created subdirectory will be populated with a snapshot copy of all files and
+directories currently reachable from LOCALDIRECTORY. Then ``tahoe backup``
+will make a link to that snapshot directory from the "tahoe" LAFS directory,
+and name the link "Latest".a
+
+``tahoe backup`` cleverly avoids uploading any files or directories that
+haven't changed, and it also cleverly deduplicates any files or directories
+that have identical contents to other files or directories that it has
+previously backed-up. This means that running ``tahoe backup`` is a nice
+incremental operation that backs up your files and directories efficiently,
+and if it gets interrupted (for example by a network outage, or by you
+rebooting your computer during the backup, or so on), it will resume right
+where it left off the next time you run ``tahoe backup``.
+
 As with the WUI (and with all current interfaces to Tahoe-LAFS), you
 are responsible for remembering directory capabilities yourself. If you
 create a new directory and lose the capability to it, then you cannot
