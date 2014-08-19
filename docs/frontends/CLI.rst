@@ -476,7 +476,7 @@ Command Examples
 
 ``tahoe backup ~ work:backups``
 
- This command performs a full versioned backup of every file and directory
+ This command performs a versioned backup of every file and directory
  underneath your "``~``" home directory, placing an immutable timestamped
  snapshot in e.g. ``work:backups/Archives/2009-02-06_04:00:05Z/`` (note that
  the timestamp is in UTC, hence the "Z" suffix), and a link to the latest
