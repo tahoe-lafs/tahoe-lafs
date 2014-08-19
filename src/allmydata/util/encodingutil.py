@@ -230,6 +230,13 @@ def quote_output(s, quotemarks=True, quote_newlines=None, encoding=None):
 def quote_path(path, quotemarks=True):
     return quote_output("/".join(map(to_str, path)), quotemarks=quotemarks, quote_newlines=True)
 
+def quote_local_unicode_path(path, quotemarks=True):
+    precondition(isinstance(path, unicode), path)
+
+    if sys.platform == "win32" and path.startswith(u"\\\\?\\"):
+        path = path[4 :]
+    return quote_output(path, quotemarks=quotemarks, quote_newlines=True)
+
 
 def unicode_platform():
     """
