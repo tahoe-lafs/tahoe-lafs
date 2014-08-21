@@ -15,6 +15,8 @@ from allmydata.util import limiter, time_format, pollmixin, cachedir
 from allmydata.util import statistics, dictutil, pipeline
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
+from allmydata.test.common_util import ReallyEqualMixin
+
 
 class Base32(unittest.TestCase):
     def test_b2a_matches_Pythons(self):
@@ -370,7 +372,7 @@ class Asserts(unittest.TestCase):
         m = self.should_assert(f, False, othermsg="message2")
         self.failUnlessEqual("postcondition: othermsg: 'message2' <type 'str'>", m)
 
-class FileUtil(unittest.TestCase):
+class FileUtil(ReallyEqualMixin, unittest.TestCase):
     def mkdir(self, basedir, path, mode=0777):
         fn = os.path.join(basedir, path)
         fileutil.make_dirs(fn, mode)
@@ -488,7 +490,16 @@ class FileUtil(unittest.TestCase):
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
         self.failUnless(isinstance(saved_cwd, unicode), saved_cwd)
         self.failUnless(isinstance(abspath_cwd, unicode), abspath_cwd)
-        self.failUnlessEqual(abspath_cwd, saved_cwd)
+        if sys.platform == "win32":
+            self.failUnlessReallyEqual(abspath_cwd, fileutil.to_windows_long_path(saved_cwd))
+        else:
+            self.failUnlessReallyEqual(abspath_cwd, saved_cwd)
+
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\?\\foo"), u"\\\\?\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\.\\foo"), u"\\\\.\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\server\\foo"), u"\\\\?\\UNC\\server\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"C:\\foo"), u"\\\\?\\C:\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"C:\\foo/bar"), u"\\\\?\\C:\\foo\\bar")
 
         # adapted from <http://svn.python.org/view/python/branches/release26-maint/Lib/test/test_posixpath.py?view=markup&pathrev=78279#test_abspath>
 
