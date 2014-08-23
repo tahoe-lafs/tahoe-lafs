@@ -7,6 +7,10 @@ from allmydata.util.encodingutil import listdir_unicode, quote_output
 class CreateStatsGathererOptions(BasedirOptions):
     default_nodedir = None
 
+    optParameters = [
+        ("pickledir", "p",  None, "Path where the statistics will be recorded."),
+        ]
+
     def getSynopsis(self):
         return "Usage:  %s [global-opts] create-stats-gatherer [options] NODEDIR" % (self.command_name,)
 
@@ -42,6 +46,11 @@ def create_stats_gatherer(config, out=sys.stdout, err=sys.stderr):
     f = open(os.path.join(basedir, "tahoe-stats-gatherer.tac"), "wb")
     f.write(stats_gatherer_tac)
     f.close()
+    pickledir = config.get("pickledir", "")
+    if pickledir:
+        f = open(os.path.join(basedir, "pickledir"), "wb")
+        f.write(pickledir)
+        f.close
     return 0
 
 subCommands = [
