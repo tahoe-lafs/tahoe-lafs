@@ -12,7 +12,7 @@ from allmydata.scripts import backupdb
 from allmydata.util.encodingutil import listdir_unicode, quote_output, \
      quote_local_unicode_path, to_str, FilenameEncodingError, unicode_to_url
 from allmydata.util.assertutil import precondition
-from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 
 
 def get_local_metadata(path):
@@ -160,7 +160,7 @@ class BackerUpper:
         print >>self.options.stderr, msg
 
     def process(self, localpath):
-        precondition(isinstance(localpath, unicode), localpath)
+        precondition_abspath(localpath)
         # returns newdircap
 
         quoted_path = quote_local_unicode_path(localpath)
@@ -289,7 +289,7 @@ class BackerUpper:
 
     # This function will raise an IOError exception when called on an unreadable file
     def upload(self, childpath):
-        precondition(isinstance(childpath, unicode), childpath)
+        precondition_abspath(childpath)
 
         #self.verboseprint("uploading %s.." % quote_local_unicode_path(childpath))
         metadata = get_local_metadata(childpath)

@@ -347,7 +347,7 @@ class BackupOptions(FilesystemOptions):
         self['exclude'] = set()
 
     def parseArgs(self, localdir, topath):
-        self.from_dir = argv_to_unicode(localdir)
+        self.from_dir = argv_to_abspath(localdir)
         self.to_dir = argv_to_unicode(topath)
 
     def getSynopsis(self):
