@@ -429,22 +429,6 @@ class FileUtil(unittest.TestCase):
         fileutil.write_atomically(fn, "two", mode="") # non-binary
         self.failUnlessEqual(fileutil.read(fn), "two")
 
-    def test_open_or_create(self):
-        basedir = "util/FileUtil/test_open_or_create"
-        fileutil.make_dirs(basedir)
-        fn = os.path.join(basedir, "here")
-        f = fileutil.open_or_create(fn)
-        f.write("stuff.")
-        f.close()
-        f = fileutil.open_or_create(fn)
-        f.seek(0, os.SEEK_END)
-        f.write("more.")
-        f.close()
-        f = open(fn, "r")
-        data = f.read()
-        f.close()
-        self.failUnlessEqual(data, "stuff.more.")
-
     def test_NamedTemporaryDirectory(self):
         basedir = "util/FileUtil/test_NamedTemporaryDirectory"
         fileutil.make_dirs(basedir)

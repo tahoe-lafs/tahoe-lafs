@@ -224,12 +224,6 @@ def remove_if_possible(f):
     except:
         pass
 
-def open_or_create(fname, binarymode=True):
-    try:
-        return open(fname, binarymode and "r+b" or "r+")
-    except EnvironmentError:
-        return open(fname, binarymode and "w+b" or "w+")
-
 def du(basedir):
     size = 0
 
