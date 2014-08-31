@@ -85,12 +85,12 @@ Software Dependencies
 
 * The "Tor-friendly" branch of txsocksx must be installed
   ( Once this is merged then you can use upstream txsocksx;
-  https://github.com/habnabit/txsocksx/pull/8 )
-::
-  pip install git+https://github.com/david415/txsocksx.git
+  https://github.com/habnabit/txsocksx/pull/8 ) ::
 
-* txtorcon must be installed
-::
+   pip install git+https://github.com/david415/txsocksx.git
+
+* txtorcon must be installed ::
+
    pip install txtorcon
 
 Once these software dependencies are installed and the Tahoe-LAFS node
@@ -102,47 +102,37 @@ In order to implement client use-case 3 or server use-cases 2 or 3, further
 configuration is necessary.
 
 
-Client Configuration
-====================
+Configuration
+=============
 
 ``[node]``
-
 ``tor_only.enabled = (boolean, optional)``
 
   This specifies two changes in behavior:
     1. Transform all non-Tor client endpoints into Tor client endpoints.
-    2. Force ``tub.location`` to be set to "client.fakelocation:1"
+    2. Force ``tub.location`` to be set to "safe" values.
 
   This option is necessary to preserve the client's anonymity (client
   use-case 3 from `Use cases`_, above). It is also necessary to
   preserve a server's anonymity (server use-case 3).
 
-  Why is this option necessary to protect anonymity? If the Tahoe-LAFS
-  introducer announces a storage server with non-Tor endpoint
-  descriptor strings in the connection hints list in the storage
-  server FURL then this could cause the client to deanonymize itself
-  by connecting to the storage server without using Tor.
+  When ``tor_only.enabled`` is specified then ``tub.location`` does not need
+  to be specified... and it is an error to specify a ``tub.location`` value
+  that contains anything other than "UNREACHABLE" or a Tor Hidden Service
+  Twisted endpoint descriptor string.
 
+  If server use-case 2 from `Use cases`_ above is desired then you can set
+  ``tub.location`` to a Tor Hidden Service endpoint string AND "AUTODETECT"
+  like this::
+     tub.location = "AUTODETECT,onion:80:hiddenServiceDir=/var/lib/tor/my_service"
 
-Storage Server Configuration
-============================
+  It is an error to specify a ``tub.location`` value that contains "AUTODETECT"
+  when ``tor_only.enabled`` is also set to ``true``.
 
-**note:** this feature will be implemented once these 2 critical
-tickets are resolved:
-1. https://twistedmatrix.com/trac/ticket/7057
-2. https://trac.torproject.org/projects/tor/ticket/11291
-
-Native Tor integration for Tahoe-LAFS uses the txtorcon library for it's
-Tor Hidden Services endpoint and parser. Please see the txtorcon documentation
-for more information:
-
- * https://txtorcon.readthedocs.org/en/latest/
- * http://timaq4ygg2iegci7.onion/
- * https://github.com/meejah/txtorcon
-
-Operators of Tahoe-LAFS storage servers can specify a Tor Hidden Service endpoint
-descriptor string for the ``tub.location`` value in the ``tahoe.cfg`` like::
-
+Operators of Tahoe-LAFS storage servers wishing to protect the identity of their
+storage server should set ``tor_only.enabled`` to ``true`` and specify a
+Tor Hidden Service endpoint descriptor string for the ``tub.location``
+value in the ``tahoe.cfg`` like this::
    tub.location = "onion:80:hiddenServiceDir=/var/lib/tor/my_service"
 
 Setting this configuration option is necessary for Server use-cases 2 and 3
