@@ -49,7 +49,8 @@ For Tahoe-LAFS storage servers there are three use-cases:
    protection for your clients who themselves use Tor to protect their
    anonymity [*].
 
-https://www.torproject.org/docs/hidden-services.html.en
+   See this Tor Project page for more information about Tor Hidden Services:
+   https://www.torproject.org/docs/hidden-services.html.en
 
 3. The operator wishes to protect their anonymity by making their 
    Tahoe server accessible only via Tor Hidden Services.
@@ -60,7 +61,7 @@ Native Tor integration for Tahoe-LAFS
 =====================================
 
 Native Tor integration for Tahoe-LAFS utilizes the Twisted endpoints API:
-https://twistedmatrix.com/documents/14.0.0i XXXX replace with current XXXX /core/howto/endpoints.html
+https://twistedmatrix.com/documents/current/core/howto/endpoints.html
 
 Twisted's endpoint parser plugin system is extensible via installing additional
 Twisted packages. The native Tor integration for Tahoe-LAFS uses 
@@ -69,28 +70,36 @@ txsocksx and txtorcon.
 txsocksx will try to use the system tor's SOCKS port if available;
 attempts are made on ports 9050 and 9151.
 
-txtorcon will use the tor control port to configure Tor Hidden Services.
+txtorcon will use the system tor control port to configure Tor Hidden Services
+( pending resolution of tor trac ticket https://trac.torproject.org/projects/tor/ticket/11291 )
+
+See also Tahoe-LAFS Tor related tickets #1010 and #517.
+
 
 
 Software Dependencies
 =====================
 
 * Tor (tor) must be installed. See here:
-  https://www.torproject.org/docs/tor-doc-unix.html.en XXX link to operating-system-independent howto for tor
+  https://www.torproject.org/docs/installguide.html.en
 
-* The "Tor-friendly" branch of txsocksx must be installed::
+* The "Tor-friendly" branch of txsocksx must be installed
+  ( Once this is merged then you can use upstream txsocksx;
+  https://github.com/habnabit/txsocksx/pull/8 )
+::
   pip install git+https://github.com/david415/txsocksx.git
 
-  Once this is merged then you can use upstream txsocksx:
-  https://github.com/habnabit/txsocksx/pull/8
+* txtorcon must be installed
+::
+   pip install txtorcon
 
+Once these software dependencies are installed and the Tahoe-LAFS node
+is restarted, then no further configuration is necessary in order for
+it to connect to other Tahoe-LAFS nodes via Tor (client use-case 2 from
+`Use cases`_, above).
 
-* txtorcon must be installed::
-  pip install txtorcon
-
-Once these software dependencies are installed and the Tahoe-LAFS node is restarted, then no further configuration is necessary in order for it to connect to other Tahoe-LAFS nodes via Tor (client use-case 2 from `Use cases`_, above).
-
-In order to implement client use-case 3 or server use-cases 2 or 3, further configuration is necessary.
+In order to implement client use-case 3 or server use-cases 2 or 3, further
+configuration is necessary.
 
 
 Client Configuration
@@ -118,21 +127,27 @@ Client Configuration
 Storage Server Configuration
 ============================
 
+**note:** this feature will be implemented once these 2 critical
+tickets are resolved:
+1. https://twistedmatrix.com/trac/ticket/7057
+2. https://trac.torproject.org/projects/tor/ticket/11291
+
 Native Tor integration for Tahoe-LAFS uses the txtorcon library for it's
 Tor Hidden Services endpoint and parser. Please see the txtorcon documentation
 for more information:
-* https://txtorcon.readthedocs.org/en/latest/
-* https://github.com/meejah/txtorcon
-* http://timaq4ygg2iegci7.onion/
+
+ * https://txtorcon.readthedocs.org/en/latest/
+ * http://timaq4ygg2iegci7.onion/
+ * https://github.com/meejah/txtorcon
 
 Operators of Tahoe-LAFS storage servers can specify a Tor Hidden Service endpoint
 descriptor string for the ``tub.location`` value in the ``tahoe.cfg`` like::
 
    tub.location = "onion:80:hiddenServiceDir=/var/lib/tor/my_service"
 
-Setting this configuration option is necessary for Server use-cases 2 and 3 (from `Use cases`_, above).
+Setting this configuration option is necessary for Server use-cases 2 and 3
+(from `Use cases`_, above).
 
-XXX Does using tub.locaton for this prevent both Tor Hidden Service and traceable-net service (Server use-case 2)? Maybe instead we need to have a `tub.hidden_service = ` config for this, and turning that on is how you do server Use-case 2, and the way to do Server Use-case 3 is to turn on `tub.hidden_service = ` plus also set `tor_only.enabled = true`? See also Tahoe-LAFS ticket #1010.
 
 Performance and security issues of Tor Hidden Services
 ======================================================
@@ -164,7 +179,8 @@ Also, interaction, through Tor, with a Tor Hidden Service may be more
 protected from network traffic analysis than interaction, through Tor,
 with a publicly traceable TCP/IP server.
 
-XXX is there a document maintained by Tor hackers which substantiates or refutes this belief? If so we need to link to it. If not, then maybe we should explain more here why we think this?
+**XXX is there a document maintained by Tor hackers which substantiates or refutes this belief?
+If so we need to link to it. If not, then maybe we should explain more here why we think this?**
 
 Performance
 -----------
