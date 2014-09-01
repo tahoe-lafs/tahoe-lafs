@@ -9,7 +9,7 @@ Using Tahoe-LAFS with Tor
 3.  `Software Dependencies`_
 4.  `Configuration`_
 5.  `Performance and security issues of Tor Hidden Services`_
-
+6.  `Torsocks: the old way of configuring Tahoe-LAFS to use Tor`_
 
 Use cases
 =========
@@ -199,4 +199,33 @@ Both of these effects are doubled if you upload or download files to a
 Tor Hidden Service, as compared to if you upload or download files
 over Tor to a publicly traceable TCP/IP server.
 
+
+
+Torsocks: the old way of configuring Tahoe-LAFS to use Tor
+==========================================================
+
+Before the native Tor integration for Tahoe-LAFS, users would use Torsocks.
+Please see these pages for more information about Torsocks::
+* https://code.google.com/p/torsocks/
+* https://trac.torproject.org/projects/tor/wiki/doc/torsocks
+* https://github.com/dgoulet/torsocks/
+
+
+Starting And Stopping
+---------------------
+
+Assuming you have your Tahoe-LAFS node directory placed in **~/.tahoe**,
+use Torsocks to start Tahoe like this:
+   usewithtor tahoe start
+
+Likewise if restarting, then with Torsocks like this::
+   usewithtor tahoe restart
+
+After Tahoe is started, additional Tahoe commandline commands will not
+need to be executed with Torsocks because the Tahoe gateway long running
+process handles all the network connectivity.
+
+
+Configuration
+-------------
 
