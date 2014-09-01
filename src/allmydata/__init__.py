@@ -155,7 +155,7 @@ def normalized_version(verstr, what=None):
 def get_package_versions_and_locations():
     import warnings
     from _auto_deps import package_imports, global_deprecation_messages, deprecation_messages, \
-        user_warning_messages, runtime_warning_messages, warning_imports
+        runtime_warning_messages, warning_imports
 
     def package_dir(srcfile):
         return os.path.dirname(os.path.dirname(os.path.normcase(os.path.realpath(srcfile))))
@@ -165,13 +165,13 @@ def get_package_versions_and_locations():
     # or any other bug that causes sys.path to be set up incorrectly. Therefore we
     # must import the packages in order to check their versions and paths.
 
-    # This is to suppress various DeprecationWarnings, UserWarnings, and RuntimeWarnings
+    # This is to suppress all UserWarnings and various DeprecationWarnings and RuntimeWarnings
     # (listed in _auto_deps.py).
+
+    warnings.filterwarnings("ignore", category=UserWarning, append=True)
 
     for msg in global_deprecation_messages + deprecation_messages:
         warnings.filterwarnings("ignore", category=DeprecationWarning, message=msg, append=True)
-    for msg in user_warning_messages:
-        warnings.filterwarnings("ignore", category=UserWarning, message=msg, append=True)
     for msg in runtime_warning_messages:
         warnings.filterwarnings("ignore", category=RuntimeWarning, message=msg, append=True)
     try:
@@ -181,8 +181,8 @@ def get_package_versions_and_locations():
             except ImportError:
                 pass
     finally:
-        # Leave suppressions for global_deprecation_messages active.
-        for ign in runtime_warning_messages + user_warning_messages + deprecation_messages:
+        # Leave suppressions for UserWarnings and global_deprecation_messages active.
+        for ign in runtime_warning_messages + deprecation_messages:
             warnings.filters.pop()
 
     packages = []

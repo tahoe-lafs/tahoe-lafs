@@ -29,7 +29,11 @@ install_requires = [
     # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
     #   rekeying bug http://twistedmatrix.com/trac/ticket/4395
     #
+    # service-identity is necessary for Twisted and pyOpenSSL to be able to
+    # verify PKI certificates.
+    #
     "Twisted >= 11.0.0",
+    "service-identity",
 
     # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
     #   transferring large mutable files of size N.
@@ -71,20 +75,21 @@ install_requires = [
 # Includes some indirect dependencies, but does not include allmydata.
 # These are in the order they should be listed by --version, etc.
 package_imports = [
-    # package name      module name
-    ('foolscap',        'foolscap'),
-    ('pycryptopp',      'pycryptopp'),
-    ('zfec',            'zfec'),
-    ('Twisted',         'twisted'),
-    ('Nevow',           'nevow'),
-    ('zope.interface',  'zope.interface'),
-    ('python',          None),
-    ('platform',        None),
-    ('pyOpenSSL',       'OpenSSL'),
-    ('simplejson',      'simplejson'),
-    ('pycrypto',        'Crypto'),
-    ('pyasn1',          'pyasn1'),
-    ('mock',            'mock'),
+    # package name       module name
+    ('foolscap',         'foolscap'),
+    ('pycryptopp',       'pycryptopp'),
+    ('zfec',             'zfec'),
+    ('Twisted',          'twisted'),
+    ('Nevow',            'nevow'),
+    ('zope.interface',   'zope.interface'),
+    ('python',           None),
+    ('platform',         None),
+    ('pyOpenSSL',        'OpenSSL'),
+    ('simplejson',       'simplejson'),
+    ('pycrypto',         'Crypto'),
+    ('pyasn1',           'pyasn1'),
+    ('mock',             'mock'),
+    ('service-identity', 'service_identity')
 ]
 
 def require_more():
@@ -116,12 +121,6 @@ deprecation_messages = [
     "the md5 module is deprecated; use hashlib instead",
     "twisted.web.error.NoResource is deprecated since Twisted 9.0.  See twisted.web.resource.NoResource.",
     "the sets module is deprecated",
-]
-
-user_warning_messages = [
-    "Hashing uninitialized InterfaceClass instance",
-    "Reliable disconnection notification requires pywin32 215 or later",
-    'You do not have the service_identity module installed. Please install it from <https://pypi.python.org/pypi/service_identity>. Without the service_identity module and a recent enough pyOpenSSL tosupport it, Twisted can perform only rudimentary TLS client hostnameverification.  Many valid certificate/hostname mappings may be rejected.',
 ]
 
 runtime_warning_messages = [
