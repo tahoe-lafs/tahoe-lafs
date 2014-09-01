@@ -5,6 +5,7 @@ python:
 before_install:
   - sh -c set
 install:
+  - pip install 'twisted>=0.13.0'
   - pip install 'coveralls==0.4.2'
 before_script: python misc/build_helpers/show-tool-versions.py
 script: coverage run --branch --source=allmydata setup.py test --reporter=timing
