@@ -110,6 +110,7 @@ require_more()
 global_deprecation_messages = [
     "BaseException.message has been deprecated as of Python 2.6",
     "twisted.internet.interfaces.IFinishableConsumer was deprecated in Twisted 11.1.0: Please use IConsumer (and IConsumer.unregisterProducer) instead.",
+    "twisted.internet.interfaces.IStreamClientEndpointStringParser was deprecated in Twisted 14.0.0: This interface has been superseded by IStreamClientEndpointStringParserWithReactor.",
 ]
 
 # These are suppressed while importing dependencies:
