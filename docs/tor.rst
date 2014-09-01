@@ -215,7 +215,7 @@ Starting And Stopping
 ---------------------
 
 Assuming you have your Tahoe-LAFS node directory placed in **~/.tahoe**,
-use Torsocks to start Tahoe like this:
+use Torsocks to start Tahoe like this::
    usewithtor tahoe start
 
 Likewise if restarting, then with Torsocks like this::
@@ -229,3 +229,38 @@ process handles all the network connectivity.
 Configuration
 -------------
 
+Before Tahoe-LAFS had native Tor integration it would deanonymize the user if a
+``tub.location`` value is not set. This is because Tahoe-LAFS at that time
+defaulted to autodetecting the external IP interface and announced that IP
+address to the server.
+
+Tahoe-LAFS + Torsocks client configuration::
+
+    * Run a node using ``torsocks``, in client-only mode (i.e. we can
+      make outbound connections, but other nodes will not be able to connect
+      to us). The literal '``client.fakelocation``' will not resolve, but will
+      serve as a reminder to human observers that this node cannot be reached.
+      "Don't call us.. we'll call you"::
+
+        tub.port = 8098
+        tub.location = client.fakelocation:0
+
+
+Tahoe-LAFS + Torsocks storage server configuration::
+
+    * Run a node behind a Tor proxy, and make the server available as a Tor
+      "hidden service". (This assumes that other clients are running their
+      node with ``torsocks``, such that they are prepared to connect to a
+      ``.onion`` address.) The hidden service must first be configured in
+      Tor, by giving it a local port number and then obtaining a ``.onion``
+      name, using something in the ``torrc`` file like::
+
+        HiddenServiceDir /var/lib/tor/hidden_services/tahoe
+        HiddenServicePort 29212 127.0.0.1:8098
+
+      once Tor is restarted, the ``.onion`` hostname will be in
+      ``/var/lib/tor/hidden_services/tahoe/hostname``. Then set up your
+      ``tahoe.cfg`` like::
+
+        tub.port = 8098
+        tub.location = ualhejtq2p7ohfbb.onion:29212
