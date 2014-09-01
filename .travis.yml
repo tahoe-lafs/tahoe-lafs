@@ -4,6 +4,7 @@ python:
   - "2.6"
 before_install:
   - sh -c set
+  - git pull --depth=1000
 install:
   - pip install 'twisted>=0.13.0'
   - pip install 'coveralls==0.4.2'
