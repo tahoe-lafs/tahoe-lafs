@@ -5,11 +5,12 @@ python:
 before_install:
   - sh -c set
   - git pull --depth=1000
+  - python misc/build_helpers/show-tool-versions.py
 install:
   - pip install 'twisted>=0.13.0'
   - pip install 'coveralls==0.4.2'
-before_script: python misc/build_helpers/show-tool-versions.py
-script: coverage run --branch --source=src/allmydata setup.py test --reporter=timing
+before_script: python setup.py build
+script: bin/tahoe @python-coverage run --branch --source=src/allmydata @tahoe --version-and-path debug trial --rterrors --reporter=timing
 after_success:
   coveralls
 notifications:
