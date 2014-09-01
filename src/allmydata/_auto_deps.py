@@ -121,6 +121,7 @@ deprecation_messages = [
 user_warning_messages = [
     "Hashing uninitialized InterfaceClass instance",
     "Reliable disconnection notification requires pywin32 215 or later",
+    'You do not have the service_identity module installed. Please install it from <https://pypi.python.org/pypi/service_identity>. Without the service_identity module and a recent enough pyOpenSSL tosupport it, Twisted can perform only rudimentary TLS client hostnameverification.  Many valid certificate/hostname mappings may be rejected.',
 ]
 
 runtime_warning_messages = [
