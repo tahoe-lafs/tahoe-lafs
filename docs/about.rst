@@ -112,22 +112,6 @@ To use Tahoe-LAFS, please see quickstart.rst_.
 License
 =======
 
-Copyright 2006-2012 The Tahoe-LAFS Software Foundation
+Tahoe-LAFS is an open-source project; please see README.txt_ for details.
 
-You may use this package under the GNU General Public License, version 2 or,
-at your option, any later version.  See the file COPYING.GPL_ for the terms
-of the GNU General Public License, version 2.
-
-You may use this package under the Transitive Grace Period Public Licence,
-version 1 or, at your option, any later version.  The Transitive Grace Period
-Public Licence has requirements similar to the GPL except that it allows you
-to wait for up to twelve months after you redistribute a derived work before
-releasing the source code of your derived work. See the file
-COPYING.TGPPL.rst_ for the terms of the Transitive Grace Period Public
-Licence, version 1.
-
-(You may choose to use this package under the terms of either licence, at
-your option.)
-
-.. _COPYING.GPL: ../COPYING.GPL
-.. _COPYING.TGPPL.rst: ../COPYING.TGPPL.rst
+.. _README.txt: ../README.txt
