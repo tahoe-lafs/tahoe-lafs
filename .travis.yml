@@ -4,7 +4,7 @@ python:
   - "2.6"
 before_install:
   - sh -c set
-  - git fetch --tags
+  - git pull --depth=1000
   - python misc/build_helpers/show-tool-versions.py
 install:
   - pip install 'twisted>=0.13.0'
