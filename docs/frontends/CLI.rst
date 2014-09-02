@@ -448,6 +448,11 @@ Command Examples
  This copies a file from your ``tahoe:`` root to a different directory, set up
  earlier with "``tahoe add-alias fun DIRCAP``" or "``tahoe create-alias fun``".
 
+ ``tahoe cp -r ~/my_dir/ tahoe:``
+
+ This copies the folder ``~/my_dir/`` and all its children to the grid, creating
+ the new folder ``tahoe:my_dir``.
+
 ``tahoe unlink uploaded.txt``
 
 ``tahoe unlink tahoe:uploaded.txt``
