@@ -4,6 +4,7 @@ body {
 }
 
 .sidebar-nav {
+  min-width: 250px;
   padding: 9px 0;
 }
 
@@ -51,6 +52,7 @@ body {
 
 .furl {
     font-size: 0.8em;
+    word-wrap: break-word;
 }
 
 .peerid {
