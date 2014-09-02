@@ -1135,7 +1135,7 @@ class Publish:
                                 " format %d" % version)
                     else:
                         msg += " but testv reported #%d:R=%s" % \
-                               (other_seqnum, other_roothash)
+                               (other_seqnum, base32.b2a(other_roothash)[:4])
                     self.log(msg, parent=lp, level=log.NOISY)
                 # if expected_version==None, then we didn't expect to see a
                 # share on that server, and the 'surprise_shares' clause
