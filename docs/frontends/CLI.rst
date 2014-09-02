@@ -451,7 +451,9 @@ Command Examples
  ``tahoe cp -r ~/my_dir/ tahoe:``
 
  This copies the folder ``~/my_dir/`` and all its children to the grid, creating
- the new folder ``tahoe:my_dir``.
+ the new folder ``tahoe:my_dir``. Note that the trailing slash is not required:
+ all source arguments which are directories will be copied into new
+ subdirectories of the target.
 
 ``tahoe unlink uploaded.txt``
 
