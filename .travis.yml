@@ -10,7 +10,7 @@ install:
   - pip install 'twisted>=0.13.0'
   - pip install 'coveralls==0.4.2'
 before_script: python setup.py build
-script: bin/tahoe @python-coverage run --branch --source=src/allmydata @tahoe --version-and-path debug trial --rterrors --reporter=timing
+script: bin/tahoe @coverage run --branch --source=src/allmydata @tahoe --version-and-path debug trial --rterrors --reporter=timing
 after_success:
   coveralls
 notifications:
