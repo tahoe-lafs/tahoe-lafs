@@ -1887,11 +1887,7 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=3, share_number=1)
             # Copy shares
             self._copy_share_to_server(3, 1)
-            storedir = self.get_serverdir(0)
-            # remove the storedir, wiping out any existing shares
-            shutil.rmtree(storedir)
-            # create an empty storedir to replace the one we just removed
-            os.mkdir(storedir)
+            self.delete_all_shares(self.get_serverdir(0))
             client = self.g.clients[0]
             client.encoding_params['happy'] = 4
             return client
@@ -1928,11 +1924,8 @@ class EncodingParameters(GridTestMixin, unittest.TestCase, SetDEPMixin,
             self._add_server_with_share(server_number=3, share_number=1)
             # Copy shares
             self._copy_share_to_server(3, 1)
-            storedir = self.get_serverdir(0)
-            # remove the storedir, wiping out any existing shares
-            shutil.rmtree(storedir)
-            # create an empty storedir to replace the one we just removed
-            os.mkdir(storedir)
+            #Remove shares from server 0
+            self.delete_all_shares(self.get_serverdir(0))
             client = self.g.clients[0]
             client.encoding_params['happy'] = 4
             return client
