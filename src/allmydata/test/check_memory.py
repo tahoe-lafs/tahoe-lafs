@@ -1,4 +1,4 @@
-import os, shutil, sys, urllib, time, stat
+import os, shutil, sys, urllib, time, stat, urlparse
 from cStringIO import StringIO
 from twisted.internet import defer, reactor, protocol, error
 from twisted.application import service, internet
@@ -49,10 +49,14 @@ def discardPage(url, stall=False, *args, **kwargs):
     # adapted from twisted.web.client.getPage . We can't just wrap or
     # subclass because it provides no way to override the HTTPClientFactory
     # that it creates.
-    scheme, host, port, path = tw_client._parse(url)
+    scheme, netloc, path, params, query, fragment = urlparse.urlparse(url)
+    assert scheme == 'http'
+    host, port = netloc, 80
+    if ":" in host:
+        host, port = host.split(":")
+        port = int(port)
     factory = StallableDiscardingHTTPClientFactory(url, *args, **kwargs)
     factory.do_stall = stall
-    assert scheme == 'http'
     reactor.connectTCP(host, port, factory)
     return factory.deferred
 
