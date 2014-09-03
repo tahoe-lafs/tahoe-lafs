@@ -221,10 +221,10 @@ test-git-ignore:
 	$(PYTHON) misc/build_helpers/test-git-ignore.py
 
 test-clean:
-	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.old
+	find . |grep -vEe "allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.old
 	$(MAKE)
-	$(MAKE) clean
-	find . |grep -vEe "_darcs|allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.new
+	$(MAKE) distclean
+	find . |grep -vEe "allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.new
 	diff allfiles.tmp.old allfiles.tmp.new
 
 # It would be nice if 'make clean' deleted any automatically-generated
