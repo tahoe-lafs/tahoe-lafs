@@ -116,7 +116,7 @@ Configuration
 =============
 
 ``[node]``
-``tor_only.enabled = (boolean, optional)``
+``anonymize = (boolean, optional)``
 
 This specifies two changes in behavior:
   1. Transform all non-Tor client endpoints into Tor client endpoints.
@@ -126,7 +126,7 @@ This option is **critical** to preserving the client's anonymity (client
 use-case 3 from `Use cases`_, above). It is also necessary to
 preserve a server's anonymity (server use-case 3).
 
-When ``tor_only.enabled`` is specified then ``tub.location`` does not need
+When ``anonymize`` is set to ``true`` then ``tub.location`` does not need
 to be specified... and it is an error to specify a ``tub.location`` value
 that contains anything other than "UNREACHABLE" or a Tor Hidden Service
 Twisted endpoint descriptor string.
@@ -137,10 +137,10 @@ like this::
   tub.location = "AUTODETECT,onion:80:hiddenServiceDir=/var/lib/tor/my_service"
 
 It is an error to specify a ``tub.location`` value that contains "AUTODETECT"
-when ``tor_only.enabled`` is also set to ``true``.
+when ``anonymize`` is also set to ``true``.
 
 Operators of Tahoe-LAFS storage servers wishing to protect the identity of their
-storage server should set ``tor_only.enabled`` to ``true`` and specify a
+storage server should set ``anonymize`` to ``true`` and specify a
 Tor Hidden Service endpoint descriptor string for the ``tub.location``
 value in the ``tahoe.cfg`` like this::
    tub.location = "onion:80:hiddenServiceDir=/var/lib/tor/my_service"
