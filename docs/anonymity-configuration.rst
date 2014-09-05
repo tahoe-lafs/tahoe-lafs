@@ -233,7 +233,10 @@ I2p software deps here
 Configuration
 =============
 
-informative configuration info for i2p users
+informative configuration info for i2p users goes here
+
+link to tahoe trac ticket regarding client endpoint string
+parameter concatenation
 
 
 Performance and security issues of I2p (if applicable)
