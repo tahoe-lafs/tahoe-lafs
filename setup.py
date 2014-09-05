@@ -140,10 +140,6 @@ setup_requires += [req for req in install_requires if req.startswith('Twisted') 
 if "--reporter=bwverbose-coverage" in sys.argv:
     setup_requires.append('trialcoverage >= 0.3.3')
 
-# stdeb is required to produce Debian files with the "sdist_dsc" command.
-if "sdist_dsc" in sys.argv:
-    setup_requires.append('stdeb >= 0.3')
-
 # We no longer have any requirements specific to tests.
 tests_require=[]
 
