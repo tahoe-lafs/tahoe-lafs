@@ -4,24 +4,34 @@
 Using Tahoe-LAFS with an anonymizing network: Tor, I2P
 ======================================================
 
+0.  `Overview`_
 1.  `Use cases`_
-2.  `Native Tor integration for Tahoe-LAFS`_
+2.  `Native anonymizing network integration for Tahoe-LAFS`_
+    2.1 `Unresolved tickets`_
 3.  `Software Dependencies`_
+    3.1 `Tor`_
+    3.2 `I2P`_
+    3.3 `Post-install`_
 4.  `Configuration`_
 5.  `Performance and security issues of Tor Hidden Services`_
 6.  `Torsocks: the old way of configuring Tahoe-LAFS to use Tor`_
 
 
 
-Use cases
-=========
+Overview
+========
 
 Tor is an anonymizing network used to help hide the identity of internet
 clients and servers. Please see the Tor Project's website for more information:
 https://www.torproject.org/
 
-Informative description about what i2p is... here.
+I2P is a decentralized anonymizing network that focuses on end-to-end anonymity
+between clients and servers. Please see the I2P website for more information:
+https://geti2p.net/
 
+
+Use cases
+=========
 
 There are three potential use-cases for Tahoe-LAFS on the client side:
 
@@ -30,7 +40,8 @@ There are three potential use-cases for Tahoe-LAFS on the client side:
 
 2. User does not care to protect their anonymity but they wish to connect to
    Tahoe-LAFS storage servers which are accessbile only via Tor Hidden Services or I2P.
-   (For Tor users this means only use Tor if the endpoint string has a .onion address.)
+    * Tor is only used if a server endpoint string has a ``.onion`` address.
+    * I2P is only used if a server endpoint string has a ``.i2p`` address.
 
 3. User wishes to always use an anonymizing network (Tor, I2P) to protect their anonymity when
    connecting to Tahoe-LAFS storage grids (whether or not the storage servers
@@ -57,22 +68,33 @@ For Tahoe-LAFS storage servers there are three use-cases:
    https://www.torproject.org/docs/hidden-services.html.en
 
    See this I2P Project page for more information about I2P:
-   https://...
+   https://geti2p.net/en/about/intro
 
 3. The operator wishes to protect their anonymity by making their 
-   Tahoe server accessible only via Tor Hidden Services.
+   Tahoe server accessible only over I2P, via Tor Hidden Services, or both.
 
 
 
-Native Tor integration for Tahoe-LAFS
-=====================================
+Native anonymizing network integration for Tahoe-LAFS
+=====================================================
 
-Native Tor integration for Tahoe-LAFS utilizes the Twisted endpoints API::
+Tahoe-LAFS utilizes the Twisted endpoints API::
 * https://twistedmatrix.com/documents/current/core/howto/endpoints.html
 
 Twisted's endpoint parser plugin system is extensible via installing additional
-Twisted packages. The native Tor integration for Tahoe-LAFS uses 
-endpoint and parser plugins from the txsocksx and txtorcon modules.
+Twisted packages. Tahoe-LAFS utilizes this extensibility to support native Tor
+and I2P integration.
+
+* Native Tor integration uses the `txsocksx`_ and `txtorcon`_ modules.
+* Native I2P integration uses the `txi2p`_ module.
+
+.. _`txsocksx`: https://pypi.python.org/pypi/txsocksx
+.. _`txtorcon`: https://pypi.python.org/pypi/txtorcon
+.. _`txi2p`: https://pypi.python.org/pypi/txi2p
+
+Unresolved tickets
+------------------
+
 Although the Twisted endpoint API is very flexible it is missing a feature so that
 servers can be written in an endpoint agnostic style. We've opened a Twisted trac
 ticket for this feature here::
@@ -94,10 +116,18 @@ pending resolution of tor trac ticket 11291::
 
 See also Tahoe-LAFS Tor related tickets #1010 and #517.
 
+I2P endpoints (and potentially other endpoint types) require the ability to
+append a preconfigured set of parameters to any server-provided client endpoint
+string. See `Tahoe-LAFS ticket #2293`_ for progress.
+
+.. _`Tahoe-LAFS ticket #2293`: https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2293
 
 
 Software Dependencies
 =====================
+
+Tor
+---
 
 * Tor (tor) must be installed. See here:
   https://www.torproject.org/docs/installguide.html.en
@@ -112,9 +142,31 @@ Software Dependencies
 
    pip install txtorcon
 
+I2P
+---
+
+* I2P must ben installed. See here:
+  https://geti2p.net/en/download
+
+* The BOB API must be enabled.
+    * Start I2P.
+    * Visit http://127.0.0.1:7657/configclients in your browser.
+    * Under "Client Configuration", check the "Run at Startup?" box for "BOB
+      application bridge".
+    * Click "Save Client Configuration".
+    * Click the "Start" control for "BOB application bridge", or restart I2P.
+
+* txi2p must be installed ::
+
+   pip install txi2p
+
+Post-install
+------------
+
 Once these software dependencies are installed and the Tahoe-LAFS node
 is restarted, then no further configuration is necessary for "unsafe"
-Tor connectivity to other Tahoe-LAFS nodes (client use-case 2 from `Use cases`_, above).
+Tor or I2P connectivity to other Tahoe-LAFS nodes (client use-case 2 from
+`Use cases`_, above).
 
 In order to implement client use-case 3 or server use-cases 2 or 3, further
 configuration is necessary.
@@ -220,30 +272,6 @@ make other people's interactive sessions unusable.
 Both of these effects are doubled if you upload or download files to a
 Tor Hidden Service, as compared to if you upload or download files
 over Tor to a publicly traceable TCP/IP server.
-
-
-
-Native I2P Integration for Tahoe-LAFS
-=====================================
-
-Really cool and interesting description of how the I2p integration works...
-
-
-
-Software Dependencies
-=====================
-
-I2p software deps here
-
-
-
-Configuration
-=============
-
-informative configuration info for i2p users goes here
-
-link to tahoe trac ticket regarding client endpoint string
-parameter concatenation
 
 
 
