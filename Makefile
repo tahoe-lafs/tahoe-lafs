@@ -43,9 +43,6 @@ build:
 # too.
 TEST=allmydata
 
-# use 'make test TRIALARGS=--reporter=bwverbose' from buildbot, to
-# suppress the ansi color sequences
-
 # It is unnecessary to have this depend on build or src/allmydata/_version.py,
 # since 'setup.py test' always updates the version and builds before testing.
 test:
@@ -99,24 +96,6 @@ coverage-output:
 .coverage.el: .coverage
 	$(PYTHON) misc/coding_tools/coverage2el.py
 
-# 'upload-coverage' is meant to be run with an UPLOAD_TARGET=host:/dir setting
-ifdef UPLOAD_TARGET
-
-ifndef UPLOAD_HOST
-$(error UPLOAD_HOST must be set when using UPLOAD_TARGET)
-endif
-ifndef COVERAGEDIR
-$(error COVERAGEDIR must be set when using UPLOAD_TARGET)
-endif
-
-upload-coverage:
-	rsync -a coverage-html/ $(UPLOAD_TARGET)
-	ssh $(UPLOAD_HOST) make update-tahoe-coverage COVERAGEDIR=$(COVERAGEDIR)
-else
-upload-coverage:
-	echo "this target is meant to be run with UPLOAD_TARGET=host:/path/"
-	false
-endif
 
 code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
 
@@ -211,10 +190,6 @@ run-provisioning-tool: .built
 # from which you can type 'import allmydata'
 repl:
 	$(TAHOE) debug repl
-
-test-darcs-boringfile:
-	$(MAKE)
-	$(PYTHON) misc/build_helpers/test-darcs-boringfile.py
 
 test-git-ignore:
 	$(MAKE)
