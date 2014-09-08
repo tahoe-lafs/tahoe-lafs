@@ -12,10 +12,9 @@ export PYTHON
 TAHOE=$(PYTHON) bin/tahoe
 SOURCES=src/allmydata src/buildtest static misc bin/tahoe-script.template twisted setup.py
 
-.PHONY: make-version build
-
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git/darcs history (without doing a build).
+.PHONY: make-version
 make-version:
 	$(PYTHON) ./setup.py update_version
 
@@ -27,16 +26,13 @@ src/allmydata/_version.py:
 
 # It is unnecessary to have this depend on build or src/allmydata/_version.py,
 # since 'setup.py build' always updates the version.
+.PHONY: build
 build:
 	$(PYTHON) setup.py build
 	touch .built
 
 
 # TESTING
-
-.PHONY: signal-error-deps test check test-coverage quicktest quicktest-coverage
-.PHONY: coverage-output get-old-coverage-coverage coverage-delta-output
-
 
 # you can use 'make test TEST=allmydata.test.test_introducer' to run just
 # test_introducer. TEST=allmydata.test.test_client.Basic.test_permute works
@@ -45,21 +41,26 @@ TEST=allmydata
 
 # It is unnecessary to have this depend on build or src/allmydata/_version.py,
 # since 'setup.py test' always updates the version and builds before testing.
+.PHONY: test
 test:
 	$(PYTHON) setup.py test $(TRIALARGS) -s $(TEST)
 	touch .built
 
+.PHONY: check
 check: test
 
+.PHONY: quicktest
 quicktest: make-version
 	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
 
 # "make tmpfstest" may be a faster way of running tests on Linux. It works best when you have
 # at least 330 MiB of free physical memory (to run the whole test suite). Since it uses sudo
 # to mount/unmount the tmpfs filesystem, it might prompt for your password.
+.PHONY: tmpfstest
 tmpfstest:
 	time make _tmpfstest 'TMPDIR=$(shell mktemp -d --tmpdir=.)'
 
+.PHONY: _tmpfstest
 _tmpfstest: make-version
 	sudo mount -t tmpfs -o size=400m tmpfs '$(TMPDIR)'
 	-$(TAHOE) debug trial --rterrors '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
@@ -80,55 +81,63 @@ COVERAGEARGS=--branch --source=src/allmydata
 # --include appeared in coverage-3.4
 COVERAGE_OMIT=--include '$(CURDIR)/src/allmydata/*' --omit '$(CURDIR)/src/allmydata/test/*'
 
+.PHONY: test-coverage
 test-coverage: build
 	rm -f .coverage
 	$(TAHOE) '@$(COVERAGE)' run $(COVERAGEARGS) @tahoe debug trial $(TRIALARGS) $(TEST)
 
+.PHONY: coverage-output
 coverage-output:
 	rm -rf coverage-html
 	coverage html -i -d coverage-html $(COVERAGE_OMIT)
 	cp .coverage coverage-html/coverage.data
 	@echo "now point your browser at coverage-html/index.html"
 
-.PHONY: upload-coverage .coverage.el pyflakes count-lines
-.PHONY: check-memory check-memory-once check-speed check-grid
-.PHONY: repl test-darcs-boringfile test-clean clean find-trailing-spaces
-
 .coverage.el: .coverage
 	$(PYTHON) misc/coding_tools/coverage2el.py
 
 
+.PHONY: code-checks
 code-checks: build version-and-path check-interfaces check-miscaptures -find-trailing-spaces -check-umids pyflakes
 
+.PHONY: version-and-path
 version-and-path:
 	$(TAHOE) --version-and-path
 
+.PHONY: check-interfaces
 check-interfaces:
 	$(TAHOE) @misc/coding_tools/check-interfaces.py 2>&1 |tee violations.txt
 	@echo
 
+.PHONY: check-miscaptures
 check-miscaptures:
 	$(PYTHON) misc/coding_tools/check-miscaptures.py $(SOURCES) 2>&1 |tee miscaptures.txt
 	@echo
 
+.PHONY: pyflakes
 pyflakes:
 	@$(PYTHON) -OOu `which pyflakes` $(SOURCES) |sort |uniq
 	@echo
 
+.PHONY: check-umids
 check-umids:
 	$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py' -not -name 'old.py'`
 	@echo
 
+.PHONY: -check-umids
 -check-umids:
 	-$(PYTHON) misc/coding_tools/check-umids.py `find $(SOURCES) -name '*.py' -not -name 'old.py'`
 	@echo
 
+.PHONY: doc-checks
 doc-checks: check-rst
 
+.PHONY: check-rst
 check-rst:
 	@for x in `find *.rst docs -name "*.rst"`; do rst2html -v $${x} >/dev/null; done 2>&1 |grep -v 'Duplicate implicit target name:'
 	@echo
 
+.PHONY: count-lines
 count-lines:
 	@echo -n "files: "
 	@find src -name '*.py' |grep -v /build/ |wc -l
@@ -139,6 +148,7 @@ count-lines:
 	@echo -n "XXX: "
 	@grep XXX `find src -name '*.py' |grep -v /build/` | wc -l
 
+.PHONY: check-memory
 check-memory: .built
 	rm -rf _test_memory
 	$(TAHOE) @src/allmydata/test/check_memory.py upload
@@ -149,6 +159,7 @@ check-memory: .built
 	$(TAHOE) @src/allmydata/test/check_memory.py download-GET-slow
 	$(TAHOE) @src/allmydata/test/check_memory.py receive
 
+.PHONY: check-memory-once
 check-memory-once: .built
 	rm -rf _test_memory
 	$(TAHOE) @src/allmydata/test/check_memory.py $(MODE)
@@ -164,6 +175,7 @@ check-memory-once: .built
 # The 'sleep 5' is in there to give the new client a chance to connect to its
 # storageservers, since check_speed.py has no good way of doing that itself.
 
+.PHONY: check-speed
 check-speed: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
 	@echo "stopping any leftover client code"
@@ -176,26 +188,32 @@ check-speed: .built
 # The check-grid target also uses a pre-established client node, along with a
 # long-term directory that contains some well-known files. See the docstring
 # in src/allmydata/test/check_grid.py to see how to set this up.
+.PHONY: check-grid
 check-grid: .built
 	if [ -z '$(TESTCLIENTDIR)' ]; then exit 1; fi
 	$(TAHOE) @src/allmydata/test/check_grid.py $(TESTCLIENTDIR) bin/tahoe
 
+.PHONY: bench-dirnode
 bench-dirnode: .built
 	$(TAHOE) @src/allmydata/test/bench_dirnode.py
 
 # the provisioning tool runs as a stand-alone webapp server
+.PHONY: run-provisioning-tool
 run-provisioning-tool: .built
 	$(TAHOE) @misc/operations_helpers/provisioning/run.py
 
 # 'make repl' is a simple-to-type command to get a Python interpreter loop
 # from which you can type 'import allmydata'
+.PHONY: repl
 repl:
 	$(TAHOE) debug repl
 
+.PHONY: test-get-ignore
 test-git-ignore:
 	$(MAKE)
 	$(PYTHON) misc/build_helpers/test-git-ignore.py
 
+.PHONY: test-clean
 test-clean:
 	find . |grep -vEe "allfiles.tmp|src/allmydata/_(version|appname).py" |sort >allfiles.tmp.old
 	$(MAKE)
@@ -208,6 +226,7 @@ test-clean:
 # "what the heck is going on, get me back to a clean state', but we need
 # 'make clean' to work on non-checkout trees without destroying useful information.
 # Use 'make distclean' instead to delete all generated files.
+.PHONY: clean
 clean:
 	rm -rf build _trial_temp _test_memory .built
 	rm -f `find src *.egg -name '*.so' -or -name '*.pyc'`
@@ -218,15 +237,19 @@ clean:
 	rm -rf misc/dependencies/tahoe_deps.egg-info
 	rm -f bin/tahoe bin/tahoe.pyscript
 
+.PHONY: distclean
 distclean: clean
 	rm -rf src/allmydata_tahoe.egg-info
 	rm -f src/allmydata/_version.py
 	rm -f src/allmydata/_appname.py
 
+
+.PHONY: find-trailing-spaces
 find-trailing-spaces:
 	$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r $(SOURCES)
 	@echo
 
+.PHONY: -find-trailing-spaces
 -find-trailing-spaces:
 	-$(PYTHON) misc/coding_tools/find-trailing-spaces.py -r $(SOURCES)
 	@echo
@@ -236,11 +259,13 @@ find-trailing-spaces:
 # as it ran. Invoke this on a new tree, or after a 'clean', to make sure the
 # support/lib/ directory is gone.
 
+.PHONY: fetch-and-unpack-deps
 fetch-and-unpack-deps:
 	test -f tahoe-deps.tar.gz || wget https://tahoe-lafs.org/source/tahoe-lafs/deps/tahoe-lafs-deps.tar.gz
 	rm -rf tahoe-deps
 	tar xzf tahoe-lafs-deps.tar.gz
 
+.PHONY: test-desert-island
 test-desert-island:
 	$(MAKE) fetch-and-unpack-deps
 	$(MAKE) 2>&1 | tee make.out
@@ -248,11 +273,12 @@ test-desert-island:
 
 
 # TARBALL GENERATION
-.PHONY: tarballs upload-tarballs
+.PHONY: tarballs
 tarballs:
 	$(MAKE) make-version
 	$(PYTHON) setup.py sdist --formats=bztar,gztar,zip
 	$(PYTHON) setup.py sdist --sumo --formats=bztar,gztar,zip
 
+.PHONY: upload-tarballs
 upload-tarballs:
 	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/allmydata-tahoe-*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi
