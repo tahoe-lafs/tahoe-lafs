@@ -7,11 +7,15 @@ Using Tahoe-LAFS with an anonymizing network: Tor, I2P
 0.  `Overview`_
 1.  `Use cases`_
 2.  `Native anonymizing network integration for Tahoe-LAFS`_
-    2.1 `Unresolved tickets`_
+
+    1. `Unresolved tickets`_
+
 3.  `Software Dependencies`_
-    3.1 `Tor`_
-    3.2 `I2P`_
-    3.3 `Post-install`_
+
+    1. `Tor`_
+    2. `I2P`_
+    3. `Post-install`_
+
 4.  `Configuration`_
 5.  `Performance and security issues of Tor Hidden Services`_
 6.  `Torsocks: the old way of configuring Tahoe-LAFS to use Tor`_
@@ -39,9 +43,10 @@ There are three potential use-cases for Tahoe-LAFS on the client side:
    storage servers. This document is not useful to you... so stop reading.
 
 2. User does not care to protect their anonymity but they wish to connect to
-   Tahoe-LAFS storage servers which are accessbile only via Tor Hidden Services or I2P.
-    * Tor is only used if a server endpoint string has a ``.onion`` address.
-    * I2P is only used if a server endpoint string has a ``.i2p`` address.
+   Tahoe-LAFS storage servers which are accessible only via Tor Hidden Services or I2P.
+
+   * Tor is only used if a server endpoint string has a ``.onion`` address.
+   * I2P is only used if a server endpoint string has a ``.i2p`` address.
 
 3. User wishes to always use an anonymizing network (Tor, I2P) to protect their anonymity when
    connecting to Tahoe-LAFS storage grids (whether or not the storage servers
@@ -78,7 +83,8 @@ For Tahoe-LAFS storage servers there are three use-cases:
 Native anonymizing network integration for Tahoe-LAFS
 =====================================================
 
-Tahoe-LAFS utilizes the Twisted endpoints API::
+Tahoe-LAFS utilizes the Twisted endpoints API:
+
 * https://twistedmatrix.com/documents/current/core/howto/endpoints.html
 
 Twisted's endpoint parser plugin system is extensible via installing additional
@@ -97,7 +103,8 @@ Unresolved tickets
 
 Although the Twisted endpoint API is very flexible it is missing a feature so that
 servers can be written in an endpoint agnostic style. We've opened a Twisted trac
-ticket for this feature here::
+ticket for this feature here:
+
 * https://twistedmatrix.com/trac/ticket/7603
 
 Once this ticket is resolved then an additional changes can be made to Foolscap
@@ -107,11 +114,13 @@ users to easily to use Tahoe-LAFS with many protocols on the server side.
 txsocksx will try to use the system tor's SOCKS port if available;
 attempts are made on ports 9050 and 9151. Currently the maintainer of txsocksx
 has not merged in our code for the Tor client endpoint. We'll use
-this branch until the Tor endpoint code is merged upstream::
+this branch until the Tor endpoint code is merged upstream:
+
 * https://github.com/david415/txsocksx/tree/endpoint_parsers_retry_socks
 
 txtorcon will use the system tor control port to configure Tor Hidden Services
-pending resolution of tor trac ticket 11291::
+pending resolution of tor trac ticket 11291:
+
 * https://trac.torproject.org/projects/tor/ticket/11291
 
 See also Tahoe-LAFS Tor related tickets #1010 and #517.
@@ -145,16 +154,17 @@ Tor
 I2P
 ---
 
-* I2P must ben installed. See here:
+* I2P must be installed. See here:
   https://geti2p.net/en/download
 
 * The BOB API must be enabled.
-    * Start I2P.
-    * Visit http://127.0.0.1:7657/configclients in your browser.
-    * Under "Client Configuration", check the "Run at Startup?" box for "BOB
-      application bridge".
-    * Click "Save Client Configuration".
-    * Click the "Start" control for "BOB application bridge", or restart I2P.
+
+  * Start I2P.
+  * Visit http://127.0.0.1:7657/configclients in your browser.
+  * Under "Client Configuration", check the "Run at Startup?" box for "BOB
+    application bridge".
+  * Click "Save Client Configuration".
+  * Click the "Start" control for "BOB application bridge", or restart I2P.
 
 * txi2p must be installed ::
 
@@ -176,8 +186,10 @@ configuration is necessary.
 Configuration
 =============
 
-``[node]``
-``anonymize = (boolean, optional)``
+::
+
+  [node]
+  anonymize = (boolean, optional)
 
 This specifies two changes in behavior:
   1. Transform all non-Tor client endpoints into Tor client endpoints.
@@ -195,6 +207,7 @@ Twisted endpoint descriptor string.
 If server use-case 2 from `Use cases`_ above is desired then you can set
 ``tub.location`` to a Tor Hidden Service endpoint string AND "AUTODETECT"
 like this::
+
   tub.location = "AUTODETECT,onion:80:hiddenServiceDir=/var/lib/tor/my_service"
 
 It is an error to specify a ``tub.location`` value that contains "AUTODETECT"
@@ -204,6 +217,7 @@ Operators of Tahoe-LAFS storage servers wishing to protect the identity of their
 storage server should set ``anonymize`` to ``true`` and specify a
 Tor Hidden Service endpoint descriptor string for the ``tub.location``
 value in the ``tahoe.cfg`` like this::
+
    tub.location = "onion:80:hiddenServiceDir=/var/lib/tor/my_service"
 
 Setting this configuration option is necessary for Server use-cases 2 and 3
@@ -287,25 +301,21 @@ Torsocks: the old way of configuring Tahoe-LAFS to use Tor
 
 Before the native Tor integration for Tahoe-LAFS, users would use Torsocks.
 Please see these pages for more information about Torsocks:
-https://code.google.com/p/torsocks/
 
-https://trac.torproject.org/projects/tor/wiki/doc/torsocks
-
-https://github.com/dgoulet/torsocks/
+* https://code.google.com/p/torsocks/
+* https://trac.torproject.org/projects/tor/wiki/doc/torsocks
+* https://github.com/dgoulet/torsocks/
 
 
 Starting And Stopping
 ---------------------
 
 Assuming you have your Tahoe-LAFS node directory placed in **~/.tahoe**,
-use Torsocks to start Tahoe like this
-::
+use Torsocks to start Tahoe like this::
 
    usewithtor tahoe start
 
-
-Likewise if restarting, then with Torsocks like this
-::
+Likewise if restarting, then with Torsocks like this::
 
    usewithtor tahoe restart
 
