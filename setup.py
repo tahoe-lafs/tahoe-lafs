@@ -153,6 +153,7 @@ class Trial(Command):
                      ("reporter=", None, "The reporter to use for this test run."),
                      ("suite=", "s", "Specify the test suite."),
                      ("quiet", None, "Don't display version numbers and paths of Tahoe dependencies."),
+                     ("coverage", "c", "Collect branch coverage information."),
                    ]
 
     def initialize_options(self):
@@ -162,12 +163,35 @@ class Trial(Command):
         self.reporter = None
         self.suite = "allmydata"
         self.quiet = False
+        self.coverage = False
 
     def finalize_options(self):
         pass
 
     def run(self):
         args = [sys.executable, os.path.join('bin', 'tahoe')]
+
+        if self.coverage:
+            from errno import ENOENT
+            coverage_cmd = 'coverage'
+            try:
+                subprocess.call([coverage_cmd, 'help'])
+            except OSError as e:
+                if e.errno != ENOENT:
+                    raise
+                coverage_cmd = 'python-coverage'
+                try:
+                    rc = subprocess.call([coverage_cmd, 'help'])
+                except OSError as e:
+                    if e.errno != ENOENT:
+                        raise
+                    print >>sys.stderr
+                    print >>sys.stderr, "Couldn't find the command 'coverage' nor 'python-coverage'."
+                    print >>sys.stderr, "coverage can be installed using 'pip install coverage', or on Debian-based systems, 'apt-get install python-coverage'."
+                    sys.exit(1)
+
+            args += ['@' + coverage_cmd, 'run', '--branch', '--source=src/allmydata', '@tahoe']
+
         if not self.quiet:
             args.append('--version-and-path')
         args += ['debug', 'trial']
