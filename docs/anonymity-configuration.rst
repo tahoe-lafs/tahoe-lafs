@@ -186,14 +186,31 @@ configuration is necessary.
 Configuration
 =============
 
-::
+Tahoe-LAFS provides a configuration flag for explicitly stating whether or not
+anonymity is required for a node::
 
   [node]
   anonymize = (boolean, optional)
 
-This specifies two changes in behavior:
-  1. Transform all non-Tor client endpoints into Tor client endpoints.
-  2. Force ``tub.location`` to be set to "safe" values.
+Setting ``anonymize = True`` causes several changes in the behavior of
+Tahoe-LAFS:
+
+1. Tahoe-LAFS will not start if any of the configuration options in ``tahoe.cfg``
+   would compromise the identity of the node. In particular, ``tub.location``
+   is forced to have "safe" values.
+2. Tahoe-LAFS will not make any outgoing connections that are not over a
+   supported anonymizing network.
+
+   * If a server's FURL contains one or more location hints for anonymizing
+     networks, Tahoe-LAFS will prefer those hints to connect to the server.
+     An anonymizing network location hint will only be used if the correct
+     modules are installed.
+   * If a server's FURL contains no location hints for anonymizing networks
+     (or Tahoe-LAFS could not contact the server via any of the provided
+     anonymizing network location hints), and the user has the required modules
+     for Tor installed, Tahoe-LAFS will connect to the server using Tor as an
+     anonymizing proxy.
+   * In all other cases, Tahoe-LAFS will never connect to the server.
 
 This option is **critical** to preserving the client's anonymity (client
 use-case 3 from `Use cases`_, above). It is also necessary to
