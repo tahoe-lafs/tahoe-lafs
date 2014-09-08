@@ -43,8 +43,15 @@ build:
 # too.
 TEST=allmydata
 
-# use 'make test TRIALARGS=--reporter=bwverbose' from buildbot, to
-# suppress the ansi color sequences
+# code coverage: install the "coverage" package from PyPI, do "make test-coverage"
+# to do a unit test run with coverage-gathering enabled, then use "make coverage-output"
+# to generate an HTML report.
+
+# This might need to be python-coverage on Debian-based distros.
+COVERAGE=coverage
+
+COVERAGEARGS=--branch --source=src/allmydata
+
 
 # It is unnecessary to have this depend on build or src/allmydata/_version.py,
 # since 'setup.py test' always updates the version and builds before testing.
@@ -54,10 +61,7 @@ test:
 
 check: test
 
-test-coverage: build
-	rm -f .coverage
-	$(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
-
+.PHONY: quicktest
 quicktest: make-version
 	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
 
@@ -73,16 +77,9 @@ _tmpfstest: make-version
 	sudo umount '$(TMPDIR)'
 	rmdir '$(TMPDIR)'
 
-# code-coverage: install the "coverage" package from PyPI, do "make
-# quicktest-coverage" to do a unit test run with coverage-gathering enabled,
-# then use "make coverate-output-text" for a brief report, or "make
-# coverage-output" for a pretty HTML report. Also see "make .coverage.el" and
-# misc/coding_tools/coverage.el for emacs integration.
-
-quicktest-coverage: make-version
+test-coverage: build
 	rm -f .coverage
-	PYTHONPATH=. $(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
-# on my laptop, "quicktest" takes 239s, "quicktest-coverage" takes 304s
+	$(TAHOE) '@$(COVERAGE)' run $(COVERAGEARGS) @tahoe debug trial $(TRIALARGS) $(TEST)
 
 # --include appeared in coverage-3.4
 COVERAGE_OMIT=--include '$(CURDIR)/src/allmydata/*' --omit '$(CURDIR)/src/allmydata/test/*'
