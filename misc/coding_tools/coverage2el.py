@@ -18,7 +18,7 @@ class ElispReporter(summary.SummaryReporter):
 
         out = open(".coverage.el", "w")
         out.write("""
-;; This is an elisp-readable form of the figleaf coverage data. It defines a
+;; This is an elisp-readable form of the coverage data. It defines a
 ;; single top-level hash table in which the key is an asolute pathname, and
 ;; the value is a three-element list. The first element of this list is a
 ;; list of line numbers that represent actual code statements. The second is

@@ -51,10 +51,6 @@ test:
 
 check: test
 
-test-coverage: build
-	rm -f .coverage
-	$(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
-
 quicktest: make-version
 	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
 
@@ -70,19 +66,24 @@ _tmpfstest: make-version
 	sudo umount '$(TMPDIR)'
 	rmdir '$(TMPDIR)'
 
-# code-coverage: install the "coverage" package from PyPI, do "make
-# quicktest-coverage" to do a unit test run with coverage-gathering enabled,
-# then use "make coverate-output-text" for a brief report, or "make
-# coverage-output" for a pretty HTML report. Also see "make .coverage.el" and
-# misc/coding_tools/coverage.el for emacs integration.
 
-quicktest-coverage: make-version
-	rm -f .coverage
-	PYTHONPATH=. $(TAHOE) debug trial --reporter=bwverbose-coverage $(TEST)
-# on my laptop, "quicktest" takes 239s, "quicktest-coverage" takes 304s
+# code coverage: install the "coverage" package from PyPI, do "make test-coverage" to
+# do a unit test run with coverage-gathering enabled, then use "make coverage-output" to
+# generate an HTML report. Also see "make .coverage.el" and misc/coding_tools/coverage.el
+# for Emacs integration.
+
+# This might need to be python-coverage on Debian-based distros.
+COVERAGE=coverage
+
+COVERAGEARGS=--branch --source=src/allmydata
 
 # --include appeared in coverage-3.4
 COVERAGE_OMIT=--include '$(CURDIR)/src/allmydata/*' --omit '$(CURDIR)/src/allmydata/test/*'
+
+test-coverage: build
+	rm -f .coverage
+	$(TAHOE) '@$(COVERAGE)' run $(COVERAGEARGS) @tahoe debug trial $(TRIALARGS) $(TEST)
+
 coverage-output:
 	rm -rf coverage-html
 	coverage html -i -d coverage-html $(COVERAGE_OMIT)
