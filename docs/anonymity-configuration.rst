@@ -189,15 +189,20 @@ Configuration
 Tahoe-LAFS provides a configuration flag for explicitly stating whether or not
 anonymity is required for a node::
 
-  [node]
-  anonymize = (boolean, optional)
+   [node]
+   anonymize = (boolean, optional)
 
 Setting ``anonymize = True`` causes several changes in the behavior of
 Tahoe-LAFS:
 
 1. Tahoe-LAFS will not start if any of the configuration options in ``tahoe.cfg``
-   would compromise the identity of the node. In particular, ``tub.location``
-   is forced to have "safe" values.
+   would compromise the identity of the node.
+
+   * In particular, ``tub.location`` is forced to contain safe values. It is an
+     error to specify a ``tub.location`` that contains anything other than the
+     special string ``UNREACHABLE``, or a comma-separated list of Twisted server
+     endpoint descriptor strings for supported anonymizing networks.
+
 2. Tahoe-LAFS will not make any outgoing connections that are not over a
    supported anonymizing network.
 
@@ -213,32 +218,63 @@ Tahoe-LAFS:
    * In all other cases, Tahoe-LAFS will never connect to the server.
 
 This option is **critical** to preserving the client's anonymity (client
-use-case 3 from `Use cases`_, above). It is also necessary to
-preserve a server's anonymity (server use-case 3).
+use-case 3 from `Use cases`_, above). It is also necessary to preserve a
+server's anonymity (server use-case 3).
 
-When ``anonymize`` is set to ``true`` then ``tub.location`` does not need
-to be specified... and it is an error to specify a ``tub.location`` value
-that contains anything other than "UNREACHABLE" or a Tor Hidden Service
-Twisted endpoint descriptor string.
+Client configuration
+--------------------
 
-If server use-case 2 from `Use cases`_ above is desired then you can set
-``tub.location`` to a Tor Hidden Service endpoint string AND "AUTODETECT"
-like this::
+To configure a client node for anonymity, ``tahoe.cfg`` **must** contain the
+following configuration flags::
 
-  tub.location = "AUTODETECT,onion:80:hiddenServiceDir=/var/lib/tor/my_service"
+   [node]
+   anonymize = True
+   tub.location = UNREACHABLE
 
-It is an error to specify a ``tub.location`` value that contains "AUTODETECT"
-when ``anonymize`` is also set to ``true``.
+Once the Tahoe-LAFS node has been restarted, it can be used anonymously (client
+use-case 3).
 
-Operators of Tahoe-LAFS storage servers wishing to protect the identity of their
-storage server should set ``anonymize`` to ``true`` and specify a
-Tor Hidden Service endpoint descriptor string for the ``tub.location``
-value in the ``tahoe.cfg`` like this::
+Server configuration
+--------------------
 
-   tub.location = "onion:80:hiddenServiceDir=/var/lib/tor/my_service"
+To configure a server node to listen on an anonymizing network, a corresponding
+server endpoint descriptor string must be specified in ``tahoe.cfg``::
 
-Setting this configuration option is necessary for Server use-cases 2 and 3
-(from `Use cases`_, above).
+   tub.location = onion:80:hiddenServiceDir=/var/lib/tor/my_service
+
+Multiple anonymizing networks are supported by specifying multiple server
+endpoint strings, separated by commas::
+
+   tub.location = onion:80:hiddenServiceDir=/var/lib/tor/my_service,i2p:/var/lib/i2p/my_service.keypair
+
+To configure a server node for anonymity, ``anonymize`` **must** be set to
+``True`` (as for the client node case), and ``tub.location`` **must only**
+contain endpoint strings for supported anonymizing networks. A complete
+configuration for server use-case 3 would look like::
+
+   [node]
+   anonymize = True
+   tub.location = onion:80:hiddenServiceDir=/var/lib/tor/my_service,i2p:/var/lib/i2p/my_service.keypair
+
+If server anonymity is not required (server use-case 2 from `Use cases`_ above)
+then ``tub.location`` can contain server endpoint strings for non-anonymizing
+networks::
+
+   tub.location = tcp:123.456.789.0:80,onion:80:hiddenServiceDir=/var/lib/tor/my_service
+
+The special string ``AUTODETECT`` tells Tahoe-LAFS to try to detect the public
+interface and use it::
+
+   tub.location = "AUTODETECT,onion:80:hiddenServiceDir=/var/lib/tor/my_service"
+
+It is an error to specify a ``tub.location`` value that contains ``AUTODETECT``
+or server endpoint strings for non-anonymizing networks when ``anonymize`` is
+set to ``True``. ``anonymize`` **must** either be unset, or set to ``False``. A
+complete configuration for server use-case 2 would look like::
+
+   [node]
+   anonymize = False
+   tub.location = AUTODETECT,onion:80:hiddenServiceDir=/var/lib/tor/my_service,i2p:/var/lib/i2p/my_service.keypair
 
 
 
