@@ -4,21 +4,27 @@
 Using Tahoe-LAFS with an anonymizing network: Tor, I2P
 ======================================================
 
-0.  `Overview`_
-1.  `Use cases`_
-2.  `Native anonymizing network integration for Tahoe-LAFS`_
+#. `Overview`_
+#. `Use cases`_
+#. `Native anonymizing network integration for Tahoe-LAFS`_
 
-    1. `Unresolved tickets`_
+   #. `Unresolved tickets`_
 
-3.  `Software Dependencies`_
+#. `Software Dependencies`_
 
-    1. `Tor`_
-    2. `I2P`_
-    3. `Post-install`_
+   #. `Tor`_
+   #. `I2P`_
+   #. `Post-install`_
 
-4.  `Configuration`_
-5.  `Performance and security issues of Tor Hidden Services`_
-6.  `Torsocks: the old way of configuring Tahoe-LAFS to use Tor`_
+#. `Configuration`_
+
+   #. `Client configuration`_
+   #. `Server configuration`_
+
+#. `Performance and security issues with Tor Hidden Services`_
+#. `Performance and security issues with I2P`_
+#. `Torsocks: the old way of configuring Tahoe-LAFS to use Tor`_
+#. `Legacy I2P Tahoe-LAFS Configuration`_
 
 
 
@@ -278,8 +284,8 @@ complete configuration for server use-case 2 would look like::
 
 
 
-Performance and security issues of Tor Hidden Services
-======================================================
+Performance and security issues with Tor Hidden Services
+========================================================
 
 If you are running a server which does not itself need to be
 anonymous, should you make it reachable as a Tor Hidden Service or
@@ -342,10 +348,10 @@ over Tor to a publicly traceable TCP/IP server.
 
 
 
-Performance and security issues of I2p (if applicable)
-======================================================
+Performance and security issues with I2P
+========================================
 
-i2p info here
+TBC
 
 
 
@@ -463,4 +469,4 @@ but the NetBSD-specific patches have been merged upstream into torsocks as of co
 Legacy I2P Tahoe-LAFS Configuration
 ===================================
 
-legacy i2p info here
+TBC
