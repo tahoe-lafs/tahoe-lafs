@@ -133,13 +133,6 @@ setup_requires = []
 # https://bugs.launchpad.net/nevow/+bug/812537 has been fixed.
 setup_requires += [req for req in install_requires if req.startswith('Twisted') or req.startswith('zope.interface')]
 
-# trialcoverage is required if you want the "trial" unit test runner to have a
-# "--reporter=bwverbose-coverage" option which produces code-coverage results.
-# The required version is 0.3.3, because that is the latest version that only
-# depends on a version of pycoverage for which binary packages are available.
-if "--reporter=bwverbose-coverage" in sys.argv:
-    setup_requires.append('trialcoverage >= 0.3.3')
-
 # We no longer have any requirements specific to tests.
 tests_require=[]
 
