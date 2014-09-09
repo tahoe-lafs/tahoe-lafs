@@ -1,21 +1,8 @@
-
-import os.path
 from coverage import coverage, summary, misc
 
 class ElispReporter(summary.SummaryReporter):
-    def report(self):
-        try:
-            # coverage-3.4 has both omit= and include= . include= is applied
-            # first, then omit= removes items from what's left. These are
-            # tested with fnmatch, against fully-qualified filenames.
-            self.find_code_units(None,
-                                 omit=[os.path.abspath("src/allmydata/test/*")],
-                                 include=[os.path.abspath("src/allmydata/*")])
-        except TypeError:
-            # coverage-3.3 only had omit=
-            self.find_code_units(None, ["/System", "/Library", "/usr/lib",
-                                        "support/lib", "src/allmydata/test"])
-
+    def report(self, morfs=None):
+        self.find_code_units(morfs)
         out = open(".coverage.el", "w")
         out.write("""
 ;; This is an elisp-readable form of the coverage data. It defines a
@@ -48,9 +35,11 @@ class ElispReporter(summary.SummaryReporter):
         out.close()
 
 def main():
-    c = coverage()
+    c = coverage() # defaults to data_file=.coverage
     c.load()
-    ElispReporter(c).report()
+    c._harvest_data()
+    c.config.from_args(include="src/*")
+    ElispReporter(c, c.config).report()
 
 if __name__ == '__main__':
     main()
