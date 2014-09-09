@@ -112,6 +112,6 @@ To use Tahoe-LAFS, please see quickstart.rst_.
 License
 =======
 
-Tahoe-LAFS is an open-source project; please see README.txt_ for details.
+Tahoe-LAFS is an open-source project; please see README.rst_ for details.
 
-.. _README.txt: ../README.txt
+.. _README.rst: ../README.rst
