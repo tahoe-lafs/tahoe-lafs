@@ -10,7 +10,7 @@ export PYTHON
 # itself. It will also create it in the beginning of the 'develop' command.
 
 TAHOE=$(PYTHON) bin/tahoe
-SOURCES=src/allmydata src/buildtest static misc bin/tahoe-script.template twisted setup.py
+SOURCES=src/allmydata src/buildtest static misc bin/tahoe-script.template setup.py
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git/darcs history (without doing a build).
