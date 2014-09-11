@@ -106,24 +106,25 @@ def get_linux_distro():
     if _distname and _version:
         return (_distname, _version)
 
-    try:
-        p = subprocess.Popen(["lsb_release", "--all"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        rc = p.wait()
-        if rc == 0:
-            for line in p.stdout.readlines():
-                m = _distributor_id_cmdline_re.search(line)
-                if m:
-                    _distname = m.group(1).strip()
-                    if _distname and _version:
-                        return (_distname, _version)
+    if os.path.isfile("/usr/bin/lsb_release") or os.path.isfile("/bin/lsb_release"):
+        try:
+            p = subprocess.Popen(["lsb_release", "--all"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            rc = p.wait()
+            if rc == 0:
+                for line in p.stdout.readlines():
+                    m = _distributor_id_cmdline_re.search(line)
+                    if m:
+                        _distname = m.group(1).strip()
+                        if _distname and _version:
+                            return (_distname, _version)
 
-                m = _release_cmdline_re.search(p.stdout.read())
-                if m:
-                    _version = m.group(1).strip()
-                    if _distname and _version:
-                        return (_distname, _version)
-    except EnvironmentError:
-        pass
+                    m = _release_cmdline_re.search(p.stdout.read())
+                    if m:
+                        _version = m.group(1).strip()
+                        if _distname and _version:
+                            return (_distname, _version)
+        except EnvironmentError:
+            pass
 
     if os.path.exists("/etc/arch-release"):
         return ("Arch_Linux", "")
