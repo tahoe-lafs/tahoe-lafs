@@ -1,5 +1,5 @@
 # from the Python Standard Library
-import os, re, socket, subprocess, errno
+import os, re, socket, subprocess32 as subprocess, errno
 
 from sys import platform
 

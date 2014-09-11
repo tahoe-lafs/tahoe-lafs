@@ -9,6 +9,9 @@ install_requires = [
     # zetuptoolz) to build, but can handle older versions to run
     "setuptools >= 0.6c6",
 
+    # python-2.7.[4567] stdlib/subprocess has bugs. #2023, python#18851
+    "subprocess32 >= 3.2.6",
+
     "zfec >= 1.1.0",
 
     # Feisty has simplejson 1.4

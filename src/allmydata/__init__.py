@@ -42,7 +42,7 @@ except ImportError:
 # https://tahoe-lafs.org/trac/tahoe-lafs/wiki/Versioning
 __full_version__ = __appname__ + '/' + str(__version__)
 
-import os, platform, re, subprocess, sys, traceback
+import os, platform, re, subprocess32 as subprocess, sys, traceback
 _distributor_id_cmdline_re = re.compile("(?:Distributor ID:)\s*(.*)", re.I)
 _release_cmdline_re = re.compile("(?:Release:)\s*(.*)", re.I)
 
