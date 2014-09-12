@@ -519,7 +519,8 @@ class FileUtil(unittest.TestCase):
 
         disk = fileutil.get_disk_stats('.', 2**13)
         self.failUnless(disk['total'] > 0, disk['total'])
-        self.failUnless(disk['used'] > 0, disk['used'])
+        # we tolerate used==0 for a Travis-CI bug, see #2290
+        self.failUnless(disk['used'] >= 0, disk['used'])
         self.failUnless(disk['free_for_root'] > 0, disk['free_for_root'])
         self.failUnless(disk['free_for_nonroot'] > 0, disk['free_for_nonroot'])
         self.failUnless(disk['avail'] > 0, disk['avail'])
