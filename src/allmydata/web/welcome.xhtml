@@ -136,14 +136,14 @@
               <div class="span6">
                 <div>
                   <h3>
-                    <img><n:attr name="src">static/img/connected-<n:invisible n:render="string" n:data="connected_to_introducer" />.png</n:attr><n:attr name="alt"><n:invisible n:render="string" n:data="connected_to_introducer_alt" /></n:attr></img>
+                    <img><n:attr name="src">img/connected-<n:invisible n:render="string" n:data="connected_to_introducer" />.png</n:attr><n:attr name="alt"><n:invisible n:render="string" n:data="connected_to_introducer_alt" /></n:attr></img>
                     <div n:render="string" n:data="introducer_description" />
                   </h3>
                   <div class="furl" n:render="string" n:data="introducer_furl_prefix" />
                 </div>
                 <div>
                   <h3>
-                    <img><n:attr name="src">static/img/connected-<n:invisible n:render="string" n:data="connected_to_helper" />.png</n:attr><n:attr name="alt"><n:invisible n:render="string" n:data="connected_to_helper_alt" /></n:attr></img>
+                    <img><n:attr name="src">img/connected-<n:invisible n:render="string" n:data="connected_to_helper" />.png</n:attr><n:attr name="alt"><n:invisible n:render="string" n:data="connected_to_helper_alt" /></n:attr></img>
                     <div n:render="string" n:data="helper_description" />
                   </h3>
                   <div class="furl" n:render="string" n:data="helper_furl_prefix" />
@@ -176,7 +176,7 @@
             </thead>
             <tr n:pattern="item" n:render="service_row">
               <td class="nickname-and-peerid">
-              <img><n:attr name="src">static/img/connected-<n:slot name="connected" />.png</n:attr><n:attr name="alt"><n:slot name="connected_alt" /></n:attr></img>
+              <img><n:attr name="src">img/connected-<n:slot name="connected" />.png</n:attr><n:attr name="alt"><n:slot name="connected_alt" /></n:attr></img>
                 <div class="nickname"><n:slot name="nickname"/></div>
                 <div class="nodeid"><n:slot name="peerid"/></div>
               </td>
