@@ -92,6 +92,24 @@ package_imports = [
     ('service-identity', 'service_identity')
 ]
 
+# Dependencies for which we don't know how to get a version number at run-time.
+not_import_versionable = [
+    'zope.interface',
+    'mock',
+    'pyasn1',
+]
+
+# Dependencies reported by pkg_resources that we can safely ignore.
+ignorable = [
+    'argparse',
+    'pyutil',
+    'zbase32',
+    'distribute',
+    'twisted-web',
+    'twisted-core',
+    'twisted-conch',
+]
+
 def require_more():
     import sys
 
