@@ -18,23 +18,6 @@ install_requires = [
     # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
     "zope.interface == 3.6.0, == 3.6.1, == 3.6.2, >= 3.6.5",
 
-    # * On Windows we need at least Twisted 9.0 to avoid an indirect
-    #   dependency on pywin32.
-    # * On Linux we need at least Twisted 10.1.0 for inotify support used by
-    #   the drop-upload frontend.
-    # * We also need Twisted 10.1 for the FTP frontend in order for Twisted's
-    #   FTP server to support asynchronous close.
-    # * When the cloud backend lands, it will depend on Twisted 10.2.0 which
-    #   includes the fix to https://twistedmatrix.com/trac/ticket/411
-    # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
-    #   rekeying bug http://twistedmatrix.com/trac/ticket/4395
-    #
-    # service-identity is necessary for Twisted and pyOpenSSL to be able to
-    # verify PKI certificates.
-    #
-    "Twisted >= 11.0.0",
-    "service-identity",
-
     # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
     #   transferring large mutable files of size N.
     # * foolscap < 0.6 is incompatible with Twisted 10.2.0.
@@ -52,25 +35,19 @@ install_requires = [
     #   library, we need to update this declaration here.
     #
     "foolscap >= 0.6.3",
-    "pyOpenSSL",
-
-    "Nevow >= 0.6.0",
 
     # Needed for SFTP. pyasn1 is needed by twisted.conch in Twisted >= 9.0.
     # pycrypto 2.2 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/620253
     # pycrypto 2.4 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/881130
     "pycrypto == 2.1.0, == 2.3, >= 2.4.1",
-    "pyasn1 >= 0.0.8a",
 
     # http://www.voidspace.org.uk/python/mock/ , 0.8.0 provides "call"
     "mock >= 0.8.0",
 
     # pycryptopp-0.6.0 includes ed25519
     "pycryptopp >= 0.6.0",
-
-    # Will be needed to test web apps, but not yet. See #1001.
-    #"windmill >= 1.3",
 ]
+
 
 # Includes some indirect dependencies, but does not include allmydata.
 # These are in the order they should be listed by --version, etc.
@@ -89,7 +66,6 @@ package_imports = [
     ('pycrypto',         'Crypto'),
     ('pyasn1',           'pyasn1'),
     ('mock',             'mock'),
-    ('service-identity', 'service_identity')
 ]
 
 def require_more():
@@ -101,6 +77,74 @@ def require_more():
     # entry for setuptools in install_requires above isn't conditional.
     if not hasattr(sys, 'frozen'):
         package_imports.append(('setuptools', 'setuptools'))
+
+    # Windows sucks. Other platforms suck differently.
+
+    if sys.platform == "win32":
+        install_requires += [
+            # 2286 2249 1093 1258 1450 1451 1452 1582 2193 142 2028 2291
+            # We don't want pyOpenSSL >= 0.14 because it depends on cffi
+            # (via cryptography), which currently has a broken .. for Windows.
+            # Revisit this if ... is fixed.
+            #
+            "pyOpenSSL == 0.13, == 0.13.1",
+
+            # * On Windows we need at least Twisted 9.0 to avoid an indirect
+            #   dependency on pywin32.
+            # * We also need Twisted 10.1 for the FTP frontend in order for
+            #   Twisted's FTP server to support asynchronous close.
+            # * When the cloud backend lands, it will depend on Twisted 10.2.0
+            #   which includes the fix to https://twistedmatrix.com/trac/ticket/411
+            # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
+            #   rekeying bug http://twistedmatrix.com/trac/ticket/4395
+            # * We don't want Twisted >= 13.0 to avoid a dependency of its endpoints
+            #   code on pywin32.
+            #
+            "Twisted == 11.0.0, == 11.1.0, == 12.0.0, == 12.1.0, == 12.2.0",
+
+            # * We need Nevow >= 0.9.33 to avoid a bug in Nevow's setup.py
+            #   which imported twisted at setup time.
+            # * We don't want Nevow 0.11.1 because that requires Twisted >= 13.0
+            #   which conflicts with the Twisted requirement above.
+            "Nevow == 0.9.33, == 0.10, == 0.11",
+
+            # This is a dependency of pycrypto.
+            "pyasn1 >= 0.0.8a",
+        ]
+    else:
+        install_requires += [
+            "pyOpenSSL >= 0.13",
+
+            # * On Linux we need at least Twisted 10.1.0 for inotify support
+            #   used by the drop-upload frontend.
+            # * Nevow 0.11.1 requires Twisted >= 13.0.0 so we might as well
+            #   require it directly.
+            #   This also satisfies the requirements for the FTP and SFTP
+            #   frontends and cloud backend mentioned in the Windows section
+            #   above.
+            #
+            "Twisted >= 13.0.0",
+
+            # Nevow >= 0.11.1 can be installed using pip.
+            "Nevow >= 0.11.1",
+
+            # and now all the new stuff that pyOpenSSL 0.14 depends on, because
+            # setuptools (delenda est) is bad at resolving indirect dependencies.
+            "cryptography",
+            "cffi",
+            "pycparser",
+            "service-identity",
+            "characteristic",
+            "pyasn1 >= ...",
+        ]
+
+        package_imports += [
+            ('cryptography',     'cryptography'),
+            ('cffi',             'cffi'),
+            ('pycparser',        'pycparser'),
+            ('service-identity', 'service_identity'),
+            ('characteristic',   'characteristic'),
+        ]
 
 require_more()
 
