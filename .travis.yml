@@ -6,7 +6,6 @@ before_install:
   - sh -c set
   - git pull --depth=1000
   - python misc/build_helpers/show-tool-versions.py
-  - python -c "import os; print os.statvfs('.')"
 install:
   - pip install 'twisted>=0.13.0'
   - pip install 'coveralls==0.4.2'
