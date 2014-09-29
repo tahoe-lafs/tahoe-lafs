@@ -174,7 +174,7 @@ def require_more():
             ('pycparser',        'pycparser'),
             ('service-identity', 'service_identity'),
             ('characteristic',   'characteristic'),
-            ('pyasn1-modules',   'pyasn1'),
+            ('pyasn1-modules',   'pyasn1_modules'),
         ]
 
 require_more()
