@@ -13,7 +13,7 @@ TAHOE=$(PYTHON) bin/tahoe
 SOURCES=src/allmydata src/buildtest static misc bin/tahoe-script.template setup.py
 
 # This is necessary only if you want to automatically produce a new
-# _version.py file from the current git/darcs history (without doing a build).
+# _version.py file from the current git history (without doing a build).
 .PHONY: make-version
 make-version:
 	$(PYTHON) ./setup.py update_version
