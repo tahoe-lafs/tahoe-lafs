@@ -5,8 +5,8 @@
 # always available, or the import is protected by try...except ImportError.
 
 install_requires = [
-    # we require newer versions of setuptools (actually
-    # zetuptoolz) to build, but can handle older versions to run
+    # We require newer versions of setuptools (actually
+    # zetuptoolz) to build, but can handle older versions to run.
     "setuptools >= 0.6c6",
 
     "zfec >= 1.1.0",
@@ -36,19 +36,16 @@ install_requires = [
     #
     "foolscap >= 0.6.3",
 
-    # Needed for SFTP. pyasn1 is needed by twisted.conch in Twisted >= 9.0.
-    # pycrypto 2.2 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/620253
-    # pycrypto 2.4 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/881130
+    # Needed for SFTP.
+    # pycrypto 2.2 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/620253>
+    # pycrypto 2.4 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/881130>
     "pycrypto == 2.1.0, == 2.3, >= 2.4.1",
 
-    # http://www.voidspace.org.uk/python/mock/ , 0.8.0 provides "call"
+    # <http://www.voidspace.org.uk/python/mock/>, 0.8.0 provides "call"
     "mock >= 0.8.0",
 
     # pycryptopp-0.6.0 includes ed25519
     "pycryptopp >= 0.6.0",
-
-    # Will be needed to test web apps, but not yet. See #1001.
-    #"windmill >= 1.3",
 ]
 
 # Includes some indirect dependencies, but does not include allmydata.
