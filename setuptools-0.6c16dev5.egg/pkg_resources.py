@@ -25,6 +25,8 @@ from os import utime, rename, unlink, mkdir
 from os import open as os_open
 from os.path import isdir, split
 
+from distutils import log
+
 def _bypass_ensure_directory(name, mode=0777):
     # Sandbox-bypassing version of ensure_directory()
     dirname, filename = split(name)
@@ -565,7 +567,9 @@ class WorkingSet(object):
             req = requirements.pop(0)   # process dependencies breadth-first
             if req in processed:
                 # Ignore cyclic or redundant dependencies
+                log.info("\nAlready processed %s" % (req,))
                 continue
+            log.info("\nNeed %s" % (req,))
             dist = best.get(req.key)
             if dist is None:
                 # Find the best distribution and add it to the map
@@ -576,11 +580,19 @@ class WorkingSet(object):
                     dist = best[req.key] = env.best_match(req, self, installer)
                     if dist is None:
                         raise DistributionNotFound(req)  # XXX put more info here
+                log.info("  found %r" % (dist,))
                 to_activate.append(dist)
             if dist not in req:
                 # Oops, the "best" so far conflicts with a dependency
                 raise VersionConflict(dist,req) # XXX put more info here
-            requirements.extend(dist.requires(req.extras)[::-1])
+            to_add = dist.requires(req.extras)[::-1]
+            if len(to_add) == 0:
+                log.info("  no subdependencies to add")
+            elif len(to_add) == 1:
+                log.info("  adding subdependency %s" % "; ".join(map(str, to_add)))
+            else:
+                log.info("  adding subdependencies %s" % "; ".join(map(str, to_add)))
+            requirements.extend(to_add)
             processed[req] = True
 
         return to_activate    # return list of distros to activate
