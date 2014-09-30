@@ -37,11 +37,11 @@ install_requires = [
     "foolscap >= 0.6.3",
 
     # Needed for SFTP.
-    # pycrypto 2.2 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/620253
-    # pycrypto 2.4 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/881130
+    # pycrypto 2.2 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/620253>
+    # pycrypto 2.4 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/881130>
     "pycrypto == 2.1.0, == 2.3, >= 2.4.1",
 
-    # http://www.voidspace.org.uk/python/mock/ , 0.8.0 provides "call"
+    # <http://www.voidspace.org.uk/python/mock/>, 0.8.0 provides "call"
     "mock >= 0.8.0",
 
     # pycryptopp-0.6.0 includes ed25519
@@ -113,9 +113,9 @@ def require_more():
             # * We also need Twisted 10.1 for the FTP frontend in order for
             #   Twisted's FTP server to support asynchronous close.
             # * When the cloud backend lands, it will depend on Twisted 10.2.0
-            #   which includes the fix to https://twistedmatrix.com/trac/ticket/411
+            #   which includes the fix to <https://twistedmatrix.com/trac/ticket/411>.
             # * The SFTP frontend depends on Twisted 11.0.0 to fix the SSH server
-            #   rekeying bug http://twistedmatrix.com/trac/ticket/4395
+            #   rekeying bug <https://twistedmatrix.com/trac/ticket/4395>
             # * We don't want Twisted >= 13.0 to avoid a dependency of its endpoints
             #   code on pywin32. <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2028>
             #
@@ -160,11 +160,11 @@ def require_more():
             "cryptography",
             "cffi >= 0.8",              # latest cryptography depends on this version
             "six >= 1.4.1",             # latest cryptography depends on this version
-            "pycparser",
-            "service-identity",
+            "pycparser",                # cffi depends on this
+            "service-identity",         # this is needed to suppress complaints about being unable to verify certs
             "characteristic >= 14.0.0", # latest service-identity depends on this version
             "pyasn1 >= 0.1.4",          # latest pyasn1-modules depends on this version
-            "pyasn1-modules",
+            "pyasn1-modules",           # service-identity depends on this
         ]
 
         package_imports += [
