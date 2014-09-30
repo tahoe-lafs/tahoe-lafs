@@ -97,8 +97,6 @@ def require_more():
     if not hasattr(sys, 'frozen'):
         package_imports.append(('setuptools', 'setuptools'))
 
-    # Windows sucks. Other platforms suck differently.
-
     if sys.platform == "win32":
         install_requires += [
             # We don't want pyOpenSSL >= 0.14 because it depends on cffi
