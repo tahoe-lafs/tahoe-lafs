@@ -121,13 +121,6 @@ if sys.platform == "win32":
         #
         "Nevow == 0.9.33, == 0.10",
 
-        # We don't want pyOpenSSL >= 0.14 because it depends on cffi
-        # (via cryptography), which currently has an unreliable build
-        # process for Windows.
-        # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2193>
-        #
-        "pyOpenSSL == 0.13, == 0.13.1",
-
         # pyasn1 is needed by twisted.conch in Twisted >= 9.0.
         "pyasn1 >= 0.0.8a",
     ]
@@ -147,6 +140,31 @@ else:
         # Nevow >= 0.11.1 can be installed using pip.
         "Nevow >= 0.11.1",
 
+        "service-identity",         # this is needed to suppress complaints about being unable to verify certs
+        "characteristic >= 14.0.0", # latest service-identity depends on this version
+        "pyasn1 >= 0.1.4",          # latest pyasn1-modules depends on this version
+        "pyasn1-modules",           # service-identity depends on this
+    ]
+
+    package_imports += [
+        ('service-identity', 'service_identity'),
+        ('characteristic',   'characteristic'),
+        ('pyasn1-modules',   'pyasn1_modules'),
+    ]
+
+# If pyOpenSSL >= 0.14 is *already* installed, then accept it, otherwise
+# require pyOpenSSL 0.13 or 0.13.1.
+_can_use_pyOpenSSL_0_14 = False
+try:
+    import OpenSSL
+    pyOpenSSL_ver = OpenSSL.__version__.split('.')
+    if int(pyOpenSSL_ver[0]) > 0 or int(pyOpenSSL_ver[1]) >= 14:
+        _can_use_pyOpenSSL_0_14 = True
+except Exception:
+    pass
+
+if _can_use_pyOpenSSL_0_14:
+    install_requires += [
         # pyOpenSSL >= 0.13 is needed in order to fix
         # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2005>.
         "pyOpenSSL >= 0.13",
@@ -157,13 +175,9 @@ else:
         # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2286>).
         #
         "cryptography",
-        "cffi >= 0.8",              # latest cryptography depends on this version
-        "six >= 1.4.1",             # latest cryptography depends on this version
-        "pycparser",                # cffi depends on this
-        "service-identity",         # this is needed to suppress complaints about being unable to verify certs
-        "characteristic >= 14.0.0", # latest service-identity depends on this version
-        "pyasn1 >= 0.1.4",          # latest pyasn1-modules depends on this version
-        "pyasn1-modules",           # service-identity depends on this
+        "cffi >= 0.8",          # latest cryptography depends on this version
+        "six >= 1.4.1",         # latest cryptography depends on this version
+        "pycparser",            # cffi depends on this
     ]
 
     package_imports += [
@@ -171,9 +185,10 @@ else:
         ('cffi',             'cffi'),
         ('six',              'six'),
         ('pycparser',        'pycparser'),
-        ('service-identity', 'service_identity'),
-        ('characteristic',   'characteristic'),
-        ('pyasn1-modules',   'pyasn1_modules'),
+    ]
+else:
+    install_requires += [
+        "pyOpenSSL == 0.13, == 0.13.1",
     ]
 
 
