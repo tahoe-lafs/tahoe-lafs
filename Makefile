@@ -31,6 +31,28 @@ build:
 	$(PYTHON) setup.py build
 	touch .built
 
+# build OS X pkg packages
+.PHONY: build-osx-pkg
+build-osx-pkg: make-version
+	$(PYTHON) setup.py build_for_package
+	touch .built
+
+# create component pkg
+	pkgbuild --root $(shell pwd) \
+	--identifier com.leastauthority.tahoe \
+	--version $(shell $(PYTHON) ./setup.py --version) \
+	--ownership recommended \
+	--install-location /Applications/tahoe.app \
+	--scripts $(shell pwd)/misc/build_helpers/osx/scripts \
+	tahoe-lafs.pkg
+
+# create product archive
+	productbuild --distribution $(shell pwd)/misc/build_helpers/osx/Distribution.xml \
+	--package-path . \
+	tahoe-lafs-osx.pkg
+
+# remove intermediate pkg
+	rm -f tahoe-lafs.pkg
 
 # TESTING
 
