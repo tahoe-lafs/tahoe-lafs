@@ -35,6 +35,8 @@ build:
 .PHONY: buildosxpkg
 buildosxpkg:
 	$(PYTHON) setup.py build_for_package
+	find support -name allmydata-tahoe.egg-link -print0 |xargs -0 rm -f --
+	find support -name easy-install.pth -print0 |xargs -0 sed -i 's|^.*/src$||'
 	touch .built
 
 # create component pkg
