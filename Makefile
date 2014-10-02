@@ -32,6 +32,7 @@ build:
 	touch .built
 
 # build osx packages
+.PHONY: buildosxpkg
 buildosxpkg:
 	$(PYTHON) setup.py build_for_package
 	touch .built
@@ -49,6 +50,8 @@ buildosxpkg:
 	productbuild --distribution $(shell pwd)/misc/build_helpers/osx/Distribution.xml \
 	--package-path . \
 	tahoe-darwin.pkg
+
+	rm tahoe-lafs.pkg
 
 # TESTING
 
