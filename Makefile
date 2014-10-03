@@ -258,6 +258,7 @@ clean:
 	rm -rf misc/dependencies/build misc/dependencies/temp
 	rm -rf misc/dependencies/tahoe_deps.egg-info
 	rm -f bin/tahoe bin/tahoe.pyscript
+	rm -f *.pkg
 
 .PHONY: distclean
 distclean: clean
