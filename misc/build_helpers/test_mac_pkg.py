@@ -65,15 +65,14 @@ def test_mac_pkg(appname, version):
                                     stdout=subprocess.PIPE)
     cpio_process.communicate()
 
-    callitpid = None
     try:
         basedir = os.getcwd()
         cmd = ['bin/' + appname, '--version-and-path']
         callit = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        callitpid = callit.pid
-        assert callitpid
 
-        callit.wait()
+        rc = callit.wait()
+        if rc != 0:
+            raise Exception("FAIL: $appname --version-and-path returned non-zero exit code: %r" % (rc,))
         stdouttxt = callit.stdout.read()
 
         PKG_VER_PATH_RE=re.compile("(\S+): (\S+) \((.+?)\)", re.UNICODE)
