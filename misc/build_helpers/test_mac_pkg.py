@@ -40,9 +40,9 @@ def test_mac_pkg(appname, version):
     assert isinstance(version, basestring), version
     PKGNAME='mac/'+appname+'-'+version+'.pkg'
 
-    d = tempfile.mkdtemp(dir='/tmp')
+    tmpdir = tempfile.mkdtemp(dir='/tmp')
     # xar -C /tmp/tmpdir -xf PKGNAME
-    cmd = ['xar', '-C', d, '-xf', PKGNAME]
+    cmd = ['xar', '-C', tmpdir, '-xf', PKGNAME]
     extractit = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     rc = extractit.wait()
     if rc != 0:
@@ -53,7 +53,7 @@ def test_mac_pkg(appname, version):
         raise Exception("FAIL: xar said something on stderr: %r" % (stderrtxt,))
 
     # cd /tmp/tmpXXX/tahoe-lafs.pkg
-    os.chdir(d + '/tahoe-lafs.pkg')
+    os.chdir(tmpdir + '/tahoe-lafs.pkg')
 
     # cat Payload | gunzip -dc | cpio -i
     cat_process = subprocess.Popen(['cat', 'Payload'], stdout=subprocess.PIPE)
@@ -73,7 +73,7 @@ def test_mac_pkg(appname, version):
         callitpid = callit.pid
         assert callitpid
 
-        time.sleep(5)
+        callit.wait()
         stdouttxt = callit.stdout.read()
 
         PKG_VER_PATH_RE=re.compile("(\S+): (\S+) \((.+?)\)", re.UNICODE)
@@ -85,7 +85,4 @@ def test_mac_pkg(appname, version):
                     raise Exception("FAIL: found package not loaded from basedir (%s); package was: %s" % (basedir, mo.groups(),))
         return True # success!
     finally:
-        shutil.rmtree(d)
-        if callitpid:
-            os.kill(callitpid, 9)
-            os.waitpid(callitpid, 0)
+        shutil.rmtree(tmpdir)
