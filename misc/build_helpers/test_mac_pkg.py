@@ -1,8 +1,8 @@
-# This script uses hdiutil to attach a dmg (whose name is derived from the
-# appname and the version number passed in), asserts that it attached as
-# expected, cd's into the mounted filesystem, executes "$appname
-# --version-and-path", and checks whether the output of --version-and-path is
-# right.
+# This script treats the OS X pkg as an xar archive and uncompresses it to
+# the filesystem. The xar file contains a file called Payload, which is a
+# gziped cpio archive of the filesystem. It then cd's into the file system
+# and executes '$appname --version-and-path' and checks whether the output
+# of that command is right.
 
 # If all of the paths listed therein are loaded from within the current PWD
 # then it exits with code 0.
@@ -13,7 +13,24 @@
 
 # Here is an example output from --version-and-path:
 
-# allmydata-tahoe: 1.4.1-r3916 (/home/zooko/playground/allmydata/tahoe/trunk/trunk/src), foolscap: 0.4.1 (/usr/local/lib/python2.6/dist-packages/foolscap-0.4.1-py2.6.egg), pycryptopp: 0.5.10 (/home/zooko/playground/allmydata/tahoe/trunk/trunk/support/lib/python2.6/site-packages/pycryptopp-0.5.10-py2.6-linux-x86_64.egg), zfec: 1.4.2 (/usr/local/lib/python2.6/dist-packages/zfec-1.4.2-py2.6-linux-x86_64.egg), Twisted: 8.2.0-r26987 (/usr/local/lib/python2.6/dist-packages/Twisted-8.2.0_r26987-py2.6-linux-x86_64.egg), Nevow: 0.9.32 (/home/zooko/playground/allmydata/tahoe/trunk/trunk/support/lib/python2.6/site-packages/Nevow-0.9.32-py2.6.egg), zope.interface: 3.4.0 (/usr/lib/python2.6/dist-packages), python: 2.6.2 (/usr/bin/python), platform: Linux-Ubuntu_9.04-x86_64-64bit_ELF (None), sqlite: 3.6.10 (unknown), simplejson: 2.0.1 (/usr/local/lib/python2.6/dist-packages/simplejson-2.0.1-py2.6-linux-x86_64.egg), argparse: 0.8.0 (/usr/local/lib/python2.6/dist-packages/argparse-0.8.0-py2.6.egg), pyOpenSSL: 0.7 (/home/zooko/playground/allmydata/tahoe/trunk/trunk/support/lib/python2.6/site-packages/pyOpenSSL-0.7-py2.6-linux-x86_64.egg), pyutil: 1.3.30 (/usr/local/lib/python2.6/dist-packages/pyutil-1.3.30-py2.6.egg), zbase32: 1.1.1 (/usr/local/lib/python2.6/dist-packages/zbase32-1.1.1-py2.6.egg), setuptools: 0.6c12dev (/home/zooko/playground/allmydata/tahoe/trunk/trunk/support/lib/python2.6/site-packages/setuptools-0.6c12dev.egg), pysqlite: 2.4.1 (/usr/lib/python2.6/sqlite3)
+# allmydata-tahoe: 1.10.0.post185.dev0 [2249-deps-and-osx-packaging-1: 76ac53846042d9a4095995be92af66cdc09d5ad0-dirty] (/Applications/tahoe.app/src)
+# foolscap: 0.7.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages/foolscap-0.7.0-py2.7.egg)
+# pycryptopp: 0.6.0.1206569328141510525648634803928199668821045408958 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pycryptopp-0.6.0.1206569328141510525648634803928199668821045408958-py2.7-macosx-10.9-intel.egg)
+# zfec: 1.4.24 (/Applications/tahoe.app/support/lib/python2.7/site-packages/zfec-1.4.24-py2.7-macosx-10.9-intel.egg)
+# Twisted: 13.0.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages/Twisted-13.0.0-py2.7-macosx-10.9-intel.egg)
+# Nevow: 0.11.1 (/Applications/tahoe.app/support/lib/python2.7/site-packages/Nevow-0.11.1-py2.7.egg)
+# zope.interface: unknown (/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python/zope)
+# python: 2.7.5 (/usr/bin/python)
+# platform: Darwin-13.4.0-x86_64-i386-64bit (None)
+# pyOpenSSL: 0.13 (/System/Library/Frameworks/Python.framework/Versions/2.7/Extras/lib/python)
+# simplejson: 3.6.4 (/Applications/tahoe.app/support/lib/python2.7/site-packages/simplejson-3.6.4-py2.7-macosx-10.9-intel.egg)
+# pycrypto: 2.6.1 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pycrypto-2.6.1-py2.7-macosx-10.9-intel.egg)
+# pyasn1: 0.1.7 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pyasn1-0.1.7-py2.7.egg)
+# mock: 1.0.1 (/Applications/tahoe.app/support/lib/python2.7/site-packages)
+# setuptools: 0.6c16dev5 (/Applications/tahoe.app/support/lib/python2.7/site-packages/setuptools-0.6c16dev5.egg)
+# service-identity: 14.0.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages/service_identity-14.0.0-py2.7.egg)
+# characteristic: 14.1.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages)
+# pyasn1-modules: 0.0.5 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pyasn1_modules-0.0.5-py2.7.egg)
 
 import os, re, subprocess, time, tempfile, shutil
 
