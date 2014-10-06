@@ -75,7 +75,7 @@ def test_mac_pkg(appname, version):
             raise Exception("FAIL: $appname --version-and-path returned non-zero exit code: %r" % (rc,))
         stdouttxt = callit.stdout.read()
 
-        PKG_VER_PATH_RE=re.compile("(\S+): (\S+) \((.+?)\)", re.UNICODE)
+        PKG_VER_PATH_RE=re.compile("(\S+): ([^\(]+)\((.+?)\)$", re.UNICODE)
 
         for mo in PKG_VER_PATH_RE.finditer(stdouttxt):
             if not mo.group(3).startswith(basedir):
