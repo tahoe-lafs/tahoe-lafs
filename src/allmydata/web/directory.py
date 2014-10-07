@@ -26,7 +26,7 @@ from allmydata.web.common import text_plain, WebError, \
      boolean_of_arg, get_arg, get_root, parse_replace_arg, \
      should_create_intermediate_directories, \
      getxmlfile, RenderMixin, humanize_failure, convert_children_json, \
-     get_format, get_mutable_type
+     get_format, get_mutable_type, get_filenode_metadata
 from allmydata.web.filenode import ReplaceMeMixin, \
      FileNodeHandler, PlaceHolderNodeHandler
 from allmydata.web.check_results import CheckResultsRenderer, \
@@ -869,7 +869,6 @@ class DirectoryAsHTML(rend.Page):
         req = IRequest(ctx)
         return get_arg(req, "results", "")
 
-
 def DirectoryJSONMetadata(ctx, dirnode):
     d = dirnode.list()
     def _got(children):
@@ -879,20 +878,7 @@ def DirectoryJSONMetadata(ctx, dirnode):
             rw_uri = childnode.get_write_uri()
             ro_uri = childnode.get_readonly_uri()
             if IFileNode.providedBy(childnode):
-                kiddata = ("filenode", {'size': childnode.get_size(),
-                                        'mutable': childnode.is_mutable(),
-                                        })
-                if childnode.is_mutable():
-                    mutable_type = childnode.get_version()
-                    assert mutable_type in (SDMF_VERSION, MDMF_VERSION)
-                    if mutable_type == MDMF_VERSION:
-                        file_format = "MDMF"
-                    else:
-                        file_format = "SDMF"
-                else:
-                    file_format = "CHK"
-                kiddata[1]['format'] = file_format
-
+                kiddata = ("filenode", get_filenode_metadata(childnode))
             elif IDirectoryNode.providedBy(childnode):
                 kiddata = ("dirnode", {'mutable': childnode.is_mutable()})
             else:
