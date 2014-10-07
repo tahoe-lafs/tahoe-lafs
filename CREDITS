@@ -1,8 +1,8 @@
 ﻿This is at least a partial credits-file of people that have contributed to
 the Tahoe-LAFS project.  It is formatted to allow easy grepping and
 beautification by scripts.  The fields are: name (N), email (E),
-web-address (W), PGP key ID and fingerprint (P), description (D), and
-snail-mail address (S).
+web-address (W), PGP key ID and fingerprint (P), physical location (S),
+and description (D).
 
 Thanks.
 ----------
@@ -18,6 +18,7 @@ D: main developer
 N: Daira Hopwood
 E: daira@jacaranda.org
 P: 3D6A 08E9 1262 3E9A 00B2 1BDC 067F 4920 98CF 2762
+S: Manchester, UK
 D: main developer
 
 N: Faried Nawaz
@@ -58,12 +59,12 @@ N: Justin Boreta
 D: user testing and docs
 
 N: Chris Galvan
-D: packaging, buildbot
 E: cgalvan@enthought.com
+D: packaging, buildbot
 
 N: François Deppierraz
-D: encodings, duplicity, debugging, FUSE, docs, FreeBSD, WUI, ARM, NEWS
 E: francois@ctrlaltdel.ch
+D: encodings, duplicity, debugging, FUSE, docs, FreeBSD, WUI, ARM, NEWS
 
 N: Larry Hosken
 E: tahoe@lahosken.san-francisco.ca.us
@@ -154,3 +155,35 @@ E: amiller@dappervision.com
 W: http://soc1024.com
 P: 0xE3787A7250538F3F DEB3 132A 7FBA 37A5 03AC A462 E378 7A72 5053 8F3F
 D: bugfixes, patches
+
+N: Frederick B
+E: freddy@flashpad ?
+D: fix wrong index in tahoe cp --verbose
+
+N: Patrick McDonald
+E: marlowe@antagonism.org
+D: documentation
+
+N: Mark Berger
+E: mark.berger.j@gmail.com
+D: servers of happiness
+
+N: Leif Ryge
+E: leif@synthesize.us
+D: bugfixes, documentation, web UI
+
+N: Tony Arcieri
+E: tony.arcieri@gmail.com
+D: web UI improvements
+
+N: A. Montero
+E: amontero@tinet.org
+D: documentation
+
+N: Ramakrishnan Muthukrishnan
+E: ram@rkrishnan.org
+D: Mac OS X packaging
+
+N: Loose Cannon
+E: lcstyle@gmail.com
+D: fix the Download! button on the Welcome page
