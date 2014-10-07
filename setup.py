@@ -10,7 +10,7 @@ import sys; assert sys.version_info < (3,), ur"Tahoe-LAFS does not run under Pyt
 #
 # See the docs/about.rst file for licensing information.
 
-import glob, os, stat, subprocess, re
+import os, stat, subprocess, re
 
 ##### sys.path management
 
@@ -70,7 +70,7 @@ if len(sys.argv) > 1 and sys.argv[1] == '--fakedependency':
 
 __requires__ = install_requires[:]
 
-egg = os.path.realpath(glob.glob('setuptools-*.egg')[0])
+egg = os.path.realpath('setuptools-0.6c16dev5.egg')
 sys.path.insert(0, egg)
 import setuptools; setuptools.bootstrap_install_from = egg
 
