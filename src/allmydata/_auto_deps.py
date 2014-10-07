@@ -110,17 +110,15 @@ ignorable = [
     'twisted-conch',
 ]
 
-def require_more():
-    import sys
+import sys
 
-    # Don't try to get the version number of setuptools in frozen builds, because
-    # that triggers 'site' processing that causes failures. Note that frozen
-    # builds still (unfortunately) import pkg_resources in .tac files, so the
-    # entry for setuptools in install_requires above isn't conditional.
-    if not hasattr(sys, 'frozen'):
-        package_imports.append(('setuptools', 'setuptools'))
+# Don't try to get the version number of setuptools in frozen builds, because
+# that triggers 'site' processing that causes failures. Note that frozen
+# builds still (unfortunately) import pkg_resources in .tac files, so the
+# entry for setuptools in install_requires above isn't conditional.
+if not hasattr(sys, 'frozen'):
+    package_imports.append(('setuptools', 'setuptools'))
 
-require_more()
 
 
 # These are suppressed globally:
