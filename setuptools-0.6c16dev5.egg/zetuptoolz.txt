@@ -1,6 +1,9 @@
 This is the "zetuptoolz" fork of setuptools. This version is forked from
-setuptools trunk r80621 (which is current as of 2010-08-31), with the following
+setuptools trunk r80621 (which was current at 2010-08-31), with the following
 differences:
+
+
+ * Logging outputs more information about which dependencies are being processed.
 
 
  * Zooko's and David-Sarah's patches for the following bugs and features have been applied:
