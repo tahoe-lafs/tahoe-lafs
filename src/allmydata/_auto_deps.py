@@ -35,7 +35,6 @@ install_requires = [
     #   library, we need to update this declaration here.
     #
     "foolscap >= 0.6.3",
-    "pyOpenSSL",
 
     # Needed for SFTP. pyasn1 is needed by twisted.conch in Twisted >= 9.0.
     # pycrypto 2.2 doesn't work due to https://bugs.launchpad.net/pycrypto/+bug/620253
@@ -151,6 +150,48 @@ else:
         ('service-identity', 'service_identity'),
         ('characteristic',   'characteristic'),
         ('pyasn1-modules',   'pyasn1_modules'),
+    ]
+
+# If pyOpenSSL >= 0.14 is *already* installed, then accept it, otherwise
+# require pyOpenSSL 0.13 or 0.13.1.
+# See <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1246#comment:6> for why
+# we don't rely on pkg_resources to tell us the installed pyOpenSSL version number.
+
+_can_use_pyOpenSSL_0_14 = False
+try:
+    import OpenSSL
+    pyOpenSSL_ver = OpenSSL.__version__.split('.')
+    if int(pyOpenSSL_ver[0]) > 0 or int(pyOpenSSL_ver[1]) >= 14:
+        _can_use_pyOpenSSL_0_14 = True
+except Exception:
+    pass
+
+if _can_use_pyOpenSSL_0_14:
+    install_requires += [
+        # pyOpenSSL >= 0.13 is needed in order to fix
+        # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2005>.
+        "pyOpenSSL >= 0.13",
+
+        # ... and now all the new stuff that pyOpenSSL 0.14 transitively
+        # depends on. We specify these explicitly because setuptools is
+        # bad at correctly resolving indirect dependencies (e.g. see
+        # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2286>).
+        #
+        "cryptography",
+        "cffi >= 0.8",          # latest cryptography depends on this version
+        "six >= 1.4.1",         # latest cryptography depends on this version
+        "pycparser",            # cffi depends on this
+    ]
+
+    package_imports += [
+        ('cryptography',     'cryptography'),
+        ('cffi',             'cffi'),
+        ('six',              'six'),
+        ('pycparser',        'pycparser'),
+    ]
+else:
+    install_requires += [
+        "pyOpenSSL == 0.13, == 0.13.1",
     ]
 
 
