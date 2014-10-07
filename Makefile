@@ -57,6 +57,9 @@ build-osx-pkg:
 # remove intermediate pkg
 	rm -f tahoe-lafs.pkg
 
+# test the result
+	$(PYTHON) misc/build_helpers/test-osx-pkg.py
+
 # TESTING
 
 # you can use 'make test TEST=allmydata.test.test_introducer' to run just
