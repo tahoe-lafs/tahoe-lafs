@@ -6,7 +6,7 @@ from twisted.internet import defer
 from nevow import url, rend
 from nevow.inevow import IRequest
 
-from allmydata.interfaces import ExistingChildError, SDMF_VERSION, MDMF_VERSION
+from allmydata.interfaces import ExistingChildError
 from allmydata.monitor import Monitor
 from allmydata.immutable.upload import FileHandle
 from allmydata.mutable.publish import MutableFileHandle
@@ -18,7 +18,7 @@ from allmydata.blacklist import FileProhibited, ProhibitedNode
 from allmydata.web.common import text_plain, WebError, RenderMixin, \
      boolean_of_arg, get_arg, should_create_intermediate_directories, \
      MyExceptionHandler, parse_replace_arg, parse_offset_arg, \
-     get_format, get_mutable_type
+     get_format, get_mutable_type, get_filenode_metadata
 from allmydata.web.check_results import CheckResultsRenderer, \
      CheckAndRepairResultsRenderer, LiteralCheckResultsRenderer
 from allmydata.web.info import MoreInfo
@@ -498,8 +498,7 @@ class FileDownloader(rend.Page):
 def FileJSONMetadata(ctx, filenode, edge_metadata):
     rw_uri = filenode.get_write_uri()
     ro_uri = filenode.get_readonly_uri()
-    data = ("filenode", {})
-    data[1]['size'] = filenode.get_size()
+    data = ("filenode", get_filenode_metadata(filenode))
     if ro_uri:
         data[1]['ro_uri'] = ro_uri
     if rw_uri:
@@ -507,20 +506,8 @@ def FileJSONMetadata(ctx, filenode, edge_metadata):
     verifycap = filenode.get_verify_cap()
     if verifycap:
         data[1]['verify_uri'] = verifycap.to_string()
-    data[1]['mutable'] = filenode.is_mutable()
     if edge_metadata is not None:
         data[1]['metadata'] = edge_metadata
-
-    if filenode.is_mutable():
-        mutable_type = filenode.get_version()
-        assert mutable_type in (SDMF_VERSION, MDMF_VERSION)
-        if mutable_type == MDMF_VERSION:
-            file_format = "MDMF"
-        else:
-            file_format = "SDMF"
-    else:
-        file_format = "CHK"
-    data[1]['format'] = file_format
 
     return text_plain(simplejson.dumps(data, indent=1) + "\n", ctx)
 
