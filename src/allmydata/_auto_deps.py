@@ -22,18 +22,7 @@ install_requires = [
     #   transferring large mutable files of size N.
     # * foolscap < 0.6 is incompatible with Twisted 10.2.0.
     # * foolscap 0.6.1 quiets a DeprecationWarning.
-    # * foolscap < 0.6.3 is incompatible with Twisted-11.1.0 and newer. Since
-    #   current Twisted is 12.0, any build which needs twisted will grab a
-    #   version that requires foolscap>=0.6.3
-    # * pyOpenSSL is required by foolscap for it (foolscap) to provide secure
-    #   connections. Foolscap doesn't reliably declare this dependency in a
-    #   machine-readable way, so we need to declare a dependency on pyOpenSSL
-    #   ourselves. Tahoe-LAFS doesn't *really* depend directly on pyOpenSSL,
-    #   so if something changes in the relationship between foolscap and
-    #   pyOpenSSL, such as foolscap requiring a specific version of
-    #   pyOpenSSL, or foolscap switching from pyOpenSSL to a different crypto
-    #   library, we need to update this declaration here.
-    #
+    # * foolscap < 0.6.3 is incompatible with Twisted 11.1.0 and newer.
     "foolscap >= 0.6.3",
 
     # Needed for SFTP.
@@ -95,6 +84,11 @@ import sys
 if not hasattr(sys, 'frozen'):
     package_imports.append(('setuptools', 'setuptools'))
 
+
+# Splitting the dependencies for Windows and non-Windows helps to fix
+# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2249> and
+# <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2028>.
+
 if sys.platform == "win32":
     install_requires += [
         # * On Windows we need at least Twisted 9.0 to avoid an indirect
@@ -149,10 +143,32 @@ else:
         ('pyasn1-modules',   'pyasn1_modules'),
     ]
 
-# If pyOpenSSL >= 0.14 is *already* installed, then accept it, otherwise
-# require pyOpenSSL 0.13 or 0.13.1.
-# See <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1246#comment:6> for why
-# we don't rely on pkg_resources to tell us the installed pyOpenSSL version number.
+
+# * pyOpenSSL is required in order for foolscap to provide secure connections.
+#   Since foolscap doesn't reliably declare this dependency in a machine-readable
+#   way, we need to declare a dependency on pyOpenSSL ourselves. Tahoe-LAFS does
+#   not *directly* depend on pyOpenSSL.
+#
+# * pyOpenSSL >= 0.13 is needed in order to avoid
+#   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2005>.
+#
+# * pyOpenSSL >= 0.14 is built on the 'cryptography' package which depends
+#   on 'cffi' (and indirectly several other packages). Unfortunately cffi
+#   attempts to compile code dynamically, which causes problems on many systems.
+#   It also depends on the libffi OS package which may not be installed.
+#   <https://bitbucket.org/cffi/cffi/issue/109/enable-sane-packaging-for-cffi>
+#   <https://bitbucket.org/cffi/cffi/issue/70/cant-install-cffi-using-pip-on-windows>
+#
+#   So, if pyOpenSSL 0.14 has *already* been installed and is importable, we
+#   want to accept it; otherwise we ask for pyOpenSSL 0.13 or 0.13.1.
+#   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2193>
+#
+#   We don't rely on pkg_resources to tell us the installed pyOpenSSL version
+#   number, because pkg_resources telling us that we have 0.14 is not sufficient
+#   evidence that 0.14 will be the imported version (or will work correctly).
+#   One possible reason why it might not be is explained in
+#   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1246#comment:6> and
+#   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/1258>.
 
 _can_use_pyOpenSSL_0_14 = False
 try:
@@ -165,8 +181,8 @@ except Exception:
 
 if _can_use_pyOpenSSL_0_14:
     install_requires += [
-        # pyOpenSSL >= 0.13 is needed in order to fix
-        # <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2005>.
+        # Although we checked for pyOpenSSL >= 0.14 above, we only actually
+        # need pyOpenSSL >= 0.13; requiring 0.14 here cannot help.
         "pyOpenSSL >= 0.13",
 
         # ... and now all the new stuff that pyOpenSSL 0.14 transitively
