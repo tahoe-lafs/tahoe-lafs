@@ -18,6 +18,21 @@ from allmydata.util.encodingutil import to_str, quote_output
 
 TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
 
+def get_filenode_metadata(filenode):
+    metadata = {'mutable': filenode.is_mutable()}
+    if metadata['mutable']:
+        mutable_type = filenode.get_version()
+        assert mutable_type in (SDMF_VERSION, MDMF_VERSION)
+        if mutable_type == MDMF_VERSION:
+            file_format = "MDMF"
+        else:
+            file_format = "SDMF"
+    else:
+        file_format = "CHK"
+    metadata['format'] = file_format
+    if filenode.get_size() is not None:
+        metadata['size'] = filenode.get_size()
+    return metadata
 
 class IOpHandleTable(Interface):
     pass
