@@ -3,7 +3,7 @@ import mock
 from twisted.trial.unittest import TestCase
 
 from allmydata.web.common import get_filenode_metadata, SDMF_VERSION, MDMF_VERSION
-from allmydata.immutable.filenode import ImmutableFileNode
+
 
 class CommonFixture(object):
     def setUp(self):
