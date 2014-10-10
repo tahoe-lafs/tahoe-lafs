@@ -30,8 +30,9 @@ def get_filenode_metadata(filenode):
     else:
         file_format = "CHK"
     metadata['format'] = file_format
-    if filenode.get_size() is not None:
-        metadata['size'] = filenode.get_size()
+    size = filenode.get_size()
+    if size is not None:
+        metadata['size'] = size
     return metadata
 
 class IOpHandleTable(Interface):
