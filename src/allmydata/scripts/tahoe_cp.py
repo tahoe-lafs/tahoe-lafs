@@ -703,6 +703,7 @@ class Copier:
     def copy_files_to_target(self, targetmap, target):
         for name, source in targetmap.items():
             assert isinstance(source, (LocalFileSource, TahoeFileSource))
+            name = unicode(name)
             self.copy_file_into(source, name, target)
             self.files_copied += 1
             self.progress("%d/%d files, %d/%d directories" %
@@ -743,6 +744,7 @@ class Copier:
     def copy_file_into(self, source, name, target):
         assert isinstance(source, (LocalFileSource, TahoeFileSource))
         assert isinstance(target, (LocalDirectoryTarget, TahoeDirectoryTarget))
+        assert isinstance(name, unicode)
         if self.need_to_copy_bytes(source, target):
             # if the target is a local directory, this will just write the
             # bytes to disk. If it is a tahoe directory, it will upload the
