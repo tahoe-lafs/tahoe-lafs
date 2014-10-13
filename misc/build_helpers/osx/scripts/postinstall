@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo "/Applications/tahoe.app/bin" >> /etc/paths.d/tahoe
