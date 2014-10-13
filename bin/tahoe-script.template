@@ -94,6 +94,8 @@ if len(args) >= 1 and args[0].startswith('@'):
         prefix = [sys.executable]
     else:
         prefix = []
+        if runner == "python":
+            runner = sys.executable
 
     def _subst(a):
         if a == '@tahoe': return script
