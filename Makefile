@@ -42,7 +42,7 @@ build-osx-pkg:
 # create component pkg
 	pkgbuild --root $(shell pwd) \
 	--identifier com.leastauthority.tahoe \
-	--version "$(shell bin/tahoe @python -c 'import allmydata; print allmydata.__version__')" \
+	--version $(shell sh -c "cat src/allmydata/_version.py | grep verstr | head -n 1 | cut -d' ' -f 3") \
 	--ownership recommended \
 	--install-location /Applications/tahoe.app \
 	--scripts $(shell pwd)/misc/build_helpers/osx/scripts \
