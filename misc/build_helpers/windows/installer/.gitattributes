@@ -1,0 +1,2 @@
+installer.sln -text
+installer/installer.vcproj -text
