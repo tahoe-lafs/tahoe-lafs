@@ -1,14 +1,12 @@
 
 import os, sys
-from allmydata.scripts.common import BasedirOptions
+from allmydata.scripts.common import NoDefaultBasedirOptions
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, quote_output
 
-class CreateKeyGeneratorOptions(BasedirOptions):
-    default_nodedir = None
 
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] create-key-generator [options] NODEDIR" % (self.command_name,)
+class CreateKeyGeneratorOptions(NoDefaultBasedirOptions):
+    subcommand_name = "create-key-generator"
 
 
 keygen_tac = """
