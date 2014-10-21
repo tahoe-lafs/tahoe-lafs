@@ -1,6 +1,6 @@
 from distutils.errors import DistutilsSetupError
 from setuptools import Command
-import sys
+import sys, os
 
 class scriptsetup(Command):
     action = (sys.platform == "win32"
@@ -10,11 +10,14 @@ class scriptsetup(Command):
     user_options = [
         ('allusers', 'a',
          'make changes for all users of this Windows installation (requires Administrator privileges)'),
+        ('addpath=', 'p',
+         'add a directory to the PATH (user by default; system if --allusers is specified)'),
     ]
     boolean_options = ['allusers']
 
     def initialize_options(self):
         self.allusers = False
+        self.addpath = None
 
     def finalize_options(self):
         pass
@@ -23,11 +26,13 @@ class scriptsetup(Command):
         if sys.platform != "win32":
             print "\n'scriptsetup' isn't needed on non-Windows platforms."
         else:
-            do_scriptsetup(self.allusers)
+            do_scriptsetup(self.allusers, self.addpath)
 
 
-def do_scriptsetup(allusers=False):
+def do_scriptsetup(allusers=False, addpath=None):
     print "\nSetting up environment to run scripts for %s..." % (allusers and "all users" or "the current user")
+    if addpath:
+		print "%r will be added to the PATH." % (addpath,)
 
     from _winreg import HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, HKEY_CLASSES_ROOT, \
         REG_SZ, REG_EXPAND_SZ, KEY_QUERY_VALUE, KEY_SET_VALUE, \
@@ -241,13 +246,15 @@ def do_scriptsetup(allusers=False):
         except Exception, e:
             print "Warning: %r" % (e,)
 
-
     changed_assoc = associate(".pyscript", "Python.File", allusers)
 
     changed_env = False
     try:
         changed_env |= add_to_environment("PATHEXT", ".pyscript", allusers)
         changed_env |= add_to_environment("PATHEXT", ".pyw",      allusers)
+        if addpath:
+            abs_path = os.path.abspath(os.path.normpath(addpath))
+            changed_env |= add_to_environment("PATH", abs_path, allusers)
     finally:
         CloseKey(user_env)
         CloseKey(system_env)
