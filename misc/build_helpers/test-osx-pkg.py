@@ -32,7 +32,7 @@
 # characteristic: 14.1.0 (/Applications/tahoe.app/support/lib/python2.7/site-packages)
 # pyasn1-modules: 0.0.5 (/Applications/tahoe.app/support/lib/python2.7/site-packages/pyasn1_modules-0.0.5-py2.7.egg)
 
-import os, re, subprocess, time, tempfile, shutil
+import os, re, subprocess, tempfile, shutil
 
 def test_osx_pkg(pkgfile):
     """ Return on success, raise exception on failure. """
