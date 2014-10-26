@@ -39,7 +39,7 @@ class BasedirOptions(BaseOptions):
     default_nodedir = _default_nodedir
 
     optParameters = [
-        ["basedir", "C", None, "Same as --node-directory (default %s)."
+        ["basedir", "C", None, "Specify which Tahoe base directory should be used. [default: %s]"
          % get_default_nodedir()],
     ]
 
@@ -66,6 +66,21 @@ class BasedirOptions(BaseOptions):
     def postOptions(self):
         if not self['basedir']:
             raise usage.UsageError("A base directory for the node must be provided.")
+
+class NoDefaultBasedirOptions(BasedirOptions):
+    default_nodedir = None
+
+    optParameters = [
+        ["basedir", "C", None, "Specify which Tahoe base directory should be used."],
+    ]
+
+    # This is overridden in order to ensure we get a "Wrong number of arguments."
+    # error when more than one argument is given.
+    def parseArgs(self, basedir=None):
+        BasedirOptions.parseArgs(self, basedir)
+
+    def getSynopsis(self):
+        return "Usage:  %s [global-opts] %s [options] NODEDIR" % (self.command_name, self.subcommand_name)
 
 
 DEFAULT_ALIAS = u"tahoe"

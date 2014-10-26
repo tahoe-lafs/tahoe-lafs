@@ -646,7 +646,7 @@ class Help(unittest.TestCase):
 
     def test_start(self):
         help = str(startstop_node.StartOptions())
-        self.failUnlessIn(" [global-opts] start [options] [NODEDIR]", help)
+        self.failUnlessIn(" [global-opts] start [options] [NODEDIR [twistd-options]]", help)
 
     def test_stop(self):
         help = str(startstop_node.StopOptions())
@@ -654,11 +654,11 @@ class Help(unittest.TestCase):
 
     def test_restart(self):
         help = str(startstop_node.RestartOptions())
-        self.failUnlessIn(" [global-opts] restart [options] [NODEDIR]", help)
+        self.failUnlessIn(" [global-opts] restart [options] [NODEDIR [twistd-options]]", help)
 
     def test_run(self):
         help = str(startstop_node.RunOptions())
-        self.failUnlessIn(" [global-opts] run [options] [NODEDIR]", help)
+        self.failUnlessIn(" [global-opts] run [options] [NODEDIR [twistd-options]]", help)
 
     def test_create_client(self):
         help = str(create_node.CreateClientOptions())
@@ -3869,6 +3869,9 @@ class Options(unittest.TestCase):
         o = self.parse(["--node-directory", "there", "start"])
         self.failUnlessEqual(o["basedir"], os.path.abspath("there"))
 
+        o = self.parse(["start", "here", "--nodaemon"])
+        self.failUnlessEqual(o["basedir"], os.path.abspath("here"))
+
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["--basedir", "there", "start"])
         self.failUnlessRaises(usage.UsageError, self.parse,
@@ -3886,3 +3889,7 @@ class Options(unittest.TestCase):
                               ["--node-directory=there",
                                "start", "--basedir=here", "anywhere"])
 
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["--node-directory=there", "start", "--nodaemon"])
+        self.failUnlessRaises(usage.UsageError, self.parse,
+                              ["start", "--basedir=here", "--nodaemon"])

@@ -1,6 +1,6 @@
 
 import os, sys
-from allmydata.scripts.common import BasedirOptions
+from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_output
 import allmydata
@@ -19,6 +19,11 @@ class CreateClientOptions(BasedirOptions):
     def getSynopsis(self):
         return "Usage:  %s [global-opts] create-client [options] [NODEDIR]" % (self.command_name,)
 
+    # This is overridden in order to ensure we get a "Wrong number of arguments."
+    # error when more than one argument is given.
+    def parseArgs(self, basedir=None):
+        BasedirOptions.parseArgs(self, basedir)
+
 
 class CreateNodeOptions(CreateClientOptions):
     optFlags = [
@@ -29,11 +34,8 @@ class CreateNodeOptions(CreateClientOptions):
         return "Usage:  %s [global-opts] create-node [options] [NODEDIR]" % (self.command_name,)
 
 
-class CreateIntroducerOptions(BasedirOptions):
-    default_nodedir = None
-
-    def getSynopsis(self):
-        return "Usage:  %s [global-opts] create-introducer [options] NODEDIR" % (self.command_name,)
+class CreateIntroducerOptions(NoDefaultBasedirOptions):
+    subcommand_name = "create-introducer"
 
 
 client_tac = """
