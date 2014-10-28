@@ -79,7 +79,7 @@ void unzip_from_executable(wchar_t *executable_path, wchar_t *destination_dir) {
 	unsigned char disk_num[] = {0x00, 0x00};
 
 	errno = 0;
-	FILE *f = _wfopen(L"C:\\tahoe\\foo.zip", L"rb");
+	FILE *f = _wfopen(executable_path, L"rb");
 	fail_unless(f != NULL && errno == 0 && ferror(f) == 0,
 		        "Could not open executable file.");
 
