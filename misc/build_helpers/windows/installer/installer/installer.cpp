@@ -20,7 +20,6 @@
 
 int wmain(int argc, wchar_t *argv[]);
 wchar_t * get_default_destination_dir();
-void initialize_com();
 void self_extract(wchar_t *destination_dir);
 void unzip_from_executable(wchar_t *executable_path, wchar_t *destination_dir);
 size_t read_uint32_le(unsigned char *b);
@@ -53,8 +52,6 @@ int wmain(int argc, wchar_t *argv[]) {
 	}
 	wchar_t *destination_dir = (argc >= 2) ? argv[1] : get_default_destination_dir();
 
-	initialize_com();
-
 	self_extract(destination_dir);
 
 	install_python(destination_dir);
@@ -65,9 +62,6 @@ int wmain(int argc, wchar_t *argv[]) {
 wchar_t * get_default_destination_dir() {
 	// TODO: get Program Files directory from the registry
 	return L"C:\\tahoe\\windowstest";
-}
-
-void initialize_com() {
 }
 
 void self_extract(wchar_t *destination_dir) {
