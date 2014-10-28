@@ -53,9 +53,9 @@ void self_extract(wchar_t *destination_dir) {
 	wchar_t executable_path[MAX_PATH];
 
 	HMODULE hModule = GetModuleHandle(NULL);
-    fail_unless(hModule != NULL, "Could not get the module handle.");
-    GetModuleFileNameW(hModule, executable_path, MAX_PATH); 
-    fail_unless(GetLastError() == ERROR_SUCCESS, "Could not get the path of the current executable.");
+	fail_unless(hModule != NULL, "Could not get the module handle.");
+	GetModuleFileNameW(hModule, executable_path, MAX_PATH); 
+	fail_unless(GetLastError() == ERROR_SUCCESS, "Could not get the path of the current executable.");
 
 	unzip_from_executable(executable_path, destination_dir);
 }
@@ -283,7 +283,7 @@ bool spawn_with_redirected_stdout(unsigned char *stdout_buf, size_t stdout_size,
 	// Redirecting stdout is annoyingly complicated.
 	int output_pipe[2];
 	errno = 0;
-    int res = _pipe(output_pipe, 512, _O_BINARY | _O_NOINHERIT);
+	int res = _pipe(output_pipe, 512, _O_BINARY | _O_NOINHERIT);
 	if (res != 0) {
 		warn("Could not create pipe.");
 		return false;
@@ -298,7 +298,7 @@ bool spawn_with_redirected_stdout(unsigned char *stdout_buf, size_t stdout_size,
 	}
 
 	// Duplicate write end of pipe to stdout file descriptor.
-    res = _dup2(output_write_fd, _fileno(stdout));
+	res = _dup2(output_write_fd, _fileno(stdout));
 	if (res != 0 || errno != 0) {
 		warn("Could not redirect stdout.");
 		return false;
@@ -315,7 +315,7 @@ bool spawn_with_redirected_stdout(unsigned char *stdout_buf, size_t stdout_size,
 	// Duplicate copy of original stdout back into stdout.
 	errno = 0;
 	res = _dup2(original_stdout_fd, _fileno(stdout));
-    fail_unless(res == 0 && errno == 0, "Could not restore stdout.");
+	fail_unless(res == 0 && errno == 0, "Could not restore stdout.");
 
 	// Close duplicate copy of original stdout.
 	_close(original_stdout_fd); // ignore errors
