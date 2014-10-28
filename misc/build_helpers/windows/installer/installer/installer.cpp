@@ -2,21 +2,6 @@
 //
 
 #include "stdafx.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <io.h>
-#include <fcntl.h>
-#include <process.h>
-
-// Turn off the warnings nagging you to use the more complicated *_s
-// "secure" functions that are actually more difficult to use securely.
-#pragma warning(disable:4996)
-
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <wtypes.h>
-#include <objbase.h>
-#include <shldisp.h>
 
 int wmain(int argc, wchar_t *argv[]);
 wchar_t * get_default_destination_dir();
