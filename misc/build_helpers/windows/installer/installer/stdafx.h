@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <wchar.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <io.h>
 #include <fcntl.h>
 #include <process.h>

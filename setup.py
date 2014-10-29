@@ -249,7 +249,7 @@ class MakeExecutable(Command):
                 raise
 
 
-GIT_VERSION_BODY = '''
+GIT_VERSION_PY = '''
 # This _version.py is generated from git metadata by the tahoe setup.py.
 
 __pkgname__ = %(pkgname)r
@@ -258,6 +258,12 @@ full_version = %(full)r
 branch = %(branch)r
 verstr = %(normalized)r
 __version__ = verstr
+'''
+
+GIT_VERSION_H = '''
+// This _version.h is generated from git metadata by the tahoe setup.py.
+
+#define PKGNAME_AND_VERSION L"%(pkgname)s-%(normalized)s"
 '''
 
 def run_command(args, cwd=None, verbose=False):
@@ -360,17 +366,23 @@ class UpdateVersion(Command):
     def try_from_git(self):
         versions = versions_from_git("allmydata-tahoe-", verbose=True)
         if versions:
+            version_info = {
+                "pkgname": self.distribution.get_name(),
+                "version": versions["version"],
+                "normalized": versions["normalized"],
+                "full": versions["full"],
+                "branch": versions["branch"],
+            }
+
             fn = 'src/allmydata/_version.py'
             f = open(fn, "wb")
-            f.write(GIT_VERSION_BODY %
-                    { "pkgname": self.distribution.get_name(),
-                      "version": versions["version"],
-                      "normalized": versions["normalized"],
-                      "full": versions["full"],
-                      "branch": versions["branch"],
-                    })
+            f.write(GIT_VERSION_PY % version_info)
             f.close()
             print("git-version: wrote '%s' into '%s'" % (versions["version"], fn))
+
+            f = open('misc/build_helpers/windows/installer/installer/_version.h', "wb")
+            f.write(GIT_VERSION_H % version_info)
+            f.close()
         return versions.get("normalized", None)
 
 

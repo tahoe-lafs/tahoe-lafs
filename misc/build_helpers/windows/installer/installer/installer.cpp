@@ -12,13 +12,18 @@ size_t read_uint32_le(unsigned char *b);
 void unzip(wchar_t *zip_path, wchar_t *destination_dir);
 bool spawn_with_redirect(FILE *redirect, unsigned char *output_buf, size_t output_size, const wchar_t *argv[]);
 void install_python(wchar_t *python_installer_dir);
-void scriptsetup();
+void scriptsetup(wchar_t *destination_dir);
+void pause();
 
 #define fail_unless(x, s) if (!(x)) { fail(s); }
 void fail(char *s);
 void warn(char *s);
 
 #define REQUIRED_PYTHON_VERSION_PREFIX "Python 2.7."
+
+// defines PKGNAME_AND_VERSION
+#include "_version.h"
+
 
 void noop_handler(const wchar_t * expression,
                   const wchar_t * function,
@@ -37,14 +42,15 @@ int wmain(int argc, wchar_t *argv[]) {
 
 	self_extract(destination_dir);
 	install_python(destination_dir);
-	scriptsetup();
+	scriptsetup(destination_dir);
+	pause();
 
 	return 0;
 }
 
 wchar_t * get_default_destination_dir() {
 	// TODO: get Program Files directory from the registry
-	return L"C:\\tahoe\\windowstest";
+	return L"C:\\Program Files\\Tahoe-LAFS";
 }
 
 void self_extract(wchar_t *destination_dir) {
@@ -60,6 +66,7 @@ void self_extract(wchar_t *destination_dir) {
 }
 
 void empty_directory(wchar_t *destination_dir) {
+#if 0
 	// Delete contents of destination_dir if it already exists.
 
 	struct _stat buf;
@@ -83,11 +90,11 @@ void empty_directory(wchar_t *destination_dir) {
 		int res = SHFileOperationW(&shell_file_op);
 		fail_unless(res == 0, "Could not delete existing contents of destination directory.");
 	}
-
-	// (Re-)create an empty directory at destination_dir.
+#endif
+	// Create an empty directory at destination_dir.
 	errno = 0;
 	int res = _wmkdir(destination_dir);
-	fail_unless(res == 0 && errno == 0, "Could not create destination directory.");
+	fail_unless((res == 0 && errno == 0) || errno == EEXIST, "Could not create destination directory.");
 }
 
 void unzip_from_executable(wchar_t *executable_path, wchar_t *destination_dir) {
@@ -344,17 +351,17 @@ bool spawn_with_redirect(FILE *redirect, unsigned char *output_buf, size_t outpu
 }
 
 void install_python(wchar_t *python_installer_dir) {
-	printf("Checking for Python 2.7...\n");
+	printf("Checking for " REQUIRED_PYTHON_VERSION_PREFIX "..\n");
 
 	unsigned char output_buf[1024];
 	const wchar_t *argv[] = { L"python", L"-V", NULL };
 	bool res = spawn_with_redirect(stderr, output_buf, sizeof(output_buf), &argv[0]);
 	if (res) {
+		printf("Found %s", (char *) output_buf);
 		if (strncmp((char *) output_buf, REQUIRED_PYTHON_VERSION_PREFIX, strlen(REQUIRED_PYTHON_VERSION_PREFIX)) == 0) {
-			printf("Found %s which is sufficient.\n", (char *) output_buf);
 			return;
 		} else {
-			printf("Found %s which is not sufficient.\n", (char *) output_buf);
+			printf("but we need a newer version.\n");
 		}
 	} else {
 		printf("No Python found.\n");
@@ -383,17 +390,30 @@ void install_python(wchar_t *python_installer_dir) {
 	wcscat(installer_path, find_data.cFileName);
 
 	// <https://www.python.org/download/releases/2.5/msi/>
-	const wchar_t *python_installer_argv[] = { L"msiexec", L"/i", installer_path,
-	                                           L"/qb!", L"ALLUSERS=1", L"ADDLOCAL=Extensions", NULL };
+	// "/qb!" works, but it may silently remove a previous Python installation
+	// that was not detected by the check above, and we want that to prompt.
+	const wchar_t *python_installer_argv[] = {
+		L"msiexec", L"/i", installer_path,
+		// L"/qb!",
+		L"ALLUSERS=1", L"ADDLOCAL=Extensions", NULL
+	};
 	errno = 0;
 	intptr_t exit_code = _wspawnvp(P_WAIT, python_installer_argv[0], python_installer_argv);
 	fail_unless(errno == 0, "Could not execute Python installer.");
 	fail_unless(exit_code == 0, "Python installer failed.");
 }
 
-void scriptsetup() {
+void scriptsetup(wchar_t *destination_dir) {
+	wchar_t bin_dir[MAX_PATH];
+	int n = wsnprintf(bin_dir, L"%ls\\%ls\\bin", destination_dir, PKGNAME_AND_VERSION);
+	fail_unless(n >= 0 && n < MAX_PATH, "Could not construct path for bin directory.");
+
 	unsigned char output_buf[10240];
-	const wchar_t *scriptsetup_argv[] = { L"python", L"setup.py", L"scriptsetup", L"--allusers", NULL };
+	const wchar_t *scriptsetup_argv[] = {
+		L"python", L"setup.py", L"scriptsetup",
+		L"--allusers", L"--addpaths", bin_dir,
+		NULL
+	};
 	bool res = spawn_with_redirect(stdout, output_buf, sizeof(output_buf), &scriptsetup_argv[0]);
 	puts((char *) output_buf);
 	fail_unless(res, "Could not set up Python to run the 'tahoe' command.");
@@ -402,9 +422,16 @@ void scriptsetup() {
 void fail(char *s) {
 	// TODO: show dialog box
 	fprintf(stderr, "%s\n", s);
+	pause()
 	exit(1);
 }
 
 void warn(char *s) {
 	fprintf(stderr, "%s\n", s);
+}
+
+void pause() {
+	printf("Press any key to finish.");
+	char buf[2];
+	fgets(buf, 1, stdin);
 }
