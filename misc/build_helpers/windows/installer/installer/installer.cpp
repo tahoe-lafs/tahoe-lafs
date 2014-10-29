@@ -6,21 +6,19 @@
 int wmain(int argc, wchar_t *argv[]);
 wchar_t * get_default_destination_dir();
 void self_extract(wchar_t *destination_dir);
+void empty_directory(wchar_t *destination_dir);
 void unzip_from_executable(wchar_t *executable_path, wchar_t *destination_dir);
 size_t read_uint32_le(unsigned char *b);
 void unzip(wchar_t *zip_path, wchar_t *destination_dir);
 bool have_acceptable_python();
 void install_python(wchar_t *python_installer_dir);
-bool spawn_with_redirected_stdout(unsigned char *stdout_buf, size_t stdout_size, const wchar_t *argv[]);
+bool spawn_with_redirect(FILE *redirect, unsigned char *output_buf, size_t output_size, const wchar_t *argv[]);
 
 #define fail_unless(x, s) if (!(x)) { fail(s); }
 void fail(char *s);
 void warn(char *s);
 
-#define MINIMUM_PYTHON_VERSION L"2.7.0"
-#define INSTALL_PYTHON_VERSION L"2.7.8"
-#define PYTHON_INSTALLER_32BIT (L"python-" INSTALL_PYTHON_VERSION L".msi")
-#define PYTHON_INSTALLER_64BIT (L"python-" INSTALL_PYTHON_VERSION L".amd64.msi")
+#define REQUIRED_PYTHON_VERSION_PREFIX "Python 2.7."
 
 void noop_handler(const wchar_t * expression,
                   const wchar_t * function,
@@ -57,7 +55,39 @@ void self_extract(wchar_t *destination_dir) {
 	GetModuleFileNameW(hModule, executable_path, MAX_PATH); 
 	fail_unless(GetLastError() == ERROR_SUCCESS, "Could not get the path of the current executable.");
 
+	empty_directory(destination_dir);
 	unzip_from_executable(executable_path, destination_dir);
+}
+
+void empty_directory(wchar_t *destination_dir) {
+	// Delete contents of destination_dir if it already exists.
+
+	struct _stat buf;
+	if (_wstat(destination_dir, &buf) == 0) {
+		wchar_t destination_dir_dblnul[MAX_PATH+1];
+		size_t len = wcslen(destination_dir);
+		fail_unless(len < MAX_PATH, "Destination path is too long.");
+		wcscpy(destination_dir_dblnul, destination_dir);
+		destination_dir_dblnul[len+1] = L'\0';
+
+		SHFILEOPSTRUCTW shell_file_op = {
+			NULL,
+			FO_DELETE,
+			destination_dir_dblnul,
+			NULL,
+			FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION,
+			FALSE,
+			NULL,
+			NULL
+		};
+		int res = SHFileOperationW(&shell_file_op);
+		fail_unless(res == 0, "Could not delete existing contents of destination directory.");
+	}
+
+	// (Re-)create an empty directory at destination_dir.
+	errno = 0;
+	int res = _wmkdir(destination_dir);
+	fail_unless(res == 0 && errno == 0, "Could not create destination directory.");
 }
 
 void unzip_from_executable(wchar_t *executable_path, wchar_t *destination_dir) {
@@ -232,49 +262,12 @@ void unzip(wchar_t *zip_path, wchar_t *destination_dir) {
 	CoUninitialize();
 }
 
-void install_python() {
-	printf("Checking for Python 2.7...");
-/*
-	wchar_t python_exe_path[MAX_PATH];
-	DWORD res = SearchPathW(NULL, L"python.exe", NULL, MAX_PATH, python_exe_path, NULL);
-	if (res == 0 || res >= MAX_PATH) {
-		return false;
-	}
-	errno = 0;
-
-
-	HANDLE hProcess = (HANDLE) _wspawnlp(P_NOWAIT, L"python", L"-V");
-	if (exitcode != 0 || errno != 0) return false;
-	_cwait(...)
-
-	HKEY environment_key;
-
-	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Environment",
-	                  0, KEY_QUERY_VALUE, &environment_key) != ERROR_SUCCESS) {
-		return false;
-	}
-	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment",
-	                  0, KEY_QUERY_VALUE, &environment_key) != ERROR_SUCCESS) {
-		return false;
-	}
-
-	return false;
-*/
-}
-
-void scriptsetup() {
-	unsigned char stdout_buf[1024];
-	const wchar_t *argv[] = { L"python", L"setup.py", L"scriptsetup", L"--allusers", NULL };
-	spawn_with_redirected_stdout(stdout_buf, sizeof(stdout_buf), &argv[0]);
-	//if (exitcode != 0 || errno != 0) return false;
-}
-
-bool spawn_with_redirected_stdout(unsigned char *stdout_buf, size_t stdout_size, const wchar_t *argv[]) {
+bool spawn_with_redirect(FILE *redirect, unsigned char *output_buf, size_t output_size, const wchar_t *argv[]) {
 	bool result = false;
-	fail_unless(stdout_size > 0, "Invalid stdout_size.");
-	stdout_buf[0] = 0;
+	fail_unless(output_size > 0, "Invalid output_size.");
+	output_buf[0] = 0;
 
-	// Redirecting stdout is annoyingly complicated.
+	// Redirection is annoyingly complicated.
 	int output_pipe[2];
 	errno = 0;
 	int res = _pipe(output_pipe, 512, _O_BINARY | _O_NOINHERIT);
@@ -284,17 +277,17 @@ bool spawn_with_redirected_stdout(unsigned char *stdout_buf, size_t stdout_size,
 	}
 	int output_read_fd = output_pipe[0], output_write_fd = output_pipe[1];
 
-	// Duplicate stdout file descriptor (the call to _dup2 will close the original).
-	int original_stdout_fd = _dup(_fileno(stdout));
+	// Duplicate the redirected file descriptor (the call to _dup2 will close the original).
+	int original_fd = _dup(_fileno(redirect));
 	if (errno != 0) {
-		warn("Could not duplicate original stdout file descriptor.");
+		warn("Could not duplicate original file descriptor.");
 		return false;
 	}
 
-	// Duplicate write end of pipe to stdout file descriptor.
-	res = _dup2(output_write_fd, _fileno(stdout));
+	// Duplicate write end of pipe to redirected file descriptor.
+	res = _dup2(output_write_fd, _fileno(redirect));
 	if (res != 0 || errno != 0) {
-		warn("Could not redirect stdout.");
+		warn("Could not redirect.");
 		return false;
 	}
 
@@ -308,11 +301,11 @@ bool spawn_with_redirected_stdout(unsigned char *stdout_buf, size_t stdout_size,
 
 	// Duplicate copy of original stdout back into stdout.
 	errno = 0;
-	res = _dup2(original_stdout_fd, _fileno(stdout));
+	res = _dup2(original_fd, _fileno(redirect));
 	fail_unless(res == 0 && errno == 0, "Could not restore stdout.");
 
-	// Close duplicate copy of original stdout.
-	_close(original_stdout_fd); // ignore errors
+	// Close duplicate copy of original fd.
+	_close(original_fd); // ignore errors
 
 	if (process_handle == (HANDLE) -1) {
 		return false;
@@ -320,8 +313,8 @@ bool spawn_with_redirected_stdout(unsigned char *stdout_buf, size_t stdout_size,
 
 	DWORD exit_code = 0;
 	errno = 0;
-	unsigned char *p = stdout_buf;
-	size_t remaining_size = stdout_size;
+	unsigned char *p = output_buf;
+	size_t remaining_size = output_size;
 	int bytes_read;
 	do {
 		if (remaining_size == 0) {
@@ -330,10 +323,10 @@ bool spawn_with_redirected_stdout(unsigned char *stdout_buf, size_t stdout_size,
 		} else {
 			bytes_read = _read(output_read_fd, p, remaining_size-1);
 			if (errno != 0 || bytes_read < 0) {
-				warn("Could not read from subprocess stdout.");
+				warn("Could not read from subprocess output.");
 				return false;
 			}
-			fail_unless((size_t) bytes_read < stdout_size, "Unexpectedly long read.");
+			fail_unless((size_t) bytes_read < output_size, "Unexpectedly long read.");
 			p += bytes_read;
 			remaining_size -= bytes_read;
 			*p = 0;
@@ -351,7 +344,23 @@ bool spawn_with_redirected_stdout(unsigned char *stdout_buf, size_t stdout_size,
 }
 
 void install_python(wchar_t *python_installer_dir) {
-	wchar_t installer_wildcard[] = L"\\*.msi";
+	printf("Checking for Python 2.7...\n");
+
+	unsigned char output_buf[1024];
+	const wchar_t *argv[] = { L"python", L"-V", NULL };
+	bool res = spawn_with_redirect(stderr, output_buf, sizeof(output_buf), &argv[0]);
+	if (res) {
+		if (strncmp((char *) output_buf, REQUIRED_PYTHON_VERSION_PREFIX, strlen(REQUIRED_PYTHON_VERSION_PREFIX)) == 0) {
+			printf("Found %s which is sufficient.\n", (char *) output_buf);
+			return;
+		} else {
+			printf("Found %s which is not sufficient.\n", (char *) output_buf);
+		}
+	} else {
+		printf("No Python found.\n");
+	}
+
+	wchar_t installer_wildcard[] = L"\\python*.msi";
 	if (python_installer_dir[wcslen(python_installer_dir)-1] == '\\') {
 		wcscpy(installer_wildcard, L"*.msi");
 	}
@@ -372,15 +381,27 @@ void install_python(wchar_t *python_installer_dir) {
 	wchar_t installer_path[MAX_PATH];
 	wcscpy(installer_path, python_installer_dir);
 	wcscat(installer_path, find_data.cFileName);
-	//execute(installer_path, L"");
+
+	// <https://www.python.org/download/releases/2.5/msi/>
+	const wchar_t *python_installer_argv[] = { L"msiexec", L"/i", installer_path,
+	                                           L"/qb!", L"ALLUSERS=1", L"ADDLOCAL=Extensions", NULL };
+	errno = 0;
+	intptr_t exit_code = _wspawnvp(P_WAIT, python_installer_argv[0], python_installer_argv);
+	fail_unless(errno == 0, "Could not execute Python installer.");
+	fail_unless(exit_code == 0, "Python installer failed.");
+
+	const wchar_t *scriptsetup_argv[] = { L"python", L"setup.py", L"scriptsetup", L"--allusers", NULL };
+	res = spawn_with_redirect(stdout, output_buf, sizeof(output_buf), &scriptsetup_argv[0]);
+	puts((char *) output_buf);
+	fail_unless(res, "Could not set up Python to run the 'tahoe' command.");
 }
 
 void fail(char *s) {
 	// TODO: show dialog box
-	fputs(s, stderr);
+	fprintf(stderr, "%s\n", s);
 	exit(1);
 }
 
 void warn(char *s) {
-	fputs(s, stderr);
+	fprintf(stderr, "%s\n", s);
 }

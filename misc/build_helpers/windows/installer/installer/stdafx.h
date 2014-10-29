@@ -13,6 +13,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include <process.h>
+#include <sys/stat.h>
 
 // Turn off the warnings nagging you to use the more complicated *_s
 // "secure" functions that are actually more difficult to use securely.
@@ -23,3 +24,4 @@
 #include <wtypes.h>
 #include <objbase.h>
 #include <shldisp.h>
+#include <shellapi.h>
