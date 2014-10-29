@@ -10,9 +10,9 @@ void empty_directory(wchar_t *destination_dir);
 void unzip_from_executable(wchar_t *executable_path, wchar_t *destination_dir);
 size_t read_uint32_le(unsigned char *b);
 void unzip(wchar_t *zip_path, wchar_t *destination_dir);
-bool have_acceptable_python();
-void install_python(wchar_t *python_installer_dir);
 bool spawn_with_redirect(FILE *redirect, unsigned char *output_buf, size_t output_size, const wchar_t *argv[]);
+void install_python(wchar_t *python_installer_dir);
+void scriptsetup();
 
 #define fail_unless(x, s) if (!(x)) { fail(s); }
 void fail(char *s);
@@ -36,8 +36,8 @@ int wmain(int argc, wchar_t *argv[]) {
 	wchar_t *destination_dir = (argc >= 2) ? argv[1] : get_default_destination_dir();
 
 	self_extract(destination_dir);
-
 	install_python(destination_dir);
+	scriptsetup();
 
 	return 0;
 }
@@ -389,9 +389,12 @@ void install_python(wchar_t *python_installer_dir) {
 	intptr_t exit_code = _wspawnvp(P_WAIT, python_installer_argv[0], python_installer_argv);
 	fail_unless(errno == 0, "Could not execute Python installer.");
 	fail_unless(exit_code == 0, "Python installer failed.");
+}
 
+void scriptsetup() {
+	unsigned char output_buf[10240];
 	const wchar_t *scriptsetup_argv[] = { L"python", L"setup.py", L"scriptsetup", L"--allusers", NULL };
-	res = spawn_with_redirect(stdout, output_buf, sizeof(output_buf), &scriptsetup_argv[0]);
+	bool res = spawn_with_redirect(stdout, output_buf, sizeof(output_buf), &scriptsetup_argv[0]);
 	puts((char *) output_buf);
 	fail_unless(res, "Could not set up Python to run the 'tahoe' command.");
 }
