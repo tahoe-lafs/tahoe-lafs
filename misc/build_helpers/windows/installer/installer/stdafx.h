@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <process.h>
 #include <sys/stat.h>
+#include <conio.h>
 
 // Turn off the warnings nagging you to use the more complicated *_s
 // "secure" functions that are actually more difficult to use securely.

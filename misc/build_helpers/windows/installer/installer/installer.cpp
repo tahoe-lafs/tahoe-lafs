@@ -10,18 +10,19 @@ void empty_directory(wchar_t *destination_dir);
 void unzip_from_executable(wchar_t *executable_path, wchar_t *destination_dir);
 size_t read_uint32_le(unsigned char *b);
 void unzip(wchar_t *zip_path, wchar_t *destination_dir);
-bool spawn_with_redirect(FILE *redirect, unsigned char *output_buf, size_t output_size, const wchar_t *argv[]);
 void install_python(wchar_t *python_installer_dir);
 void scriptsetup(wchar_t *destination_dir);
-void pause();
+bool spawn_with_redirect(FILE *redirect, unsigned char *output_buf, size_t output_size, const wchar_t *argv[]);
 
 #define fail_unless(x, s) if (!(x)) { fail(s); }
 void fail(char *s);
 void warn(char *s);
+void pause();
 
 #define REQUIRED_PYTHON_VERSION_PREFIX "Python 2.7."
+#define PYTHON_INSTALLER_FILESPEC L"python*.msi"
 
-// defines PKGNAME_AND_VERSION
+// defines PKGNAME_AND_VERSION, written by setup.py
 #include "_version.h"
 
 
@@ -37,8 +38,13 @@ int wmain(int argc, wchar_t *argv[]) {
 
 	if (argc >= 2 && wcscmp(argv[1], L"--help") == 0) {
 		printf("installer <destination_dir>\n");
+		return 1;
 	}
 	wchar_t *destination_dir = (argc >= 2) ? argv[1] : get_default_destination_dir();
+
+	size_t len = wcslen(destination_dir);
+	// FIXME: strip trailing slash rather than rejecting it
+	fail_unless(len > 0 && destination_dir[len-1] != '\\' && len < MAX_PATH-1, "Invalid destination directory.");
 
 	self_extract(destination_dir);
 	install_python(destination_dir);
@@ -66,31 +72,6 @@ void self_extract(wchar_t *destination_dir) {
 }
 
 void empty_directory(wchar_t *destination_dir) {
-#if 0
-	// Delete contents of destination_dir if it already exists.
-
-	struct _stat buf;
-	if (_wstat(destination_dir, &buf) == 0) {
-		wchar_t destination_dir_dblnul[MAX_PATH+1];
-		size_t len = wcslen(destination_dir);
-		fail_unless(len < MAX_PATH, "Destination path is too long.");
-		wcscpy(destination_dir_dblnul, destination_dir);
-		destination_dir_dblnul[len+1] = L'\0';
-
-		SHFILEOPSTRUCTW shell_file_op = {
-			NULL,
-			FO_DELETE,
-			destination_dir_dblnul,
-			NULL,
-			FOF_SILENT | FOF_NOERRORUI | FOF_NOCONFIRMATION,
-			FALSE,
-			NULL,
-			NULL
-		};
-		int res = SHFileOperationW(&shell_file_op);
-		fail_unless(res == 0, "Could not delete existing contents of destination directory.");
-	}
-#endif
 	// Create an empty directory at destination_dir.
 	errno = 0;
 	int res = _wmkdir(destination_dir);
@@ -269,6 +250,76 @@ void unzip(wchar_t *zip_path, wchar_t *destination_dir) {
 	CoUninitialize();
 }
 
+void install_python(wchar_t *python_installer_dir) {
+	printf("Checking for " REQUIRED_PYTHON_VERSION_PREFIX "..\n");
+
+	unsigned char output_buf[1024];
+	const wchar_t *argv[] = { L"python", L"-V", NULL };
+	bool res = spawn_with_redirect(stderr, output_buf, sizeof(output_buf), &argv[0]);
+	if (res) {
+		printf("Found %s", (char *) output_buf);
+		if (strncmp((char *) output_buf, REQUIRED_PYTHON_VERSION_PREFIX, strlen(REQUIRED_PYTHON_VERSION_PREFIX)) == 0) {
+			return;
+		} else {
+			printf("but we need a newer version.\n");
+		}
+	} else {
+		printf("No Python found.\n");
+	}
+
+	wchar_t installer_pattern[MAX_PATH];
+	int n = _snwprintf(installer_pattern, MAX_PATH, L"%ls\\%ls", python_installer_dir, PYTHON_INSTALLER_FILESPEC);
+	fail_unless(n >= 0 && n < MAX_PATH, "Could not construct wildcard path to Python installer.");
+
+	WIN32_FIND_DATA find_data;
+	HANDLE search_handle = FindFirstFileW(installer_pattern, &find_data);
+	fail_unless(search_handle != INVALID_HANDLE_VALUE, "Could not find the Python installer.")
+
+	wchar_t installer_path[MAX_PATH];
+	n = _snwprintf(installer_path, MAX_PATH, L"%ls\\%ls", python_installer_dir, find_data.cFileName);
+	fail_unless(n >= 0 && n < MAX_PATH, "Could not construct path to Python installer.");
+	printf("%ls\n", installer_path);
+
+	wchar_t installer_path_quoted[2+MAX_PATH];
+	n = _snwprintf(installer_path_quoted, 2+MAX_PATH, L"\"%ls\"", installer_path);
+	fail_unless(n >= 0 && n < 2+MAX_PATH, "Could not construct quoted path to Python installer.");
+	printf("%ls\n", installer_path_quoted);
+
+	// <https://www.python.org/download/releases/2.5/msi/>
+	// XXX I'm not sure whether or not we want "/passive". These options
+	// may silently remove a previous Python installation that was not
+	// detected by the check above, and we'd like that to prompt.
+	const wchar_t *python_installer_argv[] = {
+		L"msiexec", L"/i", installer_path_quoted,
+		L"/passive", L"/norestart", L"ALLUSERS=1", L"ADDLOCAL=Extensions", NULL
+	};
+	errno = 0;
+	intptr_t exit_code = _wspawnvp(P_WAIT, python_installer_argv[0], python_installer_argv);
+	int saved_errno = errno;
+
+	_wunlink(installer_path); // ignore errors
+
+	fail_unless(saved_errno == 0, "Could not execute Python installer.");
+	fail_unless(exit_code == 0, "Python installer failed.");
+}
+
+void scriptsetup(wchar_t *destination_dir) {
+	// 12 = length of --addpath=""
+	wchar_t addpath_option_quoted[12+MAX_PATH];
+	int n = _snwprintf(addpath_option_quoted, 12+MAX_PATH, L"--addpath=\"%ls\\%ls\\bin\"", destination_dir, PKGNAME_AND_VERSION);
+	fail_unless(n >= 0 && n < 12+MAX_PATH, "Could not construct path for bin directory.");
+
+	unsigned char output_buf[10240];
+	const wchar_t *scriptsetup_argv[] = {
+		L"python", L"setup.py", L"scriptsetup",
+		L"--allusers", addpath_option_quoted,
+		NULL
+	};
+	bool res = spawn_with_redirect(stdout, output_buf, sizeof(output_buf), &scriptsetup_argv[0]);
+	puts((char *) output_buf);
+	fail_unless(res, "Could not set up Python to run the 'tahoe' command.");
+}
+
 bool spawn_with_redirect(FILE *redirect, unsigned char *output_buf, size_t output_size, const wchar_t *argv[]) {
 	bool result = false;
 	fail_unless(output_size > 0, "Invalid output_size.");
@@ -350,79 +401,10 @@ bool spawn_with_redirect(FILE *redirect, unsigned char *output_buf, size_t outpu
 	return (exit_code == 0);
 }
 
-void install_python(wchar_t *python_installer_dir) {
-	printf("Checking for " REQUIRED_PYTHON_VERSION_PREFIX "..\n");
-
-	unsigned char output_buf[1024];
-	const wchar_t *argv[] = { L"python", L"-V", NULL };
-	bool res = spawn_with_redirect(stderr, output_buf, sizeof(output_buf), &argv[0]);
-	if (res) {
-		printf("Found %s", (char *) output_buf);
-		if (strncmp((char *) output_buf, REQUIRED_PYTHON_VERSION_PREFIX, strlen(REQUIRED_PYTHON_VERSION_PREFIX)) == 0) {
-			return;
-		} else {
-			printf("but we need a newer version.\n");
-		}
-	} else {
-		printf("No Python found.\n");
-	}
-
-	wchar_t installer_wildcard[] = L"\\python*.msi";
-	if (python_installer_dir[wcslen(python_installer_dir)-1] == '\\') {
-		wcscpy(installer_wildcard, L"*.msi");
-	}
-	wchar_t installer_pattern[MAX_PATH];
-	fail_unless(wcslen(python_installer_dir) < MAX_PATH - wcslen(installer_wildcard),
-	            "Could not construct pattern for Python installer.")
-	wcscpy(installer_pattern, python_installer_dir);
-	wcscat(installer_pattern, installer_wildcard);
-
-	WIN32_FIND_DATA find_data;
-	HANDLE search_handle = FindFirstFileW(installer_pattern, &find_data);
-	fail_unless(search_handle != INVALID_HANDLE_VALUE,
-	            "Could not find the Python installer.")
-
-	fail_unless(wcslen(python_installer_dir) < MAX_PATH - wcslen(find_data.cFileName),
-	            "Could not construct path to Python installer.")
-
-	wchar_t installer_path[MAX_PATH];
-	wcscpy(installer_path, python_installer_dir);
-	wcscat(installer_path, find_data.cFileName);
-
-	// <https://www.python.org/download/releases/2.5/msi/>
-	// "/qb!" works, but it may silently remove a previous Python installation
-	// that was not detected by the check above, and we want that to prompt.
-	const wchar_t *python_installer_argv[] = {
-		L"msiexec", L"/i", installer_path,
-		// L"/qb!",
-		L"ALLUSERS=1", L"ADDLOCAL=Extensions", NULL
-	};
-	errno = 0;
-	intptr_t exit_code = _wspawnvp(P_WAIT, python_installer_argv[0], python_installer_argv);
-	fail_unless(errno == 0, "Could not execute Python installer.");
-	fail_unless(exit_code == 0, "Python installer failed.");
-}
-
-void scriptsetup(wchar_t *destination_dir) {
-	wchar_t bin_dir[MAX_PATH];
-	int n = wsnprintf(bin_dir, L"%ls\\%ls\\bin", destination_dir, PKGNAME_AND_VERSION);
-	fail_unless(n >= 0 && n < MAX_PATH, "Could not construct path for bin directory.");
-
-	unsigned char output_buf[10240];
-	const wchar_t *scriptsetup_argv[] = {
-		L"python", L"setup.py", L"scriptsetup",
-		L"--allusers", L"--addpaths", bin_dir,
-		NULL
-	};
-	bool res = spawn_with_redirect(stdout, output_buf, sizeof(output_buf), &scriptsetup_argv[0]);
-	puts((char *) output_buf);
-	fail_unless(res, "Could not set up Python to run the 'tahoe' command.");
-}
-
 void fail(char *s) {
 	// TODO: show dialog box
 	fprintf(stderr, "%s\n", s);
-	pause()
+	pause();
 	exit(1);
 }
 
@@ -431,7 +413,6 @@ void warn(char *s) {
 }
 
 void pause() {
-	printf("Press any key to finish.");
-	char buf[2];
-	fgets(buf, 1, stdin);
+	printf("Press any key to finish.\n");
+	_getch();
 }
