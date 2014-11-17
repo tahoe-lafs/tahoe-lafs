@@ -2,7 +2,7 @@ REM directory to store the build dependencies
 REM mkdir dependencies
 
 REM install VC Studio Express 2008
-REM http://go.microsoft.com/?linkid=7729279
+REM "http://go.microsoft.com/?linkid=7729279"
 
 REM Install Windows SDK
 REM http://www.microsoft.com/en-us/download/confirmation.aspx?id=3138
