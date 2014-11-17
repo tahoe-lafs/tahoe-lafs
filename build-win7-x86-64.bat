@@ -1,5 +1,5 @@
 REM directory to store the build dependencies
-mkdir dependencies
+REM mkdir dependencies
 
 REM install VC Studio Express 2008
 REM http://go.microsoft.com/?linkid=7729279
@@ -12,15 +12,15 @@ REM http://blogs.msdn.com/b/astebner/archive/2007/09/12/4887301.aspx
 REM http://blogs.msdn.com/b/astebner/archive/2008/03/24/8334544.aspx
 
 REM Download and install Python (2.7.8) x86-64 MSI.
-set PATH=%PATH%;c:\Program files (x86)\GnuWin32\bin
-wget https://www.python.org/ftp/python/2.7.8/python-2.7.8.msi -O dependencies/python-2.7.8.msi
+REM set PATH=%PATH%;c:\Program files (x86)\GnuWin32\bin
+REM wget https://www.python.org/ftp/python/2.7.8/python-2.7.8.msi -O dependencies/python-2.7.8.msi
  
-start /wait dependencies/python-2.7.8.msi /passive
+REM start /wait dependencies/python-2.7.8.msi /passive
  
 REM Download and install PyOpenSSL
-wget https://pypi.python.org/packages/2.7/p/pyOpenSSL/pyOpenSSL-0.13.1.win-amd64-py2.7.exe#md5=223cc4ab7439818ccaf1bf7f51736dc8 -O dependencies/pyOpenSSL-0.13.1.win-amd64-py2.7.exe
+REM wget https://pypi.python.org/packages/2.7/p/pyOpenSSL/pyOpenSSL-0.13.1.win-amd64-py2.7.exe#md5=223cc4ab7439818ccaf1bf7f51736dc8 -O dependencies/pyOpenSSL-0.13.1.win-amd64-py2.7.exe
 
-start /wait dependencies/pyOpenSSL-0.13.1.win-amd64-py2.7.exe
+REM start /wait dependencies/pyOpenSSL-0.13.1.win-amd64-py2.7.exe
 
 REM open visual studio 2008 cmd prompt as Administrator (right click)
 REM  Run the "Windows SDK Configuration Tool", select v7.0 and click "Make Current".
@@ -43,8 +43,25 @@ copy "C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\vcpackages\AMD64.VCP
 copy "C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\vcpackages\Itanium.VCPlatform.config" "C:\Program Files (x86)\Microsoft Visual Studio 9.0\VC\vcpackages\Itanium.VCPlatform.Express.config"
 
 REM Install OpenSSL
-
 set PATH=%PATH%;c:\OpenSSL-win64\bin
 
 REM build tahoe-lafs
 c:\python27\python.exe setup.py build
+
+REM zip the tahoe directory and Python MSI installer
+REM first copy everything into a temp directory
+mkdir ..\tahoe-lafs.x86-64
+xcopy /S . ..\tahoe-lafs.x86-64
+
+copy python-2.7.8.amd64.msi ..\tahoe-lafs.x86-64
+zip ..\tahoe-lafs.zip ..\tahoe-lafs.x86-64
+
+REM build the installer
+REM TODO: msbuild does not seem to recognize the sln file format.
+
+REM create final self-extracting installer exe by concatenating the installer with the
+REM tahoe-lafs.zip file.
+copy misc/build_helpers/windows/installer/Debug/installer.exe . 
+copy /b installer.exe+..\tahoe-lafs.zip ..\install-tahoe-LAFS-x86-64.exe
+del installer.exe
+rmdir \s ..\tahoe-lafs.x86-64
