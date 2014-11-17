@@ -61,7 +61,7 @@ REM TODO: msbuild does not seem to recognize the sln file format.
 
 REM create final self-extracting installer exe by concatenating the installer with the
 REM tahoe-lafs.zip file.
-copy misc/build_helpers/windows/installer/Debug/installer.exe . 
+copy misc\build_helpers\windows\installer\Debug\installer.exe .
 copy /b installer.exe+..\tahoe-lafs.zip ..\install-tahoe-LAFS-x86-64.exe
 del installer.exe
 rmdir \s ..\tahoe-lafs.x86-64
