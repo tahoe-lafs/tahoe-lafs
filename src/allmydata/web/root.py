@@ -288,7 +288,11 @@ class Root(rend.Page):
         announcement = server.get_announcement()
         version = announcement["my-version"]
         service_name = announcement["service-name"]
-
+        available_space = server.get_available_space()
+        if available_space is None:
+            available_space = "N/A"
+        else:
+            available_space = abbreviate_size(available_space)
         ctx.fillSlots("address", addr)
         ctx.fillSlots("connected", connected)
         ctx.fillSlots("connected-bool", bool(rhost))
@@ -298,6 +302,7 @@ class Root(rend.Page):
                                                  time.localtime(announced)))
         ctx.fillSlots("version", version)
         ctx.fillSlots("service_name", service_name)
+        ctx.fillSlots("available_space", available_space)
 
         return ctx.tag
 

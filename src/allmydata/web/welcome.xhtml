@@ -173,6 +173,7 @@
                 <td><h3>Since</h3></td>
                 <td><h3>Announced</h3></td>
                 <td><h3>Version</h3></td>
+                <td><h3>Available</h3></td>
               </tr>
             </thead>
             <tr n:pattern="item" n:render="service_row">
@@ -186,6 +187,7 @@
               <td class="service-since timestamp"><n:slot name="since"/></td>
               <td class="service-announced timestamp"><n:slot name="announced"/></td>
               <td class="service-version"><n:slot name="version"/></td>
+              <td class="service-available-space"><n:slot name="available_space"/></td>
             </tr>
             <tr n:pattern="empty"><td>You are not presently connected to any peers</td></tr>
           </table>
