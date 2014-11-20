@@ -227,6 +227,7 @@ class StorageServer(service.MultiService, Referenceable):
         version = { "http://allmydata.org/tahoe/protocols/storage/v1" :
                     { "maximum-immutable-share-size": remaining_space,
                       "maximum-mutable-share-size": MAX_MUTABLE_SHARE_SIZE,
+                      "available-space": remaining_space,
                       "tolerates-immutable-read-overrun": True,
                       "delete-mutable-shares-with-zero-length-writev": True,
                       "fills-holes-with-zero-bytes": True,
