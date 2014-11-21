@@ -37,7 +37,8 @@ def read_version_py(infname):
         if mo:
             return mo.group(1)
 
-version = read_version_py("src/allmydata/_version.py")
+VERSION_PY_FILENAME = 'src/allmydata/_version.py'
+version = read_version_py(VERSION_PY_FILENAME)
 
 APPNAME='allmydata-tahoe'
 APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')
@@ -361,8 +362,7 @@ class UpdateVersion(Command):
     def try_from_git(self):
         versions = versions_from_git("allmydata-tahoe-")
         if versions:
-            fn = 'src/allmydata/_version.py'
-            f = open(fn, "wb")
+            f = open(VERSION_PY_FILENAME, "wb")
             f.write(GIT_VERSION_BODY %
                     { "pkgname": self.distribution.get_name(),
                       "version": versions["version"],
@@ -371,7 +371,8 @@ class UpdateVersion(Command):
                       "branch": versions["branch"],
                     })
             f.close()
-            print("git-version: wrote '%s' into '%s'" % (versions["version"], fn))
+            print("git-version: wrote '%s' into '%s'" % (versions["version"], VERSION_PY_FILENAME))
+
         return versions.get("normalized", None)
 
 
