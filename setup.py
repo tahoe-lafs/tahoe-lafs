@@ -366,7 +366,8 @@ Warning: no version information found. This may cause tests to fail.
 """)
 
     def try_from_git(self):
-        versions = versions_from_git("allmydata-tahoe-")
+        # If we change APPNAME, the release tag names should also change from then on.
+        versions = versions_from_git(APPNAME + '-')
         if versions:
             f = open(VERSION_PY_FILENAME, "wb")
             f.write(GIT_VERSION_BODY %
