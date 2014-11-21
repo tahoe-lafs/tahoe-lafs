@@ -37,7 +37,8 @@ def read_version_py(infname):
         if mo:
             return mo.group(1)
 
-version = read_version_py("src/allmydata/_version.py")
+VERSION_PY_FILENAME = 'src/allmydata/_version.py'
+version = read_version_py(VERSION_PY_FILENAME)
 
 APPNAME='allmydata-tahoe'
 APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')
@@ -260,25 +261,23 @@ verstr = %(normalized)r
 __version__ = verstr
 '''
 
-def run_command(args, cwd=None, verbose=False):
+def run_command(args, cwd=None):
     try:
         # remember shell=False, so use git.cmd on windows, not just git
         p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd)
     except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 2.6+
-        if verbose:
-            print("unable to run %s" % args[0])
-            print(e)
+        print("Warning: unable to run %r." % (" ".join(args),))
+        print(e)
         return None
     stdout = p.communicate()[0].strip()
     if p.returncode != 0:
-        if verbose:
-            print("unable to run %s (error)" % args[0])
+        print("Warning: %r returned error code %r." % (" ".join(args), p.returncode))
         return None
     return stdout
 
 
-def versions_from_git(tag_prefix, verbose=False):
-    # this runs 'git' from the directory that contains this file. That either
+def versions_from_git(tag_prefix):
+    # This runs 'git' from the directory that contains this file. That either
     # means someone ran a setup.py command (and this code is in
     # versioneer.py, thus the containing directory is the root of the source
     # tree), or someone ran a project-specific entry point (and this code is
@@ -299,19 +298,21 @@ def versions_from_git(tag_prefix, verbose=False):
 
     try:
         source_dir = os.path.dirname(os.path.abspath(__file__))
-    except NameError:
+    except NameError as e:
         # some py2exe/bbfreeze/non-CPython implementations don't do __file__
-        return {} # not always correct
+        print("Warning: unable to find version because we could not obtain the source directory.")
+        print(e)
+        return {}
     GIT = "git"
     if sys.platform == "win32":
         GIT = "git.cmd"
     stdout = run_command([GIT, "describe", "--tags", "--dirty", "--always"],
                          cwd=source_dir)
     if stdout is None:
+        # run_command already complained.
         return {}
     if not stdout.startswith(tag_prefix):
-        if verbose:
-            print("tag '%s' doesn't start with prefix '%s'" % (stdout, tag_prefix))
+        print("Warning: tag %r doesn't start with prefix %r." % (stdout, tag_prefix))
         return {}
     version = stdout[len(tag_prefix):]
     pieces = version.split("-")
@@ -322,6 +323,7 @@ def versions_from_git(tag_prefix, verbose=False):
 
     stdout = run_command([GIT, "rev-parse", "HEAD"], cwd=source_dir)
     if stdout is None:
+        # run_command already complained.
         return {}
     full = stdout.strip()
     if version.endswith("-dirty"):
@@ -349,19 +351,25 @@ class UpdateVersion(Command):
     def finalize_options(self):
         pass
     def run(self):
+        global version
+        verstr = version
         if os.path.isdir(os.path.join(basedir, ".git")):
             verstr = self.try_from_git()
-        else:
-            print("no version-control data found, leaving _version.py alone")
-            return
+
         if verstr:
             self.distribution.metadata.version = verstr
+        else:
+            print("""\
+********************************************************************
+Warning: no version information found. This may cause tests to fail.
+********************************************************************
+""")
 
     def try_from_git(self):
-        versions = versions_from_git("allmydata-tahoe-", verbose=True)
+        # If we change APPNAME, the release tag names should also change from then on.
+        versions = versions_from_git(APPNAME + '-')
         if versions:
-            fn = 'src/allmydata/_version.py'
-            f = open(fn, "wb")
+            f = open(VERSION_PY_FILENAME, "wb")
             f.write(GIT_VERSION_BODY %
                     { "pkgname": self.distribution.get_name(),
                       "version": versions["version"],
@@ -370,7 +378,8 @@ class UpdateVersion(Command):
                       "branch": versions["branch"],
                     })
             f.close()
-            print("git-version: wrote '%s' into '%s'" % (versions["version"], fn))
+            print("Wrote normalized version %r into '%s'" % (versions["normalized"], VERSION_PY_FILENAME))
+
         return versions.get("normalized", None)
 
 
