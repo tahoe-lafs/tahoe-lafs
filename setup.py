@@ -38,6 +38,8 @@ def read_version_py(infname):
             return mo.group(1)
 
 VERSION_PY_FILENAME = 'src/allmydata/_version.py'
+VERSION_H_FILENAME = 'misc/build_helpers/windows/installer/installer/_version.h'
+
 version = read_version_py(VERSION_PY_FILENAME)
 
 APPNAME='allmydata-tahoe'
@@ -250,7 +252,7 @@ class MakeExecutable(Command):
                 raise
 
 
-GIT_VERSION_BODY = '''
+GIT_VERSION_PY = '''
 # This _version.py is generated from git metadata by the tahoe setup.py.
 
 __pkgname__ = %(pkgname)r
@@ -259,6 +261,12 @@ full_version = %(full)r
 branch = %(branch)r
 verstr = %(normalized)r
 __version__ = verstr
+'''
+
+GIT_VERSION_H = '''
+// This _version.h is generated from git metadata by the tahoe setup.py.
+
+#define PKGNAME_AND_VERSION L"%(pkgname)s-%(normalized)s"
 '''
 
 def run_command(args, cwd=None):
@@ -366,16 +374,22 @@ Warning: no version information found. This may cause tests to fail.
         # If we change APPNAME, the release tag names should also change from then on.
         versions = versions_from_git(APPNAME + '-')
         if versions:
+            version_info = {
+                "pkgname": self.distribution.get_name(),
+                "version": versions["version"],
+                "normalized": versions["normalized"],
+                "full": versions["full"],
+                "branch": versions["branch"],
+            }
+
             f = open(VERSION_PY_FILENAME, "wb")
-            f.write(GIT_VERSION_BODY %
-                    { "pkgname": self.distribution.get_name(),
-                      "version": versions["version"],
-                      "normalized": versions["normalized"],
-                      "full": versions["full"],
-                      "branch": versions["branch"],
-                    })
+            f.write(GIT_VERSION_PY % version_info)
             f.close()
             print("Wrote normalized version %r into '%s'" % (versions["normalized"], VERSION_PY_FILENAME))
+
+            f = open(VERSION_H_FILENAME, "wb")
+            f.write(GIT_VERSION_H % version_info)
+            f.close()
 
         return versions.get("normalized", None)
 
