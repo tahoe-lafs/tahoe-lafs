@@ -15,6 +15,7 @@ from allmydata.web import filenode, directory, unlinked, status, operations
 from allmydata.web import storage, magic_folder, introducerless_config
 from allmydata.web.common import abbreviate_size, getxmlfile, WebError, \
      get_arg, RenderMixin, get_format, get_mutable_type, render_time_delta, render_time, render_time_attr
+from allmydata.util.time_format import format_delta
 
 
 class URIHandler(RenderMixin, rend.Page):
@@ -145,6 +146,8 @@ class Root(rend.Page):
         # use to test ophandle expiration.
         self.child_operations = operations.OphandleTable(clock)
         self.now_fn = now_fn
+        if self.now_fn is None:
+            self.now_fn = time.time
         try:
             s = client.getServiceNamed("storage")
         except KeyError:
@@ -317,13 +320,13 @@ class Root(rend.Page):
             else:
                 rhost_s = str(rhost)
             addr = rhost_s
-            service_connection_status = "yes"
+            service_connection_status = "Connected"
             last_connect_time = server.get_last_connect_time()
             service_connection_status_rel_time = render_time_delta(last_connect_time, self.now_fn())
             service_connection_status_abs_time = render_time_attr(last_connect_time)
         else:
             addr = "N/A"
-            service_connection_status = "no"
+            service_connection_status = "Disconnected"
             last_loss_time = server.get_last_loss_time()
             service_connection_status_rel_time = render_time_delta(last_loss_time, self.now_fn())
             service_connection_status_abs_time = render_time_attr(last_loss_time)
