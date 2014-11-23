@@ -417,7 +417,6 @@ class IStorageBroker(Interface):
         public attributes::
 
           service_name: the type of service provided, like 'storage'
-          announcement_time: when we first heard about this service
           last_connect_time: when we last established a connection
           last_loss_time: when we last lost a connection
 
