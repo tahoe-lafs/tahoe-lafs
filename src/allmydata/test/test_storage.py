@@ -332,6 +332,12 @@ class Server(unittest.TestCase):
         self.failUnlessIn('maximum-immutable-share-size', sv1)
         self.failUnlessIn('maximum-mutable-share-size', sv1)
 
+    def test_declares_available_space(self):
+        ss = self.create("test_declares_available_space")
+        ver = ss.remote_get_version()
+        sv1 = ver['http://allmydata.org/tahoe/protocols/storage/v1']
+        self.failUnlessIn('available-space', sv1)
+
     def allocate(self, ss, storage_index, sharenums, size, canary=None):
         renew_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())
         cancel_secret = hashutil.tagged_hash("blah", "%d" % self._lease_secret.next())

@@ -191,6 +191,8 @@ class FakeDisplayableServer(StubServer):
         return self.announcement
     def get_nickname(self):
         return self.announcement["nickname"]
+    def get_available_space(self):
+        return 123456
 
 class FakeBucketCounter(object):
     def get_state(self):
@@ -618,6 +620,8 @@ class Web(WebMixin, WebErrorMixin, testutil.StallMixin, testutil.ReallyEqualMixi
             self.failUnlessIn(u'<td>fake_nickname \u263A</td>', res_u)
             self.failUnlessIn(u'<div class="nickname">other_nickname \u263B</div>', res_u)
             self.failUnlessIn(u'\u00A9 <a href="https://tahoe-lafs.org/">Tahoe-LAFS Software Foundation', res_u)
+            self.failUnlessIn('<td><h3>Available</h3></td>', res)
+            self.failUnlessIn('123.5kB', res)
 
             self.s.basedir = 'web/test_welcome'
             fileutil.make_dirs("web/test_welcome")
