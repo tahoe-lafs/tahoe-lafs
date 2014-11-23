@@ -10,7 +10,8 @@ from allmydata import blacklist
 from allmydata.interfaces import ExistingChildError, NoSuchChildError, \
      FileTooLargeError, NotEnoughSharesError, NoSharesError, \
      EmptyPathnameComponentError, MustBeDeepImmutableError, \
-     MustBeReadonlyError, MustNotBeUnknownRWError, SDMF_VERSION, MDMF_VERSION
+     MustBeReadonlyError, MustNotBeUnknownRWError, \
+     IntroducerlessConfigDisabledError, SDMF_VERSION, MDMF_VERSION
 from allmydata.mutable.common import UnrecoverableFileError
 from allmydata.util import abbreviate
 from allmydata.util.encodingutil import to_str, quote_output
@@ -304,6 +305,9 @@ def humanize_failure(f):
         return (f.value.text, f.value.code)
     if f.check(FileTooLargeError):
         return (f.getTraceback(), http.REQUEST_ENTITY_TOO_LARGE)
+    if f.check(IntroducerlessConfigDisabledError):
+        t = "To enable this page, set web.reveal_storage_furls = true in the [node] section of tahoe.cfg"
+        return (t, http.FORBIDDEN)
     return (str(f), None)
 
 class MyExceptionHandler(appserver.DefaultExceptionHandler):
