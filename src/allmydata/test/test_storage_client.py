@@ -1,4 +1,4 @@
-import unittest
+from twisted.trial import unittest
 from allmydata.storage_client import NativeStorageServer
 
 class NativeStorageServerWithVersion(NativeStorageServer):
