@@ -186,10 +186,9 @@ class NativeStorageServer:
         "application-version": "unknown: no get_version()",
         }
 
-    def __init__(self, key_s, ann, min_shares=1):
+    def __init__(self, key_s, ann):
         self.key_s = key_s
         self.announcement = ann
-        self.min_shares = min_shares
 
         assert "anonymous-storage-FURL" in ann, ann
         furl = str(ann["anonymous-storage-FURL"])
