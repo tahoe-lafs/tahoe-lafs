@@ -2489,22 +2489,40 @@ starting copy, 2 files, 1 directories
         d.addCallback(lambda ign:
             self.do_cli("cp", "-r", subdir, "tahoe:"))
         d.addCallback(lambda ign:
-            self.do_cli("ls", "tahoe:"))
-        def _check(res, item):
+            self.do_cli("ls", "--uri", "tahoe:"))
+        def _check_and_stash_dircap(res):
             (rc, out, err) = res
-            self.failUnlessEqual(rc, 0)
-            self.failUnlessEqual(err, "")
-            self.failUnlessIn(item, out, str(res))
-        d.addCallback(_check, "foo")
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            outlines = out.split("\n")
+            (name, _, dircap) = outlines[0].partition(" ")
+            dircap = dircap.strip()
+            self.failUnlessEqual(name, "foo", str(res))
+            self.failUnless(dircap.startswith("URI:DIR2:"))
+            self._dircap = dircap
+        d.addCallback(_check_and_stash_dircap)
         d.addCallback(lambda ign:
             self.do_cli("ls", "tahoe:foo/"))
-        d.addCallback(_check, "test1")
+        def _check_file(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.failUnlessIn("test1", out, str(res))
+        d.addCallback(_check_file)
 
         d.addCallback(lambda ign: fileutil.rm_dir(subdir))
         d.addCallback(lambda ign: self.do_cli("cp", "-r", "tahoe:foo", self.basedir))
-        def _check_local_fs(ign):
-            self.failUnless(os.path.isdir(self.basedir))
-            self.failUnless(os.path.isfile(test1_path))
+        def _check_local_fs(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.failUnless(os.path.isdir(self.basedir), "basedir is not a directory")
+            self.failUnless(os.path.isfile(test1_path), "test1 does not exist")
+        d.addCallback(_check_local_fs)
+
+        # Also check that 'tahoe cp -r $DIRCAP $LOCAL_DIR' works (see ticket #2329).
+        d.addCallback(lambda ign: fileutil.rm_dir(subdir))
+        d.addCallback(lambda ign: self.do_cli("cp", "-r", self._dircap, self.basedir))
         d.addCallback(_check_local_fs)
         return d
 
