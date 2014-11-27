@@ -50,6 +50,7 @@ c:\python27\python.exe setup.py build
 
 REM zip the tahoe directory and Python MSI installer
 REM first copy everything into a temp directory
+rd /q /s ..\tahoe-lafs.x86-64
 mkdir ..\tahoe-lafs.x86-64
 xcopy /S . ..\tahoe-lafs.x86-64
 
@@ -64,4 +65,4 @@ REM tahoe-lafs.zip file.
 copy misc\build_helpers\windows\installer\Debug\installer.exe .
 copy /b installer.exe+..\tahoe-lafs.zip ..\install-tahoe-LAFS-x86-64.exe
 del installer.exe
-rmdir \s ..\tahoe-lafs.x86-64
+rd /q /s ..\tahoe-lafs.x86-64
