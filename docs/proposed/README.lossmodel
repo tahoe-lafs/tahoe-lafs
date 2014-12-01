@@ -1,6 +1,6 @@
 The lossmodel.lyx file is the source document for an in-progress paper
-that analyzes the probability of losing files stored in a Tahoe
-Least-acces File System under various scenarios.  It describes:
+that analyzes the probability of losing files stored in a Tahoe-LAFS
+file store under various scenarios.  It describes:
 
 1.  How to estimate peer reliabilities, based on peer MTBF failure
 data.

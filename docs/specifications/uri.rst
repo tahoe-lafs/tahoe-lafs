@@ -13,9 +13,9 @@ Tahoe URIs
 2.  `Directory URIs`_
 3.  `Internal Usage of URIs`_
 
-Each file and directory in a Tahoe filesystem is described by a "URI". There
-are different kinds of URIs for different kinds of objects, and there are
-different kinds of URIs to provide different kinds of access to those
+Each file and directory in a Tahoe-LAFS file store is described by a "URI".
+There are different kinds of URIs for different kinds of objects, and there
+are different kinds of URIs to provide different kinds of access to those
 objects. Each URI is a string representation of a "capability" or "cap", and
 there are read-caps, write-caps, verify-caps, and others.
 

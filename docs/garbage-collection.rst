@@ -13,7 +13,7 @@ Garbage Collection in Tahoe
 Overview
 ========
 
-When a file or directory in the virtual filesystem is no longer referenced,
+When a file or directory in a Tahoe-LAFS file store is no longer referenced,
 the space that its shares occupied on each storage server can be freed,
 making room for other shares. Tahoe currently uses a garbage collection
 ("GC") mechanism to implement this space-reclamation process. Each share has
