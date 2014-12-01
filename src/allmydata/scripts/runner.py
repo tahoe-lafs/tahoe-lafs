@@ -44,7 +44,7 @@ class Options(usage.Options):
                     +   startstop_node.subCommands
                     + GROUP("Debugging")
                     +   debug.subCommands
-                    + GROUP("Using the filesystem")
+                    + GROUP("Using the file store")
                     +   cli.subCommands
                     +   magic_folder_cli.subCommands
                     )
