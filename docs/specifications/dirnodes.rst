@@ -114,7 +114,7 @@ dirnodes is such that read-only access is transitive: i.e. if you grant Bob
 read-only access to a parent directory, then Bob will get read-only access
 (and *not* read-write access) to its children.
 
-Relative to the previous "vdrive-server" based scheme, the current
+Relative to the previous "vdrive server"-based scheme, the current
 distributed dirnode approach gives better availability, but cannot guarantee
 updateness quite as well, and requires far more network traffic for each
 retrieval and update. Mutable files are somewhat less available than
@@ -407,7 +407,7 @@ storage index, but do *not* include the readkeys or writekeys, so the
 repairer does not get to read the files or directories that it is helping to
 keep alive.
 
-After each change to the user's vdrive, the client creates a manifest and
+After each change to the user's file store, the client creates a manifest and
 looks for differences from their previous version. Anything which was removed
 prompts the client to send out lease-cancellation messages, allowing the data
 to be deleted.
@@ -443,11 +443,11 @@ shared-with-bob/ or subdir2/.
 .. _`Prime Coordination Directive`: ../write_coordination.rst
 
 A suitable UI needs to be created to allow users to easily perform this
-sharing action: dragging a folder their vdrive to an IM or email user icon,
-for example. The UI will need to give the sending user an opportunity to
-indicate whether they want to grant read-write or read-only access to the
-recipient. The recipient then needs an interface to drag the new folder into
-their file store and give it a home.
+sharing action: dragging a folder from their file store to an IM or email
+user icon, for example. The UI will need to give the sending user an
+opportunity to indicate whether they want to grant read-write or read-only
+access to the recipient. The recipient then needs an interface to drag the
+new folder into their file store and give it a home.
 
 Revocation
 ==========

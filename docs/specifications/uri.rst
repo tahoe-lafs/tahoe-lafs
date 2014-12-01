@@ -41,9 +41,10 @@ herein.
 File URIs
 =========
 
-The lowest layer of the Tahoe architecture (the "grid") is reponsible for
-mapping URIs to data. This is basically a distributed hash table, in which
-the URI is the key, and some sequence of bytes is the value.
+The lowest layer of the Tahoe architecture (the "key-value store") is
+reponsible for mapping URIs to data. This is basically a distributed
+hash table, in which the URI is the key, and some sequence of bytes is
+the value.
 
 There are two kinds of entries in this table: immutable and mutable. For
 immutable entries, the URI represents a fixed chunk of data. The URI itself
@@ -53,10 +54,10 @@ to locate and download that data from the grid at some time in the future.
 For mutable entries, the URI identifies a "slot" or "container", which can be
 filled with different pieces of data at different times.
 
-It is important to note that the "files" described by these URIs are just a
-bunch of bytes, and that **no** filenames or other metadata is retained at
-this layer. The vdrive layer (which sits above the grid layer) is entirely
-responsible for directories and filenames and the like.
+It is important to note that the values referenced by these URIs are just
+sequences of bytes, and that **no** filenames or other metadata is retained at
+this layer. The file store layer (which sits above the key-value store layer)
+is entirely responsible for directories and filenames and the like.
 
 CHK URIs
 --------
@@ -168,10 +169,10 @@ structure to provide mutable file access.
 Directory URIs
 ==============
 
-The grid layer provides a mapping from URI to data. To turn this into a graph
-of directories and files, the "vdrive" layer (which sits on top of the grid
-layer) needs to keep track of "directory nodes", or "dirnodes" for short.
-dirnodes.rst_ describes how these work.
+The key-value store layer provides a mapping from URI to data. To turn this
+into a graph of directories and files, the "file store" layer (which sits on
+top of the key-value store layer) needs to keep track of "directory nodes",
+or "dirnodes" for short. dirnodes.rst_ describes how these work.
 
 Dirnodes are contained inside mutable files, and are thus simply a particular
 way to interpret the contents of these files. As a result, a directory
