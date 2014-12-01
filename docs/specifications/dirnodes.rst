@@ -425,20 +425,22 @@ Mounting and Sharing Directories
 ================================
 
 The biggest benefit of this dirnode approach is that sharing individual
-directories is almost trivial. Alice creates a subdirectory that she wants to
-use to share files with Bob. This subdirectory is attached to Alice's
-filesystem at "~alice/share-with-bob". She asks her filesystem for the
-read-write directory URI for that new directory, and emails it to Bob. When
-Bob receives the URI, he asks his own local vdrive to attach the given URI,
-perhaps at a place named "~bob/shared-with-alice". Every time either party
-writes a file into this directory, the other will be able to read it. If
-Alice prefers, she can give a read-only URI to Bob instead, and then Bob will
-be able to read files but not change the contents of the directory. Neither
-Alice nor Bob will get access to any files above the mounted directory: there
-are no 'parent directory' pointers. If Alice creates a nested set of
-directories, "~alice/share-with-bob/subdir2", and gives a read-only URI to
-share-with-bob to Bob, then Bob will be unable to write to either
-share-with-bob/ or subdir2/.
+directories is almost trivial. Alice creates a subdirectory that she wants
+to use to share files with Bob. This subdirectory is attached to Alice's
+file store at "alice:shared-with-bob". She asks her file store for the
+read-only directory URI for that new directory, and emails it to Bob. When
+Bob receives the URI, he attaches the given URI into one of his own
+directories, perhaps at a place named "bob:shared-with-alice". Every time
+Alice writes a file into this directory, Bob will be able to read it.
+(It is also possible to share read-write URIs between users, but that makes
+it difficult to follow the `Prime Coordination Directive`_ .) Neither
+Alice nor Bob will get access to any files above the mounted directory:
+there are no 'parent directory' pointers. If Alice creates a nested set of
+directories, "alice:shared-with-bob/subdir2", and gives a read-only URI to
+shared-with-bob to Bob, then Bob will be unable to write to either
+shared-with-bob/ or subdir2/.
+
+.. _`Prime Coordination Directive`: ../write_coordination.rst
 
 A suitable UI needs to be created to allow users to easily perform this
 sharing action: dragging a folder their vdrive to an IM or email user icon,

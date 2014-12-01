@@ -1988,20 +1988,22 @@ Summary: use explicit file- and dir- caps whenever possible, to reduce the
 potential for surprises when the file store structure is changed.
 
 Tahoe-LAFS provides a mutable file store, but the ways that the store can
-change are limited. The only thing that can change is that the mapping from
-child names to child objects that each directory contains can be changed by
-adding a new child name pointing to an object, removing an existing child name,
-or changing an existing child name to point to a different object.
+change are limited. The only things that can change are:
+ * that the mapping from child names to child objects that each mutable
+   directory contains can be changed (by adding a new child name pointing
+   to an object, removing an existing child name, or changing an existing
+   child name to point to a different object);
+ * that the contents of mutable files can change.
 
-Obviously if you query Tahoe for information about the filesystem and then act
-to change the filesystem (such as by getting a listing of the contents of a
-directory and then adding a file to the directory), then the filesystem might
-have been changed after you queried it and before you acted upon it.  However,
-if you use the URI instead of the pathname of an object when you act upon the
-object, then the only change that can happen is if the object is a directory
-then the set of child names it has might be different. If, on the other hand,
-you act upon the object using its pathname, then a different object might be in
-that place, which can result in more kinds of surprises.
+Obviously if you query for information about the file store and then act
+to change it (such as by getting a listing of the contents of a mutable
+directory and then adding a file to the directory), then the store might
+have been changed after you queried it and before you acted upon it.
+However, if you use the URI instead of the pathname of an object when you
+act upon the object, then it will be the same object; only its contents
+can change (if it is mutable). If, on the other hand, you act upon the
+object using its pathname, then a different object might be in that place,
+which can result in more kinds of surprises.
 
 For example, suppose you are writing code which recursively downloads the
 contents of a directory. The first thing your code does is fetch the listing
@@ -2009,15 +2011,14 @@ of the contents of the directory. For each child that it fetched, if that
 child is a file then it downloads the file, and if that child is a directory
 then it recurses into that directory. Now, if the download and the recurse
 actions are performed using the child's name, then the results might be
-wrong, because for example a child name that pointed to a sub-directory when
+wrong, because for example a child name that pointed to a subdirectory when
 you listed the directory might have been changed to point to a file (in which
-case your attempt to recurse into it would result in an error and the file
-would be skipped), or a child name that pointed to a file when you listed the
-directory might now point to a sub-directory (in which case your attempt to
-download the child would result in a file containing HTML text describing the
-sub-directory!).
+case your attempt to recurse into it would result in an error), or a child
+name that pointed to a file when you listed the directory might now point to
+a subdirectory (in which case your attempt to download the child would result
+in a file containing HTML text describing the subdirectory!).
 
-If your recursive algorithm uses the uri of the child instead of the name of
+If your recursive algorithm uses the URI of the child instead of the name of
 the child, then those kinds of mistakes just can't happen. Note that both the
 child's name and the child's URI are included in the results of listing the
 parent directory, so it isn't any harder to use the URI for this purpose.

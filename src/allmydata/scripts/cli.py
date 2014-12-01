@@ -129,8 +129,8 @@ class ListOptions(FilesystemOptions):
     Otherwise the size of the file, when known, is given in bytes.
     The size of mutable files or unknown objects is shown as '?'.
 
-    The date/time shows when this link in the Tahoe filesystem was
-    last modified.
+    The date/time shows when this link in the Tahoe grid was last
+    modified.
     """
 
 class GetOptions(FilesystemOptions):

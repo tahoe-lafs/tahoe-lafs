@@ -491,12 +491,7 @@ validate-capability, but not vice versa). These capabilities may be expressly
 delegated (irrevocably) by simply transferring the relevant secrets.
 
 The application layer can provide whatever access model is desired, built on
-top of this capability access model. The first big user of this system so far
-is allmydata.com. The allmydata.com access model currently works like a
-normal web site, using username and password to give a user access to her
-"virtual drive". In addition, allmydata.com users can share individual files
-(using a file sharing interface built on top of the immutable file read
-capabilities).
+top of this capability access model.
 
 
 Reliability

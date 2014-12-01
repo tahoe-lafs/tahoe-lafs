@@ -199,12 +199,13 @@ and later will use it if necessary. However, once you've set a ``tahoe:``
 alias with "``tahoe set-alias``", that will override anything in the old
 ``root_dir.cap`` file.
 
-The Tahoe-LAFS CLI commands use the same path syntax as ``scp`` and
+The Tahoe-LAFS CLI commands use a similar path syntax to ``scp`` and
 ``rsync`` -- an optional ``ALIAS:`` prefix, followed by the pathname or
-filename. Some commands (like "``tahoe cp``") use the lack of an alias to
-mean that you want to refer to a local file, instead of something from the
-Tahoe-LAFS filesystem. [TODO] Another way to indicate this is to start
-the pathname with a dot, slash, or tilde.
+filename. Commands that can accept either local paths or paths in the
+Tahoe-LAFS file store, such as "``tahoe cp``", use the lack of an alias
+to deduce that you want to refer to a local file. On Windows, aliases
+cannot be a single character, so that it is possible to distinguish a
+path relative to an alias from a path starting with a local drive specifier.
 
 When you're dealing a single starting directory, the ``tahoe:`` alias is
 all you need. But when you want to refer to something that isn't yet
