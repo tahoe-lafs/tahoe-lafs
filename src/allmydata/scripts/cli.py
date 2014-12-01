@@ -8,7 +8,7 @@ NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 
 _default_nodedir = get_default_nodedir()
 
-class FilesystemOptions(BaseOptions):
+class FileStoreOptions(BaseOptions):
     optParameters = [
         ["node-url", "u", None,
          "Specify the URL of the Tahoe gateway node, such as "
@@ -45,7 +45,7 @@ class FilesystemOptions(BaseOptions):
         self.aliases = aliases # maps alias name to dircap
 
 
-class MakeDirectoryOptions(FilesystemOptions):
+class MakeDirectoryOptions(FileStoreOptions):
     optParameters = [
         ("format", None, None, "Create a directory with the given format: SDMF or MDMF (case-insensitive)"),
         ]
@@ -62,7 +62,7 @@ class MakeDirectoryOptions(FilesystemOptions):
 
     longdesc = """Create a new directory, either unlinked or as a subdirectory."""
 
-class AddAliasOptions(FilesystemOptions):
+class AddAliasOptions(FileStoreOptions):
     def parseArgs(self, alias, cap):
         self.alias = argv_to_unicode(alias)
         if self.alias.endswith(u':'):
@@ -74,7 +74,7 @@ class AddAliasOptions(FilesystemOptions):
 
     longdesc = """Add a new alias for an existing directory."""
 
-class CreateAliasOptions(FilesystemOptions):
+class CreateAliasOptions(FileStoreOptions):
     def parseArgs(self, alias):
         self.alias = argv_to_unicode(alias)
         if self.alias.endswith(u':'):
@@ -85,13 +85,13 @@ class CreateAliasOptions(FilesystemOptions):
 
     longdesc = """Create a new directory and add an alias for it."""
 
-class ListAliasesOptions(FilesystemOptions):
+class ListAliasesOptions(FileStoreOptions):
     def getSynopsis(self):
         return "Usage:  %s [global-opts] list-aliases [options]" % (self.command_name,)
 
     longdesc = """Display a table of all configured aliases."""
 
-class ListOptions(FilesystemOptions):
+class ListOptions(FileStoreOptions):
     optFlags = [
         ("long", "l", "Use long format: show file sizes, and timestamps."),
         ("uri", "u", "Show file/directory URIs."),
@@ -133,7 +133,7 @@ class ListOptions(FilesystemOptions):
     modified.
     """
 
-class GetOptions(FilesystemOptions):
+class GetOptions(FileStoreOptions):
     def parseArgs(self, arg1, arg2=None):
         # tahoe get FOO |less            # write to stdout
         # tahoe get tahoe:FOO |less      # same
@@ -159,7 +159,7 @@ class GetOptions(FilesystemOptions):
     stdout."""
 
     def getUsage(self, width=None):
-        t = FilesystemOptions.getUsage(self, width)
+        t = FileStoreOptions.getUsage(self, width)
         t += """
 Examples:
  % tahoe get FOO |less            # write to stdout
@@ -169,7 +169,7 @@ Examples:
 """
         return t
 
-class PutOptions(FilesystemOptions):
+class PutOptions(FileStoreOptions):
     optFlags = [
         ("mutable", "m", "Create a mutable file instead of an immutable one (like --format=SDMF)"),
         ]
@@ -211,7 +211,7 @@ class PutOptions(FilesystemOptions):
     creation of new files.)"""
 
     def getUsage(self, width=None):
-        t = FilesystemOptions.getUsage(self, width)
+        t = FileStoreOptions.getUsage(self, width)
         t += """
 Examples:
  % cat FILE | tahoe put                # create unlinked file from stdin
@@ -224,7 +224,7 @@ Examples:
 """
         return t
 
-class CpOptions(FilesystemOptions):
+class CpOptions(FileStoreOptions):
     optFlags = [
         ("recursive", "r", "Copy source directory recursively."),
         ("verbose", "v", "Be noisy about what is happening."),
@@ -267,7 +267,7 @@ class CpOptions(FilesystemOptions):
     slashes.
     """
 
-class UnlinkOptions(FilesystemOptions):
+class UnlinkOptions(FileStoreOptions):
     def parseArgs(self, where):
         self.where = argv_to_unicode(where)
 
@@ -278,7 +278,7 @@ class RmOptions(UnlinkOptions):
     def getSynopsis(self):
         return "Usage:  %s [global-opts] rm [options] REMOTE_FILE" % (self.command_name,)
 
-class MvOptions(FilesystemOptions):
+class MvOptions(FileStoreOptions):
     def parseArgs(self, frompath, topath):
         self.from_file = argv_to_unicode(frompath)
         self.to_file = argv_to_unicode(topath)
@@ -298,7 +298,7 @@ class MvOptions(FilesystemOptions):
     the grid -- use 'tahoe cp' for that.
     """
 
-class LnOptions(FilesystemOptions):
+class LnOptions(FileStoreOptions):
     def parseArgs(self, frompath, topath):
         self.from_file = argv_to_unicode(frompath)
         self.to_file = argv_to_unicode(topath)
@@ -331,7 +331,7 @@ class LnOptions(FilesystemOptions):
 class BackupConfigurationError(Exception):
     pass
 
-class BackupOptions(FilesystemOptions):
+class BackupOptions(FileStoreOptions):
     optFlags = [
         ("verbose", "v", "Be noisy about what is happening."),
         ("ignore-timestamps", None, "Do not use backupdb timestamps to decide whether a local file is unchanged."),
@@ -401,7 +401,7 @@ class BackupOptions(FilesystemOptions):
     --link-dest=TO/Archives/(previous) FROM TO/Archives/(new); ln -sf
     TO/Archives/(new) TO/Latest'."""
 
-class WebopenOptions(FilesystemOptions):
+class WebopenOptions(FileStoreOptions):
     optFlags = [
         ("info", "i", "Open the t=info page for the file"),
         ]
@@ -415,7 +415,7 @@ class WebopenOptions(FilesystemOptions):
     directory on the grid. When run without arguments, open the Welcome
     page."""
 
-class ManifestOptions(FilesystemOptions):
+class ManifestOptions(FileStoreOptions):
     optFlags = [
         ("storage-index", "s", "Only print storage index strings, not pathname+cap."),
         ("verify-cap", None, "Only print verifycap, not pathname+cap."),
@@ -431,7 +431,7 @@ class ManifestOptions(FilesystemOptions):
     longdesc = """Print a list of all files and directories reachable from
     the given starting point."""
 
-class StatsOptions(FilesystemOptions):
+class StatsOptions(FileStoreOptions):
     optFlags = [
         ("raw", "r", "Display raw JSON data instead of parsed"),
         ]
@@ -444,7 +444,7 @@ class StatsOptions(FilesystemOptions):
     longdesc = """Print statistics about of all files and directories
     reachable from the given starting point."""
 
-class CheckOptions(FilesystemOptions):
+class CheckOptions(FileStoreOptions):
     optFlags = [
         ("raw", None, "Display raw JSON data instead of parsed."),
         ("verify", None, "Verify all hashes, instead of merely querying share presence."),
@@ -462,7 +462,7 @@ class CheckOptions(FilesystemOptions):
     verify their hashes. Optionally repair the file if any problems were
     found."""
 
-class DeepCheckOptions(FilesystemOptions):
+class DeepCheckOptions(FileStoreOptions):
     optFlags = [
         ("raw", None, "Display raw JSON data instead of parsed."),
         ("verify", None, "Verify all hashes, instead of merely querying share presence."),
