@@ -71,6 +71,6 @@ its self-tests.
 Run Tahoe-LAFS
 --------------
 
-Now you are ready to deploy a decentralized filesystem. The ``tahoe``
+Now you are ready to deploy a decentralized file store. The ``tahoe``
 executable in the ``bin`` directory can configure and launch your Tahoe-LAFS
 nodes. See `<running.rst>`__ for instructions on how to do that.

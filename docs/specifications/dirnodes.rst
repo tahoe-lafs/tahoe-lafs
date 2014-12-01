@@ -8,17 +8,17 @@ As explained in the architecture docs, Tahoe-LAFS can be roughly viewed as
 a collection of three layers. The lowest layer is the key-value store: it
 provides operations that accept files and upload them to the grid, creating
 a URI in the process which securely references the file's contents.
-The middle layer is the filesystem, creating a structure of directories and
-filenames resembling the traditional unix/windows filesystems. The top layer
-is the application layer, which uses the lower layers to provide useful
+The middle layer is the file store, creating a structure of directories and
+filenames resembling the traditional Unix or Windows filesystems. The top
+layer is the application layer, which uses the lower layers to provide useful
 services to users, like a backup application, or a way to share files with
 friends.
 
-This document examines the middle layer, the "filesystem".
+This document examines the middle layer, the "file store".
 
 1.  `Key-value Store Primitives`_
-2.  `Filesystem goals`_
-3.  `Dirnode goals`_
+2.  `File Store Goals`_
+3.  `Dirnode Goals`_
 4.  `Dirnode secret values`_
 5.  `Dirnode storage format`_
 6.  `Dirnode sizes, mutable-file initial read sizes`_
@@ -53,10 +53,10 @@ contents of a pre-existing slot, and the third retrieves the contents::
  replace(mutable_uri, new_data)
  data = get(mutable_uri)
 
-Filesystem Goals
+File Store Goals
 ================
 
-The main goal for the middle (filesystem) layer is to give users a way to
+The main goal for the middle (file store) layer is to give users a way to
 organize the data that they have uploaded into the grid. The traditional way
 to do this in computer filesystems is to put this data into files, give those
 files names, and collect these names into directories.
@@ -292,7 +292,7 @@ shorter than read-caps and write-caps, the attacker can use the length of the
 ciphertext to guess the number of children of each node, and might be able to
 guess the length of the child names (or at least their sum). From this, the
 attacker may be able to build up a graph with the same shape as the plaintext
-filesystem, but with unlabeled edges and unknown file contents.
+file store, but with unlabeled edges and unknown file contents.
 
 
 Integrity failures in the storage servers
@@ -342,11 +342,11 @@ directory-creation effort to a bare minimum (picking a random number instead
 of generating two random primes).
 
 When a backup program is run for the first time, it needs to copy a large
-amount of data from a pre-existing filesystem into reliable storage. This
-means that a large and complex directory structure needs to be duplicated in
-the dirnode layer. With the one-object-per-dirnode approach described here,
-this requires as many operations as there are edges in the imported
-filesystem graph.
+amount of data from a pre-existing local filesystem into reliable storage.
+This means that a large and complex directory structure needs to be
+duplicated in the dirnode layer. With the one-object-per-dirnode approach
+described here, this requires as many operations as there are edges in the
+imported filesystem graph.
 
 Another approach would be to aggregate multiple directories into a single
 storage object. This object would contain a serialized graph rather than a
@@ -445,7 +445,7 @@ sharing action: dragging a folder their vdrive to an IM or email user icon,
 for example. The UI will need to give the sending user an opportunity to
 indicate whether they want to grant read-write or read-only access to the
 recipient. The recipient then needs an interface to drag the new folder into
-their vdrive and give it a home.
+their file store and give it a home.
 
 Revocation
 ==========
