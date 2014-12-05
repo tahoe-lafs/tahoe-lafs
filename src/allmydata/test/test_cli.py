@@ -7,6 +7,7 @@ import simplejson
 
 from mock import patch, Mock, call
 
+import allmydata
 from allmydata.util import fileutil, hashutil, base32, keyutil
 from allmydata import uri
 from allmydata.immutable import upload
@@ -3841,7 +3842,7 @@ class Options(unittest.TestCase):
         # "tahoe --version" dumps text to stdout and exits
         stdout = StringIO()
         self.failUnlessRaises(SystemExit, self.parse, ["--version"], stdout)
-        self.failUnlessIn("allmydata-tahoe", stdout.getvalue())
+        self.failUnlessIn(allmydata.__appname__ + ":", stdout.getvalue())
         # but "tahoe SUBCOMMAND --version" should be rejected
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["start", "--version"])

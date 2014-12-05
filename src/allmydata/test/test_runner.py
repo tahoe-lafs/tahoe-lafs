@@ -149,7 +149,7 @@ class BinTahoe(common_util.SignalMixin, unittest.TestCase, RunBinTahoeMixin):
             out, err, rc_or_sig = res
             self.failUnlessEqual(rc_or_sig, 0, str(res))
 
-            # Fail unless the allmydata-tahoe package is *this* version *and*
+            # Fail unless the __appname__ package is *this* version *and*
             # was loaded from *this* source directory.
 
             required_verstr = str(allmydata.__version__)
