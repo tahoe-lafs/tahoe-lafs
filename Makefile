@@ -11,6 +11,7 @@ export PYTHON
 
 TAHOE=$(PYTHON) bin/tahoe
 SOURCES=src/allmydata src/buildtest static misc bin/tahoe-script.template setup.py
+APPNAME=allmydata-tahoe
 
 # This is necessary only if you want to automatically produce a new
 # _version.py file from the current git history (without doing a build).
@@ -36,7 +37,7 @@ build:
 .PHONY: build-osx-pkg
 build-osx-pkg:
 	$(PYTHON) setup.py build
-	find support -name allmydata-tahoe.egg-link -execdir sh -c "echo >> {}; echo /Applications/tahoe.app/src >> {}" \;
+	find support -name $(APPNAME).egg-link -execdir sh -c "echo >> {}; echo /Applications/tahoe.app/src >> {}" \;
 	find support -name easy-install.pth -execdir sed -i.bak 's|^.*/src$$|../../../../src|' '{}' \;
 	touch .built
 
@@ -310,4 +311,4 @@ tarballs:
 
 .PHONY: upload-tarballs
 upload-tarballs:
-	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/allmydata-tahoe-*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi
+	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then for f in dist/$(APPNAME)-*; do flappclient --furlfile ~/.tahoe-tarball-upload.furl upload-file $$f; done ; else echo not uploading tarballs because this is not trunk but is branch \"${BB_BRANCH}\" ; fi
