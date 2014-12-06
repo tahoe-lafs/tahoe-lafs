@@ -40,16 +40,19 @@ def read_version_py(infname):
 VERSION_PY_FILENAME = 'src/allmydata/_version.py'
 version = read_version_py(VERSION_PY_FILENAME)
 
-APPNAME='allmydata-tahoe'
+APPNAME='tahoe-lafs'
 APPNAMEFILE = os.path.join('src', 'allmydata', '_appname.py')
 APPNAMEFILESTR = "__appname__ = '%s'" % (APPNAME,)
 try:
-    curappnamefilestr = open(APPNAMEFILE, 'rU').read()
+    curappnamefilestr = open(APPNAMEFILE, 'rU').read().strip()
 except EnvironmentError:
     # No file, or unreadable or something, okay then let's try to write one.
     open(APPNAMEFILE, "w").write(APPNAMEFILESTR)
 else:
-    if curappnamefilestr.strip() != APPNAMEFILESTR:
+    if "allmydata-tahoe" in curappnamefilestr:
+        # This is harmless, just overwrite it.
+        open(APPNAMEFILE, "w").write(APPNAMEFILESTR)
+    elif curappnamefilestr != APPNAMEFILESTR:
         print("Error -- this setup.py file is configured with the 'application name' to be '%s', but there is already a file in place in '%s' which contains the contents '%s'.  If the file is wrong, please remove it and setup.py will regenerate it and write '%s' into it." % (APPNAME, APPNAMEFILE, curappnamefilestr, APPNAMEFILESTR))
         sys.exit(-1)
 

@@ -58,7 +58,7 @@ class CheckRequirement(unittest.TestCase):
         res = cross_check({}, [])
         self.failUnlessEqual(res, [])
 
-        res = cross_check({}, [("allmydata-tahoe", ("1.0", "", "blah"))])
+        res = cross_check({}, [("tahoe-lafs", ("1.0", "", "blah"))])
         self.failUnlessEqual(res, [])
 
         res = cross_check({"foo": ("unparseable", "")}, [])
