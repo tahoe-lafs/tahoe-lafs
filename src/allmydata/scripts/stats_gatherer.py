@@ -1,45 +1,21 @@
 
-import os, sys
-from allmydata.scripts.common import NoDefaultBasedirOptions
-from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import listdir_unicode, quote_output
+import sys
+from allmydata.scripts.common import NoDefaultBasedirOptions, create_basedir, NonEmptyBasedirException
+from allmydata.util.encodingutil import quote_output
 
 
 class CreateStatsGathererOptions(NoDefaultBasedirOptions):
     subcommand_name = "create-stats-gatherer"
 
 
-stats_gatherer_tac = """
-# -*- python -*-
-
-from allmydata import stats
-from twisted.application import service
-
-verbose = True
-g = stats.StatsGathererService(verbose=verbose)
-
-application = service.Application('allmydata_stats_gatherer')
-g.setServiceParent(application)
-"""
-
-
 def create_stats_gatherer(config, out=sys.stdout, err=sys.stderr):
     basedir = config['basedir']
-    # This should always be called with an absolute Unicode basedir.
-    precondition(isinstance(basedir, unicode), basedir)
+    try:
+        create_basedir(basedir, "stats-gatherer", err=err)
+    except NonEmptyBasedirException:
+        return -1
 
-    if os.path.exists(basedir):
-        if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
-            print >>err, "To avoid clobbering anything, I am going to quit now."
-            print >>err, "Please use a different directory, or empty this one."
-            return -1
-        # we're willing to use an empty directory
-    else:
-        os.mkdir(basedir)
-    f = open(os.path.join(basedir, "tahoe-stats-gatherer.tac"), "wb")
-    f.write(stats_gatherer_tac)
-    f.close()
+    print >>out, "Stats gatherer created in %s" % quote_output(basedir)
     return 0
 
 subCommands = [

@@ -3,8 +3,38 @@ import os, sys, urllib
 import codecs
 from twisted.python import usage
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import unicode_to_url, quote_output, argv_to_abspath
+from allmydata.util.encodingutil import listdir_unicode, unicode_to_url, quote_output, argv_to_abspath
+from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
+
+
+class NonEmptyBasedirException(Exception):
+    pass
+
+_DUMMY_TAC = """
+# %s
+import sys
+print >>sys.stderr, "Tahoe-LAFS v1.10 or earlier cannot run nodes with"
+print >>sys.stderr, "base directories created by versions after v1.11."
+sys.exit(1)
+"""
+
+def create_basedir(basedir, nodetype, err=sys.stderr):
+    # This should always be called with an absolute Unicode basedir.
+    precondition(isinstance(basedir, unicode), basedir)
+
+    if os.path.exists(basedir):
+        if listdir_unicode(basedir):
+            print >>err, "The base directory %s is not empty." % quote_output(basedir)
+            print >>err, "To avoid clobbering anything, I am going to quit now."
+            print >>err, "Please use a different directory, or empty this one."
+            raise NonEmptyBasedirException()
+        # we're willing to use an empty directory
+    else:
+        os.mkdir(basedir)
+
+    fileutil.write(os.path.join(basedir, u"tahoe-%s.tac" % (nodetype,)),
+                   _DUMMY_TAC % (nodetype,), mode="w")
 
 
 _default_nodedir = None

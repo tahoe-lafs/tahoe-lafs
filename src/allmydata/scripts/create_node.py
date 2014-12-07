@@ -1,9 +1,10 @@
 
 import os, sys
-from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions
-from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import listdir_unicode, argv_to_unicode, quote_output
-import allmydata
+from allmydata.scripts.common import BasedirOptions, NoDefaultBasedirOptions, create_basedir, \
+    NonEmptyBasedirException
+from allmydata.util.encodingutil import argv_to_unicode, quote_output
+from allmydata.util import fileutil
+
 
 class CreateClientOptions(BasedirOptions):
     optParameters = [
@@ -38,36 +39,6 @@ class CreateIntroducerOptions(NoDefaultBasedirOptions):
     subcommand_name = "create-introducer"
 
 
-client_tac = """
-# -*- python -*-
-
-import pkg_resources
-pkg_resources.require('%s')
-pkg_resources.require('twisted')
-from allmydata import client
-from twisted.application import service
-
-c = client.Client()
-
-application = service.Application("allmydata_client")
-c.setServiceParent(application)
-""" % (allmydata.__appname__,)
-
-introducer_tac = """
-# -*- python -*-
-
-import pkg_resources
-pkg_resources.require('%s')
-pkg_resources.require('twisted')
-from allmydata import introducer
-from twisted.application import service
-
-c = introducer.IntroducerNode()
-
-application = service.Application("allmydata_introducer")
-c.setServiceParent(application)
-""" % (allmydata.__appname__,)
-
 def write_node_config(c, config):
     # this is shared between clients and introducers
     c.write("# -*- mode: conf; coding: utf-8 -*-\n")
@@ -101,21 +72,10 @@ def write_node_config(c, config):
 
 def create_node(config, out=sys.stdout, err=sys.stderr):
     basedir = config['basedir']
-    # This should always be called with an absolute Unicode basedir.
-    precondition(isinstance(basedir, unicode), basedir)
-
-    if os.path.exists(basedir):
-        if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
-            print >>err, "To avoid clobbering anything, I am going to quit now."
-            print >>err, "Please use a different directory, or empty this one."
-            return -1
-        # we're willing to use an empty directory
-    else:
-        os.mkdir(basedir)
-    f = open(os.path.join(basedir, "tahoe-client.tac"), "w")
-    f.write(client_tac)
-    f.close()
+    try:
+        create_basedir(basedir, "client", err=err)
+    except NonEmptyBasedirException:
+        return -1
 
     c = open(os.path.join(basedir, "tahoe.cfg"), "w")
 
@@ -160,7 +120,6 @@ def create_node(config, out=sys.stdout, err=sys.stderr):
 
     c.close()
 
-    from allmydata.util import fileutil
     fileutil.make_dirs(os.path.join(basedir, "private"), 0700)
     print >>out, "Node created in %s" % quote_output(basedir)
     if not config.get("introducer", ""):
@@ -177,21 +136,10 @@ def create_client(config, out=sys.stdout, err=sys.stderr):
 
 def create_introducer(config, out=sys.stdout, err=sys.stderr):
     basedir = config['basedir']
-    # This should always be called with an absolute Unicode basedir.
-    precondition(isinstance(basedir, unicode), basedir)
-
-    if os.path.exists(basedir):
-        if listdir_unicode(basedir):
-            print >>err, "The base directory %s is not empty." % quote_output(basedir)
-            print >>err, "To avoid clobbering anything, I am going to quit now."
-            print >>err, "Please use a different directory, or empty this one."
-            return -1
-        # we're willing to use an empty directory
-    else:
-        os.mkdir(basedir)
-    f = open(os.path.join(basedir, "tahoe-introducer.tac"), "w")
-    f.write(introducer_tac)
-    f.close()
+    try:
+        create_basedir(basedir, "introducer", err=err)
+    except NonEmptyBasedirException:
+        return -1
 
     c = open(os.path.join(basedir, "tahoe.cfg"), "w")
     write_node_config(c, config)
