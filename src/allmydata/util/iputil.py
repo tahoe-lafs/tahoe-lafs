@@ -32,10 +32,6 @@ try:
             # we're probably missing RLIMIT_NOFILE
             return
 
-        if current[0] >= 1024:
-            # good enough, leave it alone
-            return
-
         try:
             if current[1] > 0 and current[1] < 1000000:
                 # solaris reports (256, 65536)
