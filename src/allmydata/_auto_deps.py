@@ -9,8 +9,11 @@
 # under both the old and new semantics. That can be achieved by limiting
 # requirement specs to one of the following forms:
 #
-#   * {>,>=} X, {<,<=} Y where X < Y
-#   * {>,>=} X, != Y, != Z, ... where X < Y < Z...
+#   * >= X, <= Y where X < Y
+#   * >= X, != Y, != Z, ... where X < Y < Z...
+#
+# (In addition, check_requirement in allmydata/__init__.py only supports
+# >=, <= and != operators.)
 
 install_requires = [
     # We require newer versions of setuptools (actually
