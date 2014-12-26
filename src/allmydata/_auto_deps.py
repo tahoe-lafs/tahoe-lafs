@@ -204,6 +204,7 @@ if _can_use_pyOpenSSL_0_14:
         "cryptography",
         "cffi >= 0.8",          # latest cryptography depends on this version
         "six >= 1.4.1",         # latest cryptography depends on this version
+        "enum34",               # latest cryptography depends on this
         "pycparser",            # cffi depends on this
     ]
 
@@ -211,6 +212,7 @@ if _can_use_pyOpenSSL_0_14:
         ('cryptography',     'cryptography'),
         ('cffi',             'cffi'),
         ('six',              'six'),
+        ('enum34',           'enum'),
         ('pycparser',        'pycparser'),
     ]
 else:
