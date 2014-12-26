@@ -188,8 +188,17 @@ def get_package_versions_and_locations():
 
     packages = []
 
-    def get_version(module, attr):
-        return str(getattr(module, attr, 'unknown'))
+    def get_version(module):
+        if hasattr(module, '__version__'):
+            return str(getattr(module, '__version__'))
+        elif hasattr(module, 'version'):
+            ver = getattr(module, 'version')
+            if isinstance(ver, tuple):
+                return '.'.join(map(str, ver))
+            else:
+                return str(ver)
+        else:
+            return 'unknown'
 
     for pkgname, modulename in [(__appname__, 'allmydata')] + package_imports:
         if modulename:
@@ -207,7 +216,7 @@ def get_package_versions_and_locations():
                 elif pkgname == 'setuptools' and hasattr(module, '_distribute'):
                     # distribute does not report its version in any module variables
                     comment = 'distribute'
-                packages.append( (pkgname, (get_version(module, '__version__'), package_dir(module.__file__), comment)) )
+                packages.append( (pkgname, (get_version(module), package_dir(module.__file__), comment)) )
         elif pkgname == 'python':
             packages.append( (pkgname, (platform.python_version(), sys.executable, None)) )
         elif pkgname == 'platform':
