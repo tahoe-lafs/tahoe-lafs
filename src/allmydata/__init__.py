@@ -226,7 +226,6 @@ def get_package_versions_and_locations():
 
 
 def check_requirement(req, vers_and_locs):
-    # TODO: check [] options
     # We support only conjunctions of <=, >=, and !=
 
     reqlist = req.split(',')
