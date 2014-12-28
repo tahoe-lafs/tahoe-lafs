@@ -269,7 +269,7 @@ def match_requirement(req, reqlist, actualver):
                 s = r.split('!=')
                 if len(s) == 2:
                     required = s[1].strip(' ')
-                    if not (actualver != normalized_version(required, what="required exact version %r in %r" % (required, req))):
+                    if not (actualver != normalized_version(required, what="excluded version %r in %r" % (required, req))):
                         return False  # not-equal requirement not met
                 else:
                     raise PackagingError("no version info or could not understand requirement %r" % (req,))
