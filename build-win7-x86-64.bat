@@ -25,9 +25,10 @@ REM start /wait dependencies/pyOpenSSL-0.13.1.win-amd64-py2.7.exe
 REM open visual studio 2008 cmd prompt as Administrator (right click)
 REM  Run the "Windows SDK Configuration Tool", select v7.0 and click "Make Current".
 
-set VC_INSTALL_DIR=%VC90COMNTOOLS%..\..
+set PYTHON=C:\Python27\python.exe
+set VC_INSTALL_DIR=%VS90COMNTOOLS%..\..
 
-call %VC_INSTALL_DIR%\VC\bin\vcvars64.bat
+call "%VC_INSTALL_DIR%\VC\bin\vcvars64.bat"
 
 set MSSdk=1
 set DISTUTILS_USE_SDK=1
@@ -41,11 +42,11 @@ regedit /s x64\656d875f-2429-11d7-8bf6-00b0d03daa06.reg
 regedit /s x64\656d8760-2429-11d7-8bf6-00b0d03daa06.reg
 regedit /s x64\656d8763-2429-11d7-8bf6-00b0d03daa06.reg
 regedit /s x64\656d8766-2429-11d7-8bf6-00b0d03daa06.reg
-copy %VC_INSTALL_DIR%\VC\vcpackages\AMD64.VCPlatform.config %VC_INSTALL_DIR%\VC\vcpackages\AMD64.VCPlatform.Express.config
-copy %VC_INSTALL_DIR%\VC\vcpackages\Itanium.VCPlatform.config %VC_INSTALL_DIR%\VC\vcpackages\Itanium.VCPlatform.Express.config
+copy "%VC_INSTALL_DIR%\VC\vcpackages\AMD64.VCPlatform.config" "%VC_INSTALL_DIR%\VC\vcpackages\AMD64.VCPlatform.Express.config"
+copy "%VC_INSTALL_DIR%\VC\vcpackages\Itanium.VCPlatform.config" "%VC_INSTALL_DIR%\VC\vcpackages\Itanium.VCPlatform.Express.config"
 
 REM build tahoe-lafs
-c:\python27\python.exe setup.py build
+%PYTHON% setup.py build
 
 REM zip the tahoe directory and Python MSI installer
 REM first copy everything into a temp directory
