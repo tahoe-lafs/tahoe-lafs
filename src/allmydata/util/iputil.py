@@ -6,6 +6,7 @@ from sys import platform
 # from Twisted
 from twisted.internet import defer, threads, reactor
 from twisted.internet.protocol import DatagramProtocol
+from twisted.internet.error import CannotListenError
 from twisted.python.procutils import which
 from twisted.python import log
 
@@ -125,16 +126,17 @@ def get_local_ip_for(target):
         # avoid this DNS lookup. This also makes node startup fractionally
         # faster.
         return None
-    udpprot = DatagramProtocol()
-    port = reactor.listenUDP(0, udpprot)
+    
     try:
+        udpprot = DatagramProtocol()
+        port = reactor.listenUDP(0, udpprot)
         udpprot.transport.connect(target_ipaddr, 7)
         localip = udpprot.transport.getHost().host
-    except socket.error:
+        d = port.stopListening()
+        d.addErrback(log.err)
+    except (socket.error, CannotListenError):
         # no route to that host
         localip = None
-    d = port.stopListening()
-    d.addErrback(log.err)
     return localip
 
 
