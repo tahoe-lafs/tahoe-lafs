@@ -955,6 +955,44 @@ class TimeFormat(unittest.TestCase):
     def test_parse_date(self):
         self.failUnlessEqual(time_format.parse_date("2010-02-21"), 1266710400)
 
+    def test_format_delta(self):
+        time_1 = 1389812723
+        time_5s_delta = 1389812728
+        time_28m7s_delta = 1389814410
+        time_1h_delta = 1389816323
+        time_1d21h46m49s_delta = 1389977532
+        TIME_FORMAT = "%H:%M:%S %d-%b-%Y"
+        time_1_isostr = time.strftime(TIME_FORMAT, time.localtime(time_1))
+
+        self.failUnlessEqual(
+            time_format.format_delta(time_1, time_5s_delta),
+            (time_1_isostr, '5s'))
+        self.failUnlessEqual(
+            time_format.format_delta(time_1, time_28m7s_delta),
+            (time_1_isostr, '28m7s'))
+        self.failUnlessEqual(
+            time_format.format_delta(time_1, time_1h_delta),
+            (time_1_isostr, '1h0m0s'))
+        self.failUnlessEqual(
+            time_format.format_delta(time_1, time_1d21h46m49s_delta),
+            (time_1_isostr, '1d21h46m49s'))
+
+        # time_1 with a decimal fraction will make the delta 1s less
+        time_1decimal = 1389812723.383963
+
+        self.failUnlessEqual(
+            time_format.format_delta(time_1decimal, time_5s_delta),
+            (time_1_isostr, '4s'))
+        self.failUnlessEqual(
+            time_format.format_delta(time_1decimal, time_28m7s_delta),
+            (time_1_isostr, '28m6s'))
+        self.failUnlessEqual(
+            time_format.format_delta(time_1decimal, time_1h_delta),
+            (time_1_isostr, '59m59s'))
+        self.failUnlessEqual(
+            time_format.format_delta(time_1decimal, time_1d21h46m49s_delta),
+            (time_1_isostr, '1d21h46m48s'))
+
 class CacheDir(unittest.TestCase):
     def test_basic(self):
         basedir = "test_util/CacheDir/test_basic"

@@ -48,6 +48,7 @@ body {
 
 .grid-status .status-indicator {
     margin-top: 5px;
+    float: left;
 }
 
 .furl {
@@ -73,22 +74,42 @@ body {
     width: 50%;
 }
 
+.service-connection-status {
+    white-space: nowrap;
+}
+
+.service-connection-string {
+    display: inline-block;
+}
+
 .status-indicator {
-    float: left;
+    display: inline-block;
     width: 16px;
     height: 16px;
     border-radius: 50%;
     display: inline-block;
-    vertical-align: middle;
+    vertical-align: top;
     margin-right: 4px;
     margin-top: 2px;
 }
+.status-description {
+    display:inline-block;
+}
 
-.connected-yes {
+.status-description .timestamp {
+    font-size: smaller;
+}
+
+a.timestamp {
+    color: inherit;
+    text-decoration:none;
+}
+
+.connected-yes, .service-Connected {
     background: #468847;
 }
 
-.connected-no {
+.connected-no, .service-Disconnected {
     background: #B94A48;
 }
 

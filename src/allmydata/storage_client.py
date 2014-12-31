@@ -164,7 +164,6 @@ class NativeStorageServer:
     the their version information. I remember information about when we were
     last connected too, even if we aren't currently connected.
 
-    @ivar announcement_time: when we first heard about this service
     @ivar last_connect_time: when we last established a connection
     @ivar last_loss_time: when we last lost a connection
 
@@ -212,7 +211,6 @@ class NativeStorageServer:
             self._long_description = tubid_s
             self._short_description = tubid_s[:6]
 
-        self.announcement_time = time.time()
         self.last_connect_time = None
         self.last_loss_time = None
         self.remote_host = None
@@ -263,8 +261,11 @@ class NativeStorageServer:
         return self.last_connect_time
     def get_last_loss_time(self):
         return self.last_loss_time
-    def get_announcement_time(self):
-        return self.announcement_time
+    def get_last_received_data_time(self):
+        if self.rref is None:
+            return None
+        else:
+            return self.rref.getDataLastReceivedAt()
 
     def get_available_space(self):
         version = self.get_version()
