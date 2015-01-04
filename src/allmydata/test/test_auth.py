@@ -1,6 +1,7 @@
 from twisted.trial import unittest
 from twisted.python import filepath
 from twisted.cred import error, credentials
+from twisted.conch import error as conch_error
 from twisted.conch.ssh import keys
 
 from allmydata.frontends import auth
@@ -26,8 +27,8 @@ dBSD8940XU3YW+oeq8e+p3yQ2GinHfeJ3BYQyNQLuMAJ
 DUMMY_ACCOUNTS = u"""\
 alice password URI:DIR2:aaaaaaaaaaaaaaaaaaaaaaaaaa:1111111111111111111111111111111111111111111111111111
 bob sekrit URI:DIR2:bbbbbbbbbbbbbbbbbbbbbbbbbb:2222222222222222222222222222222222222222222222222222
-carol %(key)s URI:DIR2:cccccccccccccccccccccccccc:3333333333333333333333333333333333333333333333333333
-""".format(DUMMY_KEY.public().toString("openssh")).encode("ascii")
+carol {key} URI:DIR2:cccccccccccccccccccccccccc:3333333333333333333333333333333333333333333333333333
+""".format(key=DUMMY_KEY.public().toString("openssh")).encode("ascii")
 
 class AccountFileCheckerKeyTests(unittest.TestCase):
     """
@@ -49,6 +50,17 @@ class AccountFileCheckerKeyTests(unittest.TestCase):
         avatarId = self.checker.requestAvatarId(key_credentials)
         return self.assertFailure(avatarId, error.UnauthorizedLogin)
 
+    def test_password_auth_user(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        UnauthorizedLogin if called with an SSHPrivateKey object for a username
+        only associated with a password in the account file.
+        """
+        key_credentials = credentials.SSHPrivateKey(
+            b"alice", b"md5", None, None, None)
+        avatarId = self.checker.requestAvatarId(key_credentials)
+        return self.assertFailure(avatarId, error.UnauthorizedLogin)
+
     def test_unrecognized_key(self):
         """
         AccountFileChecker.requestAvatarId returns a Deferred that fires with
@@ -63,3 +75,45 @@ ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQDJGMWlPXh2M3pYzTiamjcBIMqctt4VvLVW2QZgEFc8
             b"carol", b"md5", wrong_key_blob, None, None)
         avatarId = self.checker.requestAvatarId(key_credentials)
         return self.assertFailure(avatarId, error.UnauthorizedLogin)
+
+    def test_missing_signature(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        ValidPublicKey if called with an SSHPrivateKey object with an
+        authorized key for the indicated user but with no signature.
+        """
+        right_key_blob = DUMMY_KEY.public().toString("openssh")
+        key_credentials = credentials.SSHPrivateKey(
+            b"carol", b"md5", right_key_blob, None, None)
+        avatarId = self.checker.requestAvatarId(key_credentials)
+        return self.assertFailure(avatarId, conch_error.ValidPublicKey)
+
+    def test_wrong_signature(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        UnauthorizedLogin if called with an SSHPrivateKey object with a public
+        key matching that on the user's line in the account file but with the
+        wrong signature.
+        """
+        right_key_blob = DUMMY_KEY.public().toString("openssh")
+        key_credentials = credentials.SSHPrivateKey(
+            b"carol", b"md5", right_key_blob, b"signed data", b"wrong sig")
+        avatarId = self.checker.requestAvatarId(key_credentials)
+        return self.assertFailure(avatarId, error.UnauthorizedLogin)
+
+    def test_authenticated(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        the username portion of the account file line that matches the username
+        and key blob portion of the SSHPrivateKey object if that object also
+        has a correct signature.
+        """
+        username = b"carol"
+        signed_data = b"signed data"
+        signature = DUMMY_KEY.sign(signed_data)
+        right_key_blob = DUMMY_KEY.public().toString("openssh")
+        key_credentials = credentials.SSHPrivateKey(
+            username, b"md5", right_key_blob, signed_data, signature)
+        avatarId = self.checker.requestAvatarId(key_credentials)
+        avatarId.addCallback(self.assertEqual, username)
+        return avatarId
