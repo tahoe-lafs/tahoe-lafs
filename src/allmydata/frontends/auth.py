@@ -43,9 +43,12 @@ class AccountFileChecker:
                 rootcap = rest
             self.rootcaps[name] = rootcap
 
+    def _avatarId(self, username):
+        return FTPAvatarID(username, self.rootcaps[username])
+
     def _cbPasswordMatch(self, matched, username):
         if matched:
-            return FTPAvatarID(username, self.rootcaps[username])
+            return self._avatarId(username)
         raise error.UnauthorizedLogin
 
     def requestAvatarId(self, creds):
@@ -110,7 +113,7 @@ class AccountFileChecker:
             if creds.signature is None:
                 return defer.fail(conch_error.ValidPublicKey())
             if self._correctSignature(creds):
-                return defer.succeed(creds.username)
+                return defer.succeed(self._avatarId(creds.username))
         return defer.fail(error.UnauthorizedLogin())
 
 class AccountURLChecker:
