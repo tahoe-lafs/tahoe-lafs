@@ -48,3 +48,18 @@ class AccountFileCheckerKeyTests(unittest.TestCase):
             b"dennis", b"md5", None, None, None)
         avatarId = self.checker.requestAvatarId(key_credentials)
         return self.assertFailure(avatarId, error.UnauthorizedLogin)
+
+    def test_unrecognized_key(self):
+        """
+        AccountFileChecker.requestAvatarId returns a Deferred that fires with
+        UnauthorizedLogin if called with an SSHPrivateKey object with a public
+        key other than the one indicated in the account file for the indicated
+        user.
+        """
+        wrong_key_blob = b"""\
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAAAYQDJGMWlPXh2M3pYzTiamjcBIMqctt4VvLVW2QZgEFc86XhGjPXq5QAiRTKv9yVZJR9HW70CfBI7GHun8+v4Wb6aicWBoxgI3OB5NN+OUywdme2HSaif5yenFdQr0ME71Xs=
+"""
+        key_credentials = credentials.SSHPrivateKey(
+            b"carol", b"md5", wrong_key_blob, None, None)
+        avatarId = self.checker.requestAvatarId(key_credentials)
+        return self.assertFailure(avatarId, error.UnauthorizedLogin)
