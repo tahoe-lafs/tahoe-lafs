@@ -33,7 +33,7 @@ class AccountFileChecker:
             if line.startswith("#") or not line:
                 continue
             name, passwd, rest = line.split(None, 2)
-            if passwd in ("ssh-dss", "ssh-rsa"):
+            if passwd.startswith("ssh-"):
                 bits = rest.split()
                 keystring = " ".join([passwd] + bits[:-1])
                 rootcap = bits[-1]
