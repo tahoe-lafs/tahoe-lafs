@@ -187,3 +187,7 @@ D: Mac OS X packaging
 N: Loose Cannon
 E: lcstyle@gmail.com
 D: fix the Download! button on the Welcome page
+
+N: Jean-Paul Calderone
+E: exarkun@twistedmatrix.com
+D: support SFTP public key authentication.
