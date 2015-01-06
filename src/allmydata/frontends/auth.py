@@ -82,25 +82,6 @@ class AccountFileChecker:
         d.addCallback(self._cbPasswordMatch, str(creds.username))
         return d
 
-    def _allowedKey(self, creds):
-        """
-        Determine whether the public key indicated by the given credentials is
-        one allowed to authenticate the username in those credentials.
-
-        Returns True if so, False otherwise.
-        """
-        return creds.blob == self.pubkeys.get(creds.username)
-
-    def _correctSignature(self, creds):
-        """
-        Determine whether the signature in the given credentials is the correct
-        signature for the data in those credentials.
-
-        Returns True if so, False otherwise.
-        """
-        key = keys.Key.fromString(creds.blob)
-        return key.verify(creds.signature, creds.sigData)
-
     def _checkKey(self, creds):
         """
         Determine whether some key-based credentials correctly authenticates a
@@ -109,11 +90,19 @@ class AccountFileChecker:
         Returns a Deferred that fires with the username if so or with an
         UnauthorizedLogin failure otherwise.
         """
-        if self._allowedKey(creds):
+
+        # Is the public key indicated by the given credentials allowed to
+        # authenticate the username in those credentials?
+        if creds.blob == self.pubkeys.get(creds.username):
             if creds.signature is None:
                 return defer.fail(conch_error.ValidPublicKey())
-            if self._correctSignature(creds):
+
+            # Is the signature in the given credentials the correct
+            # signature for the data in those credentials?
+            key = keys.Key.fromString(creds.blob)
+            if key.verify(creds.signature, creds.sigData):
                 return defer.succeed(self._avatarId(creds.username))
+
         return defer.fail(error.UnauthorizedLogin())
 
 class AccountURLChecker:
