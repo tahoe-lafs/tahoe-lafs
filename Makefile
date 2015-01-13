@@ -35,11 +35,9 @@ build:
 # Build OS X pkg packages.
 # The editing of .egg-link and .pth files ensures that we reference the source at the correct path.
 .PHONY: build-osx-pkg
-build-osx-pkg:
-	$(PYTHON) setup.py build
+build-osx-pkg: build
 	find support -name $(APPNAME).egg-link -execdir sh -c "echo >> {}; echo /Applications/tahoe.app/src >> {}" \;
 	find support -name easy-install.pth -execdir sed -i.bak 's|^.*/src$$|../../../../src|' '{}' \;
-	touch .built
 
 # create component pkg
 	pkgbuild --root $(shell pwd) \
