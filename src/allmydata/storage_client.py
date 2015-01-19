@@ -54,6 +54,24 @@ from allmydata.util.hashutil import sha1
 # look like?
 #  don't pass signatures: only pass validated blessed-objects
 
+import os
+
+
+def sort_servers(servers, key):
+    """
+    This is sample server selection hookup function.
+    This is the fallback for no 3rd party server selection configured in tahoe.cfg also.
+    The 3rd party can provide a similar server selection function.
+
+    :param servers: A set of allmydata.storage_client.NativeStorageServer object
+    :param key: Specifies a function of one argument that is used to extract a comparison key from Tahoe server list
+                element. The 3rd party can use this as a default comparison key if they don't want to provide their own
+                comparison algorithm but still want to keep using the server selection framework.
+    :return: A sorted server list
+    """
+    return sorted(servers, key=key)
+
+
 class StorageFarmBroker:
     implements(IStorageBroker)
     """I live on the client, and know about storage servers. For each server
@@ -62,10 +80,11 @@ class StorageFarmBroker:
     I'm also responsible for subscribing to the IntroducerClient to find out
     about new servers as they are announced by the Introducer.
     """
-    def __init__(self, tub, permute_peers):
+    def __init__(self, tub, permute_peers, server_selection_hook="allmydata.storage_client.sort_servers"):
         self.tub = tub
         assert permute_peers # False not implemented yet
         self.permute_peers = permute_peers
+        self.server_selection_hook = server_selection_hook
         # self.servers maps serverid -> IServer, and keeps track of all the
         # storage servers that we've heard about. Each descriptor manages its
         # own Reconnector, and will give us a RemoteReference when we ask
@@ -124,7 +143,25 @@ class StorageFarmBroker:
         def _permuted(server):
             seed = server.get_permutation_seed()
             return sha1(peer_selection_index + seed).digest()
-        return sorted(self.get_connected_servers(), key=_permuted)
+        try:
+            import string
+            hook_str = self.server_selection_hook
+            module_set = hook_str.split('.')
+
+            # somehow we need import the whole module first
+            # duplicate a list first for del operation
+            module_only = module_set[:-1]
+            __import__(string.join(module_only, '.'))
+
+            # iterate the module path to find the hook function
+            m = __import__(module_set[0])
+            module_set = module_set[1:]
+            for module_lvl_name in module_set:
+                m = getattr(m, module_lvl_name)
+            return m(self.get_connected_servers(), key=_permuted)
+        except:
+            # Explicitly catch the wrong configuration in tahoe.cfg or 3rd party module is not installed case.
+            raise
 
     def get_all_serverids(self):
         return frozenset(self.servers.keys())
