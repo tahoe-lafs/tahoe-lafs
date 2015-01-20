@@ -4,6 +4,17 @@
 # It is ok to import modules from the Python Standard Library if they are
 # always available, or the import is protected by try...except ImportError.
 
+# The semantics for requirement specs changed incompatibly in setuptools 8,
+# which now follows PEP 440. The requirements used in this file must be valid
+# under both the old and new semantics. That can be achieved by limiting
+# requirement specs to one of the following forms:
+#
+#   * >= X, <= Y where X < Y
+#   * >= X, != Y, != Z, ... where X < Y < Z...
+#
+# (In addition, check_requirement in allmydata/__init__.py only supports
+# >=, <= and != operators.)
+
 install_requires = [
     # We require newer versions of setuptools (actually
     # zetuptoolz) to build, but can handle older versions to run.
@@ -16,7 +27,7 @@ install_requires = [
 
     # zope.interface >= 3.6.0 is required for Twisted >= 12.1.0.
     # zope.interface 3.6.3 and 3.6.4 are incompatible with Nevow (#1435).
-    "zope.interface == 3.6.0, == 3.6.1, == 3.6.2, >= 3.6.5",
+    "zope.interface >= 3.6.0, != 3.6.3, != 3.6.4",
 
     # * foolscap < 0.5.1 had a performance bug which spent O(N**2) CPU for
     #   transferring large mutable files of size N.
@@ -28,7 +39,7 @@ install_requires = [
     # Needed for SFTP.
     # pycrypto 2.2 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/620253>
     # pycrypto 2.4 doesn't work due to <https://bugs.launchpad.net/pycrypto/+bug/881130>
-    "pycrypto == 2.1.0, == 2.3, >= 2.4.1",
+    "pycrypto >= 2.1.0, != 2.2, != 2.4",
 
     # <http://www.voidspace.org.uk/python/mock/>, 0.8.0 provides "call"
     "mock >= 0.8.0",
@@ -102,7 +113,7 @@ if sys.platform == "win32":
         # * We don't want Twisted >= 12.3.0 to avoid a dependency of its endpoints
         #   code on pywin32. <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2028>
         #
-        "Twisted == 11.0.0, == 11.1.0, == 12.0.0, == 12.1.0, == 12.2.0",
+        "Twisted >= 11.0.0, <= 12.2.0",
 
         # * We need Nevow >= 0.9.33 to avoid a bug in Nevow's setup.py
         #   which imported twisted at setup time.
@@ -110,7 +121,7 @@ if sys.platform == "win32":
         #   which conflicts with the Twisted requirement above.
         #   <https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2291>
         #
-        "Nevow == 0.9.33, == 0.10",
+        "Nevow >= 0.9.33, <= 0.10",
 
         # pyasn1 is needed by twisted.conch in Twisted >= 9.0.
         "pyasn1 >= 0.0.8a",
@@ -204,7 +215,7 @@ if _can_use_pyOpenSSL_0_14:
     ]
 else:
     install_requires += [
-        "pyOpenSSL == 0.13, == 0.13.1",
+        "pyOpenSSL >= 0.13, <= 0.13.1",
     ]
 
 

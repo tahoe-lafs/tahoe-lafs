@@ -217,11 +217,10 @@ def get_package_versions_and_locations():
 
 
 def check_requirement(req, vers_and_locs):
-    # TODO: check [] options
-    # We support only disjunctions of <=, >=, and ==
+    # We support only conjunctions of <=, >=, and !=
 
     reqlist = req.split(',')
-    name = reqlist[0].split('<=')[0].split('>=')[0].split('==')[0].strip(' ').split('[')[0]
+    name = reqlist[0].split('<=')[0].split('>=')[0].split('!=')[0].strip(' ').split('[')[0]
     if name not in vers_and_locs:
         raise PackagingError("no version info for %s" % (name,))
     if req.strip(' ') == name:
@@ -234,33 +233,38 @@ def check_requirement(req, vers_and_locs):
         return
     actualver = normalized_version(actual, what="actual version %r of %s from %r" % (actual, name, location))
 
+    if not match_requirement(req, reqlist, actualver):
+        msg = ("We require %s, but could only find version %s.\n" % (req, actual))
+        if location and location != 'unknown':
+            msg += "The version we found is from %r.\n" % (location,)
+        msg += ("To resolve this problem, uninstall that version, either using your\n"
+                "operating system's package manager or by moving aside the directory.")
+        raise PackagingError(msg)
+
+
+def match_requirement(req, reqlist, actualver):
     for r in reqlist:
         s = r.split('<=')
         if len(s) == 2:
             required = s[1].strip(' ')
-            if actualver <= normalized_version(required, what="required maximum version %r in %r" % (required, req)):
-                return  # maximum requirement met
+            if not (actualver <= normalized_version(required, what="required maximum version %r in %r" % (required, req))):
+                return False  # maximum requirement not met
         else:
             s = r.split('>=')
             if len(s) == 2:
                 required = s[1].strip(' ')
-                if actualver >= normalized_version(required, what="required minimum version %r in %r" % (required, req)):
-                    return  # minimum requirement met
+                if not (actualver >= normalized_version(required, what="required minimum version %r in %r" % (required, req))):
+                    return False  # minimum requirement not met
             else:
-                s = r.split('==')
+                s = r.split('!=')
                 if len(s) == 2:
                     required = s[1].strip(' ')
-                    if actualver == normalized_version(required, what="required exact version %r in %r" % (required, req)):
-                        return  # exact requirement met
+                    if not (actualver != normalized_version(required, what="excluded version %r in %r" % (required, req))):
+                        return False  # not-equal requirement not met
                 else:
                     raise PackagingError("no version info or could not understand requirement %r" % (req,))
 
-    msg = ("We require %s, but could only find version %s.\n" % (req, actual))
-    if location and location != 'unknown':
-        msg += "The version we found is from %r.\n" % (location,)
-    msg += ("To resolve this problem, uninstall that version, either using your\n"
-            "operating system's package manager or by moving aside the directory.")
-    raise PackagingError(msg)
+    return True
 
 
 _vers_and_locs_list = get_package_versions_and_locations()

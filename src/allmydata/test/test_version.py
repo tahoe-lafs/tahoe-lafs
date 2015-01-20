@@ -1,4 +1,6 @@
 
+from pkg_resources import Requirement
+
 from twisted.trial import unittest
 
 from allmydata import check_requirement, cross_check, PackagingError
@@ -9,38 +11,48 @@ from allmydata.util.verlib import NormalizedVersion as V, \
 
 class CheckRequirement(unittest.TestCase):
     def test_check_requirement(self):
-        check_requirement("setuptools >= 0.6c6", {"setuptools": ("0.6", "", None)})
-        check_requirement("setuptools >= 0.6c6", {"setuptools": ("0.6", "", "distribute")})
-        check_requirement("pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.1.0", "", None)})
-        check_requirement("pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.4.0", "", None)})
-        check_requirement("zope.interface <= 3.6.2, >= 3.6.6", {"zope.interface": ("3.6.1", "", None)})
-        check_requirement("zope.interface <= 3.6.2, >= 3.6.6", {"zope.interface": ("3.6.6", "", None)})
+        self._check_success("setuptools >= 0.6c6", {"setuptools": ("0.6", "", None)})
+        self._check_success("setuptools >= 0.6c6", {"setuptools": ("0.6", "", "distribute")})
+        self._check_success("pycrypto >= 2.1.0, != 2.2, != 2.4", {"pycrypto": ("2.1.0", "", None)})
+        self._check_success("pycrypto >= 2.1.0, != 2.2, != 2.4", {"pycrypto": ("2.3.0", "", None)})
+        self._check_success("pycrypto >= 2.1.0, != 2.2, != 2.4", {"pycrypto": ("2.4.1", "", None)})
+        self._check_success("Twisted >= 11.0.0, <= 12.2.0", {"Twisted": ("11.0.0", "", None)})
+        self._check_success("Twisted >= 11.0.0, <= 12.2.0", {"Twisted": ("12.2.0", "", None)})
 
-        check_requirement("zope.interface", {"zope.interface": ("unknown", "", None)})
-        check_requirement("mock", {"mock": ("0.6.0", "", None)})
-        check_requirement("foo >= 1.0", {"foo": ("1.0", "", None), "bar": ("2.0", "", None)})
+        self._check_success("zope.interface", {"zope.interface": ("unknown", "", None)})
+        self._check_success("mock", {"mock": ("0.6.0", "", None)})
+        self._check_success("foo >= 1.0", {"foo": ("1.0", "", None), "bar": ("2.0", "", None)})
 
-        check_requirement("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.7.0", "", None)})
+        self._check_success("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.7.0", "", None)})
 
         try:
-            check_requirement("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.6.1+", "", None)})
+            self._check_success("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.6.1+", "", None)})
             # succeeding is ok
         except PackagingError, e:
             self.failUnlessIn("could not parse", str(e))
 
-        self.failUnlessRaises(PackagingError, check_requirement,
-                              "foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.5.1", "", None)})
-        self.failUnlessRaises(PackagingError, check_requirement,
-                              "pycrypto == 2.0.1, == 2.1, >= 2.3", {"pycrypto": ("2.2.0", "", None)})
-        self.failUnlessRaises(PackagingError, check_requirement,
-                              "zope.interface <= 3.6.2, >= 3.6.6", {"zope.interface": ("3.6.4", "", None)})
-        self.failUnlessRaises(PackagingError, check_requirement,
-                              "foo >= 1.0", {})
-        self.failUnlessRaises(PackagingError, check_requirement,
-                              "foo >= 1.0", {"foo": ("irrational", "", None)})
+        self._check_failure("foolscap[secure_connections] >= 0.6.0", {"foolscap": ("0.5.1", "", None)})
+        self._check_failure("pycrypto >= 2.1.0, != 2.2, != 2.4", {"pycrypto": ("2.2.0", "", None)})
+        self._check_failure("pycrypto >= 2.1.0, != 2.2, != 2.4", {"pycrypto": ("2.0.0", "", None)})
+        self._check_failure("Twisted >= 11.0.0, <= 12.2.0", {"Twisted": ("10.2.0", "", None)})
+        self._check_failure("Twisted >= 11.0.0, <= 12.2.0", {"Twisted": ("13.0.0", "", None)})
+        self._check_failure("foo >= 1.0", {})
+        self._check_failure("foo >= 1.0", {"foo": ("irrational", "", None)})
 
         self.failUnlessRaises(ImportError, check_requirement,
                               "foo >= 1.0", {"foo": (None, None, "foomodule")})
+
+    def _check_success(self, req, vers_and_locs):
+        check_requirement(req, vers_and_locs)
+
+        for pkg, ver in vers_and_locs.items():
+            self.failUnless(ver[0] in Requirement.parse(req), str((ver, req)))
+
+    def _check_failure(self, req, vers_and_locs):
+        self.failUnlessRaises(PackagingError, check_requirement, req, vers_and_locs)
+
+        for pkg, ver in vers_and_locs.items():
+            self.failIf(ver[0] in Requirement.parse(req), str((ver, req)))
 
     def test_cross_check_ticket_1355(self):
         # The bug in #1355 is triggered when a version string from either pkg_resources or import
