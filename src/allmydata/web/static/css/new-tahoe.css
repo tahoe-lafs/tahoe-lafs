@@ -46,7 +46,7 @@ body {
     margin-bottom: 20px;
 }
 
-.grid-status .status-indicator {
+.grid-status {
     margin-top: 5px;
 }
 
@@ -75,23 +75,5 @@ body {
 
 .status-indicator {
     float: left;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 4px;
-    margin-top: 2px;
-}
-
-.connected-yes {
-    background: #468847;
-}
-
-.connected-no {
-    background: #B94A48;
-}
-
-.connected-not-configured {
-    background: #444444;
+    margin: 5px;
 }
