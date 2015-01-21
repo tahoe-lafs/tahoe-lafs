@@ -1,0 +1,22 @@
+<svg version="1.1"
+     baseProfile="full"
+     width="20" height="20"
+     xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Made by Nathan Wilcox on 2015-01-20.
+       This file is hereby placed into the public domain.
+  -->
+
+  <style>
+    /* <![CDATA[ */
+    line {
+    stroke: #aa0000;
+    stroke-width: 3.2;
+    stroke-linecap: round;
+    }
+    /* ]]> */
+  </style>
+
+  <line x1="2" y1="2" x2="18" y2="18" />
+  <line x1="18" y1="2" x2="2" y2="18" />
+</svg>
