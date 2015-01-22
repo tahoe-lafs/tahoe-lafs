@@ -452,7 +452,7 @@ class FileDownloader(rend.Page):
                     contentsize = last - first + 1
                     size = contentsize
 
-        req.setHeader("content-length", str(contentsize))
+        req.setHeader("content-length", b"%d" % contentsize)
         if req.method == "HEAD":
             return ""
 

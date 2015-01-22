@@ -206,7 +206,7 @@ def plural(sequence_or_length):
 def text_plain(text, ctx):
     req = IRequest(ctx)
     req.setHeader("content-type", "text/plain")
-    req.setHeader("content-length", len(text))
+    req.setHeader("content-length", b"%d" % len(text))
     return text
 
 class WebError(Exception):
@@ -315,7 +315,7 @@ class MyExceptionHandler(appserver.DefaultExceptionHandler):
         req.setHeader("content-type", "text/plain;charset=utf-8")
         if isinstance(text, unicode):
             text = text.encode("utf-8")
-        req.setHeader("content-length", str(len(text)))
+        req.setHeader("content-length", b"%d" % len(text))
         req.write(text)
         # TODO: consider putting the requested URL here
         req.finishRequest(False)
