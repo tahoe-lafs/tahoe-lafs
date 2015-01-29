@@ -315,7 +315,7 @@ def abspath_expanduser_unicode(path, base=None):
     if base is not None:
         precondition_abspath(base)
 
-    path = os.path.expanduser(path)
+    path = expanduser(path)
 
     if _getfullpathname:
         # On Windows, os.path.isabs will return True for paths without a drive letter,
@@ -359,10 +359,17 @@ def to_windows_long_path(path):
 
 have_GetDiskFreeSpaceExW = False
 if sys.platform == "win32":
-    try:
-        from ctypes import WINFUNCTYPE, windll, POINTER, byref, c_ulonglong
-        from ctypes.wintypes import BOOL, DWORD, LPCWSTR
+    from ctypes import WINFUNCTYPE, windll, POINTER, byref, c_ulonglong, create_unicode_buffer
+    from ctypes.wintypes import BOOL, DWORD, LPCWSTR, LPWSTR
 
+    # <http://msdn.microsoft.com/en-us/library/ms679360%28v=VS.85%29.aspx>
+    GetLastError = WINFUNCTYPE(DWORD)(("GetLastError", windll.kernel32))
+
+    # <http://msdn.microsoft.com/en-us/library/windows/desktop/ms683188%28v=vs.85%29.aspx>
+    GetEnvironmentVariableW = WINFUNCTYPE(DWORD, LPCWSTR, LPWSTR, DWORD)(
+        ("GetEnvironmentVariableW", windll.kernel32))
+
+    try:
         # <http://msdn.microsoft.com/en-us/library/aa383742%28v=VS.85%29.aspx>
         PULARGE_INTEGER = POINTER(c_ulonglong)
 
@@ -370,13 +377,50 @@ if sys.platform == "win32":
         GetDiskFreeSpaceExW = WINFUNCTYPE(BOOL, LPCWSTR, PULARGE_INTEGER, PULARGE_INTEGER, PULARGE_INTEGER)(
             ("GetDiskFreeSpaceExW", windll.kernel32))
 
-        # <http://msdn.microsoft.com/en-us/library/ms679360%28v=VS.85%29.aspx>
-        GetLastError = WINFUNCTYPE(DWORD)(("GetLastError", windll.kernel32))
-
         have_GetDiskFreeSpaceExW = True
     except Exception:
         import traceback
         traceback.print_exc()
+
+def expanduser(path):
+    # os.path.expanduser is hopelessly broken for Unicode paths on Windows (ticket #1674).
+    if sys.platform == "win32":
+        return windows_expanduser(path)
+    else:
+        return os.path.expanduser(path)
+
+def windows_expanduser(path):
+    if not path.startswith('~'):
+        return path
+    home_drive = windows_getenv(u'HOMEDRIVE')
+    home_path = windows_getenv(u'HOMEPATH')
+    if path == '~':
+        return os.path.join(home_drive, home_path)
+    elif path.startswith('~/') or path.startswith('~\\'):
+        return os.path.join(home_drive, home_path, path[2 :])
+    else:
+        return path
+
+def windows_getenv(name):
+    # Based on <http://stackoverflow.com/questions/2608200/problems-with-umlauts-in-python-appdata-environvent-variable/2608368#2608368>,
+    # with improved error handling.
+    if not isinstance(name, unicode):
+        raise AssertionError("name must be Unicode")
+
+    n = GetEnvironmentVariableW(name, None, 0)
+    if n <= 0:
+        err = GetLastError()
+        raise OSError("Windows error %d attempting to read environment variable %r"
+                      % (err, name))
+
+    buf = create_unicode_buffer(u'\0'*n)
+    retval = GetEnvironmentVariableW(name, buf, n)
+    if retval <= 0:
+        err = GetLastError()
+        raise OSError("Windows error %d attempting to read environment variable %r"
+                      % (err, name))
+
+    return buf.value
 
 def get_disk_stats(whichdir, reserved_space=0):
     """Return disk statistics for the storage disk, in the form of a dict

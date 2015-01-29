@@ -521,6 +521,20 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         _cleanup()
         self.failIf(os.path.exists(long_path))
 
+    def test_windows_expanduser(self):
+        def call_windows_getenv(name):
+            if name == u"HOMEDRIVE": return u"C:"
+            if name == u"HOMEPATH": return u"\\Documents and Settings\\\u0100"
+            self.fail("unexpected argument to call_windows_getenv")
+        self.patch(fileutil, 'windows_getenv', call_windows_getenv)
+
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"~"), os.path.join(u"C:", u"\\Documents and Settings\\\u0100"))
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"~\\foo"), os.path.join(u"C:", u"\\Documents and Settings\\\u0100", u"foo"))
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"~/foo"), os.path.join(u"C:", u"\\Documents and Settings\\\u0100", u"foo"))
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a"), u"a")
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a~"), u"a~")
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a\\~\\foo"), u"a\\~\\foo")
+
     def test_disk_stats(self):
         avail = fileutil.get_available_space('.', 2**14)
         if avail == 0:
