@@ -650,7 +650,7 @@ def find_shares(options):
     out = options.stdout
     sharedir = storage_index_to_dir(si_a2b(options.si_s))
     for d in options.nodedirs:
-        d = os.path.join(d, "storage/shares", sharedir)
+        d = os.path.join(d, "storage", "shares", sharedir)
         if os.path.exists(d):
             for shnum in listdir_unicode(d):
                 print >>out, os.path.join(d, shnum)
@@ -832,7 +832,7 @@ def catalog_shares(options):
     err = options.stderr
     now = time.time()
     for d in options.nodedirs:
-        d = os.path.join(d, "storage/shares")
+        d = os.path.join(d, "storage", "shares")
         try:
             abbrevs = listdir_unicode(d)
         except EnvironmentError:

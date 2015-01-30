@@ -3779,7 +3779,7 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
             raise
         return d
 
-class Options(unittest.TestCase):
+class Options(ReallyEqualMixin, unittest.TestCase):
     # this test case only looks at argument-processing and simple stuff.
 
     def parse(self, args, stdout=None):
@@ -3861,17 +3861,17 @@ class Options(unittest.TestCase):
         # option after, or a basedir argument after, but none in the wrong
         # place, and not more than one of the three.
         o = self.parse(["start"])
-        self.failUnlessEqual(o["basedir"], os.path.join(os.path.expanduser("~"),
-                                                        ".tahoe"))
+        self.failUnlessReallyEqual(o["basedir"], os.path.join(fileutil.abspath_expanduser_unicode(u"~"),
+                                                              u".tahoe"))
         o = self.parse(["start", "here"])
-        self.failUnlessEqual(o["basedir"], os.path.abspath("here"))
+        self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"here"))
         o = self.parse(["start", "--basedir", "there"])
-        self.failUnlessEqual(o["basedir"], os.path.abspath("there"))
+        self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"there"))
         o = self.parse(["--node-directory", "there", "start"])
-        self.failUnlessEqual(o["basedir"], os.path.abspath("there"))
+        self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"there"))
 
         o = self.parse(["start", "here", "--nodaemon"])
-        self.failUnlessEqual(o["basedir"], os.path.abspath("here"))
+        self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"here"))
 
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["--basedir", "there", "start"])

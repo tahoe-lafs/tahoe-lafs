@@ -305,7 +305,28 @@ def abspath_expanduser_unicode(path):
 
     # We won't hit <http://bugs.python.org/issue5827> because
     # there is always at least one Unicode path component.
-    return os.path.normpath(path)
+    path = os.path.normpath(path)
+
+    if sys.platform == "win32":
+        path = to_windows_long_path(path)
+
+    return path
+
+def to_windows_long_path(path):
+    # '/' is normally a perfectly valid path component separator in Windows.
+    # However, when using the "\\?\" syntax it is not recognized, so we
+    # replace it with '\' here.
+    path = path.replace(u"/", u"\\")
+
+    # Note that other normalizations such as removing '.' and '..' should
+    # be done outside this function.
+
+    if path.startswith(u"\\\\?\\") or path.startswith(u"\\\\.\\"):
+        return path
+    elif path.startswith(u"\\\\"):
+        return u"\\\\?\\UNC\\" + path[2 :]
+    else:
+        return u"\\\\?\\" + path
 
 
 have_GetDiskFreeSpaceExW = False
