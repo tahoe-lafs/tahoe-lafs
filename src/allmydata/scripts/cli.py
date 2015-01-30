@@ -2,7 +2,7 @@ import os.path, re, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
      DEFAULT_ALIAS, BaseOptions
-from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_output
+from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_local_unicode_path
 
 NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 
@@ -368,7 +368,7 @@ class BackupOptions(FilesystemOptions):
         try:
             exclude_file = file(abs_filepath)
         except:
-            raise BackupConfigurationError('Error opening exclude file %s.' % quote_output(abs_filepath))
+            raise BackupConfigurationError('Error opening exclude file %s.' % quote_local_unicode_path(abs_filepath))
         try:
             for line in exclude_file:
                 self.opt_exclude(line)

@@ -10,13 +10,14 @@ from allmydata.scripts.common_http import do_http, HTTPError
 from allmydata import uri
 from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, to_str
+from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, \
+    quote_local_unicode_path, to_str
 from allmydata.util.assertutil import precondition
 
 
 class MissingSourceError(TahoeError):
-    def __init__(self, name):
-        TahoeError.__init__(self, "No such file or directory %s" % quote_output(name))
+    def __init__(self, name, quotefn=quote_output):
+        TahoeError.__init__(self, "No such file or directory %s" % quotefn(name))
 
 
 def GET_to_file(url):
@@ -565,7 +566,7 @@ class Copier:
             pathname = abspath_expanduser_unicode(path.decode('utf-8'))
             name = os.path.basename(pathname)
             if not os.path.exists(pathname):
-                raise MissingSourceError(source_spec)
+                raise MissingSourceError(source_spec, quotefn=quote_local_unicode_path)
             if os.path.isdir(pathname):
                 t = LocalDirectorySource(self.progress, pathname)
             else:

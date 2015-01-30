@@ -39,7 +39,7 @@ from twisted.python import usage
 
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, unicode_platform, \
-    quote_output, get_io_encoding, get_filesystem_encoding, \
+    quote_output, quote_local_unicode_path, get_io_encoding, get_filesystem_encoding, \
     unicode_to_output, unicode_to_argv, to_str
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
@@ -2854,7 +2854,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 2)
             foo2 = os.path.join(source, "foo2.txt")
-            self.failUnlessReallyEqual(err, "WARNING: cannot backup symlink '%s'\n" % foo2)
+            self.failUnlessIn("WARNING: cannot backup symlink ", err)
+            self.failUnlessIn(foo2, err)
 
             fu, fr, fs, dc, dr, ds = self.count_output(out)
             # foo.txt

@@ -63,8 +63,9 @@ import os, sys, locale
 from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.util import encodingutil
 from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
-    unicode_to_output, quote_output, unicode_platform, listdir_unicode, \
-    FilenameEncodingError, get_io_encoding, get_filesystem_encoding, _reload
+    unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
+    unicode_platform, listdir_unicode, FilenameEncodingError, get_io_encoding, \
+    get_filesystem_encoding, _reload
 from allmydata.dirnode import normalize
 
 from twisted.python import usage
@@ -393,6 +394,19 @@ class QuoteOutput(ReallyEqualMixin, unittest.TestCase):
 
         encodingutil.io_encoding = 'utf-8'
         self.test_quote_output_utf8(None)
+
+
+class QuotePaths(ReallyEqualMixin, unittest.TestCase):
+    def test_quote_path(self):
+        self.failUnlessReallyEqual(quote_path([u'foo', u'bar']), "'foo/bar'")
+        self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=True), "'foo/bar'")
+        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar']), '"foo/\\x0abar"')
+        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=True), '"foo/\\x0abar"')
+
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo"),
+                                   "'C:\\foo'" if sys.platform == "win32" else "'\\\\?\\C:\\foo'")
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar"),
+                                   "'\\\\foo\\bar'" if sys.platform == "win32" else "'\\\\?\\UNC\\foo\\bar'")
 
 
 class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
