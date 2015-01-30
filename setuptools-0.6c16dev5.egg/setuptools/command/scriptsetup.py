@@ -159,10 +159,16 @@ def do_scriptsetup(allusers=False, addpath=None):
             (value, type) = user_valueandtype or system_valueandtype or (u'', REG_SZ)
             key_name_path = (HKEY_CURRENT_USER, "HKEY_CURRENT_USER", USER_ENV)
 
+        def path_append(value, addition):
+            if value != "":
+                return value + u';' + addition
+            else:
+                return addition
+
         if addition.lower() in value.lower().split(u';'):
             print "Already done: %s." % (goal,)
         else:
-            changed |= update(key_name_path, varname, value + u';' + addition, type, goal, what)
+            changed |= update(key_name_path, varname, path_append(value, addition), type, goal, what)
 
         if change_allusers:
             # Also change any overriding environment entry for the current user.
@@ -172,7 +178,7 @@ def do_scriptsetup(allusers=False, addpath=None):
             if not (addition.lower() in split_value or u'%'+varname.lower()+u'%' in split_value):
                 now_what = "the overriding user environment variable %s" % (varname,)
                 changed |= update((HKEY_CURRENT_USER, "HKEY_CURRENT_USER", USER_ENV),
-                                  varname, user_value + u';' + addition, user_type,
+                                  varname, path_append(user_value, addition), user_type,
                                   "add %s to %s" % (addition, now_what), now_what)
 
         return changed
