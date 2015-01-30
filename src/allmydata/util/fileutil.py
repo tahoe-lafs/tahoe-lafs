@@ -276,6 +276,20 @@ def put_file(pathname, inf):
         outf.close()
 
 
+def precondition_abspath(path):
+    if not isinstance(path, unicode):
+        raise AssertionError("an abspath must be a Unicode string")
+
+    if sys.platform == "win32":
+        # This intentionally doesn't view absolute paths starting with a drive specification, or
+        # paths relative to the current drive, as acceptable.
+        if not path.startswith("\\\\"):
+            raise AssertionError("an abspath should be normalized using abspath_expanduser_unicode")
+    else:
+        # This intentionally doesn't view the path '~' or paths starting with '~/' as acceptable.
+        if not os.path.isabs(path):
+            raise AssertionError("an abspath should be normalized using abspath_expanduser_unicode")
+
 # Work around <http://bugs.python.org/issue3426>. This code is adapted from
 # <http://svn.python.org/view/python/trunk/Lib/ntpath.py?revision=78247&view=markup>
 # with some simplifications.
@@ -286,9 +300,18 @@ try:
 except ImportError:
     pass
 
-def abspath_expanduser_unicode(path):
-    """Return the absolute version of a path."""
-    assert isinstance(path, unicode), path
+def abspath_expanduser_unicode(path, base=None):
+    """
+    Return the absolute version of a path. If 'base' is given and 'path' is relative,
+    the path will be expanded relative to 'base'.
+    'path' must be a Unicode string. 'base', if given, must be a Unicode string
+    corresponding to an absolute path as returned by a previous call to
+    abspath_expanduser_unicode.
+    """
+    if not isinstance(path, unicode):
+        raise AssertionError("paths must be Unicode strings")
+    if base is not None:
+        precondition_abspath(base)
 
     path = os.path.expanduser(path)
 
@@ -301,7 +324,10 @@ def abspath_expanduser_unicode(path):
             pass
 
     if not os.path.isabs(path):
-        path = os.path.join(os.getcwdu(), path)
+        if base is None:
+            path = os.path.join(os.getcwdu(), path)
+        else:
+            path = os.path.join(base, path)
 
     # We won't hit <http://bugs.python.org/issue5827> because
     # there is always at least one Unicode path component.
