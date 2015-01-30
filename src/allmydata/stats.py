@@ -11,8 +11,8 @@ from twisted.application.internet import TimerService
 from zope.interface import implements
 from foolscap.api import eventually, DeadReferenceError, Referenceable, Tub
 
-from allmydata.util import log
-from allmydata.util.encodingutil import quote_output
+from allmydata.util import log, fileutil
+from allmydata.util.encodingutil import quote_local_unicode_path
 from allmydata.interfaces import RIStatsProvider, RIStatsGatherer, IStatsProducer
 
 class LoadMonitor(service.MultiService):
@@ -246,7 +246,7 @@ class StdOutStatsGatherer(StatsGatherer):
 class PickleStatsGatherer(StdOutStatsGatherer):
     # inherit from StdOutStatsGatherer for connect/disconnect notifications
 
-    def __init__(self, basedir=".", verbose=True):
+    def __init__(self, basedir=u".", verbose=True):
         self.verbose = verbose
         StatsGatherer.__init__(self, basedir)
         self.picklefile = os.path.join(basedir, "stats.pickle")
@@ -258,7 +258,7 @@ class PickleStatsGatherer(StdOutStatsGatherer):
             except Exception:
                 print ("Error while attempting to load pickle file %s.\n"
                        "You may need to restore this file from a backup, or delete it if no backup is available.\n" %
-                       quote_output(os.path.abspath(self.picklefile)))
+                       quote_local_unicode_path(self.picklefile))
                 raise
             f.close()
         else:
@@ -311,7 +311,7 @@ class StatsGathererService(service.MultiService):
     def save_portnum(self, junk):
         portnum = self.listener.getPortnum()
         portnumfile = os.path.join(self.basedir, 'portnum')
-        open(portnumfile, 'wb').write('%d\n' % (portnum,))
+        fileutil.write(portnumfile, '%d\n' % (portnum,))
 
     def tub_ready(self, ignored):
         ff = os.path.join(self.basedir, self.furl_file)

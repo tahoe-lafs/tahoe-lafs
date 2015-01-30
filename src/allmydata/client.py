@@ -16,6 +16,7 @@ from allmydata.control import ControlServer
 from allmydata.introducer.client import IntroducerClient
 from allmydata.util import hashutil, base32, pollmixin, log, keyutil, idlib
 from allmydata.util.encodingutil import get_filesystem_encoding
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.abbreviate import parse_abbreviated_size
 from allmydata.util.time_format import parse_duration, parse_date
 from allmydata.stats import StatsProvider
@@ -450,8 +451,8 @@ class Client(node.Node, pollmixin.PollMixin):
 
         from allmydata.webish import WebishServer
         nodeurl_path = os.path.join(self.basedir, "node.url")
-        staticdir = self.get_config("node", "web.static", "public_html")
-        staticdir = os.path.expanduser(staticdir)
+        staticdir_config = self.get_config("node", "web.static", "public_html").decode("utf-8")
+        staticdir = abspath_expanduser_unicode(staticdir_config, base=self.basedir)
         ws = WebishServer(self, webport, nodeurl_path, staticdir)
         self.add_service(ws)
 

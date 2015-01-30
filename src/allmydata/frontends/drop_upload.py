@@ -1,5 +1,5 @@
 
-import os, sys
+import sys
 
 from twisted.internet import defer
 from twisted.python.filepath import FilePath
@@ -9,6 +9,7 @@ from foolscap.api import eventually
 from allmydata.interfaces import IDirectoryNode
 
 from allmydata.util.encodingutil import quote_output, get_filesystem_encoding
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.immutable.upload import FileName
 
 
@@ -19,7 +20,7 @@ class DropUploader(service.MultiService):
         service.MultiService.__init__(self)
 
         try:
-            local_dir_u = os.path.expanduser(local_dir_utf8.decode('utf-8'))
+            local_dir_u = abspath_expanduser_unicode(local_dir_utf8.decode('utf-8'))
             if sys.platform == "win32":
                 local_dir = local_dir_u
             else:

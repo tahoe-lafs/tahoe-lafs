@@ -6,7 +6,7 @@ from foolscap.api import Referenceable
 import allmydata
 from allmydata import node
 from allmydata.util import log, rrefutil
-from allmydata.util.encodingutil import get_filesystem_encoding
+from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.introducer.interfaces import \
      RIIntroducerPublisherAndSubscriberService_v2
 from allmydata.introducer.common import convert_announcement_v1_to_v2, \
@@ -21,7 +21,7 @@ class IntroducerNode(node.Node):
     NODETYPE = "introducer"
     GENERATED_FILES = ['introducer.furl']
 
-    def __init__(self, basedir="."):
+    def __init__(self, basedir=u"."):
         node.Node.__init__(self, basedir)
         self.read_config()
         self.init_introducer()
@@ -33,8 +33,8 @@ class IntroducerNode(node.Node):
         introducerservice = IntroducerService(self.basedir)
         self.add_service(introducerservice)
 
-        old_public_fn = os.path.join(self.basedir, "introducer.furl").encode(get_filesystem_encoding())
-        private_fn = os.path.join(self.basedir, "private", "introducer.furl").encode(get_filesystem_encoding())
+        old_public_fn = os.path.join(self.basedir, u"introducer.furl")
+        private_fn = os.path.join(self.basedir, u"private", u"introducer.furl")
 
         if os.path.exists(old_public_fn):
             if os.path.exists(private_fn):
@@ -62,9 +62,9 @@ class IntroducerNode(node.Node):
         self.log("init_web(webport=%s)", args=(webport,), umid="2bUygA")
 
         from allmydata.webish import IntroducerWebishServer
-        nodeurl_path = os.path.join(self.basedir, "node.url")
-        staticdir = self.get_config("node", "web.static", "public_html")
-        staticdir = os.path.expanduser(staticdir)
+        nodeurl_path = os.path.join(self.basedir, u"node.url")
+        config_staticdir = self.get_config("node", "web.static", "public_html").decode('utf-8')
+        staticdir = abspath_expanduser_unicode(config_staticdir, base=self.basedir)
         ws = IntroducerWebishServer(self, webport, nodeurl_path, staticdir)
         self.add_service(ws)
 

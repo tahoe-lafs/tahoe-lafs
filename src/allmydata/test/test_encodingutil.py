@@ -61,7 +61,7 @@ from mock import patch
 import os, sys, locale
 
 from allmydata.test.common_util import ReallyEqualMixin
-from allmydata.util import encodingutil
+from allmydata.util import encodingutil, fileutil
 from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     unicode_platform, listdir_unicode, FilenameEncodingError, get_io_encoding, \
@@ -275,8 +275,8 @@ class StdlibUnicode(unittest.TestCase):
         # to lumiere_nfc (on Mac OS X, it will be the NFD equivalent).
         self.failUnlessIn(lumiere_nfc + ".txt", set([normalize(fname) for fname in filenames]))
 
-        expanded = os.path.expanduser("~/" + lumiere_nfc)
-        self.failIfIn("~", expanded)
+        expanded = fileutil.expanduser(u"~/" + lumiere_nfc)
+        self.failIfIn(u"~", expanded)
         self.failUnless(expanded.endswith(lumiere_nfc), expanded)
 
     def test_open_unrepresentable(self):

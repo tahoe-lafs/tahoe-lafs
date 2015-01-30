@@ -39,7 +39,7 @@ from twisted.python import usage
 
 from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, unicode_platform, \
-    quote_output, quote_local_unicode_path, get_io_encoding, get_filesystem_encoding, \
+    quote_output, get_io_encoding, get_filesystem_encoding, \
     unicode_to_output, unicode_to_argv, to_str
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
