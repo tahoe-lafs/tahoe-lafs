@@ -398,9 +398,16 @@ class Node(service.MultiService):
         # next time
         fileutil.write_atomically(self._portnumfile, "%d\n" % portnum, mode="")
 
-        base_location = ",".join([ "%s:%d" % (addr, portnum)
-                                   for addr in local_addresses ])
-        location = self.get_config("node", "tub.location", base_location)
+        location = self.get_config("node", "tub.location", "AUTO")
+
+        # Replace the location "AUTO" with the detected local addresses
+        split_location = location.split(",")
+        if "AUTO" in split_location:
+            split_location.remove("AUTO")
+            split_location.extend([ "%s:%d" % (addr, portnum)
+                                    for addr in local_addresses ])
+            location = ",".join(split_location)
+
         self.log("Tub location set to %s" % location)
         self.tub.setLocation(location)
 
