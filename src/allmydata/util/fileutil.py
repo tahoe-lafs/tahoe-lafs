@@ -408,17 +408,23 @@ def windows_getenv(name):
         raise AssertionError("name must be Unicode")
 
     n = GetEnvironmentVariableW(name, None, 0)
-    if n <= 0:
+    if n == 0:
         err = GetLastError()
-        raise OSError("Windows error %d attempting to read environment variable %r"
+        raise OSError("Windows error %d attempting to read size of environment variable %r"
                       % (err, name))
+    elif n < 0:
+        raise OSError("Unexpected result %d from GetEnvironmentVariableW attempting to read size of environment variable %r"
+                      % (n, name))
 
     buf = create_unicode_buffer(u'\0'*n)
     retval = GetEnvironmentVariableW(name, buf, n)
-    if retval <= 0:
+    if retval == 0:
         err = GetLastError()
         raise OSError("Windows error %d attempting to read environment variable %r"
                       % (err, name))
+    elif retval != n-1:
+        raise OSError("Unexpected result %d from GetEnvironmentVariableW attempting to read environment variable %r"
+                      % (n, name))
 
     return buf.value
 
