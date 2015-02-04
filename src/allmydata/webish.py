@@ -147,6 +147,7 @@ class WebishServer(service.MultiService):
         self.site = site = appserver.NevowSite(self.root)
         self.site.requestFactory = MyRequest
         self.site.remember(MyExceptionHandler(), inevow.ICanHandleException)
+        self.staticdir = staticdir # so tests can check
         if staticdir:
             self.root.putChild("static", static.File(staticdir))
         if re.search(r'^\d', webport):
