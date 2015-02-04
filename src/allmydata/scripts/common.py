@@ -3,7 +3,8 @@ import os, sys, urllib
 import codecs
 from twisted.python import usage
 from allmydata.util.assertutil import precondition
-from allmydata.util.encodingutil import unicode_to_url, quote_output, argv_to_abspath
+from allmydata.util.encodingutil import unicode_to_url, quote_output, \
+    quote_local_unicode_path, argv_to_abspath
 from allmydata.util.fileutil import abspath_expanduser_unicode
 
 
@@ -40,7 +41,7 @@ class BasedirOptions(BaseOptions):
 
     optParameters = [
         ["basedir", "C", None, "Specify which Tahoe base directory should be used. [default: %s]"
-         % get_default_nodedir()],
+         % quote_local_unicode_path(_default_nodedir)],
     ]
 
     def parseArgs(self, basedir=None):
