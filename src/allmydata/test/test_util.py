@@ -15,6 +15,8 @@ from allmydata.util import limiter, time_format, pollmixin, cachedir
 from allmydata.util import statistics, dictutil, pipeline
 from allmydata.util import log as tahoe_log
 from allmydata.util.spans import Spans, overlap, DataSpans
+from allmydata.test.common_util import ReallyEqualMixin
+
 
 class Base32(unittest.TestCase):
     def test_b2a_matches_Pythons(self):
@@ -370,7 +372,7 @@ class Asserts(unittest.TestCase):
         m = self.should_assert(f, False, othermsg="message2")
         self.failUnlessEqual("postcondition: othermsg: 'message2' <type 'str'>", m)
 
-class FileUtil(unittest.TestCase):
+class FileUtil(ReallyEqualMixin, unittest.TestCase):
     def mkdir(self, basedir, path, mode=0777):
         fn = os.path.join(basedir, path)
         fileutil.make_dirs(fn, mode)
@@ -429,22 +431,6 @@ class FileUtil(unittest.TestCase):
         fileutil.write_atomically(fn, "two", mode="") # non-binary
         self.failUnlessEqual(fileutil.read(fn), "two")
 
-    def test_open_or_create(self):
-        basedir = "util/FileUtil/test_open_or_create"
-        fileutil.make_dirs(basedir)
-        fn = os.path.join(basedir, "here")
-        f = fileutil.open_or_create(fn)
-        f.write("stuff.")
-        f.close()
-        f = fileutil.open_or_create(fn)
-        f.seek(0, os.SEEK_END)
-        f.write("more.")
-        f.close()
-        f = open(fn, "r")
-        data = f.read()
-        f.close()
-        self.failUnlessEqual(data, "stuff.more.")
-
     def test_NamedTemporaryDirectory(self):
         basedir = "util/FileUtil/test_NamedTemporaryDirectory"
         fileutil.make_dirs(basedir)
@@ -488,7 +474,16 @@ class FileUtil(unittest.TestCase):
         abspath_cwd = fileutil.abspath_expanduser_unicode(u".")
         self.failUnless(isinstance(saved_cwd, unicode), saved_cwd)
         self.failUnless(isinstance(abspath_cwd, unicode), abspath_cwd)
-        self.failUnlessEqual(abspath_cwd, saved_cwd)
+        if sys.platform == "win32":
+            self.failUnlessReallyEqual(abspath_cwd, fileutil.to_windows_long_path(saved_cwd))
+        else:
+            self.failUnlessReallyEqual(abspath_cwd, saved_cwd)
+
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\?\\foo"), u"\\\\?\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\.\\foo"), u"\\\\.\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"\\\\server\\foo"), u"\\\\?\\UNC\\server\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"C:\\foo"), u"\\\\?\\C:\\foo")
+        self.failUnlessReallyEqual(fileutil.to_windows_long_path(u"C:\\foo/bar"), u"\\\\?\\C:\\foo\\bar")
 
         # adapted from <http://svn.python.org/view/python/branches/release26-maint/Lib/test/test_posixpath.py?view=markup&pathrev=78279#test_abspath>
 
@@ -511,6 +506,34 @@ class FileUtil(unittest.TestCase):
                     self.failUnless(isinstance(uabspath, unicode), uabspath)
             finally:
                 os.chdir(saved_cwd)
+
+    def test_create_long_path(self):
+        workdir = u"test_create_long_path"
+        fileutil.make_dirs(workdir)
+        long_path = fileutil.abspath_expanduser_unicode(os.path.join(workdir, u'x'*255))
+        def _cleanup():
+            fileutil.remove(long_path)
+        self.addCleanup(_cleanup)
+
+        fileutil.write(long_path, "test")
+        self.failUnless(os.path.exists(long_path))
+        self.failUnlessEqual(fileutil.read(long_path), "test")
+        _cleanup()
+        self.failIf(os.path.exists(long_path))
+
+    def test_windows_expanduser(self):
+        def call_windows_getenv(name):
+            if name == u"HOMEDRIVE": return u"C:"
+            if name == u"HOMEPATH": return u"\\Documents and Settings\\\u0100"
+            self.fail("unexpected argument to call_windows_getenv")
+        self.patch(fileutil, 'windows_getenv', call_windows_getenv)
+
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"~"), os.path.join(u"C:", u"\\Documents and Settings\\\u0100"))
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"~\\foo"), os.path.join(u"C:", u"\\Documents and Settings\\\u0100", u"foo"))
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"~/foo"), os.path.join(u"C:", u"\\Documents and Settings\\\u0100", u"foo"))
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a"), u"a")
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a~"), u"a~")
+        self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a\\~\\foo"), u"a\\~\\foo")
 
     def test_disk_stats(self):
         avail = fileutil.get_available_space('.', 2**14)

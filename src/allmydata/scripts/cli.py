@@ -2,7 +2,7 @@ import os.path, re, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
      DEFAULT_ALIAS, BaseOptions
-from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_output
+from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_local_unicode_path
 
 NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 
@@ -140,15 +140,11 @@ class GetOptions(FilesystemOptions):
         # tahoe get FOO bar              # write to local file
         # tahoe get tahoe:FOO bar        # same
 
+        if arg2 == "-":
+            arg2 = None
+
         self.from_file = argv_to_unicode(arg1)
-
-        if arg2:
-            self.to_file = argv_to_unicode(arg2)
-        else:
-            self.to_file = None
-
-        if self.to_file == "-":
-            self.to_file = None
+        self.to_file   = None if arg2 is None else argv_to_abspath(arg2)
 
     def getSynopsis(self):
         return "Usage:  %s [global-opts] get [options] REMOTE_FILE LOCAL_FILE" % (self.command_name,)
@@ -180,17 +176,11 @@ class PutOptions(FilesystemOptions):
     def parseArgs(self, arg1=None, arg2=None):
         # see Examples below
 
-        if arg1 is not None and arg2 is not None:
-            self.from_file = argv_to_unicode(arg1)
-            self.to_file =  argv_to_unicode(arg2)
-        elif arg1 is not None and arg2 is None:
-            self.from_file = argv_to_unicode(arg1) # might be "-"
-            self.to_file = None
-        else:
-            self.from_file = None
-            self.to_file = None
-        if self.from_file == u"-":
-            self.from_file = None
+        if arg1 == "-":
+            arg1 = None
+
+        self.from_file = None if arg1 is None else argv_to_abspath(arg1)
+        self.to_file   = None if arg2 is None else argv_to_unicode(arg2)
 
         if self['format']:
             if self['format'].upper() not in ("SDMF", "MDMF", "CHK"):
@@ -347,7 +337,7 @@ class BackupOptions(FilesystemOptions):
         self['exclude'] = set()
 
     def parseArgs(self, localdir, topath):
-        self.from_dir = argv_to_unicode(localdir)
+        self.from_dir = argv_to_abspath(localdir)
         self.to_dir = argv_to_unicode(topath)
 
     def getSynopsis(self):
@@ -368,7 +358,7 @@ class BackupOptions(FilesystemOptions):
         try:
             exclude_file = file(abs_filepath)
         except:
-            raise BackupConfigurationError('Error opening exclude file %s.' % quote_output(abs_filepath))
+            raise BackupConfigurationError('Error opening exclude file %s.' % quote_local_unicode_path(abs_filepath))
         try:
             for line in exclude_file:
                 self.opt_exclude(line)

@@ -4,7 +4,7 @@ from allmydata.scripts.common import BasedirOptions
 from twisted.scripts import twistd
 from twisted.python import usage
 from allmydata.util import fileutil
-from allmydata.util.encodingutil import listdir_unicode, quote_output
+from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 
 
 class StartOptions(BasedirOptions):
@@ -92,13 +92,14 @@ def identify_node_type(basedir):
 
 def start(config, out=sys.stdout, err=sys.stderr):
     basedir = config['basedir']
-    print >>out, "STARTING", quote_output(basedir)
+    quoted_basedir = quote_local_unicode_path(basedir)
+    print >>out, "STARTING", quoted_basedir
     if not os.path.isdir(basedir):
-        print >>err, "%s does not look like a directory at all" % quote_output(basedir)
+        print >>err, "%s does not look like a directory at all" % quoted_basedir
         return 1
     nodetype = identify_node_type(basedir)
     if not nodetype:
-        print >>err, "%s is not a recognizable node directory" % quote_output(basedir)
+        print >>err, "%s is not a recognizable node directory" % quoted_basedir
         return 1
     # Now prepare to turn into a twistd process. This os.chdir is the point
     # of no return.
@@ -108,7 +109,7 @@ def start(config, out=sys.stdout, err=sys.stderr):
         and "--nodaemon" not in config.twistd_args
         and "--syslog" not in config.twistd_args
         and "--logfile" not in config.twistd_args):
-        fileutil.make_dirs(os.path.join(basedir, "logs"))
+        fileutil.make_dirs(os.path.join(basedir, u"logs"))
         twistd_args.extend(["--logfile", os.path.join("logs", "twistd.log")])
     twistd_args.extend(config.twistd_args)
     twistd_args.append("StartTahoeNode") # point at our StartTahoeNodePlugin
@@ -154,17 +155,18 @@ def start(config, out=sys.stdout, err=sys.stderr):
     else:
         verb = "starting"
 
-    print >>out, "%s node in %s" % (verb, basedir)
+    print >>out, "%s node in %s" % (verb, quoted_basedir)
     twistd.runApp(twistd_config)
     # we should only reach here if --nodaemon or equivalent was used
     return 0
 
 def stop(config, out=sys.stdout, err=sys.stderr):
     basedir = config['basedir']
-    print >>out, "STOPPING", quote_output(basedir)
-    pidfile = os.path.join(basedir, "twistd.pid")
+    quoted_basedir = quote_local_unicode_path(basedir)
+    print >>out, "STOPPING", quoted_basedir
+    pidfile = os.path.join(basedir, u"twistd.pid")
     if not os.path.exists(pidfile):
-        print >>err, "%s does not look like a running node directory (no twistd.pid)" % quote_output(basedir)
+        print >>err, "%s does not look like a running node directory (no twistd.pid)" % quoted_basedir
         # we define rc=2 to mean "nothing is running, but it wasn't me who
         # stopped it"
         return 2

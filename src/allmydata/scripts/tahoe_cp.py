@@ -9,14 +9,15 @@ from allmydata.scripts.common import get_alias, escape_path, \
 from allmydata.scripts.common_http import do_http, HTTPError
 from allmydata import uri
 from allmydata.util import fileutil
-from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, to_str
+from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
+from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, \
+    quote_local_unicode_path, to_str
 from allmydata.util.assertutil import precondition
 
 
 class MissingSourceError(TahoeError):
-    def __init__(self, name):
-        TahoeError.__init__(self, "No such file or directory %s" % quote_output(name))
+    def __init__(self, name, quotefn=quote_output):
+        TahoeError.__init__(self, "No such file or directory %s" % quotefn(name))
 
 
 def GET_to_file(url):
@@ -61,37 +62,34 @@ def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
 
 class LocalFileSource:
     def __init__(self, pathname):
-        precondition(isinstance(pathname, unicode), pathname)
+        precondition_abspath(pathname)
         self.pathname = pathname
 
     def need_to_copy_bytes(self):
         return True
 
     def open(self, caps_only):
-        return open(os.path.expanduser(self.pathname), "rb")
-
+        return open(self.pathname, "rb")
 
 class LocalFileTarget:
     def __init__(self, pathname):
-        precondition(isinstance(pathname, unicode), pathname)
+        precondition_abspath(pathname)
         self.pathname = pathname
 
     def put_file(self, inf):
         fileutil.put_file(self.pathname, inf)
-
 
 class LocalMissingTarget:
     def __init__(self, pathname):
-        precondition(isinstance(pathname, unicode), pathname)
+        precondition_abspath(pathname)
         self.pathname = pathname
 
     def put_file(self, inf):
         fileutil.put_file(self.pathname, inf)
 
-
 class LocalDirectorySource:
     def __init__(self, progressfunc, pathname):
-        precondition(isinstance(pathname, unicode), pathname)
+        precondition_abspath(pathname)
 
         self.progressfunc = progressfunc
         self.pathname = pathname
@@ -119,7 +117,7 @@ class LocalDirectorySource:
 
 class LocalDirectoryTarget:
     def __init__(self, progressfunc, pathname):
-        precondition(isinstance(pathname, unicode), pathname)
+        precondition_abspath(pathname)
 
         self.progressfunc = progressfunc
         self.pathname = pathname
@@ -132,7 +130,6 @@ class LocalDirectoryTarget:
         children = listdir_unicode(self.pathname)
         for i,n in enumerate(children):
             self.progressfunc("examining %d of %d" % (i+1, len(children)))
-            n = unicode(n)
             pn = os.path.join(self.pathname, n)
             if os.path.isdir(pn):
                 child = LocalDirectoryTarget(self.progressfunc, pn)
@@ -144,6 +141,7 @@ class LocalDirectoryTarget:
                 self.children[n] = LocalFileTarget(pn)
 
     def get_child_target(self, name):
+        precondition(isinstance(name, unicode), name)
         if self.children is None:
             self.populate(False)
         if name in self.children:
@@ -159,6 +157,7 @@ class LocalDirectoryTarget:
 
     def set_children(self):
         pass
+
 
 class TahoeFileSource:
     def __init__(self, nodeurl, mutable, writecap, readcap):
@@ -371,6 +370,7 @@ class TahoeDirectoryTarget:
 
     def get_child_target(self, name):
         # return a new target for a named subdirectory of this dir
+        precondition(isinstance(name, unicode), name)
         if self.children is None:
             self.populate(False)
         if name in self.children:
@@ -383,6 +383,7 @@ class TahoeDirectoryTarget:
         return child
 
     def put_file(self, name, inf):
+        precondition(isinstance(name, unicode), name)
         url = self.nodeurl + "uri"
         if not hasattr(inf, "seek"):
             inf = inf.read()
@@ -402,6 +403,7 @@ class TahoeDirectoryTarget:
             self.new_children[name] = filecap
 
     def put_uri(self, name, filecap):
+        precondition(isinstance(name, unicode), name)
         self.new_children[name] = filecap
 
     def set_children(self):
@@ -518,16 +520,23 @@ class Copier:
     def to_stderr(self, text):
         print >>self.stderr, text
 
+    # FIXME reduce the amount of near-duplicate code between get_target_info
+    # and get_source_info.
+
     def get_target_info(self, destination_spec):
-        rootcap, path = get_alias(self.aliases, destination_spec, None)
+        precondition(isinstance(destination_spec, unicode), destination_spec)
+        rootcap, path_utf8 = get_alias(self.aliases, destination_spec, None)
+        path = path_utf8.decode("utf-8")
         if rootcap == DefaultAliasMarker:
             # no alias, so this is a local file
-            pathname = abspath_expanduser_unicode(path.decode('utf-8'))
+            pathname = abspath_expanduser_unicode(path)
             if not os.path.exists(pathname):
                 t = LocalMissingTarget(pathname)
             elif os.path.isdir(pathname):
                 t = LocalDirectoryTarget(self.progress, pathname)
             else:
+                # TODO: should this be _assert? what happens if the target is
+                # a special file?
                 assert os.path.isfile(pathname), pathname
                 t = LocalFileTarget(pathname) # non-empty
         else:
@@ -559,13 +568,15 @@ class Copier:
         return t
 
     def get_source_info(self, source_spec):
-        rootcap, path = get_alias(self.aliases, source_spec, None)
+        precondition(isinstance(source_spec, unicode), source_spec)
+        rootcap, path_utf8 = get_alias(self.aliases, source_spec, None)
+        path = path_utf8.decode("utf-8")
         if rootcap == DefaultAliasMarker:
             # no alias, so this is a local file
-            pathname = abspath_expanduser_unicode(path.decode('utf-8'))
+            pathname = abspath_expanduser_unicode(path)
             name = os.path.basename(pathname)
             if not os.path.exists(pathname):
-                raise MissingSourceError(source_spec)
+                raise MissingSourceError(source_spec, quotefn=quote_local_unicode_path)
             if os.path.isdir(pathname):
                 t = LocalDirectorySource(self.progress, pathname)
             else:
@@ -577,9 +588,9 @@ class Copier:
             name = None
             if path:
                 url += "/" + escape_path(path)
-                last_slash = path.rfind("/")
+                last_slash = path.rfind(u"/")
                 name = path
-                if last_slash:
+                if last_slash != -1:
                     name = path[last_slash+1:]
 
             resp = do_http("GET", url + "?t=json")
@@ -598,8 +609,13 @@ class Copier:
                 writecap = to_str(d.get("rw_uri"))
                 readcap = to_str(d.get("ro_uri"))
                 mutable = d.get("mutable", False) # older nodes don't provide it
-                if source_spec.rfind('/') != -1:
-                    name = source_spec[source_spec.rfind('/')+1:]
+
+                last_slash = source_spec.rfind(u"/")
+                if last_slash != -1:
+                    # TODO: this looks funny and redundant with the 'name'
+                    # assignment above. cf #2329
+                    name = source_spec[last_slash+1:]
+
                 t = TahoeFileSource(self.nodeurl, mutable, writecap, readcap)
         return name, t
 
@@ -679,6 +695,7 @@ class Copier:
         return self.announce_success("files copied")
 
     def attach_to_target(self, source, name, target):
+        precondition(isinstance(name, unicode), name)
         if target not in self.targetmap:
             self.targetmap[target] = {}
         self.targetmap[target][name] = source
@@ -686,7 +703,7 @@ class Copier:
 
     def assign_targets(self, source, target):
         # copy everything in the source into the target
-        assert isinstance(source, (LocalDirectorySource, TahoeDirectorySource))
+        precondition(isinstance(source, (LocalDirectorySource, TahoeDirectorySource)), source)
 
         for name, child in source.children.items():
             if isinstance(child, (LocalDirectorySource, TahoeDirectorySource)):
@@ -694,14 +711,12 @@ class Copier:
                 subtarget = target.get_child_target(name)
                 self.assign_targets(child, subtarget)
             else:
-                assert isinstance(child, (LocalFileSource, TahoeFileSource))
+                precondition(isinstance(child, (LocalFileSource, TahoeFileSource)), child)
                 self.attach_to_target(child, name, target)
-
-
 
     def copy_files_to_target(self, targetmap, target):
         for name, source in targetmap.items():
-            assert isinstance(source, (LocalFileSource, TahoeFileSource))
+            precondition(isinstance(source, (LocalFileSource, TahoeFileSource)), source)
             self.copy_file_into(source, name, target)
             self.files_copied += 1
             self.progress("%d/%d files, %d/%d directories" %
@@ -723,9 +738,9 @@ class Copier:
         return 0
 
     def copy_file(self, source, target):
-        assert isinstance(source, (LocalFileSource, TahoeFileSource))
-        assert isinstance(target, (LocalFileTarget, TahoeFileTarget,
-                                   LocalMissingTarget, TahoeMissingTarget))
+        precondition(isinstance(source, (LocalFileSource, TahoeFileSource)), source)
+        precondition(isinstance(target, (LocalFileTarget, TahoeFileTarget,
+                                         LocalMissingTarget, TahoeMissingTarget)), target)
         if self.need_to_copy_bytes(source, target):
             # if the target is a local directory, this will just write the
             # bytes to disk. If it is a tahoe directory, it will upload the
@@ -740,8 +755,9 @@ class Copier:
         return self.announce_success("file linked")
 
     def copy_file_into(self, source, name, target):
-        assert isinstance(source, (LocalFileSource, TahoeFileSource))
-        assert isinstance(target, (LocalDirectoryTarget, TahoeDirectoryTarget))
+        precondition(isinstance(source, (LocalFileSource, TahoeFileSource)), source)
+        precondition(isinstance(target, (LocalDirectoryTarget, TahoeDirectoryTarget)), target)
+        precondition(isinstance(name, unicode), name)
         if self.need_to_copy_bytes(source, target):
             # if the target is a local directory, this will just write the
             # bytes to disk. If it is a tahoe directory, it will upload the

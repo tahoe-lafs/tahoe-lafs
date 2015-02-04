@@ -2509,6 +2509,28 @@ starting copy, 2 files, 1 directories
         d.addCallback(_check_local_fs)
         return d
 
+    def test_ticket_2027(self):
+        # This test ensures that tahoe will copy a file from the grid to
+        # a local directory without a specified file name.
+        # https://tahoe-lafs.org/trac/tahoe-lafs/ticket/2027
+        self.basedir = "cli/Cp/cp_verbose"
+        self.set_up_grid()
+
+        # Write a test file, which we'll copy to the grid.
+        test1_path = os.path.join(self.basedir, "test1")
+        fileutil.write(test1_path, "test1")
+
+        d = self.do_cli("create-alias", "tahoe")
+        d.addCallback(lambda ign:
+            self.do_cli("cp", test1_path, "tahoe:"))
+        d.addCallback(lambda ign:
+            self.do_cli("cp", "tahoe:test1", self.basedir))
+        def _check(res):
+            (rc, out, err) = res
+            self.failUnlessIn("Success: file copied", out, str(res))
+        return d
+
+
 class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
 
     def writeto(self, path, data):
@@ -2854,7 +2876,8 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         def _check((rc, out, err)):
             self.failUnlessReallyEqual(rc, 2)
             foo2 = os.path.join(source, "foo2.txt")
-            self.failUnlessReallyEqual(err, "WARNING: cannot backup symlink '%s'\n" % foo2)
+            self.failUnlessIn("WARNING: cannot backup symlink ", err)
+            self.failUnlessIn(foo2, err)
 
             fu, fr, fs, dc, dr, ds = self.count_output(out)
             # foo.txt
@@ -3779,7 +3802,7 @@ class Webopen(GridTestMixin, CLITestMixin, unittest.TestCase):
             raise
         return d
 
-class Options(unittest.TestCase):
+class Options(ReallyEqualMixin, unittest.TestCase):
     # this test case only looks at argument-processing and simple stuff.
 
     def parse(self, args, stdout=None):
@@ -3861,17 +3884,17 @@ class Options(unittest.TestCase):
         # option after, or a basedir argument after, but none in the wrong
         # place, and not more than one of the three.
         o = self.parse(["start"])
-        self.failUnlessEqual(o["basedir"], os.path.join(os.path.expanduser("~"),
-                                                        ".tahoe"))
+        self.failUnlessReallyEqual(o["basedir"], os.path.join(fileutil.abspath_expanduser_unicode(u"~"),
+                                                              u".tahoe"))
         o = self.parse(["start", "here"])
-        self.failUnlessEqual(o["basedir"], os.path.abspath("here"))
+        self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"here"))
         o = self.parse(["start", "--basedir", "there"])
-        self.failUnlessEqual(o["basedir"], os.path.abspath("there"))
+        self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"there"))
         o = self.parse(["--node-directory", "there", "start"])
-        self.failUnlessEqual(o["basedir"], os.path.abspath("there"))
+        self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"there"))
 
         o = self.parse(["start", "here", "--nodaemon"])
-        self.failUnlessEqual(o["basedir"], os.path.abspath("here"))
+        self.failUnlessReallyEqual(o["basedir"], fileutil.abspath_expanduser_unicode(u"here"))
 
         self.failUnlessRaises(usage.UsageError, self.parse,
                               ["--basedir", "there", "start"])

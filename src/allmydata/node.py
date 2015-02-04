@@ -93,12 +93,11 @@ class Node(service.MultiService):
         iputil.increase_rlimits()
 
     def init_tempdir(self):
-        local_tempdir_utf8 = "tmp" # default is NODEDIR/tmp/
-        tempdir = self.get_config("node", "tempdir", local_tempdir_utf8).decode('utf-8')
-        tempdir = os.path.join(self.basedir, tempdir)
+        tempdir_config = self.get_config("node", "tempdir", "tmp").decode('utf-8')
+        tempdir = abspath_expanduser_unicode(tempdir_config, base=self.basedir)
         if not os.path.exists(tempdir):
             fileutil.make_dirs(tempdir)
-        tempfile.tempdir = abspath_expanduser_unicode(tempdir)
+        tempfile.tempdir = tempdir
         # this should cause twisted.web.http (which uses
         # tempfile.TemporaryFile) to put large request bodies in the given
         # directory. Without this, the default temp dir is usually /tmp/,
@@ -220,11 +219,12 @@ class Node(service.MultiService):
     def setup_ssh(self):
         ssh_port = self.get_config("node", "ssh.port", "")
         if ssh_port:
-            ssh_keyfile = self.get_config("node", "ssh.authorized_keys_file").decode('utf-8')
+            ssh_keyfile_config = self.get_config("node", "ssh.authorized_keys_file").decode('utf-8')
+            ssh_keyfile = abspath_expanduser_unicode(ssh_keyfile_config, base=self.basedir)
             from allmydata import manhole
-            m = manhole.AuthorizedKeysManhole(ssh_port, ssh_keyfile.encode(get_filesystem_encoding()))
+            m = manhole.AuthorizedKeysManhole(ssh_port, ssh_keyfile)
             m.setServiceParent(self)
-            self.log("AuthorizedKeysManhole listening on %s" % ssh_port)
+            self.log("AuthorizedKeysManhole listening on %s" % (ssh_port,))
 
     def get_app_versions(self):
         # TODO: merge this with allmydata.get_package_versions
