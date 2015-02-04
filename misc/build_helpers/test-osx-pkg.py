@@ -54,7 +54,7 @@ def test_osx_pkg(pkgfile):
 
     # cat Payload | gunzip -dc | cpio -i
     cat_process = subprocess.Popen(['cat', 'Payload'], stdout=subprocess.PIPE)
-    gunzip_process = subprocess.Popen(['gunzip', '-dc'], 
+    gunzip_process = subprocess.Popen(['gunzip', '-dc'],
                                       stdin=cat_process.stdout,
                                       stdout=subprocess.PIPE)
     cpio_process = subprocess.Popen(['cpio', '-i'],
