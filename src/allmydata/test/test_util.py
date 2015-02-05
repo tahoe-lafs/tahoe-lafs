@@ -536,11 +536,11 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(fileutil.windows_expanduser(u"a\\~\\foo"), u"a\\~\\foo")
 
     def test_disk_stats(self):
-        avail = fileutil.get_available_space('.', 2**14)
+        avail = fileutil.get_available_space(u".", 2**14)
         if avail == 0:
             raise unittest.SkipTest("This test will spuriously fail there is no disk space left.")
 
-        disk = fileutil.get_disk_stats('.', 2**13)
+        disk = fileutil.get_disk_stats(u".", 2**13)
         self.failUnless(disk['total'] > 0, disk['total'])
         # we tolerate used==0 for a Travis-CI bug, see #2290
         self.failUnless(disk['used'] >= 0, disk['used'])
@@ -551,7 +551,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
     def test_disk_stats_avail_nonnegative(self):
         # This test will spuriously fail if you have more than 2^128
         # bytes of available space on your filesystem.
-        disk = fileutil.get_disk_stats('.', 2**128)
+        disk = fileutil.get_disk_stats(u".", 2**128)
         self.failUnlessEqual(disk['avail'], 0)
 
 class PollMixinTests(unittest.TestCase):

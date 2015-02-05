@@ -452,6 +452,9 @@ def get_disk_stats(whichdir, reserved_space=0):
     filesystem as reserved_space.
     """
 
+    if not isinstance(whichdir, unicode):
+        raise AssertionError("whichdir must be Unicode")
+
     if have_GetDiskFreeSpaceExW:
         # If this is a Windows system and GetDiskFreeSpaceExW is available, use it.
         # (This might put up an error dialog unless
@@ -475,7 +478,9 @@ def get_disk_stats(whichdir, reserved_space=0):
         # <http://docs.python.org/library/os.html#os.statvfs>
         # <http://opengroup.org/onlinepubs/7990989799/xsh/fstatvfs.html>
         # <http://opengroup.org/onlinepubs/7990989799/xsh/sysstatvfs.h.html>
-        s = os.statvfs(whichdir)
+
+        from allmydata.util.encodingutil import get_filesystem_encoding
+        s = os.statvfs(whichdir.encode(get_filesystem_encoding()))
 
         # on my mac laptop:
         #  statvfs(2) is a wrapper around statfs(2).
