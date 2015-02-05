@@ -405,10 +405,21 @@ class QuotePaths(ReallyEqualMixin, unittest.TestCase):
         self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=True), '"foo/\\x0abar"')
         self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=False), '"foo/\\x0abar"')
 
+        def win32_other(win32, other):
+            return win32 if sys.platform == "win32" else other
+
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo"),
-                                   "'C:\\foo'" if sys.platform == "win32" else "'\\\\?\\C:\\foo'")
+                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo", quotemarks=True),
+                                   win32_other("'C:\\foo'", "'\\\\?\\C:\\foo'"))
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo", quotemarks=False),
+                                   win32_other("C:\\foo", "\\\\?\\C:\\foo"))
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar"),
-                                   "'\\\\foo\\bar'" if sys.platform == "win32" else "'\\\\?\\UNC\\foo\\bar'")
+                                   win32_other("'\\\\foo\\bar'", "'\\\\?\\UNC\\foo\\bar'"))
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=True),
+                                   win32_other("'\\\\foo\\bar'", "'\\\\?\\UNC\\foo\\bar'"))
+        self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\UNC\\foo\\bar", quotemarks=False),
+                                   win32_other("\\\\foo\\bar", "\\\\?\\UNC\\foo\\bar"))
 
 
 class UbuntuKarmicUTF8(EncodingUtil, unittest.TestCase):
