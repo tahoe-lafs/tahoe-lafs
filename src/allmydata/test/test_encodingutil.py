@@ -400,8 +400,10 @@ class QuotePaths(ReallyEqualMixin, unittest.TestCase):
     def test_quote_path(self):
         self.failUnlessReallyEqual(quote_path([u'foo', u'bar']), "'foo/bar'")
         self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=True), "'foo/bar'")
+        self.failUnlessReallyEqual(quote_path([u'foo', u'bar'], quotemarks=False), "foo/bar")
         self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar']), '"foo/\\x0abar"')
         self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=True), '"foo/\\x0abar"')
+        self.failUnlessReallyEqual(quote_path([u'foo', u'\nbar'], quotemarks=False), '"foo/\\x0abar"')
 
         self.failUnlessReallyEqual(quote_local_unicode_path(u"\\\\?\\C:\\foo"),
                                    "'C:\\foo'" if sys.platform == "win32" else "'\\\\?\\C:\\foo'")
