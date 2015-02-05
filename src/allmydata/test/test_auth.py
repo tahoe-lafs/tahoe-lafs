@@ -5,7 +5,7 @@ from twisted.conch import error as conch_error
 from twisted.conch.ssh import keys
 
 from allmydata.frontends import auth
-from allmydata.util.fileutil import abspath_expanduser_unicode
+from allmydata.util.encodingutil import filepath_to_abspath
 
 
 DUMMY_KEY = keys.Key.fromString("""\
@@ -39,7 +39,7 @@ class AccountFileCheckerKeyTests(unittest.TestCase):
     def setUp(self):
         self.account_file = filepath.FilePath(self.mktemp())
         self.account_file.setContent(DUMMY_ACCOUNTS)
-        abspath = abspath_expanduser_unicode(unicode(self.account_file.path))
+        abspath = filepath_to_abspath(self.account_file)
         self.checker = auth.AccountFileChecker(None, abspath)
 
     def test_unknown_user(self):

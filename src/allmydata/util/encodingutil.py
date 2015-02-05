@@ -96,6 +96,16 @@ def argv_to_abspath(s):
     """
     return abspath_expanduser_unicode(argv_to_unicode(s))
 
+def filepath_to_abspath(fp):
+    """
+    Convenience function to extract an absolute path from a Twisted FilePath.
+    """
+    path = fp.path
+    if not isinstance(path, unicode):
+        path = path.decode(filesystem_encoding)
+
+    return abspath_expanduser_unicode(path)
+
 def unicode_to_argv(s, mangle=False):
     """
     Encode the given Unicode argument as a bytestring.
