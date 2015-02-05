@@ -62,13 +62,14 @@ import os, sys, locale
 
 from allmydata.test.common_util import ReallyEqualMixin
 from allmydata.util import encodingutil, fileutil
-from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
-    unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
+from allmydata.util.encodingutil import argv_to_unicode, filepath_to_abspath, \
+    unicode_to_url, unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     unicode_platform, listdir_unicode, FilenameEncodingError, get_io_encoding, \
     get_filesystem_encoding, to_str, from_utf8_or_none, _reload
 from allmydata.dirnode import normalize
 
 from twisted.python import usage
+from twisted.python.filepath import FilePath
 
 class EncodingUtilErrors(ReallyEqualMixin, unittest.TestCase):
 
@@ -221,18 +222,21 @@ class EncodingUtil(ReallyEqualMixin):
         _reload()
         self.failUnlessReallyEqual(unicode_platform(), matrix[self.platform])
 
-    @patch('sys.getfilesystemencoding')
-    @patch('os.listdir')
-    def test_listdir_unicode(self, mock_listdir, mock_getfilesystemencoding):
-        if 'dirlist' not in dir(self):
-            return
-
+    def skip_if_cannot_encode_for_filesystem(self):
         try:
             u"test".encode(self.filesystem_encoding)
         except (LookupError, AttributeError):
             raise unittest.SkipTest("This platform does not support the '%s' filesystem encoding "
                                     "that we are testing for the benefit of a different platform."
                                     % (self.filesystem_encoding,))
+
+    @patch('sys.getfilesystemencoding')
+    @patch('os.listdir')
+    def test_listdir_unicode(self, mock_listdir, mock_getfilesystemencoding):
+        if 'dirlist' not in dir(self):
+            return
+
+        self.skip_if_cannot_encode_for_filesystem()
 
         mock_listdir.return_value = self.dirlist
         mock_getfilesystemencoding.return_value = self.filesystem_encoding
@@ -242,6 +246,17 @@ class EncodingUtil(ReallyEqualMixin):
 
         self.failUnlessEqual(set([normalize(fname) for fname in filenames]),
                              set(TEST_FILENAMES))
+
+    @patch('sys.getfilesystemencoding')
+    def test_filepath_to_abspath(self, mock_getfilesystemencoding):
+        self.skip_if_cannot_encode_for_filesystem()
+
+        mock_getfilesystemencoding.return_value = self.filesystem_encoding
+        _reload()
+
+        filename = lumiere_nfc
+        self.failUnlessReallyEqual(filepath_to_abspath(FilePath(filename)),
+                                   fileutil.abspath_expanduser_unicode(filename))
 
 
 class StdlibUnicode(unittest.TestCase):
