@@ -49,7 +49,7 @@ def parse_options(basedir, command, args):
 class CLITestMixin(ReallyEqualMixin):
     def do_cli(self, verb, *args, **kwargs):
         nodeargs = [
-            "--node-directory", self.get_clientdir(),
+            "--node-directory", unicode_to_argv(self.get_clientdir()),
             ]
         argv = nodeargs + [verb] + list(args)
         stdin = kwargs.get("stdin", "")
