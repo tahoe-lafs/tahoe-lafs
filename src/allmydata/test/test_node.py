@@ -83,7 +83,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.close()
 
         def mock_local_addresses(target=None):
-            return defer.succeed(["127.0.0.1", "5.6.7.8"])
+            return defer.succeed(["127.0.0.1", "192.0.2.0"])
         self.patch(iputil, 'get_local_addresses_async', mock_local_addresses)
 
         n = TestNode(basedir)
@@ -93,7 +93,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         def _check_addresses(ignored_result):
             furl = n.tub.registerReference(n)
             self.failUnless("127.0.0.1:1234" in furl, furl)
-            self.failUnless("5.6.7.8:1234" in furl, furl)
+            self.failUnless("192.0.2.0:1234" in furl, furl)
 
         d.addCallback(_check_addresses)
         return d
@@ -109,7 +109,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.close()
 
         def mock_local_addresses(target=None):
-            return defer.succeed(["127.0.0.1", "5.6.7.8"])
+            return defer.succeed(["127.0.0.1", "192.0.2.0"])
         self.patch(iputil, 'get_local_addresses_async', mock_local_addresses)
 
         n = TestNode(basedir)
@@ -119,7 +119,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         def _check_addresses(ignored_result):
             furl = n.tub.registerReference(n)
             self.failUnless("127.0.0.1:1234" in furl, furl)
-            self.failUnless("5.6.7.8:1234" in furl, furl)
+            self.failUnless("192.0.2.0:1234" in furl, furl)
             self.failUnless("example.com:4321" in furl, furl)
 
         d.addCallback(_check_addresses)
