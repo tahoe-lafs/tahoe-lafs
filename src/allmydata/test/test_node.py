@@ -83,7 +83,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.close()
 
         def mock_local_addresses(target=None):
-            return ["127.0.0.1", "5.6.7.8"]
+            return defer.succeed(["127.0.0.1", "5.6.7.8"])
         self.patch(iputil, 'get_local_addresses_async', mock_local_addresses)
 
         n = TestNode(basedir)
@@ -109,7 +109,7 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         f.close()
 
         def mock_local_addresses(target=None):
-            return ["127.0.0.1", "5.6.7.8"]
+            return defer.succeed(["127.0.0.1", "5.6.7.8"])
         self.patch(iputil, 'get_local_addresses_async', mock_local_addresses)
 
         n = TestNode(basedir)
