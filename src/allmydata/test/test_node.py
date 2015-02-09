@@ -33,12 +33,14 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
         d.addCallback(flushEventualQueue)
         return d
 
-    def test_location(self):
-        basedir = "test_node/test_location"
+    def _test_location(self, basedir, expected_addresses, tub_port=None, tub_location=None):
         fileutil.make_dirs(basedir)
         f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
         f.write("[node]\n")
-        f.write("tub.location = 1.2.3.4:5\n")
+        if tub_port:
+            f.write("tub.port = %d\n" % (tub_port,))
+        if tub_location is not None:
+            f.write("tub.location = %s\n" % (tub_location,))
         f.close()
 
         n = TestNode(basedir)
@@ -47,30 +49,22 @@ class TestCase(testutil.SignalMixin, unittest.TestCase):
 
         def _check_addresses(ignored_result):
             furl = n.tub.registerReference(n)
-            self.failUnless("1.2.3.4:5" in furl, furl)
+            for address in expected_addresses:
+                self.failUnlessIn(address, furl)
 
         d.addCallback(_check_addresses)
         return d
+
+    def test_location1(self):
+        return self._test_location(basedir="test_node/test_location1",
+                                   expected_addresses=["192.0.2.0:1234"],
+                                   tub_location="192.0.2.0:1234")
 
     def test_location2(self):
-        basedir = "test_node/test_location2"
-        fileutil.make_dirs(basedir)
-        f = open(os.path.join(basedir, 'tahoe.cfg'), 'wt')
-        f.write("[node]\n")
-        f.write("tub.location = 1.2.3.4:5,example.org:8091\n")
-        f.close()
+        return self._test_location(basedir="test_node/test_location2",
+                                   expected_addresses=["192.0.2.0:1234", "example.org:8091"],
+                                   tub_location="192.0.2.0:1234,example.org:8091")
 
-        n = TestNode(basedir)
-        n.setServiceParent(self.parent)
-        d = n.when_tub_ready()
-
-        def _check_addresses(ignored_result):
-            furl = n.tub.registerReference(n)
-            self.failUnless("1.2.3.4:5" in furl, furl)
-            self.failUnless("example.org:8091" in furl, furl)
-
-        d.addCallback(_check_addresses)
-        return d
 
     def test_tahoe_cfg_utf8(self):
         basedir = "test_node/test_tahoe_cfg_utf8"
