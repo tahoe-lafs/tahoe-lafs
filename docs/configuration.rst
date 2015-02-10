@@ -4,7 +4,7 @@
 Configuring a Tahoe-LAFS node
 =============================
 
-1.   `Node Types`_
+1.  `Node Types`_
 2.  `Overall Node Configuration`_
 3.  `Client Configuration`_
 4.  `Storage Server Configuration`_
@@ -159,6 +159,11 @@ set the ``tub.location`` option described below.
     this when using a Tor proxy to avoid revealing your actual IP address
     through the Introducer announcement.
 
+    If ``tub.location`` is specified, by default it entirely replaces the
+    automatically determined set of IP addresses. To include the automatically
+    determined addresses as well as the specified ones, include the uppercase
+    string "``AUTO``" in the list.
+
     The value is a comma-separated string of host:port location hints, like
     this::
 
@@ -176,6 +181,11 @@ set the ``tub.location`` option described below.
 
         tub.port = 8098
         tub.location = tahoe.example.com:8098
+
+    * Use a DNS name but also include the default set of addresses::
+
+        tub.port = 8098
+        tub.location = tahoe.example.com:8098,AUTO
 
     * Run a node behind a firewall (which has an external IP address) that
       has been configured to forward port 7912 to our internal node's port
