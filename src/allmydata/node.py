@@ -326,7 +326,6 @@ class Node(service.MultiService):
 
         service.MultiService.startService(self)
         d = defer.succeed(None)
-        d.addCallback(lambda res: iputil.get_local_addresses_async())
         d.addCallback(self._setup_tub)
         def _ready(res):
             self.log("%s running" % self.NODETYPE)
@@ -389,7 +388,7 @@ class Node(service.MultiService):
     def log(self, *args, **kwargs):
         return log.msg(*args, **kwargs)
 
-    def _setup_tub(self, local_addresses):
+    def _setup_tub(self):
         # we can't get a dynamically-assigned portnum until our Tub is
         # running, which means after startService.
         l = self.tub.getListeners()[0]
@@ -398,13 +397,27 @@ class Node(service.MultiService):
         # next time
         fileutil.write_atomically(self._portnumfile, "%d\n" % portnum, mode="")
 
-        base_location = ",".join([ "%s:%d" % (addr, portnum)
-                                   for addr in local_addresses ])
-        location = self.get_config("node", "tub.location", base_location)
-        self.log("Tub location set to %s" % location)
-        self.tub.setLocation(location)
+        location = self.get_config("node", "tub.location", "AUTO")
 
-        return self.tub
+        # Replace the location "AUTO", if present, with the detected local addresses.
+        split_location = location.split(",")
+        if "AUTO" in split_location:
+            d = iputil.get_local_addresses_async()
+            def _add_local(local_addresses):
+                split_location.remove("AUTO")
+                split_location.extend([ "%s:%d" % (addr, portnum)
+                                        for addr in local_addresses ])
+                return ",".join(split_location)
+            d.addCallback(_add_local)
+        else:
+            d = defer.succeed(location)
+
+        def _got_location(location):
+            self.log("Tub location set to %s" % (location,))
+            self.tub.setLocation(location)
+            return self.tub
+        d.addCallback(_got_location)
+        return d
 
     def when_tub_ready(self):
         return self._tub_ready_observerlist.when_fired()
