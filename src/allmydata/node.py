@@ -404,7 +404,9 @@ class Node(service.MultiService):
         if "AUTO" in split_location:
             d = iputil.get_local_addresses_async()
             def _add_local(local_addresses):
-                split_location.remove("AUTO")
+                while "AUTO" in split_location:
+                    split_location.remove("AUTO")
+
                 split_location.extend([ "%s:%d" % (addr, portnum)
                                         for addr in local_addresses ])
                 return ",".join(split_location)
