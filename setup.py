@@ -262,9 +262,9 @@ __version__ = verstr
 '''
 
 def run_command(args, cwd=None):
+    use_shell = sys.platform == "win32"
     try:
-        # remember shell=False, so use git.cmd on windows, not just git
-        p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd)
+        p = subprocess.Popen(args, stdout=subprocess.PIPE, cwd=cwd, shell=use_shell)
     except EnvironmentError as e:  # if this gives a SyntaxError, note that Tahoe-LAFS requires Python 2.6+
         print("Warning: unable to run %r." % (" ".join(args),))
         print(e)
@@ -303,10 +303,7 @@ def versions_from_git(tag_prefix):
         print("Warning: unable to find version because we could not obtain the source directory.")
         print(e)
         return {}
-    GIT = "git"
-    if sys.platform == "win32":
-        GIT = "git.cmd"
-    stdout = run_command([GIT, "describe", "--tags", "--dirty", "--always"],
+    stdout = run_command(["git", "describe", "--tags", "--dirty", "--always"],
                          cwd=source_dir)
     if stdout is None:
         # run_command already complained.
@@ -321,7 +318,7 @@ def versions_from_git(tag_prefix):
     else:
         normalized_version = "%s.post%s" % (pieces[0], pieces[1])
 
-    stdout = run_command([GIT, "rev-parse", "HEAD"], cwd=source_dir)
+    stdout = run_command(["git", "rev-parse", "HEAD"], cwd=source_dir)
     if stdout is None:
         # run_command already complained.
         return {}
@@ -331,7 +328,7 @@ def versions_from_git(tag_prefix):
         normalized_version += ".dev0"
 
     # Thanks to Jistanidiot at <http://stackoverflow.com/questions/6245570/get-current-branch-name>.
-    stdout = run_command([GIT, "rev-parse", "--abbrev-ref", "HEAD"], cwd=source_dir)
+    stdout = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=source_dir)
     branch = (stdout or "unknown").strip()
 
     return {"version": version, "normalized": normalized_version, "full": full, "branch": branch}
