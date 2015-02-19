@@ -142,8 +142,10 @@ def get_local_ip_for(target):
 
 # Wow, I'm really amazed at home much mileage we've gotten out of calling
 # the external route.exe program on windows...  It appears to work on all
-# versions so far.  Still, the real system calls would much be preferred...
+# versions so far.
 # ... thus wrote Greg Smith in time immemorial...
+# Also, the Win32 APIs for this are really klunky and error-prone. --Daira
+
 _win32_re = re.compile(r'^\s*\d+\.\d+\.\d+\.\d+\s.+\s(?P<address>\d+\.\d+\.\d+\.\d+)\s+(?P<metric>\d+)\s*$', flags=re.M|re.I|re.S)
 _win32_commands = (('route.exe', ('print',), _win32_re),)
 
