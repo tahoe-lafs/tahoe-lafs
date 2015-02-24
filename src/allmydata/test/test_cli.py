@@ -36,7 +36,7 @@ from twisted.internet import threads # CLI tests use deferToThread
 from twisted.python import usage
 
 from allmydata.util.encodingutil import listdir_unicode, unicode_platform, \
-    get_io_encoding, get_filesystem_encoding
+    get_io_encoding, get_filesystem_encoding, unicode_to_argv
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
