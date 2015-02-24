@@ -2460,7 +2460,7 @@ def parse_requirements(strs):
     for line in lines:
         match = DISTRO(line)
         if not match:
-            raise ValueError("Missing distribution spec", line)
+            raise ValueError("Missing distribution spec", line, strs)
         project_name = match.group(1)
         p = match.end()
         extras = []
