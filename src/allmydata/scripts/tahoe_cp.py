@@ -61,9 +61,13 @@ def make_tahoe_subdirectory(nodeurl, parent_writecap, name):
 
 
 class LocalFileSource:
-    def __init__(self, pathname):
+    def __init__(self, pathname, basename):
         precondition_abspath(pathname)
         self.pathname = pathname
+        self._basename = basename
+
+    def basename(self):
+        return self._basename
 
     def need_to_copy_bytes(self):
         return True
@@ -88,12 +92,16 @@ class LocalMissingTarget:
         fileutil.put_file(self.pathname, inf)
 
 class LocalDirectorySource:
-    def __init__(self, progressfunc, pathname):
+    def __init__(self, progressfunc, pathname, basename):
         precondition_abspath(pathname)
 
         self.progressfunc = progressfunc
         self.pathname = pathname
         self.children = None
+        self._basename = basename
+
+    def basename(self):
+        return self._basename
 
     def populate(self, recurse):
         if self.children is not None:
@@ -104,12 +112,12 @@ class LocalDirectorySource:
             self.progressfunc("examining %d of %d" % (i+1, len(children)))
             pn = os.path.join(self.pathname, n)
             if os.path.isdir(pn):
-                child = LocalDirectorySource(self.progressfunc, pn)
+                child = LocalDirectorySource(self.progressfunc, pn, n)
                 self.children[n] = child
                 if recurse:
                     child.populate(True)
             elif os.path.isfile(pn):
-                self.children[n] = LocalFileSource(pn)
+                self.children[n] = LocalFileSource(pn, n)
             else:
                 # Could be dangling symlink; probably not copy-able.
                 # TODO: output a warning
@@ -160,11 +168,15 @@ class LocalDirectoryTarget:
 
 
 class TahoeFileSource:
-    def __init__(self, nodeurl, mutable, writecap, readcap):
+    def __init__(self, nodeurl, mutable, writecap, readcap, basename):
         self.nodeurl = nodeurl
         self.mutable = mutable
         self.writecap = writecap
         self.readcap = readcap
+        self._basename = basename # unicode, or None for raw filecaps
+
+    def basename(self):
+        return self._basename
 
     def need_to_copy_bytes(self):
         if self.mutable:
@@ -201,10 +213,14 @@ class TahoeFileTarget:
         # mutable files. ticket #835
 
 class TahoeDirectorySource:
-    def __init__(self, nodeurl, cache, progressfunc):
+    def __init__(self, nodeurl, cache, progressfunc, basename):
         self.nodeurl = nodeurl
         self.cache = cache
         self.progressfunc = progressfunc
+        self._basename = basename # unicode, or None for raw dircaps
+
+    def basename(self):
+        return self._basename
 
     def init_from_grid(self, writecap, readcap):
         self.writecap = writecap
@@ -244,7 +260,7 @@ class TahoeDirectorySource:
                 writecap = to_str(data[1].get("rw_uri"))
                 readcap = to_str(data[1].get("ro_uri"))
                 self.children[name] = TahoeFileSource(self.nodeurl, mutable,
-                                                      writecap, readcap)
+                                                      writecap, readcap, name)
             elif data[0] == "dirnode":
                 writecap = to_str(data[1].get("rw_uri"))
                 readcap = to_str(data[1].get("ro_uri"))
@@ -254,7 +270,7 @@ class TahoeDirectorySource:
                     child = self.cache[readcap]
                 else:
                     child = TahoeDirectorySource(self.nodeurl, self.cache,
-                                                 self.progressfunc)
+                                                 self.progressfunc, name)
                     child.init_from_grid(writecap, readcap)
                     if writecap:
                         self.cache[writecap] = child
@@ -578,10 +594,10 @@ class Copier:
             if not os.path.exists(pathname):
                 raise MissingSourceError(source_spec, quotefn=quote_local_unicode_path)
             if os.path.isdir(pathname):
-                t = LocalDirectorySource(self.progress, pathname)
+                t = LocalDirectorySource(self.progress, pathname, name)
             else:
                 assert os.path.isfile(pathname)
-                t = LocalFileSource(pathname) # non-empty
+                t = LocalFileSource(pathname, name) # non-empty
         else:
             # this is a tahoe object
             url = self.nodeurl + "uri/%s" % urllib.quote(rootcap)
@@ -603,7 +619,7 @@ class Copier:
             nodetype, d = parsed
             if nodetype == "dirnode":
                 t = TahoeDirectorySource(self.nodeurl, self.cache,
-                                         self.progress)
+                                         self.progress, name)
                 t.init_from_parsed(parsed)
             else:
                 writecap = to_str(d.get("rw_uri"))
@@ -616,7 +632,7 @@ class Copier:
                     # assignment above. cf #2329
                     name = source_spec[last_slash+1:]
 
-                t = TahoeFileSource(self.nodeurl, mutable, writecap, readcap)
+                t = TahoeFileSource(self.nodeurl, mutable, writecap, readcap, name)
         return name, t
 
 
