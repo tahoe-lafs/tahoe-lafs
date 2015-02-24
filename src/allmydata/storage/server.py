@@ -6,6 +6,7 @@ from twisted.application import service
 from zope.interface import implements
 from allmydata.interfaces import RIStorageServer, IStatsProducer
 from allmydata.util import fileutil, idlib, log, time_format
+from allmydata.util.assertutil import precondition
 import allmydata # for __full_version__
 
 from allmydata.storage.common import si_b2a, si_a2b, storage_index_to_dir
@@ -47,23 +48,25 @@ class StorageServer(service.MultiService, Referenceable):
                  expiration_cutoff_date=None,
                  expiration_sharetypes=("mutable", "immutable")):
         service.MultiService.__init__(self)
-        assert isinstance(nodeid, str)
-        assert len(nodeid) == 20
+
+        precondition(isinstance(nodeid, str), nodeid)
+        precondition(len(nodeid) == 20, nodeid)
+
         self.my_nodeid = nodeid
-        self.storedir = storedir
-        sharedir = os.path.join(storedir, "shares")
+        self.storedir = unicode(storedir)
+        sharedir = os.path.join(storedir, u"shares")
         fileutil.make_dirs(sharedir)
         self.sharedir = sharedir
         # we don't actually create the corruption-advisory dir until necessary
         self.corruption_advisory_dir = os.path.join(storedir,
-                                                    "corruption-advisories")
+                                                    u"corruption-advisories")
         self.reserved_space = int(reserved_space)
         self.no_storage = discard_storage
         self.readonly_storage = readonly_storage
         self.stats_provider = stats_provider
         if self.stats_provider:
             self.stats_provider.register_producer(self)
-        self.incomingdir = os.path.join(sharedir, 'incoming')
+        self.incomingdir = os.path.join(sharedir, u"incoming")
         self._clean_incomplete()
         fileutil.make_dirs(self.incomingdir)
         self._active_writers = weakref.WeakKeyDictionary()
@@ -87,8 +90,8 @@ class StorageServer(service.MultiService, Referenceable):
                           }
         self.add_bucket_counter()
 
-        statefile = os.path.join(self.storedir, "lease_checker.state")
-        historyfile = os.path.join(self.storedir, "lease_checker.history")
+        statefile = os.path.join(self.storedir, u"lease_checker.state")
+        historyfile = os.path.join(self.storedir, u"lease_checker.history")
         klass = self.LeaseCheckerClass
         self.lease_checker = klass(self, statefile, historyfile,
                                    expiration_enabled, expiration_mode,
@@ -106,7 +109,7 @@ class StorageServer(service.MultiService, Referenceable):
         return bool(set(os.listdir(self.sharedir)) - set(["incoming"]))
 
     def add_bucket_counter(self):
-        statefile = os.path.join(self.storedir, "bucket_counter.state")
+        statefile = os.path.join(self.storedir, u"bucket_counter.state")
         self.bucket_counter = BucketCountingCrawler(self, statefile)
         self.bucket_counter.setServiceParent(self)
 
@@ -283,8 +286,8 @@ class StorageServer(service.MultiService, Referenceable):
             sf.add_or_renew_lease(lease_info)
 
         for shnum in sharenums:
-            incominghome = os.path.join(self.incomingdir, si_dir, "%d" % shnum)
-            finalhome = os.path.join(self.sharedir, si_dir, "%d" % shnum)
+            incominghome = os.path.join(self.incomingdir, si_dir, u"%d" % shnum)
+            finalhome = os.path.join(self.sharedir, si_dir, u"%d" % shnum)
             if os.path.exists(finalhome):
                 # great! we already have it. easy.
                 pass
@@ -491,7 +494,7 @@ class StorageServer(service.MultiService, Referenceable):
         (write_enabler, renew_secret, cancel_secret) = secrets
         my_nodeid = self.my_nodeid
         fileutil.make_dirs(bucketdir)
-        filename = os.path.join(bucketdir, "%d" % sharenum)
+        filename = os.path.join(bucketdir, u"%d" % sharenum)
         share = create_mutable_sharefile(filename, my_nodeid, write_enabler,
                                          self)
         return share
@@ -530,7 +533,7 @@ class StorageServer(service.MultiService, Referenceable):
         si_s = si_b2a(storage_index)
         # windows can't handle colons in the filename
         fn = os.path.join(self.corruption_advisory_dir,
-                          "%s--%s-%d" % (now, si_s, shnum)).replace(":","")
+                          (u"%s--%s-%d" % (now, si_s, shnum)).replace(u":", u""))
         f = open(fn, "w")
         f.write("report: Share Corruption\n")
         f.write("type: %s\n" % share_type)

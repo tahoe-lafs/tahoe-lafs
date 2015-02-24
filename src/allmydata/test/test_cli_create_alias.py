@@ -5,7 +5,7 @@ from allmydata.util import fileutil
 from allmydata.scripts.common import get_aliases
 from allmydata.scripts import cli, runner
 from allmydata.test.no_network import GridTestMixin
-from allmydata.util.encodingutil import quote_output, get_io_encoding
+from allmydata.util.encodingutil import quote_output, get_io_encoding, unicode_to_argv
 from .test_cli import CLITestMixin
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
@@ -14,7 +14,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
     def _test_webopen(self, args, expected_url):
         o = runner.Options()
-        o.parseOptions(["--node-directory", self.get_clientdir(), "webopen"]
+        o.parseOptions(["--node-directory", unicode_to_argv(self.get_clientdir()), "webopen"]
                        + list(args))
         urls = []
         rc = cli.webopen(o, urls.append)
@@ -25,7 +25,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
     def test_create(self):
         self.basedir = "cli/CreateAlias/create"
         self.set_up_grid()
-        aliasfile = os.path.join(self.get_clientdir(), "private", "aliases")
+        aliasfile = os.path.join(self.get_clientdir(), u"private", u"aliases")
 
         d = self.do_cli("create-alias", "tahoe")
         def _done((rc,stdout,stderr)):
@@ -39,7 +39,7 @@ class CreateAlias(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         def _stash_urls(res):
             aliases = get_aliases(self.get_clientdir())
-            node_url_file = os.path.join(self.get_clientdir(), "node.url")
+            node_url_file = os.path.join(self.get_clientdir(), u"node.url")
             nodeurl = fileutil.read(node_url_file).strip()
             self.welcome_url = nodeurl
             uribase = nodeurl + "uri/"

@@ -18,4 +18,4 @@ def si_a2b(ascii_storageindex):
 
 def storage_index_to_dir(storageindex):
     sia = si_b2a(storageindex)
-    return os.path.join(sia[:2], sia)
+    return unicode(os.path.join(sia[:2], sia))

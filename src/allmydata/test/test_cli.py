@@ -6,6 +6,8 @@ import urllib, sys
 
 from mock import Mock, call
 
+from allmydata.util.assertutil import precondition
+
 import allmydata
 from allmydata.util import fileutil, hashutil, base32, keyutil
 from allmydata import uri
@@ -33,9 +35,8 @@ from allmydata.test.no_network import GridTestMixin
 from twisted.internet import threads # CLI tests use deferToThread
 from twisted.python import usage
 
-from allmydata.util.assertutil import precondition
 from allmydata.util.encodingutil import listdir_unicode, unicode_platform, \
-    get_io_encoding, get_filesystem_encoding
+    get_io_encoding, get_filesystem_encoding, unicode_to_argv
 
 timeout = 480 # deep_check takes 360s on Zandr's linksys box, others take > 240s
 
@@ -52,6 +53,11 @@ class CLITestMixin(ReallyEqualMixin):
             "--node-directory", unicode_to_argv(self.get_clientdir()),
             ]
         argv = nodeargs + [verb] + list(args)
+
+        # runner.runner will also check this, but in another thread; this gives a better traceback
+        for arg in argv:
+            precondition(isinstance(arg, str), argv)
+
         stdin = kwargs.get("stdin", "")
         stdout, stderr = StringIO(), StringIO()
         d = threads.deferToThread(runner.runner, argv, run_by_human=False,
