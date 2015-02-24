@@ -16,7 +16,8 @@ from allmydata.immutable.filenode import ImmutableFileNode
 from allmydata.util import idlib, mathutil
 from allmydata.util import log, base32
 from allmydata.util.verlib import NormalizedVersion
-from allmydata.util.encodingutil import quote_output, unicode_to_argv, get_filesystem_encoding
+from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, \
+     unicode_to_argv, get_filesystem_encoding
 from allmydata.util.fileutil import abspath_expanduser_unicode
 from allmydata.util.consumer import MemoryConsumer, download_to_data
 from allmydata.scripts import runner
@@ -730,6 +731,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         d.addCallback(self.log, "starting publish")
         d.addCallback(self._do_publish1)
         d.addCallback(self._test_runner)
+        return d
         d.addCallback(self._do_publish2)
         # at this point, we have the following filesystem (where "R" denotes
         # self._root_directory_uri):
@@ -1314,14 +1316,14 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         # find a share
         for (dirpath, dirnames, filenames) in os.walk(unicode(self.basedir)):
-            if "storage" not in dirpath:
+            if u"storage" not in dirpath:
                 continue
             if not filenames:
                 continue
             pieces = dirpath.split(os.sep)
             if (len(pieces) >= 4
-                and pieces[-4] == "storage"
-                and pieces[-3] == "shares"):
+                and pieces[-4] == u"storage"
+                and pieces[-3] == u"shares"):
                 # we're sitting in .../storage/shares/$START/$SINDEX , and there
                 # are sharefiles here
                 filename = os.path.join(dirpath, filenames[0])
@@ -1343,7 +1345,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
 
         # we only upload a single file, so we can assert some things about
         # its size and shares.
-        self.failUnlessIn("share filename: %s" % quote_output(abspath_expanduser_unicode(filename)), output)
+        self.failUnlessIn("share filename: %s" % quote_local_unicode_path(abspath_expanduser_unicode(filename)), output)
         self.failUnlessIn("size: %d\n" % len(self.data), output)
         self.failUnlessIn("num_segments: 1\n", output)
         # segment_size is always a multiple of needed_shares
@@ -1377,11 +1379,12 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         out,err = StringIO(), StringIO()
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
         cmd = ["debug", "catalog-shares"] + nodedirs
+        import pdb; pdb.set_trace()
         rc = runner.runner(cmd, stdout=out, stderr=err)
         self.failUnlessEqual(rc, 0)
         out.seek(0)
         descriptions = [sfn.strip() for sfn in out.readlines()]
-        self.failUnlessEqual(len(descriptions), 30)
+        self.failUnlessEqual(len(descriptions), 30, descriptions)
         matching = [line
                     for line in descriptions
                     if line.startswith("CHK %s " % storage_index_s)]

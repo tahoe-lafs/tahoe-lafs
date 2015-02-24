@@ -4,6 +4,8 @@ from cStringIO import StringIO
 
 from twisted.python import usage
 
+from allmydata.util.assertutil import precondition
+
 from allmydata.scripts.common import get_default_nodedir
 from allmydata.scripts import debug, create_node, startstop_node, cli, keygen, stats_gatherer, admin
 from allmydata.util.encodingutil import quote_output, quote_local_unicode_path, get_io_encoding
@@ -88,6 +90,8 @@ def runner(argv,
            run_by_human=True,
            stdin=None, stdout=None, stderr=None,
            install_node_control=True, additional_commands=None):
+    for arg in argv:
+        precondition(isinstance(arg, str), argv)
 
     stdin  = stdin  or sys.stdin
     stdout = stdout or sys.stdout

@@ -1,8 +1,9 @@
 import os.path, re, fnmatch
 from twisted.python import usage
 from allmydata.scripts.common import get_aliases, get_default_nodedir, \
-     DEFAULT_ALIAS, BaseOptions
-from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_local_unicode_path
+    DEFAULT_ALIAS, BaseOptions
+from allmydata.util.encodingutil import argv_to_unicode, argv_to_abspath, quote_output, \
+    quote_local_unicode_path
 
 NODEURL_RE=re.compile("http(s?)://([^:]*)(:([1-9][0-9]*))?")
 
@@ -528,7 +529,7 @@ def get(options):
             pass
         else:
             print >>options.stderr, "%s retrieved and written to %s" % \
-                  (options.from_file, options.to_file)
+                  (quote_output(options.from_file), quote_local_unicode_path(options.to_file))
     return rc
 
 def put(options):

@@ -175,6 +175,7 @@ class Math(unittest.TestCase):
         f = mathutil.round_sigfigs
         self.failUnlessEqual(f(22.0/3, 4), 7.3330000000000002)
 
+
 class Statistics(unittest.TestCase):
     def should_assert(self, msg, func, *args, **kwargs):
         try:
@@ -372,6 +373,7 @@ class Asserts(unittest.TestCase):
         m = self.should_assert(f, False, othermsg="message2")
         self.failUnlessEqual("postcondition: othermsg: 'message2' <type 'str'>", m)
 
+
 class FileUtil(ReallyEqualMixin, unittest.TestCase):
     def mkdir(self, basedir, path, mode=0777):
         fn = os.path.join(basedir, path)
@@ -554,6 +556,7 @@ class FileUtil(ReallyEqualMixin, unittest.TestCase):
         disk = fileutil.get_disk_stats(u".", 2**128)
         self.failUnlessEqual(disk['avail'], 0)
 
+
 class PollMixinTests(unittest.TestCase):
     def setUp(self):
         self.pm = pollmixin.PollMixin()
@@ -580,6 +583,7 @@ class PollMixinTests(unittest.TestCase):
             return None # success
         d.addCallbacks(_suc, _err)
         return d
+
 
 class DeferredUtilTests(unittest.TestCase):
     def test_gather_results(self):
@@ -621,8 +625,8 @@ class DeferredUtilTests(unittest.TestCase):
         self.failUnless(isinstance(f, Failure))
         self.failUnless(f.check(ValueError))
 
-class HashUtilTests(unittest.TestCase):
 
+class HashUtilTests(unittest.TestCase):
     def test_random_key(self):
         k = hashutil.random_key()
         self.failUnlessEqual(len(k), hashutil.KEYLEN)
@@ -815,6 +819,7 @@ class Abbreviate(unittest.TestCase):
         e = self.failUnlessRaises(ValueError, p, "fhtagn")
         self.failUnlessIn("fhtagn", str(e))
 
+
 class Limiter(unittest.TestCase):
     timeout = 480 # This takes longer than 240 seconds on Francois's arm box.
 
@@ -889,6 +894,7 @@ class Limiter(unittest.TestCase):
                 self.failUnless( (i, str(i)) in self.calls)
         d.addCallback(_all_done)
         return d
+
 
 class TimeFormat(unittest.TestCase):
     def test_epoch(self):
@@ -978,6 +984,7 @@ class TimeFormat(unittest.TestCase):
     def test_parse_date(self):
         self.failUnlessEqual(time_format.parse_date("2010-02-21"), 1266710400)
 
+
 class CacheDir(unittest.TestCase):
     def test_basic(self):
         basedir = "test_util/CacheDir/test_basic"
@@ -1042,6 +1049,7 @@ class CacheDir(unittest.TestCase):
         _failUnlessExists("c")
         del b2
 
+
 ctr = [0]
 class EqButNotIs:
     def __init__(self, x):
@@ -1064,6 +1072,7 @@ class EqButNotIs:
         return self.x != other
     def __eq__(self, other):
         return self.x == other
+
 
 class DictUtil(unittest.TestCase):
     def _help_test_empty_dict(self, klass):
@@ -1440,6 +1449,7 @@ class DictUtil(unittest.TestCase):
         self.failUnlessEqual(d["one"], 1)
         self.failUnlessEqual(d.get_aux("one"), None)
 
+
 class Pipeline(unittest.TestCase):
     def pause(self, *args, **kwargs):
         d = defer.Deferred()
@@ -1614,8 +1624,10 @@ class Pipeline(unittest.TestCase):
 
         del d1,d2,d3,d4
 
+
 class SampleError(Exception):
     pass
+
 
 class Log(unittest.TestCase):
     def test_err(self):
@@ -1715,6 +1727,7 @@ class SimpleSpans:
             if i not in self._have:
                 return False
         return True
+
 
 class ByteSpans(unittest.TestCase):
     def test_basic(self):
@@ -1949,6 +1962,7 @@ class ByteSpans(unittest.TestCase):
                 else:
                     out.write(" ")
         out.write("\n")
+
 
 def extend(s, start, length, fill):
     if len(s) >= start+length:

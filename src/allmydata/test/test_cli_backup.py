@@ -136,7 +136,7 @@ class Backup(GridTestMixin, CLITestMixin, StallMixin, unittest.TestCase):
         # timestamp to force a check on all files
         def _reset_last_checked(res):
             dbfile = os.path.join(self.get_clientdir(),
-                                  "private", "backupdb.sqlite")
+                                  u"private", u"backupdb.sqlite")
             self.failUnless(os.path.exists(dbfile), dbfile)
             bdb = backupdb.get_backupdb(dbfile)
             bdb.cursor.execute("UPDATE last_upload SET last_checked=0")

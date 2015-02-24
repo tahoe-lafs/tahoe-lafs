@@ -3113,7 +3113,7 @@ class Version(GridTestMixin, unittest.TestCase, testutil.ShouldFailMixin, \
             fso = debug.FindSharesOptions()
             storage_index = base32.b2a(n.get_storage_index())
             fso.si_s = storage_index
-            fso.nodedirs = [os.path.dirname(abspath_expanduser_unicode(unicode(storedir)))
+            fso.nodedirs = [os.path.dirname(abspath_expanduser_unicode(storedir))
                             for (i,ss,storedir)
                             in self.iterate_servers()]
             fso.stdout = StringIO()

@@ -37,12 +37,12 @@ verify-cap for the file that uses the share.
 
 def dump_share(options):
     from allmydata.storage.mutable import MutableShareFile
-    from allmydata.util.encodingutil import quote_output
+    from allmydata.util.encodingutil import quote_local_unicode_path
 
     out = options.stdout
 
     # check the version, to see if we have a mutable or immutable share
-    print >>out, "share filename: %s" % quote_output(options['filename'])
+    print >>out, "share filename: %s" % quote_local_unicode_path(options['filename'])
 
     f = open(options['filename'], "rb")
     prefix = f.read(32)
@@ -649,11 +649,11 @@ def find_shares(options):
 
     out = options.stdout
     sharedir = storage_index_to_dir(si_a2b(options.si_s))
-    for d in options.nodedirs:
-        d = os.path.join(d, "storage", "shares", sharedir)
-        if os.path.exists(d):
-            for shnum in listdir_unicode(d):
-                print >>out, quote_local_unicode_path(os.path.join(d, shnum), quotemarks=False)
+    for nodedir in options.nodedirs:
+        abs_sharedir = os.path.join(nodedir, u"storage", u"shares", sharedir)
+        if os.path.exists(abs_sharedir):
+            for shnum in listdir_unicode(abs_sharedir):
+                print >>out, quote_local_unicode_path(os.path.join(abs_sharedir, shnum), quotemarks=False)
 
     return 0
 
@@ -712,7 +712,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
     from allmydata.mutable.common import NeedMoreDataError
     from allmydata.immutable.layout import ReadBucketProxy
     from allmydata.util import base32
-    from allmydata.util.encodingutil import quote_output
+    from allmydata.util.encodingutil import quote_local_unicode_path
     import struct
 
     f = open(abs_sharefile, "rb")
@@ -755,7 +755,7 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
             print >>out, "SDMF %s %d/%d %d #%d:%s %d %s" % \
                   (si_s, k, N, datalen,
                    seqnum, base32.b2a(root_hash),
-                   expiration, quote_output(abs_sharefile))
+                   expiration, quote_local_unicode_path(abs_sharefile))
         elif share_type == "MDMF":
             from allmydata.mutable.layout import MDMFSlotReadProxy
             fake_shnum = 0
@@ -784,9 +784,9 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
             print >>out, "MDMF %s %d/%d %d #%d:%s %d %s" % \
                   (si_s, k, N, datalen,
                    seqnum, base32.b2a(root_hash),
-                   expiration, quote_output(abs_sharefile))
+                   expiration, quote_local_unicode_path(abs_sharefile))
         else:
-            print >>out, "UNKNOWN mutable %s" % quote_output(abs_sharefile)
+            print >>out, "UNKNOWN mutable %s" % quote_local_unicode_path(abs_sharefile)
 
     elif struct.unpack(">L", prefix[:4]) == (1,):
         # immutable
@@ -818,10 +818,10 @@ def describe_share(abs_sharefile, si_s, shnum_s, now, out):
 
         print >>out, "CHK %s %d/%d %d %s %d %s" % (si_s, k, N, filesize,
                                                    ueb_hash, expiration,
-                                                   quote_output(abs_sharefile))
+                                                   quote_local_unicode_path(abs_sharefile))
 
     else:
-        print >>out, "UNKNOWN really-unknown %s" % quote_output(abs_sharefile)
+        print >>out, "UNKNOWN really-unknown %s" % quote_local_unicode_path(abs_sharefile)
 
     f.close()
 
@@ -831,18 +831,18 @@ def catalog_shares(options):
     out = options.stdout
     err = options.stderr
     now = time.time()
-    for d in options.nodedirs:
-        d = os.path.join(d, "storage", "shares")
+    for nodedir in options.nodedirs:
+        abs_sharedir = os.path.join(nodedir, u"storage", u"shares")
         try:
-            abbrevs = listdir_unicode(d)
+            abbrevs = listdir_unicode(abs_sharedir)
         except EnvironmentError:
             # ignore nodes that have storage turned off altogether
             pass
         else:
             for abbrevdir in sorted(abbrevs):
-                if abbrevdir == "incoming":
+                if abbrevdir == u"incoming":
                     continue
-                abbrevdir = os.path.join(d, abbrevdir)
+                abbrevdir = os.path.join(nodedir, abbrevdir)
                 # this tool may get run against bad disks, so we can't assume
                 # that listdir_unicode will always succeed. Try to catalog as much
                 # as possible.
@@ -864,7 +864,7 @@ def _as_number(s):
         return "not int"
 
 def catalog_shares_one_abbrevdir(si_s, si_dir, now, out, err):
-    from allmydata.util.encodingutil import listdir_unicode, quote_output
+    from allmydata.util.encodingutil import listdir_unicode, quote_local_unicode_path
 
     try:
         for shnum_s in sorted(listdir_unicode(si_dir), key=_as_number):
@@ -874,10 +874,10 @@ def catalog_shares_one_abbrevdir(si_s, si_dir, now, out, err):
                 describe_share(abs_sharefile, si_s, shnum_s, now,
                                out)
             except:
-                print >>err, "Error processing %s" % quote_output(abs_sharefile)
+                print >>err, "Error processing %s" % quote_local_unicode_path(abs_sharefile)
                 failure.Failure().printTraceback(err)
     except:
-        print >>err, "Error processing %s" % quote_output(si_dir)
+        print >>err, "Error processing %s" % quote_local_unicode_path(si_dir)
         failure.Failure().printTraceback(err)
 
 class CorruptShareOptions(BaseOptions):

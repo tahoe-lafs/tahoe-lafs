@@ -24,6 +24,7 @@ from allmydata import uri as tahoe_uri
 from allmydata.client import Client
 from allmydata.storage.server import StorageServer, storage_index_to_dir
 from allmydata.util import fileutil, idlib, hashutil
+from allmydata.util.assertutil import precondition
 from allmydata.util.hashutil import sha1
 from allmydata.test.common_web import HTTPClientGETFactory
 from allmydata.interfaces import IStorageBroker, IServer
@@ -224,6 +225,8 @@ class NoNetworkGrid(service.MultiService):
     def __init__(self, basedir, num_clients=1, num_servers=10,
                  client_config_hooks={}):
         service.MultiService.__init__(self)
+        precondition(isinstance(basedir, unicode), basedir)
+
         self.basedir = basedir
         fileutil.make_dirs(basedir)
 
@@ -266,8 +269,8 @@ class NoNetworkGrid(service.MultiService):
 
     def make_server(self, i, readonly=False):
         serverid = hashutil.tagged_hash("serverid", str(i))[:20]
-        serverdir = os.path.join(self.basedir, "servers",
-                                 idlib.shortnodeid_b2a(serverid), "storage")
+        serverdir = os.path.join(self.basedir, u"servers",
+                                 unicode(idlib.shortnodeid_b2a(serverid)), u"storage")
         fileutil.make_dirs(serverdir)
         ss = StorageServer(serverdir, serverid, stats_provider=SimpleStats(),
                            readonly_storage=readonly)
@@ -345,7 +348,7 @@ class GridTestMixin:
     def set_up_grid(self, num_clients=1, num_servers=10,
                     client_config_hooks={}):
         # self.basedir must be set
-        self.g = NoNetworkGrid(self.basedir,
+        self.g = NoNetworkGrid(unicode(self.basedir),
                                num_clients=num_clients,
                                num_servers=num_servers,
                                client_config_hooks=client_config_hooks)
