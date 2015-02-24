@@ -482,15 +482,13 @@ class Copier:
 
         target = self.get_target_info(destination_spec)
 
-        sources = [] # list of (name, source object)
+        sources = [] # list of source objects
         for ss in source_specs:
-            name, source = self.get_source_info(ss)
-            sources.append( (name, source) )
+            sources.append(self.get_source_info(ss))
 
-        del name
-        have_source_dirs = bool([s for (name,s) in sources
-                                 if isinstance(s, (LocalDirectorySource,
-                                                   TahoeDirectorySource))])
+        have_source_dirs = any([isinstance(s, (LocalDirectorySource,
+                                               TahoeDirectorySource))
+                                for s in sources])
 
         if have_source_dirs and not recursive:
             self.to_stderr("cannot copy directories without --recursive")
@@ -505,8 +503,7 @@ class Copier:
             if have_source_dirs:
                 self.to_stderr("cannot copy directory into a file")
                 return 1
-            name, source = sources[0]
-            return self.copy_file(source, target)
+            return self.copy_file(sources[0], target)
 
         if isinstance(target, (LocalMissingTarget, TahoeMissingTarget)):
             if recursive:
@@ -517,14 +514,13 @@ class Copier:
                 self.to_stderr("cannot copy multiple files into a file without -r")
                 return 1
             # cp file1 newfile
-            name, source = sources[0]
-            return self.copy_file(source, target)
+            return self.copy_file(sources[0], target)
 
         if isinstance(target, (LocalDirectoryTarget, TahoeDirectoryTarget)):
             # We're copying to an existing directory -- make sure that we
             # have target names for everything
-            for (name, source) in sources:
-                if name is None and isinstance(source, TahoeFileSource):
+            for source in sources:
+                if source.basename() is None and isinstance(source, TahoeFileSource):
                     self.to_stderr(
                         "error: you must specify a destination filename")
                     return 1
@@ -633,7 +629,7 @@ class Copier:
                     name = source_spec[last_slash+1:]
 
                 t = TahoeFileSource(self.nodeurl, mutable, writecap, readcap, name)
-        return name, t
+        return t
 
 
     def dump_graph(self, s, indent=" "):
@@ -642,14 +638,13 @@ class Copier:
             if isinstance(child, (LocalDirectorySource, TahoeDirectorySource)):
                 self.dump_graph(child, indent+"  ")
 
-    def copy_to_directory(self, source_infos, target):
+    def copy_to_directory(self, sources, target):
         # step one: build a recursive graph of the source tree. This returns
         # a dictionary, with child names as keys, and values that are either
         # Directory or File instances (local or tahoe).
-        source_dirs = self.build_graphs(source_infos)
-        source_files = [source for source in source_infos
-                        if isinstance(source[1], (LocalFileSource,
-                                                  TahoeFileSource))]
+        source_dirs = self.build_graphs(sources)
+        source_files = [s for s in sources
+                        if isinstance(s, (LocalFileSource, TahoeFileSource))]
 
         #print "graphs"
         #for s in source_dirs:
@@ -683,8 +678,8 @@ class Copier:
         self.targetmap = {}
         self.files_to_copy = 0
 
-        for (name,s) in source_files:
-            self.attach_to_target(s, name, target)
+        for s in source_files:
+            self.attach_to_target(s, s.basename(), target)
 
         for (name, source) in source_dirs:
             new_target = target.get_child_target(name)
@@ -791,14 +786,12 @@ class Copier:
         if self.progressfunc:
             self.progressfunc(message)
 
-    def build_graphs(self, source_infos):
+    def build_graphs(self, sources):
         graphs = []
-        for name,source in source_infos:
+        for source in sources:
             if isinstance(source, (LocalDirectorySource, TahoeDirectorySource)):
                 source.populate(True)
-                # Remove trailing slash (if applicable) and get dir name
-                name = os.path.basename(os.path.normpath(name))
-                graphs.append((name, source))
+                graphs.append((source.basename(), source))
         return graphs
 
 
