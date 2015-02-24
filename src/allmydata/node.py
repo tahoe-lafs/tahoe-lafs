@@ -11,7 +11,8 @@ from allmydata.util import log
 from allmydata.util import fileutil, iputil, observer
 from allmydata.util.assertutil import precondition, _assert
 from allmydata.util.fileutil import abspath_expanduser_unicode
-from allmydata.util.encodingutil import get_filesystem_encoding, quote_output
+from allmydata.util.encodingutil import get_filesystem_encoding, quote_output, \
+    quote_local_unicode_path
 
 # Add our application versions to the data that Foolscap's LogPublisher
 # reports.
@@ -50,7 +51,7 @@ class OldConfigError(Exception):
         return ("Found pre-Tahoe-LAFS-v1.3 configuration file(s):\n"
                 "%s\n"
                 "See docs/historical/configuration.rst."
-                % "\n".join([quote_output(fname) for fname in self.args[0]]))
+                % "\n".join([quote_local_unicode_path(fname) for fname in self.args[0]]))
 
 class OldConfigOptionError(Exception):
     pass
@@ -74,8 +75,8 @@ class Node(service.MultiService):
         self.basedir = abspath_expanduser_unicode(unicode(basedir))
         self._portnumfile = os.path.join(self.basedir, self.PORTNUMFILE)
         self._tub_ready_observerlist = observer.OneShotObserverList()
-        fileutil.make_dirs(os.path.join(self.basedir, "private"), 0700)
-        open(os.path.join(self.basedir, "private", "README"), "w").write(PRIV_README)
+        fileutil.make_dirs(os.path.join(self.basedir, u"private"), 0700)
+        open(os.path.join(self.basedir, u"private", u"README"), "w").write(PRIV_README)
 
         # creates self.config
         self.read_config()
@@ -143,7 +144,7 @@ class Node(service.MultiService):
         self.error_about_old_config_files()
         self.config = ConfigParser.SafeConfigParser()
 
-        tahoe_cfg = os.path.join(self.basedir, "tahoe.cfg")
+        tahoe_cfg = os.path.join(self.basedir, u"tahoe.cfg")
         try:
             f = open(tahoe_cfg, "rb")
             try:
@@ -181,7 +182,7 @@ class Node(service.MultiService):
             'no_storage', 'readonly_storage', 'sizelimit',
             'debug_discard_storage', 'run_helper']:
             if name not in self.GENERATED_FILES:
-                fullfname = os.path.join(self.basedir, name)
+                fullfname = os.path.join(self.basedir, unicode(name))
                 if os.path.exists(fullfname):
                     oldfnames.add(fullfname)
         if oldfnames:
@@ -190,7 +191,7 @@ class Node(service.MultiService):
             raise e
 
     def create_tub(self):
-        certfile = os.path.join(self.basedir, "private", self.CERTFILE)
+        certfile = os.path.join(self.basedir, u"private", self.CERTFILE)
         self.tub = Tub(certFile=certfile)
         self.tub.setOption("logLocalFailures", True)
         self.tub.setOption("logRemoteFailures", True)
@@ -248,7 +249,7 @@ class Node(service.MultiService):
         config file that resides within the subdirectory named 'private'), and
         return it.
         """
-        privname = os.path.join(self.basedir, "private", name)
+        privname = os.path.join(self.basedir, u"private", name)
         open(privname, "w").write(value)
 
     def get_private_config(self, name, default=_None):
@@ -257,7 +258,7 @@ class Node(service.MultiService):
         and return it. Return a default, or raise an error if one was not
         given.
         """
-        privname = os.path.join(self.basedir, "private", name)
+        privname = os.path.join(self.basedir, u"private", name)
         try:
             return fileutil.read(privname)
         except EnvironmentError:
@@ -280,7 +281,7 @@ class Node(service.MultiService):
         If 'default' is a string, use it as a default value. If not, treat it
         as a zero-argument callable that is expected to return a string.
         """
-        privname = os.path.join(self.basedir, "private", name)
+        privname = os.path.join(self.basedir, u"private", name)
         try:
             value = fileutil.read(privname)
         except EnvironmentError:
@@ -373,16 +374,16 @@ class Node(service.MultiService):
                     ob.formatTime = newmeth
         # TODO: twisted >2.5.0 offers maxRotatedFiles=50
 
-        lgfurl_file = os.path.join(self.basedir, "private", "logport.furl").encode(get_filesystem_encoding())
-        self.tub.setOption("logport-furlfile", lgfurl_file)
+        logport_furl_file = os.path.join(self.basedir, u"private", u"logport.furl")
+        self.tub.setOption("logport-furlfile", logport_furl_file.encode(get_filesystem_encoding()))
         lgfurl = self.get_config("node", "log_gatherer.furl", "")
         if lgfurl:
             # this is in addition to the contents of log-gatherer-furlfile
             self.tub.setOption("log-gatherer-furl", lgfurl)
-        self.tub.setOption("log-gatherer-furlfile",
-                           os.path.join(self.basedir, "log_gatherer.furl"))
+        log_gatherer_furl_file = os.path.join(self.basedir, u"log_gatherer.furl")
+        self.tub.setOption("log-gatherer-furlfile",log_gatherer_furl_file.encode(get_filesystem_encoding()))
         self.tub.setOption("bridge-twisted-logs", True)
-        incident_dir = os.path.join(self.basedir, "logs", "incidents")
+        incident_dir = os.path.join(self.basedir, u"logs", u"incidents")
         foolscap.logging.log.setLogDir(incident_dir.encode(get_filesystem_encoding()))
 
     def log(self, *args, **kwargs):

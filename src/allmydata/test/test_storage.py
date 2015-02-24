@@ -1414,7 +1414,7 @@ class MDMFProxies(unittest.TestCase, ShouldFailMixin):
 
 
     def workdir(self, name):
-        basedir = os.path.join("storage", "MutableServer", name)
+        basedir = os.path.join("storage", "MDMFProxies", name)
         return basedir
 
 
@@ -2793,7 +2793,7 @@ class Stats(unittest.TestCase):
         return self.sparent.stopService()
 
     def workdir(self, name):
-        basedir = os.path.join("storage", "Server", name)
+        basedir = os.path.join("storage", "Stats", name)
         return basedir
 
     def create(self, name):
