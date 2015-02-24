@@ -1,6 +1,7 @@
-import os.path, simplejson
+import os.path, simplejson, shutil
 from twisted.trial import unittest
 from twisted.python import usage
+from twisted.internet import defer
 
 from allmydata.scripts import cli
 from allmydata.util import fileutil
@@ -652,4 +653,198 @@ starting copy, 2 files, 1 directories
         def _check(res):
             (rc, out, err) = res
             self.failUnlessIn("Success: file copied", out, str(res))
+        return d
+
+
+class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
+    FILE_CONTENTS = "file text"
+
+    def do_setup(self, source_file):
+        # first we build a tahoe filesystem that contains:
+        #  $PARENTCAP
+        #  $PARENTCAP/dir  == $DIRCAP == alias:
+        #  $PARENTCAP/dir/file == $FILECAP
+        #  $PARENTCAP/dir2        (named directory)
+        #  $PARENTCAP/dir2/file2
+        #  $PARENTCAP/dir3/file3  (a second named file)
+
+        d = self.do_cli("mkdir")
+        def _stash_parentdircap(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.PARENTCAP = out.strip()
+            return self.do_cli("mkdir", "%s/dir" % self.PARENTCAP)
+        d.addCallback(_stash_parentdircap)
+        def _stash_dircap(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.DIRCAP = out.strip()
+            return self.do_cli("add-alias", "ALIAS", self.DIRCAP)
+        d.addCallback(_stash_dircap)
+        d.addCallback(lambda ign:
+            self.do_cli("put", source_file, "%s/dir/file" % self.PARENTCAP))
+        def _stash_filecap(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err.strip(), "201 Created", str(res))
+            self.FILECAP = out.strip()
+            assert self.FILECAP.startswith("URI:LIT:")
+        d.addCallback(_stash_filecap)
+        d.addCallback(lambda ign:
+            self.do_cli("mkdir", "%s/dir2" % self.PARENTCAP))
+        d.addCallback(lambda ign:
+            self.do_cli("put", source_file, "%s/dir2/file2" % self.PARENTCAP))
+        d.addCallback(lambda ign:
+            self.do_cli("mkdir", "%s/dir3" % self.PARENTCAP))
+        d.addCallback(lambda ign:
+            self.do_cli("put", source_file, "%s/dir3/file3" % self.PARENTCAP))
+        return d
+
+    def check_output(self):
+        # locate the files created (if any) under to/
+        top = os.path.join(self.basedir, "to")
+        files = set()
+        for (dirpath, dirnames, filenames) in os.walk(top):
+            assert dirpath.startswith(top)
+            here = "/".join(dirpath.split(os.sep)[len(top.split(os.sep))-1:])
+            for fn in filenames:
+                f = open(os.path.join(dirpath, fn), "rb")
+                contents = f.read()
+                f.close()
+                if contents == self.FILE_CONTENTS:
+                    files.add("%s/%s" % (here, fn))
+        return files
+
+    def run_one_case(self, case):
+        cmd = (case
+               .replace("$PARENTCAP", self.PARENTCAP)
+               .replace("$DIRCAP", self.DIRCAP)
+               .replace("$ALIAS", "ALIAS:")
+               .replace("$FILECAP", self.FILECAP)
+               .split())
+        target = cmd[-1]
+        cmd[-1] = os.path.abspath(os.path.join(self.basedir, cmd[-1]))
+
+        # reset
+        targetdir = os.path.abspath(os.path.join(self.basedir, "to"))
+        if os.path.exists(targetdir):
+            shutil.rmtree(targetdir)
+        os.mkdir(targetdir)
+        if target == "existing-file":
+            fileutil.write(cmd[-1], "existing file contents\n")
+
+        d = self.do_cli(*cmd)
+        def _check(res):
+            (rc, out, err) = res
+            err = err.strip()
+            if rc == 0:
+                return self.check_output()
+            if rc == 1:
+                self.failUnlessEqual(out, "", str(res))
+                if err == "error: you must specify a destination filename":
+                    return set(["ERROR-2"])
+                if err == "cannot copy directories without --recursive":
+                    return set(["ERROR-4"])
+                if err == "directories must be copied into other directories":
+                    return set(["ERROR-5"])
+                if err == "many-to-one requires target is a directory":
+                    return set(["ERROR-6"])
+                if err == "cannot copy multiple files into a file without -r":
+                    return set(["ERROR-7"]) # should go away
+            self.fail("unrecognized error ('%s') %s" % (case, res))
+        d.addCallback(_check)
+        return d
+
+    def do_one_test(self, case, expected):
+        printable_expected = ",".join(sorted(expected))
+        #print "---", case, printable_expected
+        d = self.run_one_case(case)
+        def _check(got):
+            ok = "ok" if got == expected else "FAIL"
+            printable_got = ",".join(sorted(got))
+            print "%-31s: got %-19s, want %-19s %s" % (case, printable_got,
+                                                       printable_expected, ok)
+            #self.failUnlessEqual(got, set(expected.split(",")), case)
+        d.addCallback(_check)
+        return d
+
+    def do_tests(self):
+        # then we run various forms of "cp [-r] TAHOETHING to[/missing]"
+        # and see what happens.
+        d = defer.succeed(None)
+        print
+
+        for (case, expected) in [
+            ("cp    $FILECAP       to/existing-file", "to/existing-file"),
+            #fails in attach_to_target(), name==None
+            #("cp -r $FILECAP       to/existing-file", "to/existing-file"),
+            ("cp    $DIRCAP        to/existing-file", "ERROR-4"),
+            #fails in attach_to_target(), name==None
+            #("cp -r $DIRCAP        to/existing-file", "ERROR-5"),
+            ("cp $FILECAP $DIRCAP  to/existing-file", "ERROR-6"), # gets ERROR-4
+
+            ("cp    $FILECAP       to", "ERROR-2"),
+            ("cp -r $FILECAP       to", "ERROR-2"),
+            ("cp    $DIRCAP/file   to", "to/file"),
+            ("cp -r $DIRCAP/file   to", "to/file"),
+            ("cp    $PARENTCAP/dir to", "ERROR-4"),
+            ("cp -r $PARENTCAP/dir to", "to/dir/file"),
+            ("cp    $DIRCAP        to", "ERROR-4"),
+            #fails in get_child_target(), name==None
+            #("cp -r $DIRCAP        to", "to/file"),
+            ("cp    $ALIAS         to", "ERROR-4"),
+            #fails in get_child_target(), name==None
+            #("cp -r $ALIAS         to", "to/file"),
+
+            ("cp $DIRCAP/file $PARENTCAP/dir2/file2 to", "to/file,to/file2"),
+            ("cp $DIRCAP/file $FILECAP              to", "ERROR-2"),
+            ("cp -r $DIRCAP $FILECAP                to", "ERROR-2"),
+            ("cp $DIRCAP $FILECAP                   to", "ERROR-4"),
+            # namedfile, unnameddir, nameddir
+            ("cp $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to",
+             "to/file3,to/file,to/dir2/file2"), # gets ERROR-4
+            # namedfile, unnameddir, nameddir, unnamedfile
+            ("cp $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to",
+             "ERROR-2"), # gets ERROR-4
+
+            ("cp    $FILECAP       to/missing", "to/missing"),
+            #fails in attach_to_target() name==None
+            #("cp -r $FILECAP       to/missing", "to/missing"),
+            ("cp    $DIRCAP/file   to/missing", "to/missing"),
+            ("cp -r $DIRCAP/file   to/missing", "to/missing"), # gets to/missing/file
+            ("cp    $PARENTCAP/dir to/missing", "ERROR-4"),
+            ("cp -r $PARENTCAP/dir to/missing", "to/missing/dir/file"),
+            ("cp    $DIRCAP        to/missing", "ERROR-4"),
+            # build_graphs() does None.startswith
+            #("cp -r $DIRCAP        to/missing", "to/missing/file"),
+            ("cp    $ALIAS         to/missing", "ERROR-4"),
+            # build_graphs() does None.startswith
+            #("cp -r $ALIAS         to/missing", "to/missing/file"),
+
+            ("cp $DIRCAP/file $PARENTCAP/dir2/file2 to/missing",
+             "to/missing/file,to/missing/file2"), # gets ERROR-7
+
+            ]:
+
+            expected = set(expected.split(","))
+            # trailing slash on target should not matter, test both
+            d.addCallback(lambda ign, case=case, expected=expected:
+                          self.do_one_test(case, expected))
+            #d.addCallback(lambda ign, case=case+"/", expected=expected:
+            #              self.do_one_test(case, expected))
+
+        return d
+
+    def test_cp_out(self):
+        # test copying all sorts of things out of a tahoe filesystem
+        self.basedir = "cli_cp/CopyOut/cp_out"
+        self.set_up_grid(num_servers=1)
+
+        source_file = os.path.join(self.basedir, "file")
+        fileutil.write(source_file, self.FILE_CONTENTS)
+
+        d = self.do_setup(source_file)
+        d.addCallback(lambda ign: self.do_tests())
         return d
