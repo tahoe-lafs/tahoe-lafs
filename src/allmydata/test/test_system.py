@@ -1379,7 +1379,7 @@ class SystemTest(SystemTestMixin, RunBinTahoeMixin, unittest.TestCase):
         out,err = StringIO(), StringIO()
         nodedirs = [self.getdir("client%d" % i) for i in range(self.numclients)]
         cmd = ["debug", "catalog-shares"] + nodedirs
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         rc = runner.runner(cmd, stdout=out, stderr=err)
         self.failUnlessEqual(rc, 0)
         out.seek(0)
