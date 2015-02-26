@@ -4,6 +4,76 @@
 User-Visible Changes in Tahoe-LAFS
 ==================================
 
+Release 1.10.1 (XXXX-XX-XX)
+'''''''''''''''''''''''''''
+
+Unedited list of all changes after 1.10 and before 0d935e8 06-Jan-2015. This
+list is not yet limited to user-visible ones. It *should* include all tickets
+closed during this time, even minor non-user-visible ones.
+
+- show git branch in version output #1953
+- packaging fixes #1969 #1960
+- mutable/retrieve: raise NotEnoughSharesError earlier when the sharemap says
+  it's useless, and improve the error message #1742
+- improve user feedback when filing an Incident Report #1974
+- add page-rendering timestamp to WUI #1972
+- improve what-is-my-ipv4 on windows/cygwin #1381
+- remove unused 'human encoding' URI methods #1807
+- check/deep-check learned to accept multiple location args #740
+- tests warn if tree is dirty #1992
+- Travis-CI turned on #2249
+- py2.6 is now unsupported on windows
+- add 'distclean', don't remove egg-info during 'make clean' #2092
+- add "UTF-8 BOM" to all docs #1948
+- various docs cleanups/improvements
+- improve safety of timing_safe_compare() #2165
+- checker reports: remove needs-rebalancing, add count-happiness #1784 #2105
+- improve packaging under pip #2209
+- remove old darcs tooling
+- minor comments #1874 #2086
+- switch to unminified d3/jquery JS files #2208
+- improve test #2048
+- reject furlfiles with "#" #2128
+- rename exit-trigger/self-destruct test feature #1336
+- add coverage.io test-coverage reporting #623
+- hush warnings during dep-checking, stop complaining about missing
+  "service_identity" dep #2248
+- dedup license info in about.rst/README.txt #2067
+- 'tahoe cp -r' copies the top-level directory into new dir #712
+- log roothash in base32 not binary #1800
+- improve welcome page CSS for narrow windows #1931
+- redesign WUI directory pages #1966
+- improve upload tests #2008
+- remove obsolete debian packaging tools #2282
+- add --coverage to setup.py test #1698, remove old coverage uploaders
+- remove trialcoverage plugin #2281
+- tolerate disk-space-used=0 for travis boxes #2290
+- tolerate python subprocess bug #2023
+- remove old build_helpers tools #2305
+- fix "Download" button on welcome page #1901
+- update zetuptoolz
+- hack windows/OpenSSL deps on windows #2249 #2193
+- WAPI: do not report 'size' metadata when unknown #1634
+- new OS-X packaging #182
+- stop using contents of .tac files #1159
+- improve version-number reporting #2340
+- add per-server "(space) Available" column to welcome page #648
+- add public-key auth to SFTP server #1411
+
+
+all tickets noted as closed: 1953 1960 1974 1972 1717 1381 898 1707 1918 1807
+740 1842 1992 2165 1847 2086 2208 2048 2128 2245 1336 2248 2067 712 1800 1966
+2008 2282 2281 2290 2023 2121? 2305 1901 2249 2193 1634 1159 2340 1146 648
+1411
+
+all tickets referenced (fixed? not fixed?): 1834 1969 1742 1988 982 1064 1536
+1935 666 1784 2105 2209 2280 623 2249 1931 1698 2028 2005 1258 182
+
+PRs noted as closed: 62 48 57 61 62 63 64 69 73 81 82 84 85 87 91 94 95 96
+103 56 32 50 107 109 114 112 120 122 125 126 133
+
+
+
 Release 1.10.0 (2013-05-01)
 '''''''''''''''''''''''''''
 
