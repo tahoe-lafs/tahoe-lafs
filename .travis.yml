@@ -2,7 +2,6 @@ language: python
 python:
   - "2.7"
   - "2.6"
-sudo: false
 before_install:
   - sh -c set
   - git config --global user.email "travis-tahoe@tahoe-lafs.org"
