@@ -65,7 +65,7 @@ from allmydata.util import encodingutil, fileutil
 from allmydata.util.encodingutil import argv_to_unicode, unicode_to_url, \
     unicode_to_output, quote_output, quote_path, quote_local_unicode_path, \
     unicode_platform, listdir_unicode, FilenameEncodingError, get_io_encoding, \
-    get_filesystem_encoding, _reload
+    get_filesystem_encoding, to_str, from_utf8_or_none, _reload
 from allmydata.dirnode import normalize
 
 from twisted.python import usage
@@ -467,3 +467,18 @@ class OpenBSD(EncodingUtil, unittest.TestCase):
     filesystem_encoding = '646'
     io_encoding = '646'
     # Oops, I cannot write filenames containing non-ascii characters
+
+
+class TestToFromStr(ReallyEqualMixin, unittest.TestCase):
+    def test_to_str(self):
+        self.failUnlessReallyEqual(to_str("foo"), "foo")
+        self.failUnlessReallyEqual(to_str("lumi\xc3\xa8re"), "lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_str("\xFF"), "\xFF")  # passes through invalid UTF-8 -- is this what we want?
+        self.failUnlessReallyEqual(to_str(u"lumi\u00E8re"), "lumi\xc3\xa8re")
+        self.failUnlessReallyEqual(to_str(None), None)
+
+    def test_from_utf8_or_none(self):
+        self.failUnlessRaises(AssertionError, from_utf8_or_none, u"foo")
+        self.failUnlessReallyEqual(from_utf8_or_none("lumi\xc3\xa8re"), u"lumi\u00E8re")
+        self.failUnlessReallyEqual(from_utf8_or_none(None), None)
+        self.failUnlessRaises(UnicodeDecodeError, from_utf8_or_none, "\xFF")
