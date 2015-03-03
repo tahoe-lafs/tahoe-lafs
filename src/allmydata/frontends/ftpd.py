@@ -288,6 +288,7 @@ class Dispatcher:
 
 class FTPServer(service.MultiService):
     def __init__(self, client, accountfile, accounturl, ftp_portstr):
+        precondition(isinstance(accountfile, unicode), accountfile)
         service.MultiService.__init__(self)
 
         r = Dispatcher(client)
