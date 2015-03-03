@@ -732,7 +732,8 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
         if os.path.exists(targetdir):
             shutil.rmtree(targetdir)
         os.mkdir(targetdir)
-        if target == "existing-file":
+
+        if target.rstrip("/") == "to/existing-file":
             fileutil.write(cmd[-1], "existing file contents\n")
 
         d = self.do_cli(*cmd)
@@ -747,10 +748,10 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
                     return set(["E2-DESTNAME"])
                 if err == "cannot copy directories without --recursive":
                     return set(["E4-NEED-R"])
-                if err == "directories must be copied into other directories":
-                    return set(["E5-NEED-DIR"])
-                if err == "many-to-one requires target is a directory":
-                    return set(["E6-NEED-R"])
+                if err == "cannot copy directory into a file":
+                    return set(["E5-DIRTOFILE"])
+                if err == "target is not a directory":
+                    return set(["E6-MANYONE"])
                 if err == "cannot copy multiple files into a file without -r":
                     return set(["ERROR-7"]) # should go away
             self.fail("unrecognized error ('%s') %s" % (case, res))
@@ -761,13 +762,16 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
         printable_expected = ",".join(sorted(expected))
         #print "---", case, printable_expected
         d = self.run_one_case(case)
-        def _check(got):
+        def _dump(got):
             ok = "ok" if got == expected else "FAIL"
             printable_got = ",".join(sorted(got))
             print "%-31s: got %-19s, want %-19s %s" % (case, printable_got,
                                                        printable_expected, ok)
-            #self.failUnlessEqual(got, set(expected.split(",")), case)
-        d.addCallback(_check)
+            return got
+        d.addCallback(_dump)
+        def _check(got):
+            self.failUnlessEqual(got, expected, case)
+        #d.addCallback(_check)
         return d
 
     def do_tests(self):
@@ -778,12 +782,13 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
 
         for (case, expected) in [
             ("cp    $FILECAP       to/existing-file", "to/existing-file"),
-            #fails in attach_to_target(), name==None
-            #("cp -r $FILECAP       to/existing-file", "to/existing-file"),
+            ("cp -r $FILECAP       to/existing-file", "to/existing-file"),
+            ("cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/existing-file", "E6-MANYONE"),
+            ("cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/existing-file", "E6-MANYONE"),
             ("cp    $DIRCAP        to/existing-file", "E4-NEED-R"),
-            #fails in attach_to_target(), name==None
-            #("cp -r $DIRCAP        to/existing-file", "E5-NEED-DIR"),
-            ("cp $FILECAP $DIRCAP  to/existing-file", "E6-NEED-R"), # gets E4-NEED-R
+            ("cp -r $DIRCAP        to/existing-file", "E5-DIRTOFILE"),
+            ("cp    $FILECAP $DIRCAP  to/existing-file", "E4-NEED-R"),
+            ("cp -r $FILECAP $DIRCAP  to/existing-file", "E6-MANYONE"),
 
             ("cp    $FILECAP       to", "E2-DESTNAME"),
             ("cp -r $FILECAP       to", "E2-DESTNAME"),
@@ -792,11 +797,9 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
             ("cp    $PARENTCAP/dir to", "E4-NEED-R"),
             ("cp -r $PARENTCAP/dir to", "to/dir/file"),
             ("cp    $DIRCAP        to", "E4-NEED-R"),
-            #fails in get_child_target(), name==None
-            #("cp -r $DIRCAP        to", "to/file"),
+            ("cp -r $DIRCAP        to", "to/file"),
             ("cp    $ALIAS         to", "E4-NEED-R"),
-            #fails in get_child_target(), name==None
-            #("cp -r $ALIAS         to", "to/file"),
+            ("cp -r $ALIAS         to", "to/file"),
 
             ("cp $DIRCAP/file $PARENTCAP/dir2/file2 to", "to/file,to/file2"),
             ("cp $DIRCAP/file $FILECAP              to", "E2-DESTNAME"),
@@ -805,31 +808,27 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
             # namedfile, unnameddir, nameddir
             ("cp $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to",
              "E4-NEED-R"),
-            #("cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2       to",
-            # "to/file3,to/file,to/dir2/file2"),
-            #fails in get_child_target() name==None
+            ("cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2       to",
+             "to/file3,to/file,to/dir2/file2"),
             # namedfile, unnameddir, nameddir, unnamedfile
             ("cp $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to",
              "E4-NEED-R"),
             ("cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to",
-             "E2-DESTNAME"), # gets E4-NEED-R
+             "E2-DESTNAME"),
 
             ("cp    $FILECAP       to/missing", "to/missing"),
-            #fails in attach_to_target() name==None
-            #("cp -r $FILECAP       to/missing", "to/missing"),
+            ("cp -r $FILECAP       to/missing", "to/missing"),
             ("cp    $DIRCAP/file   to/missing", "to/missing"),
-            ("cp -r $DIRCAP/file   to/missing", "to/missing"), # gets to/missing/file
+            ("cp -r $DIRCAP/file   to/missing", "to/missing"),
             ("cp    $PARENTCAP/dir to/missing", "E4-NEED-R"),
             ("cp -r $PARENTCAP/dir to/missing", "to/missing/dir/file"),
             ("cp    $DIRCAP        to/missing", "E4-NEED-R"),
-            # build_graphs() does None.startswith
-            #("cp -r $DIRCAP        to/missing", "to/missing/file"),
+            ("cp -r $DIRCAP        to/missing", "to/missing/file"),
             ("cp    $ALIAS         to/missing", "E4-NEED-R"),
-            # build_graphs() does None.startswith
-            #("cp -r $ALIAS         to/missing", "to/missing/file"),
+            ("cp -r $ALIAS         to/missing", "to/missing/file"),
 
             ("cp $DIRCAP/file $PARENTCAP/dir2/file2 to/missing",
-             "to/missing/file,to/missing/file2"), # gets ERROR-7
+             "to/missing/file,to/missing/file2"),
 
             ]:
 
@@ -837,8 +836,8 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
             # trailing slash on target should not matter, test both
             d.addCallback(lambda ign, case=case, expected=expected:
                           self.do_one_test(case, expected))
-            #d.addCallback(lambda ign, case=case+"/", expected=expected:
-            #              self.do_one_test(case, expected))
+            d.addCallback(lambda ign, case=case+"/", expected=expected:
+                          self.do_one_test(case, expected))
 
         return d
 
