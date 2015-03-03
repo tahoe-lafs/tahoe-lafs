@@ -508,7 +508,7 @@ class Copier:
             if have_source_dirs:
                 self.to_stderr("cannot copy directory into a file")
                 return 1
-            return self.copy_file(sources[0], target)
+            return self.copy_file_to_file(sources[0], target)
 
         if isinstance(target, MissingTargets):
             if recursive:
@@ -519,7 +519,7 @@ class Copier:
                 self.to_stderr("cannot copy multiple files into a file without -r")
                 return 1
             # cp file1 newfile
-            return self.copy_file(sources[0], target)
+            return self.copy_file_to_file(sources[0], target)
 
         if isinstance(target, DirectoryTargets):
             # We're copying to an existing directory -- make sure that we
@@ -732,7 +732,7 @@ class Copier:
     def copy_files_to_target(self, targetmap, target):
         for name, source in targetmap.items():
             precondition(isinstance(source, FileSources), source)
-            self.copy_file_into(source, name, target)
+            self.copy_file_into_dir(source, name, target)
             self.files_copied += 1
             self.progress("%d/%d files, %d/%d directories" %
                           (self.files_copied, self.files_to_copy,
@@ -752,7 +752,7 @@ class Copier:
             print >>self.stdout, "Success: %s" % msg
         return 0
 
-    def copy_file(self, source, target):
+    def copy_file_to_file(self, source, target):
         precondition(isinstance(source, FileSources), source)
         precondition(isinstance(target, FileTargets + MissingTargets), target)
         if self.need_to_copy_bytes(source, target):
@@ -768,7 +768,7 @@ class Copier:
         target.put_uri(source.bestcap())
         return self.announce_success("file linked")
 
-    def copy_file_into(self, source, name, target):
+    def copy_file_into_dir(self, source, name, target):
         precondition(isinstance(source, FileSources), source)
         precondition(isinstance(target, DirectoryTargets), target)
         precondition(isinstance(name, unicode), name)
