@@ -744,13 +744,13 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
             if rc == 1:
                 self.failUnlessEqual(out, "", str(res))
                 if err == "error: you must specify a destination filename":
-                    return set(["ERROR-2"])
+                    return set(["E2-DESTNAME"])
                 if err == "cannot copy directories without --recursive":
-                    return set(["ERROR-4"])
+                    return set(["E4-NEED-R"])
                 if err == "directories must be copied into other directories":
-                    return set(["ERROR-5"])
+                    return set(["E5-NEED-DIR"])
                 if err == "many-to-one requires target is a directory":
-                    return set(["ERROR-6"])
+                    return set(["E6-NEED-R"])
                 if err == "cannot copy multiple files into a file without -r":
                     return set(["ERROR-7"]) # should go away
             self.fail("unrecognized error ('%s') %s" % (case, res))
@@ -780,46 +780,51 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
             ("cp    $FILECAP       to/existing-file", "to/existing-file"),
             #fails in attach_to_target(), name==None
             #("cp -r $FILECAP       to/existing-file", "to/existing-file"),
-            ("cp    $DIRCAP        to/existing-file", "ERROR-4"),
+            ("cp    $DIRCAP        to/existing-file", "E4-NEED-R"),
             #fails in attach_to_target(), name==None
-            #("cp -r $DIRCAP        to/existing-file", "ERROR-5"),
-            ("cp $FILECAP $DIRCAP  to/existing-file", "ERROR-6"), # gets ERROR-4
+            #("cp -r $DIRCAP        to/existing-file", "E5-NEED-DIR"),
+            ("cp $FILECAP $DIRCAP  to/existing-file", "E6-NEED-R"), # gets E4-NEED-R
 
-            ("cp    $FILECAP       to", "ERROR-2"),
-            ("cp -r $FILECAP       to", "ERROR-2"),
+            ("cp    $FILECAP       to", "E2-DESTNAME"),
+            ("cp -r $FILECAP       to", "E2-DESTNAME"),
             ("cp    $DIRCAP/file   to", "to/file"),
             ("cp -r $DIRCAP/file   to", "to/file"),
-            ("cp    $PARENTCAP/dir to", "ERROR-4"),
+            ("cp    $PARENTCAP/dir to", "E4-NEED-R"),
             ("cp -r $PARENTCAP/dir to", "to/dir/file"),
-            ("cp    $DIRCAP        to", "ERROR-4"),
+            ("cp    $DIRCAP        to", "E4-NEED-R"),
             #fails in get_child_target(), name==None
             #("cp -r $DIRCAP        to", "to/file"),
-            ("cp    $ALIAS         to", "ERROR-4"),
+            ("cp    $ALIAS         to", "E4-NEED-R"),
             #fails in get_child_target(), name==None
             #("cp -r $ALIAS         to", "to/file"),
 
             ("cp $DIRCAP/file $PARENTCAP/dir2/file2 to", "to/file,to/file2"),
-            ("cp $DIRCAP/file $FILECAP              to", "ERROR-2"),
-            ("cp -r $DIRCAP $FILECAP                to", "ERROR-2"),
-            ("cp $DIRCAP $FILECAP                   to", "ERROR-4"),
+            ("cp $DIRCAP/file $FILECAP              to", "E2-DESTNAME"),
+            ("cp $DIRCAP $FILECAP                   to", "E4-NEED-R"),
+            ("cp -r $DIRCAP $FILECAP                to", "E2-DESTNAME"),
             # namedfile, unnameddir, nameddir
             ("cp $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to",
-             "to/file3,to/file,to/dir2/file2"), # gets ERROR-4
+             "E4-NEED-R"),
+            #("cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2       to",
+            # "to/file3,to/file,to/dir2/file2"),
+            #fails in get_child_target() name==None
             # namedfile, unnameddir, nameddir, unnamedfile
             ("cp $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to",
-             "ERROR-2"), # gets ERROR-4
+             "E4-NEED-R"),
+            ("cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to",
+             "E2-DESTNAME"), # gets E4-NEED-R
 
             ("cp    $FILECAP       to/missing", "to/missing"),
             #fails in attach_to_target() name==None
             #("cp -r $FILECAP       to/missing", "to/missing"),
             ("cp    $DIRCAP/file   to/missing", "to/missing"),
             ("cp -r $DIRCAP/file   to/missing", "to/missing"), # gets to/missing/file
-            ("cp    $PARENTCAP/dir to/missing", "ERROR-4"),
+            ("cp    $PARENTCAP/dir to/missing", "E4-NEED-R"),
             ("cp -r $PARENTCAP/dir to/missing", "to/missing/dir/file"),
-            ("cp    $DIRCAP        to/missing", "ERROR-4"),
+            ("cp    $DIRCAP        to/missing", "E4-NEED-R"),
             # build_graphs() does None.startswith
             #("cp -r $DIRCAP        to/missing", "to/missing/file"),
-            ("cp    $ALIAS         to/missing", "ERROR-4"),
+            ("cp    $ALIAS         to/missing", "E4-NEED-R"),
             # build_graphs() does None.startswith
             #("cp -r $ALIAS         to/missing", "to/missing/file"),
 
