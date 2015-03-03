@@ -768,17 +768,17 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
             print "%-31s: got %-19s, want %-19s %s" % (case, printable_got,
                                                        printable_expected, ok)
             return got
-        d.addCallback(_dump)
+        #d.addCallback(_dump)
         def _check(got):
             self.failUnlessEqual(got, expected, case)
-        #d.addCallback(_check)
+        d.addCallback(_check)
         return d
 
     def do_tests(self):
         # then we run various forms of "cp [-r] TAHOETHING to[/missing]"
         # and see what happens.
         d = defer.succeed(None)
-        print
+        #print
 
         for (case, expected) in [
             ("cp    $FILECAP       to/existing-file", "to/existing-file"),
