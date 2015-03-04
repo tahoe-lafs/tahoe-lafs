@@ -2,6 +2,7 @@
 import os.path
 import urllib
 import simplejson
+from collections import defaultdict
 from cStringIO import StringIO
 from twisted.python.failure import Failure
 from allmydata.scripts.common import get_alias, escape_path, \
@@ -12,7 +13,7 @@ from allmydata.util import fileutil
 from allmydata.util.fileutil import abspath_expanduser_unicode, precondition_abspath
 from allmydata.util.encodingutil import unicode_to_url, listdir_unicode, quote_output, \
     quote_local_unicode_path, to_str
-from allmydata.util.assertutil import precondition
+from allmydata.util.assertutil import precondition, _assert
 
 
 class MissingSourceError(TahoeError):
@@ -156,7 +157,9 @@ class LocalDirectoryTarget:
             return self.children[name]
         pathname = os.path.join(self.pathname, name)
         os.makedirs(pathname)
-        return LocalDirectoryTarget(self.progressfunc, pathname)
+        child = LocalDirectoryTarget(self.progressfunc, pathname)
+        self.children[name] = child
+        return child
 
     def put_file(self, name, inf):
         precondition(isinstance(name, unicode), name)
@@ -337,6 +340,7 @@ class TahoeDirectoryTarget:
         self.children = None
 
     def just_created(self, writecap):
+        # TODO: maybe integrate this with the constructor
         self.writecap = writecap
         self.readcap = uri.from_string(writecap).get_readonly().to_string()
         self.mutable = True
@@ -482,57 +486,83 @@ class Copier:
             return 1
 
     def try_copy(self):
+        """
+        All usage errors are caught here, not in a subroutine. This bottoms
+        out in copy_file_to_file() or copy_things_to_directory().
+        """
         source_specs = self.options.sources
         destination_spec = self.options.destination
         recursive = self.options["recursive"]
 
         target = self.get_target_info(destination_spec)
+        precondition(isinstance(target, FileTargets + DirectoryTargets + MissingTargets), target)
+        target_has_trailing_slash = destination_spec.endswith("/")
 
         sources = [] # list of source objects
         for ss in source_specs:
-            sources.append(self.get_source_info(ss))
+            si = self.get_source_info(ss)
+            precondition(isinstance(si, FileSources + DirectorySources), si)
+            sources.append(si)
+
+        # if any source is a directory, must use -r
+        # if target is missing:
+        #    if source is a single file, target will be a file
+        #    else target will be a directory, so mkdir it
+        # if there are multiple sources, target must be a dir
+        # if target is a file, source must be a single file
+        # if target is directory, sources must be named or a dir
 
         have_source_dirs = any([isinstance(s, DirectorySources)
                                 for s in sources])
-
         if have_source_dirs and not recursive:
+            # 'cp dir target' without -r: error
             self.to_stderr("cannot copy directories without --recursive")
             return 1
+        del recursive # -r is only used for signalling errors
 
         if isinstance(target, FileTargets):
-            # cp STUFF foo.txt, where foo.txt already exists. This limits the
-            # possibilities considerably.
-            if len(sources) > 1:
-                self.to_stderr("target %s is not a directory" % quote_output(destination_spec))
-                return 1
-            if have_source_dirs:
+            target_is_file = True
+        elif isinstance(target, DirectoryTargets):
+            target_is_file = False
+        else: # isinstance(target, MissingTargets)
+            if len(sources) == 1 and isinstance(sources[0], FileSources):
+                target_is_file = True
+            else:
+                target_is_file = False
+
+        if target_is_file and target_has_trailing_slash:
+            self.to_stderr("target is not a directory, but has a slash")
+            return 1
+
+        if len(sources) > 1 and target_is_file:
+            self.to_stderr("copying multiple things requires target be a directory")
+            return 1
+
+        if target_is_file:
+            _assert(len(sources) == 1, sources)
+            if not isinstance(sources[0], FileSources):
+                # 'cp -r dir existingfile': error
                 self.to_stderr("cannot copy directory into a file")
                 return 1
             return self.copy_file_to_file(sources[0], target)
 
-        if isinstance(target, MissingTargets):
-            if recursive:
-                return self.copy_to_directory(sources, target)
-            if len(sources) > 1:
-                # if we have -r, we'll auto-create the target directory. Without
-                # it, we'll only create a file.
-                self.to_stderr("cannot copy multiple files into a file without -r")
+        # else target is a directory, so each source must be one of:
+        # * a named file (copied to a new file under the target)
+        # * a named directory (causes a new directory of the same name to be
+        #   created under the target, then the contents of the source are
+        #   copied into that directory)
+        # * an unnamed directory (the contents of the source are copied into
+        #   the target, without a new directory being made)
+        #
+        # If any source is an unnamed file, throw an error, since we have no
+        # way to name the output file.
+        _assert(isinstance(target, DirectoryTargets + MissingTargets), target)
+
+        for source in sources:
+            if isinstance(source, FileSources) and not source.basename():
+                self.to_stderr("when copying into a directory, all source files must have names, but %s is unnamed" % quote_output(source_specs[0]))
                 return 1
-            # cp file1 newfile
-            return self.copy_file_to_file(sources[0], target)
-
-        if isinstance(target, DirectoryTargets):
-            # We're copying to an existing directory -- make sure that we
-            # have target names for everything
-            for source in sources:
-                if source.basename() is None and isinstance(source, TahoeFileSource):
-                    self.to_stderr(
-                        "error: you must specify a destination filename")
-                    return 1
-            return self.copy_to_directory(sources, target)
-
-        self.to_stderr("unknown target")
-        return 1
+        return self.copy_things_to_directory(sources, target)
 
     def to_stderr(self, text):
         print >>self.stderr, text
@@ -585,6 +615,9 @@ class Copier:
         return t
 
     def get_source_info(self, source_spec):
+        """
+        This turns an argv string into a (Local|Tahoe)(File|Directory)Source.
+        """
         precondition(isinstance(source_spec, unicode), source_spec)
         rootcap, path_utf8 = get_alias(self.aliases, source_spec, None)
         path = path_utf8.decode("utf-8")
@@ -665,6 +698,113 @@ class Copier:
         # need to enumerate the cases and analyze them.
         target.put_uri(source.bestcap())
         return self.announce_success("file linked")
+
+    def copy_things_to_directory(self, sources, target):
+        # step one: if the target is missing, we should mkdir it
+        target = self.maybe_create_target(target)
+        target.populate(False)
+
+        # step two: scan any source dirs, recursively, to find children
+        for s in sources:
+            if isinstance(s, DirectorySources):
+                s.populate(True)
+            if isinstance(s, FileSources):
+                # each source must have a name, or be a directory
+                _assert(s.basename() is not None, s)
+
+        # step three: find a target for each source node, creating
+        # directories as necessary. 'targetmap' is a dictionary that uses
+        # target Directory instances as keys, and has values of (name:
+        # sourceobject) dicts for all the files that need to wind up there.
+        targetmap = self.build_targetmap(sources, target)
+
+        # step four: walk through the list of targets. For each one, copy all
+        # the files. If the target is a TahoeDirectory, upload and create
+        # read-caps, then do a set_children to the target directory.
+        self.copy_to_targetmap(targetmap)
+
+        return self.announce_success("files copied")
+
+    def maybe_create_target(self, target):
+        if isinstance(target, LocalMissingTarget):
+            os.makedirs(target.pathname)
+            target = LocalDirectoryTarget(self.progress, target.pathname)
+        elif isinstance(target, TahoeMissingTarget):
+            writecap = mkdir(target.url)
+            target = TahoeDirectoryTarget(self.nodeurl, self.cache,
+                                          self.progress)
+            target.just_created(writecap)
+        # afterwards, or otherwise, it will be a directory
+        precondition(isinstance(target, DirectoryTargets), target)
+        return target
+
+    def build_targetmap(self, sources, target):
+        num_source_files = len([s for s in sources
+                                if isinstance(s, FileSources)])
+        num_source_dirs = len([s for s in sources
+                               if isinstance(s, DirectorySources)])
+        self.progress("attaching sources to targets, "
+                      "%d files / %d dirs in root" %
+                      (num_source_files, num_source_dirs))
+
+        # this maps each target directory to a list of source files that need
+        # to be copied into it. All source files have names.
+        targetmap = defaultdict(list)
+
+        for s in sources:
+            if isinstance(s, FileSources):
+                targetmap[target].append(s)
+            else:
+                _assert(isinstance(s, DirectorySources), s)
+                name = s.basename()
+                if name is not None:
+                    # named sources get a new directory. see #2329
+                    new_target = target.get_child_target(name)
+                else:
+                    # unnamed sources have their contents copied directly
+                    new_target = target
+                self.assign_targets(targetmap, s, new_target)
+
+        self.progress("targets assigned, %s dirs, %s files" %
+                      (len(targetmap), self.count_files_to_copy(targetmap)))
+        return targetmap
+
+    def assign_targets(self, targetmap, source, target):
+        # copy everything in the source into the target
+        precondition(isinstance(source, DirectorySources), source)
+        for name, child in source.children.items():
+            if isinstance(child, DirectorySources):
+                # we will need a target directory for this one
+                subtarget = target.get_child_target(name)
+                self.assign_targets(targetmap, child, subtarget)
+            else:
+                precondition(isinstance(child, FileSources), child)
+                targetmap[target].append(child)
+
+    def copy_to_targetmap(self, targetmap):
+        files_to_copy = self.count_files_to_copy(targetmap)
+        self.progress("starting copy, %d files, %d directories" %
+                      (files_to_copy, len(targetmap)))
+        files_copied = 0
+        targets_finished = 0
+
+        for target, sources in targetmap.items():
+            precondition(isinstance(target, DirectoryTargets), target)
+            for source in sources:
+                precondition(isinstance(source, FileSources), source)
+                self.copy_file_into_dir(source, source.basename(), target)
+                files_copied += 1
+                self.progress("%d/%d files, %d/%d directories" %
+                              (files_copied, files_to_copy,
+                               targets_finished, len(targetmap)))
+            target.set_children()
+            targets_finished += 1
+            self.progress("%d/%d directories" %
+                          (targets_finished, len(targetmap)))
+
+    def count_files_to_copy(self, targetmap):
+        files_to_copy = sum([len(sources) for sources in targetmap.values()])
+        return files_to_copy
 
     def copy_file_into_dir(self, source, name, target):
         precondition(isinstance(source, FileSources), source)
