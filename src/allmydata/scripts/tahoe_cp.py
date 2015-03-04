@@ -439,6 +439,12 @@ class TahoeDirectoryTarget:
         body = simplejson.dumps(set_data)
         POST(url, body)
 
+FileSources = (LocalFileSource, TahoeFileSource)
+DirectorySources = (LocalDirectorySource, TahoeDirectorySource)
+FileTargets = (LocalFileTarget, TahoeFileTarget)
+DirectoryTargets = (LocalDirectoryTarget, TahoeDirectoryTarget)
+MissingTargets = (LocalMissingTarget, TahoeMissingTarget)
+
 class Copier:
 
     def do_copy(self, options, progressfunc=None):
@@ -486,15 +492,14 @@ class Copier:
         for ss in source_specs:
             sources.append(self.get_source_info(ss))
 
-        have_source_dirs = any([isinstance(s, (LocalDirectorySource,
-                                               TahoeDirectorySource))
+        have_source_dirs = any([isinstance(s, DirectorySources)
                                 for s in sources])
 
         if have_source_dirs and not recursive:
             self.to_stderr("cannot copy directories without --recursive")
             return 1
 
-        if isinstance(target, (LocalFileTarget, TahoeFileTarget)):
+        if isinstance(target, FileTargets):
             # cp STUFF foo.txt, where foo.txt already exists. This limits the
             # possibilities considerably.
             if len(sources) > 1:
@@ -503,9 +508,9 @@ class Copier:
             if have_source_dirs:
                 self.to_stderr("cannot copy directory into a file")
                 return 1
-            return self.copy_file(sources[0], target)
+            return self.copy_file_to_file(sources[0], target)
 
-        if isinstance(target, (LocalMissingTarget, TahoeMissingTarget)):
+        if isinstance(target, MissingTargets):
             if recursive:
                 return self.copy_to_directory(sources, target)
             if len(sources) > 1:
@@ -514,9 +519,9 @@ class Copier:
                 self.to_stderr("cannot copy multiple files into a file without -r")
                 return 1
             # cp file1 newfile
-            return self.copy_file(sources[0], target)
+            return self.copy_file_to_file(sources[0], target)
 
-        if isinstance(target, (LocalDirectoryTarget, TahoeDirectoryTarget)):
+        if isinstance(target, DirectoryTargets):
             # We're copying to an existing directory -- make sure that we
             # have target names for everything
             for source in sources:
@@ -635,7 +640,7 @@ class Copier:
     def dump_graph(self, s, indent=" "):
         for name, child in s.children.items():
             print "%s%s: %r" % (indent, quote_output(name), child)
-            if isinstance(child, (LocalDirectorySource, TahoeDirectorySource)):
+            if isinstance(child, DirectorySources):
                 self.dump_graph(child, indent+"  ")
 
     def copy_to_directory(self, sources, target):
@@ -643,8 +648,7 @@ class Copier:
         # a dictionary, with child names as keys, and values that are either
         # Directory or File instances (local or tahoe).
         source_dirs = self.build_graphs(sources)
-        source_files = [s for s in sources
-                        if isinstance(s, (LocalFileSource, TahoeFileSource))]
+        source_files = [s for s in sources if isinstance(s, FileSources)]
 
         #print "graphs"
         #for s in source_dirs:
@@ -659,7 +663,7 @@ class Copier:
             target = TahoeDirectoryTarget(self.nodeurl, self.cache,
                                           self.progress)
             target.just_created(writecap)
-        assert isinstance(target, (LocalDirectoryTarget, TahoeDirectoryTarget))
+        assert isinstance(target, DirectoryTargets)
         target.populate(False)
 
         # step three: find a target for each source node, creating
@@ -714,21 +718,21 @@ class Copier:
 
     def assign_targets(self, source, target):
         # copy everything in the source into the target
-        precondition(isinstance(source, (LocalDirectorySource, TahoeDirectorySource)), source)
+        precondition(isinstance(source, DirectorySources), source)
 
         for name, child in source.children.items():
-            if isinstance(child, (LocalDirectorySource, TahoeDirectorySource)):
+            if isinstance(child, DirectorySources):
                 # we will need a target directory for this one
                 subtarget = target.get_child_target(name)
                 self.assign_targets(child, subtarget)
             else:
-                precondition(isinstance(child, (LocalFileSource, TahoeFileSource)), child)
+                precondition(isinstance(child, FileSources), child)
                 self.attach_to_target(child, name, target)
 
     def copy_files_to_target(self, targetmap, target):
         for name, source in targetmap.items():
-            precondition(isinstance(source, (LocalFileSource, TahoeFileSource)), source)
-            self.copy_file_into(source, name, target)
+            precondition(isinstance(source, FileSources), source)
+            self.copy_file_into_dir(source, name, target)
             self.files_copied += 1
             self.progress("%d/%d files, %d/%d directories" %
                           (self.files_copied, self.files_to_copy,
@@ -748,10 +752,9 @@ class Copier:
             print >>self.stdout, "Success: %s" % msg
         return 0
 
-    def copy_file(self, source, target):
-        precondition(isinstance(source, (LocalFileSource, TahoeFileSource)), source)
-        precondition(isinstance(target, (LocalFileTarget, TahoeFileTarget,
-                                         LocalMissingTarget, TahoeMissingTarget)), target)
+    def copy_file_to_file(self, source, target):
+        precondition(isinstance(source, FileSources), source)
+        precondition(isinstance(target, FileTargets + MissingTargets), target)
         if self.need_to_copy_bytes(source, target):
             # if the target is a local directory, this will just write the
             # bytes to disk. If it is a tahoe directory, it will upload the
@@ -765,9 +768,9 @@ class Copier:
         target.put_uri(source.bestcap())
         return self.announce_success("file linked")
 
-    def copy_file_into(self, source, name, target):
-        precondition(isinstance(source, (LocalFileSource, TahoeFileSource)), source)
-        precondition(isinstance(target, (LocalDirectoryTarget, TahoeDirectoryTarget)), target)
+    def copy_file_into_dir(self, source, name, target):
+        precondition(isinstance(source, FileSources), source)
+        precondition(isinstance(target, DirectoryTargets), target)
         precondition(isinstance(name, unicode), name)
         if self.need_to_copy_bytes(source, target):
             # if the target is a local directory, this will just write the
@@ -789,7 +792,7 @@ class Copier:
     def build_graphs(self, sources):
         graphs = []
         for source in sources:
-            if isinstance(source, (LocalDirectorySource, TahoeDirectorySource)):
+            if isinstance(source, DirectorySources):
                 source.populate(True)
                 graphs.append((source.basename(), source))
         return graphs
