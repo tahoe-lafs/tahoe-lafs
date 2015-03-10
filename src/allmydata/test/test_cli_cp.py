@@ -919,7 +919,7 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
                     return set(["E5-DIRTOFILE"])
                 if err == "copying multiple things requires target be a directory":
                     return set(["E6-MANYONE"])
-                if err == "target is not a directory, but has a slash":
+                if err == "target is not a directory, but ends with a slash":
                     return set(["E7-BADSLASH"])
             self.fail("unrecognized error ('%s') %s" % (case, res))
         d.addCallback(_check)

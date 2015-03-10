@@ -531,7 +531,7 @@ class Copier:
                 target_is_file = False
 
         if target_is_file and target_has_trailing_slash:
-            self.to_stderr("target is not a directory, but has a slash")
+            self.to_stderr("target is not a directory, but ends with a slash")
             return 1
 
         if len(sources) > 1 and target_is_file:
