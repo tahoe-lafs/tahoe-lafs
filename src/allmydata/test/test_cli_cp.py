@@ -7,6 +7,7 @@ from allmydata.scripts import cli
 from allmydata.util import fileutil
 from allmydata.util.encodingutil import (quote_output, get_io_encoding,
                                          unicode_to_output, to_str)
+from allmydata.util.assertutil import _assert
 from .no_network import GridTestMixin
 from .test_cli import CLITestMixin
 
@@ -747,16 +748,11 @@ cp -r $DIRCAP        to/missing/ : to/missing/file
 cp    $DIRALIAS      to/missing/ : E4-NEED-R
 cp -r $DIRALIAS      to/missing/ : to/missing/file
 
-# multiple files to a missing target: should mkdir
-cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/missing : to/missing/file,to/missing/file2
-cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/missing : to/missing/file,to/missing/file2
-
-cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/missing/ : to/missing/file,to/missing/file2
-cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/missing/ : to/missing/file,to/missing/file2
-
 # multiple things to a missing target: should mkdir
 cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/missing : to/missing/file,to/missing/file2
+cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/missing : to/missing/file,to/missing/file2
 cp    $DIRCAP/file $FILECAP              to/missing : E2-DESTNAME
+cp -r $DIRCAP/file $FILECAP              to/missing : E2-DESTNAME
 cp    $DIRCAP $FILECAP                   to/missing : E4-NEED-R
 cp -r $DIRCAP $FILECAP                   to/missing : E2-DESTNAME
       # namedfile, unnameddir, nameddir
@@ -767,7 +763,9 @@ cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/missing : E4-NEE
 cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/missing : E2-DESTNAME
 
 cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/missing/ : to/missing/file,to/missing/file2
+cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/missing/ : to/missing/file,to/missing/file2
 cp    $DIRCAP/file $FILECAP           to/missing/    : E2-DESTNAME
+cp -r $DIRCAP/file $FILECAP           to/missing/    : E2-DESTNAME
 cp    $DIRCAP $FILECAP                to/missing/    : E4-NEED-R
 cp -r $DIRCAP $FILECAP                to/missing/    : E2-DESTNAME
       # namedfile, unnameddir, nameddir
@@ -890,9 +888,7 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
             here = "/".join(dirpath.split(os.sep)[len(top.split(os.sep))-1:])
             results.add(here+"/")
             for fn in filenames:
-                f = open(os.path.join(dirpath, fn), "rb")
-                contents = f.read()
-                f.close()
+                contents = fileutil.read(os.path.join(dirpath, fn))
                 if contents == self.FILE_CONTENTS:
                     results.add("%s/%s" % (here, fn))
                 elif contents == self.FILE_CONTENTS_5:
@@ -911,12 +907,12 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
                .replace("$FILECAP", self.FILECAP)
                .split())
         target = cmd[-1]
+        _assert(target == "to" or target.startswith("to/"), target)
         cmd[-1] = os.path.abspath(os.path.join(self.basedir, cmd[-1]))
 
         # reset
         targetdir = os.path.abspath(os.path.join(self.basedir, "to"))
-        if os.path.exists(targetdir):
-            shutil.rmtree(targetdir)
+        fileutil.rm_dir(targetdir)
         os.mkdir(targetdir)
 
         if target.rstrip("/") == "to/existing-file":
@@ -949,12 +945,12 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(_check)
         return d
 
-    def do_one_test(self, case, expected):
-        expected = expected.copy()
+    def do_one_test(self, case, orig_expected):
+        expected = set(orig_expected)
         printable_expected = ",".join(sorted(expected))
         #print "---", case, ":", printable_expected
 
-        for f in list(expected):
+        for f in orig_expected:
             # f is "dir/file" or "dir/sub/file" or "dir/" or "dir/sub/"
             # we want all parent directories in the set, with trailing /
             pieces = f.rstrip("/").split("/")
@@ -989,7 +985,7 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
                 continue
             case, expected = line.split(":")
             case = case.strip()
-            expected = set(expected.strip().split(","))
+            expected = frozenset(expected.strip().split(","))
 
             d.addCallback(lambda ign, case=case, expected=expected:
                           self.do_one_test(case, expected))
