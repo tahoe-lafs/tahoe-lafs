@@ -1,4 +1,4 @@
-import os.path, simplejson, shutil
+import os.path, simplejson
 from twisted.trial import unittest
 from twisted.python import usage
 from twisted.internet import defer
