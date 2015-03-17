@@ -655,6 +655,7 @@ starting copy, 2 files, 1 directories
             self.failUnlessIn("Success: file copied", out, str(res))
         return d
 
+# these test cases come from ticket #2329 comment 40
 # trailing slash on target *directory* should not matter, test both
 # trailing slash on files should cause error
 
@@ -677,7 +678,7 @@ cp -r $DIRCAP           to/existing-file/ : E7-BADSLASH
 cp    $FILECAP $DIRCAP  to/existing-file/ : E4-NEED-R
 cp -r $FILECAP $DIRCAP  to/existing-file/ : E7-BADSLASH
 
-
+# single source to a (present) target directory
 cp    $FILECAP       to : E2-DESTNAME
 cp -r $FILECAP       to : E2-DESTNAME
 cp    $DIRCAP/file   to : to/file
@@ -686,8 +687,8 @@ cp    $PARENTCAP/dir to : E4-NEED-R
 cp -r $PARENTCAP/dir to : to/dir/file
 cp    $DIRCAP        to : E4-NEED-R
 cp -r $DIRCAP        to : to/file
-cp    $ALIAS         to : E4-NEED-R
-cp -r $ALIAS         to : to/file
+cp    $DIRALIAS      to : E4-NEED-R
+cp -r $DIRALIAS      to : to/file
 
 cp    $FILECAP       to/ : E2-DESTNAME
 cp -r $FILECAP       to/ : E2-DESTNAME
@@ -697,14 +698,14 @@ cp    $PARENTCAP/dir to/ : E4-NEED-R
 cp -r $PARENTCAP/dir to/ : to/dir/file
 cp    $DIRCAP        to/ : E4-NEED-R
 cp -r $DIRCAP        to/ : to/file
-cp    $ALIAS         to/ : E4-NEED-R
-cp -r $ALIAS         to/ : to/file
+cp    $DIRALIAS      to/ : E4-NEED-R
+cp -r $DIRALIAS      to/ : to/file
 
-
-cp $DIRCAP/file $PARENTCAP/dir2/file2 to : to/file,to/file2
-cp    $DIRCAP/file $FILECAP           to : E2-DESTNAME
-cp    $DIRCAP $FILECAP                to : E4-NEED-R
-cp -r $DIRCAP $FILECAP                to : E2-DESTNAME
+# multiple sources to a (present) target directory
+cp    $DIRCAP/file $PARENTCAP/dir2/file2 to : to/file,to/file2
+cp    $DIRCAP/file $FILECAP              to : E2-DESTNAME
+cp    $DIRCAP $FILECAP                   to : E4-NEED-R
+cp -r $DIRCAP $FILECAP                   to : E2-DESTNAME
       # namedfile, unnameddir, nameddir
 cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to : E4-NEED-R
 cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to : to/file3,to/file,to/dir2/file2
@@ -712,10 +713,10 @@ cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to : to/file3,to/fi
 cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to : E4-NEED-R
 cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to : E2-DESTNAME
 
-cp $DIRCAP/file $PARENTCAP/dir2/file2 to/ : to/file,to/file2
-cp    $DIRCAP/file $FILECAP           to/ : E2-DESTNAME
-cp    $DIRCAP $FILECAP                to/ : E4-NEED-R
-cp -r $DIRCAP $FILECAP                to/ : E2-DESTNAME
+cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/ : to/file,to/file2
+cp    $DIRCAP/file $FILECAP           to/    : E2-DESTNAME
+cp    $DIRCAP $FILECAP                to/    : E4-NEED-R
+cp -r $DIRCAP $FILECAP                to/    : E2-DESTNAME
       # namedfile, unnameddir, nameddir
 cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/ : E4-NEED-R
 cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/ : to/file3,to/file,to/dir2/file2
@@ -732,8 +733,8 @@ cp    $PARENTCAP/dir to/missing : E4-NEED-R
 cp -r $PARENTCAP/dir to/missing : to/missing/dir/file
 cp    $DIRCAP        to/missing : E4-NEED-R
 cp -r $DIRCAP        to/missing : to/missing/file
-cp    $ALIAS         to/missing : E4-NEED-R
-cp -r $ALIAS         to/missing : to/missing/file
+cp    $DIRALIAS      to/missing : E4-NEED-R
+cp -r $DIRALIAS      to/missing : to/missing/file
 
 cp    $FILECAP       to/missing/ : E7-BADSLASH
 cp -r $FILECAP       to/missing/ : E7-BADSLASH
@@ -743,8 +744,8 @@ cp    $PARENTCAP/dir to/missing/ : E4-NEED-R
 cp -r $PARENTCAP/dir to/missing/ : to/missing/dir/file
 cp    $DIRCAP        to/missing/ : E4-NEED-R
 cp -r $DIRCAP        to/missing/ : to/missing/file
-cp    $ALIAS         to/missing/ : E4-NEED-R
-cp -r $ALIAS         to/missing/ : to/missing/file
+cp    $DIRALIAS      to/missing/ : E4-NEED-R
+cp -r $DIRALIAS      to/missing/ : to/missing/file
 
 # multiple files to a missing target: should mkdir
 cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/missing : to/missing/file,to/missing/file2
@@ -752,6 +753,29 @@ cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/missing : to/missing/file,to/missing
 
 cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/missing/ : to/missing/file,to/missing/file2
 cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/missing/ : to/missing/file,to/missing/file2
+
+# multiple things to a missing target: should mkdir
+cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/missing : to/missing/file,to/missing/file2
+cp    $DIRCAP/file $FILECAP              to/missing : E2-DESTNAME
+cp    $DIRCAP $FILECAP                   to/missing : E4-NEED-R
+cp -r $DIRCAP $FILECAP                   to/missing : E2-DESTNAME
+      # namedfile, unnameddir, nameddir
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/missing : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/missing : to/missing/file3,to/missing/file,to/missing/dir2/file2
+      # namedfile, unnameddir, nameddir, unnamedfile
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/missing : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/missing : E2-DESTNAME
+
+cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/missing/ : to/missing/file,to/missing/file2
+cp    $DIRCAP/file $FILECAP           to/missing/    : E2-DESTNAME
+cp    $DIRCAP $FILECAP                to/missing/    : E4-NEED-R
+cp -r $DIRCAP $FILECAP                to/missing/    : E2-DESTNAME
+      # namedfile, unnameddir, nameddir
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/missing/ : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/missing/ : to/missing/file3,to/missing/file,to/missing/dir2/file2
+      # namedfile, unnameddir, nameddir, unnamedfile
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/missing/ : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/missing/ : E2-DESTNAME
 
 # make sure empty directories are copied too
 cp -r $PARENTCAP/dir4 to  : to/dir4/emptydir/
@@ -883,7 +907,7 @@ class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
                .replace("$DIRCAP5", self.DIRCAP5)
                .replace("$DIRCAP6", self.DIRCAP6)
                .replace("$DIRCAP", self.DIRCAP)
-               .replace("$ALIAS", "ALIAS:")
+               .replace("$DIRALIAS", "ALIAS:")
                .replace("$FILECAP", self.FILECAP)
                .split())
         target = cmd[-1]
