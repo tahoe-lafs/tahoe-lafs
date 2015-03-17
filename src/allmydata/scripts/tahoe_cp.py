@@ -559,7 +559,7 @@ class Copier:
         _assert(isinstance(target, DirectoryTargets + MissingTargets), target)
 
         for source in sources:
-            if isinstance(source, FileSources) and not source.basename():
+            if isinstance(source, FileSources) and source.basename() is None:
                 self.to_stderr("when copying into a directory, all source files must have names, but %s is unnamed" % quote_output(source_specs[0]))
                 return 1
         return self.copy_things_to_directory(sources, target)
