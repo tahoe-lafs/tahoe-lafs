@@ -116,7 +116,7 @@ class LocalDirectorySource:
                 child = LocalDirectorySource(self.progressfunc, pn, n)
                 self.children[n] = child
                 if recurse:
-                    child.populate(True)
+                    child.populate(recurse=True)
             elif os.path.isfile(pn):
                 self.children[n] = LocalFileSource(pn, n)
             else:
@@ -144,7 +144,7 @@ class LocalDirectoryTarget:
                 child = LocalDirectoryTarget(self.progressfunc, pn)
                 self.children[n] = child
                 if recurse:
-                    child.populate(True)
+                    child.populate(recurse=True)
             else:
                 assert os.path.isfile(pn)
                 self.children[n] = LocalFileTarget(pn)
@@ -152,7 +152,7 @@ class LocalDirectoryTarget:
     def get_child_target(self, name):
         precondition(isinstance(name, unicode), name)
         if self.children is None:
-            self.populate(False)
+            self.populate(recurse=False)
         if name in self.children:
             return self.children[name]
         pathname = os.path.join(self.pathname, name)
@@ -280,7 +280,7 @@ class TahoeDirectorySource:
                     if readcap:
                         self.cache[readcap] = child
                     if recurse:
-                        child.populate(True)
+                        child.populate(recurse=True)
                 self.children[name] = child
             else:
                 # TODO: there should be an option to skip unknown nodes.
@@ -380,7 +380,7 @@ class TahoeDirectoryTarget:
                     if readcap:
                         self.cache[readcap] = child
                     if recurse:
-                        child.populate(True)
+                        child.populate(recurse=True)
                 self.children[name] = child
             else:
                 # TODO: there should be an option to skip unknown nodes.
@@ -392,7 +392,7 @@ class TahoeDirectoryTarget:
         # return a new target for a named subdirectory of this dir
         precondition(isinstance(name, unicode), name)
         if self.children is None:
-            self.populate(False)
+            self.populate(recurse=False)
         if name in self.children:
             return self.children[name]
         writecap = make_tahoe_subdirectory(self.nodeurl, self.writecap, name)
@@ -409,7 +409,7 @@ class TahoeDirectoryTarget:
             inf = inf.read()
 
         if self.children is None:
-            self.populate(False)
+            self.populate(recurse=False)
 
         # Check to see if we already have a mutable file by this name.
         # If so, overwrite that file in place.
@@ -702,12 +702,12 @@ class Copier:
     def copy_things_to_directory(self, sources, target):
         # step one: if the target is missing, we should mkdir it
         target = self.maybe_create_target(target)
-        target.populate(False)
+        target.populate(recurse=False)
 
         # step two: scan any source dirs, recursively, to find children
         for s in sources:
             if isinstance(s, DirectorySources):
-                s.populate(True)
+                s.populate(recurse=True)
             if isinstance(s, FileSources):
                 # each source must have a name, or be a directory
                 _assert(s.basename() is not None, s)
