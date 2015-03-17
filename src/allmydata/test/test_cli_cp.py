@@ -1,11 +1,13 @@
 import os.path, simplejson
 from twisted.trial import unittest
 from twisted.python import usage
+from twisted.internet import defer
 
 from allmydata.scripts import cli
 from allmydata.util import fileutil
 from allmydata.util.encodingutil import (quote_output, get_io_encoding,
                                          unicode_to_output, to_str)
+from allmydata.util.assertutil import _assert
 from .no_network import GridTestMixin
 from .test_cli import CLITestMixin
 
@@ -119,7 +121,7 @@ class Cp(GridTestMixin, CLITestMixin, unittest.TestCase):
         d.addCallback(lambda ign: self.do_cli("cp", self.filecap, outdir))
         def _resp((rc, out, err)):
             self.failUnlessReallyEqual(rc, 1)
-            self.failUnlessIn("error: you must specify a destination filename",
+            self.failUnlessIn("when copying into a directory, all source files must have names, but",
                               err)
             self.failUnlessReallyEqual(out, "")
         d.addCallback(_resp)
@@ -652,4 +654,349 @@ starting copy, 2 files, 1 directories
         def _check(res):
             (rc, out, err) = res
             self.failUnlessIn("Success: file copied", out, str(res))
+        return d
+
+# these test cases come from ticket #2329 comment 40
+# trailing slash on target *directory* should not matter, test both
+# trailing slash on files should cause error
+
+COPYOUT_TESTCASES = """
+cp    $FILECAP          to/existing-file : to/existing-file
+cp -r $FILECAP          to/existing-file : to/existing-file
+cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/existing-file : E6-MANYONE
+cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/existing-file : E6-MANYONE
+cp    $DIRCAP           to/existing-file : E4-NEED-R
+cp -r $DIRCAP           to/existing-file : E5-DIRTOFILE
+cp    $FILECAP $DIRCAP  to/existing-file : E4-NEED-R
+cp -r $FILECAP $DIRCAP  to/existing-file : E6-MANYONE
+
+cp    $FILECAP          to/existing-file/ : E7-BADSLASH
+cp -r $FILECAP          to/existing-file/ : E7-BADSLASH
+cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/existing-file/ : E7-BADSLASH
+cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/existing-file/ : E7-BADSLASH
+cp    $DIRCAP           to/existing-file/ : E4-NEED-R
+cp -r $DIRCAP           to/existing-file/ : E7-BADSLASH
+cp    $FILECAP $DIRCAP  to/existing-file/ : E4-NEED-R
+cp -r $FILECAP $DIRCAP  to/existing-file/ : E7-BADSLASH
+
+# single source to a (present) target directory
+cp    $FILECAP       to : E2-DESTNAME
+cp -r $FILECAP       to : E2-DESTNAME
+cp    $DIRCAP/file   to : to/file
+cp -r $DIRCAP/file   to : to/file
+cp    $PARENTCAP/dir to : E4-NEED-R
+cp -r $PARENTCAP/dir to : to/dir/file
+cp    $DIRCAP        to : E4-NEED-R
+cp -r $DIRCAP        to : to/file
+cp    $DIRALIAS      to : E4-NEED-R
+cp -r $DIRALIAS      to : to/file
+
+cp    $FILECAP       to/ : E2-DESTNAME
+cp -r $FILECAP       to/ : E2-DESTNAME
+cp    $DIRCAP/file   to/ : to/file
+cp -r $DIRCAP/file   to/ : to/file
+cp    $PARENTCAP/dir to/ : E4-NEED-R
+cp -r $PARENTCAP/dir to/ : to/dir/file
+cp    $DIRCAP        to/ : E4-NEED-R
+cp -r $DIRCAP        to/ : to/file
+cp    $DIRALIAS      to/ : E4-NEED-R
+cp -r $DIRALIAS      to/ : to/file
+
+# multiple sources to a (present) target directory
+cp    $DIRCAP/file $PARENTCAP/dir2/file2 to : to/file,to/file2
+cp    $DIRCAP/file $FILECAP              to : E2-DESTNAME
+cp    $DIRCAP $FILECAP                   to : E4-NEED-R
+cp -r $DIRCAP $FILECAP                   to : E2-DESTNAME
+      # namedfile, unnameddir, nameddir
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to : to/file3,to/file,to/dir2/file2
+      # namedfile, unnameddir, nameddir, unnamedfile
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to : E2-DESTNAME
+
+cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/ : to/file,to/file2
+cp    $DIRCAP/file $FILECAP           to/    : E2-DESTNAME
+cp    $DIRCAP $FILECAP                to/    : E4-NEED-R
+cp -r $DIRCAP $FILECAP                to/    : E2-DESTNAME
+      # namedfile, unnameddir, nameddir
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/ : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/ : to/file3,to/file,to/dir2/file2
+      # namedfile, unnameddir, nameddir, unnamedfile
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/ : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/ : E2-DESTNAME
+
+# single sources to a missing target: should mkdir or create a file
+cp    $FILECAP       to/missing : to/missing
+cp -r $FILECAP       to/missing : to/missing
+cp    $DIRCAP/file   to/missing : to/missing
+cp -r $DIRCAP/file   to/missing : to/missing
+cp    $PARENTCAP/dir to/missing : E4-NEED-R
+cp -r $PARENTCAP/dir to/missing : to/missing/dir/file
+cp    $DIRCAP        to/missing : E4-NEED-R
+cp -r $DIRCAP        to/missing : to/missing/file
+cp    $DIRALIAS      to/missing : E4-NEED-R
+cp -r $DIRALIAS      to/missing : to/missing/file
+
+cp    $FILECAP       to/missing/ : E7-BADSLASH
+cp -r $FILECAP       to/missing/ : E7-BADSLASH
+cp    $DIRCAP/file   to/missing/ : E7-BADSLASH
+cp -r $DIRCAP/file   to/missing/ : E7-BADSLASH
+cp    $PARENTCAP/dir to/missing/ : E4-NEED-R
+cp -r $PARENTCAP/dir to/missing/ : to/missing/dir/file
+cp    $DIRCAP        to/missing/ : E4-NEED-R
+cp -r $DIRCAP        to/missing/ : to/missing/file
+cp    $DIRALIAS      to/missing/ : E4-NEED-R
+cp -r $DIRALIAS      to/missing/ : to/missing/file
+
+# multiple things to a missing target: should mkdir
+cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/missing : to/missing/file,to/missing/file2
+cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/missing : to/missing/file,to/missing/file2
+cp    $DIRCAP/file $FILECAP              to/missing : E2-DESTNAME
+cp -r $DIRCAP/file $FILECAP              to/missing : E2-DESTNAME
+cp    $DIRCAP $FILECAP                   to/missing : E4-NEED-R
+cp -r $DIRCAP $FILECAP                   to/missing : E2-DESTNAME
+      # namedfile, unnameddir, nameddir
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/missing : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/missing : to/missing/file3,to/missing/file,to/missing/dir2/file2
+      # namedfile, unnameddir, nameddir, unnamedfile
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/missing : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/missing : E2-DESTNAME
+
+cp    $DIRCAP/file $PARENTCAP/dir2/file2 to/missing/ : to/missing/file,to/missing/file2
+cp -r $DIRCAP/file $PARENTCAP/dir2/file2 to/missing/ : to/missing/file,to/missing/file2
+cp    $DIRCAP/file $FILECAP           to/missing/    : E2-DESTNAME
+cp -r $DIRCAP/file $FILECAP           to/missing/    : E2-DESTNAME
+cp    $DIRCAP $FILECAP                to/missing/    : E4-NEED-R
+cp -r $DIRCAP $FILECAP                to/missing/    : E2-DESTNAME
+      # namedfile, unnameddir, nameddir
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/missing/ : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2          to/missing/ : to/missing/file3,to/missing/file,to/missing/dir2/file2
+      # namedfile, unnameddir, nameddir, unnamedfile
+cp    $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/missing/ : E4-NEED-R
+cp -r $PARENTCAP/dir3/file3 $DIRCAP $PARENTCAP/dir2 $FILECAP to/missing/ : E2-DESTNAME
+
+# make sure empty directories are copied too
+cp -r $PARENTCAP/dir4 to  : to/dir4/emptydir/
+cp -r $PARENTCAP/dir4 to/ : to/dir4/emptydir/
+
+# name collisions: ensure files are copied in order
+cp -r $PARENTCAP/dir6/dir $PARENTCAP/dir5/dir to : to/dir/collide=5
+cp -r $PARENTCAP/dir5/dir $PARENTCAP/dir6/dir to : to/dir/collide=6
+cp -r $DIRCAP6 $DIRCAP5 to : to/dir/collide=5
+cp -r $DIRCAP5 $DIRCAP6 to : to/dir/collide=6
+
+"""
+
+class CopyOut(GridTestMixin, CLITestMixin, unittest.TestCase):
+    FILE_CONTENTS = "file text"
+    FILE_CONTENTS_5 = "5"
+    FILE_CONTENTS_6 = "6"
+
+    def do_setup(self):
+        # first we build a tahoe filesystem that contains:
+        #  $PARENTCAP
+        #  $PARENTCAP/dir  == $DIRCAP == alias:
+        #  $PARENTCAP/dir/file == $FILECAP
+        #  $PARENTCAP/dir2        (named directory)
+        #  $PARENTCAP/dir2/file2
+        #  $PARENTCAP/dir3/file3  (a second named file)
+        #  $PARENTCAP/dir4
+        #  $PARENTCAP/dir4/emptydir/ (an empty directory)
+        #  $PARENTCAP/dir5 == $DIRCAP5
+        #  $PARENTCAP/dir5/dir/collide (contents are "5")
+        #  $PARENTCAP/dir6 == $DIRCAP6
+        #  $PARENTCAP/dir6/dir/collide (contents are "6")
+
+        source_file = os.path.join(self.basedir, "file")
+        fileutil.write(source_file, self.FILE_CONTENTS)
+        source_file_5 = os.path.join(self.basedir, "file5")
+        fileutil.write(source_file_5, self.FILE_CONTENTS_5)
+        source_file_6 = os.path.join(self.basedir, "file6")
+        fileutil.write(source_file_6, self.FILE_CONTENTS_6)
+
+        d = self.do_cli("mkdir")
+        def _stash_parentdircap(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.PARENTCAP = out.strip()
+            return self.do_cli("mkdir", "%s/dir" % self.PARENTCAP)
+        d.addCallback(_stash_parentdircap)
+        def _stash_dircap(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.DIRCAP = out.strip()
+            return self.do_cli("add-alias", "ALIAS", self.DIRCAP)
+        d.addCallback(_stash_dircap)
+        d.addCallback(lambda ign:
+            self.do_cli("put", source_file, "%s/dir/file" % self.PARENTCAP))
+        def _stash_filecap(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err.strip(), "201 Created", str(res))
+            self.FILECAP = out.strip()
+            assert self.FILECAP.startswith("URI:LIT:")
+        d.addCallback(_stash_filecap)
+        d.addCallback(lambda ign:
+            self.do_cli("mkdir", "%s/dir2" % self.PARENTCAP))
+        d.addCallback(lambda ign:
+            self.do_cli("put", source_file, "%s/dir2/file2" % self.PARENTCAP))
+        d.addCallback(lambda ign:
+            self.do_cli("mkdir", "%s/dir3" % self.PARENTCAP))
+        d.addCallback(lambda ign:
+            self.do_cli("put", source_file, "%s/dir3/file3" % self.PARENTCAP))
+        d.addCallback(lambda ign:
+            self.do_cli("mkdir", "%s/dir4" % self.PARENTCAP))
+        d.addCallback(lambda ign:
+            self.do_cli("mkdir", "%s/dir4/emptydir" % self.PARENTCAP))
+
+        d.addCallback(lambda ign:
+            self.do_cli("mkdir", "%s/dir5" % self.PARENTCAP))
+        def _stash_dircap_5(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.DIRCAP5 = out.strip()
+        d.addCallback(_stash_dircap_5)
+        d.addCallback(lambda ign:
+            self.do_cli("mkdir", "%s/dir5/dir" % self.PARENTCAP))
+        d.addCallback(lambda ign:
+            self.do_cli("put", source_file_5, "%s/dir5/dir/collide" % self.PARENTCAP))
+
+        d.addCallback(lambda ign:
+            self.do_cli("mkdir", "%s/dir6" % self.PARENTCAP))
+        def _stash_dircap_6(res):
+            (rc, out, err) = res
+            self.failUnlessEqual(rc, 0, str(res))
+            self.failUnlessEqual(err, "", str(res))
+            self.DIRCAP6 = out.strip()
+        d.addCallback(_stash_dircap_6)
+        d.addCallback(lambda ign:
+            self.do_cli("mkdir", "%s/dir6/dir" % self.PARENTCAP))
+        d.addCallback(lambda ign:
+            self.do_cli("put", source_file_6, "%s/dir6/dir/collide" % self.PARENTCAP))
+
+        return d
+
+    def check_output(self):
+        # locate the files and directories created (if any) under to/
+        top = os.path.join(self.basedir, "to")
+        results = set()
+        for (dirpath, dirnames, filenames) in os.walk(top):
+            assert dirpath.startswith(top)
+            here = "/".join(dirpath.split(os.sep)[len(top.split(os.sep))-1:])
+            results.add(here+"/")
+            for fn in filenames:
+                contents = fileutil.read(os.path.join(dirpath, fn))
+                if contents == self.FILE_CONTENTS:
+                    results.add("%s/%s" % (here, fn))
+                elif contents == self.FILE_CONTENTS_5:
+                    results.add("%s/%s=5" % (here, fn))
+                elif contents == self.FILE_CONTENTS_6:
+                    results.add("%s/%s=6" % (here, fn))
+        return results
+
+    def run_one_case(self, case):
+        cmd = (case
+               .replace("$PARENTCAP", self.PARENTCAP)
+               .replace("$DIRCAP5", self.DIRCAP5)
+               .replace("$DIRCAP6", self.DIRCAP6)
+               .replace("$DIRCAP", self.DIRCAP)
+               .replace("$DIRALIAS", "ALIAS:")
+               .replace("$FILECAP", self.FILECAP)
+               .split())
+        target = cmd[-1]
+        _assert(target == "to" or target.startswith("to/"), target)
+        cmd[-1] = os.path.abspath(os.path.join(self.basedir, cmd[-1]))
+
+        # reset
+        targetdir = os.path.abspath(os.path.join(self.basedir, "to"))
+        fileutil.rm_dir(targetdir)
+        os.mkdir(targetdir)
+
+        if target.rstrip("/") == "to/existing-file":
+            fileutil.write(cmd[-1], "existing file contents\n")
+
+        # The abspath() for cmd[-1] strips a trailing slash, and we want to
+        # test what happens when it is present. So put it back.
+        if target.endswith("/"):
+            cmd[-1] += "/"
+
+        d = self.do_cli(*cmd)
+        def _check(res):
+            (rc, out, err) = res
+            err = err.strip()
+            if rc == 0:
+                return self.check_output()
+            if rc == 1:
+                self.failUnlessEqual(out, "", str(res))
+                if "when copying into a directory, all source files must have names, but" in err:
+                    return set(["E2-DESTNAME"])
+                if err == "cannot copy directories without --recursive":
+                    return set(["E4-NEED-R"])
+                if err == "cannot copy directory into a file":
+                    return set(["E5-DIRTOFILE"])
+                if err == "copying multiple things requires target be a directory":
+                    return set(["E6-MANYONE"])
+                if err == "target is not a directory, but ends with a slash":
+                    return set(["E7-BADSLASH"])
+            self.fail("unrecognized error ('%s') %s" % (case, res))
+        d.addCallback(_check)
+        return d
+
+    def do_one_test(self, case, orig_expected):
+        expected = set(orig_expected)
+        printable_expected = ",".join(sorted(expected))
+        #print "---", case, ":", printable_expected
+
+        for f in orig_expected:
+            # f is "dir/file" or "dir/sub/file" or "dir/" or "dir/sub/"
+            # we want all parent directories in the set, with trailing /
+            pieces = f.rstrip("/").split("/")
+            for i in range(1,len(pieces)):
+                parent = "/".join(pieces[:i])
+                expected.add(parent+"/")
+
+        d = self.run_one_case(case)
+        def _dump(got):
+            ok = "ok" if got == expected else "FAIL"
+            printable_got = ",".join(sorted(got))
+            print "%-31s: got %-19s, want %-19s %s" % (case, printable_got,
+                                                       printable_expected, ok)
+            return got
+        #d.addCallback(_dump)
+        def _check(got):
+            self.failUnlessEqual(got, expected, case)
+        d.addCallback(_check)
+        return d
+
+    def do_tests(self):
+        # then we run various forms of "cp [-r] TAHOETHING to[/missing]"
+        # and see what happens.
+        d = defer.succeed(None)
+        #print
+
+        for line in COPYOUT_TESTCASES.splitlines():
+            if "#" in line:
+                line = line[:line.find("#")]
+            line = line.strip()
+            if not line:
+                continue
+            case, expected = line.split(":")
+            case = case.strip()
+            expected = frozenset(expected.strip().split(","))
+
+            d.addCallback(lambda ign, case=case, expected=expected:
+                          self.do_one_test(case, expected))
+
+        return d
+
+    def test_cp_out(self):
+        # test copying all sorts of things out of a tahoe filesystem
+        self.basedir = "cli_cp/CopyOut/cp_out"
+        self.set_up_grid(num_servers=1)
+
+        d = self.do_setup()
+        d.addCallback(lambda ign: self.do_tests())
         return d
