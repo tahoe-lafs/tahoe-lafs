@@ -778,7 +778,7 @@ class Copier:
                 subtarget = target.get_child_target(name)
                 self.assign_targets(targetmap, child, subtarget)
             else:
-                precondition(isinstance(child, FileSources), child)
+                _assert(isinstance(child, FileSources), child)
                 targetmap[target].append(child)
 
     def copy_to_targetmap(self, targetmap):
@@ -789,9 +789,9 @@ class Copier:
         targets_finished = 0
 
         for target, sources in targetmap.items():
-            precondition(isinstance(target, DirectoryTargets), target)
+            _assert(isinstance(target, DirectoryTargets), target)
             for source in sources:
-                precondition(isinstance(source, FileSources), source)
+                _assert(isinstance(source, FileSources), source)
                 self.copy_file_into_dir(source, source.basename(), target)
                 files_copied += 1
                 self.progress("%d/%d files, %d/%d directories" %
@@ -803,8 +803,7 @@ class Copier:
                           (targets_finished, len(targetmap)))
 
     def count_files_to_copy(self, targetmap):
-        files_to_copy = sum([len(sources) for sources in targetmap.values()])
-        return files_to_copy
+        return sum([len(sources) for sources in targetmap.values()])
 
     def copy_file_into_dir(self, source, name, target):
         precondition(isinstance(source, FileSources), source)
