@@ -248,21 +248,20 @@ class INotify(PollMixin):
                         return
 
                     path = self._path.preauthChild(info.filename)  # FilePath with Unicode path
-                    mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
+                    #mask = _action_to_inotify_mask.get(info.action, IN_CHANGED)
 
-                    def _maybe_notify(path, mask):
-                        event = (path, mask)
-                        if event not in self._pending:
-                            self._pending.add(event)
+                    def _maybe_notify(path):
+                        if path not in self._pending:
+                            self._pending.add(path)
                             def _do_callbacks():
-                                self._pending.remove(event)
+                                self._pending.remove(path)
                                 for cb in self._callbacks:
                                     try:
-                                        cb(None, path, mask)
+                                        cb(None, path, IN_CHANGED)
                                     except Exception, e:
                                         log.msg(e)
                             reactor.callLater(self._pending_delay, _do_callbacks)
-                    reactor.callFromThread(_maybe_notify, path, mask)
+                    reactor.callFromThread(_maybe_notify, path)
         except Exception, e:
             log.msg(e)
             self.stop = False  # pretend we started
