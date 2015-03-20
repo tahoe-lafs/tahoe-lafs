@@ -78,7 +78,7 @@ check: test
 
 .PHONY: quicktest
 quicktest: make-version
-	$(TAHOE) debug trial $(TRIALARGS) $(TEST)
+	@PYTHONWARNINGS=default::DeprecationWarning $(TAHOE) debug trial $(TRIALARGS) $(TEST)
 
 # "make tmpfstest" may be a faster way of running tests on Linux. It works best when you have
 # at least 330 MiB of free physical memory (to run the whole test suite). Since it uses sudo
@@ -90,7 +90,7 @@ tmpfstest:
 .PHONY: _tmpfstest
 _tmpfstest: make-version
 	sudo mount -t tmpfs -o size=400m tmpfs '$(TMPDIR)'
-	-$(TAHOE) debug trial --rterrors '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
+	@PYTHONWARNINGS=default::DeprecationWarning -$(TAHOE) debug trial --rterrors '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
 	sudo umount '$(TMPDIR)'
 	rmdir '$(TMPDIR)'
 
@@ -111,7 +111,7 @@ COVERAGE_OMIT=--include '$(CURDIR)/src/allmydata/*' --omit '$(CURDIR)/src/allmyd
 .PHONY: test-coverage
 test-coverage: build
 	rm -f .coverage
-	$(TAHOE) '@$(COVERAGE)' run $(COVERAGEARGS) @tahoe debug trial $(TRIALARGS) $(TEST)
+	@PYTHONWARNINGS=default::DeprecationWarning $(TAHOE) '@$(COVERAGE)' run $(COVERAGEARGS) @tahoe debug trial $(TRIALARGS) $(TEST)
 
 .PHONY: coverage-output
 coverage-output:

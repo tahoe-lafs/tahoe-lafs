@@ -159,6 +159,10 @@ class Trial(Command):
         pass
 
     def run(self):
+        # enable deprecation warnings (once per line) even on Python 2.7
+        new_env = os.environ.copy()
+        new_env["PYTHONWARNINGS"] = "default::DeprecationWarning"
+
         args = [sys.executable, os.path.join('bin', 'tahoe')]
 
         if self.coverage:
@@ -195,7 +199,7 @@ class Trial(Command):
             args.append('--reporter=' + self.reporter)
         if self.suite:
             args.append(self.suite)
-        rc = subprocess.call(args)
+        rc = subprocess.call(args, env=new_env)
         sys.exit(rc)
 
 
