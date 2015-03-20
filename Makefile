@@ -59,6 +59,14 @@ build-osx-pkg: build
 # test the result
 	$(PYTHON) misc/build_helpers/test-osx-pkg.py
 
+.PHONY: upload-osx-pkg
+upload-osx-pkg:
+	@if [ "X${BB_BRANCH}" = "Xmaster" ] || [ "X${BB_BRANCH}" = "X" ]; then \
+	  flappclient --furlfile ~/.tahoe-osx-pkg-upload.furl upload-file tahoe-lafs-osx.pkg; \
+	 else \
+	  echo not uploading tahoe-lafs-osx-pkg because this is not trunk but is branch \"${BB_BRANCH}\" ; \
+	fi
+
 # TESTING
 
 # you can use 'make test TEST=allmydata.test.test_introducer' to run just
