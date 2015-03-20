@@ -66,6 +66,8 @@ build-osx-pkg: build
 # too.
 TEST=allmydata
 
+TRIALARGS=--rterrors
+
 # It is unnecessary to have this depend on build or src/allmydata/_version.py,
 # since 'setup.py test' always updates the version and builds before testing.
 .PHONY: test
@@ -90,7 +92,7 @@ tmpfstest:
 .PHONY: _tmpfstest
 _tmpfstest: make-version
 	sudo mount -t tmpfs -o size=400m tmpfs '$(TMPDIR)'
-	@PYTHONWARNINGS=default::DeprecationWarning -$(TAHOE) debug trial --rterrors '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
+	@PYTHONWARNINGS=default::DeprecationWarning -$(TAHOE) debug trial '--temp-directory=$(TMPDIR)/_trial_temp' $(TRIALARGS) $(TEST)
 	sudo umount '$(TMPDIR)'
 	rmdir '$(TMPDIR)'
 
