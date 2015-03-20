@@ -503,6 +503,13 @@ if __name__ == '__main__':
     mode = "upload"
     if len(sys.argv) > 1:
         mode = sys.argv[1]
+    if sys.maxint == 2147483647:
+        bits = "32"
+    elif sys.maxint == 9223372036854775807:
+        bits = "64"
+    else:
+        bits = "?"
+    print "%s-bit system (sys.maxint=%d)" % (bits, sys.maxint)
     # put the logfile and stats.out in _test_memory/ . These stick around.
     # put the nodes and other files in _test_memory/test/ . These are
     # removed each time we run.
