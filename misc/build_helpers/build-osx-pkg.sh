@@ -23,7 +23,7 @@ pkgbuild --root $PWD \
 # create product archive
 productbuild --distribution $PWD/misc/build_helpers/osx/Distribution.xml \
              --package-path . \
-             tahoe-lafs-osx.pkg
+             tahoe-lafs-$VERSION-osx.pkg
 
 # remove intermediate pkg
 rm -f tahoe-lafs.pkg
