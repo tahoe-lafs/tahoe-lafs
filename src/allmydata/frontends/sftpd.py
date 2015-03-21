@@ -28,6 +28,7 @@ from allmydata.util import deferredutil
 
 from allmydata.util.assertutil import _assert, precondition
 from allmydata.util.consumer import download_to_data
+from allmydata.util.encodingutil import get_filesystem_encoding
 from allmydata.interfaces import IFileNode, IDirectoryNode, ExistingChildError, \
      NoSuchChildError, ChildOfWrongTypeError
 from allmydata.mutable.common import NotWriteableError

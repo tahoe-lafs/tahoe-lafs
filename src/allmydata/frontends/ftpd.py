@@ -10,6 +10,7 @@ from allmydata.interfaces import IDirectoryNode, ExistingChildError, \
      NoSuchChildError
 from allmydata.immutable.upload import FileHandle
 from allmydata.util.fileutil import EncryptedTemporaryFile
+from allmydata.util.assertutil import precondition
 
 class ReadFile:
     implements(ftp.IReadFile)
