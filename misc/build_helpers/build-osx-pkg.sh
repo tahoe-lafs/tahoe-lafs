@@ -12,18 +12,18 @@ find support -name $APPNAME.egg-link -execdir sh -c "echo >> {}; echo /Applicati
 find support -name easy-install.pth -execdir sed -i.bak 's|^.*/src$|../../../../src|' '{}' \;
 
 # create component pkg
-pkgbuild --root $PWD \
+pkgbuild --root "$PWD" \
          --identifier com.leastauthority.tahoe \
-         --version $VERSION \
+         --version "$VERSION" \
          --ownership recommended \
          --install-location /Applications/tahoe.app \
-         --scripts $PWD/misc/build_helpers/osx/scripts \
+         --scripts "$PWD/misc/build_helpers/osx/scripts" \
          tahoe-lafs.pkg
 
 # create product archive
-productbuild --distribution $PWD/misc/build_helpers/osx/Distribution.xml \
+productbuild --distribution "$PWD/misc/build_helpers/osx/Distribution.xml" \
              --package-path . \
-             tahoe-lafs-$VERSION-osx.pkg
+             "tahoe-lafs-$VERSION-osx.pkg"
 
 # remove intermediate pkg
 rm -f tahoe-lafs.pkg
